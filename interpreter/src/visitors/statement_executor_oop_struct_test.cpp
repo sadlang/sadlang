@@ -134,15 +134,15 @@ namespace Sad
                                                     auto *classMgr = Data::ClassManager::getInstance();
                                                     auto *clsType = classMgr->getClass(structName);
 
-                                                    std::shared_ptr<Data::ObjectInstance> instance;
+                                                    Data::ObjectInstance * instance;
                                                     if (clsType)
                                                     {
                                                         auto *rawObj = clsType->createInstance();
-                                                        instance = std::shared_ptr<Data::ObjectInstance>(rawObj);
+                                                        instance = rawObj;
                                                     }
                                                     else
                                                     {
-                                                        instance = std::make_shared<Data::ObjectInstance>(nullptr, 0);
+                                                        instance = new Data::ObjectInstance(nullptr, 0);
                                                     }
 
                                                     // (AR) تهيئة الحقول بقيمها الافتراضية
@@ -185,15 +185,15 @@ namespace Sad
                                                     auto *classMgr = Data::ClassManager::getInstance();
                                                     auto *classType = classMgr->getClass(structName);
 
-                                                    std::shared_ptr<Data::ObjectInstance> instance;
+                                                    Data::ObjectInstance * instance;
                                                     if (classType)
                                                     {
                                                         auto *rawObj = classType->createInstance();
-                                                        instance = std::shared_ptr<Data::ObjectInstance>(rawObj);
+                                                        instance = rawObj;
                                                     }
                                                     else
                                                     {
-                                                        instance = std::make_shared<Data::ObjectInstance>(nullptr, 0);
+                                                        instance = new Data::ObjectInstance(nullptr, 0);
                                                     }
 
                                                     for (size_t i = 0; i < fieldsCopy.size(); ++i)

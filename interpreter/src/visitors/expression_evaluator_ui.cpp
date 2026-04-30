@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // expression_evaluator_ui.cpp — تقييم تعابير عناصر الواجهات التصريحية
 // ======================================================================
 // الوصف بالعربية:
@@ -67,7 +67,8 @@ namespace Sad
                 }
             }
 
-            auto builder = std::make_shared<WidgetBuilder>(nodeType);
+            // (AR) B-step5b: WidgetBuilder خام مُدار بـGC
+            auto *builder = new WidgetBuilder(nodeType);
 
             // ─────────────────────────────────────────────────────────────────
             // (AR) معالجة الوسائط الموضعية — تُعيّن كخصائص على IRNode
@@ -121,10 +122,10 @@ namespace Sad
                 // (EN) If value is WidgetBuilder → add as named child
                 if (lastResult_.isObject())
                 {
-                    auto obj = lastResult_.toObject();
-                    if (obj && isWidgetBuilder(obj.get()))
+                    auto *obj = lastResult_.toObject();
+                    if (obj && isWidgetBuilder(obj))
                     {
-                        auto childBuilder = static_cast<WidgetBuilder *>(obj.get());
+                        auto childBuilder = static_cast<WidgetBuilder *>(obj);
                         builder->addChild(childBuilder->getIRNode());
                         // (AR) أيضاً نعيّن خاصية بالاسم للربط
                         builder->setIRProperty(name, "widget_" + std::to_string(childBuilder->objectId));
@@ -145,7 +146,7 @@ namespace Sad
 
             // (AR) استخراج كائن المالك (هذا) من النطاق — لربط الأحداث بالمكون
             // (EN) Extract owner (هذا) from scope — to bind events to component
-            std::shared_ptr<Data::ObjectInstance> ownerObj;
+            Data::ObjectInstance * ownerObj = nullptr;
             try
             {
                 auto thisVal = variableManager_.get("\xd9\x87\xd8\xb0\xd8\xa7"); // هذا
@@ -164,7 +165,7 @@ namespace Sad
             if (ownerObj)
             {
                 builder->fields["__owner"] = Value(
-                    std::static_pointer_cast<Data::ObjectInstance>(ownerObj));
+                    static_cast<Data::ObjectInstance *>(ownerObj));
             }
 
             for (auto &modifier : node.modifiers)
@@ -309,10 +310,10 @@ namespace Sad
                         // (EN) If value is WidgetBuilder → add as child
                         if (modVal.isObject())
                         {
-                            auto obj = modVal.toObject();
-                            if (obj && isWidgetBuilder(obj.get()))
+                            auto *obj = modVal.toObject();
+                            if (obj && isWidgetBuilder(obj))
                             {
-                                auto childBuilder = static_cast<WidgetBuilder *>(obj.get());
+                                auto childBuilder = static_cast<WidgetBuilder *>(obj);
                                 builder->addChild(childBuilder->getIRNode());
                                 // (AR) أيضاً نحفظ المعدّل كخاصية للإشارة
                                 builder->setIRProperty(modifier->name,
@@ -363,11 +364,11 @@ namespace Sad
 
                     if (childVal.isObject())
                     {
-                        auto obj = childVal.toObject();
-                        if (obj && isWidgetBuilder(obj.get()))
+                        auto *obj = childVal.toObject();
+                        if (obj && isWidgetBuilder(obj))
                         {
                             // (AR) ابن WidgetBuilder → إضافة IRNode مباشرة
-                            auto childBuilder = static_cast<WidgetBuilder *>(obj.get());
+                            auto childBuilder = static_cast<WidgetBuilder *>(obj);
                             builder->addChild(childBuilder->getIRNode());
                         }
                         else if (obj)
@@ -398,7 +399,7 @@ namespace Sad
             // (AR) إرجاع WidgetBuilder كنتيجة (Value::OBJECT)
             // (EN) Return WidgetBuilder as result (Value::OBJECT)
             // ─────────────────────────────────────────────────────────────────
-            lastResult_ = Value(std::static_pointer_cast<Data::ObjectInstance>(builder));
+            lastResult_ = Value(static_cast<Data::ObjectInstance *>(builder));
         }
 
     } // namespace Interpreter

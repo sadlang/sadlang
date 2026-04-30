@@ -743,7 +743,7 @@ namespace Sad
         // =========================================================================
 
         Data::Value Interpreter::callMethodOnObject(
-            const std::shared_ptr<Data::ObjectInstance> &obj,
+            Data::ObjectInstance *obj,
             const std::string &methodName,
             const std::vector<Data::Value> &args)
         {
@@ -851,7 +851,7 @@ namespace Sad
 
         Data::Value Interpreter::callFunctionInObjectContext(
             const std::string &funcName,
-            const std::shared_ptr<Data::ObjectInstance> &obj,
+            Data::ObjectInstance *obj,
             const std::vector<Data::Value> &args)
         {
             if (!obj)

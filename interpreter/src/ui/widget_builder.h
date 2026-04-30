@@ -168,16 +168,16 @@ namespace Sad
             void addChild(std::shared_ptr<sad::ui::IRNode> childNode);
 
             /**
-             * @brief (AR) إضافة WidgetBuilder كابن — يحفظ المرجع للوصول لاحقاً للأحداث
-             * @brief (EN) Add WidgetBuilder as child — keeps ref for later event registration
+             * @brief (AR) إضافة WidgetBuilder كابن — يحفظ المرجع للوصول لاحقاً للأحداث (مؤشر مُدار بـGC)
+             * @brief (EN) Add WidgetBuilder as child — keeps ref for later event registration (GC-managed pointer)
              */
-            void addChildBuilder(std::shared_ptr<WidgetBuilder> child);
+            void addChildBuilder(WidgetBuilder *child);
 
             /**
              * @brief (AR) الحصول على قائمة WidgetBuilder الأبناء (للتسجيل التكراري للأحداث)
              * @brief (EN) Get child WidgetBuilders (for recursive event registration)
              */
-            const std::vector<std::shared_ptr<WidgetBuilder>> &getChildBuilders() const { return childBuilders_; }
+            const std::vector<WidgetBuilder *> &getChildBuilders() const { return childBuilders_; }
 
             // ──────────────────────────────────────────────────────
             // تلميح العرض
@@ -258,8 +258,8 @@ namespace Sad
             /// (AR) عقدة IR المغلَّفة — القلب الفعلي للعنصر
             std::shared_ptr<sad::ui::IRNode> irNode_;
 
-            /// (AR) قائمة WidgetBuilder الأبناء — لتسجيل أحداثهم تكرارياً (shared_ptr لمنع dangling)
-            std::vector<std::shared_ptr<WidgetBuilder>> childBuilders_;
+            /// (AR) قائمة WidgetBuilder الأبناء — مؤشرات خام مُدارة بـGC (B-step5b)
+            std::vector<WidgetBuilder *> childBuilders_;
 
             /// (AR) عداد المعرفات الفريدة
             static std::atomic<size_t> widgetIdCounter_;

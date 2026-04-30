@@ -148,9 +148,9 @@ namespace Sad
                     //      شجرة IRNode مباشرة بدلاً من الخرائط القديمة
                     // (EN) WidgetBuilder support: print IRNode tree directly
                     // ═══════════════════════════════════════════════════════════════════
-                    if (isWidgetBuilder(obj.get()))
+                    if (isWidgetBuilder(obj))
                     {
-                        auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(obj.get());
+                        auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(obj);
                         printIRNodeTree(wb->getIRNode(), depth, maxDepth);
                         return;
                     }

@@ -409,7 +409,7 @@ namespace Sad
         }
 
         std::string UIBridge::registerHandler(const Data::Value &handler,
-                                              const std::shared_ptr<Data::ObjectInstance> &owner,
+                                              Data::ObjectInstance *owner,
                                               const std::string &stableId)
         {
             // (AR) إذا وُجد معرّف مستقر نستخدمه، وإلا نولّد معرّف بالعداد
@@ -449,16 +449,16 @@ namespace Sad
             //      If found, execute function in object context (هذا + fields)
             //      and copy field modifications back after execution
             // ═══════════════════════════════════════════════════════════════
-            std::shared_ptr<Data::ObjectInstance> ownerObj;
+            Data::ObjectInstance * ownerObj = nullptr;
             // (AR) أولاً نحاول من HandlerEntry.owner المباشر
-            ownerObj = it->second.owner.lock();
+            ownerObj = it->second.owner;
             // (AR) احتياط: إذا لم يكن في HandlerEntry، نبحث في handlerOwners_ القديمة
             if (!ownerObj)
             {
                 auto ownerIt = handlerOwners_.find(handlerId);
                 if (ownerIt != handlerOwners_.end())
                 {
-                    ownerObj = ownerIt->second.lock();
+                    ownerObj = ownerIt->second;
                 }
             }
 
@@ -837,10 +837,10 @@ namespace Sad
 
             for (size_t i = 0; i < childBuilders.size() && i < childIRNodes.size(); ++i)
             {
-                auto &childWBPtr = childBuilders[i];
+                auto *childWBPtr = childBuilders[i];
                 if (!childWBPtr)
                     continue;
-                auto *childWB = childWBPtr.get();
+                auto *childWB = childWBPtr;
 
                 auto &childIR = childIRNodes[i];
 
@@ -850,7 +850,7 @@ namespace Sad
                     if (key.rfind("__event_", 0) == 0)
                     {
                         // (AR) استخراج owner من حقل __owner إن وجد
-                        std::shared_ptr<Data::ObjectInstance> ownerPtr;
+                        Data::ObjectInstance * ownerPtr = nullptr;
                         auto *ownerField = childWB->getField("__owner");
                         if (ownerField && ownerField->isObject())
                         {

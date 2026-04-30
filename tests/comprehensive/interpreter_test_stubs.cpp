@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interpreter_test_stubs.cpp
  * @brief Stub for registerBuiltinFunctions to avoid pulling the entire stdlib
  *
@@ -133,7 +133,7 @@ namespace Sad
     namespace Interpreter
     {
         void UIStateManager::registerComponent(
-            std::shared_ptr<Data::ObjectInstance> /*obj*/,
+            Data::ObjectInstance * /*obj*/,
             const std::string & /*componentName*/,
             const std::unordered_set<std::string> & /*stateFields*/)
         {

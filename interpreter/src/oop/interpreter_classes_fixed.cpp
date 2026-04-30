@@ -174,7 +174,7 @@ Data::Value executeNewExpression(Interpreter* interpreter, AST::NewExpr* node) {
     // إرجاع قيمة الكائن باستخدام Value(ObjectPtr)
     // ObjectManager يُرجع مؤشراً خاماً، لكن نحتاج shared_ptr
     // نُنشئ shared_ptr بدون deleter لأن ObjectManager يملك الكائن
-    auto objPtr = std::shared_ptr<Data::ObjectInstance>(object, [](Data::ObjectInstance*){});
+    auto objPtr = Data::ObjectInstance *(object, [](Data::ObjectInstance*){});
     return Data::Value(objPtr);
 }
 
@@ -481,7 +481,7 @@ Data::Value executeThisExpression(Interpreter* interpreter, AST::ThisExpr* node)
     }
     
     // إرجاع قيمة الكائن الحالي كـ Value
-    auto objPtr = std::shared_ptr<Data::ObjectInstance>(currentObj, [](Data::ObjectInstance*){});
+    auto objPtr = Data::ObjectInstance *(currentObj, [](Data::ObjectInstance*){});
     return Data::Value(objPtr);
 }
 
@@ -507,7 +507,7 @@ Data::Value executeSuperExpression(Interpreter* interpreter, AST::SuperExpr* nod
     // إرجاع كائن الصنف الأساسي
     Data::ObjectInstance* baseInstance = currentObj->getBaseInstance();
     if (baseInstance) {
-        auto basePtr = std::shared_ptr<Data::ObjectInstance>(baseInstance, [](Data::ObjectInstance*){});
+        auto basePtr = Data::ObjectInstance *(baseInstance, [](Data::ObjectInstance*){});
         return Data::Value(basePtr);
     }
     

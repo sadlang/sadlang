@@ -56,16 +56,17 @@ namespace Sad
 #define MAKE_SIMPLE_WIDGET_FN(nodeType)                       \
     [](const std::vector<std::shared_ptr<Data::Value>> &args) \
         -> std::shared_ptr<Data::Value> {                                              \
-        auto builder = std::make_shared<WidgetBuilder>(sad::ui::UINodeType::nodeType);  \
+        /* (AR) B-step5b: WidgetBuilder تُخصَّص بـnew وتُدار بـGC */                  \
+        auto *builder = new WidgetBuilder(sad::ui::UINodeType::nodeType);              \
         /* إضافة جميع الوسائط كأبناء إذا كانت WidgetBuilder */                        \
         for (auto &arg : args) {                                                       \
             if (arg && arg->getKind() == Types::SadTypeKind::Class) {                    \
-                auto obj = arg->toObject();                                            \
-                if (isWidgetBuilder(obj.get())) { builder->addChildBuilder(std::static_pointer_cast<WidgetBuilder>(obj)); }    \
+                auto *obj = arg->toObject();                                            \
+                if (isWidgetBuilder(obj)) { builder->addChildBuilder(static_cast<WidgetBuilder *>(obj)); }    \
             }                                                                          \
         }                                                                              \
         return std::make_shared<Data::Value>(                                           \
-            std::static_pointer_cast<Data::ObjectInstance>(builder)); }
+            static_cast<Data::ObjectInstance *>(builder)); }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ماكرو مساعد: إنشاء دالة بناء عنصر مع خاصية أولى
@@ -75,19 +76,20 @@ namespace Sad
 #define MAKE_WIDGET_WITH_PROP_FN(nodeType, propName)          \
     [](const std::vector<std::shared_ptr<Data::Value>> &args) \
         -> std::shared_ptr<Data::Value> {                                              \
-        auto builder = std::make_shared<WidgetBuilder>(sad::ui::UINodeType::nodeType);  \
+        /* (AR) B-step5b: WidgetBuilder تُخصَّص بـnew وتُدار بـGC عند أول لف في Value */ \
+        auto *builder = new WidgetBuilder(sad::ui::UINodeType::nodeType);              \
         if (!args.empty() && args[0]) {                                                \
             builder->setIRPropertyFromValue(propName, *args[0]);                        \
         }                                                                              \
         /* إضافة الوسائط المتبقية كأبناء إذا كانت WidgetBuilder */                     \
         for (size_t i = 1; i < args.size(); ++i) {                                     \
             if (args[i] && args[i]->getKind() == Types::SadTypeKind::Class) {            \
-                auto obj = args[i]->toObject();                                        \
-                if (isWidgetBuilder(obj.get())) { builder->addChildBuilder(std::static_pointer_cast<WidgetBuilder>(obj)); }    \
+                auto *obj = args[i]->toObject();                                        \
+                if (isWidgetBuilder(obj)) { builder->addChildBuilder(static_cast<WidgetBuilder *>(obj)); }    \
             }                                                                          \
         }                                                                              \
         return std::make_shared<Data::Value>(                                           \
-            std::static_pointer_cast<Data::ObjectInstance>(builder)); }
+            static_cast<Data::ObjectInstance *>(builder)); }
 
         void registerWidgetBuiltins(Interpreter &interpreter)
         {
@@ -194,7 +196,8 @@ namespace Sad
             auto sizedbox_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
                 -> std::shared_ptr<Data::Value>
             {
-                auto builder = std::make_shared<WidgetBuilder>(sad::ui::UINodeType::SizedBox);
+                // (AR) B-step5b: WidgetBuilder خام مُدار بـGC
+                auto *builder = new WidgetBuilder(sad::ui::UINodeType::SizedBox);
                 // (AR) معالجة وسائط عرض وارتفاع
                 if (args.size() >= 1 && args[0])
                 {
@@ -205,7 +208,7 @@ namespace Sad
                     builder->setIRPropertyFromValue("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", *args[1]); // ارتفاع
                 }
                 return std::make_shared<Data::Value>(
-                    std::static_pointer_cast<Data::ObjectInstance>(builder));
+                    static_cast<Data::ObjectInstance *>(builder));
             };
             fm.registerBuiltinFunction(std::string(Bw::SIZED_BOX), sizedbox_fn); // مقاس
 

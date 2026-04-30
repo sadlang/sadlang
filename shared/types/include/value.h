@@ -151,7 +151,15 @@ namespace Sad
                 bool operator==(const TupleType &other) const;
             };
 
-            using ObjectPtr = std::shared_ptr<ObjectInstance>;   ///< (AR) مؤشر مشترك لكائن / (EN) Shared pointer to object
+            // (AR) B-step5b: ObjectPtr هو الآن مؤشر خام تديره GC.
+            //      دورة حياة ObjectInstance يديرها محرّك GC الموحَّد عبر
+            //      destroyer-callback المسجَّل في Value::Value(ObjectPtr).
+            //      Pin<ObjectInstance> يُستخدم لتثبيت الكائن كجذر عند الحاجة.
+            // (EN) B-step5b: ObjectPtr is now a raw pointer managed by GC.
+            //      ObjectInstance lifetime is owned by the unified GC engine via
+            //      a destroyer-callback registered in Value::Value(ObjectPtr).
+            //      Use Pin<ObjectInstance> to root an object explicitly.
+            using ObjectPtr = ObjectInstance *;                  ///< (AR) مؤشر خام لكائن مُدار بـGC / (EN) Raw GC-managed pointer
             using FunctionRefPtr = std::shared_ptr<FunctionRef>; ///< (AR) مؤشر مشترك لمرجع دالة / (EN) Shared pointer to function reference
 
             // ══════════════════════════════════════════════════════════════════
@@ -529,16 +537,16 @@ namespace Sad
              *   - shared_ptr<ObjectInstance> → OBJECT (shared by reference)
              */
             std::variant<
-                std::monostate,                  // VOID
-                int64_t,                         // INTEGER (64-bit)
-                double,                          // DOUBLE
-                std::string,                     // STRING
-                bool,                            // BOOLEAN
-                std::shared_ptr<ArrayType>,      // ARRAY
-                std::shared_ptr<MapType>,        // MAP
-                std::shared_ptr<TupleType>,      // TUPLE — صف مرتب
-                std::shared_ptr<ObjectInstance>, // OBJECT — كائن حقيقي
-                std::shared_ptr<FunctionRef>     // FUNCTION — مرجع دالة من الدرجة الأولى
+                std::monostate,              // VOID
+                int64_t,                     // INTEGER (64-bit)
+                double,                      // DOUBLE
+                std::string,                 // STRING
+                bool,                        // BOOLEAN
+                std::shared_ptr<ArrayType>,  // ARRAY
+                std::shared_ptr<MapType>,    // MAP
+                std::shared_ptr<TupleType>,  // TUPLE — صف مرتب
+                ObjectInstance *,            // OBJECT — كائن مُدار بـGC (B-step5b)
+                std::shared_ptr<FunctionRef> // FUNCTION — مرجع دالة من الدرجة الأولى
                 >
                 data_;
 

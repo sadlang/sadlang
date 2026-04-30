@@ -45,7 +45,7 @@
 #pragma once
 
 #include "ownership/ownership_tracker.h" // (AR) المحرك الموحَّد / (EN) Unified engine
-#include "memory/policy/gc_mode.h"        // (AR) سياسة الذاكرة الموحَّدة / (EN) Unified memory policy
+#include "memory/policy/gc_mode.h"       // (AR) سياسة الذاكرة الموحَّدة / (EN) Unified memory policy
 
 #include <string>
 #include <vector>

@@ -135,10 +135,10 @@ namespace Sad
 #ifdef HAS_WIDGET_BUILDER
                 if (objectValue.isObject())
                 {
-                    auto objPtr = objectValue.toObject();
-                    if (objPtr && isWidgetBuilder(objPtr.get()))
+                    auto *objPtr = objectValue.toObject();
+                    if (objPtr && isWidgetBuilder(objPtr))
                     {
-                        auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(objPtr.get());
+                        auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(objPtr);
                         const std::string &m = node.methodName;
 
                         // (AR) تقييم المعاملات
@@ -156,9 +156,9 @@ namespace Sad
                             if (!args.empty() && args[0].isObject())
                             {
                                 auto childObj = args[0].toObject();
-                                if (childObj && isWidgetBuilder(childObj.get()))
+                                if (childObj && isWidgetBuilder(childObj))
                                 {
-                                    auto *childWB = static_cast<WidgetBuilder *>(childObj.get());
+                                    auto *childWB = static_cast<WidgetBuilder *>(childObj);
                                     wb->addChild(childWB->getIRNode());
                                 }
                             }
@@ -173,9 +173,9 @@ namespace Sad
                                 if (a.isObject())
                                 {
                                     auto childObj = a.toObject();
-                                    if (childObj && isWidgetBuilder(childObj.get()))
+                                    if (childObj && isWidgetBuilder(childObj))
                                     {
-                                        auto *childWB = static_cast<WidgetBuilder *>(childObj.get());
+                                        auto *childWB = static_cast<WidgetBuilder *>(childObj);
                                         wb->addChild(childWB->getIRNode());
                                     }
                                 }

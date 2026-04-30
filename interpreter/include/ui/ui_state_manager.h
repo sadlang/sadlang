@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // ui_state_manager.h — مدير الحالة التفاعلية لنظام الواجهات
 // ======================================================================
 // الوصف بالعربية:
@@ -61,7 +61,7 @@ namespace Sad
         // =====================================================================
         struct UIComponentRecord
         {
-            std::weak_ptr<Data::ObjectInstance> instance; ///< مرجع ضعيف للكائن
+            Data::ObjectInstance *instance = nullptr; ///< مؤشر خام مُدار بـGC (B-step5b)
             std::unordered_set<std::string> stateFields;  ///< أسماء حقول @حالة
             std::string componentName;                    ///< اسم المكون (واجهة عداد → "عداد")
         };
@@ -113,7 +113,7 @@ namespace Sad
             // @param componentName — اسم المكون ("عداد")
             // @param stateFields   — أسماء حقول @حالة
             void registerComponent(
-                std::shared_ptr<Data::ObjectInstance> obj,
+                Data::ObjectInstance * obj,
                 const std::string &componentName,
                 const std::unordered_set<std::string> &stateFields);
 

@@ -152,13 +152,13 @@ namespace Sad
             }
         }
 
-        void WidgetBuilder::addChildBuilder(std::shared_ptr<WidgetBuilder> child)
+        void WidgetBuilder::addChildBuilder(WidgetBuilder *child)
         {
             if (child && child->getIRNode())
             {
                 irNode_->addChild(child->getIRNode());
-                // (AR) حفظ مرجع الابن (shared_ptr) للوصول لاحقاً لحقول __event_*
-                childBuilders_.push_back(std::move(child));
+                // (AR) حفظ مرجع الابن (مؤشر خام مُدار بـGC) للوصول لاحقاً لحقول __event_*
+                childBuilders_.push_back(child);
             }
         }
 

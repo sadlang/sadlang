@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interpreter_core.h
  * @brief (AR) المفسر الأساسي - يدير تنفيذ برامج لغة ص
  * @brief (EN) Core Interpreter - manages execution of S Language programs
@@ -273,7 +273,7 @@ namespace Sad
              * @return (AR) القيمة المُرجعة / (EN) Return value
              */
             Data::Value callMethodOnObject(
-                const std::shared_ptr<Data::ObjectInstance> &obj,
+                Data::ObjectInstance *obj,
                 const std::string &methodName,
                 const std::vector<Data::Value> &args = {});
 
@@ -304,7 +304,7 @@ namespace Sad
              */
             Data::Value callFunctionInObjectContext(
                 const std::string &funcName,
-                const std::shared_ptr<Data::ObjectInstance> &obj,
+                Data::ObjectInstance *obj,
                 const std::vector<Data::Value> &args = {});
 
         private:

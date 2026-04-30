@@ -20,46 +20,47 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) تسجيل تخصيص جديد. allocator يمكن أن يكون NULL (يُعامَل كنص فارغ).
-// (EN) Register a new allocation. `allocator` may be NULL.
-// ─────────────────────────────────────────────────────────────────────────────
-void sad_ownership_register(void* ptr, size_t size, const char* allocator);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // (AR) تسجيل تخصيص جديد. allocator يمكن أن يكون NULL (يُعامَل كنص فارغ).
+    // (EN) Register a new allocation. `allocator` may be NULL.
+    // ─────────────────────────────────────────────────────────────────────────────
+    void sad_ownership_register(void *ptr, size_t size, const char *allocator);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) تسجيل تحرير. تُرجع 1 إذا نجح، 0 عند تحرير مزدوج أو مؤشر غير مسجَّل.
-// (EN) Register a deallocation. Returns 1 on success, 0 on double-free or
-//      unknown pointer.
-// ─────────────────────────────────────────────────────────────────────────────
-int  sad_ownership_deregister(void* ptr, const char* deallocator);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // (AR) تسجيل تحرير. تُرجع 1 إذا نجح، 0 عند تحرير مزدوج أو مؤشر غير مسجَّل.
+    // (EN) Register a deallocation. Returns 1 on success, 0 on double-free or
+    //      unknown pointer.
+    // ─────────────────────────────────────────────────────────────────────────────
+    int sad_ownership_deregister(void *ptr, const char *deallocator);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) نقل ملكية مؤشر مسجَّل (يضع policy=TRANSFERRED).
-// (EN) Transfer ownership of a registered pointer (sets policy=TRANSFERRED).
-// ─────────────────────────────────────────────────────────────────────────────
-void sad_ownership_transfer(void* ptr, const char* new_owner);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // (AR) نقل ملكية مؤشر مسجَّل (يضع policy=TRANSFERRED).
+    // (EN) Transfer ownership of a registered pointer (sets policy=TRANSFERRED).
+    // ─────────────────────────────────────────────────────────────────────────────
+    void sad_ownership_transfer(void *ptr, const char *new_owner);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) فحوص بسيطة. تُرجع 0/1 — مناسبة لاستهلاك C البحت.
-// (EN) Simple checks. Return 0/1 for plain C consumers.
-// ─────────────────────────────────────────────────────────────────────────────
-int  sad_ownership_is_owned(void* ptr);
-int  sad_ownership_is_freed(void* ptr);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // (AR) فحوص بسيطة. تُرجع 0/1 — مناسبة لاستهلاك C البحت.
+    // (EN) Simple checks. Return 0/1 for plain C consumers.
+    // ─────────────────────────────────────────────────────────────────────────────
+    int sad_ownership_is_owned(void *ptr);
+    int sad_ownership_is_freed(void *ptr);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) طباعة تقرير التسربات إلى stdout (نفس تنسيق C++ API).
-// (EN) Print the leak report to stdout (identical format to C++ API).
-// ─────────────────────────────────────────────────────────────────────────────
-void sad_ownership_print_leaks(void);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // (AR) طباعة تقرير التسربات إلى stdout (نفس تنسيق C++ API).
+    // (EN) Print the leak report to stdout (identical format to C++ API).
+    // ─────────────────────────────────────────────────────────────────────────────
+    void sad_ownership_print_leaks(void);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) مسح كل التتبعات (استخدامها في إعادة تهيئة الاختبارات).
-// (EN) Clear all tracking (useful in test resets).
-// ─────────────────────────────────────────────────────────────────────────────
-void sad_ownership_clear(void);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // (AR) مسح كل التتبعات (استخدامها في إعادة تهيئة الاختبارات).
+    // (EN) Clear all tracking (useful in test resets).
+    // ─────────────────────────────────────────────────────────────────────────────
+    void sad_ownership_clear(void);
 
 #ifdef __cplusplus
 } // extern "C"

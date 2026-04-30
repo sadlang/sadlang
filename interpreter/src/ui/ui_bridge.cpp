@@ -416,9 +416,9 @@ namespace Sad
                 //      IRNode المضمّن مباشرة — بدون أي تحويل وسيط
                 // (EN) WidgetBuilder support: extract embedded IRNode directly
                 // =================================================================
-                if (isWidgetBuilder(obj.get()))
+                if (isWidgetBuilder(obj))
                 {
-                    auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(obj.get());
+                    auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(obj);
                     auto irNode = wb->getIRNode();
 
                     // ═══════════════════════════════════════════════════════════
@@ -433,7 +433,7 @@ namespace Sad
                         if (key.rfind("__event_", 0) == 0)
                         {
                             // (AR) استخراج owner من حقل __owner إن وجد
-                            std::shared_ptr<Data::ObjectInstance> ownerPtr;
+                            Data::ObjectInstance * ownerPtr = nullptr;
                             auto *ownerField = wb->getField("__owner");
                             if (ownerField && ownerField->isObject())
                             {
@@ -562,7 +562,7 @@ namespace Sad
                 {
                     sad::ui::UINodeType nodeType = stringToNodeType(widgetType);
                     auto irNode = sad::ui::IRNode::create(nodeType);
-                    irNode->setId(obj->getClassName() + "_" + std::to_string(reinterpret_cast<uintptr_t>(obj.get())));
+                    irNode->setId(obj->getClassName() + "_" + std::to_string(reinterpret_cast<uintptr_t>(obj)));
 
                     // (AR) قراءة حقول الكائن مباشرة كخصائص
                     auto fieldNames = obj->getFieldNames();

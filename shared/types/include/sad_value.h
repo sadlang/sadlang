@@ -105,7 +105,9 @@ namespace Sad
             // ══════════════════════════════════════════════════════════════════
             using ArrayType = std::vector<SadValue>;
             using MapType = std::unordered_map<std::string, SadValue>;
-            using ObjectPtr = std::shared_ptr<Data::ObjectInstance>;
+            // (AR) B-step5b: ObjectPtr مؤشر خام مُدار بـGC (متوافق مع Data::Value::ObjectPtr).
+            // (EN) B-step5b: raw GC-managed pointer (matches Data::Value::ObjectPtr).
+            using ObjectPtr = Data::ObjectInstance *;
             using FunctionRefPtr = std::shared_ptr<Data::FunctionRef>;
 
             /// @brief (AR) بنية الصف — تغلف vector<SadValue> لتمييزها عن ArrayType في variant

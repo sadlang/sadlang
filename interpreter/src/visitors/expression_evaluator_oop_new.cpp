@@ -199,7 +199,9 @@ namespace Sad
             //      This differs from the old behavior which used MAP
             // ═══════════════════════════════════════════════════════════════════
             size_t objId = generateObjectId();
-            auto objectInstance = std::make_shared<ObjectInstance>(classType, objId);
+            // (AR) B-step5b: ObjectInstance يُخصَّص بـnew ويُدار بـGC (لا shared_ptr)
+            // (EN) B-step5b: ObjectInstance allocated with new, managed by GC (no shared_ptr)
+            auto *objectInstance = new ObjectInstance(classType, objId);
 
             // (AR) خطاف مصحح الأداء — تتبع إنشاء الكائنات
             // (EN) Profiler hook — track object creation

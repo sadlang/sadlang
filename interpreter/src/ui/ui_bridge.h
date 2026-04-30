@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═══════════════════════════════════════════════════════════════════════════════
  * ملف: ui_bridge.h
  * المسار: interpreter/src/ui/ui_bridge.h
@@ -106,7 +106,7 @@ namespace Sad
              * @return معرّف فريد للـ handler
              */
             std::string registerHandler(const Data::Value &handler,
-                                        const std::shared_ptr<Data::ObjectInstance> &owner,
+                                        Data::ObjectInstance *owner,
                                         const std::string &stableId = "");
 
             /**
@@ -708,7 +708,7 @@ namespace Sad
             struct HandlerEntry
             {
                 Data::Value handler;                       ///< دالة المعالج
-                std::weak_ptr<Data::ObjectInstance> owner; ///< الكائن المالك (اختياري)
+                Data::ObjectInstance *owner = nullptr; ///< الكائن المالك (اختياري) — مؤشر خام مُدار بـGC
                 uint64_t generation = 0;                   ///< رقم الجيل عند التسجيل
             };
 
@@ -717,7 +717,7 @@ namespace Sad
 
             /// (AR) تخزين الكائن المالك لكل handler — لتنفيذ الأحداث في سياق هذا
             /// (EN) Owner object for each handler — to execute events in هذا context
-            std::unordered_map<std::string, std::weak_ptr<Data::ObjectInstance>> handlerOwners_;
+            std::unordered_map<std::string, Data::ObjectInstance *> handlerOwners_;
 
             /// عدّاد لتوليد معرّفات فريدة (احتياطي للحالات غير المعروفة)
             std::atomic<uint64_t> handlerCounter_{0};

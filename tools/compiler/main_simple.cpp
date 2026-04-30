@@ -25,12 +25,12 @@
 #include "cli_commands.hpp"
 
 #include "utf8_utils.h"
-#include "profiler_core.h"                                     // (AR) مصحح الأداء / (EN) Profiler
-#include "profiler_hooks.h"                                    // (AR) خطافات المصحح / (EN) Profiler hooks
-#include "hot_reload_engine.h" // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
+#include "profiler_core.h"                  // (AR) مصحح الأداء / (EN) Profiler
+#include "profiler_hooks.h"                 // (AR) خطافات المصحح / (EN) Profiler hooks
+#include "hot_reload_engine.h"              // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
 #include "memory/policy/memory_mode_flag.h" // (AR) Phase A2: محلل أعلام سياسة الذاكرة / (EN) Phase A2: memory policy flag parser
 #include "memory/gc/policy_bridge.h"        // (AR) DEF-002: جسر تطبيق سياسة الذاكرة على المحرك العام (للـ VM)
-                                             // (EN) DEF-002: unified memory-policy bridge (for VM launcher)
+                                            // (EN) DEF-002: unified memory-policy bridge (for VM launcher)
 
 #include <iostream>
 #include <fstream>

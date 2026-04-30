@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file builtin_core_io.cpp
  * @brief (AR) الدوال الأساسية — الإدخال/الإخراج وتحويل الأنواع والتزامن الأساسي
  * @brief (EN) Core builtins — I/O, type conversion, basic concurrency
@@ -174,7 +174,7 @@ namespace Sad
                 size_t channelId = registry.registerChannel(channel);
 
                 // (AR) إنشاء كائن ObjectInstance يمثل القناة
-                auto obj = std::make_shared<Data::ObjectInstance>(nullptr, channelId);
+                auto obj = new Data::ObjectInstance(nullptr, channelId);
                 obj->fields["__class__"] = Data::Value(std::string("__\xD9\x82\xD9\x86\xD8\xA7\xD8\xA9__")); // __قناة__
                 obj->fields["__channel_id__"] = Data::Value(static_cast<int>(channelId));
 
@@ -218,7 +218,7 @@ namespace Sad
                 size_t wgId = registry.registerWaitGroup(wg);
 
                 // (AR) إنشاء كائن ObjectInstance يمثل مجموعة الانتظار
-                auto obj = std::make_shared<Data::ObjectInstance>(nullptr, wgId);
+                auto obj = new Data::ObjectInstance(nullptr, wgId);
                 obj->fields["__class__"] = Data::Value(std::string("__\xD9\x85\xD8\xAC\xD9\x85\xD9\x88\xD8\xB9\xD8\xA9_\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xA7\xD8\xB1__")); // __مجموعة_انتظار__
                 obj->fields["__waitgroup_id__"] = Data::Value(static_cast<int>(wgId));
 
@@ -238,7 +238,7 @@ namespace Sad
                 auto &registry = SadMutexRegistry::getInstance();
                 size_t mtxId = registry.registerMutex(mtx);
 
-                auto obj = std::make_shared<Data::ObjectInstance>(nullptr, mtxId);
+                auto obj = new Data::ObjectInstance(nullptr, mtxId);
                 obj->fields["__class__"] = Data::Value(std::string("__\xD9\x82\xD9\x81\xD9\x84__")); // __قفل__
                 obj->fields["__mutex_id__"] = Data::Value(static_cast<int>(mtxId));
 
@@ -274,7 +274,7 @@ namespace Sad
                 size_t futureId = registry.registerFuture(fut);
 
                 // (AR) إنشاء كائن ObjectInstance يمثل المستقبل / (EN) Create ObjectInstance representing the future
-                auto obj = std::make_shared<Data::ObjectInstance>(nullptr, futureId);
+                auto obj = new Data::ObjectInstance(nullptr, futureId);
                 obj->fields["__class__"] = Data::Value(std::string("__\xD9\x85\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84__")); // __مستقبل__
                 obj->fields["__future_id__"] = Data::Value(static_cast<int>(futureId));
 

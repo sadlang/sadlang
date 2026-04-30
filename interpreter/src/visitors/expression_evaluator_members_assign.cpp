@@ -73,7 +73,7 @@ namespace Sad
             ClassType *classType = nullptr;
             Value::MapType fields;
             bool isRealObject = false;
-            std::shared_ptr<ObjectInstance> objPtr = nullptr;
+            ObjectInstance * objPtr = nullptr;
 
             if (objectValue.isObject())
             {

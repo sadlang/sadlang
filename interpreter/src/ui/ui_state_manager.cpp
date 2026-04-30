@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // ui_state_manager.cpp — تنفيذ مدير الحالة التفاعلية
 // ======================================================================
 // الوصف بالعربية:
@@ -23,7 +23,7 @@ namespace Sad
         // registerComponent — تسجيل مكون واجهة جديد
         // ─────────────────────────────────────────────────────────────────
         void UIStateManager::registerComponent(
-            std::shared_ptr<Data::ObjectInstance> obj,
+            Data::ObjectInstance * obj,
             const std::string &componentName,
             const std::unordered_set<std::string> &stateFields)
         {
@@ -35,11 +35,11 @@ namespace Sad
             // (AR) إنشاء سجل المكون
             // (EN) Create component record
             UIComponentRecord record;
-            record.instance = obj; // weak_ptr
+            record.instance = obj; // مؤشر خام مُدار بـGC
             record.componentName = componentName;
             record.stateFields = stateFields;
 
-            Data::ObjectInstance *rawPtr = obj.get();
+            Data::ObjectInstance *rawPtr = obj;
             components_[rawPtr] = std::move(record);
 
             // (AR) ربط observer على setField — يُستدعى عند كل تعيين حقل
@@ -83,9 +83,9 @@ namespace Sad
             auto it = components_.find(obj);
             if (it != components_.end())
             {
-                // (AR) إزالة observer من الكائن
-                // (EN) Remove observer from object
-                auto strongRef = it->second.instance.lock();
+                // (AR) إزالة observer من الكائن (مؤشر خام مُدار بـGC)
+                // (EN) Remove observer from object (raw GC-managed pointer)
+                auto *strongRef = it->second.instance;
                 if (strongRef)
                 {
                     strongRef->removeOnFieldChanged();
@@ -179,13 +179,13 @@ namespace Sad
             // (EN) Save counter before callback — changes may occur during rebuild
             uint64_t currentCounter = changeCounter_;
 
-            // (AR) تنظيف المكونات المنتهية الصلاحية (weak_ptr expired)
-            // (EN) Clean up expired components (weak_ptr expired)
+            // (AR) تنظيف المكونات الفارغة (مؤشر raw مُدار بـGC؛ NULL = منتهي)
+            // (EN) Clean up null components (GC-managed raw pointer; NULL = expired)
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 for (auto it = components_.begin(); it != components_.end();)
                 {
-                    if (it->second.instance.expired())
+                    if (it->second.instance == nullptr)
                     {
                         it = components_.erase(it);
                     }
@@ -234,7 +234,7 @@ namespace Sad
             // (EN) Remove observers from all live objects
             for (auto &[ptr, record] : components_)
             {
-                auto strongRef = record.instance.lock();
+                auto *strongRef = record.instance;
                 if (strongRef)
                 {
                     strongRef->removeOnFieldChanged();

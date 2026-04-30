@@ -217,8 +217,7 @@ namespace Sad
 
             if (thisValue.isObject())
             {
-                auto objShared = thisValue.toObject();
-                objPtr = objShared.get();
+                objPtr = thisValue.toObject();
                 if (objPtr)
                     currentClassName = objPtr->getClassName();
             }

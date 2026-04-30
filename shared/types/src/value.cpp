@@ -37,6 +37,7 @@
 #include "value.h"
 #include "sad_type_system.h"
 #include "object_instance.h"
+#include "memory/gc/engine/garbage_collector.h"
 #include <cmath>
 #include <iomanip>
 #include <limits>
@@ -204,7 +205,31 @@ namespace Sad
         //      to functions or assigned to other variables (Python/Java-like behavior)
         // ════════════════════════════════════════════════════════════════════════
         Value::Value(ObjectPtr obj)
-            : sadType_(reg().getAny()), type_(ValueType::OBJECT), data_(std::move(obj)) {}
+            : sadType_(reg().getAny()), type_(ValueType::OBJECT), data_(obj)
+        {
+            // (AR) B-step5b: تأكّد أن الكائن مسجَّل في GC ومُجهَّز بـdestroyer + visitor.
+            //      نتجنّب التسجيل المكرّر لأن الكائن قد يكون مُسجَّلاً مسبقاً (مثلاً في
+            //      ClassType::createInstance) — في هذه الحالة نُحدّث destroyer/visitor فقط.
+            //      destroyer مسؤول عن `delete` لأن الكائنات مُنشأة بـnew.
+            //      visitor يفوّض إلى ObjectInstance::visitChildren للتعداد الدقيق.
+            // (EN) B-step5b: ensure object is GC-tracked with destroyer + visitor.
+            //      Avoid duplicate registration — if already tracked (e.g. by
+            //      ClassType::createInstance), only update its destroyer/visitor.
+            if (obj != nullptr)
+            {
+                auto &gc = ::Sad::Memory::GC::defaultEngine();
+                if (!gc.isTracked(static_cast<void *>(obj)))
+                {
+                    gc.registerObject(static_cast<void *>(obj),
+                                      static_cast<uint64_t>(sizeof(ObjectInstance)),
+                                      [](void *p) { delete static_cast<ObjectInstance *>(p); });
+                    gc.setVisitor(static_cast<void *>(obj),
+                                  [](void *p, const std::function<void(void *)> &visitor) {
+                                      static_cast<ObjectInstance *>(p)->visitChildren(visitor);
+                                  });
+                }
+            }
+        }
 
         // ════════════════════════════════════════════════════════════════════════
         // (AR) منشئ مرجع الدالة — يُنشئ قيمة من نوع FUNCTION تحمل مؤشراً مشتركاً
@@ -245,14 +270,17 @@ namespace Sad
             }
             case ValueType::OBJECT:
             {
-                // (AR) نسخ عميق للكائن: نُنشئ ObjectInstance جديد بنفس الحقول
-                // (EN) Deep clone for object: create new ObjectInstance with same fields
-                auto srcPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+                // (AR) نسخ عميق للكائن: نُنشئ ObjectInstance جديد بنفس الحقول.
+                //      B-step5b: إنشاء خام بـnew، ثم Value(ObjectPtr) سيسجّله
+                //      في GC تلقائياً مع destroyer مناسب.
+                // (EN) Deep clone for object: create new ObjectInstance with same fields.
+                //      B-step5b: raw `new`, then Value(ObjectPtr) registers in GC.
+                ObjectInstance *srcPtr = std::get<ObjectInstance *>(data_);
                 if (srcPtr)
                 {
                     // (AR) نسخ عميق بمعرف فريد جديد
                     // (EN) Deep clone with new unique object ID
-                    auto newObj = std::make_shared<ObjectInstance>(srcPtr->classType, generateObjectId());
+                    ObjectInstance *newObj = new ObjectInstance(srcPtr->classType, generateObjectId());
                     newObj->fields = srcPtr->fields;
                     newObj->isConstructed = srcPtr->isConstructed;
                     // (AR) نسخ الكائن الأساسي إذا وُجد
@@ -264,7 +292,7 @@ namespace Sad
                         newObj->baseInstance->fields = srcPtr->baseInstance->fields;
                         newObj->baseInstance->isConstructed = srcPtr->baseInstance->isConstructed;
                     }
-                    return Value(std::move(newObj));
+                    return Value(newObj);
                 }
                 return *this;
             }
@@ -478,7 +506,7 @@ namespace Sad
                 //      إذا كان المؤشر فارغاً، يُرجع "كائن_فارغ"
                 // (EN) Convert object to string — uses toString() from ObjectInstance
                 //      If pointer is null, returns "null_object"
-                const auto &objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+                const auto &objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr)
                 {
                     return objPtr->toString();
@@ -533,7 +561,7 @@ namespace Sad
             {
                 // (AR) الكائن صحيح إذا كان المؤشر غير فارغ
                 // (EN) Object is true if the pointer is not null
-                const auto &objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+                const auto &objPtr = std::get<ObjectInstance *>(data_);
                 return objPtr != nullptr;
             }
 
@@ -568,7 +596,7 @@ namespace Sad
             // (EN) If it's an object, convert to map of fields for backward compatibility
             if (type_ == ValueType::OBJECT)
             {
-                const auto &objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+                const auto &objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr)
                 {
                     MapType result = objPtr->fields;
@@ -688,7 +716,7 @@ namespace Sad
         {
             if (type_ == ValueType::OBJECT)
             {
-                return std::get<std::shared_ptr<ObjectInstance>>(data_);
+                return std::get<ObjectInstance *>(data_);
             }
             throwInvalidType("toObject - القيمة ليست كائناً / value is not an object");
             return nullptr;
@@ -707,7 +735,7 @@ namespace Sad
             // (EN) First: check for real OBJECT type
             if (type_ == ValueType::OBJECT)
             {
-                const auto &objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+                const auto &objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr)
                 {
                     return objPtr->getClassName();
@@ -1158,9 +1186,9 @@ namespace Sad
             {
                 // (AR) مقارنة الكائنات: نقارن بالمرجع (هل هما نفس الكائن؟)
                 // (EN) Object comparison: compare by reference (are they the same object?)
-                const auto &obj1 = std::get<std::shared_ptr<ObjectInstance>>(data_);
-                const auto &obj2 = std::get<std::shared_ptr<ObjectInstance>>(other.data_);
-                return Value(obj1.get() == obj2.get());
+                const auto &obj1 = std::get<ObjectInstance *>(data_);
+                const auto &obj2 = std::get<ObjectInstance *>(other.data_);
+                return Value(obj1 == obj2);
             }
 
             case ValueType::FUNCTION:
@@ -1386,7 +1414,7 @@ namespace Sad
             {
                 // (AR) للكائنات: نُرجع "OBJECT:اسم_الصنف" للتوضيح
                 // (EN) For objects: return "OBJECT:ClassName" for clarity
-                const auto &objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+                const auto &objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr)
                 {
                     return "OBJECT:" + objPtr->getClassName();

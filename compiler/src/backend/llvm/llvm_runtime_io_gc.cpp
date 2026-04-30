@@ -7,7 +7,7 @@
 
 #include "llvm_runtime.h"
 #include "memory/gc/engine/garbage_collector.h" // (AR) Phase B-step2: المحرك الموحَّد
-#include "input_sanitizer.h" // (AR) تحليل آمن للأرقام بديلاً عن scanf / (EN) safe numeric parsing
+#include "input_sanitizer.h"                    // (AR) تحليل آمن للأرقام بديلاً عن scanf / (EN) safe numeric parsing
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -483,9 +483,12 @@ void sad_llvm_gc_collect_incremental(uint64_t steps)
 void sad_llvm_gc_stats(uint64_t *allocated, uint64_t *used, uint64_t *collections)
 {
     auto stats = Sad::Memory::GC::defaultEngine().getStats();
-    if (allocated)   *allocated   = stats.totalAllocated;
-    if (used)        *used        = stats.totalAllocated; // (AR) تبسيط مطابق للسلوك القديم
-    if (collections) *collections = stats.collections;
+    if (allocated)
+        *allocated = stats.totalAllocated;
+    if (used)
+        *used = stats.totalAllocated; // (AR) تبسيط مطابق للسلوك القديم
+    if (collections)
+        *collections = stats.collections;
 }
 
 void sad_llvm_gc_pause()
