@@ -588,6 +588,13 @@ if(FFI_VERIFIED)
  if(MSVC)
  target_compile_options(sad_ffi PRIVATE /utf-8 /FS)
  endif()
+ # (AR) DEF-001: ربط مكتبة متتبع الملكية الموحَّد. ffi_wrapper.h يضمها
+ #      مباشرة (#include "ownership/runtime/ownership_tracker.h").
+ # (EN) DEF-001: link the unified runtime ownership tracker library; the
+ #      ffi_wrapper.h header includes it directly.
+ if(TARGET sad_ownership_runtime)
+   target_link_libraries(sad_ffi PUBLIC sad_ownership_runtime)
+ endif()
  message(STATUS "Configured sad_ffi library (C API bridge, ownership annotations)")
 endif()
 

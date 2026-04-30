@@ -56,6 +56,12 @@
 #include <optional>
 #include <unordered_map>
 
+// (AR) DEF-001: متتبع الملكية الموحَّد + سياسات الملكية + AllocationInfo —
+//      جميعها في shared/ownership_runtime/. كل التعريفات هنا أصبحت aliases.
+// (EN) DEF-001: unified ownership tracker, policy enum, and AllocationInfo
+//      now live in shared/ownership_runtime/. The declarations below are aliases.
+#include "ownership/runtime/ownership_tracker.h"
+
 namespace Sad {
 namespace FFI {
 
@@ -66,46 +72,25 @@ namespace FFI {
 
 class SafeWrapper;
 class WrapperGenerator;
-class OwnershipTracker;
 class LeakDetector;
 
 using SafeWrapperPtr = std::shared_ptr<SafeWrapper>;
 using DestructorFn = std::function<void(void*)>;
 
 // ============================================================================
-//                    (AR) سياسات الملكية
-//                    (EN) Ownership Policies
+//                    (AR) سياسات الملكية — DEF-001 alias
+//                    (EN) Ownership Policies — DEF-001 alias
 // ============================================================================
 
-/**
- * @enum OwnershipPolicy
- * @brief (AR) سياسة ملكية المؤشر
- *        (EN) Pointer ownership policy
- */
-enum class OwnershipPolicy {
-    OWNED,          // (AR) مملوك - يُحرر عند التدمير / (EN) Owned - freed on destruction
-    BORROWED,       // (AR) مستعار - لا يُحرر / (EN) Borrowed - not freed
-    SHARED,         // (AR) مشترك - عداد مراجع / (EN) Shared - reference counted
-    TRANSFERRED     // (AR) مُنقول - الملكية نُقلت / (EN) Transferred - ownership moved
-};
+// (AR) كان `enum class OwnershipPolicy` معرَّفاً هنا. نُقل إلى
+//      shared/ownership_runtime/. نُبقي alias للحفاظ على التوافق الخلفي.
+// (EN) Was a local enum; moved by DEF-001. Alias preserves backward compat.
+using OwnershipPolicy = ::Sad::Ownership::Runtime::OwnershipPolicy;
 
-/**
- * @brief (AR) تحويل سياسة الملكية إلى نص عربي
- *        (EN) Convert ownership policy to Arabic text
- */
+// (AR) الدالة المساعدة inline — مرر مباشرة للتطبيق الموحَّد.
+// (EN) Inline helper — forwards to the unified implementation.
 inline const char* ownershipPolicyToArabic(OwnershipPolicy policy) {
-    switch (policy) {
-        case OwnershipPolicy::OWNED:
-            return "\xD9\x85\xD9\x85\xD9\x84\xD9\x88\xD9\x83";           // مملوك
-        case OwnershipPolicy::BORROWED:
-            return "\xD9\x85\xD8\xB3\xD8\xAA\xD8\xB9\xD8\xA7\xD8\xB1";   // مستعار
-        case OwnershipPolicy::SHARED:
-            return "\xD9\x85\xD8\xB4\xD8\xAA\xD8\xB1\xD9\x83";           // مشترك
-        case OwnershipPolicy::TRANSFERRED:
-            return "\xD9\x85\xD9\x8F\xD9\x86\xD9\x82\xD9\x84";           // مُنقل
-        default:
-            return "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xB9\xD8\xB1\xD9\x88\xD9\x81"; // غير_معروف
-    }
+    return ::Sad::Ownership::Runtime::ownershipPolicyToArabic(policy);
 }
 
 // ============================================================================
@@ -464,111 +449,28 @@ private:
 };
 
 // ============================================================================
-//                    (AR) متتبع الملكية
-//                    (EN) Ownership Tracker
+//                    (AR) متتبع الملكية — موحَّد عبر DEF-001
+//                    (EN) Ownership Tracker — unified via DEF-001
+// ============================================================================
+//
+// (AR) كان `OwnershipTracker` مُعرَّفاً هنا. نُقل في DEF-001 إلى
+//      shared/ownership_runtime/ مع طبقة C-ABI لفك قفل تفعيل --prod على
+//      مخرجات sadc. هنا نُبقي الاسم القديم كـ `using` alias للحفاظ على
+//      التوافق الخلفي 100% مع جميع المستهلكين الحاليين (BF-15).
+//
+// (EN) `OwnershipTracker` previously lived here. DEF-001 moved it to
+//      shared/ownership_runtime/ with a C-ABI surface so sadc output can
+//      enable --prod. The using-alias keeps full backward compatibility.
 // ============================================================================
 
-/**
- * @class OwnershipTracker
- * @brief (AR) متتبع ملكية المؤشرات في وقت التشغيل
- *        (EN) Runtime pointer ownership tracker
- * 
- * @details
- * (AR) يتتبع من يملك كل مؤشر للمساعدة في:
- *      - كشف التحرير المزدوج (double-free)
- *      - كشف استخدام المحرر (use-after-free)
- *      - كشف تسرب الذاكرة (memory leak)
- * 
- * (EN) Tracks who owns each pointer to help detect:
- *      - Double-free
- *      - Use-after-free
- *      - Memory leaks
- */
-class OwnershipTracker {
-public:
-    /**
-     * @struct AllocationInfo
-     * @brief (AR) معلومات عن تخصيص ذاكرة
-     *        (EN) Memory allocation information
-     */
-    struct AllocationInfo {
-        void* ptr;                  // المؤشر
-        size_t size;                // الحجم
-        std::string allocator;      // دالة التخصيص
-        std::string file;           // ملف المصدر
-        int line;                   // رقم السطر
-        OwnershipPolicy policy;     // سياسة الملكية
-        bool isFreed = false;       // هل حُرر؟
-    };
-    
-    static OwnershipTracker& instance();
-    
-    // --- (AR) التتبع / (EN) Tracking ---
-    
-    /**
-     * @brief (AR) تسجيل تخصيص جديد
-     *        (EN) Register new allocation
-     */
-    void registerAllocation(void* ptr, size_t size,
-                           const std::string& allocator,
-                           const std::string& file = "", int line = 0);
-    
-    /**
-     * @brief (AR) تسجيل تحرير
-     *        (EN) Register deallocation
-     */
-    bool registerDeallocation(void* ptr, const std::string& deallocator);
-    
-    /**
-     * @brief (AR) نقل الملكية
-     *        (EN) Transfer ownership
-     */
-    void transferOwnership(void* ptr, const std::string& newOwner);
-    
-    // --- (AR) الفحص / (EN) Checking ---
-    
-    /**
-     * @brief (AR) هل المؤشر مملوك؟
-     *        (EN) Is pointer owned?
-     */
-    bool isOwned(void* ptr) const;
-    
-    /**
-     * @brief (AR) هل المؤشر محرر؟
-     *        (EN) Is pointer freed?
-     */
-    bool isFreed(void* ptr) const;
-    
-    /**
-     * @brief (AR) الحصول على معلومات التخصيص
-     *        (EN) Get allocation info
-     */
-    std::optional<AllocationInfo> getAllocationInfo(void* ptr) const;
-    
-    // --- (AR) التقارير / (EN) Reports ---
-    
-    /**
-     * @brief (AR) الحصول على التخصيصات النشطة
-     *        (EN) Get active allocations
-     */
-    std::vector<AllocationInfo> getActiveAllocations() const;
-    
-    /**
-     * @brief (AR) طباعة تقرير التسرب
-     *        (EN) Print leak report
-     */
-    void printLeakReport() const;
-    
-    /**
-     * @brief (AR) مسح جميع التتبعات
-     *        (EN) Clear all tracking
-     */
-    void clear();
-
-private:
-    OwnershipTracker() = default;
-    std::unordered_map<void*, AllocationInfo> allocations_;
-};
+using OwnershipTracker = ::Sad::Ownership::Runtime::OwnershipTracker;
+// (AR) AllocationInfo كان عضواً مُتداخِلاً (OwnershipTracker::AllocationInfo)؛
+//      صار في النسخة الموحَّدة struct مستقل في النطاق نفسه.
+//      using داخل الصنف غير ممكن من خارجه، لذا نوفّره عبر typedef في الصنف
+//      الموحَّد نفسه (بالفعل صنف معاد تعريفه باسم alias). الوصول
+//      `OwnershipTracker::AllocationInfo` لا يعمل تلقائياً → نضيف alias في
+//      الـ namespace كذلك للحفاظ على القراءة المختصرة.
+using AllocationInfo = ::Sad::Ownership::Runtime::AllocationInfo;
 
 // ============================================================================
 //                    (AR) كاشف التسرب

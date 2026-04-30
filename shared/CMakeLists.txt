@@ -175,3 +175,17 @@ add_subdirectory(memory_policy)
 # ============================================================================
 add_subdirectory(memory_gc)
 
+# ============================================================================
+# (AR) مكتبة متتبع الملكية في وقت التشغيل — shared/ownership_runtime/
+#      نُقلت من compiler/{include/ffi/ffi_wrapper.h, src/backend/ffi_wrapper.cpp}
+#      في إطار DEF-001. توفر OwnershipTracker (singleton آمن للخيوط) إضافةً إلى
+#      طبقة C-ABI (sad_ownership_*) ليتمكن مخرج sadc من تفعيل --prod بدون
+#      الاعتماد على رموز C++ من المترجم.
+# (EN) Runtime pointer ownership tracker — moved from compiler/ffi_wrapper.*
+#      as part of DEF-001. Provides a thread-safe singleton plus a C-ABI
+#      surface so sadc-compiled output can enable --prod without linking any
+#      compiler C++ symbols.
+# @phase Architecture Refactor: Memory Layer Unification — Phase B / DEF-001
+# ============================================================================
+add_subdirectory(ownership_runtime)
+

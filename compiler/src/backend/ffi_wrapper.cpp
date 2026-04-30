@@ -472,143 +472,20 @@ std::string WrapperGenerator::convertToArabicName(const std::string& cName) {
 }
 
 // ============================================================================
-//                    (AR) تنفيذ OwnershipTracker
-//                    (EN) OwnershipTracker Implementation
+//                    (AR) تنفيذ OwnershipTracker — نُقل في DEF-001
+//                    (EN) OwnershipTracker Implementation — moved in DEF-001
 // ============================================================================
-
-OwnershipTracker& OwnershipTracker::instance() {
-    static OwnershipTracker tracker;
-    return tracker;
-}
-
-void OwnershipTracker::registerAllocation(void* ptr, size_t size,
-                                          const std::string& allocator,
-                                          const std::string& file, int line) {
-    if (ptr == nullptr) return;
-    
-    AllocationInfo info;
-    info.ptr = ptr;
-    info.size = size;
-    info.allocator = allocator;
-    info.file = file;
-    info.line = line;
-    info.policy = OwnershipPolicy::OWNED;
-    info.isFreed = false;
-    
-    allocations_[ptr] = info;
-}
-
-bool OwnershipTracker::registerDeallocation(void* ptr, const std::string& deallocator) {
-    if (ptr == nullptr) return true;
-    
-    auto it = allocations_.find(ptr);
-    if (it == allocations_.end()) {
-        /*
-         * (AR) تحرير مؤشر غير مسجل - قد يكون تحرير مزدوج
-         * (EN) Freeing unregistered pointer - might be double-free
-         */
-        std::cerr << "(AR) \xD8\xAA\xD8\xAD\xD8\xB0\xD9\x8A\xD8\xB1: \xD8\xAA\xD8\xAD\xD8\xB1\xD9\x8A\xD8\xB1 "
-                     "\xD9\x85\xD8\xA4\xD8\xB4\xD8\xB1 \xD8\xBA\xD9\x8A\xD8\xB1 "
-                     "\xD9\x85\xD8\xB3\xD8\xAC\xD9\x84\n";
-        return false;
-    }
-    
-    if (it->second.isFreed) {
-        /*
-         * (AR) تحرير مزدوج!
-         * (EN) Double-free!
-         */
-        std::cerr << "(AR) \xD8\xAE\xD8\xB7\xD8\xA3: \xD8\xAA\xD8\xAD\xD8\xB1\xD9\x8A\xD8\xB1 "
-                     "\xD9\x85\xD8\xB2\xD8\xAF\xD9\x88\xD8\xAC!\n";
-        return false;
-    }
-    
-    it->second.isFreed = true;
-    return true;
-}
-
-void OwnershipTracker::transferOwnership(void* ptr, const std::string& newOwner) {
-    auto it = allocations_.find(ptr);
-    if (it != allocations_.end()) {
-        it->second.policy = OwnershipPolicy::TRANSFERRED;
-    }
-}
-
-bool OwnershipTracker::isOwned(void* ptr) const {
-    auto it = allocations_.find(ptr);
-    if (it != allocations_.end()) {
-        return it->second.policy == OwnershipPolicy::OWNED && !it->second.isFreed;
-    }
-    return false;
-}
-
-bool OwnershipTracker::isFreed(void* ptr) const {
-    auto it = allocations_.find(ptr);
-    if (it != allocations_.end()) {
-        return it->second.isFreed;
-    }
-    return false;
-}
-
-std::optional<OwnershipTracker::AllocationInfo> 
-OwnershipTracker::getAllocationInfo(void* ptr) const {
-    auto it = allocations_.find(ptr);
-    if (it != allocations_.end()) {
-        return it->second;
-    }
-    return std::nullopt;
-}
-
-std::vector<OwnershipTracker::AllocationInfo> 
-OwnershipTracker::getActiveAllocations() const {
-    std::vector<AllocationInfo> active;
-    
-    for (const auto& [ptr, info] : allocations_) {
-        if (!info.isFreed && info.policy == OwnershipPolicy::OWNED) {
-            active.push_back(info);
-        }
-    }
-    
-    return active;
-}
-
-void OwnershipTracker::printLeakReport() const {
-    auto active = getActiveAllocations();
-    
-    if (active.empty()) {
-        std::cout << "(AR) \xD9\x84\xD8\xA7 \xD9\x8A\xD9\x88\xD8\xAC\xD8\xAF "
-                     "\xD8\xAA\xD8\xB3\xD8\xB1\xD8\xA8 \xD8\xB0\xD8\xA7\xD9\x83\xD8\xB1\xD8\xA9\n";
-        std::cout << "(EN) No memory leaks detected\n";
-        return;
-    }
-    
-    std::cout << "\n=== " << "\xD8\xAA\xD9\x82\xD8\xB1\xD9\x8A\xD8\xB1 "
-                 "\xD8\xAA\xD8\xB3\xD8\xB1\xD8\xA8 \xD8\xA7\xD9\x84\xD8\xB0\xD8\xA7\xD9\x83\xD8\xB1\xD8\xA9 "
-                 "/ Memory Leak Report ===\n\n";
-    
-    size_t totalBytes = 0;
-    for (const auto& info : active) {
-        std::cout << "\xD8\xAA\xD8\xB3\xD8\xB1\xD8\xA8 / Leak:\n";
-        std::cout << "  \xD8\xA7\xD9\x84\xD8\xAD\xD8\xAC\xD9\x85 / Size: " << info.size << " bytes\n";
-        std::cout << "  \xD8\xA7\xD9\x84\xD9\x85\xD8\xAE\xD8\xB5\xD8\xB5 / Allocator: " << info.allocator << "\n";
-        
-        if (!info.file.empty()) {
-            std::cout << "  \xD8\xA7\xD9\x84\xD9\x85\xD9\x84\xD9\x81 / File: " 
-                      << info.file << ":" << info.line << "\n";
-        }
-        
-        std::cout << "\n";
-        totalBytes += info.size;
-    }
-    
-    std::cout << "\xD8\xA5\xD8\xAC\xD9\x85\xD8\xA7\xD9\x84\xD9\x8A / Total: " 
-              << active.size() << " \xD8\xAA\xD8\xB3\xD8\xB1\xD8\xA8\xD8\xA7\xD8\xAA leaks, "
-              << totalBytes << " bytes\n";
-}
-
-void OwnershipTracker::clear() {
-    allocations_.clear();
-}
+//
+// (AR) كان التنفيذ هنا (~135 سطر). نُقل إلى shared/ownership_runtime/src/
+//      ownership_tracker.cpp مع إضافة قفل خيوط (std::mutex) وطبقة C-ABI
+//      موازية. الاسم القديم Sad::FFI::OwnershipTracker لا يزال يعمل عبر
+//      using-alias في compiler/include/ffi/ffi_wrapper.h.
+//
+// (EN) Implementation was here (~135 lines). Moved by DEF-001 to
+//      shared/ownership_runtime/src/ownership_tracker.cpp with added thread
+//      safety and a parallel C-ABI surface. Legacy name still works via
+//      a using-alias in ffi_wrapper.h.
+// ============================================================================
 
 // ============================================================================
 //                    (AR) تنفيذ LeakDetector
