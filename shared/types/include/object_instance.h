@@ -440,6 +440,71 @@ namespace Sad
              */
             size_t getMemoryUsage() const;
 
+            // ──────────────────────────────────────────────────────────────────
+            // (AR) خطّافات تتبّع التخصيص (B-step4) — تُستخدم لربط دورة حياة
+            //      الكائن بمحرك GC الموحَّد (Sad::Memory::GC) **بدون** خلق
+            //      تبعية مباشرة من shared/types على shared/memory_gc.
+            // (EN) Allocation tracking hooks (B-step4) — wire object lifecycle
+            //      into the unified GC engine WITHOUT creating a direct
+            //      dependency from shared/types on shared/memory_gc.
+            //
+            // (AR) الفلسفة: المفسّر/الـ VM يُسجِّلان دالتَين تحوِّلان كل
+            //      ctor/dtor إلى استدعاء registerObject/unregisterObject على
+            //      defaultEngine(). إذا لم تُسجَّل دوال (baseline)، فالسلوك
+            //      مطابق 100% لما قبل B-step4.
+            // (EN) Philosophy: interpreter/VM register two callbacks that
+            //      forward ctor/dtor to defaultEngine(). When no hooks are
+            //      registered (baseline), behavior is bit-identical to
+            //      pre-B-step4.
+            //
+            // (AR) أمان الخيوط: التسجيل والاستدعاء محميّان بـ mutex قصير،
+            //      ويُنسخ الـ functor محلياً قبل الاستدعاء لتجنّب re-entrancy.
+            // (EN) Thread safety: registration & invocation are guarded by
+            //      a short mutex; the functor is copied locally before call
+            //      to avoid re-entrancy.
+            // ──────────────────────────────────────────────────────────────────
+
+            /**
+             * @brief (AR) نوع خطّاف التخصيص — يُستدعى من ctor
+             * @brief (EN) Allocation hook type — invoked from ctor
+             *
+             * @param obj  (ObjectInstance*) — (AR) الكائن المُنشأ / (EN) the new object
+             * @param size (size_t)          — (AR) الحجم التقديري / (EN) approximate size
+             */
+            using ObjectAllocHook = std::function<void(ObjectInstance *obj, size_t size)>;
+
+            /**
+             * @brief (AR) نوع خطّاف التحرير — يُستدعى من dtor
+             * @brief (EN) Free hook type — invoked from dtor
+             *
+             * @param obj (ObjectInstance*) — (AR) الكائن المُهدَم / (EN) the destroyed object
+             */
+            using ObjectFreeHook = std::function<void(ObjectInstance *obj)>;
+
+            /**
+             * @brief (AR) تسجيل خطّاف التخصيص (يستبدل أي خطّاف سابق)
+             * @brief (EN) Set allocation hook (replaces any previous hook)
+             */
+            static void setAllocHook(ObjectAllocHook hook);
+
+            /**
+             * @brief (AR) تسجيل خطّاف التحرير (يستبدل أي خطّاف سابق)
+             * @brief (EN) Set free hook (replaces any previous hook)
+             */
+            static void setFreeHook(ObjectFreeHook hook);
+
+            /**
+             * @brief (AR) إلغاء تسجيل كلا الخطّافَين معاً (يعود للسلوك الأساسي)
+             * @brief (EN) Clear both hooks (return to baseline behavior)
+             */
+            static void clearHooks();
+
+            /**
+             * @brief (AR) فحص: هل يوجد خطّاف تخصيص مسجَّل؟
+             * @brief (EN) Check whether an alloc hook is currently registered
+             */
+            static bool hasAllocHook();
+
         private:
             // ──────────────────────────────────────────────────────────────────
             // دوال مساعدة خاصة / Private Helper Functions

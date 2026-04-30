@@ -16,6 +16,7 @@
 #include <iostream>
 #include <algorithm>
 #include <atomic>
+#include <mutex>
 
 namespace Sad
 {
@@ -26,6 +27,65 @@ namespace Sad
         // Global counter for generating unique IDs
         static std::atomic<size_t> globalObjectIdCounter{1};
 
+        // ──────────────────────────────────────────────────────────────────────
+        // (AR) خطّافات تتبّع التخصيص (B-step4)
+        //      انظر التعليق المفصّل في object_instance.h. الفكرة الجوهرية:
+        //      hooks ساكنة قابلة للتسجيل من المستهلك (مثل المفسّر) ليربط
+        //      ctor/dtor بمحرك GC الموحَّد دون تبعية صلبة من shared/types.
+        //      التزامن: قفل قصير لقراءة/كتابة المؤشرات + نسخ الـ functor
+        //      محلياً قبل الاستدعاء (يمنع deadlock إن أنشأ الـ hook كائناً).
+        // (EN) Allocation tracking hooks (B-step4) — see object_instance.h for
+        //      full rationale. Static, registrable, lock-protected, copy-then-
+        //      invoke to avoid re-entrancy deadlocks.
+        // ──────────────────────────────────────────────────────────────────────
+        namespace
+        {
+            std::mutex &hooksMutex()
+            {
+                // (AR) Meyer's singleton — يُنشأ مرة واحدة بأمان
+                // (EN) Meyer's singleton — initialized exactly once, thread-safe
+                static std::mutex m;
+                return m;
+            }
+
+            ObjectInstance::ObjectAllocHook &allocHookSlot()
+            {
+                static ObjectInstance::ObjectAllocHook h;
+                return h;
+            }
+
+            ObjectInstance::ObjectFreeHook &freeHookSlot()
+            {
+                static ObjectInstance::ObjectFreeHook h;
+                return h;
+            }
+        } // namespace
+
+        void ObjectInstance::setAllocHook(ObjectAllocHook hook)
+        {
+            std::lock_guard<std::mutex> lk(hooksMutex());
+            allocHookSlot() = std::move(hook);
+        }
+
+        void ObjectInstance::setFreeHook(ObjectFreeHook hook)
+        {
+            std::lock_guard<std::mutex> lk(hooksMutex());
+            freeHookSlot() = std::move(hook);
+        }
+
+        void ObjectInstance::clearHooks()
+        {
+            std::lock_guard<std::mutex> lk(hooksMutex());
+            allocHookSlot() = nullptr;
+            freeHookSlot() = nullptr;
+        }
+
+        bool ObjectInstance::hasAllocHook()
+        {
+            std::lock_guard<std::mutex> lk(hooksMutex());
+            return static_cast<bool>(allocHookSlot());
+        }
+
         // ======================================================================
         // المنشئات والهدامات / Constructors and Destructors
         // ======================================================================
@@ -35,6 +95,24 @@ namespace Sad
         {
             // (AR) إنشاء كائن جديد
             // (EN) Create new object
+
+            // (AR) B-step4: استدعاء خطّاف التخصيص إن كان مسجَّلاً.
+            //      ننسخ الـ functor محلياً تحت قفل قصير ثم نستدعيه خارج
+            //      القفل لتجنّب re-entrancy إن قام الـ hook بإنشاء كائن آخر.
+            //      sizeof(ObjectInstance) تقدير معقول للحجم — حقول fields
+            //      تتغيّر فلا نحاول حسابها هنا (هذه إحصائيات تقريبية).
+            // (EN) B-step4: invoke alloc hook if registered. Copy functor
+            //      under short lock, then invoke outside lock to avoid
+            //      re-entrancy. sizeof(ObjectInstance) is an approximation.
+            ObjectAllocHook localHook;
+            {
+                std::lock_guard<std::mutex> lk(hooksMutex());
+                localHook = allocHookSlot();
+            }
+            if (localHook)
+            {
+                localHook(this, sizeof(ObjectInstance));
+            }
         }
 
         ObjectInstance::~ObjectInstance()
@@ -44,6 +122,30 @@ namespace Sad
 
             // (AR) ملاحظة: استدعاء الهدام المخصص يتم من ObjectManager
             // (EN) Note: custom destructor call is handled by ObjectManager
+
+            // (AR) B-step4: استدعاء خطّاف التحرير إن كان مسجَّلاً.
+            //      نفس نمط النسخ-ثم-الاستدعاء كما في ctor. نتجاهل أي
+            //      استثناء يخرج من الـ hook (لا يجوز رمي استثناءات من dtor).
+            // (EN) B-step4: invoke free hook if registered. Same copy-then-
+            //      invoke pattern. Swallow any hook exception (dtors must
+            //      not throw).
+            ObjectFreeHook localHook;
+            {
+                std::lock_guard<std::mutex> lk(hooksMutex());
+                localHook = freeHookSlot();
+            }
+            if (localHook)
+            {
+                try
+                {
+                    localHook(this);
+                }
+                catch (...)
+                {
+                    // (AR) ابتلاع الاستثناء — dtor لا يجوز أن يرمي
+                    // (EN) Swallow — dtor must not throw
+                }
+            }
         }
 
         // ======================================================================

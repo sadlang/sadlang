@@ -129,6 +129,53 @@ namespace Sad
                               << " strategy=" << static_cast<int>(options_.memoryPolicy.gcStrategy)
                               << " / (EN) GC engine state applied" << std::endl;
                 }
+
+                // ============================================================
+                // (AR) Phase B-step4 — ربط ObjectInstance بمحرك GC الموحَّد
+                //
+                // (AR) نُسجِّل خطّافَين على ObjectInstance يحوّلان كل إنشاء/هدم
+                //      كائن إلى استدعاء على defaultEngine(). هذا يجعل
+                //      `getStats().objectCount` يعكس فعلياً عدد الكائنات
+                //      الحيّة في المفسّر — وهو الفرق الملموس بين --dev
+                //      (يتعقَّب) و --prod (paused → return early داخل المحرك).
+                //
+                // (AR) ملاحظات معمارية مهمّة:
+                //   1. shared/types لا تعتمد على shared/memory_gc — التسجيل
+                //      هنا (في المفسّر) يُكسر هذه التبعية وقت التشغيل فقط.
+                //   2. حياة ObjectInstance لا تزال shared_ptr — الـ hook
+                //      إحصائي بحت ولا يحرّر الذاكرة. التحرير الفعلي عبر GC
+                //      يحتاج تحويل الإدارة إلى raw ptr وهو عمل مرحلة لاحقة.
+                //   3. عند gcStrategy == None نلغي تسجيل الـ hooks تماماً
+                //      ليعود السلوك إلى مطابق-الأصل 100% (BF-15: توافق خلفي).
+                //   4. التسجيل آمن للخيوط داخل ObjectInstance (mutex قصير +
+                //      copy-then-invoke لتجنّب re-entrancy).
+                //
+                // (EN) Wire ObjectInstance lifecycle to the unified GC engine
+                //      via runtime hooks (no compile-time dependency from
+                //      shared/types on shared/memory_gc). Stats become real
+                //      in --dev/--learn; --prod fully restores legacy behavior.
+                // ============================================================
+                if (options_.memoryPolicy.gcStrategy == Sad::Memory::GCStrategy::None)
+                {
+                    Sad::Data::ObjectInstance::clearHooks();
+                }
+                else
+                {
+                    Sad::Data::ObjectInstance::setAllocHook(
+                        [](Sad::Data::ObjectInstance *obj, size_t size) {
+                            // (AR) ترجمة المؤشر إلى void* لتجاوز نظام الأنواع
+                            //      (المحرك يتعامل مع void* العام لأي نوع).
+                            // (EN) Cast to void* — engine is type-agnostic.
+                            Sad::Memory::GC::defaultEngine().registerObject(
+                                static_cast<void *>(obj), size);
+                        });
+
+                    Sad::Data::ObjectInstance::setFreeHook(
+                        [](Sad::Data::ObjectInstance *obj) {
+                            Sad::Memory::GC::defaultEngine().unregisterObject(
+                                static_cast<void *>(obj));
+                        });
+                }
             }
 
             // (AR) إنشاء محلل الوحدات لنظام الاستيراد والتصدير
