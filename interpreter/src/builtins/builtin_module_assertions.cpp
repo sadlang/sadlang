@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 namespace Sad
 {
     namespace Interpreter
@@ -688,7 +689,7 @@ namespace Sad
                         char spec = fmt[i + 1];
                         if (spec == 'd' || spec == 'i')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                                 result += std::to_string(static_cast<int>(args[argIdx++]->toDouble()));
                             else
                                 result += "0";
@@ -696,7 +697,7 @@ namespace Sad
                         }
                         else if (spec == 'f')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                             {
                                 char buf[64];
                                 std::snprintf(buf, sizeof(buf), "%f", args[argIdx++]->toDouble());
@@ -708,7 +709,7 @@ namespace Sad
                         }
                         else if (spec == 's')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                                 result += args[argIdx++]->toString();
                             else
                                 result += "(null)";
@@ -716,7 +717,7 @@ namespace Sad
                         }
                         else if (spec == 'p')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                             {
                                 char buf[32];
                                 std::snprintf(buf, sizeof(buf), "%p", (void *)(uintptr_t)static_cast<int64_t>(args[argIdx++]->toDouble()));
@@ -1048,7 +1049,7 @@ namespace Sad
                         char spec = fmt[i + 1];
                         if (spec == 'd' || spec == 'i')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                                 result += std::to_string(static_cast<int>(args[argIdx++]->toDouble()));
                             else
                                 result += "0";
@@ -1056,7 +1057,7 @@ namespace Sad
                         }
                         else if (spec == 'f')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                             {
                                 char buf[64];
                                 std::snprintf(buf, sizeof(buf), "%f", args[argIdx++]->toDouble());
@@ -1068,7 +1069,7 @@ namespace Sad
                         }
                         else if (spec == 's')
                         {
-                            if (argIdx < args.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                                 result += args[argIdx++]->toString();
                             else
                                 result += "(null)";

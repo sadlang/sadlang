@@ -26,6 +26,7 @@
 #include "llvm_codegen.h"
 #include "builders/builtins/network_builtins_codegen.h"
 #include <iostream>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 using namespace Sad::Compiler::SIR;
 
@@ -194,7 +195,7 @@ namespace Sad
                 // (EN) Type cast if needed:
                 //      i64 → ptr: IntToPtr (for handles stored as integers)
                 //      ptr → i64: PtrToInt (for handles returned from C functions)
-                if (i < paramTypes.size())
+                if (Sad::Security::BoundsChecker::checkArrayIndex(i, paramTypes.size()))
                 {
                     val = adaptNetworkArgument(cg_.builder_.get(), *cg_.context_, val, paramTypes[i]);
                 }

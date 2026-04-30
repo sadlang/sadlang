@@ -21,6 +21,7 @@
 
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 #ifdef VOID
 #undef VOID
 #endif
@@ -264,7 +265,7 @@ namespace Sad
                 {
                     if (i + 1 < tmpl.size() && tmpl[i] == '{' && tmpl[i + 1] == '}')
                     {
-                        if (argIdx < args.size())
+                        if (Sad::Security::BoundsChecker::checkArrayIndex(argIdx, args.size()))
                         {
                             result += args[argIdx]->toString();
                             argIdx++;

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 namespace Sad {
 namespace TypeSystem {
@@ -242,7 +243,7 @@ SolverResult ParallelConstraintSolver::solveGroup(
     // إنشاء مجموعة قيود للمجموعة الفرعية
     ConstraintSet subset;
     for (size_t idx : indices) {
-        if (idx < constraints.size()) {
+        if (Sad::Security::BoundsChecker::checkArrayIndex(idx, constraints.size())) {
             subset.add(constraints[idx]);
         }
     }

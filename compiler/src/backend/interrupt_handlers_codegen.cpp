@@ -12,6 +12,7 @@
 #include <memory>
 #include <sstream>
 #include <cstdint>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 // إصلاح تعارض ماكروات Windows مع أسماء المعددات
 #ifdef BREAKPOINT
@@ -279,7 +280,7 @@ private:
         for (size_t i = 0; i < 256; i++) {
             ir << "  ";
             
-            if (i < systemVectors.size()) {
+            if (Sad::Security::BoundsChecker::checkArrayIndex(i, systemVectors.size())) {
                 ir << "ptr " << systemVectors[i];
             } else {
                 // (AR) البحث عن معالج مخصص

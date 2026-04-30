@@ -29,6 +29,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 namespace {
 // (AR) دالة مساعدة محلية: استخراج اسم القالب ومعاملات الأنواع من نص
@@ -63,7 +64,7 @@ localExtractTypeParameters(const std::string& name) {
             }
         }
     }
-    if (start < params.size()) {
+    if (Sad::Security::BoundsChecker::checkArrayIndex(start, params.size())) {
         std::string p = params.substr(start);
         auto a = p.find_first_not_of(" \t");
         auto b = p.find_last_not_of(" \t");

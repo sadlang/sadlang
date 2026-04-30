@@ -19,6 +19,7 @@
 #include "type_parameter.h"
 #include <sstream>
 #include <algorithm>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 namespace Sad {
 namespace TypeSystem {
@@ -284,7 +285,7 @@ TypePtr GenericType::getTypeArgument(const TypeParameterPtr& param) const {
     // البحث عن المعامل في القائمة / Find parameter in list
     for (size_t i = 0; i < typeParameters_.size(); ++i) {
         if (typeParameters_[i]->equals(param.get())) {
-            if (i < typeArguments_.size()) {
+            if (Sad::Security::BoundsChecker::checkArrayIndex(i, typeArguments_.size())) {
                 return typeArguments_[i];
             }
         }

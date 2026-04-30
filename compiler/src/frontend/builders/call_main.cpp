@@ -32,6 +32,7 @@
 #include <iostream>
 #include <filesystem>
 #include <optional>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 namespace Sad
 {
@@ -1021,7 +1022,7 @@ namespace Sad
                             {
                                 b_.channelTypeMap_[argVar->name] = ctIt->second;
                             }
-                            if (i < argOperands.size())
+                            if (Sad::Security::BoundsChecker::checkArrayIndex(i, argOperands.size()))
                             {
                                 b_.channelTypeMap_[argOperands[i].name] = ctIt->second;
                             }

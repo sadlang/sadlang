@@ -23,6 +23,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <iostream>
 #include <fstream>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 using namespace Sad::Compiler::SIR;
 
@@ -278,7 +279,7 @@ namespace Sad
             unsigned idx = 0;
             for (auto &arg : llvmFunc->args())
             {
-                if (idx < params.size())
+                if (Sad::Security::BoundsChecker::checkArrayIndex(idx, params.size()))
                 {
                     // Source: SIRParameter::name is PUBLIC member at sir_module.h:229
                     arg.setName(params[idx].name);

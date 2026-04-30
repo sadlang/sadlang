@@ -40,6 +40,7 @@
 #include <llvm/IR/InlineAsm.h>
 #include <iostream>
 #include <fstream>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 // Source: llvm_codegen.h:103-108 - using declarations
 using namespace Sad::Compiler::SIR; // For SIRModule, SIRFunction, SIRBasicBlock, SIRInstruction, SadTypeKind
@@ -62,7 +63,7 @@ namespace Sad
             unsigned idx = 0;
             for (auto &arg : llvmFunc->args())
             {
-                if (idx < params.size())
+                if (Sad::Security::BoundsChecker::checkArrayIndex(idx, params.size()))
                 {
                     // Source: SIRParameter::name is PUBLIC member at sir_module.h:229
                     std::string paramName = params[idx].name;

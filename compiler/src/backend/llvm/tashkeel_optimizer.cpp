@@ -52,6 +52,7 @@
 #include <cstdint>
 #include <cstring> // (AR) memcpy آمن بدلاً من strcpy / (EN) safe memcpy replaces strcpy
 #include <unordered_map>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 namespace sad {
 namespace optimizer {
@@ -491,7 +492,7 @@ public:
             result += TashkeelAnalyzer::writeUTF8(cp);
             
             // إضافة التشكيل
-            if (charIndex < tashkeelList.size()) {
+            if (Sad::Security::BoundsChecker::checkArrayIndex(charIndex, tashkeelList.size())) {
                 const auto& tashkeel = tashkeelList[charIndex];
                 
                 // الشدة أولاً إذا موجودة

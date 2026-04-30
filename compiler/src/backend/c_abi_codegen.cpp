@@ -29,6 +29,7 @@
 
 #include <sstream>
 #include <stdexcept>
+#include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 
 namespace Sad
 {
@@ -146,7 +147,7 @@ namespace Sad
             unsigned idx = 0;
             for (auto &arg : func->args())
             {
-                if (idx < params.size())
+                if (Sad::Security::BoundsChecker::checkArrayIndex(idx, params.size()))
                 {
                     arg.setName(params[idx].originalName);
                 }
