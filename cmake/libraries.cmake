@@ -53,6 +53,12 @@ target_link_libraries(sad_core PUBLIC sad_ownership)
 #      mirroring the sad_interpreter linkage.
 target_link_libraries(sad_core PUBLIC sad_security_core)
 
+# (AR) Phase A2: سياسة الذاكرة الموحَّدة — sad_core يجمّع interpreter sources
+#      التي تتضمن ownership_manager.h المعتمد على memory/policy/gc_mode.h
+# (EN) Phase A2: unified memory policy — sad_core compiles interpreter sources
+#      that include ownership_manager.h which now depends on memory/policy/gc_mode.h
+target_link_libraries(sad_core PUBLIC sad_memory_policy)
+
 if(MSVC)
     target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
 endif()

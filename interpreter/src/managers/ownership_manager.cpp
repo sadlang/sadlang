@@ -49,6 +49,37 @@ namespace Sad
         OwnershipManager::~OwnershipManager() = default;
 
         // ============================================================================
+        // (AR) ضبط الصرامة من سياسة الذاكرة الموحَّدة (Phase A2)
+        // (EN) Apply strictness from the unified memory policy (Phase A2)
+        // ============================================================================
+        void OwnershipManager::setStrictness(::Sad::Memory::OwnershipMode mode)
+        {
+            strictness_ = mode;
+            switch (mode)
+            {
+            case ::Sad::Memory::OwnershipMode::Disabled:
+                // (AR) إيقاف كامل — كود المستخدم بدون فحوصات.
+                // (EN) Fully off — user code runs without ownership checks.
+                disable();
+                warningsOnly_ = false;
+                break;
+            case ::Sad::Memory::OwnershipMode::Warnings:
+                // (AR) وضع التعلم — الفحص مُفعَّل لكن الانتهاكات تحذيرات لا أخطاء.
+                // (EN) Learn mode — checks active but violations are warnings, not errors.
+                enable();
+                warningsOnly_ = true;
+                break;
+            case ::Sad::Memory::OwnershipMode::Strict:
+            case ::Sad::Memory::OwnershipMode::UltraStrict:
+                // (AR) إنتاج/صارم جداً — الفحص مُفعَّل والانتهاكات أخطاء توقف التنفيذ.
+                // (EN) Production/Ultra — checks active and violations are hard errors.
+                enable();
+                warningsOnly_ = false;
+                break;
+            }
+        }
+
+        // ============================================================================
         // (AR) دوال مساعدة / (EN) Helper functions
         // ============================================================================
 
@@ -137,6 +168,10 @@ namespace Sad
             {
                 OwnershipError err = convertError(sharedErr.value());
                 errors_.push_back(err);
+                // (AR) في وضع التعلم (--learn) نسجّل الخطأ كتحذير ولا نوقف التنفيذ.
+                // (EN) In learn mode (--learn) record as warning and continue.
+                if (warningsOnly_)
+                    return std::nullopt;
                 return err;
             }
             return std::nullopt;
@@ -152,6 +187,8 @@ namespace Sad
             {
                 OwnershipError err = convertError(sharedErr.value());
                 errors_.push_back(err);
+                if (warningsOnly_)
+                    return std::nullopt;
                 return err;
             }
             ++totalMoves_;
@@ -168,6 +205,8 @@ namespace Sad
             {
                 OwnershipError err = convertError(sharedErr.value());
                 errors_.push_back(err);
+                if (warningsOnly_)
+                    return std::nullopt;
                 return err;
             }
             return std::nullopt;

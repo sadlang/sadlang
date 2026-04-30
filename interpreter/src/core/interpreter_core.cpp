@@ -72,6 +72,24 @@ namespace Sad
                 ownershipManager_->setDebugMode(options_.enableDebugMode || options_.ownershipDebugMode);
             }
 
+            // ================================================================
+            // (AR) Phase A2 — تطبيق سياسة الذاكرة الموحَّدة (--dev/--prod/--learn)
+            // (EN) Phase A2 — apply unified memory policy (--dev/--prod/--learn)
+            //
+            // (AR) إذا ضبط المستخدم سياسة من سطر الأوامر، نمنحها الأولوية على
+            //      enableOwnership: setStrictness يُفعّل/يُعطّل الفحص ويضبط
+            //      علم warningsOnly لوضع التعلم.
+            // (EN) If a CLI policy was provided, override enableOwnership:
+            //      setStrictness enables/disables checks and sets warningsOnly
+            //      for learn mode.
+            // ================================================================
+            if (options_.memoryPolicySet)
+            {
+                ownershipManager_->setArabicMessages(options_.ownershipArabicMessages);
+                ownershipManager_->setDebugMode(options_.enableDebugMode || options_.ownershipDebugMode);
+                ownershipManager_->setStrictness(options_.memoryPolicy.ownershipMode);
+            }
+
             // (AR) إنشاء محلل الوحدات لنظام الاستيراد والتصدير
             // (EN) Create module resolver for import/export system
             moduleResolver_ = std::make_shared<Modules::ModuleResolver>();

@@ -50,6 +50,7 @@
 #include "scope_manager.h"
 #include "ownership_manager.h"
 #include "module_resolver.h"
+#include "memory/policy/gc_mode.h" // (AR) سياسة الذاكرة الموحَّدة (Phase A2) / (EN) Unified memory policy
 #include "../visitors/expression_evaluator.h"
 #include "../visitors/statement_executor.h"
 #include <memory>
@@ -82,6 +83,19 @@ namespace Sad
             bool securityDebugMode = false;      ///< (AR) تنقيح الأمان / (EN) Security debug mode
             std::string currentFilePath;         ///< (AR) مسار الملف الحالي - لحل مسارات الاستيراد / (EN) Current file path - for import resolution
             bool enableHotReload = false;        ///< (AR) تفعيل إعادة التحميل الساخن / (EN) Enable hot reload
+
+            // ========================================================================
+            // (AR) سياسة الذاكرة الموحَّدة (Phase A2) — مصدر الحقيقة لـ --dev/--prod/--learn
+            // (EN) Unified memory policy (Phase A2) — source of truth for --dev/--prod/--learn
+            //
+            // (AR) عند تمرير إعدادات سياسة، يقوم InterpreterCore بضبط صرامة
+            //      OwnershipManager تلقائياً (يتجاوز enableOwnership أعلاه إذا كانت
+            //      OwnershipMode != Disabled).
+            // (EN) When provided, InterpreterCore auto-adjusts OwnershipManager
+            //      strictness (overrides enableOwnership above if OwnershipMode != Disabled).
+            // ========================================================================
+            ::Sad::Memory::MemoryModeSettings memoryPolicy{}; ///< (AR) سياسة الذاكرة / (EN) Memory mode policy
+            bool memoryPolicySet = false;                     ///< (AR) هل ضُبطت السياسة من CLI؟ / (EN) Was policy explicitly set from CLI?
         };
 
         /**

@@ -19,6 +19,7 @@ target_link_libraries(sad PRIVATE
     sad_websocket
     sad_mobile
     sad_ui
+    sad_memory_policy   # (AR) Phase A2: سياسة الذاكرة الموحَّدة / (EN) Phase A2: unified memory policy
 )
 
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
@@ -135,7 +136,7 @@ target_compile_features(sad_mobile PUBLIC cxx_std_17)
 #      لذا يحتاج include path الجديد ورابط sad_ownership
 # (EN) Ownership Unification: sad_mobile transitively consumes ownership_manager.h
 #      so it needs the new include path and the sad_ownership link
-target_link_libraries(sad_mobile PUBLIC sad_formatter sad_ownership)
+target_link_libraries(sad_mobile PUBLIC sad_formatter sad_ownership sad_memory_policy)
 
 set_target_properties(sad_mobile PROPERTIES
     OUTPUT_NAME "sad_mobile"

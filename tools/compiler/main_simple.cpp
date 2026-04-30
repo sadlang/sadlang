@@ -28,6 +28,7 @@
 #include "profiler_core.h"                                     // (AR) مصحح الأداء / (EN) Profiler
 #include "profiler_hooks.h"                                    // (AR) خطافات المصحح / (EN) Profiler hooks
 #include "hot_reload_engine.h" // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
+#include "memory/policy/memory_mode_flag.h" // (AR) Phase A2: محلل أعلام سياسة الذاكرة / (EN) Phase A2: memory policy flag parser
 
 #include <iostream>
 #include <fstream>
@@ -56,6 +57,15 @@ void print_help(const char *program_name)
               << "  --version, -v عرض الإصدار / Show version\n"
               << "  --ownership   تفعيل نظام الملكية / Enable ownership system\n"
               << "  --ملكية       تفعيل نظام الملكية (عربي) / Enable ownership (Arabic)\n"
+              << "\n"
+              << "  أوضاع الذاكرة الموحَّدة (Phase A2) / Unified memory modes:\n"
+              << "  --dev,  --تطوير  وضع التطوير: GC + ملكية تحذيرات / Dev mode: GC + warnings\n"
+              << "  --prod, --إنتاج  وضع الإنتاج: ملكية صارمة بدون GC / Prod mode: strict ownership, no GC\n"
+              << "  --learn,--تعلم   وضع التعلم: شرح الانتهاكات بدون توقف / Learn mode: explain, don't block\n"
+              << "  --auto, --تلقائي وضع تلقائي بحسب البيئة / Auto-detect mode\n"
+              << "  --gc=<strategy>          استراتيجية GC: tracing|refcount|none / GC strategy\n"
+              << "  --ملكية=<level>          مستوى الملكية: disabled|warnings|strict|ultra\n"
+              << "  --no-std, --نواة         وضع بلا مكتبة قياسية / No-std / freestanding mode\n"
               << "  --vm, --آلة    تنفيذ عبر الآلة الافتراضية / Execute via Bytecode VM\n"
               << "  --vm-trace    تتبع تعليمات الآلة / Trace VM instructions\n"
               << "  --vm-disasm   فك البايت كود / Disassemble bytecode\n"
@@ -160,6 +170,59 @@ int main(int argc, char *argv[])
 
         sad::cli::CommandManager manager;
         return manager.run(argc, argv);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // (AR) Phase A2: تحليل أعلام سياسة الذاكرة (--dev/--prod/--learn/--gc=...)
+    //               قبل الـ argv loop العادي حتى يستهلك المحلل أعلامه ويُعيد
+    //               الباقي فقط (لتجنّب ظهور "علم غير معروف" لاحقاً).
+    // (EN) Phase A2: Parse memory policy flags (--dev/--prod/--learn/--gc=...)
+    //               BEFORE the main argv loop so the parser consumes its flags
+    //               and returns only the remainder (avoids spurious "unknown flag").
+    // ═══════════════════════════════════════════════════════════════════════
+    ::Sad::Memory::MemoryModeSettings g_memoryPolicy{};
+    bool g_memoryPolicySet = false;
+    std::vector<std::string> g_memoryRemaining; // (AR) لإبقاء الذاكرة حية / (EN) keep storage alive
+    std::vector<char *> g_memoryArgvStorage;
+    {
+        ::Sad::Memory::MemoryModeFlag memFlagParser;
+        auto memResult = memFlagParser.parse(argc, argv);
+        if (!memResult.success)
+        {
+            for (const auto &err : memResult.errors)
+                std::cerr << "خطأ سياسة الذاكرة / Memory policy error: " << err << "\n";
+            return 1;
+        }
+        for (const auto &warn : memResult.warnings)
+            std::cerr << "تحذير سياسة الذاكرة / Memory policy warning: " << warn << "\n";
+
+        // (AR) إذا حُذف على الأقل علم واحد فقد ضُبطت السياسة صراحةً.
+        // (EN) If at least one flag was consumed the policy was explicitly set.
+        // (AR) ملاحظة: parse(argc, argv) يتجاوز argv[0]، لذا remainingArgs لا يضم
+        //      اسم البرنامج. عدد الأعلام المستهلكة = (argc - 1) - remainingArgs.size().
+        // (EN) Note: parse(argc, argv) skips argv[0], so remainingArgs excludes
+        //      the program name. Consumed = (argc - 1) - remainingArgs.size().
+        const size_t originalUserArgs = static_cast<size_t>(argc > 0 ? argc - 1 : 0);
+        if (memResult.remainingArgs.size() != originalUserArgs)
+        {
+            g_memoryPolicy = memResult.settings;
+            g_memoryPolicySet = true;
+            // (AR) إعادة بناء argc/argv: argv[0] (اسم البرنامج) + الأعلام المتبقية.
+            // (EN) Rebuild argc/argv: argv[0] (program name) + remaining flags.
+            g_memoryRemaining = std::move(memResult.remainingArgs);
+            g_memoryArgvStorage.reserve(g_memoryRemaining.size() + 1);
+            g_memoryArgvStorage.push_back(argv[0]);
+            for (auto &s : g_memoryRemaining)
+                g_memoryArgvStorage.push_back(s.data());
+            argc = static_cast<int>(g_memoryArgvStorage.size());
+            argv = g_memoryArgvStorage.data();
+            if (argc < 2)
+            {
+                print_help(g_memoryArgvStorage[0]);
+                return 1;
+            }
+            arg = argv[1];
+        }
     }
 
     // Execute file
@@ -637,6 +700,8 @@ int main(int argc, char *argv[])
             options.enableDebugMode = false;
             options.printResults = false;
             options.currentFilePath = filename;
+            options.memoryPolicy = g_memoryPolicy;
+            options.memoryPolicySet = g_memoryPolicySet;
 
             Sad::Interpreter::Interpreter interpreter(options);
 
@@ -686,6 +751,10 @@ int main(int argc, char *argv[])
         options.securityDebugMode = debugSecurity;
         options.currentFilePath = filename; // (AR) مسار الملف الحالي لنظام الاستيراد / (EN) Current file path for import system
         options.enableHotReload = enableHotReload;
+        // (AR) Phase A2: ربط سياسة الذاكرة المُستخرجة من سطر الأوامر
+        // (EN) Phase A2: wire CLI-parsed memory policy
+        options.memoryPolicy = g_memoryPolicy;
+        options.memoryPolicySet = g_memoryPolicySet;
 
         Sad::Interpreter::Interpreter interpreter(options);
 

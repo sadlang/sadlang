@@ -45,6 +45,7 @@
 #pragma once
 
 #include "ownership/ownership_tracker.h" // (AR) المحرك الموحَّد / (EN) Unified engine
+#include "memory/policy/gc_mode.h"        // (AR) سياسة الذاكرة الموحَّدة / (EN) Unified memory policy
 
 #include <string>
 #include <vector>
@@ -189,6 +190,21 @@ namespace Sad
             void setDebugMode(bool debug) { debugMode_ = debug; }
 
             // ==================================================================
+            // (AR) ضبط الصرامة من سياسة الذاكرة الموحَّدة (Phase A2)
+            // (EN) Apply strictness from the unified memory policy (Phase A2)
+            //
+            // (AR) يحوّل OwnershipMode (Disabled/Warnings/Strict/UltraStrict) إلى
+            //      حالة المدير: Disabled → disable()؛ غير ذلك → enable() + ضبط
+            //      علم warningsOnly_ ليُترجم الأخطاء إلى تحذيرات في وضع التعلم.
+            // (EN) Converts OwnershipMode → manager state: Disabled → disable();
+            //      otherwise enable() + warningsOnly_ flag so errors become
+            //      warnings in learn mode without blocking execution.
+            // ==================================================================
+            void setStrictness(::Sad::Memory::OwnershipMode mode);
+            ::Sad::Memory::OwnershipMode getStrictness() const { return strictness_; }
+            bool isWarningsOnly() const { return warningsOnly_; }
+
+            // ==================================================================
             // إدارة النطاقات / Scope Management
             // ==================================================================
             size_t enterScope();
@@ -237,6 +253,11 @@ namespace Sad
             bool enabled_;
             bool useArabicMessages_;
             bool debugMode_;
+
+            // (AR) صرامة الملكية المُستمدَّة من --dev/--prod/--learn (Phase A2)
+            // (EN) Ownership strictness derived from --dev/--prod/--learn
+            ::Sad::Memory::OwnershipMode strictness_{::Sad::Memory::OwnershipMode::Strict};
+            bool warningsOnly_{false};
 
             // (AR) كاش لأخطاء الواجهة المبسَّطة / (EN) Cache of simplified errors
             std::vector<OwnershipError> errors_;
