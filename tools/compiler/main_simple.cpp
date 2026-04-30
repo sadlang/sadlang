@@ -29,6 +29,8 @@
 #include "profiler_hooks.h"                                    // (AR) خطافات المصحح / (EN) Profiler hooks
 #include "hot_reload_engine.h" // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
 #include "memory/policy/memory_mode_flag.h" // (AR) Phase A2: محلل أعلام سياسة الذاكرة / (EN) Phase A2: memory policy flag parser
+#include "memory/gc/policy_bridge.h"        // (AR) DEF-002: جسر تطبيق سياسة الذاكرة على المحرك العام (للـ VM)
+                                             // (EN) DEF-002: unified memory-policy bridge (for VM launcher)
 
 #include <iostream>
 #include <fstream>
@@ -672,6 +674,26 @@ int main(int argc, char *argv[])
             sad::vm::آلة_افتراضية vm;
             if (vmTrace)
                 vm.عيّن_وضع_التتبع(true);
+
+            // ============================================================
+            // (AR) DEF-002 — تطبيق سياسة الذاكرة العامة قبل تشغيل البايت كود.
+            //      الـ VM له نظام قيم مستقل (`قيمة_بايت_كود`) ولا يستخدم
+            //      ObjectInstance مباشرة، لكن:
+            //        1. أي استدعاء مدمج من البايت كود إلى stdlib قد ينشئ
+            //           ObjectInstance — السياسة يجب أن تنطبق عليه.
+            //        2. تماثل تشغيلي مع المفسّر (نفس سطر [memory] التشخيصي
+            //           يُطبَع في كلا المسارين بنفس الشكل).
+            //        3. توحيد نقطة التطبيق (CW-19, BF-11) — المفسّر و VM
+            //           و REPL تستهلك الآن نفس الدالة.
+            // (EN) DEF-002 — apply global memory policy before running the
+            //      bytecode. VM has its own value system but stdlib calls
+            //      may create ObjectInstance, and operational symmetry with
+            //      the interpreter requires the same diagnostic line.
+            // ============================================================
+            ::Sad::Memory::GC::applyMemoryPolicyGlobal(
+                g_memoryPolicy,
+                g_memoryPolicySet,
+                enableDebug);
 
             auto result = vm.نفّذ(chunk);
 

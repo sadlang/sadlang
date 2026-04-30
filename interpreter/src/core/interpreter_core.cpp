@@ -37,9 +37,11 @@
 // (EN) Class manager — for accessing نص() operator from callback
 #include "class_manager.h"
 
-// (AR) Phase B-step3: محرك GC الموحَّد — يُفعَّل/يُعلَّق حسب gcStrategy
-// (EN) Phase B-step3: unified GC engine — toggled per gcStrategy
-#include "memory/gc/engine/garbage_collector.h"
+// (AR) Phase B-step3/B-step4 → DEF-002: جسر تطبيق سياسة الذاكرة الموحَّد.
+//      استبدل الكتلة المنسوخة سابقاً (pause/resume + تركيب hooks) باستدعاء
+//      دالة واحدة تُستهلك أيضاً من VM launcher و REPL → CW-19 (DRY).
+// (EN) DEF-002: unified memory-policy bridge replacing the inlined block.
+#include "memory/gc/policy_bridge.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -94,88 +96,22 @@ namespace Sad
                 ownershipManager_->setStrictness(options_.memoryPolicy.ownershipMode);
 
                 // ============================================================
-                // (AR) Phase B-step3 — تطبيق سياسة GC على المحرك الموحَّد
+                // (AR) DEF-002 — تطبيق سياسة الذاكرة على المحرك العام عبر
+                //      الجسر الموحَّد. هذا الاستدعاء يحلّ محل ~70 سطراً من
+                //      كود B-step3+B-step4 الذي كان منسوخاً هنا. نفس النقطة
+                //      تُستدعى الآن من VM launcher (`tools/compiler/main_simple.cpp`
+                //      فرع `useVM`) ومن REPL (`tools/repl/repl_engine.cpp`)،
+                //      لضمان سلوك موحَّد عبر جميع منفذات التشغيل.
                 //
-                // الدلالات المعتمدة (بحسب docs/معمارية_الذاكرة_الموحدة.md):
-                //   --dev   → gcStrategy = MarkAndSweep  → resume() (يعمل)
-                //   --prod  → gcStrategy = None          → pause()  (مُعطَّل)
-                //   --learn → gcStrategy = MarkAndSweep  → resume() (يعمل، تحذيرات فقط للملكية)
-                //
-                // (AR) ملاحظة هامة: المفسّر حالياً يُدير حياة الكائنات بـ
-                //      shared_ptr<ObjectInstance>، لذلك المحرك لا يتعقَّب
-                //      تخصيصات المفسّر مباشرة بعد. هذه الخطوة تُفعّل المحرك
-                //      وتجعله جاهزاً لاستقبال تسجيلات لاحقة (B-step4: ربط
-                //      ObjectInstance::ctor بـ registerObject والـ dtor بـ
-                //      unregisterObject — تغيير غير عكوس على دلالات الذاكرة
-                //      ولذلك نُؤجّله إلى مرحلة لها اختبار خاص).
-                // (EN) Apply GC policy to the unified engine. The interpreter
-                //      still owns object lifetime via shared_ptr; full hooking
-                //      of allocations is deferred to B-step4.
+                //      راجع: shared/memory_gc/include/memory/gc/policy_bridge.h
+                // (EN) DEF-002 — apply memory policy via the unified bridge.
+                //      Replaces ~70 lines of B-step3/B-step4 inlined logic.
+                //      Same call site is invoked from VM launcher and REPL.
                 // ============================================================
-                auto& gcEngine = Sad::Memory::GC::defaultEngine();
-                if (options_.memoryPolicy.gcStrategy == Sad::Memory::GCStrategy::None)
-                {
-                    gcEngine.pause();
-                }
-                else
-                {
-                    gcEngine.resume();
-                }
-
-                if (options_.enableDebugMode)
-                {
-                    auto stats = gcEngine.getStats();
-                    std::cout << "(AR) GC engine: paused=" << (stats.paused ? "true" : "false")
-                              << " strategy=" << static_cast<int>(options_.memoryPolicy.gcStrategy)
-                              << " / (EN) GC engine state applied" << std::endl;
-                }
-
-                // ============================================================
-                // (AR) Phase B-step4 — ربط ObjectInstance بمحرك GC الموحَّد
-                //
-                // (AR) نُسجِّل خطّافَين على ObjectInstance يحوّلان كل إنشاء/هدم
-                //      كائن إلى استدعاء على defaultEngine(). هذا يجعل
-                //      `getStats().objectCount` يعكس فعلياً عدد الكائنات
-                //      الحيّة في المفسّر — وهو الفرق الملموس بين --dev
-                //      (يتعقَّب) و --prod (paused → return early داخل المحرك).
-                //
-                // (AR) ملاحظات معمارية مهمّة:
-                //   1. shared/types لا تعتمد على shared/memory_gc — التسجيل
-                //      هنا (في المفسّر) يُكسر هذه التبعية وقت التشغيل فقط.
-                //   2. حياة ObjectInstance لا تزال shared_ptr — الـ hook
-                //      إحصائي بحت ولا يحرّر الذاكرة. التحرير الفعلي عبر GC
-                //      يحتاج تحويل الإدارة إلى raw ptr وهو عمل مرحلة لاحقة.
-                //   3. عند gcStrategy == None نلغي تسجيل الـ hooks تماماً
-                //      ليعود السلوك إلى مطابق-الأصل 100% (BF-15: توافق خلفي).
-                //   4. التسجيل آمن للخيوط داخل ObjectInstance (mutex قصير +
-                //      copy-then-invoke لتجنّب re-entrancy).
-                //
-                // (EN) Wire ObjectInstance lifecycle to the unified GC engine
-                //      via runtime hooks (no compile-time dependency from
-                //      shared/types on shared/memory_gc). Stats become real
-                //      in --dev/--learn; --prod fully restores legacy behavior.
-                // ============================================================
-                if (options_.memoryPolicy.gcStrategy == Sad::Memory::GCStrategy::None)
-                {
-                    Sad::Data::ObjectInstance::clearHooks();
-                }
-                else
-                {
-                    Sad::Data::ObjectInstance::setAllocHook(
-                        [](Sad::Data::ObjectInstance *obj, size_t size) {
-                            // (AR) ترجمة المؤشر إلى void* لتجاوز نظام الأنواع
-                            //      (المحرك يتعامل مع void* العام لأي نوع).
-                            // (EN) Cast to void* — engine is type-agnostic.
-                            Sad::Memory::GC::defaultEngine().registerObject(
-                                static_cast<void *>(obj), size);
-                        });
-
-                    Sad::Data::ObjectInstance::setFreeHook(
-                        [](Sad::Data::ObjectInstance *obj) {
-                            Sad::Memory::GC::defaultEngine().unregisterObject(
-                                static_cast<void *>(obj));
-                        });
-                }
+                ::Sad::Memory::GC::applyMemoryPolicyGlobal(
+                    options_.memoryPolicy,
+                    options_.memoryPolicySet,
+                    options_.enableDebugMode);
             }
 
             // (AR) إنشاء محلل الوحدات لنظام الاستيراد والتصدير

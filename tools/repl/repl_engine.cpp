@@ -12,6 +12,15 @@
 #include <fstream>
 #include <sstream>
 
+// (AR) DEF-002: جسر تطبيق سياسة الذاكرة الموحَّد. الـ REPL لا يحلّل أعلام CLI
+//      لسياسة الذاكرة بعد، لذا الاستدعاء أدناه `policySet=false` ⇒ no-op.
+//      يبقى حاضراً كنقطة استعداد: عند إضافة أعلام للـ REPL لاحقاً يكفي تمرير
+//      الإعدادات الفعلية + true بدون إعادة هندسة.
+// (EN) DEF-002: unified policy bridge. REPL does not parse CLI flags yet, so
+//      we invoke with policySet=false (no-op) — placeholder for future wiring.
+#include "memory/gc/policy_bridge.h"
+#include "memory/policy/gc_mode.h"
+
 // Windows VOID macro conflicts with ValueType::VOID
 #ifdef _WIN32
 #include <windows.h>
@@ -90,6 +99,14 @@ namespace Sad
             interpOpts.enableDebugMode = false;
             interpOpts.printResults = false;
             interpreter_ = std::make_unique<Interpreter::Interpreter>(interpOpts);
+
+            // (AR) DEF-002: نقطة استعداد لجسر سياسة الذاكرة (الآن no-op لعدم
+            //      وجود أعلام CLI في REPL). راجع التعليق أعلى الملف.
+            // (EN) DEF-002: ready-point for the policy bridge (no-op today).
+            ::Sad::Memory::MemoryModeSettings replPolicy{};
+            ::Sad::Memory::GC::applyMemoryPolicyGlobal(replPolicy,
+                                                       /*policySet=*/false,
+                                                       /*debugMode=*/false);
 
             // ErrorManager is a singleton, no need to initialize
             // errorManager_ = std::make_unique<Errors::ErrorManager>();
@@ -226,6 +243,13 @@ namespace Sad
             interpOpts.enableDebugMode = false;
             interpOpts.printResults = false;
             interpreter_ = std::make_unique<Interpreter::Interpreter>(interpOpts);
+
+            // (AR) DEF-002: نفس نقطة الاستعداد عند إعادة التهيئة.
+            // (EN) DEF-002: same ready-point on reset.
+            ::Sad::Memory::MemoryModeSettings replPolicy{};
+            ::Sad::Memory::GC::applyMemoryPolicyGlobal(replPolicy,
+                                                       /*policySet=*/false,
+                                                       /*debugMode=*/false);
 
             // Clear multiline buffer / مسح المخزن متعدد الأسطر
             multilineBuffer_.clear();

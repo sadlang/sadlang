@@ -25,6 +25,9 @@ set(SAD_MEMORY_GC_SOURCES
     src/cycles/cycle_detector.cpp
     src/cycles/cycle_detector_impl.cpp
     src/engine/garbage_collector.cpp
+    # (AR) DEF-002: جسر تطبيق سياسة الذاكرة الموحَّد (المفسر/الـVM/REPL)
+    # (EN) DEF-002: unified memory-policy bridge (interpreter/VM/REPL)
+    src/policy_bridge.cpp
 )
 
 add_library(sad_memory_gc STATIC ${SAD_MEMORY_GC_SOURCES})
@@ -39,5 +42,14 @@ endif()
 
 target_compile_features(sad_memory_gc PUBLIC cxx_std_17)
 
-# (AR) لا اعتماديات داخلية حالياً — CycleDetector و GarbageCollector يستخدمان STL فقط.
-# (EN) No internal dependencies yet — CycleDetector and GarbageCollector use only the STL. uses only the STL.
+# (AR) DEF-002: تبعيات الجسر — يحتاج MemoryModeSettings (memory_policy)
+#      و ObjectInstance hooks API (sad_shared/types). الترتيب آمن:
+#      sad_shared و sad_memory_policy يُبنيان قبل sad_memory_gc وليس
+#      أيهما يربط بـ sad_memory_gc → لا توجد دورة تبعيات.
+# (EN) DEF-002: bridge dependencies — needs MemoryModeSettings from
+#      memory_policy and ObjectInstance hook API from sad_shared. Both
+#      are built earlier and never link back into memory_gc → no cycle.
+target_link_libraries(sad_memory_gc PUBLIC
+    sad_memory_policy
+    sad_shared
+)
