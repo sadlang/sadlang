@@ -5,7 +5,7 @@
 الوصف: مُشغّل اختبارات التنفيذ المزدوج — يُقارن مخرجات المفسر والمترجم
 المهمة: ADR-03 — تكافؤ 100% بين المفسر والمترجم
 
-(AR) يُشغّل كل ملف .ص عبر المفسر (sad.exe) والمترجم (sadc.exe) ويقارن المخرجات.
+(AR) يُشغّل كل ملف .ص عبر المفسر (sad-run.exe) والمترجم (sadc.exe) ويقارن المخرجات.
      الاختبار ينجح فقط إذا أنتج كلاهما نفس المخرج بالضبط.
 
 (EN) Runs each .ص file through both interpreter and compiler, compares outputs.
@@ -427,10 +427,13 @@ def collect_tests(tests_dir: Path, subdirs: Optional[list[str]] = None) -> list[
 
 
 def load_config(config_path: Path) -> dict:
-    """(AR) تحميل ملف config.yaml (بدون اعتمادية PyYAML — تحليل بسيط)"""
+    """(AR) تحميل ملف config.yaml (بدون اعتمادية PyYAML — تحليل بسيط)
+    (AR) ملاحظة: المفسر الافتراضي هو `sad-run.exe` (وليس `sad.exe`) لأن
+         الأخير صار موزِّع أوامر بعد إعادة هيكلة الأدوات.
+    """
     config = {
         "paths": {
-            "interpreter": "build/bin/Debug/sad.exe",
+            "interpreter": "build/bin/Debug/sad-run.exe",
             "compiler": "build/bin/Release/sadc.exe",
             "tests_dir": "tests/dual_execution",
         },

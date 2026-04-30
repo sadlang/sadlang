@@ -5,8 +5,12 @@
 
 # (AR) مسارات الملفات التنفيذية — عدّل حسب بيئتك
 # (EN) Executable paths — adjust for your environment
+# (AR) ملاحظة: منذ إعادة هيكلة الأدوات، `sad.exe` صار موزِّع أوامر (Hub).
+#      المفسر الفعلي هو `sad-run.exe` ويُستدعى مباشرة لتفادي الحمل الزائد.
+# (EN) Note: After tools restructure, `sad.exe` is the dispatcher hub.
+#      The real interpreter is `sad-run.exe`; invoked directly for less overhead.
 paths:
-  interpreter: "build/bin/Debug/sad.exe"
+  interpreter: "build/bin/Debug/sad-run.exe"
   compiler: "build/bin/Release/sadc.exe"
   tests_dir: "tests/dual_execution"
 
