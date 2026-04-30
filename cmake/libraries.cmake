@@ -59,6 +59,12 @@ target_link_libraries(sad_core PUBLIC sad_security_core)
 #      that include ownership_manager.h which now depends on memory/policy/gc_mode.h
 target_link_libraries(sad_core PUBLIC sad_memory_policy)
 
+# (AR) Phase B-step3: محرك GC الموحَّد — interpreter_core.cpp يضمّن الآن
+#      memory/gc/engine/garbage_collector.h ليُفعِّل/يُعلِّق المحرك حسب gcStrategy.
+# (EN) Phase B-step3: unified GC engine — interpreter_core.cpp now includes the
+#      engine header to toggle the engine per gcStrategy.
+target_link_libraries(sad_core PUBLIC sad_memory_gc)
+
 if(MSVC)
     target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
 endif()

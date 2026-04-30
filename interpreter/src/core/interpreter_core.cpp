@@ -37,6 +37,10 @@
 // (EN) Class manager — for accessing نص() operator from callback
 #include "class_manager.h"
 
+// (AR) Phase B-step3: محرك GC الموحَّد — يُفعَّل/يُعلَّق حسب gcStrategy
+// (EN) Phase B-step3: unified GC engine — toggled per gcStrategy
+#include "memory/gc/engine/garbage_collector.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
@@ -88,6 +92,43 @@ namespace Sad
                 ownershipManager_->setArabicMessages(options_.ownershipArabicMessages);
                 ownershipManager_->setDebugMode(options_.enableDebugMode || options_.ownershipDebugMode);
                 ownershipManager_->setStrictness(options_.memoryPolicy.ownershipMode);
+
+                // ============================================================
+                // (AR) Phase B-step3 — تطبيق سياسة GC على المحرك الموحَّد
+                //
+                // الدلالات المعتمدة (بحسب docs/معمارية_الذاكرة_الموحدة.md):
+                //   --dev   → gcStrategy = MarkAndSweep  → resume() (يعمل)
+                //   --prod  → gcStrategy = None          → pause()  (مُعطَّل)
+                //   --learn → gcStrategy = MarkAndSweep  → resume() (يعمل، تحذيرات فقط للملكية)
+                //
+                // (AR) ملاحظة هامة: المفسّر حالياً يُدير حياة الكائنات بـ
+                //      shared_ptr<ObjectInstance>، لذلك المحرك لا يتعقَّب
+                //      تخصيصات المفسّر مباشرة بعد. هذه الخطوة تُفعّل المحرك
+                //      وتجعله جاهزاً لاستقبال تسجيلات لاحقة (B-step4: ربط
+                //      ObjectInstance::ctor بـ registerObject والـ dtor بـ
+                //      unregisterObject — تغيير غير عكوس على دلالات الذاكرة
+                //      ولذلك نُؤجّله إلى مرحلة لها اختبار خاص).
+                // (EN) Apply GC policy to the unified engine. The interpreter
+                //      still owns object lifetime via shared_ptr; full hooking
+                //      of allocations is deferred to B-step4.
+                // ============================================================
+                auto& gcEngine = Sad::Memory::GC::defaultEngine();
+                if (options_.memoryPolicy.gcStrategy == Sad::Memory::GCStrategy::None)
+                {
+                    gcEngine.pause();
+                }
+                else
+                {
+                    gcEngine.resume();
+                }
+
+                if (options_.enableDebugMode)
+                {
+                    auto stats = gcEngine.getStats();
+                    std::cout << "(AR) GC engine: paused=" << (stats.paused ? "true" : "false")
+                              << " strategy=" << static_cast<int>(options_.memoryPolicy.gcStrategy)
+                              << " / (EN) GC engine state applied" << std::endl;
+                }
             }
 
             // (AR) إنشاء محلل الوحدات لنظام الاستيراد والتصدير

@@ -96,6 +96,11 @@ target_link_libraries(sad_interpreter
         # (EN) Memory Layer Unification (Phase A): unified memory mode policy
         #      source of truth for --dev/--prod/--learn, GC strategies, ownership levels.
         sad_memory_policy
+        # (AR) Memory Layer Unification (Phase B-step3): محرك GC الموحَّد
+        #      يُفعَّل في وضع --dev، يُعلَّق في --prod (بقرار من gcStrategy).
+        # (EN) Memory Layer Unification (Phase B-step3): unified GC engine
+        #      enabled in --dev mode, paused in --prod (driven by gcStrategy).
+        sad_memory_gc
 )
 
 target_compile_features(sad_interpreter PUBLIC cxx_std_17)
