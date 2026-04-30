@@ -15,8 +15,8 @@
  * @version 1.0
  */
 
-#ifndef SAD_MEMORY_OWNERSHIP_SUGGESTER_H
-#define SAD_MEMORY_OWNERSHIP_SUGGESTER_H
+#ifndef SAD_SUGGESTIONS_OWNERSHIP_SUGGESTER_H
+#define SAD_SUGGESTIONS_OWNERSHIP_SUGGESTER_H
 
 #include <string>
 #include <vector>
@@ -386,4 +386,4 @@ std::string severityToAnsiColor(SuggestionSeverity severity);
 } // namespace Memory
 } // namespace Sad
 
-#endif // SAD_MEMORY_OWNERSHIP_SUGGESTER_H
+#endif // SAD_SUGGESTIONS_OWNERSHIP_SUGGESTER_H
