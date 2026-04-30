@@ -744,7 +744,8 @@ extern "C" {
         }
         
         char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        // (AR) memcpy آمن بدلاً من strcpy / (EN) safe memcpy replaces strcpy
+        std::memcpy(output, result.c_str(), result.size() + 1);
         return output;
     }
     

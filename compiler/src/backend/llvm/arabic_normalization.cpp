@@ -55,6 +55,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <cstdint>
+#include <cstring> // (AR) memcpy آمن بدلاً من strcpy / (EN) safe memcpy replaces strcpy
 
 namespace sad {
 namespace optimizer {
@@ -549,8 +550,10 @@ extern "C" {
      */
     char* sad_normalize_nfc(const char* input) {
         std::string result = ArabicNormalizer::normalizeNFC(input);
-        char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        const std::size_t bufSize = result.size() + 1;
+        char* output = new char[bufSize];
+        // (AR) memcpy آمن: الوجهة مخصصة بحجم دقيق + 1 لـ null / (EN) safe memcpy: dest sized exactly
+        std::memcpy(output, result.c_str(), bufSize);
         return output;
     }
     
@@ -559,8 +562,9 @@ extern "C" {
      */
     char* sad_normalize_nfd(const char* input) {
         std::string result = ArabicNormalizer::normalizeNFD(input);
-        char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        const std::size_t bufSize = result.size() + 1;
+        char* output = new char[bufSize];
+        std::memcpy(output, result.c_str(), bufSize);
         return output;
     }
     
@@ -569,8 +573,9 @@ extern "C" {
      */
     char* sad_normalize_nfkc(const char* input) {
         std::string result = ArabicNormalizer::normalizeNFKC(input);
-        char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        const std::size_t bufSize = result.size() + 1;
+        char* output = new char[bufSize];
+        std::memcpy(output, result.c_str(), bufSize);
         return output;
     }
     
@@ -579,8 +584,9 @@ extern "C" {
      */
     char* sad_normalize_nfkd(const char* input) {
         std::string result = ArabicNormalizer::normalizeNFKD(input);
-        char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        const std::size_t bufSize = result.size() + 1;
+        char* output = new char[bufSize];
+        std::memcpy(output, result.c_str(), bufSize);
         return output;
     }
     

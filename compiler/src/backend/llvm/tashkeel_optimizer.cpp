@@ -50,6 +50,7 @@
 #include <bitset>
 #include <optional>
 #include <cstdint>
+#include <cstring> // (AR) memcpy آمن بدلاً من strcpy / (EN) safe memcpy replaces strcpy
 #include <unordered_map>
 
 namespace sad {
@@ -705,8 +706,10 @@ extern "C" {
      */
     char* sad_strip_tashkeel(const char* text) {
         std::string result = TashkeelOptimizer::stripTashkeel(text);
-        char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        const std::size_t bufSize = result.size() + 1;
+        char* output = new char[bufSize];
+        // (AR) memcpy آمن: الوجهة بحجم دقيق / (EN) safe memcpy: dest sized exactly
+        std::memcpy(output, result.c_str(), bufSize);
         return output;
     }
     
@@ -734,8 +737,9 @@ extern "C" {
         // ... reconstruct CompressedTashkeelMap
         
         std::string result = TashkeelOptimizer::restore(optimized);
-        char* output = new char[result.size() + 1];
-        std::strcpy(output, result.c_str());
+        const std::size_t bufSize = result.size() + 1;
+        char* output = new char[bufSize];
+        std::memcpy(output, result.c_str(), bufSize);
         return output;
     }
     

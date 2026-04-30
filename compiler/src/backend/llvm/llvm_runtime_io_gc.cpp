@@ -6,11 +6,13 @@
  */
 
 #include "llvm_runtime.h"
+#include "input_sanitizer.h" // (AR) تحليل آمن للأرقام بديلاً عن scanf / (EN) safe numeric parsing
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <vector>
+#include <string>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -288,15 +290,28 @@ int64_t sad_llvm_input_int()
 {
     int64_t value = 0;
     prepareStdinForRead();
-    // إصلاح: التحقق من نجاح scanf
-    if (scanf("%lld", (long long *)&value) != 1)
+    // (AR) بديل آمن لـ scanf: fgets + safeParseInt (حدود واضحة للمخزن)
+    // (EN) safe alternative to scanf: fgets + InputSanitizer::safeParseInt
+    char buffer[64];
+    if (fgets(buffer, sizeof(buffer), stdin) != nullptr)
     {
-        value = 0; // قيمة افتراضية عند الفشل
+        // إزالة أي سطر جديد متبقٍ
+        size_t blen = strlen(buffer);
+        while (blen > 0 && (buffer[blen - 1] == '\n' || buffer[blen - 1] == '\r'))
+            buffer[--blen] = '\0';
+        std::int64_t parsed = 0;
+        if (Sad::Security::InputSanitizer::safeParseInt(std::string(buffer), parsed))
+        {
+            value = parsed;
+        }
+        // إذا لم يجتز السطر بالكامل (buffer امتلأ)، صرف الباقي
+        if (blen + 1 == sizeof(buffer))
+        {
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+                ;
+        }
     }
-    // تنظيف المخزن المؤقت / Clear buffer
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF)
-        ;
     restoreStdinAfterRead();
 
     return value;
@@ -310,15 +325,26 @@ double sad_llvm_input_float()
 {
     double value = 0.0;
     prepareStdinForRead();
-    // إصلاح: التحقق من نجاح scanf
-    if (scanf("%lf", &value) != 1)
+    // (AR) بديل آمن لـ scanf: fgets + safeParseDouble
+    // (EN) safe alternative to scanf: fgets + InputSanitizer::safeParseDouble
+    char buffer[64];
+    if (fgets(buffer, sizeof(buffer), stdin) != nullptr)
     {
-        value = 0.0; // قيمة افتراضية عند الفشل
+        size_t blen = strlen(buffer);
+        while (blen > 0 && (buffer[blen - 1] == '\n' || buffer[blen - 1] == '\r'))
+            buffer[--blen] = '\0';
+        double parsed = 0.0;
+        if (Sad::Security::InputSanitizer::safeParseDouble(std::string(buffer), parsed))
+        {
+            value = parsed;
+        }
+        if (blen + 1 == sizeof(buffer))
+        {
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+                ;
+        }
     }
-    // تنظيف المخزن المؤقت / Clear buffer
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF)
-        ;
     restoreStdinAfterRead();
 
     return value;
