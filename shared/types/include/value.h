@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <sstream>
+#include <functional>
 #include "function_ref.h"
 #include "sad_type_system.h"
 
@@ -356,6 +357,21 @@ namespace Sad
              * @throws std::runtime_error (AR) إذا لم تكن القيمة كائناً / (EN) if value is not an object
              */
             ObjectPtr toObject() const;
+
+            // ─────────────────────────────────────────────────────────────────
+            // (AR) تعداد جذور الكائنات (B-step5b-iii)
+            //   تستخدم لإصدار جميع مؤشرات ObjectInstance المرتبطة بهذه القيمة
+            //   إلى GC أثناء mark phase. تُغطّي:
+            //     OBJECT  → المؤشر مباشرة
+            //     ARRAY   → استدعاء عميق على كل عنصر
+            //     MAP     → استدعاء عميق على كل قيمة
+            //   الأنواع الأخرى (سكلر، نص، دالة...) → لا شيء.
+            //
+            // (EN) Enumerate all ObjectInstance roots reachable from this value:
+            //     OBJECT → emit pointer; ARRAY/MAP → recurse into elements/values.
+            // ─────────────────────────────────────────────────────────────────
+            void forEachObjectRef(const std::function<void(ObjectInstance *)> &emit) const;
+
 
             /**
              * @brief (AR) الحصول على مرجع الدالة

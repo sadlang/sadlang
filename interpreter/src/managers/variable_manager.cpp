@@ -9,6 +9,7 @@
  */
 
 #include "variable_manager.h"
+#include "memory/gc/engine/garbage_collector.h"
 #include <sstream>
 #include <iostream>
 
@@ -27,10 +28,42 @@ namespace Sad
         {
             // (AR) نستخدم ScopeManager الموجود بالفعل - لا حاجة لإنشاء scope عام هنا
             // (EN) Use existing ScopeManager - no need to create global scope here
+
+            // ─────────────────────────────────────────────────────────────────
+            // (AR) تسجيل موفّر جذور GC (B-step5b-iii)
+            //   الموفّر يُستدعى أثناء mark phase ويعدّد جميع كائنات
+            //   ObjectInstance المرئية في scopeVariables_ ويُصدرها كجذور.
+            //   Value::forEachObjectRef يتعمّق في المصفوفات والخرائط.
+            //   الالتقاط بـ this آمن لأن إلغاء التسجيل يحدث في destructor
+            //   قبل تدمير الكائن.
+            // (EN) Register a GC root provider that emits all live ObjectInstance
+            //   pointers reachable from scopeVariables_ during mark phase.
+            // ─────────────────────────────────────────────────────────────────
+            auto &gcEngine = Sad::Memory::GC::defaultEngine();
+            gcRootProviderId_ = gcEngine.addRootProvider(
+                [this](const Sad::Memory::GC::GarbageCollector::RootEmitter &emit) {
+                    for (const auto &scopeEntry : scopeVariables_)
+                    {
+                        const auto &nameToValue = scopeEntry.second;
+                        for (const auto &kv : nameToValue)
+                        {
+                            kv.second.forEachObjectRef([&emit](Data::ObjectInstance *obj) {
+                                emit(static_cast<void *>(obj));
+                            });
+                        }
+                    }
+                });
         }
 
         VariableManager::~VariableManager()
         {
+            // (AR) إلغاء تسجيل موفّر جذور GC قبل تدمير أي حالة داخلية.
+            // (EN) Unregister GC root provider before any internal state teardown.
+            if (gcRootProviderId_ > 0)
+            {
+                Sad::Memory::GC::defaultEngine().removeRootProvider(gcRootProviderId_);
+                gcRootProviderId_ = 0;
+            }
             // (AR) التنظيف التلقائي - ScopeManager يُدار من الخارج
             // (EN) Automatic cleanup - ScopeManager managed externally
         }

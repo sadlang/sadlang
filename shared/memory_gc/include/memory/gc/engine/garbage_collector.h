@@ -132,6 +132,35 @@ namespace Sad
                 /// (EN) Remove a pointer from the root set.
                 void removeRoot(void *ptr);
 
+                // ─────────────────────────────────────────────────────────────
+                // (AR) موفّر جذور ديناميكي (Root Provider) — B-step5b-iii
+                //   بدلاً من إدارة addRoot/removeRoot لكل متغير على حدة، يمكن
+                //   لمنتجي الجذور (مثل VariableManager في المفسّر) تسجيل دالة
+                //   استدعاء تُستدعى أثناء mark phase وتُصدر جميع المؤشرات الحيّة.
+                //   يقلّل overhead ويبسّط التعامل مع المتغيرات قصيرة العمر.
+                // (EN) Dynamic root provider — invoked during mark phase to emit
+                //   live pointers. Eliminates per-variable add/removeRoot overhead
+                //   for managers like VariableManager.
+                // ─────────────────────────────────────────────────────────────
+
+                /// (AR) دالة استدعاء يستخدمها الموفّر لإصدار مؤشر جذر واحد.
+                /// (EN) Callback used by the provider to emit a single root pointer.
+                using RootEmitter = std::function<void(void *)>;
+
+                /// (AR) دالة موفّر الجذور — تُستدعى مرة واحدة لكل دورة جمع، يجب أن
+                ///      تستدعي emit(ptr) لكل جذر حيّ. الاستدعاء يحدث تحت قفل GC.
+                /// (EN) Root provider function — called once per collection cycle;
+                ///      must call emit(ptr) for each live root. Invoked under GC lock.
+                using RootProvider = std::function<void(const RootEmitter &)>;
+
+                /// (AR) تسجيل موفّر جذور. يُرجع مُعرّفاً يُستخدم لإلغاء التسجيل لاحقاً.
+                /// (EN) Register a root provider. Returns an ID for later removal.
+                int addRootProvider(RootProvider provider);
+
+                /// (AR) إلغاء تسجيل موفّر جذور (يُتجاهَل إذا كان المُعرّف غير معروف).
+                /// (EN) Remove a previously registered root provider (no-op if unknown).
+                void removeRootProvider(int id);
+
                 /// (AR) للاختبار/التشخيص — هل الكائن متعقَّب حالياً؟
                 /// (EN) Diagnostic — is this pointer currently tracked?
                 bool isTracked(void *ptr) const;
@@ -150,6 +179,10 @@ namespace Sad
                                                const std::function<void(void *)> &)>>
                     visitors_;              // (AR) دوال تعداد الأطفال (موازية)
                 std::vector<void *> roots_; // (AR) الجذور
+                // (AR) موفّرو جذور ديناميكيون (B-step5b-iii). الزوج: (id, provider).
+                // (EN) Dynamic root providers (id, provider).
+                std::vector<std::pair<int, RootProvider>> rootProviders_;
+                int nextProviderId_; // (AR) عدّاد لتوليد معرّفات الموفّرين
                 uint64_t totalAllocated_;     // (AR) مجموع الأحجام
                 uint64_t collections_;        // (AR) عداد الدورات
                 bool paused_;

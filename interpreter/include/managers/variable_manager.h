@@ -443,6 +443,13 @@ namespace Sad
             // (EN) Scope-aware const tracking — each scope knows its own constants
             std::unordered_map<Scope *, std::unordered_set<std::string>> constVariables_;
 
+            // (AR) مُعرّف موفّر جذور GC المسجّل من هذا المدير (B-step5b-iii).
+            //   يُسجَّل في constructor ويُلغى في destructor. القيمة 0 = غير مسجّل.
+            //   الموفّر يتعمّق في scopeVariables_ ويُصدر كل ObjectInstance* حيّ
+            //   ليُعتبر جذراً أثناء mark phase (يستبدل add/removeRoot لكل متغير).
+            // (EN) GC root-provider id registered by this manager. 0 = unregistered.
+            int gcRootProviderId_ = 0;
+
             /**
              * @brief (AR) البحث عن النطاق الذي يحتوي على متغير معين
              * @brief (EN) Find scope containing a specific variable

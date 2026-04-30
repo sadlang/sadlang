@@ -723,6 +723,69 @@ namespace Sad
         }
 
         // ════════════════════════════════════════════════════════════════════════
+        // (AR) forEachObjectRef — تعداد جميع مؤشرات ObjectInstance المرتبطة بهذه القيمة
+        //   (B-step5b-iii) تُستدعى من موفّر جذور VariableManager أثناء mark phase.
+        //   تُغطّي:
+        //     OBJECT  → المؤشر مباشرة (إن لم يكن null)
+        //     ARRAY   → استدعاء عميق على كل عنصر (للحاويات المتداخلة)
+        //     MAP     → استدعاء عميق على كل قيمة (المفاتيح نصية فقط)
+        //     غير ذلك → لا شيء (سكلر، نصوص، دوال، إلخ)
+        //   التصميم تكراري عميق لتغطية المصفوفات المتداخلة من الكائنات.
+        //
+        // (EN) Enumerate all live ObjectInstance pointers reachable from this Value.
+        //   Used by VariableManager root provider during GC mark phase.
+        //   Recursive descent through ARRAY/MAP containers; emits OBJECT directly.
+        // ════════════════════════════════════════════════════════════════════════
+        void Value::forEachObjectRef(const std::function<void(ObjectInstance *)> &emit) const
+        {
+            if (!emit)
+            {
+                return;
+            }
+            switch (type_)
+            {
+            case ValueType::OBJECT:
+            {
+                auto *objPtr = std::get<ObjectInstance *>(data_);
+                if (objPtr != nullptr)
+                {
+                    emit(objPtr);
+                }
+                break;
+            }
+            case ValueType::ARRAY:
+            {
+                // (AR) المصفوفة قد تحتوي قيماً من نوع OBJECT أو حاويات أخرى — نتعمّق.
+                const auto &arrPtr = std::get<std::shared_ptr<ArrayType>>(data_);
+                if (arrPtr)
+                {
+                    for (const auto &element : *arrPtr)
+                    {
+                        element.forEachObjectRef(emit);
+                    }
+                }
+                break;
+            }
+            case ValueType::MAP:
+            {
+                // (AR) الخريطة: المفاتيح نصية، القيم قد تكون كائنات أو حاويات.
+                const auto &mpPtr = std::get<std::shared_ptr<MapType>>(data_);
+                if (mpPtr)
+                {
+                    for (const auto &kv : *mpPtr)
+                    {
+                        kv.second.forEachObjectRef(emit);
+                    }
+                }
+                break;
+            }
+            default:
+                // (AR) سكلر/نص/دالة/منطقي/فراغ → لا توجد مراجع كائنات.
+                break;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // (AR) دالة getClassName — الحصول على اسم الصنف
         //      تعمل مع نوع OBJECT الجديد ومع MAP القديم الذي يحتوي على __class__
         //

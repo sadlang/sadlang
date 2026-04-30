@@ -29,7 +29,7 @@ namespace Sad
             // ─────────────────────────────────────────────────────────────────────────────────
 
             GarbageCollector::GarbageCollector()
-                : totalAllocated_(0), collections_(0), paused_(false), incPhase_(0), incIndex_(0)
+                : nextProviderId_(1), totalAllocated_(0), collections_(0), paused_(false), incPhase_(0), incIndex_(0)
             {
                 // (AR) سعة ابتدائية مماثلة للقديمة (1024 كائن، 256 جذر) لتقليل reallocations.
                 // (EN) Same initial capacity as the previous GCContext (1024/256).
@@ -65,9 +65,38 @@ namespace Sad
 
             void GarbageCollector::markFromRootsLocked(std::vector<bool> &marked) const
             {
-                // (AR) إذا لم تُسجَّل جذور، نعتبر كل الكائنات حيّة (نفس الـ fallback المحافظ).
-                // (EN) No roots → mark all alive (conservative fallback, matches legacy).
-                if (roots_.empty())
+                // (AR) جمع الجذور من المصدرين: المجموعة الثابتة (roots_) + الموفّرون الديناميكيون.
+                //      (B-step5b-iii) الموفّرون يُصدرون مؤشرات حيّة مرتبطة بحالة المفسّر.
+                // (EN) Collect roots from both: the static set (roots_) and dynamic providers.
+                std::vector<void *> worklist;
+                worklist.reserve(roots_.size() + 64);
+                for (void *r : roots_)
+                {
+                    if (r != nullptr)
+                    {
+                        worklist.push_back(r);
+                    }
+                }
+                for (const auto &entry : rootProviders_)
+                {
+                    const auto &provider = entry.second;
+                    if (!provider)
+                    {
+                        continue;
+                    }
+                    provider([&worklist](void *p) {
+                        if (p != nullptr)
+                        {
+                            worklist.push_back(p);
+                        }
+                    });
+                }
+
+                // (AR) إذا لم نحصل على أي جذر من المصدرين، نُبقي الـ fallback المحافظ
+                //      الذي يعلّم كل الكائنات حيّة — نفس سلوك السابق لتجنّب التراجع.
+                // (EN) If neither static roots nor providers emitted anything, keep the
+                //      conservative fallback that marks all objects alive.
+                if (worklist.empty())
                 {
                     for (size_t i = 0; i < objects_.size(); ++i)
                     {
@@ -79,13 +108,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) BFS: نضع الجذور في طابور، ولكلٍ منها نُعلّمه ثم نُعدّد أطفاله إما عبر
-                //      visitor مسجَّل (للأنواع المُدارة كـ ObjectInstance) أو عبر مسح
-                //      محافظ كل 8 بايت كمؤشرات (السلوك القديم).
-                // (EN) BFS over the root set. For each entry: mark + enumerate children
-                //      via the registered visitor (precise mode) or fall back to the
-                //      legacy 8-byte conservative scan.
-                std::vector<void *> worklist(roots_.begin(), roots_.end());
+                // (AR) BFS عبر الـ worklist.
                 while (!worklist.empty())
                 {
                     void *cur = worklist.back();
@@ -427,6 +450,46 @@ namespace Sad
             {
                 std::lock_guard<std::mutex> guard(mutex_);
                 return findIndexLocked(ptr) >= 0;
+            }
+
+            // ─────────────────────────────────────────────────────────────────────────────────
+            // (AR) موفّرو الجذور الديناميكيون (B-step5b-iii)
+            //   كل تسجيل يولّد مُعرّفاً تصاعدياً (يبدأ من 1) لاستخدامه عند الإلغاء.
+            //   الموفّرون يُحفظون في vector لأن العدد متوقّع أن يكون صغيراً جداً
+            //   (1-3 عادةً: VariableManager، ScopeManager، WidgetBuilder roots) ولأن
+            //   استدعاءهم يحدث ضمن mark phase الذي يحتاج ترتيب إدراج مستقر.
+            // (EN) Dynamic root providers — appended to a vector keyed by ID.
+            //   Expected count is tiny (1-3); preserves insertion order.
+            // ─────────────────────────────────────────────────────────────────────────────────
+
+            int GarbageCollector::addRootProvider(RootProvider provider)
+            {
+                if (!provider)
+                {
+                    // (AR) تجاهل الموفّر الفارغ — يُرجع مُعرّفاً غير صالح (0).
+                    return 0;
+                }
+                std::lock_guard<std::mutex> guard(mutex_);
+                int id = nextProviderId_++;
+                rootProviders_.emplace_back(id, std::move(provider));
+                return id;
+            }
+
+            void GarbageCollector::removeRootProvider(int id)
+            {
+                if (id <= 0)
+                {
+                    return;
+                }
+                std::lock_guard<std::mutex> guard(mutex_);
+                for (auto it = rootProviders_.begin(); it != rootProviders_.end(); ++it)
+                {
+                    if (it->first == id)
+                    {
+                        rootProviders_.erase(it);
+                        return;
+                    }
+                }
             }
 
             // ─────────────────────────────────────────────────────────────────────────────────
