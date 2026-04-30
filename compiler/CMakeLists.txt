@@ -236,6 +236,7 @@ if(LLVM_FOUND)
  ${llvm_libs}
  sad_frontend
  sad_optimizer
+ sad_memory_gc  # (AR) Phase B-step2: محرك GC الموحَّد لاستهلاك llvm_runtime*.cpp
  )
  
  # - 01: Unicode

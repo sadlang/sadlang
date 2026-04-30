@@ -14,6 +14,7 @@
  */
 
 #include "llvm_runtime.h"
+#include "memory/gc/engine/garbage_collector.h" // (AR) Phase B-step2: المحرك الموحَّد
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -30,86 +31,16 @@
 // ============================================================================
 // Internal Data Structures / الهياكل الداخلية
 // ============================================================================
-
-/**
- * GC Context - سياق جامع القمامة
- * GC Context - Garbage collector context
- */
-typedef struct
-{
-    void **objects;           // قائمة الكائنات / Objects list
-    uint64_t *sizes;          // أحجام الكائنات / Object sizes
-    uint64_t count;           // عدد الكائنات / Object count
-    uint64_t capacity;        // السعة / Capacity
-    uint64_t total_allocated; // الذاكرة المخصصة الكلية / Total allocated
-    uint64_t collections;     // عدد عمليات الجمع / Collection count
-    int paused;               // هل GC متوقف؟ / Is GC paused?
-    void **roots;             // الجذور / Roots
-    uint64_t root_count;      // عدد الجذور / Root count
-    uint64_t root_capacity;   // سعة الجذور / Root capacity
-} GCContext;
-
-// السياق العام / Global context
-GCContext gc_context = {NULL, NULL, 0, 0, 0, 0, 0, NULL, 0, 0};
+//
+// (AR) Phase B-step2 — تم استخراج بنية GCContext + الدوال gc_init/gc_expand/
+//      gc_find_object إلى shared/memory_gc/ ضمن صنف Sad::Memory::GC::GarbageCollector.
+//      هذا الملف لم يعد يحتفظ بحالة GC مباشرة — يستهلكها عبر defaultEngine().
+// (EN) The previous GCContext + gc_* helpers were lifted into the unified engine
+//      at shared/memory_gc/. This file now consumes the engine via defaultEngine().
 
 // قائمة الملفات المفتوحة / Open files list
 #define MAX_OPEN_FILES 256
 FILE *open_files[MAX_OPEN_FILES] = {NULL};
-
-// ============================================================================
-// Internal Helper Functions / دوال مساعدة داخلية
-// ============================================================================
-
-/**
- * تهيئة GC
- * Initialize GC
- */
-void gc_init()
-{
-    if (gc_context.objects == NULL)
-    {
-        gc_context.capacity = 1024;
-        gc_context.objects = (void **)malloc(gc_context.capacity * sizeof(void *));
-        gc_context.sizes = (uint64_t *)malloc(gc_context.capacity * sizeof(uint64_t));
-        gc_context.count = 0;
-        gc_context.total_allocated = 0;
-        gc_context.collections = 0;
-        gc_context.paused = 0;
-
-        gc_context.root_capacity = 256;
-        gc_context.roots = (void **)malloc(gc_context.root_capacity * sizeof(void *));
-        gc_context.root_count = 0;
-    }
-}
-
-/**
- * توسيع سعة GC
- * Expand GC capacity
- */
-void gc_expand()
-{
-    gc_context.capacity *= 2;
-    gc_context.objects = (void **)realloc(gc_context.objects,
-                                          gc_context.capacity * sizeof(void *));
-    gc_context.sizes = (uint64_t *)realloc(gc_context.sizes,
-                                           gc_context.capacity * sizeof(uint64_t));
-}
-
-/**
- * البحث عن كائن في GC
- * Find object in GC
- */
-int gc_find_object(void *ptr)
-{
-    for (uint64_t i = 0; i < gc_context.count; i++)
-    {
-        if (gc_context.objects[i] == ptr)
-        {
-            return (int)i;
-        }
-    }
-    return -1;
-}
 
 // ============================================================================
 // Memory Management / إدارة الذاكرة
@@ -121,18 +52,14 @@ int gc_find_object(void *ptr)
  */
 void *sad_llvm_alloc(uint64_t size)
 {
-    gc_init();
-
+    // (AR) Phase B-step2: لم نعد نهيّئ GCContext يدوياً — defaultEngine() يديره عبر RAII
     void *ptr = malloc(size);
     if (ptr == NULL)
     {
         fprintf(stderr, "خطأ: فشل تخصيص الذاكرة / Error: Memory allocation failed\n");
         return NULL;
     }
-
-    // تسجيل في GC / Register with GC
-    sad_llvm_gc_register(ptr, size);
-
+    Sad::Memory::GC::defaultEngine().registerObject(ptr, size);
     return ptr;
 }
 
@@ -147,9 +74,6 @@ void *sad_llvm_realloc(void *ptr, uint64_t new_size)
         return sad_llvm_alloc(new_size);
     }
 
-    // البحث عن الكائن / Find object
-    int index = gc_find_object(ptr);
-
     void *new_ptr = realloc(ptr, new_size);
     if (new_ptr == NULL)
     {
@@ -157,15 +81,8 @@ void *sad_llvm_realloc(void *ptr, uint64_t new_size)
         return NULL;
     }
 
-    // تحديث في GC / Update in GC
-    if (index >= 0)
-    {
-        gc_context.objects[index] = new_ptr;
-        gc_context.total_allocated -= gc_context.sizes[index];
-        gc_context.sizes[index] = new_size;
-        gc_context.total_allocated += new_size;
-    }
-
+    // (AR) تحديث المرجع داخل المحرك (يحدّث الحجم وإحصائية total_allocated)
+    Sad::Memory::GC::defaultEngine().updateObjectAfterRealloc(ptr, new_ptr, new_size);
     return new_ptr;
 }
 
@@ -178,7 +95,7 @@ void sad_llvm_free(void *ptr)
     if (ptr == NULL)
         return;
 
-    sad_llvm_gc_unregister(ptr);
+    Sad::Memory::GC::defaultEngine().unregisterObject(ptr);
     free(ptr);
 }
 

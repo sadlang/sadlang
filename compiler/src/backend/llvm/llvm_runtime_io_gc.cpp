@@ -6,6 +6,7 @@
  */
 
 #include "llvm_runtime.h"
+#include "memory/gc/engine/garbage_collector.h" // (AR) Phase B-step2: المحرك الموحَّد
 #include "input_sanitizer.h" // (AR) تحليل آمن للأرقام بديلاً عن scanf / (EN) safe numeric parsing
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,27 +30,15 @@ extern "C" uint64_t sad_llvm_string_length(void *str);
 extern "C" void *sad_llvm_alloc(uint64_t size);
 extern "C" void sad_llvm_free(void *ptr);
 
-// GC context defined in llvm_runtime.cpp
-typedef struct
-{
-    void **objects;
-    uint64_t *sizes;
-    uint64_t count;
-    uint64_t capacity;
-    uint64_t total_allocated;
-    uint64_t collections;
-    int paused;
-    void **roots;
-    uint64_t root_count;
-    uint64_t root_capacity;
-} GCContext;
-extern GCContext gc_context;
 extern FILE *open_files[256];
 
-// Helper functions from llvm_runtime.cpp
-extern void gc_init();
-extern void gc_expand();
-extern int gc_find_object(void *ptr);
+// ============================================================================
+// (AR) Phase B-step2: GCContext + الدوال gc_* انتقلت إلى shared/memory_gc/.
+//      كل الدوال sad_llvm_gc_* أدناه أصبحت تفويضاً مباشراً للمحرك الموحَّد
+//      Sad::Memory::GC::defaultEngine() (الجسر الوحيد بين runtime sadc والمحرك).
+// (EN) GCContext + gc_* helpers are now in shared/memory_gc/. The sad_llvm_gc_*
+//      functions below are thin delegates over Sad::Memory::GC::defaultEngine().
+// ============================================================================
 
 // ============================================================================
 // I/O Operations / عمليات الإدخال والإخراج
@@ -463,323 +452,60 @@ uint64_t sad_llvm_file_write(int64_t fd, void *data, uint64_t size)
 // ============================================================================
 // Garbage Collector Integration / تكامل جامع القمامة
 // ============================================================================
+//
+// (AR) جميع هذه الدوال تفويض رفيع لمحرك Sad::Memory::GC::GarbageCollector
+//      المحرَّر في shared/memory_gc/. التطبيق الفعلي (mark-and-sweep، التوسيع،
+//      البحث، الجمع التدريجي) موجود هناك. أي تغيير في الخوارزمية يجب أن يحصل
+//      في المحرك — لا تعد كتابة منطق GC هنا.
+// (EN) Thin delegates over the unified GC engine. All algorithmic logic lives in
+//      shared/memory_gc/. Do not re-implement GC logic in this file.
 
-/**
- * تسجيل كائن مع GC
- * Register object with GC
- */
 void sad_llvm_gc_register(void *ptr, uint64_t size)
 {
-    if (ptr == NULL)
-        return;
-
-    gc_init();
-
-    // توسيع إذا لزم الأمر / Expand if needed
-    if (gc_context.count >= gc_context.capacity)
-    {
-        gc_expand();
-    }
-
-    gc_context.objects[gc_context.count] = ptr;
-    gc_context.sizes[gc_context.count] = size;
-    gc_context.count++;
-    gc_context.total_allocated += size;
+    Sad::Memory::GC::defaultEngine().registerObject(ptr, size);
 }
 
-/**
- * إلغاء تسجيل كائن
- * Unregister object
- */
 void sad_llvm_gc_unregister(void *ptr)
 {
-    if (ptr == NULL)
-        return;
-
-    int index = gc_find_object(ptr);
-    if (index < 0)
-        return;
-
-    // تحديث الإحصائيات / Update stats
-    gc_context.total_allocated -= gc_context.sizes[index];
-
-    // إزالة من القائمة / Remove from list
-    for (uint64_t i = index; i < gc_context.count - 1; i++)
-    {
-        gc_context.objects[i] = gc_context.objects[i + 1];
-        gc_context.sizes[i] = gc_context.sizes[i + 1];
-    }
-
-    gc_context.count--;
+    Sad::Memory::GC::defaultEngine().unregisterObject(ptr);
 }
 
-/**
- * تشغيل جامع القمامة
- * Trigger garbage collection
- */
 void sad_llvm_gc_collect()
 {
-    if (gc_context.paused)
-        return;
-
-    gc_context.collections++;
-
-    // (AR) خوارزمية mark-and-sweep كاملة مع تتبع الجذور
-    // (EN) Full mark-and-sweep algorithm with root tracing
-
-    if (gc_context.count == 0)
-        return;
-
-    // المرحلة 1: وضع علامة على جميع الكائنات كغير محددة / Phase 1: Mark all as unmarked
-    std::vector<bool> marked(gc_context.count, false);
-
-    // المرحلة 2: وضع علامة على الجذور وتتبع المراجع
-    // Phase 2: Mark roots and trace references
-    if (gc_context.root_count > 0 && gc_context.roots != nullptr)
-    {
-        // (AR) تتبع من الجذور المسجّلة
-        // (EN) Trace from registered roots
-        for (uint64_t r = 0; r < gc_context.root_count; r++)
-        {
-            void *rootPtr = gc_context.roots[r];
-            if (rootPtr == nullptr)
-                continue;
-
-            // (AR) البحث عن هذا الجذر في قائمة الكائنات
-            // (EN) Find this root in the object list
-            int idx = gc_find_object(rootPtr);
-            if (idx >= 0 && !marked[idx])
-            {
-                marked[idx] = true;
-
-                // (AR) تتبع المراجع الداخلية — نفحص محتوى الكائن
-                // كل 8 بايت قد يكون مؤشراً لكائن آخر
-                // (EN) Trace internal references — scan object contents
-                // every 8 bytes may be a pointer to another object
-                uint64_t objSize = gc_context.sizes[idx];
-                void **objData = (void **)rootPtr;
-                uint64_t ptrCount = objSize / sizeof(void *);
-
-                for (uint64_t p = 0; p < ptrCount; p++)
-                {
-                    void *maybeRef = objData[p];
-                    if (maybeRef == nullptr)
-                        continue;
-                    int refIdx = gc_find_object(maybeRef);
-                    if (refIdx >= 0 && !marked[refIdx])
-                    {
-                        marked[refIdx] = true;
-                    }
-                }
-            }
-        }
-    }
-    else
-    {
-        // (AR) لا توجد جذور مسجّلة — نعتبر جميع الكائنات حيّة (سلوك محافظ)
-        // (EN) No roots registered — consider all objects alive (conservative)
-        for (uint64_t i = 0; i < gc_context.count; i++)
-        {
-            if (gc_context.objects[i] != nullptr)
-            {
-                marked[i] = true;
-            }
-        }
-    }
-
-    // المرحلة 3: مسح الكائنات غير المُعلَّمة / Phase 3: Sweep unmarked objects
-    uint64_t freed = 0;
-    for (uint64_t i = 0; i < gc_context.count;)
-    {
-        if (!marked[i] && gc_context.objects[i] != nullptr)
-        {
-            // تحرير الكائن / Free object
-            free(gc_context.objects[i]);
-            gc_context.objects[i] = nullptr;
-
-            // إزالة من القائمة / Remove from list
-            for (uint64_t j = i; j < gc_context.count - 1; j++)
-            {
-                gc_context.objects[j] = gc_context.objects[j + 1];
-                gc_context.sizes[j] = gc_context.sizes[j + 1];
-                marked[j] = marked[j + 1];
-            }
-            gc_context.count--;
-            freed++;
-        }
-        else
-        {
-            i++;
-        }
-    }
-
-    // تحديث الإحصائيات / Update statistics
-    if (freed > 0)
-    {
-        // في تنفيذ كامل، نحتفظ بإحصائيات التحرير
-        // In full implementation, keep free statistics
-    }
+    Sad::Memory::GC::defaultEngine().collect();
 }
 
-/**
- * جمع تدريجي
- * Incremental collection
- */
 void sad_llvm_gc_collect_incremental(uint64_t steps)
 {
-    if (gc_context.paused)
-        return;
-
-    // جمع تدريجي — مرحلة وضع/مسح
-    // Incremental collection — mark/sweep phases
-
-    static uint64_t current_phase = 0; // 0=mark, 1=sweep
-    static uint64_t current_index = 0;
-    static std::vector<bool> incremental_marked;
-
-    if (current_phase == 0)
-    {
-        // مرحلة الوضع / Mark phase
-        if (current_index == 0)
-        {
-            // تهيئة / Initialize
-            incremental_marked.resize(gc_context.count, false);
-        }
-
-        // وضع علامة على عدد من الكائنات / Mark some objects
-        uint64_t end = (std::min)(current_index + steps, gc_context.count);
-        for (uint64_t i = current_index; i < end; i++)
-        {
-            if (gc_context.objects[i] != nullptr)
-            {
-                incremental_marked[i] = true;
-            }
-        }
-
-        current_index = end;
-        if (current_index >= gc_context.count)
-        {
-            // انتقل لمرحلة المسح / Move to sweep phase
-            current_phase = 1;
-            current_index = 0;
-        }
-    }
-    else
-    {
-        // مرحلة المسح / Sweep phase
-        uint64_t swept = 0;
-
-        while (current_index < gc_context.count && swept < steps)
-        {
-            if (!incremental_marked[current_index] && gc_context.objects[current_index] != nullptr)
-            {
-                // تحرير / Free
-                free(gc_context.objects[current_index]);
-                gc_context.objects[current_index] = nullptr;
-
-                // إزالة / Remove
-                for (uint64_t j = current_index; j < gc_context.count - 1; j++)
-                {
-                    gc_context.objects[j] = gc_context.objects[j + 1];
-                    gc_context.sizes[j] = gc_context.sizes[j + 1];
-                    incremental_marked[j] = incremental_marked[j + 1];
-                }
-                gc_context.count--;
-            }
-            else
-            {
-                current_index++;
-            }
-            swept++;
-        }
-
-        if (current_index >= gc_context.count)
-        {
-            // اكتملت الدورة / Cycle complete
-            current_phase = 0;
-            current_index = 0;
-            incremental_marked.clear();
-            gc_context.collections++;
-        }
-    }
+    Sad::Memory::GC::defaultEngine().collectIncremental(steps);
 }
 
-/**
- * إحصائيات GC
- * GC statistics
- */
 void sad_llvm_gc_stats(uint64_t *allocated, uint64_t *used, uint64_t *collections)
 {
-    if (allocated)
-        *allocated = gc_context.total_allocated;
-    if (used)
-        *used = gc_context.total_allocated; // Simplified
-    if (collections)
-        *collections = gc_context.collections;
+    auto stats = Sad::Memory::GC::defaultEngine().getStats();
+    if (allocated)   *allocated   = stats.totalAllocated;
+    if (used)        *used        = stats.totalAllocated; // (AR) تبسيط مطابق للسلوك القديم
+    if (collections) *collections = stats.collections;
 }
 
-/**
- * تعليق GC
- * Pause GC
- */
 void sad_llvm_gc_pause()
 {
-    gc_context.paused = 1;
+    Sad::Memory::GC::defaultEngine().pause();
 }
 
-/**
- * استئناف GC
- * Resume GC
- */
 void sad_llvm_gc_resume()
 {
-    gc_context.paused = 0;
+    Sad::Memory::GC::defaultEngine().resume();
 }
 
-/**
- * إضافة جذر GC
- * Add GC root
- */
 void sad_llvm_gc_add_root(void *ptr)
 {
-    if (ptr == NULL)
-        return;
-
-    gc_init();
-
-    // توسيع إذا لزم الأمر / Expand if needed
-    if (gc_context.root_count >= gc_context.root_capacity)
-    {
-        gc_context.root_capacity *= 2;
-        gc_context.roots = (void **)realloc(gc_context.roots,
-                                            gc_context.root_capacity * sizeof(void *));
-    }
-
-    gc_context.roots[gc_context.root_count++] = ptr;
+    Sad::Memory::GC::defaultEngine().addRoot(ptr);
 }
 
-/**
- * إزالة جذر GC
- * Remove GC root
- */
 void sad_llvm_gc_remove_root(void *ptr)
 {
-    if (ptr == NULL)
-        return;
-
-    for (uint64_t i = 0; i < gc_context.root_count; i++)
-    {
-        if (gc_context.roots[i] == ptr)
-        {
-            // إزالة / Remove
-            for (uint64_t j = i; j < gc_context.root_count - 1; j++)
-            {
-                gc_context.roots[j] = gc_context.roots[j + 1];
-            }
-            gc_context.root_count--;
-            return;
-        }
-    }
+    Sad::Memory::GC::defaultEngine().removeRoot(ptr);
 }
 
 // ============================================================================
@@ -940,16 +666,11 @@ void sad_llvm_exit(int code)
     }
 
     // تنظيف GC / Cleanup GC
-    if (gc_context.objects != NULL)
-    {
-        for (uint64_t i = 0; i < gc_context.count; i++)
-        {
-            free(gc_context.objects[i]);
-        }
-        free(gc_context.objects);
-        free(gc_context.sizes);
-        free(gc_context.roots);
-    }
+    // (AR) Phase B-step2: لم نعد ندير الذاكرة هنا — defaultEngine() هو الذي
+    //      يحرّر كائناته عبر دورة collect() (إن وُجدت جذور) أو يَخرج برامج
+    //      sadc وعندها يحرّر الـ OS كل شيء. آمن للحذف هنا.
+    // (EN) GC cleanup is now handled by Sad::Memory::GC::defaultEngine() via
+    //      collect(), or implicitly by process exit. Removed redundant cleanup.
 
     exit(code);
 }

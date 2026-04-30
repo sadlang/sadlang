@@ -17,13 +17,14 @@
 #
 # المراحل:
 #   B-step1 (مكتمل): نقل cycle_detector.* + حذف gc_fallback_mode.cpp اليتيم
-#   B-step2 (قيد):   استخراج محرك GC من llvm_runtime_io_gc.cpp إلى مجرَّد C++
+#   B-step2 (مكتمل): استخراج محرك GC إلى engine/garbage_collector.{h,cpp}
 #   B-step3 (قيد):   ربط المفسر والـ VM بالمحرك الموحَّد
 # ═══════════════════════════════════════════════════════════════════════════════════
 
 set(SAD_MEMORY_GC_SOURCES
     src/cycles/cycle_detector.cpp
     src/cycles/cycle_detector_impl.cpp
+    src/engine/garbage_collector.cpp
 )
 
 add_library(sad_memory_gc STATIC ${SAD_MEMORY_GC_SOURCES})
@@ -38,5 +39,5 @@ endif()
 
 target_compile_features(sad_memory_gc PUBLIC cxx_std_17)
 
-# (AR) لا اعتماديات داخلية حالياً — CycleDetector يستخدم STL فقط.
-# (EN) No internal dependencies yet — CycleDetector uses only the STL.
+# (AR) لا اعتماديات داخلية حالياً — CycleDetector و GarbageCollector يستخدمان STL فقط.
+# (EN) No internal dependencies yet — CycleDetector and GarbageCollector use only the STL. uses only the STL.
