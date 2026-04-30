@@ -330,26 +330,16 @@ if(SECURITY_ALL_SOURCES)
 endif()
 
 # ============================================================================
-# Memory System Library ( )
+# (AR) مكتبة sad_memory أُلغيت في المرحلة B-step1 — انتقلت محتوياتها إلى shared/:
+#        - gc_mode.* و memory_mode_flag.* → shared/memory_policy/  (المرحلة A1)
+#        - cycle_detector*                  → shared/memory_gc/    (المرحلة B-step1)
+#        - gc_fallback_mode.cpp            → حُذف (يتيم بدون مستهلك)
+#      المسارات الثلاثة (مفسّر/مترجم/VM) تربط الآن sad_memory_policy و sad_memory_gc
+#      مباشرة من shared/.
+# (EN) sad_memory library removed in Phase B-step1 — contents migrated to shared/.
+#      Interpreter, compiler, and VM now link sad_memory_policy and sad_memory_gc
+#      from shared/ directly.
 # ============================================================================
-file(GLOB MEMORY_SOURCES "src/memory/*.cpp")
-file(GLOB MEMORY_HEADERS "include/memory/*.h")
-
-add_library(sad_memory STATIC ${MEMORY_SOURCES})
-
-if(MSVC)
- target_compile_options(sad_memory PRIVATE /utf-8 /wd4819 /FS)
-endif()
-
-target_include_directories(sad_memory
- PUBLIC
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/include/memory
- ${CMAKE_SOURCE_DIR}/include
- ${SAD_SHARED_DIR}/shared/ast/include
- ${SAD_SHARED_DIR}/shared/types/include
- ${SAD_SHARED_DIR}/shared/errors/include
-)
 
 # ============================================================================
 # Type System Library
@@ -651,7 +641,7 @@ if(LLVM_FOUND)
  sad_llvm_backend
  sad_type_system
  sad_semantic
- sad_memory
+ sad_memory_gc
  sad_memory_policy
  )
  # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/...)
@@ -689,7 +679,7 @@ else()
  sad_optimizer
  sad_type_system
  sad_semantic
- sad_memory
+ sad_memory_gc
  sad_memory_policy
  )
  # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/...)

@@ -164,3 +164,14 @@ add_subdirectory(security)
 # ============================================================================
 add_subdirectory(memory_policy)
 
+# ============================================================================
+# (AR) مكتبة محرك جامع القمامة الموحَّدة — shared/memory_gc/
+#      نُقلت كاشفات الدورات من compiler/memory/ في إطار المرحلة B-step1.
+#      المراحل اللاحقة (B2/B3) ستضيف محرك GC الفعلي وتربطه بالمسارات الثلاثة.
+# (EN) Unified GC engine library — cycle detection moved from compiler/memory/
+#      as part of Phase B-step1. Future phases (B2/B3) will add the GC engine
+#      proper and wire it across interpreter / compiler / VM.
+# @phase Architecture Refactor: Memory Layer Unification — Phase B
+# ============================================================================
+add_subdirectory(memory_gc)
+

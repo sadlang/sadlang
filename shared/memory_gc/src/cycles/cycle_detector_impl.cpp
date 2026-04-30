@@ -1,9 +1,9 @@
-﻿#ifdef _MSC_VER
+#ifdef _MSC_VER
 #pragma warning(disable : 4819)
 #endif
 // (AR) تنفيذ صنف CycleDetector
 // (EN) CycleDetector class implementation
-#include "memory/cycle_detector.h"
+#include "memory/gc/cycles/cycle_detector.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>

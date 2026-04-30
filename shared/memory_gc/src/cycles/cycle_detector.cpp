@@ -1,4 +1,4 @@
-﻿// تعطيل تحذير Unicode للتعليقات العربية
+// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable : 4819)
 #endif
@@ -12,7 +12,7 @@
  * @version 1.0
  */
 
-#include "memory/cycle_detector.h"
+#include "memory/gc/cycles/cycle_detector.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
