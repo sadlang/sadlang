@@ -1,4 +1,4 @@
-# معمارية محرك جامع المهملات (GC) — رحلة B-step5b بالكامل
+﻿# معمارية محرك جامع المهملات (GC) — رحلة B-step5b بالكامل
 
 > **آخر تحديث:** أبريل 2026
 > **الفرع:** `graphic`
@@ -449,130 +449,243 @@ if (providerId_ > 0) {
 
 ---
 
-**خاتمة:** هذه المرحلة تمثّل الخطوة الجوهرية في تحويل لغة ص من نموذج
-إدارة ذاكرة "ساذج" إلى نموذج محرك GC حقيقي قابل للتطوير نحو نظام
-تشغيل مستقل. الأساس مكتمل؛ المراحل القادمة تتعلق بالتغطية والتحسين
-والتفعيل الفعلي للجمع التلقائي.
+**خاتمة الجزء الأول:** هذه المرحلة تمثّل الخطوة الجوهرية في بناء محرك
+GC حقيقي يحلّ محل `shared_ptr<ObjectInstance>` ويُمهّد لجميع المسارات
+استخدام نفس المحرك تحت سيطرة `MemoryPolicyManager`.
 
 ---
 
-# الجزء الثاني — نظام إدارة الذاكرة الكامل عبر جميع المسارات
+# الجزء الثاني — نظام إدارة الذاكرة الموحَّد عبر جميع المسارات
 
-> هذا الجزء أُضيف بناءً على طلب توسيع التغطية لتشمل **نظام الملكية في
-> المترجم** (sadc) وإمكانية الانتقال نحوه، بالإضافة إلى رسم الصورة
-> الكلية للتفاعل بين GC والملكية والمسارات الثلاثة (المُفسّر/الـVM/المترجم).
+> هذا الجزء يصف **الرؤية المعمارية الكاملة** كما هي مُعرَّفة في
+> [معمارية الذاكرة الموحَّدة](معمارية_الذاكرة_الموحدة.md) ومذكرة المستودع
+> `architecture_refactor_status.md`. التركيز هنا على **التكامل** بين
+> الأنظمة الفرعية بدلاً من تكرار التفاصيل.
 
-## 10. نظرة شاملة — لغة ص لديها **نظامان** للذاكرة، لا واحد
+## 10. المبدأ الأساسي — المطوِّر يختار، اللغة تنفّذ
 
-| النظام | الموقع | الدور | الحالة |
-|--------|--------|------|---------|
-| **GC (Mark-and-Sweep)** | `shared/memory_gc/` | إدارة كائنات وقت التشغيل في المُفسّر/الـVM | 🟢 يعمل (B-step5b-iii) |
-| **نظام الملكية (Ownership)** | `shared/ownership/` + `compiler/src/sir/` | فحص ساكن وقت الترجمة + توليد `Drop`/`Free` تلقائياً في sadc | 🟡 الفحص يعمل، توليد التحرير الجزئي |
+لغة ص توفّر **نظامين لإدارة الذاكرة** يعملان جنباً إلى جنب:
 
-**هذا ليس تكراراً** بل تخصصاً متكاملاً:
-- المُفسّر يحتاج مرونة → GC لأن الحياة الديناميكية صعبة التتبع ساكناً.
-- المترجم يحتاج أداءً → نظام ملكية على غرار Rust (صفر تكلفة وقت تشغيل).
+| النظام | الموقع | الفائدة |
+|--------|--------|---------|
+| **نظام الملكية (Ownership)** | `shared/ownership/` + runtime في `shared/memory/ownership/runtime/` | أمان وقت ترجمة + صفر تكلفة في `--prod` |
+| **جامع المهملات (GC)** | `shared/memory_gc/` (نواة) + `shared/memory/gc/` (سياسة) | سهولة التطوير + كشف دورات في `--dev` |
+
+**الاختيار يقع على المطوِّر** عبر علامات سطر الأوامر:
+
+```bash
+sad ملف.ص --prod    # ملكية صارمة، لا GC، أخطاء فورية
+sad ملف.ص --learn   # ملكية متساهلة (تحذيرات)، لا GC — للتعليم
+sad ملف.ص --dev     # GC مُفعَّل + ملكية إرشادية (تحذيرات)
+
+sadc ملف.ص --prod   # نفس الدلالة في الكود التنفيذي المولَّد
+sadc ملف.ص --dev    # ربط runtime يحوي GC + enforcer
+```
+
+> ⚠️ **قاعدة دلالية صارمة:** نفس البرنامج بنفس الوضع يجب أن يُنتج
+> **نفس النتيجة الدلالية** عبر المسارات الثلاثة (interpreter / vm / sadc).
+> أي خرق لهذه القاعدة = خطأ معماري.
+
+---
+
+## 11. الطبقة الموحَّدة `shared/memory/` — مصدر الحقيقة
 
 ```
-                  ┌──────────────────────────────┐
-                  │      AST (shared/ast)         │
-                  └──────────────┬───────────────┘
-                                 │
-        ┌────────────────────────┼────────────────────────┐
-        │                        │                        │
-        ▼                        ▼                        ▼
-┌──────────────┐        ┌──────────────┐         ┌─────────────────┐
-│  المُفسّر    │        │     VM       │         │     sadc        │
-│ (interpreter)│        │  (bytecode)  │         │  (compiler)     │
-│              │        │              │         │                 │
-│ ┌──────────┐ │        │ ┌──────────┐ │         │ ┌─────────────┐ │
-│ │   GC     │ │        │ │ (لاحقاً) │ │         │ │ Ownership   │ │
-│ │ + Roots  │ │        │ │   GC     │ │         │ │ Borrow Chk  │ │
-│ │ Provider │ │        │ │          │ │         │ │ Lifetime    │ │
-│ └──────────┘ │        │ └──────────┘ │         │ └─────┬───────┘ │
-│              │        │              │         │       ▼          │
-│ Ownership    │        │              │         │  SIR (12 ops)   │
-│  Manager     │        │              │         │       ▼          │
-│ (ديناميكي،   │        │              │         │  LLVM IR        │
-│  تحذيري)    │        │              │         │  (drop/free     │
-│              │        │              │         │   مولّدة آلياً) │
-└──────────────┘        └──────────────┘         └─────────────────┘
+shared/memory/
+├── policy/                                  ← السياسة (المرحلة A — مكتملة)
+│   ├── memory_mode.h           : enum DEVELOPMENT/PRODUCTION/LEARN
+│   ├── memory_mode_flag.h      : تحليل --dev/--prod/--learn من argv
+│   └── memory_policy_manager.h : مصدر الحقيقة الوحيد للوضع
+│
+├── gc/                                      ← GC الموحَّد (المرحلة B — قيد التنفيذ)
+│   ├── garbage_collector.{h,cpp}  ← يلتف حول shared/memory_gc/
+│   ├── gc_roots.{h,cpp}            ← API للجذور المشتركة
+│   └── cycle_detector.{h,cpp}      ← من compiler/src/memory/
+│
+└── ownership/runtime/                       ← تنفيذ الملكية وقت التشغيل
+    ├── runtime_ownership_enforcer.{h,cpp}  ← يفوّض إلى Semantic::OwnershipTracker
+    └── ownership_runtime_api.{h,cpp}        ← C-ABI لـ sadc-compiled binaries
+```
+
+### العلاقة مع `shared/memory_gc/`
+
+`shared/memory_gc/` هو **نواة منخفضة المستوى** لـ GC (mark-and-sweep,
+RootProvider, destroyer/visitor) — مستقلة عن السياسة. `shared/memory/gc/`
+هو **الواجهة عالية المستوى** التي:
+- تستشير `MemoryPolicyManager` قبل التفعيل.
+- تختار: `--prod` → تجاوز كامل لـ GC. `--dev` → تفعيل + جمع دوري.
+- تكشف API لجميع المسارات.
+
+---
+
+## 12. تكامل الأنظمة في كل مسار
+
+### 12.1 المُفسّر (`sad ملف.ص [--mode]`)
+
+```
+                  argv → MemoryModeFlag.parse()
+                              │
+                              ▼
+                  MemoryPolicyManager.setMode()
+                              │
+       ┌──────────────────────┼──────────────────────┐
+       │                      │                      │
+       ▼                      ▼                      ▼
+   --prod                  --learn                  --dev
+       │                      │                      │
+       ▼                      ▼                      ▼
+ OwnershipMgr                OwnershipMgr           OwnershipMgr
+  (صارم،                     (تحذيرات              (تحذيرات
+   ارمي خطأ)                  فقط)                  + GC مُفعَّل)
+       │                      │                      │
+       │                      │                      ▼
+       │                      │                  GC.enable()
+       │                      │                  RootProviders
+       │                      │                  مُسجَّلة لـ:
+       │                      │                  - VariableManager ✅
+       │                      │                  - ChannelManager 🟡
+       │                      │                  - FutureManager 🟡
+       │                      │                  - UI handlers 🟡
+       ▼                      ▼                      ▼
+   Drop آلي عند             لا تحرير               GC.collect()
+   انتهاء النطاق             (يعتمد المستخدم        دورياً
+   (مولَّد ساكناً               على نهاية البرنامج)    
+    أو ديناميكياً)
+```
+
+### 12.2 الآلة الافتراضية (`sad --vm ملف.ص [--mode]`)
+
+VM يستخدم **نفس** الطبقة الموحَّدة:
+- نفس `Value` (نفس `SadType` cache).
+- نفس `OwnershipManager` كما المُفسّر.
+- نفس GC engine — لكن جذور الـ VM (operand stack, stack frames)
+  تحتاج RootProvider مستقل (B-step5b-iv).
+
+```
+StackFrame                 OperandStack
+  │ locals[]: Value          │ values[]: Value
+  │                          │
+  └────────┬─────────────────┘
+           │  (مستقبلاً)
+           ▼
+   GC.addRootProvider([&](emit){
+     for frame in callStack:
+       for v in frame.locals:
+         v.forEachObjectRef(emit);
+     for v in operandStack:
+       v.forEachObjectRef(emit);
+   })
+```
+
+### 12.3 المترجم (`sadc ملف.ص [--mode]` → ملف تنفيذي)
+
+```
+ملف.ص
+  │
+  ├─ Lex → Parse → AST
+  │
+  ├─ MemoryPolicyManager.setMode(mode)
+  │
+  ├─ run_borrow_check(AST)          ← shared/ownership (دائماً)
+  │     ├─ --prod  : فشل البناء عند أي خطأ
+  │     ├─ --learn : تحذيرات + متابعة
+  │     └─ --dev   : تحذيرات + اعتماد GC في runtime
+  │
+  ├─ AST → SIR (مع 12 ownership ops)
+  │
+  ├─ SIROptimizer
+  │     ├─ ownership_analysis      ← فحص ثاني
+  │     └─ drop_elaboration         ← إدراج Drop
+  │           ├─ --prod : Drop → free() مباشر (لا GC linkage)
+  │           └─ --dev  : Drop → GC_decRef()  (مع GC runtime)
+  │
+  └─ SIR → LLVM IR → ملف تنفيذي
+        مع ربط:
+        ├─ --prod : libsad_runtime_minimal.a  (بلا GC)
+        └─ --dev  : libsad_runtime_full.a     (GC + cycle detector + enforcer)
 ```
 
 ---
 
-## 11. نظام الملكية في المترجم — التفاصيل
+## 13. نظام الأنواع الموحَّد — `SadType` وعلاقته بالذاكرة
 
-### 11.1 الطبقة المشتركة: `shared/ownership/`
+> **مهم:** القسم 1 السابق ذكر `std::variant<...>` كتفصيل تنفيذي. الواقع
+> أن `Value` يستخدم نظام الأنواع الموحَّد `SadType` المعتمد منذ ADR-01.
 
-نُقلت من `compiler/src/semantic/` إلى `shared/ownership/` ليُستفاد منها
-من **جميع المسارات** (LSP، sadc، interpreter، formatter، analyzer).
+### 13.1 المكونات
 
-**المكونات الأساسية:**
+| المكون | الدور |
+|--------|------|
+| `Sad::Types::SadType` | أصل كل الأنواع (مع `getKind()`, `isMutable_`, `lifetimeName_`) |
+| `Sad::Types::SadTypeKind` (enum) | `Void/Integer/Float/String/Boolean/Array/Map/Tuple/Class/Function/...` |
+| `Sad::Types::SadTypePtr` | `shared_ptr<const SadType>` — كل قيمة تحمل واحدة |
+| `Sad::Types::SadTypeRegistry` | factory مركزي (`getInteger()`, `getString()`, `makeFunction(...)`, ...) |
+| `Sad::Data::Value` | يحمل `SadTypePtr sadType_` + بيانات حقيقية |
 
-| الملف/الفئة | الدور |
-|-------------|-------|
-| `OwnershipTracker` | تتبع حالة كل متغير: Owned/Moved/Borrowed/Dropped/Uninit |
-| `BorrowChecker` | فرض قواعد Rust-like (استعارة متغيرة حصرية، ثابتة متعددة) |
-| `LifetimeAnalyzer` | تحليل أعمار المراجع `&'أ` |
-| `MoveAnalyzer` | تتبع نقل الملكية (`انقل` كلمة سياقية) |
-| `UnsafeChecker` | فحص كتل `@غير_آمن ... نهاية` |
-| `PatternOwnership` | ملكية الأنماط في `طابق` |
-| `ExhaustivenessChecker` | شمولية المطابقة |
-| `ThisBinding` | ربط `هذا` في الأصناف |
+### 13.2 لماذا يهم لإدارة الذاكرة؟
 
-### 11.2 حالات الملكية الستة
+`SadType` يحمل معلومات حاسمة لكلا النظامين:
 
 ```
-       Uninitialized
-            │
-            │  متغير س = ...
-            ▼
-        ┌──────┐    Borrow(&س)         ┌──────────┐
-        │Owned │ ──────────────────►   │ Borrowed │
-        │      │                        │ (مشترك)  │
-        │      │ ◄──────────────────    │          │
-        │      │    EndBorrow           └──────────┘
-        │      │
-        │      │   BorrowMut(&متغير س)  ┌──────────────┐
-        │      │ ──────────────────►   │ BorrowedMut  │
-        │      │                        │ (حصري)       │
-        │      │ ◄──────────────────    │              │
-        │      │    EndBorrow           └──────────────┘
-        │      │
-        │      │   انقل س → ت             ┌────────┐
-        │      │ ─────────────────────►   │ Moved  │ (لا يستخدم)
-        │      │                          └────────┘
-        │      │
-        │      │   نهاية النطاق           ┌──────────┐
-        │      │ ─────────────────────►   │ Dropped  │ (Drop مولّد)
-        └──────┘                          └──────────┘
+SadType
+  ├─ getKind()           ← ما النوع؟ (Integer, Class, Array, ...)
+  ├─ isCopyable()        ← هل يمكن نسخه (Copy) أم يجب نقله (Move)؟
+  ├─ isMutable_          ← هل يقبل BorrowMut؟
+  ├─ lifetimeName_       ← العمر (`'أ`, `'static`, ...)
+  └─ getTypeParams()     ← للأنواع المركبة (Array<T>, Map<K,V>)
 ```
 
-### 11.3 أخطاء الفحص (compile-time)
+هذا يسمح للمُفسّر/المترجم باتخاذ قرارات دقيقة:
+- `Integer` → `isCopyable()` = true → نسخ بالقيمة، لا حاجة لـ GC.
+- `Class` → `isCopyable()` = false → ينتقل عبر `Move` أو يُسجَّل في GC.
+- `Array<Class>` → عناصرها OBJECT → `forEachObjectRef` يتعمّق.
 
-```cpp
-enum class OwnershipErrorKind {
-    UseAfterMove,           // استخدام بعد النقل
-    UseAfterDrop,           // استخدام بعد الإسقاط
-    DoubleFree,             // تحرير مزدوج
-    DoubleMove,             // نقل مزدوج
-    BorrowOfMoved,          // استعارة من قيمة منقولة
-    MutBorrowWhileBorrowed, // استعارة متغيرة أثناء وجود استعارات
-    UseWhileMutBorrowed,    // استخدام أثناء استعارة متغيرة
-    InvalidBorrow           // استعارة غير صالحة
-};
-```
+### 13.3 خريطة `SadTypeKind` → سياسة الذاكرة
 
-### 11.4 تعليمات SIR للملكية (12)
+| Kind | Ownership | GC | كيف يُدار؟ |
+|------|-----------|----|------------|
+| `Void`, `Boolean`, `Integer`, `Float` | Copy (تلقائي) | غير مُسجَّل | على المكدس / في-Value |
+| `String` | Move + Clone | غير مُسجَّل | shared_ptr داخلي (immutable) |
+| `Array`, `Map`, `Tuple` | Move + ref | غير مُسجَّل (المحتوى ربما) | shared_ptr داخلي + تعمّق GC |
+| `Class` (OBJECT) | Move + Borrow | **مُسجَّل في GC** ✅ | `ObjectInstance*` خام + RootProvider |
+| `Function` | Copy (closure) | غير مُسجَّل | shared_ptr<FunctionRef> |
 
-طبقة وسيطة بين AST و LLVM IR — تجعل عمليات الملكية صريحة:
+> **تصحيح:** القسم 1 من هذا المستند ذكر `std::variant<...>` كتفصيل
+> داخلي. هذا صحيح كآلية تخزين، لكن **الواجهة المنطقية** هي `SadType`،
+> وأي قرار حول الذاكرة يجب أن يستند إلى `value.getKind()` لا إلى
+> `value.is<T>()` في الـ variant.
+
+---
+
+## 14. أنواع أخطاء الملكية المدعومة في جميع المسارات
+
+عبر `Sad::Semantic::OwnershipErrorKind`:
+
+| الخطأ | المُفسّر (`--learn`) | المُفسّر (`--prod`) | sadc (`--prod`) |
+|------|---------------------|---------------------|-----------------|
+| `UseAfterMove` | تحذير | استثناء `SadOwnershipError` | فشل بناء |
+| `UseAfterDrop` | تحذير | استثناء | فشل بناء |
+| `DoubleFree` | تحذير | استثناء | فشل بناء |
+| `DoubleMove` | تحذير | استثناء | فشل بناء |
+| `BorrowOfMoved` | تحذير | استثناء | فشل بناء |
+| `MutBorrowWhileBorrowed` | تحذير | استثناء | فشل بناء |
+| `UseWhileMutBorrowed` | تحذير | استثناء | فشل بناء |
+| `InvalidBorrow` | تحذير | استثناء | فشل بناء |
+
+في وضع `--dev`: نفس الفحوصات تجري لكن لا تُفشل البرنامج — تُلتقط
+الأخطاء كتحذيرات قابلة للعرض في LSP/REPL، والذاكرة تُدار بـ GC.
+
+---
+
+## 15. تعليمات SIR للملكية (12 — موحَّدة)
+
+طبقة وسيطة بين AST و LLVM IR — تجعل عمليات الملكية صريحة وقابلة للتحسين:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  #  | Opcode      | الصياغة             | الوصف         │
 ├─────┼─────────────┼─────────────────────┼───────────────┤
-│  1  │ Alloc       │ %r = Alloc(نوع)    │ تخصيص        │
+│  1  │ Alloc       │ %r = Alloc(SadType)│ تخصيص        │
 │  2  │ Borrow      │ %r = Borrow(%v)    │ استعارة &     │
 │  3  │ BorrowMut   │ %r = BorrowMut(%v) │ استعارة &mut  │
 │  4  │ Move        │ %r = Move(%v)      │ نقل ملكية     │
@@ -587,244 +700,95 @@ enum class OwnershipErrorKind {
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 11.5 مثال: من كود ص إلى SIR إلى LLVM
+**ملاحظة:** كل opcode يحمل `SadTypePtr` (وليس `ValueType` القديم).
+هذا يسمح بنفس opcode أن يُترجم إلى:
+- `--prod` LLVM IR: `alloca` + `free` صريح من `Drop`.
+- `--dev` LLVM IR: `GC_alloc` + `GC_decRef` من `Drop`.
+
+---
+
+## 16. مثال شامل — نفس الكود، ثلاثة أوضاع
 
 ```sad
 دالة جمع(أ، ب)
-    متغير ن = أ + ب         # ن: مملوك
-    ارجع ن                   # نقل الملكية للخارج
+    متغير ن = أ + ب
+    ارجع ن
 نهاية
 
 دالة رئيسية()
     متغير س = جمع(3، 5)
-    اطبع_سطر(س)             # س ينتهي عمره هنا → Drop
+    اطبع_سطر(س)
 نهاية
 ```
 
-**SIR المولَّد (مبسَّط):**
-```
-fn جمع(%أ: i64, %ب: i64) -> i64:
-  %0  = Alloc(i64)            ; ن
-  %1  = Add(%أ, %ب)
-        Store(%0, %1)
-  %2  = Move(%0)              ; نقل ن للإرجاع
-        ret %2
+| الوضع | الفحص الساكن | كيف تُحرَّر `س`؟ |
+|------|---------------|-------------------|
+| `--prod` (المُفسّر) | OwnershipMgr يفحص ويرمي عند الخطأ | عند نهاية scope (Drop ديناميكي) |
+| `--prod` (sadc) | borrow checker يفشل البناء عند الخطأ | `free()` مولَّد في الـ exe |
+| `--learn` | تحذيرات فقط | عند نهاية البرنامج (لا تحرير فوري) |
+| `--dev` (المُفسّر) | تحذيرات + GC نشط | GC.collect() دورياً |
+| `--dev` (sadc) | تحذيرات + ربط runtime GC | `GC_decRef()` في الـ exe |
 
-fn رئيسية():
-  %0  = Alloc(i64)            ; س
-  %1  = Call(جمع, [3, 5])
-        Store(%0, %1)
-  %2  = Borrow(%0)            ; للطباعة (read-only)
-        Call(اطبع_سطر, [%2])
-        EndBorrow(%2)
-        Drop(%0)              ; ◄── مولَّد آلياً عند نهاية النطاق
-        ret void
-```
-
-**LLVM IR النهائي (مفهوم):** `Drop` يصبح `free()` أو destructor call،
-بدون أي عبء وقت تشغيل لتتبع المراجع.
+> **النتيجة:** نفس البرنامج، نفس الدلالة في كل الأوضاع — يختلف فقط
+> **متى وكيف** تتحرر الذاكرة، وفق اختيار المطوِّر.
 
 ---
 
-## 12. نموذج الملكية في المُفسّر (الديناميكي)
+## 17. خريطة الحالة الكلية لإدارة الذاكرة
 
-`interpreter/src/managers/ownership_manager.cpp` هو **wrapper رفيع**
-فوق `Sad::Semantic::OwnershipTracker` نفسه — لكن دوره **تحذيري** لا قاتل:
-
-| الجانب | المترجم (sadc) | المُفسّر |
-|--------|----------------|---------|
-| **التوقيت** | وقت الترجمة | وقت التشغيل |
-| **الصرامة** | فشل البناء عند الخطأ | تحذير + متابعة |
-| **التحرير** | `Drop` مولّد في IR | GC يُحرّر |
-| **الأداء** | صفر تكلفة | بسيط (hashmap lookup) |
-
-**لماذا الازدواجية؟**
-- المُفسّر يفيد من **اكتشاف الأخطاء قبل الترجمة** للتطوير السريع.
-- المترجم يفيد من نفس المحرك ليضمن **توافق الدلالة** بين الوضعين.
-
----
-
-## 13. مسارات التنفيذ الثلاثة — تفصيل إدارة الذاكرة
-
-### 13.1 مسار المُفسّر (`sad.exe ملف.ص`)
-
-```
-ملف.ص
-  │
-  ├─ Lex → Parse → AST
-  │
-  ├─ [اختياري] OwnershipManager.check(AST)  ← تحذيرات فقط
-  │
-  ▼
-InterpreterCore.run(AST)
-  │
-  ├─ كل تعبير ينشئ Value
-  │     ├─ سكلر (int/double/bool/string) → في-Value مباشرة
-  │     ├─ ARRAY/MAP/TUPLE → shared_ptr داخلي (refcount C++)
-  │     └─ OBJECT (صنف) → ObjectInstance* خام
-  │              │
-  │              └─► GC.registerObject(ptr, destroyer, visitor)
-  │
-  ├─ VariableManager يحفظ Value في scopeVariables_
-  │     └─► RootProvider يصدر كل OBJECT حي عند mark
-  │
-  ├─ نهاية scope → eraseScope()
-  │     └─► OBJECT يصبح unreachable من الجذور
-  │
-  └─ GC.collect() دورياً (لاحقاً B-step5b-vi)
-        ├─ mark: من roots_ + rootProviders_
-        └─ sweep: destroyer لكل غير مُعلَّم
-```
-
-### 13.2 مسار الـ VM (`sad --vm ملف.ص`)
-
-```
-ملف.ص → AST → BytecodeCompiler → Bytecode → VM.execute()
-
-الحالة الراهنة:
-  ├─ سكلر يعمل (int/double/bool/string)
-  ├─ مصفوفات/خرائط: محدودة
-  └─ OOP constructors: ❌ غير مدعومة (B-step5c)
-
-نموذج الذاكرة:
-  ├─ Operand stack: قيم Value على المكدس (نفس النظام)
-  ├─ Locals: مصفوفة Value في StackFrame
-  └─ Heap: نفس GC المشترك (لكن لا يوجد provider بعد)
-
-العمل المتبقّي:
-  ├─ B-step5b-iv: ربط RootProvider لـ StackFrames و operand stacks
-  └─ B-step5c: دعم تعليمات NEW_OBJECT, CALL_METHOD, ...
-```
-
-### 13.3 مسار المترجم (`sadc ملف.ص → ملف.exe`)
-
-```
-ملف.ص
-  │
-  ├─ Lex → Parse → AST
-  │
-  ├─ run_borrow_check(AST)            ← shared/ownership
-  │     ├─ OwnershipTracker
-  │     ├─ BorrowChecker
-  │     ├─ LifetimeAnalyzer
-  │     └─ ❌ فشل → خطأ ترجمة
-  │
-  ├─ AST → SIRBuilder → SIR (مع 12 ownership ops)
-  │
-  ├─ SIROptimizer
-  │     ├─ ownership_analysis.cpp ← فحص ثاني على SIR
-  │     ├─ drop_elaboration       ← إدراج Drop التلقائي
-  │     └─ borrow_inlining
-  │
-  ├─ SIR → LLVMCodeGen → LLVM IR
-  │     ├─ Alloc/StackAlloc → alloca
-  │     ├─ HeapAlloc → call malloc
-  │     ├─ Drop → call free (أو destructor)
-  │     ├─ Borrow/Deref → load/store
-  │     └─ Move → memcpy + invalidate (debug)
-  │
-  └─ LLVM → ملف تنفيذي أصلي (لا GC، لا runtime overhead)
-```
-
-**النتيجة:** ملف `.exe` لا يحوي محرك GC ولا refcounting — فقط
-`malloc`/`free` صريحة مولَّدة من تحليل الملكية.
-
----
-
-## 14. خريطة القرار — متى يُستخدم كل نظام؟
-
-```
-                    ┌──────────────────────┐
-                    │ هل النوع سكلر بسيط؟   │
-                    │ (int/double/bool/str)│
-                    └──────────┬───────────┘
-                               │
-                    ┌──────────┴──────────┐
-                   نعم                    لا
-                    │                     │
-                    ▼                     ▼
-          ┌──────────────────┐  ┌──────────────────────┐
-          │ نسخة بالقيمة     │  │ هل المسار مُفسّر/VM؟  │
-          │ (لا تتبع لازم)   │  └──────────┬───────────┘
-          └──────────────────┘             │
-                                ┌──────────┴──────────┐
-                               نعم                    لا (sadc)
-                                │                     │
-                                ▼                     ▼
-                      ┌─────────────────┐  ┌──────────────────────┐
-                      │ ARRAY/MAP/TUPLE │  │ تحليل ملكية ساكن    │
-                      │  → shared_ptr   │  │ + توليد Drop آلي    │
-                      │ OBJECT          │  │ (صفر تكلفة تشغيل)   │
-                      │  → GC + raw ptr │  └──────────────────────┘
-                      └─────────────────┘
-```
-
----
-
-## 15. التفاعل بين GC والملكية — المستقبل
-
-**حالياً:** النظامان منفصلان تماماً (المُفسّر يستخدم GC، المترجم يستخدم Ownership).
-
-**الرؤية بعيدة المدى (مرحلة B-step6+):**
-
-```
-نوع الكائن              | سياسة الإدارة المثلى
-────────────────────────┼────────────────────────────────
-كائن بمالك واحد واضح    │ Drop مولّد ساكناً (لا GC)
-كائن بمشاركة محدودة      │ Rc/Arc (refcount)
-كائن بمشاركة معقدة/دورية │ GC mark-and-sweep
-كائن قصير العمر (scope)  │ Stack allocation
-```
-
-هذا "نموذج هجين" يستخدمه Swift و Nim بنجاح. لغة ص في موقع جيد لتبنيه
-لاحقاً لأن:
-1. شجرة الـ AST تحوي معلومات كافية (الـ AST الموحد).
-2. SIR يدعم 12 opcode ملكية بالفعل.
-3. GC جاهز للحالات الديناميكية المعقدة.
-
----
-
-## 16. ملخص الحالة الكلية لإدارة الذاكرة
-
-| المسار | السكلر | المجموعات (Array/Map) | الكائنات (OOP) | الفحص الساكن |
-|--------|--------|----------------------|----------------|--------------|
-| **interpreter** | by-value | shared_ptr داخلي | 🟢 GC + RootProvider (B-iii) | تحذيري |
-| **vm** | by-value | shared_ptr داخلي | 🟡 GC مسجَّل لكن بلا provider | لا |
-| **sadc** | stack/reg | malloc/free مع Drop | malloc/free مع Drop | 🟢 صارم |
-
-| المكوّن | الموقع | الحالة | يعمل في |
-|---------|--------|--------|---------|
-| GarbageCollector | `shared/memory_gc/` | 🟢 يعمل | interp / (vm جزئياً) |
-| RootProvider API | `shared/memory_gc/` | 🟢 جديد (B-iii) | interp |
-| Value::forEachObjectRef | `shared/types/` | 🟢 جديد (B-iii) | الجميع |
-| OwnershipTracker | `shared/ownership/` | 🟢 يعمل | sadc / (interp تحذيري) |
-| BorrowChecker | `shared/ownership/` | 🟢 يعمل | sadc |
+| المكون | الموقع | الحالة | يستخدم في |
+|--------|--------|--------|-----------|
+| `MemoryMode` enum | `shared/memory/policy/` | 🟢 مكتمل (Phase A1) | الجميع |
+| `MemoryModeFlag` parser | `shared/memory/policy/` | 🟢 مكتمل (Phase A2) | الجميع |
+| `MemoryPolicyManager` | `shared/memory/policy/` | 🟢 مكتمل (Phase A2) | الجميع |
+| `GarbageCollector` (نواة) | `shared/memory_gc/` | 🟢 يعمل | interp / (vm جزئي) |
+| `RootProvider` API | `shared/memory_gc/` | 🟢 جديد B-iii | interp |
+| `Value::forEachObjectRef` | `shared/types/` | 🟢 جديد B-iii | الجميع |
+| `shared/memory/gc/` (واجهة) | `shared/memory/gc/` | 🟡 قيد النقل | — |
+| `OwnershipTracker` | `shared/ownership/` | 🟢 يعمل | الجميع (مشترك) |
+| `BorrowChecker` | `shared/ownership/` | 🟢 يعمل | sadc / interp |
+| `RuntimeOwnershipEnforcer` | `shared/memory/ownership/runtime/` | 🟡 قيد التصميم | runtime |
+| `OwnershipManager` (interp) | `interpreter/src/managers/` | 🟢 wrapper | interp |
 | SIR Ownership Ops (12) | `compiler/src/sir/` | 🟢 يعمل | sadc |
 | Drop Elaboration | `compiler/src/sir/` | 🟡 جزئي | sadc |
-| Lifetime Analysis | `shared/ownership/` | 🟡 أساسي | sadc |
-| Hybrid GC+Ownership | — | 🔴 رؤية مستقبلية | — |
+| Mode-aware runtime linking | `compiler/CMakeLists.txt` | 🔴 لاحقاً | sadc |
+| VM RootProvider | `vm/` | 🔴 B-step5b-iv | vm |
+| Channels/Futures RootProvider | `interpreter/` | 🔴 B-step5b-iv | interp/vm |
 
 ---
 
-## 17. الأسئلة المتكررة
+## 18. نقاط مهمة للمطوِّر
 
-**س: لماذا لا نستخدم نظام الملكية في المُفسّر بشكل صارم بدلاً من GC؟**
-ج: المُفسّر يجب أن يدعم REPL وكوداً تجريبياً غير مكتمل. الفشل الصارم
-يعطّل التجربة. التحذيرات + GC يعطيان أفضل توازن.
+### للمستخدم النهائي (كاتب كود ص)
+- **افتراضياً = `--dev`**: استخدم اللغة كأي لغة GC عادية.
+- **إذا أردت أداءً أقصى**: استخدم `--prod` وتعلَّم الملكية.
+- **إذا تتعلَّم**: `--learn` يعطي تحذيرات بدلاً من إفشال البرنامج.
 
-**س: هل GC سيوجد في النواة (ufuq OS)؟**
-ج: نعم — GC مصمم ليكون freestanding. لكن النواة ستعتمد بشكل أكبر
-على الملكية الساكنة (sadc) وستستخدم GC للكائنات الديناميكية فقط.
+### للمساهم في اللغة
+- لا تكتب كوداً يفترض GC أو Ownership — استشر `MemoryPolicyManager`.
+- لا تستخدم `value.is<X>()` للقرار حول الذاكرة — استخدم `value.getKind()`.
+- أي مكون يحوي `ObjectInstance*` خام يجب أن يُسجِّل RootProvider.
+- لا تعتمد على `shared_ptr<ObjectInstance>` — تم حذفه (B-step5b-ii).
 
-**س: ما الفرق بين `Drop` في SIR و `destroyer` في GC؟**
-ج: `Drop` يُولَّد ساكناً ويصبح `free()` في الـ exe. `destroyer` يُسجَّل
-ديناميكياً مع كل كائن ويُستدعى أثناء `sweep()`. كلاهما يحرر الذاكرة
-نفسها لكن في زمن مختلف.
-
-**س: هل يمكن أن يحدث leak في المسار المُفسّر؟**
-ج: حالياً نعم بسبب الـ fallback المحافظ في `markFromRootsLocked`
-(عند عدم وجود جذور، يعتبر كل شيء حياً). يُحلّ في B-step5b-v.
+### للمطوِّر على النواة (ufuq OS)
+- استخدم `--prod` دائماً — لا runtime GC في kernel space.
+- جميع الملكية تُفحص ساكناً → ملف `.elf` لا يحوي GC.
+- إذا احتجت GC في حقل معيّن (مثل user-space helpers) — استخدم `--dev`
+  مع `libsad_runtime_full.a` المربوط بنواة منفصلة.
 
 ---
 
-> **آخر تحديث:** 2025-11-20 — كوميت `20ca8991` (هذا التوثيق نفسه)
+## 19. مراجع داخلية
+
+- وثيقة الذاكرة الموحَّدة الكاملة: [docs/معمارية_الذاكرة_الموحدة.md](معمارية_الذاكرة_الموحدة.md)
+- نظام الأنواع: مذكرة المستودع `unified_type_system.md` (ADR-01 Phase 1-5)
+- وثيقة الأمان الموحَّد: [docs/الأمان_الموحد.md](الأمان_الموحد.md)
+- خطة إعادة الهيكلة: [docs/خطة_إعادة_الهيكلة_المعمارية.md](خطة_إعادة_الهيكلة_المعمارية.md)
+- مرجع SIR opcodes: `compiler/src/sir/sir_opcodes.h`
+- مرجع OwnershipTracker: `shared/ownership/include/ownership/ownership_tracker.h`
+
+---
+
+> **آخر تحديث:** بعد مراجعة الرؤية الموحَّدة (نظامان متعايشان عبر
+> `MemoryMode` + نظام أنواع موحَّد `SadType`).
+
