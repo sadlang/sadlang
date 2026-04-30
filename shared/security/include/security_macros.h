@@ -28,18 +28,22 @@
 
 // (AR) الحساب الآمن
 // (EN) Safe arithmetic
-#define SAD_SAFE_ADD(a, b, result)                                              \
-    do {                                                                        \
-        if (!::Sad::Security::SafeArithmetic::safeAdd((a), (b), (result))) {    \
-            throw std::overflow_error("Integer overflow in addition");          \
-        }                                                                       \
+#define SAD_SAFE_ADD(a, b, result)                                         \
+    do                                                                     \
+    {                                                                      \
+        if (!::Sad::Security::SafeArithmetic::safeAdd((a), (b), (result))) \
+        {                                                                  \
+            throw std::overflow_error("Integer overflow in addition");     \
+        }                                                                  \
     } while (0)
 
-#define SAD_SAFE_MUL(a, b, result)                                              \
-    do {                                                                        \
-        if (!::Sad::Security::SafeArithmetic::safeMul((a), (b), (result))) {    \
-            throw std::overflow_error("Integer overflow in multiplication");    \
-        }                                                                       \
+#define SAD_SAFE_MUL(a, b, result)                                           \
+    do                                                                       \
+    {                                                                        \
+        if (!::Sad::Security::SafeArithmetic::safeMul((a), (b), (result)))   \
+        {                                                                    \
+            throw std::overflow_error("Integer overflow in multiplication"); \
+        }                                                                    \
     } while (0)
 
 // (AR) تتبع الذاكرة (وضع التصحيح فقط)
@@ -57,4 +61,4 @@
 #define SAD_REPORT_LEAKS() ((void)0)
 #endif
 
-#endif  // SAD_SHARED_SECURITY_MACROS_H
+#endif // SAD_SHARED_SECURITY_MACROS_H

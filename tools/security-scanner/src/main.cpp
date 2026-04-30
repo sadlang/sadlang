@@ -16,6 +16,7 @@
 
 #include "security_scanner.h"
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
     return Sad::Security::guard_main(argc, argv);
 }
