@@ -65,6 +65,13 @@ target_link_libraries(sad_vm PUBLIC sad_shared)
 #      SafeArithmetic to prevent index arithmetic overflow).
 target_link_libraries(sad_vm PUBLIC sad_security_core)
 
+# (AR) Memory Layer Unification (Phase A): سياسة أوضاع الذاكرة الموحَّدة.
+#      المصدر الواحد لـ --dev/--prod/--learn حتى تحترم الـ VM نفس قواعد المفسر والمترجم.
+# (EN) Memory Layer Unification (Phase A): unified memory mode policy.
+#      Single source of truth so VM honours the same --dev/--prod/--learn rules
+#      as the interpreter and compiler.
+target_link_libraries(sad_vm PUBLIC sad_memory_policy)
+
 # ============================================================================
 # دعم LLVM (اختياري — لمحرك JIT)
 # ============================================================================

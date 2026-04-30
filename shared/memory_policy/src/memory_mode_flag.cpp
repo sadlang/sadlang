@@ -1,4 +1,4 @@
-﻿// تعطيل تحذير Unicode للتعليقات العربية
+// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -12,7 +12,7 @@
  * @version 1.0
  */
 
-#include "memory/memory_mode_flag.h"
+#include "memory/policy/memory_mode_flag.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>

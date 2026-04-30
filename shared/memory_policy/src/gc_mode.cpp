@@ -1,4 +1,4 @@
-﻿// تعطيل تحذير Unicode للتعليقات العربية
+// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -11,7 +11,7 @@
  * @version 1.0
  */
 
-#include "memory/gc_mode.h"
+#include "memory/policy/gc_mode.h"
 #include <iostream>
 #include <algorithm>
 #include <regex>

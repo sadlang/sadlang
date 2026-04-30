@@ -20,7 +20,7 @@
 #ifndef SAD_MEMORY_MODE_FLAG_H
 #define SAD_MEMORY_MODE_FLAG_H
 
-#include "memory/gc_mode.h"
+#include "memory/policy/gc_mode.h"
 #include <string>
 #include <vector>
 #include <optional>

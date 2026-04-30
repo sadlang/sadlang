@@ -151,3 +151,16 @@ add_subdirectory(ownership)
 # ============================================================================
 add_subdirectory(security)
 
+# ============================================================================
+# (AR) مكتبة سياسة الذاكرة الموحَّدة — shared/memory_policy/
+#      نُقلت من compiler/memory/ في إطار توحيد طبقة الذاكرة (المرحلة A).
+#      تُتيح للمفسر والمترجم والآلة الافتراضية قراءة نفس أوضاع --dev/--prod/--learn
+#      ومستويات الملكية واستراتيجيات GC من مصدر واحد.
+# (EN) Unified memory-mode policy library — moved from compiler/memory/ as part
+#      of the memory layer unification (Phase A). Interpreter, compiler, and VM
+#      all consult the same source of truth for --dev/--prod/--learn,
+#      ownership levels, and GC strategies.
+# @phase Architecture Refactor: Memory Layer Unification — Phase A
+# ============================================================================
+add_subdirectory(memory_policy)
+

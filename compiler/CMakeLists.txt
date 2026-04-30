@@ -652,6 +652,7 @@ if(LLVM_FOUND)
  sad_type_system
  sad_semantic
  sad_memory
+ sad_memory_policy
  )
  # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/...)
  # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
@@ -689,6 +690,7 @@ else()
  sad_type_system
  sad_semantic
  sad_memory
+ sad_memory_policy
  )
  # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/...)
  # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
