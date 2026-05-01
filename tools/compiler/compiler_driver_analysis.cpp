@@ -51,6 +51,11 @@
 // Borrow Checker / فاحص الاستعارة
 #include "ownership/borrow_checker.h"
 #include "statements.h"
+// (AR) موزِّع الأخطاء الموحَّد — يحوّل أخطاء الملكية إلى سلوك
+//      حسب سياسة الذاكرة (--gc/--learn/--prod). نفس النقطة المُستخدَمة في المُفسِّر.
+// (EN) Unified error dispatcher — converts ownership errors into behavior
+//      per memory policy (--gc/--learn/--prod). Same hub used by the interpreter.
+#include "../../shared/errors/include/builders/dispatch.h"
 
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لحل التبعيات تلقائياً
 // (EN) Module AST nodes — ImportStmt & FromImportStmt for auto dependency resolution
@@ -513,52 +518,113 @@ namespace sad
                 diagnostics_.report_warning(warning, file);
             }
 
-            // (AR) الإبلاغ عن الأخطاء
-            // (EN) Report errors
-            if (!result.success)
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) المرحلة E-3: تمرير كل خطأ ملكية عبر Sad::Errors::dispatch()
+            //     السلوك يُحدَّد من سياسة الذاكرة (--gc/--learn/--prod):
+            //       - Disabled (--gc):   تجاهل كامل (لا تحذير ولا خطأ)
+            //       - Warnings (--learn): تحذير تعليمي مع شرح، الترجمة تكمل
+            //       - Strict/UltraStrict (--prod): خطأ قاتل، الترجمة تفشل
+            //     عندما لا يحدد المستخدم سياسة (memory_policy_set=false)
+            //     تُستخدم القيم الافتراضية (UltraStrict) فيتطابق السلوك مع السابق.
+            // (EN) Phase E-3: Route every ownership error through dispatch().
+            //     Behavior determined by memory policy (--gc/--learn/--prod):
+            //       - Disabled (--gc):   silently ignored
+            //       - Warnings (--learn): educational warning, compilation continues
+            //       - Strict/UltraStrict (--prod): fatal, compilation fails
+            //     When no policy specified, defaults (UltraStrict) preserve old behavior.
+            // ════════════════════════════════════════════════════════════════════
+            std::size_t fatal_count = 0;
+            std::size_t warn_count = 0;
+            std::size_t ignored_count = 0;
+            for (const auto &error : result.errors)
             {
-                for (const auto &error : result.errors)
+                ::Sad::Errors::SourceLocation loc;
+                loc.filename = file;
+                loc.line = error.errorLocation.line;
+                loc.column = error.errorLocation.column;
+
+                auto dispResult = ::Sad::Errors::dispatch(
+                    error.kind, options_.memory_policy, loc, error.variableName);
+
+                if (dispResult.action == ::Sad::Errors::DispatchAction::Ignore)
                 {
-                    std::string msg;
-                    if (options_.arabic_borrow_messages)
-                    {
-                        msg = error.toArabicString();
-                    }
-                    else
-                    {
-                        msg = error.toEnglishString();
-                    }
-                    diagnostics_.report_error(msg, file, error.errorLocation.line, error.errorLocation.column);
+                    ++ignored_count;
+                    continue;
                 }
 
-                // (AR) ملخص الأخطاء
-                // (EN) Error summary
+                // (AR) اختيار الرسالة بحسب لغة الإخراج المُفضَّلة
+                // (EN) Pick message language per user preference
+                std::string msg = options_.arabic_borrow_messages
+                                      ? dispResult.messageAr
+                                      : dispResult.messageEn;
+
+                if (dispResult.shouldStop())
+                {
+                    diagnostics_.report_error(msg, file, loc.line, loc.column);
+                    ++fatal_count;
+                }
+                else if (dispResult.shouldEmit())
+                {
+                    // (AR) في وضع --learn: تحذير + ملاحظة تعليمية
+                    // (EN) In --learn mode: warning + teaching note
+                    if (dispResult.teachingNote.has_value())
+                    {
+                        msg += "\n  " + dispResult.teachingNote.value();
+                    }
+                    diagnostics_.report_warning(msg, file, loc.line, loc.column);
+                    ++warn_count;
+                }
+            }
+
+            // (AR) فشل الفحص فقط إذا وُجد خطأ قاتل واحد على الأقل
+            // (EN) Borrow check fails only if at least one Fatal error occurred
+            if (fatal_count > 0)
+            {
                 std::cerr << "\n";
                 if (options_.arabic_borrow_messages)
                 {
-                    std::cerr << "✗ فحص الاستعارة فشل: " << result.errors.size()
-                              << " خطأ في الملكية\n";
+                    std::cerr << "✗ فحص الاستعارة فشل: " << fatal_count
+                              << " خطأ قاتل في الملكية";
+                    if (warn_count > 0)
+                        std::cerr << " (+ " << warn_count << " تحذير)";
+                    if (ignored_count > 0)
+                        std::cerr << " (تجاهل: " << ignored_count << ")";
+                    std::cerr << "\n";
                 }
                 else
                 {
-                    std::cerr << "✗ Borrow check failed: " << result.errors.size()
-                              << " ownership error(s)\n";
+                    std::cerr << "✗ Borrow check failed: " << fatal_count
+                              << " fatal ownership error(s)";
+                    if (warn_count > 0)
+                        std::cerr << " (+ " << warn_count << " warning(s))";
+                    if (ignored_count > 0)
+                        std::cerr << " (ignored: " << ignored_count << ")";
+                    std::cerr << "\n";
                 }
-
                 return false;
             }
 
-            // (AR) نجاح الفحص
-            // (EN) Check passed
+            // (AR) نجاح الفحص (قد يحوي تحذيرات في --learn، أو تجاهل في --gc)
+            // (EN) Check passed (may include --learn warnings or --gc-ignored errors)
             if (options_.verbose)
             {
                 if (options_.arabic_borrow_messages)
                 {
-                    std::cout << "  ✓ فحص الاستعارة نجح\n";
+                    std::cout << "  ✓ فحص الاستعارة نجح";
+                    if (warn_count > 0)
+                        std::cout << " (تحذيرات: " << warn_count << ")";
+                    if (ignored_count > 0)
+                        std::cout << " (تجاهل: " << ignored_count << ")";
+                    std::cout << "\n";
                 }
                 else
                 {
-                    std::cout << "  ✓ Borrow check passed\n";
+                    std::cout << "  ✓ Borrow check passed";
+                    if (warn_count > 0)
+                        std::cout << " (warnings: " << warn_count << ")";
+                    if (ignored_count > 0)
+                        std::cout << " (ignored: " << ignored_count << ")";
+                    std::cout << "\n";
                 }
             }
 

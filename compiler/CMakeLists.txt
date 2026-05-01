@@ -237,6 +237,7 @@ if(LLVM_FOUND)
  sad_frontend
  sad_optimizer
  sad_memory_gc  # (AR) Phase B-step2: محرك GC الموحَّد لاستهلاك llvm_runtime*.cpp
+ sad_ownership_runtime  # (AR) ffi_wrapper.h يضم ownership/runtime/ownership_tracker.h
  )
  
  # - 01: Unicode
@@ -832,8 +833,11 @@ set(SIR_EXTENDED_SOURCES
  src/sir/sir_validator.cpp
  src/sir/ast_to_sir.cpp
  src/sir/builtin_intrinsics.cpp
- src/sir/ownership_analysis.cpp
- src/sir/sir_borrow_check.cpp
+ # (AR) أُزيلت في Phase E-3 (تنظيف): ownership_analysis.cpp و sir_borrow_check.cpp
+ #     كانا كوداً ميتاً — لا يُستدعَيان من أي مكان في sad/sadc.
+ #     فحص الملكية الحقيقي يحدث في shared/ownership/borrow_checker.cpp و
+ #     compiler/src/sir/sir_builder_*.cpp (BorrowAnalyzer).
+ # (EN) Removed in Phase E-3 cleanup: dead code, no callers.
  src/sir/sir_optimizer.cpp
  src/sir/sir_printer.cpp
  src/sir/sir_to_llvm.cpp

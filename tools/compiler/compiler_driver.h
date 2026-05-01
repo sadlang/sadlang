@@ -22,6 +22,10 @@
 // Type Checker / فاحص الأنواع
 #include "semantic/type_checker.h"
 
+// (AR) سياسة الذاكرة (--gc / --learn / --prod) — توحيد سلوك الأخطاء بين المُفسِّر وsadc
+// (EN) Memory policy (--gc / --learn / --prod) — unifies error behavior between interpreter & sadc
+#include "memory/policy/gc_mode.h"
+
 // Forward declarations outside sad::driver namespace
 namespace Sad
 {
@@ -334,6 +338,16 @@ namespace sad
             // ========== UI Pipeline / خط أنابيب الواجهات ==========
             bool emit_ui = false;                // توليد واجهات / Generate UI code
             std::string ui_platform = "desktop"; // المنصة المستهدفة للواجهات / UI target platform
+
+            // ========== Memory Policy (--gc / --learn / --prod) ==========
+            // (AR) سياسة الذاكرة المُحلَّلة من سطر الأوامر — تتحكم في سلوك أخطاء
+            //      الملكية حسب وضع المستخدم (تجاهل / تحذير تعليمي / فشل قاتل).
+            //      تُمرَّر إلى Sad::Errors::dispatch() عند كل خطأ ملكية.
+            // (EN) Parsed memory policy from CLI — controls ownership-error behavior
+            //      per user mode (ignore / educational warning / fatal). Passed to
+            //      Sad::Errors::dispatch() for every ownership error.
+            ::Sad::Memory::MemoryModeSettings memory_policy{};
+            bool memory_policy_set = false;
         };
 
         // ============================================================================

@@ -45,6 +45,11 @@
 #include "ownership_manager.h"
 #include "module_resolver.h"
 #include "expression_evaluator.h"
+// (AR) ربط نقطة القرار الموحَّدة لأخطاء الملكية
+// (EN) Link unified ownership error dispatch point
+// (AR) dispatch.h متاح عبر: shared/errors/include مُضافة كـ include directory
+// (EN) dispatch.h available via: shared/errors/include added as include directory
+#include "builders/dispatch.h"
 #include <stdexcept>
 #include <string>
 #include <memory>
@@ -622,6 +627,36 @@ namespace Sad
             // (EN) Current file path - used for resolving relative paths
             std::string currentFilePath_;
 
+            // =========================================================================
+            // (AR) سياسة الذاكرة — تُستخدم بواسطة dispatch() لأخطاء الملكية
+            //      تُمرَّر من InterpreterCore عند الإنشاء أو عند تغيير الإعدادات.
+            // (EN) Memory policy — used by dispatch() for ownership errors.
+            //      Passed from InterpreterCore on creation or settings change.
+            // =========================================================================
+            Sad::Memory::MemoryModeSettings memoryPolicy_{};
+
+        public:
+            /**
+             * @brief (AR) ضبط سياسة الذاكرة لاستخدامها في dispatch()
+             *        (EN) Set memory policy for use in dispatch()
+             *
+             * @param policy (AR) إعدادات سياسة الذاكرة / (EN) Memory mode settings
+             */
+            void setMemoryPolicy(const Sad::Memory::MemoryModeSettings &policy)
+            {
+                memoryPolicy_ = policy;
+            }
+
+            /**
+             * @brief (AR) الحصول على سياسة الذاكرة الحالية
+             *        (EN) Get current memory policy
+             */
+            const Sad::Memory::MemoryModeSettings &getMemoryPolicy() const
+            {
+                return memoryPolicy_;
+            }
+
+        private:
             // (AR) الرموز المُصدَّرة من الملف الحالي - تُملأ عند مواجهة جمل صدّر
             // (EN) Exported symbols from current file - populated when export statements are encountered
             std::unordered_set<std::string> exportedSymbols_;

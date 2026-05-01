@@ -252,10 +252,37 @@ namespace Sad
                             auto moveError = ownershipManager_.moveVariable(varExpr->name);
                             if (moveError.has_value())
                             {
-                                throw SadException(
-                                    moveError->arabicMessage + " / " + moveError->message,
-                                    "OwnershipError",
-                                    node.position);
+                                // (AR) تمرير الخطأ عبر dispatch() — السلوك يُحدَّد من سياسة الذاكرة
+                                //     Disabled → تجاهل، Warnings → تحذير، Strict/UltraStrict → استثناء
+                                // (EN) Route error through dispatch() — behavior determined by memory policy
+                                //     Disabled → ignore, Warnings → warn, Strict/UltraStrict → throw
+                                ::Sad::Errors::SourceLocation loc;
+                                loc.filename = currentFilePath_;
+                                loc.line = node.position.line;
+                                loc.column = node.position.column;
+
+                                auto dispResult = ::Sad::Errors::dispatch(
+                                    moveError->kind, memoryPolicy_, loc, varExpr->name);
+
+                                if (dispResult.shouldStop())
+                                {
+                                    throw SadException(
+                                        dispResult.messageAr + " / " + dispResult.messageEn,
+                                        "OwnershipError",
+                                        node.position);
+                                }
+                                // (AR) في --learn: طباعة التحذير والمضي
+                                // (EN) In --learn: print warning and continue
+                                if (dispResult.shouldEmit())
+                                {
+                                    std::cerr << "⚠ [ص-ملكية] " << dispResult.messageAr << "\n";
+                                    if (dispResult.teachingNote.has_value())
+                                    {
+                                        std::cerr << dispResult.teachingNote.value() << "\n";
+                                    }
+                                }
+                                // (AR) في --gc (Ignore): لا شيء — استمر بدون أي رسالة
+                                // (EN) In --gc (Ignore): nothing — continue without any message
                             }
                         }
                     }
@@ -769,4 +796,3 @@ namespace Sad
 
     } // namespace Interpreter
 } // namespace Sad
-

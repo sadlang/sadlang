@@ -61,9 +61,9 @@ namespace Sad
         // =====================================================================
         struct UIComponentRecord
         {
-            Data::ObjectInstance *instance = nullptr; ///< مؤشر خام مُدار بـGC (B-step5b)
-            std::unordered_set<std::string> stateFields;  ///< أسماء حقول @حالة
-            std::string componentName;                    ///< اسم المكون (واجهة عداد → "عداد")
+            Data::ObjectInstance *instance = nullptr;    ///< مؤشر خام مُدار بـGC (B-step5b)
+            std::unordered_set<std::string> stateFields; ///< أسماء حقول @حالة
+            std::string componentName;                   ///< اسم المكون (واجهة عداد → "عداد")
         };
 
         // =====================================================================
@@ -113,7 +113,7 @@ namespace Sad
             // @param componentName — اسم المكون ("عداد")
             // @param stateFields   — أسماء حقول @حالة
             void registerComponent(
-                Data::ObjectInstance * obj,
+                Data::ObjectInstance *obj,
                 const std::string &componentName,
                 const std::unordered_set<std::string> &stateFields);
 

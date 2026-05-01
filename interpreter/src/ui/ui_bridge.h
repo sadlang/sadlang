@@ -707,9 +707,9 @@ namespace Sad
             /// (EN) Single event handler entry — holds callback, owner, and generation
             struct HandlerEntry
             {
-                Data::Value handler;                       ///< دالة المعالج
+                Data::Value handler;                   ///< دالة المعالج
                 Data::ObjectInstance *owner = nullptr; ///< الكائن المالك (اختياري) — مؤشر خام مُدار بـGC
-                uint64_t generation = 0;                   ///< رقم الجيل عند التسجيل
+                uint64_t generation = 0;               ///< رقم الجيل عند التسجيل
             };
 
             /// تخزين handlers الأحداث (معرّف مستقر → سجل المعالج)

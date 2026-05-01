@@ -222,9 +222,11 @@ namespace Sad
                 {
                     gc.registerObject(static_cast<void *>(obj),
                                       static_cast<uint64_t>(sizeof(ObjectInstance)),
-                                      [](void *p) { delete static_cast<ObjectInstance *>(p); });
+                                      [](void *p)
+                                      { delete static_cast<ObjectInstance *>(p); });
                     gc.setVisitor(static_cast<void *>(obj),
-                                  [](void *p, const std::function<void(void *)> &visitor) {
+                                  [](void *p, const std::function<void(void *)> &visitor)
+                                  {
                                       static_cast<ObjectInstance *>(p)->visitChildren(visitor);
                                   });
                 }

@@ -372,7 +372,6 @@ namespace Sad
             // ─────────────────────────────────────────────────────────────────
             void forEachObjectRef(const std::function<void(ObjectInstance *)> &emit) const;
 
-
             /**
              * @brief (AR) الحصول على مرجع الدالة
              * @brief (EN) Get function reference

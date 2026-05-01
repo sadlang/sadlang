@@ -41,15 +41,15 @@ namespace Sad
             // ─────────────────────────────────────────────────────────────────
             auto &gcEngine = Sad::Memory::GC::defaultEngine();
             gcRootProviderId_ = gcEngine.addRootProvider(
-                [this](const Sad::Memory::GC::GarbageCollector::RootEmitter &emit) {
+                [this](const Sad::Memory::GC::GarbageCollector::RootEmitter &emit)
+                {
                     for (const auto &scopeEntry : scopeVariables_)
                     {
                         const auto &nameToValue = scopeEntry.second;
                         for (const auto &kv : nameToValue)
                         {
-                            kv.second.forEachObjectRef([&emit](Data::ObjectInstance *obj) {
-                                emit(static_cast<void *>(obj));
-                            });
+                            kv.second.forEachObjectRef([&emit](Data::ObjectInstance *obj)
+                                                       { emit(static_cast<void *>(obj)); });
                         }
                     }
                 });

@@ -146,7 +146,7 @@ namespace Sad
 
             // (AR) استخراج كائن المالك (هذا) من النطاق — لربط الأحداث بالمكون
             // (EN) Extract owner (هذا) from scope — to bind events to component
-            Data::ObjectInstance * ownerObj = nullptr;
+            Data::ObjectInstance *ownerObj = nullptr;
             try
             {
                 auto thisVal = variableManager_.get("\xd9\x87\xd8\xb0\xd8\xa7"); // هذا

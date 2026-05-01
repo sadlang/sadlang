@@ -195,6 +195,9 @@ set(ERROR_SOURCES
     shared/errors/src/smart_teacher_mode.cpp
     shared/errors/src/smart_error_recovery.cpp
     shared/errors/src/smart_cascade_prevention.cpp
+    # (AR) نقطة القرار الموحَّدة لأخطاء الملكية
+    # (EN) Unified dispatch point for ownership errors
+    shared/errors/src/builders/dispatch.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

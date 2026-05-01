@@ -128,6 +128,9 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/shared/ast/include
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
+    # (AR) Phase A2: سياسة الذاكرة — مُضافة كـ include directory لتمكين "memory/policy/gc_mode.h"
+    # (EN) Phase A2: memory policy — added as include directory to enable "memory/policy/gc_mode.h"
+    ${CMAKE_SOURCE_DIR}/shared/memory_policy/include
     ${CMAKE_SOURCE_DIR}/shared/modules/include
     ${CMAKE_SOURCE_DIR}/shared/builtins/include
     ${CMAKE_SOURCE_DIR}/interpreter/include

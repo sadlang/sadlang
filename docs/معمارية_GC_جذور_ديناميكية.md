@@ -469,48 +469,50 @@ GC حقيقي يحلّ محل `shared_ptr<ObjectInstance>` ويُمهّد لجم
 | النظام | الموقع | الفائدة |
 |--------|--------|---------|
 | **نظام الملكية (Ownership)** | `shared/ownership/` + runtime في `shared/memory/ownership/runtime/` | أمان وقت ترجمة + صفر تكلفة في `--prod` |
-| **جامع المهملات (GC)** | `shared/memory_gc/` (نواة) + `shared/memory/gc/` (سياسة) | سهولة التطوير + كشف دورات في `--dev` |
+| **جامع المهملات (GC)** | `shared/memory_gc/` (نواة) + `shared/memory/gc/` (سياسة) | سهولة التطوير + كشف دورات في `--gc` |
 
-**الاختيار يقع على المطوِّر** عبر **أربعة أعلام رئيسية**:
-ثلاثة منها لمستويات نظام الملكية، وعلم رابع لتفعيل GC وحده دون ملكية.
+**الاختيار يقع على المطوِّر** عبر **ثلاثة أعلام رئيسية** فقط:
 
-### 10.1 الأعلام الأربعة
+> **ملاحظة (تحديث Phase E-3 — 2026-05-21):** العَلَمان `--dev` و `--hybrid`
+> أُزيلا **نهائياً** من المُفسِّر والمترجم. أيّ استخدام لهما يُرفض الآن برسالة
+> خطأ صريحة توجِّه المستخدم إلى البديل: `--dev` → `--gc`، و `--hybrid` →
+> `--gc` أو `--learn`. لا توجد فترة انتقالية إضافية.
+
+### 10.1 الأعلام الثلاثة
 
 ```bash
-# ── أعلام نظام الملكية (3 مستويات صرامة) ──────────────────────
+# ── الأعلام الثلاثة (كاملة الوصف) ──────────────────────────────
 
-sad ملف.ص --prod    # UltraStrict — ملكية صارمة جداً (كـ Rust)، أخطاء فورية
-sad ملف.ص --hybrid  # Strict — ملكية صارمة + GC للأجزاء غير الموسومة
-sad ملف.ص --learn   # Warnings — تحذيرات + رسائل تعليمية مُفصَّلة
+sad ملف.ص --gc       # (افتراضي) GC تلقائي + ملكية معطَّلة — للمبتدئين و prototyping
+sad ملف.ص --learn    # تحذيرات + رسائل تعليمية — للطلاب والمتعلِّمين
+sad ملف.ص --prod     # ملكية صارمة + لا GC — للإنتاج والنواة
 
-# ── علم نظام GC الخالص (بدون ملكية أبداً) ──────────────────────
+# ── للمتقدمين فقط (لا تُعرض في --help بنفس بروز الأعلام الثلاثة) ──
 
-sad ملف.ص --gc=tracing --ownership=disabled
-# أو الاختصار المعتاد:
-sad ملف.ص --dev     # GC تلقائي + ملكية معطَّلة (لا تحذيرات)
+sad ملف.ص --gc=tracing --ownership=disabled   # يكافئ --gc
+sad ملف.ص --gc=none --ownership=ultra_strict  # يكافئ --prod
 ```
 
 | العلم | OwnershipMode | GCStrategy | متى يُستخدم |
 |------|--------------|-----------|-------------|
-| `--prod` | UltraStrict | None | إنتاج أداء أقصى، نواة OS |
-| `--hybrid` | Strict | ReferenceCounting | كود حرج + أجزاء مرنة |
-| `--learn` | Warnings | ReferenceCounting | تعليم اللغة، تحذيرات بدلاً من فشل |
-| `--dev` (GC فقط) | **Disabled** | Tracing/RefCount | تطوير سريع، prototyping، REPL |
+| `--gc` (افتراضي) | **Disabled** | Tracing | المبتدئون، scripts، prototyping، REPL |
+| `--learn` | Warnings | Tracing | تعليم اللغة، تحذيرات + رسائل تعليمية |
+| `--prod` | UltraStrict | None | الإنتاج، نواة OS، الأنظمة المضمَّنة |
 
 ```
-  مستوى الصرامة (الملكية فقط)
-  ───────────────────────────────────────────────►
-  Disabled    Warnings    Strict       UltraStrict
-   (--dev)    (--learn)  (--hybrid)    (--prod)
-     │           │          │              │
-     │ صفر       │ تحذيرات  │ أخطاء       │ أخطاء
-     │ تحقق      │ فقط      │ ترجمة       │ صارمة جداً
-     │           │          │              │
-     ▼           ▼          ▼              ▼
-  ┌──────┐   ┌──────┐  ┌──────────┐  ┌──────────┐
-  │ GC   │   │ GC + │  │ GC جزئي  │  │ لا GC    │
-  │ كامل │   │ تلميح│  │ + ملكية │  │ ملكية فقط│
-  └──────┘   └──────┘  └──────────┘  └──────────┘
+  مستوى الصرامة (من أيسر إلى أيمن)
+  ──────────────────────────────────────►
+  Disabled         Warnings          UltraStrict
+   (--gc)          (--learn)           (--prod)
+     │                │                   │
+     │ صفر تحقق       │ تحذيرات تعليمية   │ أخطاء صارمة
+     │ GC تلقائي      │ GC مستمر          │ لا GC
+     │                │                   │
+     ▼                ▼                   ▼
+  ┌──────────┐   ┌──────────┐      ┌──────────┐
+  │ GC كامل  │   │ GC +     │      │ ملكية    │
+  │ ملكية ❌ │   │ تحذيرات  │      │ فقط ❌GC │
+  └──────────┘   └──────────┘      └──────────┘
 ```
 
 > ⚠️ **قاعدة دلالية صارمة:** نفس البرنامج بنفس الوضع يجب أن يُنتج
@@ -519,15 +521,15 @@ sad ملف.ص --dev     # GC تلقائي + ملكية معطَّلة (لا تح
 
 ### 10.2 جدول حالة الذاكرة لكل علم
 
-| الجانب | `--dev` (GC فقط) | `--learn` | `--hybrid` | `--prod` |
-|--------|------------------|-----------|------------|----------|
-| **OwnershipMode** | Disabled | Warnings | Strict | UltraStrict |
-| **GCStrategy** | Tracing/RefCount | RefCount | RefCount | None |
-| فحص ساكن | ❌ لا يُجرى | ✅ تحذيرات | ✅ أخطاء | ✅ أخطاء صارمة |
-| كاشف الدورات | ✅ مُفعَّل | ✅ مُفعَّل | ✅ مُفعَّل | ❌ لا حاجة |
-| رسائل تعليمية | ❌ | ✅ | ❌ | ❌ |
-| اقتراحات تحويل | ❌ | ✅ | ✅ | ❌ |
-| حد ذاكرة GC | 256MB | 256MB | 256MB | غير ذي صلة |
+| الجانب | `--gc` (افتراضي) | `--learn` | `--prod` |
+|--------|------------------|-----------|----------|
+| **OwnershipMode** | Disabled | Warnings | UltraStrict |
+| **GCStrategy** | Tracing | Tracing | None |
+| فحص ساكن | ❌ لا يُجرى | ✅ تحذيرات تعليمية | ✅ أخطاء صارمة |
+| كاشف الدورات | ✅ مُفعَّل | ✅ مُفعَّل | ❌ لا حاجة |
+| رسائل تعليمية | ❌ | ✅ كاملة | ❌ |
+| اقتراحات تحويل | ❌ | ✅ | ❌ |
+| حد ذاكرة GC | 256MB | 256MB | غير ذي صلة |
 
 ---
 
@@ -537,7 +539,7 @@ sad ملف.ص --dev     # GC تلقائي + ملكية معطَّلة (لا تح
 shared/memory/
 ├── policy/                                  ← السياسة (المرحلة A — مكتملة)
 │   ├── memory_mode.h           : enum DEVELOPMENT/PRODUCTION/LEARN
-│   ├── memory_mode_flag.h      : تحليل --dev/--prod/--learn من argv
+│   ├── memory_mode_flag.h      : تحليل --gc/--learn/--prod من argv
 │   └── memory_policy_manager.h : مصدر الحقيقة الوحيد للوضع
 │
 ├── gc/                                      ← GC الموحَّد (المرحلة B — قيد التنفيذ)
@@ -556,7 +558,7 @@ shared/memory/
 RootProvider, destroyer/visitor) — مستقلة عن السياسة. `shared/memory/gc/`
 هو **الواجهة عالية المستوى** التي:
 - تستشير `MemoryPolicyManager` قبل التفعيل.
-- تختار: `--prod` → تجاوز كامل لـ GC. `--dev` → تفعيل + جمع دوري.
+- تختار: `--prod` → تجاوز كامل لـ GC. `--gc` → تفعيل + جمع دوري.
 - تكشف API لجميع المسارات.
 
 ---
@@ -574,17 +576,17 @@ RootProvider, destroyer/visitor) — مستقلة عن السياسة. `shared/m
        ┌────────────┬─────────┴─────────┬────────────┐
        │            │                   │            │
        ▼            ▼                   ▼            ▼
-     --dev       --learn           --hybrid       --prod
-  (GC فقط)    (Warnings)         (Strict)      (UltraStrict)
-       │            │                   │            │
-       ▼            ▼                   ▼            ▼
-  Ownership   Ownership            Ownership    Ownership
-   Disabled    Warnings             Strict       UltraStrict
-     │            │                    │            │
-     │            │                    │            │
-     ▼            ▼                    ▼            ▼
-  GC نشط      GC نشط               GC جزئي       لا GC
-  بالكامل     + تحذيرات             + ملكية      ملكية فقط
+       --gc         --learn                --prod
+  (GC فقط)   (Warnings)             (UltraStrict)
+       │            │                       │
+       ▼            ▼                       ▼
+  Ownership   Ownership                Ownership
+   Disabled    Warnings                 UltraStrict
+     │            │                        │
+     │            │                        │
+     ▼            ▼                        ▼
+  GC نشط      GC نشط                  لا GC
+  بالكامل     + تحذيرات                 ملكية فقط
      │            │                    │            │
      ▼            ▼                    ▼            ▼
  RootProviders مُسجَّلة لـ:
@@ -594,14 +596,14 @@ RootProvider, destroyer/visitor) — مستقلة عن السياسة. `shared/m
    - UI handlers 🟡 (B-iv)
      │            │                    │            │
      ▼            ▼                    ▼            ▼
- GC.collect()  GC.collect()        Drop آلي     Drop آلي
-  دورياً        دورياً + رسائل       (مع GC      (مولَّد
-               تعليمية              للأجزاء      ساكناً
-                                    غير الموسومة) أو ديناميكياً)
+ GC.collect()  GC.collect()
+  دورياً        دورياً + رسائل      Drop آلي
+               تعليمية              (مولّد ساكناً
+                                       أو ديناميكياً)
 ```
 
-**ملاحظة:** الفرق بين `--dev` و `--learn` ليس في GC (كلاهما يُفعِّله)
-بل في **نظام الملكية**: `--dev` يُعطِّله تماماً، `--learn` يُبقيه نشطاً
+**ملاحظة:** الفرق بين `--gc` و `--learn` ليس في GC (كلاهما يُفعّله)
+بل في **نظام الملكية**: `--gc` يُعطّله تماماً، `--learn` يُبقيه نشطاً
 كتحذيرات تعليمية.
 
 ### 12.2 الآلة الافتراضية (`sad --vm ملف.ص [--mode]`)
@@ -640,7 +642,7 @@ StackFrame                 OperandStack
   ├─ run_borrow_check(AST)          ← shared/ownership (دائماً)
   │     ├─ --prod  : فشل البناء عند أي خطأ
   │     ├─ --learn : تحذيرات + متابعة
-  │     └─ --dev   : تحذيرات + اعتماد GC في runtime
+  │     └─ --gc    : لا فحص، اعتماد GC في runtime
   │
   ├─ AST → SIR (مع 12 ownership ops)
   │
@@ -648,12 +650,12 @@ StackFrame                 OperandStack
   │     ├─ ownership_analysis      ← فحص ثاني
   │     └─ drop_elaboration         ← إدراج Drop
   │           ├─ --prod : Drop → free() مباشر (لا GC linkage)
-  │           └─ --dev  : Drop → GC_decRef()  (مع GC runtime)
+  │           └─ --gc   : Drop → GC_decRef()  (مع GC runtime)
   │
   └─ SIR → LLVM IR → ملف تنفيذي
         مع ربط:
         ├─ --prod : libsad_runtime_minimal.a  (بلا GC)
-        └─ --dev  : libsad_runtime_full.a     (GC + cycle detector + enforcer)
+        └─ --gc   : libsad_runtime_full.a     (GC + cycle detector + enforcer)
 ```
 
 ---
@@ -721,24 +723,23 @@ SadType
 
 ### 14.1 سلوك كل علم تجاه نفس الخطأ
 
-| الخطأ | `--dev` (Disabled) | `--learn` (Warnings) | `--hybrid` (Strict) | `--prod` (UltraStrict) |
-|------|-------------------|---------------------|---------------------|------------------------|
-| `UseAfterMove` | ✅ يعمل (GC) | ⚠️ تحذير + رسالة تعليمية | ❌ خطأ ترجمة | ❌ خطأ صارم |
-| `UseAfterDrop` | ✅ يعمل (GC) | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
-| `DoubleFree` | غير ممكن (GC) | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
-| `DoubleMove` | ✅ يعمل (GC) | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
-| `BorrowOfMoved` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
-| `MutBorrowWhileBorrowed` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
-| `UseWhileMutBorrowed` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
-| `InvalidBorrow` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ | ❌ خطأ |
+| الخطأ | `--gc` (Disabled) | `--learn` (Warnings) | `--prod` (UltraStrict) |
+|------|-------------------|---------------------|------------------------|
+| `UseAfterMove` | ✅ يعمل (GC) | ⚠️ تحذير + رسالة تعليمية | ❌ خطأ صارم |
+| `UseAfterDrop` | ✅ يعمل (GC) | ⚠️ تحذير | ❌ خطأ |
+| `DoubleFree` | غير ممكن (GC) | ⚠️ تحذير | ❌ خطأ |
+| `DoubleMove` | ✅ يعمل (GC) | ⚠️ تحذير | ❌ خطأ |
+| `BorrowOfMoved` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ |
+| `MutBorrowWhileBorrowed` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ |
+| `UseWhileMutBorrowed` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ |
+| `InvalidBorrow` | ✅ يعمل | ⚠️ تحذير | ❌ خطأ |
 
 ### 14.2 المعنى لكل وضع
 
 | الوضع | الفحص | السلوك عند الخطأ |
 |------|------|------------------|
-| `--dev` | لا يُجرى | لا تحذيرات، GC يدير الذاكرة كلياً |
+| `--gc` | لا يُجرى | لا تحذيرات، GC يدير الذاكرة كلياً |
 | `--learn` | يُجرى | تحذيرات قابلة للعرض في LSP/REPL + رسائل تعليمية |
-| `--hybrid` | يُجرى | المُفسّر: استثناء `SadOwnershipError`. sadc: فشل بناء |
 | `--prod` | يُجرى صارماً | المُفسّر: استثناء فوري. sadc: فشل بناء + رفض حتى التحويلات الذكية |
 
 ---
@@ -769,7 +770,7 @@ SadType
 **ملاحظة:** كل opcode يحمل `SadTypePtr` (وليس `ValueType` القديم).
 هذا يسمح بنفس opcode أن يُترجم إلى:
 - `--prod` LLVM IR: `alloca` + `free` صريح من `Drop`.
-- `--dev` LLVM IR: `GC_alloc` + `GC_decRef` من `Drop`.
+- `--gc` LLVM IR: `GC_alloc` + `GC_decRef` من `Drop`.
 
 ---
 
@@ -789,12 +790,10 @@ SadType
 
 | الوضع | الفحص الساكن | كيف تُحرَّر `س`؟ |
 |------|---------------|-------------------|
-| `--dev` (المُفسّر) | ❌ لا فحص | GC.collect() دورياً |
-| `--dev` (sadc) | ❌ لا فحص | `GC_decRef()` في الـ exe |
+| `--gc` (المُفسّر) | ❌ لا فحص | GC.collect() دورياً |
+| `--gc` (sadc) | ❌ لا فحص | `GC_decRef()` في الـ exe |
 | `--learn` (المُفسّر) | ⚠️ تحذيرات + رسائل تعليمية | GC.collect() دورياً |
 | `--learn` (sadc) | ⚠️ تحذيرات | `GC_decRef()` في الـ exe |
-| `--hybrid` (المُفسّر) | ✅ Strict | Drop ديناميكي + GC للأجزاء غير الموسومة |
-| `--hybrid` (sadc) | ✅ Strict | `Drop`→`free()` للموسومة + `GC_decRef()` لغيرها |
 | `--prod` (المُفسّر) | ✅ صارم جداً | Drop ديناميكي عند نهاية scope |
 | `--prod` (sadc) | ✅ يفشل البناء عند أي خطأ | `Drop`→`free()` صريح في الـ exe |
 
@@ -843,19 +842,14 @@ SadType
             │
             ├─ نعم → --learn (تحذيرات + رسائل تعليمية)
             │
-            └─ لا → هل تريد أمان ذاكرة بالكامل دون قلق؟
-                     │
-                     ├─ نعم، أداء معتدل → --dev (GC فقط، بلا ملكية)
-                     │
-                     └─ مزيج → --hybrid (ملكية صارمة + GC للمرن)
+            └─ لا → --gc (افتراضي: GC تلقائي، بلا ملكية)
 ```
 
 | الوضع | الجمهور المستهدف |
 |------|-------------------|
 | `--prod` | مطوّرو النوى، الأنظمة المضمَّنة، البرامج الحرجة |
-| `--hybrid` | برامج إنتاجية تجمع بين الأداء والمرونة |
 | `--learn` | الطلاب، المتعلّمون الجدد، التدريب |
-| `--dev` (GC فقط) | prototyping، REPL، scripts قصيرة، ترحيل من Python/JS |
+| `--gc` (افتراضي) | المبدئون، prototyping، REPL، scripts قصيرة، ترحيل من Python/JS |
 
 ### للمساهم في اللغة
 - لا تكتب كوداً يفترض GC أو Ownership — استشر `MemoryPolicyManager`.
@@ -866,7 +860,7 @@ SadType
 ### للمطوِّر على النواة (ufuq OS)
 - استخدم `--prod` دائماً — لا runtime GC في kernel space.
 - جميع الملكية تُفحص ساكناً → ملف `.elf` لا يحوي GC.
-- إذا احتجت GC في حقل معيّن (مثل user-space helpers) — استخدم `--dev`
+- إذا احتجت GC في حقل معيّن (مثل user-space helpers) — استخدم `--gc`
   مع `libsad_runtime_full.a` المربوط بنواة منفصلة.
 
 ---

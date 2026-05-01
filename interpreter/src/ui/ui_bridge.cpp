@@ -433,7 +433,7 @@ namespace Sad
                         if (key.rfind("__event_", 0) == 0)
                         {
                             // (AR) استخراج owner من حقل __owner إن وجد
-                            Data::ObjectInstance * ownerPtr = nullptr;
+                            Data::ObjectInstance *ownerPtr = nullptr;
                             auto *ownerField = wb->getField("__owner");
                             if (ownerField && ownerField->isObject())
                             {

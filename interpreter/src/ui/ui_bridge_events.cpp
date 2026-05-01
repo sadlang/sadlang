@@ -449,7 +449,7 @@ namespace Sad
             //      If found, execute function in object context (هذا + fields)
             //      and copy field modifications back after execution
             // ═══════════════════════════════════════════════════════════════
-            Data::ObjectInstance * ownerObj = nullptr;
+            Data::ObjectInstance *ownerObj = nullptr;
             // (AR) أولاً نحاول من HandlerEntry.owner المباشر
             ownerObj = it->second.owner;
             // (AR) احتياط: إذا لم يكن في HandlerEntry، نبحث في handlerOwners_ القديمة
@@ -850,7 +850,7 @@ namespace Sad
                     if (key.rfind("__event_", 0) == 0)
                     {
                         // (AR) استخراج owner من حقل __owner إن وجد
-                        Data::ObjectInstance * ownerPtr = nullptr;
+                        Data::ObjectInstance *ownerPtr = nullptr;
                         auto *ownerField = childWB->getField("__owner");
                         if (ownerField && ownerField->isObject())
                         {

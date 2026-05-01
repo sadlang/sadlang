@@ -23,7 +23,7 @@ namespace Sad
         // registerComponent — تسجيل مكون واجهة جديد
         // ─────────────────────────────────────────────────────────────────
         void UIStateManager::registerComponent(
-            Data::ObjectInstance * obj,
+            Data::ObjectInstance *obj,
             const std::string &componentName,
             const std::unordered_set<std::string> &stateFields)
         {

@@ -66,6 +66,10 @@ add_library(sad_shared STATIC
     # Pattern + Permission diagnostics (Fix #26 — نُقلت من compiler/src/diagnostics/)
     errors/src/pattern_diagnostics.cpp
     errors/src/permission_diagnostics.cpp
+
+    # (AR) نقطة القرار الموحَّدة لأخطاء الملكية — توحيد سلوك --gc/--learn/--prod
+    # (EN) Unified ownership-error decision point — unifies --gc/--learn/--prod behavior
+    errors/src/builders/dispatch.cpp
     
     # Modules
     modules/src/dependency_graph.cpp

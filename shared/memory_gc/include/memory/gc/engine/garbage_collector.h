@@ -172,8 +172,8 @@ namespace Sad
                 void sweepUnmarkedLocked(std::vector<bool> &marked, uint64_t &freedCount);
 
                 mutable std::mutex mutex_;
-                std::vector<void *> objects_; // (AR) المؤشرات المتعقَّبة
-                std::vector<uint64_t> sizes_; // (AR) أحجامها (موازية لـ objects_)
+                std::vector<void *> objects_;                         // (AR) المؤشرات المتعقَّبة
+                std::vector<uint64_t> sizes_;                         // (AR) أحجامها (موازية لـ objects_)
                 std::vector<std::function<void(void *)>> destroyers_; // (AR) دوال هدم اختيارية موازية لـ objects_
                 std::vector<std::function<void(void *,
                                                const std::function<void(void *)> &)>>
@@ -182,9 +182,9 @@ namespace Sad
                 // (AR) موفّرو جذور ديناميكيون (B-step5b-iii). الزوج: (id, provider).
                 // (EN) Dynamic root providers (id, provider).
                 std::vector<std::pair<int, RootProvider>> rootProviders_;
-                int nextProviderId_; // (AR) عدّاد لتوليد معرّفات الموفّرين
-                uint64_t totalAllocated_;     // (AR) مجموع الأحجام
-                uint64_t collections_;        // (AR) عداد الدورات
+                int nextProviderId_;      // (AR) عدّاد لتوليد معرّفات الموفّرين
+                uint64_t totalAllocated_; // (AR) مجموع الأحجام
+                uint64_t collections_;    // (AR) عداد الدورات
                 bool paused_;
 
                 // (AR) حالة الجمع التدريجي (موروثة من sad_llvm_gc_collect_incremental)

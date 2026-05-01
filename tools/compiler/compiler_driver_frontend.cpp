@@ -23,7 +23,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
-
+// (AR) محلل أعلام سياسة الذاكرة (--gc/--learn/--prod) لتوحيد سلوك الأخطاء
+// (EN) Memory policy flag parser to unify error behavior with interpreter
+#include "memory/policy/memory_mode_flag.h"
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لاكتشاف التبعيات
 // (EN) Module AST nodes — ImportStmt & FromImportStmt for dependency discovery
 #include "module_nodes.h"
@@ -109,6 +111,17 @@ namespace sad
             }
 
             // Success!
+            // (AR) Phase E-3: طباعة التحذيرات حتى في حال النجاح (مثل --learn).
+            //      لو لم نطبعها هنا، فإن وضع --learn يُترجم بصمت تام بلا أي
+            //      ملاحظة تعليمية رغم وجود انتهاكات ملكية تستوجب التنبيه.
+            // (EN) Phase E-3: Print warnings even on success (e.g. --learn mode).
+            //      Otherwise --learn would compile silently despite ownership
+            //      violations that we explicitly want to surface to the user.
+            if (diagnostics_.get_warning_count() > 0)
+            {
+                diagnostics_.print_diagnostics(std::cerr, options_.color_diagnostics);
+            }
+
             if (options_.verbose)
             {
                 std::cout << colors::GREEN << colors::BOLD
@@ -713,6 +726,58 @@ namespace sad
 
         bool CompilerDriver::parse_command_line(int argc, char *argv[])
         {
+            // ═══════════════════════════════════════════════════════════════════════
+            // (AR) المرحلة E-3: تحليل أعلام سياسة الذاكرة (--gc/--learn/--prod) أولاً
+            //      حتى يستهلكها المحلل ولا تظهر كـ "أعلام غير معروفة" لـ CommandLineParser.
+            //      السياسة المُحلَّلة تُمرَّر إلى Sad::Errors::dispatch() عند كل خطأ ملكية
+            //      لتوحيد السلوك بين المُفسِّر (sad) والمترجم (sadc).
+            // (EN) Phase E-3: Parse memory policy flags first so they are consumed
+            //      before the regular CLI parser. The parsed policy is later passed
+            //      to Sad::Errors::dispatch() for every ownership error, unifying
+            //      behavior between the interpreter (sad) and compiler (sadc).
+            // ═══════════════════════════════════════════════════════════════════════
+            std::vector<std::string> mem_remaining_storage; // (AR) تبقى حية طوال الدالة
+            std::vector<char *> rebuilt_argv_storage;
+            {
+                ::Sad::Memory::MemoryModeFlag memFlagParser;
+                auto memResult = memFlagParser.parse(argc, argv);
+                if (!memResult.success)
+                {
+                    for (const auto &err : memResult.errors)
+                        diagnostics_.report_error(
+                            "memory policy / سياسة الذاكرة: " + err);
+                    // (AR) Phase E-3: اطبع التشخيصات قبل الخروج لكي يرى المستخدم
+                    //      رسالة الرفض الواضحة (مثلاً: '--dev' أُزيل، استخدم '--gc').
+                    // (EN) Phase E-3: print diagnostics before exit so user sees
+                    //      the clear rejection message (e.g. '--dev' removed, use '--gc').
+                    diagnostics_.print_diagnostics(std::cerr, options_.color_diagnostics);
+                    return false;
+                }
+                for (const auto &warn : memResult.warnings)
+                    diagnostics_.report_warning(
+                        "memory policy / سياسة الذاكرة: " + warn);
+
+                // (AR) parse() يتجاوز argv[0]، إذا اختلف العدد فقد استُهلك علم.
+                // (EN) parse() skips argv[0]; if size differs, at least one consumed.
+                const size_t originalUserArgs =
+                    static_cast<size_t>(argc > 0 ? argc - 1 : 0);
+                if (memResult.remainingArgs.size() != originalUserArgs)
+                {
+                    options_.memory_policy = memResult.settings;
+                    options_.memory_policy_set = true;
+
+                    // (AR) أعد بناء argc/argv: argv[0] + الأعلام المتبقية فقط.
+                    // (EN) Rebuild argc/argv: argv[0] + remaining flags only.
+                    mem_remaining_storage = std::move(memResult.remainingArgs);
+                    rebuilt_argv_storage.reserve(mem_remaining_storage.size() + 1);
+                    rebuilt_argv_storage.push_back(argv[0]);
+                    for (auto &s : mem_remaining_storage)
+                        rebuilt_argv_storage.push_back(s.data());
+                    argc = static_cast<int>(rebuilt_argv_storage.size());
+                    argv = rebuilt_argv_storage.data();
+                }
+            }
+
             CommandLineParser parser(argc, argv);
 
             if (!parser.parse(options_, diagnostics_))

@@ -168,10 +168,11 @@ namespace Sad
             {
                 OwnershipError err = convertError(sharedErr.value());
                 errors_.push_back(err);
-                // (AR) في وضع التعلم (--learn) نسجّل الخطأ كتحذير ولا نوقف التنفيذ.
-                // (EN) In learn mode (--learn) record as warning and continue.
-                if (warningsOnly_)
-                    return std::nullopt;
+                // (AR) Phase E-3: نُرجع الخطأ دائماً — Sad::Errors::dispatch() في
+                //      مواقع الاستدعاء هو من يقرر Ignore/Warn/Fatal بناءً على
+                //      memory policy (--gc/--learn/--prod). لا قرار هنا.
+                // (EN) Phase E-3: always return the error — Sad::Errors::dispatch()
+                //      at call sites decides Ignore/Warn/Fatal based on memory policy.
                 return err;
             }
             return std::nullopt;
@@ -187,8 +188,8 @@ namespace Sad
             {
                 OwnershipError err = convertError(sharedErr.value());
                 errors_.push_back(err);
-                if (warningsOnly_)
-                    return std::nullopt;
+                // (AR) Phase E-3: dispatch() في موقع الاستدعاء يقرر السلوك.
+                // (EN) Phase E-3: dispatch() at call site decides the behavior.
                 return err;
             }
             ++totalMoves_;
@@ -205,8 +206,8 @@ namespace Sad
             {
                 OwnershipError err = convertError(sharedErr.value());
                 errors_.push_back(err);
-                if (warningsOnly_)
-                    return std::nullopt;
+                // (AR) Phase E-3: dispatch() في موقع الاستدعاء يقرر السلوك.
+                // (EN) Phase E-3: dispatch() at call site decides the behavior.
                 return err;
             }
             return std::nullopt;

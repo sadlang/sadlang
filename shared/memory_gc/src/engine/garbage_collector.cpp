@@ -84,12 +84,12 @@ namespace Sad
                     {
                         continue;
                     }
-                    provider([&worklist](void *p) {
+                    provider([&worklist](void *p)
+                             {
                         if (p != nullptr)
                         {
                             worklist.push_back(p);
-                        }
-                    });
+                        } });
                 }
 
                 // (AR) إذا لم نحصل على أي جذر من المصدرين، نُبقي الـ fallback المحافظ
@@ -128,7 +128,8 @@ namespace Sad
                     auto &visitor = visitors_[static_cast<size_t>(idx)];
                     if (visitor)
                     {
-                        visitor(cur, [&](void *child) {
+                        visitor(cur, [&](void *child)
+                                {
                             if (child == nullptr)
                             {
                                 return;
@@ -137,8 +138,7 @@ namespace Sad
                             if (cidx >= 0 && !marked[static_cast<size_t>(cidx)])
                             {
                                 worklist.push_back(child);
-                            }
-                        });
+                            } });
                         continue;
                     }
 

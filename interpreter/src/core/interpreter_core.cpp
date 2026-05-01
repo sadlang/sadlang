@@ -141,6 +141,15 @@ namespace Sad
             statementExecutor_->setModuleResolver(moduleResolver_.get());
             statementExecutor_->setCurrentFilePath(options_.currentFilePath);
 
+            // (AR) Phase E-3: تمرير سياسة الذاكرة إلى منفذ العبارات
+            //     يُمكّن dispatch() من تحديد سلوك أخطاء الملكية بشكل صحيح
+            // (EN) Phase E-3: pass memory policy to statement executor
+            //     Enables dispatch() to determine ownership error behavior correctly
+            if (options_.memoryPolicySet)
+            {
+                statementExecutor_->setMemoryPolicy(options_.memoryPolicy);
+            }
+
             // (AR) ثم إنشاء مقيّم التعابير مع مرجع لمنفذ العبارات / (EN) Then create expression evaluator with statement executor reference
             expressionEvaluator_ = std::make_unique<ExpressionEvaluator>(
                 *variableManager_,

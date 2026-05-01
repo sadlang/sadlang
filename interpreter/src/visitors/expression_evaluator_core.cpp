@@ -371,11 +371,32 @@ namespace Sad
                 auto error = ownershipManager_.useVariable(node.name);
                 if (error.has_value())
                 {
-                    // (AR) المتغير منقول أو غير صالح / (EN) Variable moved or invalid
-                    throw SadException(
-                        error->arabicMessage + " / " + error->message,
-                        "OwnershipError",
-                        node.position);
+                    // (AR) المتغير منقول أو غير صالح — تمرير عبر dispatch()
+                    // (EN) Variable moved or invalid — route through dispatch()
+                    ::Sad::Errors::SourceLocation loc;
+                    loc.line = node.position.line;
+                    loc.column = node.position.column;
+
+                    auto dispResult = ::Sad::Errors::dispatch(
+                        error->kind,
+                        statementExecutor_.getMemoryPolicy(),
+                        loc, node.name);
+
+                    if (dispResult.shouldStop())
+                    {
+                        throw SadException(
+                            dispResult.messageAr + " / " + dispResult.messageEn,
+                            "OwnershipError",
+                            node.position);
+                    }
+                    if (dispResult.shouldEmit())
+                    {
+                        std::cerr << "⚠ [ص-ملكية] " << dispResult.messageAr << "\n";
+                        if (dispResult.teachingNote.has_value())
+                        {
+                            std::cerr << dispResult.teachingNote.value() << "\n";
+                        }
+                    }
                 }
             }
 
@@ -409,10 +430,32 @@ namespace Sad
                 auto error = ownershipManager_.createBorrow(node.variableName, borrowerName, borrowKind);
                 if (error.has_value())
                 {
-                    throw SadException(
-                        error->arabicMessage + " / " + error->message,
-                        "OwnershipError",
-                        node.position);
+                    // (AR) تمرير خطأ الاستعارة عبر dispatch()
+                    // (EN) Route borrow error through dispatch()
+                    ::Sad::Errors::SourceLocation loc;
+                    loc.line = node.position.line;
+                    loc.column = node.position.column;
+
+                    auto dispResult = ::Sad::Errors::dispatch(
+                        error->kind,
+                        statementExecutor_.getMemoryPolicy(),
+                        loc, node.variableName);
+
+                    if (dispResult.shouldStop())
+                    {
+                        throw SadException(
+                            dispResult.messageAr + " / " + dispResult.messageEn,
+                            "OwnershipError",
+                            node.position);
+                    }
+                    if (dispResult.shouldEmit())
+                    {
+                        std::cerr << "⚠ [ص-ملكية] " << dispResult.messageAr << "\n";
+                        if (dispResult.teachingNote.has_value())
+                        {
+                            std::cerr << dispResult.teachingNote.value() << "\n";
+                        }
+                    }
                 }
             }
 
@@ -551,10 +594,33 @@ namespace Sad
                         auto moveError = ownershipManager_.moveVariable(sourceVarName);
                         if (moveError.has_value())
                         {
-                            throw SadException(
-                                moveError->arabicMessage + " / " + moveError->message,
-                                "OwnershipError",
-                                node.position);
+                            // (AR) تمرير الخطأ عبر dispatch() — السلوك يُحدَّد من سياسة الذاكرة
+                            // (EN) Route error through dispatch() — behavior determined by memory policy
+                            ::Sad::Errors::SourceLocation loc;
+                            loc.filename = "";
+                            loc.line = node.position.line;
+                            loc.column = node.position.column;
+
+                            auto dispResult = ::Sad::Errors::dispatch(
+                                moveError->kind,
+                                statementExecutor_.getMemoryPolicy(),
+                                loc, sourceVarName);
+
+                            if (dispResult.shouldStop())
+                            {
+                                throw SadException(
+                                    dispResult.messageAr + " / " + dispResult.messageEn,
+                                    "OwnershipError",
+                                    node.position);
+                            }
+                            if (dispResult.shouldEmit())
+                            {
+                                std::cerr << "⚠ [ص-ملكية] " << dispResult.messageAr << "\n";
+                                if (dispResult.teachingNote.has_value())
+                                {
+                                    std::cerr << dispResult.teachingNote.value() << "\n";
+                                }
+                            }
                         }
                     }
                 }
@@ -567,10 +633,32 @@ namespace Sad
                     auto error = ownershipManager_.mutateVariable(node.name);
                     if (error.has_value())
                     {
-                        throw SadException(
-                            error->arabicMessage + " / " + error->message,
-                            "OwnershipError",
-                            node.position);
+                        // (AR) تمرير خطأ التعديل عبر dispatch()
+                        // (EN) Route mutation error through dispatch()
+                        ::Sad::Errors::SourceLocation loc;
+                        loc.line = node.position.line;
+                        loc.column = node.position.column;
+
+                        auto dispResult = ::Sad::Errors::dispatch(
+                            error->kind,
+                            statementExecutor_.getMemoryPolicy(),
+                            loc, node.name);
+
+                        if (dispResult.shouldStop())
+                        {
+                            throw SadException(
+                                dispResult.messageAr + " / " + dispResult.messageEn,
+                                "OwnershipError",
+                                node.position);
+                        }
+                        if (dispResult.shouldEmit())
+                        {
+                            std::cerr << "⚠ [ص-ملكية] " << dispResult.messageAr << "\n";
+                            if (dispResult.teachingNote.has_value())
+                            {
+                                std::cerr << dispResult.teachingNote.value() << "\n";
+                            }
+                        }
                     }
                 }
 
@@ -586,7 +674,5 @@ namespace Sad
         // (AR) تقييم التعابير الثنائية / (EN) Binary Expression Evaluation
         // =========================================================================
 
-
     } // namespace Interpreter
 } // namespace Sad
-

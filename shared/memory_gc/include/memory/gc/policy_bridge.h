@@ -41,7 +41,7 @@ namespace Sad
             // (AR) applyMemoryPolicyGlobal — تطبيق سياسة وضع الذاكرة على المحرك العام.
             //
             // (AR) المعاملات:
-            //        settings   — إعدادات الوضع (--dev/--prod/--learn) المُحلَّلة من CLI.
+            //        settings   — إعدادات الوضع (--gc/--prod/--learn) المُحلَّلة من CLI.
             //        policySet  — هل وُجدت أعلام CLI فعلاً؟ إذا false → الدالة no-op
             //                     (تحفظ التوافق مع المنفذين بدون أعلام: REPL، LSP).
             //        debugMode  — هل نطبع سطر التشخيص الموحَّد؟ يُمرَّر من
