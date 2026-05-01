@@ -64,8 +64,8 @@ add_library(sad_shared STATIC
     errors/src/smart_error_recovery.cpp
     errors/src/smart_cascade_prevention.cpp
     # Pattern + Permission diagnostics (Fix #26 — نُقلت من compiler/src/diagnostics/)
-    errors/src/pattern_diagnostics.cpp
-    errors/src/permission_diagnostics.cpp
+    # (AR) أُزيلت في تنظيف Phase F (0 مُستدعين): pattern_diagnostics.cpp, permission_diagnostics.cpp
+    # (EN) Removed in Phase F cleanup (0 callers): pattern_diagnostics.cpp, permission_diagnostics.cpp
 
     # (AR) نقطة القرار الموحَّدة لأخطاء الملكية — توحيد سلوك --gc/--learn/--prod
     # (EN) Unified ownership-error decision point — unifies --gc/--learn/--prod behavior
