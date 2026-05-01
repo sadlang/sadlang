@@ -19,6 +19,7 @@
 #include "error_manager.h"
 #include "ownership_manager.h"
 #include "exception.h"
+#include "builders/dispatch.h"  // (AR) Phase F-1: dispatch موحَّد لأخطاء وقت التشغيل / (EN) Unified runtime-error dispatch
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"   // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
@@ -362,6 +363,41 @@ namespace Sad
             // Convert to double if either is double
             bool useDouble = left.isDouble() || right.isDouble();
 
+            // (AR) Phase F-1: مساعد لمعالجة القسمة على صفر عبر dispatch الموحَّد
+            //      يحترم --gc/--learn/--prod ويعيد قيمة آمنة (0) في الأوضاع غير القاتلة.
+            // (EN) Phase F-1: helper to handle division-by-zero via unified dispatch.
+            //      Respects --gc/--learn/--prod and returns safe value (0) in non-fatal modes.
+            auto handleDivByZero = [&](Sad::Errors::RuntimeErrorKind kind, const std::string &exprText) -> Value
+            {
+                Sad::Errors::SourceLocation loc(getSourceFilename(), pos.line, pos.column);
+                const auto &settings = statementExecutor_.getMemoryPolicy();
+                auto result = Sad::Errors::dispatch(kind, settings, loc, exprText);
+
+                if (result.shouldStop())
+                {
+                    // (AR) --prod: خطأ قاتل — استخدم نفس الاستثناء التاريخي للحفاظ على التوافق
+                    // (EN) --prod: fatal — use same historical exception for backward-compat
+                    throw DivisionByZeroError(result.messageAr + " / " + result.messageEn, pos);
+                }
+                if (result.shouldEmit())
+                {
+                    // (AR) --learn: تحذير + ملاحظة تعليمية (إن وُجدت)
+                    // (EN) --learn: warning + teaching note (if present)
+                    Sad::Errors::ErrorManager::getInstance().reportWarning(
+                        Sad::Errors::ErrorCode::RUN_DIVISION_BY_ZERO,
+                        loc,
+                        result.messageAr,
+                        result.messageEn);
+                    if (result.teachingNote)
+                    {
+                        std::cerr << *result.teachingNote << std::endl;
+                    }
+                }
+                // (AR) قيمة آمنة في --gc/--learn (0 يحافظ على نوع int؛ صفر عشري في useDouble)
+                // (EN) Safe value in --gc/--learn (0 preserves int type; 0.0 in useDouble path)
+                return Value(0);
+            };
+
             if (useDouble)
             {
                 double l = left.toDouble();
@@ -377,29 +413,17 @@ namespace Sad
                     return Value(l * r);
                 case TokenType::OP_DIVIDE:
                     if (r == 0.0)
-                    {
-                        throw DivisionByZeroError(
-                            "(AR) لا يمكن القسمة على صفر / (EN) Cannot divide by zero",
-                            pos);
-                    }
+                        return handleDivByZero(Sad::Errors::RuntimeErrorKind::DivisionByZero, "س / ع");
                     return Value(l / r);
                 case TokenType::OP_FLOOR_DIVIDE:
                     if (r == 0.0)
-                    {
-                        throw DivisionByZeroError(
-                            "(AR) لا يمكن القسمة على صفر / (EN) Cannot divide by zero",
-                            pos);
-                    }
+                        return handleDivByZero(Sad::Errors::RuntimeErrorKind::DivisionByZero, "س // ع");
                     return Value(std::floor(l / r));
                 case TokenType::OP_POWER:
                     return Value(std::pow(l, r));
                 case TokenType::OP_MODULO:
                     if (r == 0.0)
-                    {
-                        throw DivisionByZeroError(
-                            "(AR) لا يمكن القسمة على صفر (باقي القسمة) / (EN) Cannot modulo by zero",
-                            pos);
-                    }
+                        return handleDivByZero(Sad::Errors::RuntimeErrorKind::ModuloByZero, "س % ع");
                     return Value(std::fmod(l, r));
                 default:
                     break;
@@ -447,11 +471,7 @@ namespace Sad
                     return safeMul(l, r);
                 case TokenType::OP_DIVIDE:
                     if (r == 0)
-                    {
-                        throw DivisionByZeroError(
-                            "(AR) لا يمكن القسمة على صفر / (EN) Cannot divide by zero",
-                            pos);
-                    }
+                        return handleDivByZero(Sad::Errors::RuntimeErrorKind::DivisionByZero, "س / ع");
                     // (AR) ترقية إلى عشري عند وجود باقي (7/2 → 3.5) — سلوك القسمة الحقيقية
                     // (EN) Promote to double when remainder exists (7/2 → 3.5) — true division
                     if (l % r != 0)
@@ -459,11 +479,7 @@ namespace Sad
                     return Value(l / r);
                 case TokenType::OP_FLOOR_DIVIDE:
                     if (r == 0)
-                    {
-                        throw DivisionByZeroError(
-                            "(AR) لا يمكن القسمة على صفر / (EN) Cannot divide by zero",
-                            pos);
-                    }
+                        return handleDivByZero(Sad::Errors::RuntimeErrorKind::DivisionByZero, "س // ع");
                     // (AR) القسمة الصحيحة الأرضية: -7 // 2 → -4 (نحو سالب اللانهاية)
                     // (EN) Floor division: -7 // 2 → -4 (toward negative infinity)
                     {
@@ -474,11 +490,7 @@ namespace Sad
                     }
                 case TokenType::OP_MODULO:
                     if (r == 0)
-                    {
-                        throw DivisionByZeroError(
-                            "(AR) لا يمكن حساب باقي القسمة على صفر / (EN) Cannot modulo by zero",
-                            pos);
-                    }
+                        return handleDivByZero(Sad::Errors::RuntimeErrorKind::ModuloByZero, "س % ع");
                     return Value(l % r);
                 case TokenType::OP_POWER:
                 {
