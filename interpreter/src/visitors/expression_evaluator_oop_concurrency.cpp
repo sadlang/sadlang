@@ -15,7 +15,9 @@
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include "channel.h"
 #include <vector>
 
@@ -36,9 +38,11 @@ namespace Sad
 
         bool ExpressionEvaluator::handleConcurrencyMethodCall(MethodCallExpr &node, const Value &objectValue)
         {
-            if (!objectValue.isObject()) return false;
+            if (!objectValue.isObject())
+                return false;
             auto objPtr = objectValue.toObject();
-            if (!objPtr) return false;
+            if (!objPtr)
+                return false;
             auto classFieldIt = objPtr->fields.find("__class__");
             bool isChannel = (classFieldIt != objPtr->fields.end() &&
                               classFieldIt->second.toString() == "__\xD9\x82\xD9\x86\xD8\xA7\xD8\xA9__"); // __قناة__
@@ -58,7 +62,10 @@ namespace Sad
                 auto channelIt = objPtr->fields.find("__channel_id__");
                 if (channelIt == objPtr->fields.end())
                 {
-                    throw RuntimeError("(AR) كائن قناة تالف. (EN) Corrupt channel object.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "corrupt channel object"}});
                 }
                 size_t channelId = static_cast<size_t>(channelIt->second.toInt());
 
@@ -68,14 +75,20 @@ namespace Sad
 
                 if (!channel)
                 {
-                    throw RuntimeError("(AR) قناة غير موجودة. (EN) Channel not found.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "channel not found"}});
                 }
 
                 // ─── أرسل (send) ───
                 if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) أرسل() يتطلب قيمة واحدة. (EN) send() requires one value.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "أرسل/send"}, {"argument", "value"}});
                     channel->send(args[0]);
                     lastResult_ = Value(); // void
                     return true;
@@ -115,7 +128,10 @@ namespace Sad
                 if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) حاول_ارسل() يتطلب قيمة. (EN) trySend() requires a value.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "حاول_ارسل/trySend"}, {"argument", "value"}});
                     bool ok = channel->trySend(args[0]);
                     lastResult_ = Value(ok);
                     return true;
@@ -153,7 +169,10 @@ namespace Sad
                 if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9")
                 {
                     if (args.size() < 2)
-                        throw RuntimeError("(AR) أرسل_بمهلة(قيمة، مللي_ثانية). (EN) sendTimeout(value, ms).", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "أرسل_بمهلة/sendTimeout"}, {"argument", "value, ms"}});
                     int timeoutMs = args[1].toInt();
                     bool ok = channel->sendTimeout(args[0], timeoutMs);
                     lastResult_ = Value(ok);
@@ -164,7 +183,10 @@ namespace Sad
                 if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) استقبل_بمهلة(مللي_ثانية). (EN) receiveTimeout(ms).", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "استقبل_بمهلة/receiveTimeout"}, {"argument", "ms"}});
                     int timeoutMs = args[0].toInt();
                     auto result = channel->receiveTimeout(timeoutMs);
                     if (result.has_value())
@@ -178,9 +200,10 @@ namespace Sad
                     return true;
                 }
 
-                throw RuntimeError(
-                    "(AR) الطريقة '" + m + "' غير موجودة على القناة. (EN) Method '" + m + "' not found on channel.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                    node.position,
+                    {{"method", m}, {"class", "channel"}});
             }
 
             // ═══════════════════════════════════════════════════════════
@@ -203,14 +226,20 @@ namespace Sad
                 auto wgIt = objPtr->fields.find("__waitgroup_id__");
                 if (wgIt == objPtr->fields.end())
                 {
-                    throw RuntimeError("(AR) كائن مجموعة انتظار تالف. (EN) Corrupt WaitGroup object.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "corrupt waitgroup object"}});
                 }
                 size_t wgId = static_cast<size_t>(wgIt->second.toInt());
                 auto &wgReg = SadWaitGroupRegistry::getInstance();
                 auto wg = wgReg.getWaitGroup(wgId);
                 if (!wg)
                 {
-                    throw RuntimeError("(AR) مجموعة انتظار غير موجودة. (EN) WaitGroup not found.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "waitgroup not found"}});
                 }
 
                 // ─── أضف (add) ───
@@ -257,9 +286,10 @@ namespace Sad
                     return true;
                 }
 
-                throw RuntimeError(
-                    "(AR) الطريقة '" + m + "' غير موجودة على مجموعة الانتظار. (EN) Method '" + m + "' not found on WaitGroup.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                    node.position,
+                    {{"method", m}, {"class", "WaitGroup"}});
             }
 
             // ═══════════════════════════════════════════════════════════
@@ -282,14 +312,20 @@ namespace Sad
                 auto mtxIt = objPtr->fields.find("__mutex_id__");
                 if (mtxIt == objPtr->fields.end())
                 {
-                    throw RuntimeError("(AR) كائن قفل تالف. (EN) Corrupt Mutex object.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "corrupt mutex object"}});
                 }
                 size_t mtxId = static_cast<size_t>(mtxIt->second.toInt());
                 auto &mtxReg = SadMutexRegistry::getInstance();
                 auto mtx = mtxReg.getMutex(mtxId);
                 if (!mtx)
                 {
-                    throw RuntimeError("(AR) قفل غير موجود. (EN) Mutex not found.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "mutex not found"}});
                 }
 
                 // ─── اقفل (lock) ───
@@ -322,9 +358,10 @@ namespace Sad
                     return true;
                 }
 
-                throw RuntimeError(
-                    "(AR) الطريقة '" + m + "' غير موجودة على القفل. (EN) Method '" + m + "' not found on Mutex.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                    node.position,
+                    {{"method", m}, {"class", "Mutex"}});
             }
 
             // ═══════════════════════════════════════════════════════════
@@ -347,14 +384,20 @@ namespace Sad
                 auto futIt = objPtr->fields.find("__future_id__");
                 if (futIt == objPtr->fields.end())
                 {
-                    throw RuntimeError("(AR) كائن مستقبل تالف. (EN) Corrupt Future object.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "corrupt future object"}});
                 }
                 size_t futId = static_cast<size_t>(futIt->second.toInt());
                 auto &futReg = SadFutureRegistry::getInstance();
                 auto fut = futReg.getFuture(futId);
                 if (!fut)
                 {
-                    throw RuntimeError("(AR) مستقبل غير موجود. (EN) Future not found.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                        node.position,
+                        {{"operation", "lookup"}, {"reason", "future not found"}});
                 }
 
                 // ─── احصل (get) — يحجب حتى تجهز النتيجة ───
@@ -394,15 +437,19 @@ namespace Sad
                 if (m == "\xD8\xB9\xD9\x8A\xD9\x91\xD9\x86" || m == "\xD8\xB9\xD9\x8A\xD9\x86")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) عيّن() يتطلب قيمة واحدة. (EN) set() requires one value.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "عيّن/set"}, {"argument", "value"}});
                     fut->setResult(args[0]);
                     lastResult_ = Value(); // void
                     return true;
                 }
 
-                throw RuntimeError(
-                    "(AR) الطريقة '" + m + "' غير موجودة على المستقبل. (EN) Method '" + m + "' not found on Future.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                    node.position,
+                    {{"method", m}, {"class", "Future"}});
             }
 
             return false;

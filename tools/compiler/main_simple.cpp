@@ -8,12 +8,13 @@
 #include "interpreter_core.h"
 #include "error_manager.h"
 #include "error_hints.h"
+#include "explanation_level.h"
 #include "value.h"
 // (AR) مُستخرج التوثيق من شجرة AST — ميزة مدمجة في sad
 // (EN) AST-based documentation extractor — built-in feature of sad
 #include "docs_extractor.h"
 #include "pdf_exporter.h"
-#include "../../interpreter/include/exception.h"
+#include "../../interpreter/include/user_thrown.h"
 #include "../../interpreter/include/debug/debug_server.h"
 
 // الآلة الافتراضية / Bytecode VM
@@ -83,6 +84,10 @@ void print_help(const char *program_name)
               << "  --docs-project-name=<n>   اسم المشروع المعروض / Display name for the project\n"
               << "  --docs-format=<fmt>       صيغة الإخراج: markdown|json|html / Output format\n"
               << "  --docs-exclude=<sub>      استبعاد ملفات (تتبع السلسلة الفرعية، قابل للتكرار) / Exclude files (substring, repeatable)\n"
+              << "\n"
+              << "  أعلام شرح الخطأ ولغة الإخراج (Phase E-3) / Error explanation & output language:\n"
+              << "  --explain[=<level>]   مستوى الشرح: brief|normal|detailed|teacher (افتراضي detailed) / Explanation level\n"
+              << "  --lang=<lang>         لغة الرسائل: ar|en|both / Message language\n"
               << "\n"
               << "  واجهات <ملف>  توليد واجهات رسومية / Generate UI code\n"
               << "    --منصة=X    المنصة: desktop|android|ios|web\n"
@@ -261,6 +266,10 @@ int main(int argc, char *argv[])
         std::string profileOutput;
         std::string profileFormat = "text";
         int profileTop = 20;
+        // (AR) المرحلة 3 — أعلام شرح الخطأ ولغة الإخراج
+        // (EN) Phase 3 — explanation level + output language flags
+        std::string explainLevelStr; // brief|normal|detailed|teacher
+        std::string langStr;         // ar|en|both
         std::string filename;
         for (int i = 1; i < argc; ++i)
         {
@@ -388,9 +397,40 @@ int main(int argc, char *argv[])
             {
                 docsExcludes.push_back(a.substr(15));
             }
+            // (AR) المرحلة 3 — --explain=<level> و --lang=<lang>
+            // (EN) Phase 3 — --explain=<level> and --lang=<lang>
+            else if (a.rfind("--explain=", 0) == 0)
+            {
+                explainLevelStr = a.substr(10);
+            }
+            else if (a == "--explain")
+            {
+                explainLevelStr = "detailed";
+            }
+            else if (a.rfind("--lang=", 0) == 0)
+            {
+                langStr = a.substr(7);
+            }
             else if (a[0] != '-')
             {
                 filename = a;
+            }
+        }
+
+        // ===================================================================
+        // (AR) المرحلة 3 — تطبيق إعدادات شرح الخطأ ولغة الإخراج على ErrorManager
+        // (EN) Phase 3 — Apply explanation level + language settings to EM
+        // ===================================================================
+        {
+            auto &em = Sad::Errors::ErrorManager::getInstance();
+            em.initializeDefaults();
+            if (!explainLevelStr.empty())
+            {
+                em.setExplanationLevel(Sad::Errors::parseExplanationLevel(explainLevelStr));
+            }
+            if (!langStr.empty())
+            {
+                em.setLanguage(Sad::Errors::parseLanguage(langStr));
             }
         }
         if (filename.empty())

@@ -322,5 +322,58 @@ describe("المحلل المعجمي", []() {
 
 ---
 
-*آخر تحديث: مارس 2026*
+*آخر تحديث: مايو 2026*
 *أُعدّ بواسطة: عمر — مهندس البنية التحتية*
+
+---
+
+## 🔑 إضافة كلمة مفتاحية جديدة إلى لغة ص (نظام v4.1 YAML SoT)
+
+> **قاعدة ذهبية:** لا تُحرِّر أبداً أي ملف `keywords_generated.*` يدوياً — هذه الملفات مولَّدة تلقائياً.
+
+### الملف الوحيد الذي تحتاج تعديله:
+
+```
+data/language/keywords.yaml
+```
+
+### خطوات إضافة كلمة محجوزة (reserved):
+
+1. افتح `data/language/keywords.yaml`
+2. أضف إدخالاً ضمن قسم `reserved` بهذا الشكل:
+   ```yaml
+   - word: "كلمتي"
+     tokenType: KEYWORD_MY_WORD
+     roles: [block_opener]   # أو block_closer أو []
+     english: "my_word"
+   ```
+3. أضف `KEYWORD_MY_WORD` إلى enum `TokenType` في `shared/lexer/include/token.h`
+4. شغّل CMake أو `python3 scripts/codegen/gen_keywords.py ...` — سيتولى توليد C++ تلقائياً
+5. أضف دعم العقدة في Parser و Interpreter و Compiler
+
+### خطوات إضافة كلمة سياقية (contextual):
+
+1. افتح `data/language/keywords.yaml`
+2. أضف إدخالاً ضمن قسم `contextual`:
+   ```yaml
+   - word: "كلمتي"
+     tokenType: KEYWORD_MY_WORD
+     roles: []
+     english: "my_word"
+     aliases: ["كلمتي2"]   # إن وجد تهجئة بديلة
+   ```
+3. أضف `KEYWORD_MY_WORD` إلى enum `TokenType` في `shared/lexer/include/token.h`
+4. في Parser، استخدم `checkContextual(TT::KEYWORD_MY_WORD)` — **لا تكتب النص العربي مباشرة في C++**
+5. تُولَّد الملفات تلقائياً عند البناء — لا حاجة لتحرير يدوي
+
+### الفرق بين النوعين:
+
+| النوع | emittedByLexer | استخدام في Parser |
+|-------|----------------|-------------------|
+| **reserved** | `true` — Lexer يُصدر `KEYWORD_*` | `check(TT::KEYWORD_X)` |
+| **contextual** | `false` — Lexer يُصدر `IDENTIFIER` | `checkContextual(TT::KEYWORD_X)` |
+
+### فحص CI تلقائي:
+
+Workflow `.github/workflows/codegen-check.yml` يتحقق تلقائياً أن الملفات المولَّدة متزامنة مع YAML في كل PR.
+

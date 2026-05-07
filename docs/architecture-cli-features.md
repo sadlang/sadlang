@@ -238,7 +238,7 @@ graph TD
 
     SIRBUILD["SIRBuilder<br/>compiler/include/frontend/"] --> EMITSIR{--emit-sir?}
     EMITSIR -->|نعم| PRINT_SIR["طباعة SIR + خروج"]
-    EMITSIR -->|لا| OPT["SIROptimizer (-O0..3)<br/>compiler/src/middle/"]
+    EMITSIR -->|لا| OPT["SIROptimizer (-O0..3)<br/>compiler/src/sir_optimizer/"]
 
     OPT --> CODEGEN["LLVMCodeGen<br/>compiler/src/backend/llvm/"]
     CODEGEN --> EMITLLVM{--emit-llvm/bc?}

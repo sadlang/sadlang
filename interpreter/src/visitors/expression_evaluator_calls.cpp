@@ -20,9 +20,11 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
-#include "async_runtime.h"                               // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
-#include "suggestions.h"                                 // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
+#include "async_runtime.h"  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
+#include "suggestions.h"    // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <atomic>
 #include <cmath>
@@ -181,7 +183,7 @@ namespace Sad
                 }
                 else
                 {
-                    throw Interpreter::SadException(
+                    throw Interpreter::UserThrownException(
                         "(AR) العامل ++ يتطلب قيمة رقمية، ولكن القيمة من نوع '" + operand.getTypeName() + "'. "
                                                                                                           "(EN) ++ requires numeric value, but got type '" +
                             operand.getTypeName() + "'.",
@@ -212,7 +214,7 @@ namespace Sad
                 }
                 else
                 {
-                    throw Interpreter::SadException(
+                    throw Interpreter::UserThrownException(
                         "(AR) العامل -- يتطلب قيمة رقمية، ولكن القيمة من نوع '" + operand.getTypeName() + "'. "
                                                                                                           "(EN) -- requires numeric value, but got type '" +
                             operand.getTypeName() + "'.",
@@ -238,7 +240,7 @@ namespace Sad
                 }
                 else
                 {
-                    throw Interpreter::SadException(
+                    throw Interpreter::UserThrownException(
                         "(AR) ~ يتطلب قيمة صحيحة / (EN) ~ requires integer value",
                         "TypeError", node.position);
                 }
@@ -399,10 +401,10 @@ namespace Sad
                 if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size"))
                 {
                     int sz = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size");
-                    throw IndexOutOfRangeError(
-                        "(AR) الفهرس " + std::to_string(idx) + " خارج النطاق. الفهارس الصالحة: 0 إلى " + std::to_string(sz - 1) + " (أو -" + std::to_string(sz) + " إلى -1). الحجم: " + std::to_string(sz) + " / " +
-                            "(EN) Index " + std::to_string(idx) + " out of range. Valid indices: 0 to " + std::to_string(sz - 1) + " (or -" + std::to_string(sz) + " to -1). Size: " + std::to_string(sz),
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(sz)}});
                 }
 
                 lastResult_ = arr[idx];
@@ -430,9 +432,10 @@ namespace Sad
                 // (EN) String indexing by UTF-8 characters
                 if (!index.isInteger())
                 {
-                    throw RuntimeError(
-                        "(AR) فهرس النص يجب أن يكون رقم صحيح. (EN) String index must be integer.",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID,
+                        node.position,
+                        {{"type", index.getTypeName()}});
                 }
                 std::string str = obj.toString();
                 // (AR) تحويل النص إلى قائمة أحرف UTF-8
@@ -457,10 +460,10 @@ namespace Sad
                     idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size") + idx;
                 if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size"))
                 {
-                    throw RuntimeError(
-                        "(AR) فهرس النص " + std::to_string(idx) + " خارج النطاق (الطول: " + std::to_string(chars.size()) + "). " +
-                            "(EN) String index " + std::to_string(idx) + " out of range (length: " + std::to_string(chars.size()) + ").",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_STRING_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(chars.size())}});
                 }
                 lastResult_ = Value(chars[idx]);
             }
@@ -469,9 +472,10 @@ namespace Sad
                 // (AR) فهرسة صف بفهرس رقمي / (EN) Tuple indexing by numeric index
                 if (!index.isNumeric())
                 {
-                    throw RuntimeError(
-                        "(AR) فهرس الصف يجب أن يكون رقماً. (EN) Tuple index must be a number.",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_TUPLE_INDEX_NOT_NUMBER,
+                        node.position,
+                        {{"actual", index.getTypeName()}});
                 }
 
                 int idx = index.isInteger() ? index.toInt() : static_cast<int>(index.toDouble());
@@ -484,10 +488,10 @@ namespace Sad
 
                 if (idx < 0 || idx >= sz)
                 {
-                    throw IndexOutOfRangeError(
-                        "(AR) فهرس الصف " + std::to_string(idx) + " خارج النطاق (الحجم: " + std::to_string(sz) + "). " +
-                            "(EN) Tuple index " + std::to_string(idx) + " out of range (size: " + std::to_string(sz) + ").",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(sz)}});
                 }
 
                 lastResult_ = tupleElements[idx];
@@ -590,9 +594,10 @@ namespace Sad
                     step = lastResult_.isInteger() ? lastResult_.toInt() : static_cast<int>(lastResult_.toDouble());
                     if (step == 0)
                     {
-                        throw RuntimeError(
-                            "(AR) خطوة الشريحة لا يمكن أن تكون صفر. (EN) Slice step cannot be zero.",
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_SLICE_TYPE_INVALID,
+                            node.position,
+                            {{"type", "step=0"}});
                     }
                 }
 
@@ -668,9 +673,10 @@ namespace Sad
             }
             else
             {
-                throw RuntimeError(
-                    "(AR) الشريحة تعمل فقط على المصفوفات والنصوص. (EN) Slicing works only on arrays and strings.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_SLICE_TYPE_INVALID,
+                    node.position,
+                    {{"type", obj.getTypeName()}});
             }
         }
 
@@ -678,7 +684,5 @@ namespace Sad
         // (AR) تقييم استدعاء الدالة / (EN) Function Call Evaluation
         // =========================================================================
 
-
     } // namespace Interpreter
 } // namespace Sad
-

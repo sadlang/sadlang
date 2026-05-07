@@ -17,9 +17,11 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
-#include "async_runtime.h"                               // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
-#include "suggestions.h"                                 // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
+#include "async_runtime.h"  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
+#include "suggestions.h"    // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <atomic>
 #include <cmath>
@@ -71,13 +73,10 @@ namespace Sad
             if (++currentCallDepth_ > maxCallDepth_)
             {
                 --currentCallDepth_;
-                throw Interpreter::RuntimeError(
-                    "(AR) خطأ: تجاوز الحد الأقصى لعمق الاستدعاء (" + std::to_string(maxCallDepth_) +
-                        "). ربما يوجد استدعاء تكراري لا نهائي.\n"
-                        "(EN) Error: Maximum call depth exceeded (" +
-                        std::to_string(maxCallDepth_) +
-                        "). Possible infinite recursion.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PANIC,
+                    node.position,
+                    {{"message", "call depth exceeded " + std::to_string(maxCallDepth_) + " (possible infinite recursion)"}});
             }
 
             // (AR) حارس RAII لتقليل العدّاد عند الخروج
@@ -340,15 +339,12 @@ namespace Sad
 
                                 if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(args.size(), "expression_evaluator_calls_invoke_size") != expectedCount)
                                 {
-                                    throw Interpreter::RuntimeError(
-                                        "(AR) باني النموذج '" + enumName + "." + memberName +
-                                            "' يتوقع " + std::to_string(expectedCount) +
-                                            " وسيطة، لكن تم تمرير " + std::to_string(args.size()) + ".\n"
-                                                                                                    "(EN) Variant constructor '" +
-                                            enumName + "." + memberName +
-                                            "' expects " + std::to_string(expectedCount) +
-                                            " argument(s), but got " + std::to_string(args.size()) + ".",
-                                        node.position);
+                                    ::Sad::Errors::throwRuntime(
+                                        ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                                        node.position,
+                                        {{"function", enumName + "." + memberName},
+                                         {"expected", std::to_string(expectedCount)},
+                                         {"actual", std::to_string(args.size())}});
                                 }
 
                                 Data::Value::MapType variantMap;
@@ -481,15 +477,12 @@ namespace Sad
                             // (EN) Check argument count
                             if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(args.size(), "expression_evaluator_calls_invoke_size") != expectedCount)
                             {
-                                throw Interpreter::RuntimeError(
-                                    "(AR) باني النموذج '" + enumName + "." + memberName +
-                                        "' يتوقع " + std::to_string(expectedCount) +
-                                        " وسيطة، لكن تم تمرير " + std::to_string(args.size()) + ".\n"
-                                                                                                "(EN) Variant constructor '" +
-                                        enumName + "." + memberName +
-                                        "' expects " + std::to_string(expectedCount) +
-                                        " argument(s), but got " + std::to_string(args.size()) + ".",
-                                    node.position);
+                                ::Sad::Errors::throwRuntime(
+                                    ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                                    node.position,
+                                    {{"function", enumName + "." + memberName},
+                                     {"expected", std::to_string(expectedCount)},
+                                     {"actual", std::to_string(args.size())}});
                             }
 
                             // (AR) إنشاء خريطة الـ variant
@@ -541,10 +534,10 @@ namespace Sad
                             }
                             else
                             {
-                                throw Interpreter::RuntimeError(
-                                    "(AR) لا يمكن استدعاء خريطة كدالة. أضف مفتاح '__callable__' لتحديد الدالة.\n"
-                                    "(EN) Cannot call a map as a function. Add '__callable__' key to specify function.",
-                                    node.position);
+                                ::Sad::Errors::throwRuntime(
+                                    ::Sad::Errors::ErrorCode::RUN_NOT_CALLABLE,
+                                    node.position,
+                                    {{"type", "map without __callable__"}});
                             }
                         }
                     }
@@ -605,10 +598,10 @@ namespace Sad
                                             if (!callMethod->getBody())
                                             {
                                                 variableManager_.exitScope();
-                                                throw Interpreter::RuntimeError(
-                                                    "(AR) جسم الطريقة '__call__' فارغ.\n"
-                                                    "(EN) Method '__call__' has no body.",
-                                                    node.position);
+                                                ::Sad::Errors::throwRuntime(
+                                                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                                                    node.position,
+                                                    {{"method", "__call__ (no body)"}, {"class", className}});
                                             }
                                             callMethod->getBody()->accept(statementExecutor_);
                                             if (statementExecutor_.getFlowControl() == FlowControl::RETURN)
@@ -684,34 +677,28 @@ namespace Sad
                                         return;
                                     }
                                 }
-                                throw Interpreter::RuntimeError(
-                                    "(AR) لا يمكن استدعاء كائن من صنف '" + className + "' كدالة. أضف طريقة '__call__'.\n"
-                                                                                       "(EN) Cannot call object of class '" +
-                                        className + "' as function. Add '__call__' method.",
-                                    node.position);
+                                ::Sad::Errors::throwRuntime(
+                                    ::Sad::Errors::ErrorCode::RUN_NOT_CALLABLE,
+                                    node.position,
+                                    {{"type", "object of class '" + className + "' (no __call__)"}});
                             }
                         }
                         else
                         {
-                            throw Interpreter::RuntimeError(
-                                "(AR) كائن فارغ لا يمكن استدعاؤه كدالة.\n"
-                                "(EN) Null object cannot be called as a function.",
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_NULL_REFERENCE,
+                                node.position,
+                                {});
                         }
                     }
                     else
                     {
                         // (AR) نوع غير قابل للاستدعاء
                         // (EN) Non-callable type
-                        std::string typeStr = calleeValue.isInteger() ? "عدد/integer" : calleeValue.isDouble() ? "عشري/float"
-                                                                                    : calleeValue.isBoolean()  ? "منطقي/boolean"
-                                                                                    : calleeValue.isArray()    ? "مصفوفة/array"
-                                                                                                               : "غير معروف/unknown";
-                        throw Interpreter::RuntimeError(
-                            "(AR) لا يمكن استدعاء قيمة من نوع '" + typeStr + "' كدالة.\n"
-                                                                             "(EN) Cannot call value of type '" +
-                                typeStr + "' as a function.",
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_NOT_CALLABLE,
+                            node.position,
+                            {{"type", calleeValue.getTypeName()}});
                     }
                 }
             }

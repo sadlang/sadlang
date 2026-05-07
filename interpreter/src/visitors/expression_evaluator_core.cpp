@@ -21,7 +21,8 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"   // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
@@ -384,7 +385,7 @@ namespace Sad
 
                     if (dispResult.shouldStop())
                     {
-                        throw SadException(
+                        throw UserThrownException(
                             dispResult.messageAr + " / " + dispResult.messageEn,
                             "OwnershipError",
                             node.position);
@@ -443,7 +444,7 @@ namespace Sad
 
                     if (dispResult.shouldStop())
                     {
-                        throw SadException(
+                        throw UserThrownException(
                             dispResult.messageAr + " / " + dispResult.messageEn,
                             "OwnershipError",
                             node.position);
@@ -608,7 +609,7 @@ namespace Sad
 
                             if (dispResult.shouldStop())
                             {
-                                throw SadException(
+                                throw UserThrownException(
                                     dispResult.messageAr + " / " + dispResult.messageEn,
                                     "OwnershipError",
                                     node.position);
@@ -646,7 +647,7 @@ namespace Sad
 
                         if (dispResult.shouldStop())
                         {
-                            throw SadException(
+                            throw UserThrownException(
                                 dispResult.messageAr + " / " + dispResult.messageEn,
                                 "OwnershipError",
                                 node.position);

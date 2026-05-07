@@ -28,7 +28,6 @@
 // Lexer and Parser
 #include "lexer_core.h"
 #include "parser_core.h"
-#include "ast_printer.h"
 
 // SIR Builder
 #include "../../compiler/include/frontend/sir_builder.h"
@@ -43,7 +42,7 @@
 // SIR Optimizer / محسّن التمثيل الوسيط
 // (AR) يحتوي على تمريرات التحسين: طي الثوابت، إزالة الكود الميت، CSE، نشر النسخ
 // (EN) Contains optimization passes: constant folding, DCE, CSE, copy propagation
-#include "../../compiler/include/middle/optimizer.h"
+#include "../../compiler/include/sir_optimizer/optimizer.h"
 
 // Frontend SIR Optimizer / محسّن SIR الأمامي (5 ممرات)
 #include "../../compiler/include/frontend/sir_frontend_optimizer.h"

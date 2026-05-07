@@ -17,7 +17,9 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include <atomic>
 #include <cmath>
@@ -345,20 +347,18 @@ namespace Sad
             // الوصول مرفوض
             if (visibility == AST::Visibility::PRIVATE)
             {
-                std::string errMsg = "(AR) لا يمكن الوصول للعضو الخاص '" + memberName +
-                                     "' من خارج الصنف '" + targetClass->name + "'. ";
-                errMsg += "(EN) Cannot access private member '" + memberName +
-                          "' from outside class '" + targetClass->name + "'.";
-                throw RuntimeError(errMsg, Lexer::Position());
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                    Lexer::Position(),
+                    {{"resource", "private member '" + memberName + "' of class '" + targetClass->name + "'"}});
             }
 
             if (visibility == AST::Visibility::PROTECTED)
             {
-                std::string errMsg = "(AR) لا يمكن الوصول للعضو المحمي '" + memberName +
-                                     "' من خارج الصنف '" + targetClass->name + "' أو الأصناف المشتقة. ";
-                errMsg += "(EN) Cannot access protected member '" + memberName +
-                          "' from outside class '" + targetClass->name + "' or derived classes.";
-                throw RuntimeError(errMsg, Lexer::Position());
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                    Lexer::Position(),
+                    {{"resource", "protected member '" + memberName + "' of class '" + targetClass->name + "'"}});
             }
         }
 
@@ -389,10 +389,10 @@ namespace Sad
                     {
                         auto errIt = mapVal.find("__error__");
                         std::string errMsg = (errIt != mapVal.end()) ? errIt->second.toString() : "Unknown async error";
-                        throw RuntimeError(
-                            "(AR) خطأ في المهمة غير المتزامنة: " + errMsg +
-                                " / (EN) Error in async task: " + errMsg,
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_ASYNC_TASK_ERROR,
+                            node.position,
+                            {{"reason", errMsg}});
                     }
 
                     // (AR) إرجاع القيمة المحلولة
@@ -460,11 +460,10 @@ namespace Sad
 
             if (!templateFunc)
             {
-                // (AR) القالب غير موجود
-                // (EN) Template not found
-                throw Interpreter::RuntimeError(
-                    "(AR) القالب '" + node.templateName + "' غير معرّف. (EN) Template '" + node.templateName + "' is not defined.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                    node.position,
+                    {{"function", "template:" + node.templateName}});
             }
 
             // (AR) التحقق من قيود القالب
@@ -579,10 +578,10 @@ namespace Sad
             }
             else
             {
-                throw RuntimeError(
-                    "(AR) تعبير المولّد يتطلب قيمة قابلة للتكرار (مصفوفة أو خريطة) / "
-                    "(EN) Generator expression requires an iterable value (array or map)",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_GENERATOR_TYPE_INVALID,
+                    node.position,
+                    {{"type", "non-iterable"}});
             }
 
             // (AR) إرجاع المصفوفة الناتجة
@@ -632,10 +631,10 @@ namespace Sad
         {
             // (AR) تعبير التجميع المضمن غير مدعوم في المفسّر — متاح في المترجم فقط
             // (EN) Inline assembly is not supported in interpreter — available in compiler only
-            throw Interpreter::RuntimeError(
-                "(AR) التجميع المضمن (inline asm) غير مدعوم في المفسّر. استخدم المترجم (sadc) / "
-                "(EN) Inline assembly is not supported in interpreter. Use the compiler (sadc)",
-                node.position);
+            ::Sad::Errors::throwRuntime(
+                ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                node.position,
+                {{"resource", "inline assembly (interpreter unsupported; use sadc)"}});
         }
 
         /**
@@ -773,12 +772,10 @@ namespace Sad
             // ─── الخطوة 2: التحقق من أن النتيجة تعداد جبري (ADT) ───
             if (!result.isMap())
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) خطأ: 'انشر' يتطلب تعبيراً يُرجع نتيجة (نجاح/خطأ) أو اختياري (بعض/عدم).\n"
-                    "      القيمة المُعطاة ليست تعداداً جبرياً.\n"
-                    "(EN) Error: 'انشر' (propagate) requires a Result (نجاح/خطأ) or Option (بعض/عدم) value.\n"
-                    "      The given value is not an ADT enum.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                    node.position,
+                    {{"operand", result.getTypeName()}, {"operator", "انشر"}});
             }
 
             auto mapVal = result.toMap();
@@ -787,22 +784,20 @@ namespace Sad
             auto adtIt = mapVal.find("__جبري__");
             if (adtIt == mapVal.end() || !adtIt->second.isBoolean() || !adtIt->second.toBool())
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) خطأ: 'انشر' يتطلب تعداداً جبرياً (ADT).\n"
-                    "      القيمة ليست تعداداً جبرياً — تحقق أنك تستخدم نتيجة.نجاح() أو نتيجة.خطأ() أو اختياري.بعض() أو اختياري.عدم.\n"
-                    "(EN) Error: 'انشر' requires an ADT enum value.\n"
-                    "      Value is not an ADT — use نتيجة.نجاح()/خطأ() or اختياري.بعض()/عدم.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                    node.position,
+                    {{"operand", "non-ADT map"}, {"operator", "انشر"}});
             }
 
             // ─── الخطوة 3: استخراج اسم العضو ───
             auto memberIt = mapVal.find("__عضو__");
             if (memberIt == mapVal.end())
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) خطأ داخلي: تعداد جبري بدون __عضو__.\n"
-                    "(EN) Internal error: ADT enum without __عضو__ field.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                    node.position,
+                    {{"property", "__عضو__"}, {"class", "ADT"}});
             }
             std::string memberName = memberIt->second.toString();
 
@@ -877,4 +872,3 @@ namespace Sad
 
     } // namespace Interpreter
 } // namespace Sad
-

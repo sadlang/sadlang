@@ -33,6 +33,16 @@
 #include <llvm/Transforms/Coroutines/CoroEarly.h>
 #include <llvm/Transforms/Coroutines/CoroSplit.h>
 #include <llvm/Transforms/Coroutines/CoroElide.h>
+
+// (AR) إعلان مسبق لتسجيل تمريرات اللغة العربية على مستوى LLVM IR
+//      (المُعرّفة في compiler/src/backend/llvm/arabic_passes.cpp).
+//      تُسجَّل في PassBuilder ليصبح بإمكان pipeline التحسين الافتراضي
+//      تنفيذها (ArabicStringPooling + TashkeelOptimization + BidiAnalysis).
+// (EN) Forward declaration to register Arabic-language LLVM IR passes
+//      (defined in compiler/src/backend/llvm/arabic_passes.cpp). Registered
+//      in PassBuilder so the default optimization pipeline runs them
+//      (ArabicStringPooling + TashkeelOptimization + BidiAnalysis).
+extern "C" void sad_register_arabic_passes(void *passBuilder);
 #include <llvm/Transforms/Coroutines/CoroCleanup.h>
 #include <llvm/Analysis/CGSCCPassManager.h>
 #include <llvm/Transforms/IPO/Inliner.h>
@@ -92,6 +102,10 @@ namespace sad
 
         // ربط مديري التحليل / Cross-register analysis managers
         pass_builder_->crossRegisterProxies(*loop_am_, *function_am_, *cgscc_am_, *module_am_);
+
+        // (AR) تسجيل تمريرات اللغة العربية في PassBuilder (تُنفَّذ في O1+)
+        // (EN) Register Arabic-language passes in PassBuilder (run at O1+)
+        sad_register_arabic_passes(pass_builder_.get());
 
         // إنشاء محسّن اللغة العربية / Create Arabic language optimizer
         arabic_optimizer_ = std::make_unique<ArabicOptimizationPass>();

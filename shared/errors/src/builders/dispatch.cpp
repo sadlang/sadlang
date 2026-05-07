@@ -312,43 +312,53 @@ namespace Sad
             {
             case RuntimeErrorKind::DivisionByZero:
                 msg << "قسمة على صفر";
-                if (!context.empty()) msg << " في `" << context << "`";
+                if (!context.empty())
+                    msg << " في `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::ModuloByZero:
                 msg << "باقي قسمة على صفر";
-                if (!context.empty()) msg << " في `" << context << "`";
+                if (!context.empty())
+                    msg << " في `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::IndexOutOfBounds:
                 msg << "فهرس خارج حدود المصفوفة";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::NullMemberAccess:
                 msg << "محاولة الوصول لخاصية على قيمة لاشيء";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::TypeMismatch:
                 msg << "عدم تطابق نوع في وقت التشغيل";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::UndefinedFunction:
                 msg << "استدعاء دالة غير معرَّفة";
-                if (!context.empty()) msg << ": `" << context << "`";
+                if (!context.empty())
+                    msg << ": `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::UndefinedVariable:
                 msg << "استخدام متغير غير معرَّف";
-                if (!context.empty()) msg << ": `" << context << "`";
+                if (!context.empty())
+                    msg << ": `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::ArithmeticOverflow:
                 msg << "فيض رقمي في عملية حسابية";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::EmptyStringRequired:
                 msg << "نص فارغ في موقع يتطلب نصاً غير فارغ";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::KeyNotFound:
                 msg << "مفتاح غير موجود في الخريطة";
-                if (!context.empty()) msg << ": `" << context << "`";
+                if (!context.empty())
+                    msg << ": `" << context << "`";
                 return msg.str();
             }
             return "خطأ في وقت التشغيل";
@@ -361,43 +371,53 @@ namespace Sad
             {
             case RuntimeErrorKind::DivisionByZero:
                 msg << "division by zero";
-                if (!context.empty()) msg << " in `" << context << "`";
+                if (!context.empty())
+                    msg << " in `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::ModuloByZero:
                 msg << "modulo by zero";
-                if (!context.empty()) msg << " in `" << context << "`";
+                if (!context.empty())
+                    msg << " in `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::IndexOutOfBounds:
                 msg << "array index out of bounds";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::NullMemberAccess:
                 msg << "member access on null value";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::TypeMismatch:
                 msg << "runtime type mismatch";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::UndefinedFunction:
                 msg << "call to undefined function";
-                if (!context.empty()) msg << ": `" << context << "`";
+                if (!context.empty())
+                    msg << ": `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::UndefinedVariable:
                 msg << "use of undefined variable";
-                if (!context.empty()) msg << ": `" << context << "`";
+                if (!context.empty())
+                    msg << ": `" << context << "`";
                 return msg.str();
             case RuntimeErrorKind::ArithmeticOverflow:
                 msg << "arithmetic overflow";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::EmptyStringRequired:
                 msg << "empty string where non-empty required";
-                if (!context.empty()) msg << ": " << context;
+                if (!context.empty())
+                    msg << ": " << context;
                 return msg.str();
             case RuntimeErrorKind::KeyNotFound:
                 msg << "key not found in map";
-                if (!context.empty()) msg << ": `" << context << "`";
+                if (!context.empty())
+                    msg << ": `" << context << "`";
                 return msg.str();
             }
             return "runtime error";

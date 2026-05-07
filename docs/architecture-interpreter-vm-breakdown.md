@@ -55,9 +55,7 @@ flowchart LR
 | `src/managers/` | 6 | مدراء النطاق والمتغيرات والدوال والأصناف والكائنات والملكية |
 | `src/builtins/` | ~34 | تسجيل الدوال المضمنة (kernel + modules + UI) |
 | `src/ui/` | ~15 | جسر UI الكامل (sad_ui bridge) |
-| `src/oop/` | 1 | `interpreter_classes_fixed.cpp` — تنفيذ OOP |
 | `src/debug/` | 1 | `debug_server.cpp` — خادم DAP للديباغ |
-| `src/exception.cpp` | 1 | معالجة الاستثناءات في وقت التشغيل |
 
 ### المكونات الأساسية
 
@@ -296,9 +294,9 @@ VM له نظامه الخاص لـ opcodes — لا يستفيد من 34 ملف 
 - استدعاء `اطبع()` في المفسر = `BuiltinRegistry::call("اطبع")`
 - استدعاء `اطبع()` في VM = `OP_BUILTIN_PRINT` (تعليمة منفصلة)
 
-### الاكتشاف 7: `interpreter_classes_fixed.cpp` اسم مريب
+### الاكتشاف 7: حذف الكود الميت `interpreter_classes.cpp`
 
-اسم يحوي "fixed" → دلالة على bug سابق. يستحق إعادة تسمية إلى `interpreter_oop.cpp`.
+تمّ حذف الملف وهيدره لأنه كان مبنياً وغير مستخدم. مهام OOP تقوم بها `StatementExecutor::visitClassDecl` في `statement_executor_oop.cpp` + `expression_evaluator_oop_*.cpp`.
 
 ---
 

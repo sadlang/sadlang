@@ -22,7 +22,9 @@
 #include "expressions.h"
 #include "class_manager.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -69,7 +71,10 @@ namespace Sad
                 if (m == "اضف" || m == "أضف" || m == "ادفع")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) اضف() يتطلب معاملاً واحداً على الأقل. (EN) push() requires at least one argument.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "اضف/push"}, {"argument", "value"}});
                     for (auto &a : args)
                         arr.push_back(a);
                     Value newArr(arr);
@@ -81,7 +86,10 @@ namespace Sad
                 if (m == "احذف_اخير" || m == "انزع")
                 {
                     if (arr.empty())
-                        throw RuntimeError("(AR) لا يمكن الحذف من مصفوفة فارغة. (EN) Cannot pop from empty array.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_EMPTY_COLLECTION,
+                            node.position,
+                            {{"operation", "احذف_اخير/pop"}});
                     Value last = arr.back();
                     arr.pop_back();
                     Value newArr(arr);
@@ -93,12 +101,18 @@ namespace Sad
                 if (m == "احذف" || m == "ازل" || m == "أزل")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) احذف() يتطلب فهرس العنصر. (EN) remove() requires an index.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "احذف/remove"}, {"argument", "index"}});
                     int idx = args[0].toInt();
                     if (idx < 0)
                         idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + idx;
                     if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
-                        throw RuntimeError("(AR) الفهرس " + std::to_string(idx) + " خارج النطاق. (EN) Index out of range.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                            node.position,
+                            {{"index", std::to_string(idx)}, {"length", std::to_string(arr.size())}, {"container", "array"}});
                     Value removed = arr[idx];
                     arr.erase(arr.begin() + idx);
                     Value newArr(arr);
@@ -110,7 +124,10 @@ namespace Sad
                 if (m == "ادخل" || m == "أدخل")
                 {
                     if (args.size() < 2)
-                        throw RuntimeError("(AR) ادخل() يتطلب فهرساً وعنصراً. (EN) insert() requires index and value.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "ادخل/insert"}, {"argument", "index, value"}});
                     int idx = args[0].toInt();
                     if (idx < 0)
                         idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + idx;
@@ -128,7 +145,10 @@ namespace Sad
                 if (m == "اول" || m == "أول")
                 {
                     if (arr.empty())
-                        throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_EMPTY_COLLECTION,
+                            node.position,
+                            {{"operation", "اول/first"}});
                     lastResult_ = arr.front();
                     return;
                 }
@@ -136,7 +156,10 @@ namespace Sad
                 if (m == "اخر" || m == "آخر")
                 {
                     if (arr.empty())
-                        throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_EMPTY_COLLECTION,
+                            node.position,
+                            {{"operation", "اخر/last"}});
                     lastResult_ = arr.back();
                     return;
                 }
@@ -144,7 +167,10 @@ namespace Sad
                 if (m == "يحتوي")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) contains() requires argument.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "يحتوي/contains"}, {"argument", "value"}});
                     bool found = false;
                     for (auto &el : arr)
                     {
@@ -161,7 +187,10 @@ namespace Sad
                 if (m == "فهرس")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) فهرس() يتطلب معاملاً. (EN) indexOf() requires argument.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "فهرس/indexOf"}, {"argument", "value"}});
                     for (int i = 0; i < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"); ++i)
                     {
                         if ((arr[i] == args[0]).toBool())
@@ -359,7 +388,10 @@ namespace Sad
                     }
                     if (!funcDef)
                     {
-                        throw RuntimeError("(AR) الدالة '" + funcName + "' غير موجودة. (EN) Function '" + funcName + "' not found.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                            node.position,
+                            {{"function", funcName}});
                     }
 
                     variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
@@ -408,7 +440,10 @@ namespace Sad
                 if (m == "لكل")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) لكل() يتطلب دالة أو اسم دالة. (EN) forEach() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "لكل/forEach"}});
                     std::string funcName = args[0].getFunctionName();
                     for (size_t i = 0; i < arr.size(); ++i)
                     {
@@ -421,7 +456,10 @@ namespace Sad
                 if (m == "خريطة" || m == "حوّل" || m == "حول")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) خريطة() يتطلب دالة أو اسم دالة. (EN) map() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "خريطة/map"}});
                     std::string funcName = args[0].getFunctionName();
                     Value::ArrayType result;
                     for (size_t i = 0; i < arr.size(); ++i)
@@ -435,7 +473,10 @@ namespace Sad
                 if (m == "رشح" || m == "صفّي" || m == "صفي")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) رشح() يتطلب دالة أو اسم دالة. (EN) filter() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "رشح/filter"}});
                     std::string funcName = args[0].getFunctionName();
                     Value::ArrayType result;
                     for (size_t i = 0; i < arr.size(); ++i)
@@ -451,7 +492,10 @@ namespace Sad
                 if (m == "اختزل")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) اختزل() يتطلب دالة أو اسم دالة. (EN) reduce() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "اختزل/reduce"}});
                     std::string funcName = args[0].getFunctionName();
                     if (arr.empty())
                     {
@@ -471,7 +515,10 @@ namespace Sad
                 if (m == "أي" || m == "اي" || m == "بعض")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) أي() يتطلب دالة أو اسم دالة. (EN) some() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "أي/some"}});
                     std::string funcName = args[0].getFunctionName();
                     for (auto &el : arr)
                     {
@@ -488,7 +535,10 @@ namespace Sad
                 if (m == "كل" || m == "جميع")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) كل() يتطلب دالة أو اسم دالة. (EN) every() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "كل/every"}});
                     std::string funcName = args[0].getFunctionName();
                     for (auto &el : arr)
                     {
@@ -505,7 +555,10 @@ namespace Sad
                 if (m == "جد")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) جد() يتطلب دالة أو اسم دالة. (EN) find() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "جد/find"}});
                     std::string funcName = args[0].getFunctionName();
                     for (auto &el : arr)
                     {
@@ -522,7 +575,10 @@ namespace Sad
                 if (m == "جد_فهرس")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
-                        throw RuntimeError("(AR) جد_فهرس() يتطلب دالة أو اسم دالة. (EN) findIndex() requires a function or function name.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION,
+                            node.position,
+                            {{"builtin", "جد_فهرس/findIndex"}});
                     std::string funcName = args[0].getFunctionName();
                     for (int i = 0; i < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"); ++i)
                     {
@@ -539,7 +595,10 @@ namespace Sad
                 if (m == "ازدوج")
                 {
                     if (args.empty() || !args[0].isArray())
-                        throw RuntimeError("(AR) ازدوج() يتطلب مصفوفة ثانية. (EN) zip() requires another array.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "ازدوج/zip"}, {"argument", "second array"}});
                     Value::ArrayType other = args[0].toArray();
                     Value::ArrayType result;
                     size_t minLen = std::min(arr.size(), other.size());
@@ -564,7 +623,10 @@ namespace Sad
                 if (m == "حد_اقصى" || m == "أقصى")
                 {
                     if (arr.empty())
-                        throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION,
+                            node.position,
+                            {{"builtin", "حد_اقصى/max"}});
                     Value mx = arr[0];
                     for (size_t i = 1; i < arr.size(); ++i)
                     {
@@ -583,7 +645,10 @@ namespace Sad
                 if (m == "حد_ادنى" || m == "أدنى")
                 {
                     if (arr.empty())
-                        throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION,
+                            node.position,
+                            {{"builtin", "حد_ادنى/min"}});
                     Value mn = arr[0];
                     for (size_t i = 1; i < arr.size(); ++i)
                     {
@@ -617,7 +682,10 @@ namespace Sad
                 if (m == "متوسط")
                 {
                     if (arr.empty())
-                        throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION,
+                            node.position,
+                            {{"builtin", "متوسط/average"}});
                     double sum = 0;
                     int count = 0;
                     for (auto &el : arr)
@@ -640,7 +708,10 @@ namespace Sad
                 if (m == "املأ" || m == "املا")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) املأ() يتطلب قيمة. (EN) fill() requires a value.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "املأ/fill"}, {"argument", "value"}});
                     for (auto &el : arr)
                         el = args[0];
                     Value newArr(arr);
@@ -711,7 +782,10 @@ namespace Sad
                     }
                     if (!arr[0].isArray())
                     {
-                        throw RuntimeError("(AR) قلب_محوري() تعمل فقط على مصفوفة ثنائية الأبعاد. (EN) transpose() only works on 2D arrays.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                            node.position,
+                            {{"operation", "قلب_محوري/transpose"}, {"type", "non-2D array"}});
                     }
                     size_t rows = arr.size();
                     size_t cols = arr[0].toArrayRef().size();
@@ -744,7 +818,10 @@ namespace Sad
                 {
                     if (args.size() < 2)
                     {
-                        throw RuntimeError("(AR) أعد_تشكيل() يتطلب بُعدين على الأقل (صفوف، أعمدة). (EN) reshape() requires at least 2 dimensions (rows, cols).", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "أعد_تشكيل/reshape"}, {"argument", "rows, cols"}});
                     }
                     // (AR) تسطيح المصفوفة أولاً إن كانت متداخلة
                     Value::ArrayType flat;
@@ -765,11 +842,17 @@ namespace Sad
                     int64_t cols = args[1].toInt();
                     if (rows <= 0 || cols <= 0)
                     {
-                        throw RuntimeError("(AR) أبعاد المصفوفة يجب أن تكون موجبة. (EN) Matrix dimensions must be positive.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                            node.position,
+                            {{"operation", "أعد_تشكيل/reshape"}, {"type", "non-positive dimensions"}});
                     }
                     if (static_cast<int64_t>(flat.size()) < rows * cols)
                     {
-                        throw RuntimeError("(AR) عدد العناصر (" + std::to_string(flat.size()) + ") لا يكفي للأبعاد المطلوبة (" + std::to_string(rows) + "×" + std::to_string(cols) + "). (EN) Not enough elements.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                            node.position,
+                            {{"index", std::to_string(rows * cols)}, {"length", std::to_string(flat.size())}, {"container", "array"}});
                     }
                     if (args.size() >= 3)
                     {
@@ -777,11 +860,17 @@ namespace Sad
                         int64_t depth = args[2].toInt();
                         if (depth <= 0)
                         {
-                            throw RuntimeError("(AR) العمق يجب أن يكون موجباً. (EN) Depth must be positive.", node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                                node.position,
+                                {{"operation", "أعد_تشكيل/reshape"}, {"type", "non-positive depth"}});
                         }
                         if (static_cast<int64_t>(flat.size()) < rows * cols * depth)
                         {
-                            throw RuntimeError("(AR) عدد العناصر لا يكفي للأبعاد الثلاثية. (EN) Not enough elements for 3D reshape.", node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                                node.position,
+                                {{"index", std::to_string(rows * cols * depth)}, {"length", std::to_string(flat.size())}, {"container", "array"}});
                         }
                         Value::ArrayType result3d;
                         size_t idx = 0;
@@ -826,16 +915,25 @@ namespace Sad
                 {
                     if (args.empty() || !args[0].isArray())
                     {
-                        throw RuntimeError("(AR) ضرب_مصفوفات() يتطلب مصفوفة ثانية. (EN) matmul() requires another matrix.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "ضرب_مصفوفات/matmul"}, {"argument", "second matrix"}});
                     }
                     if (arr.empty() || !arr[0].isArray())
                     {
-                        throw RuntimeError("(AR) ضرب_مصفوفات() تعمل فقط على مصفوفات ثنائية الأبعاد. (EN) matmul() only works on 2D arrays.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                            node.position,
+                            {{"operation", "ضرب_مصفوفات/matmul"}, {"type", "non-2D first matrix"}});
                     }
                     auto &b = args[0].toArrayRef();
                     if (b.empty() || !b[0].isArray())
                     {
-                        throw RuntimeError("(AR) المصفوفة الثانية يجب أن تكون ثنائية الأبعاد. (EN) Second matrix must be 2D.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                            node.position,
+                            {{"operation", "ضرب_مصفوفات/matmul"}, {"type", "non-2D second matrix"}});
                     }
                     size_t m_rows = arr.size();
                     size_t n_cols_a = arr[0].toArrayRef().size();
@@ -843,7 +941,10 @@ namespace Sad
                     size_t p_cols = b[0].toArrayRef().size();
                     if (n_cols_a != n_rows_b)
                     {
-                        throw RuntimeError("(AR) أبعاد المصفوفتين غير متوافقة للضرب (" + std::to_string(n_cols_a) + " != " + std::to_string(n_rows_b) + "). (EN) Incompatible matrix dimensions.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                            node.position,
+                            {{"operation", "ضرب_مصفوفات/matmul"}, {"type", "incompatible dimensions"}});
                     }
                     Value::ArrayType result;
                     for (size_t i = 0; i < m_rows; ++i)
@@ -878,7 +979,10 @@ namespace Sad
                     {
                         if (!current.isArray())
                         {
-                            throw RuntimeError("(AR) فهرس زائد عن أبعاد المصفوفة. (EN) Index exceeds array dimensions.", node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                                node.position,
+                                {{"index", std::to_string(i)}, {"length", "0"}, {"container", "array"}});
                         }
                         int idx = args[i].toInt();
                         auto &currentArr = current.toArrayRef();
@@ -888,7 +992,10 @@ namespace Sad
                             idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(currentArr.size(), "expression_evaluator_oop_array_methods_size") + idx;
                         if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(currentArr.size(), "expression_evaluator_oop_array_methods_size"))
                         {
-                            throw RuntimeError("(AR) فهرس خارج النطاق: " + std::to_string(idx) + ". (EN) Index out of bounds.", node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                                node.position,
+                                {{"index", std::to_string(idx)}, {"length", std::to_string(currentArr.size())}, {"container", "array"}});
                         }
                         current = currentArr[idx];
                     }
@@ -902,7 +1009,10 @@ namespace Sad
                 if (m == "عمود")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) عمود() يتطلب رقم العمود. (EN) column() requires column index.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "عمود/column"}, {"argument", "column index"}});
                     int colIdx = args[0].toInt();
                     Value::ArrayType col;
                     for (auto &rowVal : arr)
@@ -935,7 +1045,10 @@ namespace Sad
                 if (m == "صف")
                 {
                     if (args.empty())
-                        throw RuntimeError("(AR) صف() يتطلب رقم الصف. (EN) row() requires row index.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"function", "صف/row"}, {"argument", "row index"}});
                     int rowIdx = args[0].toInt();
                     // (AR) تطبيع الفهرس السالب: -1 = آخر صف
                     // (EN) Normalize negative index: -1 = last row
@@ -943,7 +1056,10 @@ namespace Sad
                         rowIdx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + rowIdx;
                     if (rowIdx < 0 || rowIdx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
                     {
-                        throw RuntimeError("(AR) فهرس الصف خارج النطاق. (EN) Row index out of bounds.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                            node.position,
+                            {{"index", std::to_string(rowIdx)}, {"length", std::to_string(arr.size())}, {"container", "array"}});
                     }
                     lastResult_ = arr[rowIdx];
                     return;
@@ -986,9 +1102,10 @@ namespace Sad
                 }
 
                 // (AR) طريقة غير معروفة على المصفوفة
-                throw RuntimeError(
-                    "(AR) الطريقة '" + m + "' غير موجودة على المصفوفة. (EN) Method '" + m + "' not found on array.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                    node.position,
+                    {{"method", m}, {"class", "array"}});
             }
         }
 

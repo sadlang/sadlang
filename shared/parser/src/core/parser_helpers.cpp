@@ -660,6 +660,65 @@ namespace Sad
             }
         }
 
+        // =========================================================================
+        // (AR) دوال الكلمات السياقية (v4.1)
+        //      تعتمد على KeywordTable::getEntry() المبنية من YAML — لا توجد
+        //      أي مقارنة سلسلة عربية يدوية في هذه الدوال أو في مستدعيها.
+        // (EN) Contextual keyword helpers (v4.1)
+        //      Backed by KeywordTable::getEntry() built from YAML — no hand-
+        //      written Arabic string comparison lives here or in callers.
+        // =========================================================================
+
+        bool ParserCore::checkContextual(TokenType type) const
+        {
+            if (isAtEnd())
+                return false;
+
+            // (AR) (1) Lexer أصدرها كرمز خاص (للكلمات المحجوزة)
+            if (current_.getType() == type)
+                return true;
+
+            // (AR) (2) IDENTIFIER يطابق الكلمة الرئيسية أو أحد الأسماء البديلة
+            //         للنوع المطلوب — كل ذلك يأتي من keywords.yaml
+            if (current_.getType() != TT::IDENTIFIER)
+                return false;
+
+            const auto* entry = Lexer::KeywordTable::getEntry(type);
+            if (!entry)
+                return false;
+
+            const std::string& word = current_.getValue();
+            if (word == entry->primaryWord)
+                return true;
+            for (const auto& alias : entry->aliases)
+            {
+                if (word == alias)
+                    return true;
+            }
+            return false;
+        }
+
+        bool ParserCore::matchContextual(TokenType type)
+        {
+            if (checkContextual(type))
+            {
+                advance();
+                return true;
+            }
+            return false;
+        }
+
+        Token ParserCore::consumeContextual(TokenType type, const std::string &message)
+        {
+            if (checkContextual(type))
+            {
+                advance();
+                return previous();
+            }
+            // (AR) إعادة الاستخدام: السلوك الموحَّد للأخطاء عبر consume العادي
+            return consume(type, message);
+        }
+
         /**
          * @brief (AR) يستهلك رمزاً من النوع المحدد أو يرفع خطأ.
          *        (EN) Consumes token of specified type or raises error.

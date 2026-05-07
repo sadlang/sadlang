@@ -521,7 +521,7 @@ namespace Sad
             // (AR) 'غير_متزامن دالة' أُزيلت — استخدم 'دالة غير_متزامن' (الصفة بعد الاسم)
             // (EN) 'async function' removed — use 'function async' (Arabic adjective order)
             if (match(TT::KEYWORD_ASYNC) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "غير_متزامن" && peekNext().getType() == TT::KEYWORD_FUNCTION))
+                (checkContextual(TT::KEYWORD_ASYNC) && peekNext().getType() == TT::KEYWORD_FUNCTION))
             {
                 errorBilingual(
                     "خطأ نحوي: 'غير_متزامن دالة' أُزيلت. استخدم 'دالة غير_متزامن' بدلاً منها.\n"
@@ -530,7 +530,7 @@ namespace Sad
                     "Syntax error: 'async function' removed. Use 'function async' instead.\n"
                     "💡 In Arabic, adjectives follow nouns: دالة غير_متزامن name()\n"
                     "💡 Example:\n    دالة غير_متزامن fetch(url: نص)\n        ...\n    نهاية");
-                if (check(TT::IDENTIFIER) && current_.getValue() == "غير_متزامن")
+                if (checkContextual(TT::KEYWORD_ASYNC))
                     advance();
                 if (!check(TT::KEYWORD_FUNCTION))
                 {
@@ -546,9 +546,9 @@ namespace Sad
             // (AR) مولد دالة — الصيغة العربية المعتمدة (مضاف + مضاف إليه)
             // (EN) Generator function — Arabic approved form (construct state)
             if (match(TT::KEYWORD_GENERATOR) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "مولد" && peekNext().getType() == TT::KEYWORD_FUNCTION))
+                (checkContextual(TT::KEYWORD_GENERATOR) && peekNext().getType() == TT::KEYWORD_FUNCTION))
             {
-                if (check(TT::IDENTIFIER) && current_.getValue() == "مولد")
+                if (checkContextual(TT::KEYWORD_GENERATOR))
                     advance(); // consume contextual
                 if (!match(TT::KEYWORD_FUNCTION))
                 {
@@ -568,14 +568,14 @@ namespace Sad
                 // (AR) 'دالة مولد' أُزيلت — استخدم 'مولد دالة'
                 // (EN) 'function generator' removed — use 'generator function'
                 if (match(TT::KEYWORD_GENERATOR) ||
-                    (check(TT::IDENTIFIER) && current_.getValue() == "مولد"))
+                    (checkContextual(TT::KEYWORD_GENERATOR)))
                 {
                     errorBilingual(
                         "خطأ نحوي: 'دالة مولد' أُزيلت. استخدم 'مولد دالة' بدلاً منها.\n"
                         "💡 مثال: مولد دالة عدّاد()\n    أنتج 1\n    أنتج 2\nنهاية",
                         "Syntax error: 'function generator' removed. Use 'generator function' instead.\n"
                         "💡 Example: مولد دالة counter()\n    yield 1\n    yield 2\nend");
-                    if (check(TT::IDENTIFIER) && current_.getValue() == "مولد")
+                    if (checkContextual(TT::KEYWORD_GENERATOR))
                         advance();
                     auto __fd = parseFunctionDecl(std::move(decorators), false, true);
                     if (auto *fp = dynamic_cast<AST::FunctionDecl *>(__fd.get()))
@@ -593,7 +593,7 @@ namespace Sad
             // (EN) Template support (Phase 7B)
             // ======================================================================
             if (match(TT::KEYWORD_TEMPLATE) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "قالب" && (advance(), true)))
+                matchContextual(TT::KEYWORD_TEMPLATE))
             {
                 if (!decorators.empty())
                 {
@@ -605,7 +605,7 @@ namespace Sad
             // (AR) دعم فضاء الأسماء (Namespaces - Phase 7B.5)
             // (EN) Namespace support (Phase 7B.5)
             if (match(TT::KEYWORD_NAMESPACE) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "فضاء" && (advance(), true)))
+                matchContextual(TT::KEYWORD_NAMESPACE))
             {
                 if (!decorators.empty())
                 {
@@ -631,7 +631,7 @@ namespace Sad
                     "💡 صنف مجرد محكم Name (for abstract + sealed)");
                 // (AR) محاولة استرداد: نبتلع 'محكم' إن وجدت ثم 'صنف'
                 bool isAlsoSealed = false;
-                if (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x85\xD8\xAD\xD9\x83\xD9\x85")
+                if (checkContextual(TT::KEYWORD_SEALED))
                 {
                     advance();
                     isAlsoSealed = true;
@@ -657,7 +657,7 @@ namespace Sad
             // (AR) الصيغة القديمة: محكم صنف — أُزيلت. استخدم: صنف محكم
             // (EN) Old syntax: محكم صنف — removed. Use: صنف محكم
             // ═══════════════════════════════════════════════════════════════════
-            if (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x85\xD8\xAD\xD9\x83\xD9\x85")
+            if (checkContextual(TT::KEYWORD_SEALED))
             {
                 errorBilingual(
                     "خطأ نحوي: 'محكم صنف' أُزيلت. في لغة ص، الصفة تأتي بعد الموصوف.\n"
@@ -712,7 +712,7 @@ namespace Sad
                     {
                         isAbstract = true;
                     }
-                    else if (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x85\xD8\xAD\xD9\x83\xD9\x85")
+                    else if (checkContextual(TT::KEYWORD_SEALED))
                     {
                         advance();
                         isSealed = true;
@@ -748,7 +748,7 @@ namespace Sad
             //      وإلا تُعامل كمُعرّف عادي (متغير/دالة): سمة.لون = ...
             // (EN) سمة is contextual — only treated as trait decl if followed by identifier
             if (match(TT::KEYWORD_TRAIT) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "سمة" && peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
+                (checkContextual(TT::KEYWORD_TRAIT) && peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 return parseTraitDecl();
             }
@@ -760,7 +760,7 @@ namespace Sad
             // (EN) واجهة is contextual — treated as UI component decl if followed by identifier
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_UI_DECL) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "واجهة" &&
+                (checkContextual(TT::KEYWORD_UI_DECL) &&
                  peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 return parseUIDeclaration();
@@ -775,7 +775,7 @@ namespace Sad
             //      otherwise treated as regular identifier (variable/function)
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_IMPL) ||
-                (check(TT::IDENTIFIER) && (current_.getValue() == "نفّذ" || current_.getValue() == "نفذ") &&
+                (checkContextual(TT::KEYWORD_IMPL) &&
                  peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 return parseImplDecl();
@@ -789,7 +789,7 @@ namespace Sad
             // (EN) امتداد is contextual — treated as extension only if followed by identifier (type name)
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_EXTENSION) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "امتداد" &&
+                (checkContextual(TT::KEYWORD_EXTENSION) &&
                  peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 return parseExtensionDecl();
@@ -802,7 +802,7 @@ namespace Sad
             // (EN) ماكرو is contextual — treated as macro only if followed by identifier (macro name)
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_MACRO) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "ماكرو" &&
+                (checkContextual(TT::KEYWORD_MACRO) &&
                  peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 return parseMacroDecl();
@@ -817,7 +817,7 @@ namespace Sad
             //      نوع is contextual — treated as type alias only if followed by identifier
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_TYPENAME) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "نوع" &&
+                (checkContextual(TT::KEYWORD_TYPENAME) &&
                  peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 // (AR) الآن الرمز الحالي هو اسم النوع المستعار
@@ -855,7 +855,7 @@ namespace Sad
             // (EN) Smart contracts: contract name ... end (treated as class with isContract=true)
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_CONTRACT) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xB9\xD9\x82\xD8\xAF" && // عقد
+                (checkContextual(TT::KEYWORD_CONTRACT) &&
                  peekNext().getType() == TT::IDENTIFIER && (advance(), true)))
             {
                 auto classDecl = parseClassDecl();
@@ -973,7 +973,7 @@ namespace Sad
             // (AR) التحقق إذا كان معرّف - قد يكون استدعاء دالة أو جملة تعبير
             // (AR) أولاً: تحقق من الكلمات السياقية (اختبر، حالة) قبل المعالجة العامة
             // (EN) First: check contextual keywords (test, case) before generic handling
-            if (check(TT::IDENTIFIER) && current_.getValue() == "اختبر")
+            if (checkContextual(TT::KEYWORD_TEST))
             {
                 advance(); // consume contextual keyword
                 if (!decorators.empty())
@@ -998,7 +998,7 @@ namespace Sad
             //      حالة + IDENTIFIER → switch statement
             // (EN) [BF-04 fix VE-004] previously حالة was always treated as switch
             //      unless followed by ( or . — now also exclude assignments and indexing.
-            if (check(TT::IDENTIFIER) && current_.getValue() == "حالة")
+            if (checkContextual(TT::KEYWORD_CASE))
             {
                 TT nextTT = peekNext().getType();
                 bool isExpressionContext =
@@ -1039,7 +1039,7 @@ namespace Sad
             //      'اعرض' is a contextual keyword — treated as UI expression only
             //      if followed by a known widget name. Otherwise treated as identifier.
             // ═══════════════════════════════════════════════════════════════════
-            if (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xA7\xD8\xB9\xD8\xB1\xD8\xB6" && // اعرض
+            if (checkContextual(TT::KEYWORD_SHOW) &&
                 peekNext().getType() == TT::IDENTIFIER && isKnownWidget(peekNext().getValue()))
             {
                 advance(); // (AR) استهلاك 'اعرض' / (EN) consume 'اعرض'
@@ -1072,8 +1072,7 @@ namespace Sad
                 return parseStructDecl();
             }
 
-            if (match(TT::KEYWORD_TEST) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "اختبر" && (advance(), true)))
+            if (match(TT::KEYWORD_TEST) || matchContextual(TT::KEYWORD_TEST))
             {
                 if (!decorators.empty())
                 {
@@ -1202,7 +1201,7 @@ namespace Sad
             {
                 return parseSwitchStmt();
             }
-            if (check(TT::IDENTIFIER) && current_.getValue() == "حالة")
+            if (checkContextual(TT::KEYWORD_CASE))
             {
                 TT nextTT2 = peekNext().getType();
                 bool isExprCtx2 =
@@ -1234,14 +1233,13 @@ namespace Sad
                 return parseReturnStmt();
             }
 
-            if (match(TT::KEYWORD_YIELD) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "أنتج" && (advance(), true)))
+            if (match(TT::KEYWORD_YIELD) || matchContextual(TT::KEYWORD_YIELD))
             {
                 return parseYieldStmt();
             }
 
             // (AR) رسالة خطأ لـ 'اعطِ' المُزالة
-            if (check(TT::IDENTIFIER) && current_.getValue() == "اعطِ")
+            if (checkContextual(TT::KEYWORD_GIVE_DEPRECATED))
             {
                 errorBilingual(
                     "خطأ نحوي: 'اعطِ' أُزيلت. استخدم 'أنتج' بدلاً منها.",
@@ -1250,8 +1248,7 @@ namespace Sad
                 return parseYieldStmt();
             }
 
-            if (match(TT::KEYWORD_WITH) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "باستخدام" && (advance(), true)))
+            if (match(TT::KEYWORD_WITH) || matchContextual(TT::KEYWORD_WITH))
             {
                 return parseWithStmt();
             }
@@ -1267,11 +1264,7 @@ namespace Sad
             //      Syntax: أجّل statement  or  أجّل ... نهاية
             // ─────────────────────────────────────────────────────────────────────
             if (match(TT::KEYWORD_DEFER) ||
-                (check(TT::IDENTIFIER) &&
-                 (current_.getValue() == "\xD8\xA3\xD8\xAC\xD9\x84" ||         // أجل (hamza أ)
-                  current_.getValue() == "\xD8\xA7\xD8\xAC\xD9\x84" ||         // اجل (plain alef ا)
-                  current_.getValue() == "\xD8\xA3\xD8\xAC\xD9\x91\xD9\x84" || // أجّل (with shadda)
-                  current_.getValue() == "\xD8\xA7\xD8\xAC\xD9\x91\xD9\x84")   // اجّل (with shadda + plain alef)
+                (checkContextual(TT::KEYWORD_DEFER)
                  && peekNext().getType() != TT::OP_ASSIGN                      // ليس إسناد (اجل = ...)
                  && peekNext().getType() != TT::OP_PLUS_ASSIGN                 // ليس += (اجل += ...)
                  && peekNext().getType() != TT::DOT                            // ليس وصول (اجل.شيء)
@@ -1289,9 +1282,7 @@ namespace Sad
             //      Syntax: أطلق expression  or  أطلق ... نهاية
             // ─────────────────────────────────────────────────────────────────────
             if (match(TT::KEYWORD_GO) ||
-                (check(TT::IDENTIFIER) &&
-                 (current_.getValue() == "\xD8\xA3\xD8\xB7\xD9\x84\xD9\x82" || // أطلق (with hamza)
-                  current_.getValue() == "\xD8\xA7\xD8\xB7\xD9\x84\xD9\x82")   // اطلق (plain alef)
+                (checkContextual(TT::KEYWORD_GO)
                  && peekNext().getType() != TT::OP_ASSIGN                      // ليس إسناد
                  && peekNext().getType() != TT::OP_PLUS_ASSIGN                 // ليس +=
                  && peekNext().getType() != TT::DOT                            // ليس وصول
@@ -1309,8 +1300,7 @@ namespace Sad
             //      Syntax: اختر عندما ch.receive(): ... افتراضي: ... نهاية
             // ─────────────────────────────────────────────────────────────────────
             if (match(TT::KEYWORD_SELECT) ||
-                (check(TT::IDENTIFIER) &&
-                 current_.getValue() == "\xD8\xA7\xD8\xAE\xD8\xAA\xD8\xB1" // اختر
+                (checkContextual(TT::KEYWORD_SELECT)
                  && peekNext().getType() != TT::OP_ASSIGN && peekNext().getType() != TT::OP_PLUS_ASSIGN && peekNext().getType() != TT::DOT && (advance(), true)))
             {
                 return parseSelectStmt();
@@ -1601,7 +1591,7 @@ namespace Sad
                         output = current_.getValue();
                         advance();
                     }
-                    else if (check(TT::IDENTIFIER) && current_.getValue() == "متطاير")
+                    else if (checkContextual(TT::KEYWORD_VOLATILE))
                     {
                         isVolatile = true;
                         advance();

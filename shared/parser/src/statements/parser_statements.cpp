@@ -212,7 +212,7 @@ namespace Sad
                 // (EN) Range form: for x from start to end
                 auto startExpr = parseExpression();
                 // (AR) توقع كلمة 'الى' أو 'إلى'
-                if (check(TT::IDENTIFIER) && (current_.getValue() == "الى" || current_.getValue() == "إلى"))
+                if (checkContextual(TT::KEYWORD_TO))
                 {
                     advance(); // consume الى
                 }
@@ -381,7 +381,7 @@ namespace Sad
                    !isAtEnd())
             {
                 // (AR) رسالة خطأ إذا استُخدمت 'نهاية_استخدام'
-                if (check(TT::IDENTIFIER) && current_.getValue() == "نهاية_استخدام")
+                if (checkContextual(TT::KEYWORD_END_WITH))
                 {
                     errorBilingual(
                         "خطأ نحوي: 'نهاية_استخدام' أُزيلت. استخدم 'نهاية' بدلاً منها.",

@@ -318,6 +318,10 @@ namespace sad
             bool warnings_as_errors = false; // اعتبار التحذيرات أخطاء / Warnings as errors
             bool all_warnings = true;        // جميع التحذيرات / All warnings
             bool color_diagnostics = true;   // رسائل ملونة / Colored messages
+            // (AR) Phase E-3: شرح الخطأ ولغة الإخراج
+            // (EN) Phase E-3: explanation level + output language
+            std::string explain_level;   // brief|normal|detailed|teacher (فارغ = عدم تغيير)
+            std::string output_language; // ar|en|both (فارغ = عدم تغيير)
 
             // ========== Features ==========
             bool enable_gc = true;              // Garbage collector

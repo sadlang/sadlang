@@ -1,0 +1,95 @@
+# ======================================================================
+# (AR) ملف: .github/workflows/codegen-check.yml
+# (AR) الوصف: يتحقق أن الملفات المولَّدة من YAML متزامنة مع keywords.yaml
+#             يمنع دمج أي PR يحوي الملفات المولَّدة غير محدَّثة
+# (EN) Description: Verifies that generated files are in sync with keywords.yaml
+#                   Blocks PR merges if generated files are stale
+# ======================================================================
+# (AR) يُشغَّل عند:
+#   - أي push يغيّر keywords.yaml أو المُولِّد أو الملفات المولَّدة
+#   - أي PR يستهدف main/master
+# ======================================================================
+
+name: "🔑 Codegen Sync — Keywords YAML SoT"
+
+on:
+  push:
+    paths:
+      - "data/language/keywords.yaml"
+      - "data/language/keywords.schema.json"
+      - "scripts/codegen/gen_keywords.py"
+      - "shared/lexer/generated/**"
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - "data/language/keywords.yaml"
+      - "data/language/keywords.schema.json"
+      - "scripts/codegen/gen_keywords.py"
+      - "shared/lexer/generated/**"
+
+# (AR) منع التشغيل المتزامن لنفس الفرع
+concurrency:
+  group: codegen-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ======================================================================
+  # (AR) فحص التزامن: YAML → generated/{h,cpp} لا انجراف
+  # (EN) Sync check: YAML → generated files — no drift allowed
+  # ======================================================================
+  codegen-sync:
+    name: "🔑 فحص توليد الكود / Codegen Sync Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      # ── (AR) تثبيت بيئة Python مع تبعيات المُولِّد
+      - name: "🐍 تثبيت Python + pyyaml + jsonschema"
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml jsonschema
+
+      # ── (AR) تشغيل المُولِّد لإعادة توليد الملفات
+      - name: "⚙️ توليد keywords_generated.{h,cpp}"
+        run: |
+          python3 scripts/codegen/gen_keywords.py \
+            data/language/keywords.yaml \
+            data/language/keywords.schema.json \
+            shared/lexer/generated/keywords_generated.h \
+            shared/lexer/generated/keywords_generated.cpp
+
+      # ── (AR) يفشل إذا كانت الملفات المولَّدة في المستودع لا تطابق ما يُولِّده YAML الحالي
+      - name: "🔍 التحقق: لا انجراف يدوي في الملفات المولَّدة"
+        run: |
+          if ! git diff --exit-code shared/lexer/generated/; then
+            echo ""
+            echo "❌ (AR) الملفات المولَّدة غير متزامنة مع keywords.yaml!"
+            echo "   قم بتشغيل: python3 scripts/codegen/gen_keywords.py ... ثم commit الناتج."
+            echo ""
+            echo "❌ (EN) Generated files are out of sync with keywords.yaml!"
+            echo "   Run: python3 scripts/codegen/gen_keywords.py ... and commit the output."
+            echo ""
+            git diff shared/lexer/generated/
+            exit 1
+          fi
+          echo "✅ (AR) الملفات المولَّدة متزامنة تماماً مع keywords.yaml"
+          echo "✅ (EN) Generated files are in sync with keywords.yaml"
+
+      # ── (AR) فحص إضافي: عدد الإدخالات يطابق kEntryCount في الهيدر
+      - name: "📊 التحقق من kEntryCount في الهيدر"
+        run: |
+          YAML_COUNT=$(python3 -c "
+          import yaml, sys
+          data = yaml.safe_load(open('data/language/keywords.yaml', encoding='utf-8'))
+          total = sum(len(v.get('keywords', [])) for v in data.get('categories', {}).values())
+          print(total)
+          ")
+          HEADER_COUNT=$(grep -oP 'kEntryCount\s*=\s*\K[0-9]+' shared/lexer/generated/keywords_generated.h || echo "NOT_FOUND")
+          echo "(AR) عدد YAML: $YAML_COUNT — kEntryCount في الهيدر: $HEADER_COUNT"
+          if [ "$YAML_COUNT" != "$HEADER_COUNT" ]; then
+            echo "❌ (AR) عدد الإدخالات غير متطابق!"
+            exit 1
+          fi
+          echo "✅ (EN) Entry count matches: $YAML_COUNT"

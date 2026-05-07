@@ -12,6 +12,9 @@ add_library(sad_shared STATIC
     lexer/src/lexer_core.cpp
     lexer/src/lexer_keywords.cpp
     lexer/src/token.cpp
+    # (AR) Codegen v4.1: جدول الكلمات المولَّد من data/language/keywords.yaml
+    # (EN) Codegen v4.1: keyword table generated from data/language/keywords.yaml
+    lexer/generated/keywords_generated.cpp
     
     # Parser
     parser/src/core/parser_core.cpp
@@ -53,6 +56,23 @@ add_library(sad_shared STATIC
     errors/src/error_codes.cpp
     errors/src/error_manager.cpp
     errors/src/error_hints.cpp
+    # (AR) المرحلة 1 — سجل قوالب الأخطاء + مستويات الشرح
+    # (EN) Phase 1 — Error template catalog + explanation levels
+    errors/src/error_catalog.cpp
+    errors/src/error_catalog_init.cpp
+    # (AR) Phase 4 — قوالب وقت التشغيل موزّعة على ملفات حسب الفئة الدلالية
+    # (EN) Phase 4 — runtime templates split by semantic category
+    errors/src/catalog/runtime_arithmetic_catalog.cpp
+    errors/src/catalog/runtime_collections_catalog.cpp
+    errors/src/catalog/runtime_oop_catalog.cpp
+    errors/src/catalog/runtime_functions_catalog.cpp
+    errors/src/catalog/runtime_types_catalog.cpp
+    errors/src/catalog/runtime_builtins_catalog.cpp
+    errors/src/catalog/runtime_contracts_catalog.cpp
+    errors/src/catalog/runtime_concurrency_catalog.cpp
+    errors/src/catalog/runtime_misc_catalog.cpp
+    errors/src/explanation_level.cpp
+    errors/src/formatter.cpp
     
     # Smart Errors - Phase 15
     errors/src/smart_errors.cpp
@@ -88,10 +108,12 @@ add_library(sad_shared STATIC
 target_include_directories(sad_shared
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/lexer/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lexer/generated         # (AR) keywords_generated.h
         ${CMAKE_CURRENT_SOURCE_DIR}/parser/include
         ${CMAKE_CURRENT_SOURCE_DIR}/ast/include
         ${CMAKE_CURRENT_SOURCE_DIR}/types/include
         ${CMAKE_CURRENT_SOURCE_DIR}/errors/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/errors/src             # Phase 4: catalog/runtime_template_helpers.h
         ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
         ${CMAKE_CURRENT_SOURCE_DIR}/builtins/include           # السجل المركزي الموحّد (ADR-003)

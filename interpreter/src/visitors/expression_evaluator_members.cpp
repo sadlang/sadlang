@@ -20,7 +20,9 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include <atomic>
 #include <cmath>
@@ -73,17 +75,19 @@ namespace Sad
                     ClassField *field = classType->findField(node.member);
                     if (!field)
                     {
-                        std::string errMsg = "(AR) الحقل '" + node.member + "' غير موجود في الصنف '" + possibleClassName + "'. ";
-                        errMsg += "(EN) Field '" + node.member + "' not found in class '" + possibleClassName + "'.";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                            node.position,
+                            {{"member", node.member}, {"class", possibleClassName}});
                     }
 
                     // التحقق من أن الحقل ثابت
                     if (!field->isStatic)
                     {
-                        std::string errMsg = "(AR) لا يمكن الوصول للحقل غير الثابت '" + node.member + "' من خلال اسم الصنف. ";
-                        errMsg += "(EN) Cannot access non-static field '" + node.member + "' through class name.";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                            node.position,
+                            {{"member", node.member}, {"reason", "non-static accessed via class name"}});
                     }
 
                     // فحص الوصول
@@ -93,9 +97,10 @@ namespace Sad
                     Value *staticValue = classType->getStaticField(node.member);
                     if (!staticValue)
                     {
-                        std::string errMsg = "(AR) الحقل الثابت '" + node.member + "' غير مهيأ. ";
-                        errMsg += "(EN) Static field '" + node.member + "' not initialized.";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_NULL_REFERENCE,
+                            node.position,
+                            {{"member", node.member}, {"class", possibleClassName}, {"reason", "static field not initialized"}});
                     }
 
                     lastResult_ = *staticValue;
@@ -147,9 +152,10 @@ namespace Sad
                         lastResult_ = it->second;
                         return;
                     }
-                    std::string errMsg = "(AR) المفتاح '" + node.member + "' غير موجود في الخريطة. ";
-                    errMsg += "(EN) Key '" + node.member + "' not found in map.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_KEY_NOT_FOUND,
+                        node.position,
+                        {{"key", node.member}});
                 }
                 className = classNameIt->second.toString();
                 classType = classManager->getClass(className);
@@ -176,33 +182,35 @@ namespace Sad
                     size_t idx = std::stoul(node.member);
                     if (idx >= tupleElements.size())
                     {
-                        std::string errMsg = "(AR) فهرس الصف خارج النطاق: " + std::to_string(idx) +
-                                             " (الحجم: " + std::to_string(tupleElements.size()) + "). ";
-                        errMsg += "(EN) Tuple index out of range: " + std::to_string(idx) +
-                                  " (size: " + std::to_string(tupleElements.size()) + ").";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                            node.position,
+                            {{"index", std::to_string(idx)}, {"length", std::to_string(tupleElements.size())}, {"container", "tuple"}});
                     }
                     lastResult_ = tupleElements[idx];
                     return;
                 }
                 catch (const std::invalid_argument &)
                 {
-                    std::string errMsg = "(AR) العضو '" + node.member + "' غير صالح للصف. استخدم فهرس رقمي مثل .0 أو .1. ";
-                    errMsg += "(EN) Member '" + node.member + "' is not valid for tuple. Use numeric index like .0 or .1.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_TUPLE_INDEX_NOT_NUMBER,
+                        node.position,
+                        {{"member", node.member}});
                 }
                 catch (const std::out_of_range &)
                 {
-                    std::string errMsg = "(AR) فهرس الصف كبير جداً: " + node.member + ". ";
-                    errMsg += "(EN) Tuple index too large: " + node.member + ".";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", node.member}, {"container", "tuple"}});
                 }
             }
             else
             {
-                std::string errMsg = "(AR) لا يمكن الوصول لعضو من قيمة ليست كائن. ";
-                errMsg += "(EN) Cannot access member of non-object value.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                    node.position,
+                    {{"operation", "member access"}, {"type", objectValue.getTypeName()}});
             }
 
             if (!classType)
@@ -221,7 +229,10 @@ namespace Sad
                         }
                     }
                 }
-                throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                    node.position,
+                    {{"class", className}});
             }
 
             // البحث عن الحقل في السلسلة الهرمية
@@ -244,9 +255,10 @@ namespace Sad
                     lastResult_ = it->second;
                     return;
                 }
-                std::string errMsg = "(AR) الحقل أو الخاصية '" + node.member + "' غير موجود في الكائن. ";
-                errMsg += "(EN) Field or property '" + node.member + "' not found in object.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                    node.position,
+                    {{"member", node.member}, {"class", className}});
             }
 
             // إذا كانت خاصية، نفذ الـ getter
@@ -262,9 +274,10 @@ namespace Sad
                 // التحقق من وجود getter
                 if (!property->getterBody)
                 {
-                    std::string errMsg = "(AR) الخاصية '" + node.member + "' للكتابة فقط (لا يوجد getter). ";
-                    errMsg += "(EN) Property '" + node.member + "' is write-only (no getter).";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                        node.position,
+                        {{"member", node.member}, {"reason", "write-only property (no getter)"}});
                 }
 
                 // ═══════════════════════════════════════════════════════════════
@@ -326,9 +339,10 @@ namespace Sad
             auto it = fields.find(node.member);
             if (it == fields.end())
             {
-                std::string errMsg = "(AR) الحقل '" + node.member + "' غير موجود في الكائن. ";
-                errMsg += "(EN) Field '" + node.member + "' not found in object.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                    node.position,
+                    {{"member", node.member}, {"class", className}});
             }
 
             // إرجاع قيمة الحقل
@@ -367,16 +381,18 @@ namespace Sad
                     ClassField *field = classType->findField(node.memberName);
                     if (!field)
                     {
-                        std::string errMsg = "(AR) الحقل '" + node.memberName + "' غير موجود في الصنف '" + possibleClassName + "'. ";
-                        errMsg += "(EN) Field '" + node.memberName + "' not found in class '" + possibleClassName + "'.";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                            node.position,
+                            {{"member", node.memberName}, {"class", possibleClassName}});
                     }
 
                     if (!field->isStatic)
                     {
-                        std::string errMsg = "(AR) لا يمكن الوصول للحقل غير الثابت '" + node.memberName + "' من خلال اسم الصنف. ";
-                        errMsg += "(EN) Cannot access non-static field '" + node.memberName + "' through class name.";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                            node.position,
+                            {{"member", node.memberName}, {"reason", "non-static accessed via class name"}});
                     }
 
                     checkMemberAccess(field->visibility, node.memberName, classType);
@@ -384,9 +400,10 @@ namespace Sad
                     Value *staticValue = classType->getStaticField(node.memberName);
                     if (!staticValue)
                     {
-                        std::string errMsg = "(AR) الحقل الثابت '" + node.memberName + "' غير مهيأ. ";
-                        errMsg += "(EN) Static field '" + node.memberName + "' not initialized.";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_NULL_REFERENCE,
+                            node.position,
+                            {{"member", node.memberName}, {"class", possibleClassName}, {"reason", "static field not initialized"}});
                     }
 
                     lastResult_ = *staticValue;
@@ -422,9 +439,10 @@ namespace Sad
                         lastResult_ = it->second;
                         return;
                     }
-                    std::string errMsg = "(AR) المفتاح '" + node.memberName + "' غير موجود في الخريطة. ";
-                    errMsg += "(EN) Key '" + node.memberName + "' not found in map.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_KEY_NOT_FOUND,
+                        node.position,
+                        {{"key", node.memberName}});
                 }
                 className = classNameIt->second.toString();
                 classType = classManager->getClass(className);
@@ -450,33 +468,35 @@ namespace Sad
                     size_t idx = std::stoul(node.memberName);
                     if (idx >= tupleElements.size())
                     {
-                        std::string errMsg = "(AR) فهرس الصف خارج النطاق: " + std::to_string(idx) +
-                                             " (الحجم: " + std::to_string(tupleElements.size()) + "). ";
-                        errMsg += "(EN) Tuple index out of range: " + std::to_string(idx) +
-                                  " (size: " + std::to_string(tupleElements.size()) + ").";
-                        throw RuntimeError(errMsg, node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                            node.position,
+                            {{"index", std::to_string(idx)}, {"length", std::to_string(tupleElements.size())}, {"container", "tuple"}});
                     }
                     lastResult_ = tupleElements[idx];
                     return;
                 }
                 catch (const std::invalid_argument &)
                 {
-                    std::string errMsg = "(AR) العضو '" + node.memberName + "' غير صالح للصف. استخدم فهرس رقمي مثل .0 أو .1. ";
-                    errMsg += "(EN) Member '" + node.memberName + "' is not valid for tuple. Use numeric index like .0 or .1.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_TUPLE_INDEX_NOT_NUMBER,
+                        node.position,
+                        {{"member", node.memberName}});
                 }
                 catch (const std::out_of_range &)
                 {
-                    std::string errMsg = "(AR) فهرس الصف كبير جداً: " + node.memberName + ". ";
-                    errMsg += "(EN) Tuple index too large: " + node.memberName + ".";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", node.memberName}, {"container", "tuple"}});
                 }
             }
             else
             {
-                std::string errMsg = "(AR) لا يمكن الوصول لعضو من قيمة ليست كائن. ";
-                errMsg += "(EN) Cannot access member of non-object value.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                    node.position,
+                    {{"operation", "member access"}, {"type", objectValue.getTypeName()}});
             }
 
             if (!classType)
@@ -495,7 +515,10 @@ namespace Sad
                         }
                     }
                 }
-                throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                    node.position,
+                    {{"class", className}});
             }
 
             // (AR) البحث عن الحقل في السلسلة الهرمية / (EN) Search field in hierarchy
@@ -516,9 +539,10 @@ namespace Sad
                     lastResult_ = it->second;
                     return;
                 }
-                std::string errMsg = "(AR) الحقل أو الخاصية '" + node.memberName + "' غير موجود في الكائن. ";
-                errMsg += "(EN) Field or property '" + node.memberName + "' not found in object.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                    node.position,
+                    {{"member", node.memberName}, {"class", className}});
             }
 
             // (AR) إذا كانت خاصية، نفذ الـ getter / (EN) If property, execute getter
@@ -528,9 +552,10 @@ namespace Sad
 
                 if (!property->getterBody)
                 {
-                    std::string errMsg = "(AR) الخاصية '" + node.memberName + "' للكتابة فقط (لا يوجد getter). ";
-                    errMsg += "(EN) Property '" + node.memberName + "' is write-only (no getter).";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                        node.position,
+                        {{"member", node.memberName}, {"reason", "write-only property (no getter)"}});
                 }
 
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "get_" + node.memberName);
@@ -571,9 +596,10 @@ namespace Sad
             auto it = fields.find(node.memberName);
             if (it == fields.end())
             {
-                std::string errMsg = "(AR) الحقل '" + node.memberName + "' غير موجود في الكائن. ";
-                errMsg += "(EN) Field '" + node.memberName + "' not found in object.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
+                    node.position,
+                    {{"member", node.memberName}, {"class", className}});
             }
 
             lastResult_ = it->second;
@@ -671,7 +697,5 @@ namespace Sad
         // (AR) تعيين قيمة لعضو / (EN) Member Assignment
         // =========================================================================
 
-
     } // namespace Interpreter
 } // namespace Sad
-

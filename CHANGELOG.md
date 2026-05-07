@@ -29,7 +29,16 @@ The format is based on Keep a Changelog, and this project aims to follow Semanti
 
 ## [Unreleased]
 ### Added
+- ✅ **معمارية YAML SoT v4.1 — مصدر حقيقة واحد للمعجم (Keywords Single Source of Truth)**
+  - ملف `data/language/keywords.yaml` هو المرجع الوحيد لجميع الكلمات المفتاحية (91 إدخال: 40 محجوزة + 3 عوامل منطقية + 39 سياقية + 9 أنواع مدمجة)
+  - مُولِّد Python `scripts/codegen/gen_keywords.py` يُنشئ `keywords_generated.h` و `keywords_generated.cpp` تلقائياً في كل بناء
+  - `KeywordTable` (v4.1) — API موحّد يقرأ من `allEntries()` المولَّدة فقط — صفر نصوص عربية مُضمَّنة
+  - صفر سلاسل عربية مُضمَّنة في: Lexer + Parser (6 ملفات، ~100 موقع) + Formatter
+  - دعم كامل للأسماء البديلة (aliases): `واجهة`, `نفذ`, `اذا`, `والا`, `اخيرا`, `عين`, `صدر`, `اجّل`/`اجل`, `أطلق`/`اطلق`, `إلى`/`الى`, `غير_متزامنة`
+  - 34 اختبار جديد في `test_keywords_v41_comprehensive.cpp` (34/34 ناجح)
+  - workflow CI جديد `.github/workflows/codegen-check.yml` — يمنع دمج أي PR يحوي ملفات generated غير محدَّثة
 - Root governance and legal files: `LICENSE`, `CODE_OF_CONDUCT.md`, `SECURITY.md`.
+
 - Annual-plan execution artifacts under docs and examples for the 2026 roadmap.
 - LLVM Debug/Release mismatch guard in `cmake/llvm.cmake` with clear warnings.
 - `analyzeExports()` implementation in `shared/modules/src/module.cpp` — now extracts exported symbols from AST.

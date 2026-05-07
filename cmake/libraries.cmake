@@ -28,6 +28,16 @@ endif()
 
 add_library(sad_core STATIC ${ALL_SOURCES})
 
+# ──────────────────────────────────────────────────────────────────────
+# (AR) Codegen v4.1: ضمان توليد keywords_generated.{h,cpp} قبل الترجمة
+#      sad_shared هو من يحوي lexer_keywords.cpp و keywords_generated.cpp،
+#      لذلك يربط الاعتماد عليه؛ sad_core يربط sad_shared فيرث الاعتماد.
+# (EN) Codegen v4.1: ensure keywords_generated.{h,cpp} is built first.
+#      sad_shared owns lexer_keywords.cpp + keywords_generated.cpp,
+#      so the dependency lives there; sad_core links sad_shared.
+# ──────────────────────────────────────────────────────────────────────
+add_dependencies(sad_shared sad_keywords_codegen)
+
 # (AR) Phase: dedup sad_shared/sad_core — sad_core يربط sad_shared كـ PUBLIC
 #      ليُمرّر includes ويتجنب ازدواج بناء (lexer/parser/ast/types/errors/modules/utils
 #      + class_manager). كان كل ملف من 49 ملفاً مشتركاً يُترجَم مرتين قبل هذا الإصلاح.

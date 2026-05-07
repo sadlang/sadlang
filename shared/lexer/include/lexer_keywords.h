@@ -1,186 +1,129 @@
 // ======================================================================
-// lexer_keywords.h - جدول الكلمات المفتاحية / Keywords Table
+// lexer_keywords.h - جدول الكلمات (v4.1) / Keyword Table (v4.1)
 // ======================================================================
-// الوصف بالعربية:
-//   جدول يربط الكلمات المفتاحية العربية بأنواع الرموز المقابلة
-//   يُستخدم من قبل المحلل المعجمي للتعرف على الكلمات المفتاحية
-//
-// English Description:
-//   Table mapping Arabic keywords to their corresponding token types
-//   Used by the Lexer to recognize keywords
-//
-// ملاحظات / Notes:
-//   - يحتوي على 40+ كلمة مفتاحية عربية
-//     Contains 40+ Arabic keywords
-//   - يستخدم unordered_map للبحث السريع O(1)
-//     Uses unordered_map for fast O(1) lookup
-//   - يجب استدعاء initialize() قبل الاستخدام
-//     Must call initialize() before use
+// (AR) واجهة جدول الكلمات المفتاحية. تُبنى البيانات من المعجم المولَّد
+//      shared/lexer/generated/keywords_generated.{h,cpp} المنتج من
+//      data/language/keywords.yaml. لا توجد سلاسل عربية مكتوبة يدوياً
+//      في هذا الملف ولا في تنفيذه.
+// (EN) Keyword table API. Data is built from auto-generated
+//      shared/lexer/generated/keywords_generated.{h,cpp} produced from
+//      data/language/keywords.yaml. No hand-written Arabic strings live
+//      in this header or its implementation.
 // ======================================================================
 
 #pragma once
 
-#include <unordered_map>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
+
 #include "token.h"
+#include "../generated/keywords_generated.h"
 
 namespace Sad {
 namespace Lexer {
 
-// ======================================================================
-// فئة جدول الكلمات المفتاحية / Keywords Table Class
-// ======================================================================
 /**
  * @class KeywordTable
- * @brief (AR) جدول الكلمات المفتاحية العربية ونظيراتها من TokenType
- * @brief (EN) Arabic keywords table and their TokenType counterparts
- * 
- * ملاحظات إضافية:
- * - AR: الفئة ثابتة (static) - لا تحتاج إنشاء كائن
- * - EN: Class is static - no need to instantiate
- * - AR: يجب تهيئة الجدول مرة واحدة عند بدء البرنامج
- * - EN: Table must be initialized once at program start
- * - AR: البحث سريع جداً O(1) باستخدام unordered_map
- * - EN: Lookup is very fast O(1) using unordered_map
+ * @brief (AR) جدول قراءة فقط مبني من المعجم المولَّد من YAML
+ * @brief (EN) Read-only table built from the YAML-generated lexicon
+ *
+ * (AR) الفئة كلها static. التهيئة كسولة وآمنة لإعادة الاستدعاء.
+ * (EN) Fully static. Initialization is lazy and re-entrant safe.
  */
 class KeywordTable {
 public:
-    // ==================================================================
-    // دالة التهيئة / Initialization Function
-    // ==================================================================
-    
-    /**
-     * @brief (AR) تهيئة جدول الكلمات المفتاحية
-     * @brief (EN) Initialize keywords table
-     * 
-     * @throws لا يرمي استثناءات / Does not throw exceptions
-     * 
-     * مثال:
-     * KeywordTable::initialize();
-     * 
-     * ملاحظات إضافية:
-     * - AR: يجب استدعاؤها مرة واحدة فقط عند بدء البرنامج
-     * - EN: Should be called once only at program start
-     * - AR: آمنة للاستدعاء المتعدد (تتحقق إذا تم التهيئة سابقاً)
-     * - EN: Safe to call multiple times (checks if already initialized)
-     * - AR: تملأ الجدول بـ 40+ كلمة مفتاحية
-     * - EN: Fills table with 40+ keywords
-     */
+    using KeywordCategory = Generated::KeywordCategory;
+    using KeywordEntry    = Generated::KeywordEntry;
+
+    // ── (AR) تهيئة وفحص حالة الجدول ──
     static void initialize();
-    
-    // ==================================================================
-    // دوال الاستعلام / Query Functions
-    // ==================================================================
-    
-    /**
-     * @brief (AR) التحقق من أن كلمة هي كلمة مفتاحية
-     * @brief (EN) Check if word is a keyword
-     * 
-     * @param word (std::string) — (AR) الكلمة المراد فحصها / (EN) word to check
-     * @return (bool) — (AR) true إذا كانت كلمة مفتاحية / (EN) true if keyword
-     * 
-     * مثال:
-     * if (KeywordTable::isKeyword("دالة")) {
-     *     // هذه كلمة مفتاحية
-     * }
-     * 
-     * ملاحظات إضافية:
-     * - AR: حساسة لحالة الأحرف (دالة ≠ دَالة)
-     * - EN: Case-sensitive (دالة ≠ دَالة)
-     * - AR: سريعة جداً O(1)
-     * - EN: Very fast O(1)
-     */
-    static bool isKeyword(const std::string& word);
-    
-    /**
-     * @brief (AR) الحصول على نوع الرمز للكلمة المفتاحية
-     * @brief (EN) Get token type for keyword
-     * 
-     * @param word (std::string) — (AR) الكلمة المفتاحية / (EN) keyword
-     * @return (TokenType) — (AR) نوع الرمز المقابل / (EN) corresponding token type
-     * @throws (std::runtime_error) — (AR) إذا لم تكن كلمة مفتاحية / (EN) if not a keyword
-     * 
-     * مثال:
-     * TokenType type = KeywordTable::getKeywordType("إذا");
-     * // type = TokenType::KEYWORD_IF
-     * 
-     * ملاحظات إضافية:
-     * - AR: يجب التحقق بـ isKeyword() أولاً لتجنب الاستثناءات
-     * - EN: Should check with isKeyword() first to avoid exceptions
-     * - AR: سريعة جداً O(1)
-     * - EN: Very fast O(1)
-     */
-    static TokenType getKeywordType(const std::string& word);
-    
-    /**
-     * @brief (AR) الحصول على الكلمة المفتاحية من نوع الرمز
-     * @brief (EN) Get keyword from token type
-     * 
-     * @param type (TokenType) — (AR) نوع الرمز / (EN) token type
-     * @return (std::string) — (AR) الكلمة المفتاحية / (EN) keyword
-     * @throws (std::runtime_error) — (AR) إذا لم يكن نوع كلمة مفتاحية / (EN) if not a keyword type
-     * 
-     * مثال:
-     * std::string keyword = KeywordTable::getKeyword(TokenType::KEYWORD_IF);
-     * // keyword = "إذا"
-     * 
-     * ملاحظات إضافية:
-     * - AR: عملية عكسية لـ getKeywordType
-     * - EN: Reverse operation of getKeywordType
-     * - AR: أبطأ قليلاً O(n) لكن n صغير (40 كلمة)
-     * - EN: Slightly slower O(n) but n is small (40 words)
-     */
-    static std::string getKeyword(TokenType type);
-    
-    /**
-     * @brief (AR) الحصول على جميع الكلمات المفتاحية
-     * @brief (EN) Get all keywords
-     * 
-     * @return (std::vector<std::string>) — (AR) قائمة بجميع الكلمات المفتاحية / (EN) list of all keywords
-     * 
-     * مثال:
-     * auto keywords = KeywordTable::getAllKeywords();
-     * for (const auto& kw : keywords) {
-     *     std::cout << kw << std::endl;
-     * }
-     * 
-     * ملاحظات إضافية:
-     * - AR: مفيدة للتوثيق والاختبار
-     * - EN: Useful for documentation and testing
-     * - AR: تُرجع نسخة من القائمة (ليست مرجع)
-     * - EN: Returns copy of list (not reference)
-     */
-    static std::vector<std::string> getAllKeywords();
-    
-    /**
-     * @brief (AR) التحقق من أن الجدول تم تهيئته
-     * @brief (EN) Check if table is initialized
-     * 
-     * @return (bool) — (AR) true إذا تم التهيئة / (EN) true if initialized
-     * 
-     * ملاحظات إضافية:
-     * - AR: مفيدة للتحقق قبل الاستخدام
-     * - EN: Useful for checking before use
-     */
     static bool isInitialized();
 
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) واجهة الـ Lexer — الكلمات التي يُصدرها Lexer كرمز خاص
+    //      (emittedByLexer = true: المحجوزة + العوامل المنطقية فقط).
+    // (EN) Lexer-facing API — only entries with emittedByLexer = true
+    //      (reserved + logical operators).
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief (AR) هل الكلمة كلمة مفتاحية يُصدرها Lexer؟
+     * @brief (EN) Is this word emitted by the Lexer as a special token?
+     */
+    static bool isKeyword(std::string_view word);
+
+    /**
+     * @brief (AR) نوع الرمز للكلمة المُصدرة (محجوز/عامل)
+     * @brief (EN) TokenType for an emitted keyword (reserved/operator)
+     * @throws std::runtime_error إذا لم تكن الكلمة مُصدرة
+     */
+    static TokenType getKeywordType(std::string_view word);
+
+    /**
+     * @brief (AR) الكلمة الرئيسية لنوع رمز مُصدر
+     * @brief (EN) Primary spelling for an emitted TokenType
+     * @throws std::runtime_error إذا لم يكن النوع مُصدراً
+     */
+    static std::string getKeyword(TokenType type);
+
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) واجهة الـ Parser — وصول كامل لكل المعجم بما في ذلك السياقي
+    // (EN) Parser-facing API — full access including contextual entries
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief (AR) إيجاد إدخال عبر TokenType (يبحث في كل الفئات)
+     * @brief (EN) Find entry by TokenType (searches all categories)
+     */
+    static const KeywordEntry* getEntry(TokenType type);
+
+    /**
+     * @brief (AR) إيجاد إدخال عبر النص (كل الفئات + الأسماء البديلة)
+     * @brief (EN) Find entry by spelling (all categories + aliases)
+     */
+    static const KeywordEntry* getEntry(std::string_view word);
+
+    /**
+     * @brief (AR) فئة الكلمة أو nullopt إن لم تكن في المعجم
+     * @brief (EN) Category for a word or nullopt if not in lexicon
+     */
+    static std::optional<KeywordCategory> getCategory(std::string_view word);
+
+    /**
+     * @brief (AR) كل الكلمات الرئيسية في فئة معينة (بترتيب YAML)
+     * @brief (EN) All primary words in a given category (YAML order)
+     */
+    static const std::vector<std::string>& getKeywordsByCategory(KeywordCategory category);
+
+    /**
+     * @brief (AR) كل الكلمات الرئيسية التي تحمل دور دلالي معين
+     * @brief (EN) All primary words carrying a given semantic role
+     */
+    static const std::vector<std::string>& getKeywordsByRole(std::string_view role);
+
+    /**
+     * @brief (AR) هل Lexer يجب أن يُصدر هذا النوع كرمز خاص؟
+     * @brief (EN) Should the Lexer emit this TokenType as a special token?
+     */
+    static bool shouldEmitAsKeyword(TokenType type);
+
+    /**
+     * @brief (AR) كل الكلمات المُصدرة من Lexer (أبجدياً) — توافق خلفي
+     * @brief (EN) All Lexer-emitted spellings (alphabetical) — backward compat
+     */
+    static std::vector<std::string> getAllKeywords();
+
 private:
-    /**
-     * @brief (AR) الجدول الرئيسي للكلمات المفتاحية
-     * @brief (EN) Main keywords table
-     * 
-     * ملاحظات:
-     * - يربط الكلمة العربية بنوع الرمز
-     * - Maps Arabic word to token type
-     */
-    static std::unordered_map<std::string, TokenType> keywords_;
-    
-    /**
-     * @brief (AR) علَم لتتبع حالة التهيئة
-     * @brief (EN) Flag to track initialization status
-     */
     static bool initialized_;
+    static std::unordered_map<std::string, const KeywordEntry*> wordIndex_;
+    static std::unordered_map<int, const KeywordEntry*>         typeIndex_;
+    static std::vector<std::string>                             emittedWords_;
+    static std::vector<std::vector<std::string>>                byCategory_;
+    static std::unordered_map<std::string, std::vector<std::string>> byRole_;
+    static const std::vector<std::string>                       kEmpty_;
 };
 
 } // namespace Lexer

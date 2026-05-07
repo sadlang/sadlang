@@ -4,6 +4,20 @@
 # الوصف: أدوات التطوير / Development Tools (LSP, Formatter, REPL, Package Manager)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ملف: cmake/tools.cmake
+# الوصف: أدوات التطوير / Development Tools (LSP, Formatter, REPL, Package Manager)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────────────
+# (AR) طبقة الأدوات المشتركة — يجب تسجيلها أولاً لأن LSP والمنسق يعتمدان عليها
+# (EN) Tools-shared layer — must be registered first; LSP & formatter depend on it
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tools/shared/CMakeLists.txt")
+    add_subdirectory(tools/shared)
+    message(STATUS "✓ طبقة الأدوات المشتركة / Tools-Shared: sad_tools_shared")
+endif()
+
 # ──────────────────────────────────────────────────────────────────────
 # (AR) مركز الأدوات الموحَّد — تنفيذي مستقل لا يعتمد على المفسّر/المترجم
 # (EN) Unified Tool Hub — standalone executable, no interpreter/compiler dep

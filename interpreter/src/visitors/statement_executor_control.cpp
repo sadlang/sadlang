@@ -11,7 +11,8 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "object_instance.h"
 #include "debug_server.h"
 #include "class_manager.h"
@@ -335,7 +336,7 @@ namespace Sad
             {
                 node.body->accept(*this);
             }
-            catch (const SadException &e)
+            catch (const UserThrownException &e)
             {
                 exceptionOccurred = true;
                 exceptionMessage = e.getMessage();
@@ -401,7 +402,7 @@ namespace Sad
             // (AR) إعادة رمي الاستثناء إذا لم يُعالج / (EN) Re-throw exception if not handled
             if (exceptionOccurred && !exceptionMessage.empty())
             {
-                throw SadException(exceptionMessage, "WithError");
+                throw UserThrownException(exceptionMessage, "WithError");
             }
         }
 

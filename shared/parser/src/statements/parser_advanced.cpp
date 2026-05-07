@@ -591,7 +591,7 @@ namespace Sad
             {
                 // (AR) فروع طابق: تُقبل `عندما` فقط
                 // (EN) Match branches: only `عندما` is accepted
-                if (check(TT::KEYWORD_CASE) || (check(TT::IDENTIFIER) && current_.getValue() == "حالة"))
+                if (check(TT::KEYWORD_CASE) || checkContextual(TT::KEYWORD_CASE))
                 {
                     error(
                         "(AR) ❌ `حالة` لا تُستخدم داخل `طابق`. استخدم `عندما` بدلاً منها.\n"
@@ -728,7 +728,7 @@ namespace Sad
             std::vector<StmtPtr> body;
 
             while (!check(TT::KEYWORD_CASE) && !check(TT::KEYWORD_WHEN) && !check(TT::KEYWORD_DEFAULT) && !check(TT::KEYWORD_END) &&
-                   !(check(TT::IDENTIFIER) && current_.getValue() == "حالة") &&
+                   !checkContextual(TT::KEYWORD_CASE) &&
                    !check(TT::BRACE_RIGHT) && !isAtEnd())
             {
                 auto stmt = parseDeclaration();
@@ -756,6 +756,7 @@ namespace Sad
         {
             // Wildcard: _ (using IDENTIFIER)
             // (AR) النمط الشامل: _ (باستخدام IDENTIFIER)
+            // (AR) رمز ASCII خاص للأنماط الشاملة — ليس كلمة عربية
             if (check(TT::IDENTIFIER) && current_.getValue() == "_")
             {
                 advance();
@@ -1235,8 +1236,7 @@ namespace Sad
                 //      e.g. const int N → TypeParameter::makeConst("N", "رقم")
                 // ==================================================================
                 bool isConstParam = false;
-                if (check(TT::KEYWORD_CONST) ||
-                    (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA")) // ثابت
+                if (check(TT::KEYWORD_CONST))
                 {
                     advance();
                     isConstParam = true;
@@ -1279,7 +1279,7 @@ namespace Sad
                     // (AR) توقع 'نوع' أو 'typename' — كلمة سياقية: تحقق مزدوج
                     // (EN) Expect 'typename' keyword — contextual: double check
                     if (!match(TT::KEYWORD_TYPENAME) &&
-                        !(check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x86\xD9\x88\xD8\xB9" && (advance(), true)))
+                        !matchContextual(TT::KEYWORD_TYPENAME))
                     { // نوع
                         errorBilingual(
                             "خطأ نحوي: توقعت 'نوع' في معامل القالب",
@@ -1587,7 +1587,7 @@ namespace Sad
                 bool consumedReturnsKeyword = match(TT::KEYWORD_RETURNS) || match(TT::ARROW);
                 if (!consumedReturnsKeyword &&
                     check(TT::IDENTIFIER) &&
-                    current_.getValue() == "\xD8\xAA\xD8\xB1\xD8\xAC\xD8\xB9") // ترجع
+                    checkContextual(TT::KEYWORD_RETURNS)) // ترجع
                 {
                     advance();
                     consumedReturnsKeyword = true;
@@ -1661,8 +1661,7 @@ namespace Sad
                 // (AR) تحليل جملة حيث (اختيارية)
                 // (EN) Parse optional where clause
                 AST::WhereClause whereClause;
-                if ((check(TT::KEYWORD_WHERE)) ||
-                    (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xAD\xD9\x8A\xD8\xAB"))
+                if ((check(TT::KEYWORD_WHERE)) || checkContextual(TT::KEYWORD_WHERE))
                 {              // حيث
                     advance(); // تخطي 'حيث'/'where'
                     whereClause = parseWhereClause();
@@ -1742,8 +1741,7 @@ namespace Sad
                 // (AR) تحليل جملة حيث للصنف القالب (اختيارية)
                 // (EN) Parse optional where clause for template class
                 AST::WhereClause classWhereClause;
-                if ((check(TT::KEYWORD_WHERE)) ||
-                    (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xAD\xD9\x8A\xD8\xAB"))
+                if ((check(TT::KEYWORD_WHERE)) || checkContextual(TT::KEYWORD_WHERE))
                 { // حيث
                     advance();
                     classWhereClause = parseWhereClause();
@@ -1813,7 +1811,7 @@ namespace Sad
                     // ─────────────────────────────────────────────────────────────
                     // (AR) [1] التحقق من كلمة 'خاصية' (KEYWORD_PROPERTY)
                     // ─────────────────────────────────────────────────────────────
-                    if (check(TT::KEYWORD_PROPERTY) || (check(TT::IDENTIFIER) && current_.getValue() == "خاصية"))
+                    if (check(TT::KEYWORD_PROPERTY) || checkContextual(TT::KEYWORD_PROPERTY))
                     {
                         advance(); // (AR) استهلاك 'خاصية'
                         // (AR) قراءة المعدلات بعد 'خاصية' (الصفة بعد الموصوف)
@@ -1920,7 +1918,7 @@ namespace Sad
                     // ─────────────────────────────────────────────────────────────
                     // (AR) [4] التحقق من دالة الهدم (KEYWORD_DESTRUCTOR = هدم)
                     // ─────────────────────────────────────────────────────────────
-                    if (check(TT::KEYWORD_DESTRUCTOR) || (check(TT::IDENTIFIER) && current_.getValue() == "هدم"))
+                    if (check(TT::KEYWORD_DESTRUCTOR) || checkContextual(TT::KEYWORD_DESTRUCTOR))
                     {
                         advance(); // (AR) استهلاك كلمة الهدم
                         // (AR) قراءة المعدلات بعد 'هدم' (الصفة بعد الموصوف)
@@ -1931,7 +1929,7 @@ namespace Sad
                     // ─────────────────────────────────────────────────────────────
                     // (AR) [5] التحقق من تحميل العوامل الزائد (KEYWORD_OPERATOR = عامل)
                     // ─────────────────────────────────────────────────────────────
-                    if (check(TT::KEYWORD_OPERATOR) || (check(TT::IDENTIFIER) && current_.getValue() == "عامل"))
+                    if (check(TT::KEYWORD_OPERATOR) || checkContextual(TT::KEYWORD_OPERATOR))
                     {
                         advance(); // (AR) استهلاك 'عامل'
                         // (AR) قراءة المعدلات بعد 'عامل' (الصفة بعد الموصوف)
@@ -2128,7 +2126,7 @@ namespace Sad
                 // (AR) صيغة بدون أقواس: فضاء اسم ... نهاية
                 // (EN) No-brace syntax
                 while (!check(TT::KEYWORD_END_NAMESPACE) && !check(TT::KEYWORD_END) &&
-                       !(check(TT::IDENTIFIER) && current_.getValue() == "نهاية_فضاء") &&
+                       !checkContextual(TT::KEYWORD_END_NAMESPACE) &&
                        !isAtEnd())
                 {
                     auto decl = parseDeclaration();
@@ -2138,7 +2136,7 @@ namespace Sad
                     }
                 }
                 if (!match(TT::KEYWORD_END_NAMESPACE) && !match(TT::KEYWORD_END) &&
-                    !(check(TT::IDENTIFIER) && current_.getValue() == "نهاية_فضاء" && (advance(), true)))
+                    !matchContextual(TT::KEYWORD_END_NAMESPACE))
                 {
                     errorBilingual(
                         "خطأ نحوي: توقعت 'نهاية' لإنهاء فضاء الأسماء",

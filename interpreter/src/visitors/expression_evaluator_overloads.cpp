@@ -18,7 +18,8 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"   // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
@@ -58,11 +59,12 @@ namespace Sad
             // (AR) التحقق من عدد المعاملات / (EN) Verify parameter count
             if (overload.parameters.size() != 1)
             {
-                throw RuntimeError(
-                    "(AR) العامل '" + overload.operatorSymbol + "' يجب أن يقبل معاملاً واحداً بالضبط. "
-                                                                "(EN) Operator '" +
-                        overload.operatorSymbol + "' must accept exactly one parameter.",
-                    pos);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                    pos,
+                    {{"function", "operator " + overload.operatorSymbol},
+                     {"expected", "1"},
+                     {"actual", std::to_string(overload.parameters.size())}});
             }
 
             // (AR) إنشاء نطاق جديد لتنفيذ العامل / (EN) Create new scope for operator execution
@@ -218,10 +220,12 @@ namespace Sad
             // (EN) Verify parameter count: must be 2 (index + value)
             if (overload.parameters.size() != 2)
             {
-                throw RuntimeError(
-                    "(AR) العامل '[]=' يجب أن يقبل معاملين (فهرس، قيمة). "
-                    "(EN) Operator '[]=' must accept two parameters (index, value).",
-                    pos);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                    pos,
+                    {{"function", "operator []="},
+                     {"expected", "2"},
+                     {"actual", std::to_string(overload.parameters.size())}});
             }
 
             variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator[]=");
@@ -563,4 +567,3 @@ namespace Sad
 
     } // namespace Interpreter
 } // namespace Sad
-

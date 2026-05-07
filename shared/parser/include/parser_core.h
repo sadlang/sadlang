@@ -46,6 +46,7 @@
 
 #include "lexer_core.h"
 #include "token.h"
+#include "lexer_keywords.h"
 #include "ast_node.h"
 #include "expressions.h"
 #include "statements.h"
@@ -1254,6 +1255,44 @@ namespace Sad
              *        (EN) Consumes all consecutive semicolons (optional).
              */
             void skipSemicolons();
+
+            // =========================================================================
+            // (AR) دوال الكلمات السياقية (v4.1) — تستهلك المعجم المولَّد من YAML
+            //      بدلاً من مقارنة سلاسل عربية مكتوبة يدوياً.
+            // (EN) Contextual keyword helpers (v4.1) — consume the YAML-generated
+            //      lexicon instead of hand-written Arabic string comparisons.
+            // =========================================================================
+
+            /**
+             * @brief (AR) يتحقق إذا كان الرمز الحالي كلمة سياقية مطابقة للنوع المحدد.
+             *             يقبل: (1) إصدار Lexer كرمز خاص (للكلمات المحجوزة)، أو
+             *             (2) IDENTIFIER نصه يساوي الكلمة الرئيسية أو أي اسم بديل
+             *             لتلك الكلمة في keywords.yaml.
+             * @brief (EN) Checks if the current token is a contextual keyword matching
+             *             the given TokenType. Accepts either: (1) the Lexer emitting
+             *             it as a special token (for reserved words), or (2) an
+             *             IDENTIFIER whose text equals the primary or any alias for
+             *             that word from keywords.yaml.
+             *
+             * @param type (AR) نوع الرمز المعجمي للكلمة (مثل KEYWORD_LAMBDA).
+             *             (EN) The lexicon TokenType for the word (e.g. KEYWORD_LAMBDA).
+             * @return (AR) صحيح إذا تطابق دون التقدم.
+             *         (EN) True on match, without advancing.
+             */
+            bool checkContextual(Lexer::TokenType type) const;
+
+            /**
+             * @brief (AR) يتحقق ويتقدم إذا كان الرمز الحالي كلمة سياقية للنوع المحدد.
+             * @brief (EN) Checks and advances if current token is a contextual keyword
+             *             of the given type. Equivalent to checkContextual + advance.
+             */
+            bool matchContextual(Lexer::TokenType type);
+
+            /**
+             * @brief (AR) يستهلك كلمة سياقية أو يرفع خطأ.
+             * @brief (EN) Consumes a contextual keyword or raises an error.
+             */
+            Lexer::Token consumeContextual(Lexer::TokenType type, const std::string &message);
 
             /**
              * @brief (AR) يستهلك رمزاً من النوع المحدد أو يرفع خطأ.

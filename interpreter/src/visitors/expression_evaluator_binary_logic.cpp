@@ -18,7 +18,8 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"   // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
@@ -406,11 +407,10 @@ namespace Sad
                 // (EN) Protect against dangerous shift values (UB in C++)
                 if (r < 0 || r >= 32)
                 {
-                    throw RuntimeError(
-                        "(AR) خطأ: إزاحة بقيمة " + std::to_string(r) + " غير صالحة. يجب أن تكون بين 0 و 31.\n"
-                                                                       "(EN) Error: Shift amount " +
-                            std::to_string(r) + " is invalid. Must be between 0 and 31.",
-                        pos);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_OFFSET_OUT_OF_RANGE,
+                        pos,
+                        {{"offset", std::to_string(r)}});
                 }
                 return Value(l << r);
             }
@@ -418,11 +418,10 @@ namespace Sad
             {
                 if (r < 0 || r >= 32)
                 {
-                    throw RuntimeError(
-                        "(AR) خطأ: إزاحة بقيمة " + std::to_string(r) + " غير صالحة. يجب أن تكون بين 0 و 31.\n"
-                                                                       "(EN) Error: Shift amount " +
-                            std::to_string(r) + " is invalid. Must be between 0 and 31.",
-                        pos);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_OFFSET_OUT_OF_RANGE,
+                        pos,
+                        {{"offset", std::to_string(r)}});
                 }
                 return Value(l >> r);
             }
@@ -440,8 +439,5 @@ namespace Sad
         // (AR) تنفيذ عامل محمل زائداً / (EN) Operator Overload Execution
         // =========================================================================
 
-
-
     } // namespace Interpreter
 } // namespace Sad
-

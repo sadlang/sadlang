@@ -6,13 +6,13 @@
  * (AR) ملف مُستخرج لتقليل حجم statement_executor_functions.cpp وفق CW-05
  */
 
-
 #include "statement_executor.h"
 #include "declarations.h"
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "object_instance.h"
 #include "debug_server.h"
 #include "class_manager.h"
@@ -205,11 +205,10 @@ namespace Sad
             // (EN) Register operator overload — throws error if appears outside class context
             // (AR) ملاحظة: التسجيل الفعلي يتم في visitClassDecl عند تحليل أعضاء الصنف.
             // (EN) Note: Actual registration happens in visitClassDecl when parsing class members.
-            throw RuntimeError(
-                "(AR) لا يمكن تعريف عامل محمّل زائداً خارج صنف: '" + node.operatorSymbol + "' / "
-                                                                                         "(EN) Cannot define operator overload outside a class: '" +
-                    node.operatorSymbol + "'",
-                node.position);
+            ::Sad::Errors::throwRuntime(
+                ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                node.position,
+                {{"operand", "context"}, {"operator", node.operatorSymbol}});
         }
 
         // =========================================================================
@@ -473,14 +472,10 @@ namespace Sad
                     // (EN) Verify: does the class implement the required trait?
                     if (!classManager->classImplementsTrait(argName, constraintName))
                     {
-                        std::string errMsg = "(AR) خطأ في القالب '" + templateName + "': "
-                                                                                     "النوع '" +
-                                             argName + "' لا ينفذ السمة '" + constraintName + "'. "
-                                                                                              "(EN) Template '" +
-                                             templateName + "' error: "
-                                                            "type '" +
-                                             argName + "' does not implement trait '" + constraintName + "'.";
-                        throw RuntimeError(errMsg, pos);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_CONTRACT_WHERE_FAILED,
+                            pos,
+                            {{"function", templateName}, {"constraint", constraintName + " on " + argName}});
                     }
                 }
             }
@@ -511,21 +506,15 @@ namespace Sad
 
                         if (!classManager->classImplementsTrait(actualType, constraintName))
                         {
-                            std::string errMsg = "(AR) خطأ في القالب '" + templateName + "' (جملة حيث): "
-                                                                                         "النوع '" +
-                                                 actualType + "' لا ينفذ السمة '" + constraintName + "'. "
-                                                                                                     "(EN) Template '" +
-                                                 templateName + "' (where clause) error: "
-                                                                "type '" +
-                                                 actualType + "' does not implement trait '" + constraintName + "'.";
-                            throw RuntimeError(errMsg, pos);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_CONTRACT_WHERE_FAILED,
+                                pos,
+                                {{"function", templateName + " (where)"}, {"constraint", constraintName + " on " + actualType}});
                         }
                     }
                 }
             }
         }
 
-
     } // namespace Interpreter
 } // namespace Sad
-

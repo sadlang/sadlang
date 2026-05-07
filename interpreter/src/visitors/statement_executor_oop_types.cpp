@@ -11,7 +11,8 @@
 #include "property_nodes.h"
 #include "declarations.h" // For OperatorDecl
 #include "class_nodes.h"  // For ClassDeclStmt
-#include "exception.h"    // For RuntimeError
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
 
@@ -194,11 +195,10 @@ namespace Sad
             ClassType *targetClass = classManager->getClass(node.targetType);
             if (!targetClass)
             {
-                throw RuntimeError(
-                    "(AR) الصنف '" + node.targetType + "' غير معرّف. "
-                                                       "(EN) Class '" +
-                        node.targetType + "' is not defined.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                    node.position,
+                    {{"class", node.targetType}});
             }
 
             // (AR) إضافة الدوال من كتلة التنفيذ إلى الصنف
@@ -239,11 +239,10 @@ namespace Sad
             {
                 if (!classManager->hasTrait(node.traitName))
                 {
-                    throw RuntimeError(
-                        "(AR) الواجهة '" + node.traitName + "' غير معرّفة. "
-                                                            "(EN) Trait '" +
-                            node.traitName + "' is not defined.",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                        node.position,
+                        {{"class", "trait " + node.traitName}});
                 }
 
                 // (AR) إضافة الدوال الافتراضية المفقودة من السمة
@@ -286,11 +285,10 @@ namespace Sad
 
                 if (!classManager->validateTraitImpl(node.targetType, node.traitName))
                 {
-                    throw RuntimeError(
-                        "(AR) الصنف '" + node.targetType + "' لا ينفذ جميع دوال الواجهة '" + node.traitName + "'. "
-                                                                                                              "(EN) Class '" +
-                            node.targetType + "' does not implement all methods of trait '" + node.traitName + "'.",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                        node.position,
+                        {{"class", node.targetType}, {"method", "trait " + node.traitName + " methods"}});
                 }
 
                 classManager->registerTraitImpl(node.targetType, node.traitName);
@@ -319,13 +317,10 @@ namespace Sad
             ClassType *targetClass = classManager->getClass(node.targetType);
             if (!targetClass)
             {
-                throw RuntimeError(
-                    "(AR) النوع '" + node.targetType + "' غير معرّف — لا يمكن إضافة امتداد لنوع غير موجود.\n"
-                                                       "تأكد من تعريف الصنف قبل كتلة الامتداد.\n"
-                                                       "(EN) Type '" +
-                        node.targetType + "' is not defined — cannot extend undefined type.\n"
-                                          "Make sure the class is defined before the extension block.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                    node.position,
+                    {{"class", node.targetType}});
             }
 
             // (AR) إضافة الدوال من كتلة الامتداد إلى الصنف
@@ -339,13 +334,10 @@ namespace Sad
                     // (EN) Verify no method with same name exists — extensions cannot override
                     if (targetClass->findMethod(funcDecl->name))
                     {
-                        throw RuntimeError(
-                            "(AR) الدالة '" + funcDecl->name + "' موجودة بالفعل في الصنف '" + node.targetType + "'.\n"
-                                                                                                                "طرق الامتداد لا يمكنها تجاوز دوال موجودة.\n"
-                                                                                                                "(EN) Method '" +
-                                funcDecl->name + "' already exists in class '" + node.targetType + "'.\n"
-                                                                                                   "Extension methods cannot override existing methods.",
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                            node.position,
+                            {{"class", node.targetType}, {"method", funcDecl->name + " (already exists, cannot override via extension)"}});
                     }
 
                     // (AR) تحويل الجسم إلى BlockStmt
@@ -557,4 +549,3 @@ namespace Sad
 
     } // namespace Interpreter
 } // namespace Sad
-

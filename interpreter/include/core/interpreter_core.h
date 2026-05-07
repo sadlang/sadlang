@@ -108,6 +108,13 @@ namespace Sad
             Data::Value result;       ///< (AR) النتيجة / (EN) Result value
             std::string errorMessage; ///< (AR) رسالة الخطأ / (EN) Error message
 
+            // (AR) Phase E-3 / Phase 4 — معلومات الخطأ المنظمة لتمريرها لـ ErrorCatalog
+            // (EN) Phase E-3 / Phase 4 — structured error info to route via ErrorCatalog
+            int errorCode = 0;      ///< (AR) رمز الخطأ (Sad::Errors::ErrorCode) — 0 = غير محدد
+            size_t errorLine = 0;   ///< (AR) سطر الخطأ (1-based)
+            size_t errorColumn = 0; ///< (AR) عمود الخطأ (1-based)
+            std::string errorKind;  ///< (AR) اسم الاستثناء (DivisionByZeroError ...)
+
             ExecutionResult() = default;
 
             explicit ExecutionResult(bool s, const Data::Value &r = Data::Value(), const std::string &err = "")

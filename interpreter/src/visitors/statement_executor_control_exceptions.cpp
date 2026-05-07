@@ -11,7 +11,8 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "object_instance.h"
 #include "debug_server.h"
 #include "class_manager.h"
@@ -88,7 +89,7 @@ namespace Sad
                 // (AR) تنفيذ كتلة المحاولة / (EN) Execute try block
                 node.tryBlock->accept(*this);
             }
-            catch (const SadException &e)
+            catch (const UserThrownException &e)
             {
                 // (AR) البحث عن بند التقاط مناسب مع مطابقة نوع الاستثناء
                 // (EN) Find matching catch clause with exception type matching
@@ -346,14 +347,14 @@ namespace Sad
                 }
                 // (AR) نُنشئ استثناء يحمل الكائن الأصلي — حتى يمكن ربطه في catch كـ كائن
                 // (EN) Create exception carrying the original object — so catch can bind it as object
-                SadException exc(message, typeName, node.position);
+                UserThrownException exc(message, typeName, node.position);
                 exc.setThrownValue(exceptionValue);
                 throw exc;
             }
 
             // (AR) رفع الاستثناء كخطأ تشغيل عادي — مع حمل القيمة الأصلية
             // (EN) Raise as regular runtime error — carrying the original thrown value
-            RuntimeError exc(exceptionValue.toString(), node.position);
+            UserThrownException exc(exceptionValue.toString(), "UserThrown", node.position);
             exc.setThrownValue(exceptionValue);
             throw exc;
         }

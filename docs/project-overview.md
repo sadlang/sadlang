@@ -194,7 +194,6 @@ interpreter/
     │   ├── builtin_registry.cpp
     │   ├── builtin_module_*.cpp    (math, strings, http, sockets, ...)
     │   └── builtin_kernel_*.cpp    (بدائل النواة)
-    ├── oop/interpreter_classes_fixed.cpp
     ├── debug/debug_server.cpp
     ├── error/enhanced_errors.cpp
     ├── ui/                         ← UI bridge + widget builders

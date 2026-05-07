@@ -163,16 +163,16 @@ set(SAD_BUILTINS_SOURCES
     ${SAD_ROOT_DIR}/interpreter/src/builtins/builtin_core_io.cpp
     ${SAD_BUILTIN_MODULES}
     ${SAD_BUILTIN_KERNELS}
-    # (AR) Phase 5 (F-05): builtins.cpp في shared/builtins/runtime/
-    ${SAD_ROOT_DIR}/shared/builtins/runtime/builtins.cpp
+    # (AR) Phase F-XX: builtins.cpp في shared/builtins/src/runtime/
+    ${SAD_ROOT_DIR}/shared/builtins/src/runtime/builtins.cpp
 )
 
 # --- Stdlib (أنواع أساسية + system) ---
 set(SAD_STDLIB_SOURCES
-    ${SAD_ROOT_DIR}/shared/builtins/runtime/stdlib_manager.cpp
-    ${SAD_ROOT_DIR}/shared/builtins/runtime/type_functions.cpp
-    ${SAD_ROOT_DIR}/shared/builtins/runtime/array_functions.cpp
-    ${SAD_ROOT_DIR}/shared/builtins/runtime/other_functions.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/src/runtime/stdlib_manager.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/src/runtime/type_functions.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/src/runtime/array_functions.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/src/runtime/other_functions.cpp
     ${SAD_ROOT_DIR}/stdlib/string/string_functions.cpp
     ${SAD_ROOT_DIR}/stdlib/math/math_functions.cpp
     ${SAD_ROOT_DIR}/stdlib/math/advanced_math.cpp
@@ -199,9 +199,11 @@ set(SAD_MODULES_SOURCES
 )
 
 # --- Compiler Frontend (optimizer only — TypeChecker guarded out on Android) ---
+# (AR) compiler/src/optimizer/ حُذف (كود ميت). إذا احتجت Android لـ passes فاستعمل
+#      sad_optimizer (compiler/src/sir_optimizer/) عبر add_subdirectory بدلاً من سرد الملفات.
+# (EN) compiler/src/optimizer/ deleted (dead code). For passes use sad_optimizer
+#      from compiler/src/sir_optimizer/ via add_subdirectory.
 set(SAD_COMPILER_SOURCES
-    ${SAD_ROOT_DIR}/compiler/src/optimizer/advanced_optimizer.cpp
-    ${SAD_ROOT_DIR}/compiler/src/optimizer/optimization_pass.cpp
 )
 set(SAD_ANDROID_SOURCES
     src/sad_app_main.cpp
@@ -252,7 +254,7 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/interpreter/include/visitors
     ${SAD_ROOT_DIR}/interpreter/include/managers
     ${SAD_ROOT_DIR}/interpreter/include/debug
-    ${SAD_ROOT_DIR}/shared/builtins/runtime
+    ${SAD_ROOT_DIR}/shared/builtins/include/runtime
     ${SAD_ROOT_DIR}/stdlib/string
     ${SAD_ROOT_DIR}/stdlib/math
     ${SAD_ROOT_DIR}/stdlib/io
@@ -267,7 +269,7 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/stdlib/low_level/include
     ${SAD_ROOT_DIR}/compiler/include
     ${SAD_ROOT_DIR}/compiler/include/semantic
-    ${SAD_ROOT_DIR}/compiler/src/optimizer
+    # (AR) compiler/src/optimizer حُذف بعد توحيد passes في middle/
     ${SAD_ROOT_DIR}/sad_ui/core/include
     ${SAD_ROOT_DIR}/sad_ui/pipeline/include
     ${SAD_ROOT_DIR}/sad_ui/widgets/include

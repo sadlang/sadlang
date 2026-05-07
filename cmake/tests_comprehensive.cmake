@@ -64,6 +64,9 @@ endmacro()
 # 1. المحلل المعجمي / Lexer Tests (96 tests)
 add_comprehensive_test(test_lexer_comprehensive test_lexer_comprehensive.cpp)
 
+# 1.b. اختبارات بنية v4.1 — YAML SoT / v4.1 keywords-as-data tests
+add_comprehensive_test(test_keywords_v41_comprehensive test_keywords_v41_comprehensive.cpp)
+
 # 2. المحلل النحوي / Parser Tests (87 tests)
 add_comprehensive_test(test_parser_comprehensive test_parser_comprehensive.cpp)
 
@@ -79,15 +82,15 @@ target_sources(test_interpreter_comprehensive PRIVATE
 # 5. المكتبة القياسية / Standard Library Tests (90 tests)
 add_comprehensive_test(test_stdlib_comprehensive test_stdlib_comprehensive.cpp)
 target_sources(test_stdlib_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/shared/builtins/runtime/array_functions.cpp
-    ${CMAKE_SOURCE_DIR}/shared/builtins/runtime/type_functions.cpp
-    ${CMAKE_SOURCE_DIR}/shared/builtins/runtime/stdlib_manager.cpp
+    ${CMAKE_SOURCE_DIR}/shared/builtins/src/runtime/array_functions.cpp
+    ${CMAKE_SOURCE_DIR}/shared/builtins/src/runtime/type_functions.cpp
+    ${CMAKE_SOURCE_DIR}/shared/builtins/src/runtime/stdlib_manager.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/io/io_functions.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/string/string_functions.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/math/math_functions.cpp
     ${CMAKE_SOURCE_DIR}/interpreter/src/managers/function_manager.cpp)
 target_include_directories(test_stdlib_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/stdlib ${CMAKE_SOURCE_DIR}/shared/builtins/runtime
+    ${CMAKE_SOURCE_DIR}/stdlib ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
     ${CMAKE_SOURCE_DIR}/stdlib/string ${CMAKE_SOURCE_DIR}/stdlib/math)
 
 # 6. الأخطاء الذكية / Smart Errors Tests (38 tests)
@@ -377,6 +380,7 @@ endif()
 add_custom_target(comprehensive_tests
     DEPENDS
         test_lexer_comprehensive
+        test_keywords_v41_comprehensive
         test_parser_comprehensive
         test_value_comprehensive
         test_interpreter_comprehensive

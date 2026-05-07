@@ -67,27 +67,14 @@ message(STATUS "✓ المفسر / Interpreter: sad-run (الهدف: sad)")
 
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة المنسّق / Formatter Library
+# (AR) نُقلت إلى tools/formatter/ كأداة مستقلة (sad_formatter_lib) تعتمد
+#      على tools/shared (sad_tools_shared) الذي يقرأ KeywordTable من
+#      shared/lexer مباشرةً. الاسم البديل sad_formatter يُعرَّف هناك.
+# (EN) Moved to tools/formatter/ as a standalone tool (sad_formatter_lib)
+#      that depends on tools/shared (sad_tools_shared) which reads
+#      KeywordTable from shared/lexer directly. The alias sad_formatter
+#      is defined there.
 # ─────────────────────────────────────────────────────────────────────
-add_library(sad_formatter STATIC
-    compiler/src/format/sad_formatter.cpp
-    compiler/src/format/sad_formatter_rebuild.cpp
-)
-
-target_include_directories(sad_formatter PUBLIC
-    ${CMAKE_SOURCE_DIR}/compiler/include
-    ${CMAKE_SOURCE_DIR}/shared/lexer/include
-    ${CMAKE_SOURCE_DIR}/shared/types/include
-    ${CMAKE_SOURCE_DIR}/shared/errors/include
-    ${CMAKE_SOURCE_DIR}/include
-)
-
-target_compile_features(sad_formatter PUBLIC cxx_std_17)
-
-if(MSVC)
-    target_compile_options(sad_formatter PRIVATE /wd4819 /FS)
-endif()
-
-message(STATUS "✓ منسّق الكود / Formatter: sad_formatter")
 
 # ─────────────────────────────────────────────────────────────────────
 # مكتبة تطبيقات الهاتف / Mobile Applications Library
@@ -103,12 +90,6 @@ set(MOBILE_SOURCES
     tools/compiler/src/build_command.cpp
     shared/parser/src/specs/ui/parser_ui_maps.cpp
 )
-
-# (AR) التحقق من وجود build_system.cpp قبل إضافته
-# (EN) Check if build_system.cpp exists before adding it
-if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/src/build/build_system.cpp")
-    list(APPEND MOBILE_SOURCES "compiler/src/build/build_system.cpp")
-endif()
 
 add_library(sad_mobile STATIC ${MOBILE_SOURCES})
 
@@ -275,4 +256,19 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     message(STATUS "✓ المترجم / Compiler: sad-build (LLVM ${LLVM_PACKAGE_VERSION})")
 else()
     message(STATUS "⊘ المترجم sadc معطّل (LLVM غير متوفر) / sadc disabled")
+endif()
+
+# ======================================================================
+# (AR) هدف اختبار يدوي مؤقت لـ EM.flush()
+# (EN) Temporary smoke executable for EM.flush()
+# ======================================================================
+if(EXISTS ${CMAKE_SOURCE_DIR}/_scratch/flush_smoke.cpp)
+    add_executable(flush_smoke ${CMAKE_SOURCE_DIR}/_scratch/flush_smoke.cpp)
+    target_link_libraries(flush_smoke PRIVATE sad_shared)
+    target_include_directories(flush_smoke PRIVATE
+        ${CMAKE_SOURCE_DIR}/shared/errors/include
+    )
+    if(MSVC)
+        target_compile_options(flush_smoke PRIVATE /utf-8 /wd4819)
+    endif()
 endif()

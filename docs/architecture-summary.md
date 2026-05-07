@@ -193,11 +193,6 @@ flowchart TB
 - **الحل:** إصلاح نظام include أو حذف الملف
 - **المرجع:** [architecture-stdlib-breakdown.md#الاكتشاف-3](architecture-stdlib-breakdown.md)
 
-#### 8. `interpreter_classes_fixed.cpp` اسم مريب
-- **المشكلة:** كلمة "fixed" في الاسم → دلالة على bug سابق
-- **الحل:** إعادة تسمية إلى `interpreter_oop.cpp`
-- **المرجع:** [architecture-interpreter-vm-breakdown.md#الاكتشاف-7](architecture-interpreter-vm-breakdown.md)
-
 #### 9. `shared/profiler/` معزول عن `tools/profiler/`
 - **المشكلة:** Header في shared/ والمكتبة في tools/
 - **الحل:** توحيد في موقع واحد
@@ -236,7 +231,6 @@ flowchart TB
 1. ✅ توثيق كل ما سبق (مكتمل)
 2. 🔧 إصلاح ازدواج `sad_shared`/`sad_core`
 3. 🔧 نقل `class_manager.cpp` إلى shared/
-4. 🔧 إعادة تسمية `interpreter_classes_fixed.cpp`
 
 ### متوسطة المدى
 

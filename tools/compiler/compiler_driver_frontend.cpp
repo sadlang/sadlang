@@ -23,6 +23,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
+#include "error_manager.h"
+#include "explanation_level.h"
 // (AR) محلل أعلام سياسة الذاكرة (--gc/--learn/--prod) لتوحيد سلوك الأخطاء
 // (EN) Memory policy flag parser to unify error behavior with interpreter
 #include "memory/policy/memory_mode_flag.h"
@@ -80,6 +82,23 @@ namespace sad
             if (!validate_options())
             {
                 return 1;
+            }
+
+            // ════════════════════════════════════════════════════════════════════════
+            // (AR) Phase E-3 — تطبيق إعدادات شرح الخطأ ولغة الإخراج على ErrorManager
+            // (EN) Phase E-3 — apply explanation level + output language to EM
+            // ════════════════════════════════════════════════════════════════════════
+            {
+                auto &em = Sad::Errors::ErrorManager::getInstance();
+                em.initializeDefaults();
+                if (!options_.explain_level.empty())
+                {
+                    em.setExplanationLevel(Sad::Errors::parseExplanationLevel(options_.explain_level));
+                }
+                if (!options_.output_language.empty())
+                {
+                    em.setLanguage(Sad::Errors::parseLanguage(options_.output_language));
+                }
             }
 
             // ════════════════════════════════════════════════════════════════════════

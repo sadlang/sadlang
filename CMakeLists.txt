@@ -115,9 +115,9 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/stdlib/network
     ${CMAKE_SOURCE_DIR}/stdlib
     ${CMAKE_SOURCE_DIR}/stdlib/network
-    # (AR) Phase 5 (F-05): runtime الأساسي نُقل إلى shared/builtins/runtime/
-    # (EN) Phase 5 (F-05): core runtime moved to shared/builtins/runtime/
-    ${CMAKE_SOURCE_DIR}/shared/builtins/runtime
+    # (AR) Phase F-XX: أعيدت هيكلة shared/builtins/ إلى include/runtime + src/runtime
+    # (EN) Phase F-XX: shared/builtins/ restructured to include/runtime + src/runtime
+    ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
     ${CMAKE_SOURCE_DIR}/stdlib/low_level/include
     ${CMAKE_SOURCE_DIR}/stdlib/mobile
     ${CMAKE_SOURCE_DIR}/compiler/frontend/include
@@ -145,12 +145,18 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/compiler/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler/include/backend
     ${CMAKE_SOURCE_DIR}/compiler/include/types
-    ${CMAKE_SOURCE_DIR}/compiler/include/optimizer
+    # (AR) مسار include/optimizer أُزيل — المجلد محذوف بعد توحيد passes في middle/
+    # (EN) include/optimizer path removed — folder deleted after unifying passes in middle/
     # (AR) مسارات include لوضع Freestanding
     # (EN) Include paths for Freestanding mode
     ${CMAKE_SOURCE_DIR}/compiler/include/pipeline
     ${CMAKE_SOURCE_DIR}/runtime/freestanding
 )
+
+# 3.9. توليد كود المعجم من YAML / Keyword codegen from YAML (v4.1)
+# (AR) يجب أن يسبق sources.cmake لأنه ينتج keywords_generated.{h,cpp}
+# (EN) Must run before sources.cmake — it produces keywords_generated.{h,cpp}
+include(${CMAKE_SOURCE_DIR}/cmake/codegen.cmake)
 
 # 4. تعريفات ملفات المصدر / Source File Definitions
 include(${CMAKE_SOURCE_DIR}/cmake/sources.cmake)
@@ -189,6 +195,13 @@ endif()
 
 # 13. قواعد التثبيت و CPack / Install Rules & CPack
 include(${CMAKE_SOURCE_DIR}/cmake/install.cmake)
+
+# 14. حارس الملفات اليتيمة / Orphan Sources Guard
+#     (AR) يفشل البناء إذا وُجد .cpp في compiler/src أو interpreter/src أو vm/src
+#          غير مذكور في أي target. يمنع تراكم الكود الميت.
+#     (EN) Fails build on orphan .cpp files. Prevents dead code accumulation.
+include(${CMAKE_SOURCE_DIR}/cmake/orphan_sources_guard.cmake)
+sad_check_orphan_sources()
 
 # ══════════════════════════════════════════════════════════════════════
 # الأمثلة / Examples

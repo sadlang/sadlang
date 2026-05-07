@@ -1,0 +1,27 @@
+# ============================================================================
+# (AR) سمات Git لمشروع لغة ص
+# (EN) Git attributes for Sad Language project
+# ============================================================================
+
+# ─── (AR) كود مولَّد تلقائياً — يُلتزم في git لكن:
+#         - لا يُحسب كـ "كود يدوي" في إحصائيات GitHub Linguist
+#         - عند merge conflict، يُؤخذ نسخة الفرع الحالي تلقائياً
+#           (سيُعاد توليده من YAML على أي حال)
+# ─── (EN) Auto-generated code — committed but:
+#         - excluded from GitHub Linguist stats
+#         - merges resolved with "ours" (will be regenerated from YAML)
+shared/lexer/generated/keywords_generated.h    linguist-generated=true merge=ours
+shared/lexer/generated/keywords_generated.cpp  linguist-generated=true merge=ours
+
+# ─── (AR) ضمان أسطر LF لملفات المصدر ───
+*.cpp text eol=lf
+*.h   text eol=lf
+*.py  text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md  text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+
+# ─── (AR) ملفات نص ص بترميز UTF-8 ───
+*.ص   text working-tree-encoding=UTF-8 eol=lf

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expression_evaluator_calls_dispatch.cpp
  * @brief (AR) توزيع استدعاءات الدوال: بحث طريقة الصنف، باني الأب، بحث الدوال والتنفيذ
  * @brief (EN) Function call dispatch: class method lookup, super constructor, function resolution and execution
@@ -25,7 +25,8 @@
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "suggestions.h"
 #include "profiler_hooks.h"
 #include <iostream>
@@ -143,10 +144,12 @@ namespace Sad
             // (EN) Found method in current class - execute with priority
             if (arguments.size() != method->parameters.size())
             {
-                std::string errMsg = "(AR) عدد معاملات الطريقة '" + funcName + "' غير متطابق. ";
-                errMsg += "توقع " + std::to_string(method->parameters.size()) + " لكن حصل على " + std::to_string(arguments.size()) + ". ";
-                errMsg += "(EN) Argument count mismatch for method '" + funcName + "'.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                    node.position,
+                    {{"function", funcName},
+                     {"expected", std::to_string(method->parameters.size())},
+                     {"actual", std::to_string(arguments.size())}});
             }
 
             // (AR) ندفع نطاق فقط للمعاملات - الحقول موروثة من النطاق الأب
@@ -282,7 +285,7 @@ namespace Sad
                             }
                             catch (...)
                             {
-                                throw Interpreter::SadException(
+                                throw Interpreter::UserThrownException(
                                     "(AR) خطأ غير معروف في باني الصنف الأساسي '" + baseClassName + "'. "
                                                                                                    "(EN) Unknown error in base class constructor '" +
                                         baseClassName + "'.",

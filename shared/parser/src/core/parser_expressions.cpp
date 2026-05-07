@@ -1141,9 +1141,9 @@ namespace Sad
                 }
 
                 // (AR) تخطي 'ثم' الاختياري
-                if (check(TT::IDENTIFIER) && current_.getValue() == "ثم")
+                if (matchContextual(TT::KEYWORD_THEN))
                 {
-                    advance(); // consume optional 'ثم'
+                    // consumed optional 'ثم'
                 }
 
                 // (AR) القيمة الصحيحة
@@ -1167,8 +1167,7 @@ namespace Sad
 
             // Await expression: await expr (contextual keyword)
             // (AR) تعبير الانتظار (كلمة سياقية — لم تعد محجوزة)
-            if (match(TT::KEYWORD_AWAIT) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "انتظر" && (advance(), true)))
+            if (match(TT::KEYWORD_AWAIT) || matchContextual(TT::KEYWORD_AWAIT))
             {
                 Token awaitToken = previous();
                 auto expr = parseTernary(); // (AR) تحليل تعبير ذو أولوية أعلى / (EN) Parse higher precedence expression
@@ -1190,7 +1189,7 @@ namespace Sad
             //      If result is error/none → early return from current function
             //      If result is success/some → unwrap payload as expression value
             // ═══════════════════════════════════════════════════════════════════
-            if (check(TT::IDENTIFIER) && current_.getValue() == "انشر")
+            if (checkContextual(TT::KEYWORD_PROPAGATE))
             {
                 Token propagateToken = current_;
                 advance();                  // (AR) استهلاك 'انشر' / (EN) consume 'انشر'
@@ -1251,8 +1250,7 @@ namespace Sad
 
             // Lambda expression (contextual keyword)
             // (AR) تعبير لامدا (كلمة سياقية — لم تعد محجوزة)
-            if (match(TT::KEYWORD_LAMBDA) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "لامدا" && (advance(), true)))
+            if (match(TT::KEYWORD_LAMBDA) || matchContextual(TT::KEYWORD_LAMBDA))
             {
                 return parseLambda();
             }
@@ -1372,7 +1370,7 @@ namespace Sad
             //      'اعرض' is contextual — treated as UI expr only if followed
             //      by a known widget name. Otherwise treated as regular identifier.
             // ═══════════════════════════════════════════════════════════════════
-            if (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xA7\xD8\xB9\xD8\xB1\xD8\xB6" && // اعرض
+            if (checkContextual(TT::KEYWORD_SHOW) &&
                 peekNext().getType() == TT::IDENTIFIER && isKnownWidget(peekNext().getValue()))
             {
                 advance(); // (AR) استهلاك 'اعرض' / (EN) consume 'اعرض'

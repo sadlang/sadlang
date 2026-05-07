@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expression_evaluator_calls_macro.cpp
  * @brief (AR) معالجة استدعاءات الماكروز — مُستخرج من visitCallExpr
  * @brief (EN) Macro call handling — extracted from visitCallExpr
@@ -17,7 +17,9 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include <vector>
 #include <string>
 
@@ -43,21 +45,19 @@ namespace Sad
             auto *calleeVar = dynamic_cast<VariableExpr *>(node.callee.get());
             if (!calleeVar)
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) خطأ: استدعاء ماكرو يجب أن يكون بالاسم. (EN) Macro call must use a name.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_NOT_CALLABLE,
+                    node.position,
+                    {{"type", "macro_callee"}});
             }
 
             auto *macroDef = statementExecutor_.findMacro(calleeVar->name);
             if (!macroDef)
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) الماكرو '" + calleeVar->name + "' غير معرّف.\n"
-                                                         "تأكد من تعريف الماكرو قبل استدعائه.\n"
-                                                         "(EN) Macro '" +
-                        calleeVar->name + "' is not defined.\n"
-                                          "Make sure the macro is defined before calling it.",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                    node.position,
+                    {{"function", calleeVar->name}});
             }
 
             // (AR) التحقق من عدد المعاملات مع دعم المعاملات المتغيرة
@@ -70,30 +70,23 @@ namespace Sad
             {
                 if (node.arguments.size() < requiredParams)
                 {
-                    throw Interpreter::RuntimeError(
-                        "(AR) الماكرو '" + calleeVar->name + "' يتوقع على الأقل " +
-                            std::to_string(requiredParams) + " معاملات لكن حصل على " +
-                            std::to_string(node.arguments.size()) + ".\n"
-                                                                    "(EN) Macro '" +
-                            calleeVar->name + "' expects at least " +
-                            std::to_string(requiredParams) + " arguments but got " +
-                            std::to_string(node.arguments.size()) + ".",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"param", "variadic_min:" + std::to_string(requiredParams)},
+                         {"function", calleeVar->name}});
                 }
             }
             else
             {
                 if (node.arguments.size() != macroDef->params.size())
                 {
-                    throw Interpreter::RuntimeError(
-                        "(AR) الماكرو '" + calleeVar->name + "' يتوقع " +
-                            std::to_string(macroDef->params.size()) + " معاملات لكن حصل على " +
-                            std::to_string(node.arguments.size()) + ".\n"
-                                                                    "(EN) Macro '" +
-                            calleeVar->name + "' expects " +
-                            std::to_string(macroDef->params.size()) + " arguments but got " +
-                            std::to_string(node.arguments.size()) + ".",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                        node.position,
+                        {{"function", calleeVar->name},
+                         {"expected", std::to_string(macroDef->params.size())},
+                         {"actual", std::to_string(node.arguments.size())}});
                 }
             }
 

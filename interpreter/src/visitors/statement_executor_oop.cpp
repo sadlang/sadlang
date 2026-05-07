@@ -17,7 +17,8 @@
 #include "property_nodes.h"
 #include "declarations.h" // For OperatorDecl
 #include "class_nodes.h"  // For ClassDeclStmt
-#include "exception.h"    // For RuntimeError
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
 
@@ -95,10 +96,10 @@ namespace Sad
                     ClassType *baseClass = classManager->getClass(baseName);
                     if (!baseClass)
                     {
-                        throw RuntimeError(
-                            "(AR) الصنف الأساسي '" + baseName + "' غير موجود. " +
-                                "(EN) Base class '" + baseName + "' not found.",
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BASE_CLASS_NOT_FOUND,
+                            node.position,
+                            {{"base", baseName}, {"class", node.name}});
                     }
                     baseClasses.push_back(baseClass);
 #ifdef DEBUG_OOP
@@ -122,12 +123,10 @@ namespace Sad
                     {
                         if (!base->isContract)
                         {
-                            throw RuntimeError(
-                                "(AR) العقد الذكي '" + node.name + "' لا يمكنه الوراثة من الصنف العادي '" +
-                                    base->name + "'. العقود ترث فقط من عقود أخرى. " +
-                                    "(EN) Smart contract '" + node.name + "' cannot inherit from regular class '" +
-                                    base->name + "'. Contracts can only inherit from other contracts.",
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_INHERITANCE_CYCLE,
+                                node.position,
+                                {{"class", node.name}, {"base", base->name}});
                         }
                     }
                 }
@@ -146,12 +145,10 @@ namespace Sad
                         // (EN) Compare current file path (from interpreter) with sealed class source file
                         if (currentFilePath_ != base->sourceFile)
                         {
-                            throw RuntimeError(
-                                "(AR) لا يمكن وراثة الصنف المحكم '" + base->name +
-                                    "' من خارج ملفه المصدري. الأصناف المحكمة لا تسمح بالوراثة إلا في نفس الملف. " +
-                                    "(EN) Cannot inherit from sealed class '" + base->name +
-                                    "' outside its source file. Sealed classes only allow inheritance in the same file.",
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                                node.position,
+                                {{"resource", "sealed class " + base->name}});
                         }
                     }
                 }
@@ -636,10 +633,10 @@ namespace Sad
                     ClassType *baseClass = classManager->getClass(baseName);
                     if (!baseClass)
                     {
-                        throw RuntimeError(
-                            "(AR) الصنف الأساسي '" + baseName + "' غير موجود. " +
-                                "(EN) Base class '" + baseName + "' not found.",
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_BASE_CLASS_NOT_FOUND,
+                            node.position,
+                            {{"base", baseName}, {"class", node.name}});
                     }
                     baseClasses.push_back(baseClass);
                 }
@@ -856,7 +853,5 @@ namespace Sad
         // (EN) Instantiate a concrete version of a template class
         // ======================================================================
 
-
     } // namespace Interpreter
 } // namespace Sad
-

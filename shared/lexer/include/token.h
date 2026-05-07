@@ -268,6 +268,12 @@ namespace Sad
             KEYWORD_CONST_PTR, ///< *ثابت / const_ptr (مؤشر ثابت - const pointer)
             KEYWORD_MUT_PTR,   ///< *متغير / mut_ptr (مؤشر متغير - mutable pointer)
             KEYWORD_COMPTIME,  ///< وقت_ترجمة / comptime (تقييم وقت الترجمة - compile-time evaluation)
+            // ========== [سياقية v4.1] / [CONTEXTUAL v4.1] ==========
+            KEYWORD_SHOW,            ///< 🔄 اعرض / show — سياقية (عرض ودجة UI - show widget)
+            KEYWORD_GIVE_DEPRECATED, ///< 🔄 اعطِ / give (deprecated) — سياقية (مهجور - use 'أنتج' instead)
+            KEYWORD_THEN,            ///< 🔄 ثم / then — سياقية (في تعبير إذا الثلاثي)
+            KEYWORD_PROPAGATE,       ///< 🔄 انشر / propagate — سياقية (نشر الخطأ مبكراً)
+            KEYWORD_TO,              ///< 🔄 الى/إلى / to — سياقية (في حلقة من..الى)
             TYPE_I64,          ///< ص64 / i64 (عدد صحيح 64-بت بإشارة / signed 64-bit)
             TYPE_USIZE,        ///< ط_حجم / usize (حجم عنوان الذاكرة / memory address size)
             TYPE_ISIZE,        ///< ص_حجم / isize (حجم عنوان بإشارة / signed address size)

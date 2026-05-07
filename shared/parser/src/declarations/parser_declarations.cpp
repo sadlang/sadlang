@@ -76,9 +76,7 @@ namespace Sad
             // ─────────────────────────────────────────────────────────────────────
             // (AR) كلمة سياقية: تحقق مزدوج — KEYWORD_ASYNC أو مُعرّف
             // (EN) Contextual keyword: dual check
-            if (check(TT::KEYWORD_ASYNC) ||
-                (check(TT::IDENTIFIER) && (current_.getValue() == "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xAA\xD8\xB2\xD8\xA7\xD9\x85\xD9\x86" ||
-                                           current_.getValue() == "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xAA\xD8\xB2\xD8\xA7\xD9\x85\xD9\x86\xD8\xA9")))
+            if (check(TT::KEYWORD_ASYNC) || checkContextual(TT::KEYWORD_ASYNC))
             {
                 is_async = true;
                 advance(); // consume 'غير_متزامنة' / 'غير_متزامن'
@@ -98,8 +96,7 @@ namespace Sad
 
             // (AR) التحقق إذا كانت الدالة الرئيسية (كلمة سياقية — لم تعد محجوزة)
             // (EN) Check if this is the main function (contextual — no longer reserved)
-            if (check(TT::KEYWORD_MAIN) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "رئيسية"))
+            if (check(TT::KEYWORD_MAIN) || checkContextual(TT::KEYWORD_MAIN))
             {
                 // (AR) هذه هي الدالة الرئيسية - استخدام رمز KEYWORD_MAIN
                 // (EN) This is the main function - consume KEYWORD_MAIN token
@@ -303,9 +300,9 @@ namespace Sad
             while (true)
             {
                 bool isRequires = check(TT::KEYWORD_REQUIRES) ||
-                                  (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x8A\xD8\xAA\xD8\xB7\xD9\x84\xD8\xA8"); // يتطلب
+                                  checkContextual(TT::KEYWORD_REQUIRES); // يتطلب
                 bool isEnsures = !isRequires && (check(TT::KEYWORD_ENSURES) ||
-                                                 (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x8A\xD8\xB6\xD9\x85\xD9\x86")); // يضمن
+                                                 checkContextual(TT::KEYWORD_ENSURES)); // يضمن
                 if (!isRequires && !isEnsures)
                     break;
                 advance(); // (AR) استهلاك يتطلب/يضمن
@@ -331,7 +328,7 @@ namespace Sad
             // ─────────────────────────────────────────────────────────────────────
             std::vector<WhereConstraint> whereConstraints;
             if (check(TT::KEYWORD_WHERE) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xAD\xD9\x8A\xD8\xAB"))
+                checkContextual(TT::KEYWORD_WHERE))
             {              // حيث
                 advance(); // (AR) استهلاك حيث
                 while (true)
@@ -619,7 +616,7 @@ namespace Sad
             // (AR) نستهلك أسماء السمات لكن لا نضيفها للأصناف الأساسية — السمات تُتحقق لاحقاً
             // (EN) Consume trait names but don't add to base classes — traits are checked separately
             if ((check(TT::KEYWORD_IMPL) ||
-                 (check(TT::IDENTIFIER) && (current_.getValue() == "نفّذ" || current_.getValue() == "نفذ"))))
+                 checkContextual(TT::KEYWORD_IMPL)))
             {
                 advance(); // consume نفّذ/نفذ
                 do
@@ -746,7 +743,7 @@ namespace Sad
                 // (AR) [1] خاصية: خاصية [عام|خاص|محمي] [ساكن] [نوع] اسم
                 // (EN) [1] Property: property [public|private|protected] [static] [type] name
                 // ─────────────────────────────────────────────────────────────
-                if (check(TT::KEYWORD_PROPERTY) || (check(TT::IDENTIFIER) && current_.getValue() == "خاصية"))
+                if (check(TT::KEYWORD_PROPERTY) || checkContextual(TT::KEYWORD_PROPERTY))
                 {
                     advance(); // consume 'خاصية'
 
@@ -784,8 +781,7 @@ namespace Sad
                 // (EN) 'async function' removed in class body — use 'function async'
                 // ─────────────────────────────────────────────────────────────
                 if (check(TT::KEYWORD_ASYNC) ||
-                    (check(TT::IDENTIFIER) && (current_.getValue() == "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xAA\xD8\xB2\xD8\xA7\xD9\x85\xD9\x86" ||
-                                               current_.getValue() == "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xAA\xD8\xB2\xD8\xA7\xD9\x85\xD9\x86\xD8\xA9")))
+                    (check(TT::IDENTIFIER) && checkContextual(TT::KEYWORD_ASYNC)))
                 {
                     errorBilingual(
                         "خطأ نحوي: 'غير_متزامن دالة' أُزيلت. استخدم 'دالة غير_متزامن' بدلاً منها.\n"
@@ -854,7 +850,7 @@ namespace Sad
                 // (AR) [4] هدم: هدم [عام|خاص|محمي] ()
                 // (EN) [4] Destructor: destructor [public|private|protected] ()
                 // ─────────────────────────────────────────────────────────────
-                if (check(TT::KEYWORD_DESTRUCTOR) || (check(TT::IDENTIFIER) && current_.getValue() == "هدم"))
+                if (check(TT::KEYWORD_DESTRUCTOR) || checkContextual(TT::KEYWORD_DESTRUCTOR))
                 {
                     advance(); // (AR) استهلاك كلمة الهدم / (EN) consume destructor keyword
                     // (AR) قراءة المعدلات بعد 'هدم'
@@ -871,7 +867,7 @@ namespace Sad
                 // (AR) [5] عامل: عامل [عام|خاص|محمي] + (...)
                 // (EN) [5] Operator: operator [public|private|protected] + (...)
                 // ─────────────────────────────────────────────────────────────
-                if (check(TT::KEYWORD_OPERATOR) || (check(TT::IDENTIFIER) && current_.getValue() == "عامل"))
+                if (check(TT::KEYWORD_OPERATOR) || checkContextual(TT::KEYWORD_OPERATOR))
                 {
                     advance(); // consume 'عامل'
                     // (AR) قراءة المعدلات بعد 'عامل'

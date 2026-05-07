@@ -97,6 +97,11 @@ namespace sad
             os << "  --docs-exclude=<sub>   " << "Exclude files containing substring (repeatable) / استبعاد ملفات\n";
             os << "\n";
 
+            os << "Error explanation / شرح الأخطاء (Phase E-3):\n";
+            os << "  --explain[=<level>]    " << "brief|normal|detailed|teacher (default: detailed)\n";
+            os << "  --lang=<lang>          " << "ar|en|both — message language / لغة الرسائل\n";
+            os << "\n";
+
             os << "Target / الهدف:\n";
             os << "  --target=<triple>      " << "Target platform / المنصة المستهدفة\n";
             os << "  --freestanding         " << "Freestanding (no OS) / مستقل بلا نظام تشغيل\n";
@@ -358,6 +363,20 @@ namespace sad
             else if (arg.size() >= 15 && arg.substr(0, 15) == "--docs-exclude=")
             {
                 options.docs_excludes.push_back(arg.substr(15));
+            }
+            // (AR) Phase E-3: --explain[=<level>] و --lang=<lang>
+            // (EN) Phase E-3: --explain[=<level>] and --lang=<lang>
+            else if (arg.size() >= 10 && arg.substr(0, 10) == "--explain=")
+            {
+                options.explain_level = arg.substr(10);
+            }
+            else if (arg == "--explain")
+            {
+                options.explain_level = "detailed";
+            }
+            else if (arg.size() >= 7 && arg.substr(0, 7) == "--lang=")
+            {
+                options.output_language = arg.substr(7);
             }
 
             // Target

@@ -10,8 +10,6 @@ cmake_minimum_required(VERSION 3.15)
 add_library(sad_interpreter STATIC
     # النواة
     src/core/interpreter_core.cpp
-    src/ast_printer.cpp
-    src/exception.cpp
     
     # Visitors
     src/visitors/expression_evaluator_core.cpp
@@ -29,10 +27,7 @@ add_library(sad_interpreter STATIC
     src/managers/variable_manager.cpp
     src/managers/ownership_manager.cpp
     src/managers/scope_manager.cpp
-    
-    # OOP - تم إصلاحه!
-    src/oop/interpreter_classes_fixed.cpp
-    
+
     # Debug
     src/debug/debug_server.cpp
     
@@ -49,9 +44,9 @@ target_include_directories(sad_interpreter
         ${CMAKE_CURRENT_SOURCE_DIR}/include/managers
         ${CMAKE_CURRENT_SOURCE_DIR}/include/builtins
         ${CMAKE_CURRENT_SOURCE_DIR}/include/debug
-        # (AR) Phase 5 (F-05): runtime الأساسي في shared/builtins/runtime/
-        # (EN) Phase 5 (F-05): core runtime in shared/builtins/runtime/
-        ${CMAKE_SOURCE_DIR}/shared/builtins/runtime
+        # (AR) Phase F-XX: runtime الأساسي في shared/builtins/include/runtime/
+        # (EN) Phase F-XX: core runtime headers in shared/builtins/include/runtime/
+        ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
         ${CMAKE_SOURCE_DIR}/stdlib
 )
 

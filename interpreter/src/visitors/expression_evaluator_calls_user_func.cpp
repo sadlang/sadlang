@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expression_evaluator_calls_user_func.cpp
  * @brief (AR) تنفيذ جسم دالة المستخدم — مُستخرج من visitCallExpr
  * @brief (EN) User function body execution — extracted from visitCallExpr
@@ -23,8 +23,10 @@
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
+#include "runtime_throw.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "async_runtime.h"
 #include "profiler_hooks.h"
 #include <atomic>
@@ -149,9 +151,10 @@ namespace Sad
                     else
                     {
                         variableManager_.exitScope();
-                        throw RuntimeError(
-                            "(AR) معامل إلزامي مفقود: " + param.name +
-                            " / (EN) Required parameter missing: " + param.name);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            node.position,
+                            {{"param", param.name}, {"function", funcName}});
                     }
                 }
                 else
@@ -225,12 +228,10 @@ namespace Sad
                             auto *expectedClassType = classManager->getClass(expectedClass);
                             if (!expectedClassType || !objPtr->isInstanceOf(expectedClassType))
                             {
-                                throw RuntimeError(
-                                    "(AR) نوع المعامل '" + params[i].name + "' غير متطابق. توقع كائن من صنف '" +
-                                        expectedClass + "' لكن حصل على '" + objPtr->getClassName() + "'. " +
-                                        "(EN) Type mismatch for parameter '" + params[i].name + "'. Expected object of class '" +
-                                        expectedClass + "' but got '" + objPtr->getClassName() + "'.",
-                                    node.position);
+                                ::Sad::Errors::throwRuntime(
+                                    ::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
+                                    node.position,
+                                    {{"actual", objPtr->getClassName()}, {"expected", expectedClass}});
                             }
                         }
                     }
@@ -239,22 +240,18 @@ namespace Sad
                         std::string actualClass = argVal.getClassName();
                         if (actualClass != expectedClass)
                         {
-                            throw RuntimeError(
-                                "(AR) نوع المعامل '" + params[i].name + "' غير متطابق. توقع '" +
-                                    expectedClass + "' لكن حصل على '" + actualClass + "'. " +
-                                    "(EN) Type mismatch for '" + params[i].name + "'. Expected '" +
-                                    expectedClass + "' but got '" + actualClass + "'.",
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
+                                node.position,
+                                {{"actual", actualClass}, {"expected", expectedClass}});
                         }
                     }
                     else
                     {
-                        throw RuntimeError(
-                            "(AR) نوع المعامل '" + params[i].name + "' غير متطابق. توقع كائن من صنف '" +
-                                expectedClass + "' لكن حصل على قيمة من نوع '" + argVal.getTypeName() + "'. " +
-                                "(EN) Type mismatch for '" + params[i].name + "'. Expected object of class '" +
-                                expectedClass + "' but got value of type '" + argVal.getTypeName() + "'.",
-                            node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
+                            node.position,
+                            {{"actual", argVal.getTypeName()}, {"expected", expectedClass}});
                     }
                 }
 
@@ -312,12 +309,12 @@ namespace Sad
                         {
                             variableManager_.exitScope();
                             std::string condStr = precond->toString();
-                            throw RuntimeError(
-                                "(AR) فشل العقد: الشرط المسبق (يتطلب) رقم " + std::to_string(pc + 1) +
-                                    " في الدالة '" + funcName + "': " + condStr + " " +
-                                    "(EN) Contract violation: precondition #" + std::to_string(pc + 1) +
-                                    " in function '" + funcName + "': " + condStr,
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_CONTRACT_PRECOND_FAILED,
+                                node.position,
+                                {{"index", std::to_string(pc + 1)},
+                                 {"function", funcName},
+                                 {"expr", condStr}});
                         }
                     }
                 }
@@ -413,12 +410,11 @@ namespace Sad
                             if (!satisfied)
                             {
                                 variableManager_.exitScope();
-                                throw RuntimeError(
-                                    "(AR) \xD9\x81\xD8\xB4\xD9\x84 \xD9\x82\xD9\x8A\xD8\xAF \xD8\xA7\xD9\x84\xD9\x86\xD9\x88\xD8\xB9: \xD8\xA7\xD9\x84\xD9\x88\xD8\xB3\xD9\x8A\xD8\xB7 '" + params[ai].name +
-                                        "' \xD9\x84\xD8\xA7 \xD9\x8A\xD8\xAD\xD9\x82\xD9\x82 \xD8\xA7\xD9\x84\xD8\xB3\xD9\x85\xD8\xA9 '" + traitName + "' (" + reason + ") " +
-                                        "(EN) Type constraint violation: argument '" + params[ai].name +
-                                        "' does not satisfy trait '" + traitName + "'",
-                                    node.position);
+                                ::Sad::Errors::throwRuntime(
+                                    ::Sad::Errors::ErrorCode::RUN_CONTRACT_WHERE_FAILED,
+                                    node.position,
+                                    {{"function", funcName},
+                                     {"constraint", traitName + " on " + params[ai].name + " (" + reason + ")"}});
                             }
                         }
                     }
@@ -598,14 +594,12 @@ namespace Sad
                         {
                             std::string condStr = postcond->toString();
                             variableManager_.exitScope();
-                            throw RuntimeError(
-                                "(AR) فشل العقد: الشرط اللاحق (يضمن) رقم " + std::to_string(pc + 1) +
-                                    " في الدالة '" + funcName + "': " + condStr +
-                                    " (القيمة المرجعة: " + returnVal.toString() + ") " +
-                                    "(EN) Contract violation: postcondition #" + std::to_string(pc + 1) +
-                                    " in function '" + funcName + "': " + condStr +
-                                    " (returned: " + returnVal.toString() + ")",
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_CONTRACT_POSTCOND_FAILED,
+                                node.position,
+                                {{"index", std::to_string(pc + 1)},
+                                 {"function", funcName},
+                                 {"expr", condStr + " (returned: " + returnVal.toString() + ")"}});
                         }
                     }
                 }

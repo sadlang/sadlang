@@ -11,7 +11,8 @@
 #include "property_nodes.h"
 #include "declarations.h" // For OperatorDecl
 #include "class_nodes.h"  // For ClassDeclStmt
-#include "exception.h"    // For RuntimeError
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
 
@@ -134,7 +135,7 @@ namespace Sad
                                                     auto *classMgr = Data::ClassManager::getInstance();
                                                     auto *clsType = classMgr->getClass(structName);
 
-                                                    Data::ObjectInstance * instance;
+                                                    Data::ObjectInstance *instance;
                                                     if (clsType)
                                                     {
                                                         auto *rawObj = clsType->createInstance();
@@ -185,7 +186,7 @@ namespace Sad
                                                     auto *classMgr = Data::ClassManager::getInstance();
                                                     auto *classType = classMgr->getClass(structName);
 
-                                                    Data::ObjectInstance * instance;
+                                                    Data::ObjectInstance *instance;
                                                     if (classType)
                                                     {
                                                         auto *rawObj = classType->createInstance();
@@ -446,12 +447,10 @@ namespace Sad
             // (AR) التحقق من أن القيمة صف فعلاً / (EN) Verify the value is a tuple
             if (!tupleValue.isTuple())
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) تفكيك الصف يتطلب قيمة من نوع صف، لكن الحصول على نوع: " +
-                        tupleValue.getTypeName() +
-                        ". (EN) Tuple destructuring requires a tuple value, got: " +
-                        tupleValue.getTypeName(),
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
+                    node.position,
+                    {{"actual", tupleValue.getTypeName()}, {"expected", "tuple"}});
             }
 
             const auto &elements = tupleValue.toTupleRef();
@@ -460,12 +459,12 @@ namespace Sad
             // (EN) Verify variable count matches tuple element count
             if (node.names.size() != elements.size())
             {
-                throw Interpreter::RuntimeError(
-                    "(AR) عدد المتغيرات (" + std::to_string(node.names.size()) +
-                        ") لا يطابق عدد عناصر الصف (" + std::to_string(elements.size()) +
-                        "). (EN) Variable count (" + std::to_string(node.names.size()) +
-                        ") does not match tuple element count (" + std::to_string(elements.size()) + ").",
-                    node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                    node.position,
+                    {{"function", "tuple destructure"},
+                     {"expected", std::to_string(elements.size())},
+                     {"actual", std::to_string(node.names.size())}});
             }
 
             // (AR) تعيين كل عنصر في الصف إلى المتغير المقابل
@@ -580,4 +579,3 @@ namespace Sad
 
     } // namespace Interpreter
 } // namespace Sad
-

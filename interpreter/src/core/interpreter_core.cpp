@@ -16,6 +16,8 @@
 #include "source_location.h"
 #include "error_codes.h"
 #include "object_instance.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 
 // (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
 // (AR) Phase 3 (F-01): نُقل من compiler/include/semantic/ إلى shared/semantic/
@@ -484,29 +486,48 @@ namespace Sad
 
                 return ExecutionResult(true, Data::Value());
             }
-            catch (const ExecutionError &e)
+            catch (const ::Sad::Errors::RuntimeAbort &)
             {
-                std::string errorMsg = "(AR) خطأ في التنفيذ: " + std::string(e.what()) +
-                                       " / (EN) Execution error: " + std::string(e.what());
-
+                // (AR) Phase 4 — RuntimeAbort إشارة فارغة: الخطأ سّجّل بالفعل
+                //      في ErrorManager قبل الرمي. لا نحمل أي نص هنا.
+                // (EN) Phase 4 — RuntimeAbort is an empty signal: the error
+                //      was already reported into ErrorManager prior to throw.
+                //      We carry no text here.
+                ExecutionResult res(false, Data::Value(), std::string{});
                 if (options_.enableDebugMode)
                 {
-                    std::cerr << errorMsg << std::endl;
+                    auto &EM = ::Sad::Errors::ErrorManager::getInstance();
+                    EM.flush(std::cerr);
                 }
-
-                return ExecutionResult(false, Data::Value(), errorMsg);
+                return res;
             }
-            catch (const RuntimeError &e)
+            catch (const Sad::Interpreter::UserThrownException &e)
             {
-                std::string errorMsg = "(AR) خطأ في وقت التشغيل: " + std::string(e.what()) +
-                                       " / (EN) Runtime error: " + std::string(e.what());
-
+                // (AR) Phase 4 — قيمة مرمية بـ ارمي لم تُلتقط بـ امسك
+                //      تسجّل في EM بـ RUN_USER_THROWN ثم تُرجَع كفشل.
+                // (EN) Phase 4 — a value thrown via 'arrmi' that no 'imsk'
+                //      caught. Report to EM as RUN_USER_THROWN, then return as failure.
+                auto &EM = ::Sad::Errors::ErrorManager::getInstance();
+                std::map<std::string, std::string> ph;
+                ph["type"] = e.getType();
+                ph["message"] = e.getMessage();
+                auto pos = e.getPosition();
+                ::Sad::Errors::SourceLocation loc(EM.getSourceFilename(),
+                                                  pos.line, pos.column,
+                                                  pos.offset, pos.length);
+                ::Sad::Errors::RenderContext ctx;
+                ctx.placeholders = std::move(ph);
+                EM.reportFromCatalog(::Sad::Errors::ErrorCode::RUN_USER_THROWN, loc, ctx);
+                ExecutionResult res(false, Data::Value(), std::string(e.what()));
+                res.errorKind = e.getType();
+                res.errorLine = pos.line;
+                res.errorColumn = pos.column;
+                res.errorCode = static_cast<int>(::Sad::Errors::ErrorCode::RUN_USER_THROWN);
                 if (options_.enableDebugMode)
                 {
-                    std::cerr << errorMsg << std::endl;
+                    EM.flush(std::cerr);
                 }
-
-                return ExecutionResult(false, Data::Value(), errorMsg);
+                return res;
             }
             catch (const std::exception &e)
             {
@@ -540,13 +561,10 @@ namespace Sad
                 // (AR) نجح التنفيذ بدون إرجاع / (EN) Execution succeeded without return
                 return ExecutionResult(true);
             }
-            catch (const ExecutionError &e)
+            catch (const ::Sad::Errors::RuntimeAbort &)
             {
-                return ExecutionResult(false, Data::Value(), std::string(e.what()));
-            }
-            catch (const RuntimeError &e)
-            {
-                return ExecutionResult(false, Data::Value(), std::string(e.what()));
+                // (AR) Phase 4 — خطأ وقت تشغيل سّجّل في EM
+                return ExecutionResult(false, Data::Value(), std::string{});
             }
             catch (const std::exception &e)
             {

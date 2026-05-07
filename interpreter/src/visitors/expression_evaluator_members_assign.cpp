@@ -17,7 +17,9 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include <atomic>
 #include <cmath>
@@ -73,7 +75,7 @@ namespace Sad
             ClassType *classType = nullptr;
             Value::MapType fields;
             bool isRealObject = false;
-            ObjectInstance * objPtr = nullptr;
+            ObjectInstance *objPtr = nullptr;
 
             if (objectValue.isObject())
             {
@@ -129,15 +131,17 @@ namespace Sad
                         return;
                     }
                 }
-                std::string errMsg = "(AR) لا يمكن تعيين قيمة لعضو من قيمة ليست كائن. ";
-                errMsg += "(EN) Cannot assign to member of non-object value.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                    node.position,
+                    {{"operand", objectValue.getTypeName()}, {"operator", ".="}});
             }
             else
             {
-                std::string errMsg = "(AR) لا يمكن تعيين قيمة لعضو من قيمة ليست كائن. ";
-                errMsg += "(EN) Cannot assign to member of non-object value.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                    node.position,
+                    {{"operand", objectValue.getTypeName()}, {"operator", ".="}});
             }
 
             // (AR) الحصول على ClassType
@@ -147,7 +151,10 @@ namespace Sad
 
             if (!classType)
             {
-                throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                    node.position,
+                    {{"class", className}});
             }
 
             // (AR) البحث عن الحقل
@@ -188,9 +195,10 @@ namespace Sad
 
                 if (!property->setterBody)
                 {
-                    std::string errMsg = "(AR) الخاصية '" + node.member + "' للقراءة فقط (لا يوجد setter). ";
-                    errMsg += "(EN) Property '" + node.member + "' is read-only (no setter).";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                        node.position,
+                        {{"resource", "property setter '" + node.member + "'"}});
                 }
 
                 // ═══════════════════════════════════════════════════════════════
@@ -353,10 +361,10 @@ namespace Sad
             {
                 if (!indexValue.isNumeric())
                 {
-                    throw RuntimeError(
-                        "(AR) فهرس المصفوفة يجب أن يكون رقماً. "
-                        "(EN) Array index must be a number.",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_ARRAY_INDEX_NOT_NUMBER,
+                        node.position,
+                        {{"actual", indexValue.getTypeName()}});
                 }
 
                 auto arr = objectValue.toArray();
@@ -371,13 +379,10 @@ namespace Sad
 
                 if (idx < 0 || idx >= size)
                 {
-                    throw RuntimeError(
-                        "(AR) فهرس المصفوفة خارج النطاق: " + std::to_string(idx) +
-                            " (الحجم: " + std::to_string(size) + "). "
-                                                                 "(EN) Array index out of range: " +
-                            std::to_string(idx) +
-                            " (size: " + std::to_string(size) + ").",
-                        node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(size)}});
                 }
 
                 arr[idx] = newValue;
@@ -429,10 +434,10 @@ namespace Sad
                 }
             }
 
-            throw RuntimeError(
-                "(AR) لا يمكن الإسناد بالفهرس إلا للمصفوفات والقواميس. "
-                "(EN) Index assignment only supported on arrays and maps.",
-                node.position);
+            ::Sad::Errors::throwRuntime(
+                ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID,
+                node.position,
+                {{"type", objectValue.getTypeName()}});
         }
 
         // =========================================================================
@@ -582,11 +587,11 @@ namespace Sad
             // (AR) إرجاع مرجع الدالة كقيمة من نوع FUNCTION
             // (EN) Return function reference as FUNCTION type value
             auto funcRef = std::make_shared<Data::FunctionRef>(
-                lambdaName,                      // displayName
-                lambdaName,                      // registeredName
-                Data::FunctionRefKind::LAMBDA,   // kind
+                lambdaName,                                                                                                      // displayName
+                lambdaName,                                                                                                      // registeredName
+                Data::FunctionRefKind::LAMBDA,                                                                                   // kind
                 ::Sad::Security::SafeArithmetic::assertSafeCast<int>(params.size(), "expression_evaluator_members_assign_size"), // arity
-                std::vector<std::string>()       // parameterNames (filled below)
+                std::vector<std::string>()                                                                                       // parameterNames (filled below)
             );
             // (AR) ملء أسماء المعاملات / (EN) Fill parameter names
             for (const auto &p : params)

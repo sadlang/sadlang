@@ -12,7 +12,8 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "object_instance.h"
 #include "debug_server.h"
 #include "class_manager.h"
@@ -266,7 +267,7 @@ namespace Sad
 
                                 if (dispResult.shouldStop())
                                 {
-                                    throw SadException(
+                                    throw UserThrownException(
                                         dispResult.messageAr + " / " + dispResult.messageEn,
                                         "OwnershipError",
                                         node.position);
@@ -295,7 +296,7 @@ namespace Sad
                 oss << e.what() << "\n"
                     << "📍 (AR) الموقع / (EN) Location: السطر / Line " << node.position.line
                     << "، العمود / Column " << node.position.column;
-                throw SadException(oss.str(), "RuntimeError", node.position);
+                throw UserThrownException(oss.str(), "RuntimeError", node.position);
             }
         }
 

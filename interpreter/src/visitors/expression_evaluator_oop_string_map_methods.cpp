@@ -14,7 +14,9 @@
 #include "expressions.h"
 #include "class_manager.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include <algorithm>
 #include <cctype>
 #include <vector>
@@ -70,7 +72,10 @@ namespace Sad
             if (m == "يحتوي")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) contains() requires argument.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "يحتوي/contains"}, {"argument", "value"}});
                 lastResult_ = Value(str.find(args[0].toString()) != std::string::npos);
                 return;
             }
@@ -96,7 +101,10 @@ namespace Sad
             if (m == "استبدل")
             {
                 if (args.size() < 2)
-                    throw RuntimeError("(AR) استبدل() يتطلب معاملين. (EN) replace() requires 2 arguments.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "استبدل/replace"}, {"argument", "from, to"}});
                 std::string from = args[0].toString(), to = args[1].toString();
                 std::string result = str;
                 size_t pos = 0;
@@ -151,7 +159,10 @@ namespace Sad
             if (m == "حرف_عند")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) حرف_عند() يتطلب فهرساً. (EN) charAt() requires index.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "حرف_عند/charAt"}, {"argument", "index"}});
                 // (AR) فهرسة بالحروف (UTF-8) وليس بالبايتات
                 // (EN) Index by UTF-8 characters, not bytes
                 std::vector<std::string> chars;
@@ -177,14 +188,20 @@ namespace Sad
                 if (idx < 0)
                     idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size") + idx;
                 if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size"))
-                    throw RuntimeError("(AR) الفهرس خارج النطاق. (EN) Index out of range.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_STRING_INDEX_OUT_OF_RANGE,
+                        node.position,
+                        {{"index", std::to_string(args[0].toInt())}, {"length", std::to_string(chars.size())}});
                 lastResult_ = Value(chars[idx]);
                 return;
             }
             if (m == "يبدأ_بـ" || m == "يبدأ")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) يبدأ_بـ() يتطلب معاملاً. (EN) startsWith() requires argument.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "يبدأ_بـ/startsWith"}, {"argument", "prefix"}});
                 std::string prefix = args[0].toString();
                 lastResult_ = Value(str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix);
                 return;
@@ -192,7 +209,10 @@ namespace Sad
             if (m == "ينتهي_بـ" || m == "ينتهي")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) ينتهي_بـ() يتطلب معاملاً. (EN) endsWith() requires argument.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "ينتهي_بـ/endsWith"}, {"argument", "suffix"}});
                 std::string suffix = args[0].toString();
                 lastResult_ = Value(str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix);
                 return;
@@ -208,7 +228,10 @@ namespace Sad
             if (m == "كرر")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) كرر() يتطلب عدداً. (EN) repeat() requires count.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "كرر/repeat"}, {"argument", "count"}});
                 int count = args[0].toInt();
                 std::string result;
                 for (int i = 0; i < count; ++i)
@@ -265,7 +288,10 @@ namespace Sad
             if (m == "بحث" || m == "جد")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) بحث() يتطلب معاملاً. (EN) find() requires argument.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "بحث/find"}, {"argument", "needle"}});
                 std::string target = args[0].toString();
                 auto pos = str.find(target);
                 lastResult_ = Value(pos != std::string::npos ? static_cast<int>(pos) : -1);
@@ -273,9 +299,10 @@ namespace Sad
             }
 
             // (AR) طريقة غير معروفة على النص
-            throw RuntimeError(
-                "(AR) الطريقة '" + m + "' غير موجودة على النص. (EN) Method '" + m + "' not found on string.",
-                node.position);
+            ::Sad::Errors::throwRuntime(
+                ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                node.position,
+                {{"method", m}, {"class", "string"}});
         }
 
         // =========================================================================
@@ -302,7 +329,10 @@ namespace Sad
             if (m == "احصل")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) احصل() يتطلب مفتاحاً. (EN) get() requires a key.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "احصل/get"}, {"argument", "key"}});
                 std::string key = args[0].toString();
                 auto it = mapData.find(key);
                 if (it != mapData.end())
@@ -321,7 +351,10 @@ namespace Sad
             if (m == "عيّن" || m == "عين")
             {
                 if (args.size() < 2)
-                    throw RuntimeError("(AR) عيّن() يتطلب مفتاحاً وقيمة. (EN) set() requires key and value.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "عيّن/set"}, {"argument", "key, value"}});
                 std::string key = args[0].toString();
                 mapData[key] = args[1];
                 Value newMap(mapData);
@@ -362,7 +395,10 @@ namespace Sad
             if (m == "يحتوي" || m == "يحتوي_مفتاح")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) has() requires argument.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "يحتوي/has"}, {"argument", "key"}});
                 std::string key = args[0].toString();
                 lastResult_ = Value(mapData.find(key) != mapData.end());
                 return;
@@ -371,7 +407,10 @@ namespace Sad
             if (m == "احذف" || m == "أزل")
             {
                 if (args.empty())
-                    throw RuntimeError("(AR) احذف() يتطلب مفتاحاً. (EN) remove() requires a key.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "احذف/remove"}, {"argument", "key"}});
                 std::string key = args[0].toString();
                 mapData.erase(key);
                 Value newMap(mapData);
@@ -383,7 +422,10 @@ namespace Sad
             if (m == "دمج")
             {
                 if (args.empty() || !args[0].isMap())
-                    throw RuntimeError("(AR) دمج() يتطلب خريطة. (EN) merge() requires a map argument.", node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                        node.position,
+                        {{"function", "دمج/merge"}, {"argument", "map"}});
                 auto otherMap = args[0].toMap();
                 for (const auto &[k, v] : otherMap)
                 {
@@ -455,15 +497,12 @@ namespace Sad
 
                         if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(args.size(), "expression_evaluator_oop_string_map_methods_size") != expectedCount)
                         {
-                            throw RuntimeError(
-                                "(AR) باني النموذج '" + enumName + "." + memberName +
-                                    "' يتوقع " + std::to_string(expectedCount) +
-                                    " وسيطة، لكن تم تمرير " + std::to_string(args.size()) + ".\n"
-                                                                                            "(EN) Variant constructor '" +
-                                    enumName + "." + memberName +
-                                    "' expects " + std::to_string(expectedCount) +
-                                    " argument(s), but got " + std::to_string(args.size()) + ".",
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                                node.position,
+                                {{"function", enumName + "." + memberName},
+                                 {"expected", std::to_string(expectedCount)},
+                                 {"actual", std::to_string(args.size())}});
                         }
 
                         Value::MapType variantMap;
@@ -558,9 +597,10 @@ namespace Sad
             }
 
             // (AR) طريقة غير معروفة على الخريطة
-            throw RuntimeError(
-                "(AR) الطريقة '" + m + "' غير موجودة على الخريطة. (EN) Method '" + m + "' not found on map.",
-                node.position);
+            ::Sad::Errors::throwRuntime(
+                ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                node.position,
+                {{"method", m}, {"class", "map"}});
         }
 
     } // namespace Interpreter

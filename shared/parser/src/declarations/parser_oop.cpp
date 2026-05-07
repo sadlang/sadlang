@@ -232,8 +232,7 @@ namespace Sad
             // (AR) كلمة سياقية: تحقق مزدوج — KEYWORD_ASYNC أو مُعرّف
             // (EN) Contextual keyword: dual check
             if (check(TT::KEYWORD_ASYNC) ||
-                (check(TT::IDENTIFIER) && (current_.getValue() == "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xAA\xD8\xB2\xD8\xA7\xD9\x85\xD9\x86" ||
-                                           current_.getValue() == "\xD8\xBA\xD9\x8A\xD8\xB1_\xD9\x85\xD8\xAA\xD8\xB2\xD8\xA7\xD9\x85\xD9\x86\xD8\xA9")))
+                (check(TT::IDENTIFIER) && checkContextual(TT::KEYWORD_ASYNC)))
             {
                 advance(); // consume 'غير_متزامنة' / 'غير_متزامن' (parsed but ignored for now)
             }
@@ -458,9 +457,9 @@ namespace Sad
                 while (true)
                 {
                     bool isRequires = check(TT::KEYWORD_REQUIRES) ||
-                                      (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x8A\xD8\xAA\xD8\xB7\xD9\x84\xD8\xA8"); // يتطلب
+                                      checkContextual(TT::KEYWORD_REQUIRES); // يتطلب
                     bool isEnsures = !isRequires && (check(TT::KEYWORD_ENSURES) ||
-                                                     (check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x8A\xD8\xB6\xD9\x85\xD9\x86")); // يضمن
+                                                     checkContextual(TT::KEYWORD_ENSURES)); // يضمن
                     if (!isRequires && !isEnsures)
                         break;
                     advance(); // (AR) استهلاك يتطلب/يضمن
@@ -1010,7 +1009,7 @@ namespace Sad
 
             // (AR) كتلة القراءة (getter) - إلزامية / (EN) Getter block - required
             std::unique_ptr<GetterBlock> getter = nullptr;
-            if (!matchAny({TT::KEYWORD_GET}) && !(check(TT::IDENTIFIER) && current_.getValue() == "احصل" && (advance(), true)))
+            if (!matchAny({TT::KEYWORD_GET}) && !matchContextual(TT::KEYWORD_GET))
             {
                 error("(AR) توقع 'احصل' (get) بعد اسم الخاصية. (EN) Expected 'احصل' (get) after property name.");
                 synchronize();
@@ -1037,7 +1036,7 @@ namespace Sad
 
             // (AR) كتلة الكتابة (setter) - اختيارية / (EN) Setter block - optional
             std::unique_ptr<SetterBlock> setter = nullptr;
-            if (matchAny({TT::KEYWORD_SET}) || (check(TT::IDENTIFIER) && (current_.getValue() == "عيّن" || current_.getValue() == "عين") && (advance(), true)))
+            if (matchAny({TT::KEYWORD_SET}) || matchContextual(TT::KEYWORD_SET))
             {
                 // (AR) معامل setter / (EN) Setter parameter
                 consume(TT::PAREN_LEFT,

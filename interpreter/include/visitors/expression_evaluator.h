@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expression_evaluator.h
  * @brief (AR) مُقيِّم التعابير - تنفيذ وتقييم التعابير في وقت التشغيل
  * @brief (EN) Expression Evaluator - Evaluate and execute expressions at runtime
@@ -52,7 +52,8 @@
 #include "function_manager.h"
 #include "ownership_manager.h"
 #include "token.h"
-#include "exception.h" // For RuntimeError, TypeError, etc.
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include <stdexcept>
 #include <string>
 #include <unordered_map>

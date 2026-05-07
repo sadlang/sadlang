@@ -208,7 +208,7 @@ namespace Sad
          *     "متغير_س"
          * );
          * if (result.shouldStop()) {
-         *     throw SadRuntimeError(result.messageAr);
+         *     ::Sad::Errors::throwRuntime(code, location, ctx);
          * } else if (result.shouldEmit()) {
          *     ErrorManager::getInstance().reportWarning(..., result.messageAr, result.messageEn);
          * }
@@ -416,7 +416,7 @@ namespace Sad
          *     auto r = Sad::Errors::dispatch(
          *         RuntimeErrorKind::DivisionByZero,
          *         settings, loc, "س / ع");
-         *     if (r.shouldStop()) throw SadRuntimeError(r.messageAr);
+         *     if (r.shouldStop()) ::Sad::Errors::throwRuntime(code, loc, ctx);
          *     if (r.shouldEmit()) emitWarning(r.messageAr);
          *     return Value::nothing(); // (AR) قيمة آمنة في وضع --gc/--learn
          * }

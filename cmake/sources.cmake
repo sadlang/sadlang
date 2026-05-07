@@ -136,7 +136,8 @@ set(INTERPRETER_SOURCES
     interpreter/src/visitors/statement_executor_oop_types.cpp
     interpreter/src/visitors/statement_executor_oop_struct_test.cpp
     interpreter/src/visitors/statement_executor_modules.cpp
-    interpreter/src/exception.cpp
+    # (AR) interpreter/src/exception.cpp حُذف في Phase 4 — استبدل بـ shared/errors
+    # (EN) exception.cpp removed in Phase 4 — replaced by shared/errors
     interpreter/src/debug/debug_server.cpp
 )
 
@@ -173,43 +174,31 @@ set(OOP_INTERPRETER_SOURCES)
 
 # ──────────────────────────────────────────────────────────────────────
 # 8. الدوال المضمنة / Built-in Functions
-# (AR) Phase 5 (F-05): builtins.cpp نُقل إلى shared/builtins/runtime/
-# (EN) Phase 5 (F-05): builtins.cpp moved to shared/builtins/runtime/
+# (AR) Phase F-XX: builtins.cpp في shared/builtins/src/runtime/
+# (EN) Phase F-XX: builtins.cpp under shared/builtins/src/runtime/
 # ──────────────────────────────────────────────────────────────────────
 set(BUILTINS_SOURCES
-    shared/builtins/runtime/builtins.cpp
+    shared/builtins/src/runtime/builtins.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
 # 9. إدارة الأخطاء / Error Management
+# (AR) أُزيل ERROR_SOURCES اليتيم — جميع ملفات الأخطاء تُبنى عبر sad_shared
+#      (راجع shared/CMakeLists.txt). كان متغيراً معرَّفاً بلا استعمال.
+# (EN) Orphan ERROR_SOURCES removed — all error files build via sad_shared
+#      (see shared/CMakeLists.txt). Variable was defined but never used.
 # ──────────────────────────────────────────────────────────────────────
-set(ERROR_SOURCES
-    shared/errors/src/error_codes.cpp
-    shared/errors/src/diagnostic.cpp
-    shared/errors/src/error_manager.cpp
-    shared/errors/src/smart_errors.cpp
-    shared/errors/src/smart_suggestions.cpp
-    shared/errors/src/smart_type_explanations.cpp
-    shared/errors/src/smart_multi_error.cpp
-    shared/errors/src/smart_fix_suggestions.cpp
-    shared/errors/src/smart_teacher_mode.cpp
-    shared/errors/src/smart_error_recovery.cpp
-    shared/errors/src/smart_cascade_prevention.cpp
-    # (AR) نقطة القرار الموحَّدة لأخطاء الملكية
-    # (EN) Unified dispatch point for ownership errors
-    shared/errors/src/builders/dispatch.cpp
-)
 
 # ──────────────────────────────────────────────────────────────────────
 # 10. المكتبة القياسية / Standard Library
-# (AR) Phase 5 (F-05): الجزء الأساسي نُقل إلى shared/builtins/runtime/
-# (EN) Phase 5 (F-05): core runtime moved to shared/builtins/runtime/
+# (AR) Phase F-XX: الجزء الأساسي في shared/builtins/src/runtime/
+# (EN) Phase F-XX: core runtime under shared/builtins/src/runtime/
 # ──────────────────────────────────────────────────────────────────────
 set(STDLIB_SOURCES
-    shared/builtins/runtime/stdlib_manager.cpp
-    shared/builtins/runtime/type_functions.cpp
-    shared/builtins/runtime/array_functions.cpp
-    shared/builtins/runtime/other_functions.cpp
+    shared/builtins/src/runtime/stdlib_manager.cpp
+    shared/builtins/src/runtime/type_functions.cpp
+    shared/builtins/src/runtime/array_functions.cpp
+    shared/builtins/src/runtime/other_functions.cpp
     stdlib/string/string_functions.cpp
     stdlib/math/math_functions.cpp
     stdlib/math/advanced_math.cpp
@@ -226,9 +215,11 @@ set(STDLIB_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 # 11. المحسن / Optimizer
 # ──────────────────────────────────────────────────────────────────────
+# (AR) ملفات المحسن AST-level أُزيلت بعد توحيد passes في compiler/src/sir_optimizer/
+#      (sad_optimizer). راجع compiler/docs/optimization_layers.md
+# (EN) AST-level optimizer files removed after unifying passes in
+#      compiler/src/sir_optimizer/ (sad_optimizer). See compiler/docs/optimization_layers.md
 set(OPTIMIZER_SOURCES
-    compiler/src/optimizer/advanced_optimizer.cpp
-    compiler/src/optimizer/optimization_pass.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

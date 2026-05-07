@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expression_evaluator_oop_new.cpp
  * @brief (AR) تنفيذ تعبير إنشاء كائن جديد — visitNewExpr
  * @brief (EN) New Object Creation Expression — visitNewExpr
@@ -38,7 +38,8 @@
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
 #include "profiler_hooks.h"
 #include "../include/ui/ui_state_manager.h"
 #include <functional>
@@ -138,9 +139,10 @@ namespace Sad
 
                 if (!classType)
                 {
-                    std::string errMsg = "(AR) الصنف '" + effectiveClassName + "' غير موجود. ";
-                    errMsg += "(EN) Class '" + effectiveClassName + "' not found.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                        node.position,
+                        {{"class", effectiveClassName}});
                 }
             }
 
@@ -183,11 +185,10 @@ namespace Sad
                 if (!abstractMethods.empty())
                 {
                     std::string methodName = *abstractMethods.begin();
-                    std::string errMsg = "(AR) لا يمكن إنشاء كائن من صنف مجرد '" + effectiveClassName + "'. ";
-                    errMsg += "الدالة '" + methodName + "' مجردة وبدون تنفيذ. ";
-                    errMsg += "(EN) Cannot instantiate abstract class '" + effectiveClassName + "'. ";
-                    errMsg += "Method '" + methodName + "' is abstract.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_ABSTRACT_INSTANTIATION,
+                        node.position,
+                        {{"class", effectiveClassName}, {"method", methodName}});
                 }
             }
 
@@ -313,11 +314,12 @@ namespace Sad
                 // (EN) Check: positional args cannot exceed constructor params
                 if (positionalArgs.size() > constructor->parameters.size())
                 {
-                    std::string errMsg = "(AR) عدد المعاملات المكانية (" +
-                                         std::to_string(positionalArgs.size()) + ") أكثر من المطلوب (" +
-                                         std::to_string(constructor->parameters.size()) + "). ";
-                    errMsg += "(EN) Too many positional arguments.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                        node.position,
+                        {{"function", "constructor"},
+                         {"expected", std::to_string(constructor->parameters.size())},
+                         {"actual", std::to_string(positionalArgs.size())}});
                 }
 
                 // (AR) إنشاء scope جديد للباني
@@ -464,7 +466,7 @@ namespace Sad
                         }
                         catch (...)
                         {
-                            throw Interpreter::SadException(
+                            throw Interpreter::UserThrownException(
                                 "(AR) خطأ غير معروف في تنفيذ الباني. "
                                 "(EN) Unknown error executing constructor.",
                                 "RuntimeError", node.position);

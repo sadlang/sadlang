@@ -20,7 +20,9 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
-#include "exception.h"
+#include "runtime_throw.h"
+#include "user_thrown.h"
+#include "runtime_throw.h"
 #include "async_runtime.h"                  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "channel.h"                        // (AR) قنوات الاتصال بين المهام / (EN) Channel communication
 #include "profiler_hooks.h"                 // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
@@ -394,46 +396,56 @@ namespace Sad
                     auto classNameIt = fields.find("__class__");
                     if (classNameIt == fields.end())
                     {
-                        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_OBJECT_WITHOUT_CLASS,
+                            node.position,
+                            {{"method", node.methodName}});
                     }
                     className = classNameIt->second.toString();
                     classType = classManager->getClass(className);
                 }
                 else
                 {
-                    std::string errMsg = "(AR) لا يمكن استدعاء طريقة على قيمة ليست كائن. ";
-                    errMsg += "(EN) Cannot call method on non-object value.";
-                    throw RuntimeError(errMsg, node.position);
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                        node.position,
+                        {{"operand", objectValue.getTypeName()}, {"operator", "." + node.methodName + "()"}});
                 }
             }
 
             if (!classType)
             {
-                throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
+                    node.position,
+                    {{"class", className}});
             }
 
             // البحث عن الطريقة (في السلسلة الهرمية)
             ClassMethod *method = classType->findMethod(node.methodName);
             if (!method)
             {
-                std::string errMsg = "(AR) الطريقة '" + node.methodName + "' غير موجودة في الصنف '" + className + "'. ";
-                errMsg += "(EN) Method '" + node.methodName + "' not found in class '" + className + "'.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                    node.position,
+                    {{"method", node.methodName}, {"class", className}});
             }
 
             // التحقق من التطابق بين نوع الاستدعاء ونوع الطريقة
             // Verify call type matches method type
             if (isStaticCall && !method->isStatic)
             {
-                std::string errMsg = "(AR) لا يمكن استدعاء طريقة غير ثابتة '" + node.methodName + "' من خلال اسم الصنف. ";
-                errMsg += "(EN) Cannot call non-static method '" + node.methodName + "' through class name.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                    node.position,
+                    {{"resource", "non-static method '" + node.methodName + "' via class name"}});
             }
             if (!isStaticCall && method->isStatic)
             {
-                std::string errMsg = "(AR) يجب استدعاء الطريقة الثابتة '" + node.methodName + "' من خلال اسم الصنف. ";
-                errMsg += "(EN) Static method '" + node.methodName + "' should be called through class name.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                    node.position,
+                    {{"resource", "static method '" + node.methodName + "' via instance"}});
             }
 
             // فحص الوصول (Phase 6.1: Access Modifiers)
@@ -453,19 +465,12 @@ namespace Sad
             if (node.arguments.size() < requiredParams ||
                 node.arguments.size() > method->parameters.size())
             {
-                std::string errMsg = "(AR) عدد المعاملات غير متطابق. توقع ";
-                if (requiredParams == method->parameters.size())
-                {
-                    errMsg += std::to_string(method->parameters.size());
-                }
-                else
-                {
-                    errMsg += std::to_string(requiredParams) + " إلى " +
-                              std::to_string(method->parameters.size());
-                }
-                errMsg += " لكن حصل على " + std::to_string(node.arguments.size()) + ". ";
-                errMsg += "(EN) Argument count mismatch.";
-                throw RuntimeError(errMsg, node.position);
+                ::Sad::Errors::throwRuntime(
+                    ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                    node.position,
+                    {{"function", className + "." + node.methodName},
+                     {"expected", std::to_string(method->parameters.size())},
+                     {"actual", std::to_string(node.arguments.size())}});
             }
 
             // تقييم المعاملات
@@ -541,12 +546,12 @@ namespace Sad
                         {
                             variableManager_.exitScope();
                             std::string condStr = precond->toString();
-                            throw RuntimeError(
-                                "(AR) فشل العقد: الشرط المسبق (يتطلب) رقم " + std::to_string(pc + 1) +
-                                    " في الطريقة '" + node.methodName + "': " + condStr + " " +
-                                    "(EN) Contract violation: precondition #" + std::to_string(pc + 1) +
-                                    " in method '" + node.methodName + "': " + condStr,
-                                node.position);
+                            ::Sad::Errors::throwRuntime(
+                                ::Sad::Errors::ErrorCode::RUN_CONTRACT_PRECOND_FAILED,
+                                node.position,
+                                {{"index", std::to_string(pc + 1)},
+                                 {"function", className + "." + node.methodName},
+                                 {"expr", condStr}});
                         }
                     }
                 }
@@ -618,12 +623,12 @@ namespace Sad
                                 {
                                     variableManager_.exitScope();
                                     std::string condStr = postcond->toString();
-                                    throw RuntimeError(
-                                        "(AR) فشل العقد: الشرط اللاحق (يضمن) رقم " + std::to_string(pc + 1) +
-                                            " في الطريقة '" + node.methodName + "': " + condStr + " " +
-                                            "(EN) Contract violation: postcondition #" + std::to_string(pc + 1) +
-                                            " in method '" + node.methodName + "': " + condStr,
-                                        node.position);
+                                    ::Sad::Errors::throwRuntime(
+                                        ::Sad::Errors::ErrorCode::RUN_CONTRACT_POSTCOND_FAILED,
+                                        node.position,
+                                        {{"index", std::to_string(pc + 1)},
+                                         {"function", className + "." + node.methodName},
+                                         {"expr", condStr}});
                                 }
                             }
                         }
