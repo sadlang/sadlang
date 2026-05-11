@@ -5,6 +5,56 @@
 
 ---
 
+## [0.3.0] — Story 1.3
+
+### مُضاف / Added
+
+- **`--dump-builtins`** — تفريغ الدوال المدمجة auto-loaded والطرق المضمنة على
+  الأنواع المضيفة، إلى JSON أو YAML.
+- **15 دالة مدمجة** بترتيب ثابت ومضمون:
+  - **printing** (2): `print`, `println`
+  - **input** (1): `read`
+  - **reflection** (2): `length`, `type`
+  - **type_ctor** (4): `to_int`, `to_float`, `to_string`, `to_bool`
+  - **concurrency** (6): `channel`, `wait_all`, `task_count`, `wait_group`,
+    `mutex`, `future`
+- **43 طريقة مضمنة** على 4 أنواع مضيفة:
+  - **array** (16): push, pop, sort, reverse, contains, index_of, slice, map,
+    filter, reduce, for_each, first, last, empty, length, flat
+  - **string** (10): length, contains, starts_with, ends_with, split, replace,
+    substring, trim, to_upper, to_lower
+  - **map** (8): get, set, delete, contains, keys, values, size, empty
+  - **channel** (9): send, receive, try_send, try_receive, size, capacity,
+    empty, close, closed
+- **معرّف ثابت `id`** لكل دالة/طريقة (مفتاح ترجمة):
+  - الدوال: `print`, `println`, ...
+  - الطرق: `array.push`, `string.split`, `channel.send`, ...
+- **فلاتر مدعومة:**
+  - `--filter category=printing|input|reflection|type_ctor|concurrency`
+  - `--filter host=array|string|map|channel` (للطرق)
+- **حقول جذرية جديدة:** `functionCount`, `methodCount`, `categoryCounts`,
+  `hostCounts`, `functions[]`, `methods[]`.
+- **اختبار:** `SadInfoBuiltinsGoldenIds` (snapshot لـ 58 معرفاً).
+
+### مُعدَّل / Changed
+
+- **مخطط البيانات: 1.1.0 → 1.2.0** (متوافق للخلف — قسم builtins جديد لا يمس
+  keywords).
+- **نسخة الأداة: 0.2.0 → 0.3.0**.
+- **ترتيب حقول دالة ثابت:** id → nameAr → nameEn? → category → returnType →
+  summaryAr? → summaryEn? → params[] → example?.
+- **ترتيب حقول طريقة ثابت:** id → host → nameAr → nameEn? → returnType →
+  summaryAr? → summaryEn? → params[].
+
+### ملاحظات / Notes
+
+- `sadinfo` يبقى مستقلاً عن المفسر/المترجم — البيانات معرّفة كجداول حقيقة في
+  `tools/sadinfo/src/builtin_data.cpp` بدل قراءة `builtin_registry`.
+- النطاق محدود بالـ canonical auto-loaded (المتطابق مع توثيق المهارات في
+  `.github/copilot-instructions.md`)؛ الوحدات التي تحتاج `استورد` خارج النطاق.
+
+---
+
 ## [0.2.0] — Story 1.2
 
 ### مُضاف / Added

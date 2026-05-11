@@ -68,6 +68,18 @@ if(TARGET sadinfo)
             "${CMAKE_SOURCE_DIR}/tests/sadinfo/golden/keyword_ids.json"
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
+
+    # ──────────────────────────────────────────────────────────────────
+    # (AR) Story 1.3: snapshot ذهبي لـ --dump-builtins (15 دالة + 43 طريقة)
+    # (EN) Story 1.3: golden snapshot for --dump-builtins (15 fns + 43 methods)
+    # ──────────────────────────────────────────────────────────────────
+    add_test(NAME SadInfoBuiltinsGoldenIds
+        COMMAND ${CMAKE_COMMAND} -E env
+            python "${CMAKE_SOURCE_DIR}/tests/sadinfo/check_builtin_ids.py"
+            "$<TARGET_FILE:sadinfo>"
+            "${CMAKE_SOURCE_DIR}/tests/sadinfo/golden/builtin_ids.json"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
 endif()
 
 message(STATUS "✓ اختبارات sadinfo / sadinfo tests enabled (Story 1.2)")

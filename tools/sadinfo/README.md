@@ -54,6 +54,18 @@ sadinfo --dump-keywords --include-deprecated
 
 # 8) مُجمَّعة بالفئة + بدون الإنجليزية (مخرج عربي صرف)
 sadinfo --dump-keywords --by-category --lang ar
+
+# 9) Story 1.3 — تفريغ الدوال المدمجة + الطرق المضمنة (15 دالة + 43 طريقة)
+sadinfo --dump-builtins -o builtins.json
+
+# 10) كل دوال التزامن فقط
+sadinfo --dump-builtins --filter category=concurrency
+
+# 11) كل طرق المصفوفات بصيغة YAML
+sadinfo --dump-builtins --filter host=array --format yaml
+
+# 12) مخرج مدمج عربي صرف للدوال
+sadinfo --dump-builtins --minimal --lang ar
 ```
 
 ---
@@ -63,18 +75,21 @@ sadinfo --dump-keywords --by-category --lang ar
 | الخيار / Flag | الوصف (AR) | Description (EN) |
 |---|---|---|
 | `--dump-keywords` | استخراج بيانات الكلمات المفتاحية | Dump keyword metadata |
+| `--dump-builtins` | استخراج الدوال المدمجة + الطرق المضمنة | Dump builtin functions + methods |
 | `-o, --output <file>` | كتابة المخرج إلى ملف بدلاً من stdout | Write output to file |
 | `--pretty` | تنسيق مقروء (افتراضي) | Human-readable format (default) |
 | `--compact` | تنسيق مدمج بلا مسافات زائدة | Compact format |
 | `--format <fmt>` | `json` (افتراضي) أو `yaml` | `json` (default) or `yaml` |
 | `--lang <lang>` | `ar`/`en`/`both` (افتراضي) | Language filter |
-| `--minimal` | حقول مختصرة فقط (id/word/category/tokenType) | Minimal field set |
-| `--by-category` | تجميع المخرج حسب الفئة | Group output by category |
-| `--include-deprecated` | شمول الكلمات المُهملة | Include deprecated entries |
+| `--minimal` | حقول مختصرة فقط | Minimal field set |
+| `--by-category` | تجميع المخرج حسب الفئة (keywords فقط) | Group output by category (keywords only) |
+| `--include-deprecated` | شمول الكلمات المُهملة (keywords فقط) | Include deprecated entries (keywords only) |
 | `--filter key=value` | تصفية (يمكن تكرارها) | Filter (repeatable) |
 | `-h, --help` | عرض المساعدة | Show help |
 
 ### مفاتيح التصفية / Filter Keys
+
+#### للكلمات / Keywords (`--dump-keywords`)
 
 | المفتاح | القيمة | المثال |
 |---|---|---|
@@ -82,6 +97,13 @@ sadinfo --dump-keywords --by-category --lang ar
 | `role` | اسم دور (مثل `block_opener`) | `--filter role=block_opener` |
 | `token-type` | اسم TokenType الكامل | `--filter token-type=KEYWORD_FUNCTION` |
 | `has-aliases` | (بدون قيمة) — مَن لديه aliases | `--filter has-aliases` |
+
+#### للمدمجات / Builtins (`--dump-builtins`)
+
+| المفتاح | القيمة | المثال |
+|---|---|---|
+| `category` | `printing` \| `input` \| `reflection` \| `type_ctor` \| `concurrency` | `--filter category=concurrency` |
+| `host` | `array` \| `string` \| `map` \| `channel` (للطرق فقط) | `--filter host=array` |
 
 التصفية تتراكم بمنطق AND. مفاتيح غير معروفة تُرفض بصراحة (exit=2).
 Filters are AND-combined. Unknown keys are explicitly rejected (exit=2).

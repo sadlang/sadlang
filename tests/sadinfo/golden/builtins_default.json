@@ -1,0 +1,832 @@
+{
+  "schemaVersion": "1.2.0",
+  "tool": "sadinfo",
+  "toolVersion": "0.3.0",
+  "functionCount": 15,
+  "methodCount": 43,
+  "categoryCounts": 
+  {
+    "printing": 2,
+    "input": 1,
+    "reflection": 2,
+    "type_ctor": 4,
+    "concurrency": 6
+  },
+  "hostCounts": 
+  {
+    "array": 16,
+    "string": 10,
+    "map": 8,
+    "channel": 9
+  },
+  "functions": [
+    {
+      "id": "print",
+      "nameAr": "اطبع",
+      "nameEn": "print",
+      "category": "printing",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يطبع قيمة أو أكثر إلى الإخراج القياسي بدون سطر جديد.",
+      "summaryEn": "(EN) Print one or more values to stdout without newline.",
+      "params": [
+        {
+          "name": "قيم",
+          "nameEn": "values",
+          "type": "أي",
+          "variadic": true
+        }
+      ],
+      "example": "اطبع(\"س = \"، س)"
+    },
+    {
+      "id": "println",
+      "nameAr": "اطبع_سطر",
+      "nameEn": "println",
+      "category": "printing",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يطبع قيمة أو أكثر متبوعةً بسطر جديد.",
+      "summaryEn": "(EN) Print one or more values followed by newline.",
+      "params": [
+        {
+          "name": "قيم",
+          "nameEn": "values",
+          "type": "أي",
+          "variadic": true
+        }
+      ],
+      "example": "اطبع_سطر(\"مرحباً\")"
+    },
+    {
+      "id": "read",
+      "nameAr": "اقرأ",
+      "nameEn": "read",
+      "category": "input",
+      "returnType": "نص",
+      "summaryAr": "(AR) يقرأ سطراً من الدخل القياسي مع رسالة اختيارية.",
+      "summaryEn": "(EN) Read a line from stdin with optional prompt.",
+      "params": [
+        {
+          "name": "رسالة",
+          "nameEn": "prompt",
+          "type": "نص",
+          "optional": true
+        }
+      ],
+      "example": "متغير الاسم = اقرأ(\"اسمك؟ \")"
+    },
+    {
+      "id": "length",
+      "nameAr": "طول",
+      "nameEn": "length",
+      "category": "reflection",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يرجع طول قيمة (نص، مصفوفة، خريطة).",
+      "summaryEn": "(EN) Return length of a value (string, array, map).",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ],
+      "example": "طول([1، 2، 3])"
+    },
+    {
+      "id": "type",
+      "nameAr": "نوع",
+      "nameEn": "type",
+      "category": "reflection",
+      "returnType": "نص",
+      "summaryAr": "(AR) يرجع اسم نوع القيمة كنص (مثال: \"رقم\"، \"نص\").",
+      "summaryEn": "(EN) Return value type name as string (e.g. \"رقم\").",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ],
+      "example": "نوع(42)  # \"رقم\""
+    },
+    {
+      "id": "to_int",
+      "nameAr": "رقم",
+      "nameEn": "to_int",
+      "category": "type_ctor",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يحوّل قيمة إلى رقم صحيح. يرمي خطأ إذا تعذّر.",
+      "summaryEn": "(EN) Convert a value to integer. Throws on failure.",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ],
+      "example": "رقم(\"42\")"
+    },
+    {
+      "id": "to_float",
+      "nameAr": "عشري",
+      "nameEn": "to_float",
+      "category": "type_ctor",
+      "returnType": "عشري",
+      "summaryAr": "(AR) يحوّل قيمة إلى رقم عشري.",
+      "summaryEn": "(EN) Convert a value to floating-point number.",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ],
+      "example": "عشري(\"3.14\")"
+    },
+    {
+      "id": "to_string",
+      "nameAr": "نص",
+      "nameEn": "to_string",
+      "category": "type_ctor",
+      "returnType": "نص",
+      "summaryAr": "(AR) يحوّل أي قيمة إلى تمثيلها النصي.",
+      "summaryEn": "(EN) Convert any value to its string representation.",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ],
+      "example": "نص(123)  # \"123\""
+    },
+    {
+      "id": "to_bool",
+      "nameAr": "منطقي",
+      "nameEn": "to_bool",
+      "category": "type_ctor",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يحوّل قيمة إلى منطقي (صحيح/خطأ).",
+      "summaryEn": "(EN) Convert a value to boolean.",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ],
+      "example": "منطقي(0)  # خطأ"
+    },
+    {
+      "id": "channel",
+      "nameAr": "قناة",
+      "nameEn": "channel",
+      "category": "concurrency",
+      "returnType": "قناة",
+      "summaryAr": "(AR) ينشئ قناة مخزَّنة بسعة محددة.",
+      "summaryEn": "(EN) Create a buffered channel with given capacity.",
+      "params": [
+        {
+          "name": "السعة",
+          "nameEn": "capacity",
+          "type": "رقم"
+        }
+      ],
+      "example": "متغير ق = قناة(10)"
+    },
+    {
+      "id": "wait_all",
+      "nameAr": "انتظر_الكل",
+      "nameEn": "wait_all",
+      "category": "concurrency",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يحجب حتى تنتهي جميع الـ goroutines المُطلَقة.",
+      "summaryEn": "(EN) Block until all spawned goroutines complete.",
+      "params": [],
+      "example": "انتظر_الكل()"
+    },
+    {
+      "id": "task_count",
+      "nameAr": "عدد_المهام",
+      "nameEn": "task_count",
+      "category": "concurrency",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يرجع عدد الـ goroutines النشطة حالياً.",
+      "summaryEn": "(EN) Return number of currently active goroutines.",
+      "params": [],
+      "example": "اطبع_سطر(عدد_المهام())"
+    },
+    {
+      "id": "wait_group",
+      "nameAr": "مجموعة_انتظار",
+      "nameEn": "wait_group",
+      "category": "concurrency",
+      "returnType": "مجموعة_انتظار",
+      "summaryAr": "(AR) ينشئ مجموعة انتظار للتزامن بين الخيوط.",
+      "summaryEn": "(EN) Create a wait group for thread synchronization.",
+      "params": [],
+      "example": "متغير مج = مجموعة_انتظار()"
+    },
+    {
+      "id": "mutex",
+      "nameAr": "قفل",
+      "nameEn": "mutex",
+      "category": "concurrency",
+      "returnType": "قفل",
+      "summaryAr": "(AR) ينشئ قفلاً للحماية من السباقات (mutex).",
+      "summaryEn": "(EN) Create a mutex lock to prevent data races.",
+      "params": [],
+      "example": "متغير ق_ف = قفل()"
+    },
+    {
+      "id": "future",
+      "nameAr": "مستقبل",
+      "nameEn": "future",
+      "category": "concurrency",
+      "returnType": "مستقبل",
+      "summaryAr": "(AR) ينشئ مستقبلاً يحمل قيمة تُحسب لاحقاً في goroutine.",
+      "summaryEn": "(EN) Create a future holding a value computed later.",
+      "params": [],
+      "example": "متغير م = مستقبل()"
+    }
+  ],
+  "methods": [
+    {
+      "id": "array.push",
+      "host": "array",
+      "nameAr": "اضف",
+      "nameEn": "push",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يُضيف عنصراً إلى نهاية المصفوفة.",
+      "summaryEn": "(EN) Append element to end.",
+      "params": [
+        {
+          "name": "عنصر",
+          "nameEn": "element",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "array.pop",
+      "host": "array",
+      "nameAr": "احذف_اخير",
+      "nameEn": "pop",
+      "returnType": "أي",
+      "summaryAr": "(AR) يحذف ويرجع آخر عنصر.",
+      "summaryEn": "(EN) Remove and return last element.",
+      "params": []
+    },
+    {
+      "id": "array.sort",
+      "host": "array",
+      "nameAr": "رتب",
+      "nameEn": "sort",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يرتب المصفوفة تصاعدياً.",
+      "summaryEn": "(EN) Sort array ascending.",
+      "params": []
+    },
+    {
+      "id": "array.reverse",
+      "host": "array",
+      "nameAr": "عكس",
+      "nameEn": "reverse",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يعكس ترتيب العناصر.",
+      "summaryEn": "(EN) Reverse element order.",
+      "params": []
+    },
+    {
+      "id": "array.contains",
+      "host": "array",
+      "nameAr": "يحتوي",
+      "nameEn": "contains",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص وجود عنصر.",
+      "summaryEn": "(EN) Check element existence.",
+      "params": [
+        {
+          "name": "عنصر",
+          "nameEn": "element",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "array.index_of",
+      "host": "array",
+      "nameAr": "فهرس",
+      "nameEn": "index_of",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يرجع فهرس عنصر أو -1.",
+      "summaryEn": "(EN) Return element index or -1.",
+      "params": [
+        {
+          "name": "عنصر",
+          "nameEn": "element",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "array.slice",
+      "host": "array",
+      "nameAr": "شريحة",
+      "nameEn": "slice",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يستخرج شريحة فرعية [بداية، نهاية).",
+      "summaryEn": "(EN) Extract subarray [start, end).",
+      "params": [
+        {
+          "name": "بداية",
+          "nameEn": "start",
+          "type": "رقم"
+        },
+        {
+          "name": "نهاية",
+          "nameEn": "end",
+          "type": "رقم",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "array.map",
+      "host": "array",
+      "nameAr": "خريطة",
+      "nameEn": "map",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يطبق دالة على كل عنصر.",
+      "summaryEn": "(EN) Apply function to each element.",
+      "params": [
+        {
+          "name": "دالة",
+          "nameEn": "fn",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "array.filter",
+      "host": "array",
+      "nameAr": "رشح",
+      "nameEn": "filter",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يبقي العناصر التي تحقق الشرط.",
+      "summaryEn": "(EN) Keep elements matching predicate.",
+      "params": [
+        {
+          "name": "دالة",
+          "nameEn": "fn",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "array.reduce",
+      "host": "array",
+      "nameAr": "اختزل",
+      "nameEn": "reduce",
+      "returnType": "أي",
+      "summaryAr": "(AR) يجمع المصفوفة بقيمة واحدة.",
+      "summaryEn": "(EN) Reduce to single value.",
+      "params": [
+        {
+          "name": "دالة",
+          "nameEn": "fn",
+          "type": "أي"
+        },
+        {
+          "name": "بدء",
+          "nameEn": "init",
+          "type": "أي",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "array.for_each",
+      "host": "array",
+      "nameAr": "لكل",
+      "nameEn": "for_each",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) ينفّذ دالة على كل عنصر.",
+      "summaryEn": "(EN) Execute function for each element.",
+      "params": [
+        {
+          "name": "دالة",
+          "nameEn": "fn",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "array.first",
+      "host": "array",
+      "nameAr": "اول",
+      "nameEn": "first",
+      "returnType": "أي",
+      "summaryAr": "(AR) يرجع أول عنصر.",
+      "summaryEn": "(EN) Return first element.",
+      "params": []
+    },
+    {
+      "id": "array.last",
+      "host": "array",
+      "nameAr": "آخر",
+      "nameEn": "last",
+      "returnType": "أي",
+      "summaryAr": "(AR) يرجع آخر عنصر.",
+      "summaryEn": "(EN) Return last element.",
+      "params": []
+    },
+    {
+      "id": "array.empty",
+      "host": "array",
+      "nameAr": "فارغة",
+      "nameEn": "empty",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص إن كانت فارغة.",
+      "summaryEn": "(EN) Check if empty.",
+      "params": []
+    },
+    {
+      "id": "array.length",
+      "host": "array",
+      "nameAr": "الطول",
+      "nameEn": "length",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يرجع عدد العناصر.",
+      "summaryEn": "(EN) Return element count.",
+      "params": []
+    },
+    {
+      "id": "array.flat",
+      "host": "array",
+      "nameAr": "مسطح",
+      "nameEn": "flat",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يسطّح المصفوفات المتداخلة بمستوى واحد.",
+      "summaryEn": "(EN) Flatten one level deep.",
+      "params": []
+    },
+    {
+      "id": "string.length",
+      "host": "string",
+      "nameAr": "طول",
+      "nameEn": "length",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يرجع طول النص (محارف).",
+      "summaryEn": "(EN) Return string length (chars).",
+      "params": []
+    },
+    {
+      "id": "string.contains",
+      "host": "string",
+      "nameAr": "يحتوي",
+      "nameEn": "contains",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص وجود نص فرعي.",
+      "summaryEn": "(EN) Check substring existence.",
+      "params": [
+        {
+          "name": "نص_فرعي",
+          "nameEn": "substr",
+          "type": "نص"
+        }
+      ]
+    },
+    {
+      "id": "string.starts_with",
+      "host": "string",
+      "nameAr": "يبدأ_بـ",
+      "nameEn": "starts_with",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص بداية النص.",
+      "summaryEn": "(EN) Check string prefix.",
+      "params": [
+        {
+          "name": "بادئة",
+          "nameEn": "prefix",
+          "type": "نص"
+        }
+      ]
+    },
+    {
+      "id": "string.ends_with",
+      "host": "string",
+      "nameAr": "ينتهي_بـ",
+      "nameEn": "ends_with",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص نهاية النص.",
+      "summaryEn": "(EN) Check string suffix.",
+      "params": [
+        {
+          "name": "لاحقة",
+          "nameEn": "suffix",
+          "type": "نص"
+        }
+      ]
+    },
+    {
+      "id": "string.split",
+      "host": "string",
+      "nameAr": "تقسيم",
+      "nameEn": "split",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يقسّم النص حول فاصل.",
+      "summaryEn": "(EN) Split string around separator.",
+      "params": [
+        {
+          "name": "فاصل",
+          "nameEn": "separator",
+          "type": "نص"
+        }
+      ]
+    },
+    {
+      "id": "string.replace",
+      "host": "string",
+      "nameAr": "استبدل",
+      "nameEn": "replace",
+      "returnType": "نص",
+      "summaryAr": "(AR) يستبدل كل نص فرعي ببديل.",
+      "summaryEn": "(EN) Replace all occurrences.",
+      "params": [
+        {
+          "name": "قديم",
+          "nameEn": "old",
+          "type": "نص"
+        },
+        {
+          "name": "جديد",
+          "nameEn": "new",
+          "type": "نص"
+        }
+      ]
+    },
+    {
+      "id": "string.substring",
+      "host": "string",
+      "nameAr": "استخراج",
+      "nameEn": "substring",
+      "returnType": "نص",
+      "summaryAr": "(AR) يستخرج نصاً فرعياً [بداية، نهاية).",
+      "summaryEn": "(EN) Extract substring [start, end).",
+      "params": [
+        {
+          "name": "بداية",
+          "nameEn": "start",
+          "type": "رقم"
+        },
+        {
+          "name": "نهاية",
+          "nameEn": "end",
+          "type": "رقم",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "string.trim",
+      "host": "string",
+      "nameAr": "قص_أطراف",
+      "nameEn": "trim",
+      "returnType": "نص",
+      "summaryAr": "(AR) يحذف المسافات من الأطراف.",
+      "summaryEn": "(EN) Trim whitespace from both ends.",
+      "params": []
+    },
+    {
+      "id": "string.to_upper",
+      "host": "string",
+      "nameAr": "تحويل_كبير",
+      "nameEn": "to_upper",
+      "returnType": "نص",
+      "summaryAr": "(AR) يحوّل إلى حروف كبيرة (لاتيني).",
+      "summaryEn": "(EN) Convert to uppercase (Latin).",
+      "params": []
+    },
+    {
+      "id": "string.to_lower",
+      "host": "string",
+      "nameAr": "تحويل_صغير",
+      "nameEn": "to_lower",
+      "returnType": "نص",
+      "summaryAr": "(AR) يحوّل إلى حروف صغيرة (لاتيني).",
+      "summaryEn": "(EN) Convert to lowercase (Latin).",
+      "params": []
+    },
+    {
+      "id": "map.get",
+      "host": "map",
+      "nameAr": "احصل",
+      "nameEn": "get",
+      "returnType": "أي",
+      "summaryAr": "(AR) يرجع قيمة المفتاح أو لاشيء.",
+      "summaryEn": "(EN) Get value by key or null.",
+      "params": [
+        {
+          "name": "مفتاح",
+          "nameEn": "key",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "map.set",
+      "host": "map",
+      "nameAr": "عيّن",
+      "nameEn": "set",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يعيّن قيمة لمفتاح.",
+      "summaryEn": "(EN) Set value for key.",
+      "params": [
+        {
+          "name": "مفتاح",
+          "nameEn": "key",
+          "type": "أي"
+        },
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "map.delete",
+      "host": "map",
+      "nameAr": "احذف",
+      "nameEn": "delete",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يحذف مفتاحاً ويرجع نجاح العملية.",
+      "summaryEn": "(EN) Delete key, return success.",
+      "params": [
+        {
+          "name": "مفتاح",
+          "nameEn": "key",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "map.contains",
+      "host": "map",
+      "nameAr": "يحتوي",
+      "nameEn": "contains",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص وجود مفتاح.",
+      "summaryEn": "(EN) Check key existence.",
+      "params": [
+        {
+          "name": "مفتاح",
+          "nameEn": "key",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "map.keys",
+      "host": "map",
+      "nameAr": "مفاتيح",
+      "nameEn": "keys",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يرجع مصفوفة المفاتيح.",
+      "summaryEn": "(EN) Return array of keys.",
+      "params": []
+    },
+    {
+      "id": "map.values",
+      "host": "map",
+      "nameAr": "قيم",
+      "nameEn": "values",
+      "returnType": "مصفوفة",
+      "summaryAr": "(AR) يرجع مصفوفة القيم.",
+      "summaryEn": "(EN) Return array of values.",
+      "params": []
+    },
+    {
+      "id": "map.size",
+      "host": "map",
+      "nameAr": "حجم",
+      "nameEn": "size",
+      "returnType": "رقم",
+      "summaryAr": "(AR) يرجع عدد الأزواج.",
+      "summaryEn": "(EN) Return pair count.",
+      "params": []
+    },
+    {
+      "id": "map.empty",
+      "host": "map",
+      "nameAr": "فارغة",
+      "nameEn": "empty",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص إن كانت فارغة.",
+      "summaryEn": "(EN) Check if empty.",
+      "params": []
+    },
+    {
+      "id": "channel.send",
+      "host": "channel",
+      "nameAr": "أرسل",
+      "nameEn": "send",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يرسل قيمة (يحجب إذا ممتلئة).",
+      "summaryEn": "(EN) Send value (blocks if full).",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "channel.receive",
+      "host": "channel",
+      "nameAr": "استقبل",
+      "nameEn": "receive",
+      "returnType": "أي",
+      "summaryAr": "(AR) يستقبل قيمة (يحجب إذا فارغة).",
+      "summaryEn": "(EN) Receive value (blocks if empty).",
+      "params": []
+    },
+    {
+      "id": "channel.try_send",
+      "host": "channel",
+      "nameAr": "حاول_ارسل",
+      "nameEn": "try_send",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يحاول الإرسال بدون حجب.",
+      "summaryEn": "(EN) Try send without blocking.",
+      "params": [
+        {
+          "name": "قيمة",
+          "nameEn": "value",
+          "type": "أي"
+        }
+      ]
+    },
+    {
+      "id": "channel.try_receive",
+      "host": "channel",
+      "nameAr": "حاول_استقبل",
+      "nameEn": "try_receive",
+      "returnType": "أي",
+      "summaryAr": "(AR) يحاول الاستقبال بدون حجب.",
+      "summaryEn": "(EN) Try receive without blocking.",
+      "params": []
+    },
+    {
+      "id": "channel.size",
+      "host": "channel",
+      "nameAr": "الحجم",
+      "nameEn": "size",
+      "returnType": "رقم",
+      "summaryAr": "(AR) عدد العناصر الحالية.",
+      "summaryEn": "(EN) Current element count.",
+      "params": []
+    },
+    {
+      "id": "channel.capacity",
+      "host": "channel",
+      "nameAr": "السعة",
+      "nameEn": "capacity",
+      "returnType": "رقم",
+      "summaryAr": "(AR) السعة القصوى.",
+      "summaryEn": "(EN) Maximum capacity.",
+      "params": []
+    },
+    {
+      "id": "channel.empty",
+      "host": "channel",
+      "nameAr": "فارغة",
+      "nameEn": "empty",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص إن كانت فارغة.",
+      "summaryEn": "(EN) Check if empty.",
+      "params": []
+    },
+    {
+      "id": "channel.close",
+      "host": "channel",
+      "nameAr": "أغلق",
+      "nameEn": "close",
+      "returnType": "فراغ",
+      "summaryAr": "(AR) يغلق القناة.",
+      "summaryEn": "(EN) Close the channel.",
+      "params": []
+    },
+    {
+      "id": "channel.closed",
+      "host": "channel",
+      "nameAr": "مغلقة",
+      "nameEn": "closed",
+      "returnType": "منطقي",
+      "summaryAr": "(AR) يفحص إن كانت مغلقة.",
+      "summaryEn": "(EN) Check if closed.",
+      "params": []
+    }
+  ]
+}

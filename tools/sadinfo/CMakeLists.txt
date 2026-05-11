@@ -27,6 +27,7 @@ set(SADINFO_SOURCES
     src/json_writer.cpp
     src/keyword_transforms.cpp   # (AR) تحويلات نقية على KeywordEntry (Story 1.2)
     src/dump_keywords.cpp
+    src/builtin_data.cpp         # (AR) جداول الدوال المدمجة + الطرق (Story 1.3)
     src/dump_builtins.cpp
     src/dump_errors.cpp
     src/dump_directives.cpp
