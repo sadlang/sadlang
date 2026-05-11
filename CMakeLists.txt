@@ -71,6 +71,13 @@ option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
 # 1. إعدادات LLVM الاختيارية (يجب أن تأتي قبل reorganized.cmake) / Optional LLVM Configuration
 include(${CMAKE_SOURCE_DIR}/cmake/llvm.cmake)
 
+# 1.5. yaml-cpp الاختيارية لـ sadinfo / Optional yaml-cpp for sadinfo
+# (AR) يجب أن تُحمَّل قبل reorganized.cmake/tools.cmake لتعريف SAD_HAS_YAML_CPP
+#      و target yaml-cpp قبل أن يتحقق منها tools/sadinfo/CMakeLists.txt.
+# (EN) Must load before reorganized.cmake/tools.cmake to define SAD_HAS_YAML_CPP
+#      and the yaml-cpp target before tools/sadinfo/CMakeLists.txt checks them.
+include(${CMAKE_SOURCE_DIR}/cmake/yaml_cpp.cmake)
+
 # 2. إعدادات المنصة (preprocessor, warnings) / Platform Configuration
 # (AR) يجب تحميلها قبل reorganized.cmake لتنتشر الخيارات إلى المجلدات الفرعية
 # (EN) Must be loaded before reorganized.cmake so options propagate to subdirectories

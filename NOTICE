@@ -1,0 +1,98 @@
+# NOTICE — تبعيات الطرف الثالث / Third-Party Dependencies
+
+هذا الملف يسرد جميع مكتبات الطرف الثالث المُدمجة في **لغة ص (Sad)**
+وتراخيصها. التزاماً بمتطلبات الإسناد (attribution) لكل ترخيص.
+
+This file enumerates all third-party libraries integrated into **Sad
+Programming Language** along with their licenses, in compliance with
+attribution requirements of each license.
+
+> **المشروع نفسه** مُرخَّص تحت **MIT License** — راجع [`LICENSE`](LICENSE).
+> **The project itself** is licensed under **MIT License** — see
+> [`LICENSE`](LICENSE).
+
+---
+
+## 1. yaml-cpp
+
+- **الإصدار / Version:** v0.8.0
+- **الترخيص / License:** MIT
+- **النسخ / Copyright:** Copyright (c) 2008-2015 Jesse Beder
+- **المصدر / Source:** https://github.com/jbeder/yaml-cpp
+- **يُجلَب عبر / Fetched via:** CMake `FetchContent` —
+  انظر [`cmake/yaml_cpp.cmake`](cmake/yaml_cpp.cmake)
+- **يُربَط بـ / Linked into:** `sadinfo` فقط (مُمكَّن افتراضياً عبر
+  `-DENABLE_YAML_CPP=ON`؛ يمكن تعطيله بـ `-DENABLE_YAML_CPP=OFF` للحصول
+  على fallback يدوي مدمج).
+
+### نص الترخيص / License Text
+
+```
+Copyright (c) 2008-2015 Jesse Beder.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+---
+
+## 2. LLVM (اختياري / Optional)
+
+- **الإصدار / Version:** 18.x
+- **الترخيص / License:** Apache 2.0 with LLVM Exceptions
+- **المصدر / Source:** https://llvm.org/
+- **يُربَط بـ / Linked into:** `sadc` (المترجم) فقط، عند تفعيل
+  `-DENABLE_LLVM_BACKEND=ON`.
+- **النص الكامل للترخيص / Full license text:**
+  https://github.com/llvm/llvm-project/blob/main/LICENSE.TXT
+
+---
+
+## 3. SDL2
+
+- **الإصدار / Version:** مُدمَجة في `graphics/third_party/SDL2/`
+- **الترخيص / License:** Zlib
+- **المصدر / Source:** https://www.libsdl.org/
+- **يُربَط بـ / Linked into:** نظام الرسوميات `graphics/` عند البناء معه.
+
+---
+
+## 4. SQLite3 (اختياري / Optional)
+
+- **الترخيص / License:** Public Domain
+- **المصدر / Source:** https://www.sqlite.org/
+- **الكشف / Detection:** اختياري عبر CMake — يُكتشف نظام الحزم.
+
+---
+
+## 5. OpenSSL (اختياري / Optional)
+
+- **الترخيص / License:** Apache 2.0 (v3.0+) أو OpenSSL/SSLeay (v1.x)
+- **المصدر / Source:** https://www.openssl.org/
+- **الكشف / Detection:** اختياري عبر CMake.
+
+---
+
+## ملاحظات / Notes
+
+- تبعيات اختيارية لا تُجلَب إلا عند تفعيل خياراتها في CMake.
+- لا تُربَط أي تبعية طرف ثالث بـ `sad_shared` (المكتبة النواة المشتركة).
+- جميع التراخيص متوافقة مع MIT (يمكن إعادة التوزيع كجزء من المشروع).
+
+For redistribution: this NOTICE file MUST accompany any binary distribution
+of Sad Programming Language that includes the listed third-party components.

@@ -411,4 +411,12 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/tests/hub/CMakeLists.txt")
     add_subdirectory(tests/hub)
 endif()
 
+# ──────────────────────────────────────────────────────────────────────
+# (AR) اختبارات sadinfo (Story 1.2)
+# (EN) sadinfo tests (Story 1.2)
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/sadinfo/CMakeLists.txt")
+    add_subdirectory(tests/sadinfo)
+endif()
+
 message(STATUS "✓ الاختبارات مفعلة / Tests enabled")
