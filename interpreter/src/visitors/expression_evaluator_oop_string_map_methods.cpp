@@ -22,6 +22,9 @@
 #include <vector>
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+// (AR) ثوابت أسماء الطرق المُولَّدة / (EN) Generated type method name constants
+#include "builtin_registry.h"
+namespace TM = Sad::Builtins::Names::TypeMethods;
 namespace Sad
 {
     namespace Interpreter
@@ -48,7 +51,8 @@ namespace Sad
             std::string str = objectValue.toString();
             const std::string &m = node.methodName;
 
-            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم")
+            // TM::String::LENGTH
+            if (m == TM::String::LENGTH)
             {
                 // (AR) نحسب عدد أحرف UTF-8 (وليس البايتات)
                 // (EN) Count UTF-8 characters, not bytes
@@ -69,7 +73,8 @@ namespace Sad
                 lastResult_ = Value(charCount);
                 return;
             }
-            if (m == "يحتوي")
+            // TM::String::CONTAINS
+            if (m == TM::String::CONTAINS)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -79,7 +84,8 @@ namespace Sad
                 lastResult_ = Value(str.find(args[0].toString()) != std::string::npos);
                 return;
             }
-            if (m == "قسّم" || m == "قسم")
+            // TM::String::SPLIT
+            if (m == TM::String::SPLIT)
             {
                 std::string sep = args.empty() ? " " : args[0].toString();
                 Value::ArrayType parts;
@@ -93,12 +99,14 @@ namespace Sad
                 lastResult_ = Value(parts);
                 return;
             }
-            if (m == "فارغ" || m == "فارغة")
+            // TM::String::IS_EMPTY
+            if (m == TM::Array::IS_EMPTY)
             {
                 lastResult_ = Value(str.empty());
                 return;
             }
-            if (m == "استبدل")
+            // TM::String::REPLACE
+            if (m == TM::String::REPLACE)
             {
                 if (args.size() < 2)
                     ::Sad::Errors::throwRuntime(
@@ -116,7 +124,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "جزء")
+            if (m == TM::String::SUBSTRING)
             {
                 // (AR) فهرسة بالحروف (UTF-8) وليس بالبايتات
                 // (EN) Index by UTF-8 characters, not bytes
@@ -156,7 +164,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "حرف_عند")
+            if (m == TM::String::CHAR_AT)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -195,7 +203,8 @@ namespace Sad
                 lastResult_ = Value(chars[idx]);
                 return;
             }
-            if (m == "يبدأ_بـ" || m == "يبدأ")
+            // TM::String::STARTS_WITH
+            if (m == TM::String::STARTS_WITH)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -206,7 +215,8 @@ namespace Sad
                 lastResult_ = Value(str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix);
                 return;
             }
-            if (m == "ينتهي_بـ" || m == "ينتهي")
+            // TM::String::ENDS_WITH
+            if (m == TM::String::ENDS_WITH)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -217,7 +227,8 @@ namespace Sad
                 lastResult_ = Value(str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix);
                 return;
             }
-            if (m == "قص")
+            // TM::String::TRIM
+            if (m == TM::String::TRIM)
             {
                 std::string result = str;
                 result.erase(0, result.find_first_not_of(" \t\r\n"));
@@ -225,7 +236,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "كرر")
+            if (m == TM::String::REPEAT)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -239,7 +250,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "عكس")
+            if (m == TM::String::REVERSE)
             {
                 // (AR) عكس بأحرف UTF-8 (وليس بايتات)
                 // (EN) Reverse by UTF-8 codepoints, not bytes
@@ -267,7 +278,8 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "تحويل_صغير" || m == "لأصغر")
+            // TM::String::TO_LOWER
+            if (m == TM::String::TO_LOWER)
             {
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
@@ -276,7 +288,8 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "تحويل_كبير" || m == "لأكبر")
+            // TM::String::TO_UPPER
+            if (m == TM::String::TO_UPPER)
             {
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
@@ -285,7 +298,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "بحث" || m == "جد")
+            if (m == TM::String::FIND)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -326,7 +339,8 @@ namespace Sad
             const std::string &m = node.methodName;
 
             // ─── احصل (get) — الحصول على قيمة بالمفتاح ───
-            if (m == "احصل")
+            // TM::Map::GET
+            if (m == TM::Map::GET)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -348,7 +362,8 @@ namespace Sad
                 return;
             }
             // ─── عيّن / عين (set) — تعيين قيمة بالمفتاح ───
-            if (m == "عيّن" || m == "عين")
+            // TM::Map::SET = "عيّن" (with shadda) + "عين" (without)
+            if (m == TM::Map::SET)
             {
                 if (args.size() < 2)
                     ::Sad::Errors::throwRuntime(
@@ -364,7 +379,8 @@ namespace Sad
             }
 
             // ─── المفاتيح ───
-            if (m == "مفاتيح")
+            // TM::Map::KEYS
+            if (m == TM::Map::KEYS)
             {
                 Value::ArrayType keys;
                 for (const auto &[k, v] : mapData)
@@ -375,7 +391,8 @@ namespace Sad
                 return;
             }
             // ─── القيم ───
-            if (m == "القيم" || m == "قيم")
+            // TM::Map::VALUES
+            if (m == TM::Map::VALUES)
             {
                 Value::ArrayType vals;
                 for (const auto &[k, v] : mapData)
@@ -386,13 +403,13 @@ namespace Sad
                 return;
             }
             // ─── الطول / الحجم ───
-            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم")
+            if (m == TM::Map::SIZE)
             {
                 lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(mapData.size(), "expression_evaluator_oop_string_map_methods_size"));
                 return;
             }
             // ─── يحتوي (على مفتاح) ───
-            if (m == "يحتوي" || m == "يحتوي_مفتاح")
+            if (m == TM::Map::CONTAINS)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -404,7 +421,8 @@ namespace Sad
                 return;
             }
             // ─── احذف ───
-            if (m == "احذف" || m == "أزل")
+            // TM::Map::DELETE
+            if (m == TM::Map::DELETE)
             {
                 if (args.empty())
                     ::Sad::Errors::throwRuntime(
@@ -419,7 +437,7 @@ namespace Sad
                 return;
             }
             // ─── دمج ───
-            if (m == "دمج")
+            if (m == TM::Map::MERGE)
             {
                 if (args.empty() || !args[0].isMap())
                     ::Sad::Errors::throwRuntime(
@@ -437,7 +455,7 @@ namespace Sad
                 return;
             }
             // ─── امسح / نظف ───
-            if (m == "امسح" || m == "نظف")
+            if (m == TM::Map::CLEAR)
             {
                 Value newMap(Value::MapType{});
                 writeBackChain(node.object.get(), newMap);
@@ -445,20 +463,20 @@ namespace Sad
                 return;
             }
             // ─── فارغ / فارغة ───
-            if (m == "فارغ" || m == "فارغة")
+            if (m == TM::Map::IS_EMPTY)
             {
                 lastResult_ = Value(mapData.empty());
                 return;
             }
             // ─── نسخ ───
-            if (m == "نسخ" || m == "انسخ" || m == "استنسخ")
+            if (m == TM::Map::COPY)
             {
                 Value::MapType copy(mapData.begin(), mapData.end());
                 lastResult_ = Value(copy);
                 return;
             }
             // ─── عناصر (entries) ───
-            if (m == "عناصر")
+            if (m == TM::Map::ENTRIES)
             {
                 Value::ArrayType entries;
                 for (const auto &[k, v] : mapData)

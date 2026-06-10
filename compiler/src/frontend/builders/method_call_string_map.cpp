@@ -9,6 +9,10 @@
 #include <optional>
 #include "sir_builder.h"
 #include "builders/method_call_builder.h"
+// (AR) ثوابت أسماء طرق الأنواع المُولَّدة
+#include "builtin_registry.h"
+
+namespace TM = Sad::Builtins::Names::TypeMethods;
 
 namespace Sad
 {
@@ -20,8 +24,7 @@ namespace Sad
                 const BuildResult &objResult, const std::string &methodName,
                 const std::vector<SIROperand> &args)
             {
-                if (methodName == "قسم" || methodName == "تقسيم" ||
-                    methodName == "قسّم" || methodName == "split")
+                if (methodName == TM::String::SPLIT)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_SPLIT);
@@ -38,7 +41,7 @@ namespace Sad
 
                 // (AR) ?????? / replace � ??????? ?? ????
                 // (EN) replace � replace substring
-                if (methodName == "استبدل" || methodName == "replace")
+                if (methodName == TM::String::REPLACE)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_REPLACE);
@@ -55,8 +58,7 @@ namespace Sad
 
                 // (AR) ????_?? / starts_with � ??? ????? ????
                 // (EN) starts_with � check if string starts with prefix
-                if (methodName == "يبدأ_بـ" || methodName == "يبدا_ب" ||
-                    methodName == "starts_with")
+                if (methodName == TM::String::STARTS_WITH)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_STARTS_WITH);
@@ -71,8 +73,7 @@ namespace Sad
 
                 // (AR) ?????_?? / ends_with � ??? ????? ????
                 // (EN) ends_with � check if string ends with suffix
-                if (methodName == "ينتهي_بـ" || methodName == "ينتهي_ب" ||
-                    methodName == "ends_with")
+                if (methodName == TM::String::ENDS_WITH)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_ENDS_WITH);
@@ -87,8 +88,7 @@ namespace Sad
 
                 // (AR) ?? / trim � ????? ???????? ?? ???????
                 // (EN) trim � remove whitespace from both ends
-                if (methodName == "قص" || methodName == "قص_أطراف" ||
-                    methodName == "trim")
+                if (methodName == TM::String::TRIM)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_TRIM);
@@ -101,8 +101,7 @@ namespace Sad
 
                 // (AR) ??? / substring � ??????? ??? ?? ????
                 // (EN) substring � extract part of string
-                if (methodName == "جزء" || methodName == "استخراج" ||
-                    methodName == "substring" || methodName == "substr")
+                if (methodName == TM::String::SUBSTRING)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_SUBSTRING);
@@ -135,7 +134,7 @@ namespace Sad
                 // (EN) get — read value from map by key
                 //      Always returns string representation via __sad_map_get (smart: converts ints to string)
                 // ================================================================
-                if (methodName == "احصل" || methodName == "get")
+                if (methodName == TM::Map::GET)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst;
@@ -158,7 +157,7 @@ namespace Sad
                 // (EN) set — set value in map by key
                 //      Uses __sad_map_set_typed with type tag
                 // ================================================================
-                if (methodName == "عيّن" || methodName == "عين" || methodName == "set")
+                if (methodName == TM::Map::SET)
                 {
                     if (args.size() < 3)
                         return BuildResult("", SadTypeKind::Integer);
@@ -193,7 +192,7 @@ namespace Sad
                 //      args: [0]=self(map), [1]=key(string)
                 // (EN) delete — remove entry from map by key
                 // ================================================================
-                if (methodName == "احذف" || methodName == "delete")
+                if (methodName == TM::Map::DELETE)
                 {
                     SIRInstruction inst;
                     inst.opcode = SIROpcode::CALL;
@@ -211,7 +210,7 @@ namespace Sad
 
                 // (AR) مفاتيح / keys — إرجاع مصفوفة مفاتيح الخريطة
                 // (EN) keys — return array of map keys
-                if (methodName == "مفاتيح" || methodName == "keys")
+                if (methodName == TM::Map::KEYS)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst;
@@ -229,7 +228,7 @@ namespace Sad
 
                 // (AR) ??? / values � ????? ?????? ??? ???????
                 // (EN) values � return array of map values
-                if (methodName == "قيم" || methodName == "values")
+                if (methodName == TM::Map::VALUES)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst;
@@ -247,7 +246,7 @@ namespace Sad
 
                 // (AR) ??? / size � ??? ????? ???????
                 // (EN) size � number of map entries
-                if (methodName == "حجم" || methodName == "size")
+                if (methodName == TM::Map::SIZE)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst;
@@ -263,7 +262,7 @@ namespace Sad
 
                 // (AR) ????? / empty � ?? ??????? ?????
                 // (EN) empty � is map empty
-                if (methodName == "فارغة" || methodName == "empty" || methodName == "isEmpty")
+                if (methodName == TM::Map::IS_EMPTY)
                 {
                     // (AR) ??? ? ?? ?????? == 0 ??? SIR EQ
                     std::string sizeReg = b_.newTempRegister();
@@ -288,7 +287,7 @@ namespace Sad
 
                 // (AR) ????? / contains / has � ??? ???? ?????
                 // (EN) contains / has � check if key exists
-                if (methodName == "يحتوي" || methodName == "contains" || methodName == "has")
+                if (methodName == TM::Map::CONTAINS)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst;

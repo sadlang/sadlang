@@ -1,0 +1,169 @@
+version: '1.0'
+category: semantic
+description_ar: أخطاء semantic
+description_en: semantic errors
+errors:
+- code: SEM_UNDEFINED_VARIABLE
+  id: SEM001
+  category: semantic
+  title:
+    ar: متغير غير معرَّف
+    en: Undefined variable
+  brief:
+    ar: المتغير '{name}' غير معرَّف
+    en: Variable '{name}' is not defined
+  fix_hint:
+    ar: 'هل قصدت ''{suggestion}''؟ وإلا، عرّف المتغير قبل استخدامه: متغير {name} = <قيمة>'
+    en: 'Did you mean ''{suggestion}''? Otherwise, declare it first: متغير {name} = <value>'
+  placeholders:
+  - name
+  - suggestion
+  detailed:
+    ar: لغة ص تتطلّب تعريف كل متغيّر بـ'متغير' أو 'ثابت' قبل الاستخدام. هذا الخطأ يحدث عند الإشارة لاسم لم يُعرَّف في النطاق الحالي ولا في النطاقات الأعلى. غالباً يكون السبب خطأً إملائياً أو نسيان التعريف.
+    en: Sad requires every variable declared with 'متغير' or 'ثابت' before use. This error fires when referencing a name not defined in the current scope or any enclosing scope. Usually caused by typos
+      or forgotten declarations.
+- code: SEM_TYPE_MISMATCH
+  id: SEM002
+  category: semantic
+  title:
+    ar: عدم تطابق الأنواع
+    en: Type mismatch
+  brief:
+    ar: متوقع '{expected}' لكن وُجد '{found}'
+    en: Expected '{expected}' but found '{found}'
+  placeholders:
+  - expected
+  - found
+  fix_hint:
+    ar: 'حوّل القيمة إلى ''{expected}'' باستخدام دالة التحويل: رقم(ق)، نص(ق)، عشري(ق)، منطقي(ق).'
+    en: 'Convert value to ''{expected}'' via conversion functions: رقم(v), نص(v), عشري(v), منطقي(v).'
+  detailed:
+    ar: 'لغة ص تفحص الأنواع في وقت التشغيل (وأحياناً وقت الترجمة). العمليات والإسنادات تتطلّب توافق الأنواع. مثال: لا يمكن جمع نص ورقم مباشرة — استخدم نص(الرقم) أولاً.'
+    en: 'Sad checks types at runtime (sometimes compile-time). Operations and assignments require type compatibility. Example: you can''t directly add a string and number — use نص(number) first.'
+- code: SEM_REDEFINITION
+  id: SEM003
+  category: semantic
+  title:
+    ar: إعادة تعريف
+    en: Redefinition
+  brief:
+    ar: '''{name}'' معرَّف مسبقاً'
+    en: '''{name}'' is already defined'
+  placeholders:
+  - name
+  fix_hint:
+    ar: احذف التعريف المكرّر، أو غيّر الاسم. لإعادة الإسناد لمتغيّر موجود، أزل كلمة 'متغير' من السطر الجديد.
+    en: Remove the duplicate definition or rename it. To reassign an existing variable, drop the 'متغير' keyword on the new line.
+  detailed:
+    ar: كل اسم في نطاق واحد يُعرَّف مرّة واحدة فقط. تكرار 'متغير اسم = ...' مرّتين في نفس النطاق يُربك المحلّل الدلالي. الإسناد العادي 'اسم = ...' بدون 'متغير' يُحدّث قيمة موجودة بأمان.
+    en: Each name in a single scope is defined only once. Repeating 'متغير name = ...' twice in the same scope confuses semantic analysis. Plain assignment 'name = ...' without 'متغير' safely updates an
+      existing value.
+- code: SEM_UNDEFINED_FUNCTION
+  id: SEM004
+  category: semantic
+  title:
+    ar: دالة غير معرَّفة
+    en: Undefined function
+  brief:
+    ar: الدالة '{name}' غير معرَّفة
+    en: Function '{name}' is not defined
+  placeholders:
+  - name
+  fix_hint:
+    ar: 'عرّف الدالة قبل استدعائها، أو استورد الوحدة المناسبة. مثال: استورد رياضيات، ثم رياضيات.جذر(9).'
+    en: 'Define the function before calling it, or import the right module. Example: استورد رياضيات then رياضيات.جذر(9).'
+  detailed:
+    ar: الدوال يجب أن تُعرَّف (بـ'دالة') أو تُستورد قبل استدعائها. هذا الخطأ يظهر عند استدعاء اسم غير موجود في نطاق الدوال. تحقّق من الإملاء والاستيرادات والترتيب.
+    en: Functions must be defined (with 'دالة') or imported before calling. This error fires when calling a name not found in the function scope. Check spelling, imports, and ordering.
+- code: SEM_WRONG_ARG_COUNT
+  id: SEM005
+  category: semantic
+  title:
+    ar: عدد معاملات خاطئ
+    en: Wrong argument count
+  brief:
+    ar: الدالة '{name}' تتوقّع {expected} معاملاً، لكن مُرِّر {found}
+    en: Function '{name}' expects {expected} arguments but got {found}
+  placeholders:
+  - name
+  - expected
+  - found
+  fix_hint:
+    ar: مرّر بالضبط {expected} معاملاً. راجع توقيع الدالة '{name}' لمعرفة المعاملات المطلوبة وترتيبها.
+    en: Pass exactly {expected} arguments. Check the signature of '{name}' for required parameters and order.
+  detailed:
+    ar: لغة ص تفحص عدد المعاملات بصرامة عند الاستدعاء. مرّرت {found} لكن الدالة تتوقّع {expected}. لجعل دالة تقبل عدداً متغيّراً، استخدم بناء '...اسم' في تعريفها.
+    en: Sad strictly checks argument count at call site. You passed {found} but the function expects {expected}. To accept variadic args, use '...name' in the function definition.
+- code: SEM_INVALID_OPERATION
+  id: SEM006
+  category: semantic
+  title:
+    ar: عملية غير صالحة
+    en: Invalid operation
+  brief:
+    ar: لا يمكن تطبيق '{op}' على '{type}'
+    en: Cannot apply '{op}' to '{type}'
+  placeholders:
+  - op
+  - type
+  fix_hint:
+    ar: العامل '{op}' غير مدعوم للنوع '{type}'. إن أردت سلوكاً مخصّصاً، عرّف 'عامل {op}' داخل الصنف.
+    en: Operator '{op}' is not supported for type '{type}'. For custom behavior, define 'عامل {op}' inside the class.
+  detailed:
+    ar: 'كل عامل (+، -، *، /، <، == ...) يعمل على مجموعة محدّدة من الأنواع. مثلاً: ''/'' للأرقام فقط، ''+'' للأرقام والنصوص (تجميع)، ''<'' للأرقام والنصوص (مقارنة). الأنواع المخصّصة (الأصناف) تحتاج تحميل
+      العامل (عامل overloading).'
+    en: 'Each operator (+, -, *, /, <, == ...) works on a specific set of types. For example: ''/'' for numbers only, ''+'' for numbers and strings (concat), ''<'' for numbers and strings (compare). Custom
+      types (classes) need operator overloading.'
+- code: SEM_CONST_ASSIGNMENT
+  id: SEM007
+  category: semantic
+  title:
+    ar: إسناد لثابت
+    en: Assignment to constant
+  brief:
+    ar: لا يمكن تعديل الثابت '{name}'
+    en: Cannot modify constant '{name}'
+  fix_hint:
+    ar: غيّر 'ثابت {name}' إلى 'متغير {name}' في موضع التعريف، أو احذف محاولة الإسناد.
+    en: Change 'ثابت {name}' to 'متغير {name}' at the declaration site, or remove the reassignment attempt.
+  placeholders:
+  - name
+  detailed:
+    ar: الكلمة 'ثابت' تجعل القيمة غير قابلة للتعديل بعد التعريف الأوّل. هذه قيود وقت الترجمة لضمان عدم تغيير القيم الحسّاسة. إن احتجت تعديلاً، استخدم 'متغير' بدلاً منها.
+    en: '''ثابت'' (const) makes a value immutable after first assignment. This is a compile-time constraint preventing mutation of sensitive values. If mutation is needed, use ''متغير'' (var) instead.'
+- code: SEM_UNDEFINED_CLASS
+  id: SEM008
+  category: semantic
+  title:
+    ar: صنف غير معرَّف
+    en: Undefined class
+  brief:
+    ar: الصنف '{name}' غير معرَّف
+    en: Class '{name}' is not defined
+  placeholders:
+  - name
+  fix_hint:
+    ar: عرّف الصنف بـ'صنف {name} ... نهاية'، أو استورده من وحدة. تحقّق من الإملاء (حسّاس لحالة الأحرف اللاتينية).
+    en: Define the class with 'صنف {name} ... نهاية', or import it from a module. Check spelling (case-sensitive for Latin).
+  detailed:
+    ar: الأصناف يجب تعريفها قبل استخدامها (للوراثة، أو إنشاء كائن، أو التحقّق من النوع). يظهر هذا الخطأ غالباً مع 'يرث' أو عند 'جديد اسم(...)'. تأكّد من ترتيب الملفات والاستيرادات.
+    en: Classes must be defined before use (for inheritance, instantiation, or type check). Often appears with 'يرث' (inherits) or 'جديد name(...)'. Verify file order and imports.
+- code: SEM_PRIVATE_ACCESS
+  id: SEM009
+  category: semantic
+  title:
+    ar: وصول لعضو خاص
+    en: Access to private member
+  brief:
+    ar: العضو '{name}' خاص ولا يمكن الوصول إليه من الخارج
+    en: Member '{name}' is private and cannot be accessed externally
+  placeholders:
+  - name
+  fix_hint:
+    ar: أضف دالة 'عام' داخل الصنف للوصول إلى '{name}'، أو غيّر '{name}' من 'خاص' إلى 'عام'.
+    en: Add a 'عام' (public) method inside the class to access '{name}', or change '{name}' from 'خاص' to 'عام'.
+  detailed:
+    ar: الأعضاء المعلَّمة بـ'خاص' متاحة فقط داخل صنفها. الأعضاء المعلَّمة بـ'محمي' متاحة داخل الصنف والأصناف الوارثة. لا يوجد وصول خارجي مباشر إلا للأعضاء العامة. استخدم دوال الوصول (getters) لتعريض البيانات
+      بأمان.
+    en: Members marked 'خاص' (private) are accessible only within their class. 'محمي' (protected) are accessible within the class and inheritors. External direct access works only for public members. Use
+      accessor methods (getters) to safely expose data.

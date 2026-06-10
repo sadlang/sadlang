@@ -1,0 +1,137 @@
+version: '1.0'
+category: syntactic
+description_ar: أخطاء syntactic
+description_en: syntactic errors
+errors:
+- code: SYN_UNEXPECTED_TOKEN
+  id: SYN001
+  category: syntactic
+  title:
+    ar: رمز غير متوقع
+    en: Unexpected token
+  brief:
+    ar: وجدتُ '{found}' لكن كنت أتوقع '{expected}'
+    en: Found '{found}' but expected '{expected}'
+  placeholders:
+  - found
+  - expected
+  fix_hint:
+    ar: 'استبدل ''{found}'' بـ ''{expected}''. تحقّق من السطر السابق: هل نسيت ''نهاية'' أو فاصلة منقوطة؟'
+    en: 'Replace ''{found}'' with ''{expected}''. Check the previous line: did you miss ''نهاية'' (end) or a semicolon?'
+  detailed:
+    ar: 'المحلّل النحوي يبني شجرة الكود وفق قواعد لغة ص. عند رؤية رمز ''{found}'' في مكان يتطلّب ''{expected}''، تتوقّف المعالجة. السبب الشائع: نسيان إغلاق كتلة بـ''نهاية''، أو خطأ إملائي في كلمة مفتاحية.'
+    en: 'The parser builds the syntax tree per Sad''s grammar. Seeing ''{found}'' where ''{expected}'' is required stops parsing. Common causes: missing ''نهاية'' (end), typo in a keyword, or wrong operator
+      order.'
+- code: SYN_MISSING_SEMICOLON
+  id: SYN002
+  category: syntactic
+  title:
+    ar: فاصلة منقوطة مفقودة
+    en: Missing semicolon
+  brief:
+    ar: متوقع ';' أو '؛' في نهاية الجملة
+    en: Expected ';' at end of statement
+  fix_hint:
+    ar: 'الفاصلة المنقوطة (؛ أو ;) بين الأسطر اختيارية تماماً؛ يُطلب وضعها فقط لفصل جملتين في السطر ذاته. مثال: متغير أ = 1؛ متغير ب = 2'
+    en: 'Semicolons (؛ or ;) between separate lines are entirely optional; required only to separate two statements on the same line. Example: var a = 1; var b = 2'
+  detailed:
+    ar: لغة ص تعتمد على نهاية السطر كفاصل افتراضي للجمل. الفاصلة المنقوطة (؛ أو ;) مطلوبة فقط عند كتابة عدّة جمل على نفس السطر. هذا الخطأ يظهر عند وجود تعبيرين متتاليين بدون فاصل صريح.
+    en: Sad uses newlines as default statement separators. Semicolons (؛ or ;) are required only when writing multiple statements on one line. This error appears when two expressions follow without an explicit
+      separator.
+- code: SYN_UNCLOSED_BRACKET
+  id: SYN003
+  category: syntactic
+  title:
+    ar: قوس غير مغلق
+    en: Unclosed bracket
+  brief:
+    ar: قوس '{bracket}' فُتح ولم يُغلق
+    en: Bracket '{bracket}' was opened but never closed
+  placeholders:
+  - bracket
+  fix_hint:
+    ar: 'أضف ''{bracket}'' المقابل لإغلاق التعبير. تحقّق من تطابق كل قوس فاتح مع قوس مغلق من نفس النوع: () [] {{}}.'
+    en: 'Add the matching ''{bracket}'' to close. Verify each opening bracket has a matching closing one of the same kind: () [] {{}}.'
+  detailed:
+    ar: 'كل قوس مفتوح في لغة ص يجب أن يُغلق بنفس نوعه: () للاستدعاءات، [] للمصفوفات، {{}} لا تُستخدم (الكتل تُغلق بـ''نهاية''). عدم التطابق يُربك المحلّل النحوي ويوقفه عند نهاية السطر أو الملف.'
+    en: 'Every opening bracket in Sad must close with the same type: () for calls, [] for arrays, {{}} unused (blocks close with ''نهاية''). Mismatches confuse the parser, halting at end-of-line or EOF.'
+- code: SYN_MISSING_IDENTIFIER
+  id: SYN004
+  category: syntactic
+  title:
+    ar: معرّف مفقود
+    en: Missing identifier
+  brief:
+    ar: متوقع اسم متغير أو دالة هنا
+    en: Expected an identifier here
+  fix_hint:
+    ar: 'ضع اسماً صالحاً هنا (حروف عربية/إنجليزية + أرقام + شرطة سفلية، لا يبدأ برقم). مثال: متغير عدد = 5'
+    en: 'Place a valid identifier (Arabic/Latin letters + digits + underscore, not starting with digit). Example: متغير عدد = 5'
+  detailed:
+    ar: 'السياقات التالية تتطلّب معرّفاً (اسم متغيّر أو دالة): بعد ''متغير''، ''ثابت''، ''دالة''، ''صنف''، ''.''، وداخل قائمة المعاملات. الخطأ يظهر عند ترك المكان فارغاً أو وضع كلمة مفتاحية بدلاً منه.'
+    en: 'These contexts require an identifier (variable/function name): after ''متغير'', ''ثابت'', ''دالة'', ''صنف'', ''.'', and inside parameter lists. The error appears if the slot is empty or holds a
+      keyword.'
+- code: SYN_INVALID_EXPRESSION
+  id: SYN005
+  category: syntactic
+  title:
+    ar: تعبير غير صالح
+    en: Invalid expression
+  brief:
+    ar: بنية التعبير غير صحيحة
+    en: Expression structure is invalid
+  fix_hint:
+    ar: 'راجع التعبير: تأكّد من توازن الأقواس، وضع المعاملات بين العوامل، وعدم وجود عوامل متتالية (مثل ''++'' أو ''*/'').'
+    en: 'Review the expression: balance parentheses, place operands between operators, avoid consecutive operators (like ''++'' or ''*/'').'
+  detailed:
+    ar: تعبير صالح في لغة ص يتكوّن من قيم (أرقام، نصوص، متغيّرات، استدعاءات) متّصلة بعوامل ثنائية (+, -, *، /, ==, <, و، أو) أو أحادية (-، ليس). الخروج عن هذه البنية يرفع هذا الخطأ.
+    en: A valid Sad expression consists of values (numbers, strings, variables, calls) connected by binary operators (+, -, *, /, ==, <, و, أو) or unary ones (-, ليس). Violations raise this error.
+- code: SYN_UNEXPECTED_EOF
+  id: SYN006
+  category: syntactic
+  title:
+    ar: نهاية ملف غير متوقعة
+    en: Unexpected end of file
+  brief:
+    ar: انتهى الملف قبل اكتمال البنية
+    en: File ended before structure was complete
+  fix_hint:
+    ar: أضف 'نهاية' لإغلاق الكتلة المفتوحة، أو علامة اقتباس " لإغلاق النص، أو قوس مغلق المتبقّي.
+    en: Add 'نهاية' to close the open block, a closing " for an unterminated string, or the missing closing bracket.
+  detailed:
+    ar: وصل المحلّل النحوي إلى نهاية الملف بينما كان يتوقّع المزيد من الرموز لإكمال بنية مفتوحة (دالة، صنف، إذا، بينما، نص، أو قوس). كل بنية مفتوحة تحتاج إغلاقاً صريحاً.
+    en: Parser reached end-of-file while expecting more tokens to complete an open construct (function, class, if, while, string, or bracket). Every open construct needs explicit closing.
+- code: SYN_MISSING_COLON
+  id: SYN007
+  category: syntactic
+  title:
+    ar: نقطتان مفقودتان
+    en: Missing colon
+  brief:
+    ar: متوقع ':' هنا
+    en: Expected ':' here
+  fix_hint:
+    ar: 'أضف '':'' في الموضع المتوقّع. مثال: ''عندما 1:'' أو ''افتراضي:'' في كتلة ''طابق''.'
+    en: 'Add '':'' at the expected location. Example: ''عندما 1:'' or ''افتراضي:'' inside a ''طابق'' block.'
+  detailed:
+    ar: 'النقطتان '':'' مطلوبتان في سياقات معيّنة: بعد ''عندما <نمط>'' و''افتراضي'' في ''طابق''، وفي بعض تعريفات الخصائص. هذا الخطأ يظهر عندما يُتوقّع '':'' لكن يأتي رمز آخر.'
+    en: 'Colon '':'' is required in specific contexts: after ''عندما <pattern>'' and ''افتراضي'' in ''طابق'' blocks, and in some property definitions. This error appears when '':'' is expected but another
+      token arrives.'
+- code: SYN_INVALID_ASSIGNMENT
+  id: SYN008
+  category: syntactic
+  title:
+    ar: إسناد غير صالح
+    en: Invalid assignment
+  brief:
+    ar: لا يمكن الإسناد إلى '{target}'
+    en: Cannot assign to '{target}'
+  placeholders:
+  - target
+  fix_hint:
+    ar: الهدف '{target}' غير قابل للإسناد. لا تُسند إلى ثابت، رقم حرفي، أو تعبير حسابي. استخدم متغيراً أو حقل كائن أو فهرس مصفوفة.
+    en: Target '{target}' is not assignable. Don't assign to constants, literals, or arithmetic expressions. Use a variable, object field, or array index.
+  detailed:
+    ar: 'اليسار من ''='' يجب أن يكون قابلاً للتعديل (lvalue): متغيّر معرّف بـ''متغير''، حقل كائن (س.ص = ...)، أو عنصر مصفوفة (س[0] = ...). الثوابت والقيم الحرفية والتعبيرات الحسابية لا تقبل الإسناد.'
+    en: 'Left side of ''='' must be modifiable (lvalue): a ''متغير''-declared variable, object field (س.ص = ...), or array element (س[0] = ...). Constants, literals, and arithmetic expressions don''t accept
+      assignment.'

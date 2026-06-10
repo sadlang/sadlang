@@ -11,6 +11,9 @@
 #include "sir_builder.h"
 #include <iostream>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -26,7 +29,7 @@ namespace Sad
             {
 
                 // ─── 15a. وحدة المعالج المتقدمة / Advanced CPU Module ───
-                if (funcName == "معلومات_المعالج" || funcName == "cpu_get_info")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_0)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_INFO);
@@ -35,7 +38,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "ميزات_المعالج" || funcName == "cpu_get_features")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_1)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_FEATURES);
@@ -44,7 +47,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اقرأ_سجل_نموذج" || funcName == "read_msr")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_2)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -56,7 +59,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اكتب_سجل_نموذج" || funcName == "write_msr")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_3)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -67,7 +70,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "اقرأ_سجل_تحكم" || funcName == "read_cr")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_4)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -79,7 +82,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اكتب_سجل_تحكم" || funcName == "write_cr")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_5)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -90,7 +93,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ابطل_صفحة" || funcName == "invlpg")
+                if (funcName == Bn::KernelCpu::CPU_7)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -100,7 +103,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_المعالج" || funcName == "cpu_report")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_6)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_REPORT);
@@ -111,21 +114,21 @@ namespace Sad
                 }
 
                 // ─── 15b. وحدة GDT ───
-                if (funcName == "هيئ_جدول_واصفات" || funcName == "gdt_init")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_7)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "حمل_جدول_واصفات" || funcName == "gdt_load")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_8)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_LOAD);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_واصفات" || funcName == "gdt_report")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_9)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_GET_REPORT);
@@ -136,14 +139,14 @@ namespace Sad
                 }
 
                 // ─── 15c. وحدة الترحيل / Paging ───
-                if (funcName == "هيئ_ترحيل" || funcName == "paging_init")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_10)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "رحل_صفحة" || funcName == "paging_map")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_11)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -156,7 +159,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "الغ_ترحيل" || funcName == "paging_unmap")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_12)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -166,14 +169,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "افرغ_ذاكرة_ترجمة" || funcName == "paging_flush_tlb")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_13)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_FLUSH_TLB);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_ترحيل" || funcName == "paging_report")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_14)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_GET_REPORT);
@@ -184,21 +187,21 @@ namespace Sad
                 }
 
                 // ─── 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts (IDT) ───
-                if (funcName == "هيئ_جدول_مقاطعات" || funcName == "idt_init")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_15)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "حمل_جدول_مقاطعات" || funcName == "idt_load")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_16)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_LOAD);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "سجل_معالج_مقاطعة" || funcName == "register_isr")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_17)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -209,7 +212,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "فعل_طلب_مقاطعة" || funcName == "enable_irq")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_18)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -219,7 +222,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_مقاطعات" || funcName == "idt_report")
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_19)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_GET_REPORT);

@@ -1,0 +1,8 @@
+schema_version: 1
+id: "builtin.wrong_id_here"
+kind: "builtin"
+name: "خطأ مطابقة"
+category: "io"
+since: "0.1.0"
+signature: {}
+owners: ["test"]

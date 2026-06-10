@@ -810,15 +810,15 @@ namespace Sad
             // (EN) Pure Arabic aliases only (no English/mixed legacy)
             // ═══════════════════════════════════════════════════════════════════
             // (AR) JSON aliases
-            fm.registerBuiltinFunction("حلل_جيسون", json_parse_fn);       // = تحليل_جيسون
-            fm.registerBuiltinFunction("تحويل_جيسون", json_stringify_fn); // = نص_جيسون
-            fm.registerBuiltinFunction("صيغة_جيسون", json_pretty_fn);     // = تنسيق_جيسون
-            fm.registerBuiltinFunction("صغ_جيسون", json_stringify_fn);    // مصغر = stringify
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_PARSE_ALT), json_parse_fn);       // = تحليل_جيسون
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_STRINGIFY_ALT), json_stringify_fn); // = نص_جيسون
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_PRETTY_ALT), json_pretty_fn);     // = تنسيق_جيسون
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_MINIFY), json_stringify_fn);    // مصغر = stringify
 
             // (AR) XML aliases
-            fm.registerBuiltinFunction("حلل_وسائم", xml_parse_fn);    // = تحليل_وسائم
-            fm.registerBuiltinFunction("صيغة_وسائم", xml_pretty_fn);  // = تنسيق_وسائم
-            fm.registerBuiltinFunction("صغ_وسائم", xml_stringify_fn); // مصغر = stringify
+            fm.registerBuiltinFunction(std::string(Bmp::XML_PARSE_ALT), xml_parse_fn);    // = تحليل_وسائم
+            fm.registerBuiltinFunction(std::string(Bmp::XML_PRETTY_ALT), xml_pretty_fn);  // = تنسيق_وسائم
+            fm.registerBuiltinFunction(std::string(Bmp::XML_MINIFY), xml_stringify_fn); // مصغر = stringify
 
         } // registerBuiltinsMapsJsonXml
 

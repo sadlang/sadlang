@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.lex_invalid_character
+kind: error
+code: E0001
+name: رمز غير صالح
+category: lexer
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

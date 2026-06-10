@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sadlang.org/schemas/v5/builtin_function.schema.json",
+  "title": "Builtin Function Schema (V5 Codegen)",
+  "type": "object",
+  "required": [
+    "cpp_id",
+    "canonical",
+    "namespace"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "cpp_id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "canonical": {
+      "type": "string",
+      "minLength": 1
+    },
+    "namespace": {
+      "type": "string",
+      "enum": [
+        "Core",
+        "TypeCtor",
+        "Concurrency",
+        "Math",
+        "Strings",
+        "Arrays",
+        "Basics",
+        "Assertions",
+        "Maps",
+        "Sockets",
+        "HttpClient",
+        "HttpServer",
+        "NetworkUtils",
+        "WebSocketClient",
+        "WebSocketServer",
+        "Platform",
+        "Crypto",
+        "String",
+        "Array",
+        "Map",
+        "IO",
+        "System",
+        "AsyncAdvanced",
+        "Exceptions",
+        "FFI",
+        "KernelAudio",
+        "KernelCpu",
+        "KernelGpu",
+        "KernelMemory",
+        "KernelNet",
+        "KernelSerial",
+        "KernelStorage",
+        "CompilerIo",
+        "CompilerCpuCtl",
+        "CompilerHw",
+        "CompilerSys",
+        "CompilerSec",
+        "CompilerSimd",
+        "CompilerMem",
+        "CompilerEmbed",
+        "CompilerUefi",
+        "CompilerUi"
+      ]
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+(\\.\\d+)?$"
+    },
+    "stability": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "experimental",
+        "deprecated"
+      ]
+    }
+  }
+}

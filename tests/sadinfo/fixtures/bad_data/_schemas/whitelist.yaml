@@ -1,0 +1,17 @@
+# (AR) نفس whitelist لكنه في فيكستشر الأخطاء.
+allowed_files:
+  - _index.yaml
+  - docs.yaml
+allowed_directories:
+  - examples
+  - exercises
+  - i18n
+required_at_root:
+  - _index.yaml
+directory_rules:
+  examples:
+    file_pattern: "^[a-z][a-z0-9_]*\\.yaml$"
+  exercises:
+    file_pattern: "^[a-z][a-z0-9_]*\\.yaml$"
+  i18n:
+    file_pattern: "^(ar|en|fr)\\.yaml$"

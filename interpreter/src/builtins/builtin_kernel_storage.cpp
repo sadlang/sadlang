@@ -9,6 +9,8 @@
  */
 
 #include "interpreter_core.h"
+#include "builtin_registry.h"
+namespace Kstorage = Sad::Builtins::Names::KernelStorage;
 #include "value.h"
 #include "nvme.h"
 
@@ -32,7 +34,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.scanDrives());
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x85\xd8\xb3\xd8\xad", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_0), f);
     }
 
     // 2. storage_drive_count / تخزين_عدد_الأقراص
@@ -42,7 +44,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveCount());
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa7\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_1), f);
     }
 
     // 3. storage_drive_model / تخزين_موديل_القرص
@@ -52,7 +54,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveInfo(id).model);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a\xd9\x84_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb1\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_2), f);
     }
 
     // 4. storage_drive_serial / تخزين_رقم_القرص
@@ -62,7 +64,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveInfo(id).serial);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xb1\xd9\x82\xd9\x85_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb1\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_3), f);
     }
 
     // 5. storage_drive_type / تخزين_نوع_القرص
@@ -72,7 +74,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveInfo(id).type));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x86\xd9\x88\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb1\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_4), f);
     }
 
     // 6. storage_drive_state / تخزين_حاله_القرص
@@ -82,7 +84,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveInfo(id).state));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xad\xd8\xa7\xd9\x84\xd9\x87_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb1\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_5), f);
     }
 
     // 7. storage_report / تخزين_تقرير
@@ -92,7 +94,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.generateReport());
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xb1", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_6), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -106,7 +108,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.readSector(driveId, lba));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x82\xd8\xb1\xd8\xa7\xd8\xa1\xd8\xa9_\xd9\x82\xd8\xb7\xd8\xa7\xd8\xb9", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_7), f);
     }
 
     // 9. storage_write_sector / تخزين_كتابة_قطاع
@@ -118,7 +120,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.writeSector(driveId, lba, data));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x83\xd8\xaa\xd8\xa7\xd8\xa8\xd8\xa9_\xd9\x82\xd8\xb7\xd8\xa7\xd8\xb9", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_8), f);
     }
 
     // 10. storage_read_sectors / تخزين_قراءة_قطاعات
@@ -130,7 +132,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.readSectors(driveId, lba, count));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x82\xd8\xb1\xd8\xa7\xd8\xa1\xd8\xa9_\xd9\x82\xd8\xb7\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_9), f);
     }
 
     // 11. storage_zero_sectors / تخزين_تصفير_قطاعات
@@ -142,7 +144,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.zeroSectors(driveId, lba, count));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xaa\xd8\xb5\xd9\x81\xd9\x8a\xd8\xb1_\xd9\x82\xd8\xb7\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_10), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -155,7 +157,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.isDriveHealthy(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xb5\xd8\xad\xd8\xa9_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb1\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_11), f);
     }
 
     // 13. storage_temperature / تخزين_حرارة_القرص
@@ -165,7 +167,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveTemperature(id));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xad\xd8\xb1\xd8\xa7\xd8\xb1\xd8\xa9_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb1\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_12), f);
     }
 
     // 14. storage_smart_report / تخزين_تقرير_صحة
@@ -175,7 +177,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).report);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xb1_\xd8\xb5\xd8\xad\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_13), f);
     }
 
     // 15. storage_smart_hours / تخزين_ساعات_التشغيل
@@ -185,7 +187,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).powerOnHours);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xb3\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaa_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb4\xd8\xba\xd9\x8a\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_14), f);
     }
 
     // 16. storage_smart_percent / تخزين_نسبة_الاستخدام
@@ -195,7 +197,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).percentUsed);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x86\xd8\xb3\xd8\xa8\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xae\xd8\xaf\xd8\xa7\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_15), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -208,7 +210,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getPartitionCount(id));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa7\xd9\x82\xd8\xb3\xd8\xa7\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_16), f);
     }
 
     // 18. storage_partition_label / تخزين_اسم_القسم
@@ -219,7 +221,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getPartitionInfo(driveId, partIdx).label);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd8\xb3\xd9\x85_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb3\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_17), f);
     }
 
     // 19. storage_partition_bootable / تخزين_القسم_اقلاعي
@@ -230,7 +232,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getPartitionInfo(driveId, partIdx).bootable ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb3\xd9\x85_\xd8\xa7\xd9\x82\xd9\x84\xd8\xa7\xd8\xb9\xd9\x8a", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_18), f);
     }
 
     // 20. storage_partition_scheme / تخزين_نظام_الأقسام
@@ -240,7 +242,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getPartitionScheme(id)));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x86\xd8\xb8\xd8\xa7\xd9\x85_\xd8\xa7\xd9\x84\xd8\xa7\xd9\x82\xd8\xb3\xd8\xa7\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_19), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -253,7 +255,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveCapacityMB(id)));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xb9\xd8\xa9_\xd9\x85\xd9\x8a\xd8\xba\xd8\xa7", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_20), f);
     }
 
     // 22. storage_is_nvme / تخزين_هل_nvme
@@ -263,7 +265,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.isNVMe(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x87\xd9\x84_nvme", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_21), f);
     }
 
     // 23. storage_is_ahci / تخزين_هل_ahci
@@ -273,7 +275,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.isAHCI(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x87\xd9\x84_ahci", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_22), f);
     }
 
     // 24. storage_flush / تخزين_مزامنة
@@ -283,7 +285,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.flushCache(id));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x85\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_23), f);
     }
 
     // 25. storage_create_ramdisk / تخزين_انشاء_قرص_ذاكرة
@@ -293,7 +295,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.createRamdisk(size));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x86\xd8\xb4\xd8\xa7\xd8\xa1_\xd9\x82\xd8\xb1\xd8\xb5_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_24), f);
     }
 
     // 26. storage_read_partitions / تخزين_قراءة_الأقسام
@@ -303,7 +305,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.readPartitionTable(id));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x82\xd8\xb1\xd8\xa7\xd8\xa1\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa7\xd9\x82\xd8\xb3\xd8\xa7\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_25), f);
     }
 
     // 27. storage_firmware / تخزين_البرنامج_الثابت
@@ -313,7 +315,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveInfo(id).firmware);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xb1\xd9\x86\xd8\xa7\xd9\x85\xd8\xac_\xd8\xa7\xd9\x84\xd8\xab\xd8\xa7\xd8\xa8\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_26), f);
     }
 
     // 28. storage_sector_size / تخزين_حجم_القطاع
@@ -323,7 +325,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveInfo(id).sectorSize));
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd9\x82\xd8\xb7\xd8\xa7\xd8\xb9", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_27), f);
     }
 
     // 29. storage_reset / تخزين_اعادة_تعيين
@@ -334,7 +336,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             sm.reset();
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaf\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_28), f);
     }
 
     // 30. storage_smart_spare / تخزين_الاحتياطي
@@ -344,7 +346,7 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).availableSpare);
         };
-        fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xad\xd8\xaa\xd9\x8a\xd8\xa7\xd8\xb7\xd9\x8a", f);
+        fm.registerBuiltinFunction(std::string(Kstorage::STORAGE_29), f);
     }
 
 } // registerBuiltinsKernelStorage

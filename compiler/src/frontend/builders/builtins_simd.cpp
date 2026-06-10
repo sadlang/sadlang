@@ -45,6 +45,9 @@
 #include <optional>
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -127,7 +130,7 @@ namespace Sad
                 //              متجه(1، 2، 3، 4، 5، 6، 7، 8) → <8 x i64>
                 // (EN) vector(elements...) — build vector from scalars
                 // ─────────────────────────────────────────────────────────────
-                if (funcName == "متجه" || funcName == "vector")
+                if (funcName == Bn::CompilerSimd::SIMD_0)
                 {
                     if (argResults.empty())
                     {
@@ -157,7 +160,7 @@ namespace Sad
                 //      مثال: متجه_بث(1.5، 8) → <8 x double> {1.5,1.5,...}
                 // (EN) splat(value, N) — broadcast scalar to N lanes
                 // ─────────────────────────────────────────────────────────────
-                if (funcName == "متجه_بث" || funcName == "splat")
+                if (funcName == Bn::CompilerSimd::SIMD_1)
                 {
                     if (argResults.size() != 2)
                     {
@@ -279,7 +282,7 @@ namespace Sad
                 // (AR) متجه_ضرب_جمع(أ، ب، ج) — FMA: a*b+c تعليمة واحدة fma.v8f64
                 // (EN) FMA: fused multiply-add → llvm.fma intrinsic
                 // ─────────────────────────────────────────────────────────────
-                if (funcName == "متجه_ضرب_جمع" || funcName == "vec_fma")
+                if (funcName == Bn::CompilerSimd::SIMD_2)
                 {
                     if (argResults.size() != 3)
                     {
@@ -347,7 +350,7 @@ namespace Sad
                 //      ينفذ كـ VECTOR_MUL ثم VECTOR_HSUM في LLVM codegen
                 // (EN) Dot product: implemented as MUL + HSUM
                 // ─────────────────────────────────────────────────────────────
-                if (funcName == "متجه_جداء_قياسي" || funcName == "vec_dot")
+                if (funcName == Bn::CompilerSimd::SIMD_3)
                 {
                     if (argResults.size() != 2)
                     {
@@ -372,7 +375,7 @@ namespace Sad
                 // (AR) متجه_عنصر(م، فهرس) — استخراج عنصر
                 // (EN) extract element
                 // ─────────────────────────────────────────────────────────────
-                if (funcName == "متجه_عنصر" || funcName == "vec_extract")
+                if (funcName == Bn::CompilerSimd::SIMD_4)
                 {
                     if (argResults.size() != 2)
                     {
@@ -397,7 +400,7 @@ namespace Sad
                 // (AR) متجه_ضع(م، فهرس، ق) — إدراج عنصر، يُرجع متجه جديد
                 // (EN) insert element → returns new vector
                 // ─────────────────────────────────────────────────────────────
-                if (funcName == "متجه_ضع" || funcName == "vec_insert")
+                if (funcName == Bn::CompilerSimd::SIMD_5)
                 {
                     if (argResults.size() != 3)
                     {

@@ -22,10 +22,15 @@
 #include "type_functions.h"
 #include "channel.h"
 #include "object_instance.h"
+// (AR) ثوابت أسماء الدوال المُولَّدة من language-truth/builtins/*.yaml
+// (EN) Generated builtin name constants from language-truth/builtins/*.yaml
+#include "builtin_registry.h"
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
+
+namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
 {
@@ -45,7 +50,7 @@ namespace Sad
                 return BuiltinFunctions::print(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("اطبع", print_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::PRINT), print_func);
             // (AR) اطبع_سطر — طباعة قيمة مع سطر جديد
             // (EN) println — print value with newline
             auto println_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -53,7 +58,7 @@ namespace Sad
                 return BuiltinFunctions::println(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("اطبع_سطر", println_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::PRINTLN), println_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال الإدخال / (EN) Input Functions
             // ═════════════════════════════════════════════════════════════════
@@ -63,7 +68,7 @@ namespace Sad
                 return BuiltinFunctions::input(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("اقرأ", input_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::READ), input_func);
 
             // ═════════════════════════════════════════════════════════════════
             // (AR) Branch Hints — تلميحات لتوقع الفروع (تحسين أداء)
@@ -81,7 +86,8 @@ namespace Sad
                     return std::make_shared<Data::Value>(false);
                 return args[0];
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("متوقع", expect_true_func);
+            // (AR) متوقع/غير_متوقع — تلميحات فروع (Branch hints) — غير مُدرجَتَين في YAML بعد
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::EXPECT), expect_true_func);
 
             auto expect_false_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
                 -> std::shared_ptr<Data::Value>
@@ -91,7 +97,7 @@ namespace Sad
                     return std::make_shared<Data::Value>(false);
                 return args[0];
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("غير_متوقع", expect_false_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::EXPECT_FALSE), expect_false_func);
 
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال الطول الأساسية / (EN) Basic Length Functions
@@ -102,7 +108,7 @@ namespace Sad
                 return BuiltinFunctions::length(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("طول", len_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::LENGTH), len_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال النوع / (EN) Type Functions
             // ═════════════════════════════════════════════════════════════════
@@ -112,7 +118,7 @@ namespace Sad
                 return BuiltinFunctions::type_of(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("النوع", type_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::TYPE), type_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) تحويل الأنواع الأساسية / (EN) Basic Type Conversion
             // ═════════════════════════════════════════════════════════════════
@@ -123,7 +129,7 @@ namespace Sad
                 return BuiltinFunctions::to_string(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("نص", to_string_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_STRING), to_string_func);
 
             // رقم / int / to_int
             auto to_int_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -131,14 +137,14 @@ namespace Sad
                 return BuiltinFunctions::to_int(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("رقم", to_int_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_INT), to_int_func);
             // عشري / float / to_float
             auto to_float_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
             {
                 return BuiltinFunctions::to_float(args);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("عشري", to_float_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_FLOAT), to_float_func);
 
             // منطقي / bool / to_bool
             auto to_bool_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -149,7 +155,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Core::TypeFunctions::toBool(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("منطقي", to_bool_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_BOOL), to_bool_func);
 
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال القنوات والتزامن / (EN) Channel & Concurrency Functions
@@ -182,7 +188,7 @@ namespace Sad
             };
 
             // (AR) تسجيل بالعربية والإنجليزية
-            interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x82\xD9\x86\xD8\xA7\xD8\xA9", channel_func); // قناة
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Concurrency::CHANNEL), channel_func);
 
             // (AR) انتظر_الكل() — انتظار جميع المهام المتزامنة (goroutines)
             // (EN) waitAll() — wait for all concurrent goroutines to complete
@@ -193,7 +199,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(); // void
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xB1_\xD8\xA7\xD9\x84\xD9\x83\xD9\x84", wait_all_func); // انتظر_الكل
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Concurrency::WAIT_ALL), wait_all_func);
 
             // (AR) عدد_المهام() — عدد المهام المتزامنة النشطة
             // (EN) activeGoroutines() — number of active goroutines
@@ -204,7 +210,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(count);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("\xD8\xB9\xD8\xAF\xD8\xAF_\xD8\xA7\xD9\x84\xD9\x85\xD9\x87\xD8\xA7\xD9\x85", active_count_func); // عدد_المهام
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Concurrency::TASK_COUNT), active_count_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) مجموعة_انتظار() — إنشاء WaitGroup جديدة
@@ -225,7 +231,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(obj);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x85\xD8\xAC\xD9\x85\xD9\x88\xD8\xB9\xD8\xA9_\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xA7\xD8\xB1", waitgroup_func); // مجموعة_انتظار
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Concurrency::WAIT_GROUP), waitgroup_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) قفل() — إنشاء Mutex جديد
@@ -245,7 +251,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(obj);
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x82\xD9\x81\xD9\x84", mutex_func); // قفل
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Concurrency::MUTEX), mutex_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) مستقبل() — إنشاء Future جديد لإرجاع قيمة من goroutine
@@ -282,7 +288,7 @@ namespace Sad
             };
 
             // (AR) تسجيل بالعربية والإنجليزية / (EN) Register in Arabic and English
-            interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x85\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84", future_func); // مستقبل
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Concurrency::FUTURE), future_func);
         }
 
     } // namespace Interpreter

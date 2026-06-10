@@ -1,0 +1,6 @@
+id: builtin_bad_yaml
+category: builtin
+items:
+  - one
+  - two
+    - bad indentation: [unclosed

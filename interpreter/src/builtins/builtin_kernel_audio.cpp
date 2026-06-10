@@ -9,6 +9,8 @@
  */
 
 #include "interpreter_core.h"
+#include "builtin_registry.h"
+namespace Kaudio = Sad::Builtins::Names::KernelAudio;
 #include "value.h"
 #include "audio.h"
 
@@ -31,7 +33,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().scanDevices());
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x85\xd8\xb3\xd8\xad", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_0), f);
     }
 
     // 2. audio_device_count / صوت_عدد_الأجهزة
@@ -40,7 +42,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getDeviceCount());
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xac\xd9\x87\xd8\xb2\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_1), f);
     }
 
     // 3. audio_device_model / صوت_موديل_الجهاز
@@ -49,7 +51,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getDeviceInfo(id).model);
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a\xd9\x84_\xd8\xa7\xd9\x84\xd8\xac\xd9\x87\xd8\xa7\xd8\xb2", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_2), f);
     }
 
     // 4. audio_device_type / صوت_نوع_الجهاز
@@ -59,7 +61,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::AudioManager::getInstance().getDeviceInfo(id).deviceType));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x86\xd9\x88\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xac\xd9\x87\xd8\xa7\xd8\xb2", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_3), f);
     }
 
     // 5. audio_init / صوت_تهيئة
@@ -68,7 +70,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().initDevice(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_4), f);
     }
 
     // 6. audio_report / صوت_تقرير
@@ -77,7 +79,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().generateReport());
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xb1", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_5), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -91,7 +93,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int dur = args.size() > 2 ? args[2]->toInt() : 100;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().playTone(id, freq, dur));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd8\xb4\xd8\xba\xd9\x8a\xd9\x84_\xd9\x86\xd8\xba\xd9\x85\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_6), f);
     }
 
     // 8. audio_stop / صوت_ايقاف
@@ -100,7 +102,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().stopPlayback(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x8a\xd9\x82\xd8\xa7\xd9\x81", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_7), f);
     }
 
     // 9. audio_pause / صوت_ايقاف_مؤقت
@@ -109,7 +111,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().pausePlayback(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x8a\xd9\x82\xd8\xa7\xd9\x81_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_8), f);
     }
 
     // 10. audio_resume / صوت_استئناف
@@ -118,7 +120,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().resumePlayback(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa6\xd9\x86\xd8\xa7\xd9\x81", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_9), f);
     }
 
     // 11. audio_is_playing / صوت_يعمل
@@ -128,7 +130,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::AudioManager::getInstance().isPlaying(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x8a\xd8\xb9\xd9\x85\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_10), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -141,7 +143,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int vol = args.size() > 1 ? args[1]->toInt() : 50;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setVolume(id, vol));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x88\xd9\x89", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_11), f);
     }
 
     // 13. audio_get_volume / صوت_المستوى
@@ -150,7 +152,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getVolume(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb3\xd8\xaa\xd9\x88\xd9\x89", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_12), f);
     }
 
     // 14. audio_mute / صوت_كتم
@@ -160,7 +162,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             bool mute = args.size() > 1 ? (args[1]->toInt() != 0) : true;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setMute(id, mute));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x83\xd8\xaa\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_13), f);
     }
 
     // 15. audio_is_muted / صوت_مكتوم
@@ -170,7 +172,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::AudioManager::getInstance().isMuted(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x85\xd9\x83\xd8\xaa\xd9\x88\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_14), f);
     }
 
     // 16. audio_set_balance / صوت_تعيين_ميزان
@@ -180,7 +182,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int bal = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setBalance(id, bal));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x85\xd9\x8a\xd8\xb2\xd8\xa7\xd9\x86", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_15), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -192,7 +194,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().startRecording(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa8\xd8\xaf\xd8\xa1_\xd8\xaa\xd8\xb3\xd8\xac\xd9\x8a\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_16), f);
     }
 
     // 18. audio_stop_record / صوت_انهاء_تسجيل
@@ -201,7 +203,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().stopRecording(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x86\xd9\x87\xd8\xa7\xd8\xa1_\xd8\xaa\xd8\xb3\xd8\xac\xd9\x8a\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_17), f);
     }
 
     // 19. audio_is_recording / صوت_يسجل
@@ -211,7 +213,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::AudioManager::getInstance().isRecording(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd9\x8a\xd8\xb3\xd8\xac\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_18), f);
     }
 
     // 20. audio_recorded_samples / صوت_العينات_المسجلة
@@ -220,7 +222,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getRecordedSamples(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x8a\xd9\x86\xd8\xa7\xd8\xaa_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb3\xd8\xac\xd9\x84\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_19), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -233,7 +235,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int dur = args.size() > 1 ? args[1]->toInt() : 200;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().beep(freq, dur));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xb5\xd8\xa7\xd9\x81\xd8\xb1\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_20), f);
     }
 
     // 22. audio_beep_off / صوت_ايقاف_صافرة
@@ -242,7 +244,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().beepOff());
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x8a\xd9\x82\xd8\xa7\xd9\x81_\xd8\xb5\xd8\xa7\xd9\x81\xd8\xb1\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_21), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -255,7 +257,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int rate = args.size() > 1 ? args[1]->toInt() : 48000;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setSampleRate(id, rate));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x85\xd8\xb9\xd8\xaf\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_22), f);
     }
 
     // 24. audio_get_sample_rate / صوت_المعدل
@@ -264,7 +266,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getSampleRate(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb9\xd8\xaf\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_23), f);
     }
 
     // 25. audio_set_channels / صوت_تعيين_قنوات
@@ -274,7 +276,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int ch = args.size() > 1 ? args[1]->toInt() : 2;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setChannels(id, ch));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x82\xd9\x86\xd9\x88\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_24), f);
     }
 
     // 26. audio_get_channels / صوت_القنوات
@@ -283,7 +285,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getChannels(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x84\xd9\x82\xd9\x86\xd9\x88\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_25), f);
     }
 
     // 27. audio_set_bits / صوت_تعيين_بتات
@@ -293,7 +295,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int bits = args.size() > 1 ? args[1]->toInt() : 16;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setBitsPerSample(id, bits));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_26), f);
     }
 
     // 28. audio_get_bits / صوت_البتات
@@ -302,7 +304,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getBitsPerSample(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_27), f);
     }
 
     // 29. audio_silence / صوت_صمت
@@ -312,7 +314,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             int dur = args.size() > 1 ? args[1]->toInt() : 100;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().playSilence(id, dur));
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xb5\xd9\x85\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_28), f);
     }
 
     // 30. audio_reset / صوت_اعادة_تعيين
@@ -322,7 +324,7 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
             LowLevel::AudioManager::getInstance().reset();
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb5\xd9\x88\xd8\xaa_\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaf\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86", f);
+        fm.registerBuiltinFunction(std::string(Kaudio::AUDIO_29), f);
     }
 
 } // registerBuiltinsKernelAudio

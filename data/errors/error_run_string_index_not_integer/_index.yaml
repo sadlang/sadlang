@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_string_index_not_integer
+kind: error
+code: E3013
+name: فهرس النص غير صحيح
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

@@ -1,0 +1,153 @@
+# oop_constructs.yaml — بنيات البرمجة الكائنية في لغة ص
+# المصدر: shared/parser/src/declarations/parser_class.cpp + statement_executor_oop*.cpp
+
+version: "1.0"
+description_ar: "بنيات البرمجة الكائنية — أصناف، بنى، تعداد، سمات، وراثة، خصائص، قوالب"
+description_en: "OOP constructs — classes, structs, enums, traits, inheritance, properties, templates"
+
+constructs:
+
+  - id: oop.class
+    name_ar: "تعريف صنف"
+    name_en: class_definition
+    category: class
+    syntax: "صنف <اسم> ... نهاية"
+    keywords_used: [صنف, باني, هدم, هذا, الأساس, نهاية]
+    since: "1.0.0"
+    status: stable
+    example: |
+      صنف حيوان
+          متغير عام اسم
+          باني(اسم)
+              هذا.اسم = اسم
+          نهاية
+          دالة عام صوت()
+              ارجع "..."
+          نهاية
+      نهاية
+
+  - id: oop.struct
+    name_ar: "تعريف بنية"
+    name_en: struct_definition
+    category: struct
+    syntax: "بنية <اسم> ... نهاية"
+    keywords_used: [بنية, نهاية]
+    since: "1.0.0"
+    status: stable
+    example: |
+      بنية نقطة
+          رقم معرف س = 0
+          رقم معرف ص = 0
+      نهاية
+
+  - id: oop.enum
+    name_ar: "تعريف تعداد"
+    name_en: enum_definition
+    category: enum
+    syntax: "تعداد <اسم> ... نهاية"
+    keywords_used: [تعداد, نهاية]
+    since: "1.0.0"
+    status: stable
+    example: |
+      تعداد لون
+          أحمر = 1
+          أخضر = 2
+          أزرق = 3
+      نهاية
+
+  - id: oop.inheritance
+    name_ar: "الوراثة"
+    name_en: inheritance
+    category: inheritance
+    syntax: "صنف <فرعي> يرث <أب> ... نهاية"
+    keywords_used: [يرث, الأساس]
+    since: "1.0.0"
+    status: stable
+    example: |
+      صنف كلب يرث حيوان
+          باني(اسم)
+              الأساس.باني(اسم)
+          نهاية
+          دالة عام صوت()
+              ارجع "هاو"
+          نهاية
+      نهاية
+
+  - id: oop.trait
+    name_ar: "تعريف سمة"
+    name_en: trait_definition
+    category: trait
+    syntax: "سمة <اسم> ... نهاية"
+    keywords_used: [سمة, نفّذ]
+    since: "1.0.0"
+    status: stable
+    example: |
+      سمة قابل_للطباعة
+          دالة مجرد اطبع()
+      نهاية
+      صنف وثيقة نفّذ قابل_للطباعة
+          دالة اطبع()
+              اطبع_سطر("وثيقة")
+          نهاية
+      نهاية
+
+  - id: oop.property
+    name_ar: "خاصية"
+    name_en: property
+    category: property
+    syntax: "خاصية <اسم> احصل ... نهاية عيّن ... نهاية نهاية"
+    keywords_used: [خاصية, احصل, عيّن]
+    since: "1.0.0"
+    status: stable
+    example: |
+      صنف دائرة
+          متغير خاص _نصف_قطر = 0
+          خاصية نصف_قطر
+              احصل
+                  ارجع هذا._نصف_قطر
+              نهاية
+              عيّن(قيمة)
+                  إذا (قيمة >= 0)
+                      هذا._نصف_قطر = قيمة
+                  نهاية
+              نهاية
+          نهاية
+      نهاية
+
+  - id: oop.access_modifiers
+    name_ar: "محددات الوصول"
+    name_en: access_modifiers
+    category: class
+    syntax: "عام / خاص / محمي / ساكن / مجرد"
+    keywords_used: [عام, خاص, محمي, ساكن, مجرد]
+    since: "1.0.0"
+    status: stable
+
+  - id: oop.operator_overload
+    name_ar: "تحميل زائد للعوامل"
+    name_en: operator_overload
+    category: operator_overload
+    syntax: "عامل +(آخر) ... نهاية"
+    keywords_used: [عامل]
+    since: "1.0.0"
+    status: stable
+    example: |
+      صنف متجه
+          عامل +(آخر)
+              ارجع متجه(هذا.س + آخر.س، هذا.ص + آخر.ص)
+          نهاية
+      نهاية
+
+  - id: oop.template
+    name_ar: "قالب جنيسة"
+    name_en: generic_template
+    category: template
+    syntax: "قالب <ت> دالة/صنف <اسم>(...)"
+    keywords_used: [قالب]
+    since: "1.0.0"
+    status: stable
+    example: |
+      قالب <ت>
+      دالة حجم_النوع()
+          ارجع @حجم(ت)
+      نهاية

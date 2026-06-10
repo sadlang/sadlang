@@ -1,0 +1,126 @@
+# learning/exercises.yaml — التمارين والأمثلة التعليمية في لغة ص
+# المرجع: ARCHITECTURE §5, IMPLEMENTATION_PLAN M1-012
+
+version: "1.0"
+description_ar: "تمارين وأمثلة مرتبطة بـ Language Truth"
+description_en: "Exercises and examples linked to Language Truth entities"
+
+exercises:
+
+  - id: exercise.sum_array
+    title_ar: "مجموع عناصر مصفوفة"
+    title_en: "Sum Array Elements"
+    level: beginner
+    related_lesson: lesson.functions
+    references:
+      - keywords: [دالة, لكل, في, ارجع]
+      - type_methods: [مجموع]
+    since: "1.0.0"
+    status: stable
+    task_ar: "اكتب دالة تحسب مجموع عناصر مصفوفة من الأرقام"
+    solution: |
+      دالة احسب_المجموع(أرقام)
+          متغير مجموع = 0
+          لكل رقم في أرقام
+              مجموع += رقم
+          نهاية
+          ارجع مجموع
+      نهاية
+      اطبع_سطر(احسب_المجموع([1، 2، 3، 4، 5]))  # 15
+
+  - id: exercise.fibonacci
+    title_ar: "متتالية فيبوناتشي"
+    title_en: "Fibonacci Sequence"
+    level: beginner
+    related_lesson: lesson.functions
+    references:
+      - keywords: [دالة, إذا, ارجع]
+    since: "1.0.0"
+    status: stable
+    task_ar: "اكتب دالة تحسب رقم فيبوناتشي رقم N"
+    solution: |
+      دالة فيبوناتشي(ن)
+          إذا (ن <= 1)
+              ارجع ن
+          نهاية
+          ارجع فيبوناتشي(ن - 1) + فيبوناتشي(ن - 2)
+      نهاية
+      اطبع_سطر(فيبوناتشي(10))  # 55
+
+  - id: exercise.string_reverse
+    title_ar: "عكس نص"
+    title_en: "Reverse a String"
+    level: beginner
+    related_lesson: lesson.variables
+    references:
+      - type_methods: [طول, استخراج]
+    since: "1.0.0"
+    status: stable
+    task_ar: "اكتب دالة تعكس النص المعطى"
+    solution: |
+      دالة اعكس_نص(س)
+          متغير نتيجة = ""
+          متغير طول_النص = طول(س)
+          متغير ي = طول_النص - 1
+          بينما (ي >= 0)
+              نتيجة = نتيجة + س.استخراج(ي، 1)
+              ي -= 1
+          نهاية
+          ارجع نتيجة
+      نهاية
+      اطبع_سطر(اعكس_نص("مرحبا"))  # ابحرم
+
+  - id: exercise.class_counter
+    title_ar: "عداد بسيط"
+    title_en: "Simple Counter"
+    level: intermediate
+    related_lesson: lesson.oop
+    references:
+      - keywords: [صنف, باني, هذا, عام, خاص]
+    since: "1.0.0"
+    status: stable
+    task_ar: "صمِّم صنف عداد يدعم الزيادة والنقصان والإعادة"
+    solution: |
+      صنف عداد
+          متغير خاص قيمة = 0
+          باني(قيمة_ابتدائية = 0)
+              هذا.قيمة = قيمة_ابتدائية
+          نهاية
+          دالة عام زد()
+              هذا.قيمة += 1
+          نهاية
+          دالة عام انقص()
+              هذا.قيمة -= 1
+          نهاية
+          دالة عام اعد()
+              هذا.قيمة = 0
+          نهاية
+          دالة عام احصل()
+              ارجع هذا.قيمة
+          نهاية
+      نهاية
+
+  - id: exercise.producer_consumer
+    title_ar: "مُنتج ومُستهلك"
+    title_en: "Producer-Consumer"
+    level: advanced
+    related_lesson: lesson.concurrency
+    references:
+      - builtins: [قناة, انتظر_الكل]
+      - keywords: [أطلق]
+    since: "1.0.0"
+    status: stable
+    task_ar: "نفِّذ نمط المنتج-المستهلك باستخدام القنوات"
+    solution: |
+      دالة منتج(قناة_الخرج)
+          لكل ي في مدى(5)
+              قناة_الخرج.أرسل(ي * 2)
+          نهاية
+          قناة_الخرج.أغلق()
+      نهاية
+
+      متغير ق = قناة(10)
+      أطلق منتج(ق)
+      لكل قيمة في ق
+          اطبع_سطر("استقبلت: " + قيمة)
+      نهاية

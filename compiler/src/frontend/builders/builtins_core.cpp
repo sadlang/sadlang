@@ -19,6 +19,8 @@
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
 #include "sir_builder.h"
+// (AR) ثوابت أسماء الدوال المُولَّدة من language-truth/builtins/*.yaml
+#include "builtin_registry.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -29,6 +31,9 @@
 #include <iostream>
 #include <filesystem>
 #include <optional>
+
+// (AR) اختصارات أسماء الدوال المركزية — مصدر حقيقة واحد
+namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
 {
@@ -54,7 +59,7 @@ namespace Sad
                 if (isUserDefinedFunction)
                     return std::nullopt;
 
-                if (funcName == "طول" || funcName == "length")
+                if (funcName == Bn::Core::LENGTH)
                 {
                     if (argResults.size() != 1)
                     {
@@ -97,7 +102,7 @@ namespace Sad
                 // (AR) دالة لرقم() - STRING_TO_I64
                 // (EN) to_int() function - STRING_TO_I64
                 // الأسماء المدعومة: لرقم, حول_رقم, to_int, int, إلى_رقم, رقم
-                if (funcName == "لرقم" || funcName == "حول_رقم" || funcName == "to_int" || funcName == "int" || funcName == "إلى_رقم" || funcName == "رقم")
+                if (funcName == Bn::TypeCtor::TO_INT)
                 {
                     if (argResults.size() != 1)
                     {
@@ -141,7 +146,7 @@ namespace Sad
                 // (AR) دالة لعشري() - STRING_TO_F64
                 // (EN) to_float() function
                 // الأسماء المدعومة: لعشري, to_float, float, عشري
-                if (funcName == "لعشري" || funcName == "to_float" || funcName == "float" || funcName == "عشري")
+                if (funcName == Bn::TypeCtor::TO_FLOAT)
                 {
                     if (argResults.size() != 1)
                     {
@@ -181,8 +186,7 @@ namespace Sad
                 // (AR) دالة لنص() - I64_TO_STRING أو F64_TO_STRING
                 // (EN) to_string() function
                 // الأسماء المدعومة: لنص, نص, to_string, str, string, إلى_نص
-                if (funcName == "لنص" || funcName == "نص" || funcName == "to_string" ||
-                    funcName == "str" || funcName == "string" || funcName == "إلى_نص")
+                if (funcName == Bn::TypeCtor::TO_STRING)
                 {
                     if (argResults.size() != 1)
                     {
@@ -248,7 +252,7 @@ namespace Sad
                 // (AR) دالة اطبع() - BUILTIN_PRINT
                 // (EN) print() function
                 // الأسماء المدعومة: اطبع, print, إطبع
-                if (funcName == "اطبع" || funcName == "print" || funcName == "إطبع")
+                if (funcName == Bn::Core::PRINT)
                 {
                     // ====================================================================
                     // (AR) تحويل تلقائي: إذا كان المعامل كائناً ولديه __op_tostring__، استدعها
@@ -317,7 +321,7 @@ namespace Sad
                 // (AR) دالة اطبع_سطر() - BUILTIN_PRINTLN
                 // (EN) println() function - print with newline
                 // الأسماء المدعومة: اطبع_سطر, println, طبع_سطر
-                if (funcName == "اطبع_سطر" || funcName == "println" || funcName == "طبع_سطر")
+                if (funcName == Bn::Core::PRINTLN)
                 {
                     // ====================================================================
                     // (AR) تحويل تلقائي: إذا كان المعامل كائناً ولديه __op_tostring__، استدعها
@@ -395,7 +399,7 @@ namespace Sad
                 // (AR) دالة اقرأ() - BUILTIN_READ
                 // (EN) input() function
                 // الأسماء المدعومة: اقرأ, input
-                if (funcName == "اقرأ" || funcName == "input")
+                if (funcName == Bn::Core::READ)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -470,7 +474,7 @@ namespace Sad
                 // (EN) range() function — create integer array
                 //      Requires importing "أساسيات" module per interpreter behavior
                 // ================================================================
-                if (funcName == "مدى" || funcName == "range")
+                if (funcName == Bn::Basics::RANGE)
                 {
                     // (AR) فحص استيراد وحدة أساسيات — توحيد مع المفسر
                     // (EN) Check أساسيات module import — unify with interpreter

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/stdlib_module.schema.json",
+  "title": "Stdlib Module Schema (V5)",
+  "description": "مخطط JSON لوحدات المكتبة القياسية — stdlib/modules.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "name_ar", "name_en", "aliases", "since", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^module\\.[a-z][a-z0-9_]*$"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "5.0"
+    },
+    "name_ar": {
+      "type": "string",
+      "minLength": 1,
+      "description": "الاسم العربي للوحدة (كلمة الاستيراد)"
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "أسماء بديلة للاستيراد"
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "experimental", "deprecated"]
+    },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "exports": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "قائمة الدوال/الأصناف التي تُصدِّرها الوحدة"
+    }
+  }
+}

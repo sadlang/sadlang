@@ -37,6 +37,7 @@ namespace Sad
         namespace Bm = Builtins::Names::Math;
         namespace Bp = Builtins::Names::Platform;
         namespace Bk = Builtins::Names::Kernel;
+        namespace Bkc = Builtins::Names::KernelCpu;
 
         void registerBuiltinsMath(Interpreter &interpreter)
         {
@@ -304,7 +305,7 @@ namespace Sad
                 std::cout << "[OS-SIM] outb(0x" << std::hex << port << ", 0x" << val << std::dec << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::PORT_WRITE), port_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_9), port_write_func);
 
             // (AR) محاكاة قراءة منفذ — inb(port)
             auto port_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -315,7 +316,7 @@ namespace Sad
                 std::cout << "[OS-SIM] inb(0x" << std::hex << port << std::dec << ") -> 0x00" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::PORT_READ), port_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_8), port_read_func);
 
             // (AR) محاكاة كتابة ذاكرة — poke(addr, value)
             auto mem_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -327,7 +328,7 @@ namespace Sad
                 std::cout << "[OS-SIM] poke(0x" << std::hex << addr << ", 0x" << val << std::dec << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEM_WRITE), mem_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_25), mem_write_func);
 
             // (AR) محاكاة قراءة ذاكرة — peek(addr)
             auto mem_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -338,7 +339,7 @@ namespace Sad
                 std::cout << "[OS-SIM] peek(0x" << std::hex << addr << std::dec << ") -> 0x00" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEM_READ), mem_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_24), mem_read_func);
 
             // (AR) محاكاة مقاطعة — interrupt(n)
             auto interrupt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -365,7 +366,7 @@ namespace Sad
                 std::cout << "[OS-SIM] cli — interrupts disabled" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::CLI), cli_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_3), cli_func);
 
             // (AR) محاكاة تفعيل المقاطعات — sti
             auto sti_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -373,7 +374,7 @@ namespace Sad
                 std::cout << "[OS-SIM] sti — interrupts enabled" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::STI), sti_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_4), sti_func);
 
             // (AR) محاكاة كتابة VGA — vga_write(row, col, char, color)
             auto vga_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>

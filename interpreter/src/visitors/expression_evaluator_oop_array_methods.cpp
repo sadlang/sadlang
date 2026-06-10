@@ -25,6 +25,10 @@
 #include "runtime_throw.h"
 #include "user_thrown.h"
 #include "runtime_throw.h"
+// (AR) ثوابت أسماء الطرق المُولَّدة من language-truth/type_methods.yaml
+// (EN) Generated type method name constants from language-truth/type_methods.yaml
+#include "builtin_registry.h"
+namespace TM = Sad::Builtins::Names::TypeMethods;
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -61,14 +65,14 @@ namespace Sad
                 Value::ArrayType arr = objectValue.toArray();
                 const std::string &m = node.methodName;
 
-                // ─── الطول / الحجم ───
-                if (m == "الطول" || m == "الحجم" || m == "طول")
+                // ─── الطول / الحجم — TM::Array::LENGTH ───
+                if (m == TM::Array::LENGTH)
                 {
                     lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"));
                     return;
                 }
-                // ─── إضافة عنصر (تعديل موضعي) ───
-                if (m == "اضف" || m == "أضف" || m == "ادفع")
+                // ─── إضافة عنصر — TM::Array::PUSH ───
+                if (m == TM::Array::PUSH)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -82,8 +86,8 @@ namespace Sad
                     lastResult_ = newArr;
                     return;
                 }
-                // ─── حذف وإرجاع آخر عنصر ───
-                if (m == "احذف_اخير" || m == "انزع")
+                // ─── حذف وإرجاع آخر عنصر — TM::Array::POP ───
+                if (m == TM::Array::POP)
                 {
                     if (arr.empty())
                         ::Sad::Errors::throwRuntime(
@@ -97,8 +101,8 @@ namespace Sad
                     lastResult_ = last;
                     return;
                 }
-                // ─── حذف عنصر بالفهرس ───
-                if (m == "احذف" || m == "ازل" || m == "أزل")
+                // ─── حذف عنصر بالفهرس — TM::Array::DELETE ───
+                if (m == TM::Array::DELETE)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -121,7 +125,7 @@ namespace Sad
                     return;
                 }
                 // ─── إدخال عنصر في موقع محدد ───
-                if (m == "ادخل" || m == "أدخل")
+                if (m == TM::Array::INSERT_ALT)
                 {
                     if (args.size() < 2)
                         ::Sad::Errors::throwRuntime(
@@ -141,8 +145,8 @@ namespace Sad
                     lastResult_ = newArr;
                     return;
                 }
-                // ─── أول عنصر ───
-                if (m == "اول" || m == "أول")
+                // ─── أول عنصر — TM::Array::FIRST ───
+                if (m == TM::Array::FIRST)
                 {
                     if (arr.empty())
                         ::Sad::Errors::throwRuntime(
@@ -152,8 +156,8 @@ namespace Sad
                     lastResult_ = arr.front();
                     return;
                 }
-                // ─── آخر عنصر ───
-                if (m == "اخر" || m == "آخر")
+                // ─── آخر عنصر — TM::Array::LAST ───
+                if (m == TM::Array::LAST)
                 {
                     if (arr.empty())
                         ::Sad::Errors::throwRuntime(
@@ -163,8 +167,8 @@ namespace Sad
                     lastResult_ = arr.back();
                     return;
                 }
-                // ─── يحتوي ───
-                if (m == "يحتوي")
+                // ─── يحتوي — TM::Array::CONTAINS ───
+                if (m == TM::Array::CONTAINS)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -183,8 +187,8 @@ namespace Sad
                     lastResult_ = Value(found);
                     return;
                 }
-                // ─── فهرس العنصر ───
-                if (m == "فهرس")
+                // ─── فهرس العنصر — TM::Array::INDEX_OF ───
+                if (m == TM::Array::INDEX_OF)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -202,8 +206,8 @@ namespace Sad
                     lastResult_ = Value(-1);
                     return;
                 }
-                // ─── عكس ───
-                if (m == "اقلب" || m == "قلب")
+                // ─── عكس — TM::Array::REVERSE ───
+                if (m == TM::Array::REVERSE)
                 {
                     std::reverse(arr.begin(), arr.end());
                     Value newArr(arr);
@@ -211,8 +215,8 @@ namespace Sad
                     lastResult_ = newArr;
                     return;
                 }
-                // ─── ترتيب ───
-                if (m == "رتب" || m == "فرز")
+                // ─── ترتيب — TM::Array::SORT ───
+                if (m == TM::Array::SORT)
                 {
                     bool ascending = true;
                     if (!args.empty() && args[0].isBoolean())
@@ -236,7 +240,8 @@ namespace Sad
                     return;
                 }
                 // ─── شريحة ───
-                if (m == "شريحة")
+                // TM::Array::SLICE
+                if (m == TM::Array::SLICE)
                 {
                     int start = args.empty() ? 0 : args[0].toInt();
                     int end = args.size() < 2 ? ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") : args[1].toInt();
@@ -257,14 +262,14 @@ namespace Sad
                     lastResult_ = Value(sliced);
                     return;
                 }
-                // ─── فارغة ───
-                if (m == "فارغ" || m == "فارغة")
+                // ─── فارغة — TM::Array::IS_EMPTY ───
+                if (m == TM::Array::IS_EMPTY)
                 {
                     lastResult_ = Value(arr.empty());
                     return;
                 }
                 // ─── مسح ───
-                if (m == "امسح" || m == "نظف")
+                if (m == TM::Array::CLEAR)
                 {
                     Value newArr(Value::ArrayType{});
                     writeBackChain(node.object.get(), newArr);
@@ -272,7 +277,7 @@ namespace Sad
                     return;
                 }
                 // ─── صل / اربط (join) ───
-                if (m == "صل" || m == "اربط")
+                if (m == TM::Array::JOIN)
                 {
                     std::string sep = args.empty() ? "" : args[0].toString();
                     std::string result;
@@ -286,14 +291,15 @@ namespace Sad
                     return;
                 }
                 // ─── نسخ ───
-                if (m == "نسخ" || m == "انسخ" || m == "استنسخ")
+                if (m == TM::Array::COPY_ALT)
                 {
                     Value::ArrayType copy(arr.begin(), arr.end());
                     lastResult_ = Value(copy);
                     return;
                 }
                 // ─── تسطيح (flatten) ───
-                if (m == "مسطح" || m == "افرد")
+                // TM::Array::FLATTEN
+                if (m == TM::Array::FLATTEN)
                 {
                     // (AR) حد العمق الأقصى لمنع التكرار اللانهائي
                     // (EN) Max depth limit to prevent infinite recursion
@@ -319,7 +325,7 @@ namespace Sad
                     return;
                 }
                 // ─── فريد (unique) ───
-                if (m == "فريد" || m == "مميز")
+                if (m == TM::Array::UNIQUE)
                 {
                     Value::ArrayType unique;
                     for (auto &el : arr)
@@ -342,7 +348,7 @@ namespace Sad
                     return;
                 }
                 // ─── عدّ (count) ───
-                if (m == "عدّ" || m == "عد")
+                if (m == TM::Array::COUNT_ALT)
                 {
                     if (args.empty())
                     {
@@ -436,8 +442,8 @@ namespace Sad
                     return result;
                 };
 
-                // ─── لكل (forEach) ───
-                if (m == "لكل")
+                // ─── لكل (forEach) — TM::Array::FOR_EACH ───
+                if (m == TM::Array::FOR_EACH)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -452,8 +458,8 @@ namespace Sad
                     lastResult_ = Value();
                     return;
                 }
-                // ─── خريطة / حوّل (map) ───
-                if (m == "خريطة" || m == "حوّل" || m == "حول")
+                // ─── خريطة / map — TM::Array::MAP ───
+                if (m == TM::Array::MAP)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -469,8 +475,8 @@ namespace Sad
                     lastResult_ = Value(result);
                     return;
                 }
-                // ─── رشح / صفّي (filter) ───
-                if (m == "رشح" || m == "صفّي" || m == "صفي")
+                // ─── رشح / filter — TM::Array::FILTER ───
+                if (m == TM::Array::FILTER)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -488,8 +494,8 @@ namespace Sad
                     lastResult_ = Value(result);
                     return;
                 }
-                // ─── اختزل (reduce) ───
-                if (m == "اختزل")
+                // ─── اختزل / reduce — TM::Array::REDUCE ───
+                if (m == TM::Array::REDUCE)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -512,7 +518,7 @@ namespace Sad
                     return;
                 }
                 // ─── أي / بعض (some/any) ───
-                if (m == "أي" || m == "اي" || m == "بعض")
+                if (m == TM::Array::SOME)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -532,7 +538,7 @@ namespace Sad
                     return;
                 }
                 // ─── كل / جميع (every) ───
-                if (m == "كل" || m == "جميع")
+                if (m == TM::Array::EVERY)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -552,7 +558,7 @@ namespace Sad
                     return;
                 }
                 // ─── جد (find) ───
-                if (m == "جد")
+                if (m == TM::Array::FIND)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -572,7 +578,7 @@ namespace Sad
                     return;
                 }
                 // ─── جد_فهرس (findIndex) ───
-                if (m == "جد_فهرس")
+                if (m == TM::Array::FIND_INDEX)
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         ::Sad::Errors::throwRuntime(
@@ -592,7 +598,7 @@ namespace Sad
                     return;
                 }
                 // ─── ازدوج / zip ───
-                if (m == "ازدوج")
+                if (m == TM::Array::ZIP)
                 {
                     if (args.empty() || !args[0].isArray())
                         ::Sad::Errors::throwRuntime(
@@ -613,14 +619,14 @@ namespace Sad
                     return;
                 }
                 // ─── عكس المصفوفة بدون تعديل (reversed) ───
-                if (m == "معكوس")
+                if (m == TM::Array::INVERSE)
                 {
                     Value::ArrayType rev(arr.rbegin(), arr.rend());
                     lastResult_ = Value(rev);
                     return;
                 }
                 // ─── حد_أقصى / max ───
-                if (m == "حد_اقصى" || m == "أقصى")
+                if (m == TM::Array::MAX)
                 {
                     if (arr.empty())
                         ::Sad::Errors::throwRuntime(
@@ -642,7 +648,7 @@ namespace Sad
                     return;
                 }
                 // ─── حد_أدنى / min ───
-                if (m == "حد_ادنى" || m == "أدنى")
+                if (m == TM::Array::MIN)
                 {
                     if (arr.empty())
                         ::Sad::Errors::throwRuntime(
@@ -664,7 +670,7 @@ namespace Sad
                     return;
                 }
                 // ─── مجموع / sum ───
-                if (m == "مجموع")
+                if (m == TM::Array::SUM)
                 {
                     double sum = 0;
                     for (auto &el : arr)
@@ -679,7 +685,7 @@ namespace Sad
                     return;
                 }
                 // ─── متوسط / average ───
-                if (m == "متوسط")
+                if (m == TM::Array::AVERAGE)
                 {
                     if (arr.empty())
                         ::Sad::Errors::throwRuntime(
@@ -705,7 +711,7 @@ namespace Sad
                     return;
                 }
                 // ─── ملء / fill ───
-                if (m == "املأ" || m == "املا")
+                if (m == TM::Array::FILL)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -728,7 +734,7 @@ namespace Sad
                 // ─── أبعاد / شكل / dimensions / shape ───
                 // (AR) تُرجع مصفوفة بأبعاد المصفوفة، مثلاً [3, 4] لمصفوفة 3×4
                 // (EN) Returns an array with the dimensions, e.g. [3, 4] for a 3×4 matrix
-                if (m == "أبعاد" || m == "ابعاد" || m == "شكل")
+                if (m == TM::Array::SHAPE)
                 {
                     Value::ArrayType dims;
                     std::function<void(const Value::ArrayType &)> getDims;
@@ -748,7 +754,7 @@ namespace Sad
                 // ─── صفوف / rows ───
                 // (AR) تُرجع عدد الصفوف (البُعد الأول)
                 // (EN) Returns the number of rows (first dimension)
-                if (m == "صفوف")
+                if (m == TM::Array::ROWS)
                 {
                     lastResult_ = Value(static_cast<int64_t>(arr.size()));
                     return;
@@ -757,7 +763,7 @@ namespace Sad
                 // ─── أعمدة / cols / columns ───
                 // (AR) تُرجع عدد الأعمدة (البُعد الثاني) أو 0 إذا كانت المصفوفة أحادية
                 // (EN) Returns the number of columns (second dimension) or 0 if 1D
-                if (m == "أعمدة" || m == "اعمدة")
+                if (m == TM::Array::COLUMNS)
                 {
                     if (!arr.empty() && arr[0].isArray())
                     {
@@ -773,7 +779,7 @@ namespace Sad
                 // ─── قلب_محوري / transpose ───
                 // (AR) تقلب المصفوفة ثنائية الأبعاد (تبادل الصفوف والأعمدة)
                 // (EN) Transpose a 2D matrix (swap rows and columns)
-                if (m == "قلب_محوري" || m == "تبديل")
+                if (m == TM::Array::TRANSPOSE)
                 {
                     if (arr.empty())
                     {
@@ -814,7 +820,7 @@ namespace Sad
                 // ─── أعد_تشكيل / reshape ───
                 // (AR) تُعيد تشكيل مصفوفة مسطحة إلى أبعاد جديدة، مثال: [1,2,3,4,5,6].أعد_تشكيل(2, 3) → [[1,2,3],[4,5,6]]
                 // (EN) Reshape a flat array into new dimensions, e.g. [1,2,3,4,5,6].reshape(2, 3) → [[1,2,3],[4,5,6]]
-                if (m == "أعد_تشكيل" || m == "اعد_تشكيل")
+                if (m == TM::Array::RESHAPE)
                 {
                     if (args.size() < 2)
                     {
@@ -911,7 +917,7 @@ namespace Sad
                 // ─── ضرب_مصفوفات / matmul / dot ───
                 // (AR) ضرب مصفوفتين ثنائيتي الأبعاد: أ(m×n) · ب(n×p) = ج(m×p)
                 // (EN) Matrix multiplication: A(m×n) · B(n×p) = C(m×p)
-                if (m == "ضرب_مصفوفات" || m == "ضرب")
+                if (m == TM::Array::MATMUL)
                 {
                     if (args.empty() || !args[0].isArray())
                     {
@@ -972,7 +978,7 @@ namespace Sad
                 // ─── عنصر / element / at ───
                 // (AR) الوصول إلى عنصر بإحداثيات متعددة: م.عنصر(ص، ع) = م[ص][ع]
                 // (EN) Access element by multiple indices: m.element(r, c) = m[r][c]
-                if (m == "عنصر")
+                if (m == TM::Array::ELEMENT)
                 {
                     Value current(arr);
                     for (size_t i = 0; i < args.size(); ++i)
@@ -1006,7 +1012,7 @@ namespace Sad
                 // ─── عمود / column ───
                 // (AR) تُرجع عموداً معيناً من مصفوفة ثنائية الأبعاد كمصفوفة أحادية
                 // (EN) Returns a specific column from a 2D matrix as a 1D array
-                if (m == "عمود")
+                if (m == TM::Array::COLUMN)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -1042,7 +1048,7 @@ namespace Sad
                 // ─── صف / row ───
                 // (AR) تُرجع صفاً معيناً من المصفوفة (مكافئ لـ م[ف])
                 // (EN) Returns a specific row (equivalent to m[r])
-                if (m == "صف")
+                if (m == TM::Array::ROW)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -1068,7 +1074,7 @@ namespace Sad
                 // ─── مصفوفة_وحدة / identity ───
                 // (AR) إنشاء مصفوفة وحدة n×n (مصفوفة ساكنة — تُستدعى على أي مصفوفة)
                 // (EN) Create an n×n identity matrix
-                if (m == "مصفوفة_وحدة" || m == "وحدة")
+                if (m == TM::Array::IDENTITY)
                 {
                     int64_t n = args.empty() ? static_cast<int64_t>(arr.size()) : args[0].toInt();
                     Value::ArrayType result;
@@ -1088,7 +1094,7 @@ namespace Sad
                 // ─── البُعد / dimension / ndim ───
                 // (AR) تُرجع عدد الأبعاد (عمق التداخل)
                 // (EN) Returns the number of dimensions (nesting depth)
-                if (m == "البُعد" || m == "البعد" || m == "بعد")
+                if (m == TM::Array::DIMENSION)
                 {
                     int depth = 1;
                     const Value::ArrayType *current = &arr;

@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_not_callable
+kind: error
+code: E3031
+name: القيمة غير قابلة للاستدعاء
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

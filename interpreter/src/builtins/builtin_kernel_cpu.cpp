@@ -9,6 +9,8 @@
  */
 
 #include "builtins.h"
+#include "builtin_registry.h"
+namespace Kcpu = Sad::Builtins::Names::KernelCpu;
 #include "interpreter_core.h"
 
 // Low-level headers
@@ -54,7 +56,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& cpu = LowLevel::CPUManager::getInstance();
         return std::make_shared<Data::Value>(cpu.generateReport());
     };
-    fm.registerBuiltinFunction("معالج_معلومات", cpu_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_0), cpu_info);
 
     // إيقاف المعالج (تعليمة HLT)
     auto cpu_halt = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -62,7 +64,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::CPUManager::halt();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("معالج_توقف", cpu_halt);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_1), cpu_halt);
 
     // قراءة عداد الطوابع الزمنية (TSC)
     auto cpu_rdtsc = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -70,7 +72,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint64_t tsc = LowLevel::CPUManager::readTSC();
         return std::make_shared<Data::Value>(static_cast<double>(tsc));
     };
-    fm.registerBuiltinFunction("معالج_عداد", cpu_rdtsc);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_2), cpu_rdtsc);
 
     // تعطيل المقاطعات (CLI)
     auto cpu_cli = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -78,7 +80,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::CPUManager::disableInterrupts();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("تعطيل_مقاطعات", cpu_cli);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_3), cpu_cli);
 
     // تفعيل المقاطعات (STI)
     auto cpu_sti = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -86,7 +88,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::CPUManager::enableInterrupts();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("تفعيل_مقاطعات", cpu_sti);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_4), cpu_sti);
 
     // قراءة سجل MSR بالرقم المحدد
     auto cpu_read_msr = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -95,7 +97,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint64_t val = LowLevel::CPUManager::readMSR(msr);
         return std::make_shared<Data::Value>(static_cast<double>(val));
     };
-    fm.registerBuiltinFunction("معالج_اقرأ_msr", cpu_read_msr);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_5), cpu_read_msr);
 
     // كتابة قيمة في سجل MSR
     auto cpu_write_msr = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -105,7 +107,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::CPUManager::writeMSR(msr, val);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("معالج_اكتب_msr", cpu_write_msr);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_6), cpu_write_msr);
 
     // إبطال صفحة ذاكرة محددة (INVLPG)
     auto cpu_invlpg = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -114,7 +116,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::CPUManager::invlpg(addr);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("ابطل_صفحة", cpu_invlpg);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_7), cpu_invlpg);
 
     // ═══════════════════════════════════════════════════════════════
     // 2. منافذ الإدخال/الإخراج / IO Ports
@@ -125,7 +127,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint8_t val = LowLevel::IOPorts::inb(port);
         return std::make_shared<Data::Value>(static_cast<int>(val));
     };
-    fm.registerBuiltinFunction("منفذ_اقرأ", io_inb);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_8), io_inb);
 
     // كتابة بايت واحد إلى منفذ الإخراج (outb)
     auto io_outb = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -135,7 +137,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::IOPorts::outb(port, val);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("منفذ_اكتب", io_outb);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_9), io_outb);
 
     // قراءة كلمة 16-بت من منفذ الإدخال (inw)
     auto io_inw = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -144,7 +146,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint16_t val = LowLevel::IOPorts::inw(port);
         return std::make_shared<Data::Value>(static_cast<int>(val));
     };
-    fm.registerBuiltinFunction("منفذ_اقرأ16", io_inw);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_10), io_inw);
 
     // كتابة كلمة 16-بت إلى منفذ الإخراج (outw)
     auto io_outw = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -154,7 +156,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::IOPorts::outw(port, val);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("منفذ_اكتب16", io_outw);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_11), io_outw);
 
     // قراءة كلمة مزدوجة 32-بت من منفذ الإدخال (inl)
     auto io_inl = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -163,7 +165,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint32_t val = LowLevel::IOPorts::inl(port);
         return std::make_shared<Data::Value>(static_cast<int>(val));
     };
-    fm.registerBuiltinFunction("منفذ_اقرأ32", io_inl);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_12), io_inl);
 
     // كتابة كلمة مزدوجة 32-بت إلى منفذ الإخراج (outl)
     auto io_outl = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -173,7 +175,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::IOPorts::outl(port, val);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("منفذ_اكتب32", io_outl);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_13), io_outl);
 
     // ═══════════════════════════════════════════════════════════════
     // 3. العمليات البتية / Bitwise Operations
@@ -182,42 +184,42 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         if (args.size() < 2) throw std::runtime_error("بت_و: يحتاج قيمتين");
         return std::make_shared<Data::Value>(args[0]->toInt() & args[1]->toInt());
     };
-    fm.registerBuiltinFunction("بت_و", bit_and);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_14), bit_and);
 
     // عملية OR بتية بين قيمتين
     auto bit_or = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("بت_أو: يحتاج قيمتين");
         return std::make_shared<Data::Value>(args[0]->toInt() | args[1]->toInt());
     };
-    fm.registerBuiltinFunction("بت_أو", bit_or);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_15), bit_or);
 
     // عملية XOR بتية حصرية بين قيمتين
     auto bit_xor = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("بت_حصري: يحتاج قيمتين");
         return std::make_shared<Data::Value>(args[0]->toInt() ^ args[1]->toInt());
     };
-    fm.registerBuiltinFunction("بت_حصري", bit_xor);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_16), bit_xor);
 
     // عملية NOT بتية (نفي بتي)
     auto bit_not = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) throw std::runtime_error("بت_نفي: يحتاج قيمة");
         return std::make_shared<Data::Value>(~args[0]->toInt());
     };
-    fm.registerBuiltinFunction("بت_نفي", bit_not);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_17), bit_not);
 
     // إزاحة بتية لليسار (SHL)
     auto bit_shl = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("بت_يسار: يحتاج قيمة وعدد");
         return std::make_shared<Data::Value>(args[0]->toInt() << args[1]->toInt());
     };
-    fm.registerBuiltinFunction("بت_يسار", bit_shl);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_18), bit_shl);
 
     // إزاحة بتية لليمين (SHR)
     auto bit_shr = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("بت_يمين: يحتاج قيمة وعدد");
         return std::make_shared<Data::Value>(args[0]->toInt() >> args[1]->toInt());
     };
-    fm.registerBuiltinFunction("بت_يمين", bit_shr);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_19), bit_shr);
 
     // اختبار بت محدد في قيمة
     auto bit_test = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -226,7 +228,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>((val >> bit) & 1);
     };
-    fm.registerBuiltinFunction("بت_اختبار", bit_test);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_20), bit_test);
 
     // تعيين بت محدد في قيمة
     auto bit_set = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -235,7 +237,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>(val | (1 << bit));
     };
-    fm.registerBuiltinFunction("بت_عيّن", bit_set);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_21), bit_set);
 
     // مسح بت محدد في قيمة
     auto bit_clear = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -244,7 +246,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>(val & ~(1 << bit));
     };
-    fm.registerBuiltinFunction("بت_امسح", bit_clear);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_22), bit_clear);
 
     // ═══════════════════════════════════════════════════════════════
     // 4. إدارة الذاكرة / Memory Management
@@ -254,7 +256,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& mm = LowLevel::MemoryManager::getInstance();
         return std::make_shared<Data::Value>(mm.getMemoryReport());
     };
-    fm.registerBuiltinFunction("ذاكرة_معلومات", mem_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_23), mem_info);
 
     // قراءة بايت من عنوان ذاكرة مباشر (peek)
     auto mem_peek = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -263,7 +265,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint8_t val = *reinterpret_cast<volatile uint8_t*>(addr);
         return std::make_shared<Data::Value>(static_cast<int>(val));
     };
-    fm.registerBuiltinFunction("ذاكرة_اقرأ", mem_peek);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_24), mem_peek);
 
     // كتابة بايت إلى عنوان ذاكرة مباشر (poke)
     auto mem_poke = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -273,7 +275,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         *reinterpret_cast<volatile uint8_t*>(addr) = val;
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("ذاكرة_اكتب", mem_poke);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_25), mem_poke);
 
     // ═══════════════════════════════════════════════════════════════
     // 5. المقاطعات / Interrupts
@@ -283,7 +285,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& im = LowLevel::InterruptManager::getInstance();
         return std::make_shared<Data::Value>(im.getInterruptReport());
     };
-    fm.registerBuiltinFunction("مقاطعات_معلومات", int_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_26), int_info);
 
     // تهيئة جدول المقاطعات IDT وتحميله
     auto int_init = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -293,7 +295,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         im.loadIDT();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("مقاطعات_تهيئة", int_init);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_27), int_init);
 
     // ═══════════════════════════════════════════════════════════════
     // 6. GDT / TSS
@@ -320,7 +322,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& pg = LowLevel::PagingManager::getInstance();
         return std::make_shared<Data::Value>(pg.generateReport());
     };
-    fm.registerBuiltinFunction("ترحيل_معلومات", paging_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_28), paging_info);
 
     // ربط صفحة افتراضية بعنوان فيزيائي
     auto paging_map = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -332,7 +334,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         bool ok = pg.mapPage(virt, phys, flags);
         return std::make_shared<Data::Value>(ok ? 1 : 0);
     };
-    fm.registerBuiltinFunction("ترحيل_خريطة", paging_map);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_29), paging_map);
 
     // إلغاء ربط صفحة افتراضية
     auto paging_unmap = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -342,7 +344,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         pg.unmapPage(virt);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("ترحيل_إلغاء", paging_unmap);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_30), paging_unmap);
 
     // ═══════════════════════════════════════════════════════════════
     // 8. PCI / PCIe
@@ -419,7 +421,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& fb = LowLevel::FramebufferManager::getInstance();
         return std::make_shared<Data::Value>(fb.generateReport());
     };
-    fm.registerBuiltinFunction("شاشة_معلومات", fb_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_31), fb_info);
 
     // رسم نقطة (بكسل) على الشاشة بإحداثيات ولون RGB
     auto fb_pixel = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -432,7 +434,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.putPixel(x, y, LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_نقطة", fb_pixel);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_32), fb_pixel);
 
     // رسم خط مستقيم بين نقطتين بلون RGB
     auto fb_line = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -446,7 +448,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.drawLine(x1, y1, x2, y2, LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_خط", fb_line);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_33), fb_line);
 
     // رسم إطار مستطيل (بدون تعبئة) بلون RGB
     auto fb_rect = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -459,7 +461,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.drawRect(rect, LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_مستطيل", fb_rect);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_34), fb_rect);
 
     // رسم مستطيل ممتلئ بلون RGB
     auto fb_fill_rect = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -472,7 +474,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.fillRect(rect, LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_مستطيل_ممتلئ", fb_fill_rect);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_35), fb_fill_rect);
 
     // رسم دائرة بمركز ونصف قطر ولون RGB
     auto fb_circle = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -486,7 +488,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.drawCircle(cx, cy, radius, LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_دائرة", fb_circle);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_36), fb_circle);
 
     // رسم نص على الشاشة بإحداثيات ولون RGB
     auto fb_text = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -500,7 +502,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.drawString(x, y, text.c_str(), LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_نص", fb_text);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_37), fb_text);
 
     // مسح الشاشة بلون محدد (أسود افتراضياً)
     auto fb_clear = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -514,7 +516,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.clear(LowLevel::Color(r, g, b));
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_مسح", fb_clear);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_38), fb_clear);
 
     // تبديل المخزن المؤقت (double buffering)
     auto fb_swap = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -523,7 +525,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         fb.swapBuffers();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_تبديل", fb_swap);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_39), fb_swap);
 
     // رسم تدرج لوني (أفقي أو عمودي) في مستطيل
     auto fb_gradient = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -544,7 +546,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         }
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("شاشة_تدرج", fb_gradient);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_40), fb_gradient);
 
     // ═══════════════════════════════════════════════════════════════
     // 11. ACPI — إدارة الطاقة
@@ -583,7 +585,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         oss << "المكونات: Spinlock, RWLock, Mutex, Semaphore, Barrier, Once\n";
         return std::make_shared<Data::Value>(oss.str());
     };
-    fm.registerBuiltinFunction("تزامن_معلومات", sync_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_41), sync_info);
 
     // توقف مؤقت للمعالج (تعليمة PAUSE للحلقات المزدحمة)
     auto sync_pause = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -591,7 +593,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::Atomic::pause();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("تزامن_توقف", sync_pause);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_42), sync_pause);
 
     // حاجز ذاكرة لضمان ترتيب العمليات
     auto sync_barrier = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -599,7 +601,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         LowLevel::Atomic::memoryBarrier();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("تزامن_حاجز", sync_barrier);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_43), sync_barrier);
 
     // ═══════════════════════════════════════════════════════════════
     // 13. المجدول / Scheduler
@@ -609,7 +611,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& sched = LowLevel::SchedulerManager::getInstance();
         return std::make_shared<Data::Value>(sched.generateReport());
     };
-    fm.registerBuiltinFunction("مجدول_معلومات", sched_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_44), sched_info);
 
     // إنشاء عملية جديدة في المجدول
     auto sched_create_process = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -618,7 +620,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         uint64_t pid = sched.createProcess(name.c_str());
         return std::make_shared<Data::Value>(static_cast<double>(pid));
     };
-    fm.registerBuiltinFunction("مجدول_عملية_جديدة", sched_create_process);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_45), sched_create_process);
 
     // تنازل العملية الحالية عن المعالج
     auto sched_yield = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -627,7 +629,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         sched.yield();
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("مجدول_تنازل", sched_yield);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_46), sched_yield);
 
     // ═══════════════════════════════════════════════════════════════
     // 14. الإقلاع / Boot
@@ -637,7 +639,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& boot = LowLevel::BootManager::getInstance();
         return std::make_shared<Data::Value>(boot.generateReport());
     };
-    fm.registerBuiltinFunction("إقلاع_معلومات", boot_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_47), boot_info);
 
     // ═══════════════════════════════════════════════════════════════
     // 15. VFS — نظام الملفات الافتراضي
@@ -647,7 +649,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         auto& vfs = LowLevel::VFSManager::getInstance();
         return std::make_shared<Data::Value>(vfs.generateReport());
     };
-    fm.registerBuiltinFunction("ملفات_معلومات", vfs_info);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_48), vfs_info);
 
     // تركيب نظام ملفات على مسار محدد
     auto vfs_mount = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -660,7 +662,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         bool ok = vfs.mount(dev, path, fsType, ro);
         return std::make_shared<Data::Value>(ok ? 1 : 0);
     };
-    fm.registerBuiltinFunction("ملفات_حمّل", vfs_mount);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_49), vfs_mount);
 
     // فصل نظام ملفات مركّب
     auto vfs_unmount = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -669,7 +671,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         bool ok = vfs.unmount(args[0]->toString());
         return std::make_shared<Data::Value>(ok ? 1 : 0);
     };
-    fm.registerBuiltinFunction("ملفات_افصل", vfs_unmount);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_50), vfs_unmount);
 
     // التحقق من وجود ملف أو مجلد
     auto vfs_exists = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -678,7 +680,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         bool ok = vfs.exists(args[0]->toString());
         return std::make_shared<Data::Value>(ok ? 1 : 0);
     };
-    fm.registerBuiltinFunction("ملفات_موجود", vfs_exists);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_51), vfs_exists);
 
     // إنشاء مجلد جديد في نظام الملفات
     auto vfs_mkdir = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -687,7 +689,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         bool ok = vfs.mkdir(args[0]->toString());
         return std::make_shared<Data::Value>(ok ? 1 : 0);
     };
-    fm.registerBuiltinFunction("ملفات_أنشئ_مجلد", vfs_mkdir);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_52), vfs_mkdir);
 
     // ═══════════════════════════════════════════════════════════════
     // 16. APIC — المقاطعات المتقدمة
@@ -869,7 +871,7 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         oss << std::string(70, '#') << "\n";
         return std::make_shared<Data::Value>(oss.str());
     };
-    fm.registerBuiltinFunction("منخفض_تقرير", lowlevel_report);
+    fm.registerBuiltinFunction(std::string(Kcpu::CPU_53), lowlevel_report);
 
 } // registerBuiltinsKernelCPU
 

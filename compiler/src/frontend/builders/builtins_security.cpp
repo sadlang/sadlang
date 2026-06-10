@@ -18,6 +18,9 @@
 #include <filesystem>
 #include <optional>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -46,7 +49,7 @@ namespace Sad
                 // ========================================================================
 
                 // 1. تأكد / assert - يتحقق من شرط ويوقف البرنامج إذا كان خاطئاً
-                if (funcName == "تأكد" || funcName == "assert" || funcName == "تاكد")
+                if (funcName == Bn::Basics::ASSERT)
                 {
                     if (argResults.empty())
                     {
@@ -68,7 +71,7 @@ namespace Sad
                 }
 
                 // 2. تحقق / verify - يعيد صحيح أو خطأ دون إيقاف البرنامج
-                if (funcName == "تحقق" || funcName == "verify")
+                if (funcName == Bn::CompilerSec::SEC_0)
                 {
                     if (argResults.empty())
                     {
@@ -89,7 +92,7 @@ namespace Sad
                 }
 
                 // 3. آمن / is_safe - يتحقق من أمان القيمة
-                if (funcName == "آمن" || funcName == "is_safe" || funcName == "امن")
+                if (funcName == Bn::Assertions::SAFE_CHECK)
                 {
                     if (argResults.empty())
                     {
@@ -110,7 +113,7 @@ namespace Sad
                 }
 
                 // 4. ذعر / panic - إيقاف طارئ مع رسالة خطأ
-                if (funcName == "ذعر" || funcName == "panic")
+                if (funcName == Bn::Assertions::PANIC)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_PANIC);
                     if (!argOperands.empty())
@@ -126,7 +129,7 @@ namespace Sad
                 }
 
                 // 5. هاش / hash - حساب هاش FNV-1a للنص
-                if (funcName == "هاش" || funcName == "hash")
+                if (funcName == Bn::Assertions::HASH)
                 {
                     if (argResults.empty())
                     {
@@ -147,7 +150,7 @@ namespace Sad
                 }
 
                 // 6. شفّر / encrypt - تشفير XOR
-                if (funcName == "شفّر" || funcName == "شفر" || funcName == "encrypt")
+                if (funcName == Bn::Assertions::ENCRYPT)
                 {
                     if (argResults.size() < 2)
                     {
@@ -169,7 +172,7 @@ namespace Sad
                 }
 
                 // 7. فك_تشفير / decrypt - فك تشفير XOR
-                if (funcName == "فك_تشفير" || funcName == "decrypt")
+                if (funcName == Bn::Assertions::DECRYPT)
                 {
                     if (argResults.size() < 2)
                     {
@@ -191,7 +194,7 @@ namespace Sad
                 }
 
                 // 8. تأكد_نوع / assert_type - التحقق من نوع القيمة
-                if (funcName == "تأكد_نوع" || funcName == "assert_type" || funcName == "تاكد_نوع")
+                if (funcName == Bn::Assertions::ASSERT_TYPE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -210,7 +213,7 @@ namespace Sad
                 }
 
                 // 9. تأكد_مساواة / assert_equal - التحقق من تساوي قيمتين
-                if (funcName == "تأكد_مساواة" || funcName == "assert_equal" || funcName == "تاكد_مساواة")
+                if (funcName == Bn::CompilerSec::SEC_1)
                 {
                     if (argResults.size() < 2)
                     {
@@ -229,7 +232,7 @@ namespace Sad
                 }
 
                 // 10. تأكد_أكبر / assert_greater - التحقق من أن القيمة الأولى أكبر
-                if (funcName == "تأكد_أكبر" || funcName == "assert_greater" || funcName == "تاكد_اكبر")
+                if (funcName == Bn::Assertions::ASSERT_GT)
                 {
                     if (argResults.size() < 2)
                     {
@@ -248,7 +251,7 @@ namespace Sad
                 }
 
                 // 11. نظّف / sanitize - تنظيف نص من HTML
-                if (funcName == "نظّف" || funcName == "نظف" || funcName == "sanitize")
+                if (funcName == Bn::Assertions::SANITIZE)
                 {
                     if (argResults.empty())
                     {
@@ -271,9 +274,7 @@ namespace Sad
                 // 12. وقت_الآن / الآن / timestamp - الحصول على الوقت الحالي
                 // (AR) يدعم: وقت_الآن، الآن، الان، timestamp، now
                 // (EN) Supports: وقت_الآن, الآن, الان, timestamp, now
-                if (funcName == "وقت_الآن" || funcName == "وقت_الان" ||
-                    funcName == "الآن" || funcName == "الان" ||
-                    funcName == "timestamp" || funcName == "now")
+                if (funcName == Bn::Maps::NOW)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -288,7 +289,7 @@ namespace Sad
                 }
 
                 // 13. عشوائي_آمن / secure_random - رقم عشوائي آمن
-                if (funcName == "عشوائي_آمن" || funcName == "عشوائي_امن" || funcName == "secure_random")
+                if (funcName == Bn::Assertions::SECURE_RANDOM)
                 {
                     if (argResults.size() < 2)
                     {
@@ -310,7 +311,7 @@ namespace Sad
                 }
 
                 // 14. ترميز_64 / base64_encode - ترميز Base64
-                if (funcName == "ترميز_64" || funcName == "base64_encode" || funcName == "base64")
+                if (funcName == Bn::Assertions::BASE64_ENCODE)
                 {
                     if (argResults.empty())
                     {

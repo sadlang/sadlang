@@ -1,0 +1,10 @@
+schema_version: 1
+id: keyword.demo
+kind: keyword
+name: تجريبي_ك
+reserved: true
+contextual_scope: null
+category: declaration
+since: "1.0.0"
+owners:
+  - "@sadlang-core"

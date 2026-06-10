@@ -1,0 +1,226 @@
+version: 1
+namespace_group: Assertions
+description_ar: وحدة تأكيدات (5 دوال)
+description_en: Assertions module (5 functions)
+functions:
+- cpp_id: ASSERT_EQ
+  canonical: تأكد_يساوي
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: يجب أن يتساوى
+  description_en: Assert equal
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: ASSERT_NEQ
+  canonical: تأكد_لا_يساوي
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: يجب ألا يتساوى
+  description_en: Assert NEQ
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: ASSERT_TRUE
+  canonical: تأكد_صحيح
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: يجب صحيحاً
+  description_en: Assert true
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: ASSERT_FALSE
+  canonical: تأكد_خطأ
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: يجب خطأ
+  description_en: Assert false
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: HASH
+  canonical: هاش
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: هاش القيمة
+  description_en: Hash value
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: SAFE_CHECK
+  canonical: آمن
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: فحص آمن
+  description_en: Safe check
+  params: []
+  lookup_table: name_only
+- cpp_id: PANIC
+  canonical: ذعر
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: ذعر وإنهاء
+  description_en: Panic and exit
+  params: []
+  lookup_table: name_only
+- cpp_id: ASSERT_NULL
+  canonical: تأكد_لاشيء
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تأكد أنه null
+  description_en: Assert null
+  params: []
+  lookup_table: name_only
+- cpp_id: ASSERT_NOT_NULL
+  canonical: تأكد_ليس_لاشيء
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تأكد ليس null
+  description_en: Assert not null
+  params: []
+  lookup_table: name_only
+- cpp_id: ASSERT_LT
+  canonical: تأكد_أصغر
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تأكد أصغر
+  description_en: Assert less than
+  params: []
+  lookup_table: name_only
+- cpp_id: ASSERT_GT
+  canonical: تأكد_أكبر
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تأكد أكبر
+  description_en: Assert greater than
+  params: []
+  lookup_table: name_only
+- cpp_id: ASSERT_TYPE
+  canonical: تأكد_نوع
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تأكد النوع
+  description_en: Assert type
+  params: []
+  lookup_table: name_only
+- cpp_id: ENCRYPT
+  canonical: شفر
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تشفير
+  description_en: Encrypt
+  params: []
+  lookup_table: name_only
+- cpp_id: DECRYPT
+  canonical: فك_تشفير
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: فك تشفير
+  description_en: Decrypt
+  params: []
+  lookup_table: name_only
+- cpp_id: SANITIZE
+  canonical: نظف
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تنظيف مدخلات
+  description_en: Sanitize
+  params: []
+  lookup_table: name_only
+- cpp_id: SECURE_RANDOM
+  canonical: عشوائي_آمن
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: عشوائي آمن
+  description_en: Secure random
+  params: []
+  lookup_table: name_only
+- cpp_id: BASE64_ENCODE
+  canonical: ترميز_64
+  namespace: Assertions
+  category: MODULE_FUNCTION
+  require_import: true
+  module: ASSERTIONS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: ترميز Base64
+  description_en: Base64 encode
+  params: []
+  lookup_table: name_only

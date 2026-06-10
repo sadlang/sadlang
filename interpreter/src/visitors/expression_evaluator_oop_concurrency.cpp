@@ -22,6 +22,9 @@
 #include <vector>
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+// (AR) ثوابت أسماء الطرق المُولَّدة / (EN) Generated type method name constants
+#include "builtin_registry.h"
+namespace TM = Sad::Builtins::Names::TypeMethods;
 namespace Sad
 {
     namespace Interpreter
@@ -81,8 +84,8 @@ namespace Sad
                         {{"operation", "lookup"}, {"reason", "channel not found"}});
                 }
 
-                // ─── أرسل (send) ───
-                if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84")
+                // ─── أرسل (send) — TM::Channel::SEND ───
+                if (m == TM::Channel::SEND)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -94,23 +97,23 @@ namespace Sad
                     return true;
                 }
 
-                // ─── استقبل (receive) ───
-                if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84")
+                // ─── استقبل (receive) — TM::Channel::RECEIVE ───
+                if (m == TM::Channel::RECEIVE)
                 {
                     lastResult_ = channel->receive();
                     return true;
                 }
 
-                // ─── أغلق (close) ───
-                if (m == "\xD8\xA3\xD8\xBA\xD9\x84\xD9\x82" || m == "\xD8\xA7\xD8\xBA\xD9\x84\xD9\x82")
+                // ─── أغلق (close) — TM::Channel::CLOSE ───
+                if (m == TM::Channel::CLOSE)
                 {
                     channel->close();
                     lastResult_ = Value(); // void
                     return true;
                 }
 
-                // ─── حاول_استقبل (tryReceive) ───
-                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84")
+                // ─── حاول_استقبل (tryReceive) — TM::Channel::TRY_RECEIVE ───
+                if (m == TM::Channel::TRY_RECEIVE)
                 {
                     auto result = channel->tryReceive();
                     if (result.has_value())
@@ -124,8 +127,8 @@ namespace Sad
                     return true;
                 }
 
-                // ─── حاول_ارسل (trySend) ───
-                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84")
+                // ─── حاول_ارسل (trySend) — TM::Channel::TRY_SEND ───
+                if (m == TM::Channel::TRY_SEND)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -137,36 +140,36 @@ namespace Sad
                     return true;
                 }
 
-                // ─── مغلقة (isClosed) ───
-                if (m == "\xD9\x85\xD8\xBA\xD9\x84\xD9\x82\xD8\xA9")
+                // ─── مغلقة (isClosed) — TM::Channel::IS_CLOSED ───
+                if (m == TM::Channel::IS_CLOSED)
                 {
                     lastResult_ = Value(channel->isClosed());
                     return true;
                 }
 
-                // ─── الحجم (size) ───
-                if (m == "\xD8\xA7\xD9\x84\xD8\xAD\xD8\xAC\xD9\x85" || m == "\xD8\xB7\xD9\x88\xD9\x84")
+                // ─── الحجم (size) — TM::Channel::SIZE ───
+                if (m == TM::Channel::SIZE)
                 {
                     lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(channel->size(), "expression_evaluator_oop_concurrency_size"));
                     return true;
                 }
 
-                // ─── السعة (capacity) ───
-                if (m == "\xD8\xA7\xD9\x84\xD8\xB3\xD8\xB9\xD8\xA9")
+                // ─── السعة (capacity) — TM::Channel::CAPACITY ───
+                if (m == TM::Channel::CAPACITY)
                 {
                     lastResult_ = Value(static_cast<int>(channel->capacity()));
                     return true;
                 }
 
-                // ─── فارغة (empty) ───
-                if (m == "\xD9\x81\xD8\xA7\xD8\xB1\xD8\xBA\xD8\xA9")
+                // ─── فارغة (empty) — TM::Channel::IS_EMPTY ───
+                if (m == TM::Channel::IS_EMPTY)
                 {
                     lastResult_ = Value(channel->empty());
                     return true;
                 }
 
-                // ─── أرسل_بمهلة (sendTimeout) ───
-                if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9")
+                // ─── أرسل_بمهلة (sendTimeout) — TM::Channel::SEND_TIMEOUT ───
+                if (m == TM::Channel::SEND_TIMEOUT)
                 {
                     if (args.size() < 2)
                         ::Sad::Errors::throwRuntime(
@@ -179,8 +182,8 @@ namespace Sad
                     return true;
                 }
 
-                // ─── استقبل_بمهلة (receiveTimeout) ───
-                if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9")
+                // ─── استقبل_بمهلة (receiveTimeout) — TM::Channel::RECV_TIMEOUT ───
+                if (m == TM::Channel::RECV_TIMEOUT)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(
@@ -242,8 +245,8 @@ namespace Sad
                         {{"operation", "lookup"}, {"reason", "waitgroup not found"}});
                 }
 
-                // ─── أضف (add) ───
-                if (m == "\xD8\xA3\xD8\xB6\xD9\x81" || m == "\xD8\xA7\xD8\xB6\xD9\x81")
+                // ─── أضف (add) — TM::Any::ADD ───
+                if (m == TM::Any::ADD)
                 {
                     int delta = 1;
                     if (!args.empty())
@@ -253,16 +256,16 @@ namespace Sad
                     return true;
                 }
 
-                // ─── أنهي (done) ───
-                if (m == "\xD8\xA3\xD9\x86\xD9\x87\xD9\x8A" || m == "\xD8\xA7\xD9\x86\xD9\x87\xD9\x8A")
+                // ─── أنهي (done) — TM::Any::DONE ───
+                if (m == TM::Any::DONE)
                 {
                     wg->done();
                     lastResult_ = Value();
                     return true;
                 }
 
-                // ─── انتظر (wait) ───
-                if (m == "\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xB1")
+                // ─── انتظر (wait) — TM::Any::WAIT ───
+                if (m == TM::Any::WAIT)
                 {
                     if (!args.empty())
                     {
@@ -279,8 +282,8 @@ namespace Sad
                     return true;
                 }
 
-                // ─── العداد (count) ───
-                if (m == "\xD8\xA7\xD9\x84\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF")
+                // ─── العداد (count) — TM::Any::COUNT ───
+                if (m == TM::Any::COUNT)
                 {
                     lastResult_ = Value(wg->count());
                     return true;
@@ -328,31 +331,31 @@ namespace Sad
                         {{"operation", "lookup"}, {"reason", "mutex not found"}});
                 }
 
-                // ─── اقفل (lock) ───
-                if (m == "\xD8\xA7\xD9\x82\xD9\x81\xD9\x84")
+                // ─── اقفل (lock) — TM::Any::LOCK ───
+                if (m == TM::Any::LOCK)
                 {
                     mtx->lock();
                     lastResult_ = Value();
                     return true;
                 }
 
-                // ─── افتح (unlock) ───
-                if (m == "\xD8\xA7\xD9\x81\xD8\xAA\xD8\xAD")
+                // ─── افتح (unlock) — TM::Any::UNLOCK ───
+                if (m == TM::Any::UNLOCK)
                 {
                     mtx->unlock();
                     lastResult_ = Value();
                     return true;
                 }
 
-                // ─── حاول_قفل (tryLock) ───
-                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD9\x82\xD9\x81\xD9\x84")
+                // ─── حاول_قفل (tryLock) — TM::Any::TRY_LOCK ───
+                if (m == TM::Any::TRY_LOCK)
                 {
                     lastResult_ = Value(mtx->tryLock());
                     return true;
                 }
 
-                // ─── مقفل (isLocked) ───
-                if (m == "\xD9\x85\xD9\x82\xD9\x81\xD9\x84")
+                // ─── مقفل (isLocked) — TM::Any::IS_LOCKED ───
+                if (m == TM::Any::IS_LOCKED)
                 {
                     lastResult_ = Value(mtx->isLocked());
                     return true;
@@ -400,8 +403,8 @@ namespace Sad
                         {{"operation", "lookup"}, {"reason", "future not found"}});
                 }
 
-                // ─── احصل (get) — يحجب حتى تجهز النتيجة ───
-                if (m == "\xD8\xA7\xD8\xAD\xD8\xB5\xD9\x84")
+                // ─── احصل (get) — TM::Any::GET ───
+                if (m == TM::Any::GET)
                 {
                     if (!args.empty())
                     {
@@ -426,15 +429,15 @@ namespace Sad
                     return true;
                 }
 
-                // ─── جاهز (isReady) ───
-                if (m == "\xD8\xAC\xD8\xA7\xD9\x87\xD8\xB2")
+                // ─── جاهز (isReady) — TM::Any::IS_READY ───
+                if (m == TM::Any::IS_READY)
                 {
                     lastResult_ = Value(fut->isReady());
                     return true;
                 }
 
-                // ─── عيّن (set / setResult) — تعيين النتيجة ───
-                if (m == "\xD8\xB9\xD9\x8A\xD9\x91\xD9\x86" || m == "\xD8\xB9\xD9\x8A\xD9\x86")
+                // ─── عيّن (set / setResult) — TM::Any::SET ───
+                if (m == TM::Any::SET)
                 {
                     if (args.empty())
                         ::Sad::Errors::throwRuntime(

@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_method_not_found
+kind: error
+code: E3022
+name: الطريقة غير موجودة
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

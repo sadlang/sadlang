@@ -1,0 +1,1047 @@
+version: '1.0'
+description_ar: طرق الأنواع المدمجة في لغة ص (7 أهداف)
+description_en: Built-in type methods for Sad language (7 targets)
+targets:
+- مصفوفة
+- نص
+- خريطة
+- قناة
+- قفل
+- مجموعة_انتظار
+- مستقبل
+methods:
+- target: مصفوفة
+  method: أضف
+  method_en: push
+  description_ar: إضافة عنصر للنهاية
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: أزل
+  method_en: remove
+  description_ar: إزالة عنصر بالقيمة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: احذف
+  method_en: delete
+  description_ar: حذف عنصر بالفهرس
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: احذف_اخير
+  method_en: pop
+  description_ar: حذف وإرجاع آخر عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: رتب
+  method_en: sort
+  description_ar: ترتيب المصفوفة تصاعدياً
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: فرز
+  method_en: sort_custom
+  description_ar: ترتيب مع دالة مقارنة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: عكس
+  method_en: reverse
+  description_ar: عكس ترتيب العناصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: يحتوي
+  method_en: contains
+  description_ar: هل تحوي العنصر؟
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: فهرس
+  method_en: index_of
+  description_ar: فهرس أول ظهور للعنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: شريحة
+  method_en: slice
+  description_ar: استخراج جزء من المصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: خريطة
+  method_en: map
+  description_ar: تحويل كل عنصر بدالة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: رشح
+  method_en: filter
+  description_ar: تصفية العناصر بشرط
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: اختزل
+  method_en: reduce
+  description_ar: اختزال المصفوفة لقيمة واحدة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: لكل
+  method_en: for_each
+  description_ar: تنفيذ دالة على كل عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: أول
+  method_en: first
+  description_ar: إرجاع أول عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: آخر
+  method_en: last
+  description_ar: إرجاع آخر عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: فارغة
+  method_en: is_empty
+  description_ar: هل المصفوفة فارغة؟
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: الطول
+  method_en: length
+  description_ar: عدد العناصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: مسطح
+  method_en: flatten
+  description_ar: تسطيح مصفوفة متداخلة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: جد
+  method_en: find
+  description_ar: أول عنصر يطابق شرطاً
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: جد_فهرس
+  method_en: find_index
+  description_ar: فهرس أول عنصر يطابق شرطاً
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: جميع
+  method_en: every
+  description_ar: هل جميع العناصر تطابق الشرط؟
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: أي
+  method_en: some
+  description_ar: هل يوجد عنصر يطابق الشرط؟
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: فريد
+  method_en: unique
+  description_ar: إزالة العناصر المكررة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: انسخ
+  method_en: copy
+  description_ar: نسخ المصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: أدخل
+  method_en: insert
+  description_ar: إدراج عنصر في موضع محدد
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: صل
+  method_en: join
+  description_ar: دمج العناصر كنص بفاصل
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: اربط
+  method_en: concat
+  description_ar: دمج مصفوفتين
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: ازدوج
+  method_en: zip
+  description_ar: جمع مصفوفتين في أزواج
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: حد_ادنى
+  method_en: min
+  description_ar: القيمة الدنيا في المصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: حد_اقصى
+  method_en: max
+  description_ar: القيمة القصوى في المصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: مجموع
+  method_en: sum
+  description_ar: مجموع عناصر المصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: متوسط
+  method_en: average
+  description_ar: متوسط عناصر المصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: امسح
+  method_en: clear
+  description_ar: مسح جميع العناصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: عد
+  method_en: count
+  description_ar: عد العناصر التي تطابق شرطاً
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: طول
+  method_en: length
+  description_ar: طول النص بعدد الأحرف
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: يحتوي
+  method_en: contains
+  description_ar: هل يحوي النص الفرعي؟
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: يبدأ_بـ
+  method_en: starts_with
+  description_ar: هل يبدأ بالنص المعطى؟
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: ينتهي_بـ
+  method_en: ends_with
+  description_ar: هل ينتهي بالنص المعطى؟
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: استبدل
+  method_en: replace
+  description_ar: استبدال نص فرعي بآخر
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: قسم
+  method_en: split
+  description_ar: تقسيم النص بفاصل
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: قص
+  method_en: trim
+  description_ar: حذف المسافات البيضاء
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: جزء
+  method_en: substring
+  description_ar: استخراج جزء بالفهرس
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: تحويل_كبير
+  method_en: to_upper
+  description_ar: تحويل للحروف الكبيرة
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: تحويل_صغير
+  method_en: to_lower
+  description_ar: تحويل للحروف الصغيرة
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: كرر
+  method_en: repeat
+  description_ar: تكرار النص N مرة
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: حرف_عند
+  method_en: char_at
+  description_ar: الحرف في موضع محدد
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: عكس
+  method_en: reverse
+  description_ar: عكس ترتيب الأحرف
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: بحث
+  method_en: find
+  description_ar: إيجاد موضع نص فرعي
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: انسخ
+  method_en: copy
+  description_ar: نسخ النص
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: احصل
+  method_en: get
+  description_ar: الحصول على قيمة بمفتاح
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: true
+  require_import: false
+- target: خريطة
+  method: عين
+  method_en: set
+  description_ar: تعيين قيمة بمفتاح
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: احذف
+  method_en: delete
+  description_ar: حذف مفتاح وقيمته
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: true
+  require_import: false
+- target: خريطة
+  method: يحتوي
+  method_en: contains
+  description_ar: هل الخريطة تحوي هذا المفتاح؟
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: مفاتيح
+  method_en: keys
+  description_ar: قائمة بجميع المفاتيح
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: true
+  require_import: false
+- target: خريطة
+  method: قيم
+  method_en: values
+  description_ar: قائمة بجميع القيم
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: true
+  require_import: false
+- target: خريطة
+  method: حجم
+  method_en: size
+  description_ar: عدد الأزواج (مفتاح، قيمة)
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: true
+  require_import: false
+- target: خريطة
+  method: فارغة
+  method_en: is_empty
+  description_ar: هل الخريطة فارغة؟
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: امسح
+  method_en: clear
+  description_ar: مسح جميع العناصر
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: دمج
+  method_en: merge
+  description_ar: دمج مع خريطة أخرى
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: عناصر
+  method_en: entries
+  description_ar: قائمة الأزواج (مفتاح، قيمة)
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: أرسل
+  method_en: send
+  description_ar: إرسال قيمة — يحجب حتى استقبال
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: استقبل
+  method_en: receive
+  description_ar: استقبال قيمة — يحجب حتى توفر
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: أغلق
+  method_en: close
+  description_ar: إغلاق القناة
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: حاول_ارسل
+  method_en: try_send
+  description_ar: محاولة إرسال بدون حجب
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: حاول_استقبل
+  method_en: try_receive
+  description_ar: محاولة استقبال بدون حجب
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: أرسل_بمهلة
+  method_en: send_timeout
+  description_ar: إرسال مع مهلة (مللي ثانية)
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: استقبل_بمهلة
+  method_en: recv_timeout
+  description_ar: استقبال مع مهلة (مللي ثانية)
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: الحجم
+  method_en: size
+  description_ar: عدد العناصر الحالي في القناة
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: السعة
+  method_en: capacity
+  description_ar: السعة القصوى للقناة
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: فارغة
+  method_en: is_empty
+  description_ar: هل القناة فارغة؟
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قناة
+  method: مغلقة
+  method_en: is_closed
+  description_ar: هل القناة مغلقة؟
+  since: 1.0.0
+  status: stable
+  target_type: CHANNEL
+  in_lookup_array: false
+  require_import: false
+- target: قفل
+  method: اقفل
+  method_en: lock
+  description_ar: قفل Mutex — يحجب حتى الحصول
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: قفل
+  method: افتح
+  method_en: unlock
+  description_ar: فتح القفل
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: قفل
+  method: حاول_قفل
+  method_en: try_lock
+  description_ar: محاولة قفل بدون حجب
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: قفل
+  method: مقفل
+  method_en: is_locked
+  description_ar: هل القفل مُغلَق حالياً؟
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مجموعة_انتظار
+  method: أضف
+  method_en: add
+  description_ar: إضافة N مهمة للعداد
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مجموعة_انتظار
+  method: أنهي
+  method_en: done
+  description_ar: إنهاء مهمة واحدة (العداد - 1)
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مجموعة_انتظار
+  method: انتظر
+  method_en: wait
+  description_ar: حجب حتى يصبح العداد = 0
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مجموعة_انتظار
+  method: العداد
+  method_en: count
+  description_ar: قراءة العداد الحالي
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مستقبل
+  method: احصل
+  method_en: get
+  description_ar: الحصول على النتيجة — يحجب حتى جاهزة
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مستقبل
+  method: جاهز
+  method_en: is_ready
+  description_ar: هل النتيجة جاهزة؟
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مستقبل
+  method: عين
+  method_en: set
+  description_ar: تعيين النتيجة من goroutine
+  since: 1.0.0
+  status: stable
+  target_type: ANY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: اضف
+  method_en: اضف
+  description_ar: إضافة عنصر للمصفوفة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: احذف_الأخير
+  method_en: احذف_الأخير
+  description_ar: حذف وإرجاع آخر عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: اعكس
+  method_en: اعكس
+  description_ar: عكس ترتيب العناصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: الأول
+  method_en: الأول
+  description_ar: أول عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: الأخير
+  method_en: الأخير
+  description_ar: آخر عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: استخراج
+  method_en: استخراج
+  description_ar: استخراج جزء من النص
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: تقسيم
+  method_en: تقسيم
+  description_ar: تقسيم النص بفاصل
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: نص
+  method: قص_أطراف
+  method_en: قص_أطراف
+  description_ar: حذف المسافات البيضاء
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: true
+  require_import: false
+- target: خريطة
+  method: عين
+  method_en: عين
+  description_ar: تعيين قيمة بمفتاح
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: true
+  require_import: false
+- target: مصفوفة
+  method: ادخل
+  method_en: insert_alt
+  description_ar: ادخل
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: نظف
+  method_en: clear_alt
+  description_ar: نظف
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: نسخ
+  method_en: copy_alt
+  description_ar: نسخ
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: عد
+  method_en: count_alt
+  description_ar: عدّ
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: معكوس
+  method_en: inverse
+  description_ar: معكوس
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: املأ
+  method_en: fill
+  description_ar: املأ
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: أبعاد
+  method_en: shape
+  description_ar: أبعاد
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: صفوف
+  method_en: rows
+  description_ar: صفوف
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: أعمدة
+  method_en: columns
+  description_ar: أعمدة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: قلب_محوري
+  method_en: transpose
+  description_ar: قلب_محوري
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: أعد_تشكيل
+  method_en: reshape
+  description_ar: أعد_تشكيل
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: ضرب_مصفوفات
+  method_en: matmul
+  description_ar: ضرب_مصفوفات
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: عنصر
+  method_en: element
+  description_ar: عنصر
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: عمود
+  method_en: column
+  description_ar: عمود
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: صف
+  method_en: row
+  description_ar: صف
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: مصفوفة_وحدة
+  method_en: identity
+  description_ar: مصفوفة_وحدة
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: مصفوفة
+  method: البعد
+  method_en: dimension
+  description_ar: البُعد
+  since: 1.0.0
+  status: stable
+  target_type: ARRAY
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: يحتوي_مفتاح
+  method_en: has_key
+  description_ar: يحتوي_مفتاح
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: نظف
+  method_en: clear_alt
+  description_ar: نظف
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: خريطة
+  method: نسخ
+  method_en: copy
+  description_ar: نسخ
+  since: 1.0.0
+  status: stable
+  target_type: MAP
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: فارغ
+  method_en: is_empty_alt
+  description_ar: فارغ
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: نظف
+  method_en: clear_alt
+  description_ar: نظف
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false
+- target: نص
+  method: نسخ
+  method_en: copy_alt
+  description_ar: نسخ
+  since: 1.0.0
+  status: stable
+  target_type: STRING
+  in_lookup_array: false
+  require_import: false

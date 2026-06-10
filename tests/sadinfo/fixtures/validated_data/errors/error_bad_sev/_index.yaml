@@ -1,0 +1,10 @@
+schema_version: 1
+id: "error.bad_sev"
+kind: "error"
+code: "E0002"
+name: "خطأ-بصرامة-غير-مدعومة"
+category: "syntax"
+severity: "fatal"
+since: "0.1.0"
+owners:
+  - "test"

@@ -1,0 +1,194 @@
+# grammar_constructs.yaml — بنيات النحو المتقدمة في لغة ص
+# المصدر: shared/parser/src/specs/{contracts,async,meta,ffi}/
+# يغطي: العقود، التزامن، الماكروز، الامتداد، العمر، async، FFI، التأجيل
+
+version: "1.0"
+description_ar: "بنيات النحو المتقدمة — عقود، تزامن، ماكرو، امتداد، عمر، async، ffi"
+description_en: "Advanced grammar constructs — contracts, concurrency, macros, extensions, lifetimes, async, ffi"
+
+constructs:
+
+  # ── العقود البرمجية ─────────────────────────────────────────────────────
+  - id: grammar.requires
+    name_ar: "شرط مسبق"
+    name_en: requires_precondition
+    category: contract
+    syntax: "يتطلب <شرط>"
+    description_ar: "شرط يُفحص قبل تنفيذ الدالة (Design by Contract)"
+    keywords_used: [يتطلب]
+    since: "1.0.0"
+    status: stable
+    example: |
+      دالة قسمة(أ، ب)
+          يتطلب ب != 0
+          ارجع أ / ب
+      نهاية
+
+  - id: grammar.ensures
+    name_ar: "شرط لاحق"
+    name_en: ensures_postcondition
+    category: contract
+    syntax: "يضمن <شرط>"
+    description_ar: "شرط يُفحص بعد تنفيذ الدالة"
+    keywords_used: [يضمن]
+    since: "1.0.0"
+    status: stable
+
+  - id: grammar.where
+    name_ar: "قيد نوع"
+    name_en: where_constraint
+    category: contract
+    syntax: "حيث ت: قابل_للمقارنة"
+    description_ar: "قيد نوع على معاملات الدالة الجنيسة"
+    keywords_used: [حيث]
+    since: "1.0.0"
+    status: stable
+    example: |
+      دالة أكبر(أ، ب)
+          حيث ت: قابل_للمقارنة
+          ارجع أ > ب ? أ : ب
+      نهاية
+
+  - id: grammar.contract
+    name_ar: "عقد ذكي"
+    name_en: smart_contract
+    category: contract
+    syntax: "عقد <اسم> ... نهاية"
+    description_ar: "عقد ذكي blockchain (صنف مع isContract)"
+    keywords_used: [عقد]
+    since: "1.0.0"
+    status: experimental
+    example: |
+      عقد محفظة
+          متغير عام رصيد = 0
+          دالة عام إيداع(مبلغ)
+              هذا.رصيد += مبلغ
+          نهاية
+      نهاية
+
+  # ── التزامن ───────────────────────────────────────────────────────────
+  - id: grammar.go
+    name_ar: "إطلاق خيط خفيف"
+    name_en: goroutine_launch
+    category: concurrency
+    syntax: "أطلق <استدعاء> | أطلق ... نهاية"
+    description_ar: "إطلاق goroutine (خيط خفيف)"
+    keywords_used: [أطلق]
+    since: "1.0.0"
+    status: stable
+    example: |
+      أطلق دالة_ما()
+      أطلق
+          متغير س = 100
+          اطبع_سطر(س)
+      نهاية
+
+  - id: grammar.select
+    name_ar: "جملة اختر"
+    name_en: select_statement
+    category: concurrency
+    syntax: "اختر ... عندما <قناة.حاول_استقبل>: ... افتراضي: ... نهاية"
+    description_ar: "الاختيار من عدة قنوات (مثل select في Go)"
+    keywords_used: [اختر, عندما, افتراضي]
+    since: "1.0.0"
+    status: stable
+    example: |
+      اختر
+          عندما ق1.حاول_استقبل():
+              اطبع_سطر("ق1 جاهزة")
+          افتراضي:
+              اطبع_سطر("لا شيء")
+      نهاية
+
+  - id: grammar.defer
+    name_ar: "التأجيل المضمون"
+    name_en: defer_statement
+    category: defer
+    syntax: "أجّل <تعبير> | أجّل ... نهاية"
+    description_ar: "تنفيذ مضمون عند الخروج من الدالة (LIFO)"
+    keywords_used: [أجّل]
+    since: "1.0.0"
+    status: stable
+    example: |
+      دالة مثال()
+          أجّل اطبع_سطر("تنظيف!")
+          اطبع_سطر("عمل...")
+      نهاية
+
+  # ── الماكروز ─────────────────────────────────────────────────────────
+  - id: grammar.macro
+    name_ar: "تعريف ماكرو"
+    name_en: macro_definition
+    category: macro
+    syntax: "ماكرو <اسم>(<معاملات>) ... نهاية"
+    description_ar: "ماكرو hygenic — الاستدعاء بعلامة !"
+    keywords_used: [ماكرو]
+    since: "1.0.0"
+    status: stable
+    example: |
+      ماكرو سجّل(رسالة)
+          اطبع_سطر("[سجل] " + رسالة)
+      نهاية
+      سجّل!("مرحبا")
+
+  # ── الامتداد ──────────────────────────────────────────────────────────
+  - id: grammar.extension
+    name_ar: "طرق الامتداد"
+    name_en: extension_methods
+    category: extension
+    syntax: "امتداد <صنف> ... نهاية"
+    description_ar: "إضافة دوال لأصناف موجودة بدون تعديل تعريفها"
+    keywords_used: [امتداد]
+    since: "1.0.0"
+    status: stable
+    example: |
+      امتداد نقطة
+          دالة وصف()
+              ارجع "(" + هذا.س + "،" + هذا.ص + ")"
+          نهاية
+      نهاية
+
+  # ── التعليقات العمرية ─────────────────────────────────────────────────
+  - id: grammar.lifetime
+    name_ar: "تعليق عمر"
+    name_en: lifetime_annotation
+    category: lifetime
+    syntax: "دالة <اسم><'أ>(...)"
+    description_ar: "تعليق عمر للمراجع والبنى"
+    keywords_used: []
+    since: "1.0.0"
+    status: experimental
+    example: |
+      دالة أطول<'أ>(س، ص)
+          إذا (طول(س) > طول(ص))
+              ارجع س
+          نهاية
+          ارجع ص
+      نهاية
+
+  # ── async/await ──────────────────────────────────────────────────────
+  - id: grammar.async
+    name_ar: "دالة غير متزامنة"
+    name_en: async_function
+    category: async
+    syntax: "دالة <اسم> غير_متزامن(...)"
+    description_ar: "دالة تنفيذها غير متزامن (coroutine)"
+    keywords_used: [غير_متزامن, انتظر]
+    since: "1.0.0"
+    status: stable
+    example: |
+      دالة جلب_بيانات غير_متزامن()
+          متغير نتيجة = انتظر طلب_http()
+          ارجع نتيجة
+      نهاية
+
+  # ── FFI ──────────────────────────────────────────────────────────────
+  - id: grammar.extern
+    name_ar: "ربط خارجي"
+    name_en: extern_binding
+    category: ffi
+    syntax: "خارجي دالة <اسم>(...)"
+    description_ar: "ربط دالة خارجية (C/C++ ABI)"
+    keywords_used: [خارجي]
+    since: "1.0.0"
+    status: stable

@@ -1,0 +1,90 @@
+# stdlib/modules.yaml — وحدات المكتبة القياسية في لغة ص
+# المصدر: interpreter/src/builtins/builtin_registry.cpp
+# الإصدار: 1.0 — مُولَّد 2026-06-05
+
+version: "1.0"
+description_ar: "وحدات المكتبة القياسية — تحتاج استيراداً صريحاً"
+description_en: "Standard library modules — require explicit import"
+
+modules:
+
+  - id: module.strings
+    name_ar: نصوص
+    name_en: strings
+    aliases: [strings, str, سلاسل]
+    description_ar: "دوال النصوص والمصفوفات والتحقق من الأنواع والرياضيات الأساسية"
+    description_en: "String/array manipulation, type checking, basic math"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.basics
+    name_ar: أساسيات
+    name_en: basics
+    aliases: [basics, base, ملفات]
+    description_ar: "دوال الملفات، المسارات، الخروج، المدى، التأكيد"
+    description_en: "File I/O, paths, exit, range, assert"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.math
+    name_ar: رياضيات
+    name_en: math
+    aliases: [math, حساب]
+    description_ar: "دوال رياضية: لوغاريتم، أسي، جذر، π، مثلثيات، تقريب"
+    description_en: "Math: log, exp, sqrt, pi, trig, ceil/floor"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.assertions
+    name_ar: تأكيدات
+    name_en: assertions
+    aliases: [assertions, اختبار]
+    description_ar: "دوال التأكيد، الهاش، التشفير الأساسي"
+    description_en: "Assert, hash, basic crypto"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.maps
+    name_ar: خرائط
+    name_en: maps
+    aliases: [maps, json, xml]
+    description_ar: "خرائط متقدمة، JSON، XML، RegEx، التواريخ"
+    description_en: "Advanced maps, JSON/XML, regex, dates"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.async
+    name_ar: تزامن_متقدم
+    name_en: async
+    aliases: [async, توازي]
+    description_ar: "العمليات الذرية، OOP الخيطي، التزامن المتقدم"
+    description_en: "Atomic ops, thread-safe OOP, advanced concurrency"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.platform
+    name_ar: منصة
+    name_en: platform
+    aliases: [platform, نظام_تشغيل]
+    description_ar: "كشف المنصة والبيئة (Windows/Linux/Mac)"
+    description_en: "Platform/OS detection"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.http
+    name_ar: شبكة_عالية
+    name_en: http
+    aliases: [http, اتصالات]
+    description_ar: "HTTP client/server، TCP عالي المستوى"
+    description_en: "HTTP client/server, high-level TCP"
+    since: "1.0.0"
+    status: stable
+
+  - id: module.sockets
+    name_ar: مقابس
+    name_en: sockets
+    aliases: [sockets, tcp, udp]
+    description_ar: "مقابس TCP/UDP منخفضة المستوى"
+    description_en: "Low-level TCP/UDP sockets"
+    since: "1.0.0"
+    status: stable

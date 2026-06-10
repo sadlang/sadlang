@@ -1,0 +1,11 @@
+schema_version: 1
+id: "lesson.demo"
+kind: "lesson"
+title: "درس-تجريبي"
+level: "beginner"
+order: 1
+prerequisites: []
+tags: []
+uses: []
+owners:
+  - "test"

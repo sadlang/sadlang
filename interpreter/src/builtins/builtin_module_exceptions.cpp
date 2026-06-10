@@ -10,6 +10,8 @@
 
 #include "interpreter_core.h"
 #include "value.h"
+#include "builtin_registry.h"
+namespace Bexc = Sad::Builtins::Names::Exceptions;
 
 #include <sstream>
 #include <stdexcept>
@@ -35,7 +37,7 @@ namespace Sad
                     oss << "{\"نوع\": \"" << type << "\", \"رسالة\": \"" << msg << "\"}";
                     return std::make_shared<Data::Value>(oss.str());
                 };
-                fm.registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf", f); // استثناء_جديد
+                fm.registerBuiltinFunction(std::string(Bexc::EXC_NEW), f); // استثناء_جديد
             }
 
             // (2) استثناء_رسالة / exception_message
@@ -47,7 +49,7 @@ namespace Sad
                         return std::make_shared<Data::Value>(std::string(""));
                     return std::make_shared<Data::Value>(args[0]->toString());
                 };
-                fm.registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1_\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9", f); // استثناء_رسالة
+                fm.registerBuiltinFunction(std::string(Bexc::EXC_MESSAGE), f); // استثناء_رسالة
             }
 
             // (3) مكدس_تتبع / stack_trace (stub)
@@ -61,7 +63,7 @@ namespace Sad
                     oss << "\n  [0] <main> (script:1)";
                     return std::make_shared<Data::Value>(oss.str());
                 };
-                fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3_\xd8\xaa\xd8\xaa\xd8\xa8\xd8\xb9", f); // مكدس_تتبع
+                fm.registerBuiltinFunction(std::string(Bexc::STACK_TRACE), f); // مكدس_تتبع
             }
 
             // (4) مكدس_عمق / stack_depth (stub)
@@ -72,7 +74,7 @@ namespace Sad
                     // Stub: return 1
                     return std::make_shared<Data::Value>(1.0);
                 };
-                fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3_\xd8\xb9\xd9\x85\xd9\x82", f); // مكدس_عمق
+                fm.registerBuiltinFunction(std::string(Bexc::STACK_DEPTH), f); // مكدس_عمق
             }
 
             // (5) خطأ_نوع / error_type
@@ -93,7 +95,7 @@ namespace Sad
                         return std::make_shared<Data::Value>(std::string("خطأ_نوع"));
                     return std::make_shared<Data::Value>(std::string("عام"));
                 };
-                fm.registerBuiltinFunction("\xd8\xae\xd8\xb7\xd8\xa3_\xd9\x86\xd9\x88\xd8\xb9", f); // خطأ_نوع
+                fm.registerBuiltinFunction(std::string(Bexc::TYPE_ERROR), f); // خطأ_نوع
             }
 
             // (6) أمان_فحص / sandbox_check
@@ -114,7 +116,7 @@ namespace Sad
                         return std::make_shared<Data::Value>(true);
                     return std::make_shared<Data::Value>(true);
                 };
-                fm.registerBuiltinFunction("\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd9\x81\xd8\xad\xd8\xb5", f); // أمان_فحص
+                fm.registerBuiltinFunction(std::string(Bexc::SECURITY_CHECK), f); // أمان_فحص
             }
 
             // (7) أمان_قائمة_أذونات / sandbox_permissions
@@ -130,7 +132,7 @@ namespace Sad
                     perms.push_back(Data::Value(std::string("ذاكرة")));
                     return std::make_shared<Data::Value>(perms);
                 };
-                fm.registerBuiltinFunction("\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xa3\xd8\xb0\xd9\x88\xd9\x86\xd8\xa7\xd8\xaa", f); // أمان_قائمة_أذونات
+                fm.registerBuiltinFunction(std::string(Bexc::SECURITY_PERMS), f); // أمان_قائمة_أذونات
             }
 
             // (8) أمان_وضع / sandbox_mode
@@ -140,7 +142,7 @@ namespace Sad
                 {
                     return std::make_shared<Data::Value>(std::string("تطوير"));
                 };
-                fm.registerBuiltinFunction("\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd9\x88\xd8\xb6\xd8\xb9", f); // أمان_وضع
+                fm.registerBuiltinFunction(std::string(Bexc::SECURITY_MODE), f); // أمان_وضع
             }
 
             // (9) خطأ_تأكيد / assert_error
@@ -158,7 +160,7 @@ namespace Sad
                     }
                     return std::make_shared<Data::Value>(true);
                 };
-                fm.registerBuiltinFunction("\xd8\xae\xd8\xb7\xd8\xa3_\xd8\xaa\xd8\xa3\xd9\x83\xd9\x8a\xd8\xaf", f); // خطأ_تأكيد
+                fm.registerBuiltinFunction(std::string(Bexc::ASSERT_ERROR), f); // خطأ_تأكيد
             }
 
             // (10) خطأ_آخر / last_error
@@ -175,7 +177,7 @@ namespace Sad
                     }
                     return std::make_shared<Data::Value>(lastError);
                 };
-                fm.registerBuiltinFunction("\xd8\xae\xd8\xb7\xd8\xa3_\xd8\xa2\xd8\xae\xd8\xb1", f); // خطأ_آخر
+                fm.registerBuiltinFunction(std::string(Bexc::LAST_ERROR), f); // خطأ_آخر
             }
         }
 

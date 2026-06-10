@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/type.schema.json",
+  "title": "Builtin Type Schema (V5)",
+  "description": "مخطط JSON للأنواع المدمجة في لغة ص — types.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "word", "name_en", "token_type", "category", "since", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^type\\.[a-z][a-z0-9_]*$"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "5.0"
+    },
+    "word": {
+      "type": "string",
+      "description": "الكلمة العربية للنوع"
+    },
+    "name_en": {
+      "type": "string",
+      "description": "الاسم الإنجليزي"
+    },
+    "token_type": {
+      "type": "string",
+      "pattern": "^TYPE_",
+      "description": "نوع الرمز في Lexer مثل TYPE_INTEGER"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["primitive", "composite", "special"],
+      "description": "تصنيف النوع"
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "experimental", "deprecated"]
+    },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "can_be_identifier": {
+      "type": "boolean",
+      "description": "هل يمكن استخدامها كاسم متغير؟ (دائماً true للأنواع المدمجة)"
+    },
+    "example": { "type": "string" }
+  }
+}

@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_file_error
+kind: error
+code: E3007
+name: خطأ في الملف
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

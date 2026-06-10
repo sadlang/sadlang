@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_object_without_class
+kind: error
+code: E3023
+name: كائن بدون صنف
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

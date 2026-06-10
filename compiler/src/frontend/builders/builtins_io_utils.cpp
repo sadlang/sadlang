@@ -13,6 +13,9 @@
 #include <iostream>
 #include <optional>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -29,7 +32,7 @@ namespace Sad
                 // ========================================================================
 
                 // 1. اقرأ_ملف / read_file
-                if (funcName == "اقرأ_ملف" || funcName == "read_file" || funcName == "readFile")
+                if (funcName == Bn::Basics::READ_FILE)
                 {
                     if (argResults.empty())
                     {
@@ -50,7 +53,7 @@ namespace Sad
                 }
 
                 // 2. اكتب_ملف / write_file
-                if (funcName == "اكتب_ملف" || funcName == "write_file" || funcName == "writeFile")
+                if (funcName == Bn::Basics::WRITE_FILE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -72,7 +75,7 @@ namespace Sad
                 }
 
                 // 3. أضف_إلى_ملف / append_to_file
-                if (funcName == "أضف_إلى_ملف" || funcName == "append_to_file" || funcName == "appendFile")
+                if (funcName == Bn::Basics::APPEND_FILE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -94,7 +97,7 @@ namespace Sad
                 }
 
                 // 4. احذف_ملف / delete_file
-                if (funcName == "احذف_ملف" || funcName == "delete_file" || funcName == "deleteFile")
+                if (funcName == Bn::Basics::DELETE_FILE)
                 {
                     if (argResults.empty())
                     {
@@ -115,7 +118,7 @@ namespace Sad
                 }
 
                 // 5. انسخ_ملف / copy_file
-                if (funcName == "انسخ_ملف" || funcName == "copy_file" || funcName == "copyFile")
+                if (funcName == Bn::Basics::COPY_FILE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -137,7 +140,7 @@ namespace Sad
                 }
 
                 // 6. انقل_ملف / move_file
-                if (funcName == "انقل_ملف" || funcName == "move_file" || funcName == "moveFile")
+                if (funcName == Bn::Basics::MOVE_FILE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -159,7 +162,7 @@ namespace Sad
                 }
 
                 // 7. أنشئ_مجلد / create_dir
-                if (funcName == "أنشئ_مجلد" || funcName == "create_dir" || funcName == "createDir" || funcName == "mkdir")
+                if (funcName == Bn::Basics::MKDIR)
                 {
                     if (argResults.empty())
                     {
@@ -180,7 +183,7 @@ namespace Sad
                 }
 
                 // 8. اسرد_مجلد / list_dir
-                if (funcName == "اسرد_مجلد" || funcName == "list_dir" || funcName == "listDir" || funcName == "ls")
+                if (funcName == Bn::Basics::LIST_DIR)
                 {
                     if (argResults.empty())
                     {
@@ -205,7 +208,7 @@ namespace Sad
                 // ========================================================================
 
                 // 1. عشوائي / random
-                if (funcName == "عشوائي" || funcName == "random" || funcName == "rand")
+                if (funcName == Bn::Math::RANDOM)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -220,7 +223,7 @@ namespace Sad
                 }
 
                 // 2. نم / sleep
-                if (funcName == "نم" || funcName == "sleep" || funcName == "wait")
+                if (funcName == Bn::CompilerIo::IO_0)
                 {
                     if (argResults.empty())
                     {
@@ -238,7 +241,7 @@ namespace Sad
                 }
 
                 // 3. اخرج / exit
-                if (funcName == "اخرج" || funcName == "exit" || funcName == "quit")
+                if (funcName == Bn::Basics::EXIT_ALT)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_EXIT);
                     if (!argResults.empty())
@@ -254,7 +257,7 @@ namespace Sad
                 }
 
                 // 4. النوع / type_of
-                if (funcName == "النوع" || funcName == "type_of" || funcName == "typeof" || funcName == "نوع")
+                if (funcName == Bn::Core::TYPE)
                 {
                     if (argResults.empty())
                     {
@@ -279,7 +282,7 @@ namespace Sad
                 // ========================================================================
 
                 // هو_رقم / هو_رقم_صحيح / is_int
-                if (funcName == "هو_رقم" || funcName == "هو_رقم_صحيح" || funcName == "is_int" || funcName == "isInt")
+                if (funcName == Bn::Strings::IS_INT)
                 {
                     if (argResults.empty())
                     {
@@ -297,7 +300,7 @@ namespace Sad
                 }
 
                 // هو_عشري / هو_رقم_عشري / is_float
-                if (funcName == "هو_عشري" || funcName == "هو_رقم_عشري" || funcName == "is_float" || funcName == "isFloat")
+                if (funcName == Bn::Strings::IS_FLOAT)
                 {
                     if (argResults.empty())
                     {
@@ -315,7 +318,7 @@ namespace Sad
                 }
 
                 // هو_نص / is_string / isString
-                if (funcName == "هو_نص" || funcName == "is_string" || funcName == "isString")
+                if (funcName == Bn::Strings::IS_STRING)
                 {
                     if (argResults.empty())
                     {
@@ -333,7 +336,7 @@ namespace Sad
                 }
 
                 // هو_مصفوفة / is_array / isArray
-                if (funcName == "هو_مصفوفة" || funcName == "is_array" || funcName == "isArray")
+                if (funcName == Bn::Strings::IS_ARRAY)
                 {
                     if (argResults.empty())
                     {
@@ -355,7 +358,7 @@ namespace Sad
                 // ========================================================================
 
                 // لمنطقي / to_bool / منطقي
-                if (funcName == "لمنطقي" || funcName == "to_bool" || funcName == "bool" || funcName == "منطقي")
+                if (funcName == Bn::TypeCtor::TO_BOOL)
                 {
                     if (argResults.empty())
                     {
@@ -377,7 +380,7 @@ namespace Sad
                 // ========================================================================
 
                 // قراءة_سطر / readLine
-                if (funcName == "قراءة_سطر" || funcName == "readLine" || funcName == "read_line")
+                if (funcName == Bn::CompilerIo::IO_1)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -389,7 +392,7 @@ namespace Sad
                 }
 
                 // مسح_الشاشة / clear / cls
-                if (funcName == "مسح_الشاشة" || funcName == "clear" || funcName == "cls")
+                if (funcName == Bn::CompilerIo::IO_2)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_CLEAR_SCREEN);
                     if (b_.currentBlock_)

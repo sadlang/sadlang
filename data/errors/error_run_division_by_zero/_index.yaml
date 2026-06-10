@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_division_by_zero
+kind: error
+code: E3001
+name: القسمة على صفر
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.lex_number_too_large
+kind: error
+code: E0005
+name: رقم كبير جداً
+category: lexer
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

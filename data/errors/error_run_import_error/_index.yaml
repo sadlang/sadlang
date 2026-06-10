@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_import_error
+kind: error
+code: E3008
+name: خطأ في الاستيراد
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

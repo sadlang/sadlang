@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.sem_invalid_operation
+kind: error
+code: E2006
+name: عملية غير صالحة
+category: type
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

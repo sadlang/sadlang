@@ -1,0 +1,9 @@
+schema_version: 1
+id: "keyword.dup"
+kind: "keyword"
+name: "مكرر-أ"
+reserved: true
+category: "declaration"
+since: "0.1.0"
+owners:
+  - "test"

@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_contract_precond_failed
+kind: error
+code: E3041
+name: فشل الشرط المسبق
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

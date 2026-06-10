@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_stack_overflow
+kind: error
+code: E3004
+name: تجاوز سعة المكدس
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

@@ -1,0 +1,147 @@
+# learning/lessons.yaml — الدروس التعليمية في لغة ص
+# البنية: Diátaxis-tutorial (تدريج من الأساسي للمتقدم)
+# المرجع: ARCHITECTURE §5, IMPLEMENTATION_PLAN M1-012
+
+version: "1.0"
+description_ar: "الدروس التعليمية المرتبطة بـ Language Truth"
+description_en: "Tutorial lessons linked to Language Truth entities"
+
+lessons:
+
+  - id: lesson.hello_world
+    title_ar: "مرحبا بالعالم"
+    title_en: "Hello World"
+    level: beginner
+    references:
+      - keywords: [دالة, ارجع, رئيسية]
+      - builtins: [اطبع_سطر]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      أول برنامج في لغة ص:
+      ```sad
+      دالة رئيسية()
+          اطبع_سطر("مرحبا بالعالم!")
+      نهاية
+      ```
+    content_en: "First program in Sad language."
+
+  - id: lesson.variables
+    title_ar: "المتغيرات والثوابت"
+    title_en: "Variables and Constants"
+    level: beginner
+    references:
+      - keywords: [متغير, ثابت]
+      - types: [رقم, نص, عشري, منطقي]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      تعريف المتغيرات والثوابت:
+      ```sad
+      متغير اسم = "أحمد"
+      ثابت الحد_الأقصى = 100
+      متغير عشري درجة_الحرارة = 36.5
+      ```
+
+  - id: lesson.control_flow
+    title_ar: "التحكم في التدفق"
+    title_en: "Control Flow"
+    level: beginner
+    references:
+      - keywords: [إذا, وإلا, بينما, لكل, في, توقف, استمر]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      الشروط والحلقات:
+      ```sad
+      إذا (س > 0)
+          اطبع_سطر("موجب")
+      وإلا
+          اطبع_سطر("سالب أو صفر")
+      نهاية
+
+      لكل رقم في [1، 2، 3]
+          اطبع_سطر(رقم)
+      نهاية
+      ```
+
+  - id: lesson.functions
+    title_ar: "الدوال"
+    title_en: "Functions"
+    level: beginner
+    references:
+      - keywords: [دالة, ارجع]
+      - builtins: [طول, نوع]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      تعريف الدوال واستدعاؤها:
+      ```sad
+      دالة جمع(أ، ب)
+          ارجع أ + ب
+      نهاية
+      متغير نتيجة = جمع(3، 5)
+      اطبع_سطر(نتيجة)  # 8
+      ```
+
+  - id: lesson.oop
+    title_ar: "البرمجة الكائنية"
+    title_en: "Object-Oriented Programming"
+    level: intermediate
+    references:
+      - keywords: [صنف, باني, هذا, يرث, الأساس, عام, خاص]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      تعريف الأصناف والوراثة:
+      ```sad
+      صنف حيوان
+          متغير عام اسم
+          باني(اسم)
+              هذا.اسم = اسم
+          نهاية
+          دالة عام صوت()
+              ارجع "..."
+          نهاية
+      نهاية
+      ```
+
+  - id: lesson.error_handling
+    title_ar: "معالجة الأخطاء"
+    title_en: "Error Handling"
+    level: intermediate
+    references:
+      - keywords: [حاول, امسك, ارمي, أخيراً]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      معالجة الاستثناءات:
+      ```sad
+      حاول
+          متغير نتيجة = 10 / 0
+      امسك خطأ
+          اطبع_سطر("خطأ: " + خطأ)
+      أخيراً
+          اطبع_سطر("انتهى")
+      نهاية
+      ```
+
+  - id: lesson.concurrency
+    title_ar: "التزامن والخيوط الخفيفة"
+    title_en: "Concurrency and Goroutines"
+    level: advanced
+    references:
+      - keywords: [أطلق, اختر]
+      - builtins: [قناة, انتظر_الكل, قفل, مستقبل]
+    since: "1.0.0"
+    status: stable
+    content_ar: |
+      الخيوط الخفيفة والقنوات:
+      ```sad
+      متغير ق = قناة(10)
+      أطلق
+          ق.أرسل(42)
+      نهاية
+      متغير قيمة = ق.استقبل()
+      اطبع_سطر(قيمة)
+      ```

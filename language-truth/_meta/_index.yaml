@@ -1,0 +1,36 @@
+# _index.yaml — فهرس آلي لملفات language-truth/
+# يُولَّد تلقائياً بواسطة scripts/codegen/gen_all.py
+# لا تعدّل يدوياً
+
+generated_at: "2026-06-05"
+generated_by: "gen_all.py"
+
+files:
+  keywords:    keywords.yaml
+  operators:   operators.yaml
+  type_methods: type_methods.yaml
+  directives:  directives.yaml
+  types:       types.yaml
+  patterns:    patterns.yaml
+  grammar_constructs: grammar_constructs.yaml
+  oop_constructs: oop_constructs.yaml
+  expr_constructs: expr_constructs.yaml
+  builtins:
+    core:        builtins/core.yaml
+    concurrency: builtins/concurrency.yaml
+    types:       builtins/types.yaml
+  errors:
+    lexical:   errors/lexical.yaml
+    syntactic: errors/syntactic.yaml
+    semantic:  errors/semantic.yaml
+    runtime:   errors/runtime.yaml
+    ownership: errors/ownership.yaml
+    import:    errors/import.yaml
+    io:        errors/io.yaml
+    internal:  errors/internal.yaml
+  stdlib:
+    modules:   stdlib/modules.yaml
+    functions: stdlib/functions.yaml
+  learning:
+    lessons:   learning/lessons.yaml
+    exercises: learning/exercises.yaml

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/directive.schema.json",
+  "title": "Directive Schema (V5)",
+  "description": "مخطط JSON للتوجيهات (@) في لغة ص — directives.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "symbol", "name_ar", "name_en", "since", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^directive\\.[a-z][a-z0-9_]*$",
+      "description": "معرّف فريد: directive.<snake_case>"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "5.0"
+    },
+    "symbol": {
+      "type": "string",
+      "pattern": "^@",
+      "description": "رمز التوجيه يبدأ بـ @"
+    },
+    "name_ar": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "experimental", "deprecated", "removed"]
+    },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "context": {
+      "type": "string",
+      "enum": ["expression", "statement", "block", "declaration"],
+      "description": "السياق الذي يُستخدم فيه التوجيه"
+    },
+    "example": { "type": "string" }
+  }
+}

@@ -1,0 +1,19 @@
+# types.yaml — الأنواع المدمجة في لغة ص
+# المصدر: shared/types/include/value.h + shared/lexer/include/token.h
+
+version: "1.0"
+description_ar: "الأنواع المدمجة التسعة — مُعرّفات عادية (ليست محجوزة)"
+description_en: "9 built-in types — regular identifiers (not reserved)"
+note: "يمكن استخدام أسماء الأنواع كأسماء متغيرات خارج سياقها النحوي"
+
+types:
+
+  - { id: type.integer,  word: رقم,    name_en: integer, token_type: TYPE_INTEGER, category: primitive, can_be_identifier: true, description_ar: "عدد صحيح (integer 64-bit)",     since: "1.0.0", status: stable }
+  - { id: type.double,   word: عشري,   name_en: double,  token_type: TYPE_DOUBLE,  category: primitive, can_be_identifier: true, description_ar: "عدد عشري (float 64-bit)",       since: "1.0.0", status: stable }
+  - { id: type.string,   word: نص,     name_en: string,  token_type: TYPE_STRING,  category: primitive, can_be_identifier: true, description_ar: "نص (UTF-8 string)",             since: "1.0.0", status: stable }
+  - { id: type.boolean,  word: منطقي,  name_en: boolean, token_type: TYPE_BOOLEAN, category: primitive, can_be_identifier: true, description_ar: "قيمة منطقية (صحيح/خطأ)",        since: "1.0.0", status: stable }
+  - { id: type.void,     word: فراغ,   name_en: void,    token_type: TYPE_VOID,    category: special,   can_be_identifier: true, description_ar: "نوع الإرجاع الفارغ",            since: "1.0.0", status: stable }
+  - { id: type.null,     word: عدم,    name_en: null,    token_type: TYPE_NULL,    category: special,   can_be_identifier: true, description_ar: "غياب القيمة",                   since: "1.0.0", status: stable }
+  - { id: type.array,    word: مصفوفة, name_en: array,   token_type: TYPE_ARRAY,   category: composite, can_be_identifier: true, description_ar: "مصفوفة (dynamic array)",         since: "1.0.0", status: stable }
+  - { id: type.map,      word: خريطة,  name_en: map,     token_type: TYPE_MAP,     category: composite, can_be_identifier: true, description_ar: "خريطة (hash map)",               since: "1.0.0", status: stable }
+  - { id: type.any,      word: أي,     name_en: any,     token_type: TYPE_ANY,     category: special,   can_be_identifier: true, description_ar: "أي نوع (dynamic typing)",        since: "1.0.0", status: stable }

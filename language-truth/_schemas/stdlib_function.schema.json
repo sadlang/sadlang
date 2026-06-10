@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/stdlib_function.schema.json",
+  "title": "Stdlib Function Schema (V5)",
+  "description": "مخطط JSON لدوال المكتبة القياسية — stdlib/functions.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "name_ar", "name_en", "module", "since", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^stdlib\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "معرّف فريد: stdlib.<module>.<function>"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "5.0"
+    },
+    "name_ar": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1
+    },
+    "module": {
+      "type": "string",
+      "description": "الوحدة التي تنتمي إليها الدالة"
+    },
+    "signature": {
+      "type": "string",
+      "description": "توقيع الدالة"
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "experimental", "deprecated"]
+    },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "returns_ar": { "type": "string" },
+    "returns_en": { "type": "string" },
+    "example": { "type": "string" }
+  }
+}

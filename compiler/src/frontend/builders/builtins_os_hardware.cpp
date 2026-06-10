@@ -11,6 +11,9 @@
 #include "sir_builder.h"
 #include <iostream>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -26,7 +29,7 @@ namespace Sad
             {
 
                 // ─── 15e. وحدة PCI ───
-                if (funcName == "عدد_أجهزة_ناقل" || funcName == "pci_enumerate")
+                if (funcName == Bn::CompilerHw::HW_0)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_ENUMERATE);
@@ -35,7 +38,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اقرأ_اعدادات_ناقل" || funcName == "pci_read_config")
+                if (funcName == Bn::CompilerHw::HW_1)
                 {
                     if (argResults.size() < 4)
                         return BuildResult("", SadTypeKind::Integer);
@@ -50,7 +53,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اكتب_اعدادات_ناقل" || funcName == "pci_write_config")
+                if (funcName == Bn::CompilerHw::HW_2)
                 {
                     if (argResults.size() < 5)
                         return BuildResult("", SadTypeKind::Void);
@@ -64,7 +67,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "عدد_الأجهزة" || funcName == "pci_device_count")
+                if (funcName == Bn::CompilerHw::HW_3)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_GET_DEVICE_COUNT);
@@ -73,7 +76,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "تقرير_ناقل" || funcName == "pci_report")
+                if (funcName == Bn::CompilerHw::HW_4)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_GET_REPORT);
@@ -84,14 +87,14 @@ namespace Sad
                 }
 
                 // ─── 15f. وحدة DMA المتقدمة ───
-                if (funcName == "هيئ_نقل_مباشر" || funcName == "dma_init_full")
+                if (funcName == Bn::CompilerHw::HW_5)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ابدأ_نقل" || funcName == "dma_transfer")
+                if (funcName == Bn::CompilerHw::HW_6)
                 {
                     if (argResults.size() < 3)
                         return BuildResult("", SadTypeKind::Void);
@@ -103,7 +106,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "حالة_نقل" || funcName == "dma_status")
+                if (funcName == Bn::CompilerHw::HW_7)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_STATUS);
@@ -112,7 +115,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "تقرير_نقل" || funcName == "dma_report")
+                if (funcName == Bn::CompilerHw::HW_8)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_GET_REPORT);
@@ -123,7 +126,7 @@ namespace Sad
                 }
 
                 // ─── 15g. وحدة الشاشة / Framebuffer ───
-                if (funcName == "هيئ_شاشة" || funcName == "fb_init")
+                if (funcName == Bn::CompilerHw::HW_9)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -136,7 +139,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ارسم_نقطة" || funcName == "fb_set_pixel")
+                if (funcName == Bn::CompilerHw::HW_10)
                 {
                     if (argResults.size() < 3)
                         return BuildResult("", SadTypeKind::Void);
@@ -148,7 +151,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ارسم_مستطيل" || funcName == "fb_draw_rect")
+                if (funcName == Bn::UIPlatform::DRAW_RECT)
                 {
                     if (argResults.size() < 5)
                         return BuildResult("", SadTypeKind::Void);
@@ -159,7 +162,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "املأ_مستطيل" || funcName == "fb_fill_rect")
+                if (funcName == Bn::CompilerHw::HW_11)
                 {
                     if (argResults.size() < 5)
                         return BuildResult("", SadTypeKind::Void);
@@ -170,7 +173,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ارسم_خط" || funcName == "fb_draw_line")
+                if (funcName == Bn::UIPlatform::DRAW_LINE)
                 {
                     if (argResults.size() < 5)
                         return BuildResult("", SadTypeKind::Void);
@@ -181,7 +184,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ارسم_نص" || funcName == "fb_draw_string")
+                if (funcName == Bn::CompilerHw::HW_12)
                 {
                     if (argResults.size() < 3)
                         return BuildResult("", SadTypeKind::Void);
@@ -192,7 +195,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "امسح_شاشة" || funcName == "fb_clear")
+                if (funcName == Bn::CompilerHw::HW_13)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_CLEAR);
                     if (!argOperands.empty())
@@ -201,7 +204,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_شاشة" || funcName == "fb_report")
+                if (funcName == Bn::CompilerHw::HW_14)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_GET_REPORT);
@@ -212,14 +215,14 @@ namespace Sad
                 }
 
                 // ─── 15h. وحدة ACPI ───
-                if (funcName == "هيئ_طاقة" || funcName == "acpi_init")
+                if (funcName == Bn::CompilerHw::HW_15)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ابحث_جدول_طاقة" || funcName == "acpi_find_table")
+                if (funcName == Bn::CompilerHw::HW_16)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -231,14 +234,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اطفئ" || funcName == "acpi_shutdown")
+                if (funcName == Bn::CompilerHw::HW_17)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_SHUTDOWN);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_طاقة" || funcName == "acpi_report")
+                if (funcName == Bn::CompilerHw::HW_18)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_GET_REPORT);
@@ -249,7 +252,7 @@ namespace Sad
                 }
 
                 // ─── 15i. وحدة التزامن / Sync ───
-                if (funcName == "هيئ_قفل_دوار" || funcName == "spinlock_init")
+                if (funcName == Bn::CompilerHw::HW_19)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_INIT);
@@ -258,7 +261,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اقفل_دوار" || funcName == "spinlock_lock")
+                if (funcName == Bn::CompilerHw::HW_20)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -268,7 +271,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "افتح_قفل_دوار" || funcName == "spinlock_unlock")
+                if (funcName == Bn::CompilerHw::HW_21)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -278,7 +281,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "هيئ_كابح" || funcName == "mutex_init")
+                if (funcName == Bn::CompilerHw::HW_22)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_INIT);
@@ -287,7 +290,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "اقفل_كابح" || funcName == "mutex_lock")
+                if (funcName == Bn::CompilerHw::HW_23)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -297,7 +300,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "افتح_كابح" || funcName == "mutex_unlock")
+                if (funcName == Bn::CompilerHw::HW_24)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -307,7 +310,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "هيئ_اشارة" || funcName == "semaphore_init")
+                if (funcName == Bn::CompilerHw::HW_25)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -319,7 +322,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "هيئ_حاجز" || funcName == "barrier_init")
+                if (funcName == Bn::CompilerHw::HW_26)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);

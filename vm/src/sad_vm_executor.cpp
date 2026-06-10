@@ -27,6 +27,10 @@
 // (AR) تحويل عددي آمن مع كشف الفيض (size_t → int) لمنع البَتر الصامت.
 // (EN) Bounds-checked integer cast (size_t → int) to prevent silent truncation.
 #include "safe_arithmetic.h"
+// (AR) ثوابت أسماء الدوال المُولَّدة من language-truth/builtins/*.yaml
+// (EN) Generated builtin name constants from language-truth/builtins/*.yaml
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
 
 #include <iostream>
 #include <algorithm>
@@ -1733,20 +1737,20 @@ namespace sad
         void آلة_افتراضية::سجّل_الدوال_المدمجة()
         {
             // اطبع: طباعة بدون سطر جديد
-            سجّل_دالة_أصلية("اطبع", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::Core::PRINT), [](const std::vector<قيمة> &م) -> قيمة
                            {
         for (const auto& ق : م) std::cout << ق.إلى_نص();
         return قيمة::لا_شيء(); });
 
             // اطبع_سطر: طباعة مع سطر جديد
-            سجّل_دالة_أصلية("اطبع_سطر", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::Core::PRINTLN), [](const std::vector<قيمة> &م) -> قيمة
                            {
         for (const auto& ق : م) std::cout << ق.إلى_نص();
         std::cout << std::endl;
         return قيمة::لا_شيء(); });
 
             // ادخل: قراءة سطر من المستخدم
-            سجّل_دالة_أصلية("ادخل", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::Core::INPUT), [](const std::vector<قيمة> &م) -> قيمة
                            {
         if (!م.empty()) std::cout << م[0].إلى_نص();
         std::string سطر;
@@ -1754,7 +1758,7 @@ namespace sad
         return قيمة::نص(سطر); });
 
             // طول: الحصول على طول نص أو مصفوفة
-            سجّل_دالة_أصلية("طول", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::Core::LENGTH), [](const std::vector<قيمة> &م) -> قيمة
                            {
         if (م.empty()) return قيمة::صحيح(0);
         if (م[0].هل_نص()) return قيمة::صحيح(static_cast<int64_t>(م[0].كـ_نص().size()));
@@ -1762,13 +1766,13 @@ namespace sad
         return قيمة::صحيح(0); });
 
             // نوع: الحصول على اسم النوع
-            سجّل_دالة_أصلية("نوع", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::Core::TYPE), [](const std::vector<قيمة> &م) -> قيمة
                            {
         if (م.empty()) return قيمة::نص("لا_شيء");
         return قيمة::نص(م[0].اسم_النوع()); });
 
             // رقم: تحويل لعدد صحيح
-            سجّل_دالة_أصلية("رقم", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::TypeCtor::TO_INT), [](const std::vector<قيمة> &م) -> قيمة
                            {
         if (م.empty()) return قيمة::صحيح(0);
         if (م[0].هل_صحيح()) return م[0];
@@ -1780,7 +1784,7 @@ namespace sad
         return قيمة::صحيح(0); });
 
             // عشري: تحويل لعدد عشري
-            سجّل_دالة_أصلية("عشري", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::TypeCtor::TO_FLOAT), [](const std::vector<قيمة> &م) -> قيمة
                            {
         if (م.empty()) return قيمة::عشري(0.0);
         if (م[0].هل_عشري()) return م[0];
@@ -1792,40 +1796,13 @@ namespace sad
         return قيمة::عشري(0.0); });
 
             // نص: تحويل لنص
-            سجّل_دالة_أصلية("نص", [](const std::vector<قيمة> &م) -> قيمة
+            سجّل_دالة_أصلية(std::string(Bn::TypeCtor::TO_STRING), [](const std::vector<قيمة> &م) -> قيمة
                            {
         if (م.empty()) return قيمة::نص("");
         return قيمة::نص(م[0].إلى_نص()); });
 
-            // لنص: اسم بديل لتحويل القيمة إلى نص
-            سجّل_دالة_أصلية("لنص", [](const std::vector<قيمة> &م) -> قيمة
-                           {
-        if (م.empty()) return قيمة::نص("");
-        return قيمة::نص(م[0].إلى_نص()); });
 
-            // لرقم: تحويل لعدد صحيح
-            سجّل_دالة_أصلية("لرقم", [](const std::vector<قيمة> &م) -> قيمة
-                           {
-        if (م.empty()) return قيمة::صحيح(0);
-        if (م[0].هل_صحيح()) return م[0];
-        if (م[0].هل_عشري()) return قيمة::صحيح(static_cast<int64_t>(م[0].كـ_عشري()));
-        if (م[0].هل_نص()) {
-            try { return قيمة::صحيح(std::stoll(م[0].كـ_نص())); }
-            catch (...) { return قيمة::صحيح(0); }
-        }
-        return قيمة::صحيح(0); });
 
-            // لعشري: تحويل لعدد عشري
-            سجّل_دالة_أصلية("لعشري", [](const std::vector<قيمة> &م) -> قيمة
-                           {
-        if (م.empty()) return قيمة::عشري(0.0);
-        if (م[0].هل_عشري()) return م[0];
-        if (م[0].هل_صحيح()) return قيمة::عشري(static_cast<double>(م[0].كـ_صحيح()));
-        if (م[0].هل_نص()) {
-            try { return قيمة::عشري(std::stod(م[0].كـ_نص())); }
-            catch (...) { return قيمة::عشري(0.0); }
-        }
-        return قيمة::عشري(0.0); });
         }
 
         // ============================================================================

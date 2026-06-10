@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/error.schema.json",
+  "title": "Error Message Schema (V5 — Nested)",
+  "description": "مخطط JSON لملفات رسائل أخطاء لغة ص — language-truth/errors/*.yaml. يصف الصيغة المتداخلة المُعتمَدة رسمياً (ADR-DOCS-V4-005، 2026-06-09): title/brief/fix_hint/detailed لكلٍّ {ar,en}. يُلغي الصيغة المسطّحة (message_ar/message_en) المرفوضة.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "category", "description_ar", "description_en", "errors"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "إصدار ملف الفئة (مثل '1.0')"
+    },
+    "category": {
+      "$ref": "#/$defs/category",
+      "description": "تصنيف كل أخطاء هذا الملف"
+    },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "description": "حالة تنفيذ الفئة (حقل وصفي حرّ، مثل: not_implemented / implemented_under_runtime)"
+    },
+    "implemented_in_code": {
+      "type": "boolean",
+      "description": "هل أخطاء هذه الفئة مُنفَّذة فعلياً في الكود؟"
+    },
+    "see_also": {
+      "type": ["array", "null"],
+      "items": { "type": ["object", "string"] },
+      "description": "مراجع ذات صلة (نص أو كائن مرجع خطأ بـ code/id/category)"
+    },
+    "errors": {
+      "type": "array",
+      "description": "قائمة تعريفات الأخطاء في هذه الفئة",
+      "items": { "$ref": "#/$defs/error" }
+    }
+  },
+  "$defs": {
+    "category": {
+      "type": "string",
+      "enum": [
+        "lexical",
+        "syntactic",
+        "semantic",
+        "runtime",
+        "ownership",
+        "import",
+        "io",
+        "internal"
+      ]
+    },
+    "bilingual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ar", "en"],
+      "properties": {
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "id", "category", "title", "brief", "fix_hint", "detailed"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z]{2,4}_[A-Z0-9_]+$",
+          "description": "اسم C++ الرمزي — يطابق ErrorCode بعد :: (مثل LEX_INVALID_CHARACTER)"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]{2,3}[0-9]{3}$",
+          "description": "معرّف نصي ثابت (مثل LEX001) — للوثائق والإحالة"
+        },
+        "category": { "$ref": "#/$defs/category" },
+        "title": {
+          "$ref": "#/$defs/bilingual",
+          "description": "عنوان الخطأ المختصر"
+        },
+        "brief": {
+          "$ref": "#/$defs/bilingual",
+          "description": "الرسالة المختصرة (قد تحوي placeholders بصيغة {اسم})"
+        },
+        "fix_hint": {
+          "$ref": "#/$defs/bilingual",
+          "description": "تلميح الإصلاح"
+        },
+        "detailed": {
+          "$ref": "#/$defs/bilingual",
+          "description": "شرح تفصيلي (وضع المعلّم)"
+        },
+        "placeholders": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "أسماء المتغيرات المسموحة في قوالب brief/fix_hint/detailed (اختياري)"
+        }
+      }
+    }
+  }
+}

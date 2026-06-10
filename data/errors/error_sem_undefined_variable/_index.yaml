@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.sem_undefined_variable
+kind: error
+code: E2001
+name: متغير غير معرَّف
+category: type
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

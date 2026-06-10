@@ -1,0 +1,124 @@
+# expr_constructs.yaml — بنيات التعبيرات المتقدمة في لغة ص
+# المصدر:
+#   shared/parser/src/specs/flow/{parser_comprehension,parser_dict_comprehension,parser_pipeline}.cpp
+#   shared/parser/src/core/parser_expressions.cpp (lambda, f-string, tuple)
+
+version: "1.0"
+description_ar: "بنيات التعبيرات المتقدمة — استيعاب، أنابيب، lambda، closure، f-string، tuple، spread"
+description_en: "Advanced expression constructs — comprehension, pipeline, lambda, closure, f-string, tuple, spread"
+
+constructs:
+
+  - id: expr.lambda
+    name_ar: "دالة مجهولة (lambda)"
+    name_en: lambda_expression
+    category: lambda
+    syntax: "لامدا (معاملات) ... نهاية"
+    description_ar: "دالة مجهولة قابلة للتمرير كقيمة"
+    keywords_used: [لامدا]
+    since: "1.0.0"
+    status: stable
+    example: |
+      متغير مضاعف = لامدا(س)
+          ارجع س * 2
+      نهاية
+      اطبع_سطر(مضاعف(5))  # 10
+
+  - id: expr.pipeline
+    name_ar: "عامل الأنبوب"
+    name_en: pipeline_operator
+    category: pipeline
+    syntax: "قيمة |> دالة"
+    description_ar: "تمرير قيمة لدالة بصيغة أنبوبية (تكافئ دالة(قيمة))"
+    keywords_used: []
+    since: "1.0.0"
+    status: stable
+    example: |
+      متغير نتيجة = [1،2،3،4،5]
+          |> رشح!(لامدا(س) ارجع س % 2 == 0 نهاية)
+          |> خريطة!(لامدا(س) ارجع س * 2 نهاية)
+
+  - id: expr.list_comprehension
+    name_ar: "استيعاب قائمة"
+    name_en: list_comprehension
+    category: comprehension
+    syntax: "[تعبير لكل عنصر في مصدر إذا شرط]"
+    description_ar: "بناء مصفوفة بصيغة مختصرة"
+    keywords_used: [لكل, في, إذا]
+    since: "1.0.0"
+    status: stable
+    example: |
+      متغير مربعات = [س * س لكل س في مدى(1، 11) إذا س % 2 == 0]
+
+  - id: expr.dict_comprehension
+    name_ar: "استيعاب خريطة"
+    name_en: dict_comprehension
+    category: comprehension
+    syntax: "{مفتاح: قيمة لكل عنصر في مصدر}"
+    description_ar: "بناء خريطة بصيغة مختصرة"
+    keywords_used: [لكل, في]
+    since: "1.0.0"
+    status: stable
+    example: |
+      متغير مربعات = {س: س * س لكل س في مدى(1، 6)}
+
+  - id: expr.closure
+    name_ar: "إغلاق (closure)"
+    name_en: closure
+    category: closure
+    syntax: "لامدا تلتقط المتغيرات من النطاق المحيط"
+    description_ar: "دالة تلتقط متغيرات النطاق المحيط"
+    keywords_used: [لامدا]
+    since: "1.0.0"
+    status: stable
+    example: |
+      دالة صانع_جمع(ن)
+          ارجع لامدا(س)
+              ارجع س + ن
+          نهاية
+      نهاية
+      متغير زد5 = صانع_جمع(5)
+      اطبع_سطر(زد5(3))  # 8
+
+  - id: expr.spread
+    name_ar: "عامل التوسيع"
+    name_en: spread_operator
+    category: comprehension
+    syntax: "...مصفوفة"
+    description_ar: "توسيع مصفوفة إلى عناصر فردية"
+    keywords_used: []
+    since: "1.0.0"
+    status: stable
+    example: |
+      متغير أ = [1، 2، 3]
+      متغير ب = [...أ، 4، 5]  # [1، 2، 3، 4، 5]
+
+  - id: expr.ternary
+    name_ar: "العامل الثلاثي"
+    name_en: ternary_operator
+    category: comprehension
+    syntax: "شرط ? قيمة_صحيح : قيمة_خطأ"
+    description_ar: "تعبير شرطي مختصر"
+    keywords_used: []
+    since: "1.0.0"
+    status: stable
+    example: |
+      متغير أكبر = أ > ب ? أ : ب
+
+  - id: expr.yield
+    name_ar: "أنتج (yield)"
+    name_en: yield_expression
+    category: closure
+    syntax: "أنتج <قيمة>"
+    description_ar: "إنتاج قيمة من مولّد (generator)"
+    keywords_used: [أنتج, مولد]
+    since: "1.0.0"
+    status: stable
+    example: |
+      دالة أعداد_زوجية مولد()
+          متغير ن = 0
+          بينما (صحيح)
+              أنتج ن
+              ن += 2
+          نهاية
+      نهاية

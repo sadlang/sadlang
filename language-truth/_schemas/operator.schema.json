@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/operator.schema.json",
+  "title": "Operator Schema (V5)",
+  "description": "مخطط JSON للعوامل في لغة ص — operators.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "symbol", "name_ar", "name_en", "category", "arity", "precedence", "since", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^op\\.[a-z][a-z0-9_]*$",
+      "description": "معرّف فريد: op.<snake_case>"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "5.0",
+      "description": "إصدار المخطط — ثابت 5.0"
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1,
+      "description": "رمز العامل مثل + - * / == && ..."
+    },
+    "name_ar": {
+      "type": "string",
+      "minLength": 1,
+      "description": "الاسم الوصفي العربي"
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1,
+      "description": "الاسم الوصفي الإنجليزي"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["arithmetic", "comparison", "logical", "assignment", "bitwise", "unary", "membership", "ternary", "access"],
+      "description": "تصنيف العامل"
+    },
+    "arity": {
+      "type": "string",
+      "enum": ["unary", "binary", "ternary"],
+      "description": "عدد المعاملات"
+    },
+    "precedence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "description": "الأسبقية (1=أعلى)"
+    },
+    "associativity": {
+      "type": "string",
+      "enum": ["left", "right", "none"],
+      "description": "اتجاه الترابط"
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "أول إصدار يدعم هذا العامل"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "experimental", "deprecated", "removed"],
+      "description": "حالة العامل"
+    },
+    "description_ar": {
+      "type": "string",
+      "description": "وصف بالعربية"
+    },
+    "description_en": {
+      "type": "string",
+      "description": "Description in English"
+    },
+    "example": {
+      "type": "string",
+      "description": "مثال استخدام بلغة ص"
+    }
+  }
+}

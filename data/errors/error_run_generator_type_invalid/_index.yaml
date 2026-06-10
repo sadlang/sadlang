@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_generator_type_invalid
+kind: error
+code: E3045
+name: مصدر المولّد غير قابل للتكرار
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

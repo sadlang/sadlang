@@ -18,6 +18,9 @@
 #include <filesystem>
 #include <optional>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -38,7 +41,7 @@ namespace Sad
                 // =====================================================================
 
                 // ─── عمود() / sad_column() ───
-                if (funcName == "عمود" || funcName == "ui_column")
+                if (funcName == Bn::UIWidgets::COLUMN)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_COLUMN);
@@ -49,7 +52,7 @@ namespace Sad
                 }
 
                 // ─── صف() / sad_row() ───
-                if (funcName == "صف" || funcName == "ui_row")
+                if (funcName == Bn::UIWidgets::ROW)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ROW);
@@ -60,7 +63,7 @@ namespace Sad
                 }
 
                 // ─── مكدس() / sad_stack() ───
-                if (funcName == "مكدس" || funcName == "ui_stack")
+                if (funcName == Bn::CompilerUi::UI_2)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_STACK);
@@ -71,7 +74,7 @@ namespace Sad
                 }
 
                 // ─── حاوية() / sad_container() ───
-                if (funcName == "حاوية" || funcName == "ui_container")
+                if (funcName == Bn::UIWidgets::CONTAINER)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CONTAINER);
@@ -82,7 +85,7 @@ namespace Sad
                 }
 
                 // ─── نص_عرض(نص) / sad_text(text) ───
-                if (funcName == "نص_عرض" || funcName == "ui_text")
+                if (funcName == Bn::CompilerUi::UI_4)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT);
@@ -95,7 +98,7 @@ namespace Sad
                 }
 
                 // ─── نص_منسق(نص,حجم,أحمر,أخضر,أزرق,شفافية) / sad_text_styled(...) ───
-                if (funcName == "نص_منسق" || funcName == "ui_text_styled")
+                if (funcName == Bn::CompilerUi::UI_5)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_STYLED);
@@ -108,7 +111,7 @@ namespace Sad
                 }
 
                 // ─── زر(عنوان,دالة_ضغط,بيانات) / sad_button(label,cb,data) ───
-                if (funcName == "زر" || funcName == "ui_button")
+                if (funcName == Bn::UIWidgets::BUTTON)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_BUTTON);
@@ -121,7 +124,7 @@ namespace Sad
                 }
 
                 // ─── زر_نوع(عنوان,نوع,لون,دالة,بيانات) / sad_button_variant(...) ───
-                if (funcName == "زر_نوع" || funcName == "ui_button_variant")
+                if (funcName == Bn::CompilerUi::UI_7)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_BUTTON_VARIANT);
@@ -134,7 +137,7 @@ namespace Sad
                 }
 
                 // ─── زر_ايقونة(ايقونة,دالة,بيانات) / sad_icon_button(icon,cb,data) ───
-                if (funcName == "زر_ايقونة" || funcName == "ui_icon_button")
+                if (funcName == Bn::CompilerUi::UI_8)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ICON_BUTTON);
@@ -147,7 +150,7 @@ namespace Sad
                 }
 
                 // ─── زر_عائم(ايقونة,لون_r,لون_g,لون_b,لون_a,دالة,بيانات) / sad_fab(...) ───
-                if (funcName == "زر_عائم" || funcName == "ui_fab")
+                if (funcName == Bn::UIWidgets::FAB)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_FAB);
@@ -160,7 +163,7 @@ namespace Sad
                 }
 
                 // ─── حقل_نص(تلميح,دالة,بيانات) / sad_text_field(hint,cb,data) ───
-                if (funcName == "حقل_نص" || funcName == "ui_text_field")
+                if (funcName == Bn::UIWidgets::TEXT_FIELD)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_FIELD);
@@ -173,7 +176,7 @@ namespace Sad
                 }
 
                 // ─── مربع_تحقق(دالة,بيانات) / sad_checkbox(cb,data) ───
-                if (funcName == "مربع_تحقق" || funcName == "ui_checkbox")
+                if (funcName == Bn::CompilerUi::UI_11)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CHECKBOX);
@@ -186,7 +189,7 @@ namespace Sad
                 }
 
                 // ─── مبدل(دالة,بيانات) / sad_switch_toggle(cb,data) ───
-                if (funcName == "مبدل" || funcName == "ui_switch")
+                if (funcName == Bn::CompilerUi::UI_12)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SWITCH);
@@ -199,7 +202,7 @@ namespace Sad
                 }
 
                 // ─── منزلق(حد_أدنى,حد_أقصى,دالة,بيانات) / sad_slider(min,max,cb,data) ───
-                if (funcName == "منزلق" || funcName == "ui_slider")
+                if (funcName == Bn::UIWidgets::SLIDER)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SLIDER);
@@ -212,7 +215,7 @@ namespace Sad
                 }
 
                 // ─── بطاقة() / sad_card() ───
-                if (funcName == "بطاقة" || funcName == "ui_card")
+                if (funcName == Bn::UIWidgets::CARD)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CARD);
@@ -223,7 +226,7 @@ namespace Sad
                 }
 
                 // ─── هيكل() / sad_scaffold() ───
-                if (funcName == "هيكل" || funcName == "ui_scaffold")
+                if (funcName == Bn::UIWidgets::SCAFFOLD)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SCAFFOLD);
@@ -234,7 +237,7 @@ namespace Sad
                 }
 
                 // ─── شريط_تطبيق(عنوان) / sad_app_bar(title) ───
-                if (funcName == "شريط_تطبيق" || funcName == "ui_app_bar")
+                if (funcName == Bn::UIWidgets::APP_BAR)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_BAR);
@@ -247,7 +250,7 @@ namespace Sad
                 }
 
                 // ─── فاصل() / sad_spacer() ───
-                if (funcName == "فاصل" || funcName == "ui_spacer")
+                if (funcName == Bn::UIWidgets::SPACER)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SPACER);
@@ -258,7 +261,7 @@ namespace Sad
                 }
 
                 // ─── خط_فاصل() / sad_divider() ───
-                if (funcName == "خط_فاصل" || funcName == "ui_divider")
+                if (funcName == Bn::CompilerUi::UI_18)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_DIVIDER);
@@ -269,7 +272,7 @@ namespace Sad
                 }
 
                 // ─── حوار(عنوان,رسالة) / sad_dialog(title,msg) ───
-                if (funcName == "حوار" || funcName == "ui_dialog")
+                if (funcName == Bn::UIWidgets::DIALOG)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_DIALOG);
@@ -286,7 +289,7 @@ namespace Sad
                 // =====================================================================
 
                 // ─── أضف_ابن(أب, ابن) / sad_add_child(parent, child) ───
-                if (funcName == "أضف_ابن" || funcName == "ui_add_child")
+                if (funcName == Bn::CompilerUi::UI_20)
                 {
                     if (argResults.size() < 2)
                     {
@@ -302,7 +305,7 @@ namespace Sad
                 }
 
                 // ─── أزل_ابن(أب, ابن) / sad_remove_child(parent, child) ───
-                if (funcName == "أزل_ابن" || funcName == "ui_remove_child")
+                if (funcName == Bn::CompilerUi::UI_21)
                 {
                     if (argResults.size() < 2)
                     {
@@ -318,7 +321,7 @@ namespace Sad
                 }
 
                 // ─── امسح_الأبناء(عنصر) / sad_clear_children(widget) ───
-                if (funcName == "امسح_الأبناء" || funcName == "ui_clear_children")
+                if (funcName == Bn::CompilerUi::UI_22)
                 {
                     if (argResults.empty())
                     {
@@ -337,7 +340,7 @@ namespace Sad
                 // =====================================================================
 
                 // ─── عين_النص(عنصر, نص) / sad_set_text(widget, text) ───
-                if (funcName == "عين_النص" || funcName == "ui_set_text")
+                if (funcName == Bn::CompilerUi::UI_23)
                 {
                     if (argResults.size() < 2)
                     {
@@ -353,7 +356,7 @@ namespace Sad
                 }
 
                 // ─── عين_الحجم(عنصر, عرض, ارتفاع) / sad_set_size(widget, w, h) ───
-                if (funcName == "عين_الحجم" || funcName == "ui_set_size")
+                if (funcName == Bn::CompilerUi::UI_24)
                 {
                     if (argResults.size() < 3)
                     {
@@ -369,7 +372,7 @@ namespace Sad
                 }
 
                 // ─── عين_المرونة(عنصر, مرونة) / sad_set_flex(widget, flex) ───
-                if (funcName == "عين_المرونة" || funcName == "ui_set_flex")
+                if (funcName == Bn::CompilerUi::UI_25)
                 {
                     if (argResults.size() < 2)
                     {
@@ -385,7 +388,7 @@ namespace Sad
                 }
 
                 // ─── عين_الخلفية(عنصر, أحمر, أخضر, أزرق, شفافية) / sad_set_background(w, r,g,b,a) ───
-                if (funcName == "عين_الخلفية" || funcName == "ui_set_background")
+                if (funcName == Bn::CompilerUi::UI_26)
                 {
                     if (argResults.size() < 5)
                     {
@@ -401,7 +404,7 @@ namespace Sad
                 }
 
                 // ─── عين_اللون(عنصر, أحمر, أخضر, أزرق, شفافية) / sad_set_foreground(w, r,g,b,a) ───
-                if (funcName == "عين_اللون" || funcName == "ui_set_foreground")
+                if (funcName == Bn::CompilerUi::UI_27)
                 {
                     if (argResults.size() < 5)
                     {
@@ -417,7 +420,7 @@ namespace Sad
                 }
 
                 // ─── عين_التباعد(عنصر, تباعد) / sad_set_spacing(w, spacing) ───
-                if (funcName == "عين_التباعد" || funcName == "ui_set_spacing")
+                if (funcName == Bn::CompilerUi::UI_28)
                 {
                     if (argResults.size() < 2)
                     {
@@ -433,7 +436,7 @@ namespace Sad
                 }
 
                 // ─── عين_الحشوة(عنصر, فوق, يمين, تحت, يسار) / sad_set_padding(w, t,r,b,l) ───
-                if (funcName == "عين_الحشوة" || funcName == "ui_set_padding")
+                if (funcName == Bn::CompilerUi::UI_29)
                 {
                     if (argResults.size() < 5)
                     {
@@ -449,7 +452,7 @@ namespace Sad
                 }
 
                 // ─── عين_المحاذاة(عنصر, رئيسية, فرعية) / sad_set_alignment(w, main, cross) ───
-                if (funcName == "عين_المحاذاة" || funcName == "ui_set_alignment")
+                if (funcName == Bn::CompilerUi::UI_30)
                 {
                     if (argResults.size() < 3)
                     {
@@ -465,7 +468,7 @@ namespace Sad
                 }
 
                 // ─── عين_الحدود(عنصر, سمك, أحمر, أخضر, أزرق, شفافية) / sad_set_border(...) ───
-                if (funcName == "عين_الحدود" || funcName == "ui_set_border")
+                if (funcName == Bn::CompilerUi::UI_31)
                 {
                     if (argResults.size() < 2)
                     {
@@ -481,7 +484,7 @@ namespace Sad
                 }
 
                 // ─── عين_الارتفاع(عنصر, ارتفاع) / sad_set_elevation(w, elev) ───
-                if (funcName == "عين_الارتفاع" || funcName == "ui_set_elevation")
+                if (funcName == Bn::CompilerUi::UI_32)
                 {
                     if (argResults.size() < 2)
                     {
@@ -497,7 +500,7 @@ namespace Sad
                 }
 
                 // ─── عين_الشفافية(عنصر, شفافية) / sad_set_opacity(w, opacity) ───
-                if (funcName == "عين_الشفافية" || funcName == "ui_set_opacity")
+                if (funcName == Bn::CompilerUi::UI_33)
                 {
                     if (argResults.size() < 2)
                     {
@@ -513,7 +516,7 @@ namespace Sad
                 }
 
                 // ─── عين_الظهور(عنصر, مرئي) / sad_set_visibility(w, visible) ───
-                if (funcName == "عين_الظهور" || funcName == "ui_set_visibility")
+                if (funcName == Bn::CompilerUi::UI_34)
                 {
                     if (argResults.size() < 2)
                     {
@@ -533,7 +536,7 @@ namespace Sad
                 // =====================================================================
 
                 // ─── انشئ_تطبيق() / sad_app_create() ───
-                if (funcName == "انشئ_تطبيق" || funcName == "ui_app_create")
+                if (funcName == Bn::CompilerUi::UI_35)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_CREATE);
@@ -544,7 +547,7 @@ namespace Sad
                 }
 
                 // ─── عين_الجذر(تطبيق, عنصر) / sad_app_set_root(app, widget) ───
-                if (funcName == "عين_الجذر" || funcName == "ui_app_set_root")
+                if (funcName == Bn::CompilerUi::UI_36)
                 {
                     if (argResults.size() < 2)
                     {
@@ -560,7 +563,7 @@ namespace Sad
                 }
 
                 // ─── خطط(تطبيق, عرض, ارتفاع) / sad_app_layout(app, w, h) ───
-                if (funcName == "خطط" || funcName == "ui_app_layout")
+                if (funcName == Bn::CompilerUi::UI_37)
                 {
                     if (argResults.size() < 3)
                     {
@@ -576,7 +579,7 @@ namespace Sad
                 }
 
                 // ─── ارسم(تطبيق) / sad_app_render(app) ───
-                if (funcName == "ارسم" || funcName == "ui_app_render")
+                if (funcName == Bn::CompilerUi::UI_38)
                 {
                     if (argResults.empty())
                     {
@@ -591,7 +594,7 @@ namespace Sad
                 }
 
                 // ─── دمر_تطبيق(تطبيق) / sad_app_destroy(app) ───
-                if (funcName == "دمر_تطبيق" || funcName == "ui_app_destroy")
+                if (funcName == Bn::CompilerUi::UI_39)
                 {
                     if (argResults.empty())
                     {
@@ -606,7 +609,7 @@ namespace Sad
                 }
 
                 // ─── دمر_عنصر(عنصر) / sad_widget_destroy(widget) ───
-                if (funcName == "دمر_عنصر" || funcName == "ui_widget_destroy")
+                if (funcName == Bn::CompilerUi::UI_40)
                 {
                     if (argResults.empty())
                     {

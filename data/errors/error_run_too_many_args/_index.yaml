@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_too_many_args
+kind: error
+code: E3030
+name: وسائط أكثر من المطلوب
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

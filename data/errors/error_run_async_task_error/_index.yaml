@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_async_task_error
+kind: error
+code: E3044
+name: خطأ في مهمة غير متزامنة
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

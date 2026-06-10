@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_constructor_failed
+kind: error
+code: E3024
+name: فشل تنفيذ الباني
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

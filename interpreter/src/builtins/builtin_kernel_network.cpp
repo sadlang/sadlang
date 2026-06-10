@@ -9,6 +9,8 @@
  */
 
 #include "interpreter_core.h"
+#include "builtin_registry.h"
+namespace Knet = Sad::Builtins::Names::KernelNet;
 #include "value.h"
 #include "network_stack.h"
 
@@ -31,7 +33,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().scanNICs());
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xad", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_0), f);
     }
 
     // 2. net_nic_count / شبكة_عدد_البطاقات
@@ -40,7 +42,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getNICCount());
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa7\xd8\xaa", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_1), f);
     }
 
     // 3. net_nic_model / شبكة_موديل_البطاقة
@@ -49,7 +51,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getNICInfo(id).model);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a\xd9\x84_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_2), f);
     }
 
     // 4. net_init / شبكة_تهيئة
@@ -58,7 +60,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().initNIC(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_3), f);
     }
 
     // 5. net_report / شبكة_تقرير
@@ -67,7 +69,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().generateReport());
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xb1", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_4), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -80,7 +82,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             std::string ip = args.size() > 1 ? args[1]->toString() : "0.0.0.0";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().setIP(id, ip));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_ip", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_5), f);
     }
 
     // 7. net_get_ip / شبكة_عنوان_ip
@@ -89,7 +91,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getIP(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_ip", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_6), f);
     }
 
     // 8. net_get_mac / شبكة_عنوان_mac
@@ -98,7 +100,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getMAC(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_mac", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_7), f);
     }
 
     // 9. net_set_subnet / شبكة_تعيين_القناع
@@ -108,7 +110,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             std::string mask = args.size() > 1 ? args[1]->toString() : "255.255.255.0";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().setSubnet(id, mask));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x84\xd9\x82\xd9\x86\xd8\xa7\xd8\xb9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_8), f);
     }
 
     // 10. net_set_gateway / شبكة_تعيين_البوابة
@@ -118,7 +120,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             std::string gw = args.size() > 1 ? args[1]->toString() : "0.0.0.0";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().setGateway(id, gw));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd8\xa7\xd9\x84\xd8\xa8\xd9\x88\xd8\xa7\xd8\xa8\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_9), f);
     }
 
     // 11. net_get_subnet / شبكة_القناع
@@ -127,7 +129,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getSubnet(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd9\x84\xd9\x82\xd9\x86\xd8\xa7\xd8\xb9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_10), f);
     }
 
     // 12. net_get_gateway / شبكة_البوابة
@@ -136,7 +138,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getGateway(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa8\xd9\x88\xd8\xa7\xd8\xa8\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_11), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -149,7 +151,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             std::string ip = args.size() > 1 ? args[1]->toString() : "";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().arpRequest(id, ip));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xb7\xd9\x84\xd8\xa8_arp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_12), f);
     }
 
     // 14. net_arp_lookup / شبكة_بحث_arp
@@ -158,7 +160,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             std::string ip = args.size() > 0 ? args[0]->toString() : "";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().arpLookup(ip));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa8\xd8\xad\xd8\xab_arp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_13), f);
     }
 
     // 15. net_arp_table_size / شبكة_حجم_جدول_arp
@@ -167,7 +169,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getARPTableSize());
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xad\xd8\xac\xd9\x85_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_arp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_14), f);
     }
 
     // 16. net_arp_clear / شبكة_مسح_جدول_arp
@@ -176,7 +178,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().clearARPTable());
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xad_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_arp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_15), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -189,7 +191,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             std::string ip = args.size() > 1 ? args[1]->toString() : "127.0.0.1";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().ping(id, ip));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa8\xd9\x86\xd8\xac", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_16), f);
     }
 
     // 18. net_last_ping / شبكة_اخر_بنج
@@ -198,7 +200,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getLastPingTime());
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd8\xae\xd8\xb1_\xd8\xa8\xd9\x86\xd8\xac", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_17), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -215,7 +217,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().udpSend(nicId, destIP, destPort, srcPort, data));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84_udp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_18), f);
     }
 
     // 20. net_udp_receive / شبكة_استقبال_udp
@@ -226,7 +228,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().udpReceive(nicId, port));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd8\xa7\xd9\x84_udp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_19), f);
     }
 
     // 21. net_udp_bind / شبكة_ربط_udp
@@ -237,7 +239,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().udpBind(nicId, port));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xb1\xd8\xa8\xd8\xb7_udp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_20), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -250,7 +252,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().isLinkUp(id) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7_\xd9\x81\xd8\xb9\xd8\xa7\xd9\x84", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_21), f);
     }
 
     // 23. net_link_speed / شبكة_سرعة_الارتباط
@@ -260,7 +262,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().getLinkSpeed(id));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xb3\xd8\xb1\xd8\xb9\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_22), f);
     }
 
     // 24. net_send_raw / شبكة_ارسال_خام
@@ -271,7 +273,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().sendRawFrame(id, hex));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84_\xd8\xae\xd8\xa7\xd9\x85", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_23), f);
     }
 
     // 25. net_tx_packets / شبكة_الحزم_المرسلة
@@ -281,7 +283,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             auto info = LowLevel::NetworkManager::getInstance().getNICInfo(id);
             return std::make_shared<Data::Value>(static_cast<int>(info.txPackets));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xad\xd8\xb2\xd9\x85_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd8\xb3\xd9\x84\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_24), f);
     }
 
     // 26. net_rx_packets / شبكة_الحزم_المستقبلة
@@ -291,7 +293,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             auto info = LowLevel::NetworkManager::getInstance().getNICInfo(id);
             return std::make_shared<Data::Value>(static_cast<int>(info.rxPackets));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xad\xd8\xb2\xd9\x85_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_25), f);
     }
 
     // 27. net_nic_state / شبكة_حاله_البطاقة
@@ -301,7 +303,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::NetworkManager::getInstance().getNICInfo(id).nicState));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xad\xd8\xa7\xd9\x84\xd9\x87_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_26), f);
     }
 
     // 28. net_reset / شبكة_اعادة_تعيين
@@ -311,7 +313,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             LowLevel::NetworkManager::getInstance().reset();
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaf\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_27), f);
     }
 
     // 29. net_nic_vendor / شبكة_مصنع_البطاقة
@@ -321,7 +323,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             auto info = LowLevel::NetworkManager::getInstance().getNICInfo(id);
             return std::make_shared<Data::Value>(static_cast<int>(info.vendorId));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd9\x85\xd8\xb5\xd9\x86\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_28), f);
     }
 
     // 30. net_udp_unbind / شبكة_فك_ربط_udp
@@ -332,7 +334,7 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().udpUnbind(nicId, port));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa8\xd9\x83\xd8\xa9_\xd9\x81\xd9\x83_\xd8\xb1\xd8\xa8\xd8\xb7_udp", f);
+        fm.registerBuiltinFunction(std::string(Knet::NET_29), f);
     }
 
 } // registerBuiltinsKernelNetwork

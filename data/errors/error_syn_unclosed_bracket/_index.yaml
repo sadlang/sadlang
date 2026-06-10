@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.syn_unclosed_bracket
+kind: error
+code: E1003
+name: قوس غير مغلق
+category: parser
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

@@ -1,0 +1,2599 @@
+version: '1.0'
+description_ar: دوال المكتبة القياسية في لغة ص
+description_en: Standard library functions for Sad language
+total: 191
+functions:
+- cpp_id: PRINT
+  canonical: اطبع
+  namespace: Core
+  description_ar: طباعة قيمة بدون سطر جديد
+  description_en: Print a value without newline
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع("مرحبا")
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: PRINTLN
+  canonical: اطبع_سطر
+  namespace: Core
+  description_ar: طباعة قيمة مع سطر جديد
+  description_en: Print a value with newline
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر("مرحبا بالعالم")
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: READ
+  canonical: اقرأ
+  namespace: Core
+  description_ar: قراءة مدخل نصي من المستخدم (رسالة اختيارية)
+  description_en: Read text input from user (optional prompt)
+  since: 0.1.0
+  stability: stable
+  params:
+  - رسالة؟
+  examples:
+  - code: 'متغير الاسم = اقرأ("ادخل اسمك: ")
+
+      اطبع_سطر("مرحبا " + الاسم)'
+    runnable: false
+  source_file: core.yaml
+  module: core
+- cpp_id: LENGTH
+  canonical: طول
+  namespace: Core
+  description_ar: إرجاع طول مجموعة أو نص
+  description_en: Return length of a collection or string
+  since: 0.1.0
+  stability: stable
+  params:
+  - مجموعة
+  examples:
+  - code: اطبع_سطر(طول("مرحبا"))
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: TYPE
+  canonical: نوع
+  namespace: Core
+  description_ar: إرجاع نوع القيمة كنص
+  description_en: Return type of a value as string
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(نوع(42))
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: TO_INT
+  canonical: رقم
+  namespace: TypeCtor
+  description_ar: تحويل قيمة إلى عدد صحيح
+  description_en: Convert a value to integer
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(رقم("123"))
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: TO_FLOAT
+  canonical: عشري
+  namespace: TypeCtor
+  description_ar: تحويل قيمة إلى عدد عشري
+  description_en: Convert a value to float
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(عشري("3.14"))
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: TO_STRING
+  canonical: نص
+  namespace: TypeCtor
+  description_ar: تحويل أي قيمة إلى نص قابل للقراءة والطباعة
+  description_en: Convert any value to a readable and printable string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(نص(42))
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: TO_BOOL
+  canonical: منطقي
+  namespace: TypeCtor
+  description_ar: تحويل قيمة إلى منطقي (صحيح/خطأ)
+  description_en: Convert a value to boolean (true/false)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(منطقي(1))
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: CHANNEL
+  canonical: قناة
+  namespace: Concurrency
+  description_ar: إنشاء قناة للتواصل بين الخيوط الخفيفة
+  description_en: Create a channel for goroutine communication
+  since: 0.1.0
+  stability: stable
+  params:
+  - حجم
+  examples:
+  - code: 'متغير ق = قناة(10)
+
+      ق.أرسل(42)
+
+      اطبع_سطر(ق.استقبل())'
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: WAIT_ALL
+  canonical: انتظر_الكل
+  namespace: Concurrency
+  description_ar: انتظار انتهاء جميع الخيوط الخفيفة
+  description_en: Wait for all active goroutines to finish
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: 'اطلق اطبع_سطر("خيط خفيف")
+
+      انتظر_الكل()'
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: TASK_COUNT
+  canonical: عدد_المهام
+  namespace: Concurrency
+  description_ar: إرجاع عدد المهام النشطة حالياً
+  description_en: Return the current number of active tasks
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: اطبع_سطر(عدد_المهام())
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: WAIT_GROUP
+  canonical: مجموعة_انتظار
+  namespace: Concurrency
+  description_ar: إنشاء مجموعة انتظار (WaitGroup) لتنسيق الخيوط
+  description_en: Create a WaitGroup for thread coordination
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: "متغير مج = مجموعة_انتظار()\nمج.أضف(1)\nاطلق\n    مج.أنهي()\nنهاية\nمج.انتظر()"
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: MUTEX
+  canonical: قفل
+  namespace: Concurrency
+  description_ar: إنشاء قفل Mutex للتزامن المتبادل
+  description_en: Create a Mutex for mutual exclusion
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: 'متغير ق_ف = قفل()
+
+      ق_ف.اقفل()
+
+      # عمل محمي
+
+      ق_ف.افتح()'
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: FUTURE
+  canonical: مستقبل
+  namespace: Concurrency
+  description_ar: إنشاء مستقبل (Future) لاسترداد نتيجة غير متزامنة
+  description_en: Create a Future for retrieving an async result
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: "متغير م = مستقبل()\nاطلق\n    م.عين(42)\nنهاية\nاطبع_سطر(م.احصل())"
+    runnable: true
+  source_file: core.yaml
+  module: core
+- cpp_id: ADD
+  canonical: إضافة_عنصر
+  namespace: Arrays
+  description_ar: إضافة عنصر إلى نهاية مصفوفة
+  description_en: Add an element to the end of an array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - عنصر
+  examples:
+  - code: 'متغير م = [1، 2، 3]
+
+      إضافة_عنصر(م، 4)
+
+      اطبع_سطر(م)'
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: REMOVE
+  canonical: إزالة_عنصر
+  namespace: Arrays
+  description_ar: إزالة عنصر من مصفوفة بالفهرس أو القيمة
+  description_en: Remove an element from an array by index or value
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - عنصر_أو_فهرس
+  examples:
+  - code: 'متغير م = [1، 2، 3]
+
+      إزالة_عنصر(م، 1)
+
+      اطبع_سطر(م)'
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: SIZE
+  canonical: حجم_مصفوفة
+  namespace: Arrays
+  description_ar: إرجاع عدد عناصر المصفوفة
+  description_en: Return the number of elements in an array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  examples:
+  - code: اطبع_سطر(حجم_مصفوفة([1، 2، 3]))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: INDEX_OF
+  canonical: فهرس_مصفوفة
+  namespace: Arrays
+  description_ar: إرجاع فهرس العنصر الأول المطابق (-1 إن لم يُوجد)
+  description_en: Return the index of the first matching element (-1 if not found)
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - عنصر
+  examples:
+  - code: اطبع_سطر(فهرس_مصفوفة([1، 2، 3]، 2))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: ARRAY_CONTAINS
+  canonical: يحتوي_عنصر
+  namespace: Arrays
+  description_ar: التحقق من وجود عنصر داخل مصفوفة
+  description_en: Check if an element exists in the array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - عنصر
+  examples:
+  - code: اطبع_سطر(يحتوي_عنصر([1، 2، 3]، 2))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: REVERSE
+  canonical: قلب
+  namespace: Arrays
+  description_ar: قلب ترتيب عناصر مصفوفة
+  description_en: Reverse the order of elements in an array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  examples:
+  - code: اطبع_سطر(قلب([1، 2، 3]))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: SORT
+  canonical: رتب
+  namespace: Arrays
+  description_ar: ترتيب عناصر مصفوفة تصاعدياً (افتراضياً)
+  description_en: Sort array elements in ascending order (default)
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  examples:
+  - code: اطبع_سطر(رتب([3، 1، 2]))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: FIRST
+  canonical: الأول
+  namespace: Arrays
+  description_ar: إرجاع أول عنصر في المصفوفة
+  description_en: Return the first element of the array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  examples:
+  - code: اطبع_سطر(الأول([10، 20، 30]))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: LAST
+  canonical: الأخير
+  namespace: Arrays
+  description_ar: إرجاع آخر عنصر في المصفوفة
+  description_en: Return the last element of the array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  examples:
+  - code: اطبع_سطر(الأخير([10، 20، 30]))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: SLICE
+  canonical: شريحة
+  namespace: Arrays
+  description_ar: استخراج جزء من المصفوفة بين موضعَي بداية ونهاية
+  description_en: Extract a slice of the array between start and end positions
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - بداية
+  - نهاية
+  examples:
+  - code: اطبع_سطر(شريحة([1، 2، 3، 4]، 1، 3))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: FILTER
+  canonical: رشح
+  namespace: Arrays
+  description_ar: تصفية عناصر المصفوفة بشرط دالة وإرجاع مصفوفة جديدة تضم ما يستوفي الشرط
+  description_en: Filter array elements by a predicate function, returns new array with matching elements
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - دالة_الشرط
+  examples:
+  - code: اطبع_سطر(رشح([1، 2، 3]، لامدا س -> س > 1))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: REDUCE
+  canonical: اختزل
+  namespace: Arrays
+  description_ar: تطبيق دالة تراكمية على عناصر المصفوفة لإرجاع قيمة واحدة مجمّعة
+  description_en: Apply an accumulator function across array elements to return a single aggregated value
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - دالة
+  - قيمة_ابتدائية
+  examples:
+  - code: اطبع_سطر(اختزل([1، 2، 3]، لامدا أ، ب -> أ + ب، 0))
+    runnable: true
+  source_file: stdlib_arrays.yaml
+  module: arrays
+- cpp_id: ASSERT_EQ
+  canonical: تأكد_يساوي
+  namespace: Assertions
+  description_ar: التحقق من تساوي قيمتين — يُطلق خطأ إن اختلفتا
+  description_en: Assert two values are equal — throws error if not
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: تأكد_يساوي(1 + 1، 2)
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: ASSERT_NEQ
+  canonical: تأكد_لا_يساوي
+  namespace: Assertions
+  description_ar: التحقق من عدم تساوي قيمتين — يُطلق خطأ إن تساوتا
+  description_en: Assert two values are not equal — throws error if equal
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: تأكد_لا_يساوي(1، 2)
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: ASSERT_TRUE
+  canonical: تأكد_صحيح
+  namespace: Assertions
+  description_ar: التحقق من أن الشرط صحيح — يُطلق خطأ إن كان خاطئاً
+  description_en: Assert a condition is true — throws error if false
+  since: 0.1.0
+  stability: stable
+  params:
+  - شرط
+  examples:
+  - code: تأكد_صحيح(5 > 3)
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: ASSERT_FALSE
+  canonical: تأكد_خطأ
+  namespace: Assertions
+  description_ar: التحقق من أن الشرط خاطئ — يُطلق خطأ إن كان صحيحاً
+  description_en: Assert a condition is false — throws error if true
+  since: 0.1.0
+  stability: stable
+  params:
+  - شرط
+  examples:
+  - code: تأكد_خطأ(5 < 3)
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: HASH
+  canonical: هاش
+  namespace: Assertions
+  description_ar: إرجاع هاش SHA-256 لقيمة ما كنص ست عشري
+  description_en: Return SHA-256 hash of a value as a hex string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(هاش("مرحبا"))
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: RANGE
+  canonical: مدى
+  namespace: Basics
+  description_ar: توليد تسلسل أرقام من بداية إلى نهاية
+  description_en: Generate a sequence of numbers from start to end
+  since: 0.1.0
+  stability: stable
+  params:
+  - بداية
+  - نهاية
+  - خطوة؟
+  examples:
+  - code: "لكل س في مدى(1، 5)\n    اطبع_سطر(س)\nنهاية"
+    runnable: true
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: EXIT
+  canonical: خروج
+  namespace: Basics
+  description_ar: إنهاء البرنامج برمز خروج محدد
+  description_en: Exit the program with a given exit code
+  since: 0.1.0
+  stability: stable
+  params:
+  - رمز؟
+  examples:
+  - code: خروج(0)
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: ASSERT
+  canonical: تأكد
+  namespace: Basics
+  description_ar: التحقق من شرط — يُطلق خطأ إن كان الشرط خاطئاً مع رسالة
+  description_en: Assert a condition — throws with message if condition is false
+  since: 0.1.0
+  stability: stable
+  params:
+  - شرط
+  - رسالة؟
+  examples:
+  - code: تأكد(1 == 1، "يجب ان يتساوى")
+    runnable: true
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: READ_FILE
+  canonical: اقرأ_ملف
+  namespace: Basics
+  description_ar: قراءة محتوى ملف نصي إلى متغير
+  description_en: Read a text file's content into a variable
+  since: 0.1.0
+  stability: stable
+  params:
+  - مسار
+  examples:
+  - code: 'متغير محتوى = اقرأ_ملف("ملف.txt")
+
+      اطبع_سطر(محتوى)'
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: WRITE_FILE
+  canonical: اكتب_ملف
+  namespace: Basics
+  description_ar: كتابة نص إلى ملف (يُنشئ الملف إن لم يكن موجوداً)
+  description_en: Write text to a file (creates file if it doesn't exist)
+  since: 0.1.0
+  stability: stable
+  params:
+  - مسار
+  - محتوى
+  examples:
+  - code: اكتب_ملف("ملف.txt"، "مرحبا")
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: FILE_EXISTS
+  canonical: هل_موجود
+  namespace: Basics
+  description_ar: التحقق من وجود ملف أو مجلد في المسار المعطى
+  description_en: Check if a file or directory exists at the given path
+  since: 0.1.0
+  stability: stable
+  params:
+  - مسار
+  examples:
+  - code: اطبع_سطر(هل_موجود("ملف.txt"))
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: IS_FILE
+  canonical: هل_ملف
+  namespace: Basics
+  description_ar: التحقق من أن المسار يشير إلى ملف (وليس مجلداً)
+  description_en: Check if path points to a file (not a directory)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(هل_ملف("ملف.txt"))
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: IS_DIR
+  canonical: هل_مجلد
+  namespace: Basics
+  description_ar: التحقق من أن المسار يشير إلى مجلد
+  description_en: Check if path points to a directory
+  since: 0.1.0
+  stability: stable
+  params:
+  - مسار
+  examples:
+  - code: اطبع_سطر(هل_مجلد("مجلد"))
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: MKDIR
+  canonical: أنشئ_مجلد
+  namespace: Basics
+  description_ar: إنشاء مجلد جديد في المسار المعطى
+  description_en: Create a new directory at the given path
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: أنشئ_مجلد("مجلد_جديد")
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: DELETE_FILE
+  canonical: احذف_ملف
+  namespace: Basics
+  description_ar: حذف ملف من نظام الملفات
+  description_en: Delete a file from the filesystem
+  since: 0.1.0
+  stability: stable
+  params:
+  - مسار
+  examples:
+  - code: احذف_ملف("ملف.txt")
+    runnable: false
+  source_file: stdlib_basics.yaml
+  module: basics
+- cpp_id: HTTP_GET
+  canonical: احصل
+  namespace: HTTP
+  description_ar: إرسال طلب HTTP GET إلى رابط محدد وإرجاع كائن الاستجابة. تقبل خريطة ترويسات اختيارية. الدالة غير متزامنة
+    وتحتاج إلى انتظر.
+  description_en: Send an HTTP GET request to the given URL and return the response object. Accepts an optional headers map.
+    Asynchronous — must be awaited.
+  since: 0.1.0
+  stability: stable
+  params:
+  - رابط
+  - ترويسات
+  examples:
+  - code: متغير رد = انتظر احصل("https://api.example.com/data")
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_POST
+  canonical: أرسل
+  namespace: HTTP
+  description_ar: إرسال طلب HTTP POST مع بيانات في جسم الطلب. مفيد لإنشاء موارد جديدة على الخادم.
+  description_en: Send an HTTP POST request with a body payload. Useful for creating new resources on the server.
+  since: 0.1.0
+  stability: stable
+  params:
+  - رابط
+  - جسم
+  - ترويسات
+  examples:
+  - code: متغير رد = انتظر أرسل("https://api.example.com/users"، الجسم)
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_PUT
+  canonical: حدّث
+  namespace: HTTP
+  description_ar: إرسال طلب HTTP PUT لتحديث مورد موجود على الخادم.
+  description_en: Send an HTTP PUT request to update an existing resource on the server.
+  since: 0.1.0
+  stability: stable
+  params:
+  - رابط
+  - جسم
+  - ترويسات
+  examples:
+  - code: متغير رد = انتظر حدّث("https://api.example.com/users/1"، الجسم)
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_DELETE
+  canonical: احذف
+  namespace: HTTP
+  description_ar: إرسال طلب HTTP DELETE لحذف مورد من الخادم.
+  description_en: Send an HTTP DELETE request to remove a resource from the server.
+  since: 0.1.0
+  stability: stable
+  params:
+  - رابط
+  - ترويسات
+  examples:
+  - code: متغير رد = انتظر احذف("https://api.example.com/posts/42")
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_REQUEST
+  canonical: طلب
+  namespace: HTTP
+  description_ar: إرسال طلب HTTP مخصص بخيارات كاملة (الطريقة، الترويسات، الجسم، المهلة...).
+  description_en: Send a custom HTTP request with full options (method, headers, body, timeout...).
+  since: 0.1.0
+  stability: experimental
+  params:
+  - خيارات
+  examples:
+  - code: 'متغير رد = انتظر طلب({"method": "PATCH"، "url": "https://api.example.com/x"})'
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_SERVER
+  canonical: خادم
+  namespace: HTTP
+  description_ar: إنشاء كائن خادم HTTP يستمع على المنفذ المحدد. استخدم طرق الكائن (على/شغّل/أوقف) لإدارة المسارات والتشغيل.
+  description_en: Create an HTTP server object listening on the given port. Use object methods (on/run/stop) to manage routes
+    and lifecycle.
+  since: 0.1.0
+  stability: experimental
+  params:
+  - منفذ
+  examples:
+  - code: متغير الخادم = خادم(3000)
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_URL_ENCODE
+  canonical: ترميز_رابط
+  namespace: HTTP
+  description_ar: ترميز نص ليُستخدم بأمان داخل عناوين URL (مفيد للنصوص العربية والمسافات).
+  description_en: Percent-encode a string for safe inclusion in URLs (useful for Arabic text and spaces).
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: متغير المُرمَّز = ترميز_رابط("مكة المكرمة")
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: HTTP_URL_DECODE
+  canonical: فك_ترميز_رابط
+  namespace: HTTP
+  description_ar: فك ترميز URL لاستعادة النص الأصلي من صيغة percent-encoded.
+  description_en: Decode a percent-encoded URL string back to its original text.
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: متغير الأصلي = فك_ترميز_رابط("%D9%85%D9%83%D8%A9")
+    runnable: false
+  source_file: stdlib_http.yaml
+  module: http
+- cpp_id: IO_INPUT
+  canonical: أدخل
+  namespace: IO
+  description_ar: قراءة سطر من المستخدم وإرجاعه كنص. تقبل رسالة اختيارية تُعرض قبل القراءة.
+  description_en: Read a line from the user and return it as a string. Accepts an optional prompt message.
+  since: 0.1.0
+  stability: stable
+  params:
+  - رسالة
+  examples:
+  - code: متغير الاسم = أدخل("ما اسمك؟ ")
+    runnable: false
+  - code: 'متغير المبلغ = لعشري(أدخل("أدخل المبلغ: "))'
+    runnable: false
+  source_file: stdlib_io.yaml
+  module: io
+- cpp_id: IO_READ_LINE
+  canonical: قراءة_سطر
+  namespace: IO
+  description_ar: قراءة سطر كامل من الإدخال — مكافئة لـ أدخل ولكن أوضح في النية عند قراءة جمل كاملة.
+  description_en: Read a full line from input — equivalent to أدخل but expresses intent more clearly for full-sentence reads.
+  since: 0.1.0
+  stability: stable
+  params:
+  - رسالة
+  examples:
+  - code: 'متغير المدينة = قراءة_سطر("المدينة: ")'
+    runnable: false
+  source_file: stdlib_io.yaml
+  module: io
+- cpp_id: IO_CLEAR_SCREEN
+  canonical: مسح_الشاشة
+  namespace: IO
+  description_ar: مسح محتويات شاشة الطرفية ونقل المؤشر إلى الزاوية العلوية اليسرى.
+  description_en: Clear the terminal screen contents and move the cursor to the top-left corner.
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: مسح_الشاشة()
+    runnable: false
+  source_file: stdlib_io.yaml
+  module: io
+- cpp_id: JSON_PARSE
+  canonical: تحليل_جيسون
+  namespace: Maps
+  description_ar: تحليل نص JSON وتحويله إلى خريطة أو مصفوفة
+  description_en: Parse a JSON string into a map or array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: 'متغير بيانات = تحليل_جيسون(''{"اسم": "علي", "عمر": 30}'')'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: JSON_STRINGIFY
+  canonical: نص_جيسون
+  namespace: Maps
+  description_ar: تحويل خريطة أو مصفوفة إلى نص JSON مضغوط
+  description_en: Convert a map or array to a compact JSON string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: 'اطبع_سطر(نص_جيسون({"اسم": "علي", "عمر": 30}))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: JSON_PRETTY
+  canonical: تنسيق_جيسون
+  namespace: Maps
+  description_ar: تحويل خريطة أو مصفوفة إلى نص JSON منسق للقراءة
+  description_en: Convert a map or array to pretty-formatted JSON
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: 'اطبع_سطر(تنسيق_جيسون({"اسم": "علي", "عمر": 30}))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: XML_PARSE
+  canonical: تحليل_وسائم
+  namespace: Maps
+  description_ar: تحليل نص XML وتحويله إلى هيكل بيانات
+  description_en: Parse an XML string into a data structure
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تحليل_وسائم())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: XML_STRINGIFY
+  canonical: تحويل_وسائم
+  namespace: Maps
+  description_ar: تحويل هيكل بيانات إلى نص XML
+  description_en: Convert a data structure to an XML string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تحويل_وسائم())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REGEX
+  canonical: تعبير_مطابقة
+  namespace: Maps
+  description_ar: إنشاء تعبير نمطي (Regex) للمطابقة
+  description_en: Create a regular expression (Regex) for matching
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تعبير_مطابقة("مرحبا 123"، "\d+"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REGEX_SEARCH
+  canonical: تعبير_بحث
+  namespace: Maps
+  description_ar: البحث عن أول تطابق للنمط في النص
+  description_en: Search for the first pattern match in a string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تعبير_بحث("مرحبا 123"، "\d+"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REGEX_REPLACE
+  canonical: تعبير_استبدال
+  namespace: Maps
+  description_ar: استبدال كل تطابقات النمط في النص
+  description_en: Replace all pattern matches in a string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تعبير_استبدال("hello world"، "world"، "ص"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REGEX_FIND_ALL
+  canonical: تعبير_جد_الكل
+  namespace: Maps
+  description_ar: إرجاع مصفوفة بجميع تطابقات النمط في النص
+  description_en: Return an array of all pattern matches in a string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تعبير_جد_الكل("a1 b2 c3"، "\d"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: NOW
+  canonical: الآن
+  namespace: Maps
+  description_ar: إرجاع الوقت الحالي كعدد ثواني منذ Epoch
+  description_en: Return current time as seconds since Epoch
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(الآن())
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: NOW_MS
+  canonical: الآن_مللي
+  namespace: Maps
+  description_ar: إرجاع الوقت الحالي كعدد مللي ثانية منذ Epoch
+  description_en: Return current time in milliseconds since Epoch
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(الآن_مللي())
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: DATE_FORMAT
+  canonical: صيغة_تاريخ
+  namespace: Maps
+  description_ar: تنسيق تاريخ/وقت وفق نمط محدد (مثل YYYY-MM-DD)
+  description_en: Format a date/time according to a pattern (e.g. YYYY-MM-DD)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(صيغة_تاريخ(الآن()، "YYYY-MM-DD"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: DATE_COMPONENTS
+  canonical: مكونات_تاريخ
+  namespace: Maps
+  description_ar: تفكيك طابع زمني إلى مكونات (يوم، شهر، سنة...)
+  description_en: Decompose a timestamp into components (day, month, year...)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(مكونات_تاريخ())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: YEAR
+  canonical: سنة
+  namespace: Maps
+  description_ar: استخراج السنة من طابع زمني
+  description_en: Extract the year from a timestamp
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(سنة())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MONTH
+  canonical: شهر
+  namespace: Maps
+  description_ar: استخراج الشهر من طابع زمني (1-12)
+  description_en: Extract the month from a timestamp (1-12)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(شهر())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: DAY
+  canonical: يوم
+  namespace: Maps
+  description_ar: استخراج اليوم من طابع زمني (1-31)
+  description_en: Extract the day from a timestamp (1-31)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(يوم())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: HOUR
+  canonical: ساعة
+  namespace: Maps
+  description_ar: استخراج الساعة من طابع زمني (0-23)
+  description_en: Extract the hour from a timestamp (0-23)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ساعة())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MINUTE
+  canonical: دقيقة
+  namespace: Maps
+  description_ar: استخراج الدقيقة من طابع زمني (0-59)
+  description_en: Extract the minute from a timestamp (0-59)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(دقيقة())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: SECOND
+  canonical: ثانية
+  namespace: Maps
+  description_ar: استخراج الثانية من طابع زمني (0-59)
+  description_en: Extract the second from a timestamp (0-59)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ثانية())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: WEEKDAY
+  canonical: يوم_الأسبوع
+  namespace: Maps
+  description_ar: استخراج يوم الأسبوع من طابع زمني (0=الإثنين)
+  description_en: Extract weekday from a timestamp (0=Monday)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(يوم_الأسبوع())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: TIME_DIFF
+  canonical: فرق_وقت
+  namespace: Maps
+  description_ar: حساب الفرق بين طابعَين زمنيَّين بالثواني
+  description_en: Calculate the difference between two timestamps in seconds
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(فرق_وقت())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FILE_SIZE
+  canonical: حجم_ملف
+  namespace: Maps
+  description_ar: إرجاع حجم ملف بالبايتات
+  description_en: Return the size of a file in bytes
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(حجم_ملف("ملف.txt"))
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: PATH_JOIN
+  canonical: ضم_مسار
+  namespace: Maps
+  description_ar: دمج أجزاء مسار مع مراعاة الفواصل الصحيحة
+  description_en: Join path components with correct separators
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ضم_مسار("مجلد"، "ملف.txt"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: PATH_DIRNAME
+  canonical: مجلد_مسار
+  namespace: Maps
+  description_ar: إرجاع المجلد الأب للمسار المعطى
+  description_en: Return the parent directory of the given path
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(مجلد_مسار("/مجلد/ملف.txt"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: PATH_BASENAME
+  canonical: اسم_ملف
+  namespace: Maps
+  description_ar: إرجاع اسم الملف بدون المسار
+  description_en: Return the filename without the path
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(اسم_ملف("/مجلد/ملف.txt"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: PATH_EXT
+  canonical: امتداد_ملف
+  namespace: Maps
+  description_ar: إرجاع امتداد الملف (مثل .txt، .ص)
+  description_en: Return the file extension (e.g. .txt, .sad)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(امتداد_ملف("ملف.txt"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: BASE64_ENCODE
+  canonical: ترميز_قاعدة64
+  namespace: Maps
+  description_ar: ترميز بيانات إلى نص Base64
+  description_en: Encode data to a Base64 string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ترميز_قاعدة64("مرحبا"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: BASE64_DECODE
+  canonical: فك_قاعدة64
+  namespace: Maps
+  description_ar: فك ترميز نص Base64 إلى البيانات الأصلية
+  description_en: Decode a Base64 string to original data
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(فك_قاعدة64(ترميز_قاعدة64("مرحبا")))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: HEX_ENCODE
+  canonical: ترميز_ست_عشري
+  namespace: Maps
+  description_ar: ترميز بيانات إلى تمثيل ست عشري
+  description_en: Encode data to a hexadecimal representation
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ترميز_ست_عشري())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: URL_ENCODE
+  canonical: ترميز_عنوان
+  namespace: Maps
+  description_ar: ترميز نص لاستخدامه الآمن في عناوين URL
+  description_en: Encode text for safe use in URLs
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ترميز_عنوان("مرحبا بالعالم"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: URL_DECODE
+  canonical: فك_عنوان
+  namespace: Maps
+  description_ar: فك ترميز URL إلى النص الأصلي
+  description_en: Decode a URL-encoded string to original text
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(فك_عنوان(ترميز_عنوان("مرحبا")))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ENV_GET
+  canonical: متغير_بيئة
+  namespace: Maps
+  description_ar: قراءة قيمة متغير بيئة من نظام التشغيل
+  description_en: Read an environment variable value from the OS
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(متغير_بيئة("PATH"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: CWD
+  canonical: المجلد_الحالي
+  namespace: Maps
+  description_ar: إرجاع المجلد الحالي للعمل كنص مسار
+  description_en: Return the current working directory as a path string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(المجلد_الحالي())
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ERROR_FN
+  canonical: خطأ
+  namespace: Maps
+  description_ar: إنشاء خطأ مخصص مع رسالة
+  description_en: Create a custom error with a message
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(خطأ())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: TEXT_REPEAT
+  canonical: تكرار_نص
+  namespace: Maps
+  description_ar: تكرار نص عدداً محدداً من المرات
+  description_en: Repeat a string a specified number of times
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تكرار_نص("أ"، 5))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: PAD_START
+  canonical: حشو_بداية
+  namespace: Maps
+  description_ar: إضافة حشو في بداية النص ليصل لطول محدد
+  description_en: Pad the beginning of a string to reach a target length
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(حشو_بداية("42"، 5، "0"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: PAD_END
+  canonical: حشو_نهاية
+  namespace: Maps
+  description_ar: إضافة حشو في نهاية النص ليصل لطول محدد
+  description_en: Pad the end of a string to reach a target length
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(حشو_نهاية("مر"، 5، "_"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REVERSE_TEXT
+  canonical: عكس_نص
+  namespace: Maps
+  description_ar: عكس ترتيب حروف النص وإرجاع نص جديد
+  description_en: Reverse the character order of a string
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(عكس_نص("مرحبا"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: CHAR_CODE
+  canonical: رمز_حرف
+  namespace: Maps
+  description_ar: إرجاع الرمز الرقمي (Unicode) لحرف واحد
+  description_en: Return the Unicode code point of a single character
+  since: 0.1.0
+  stability: stable
+  params:
+  - حرف
+  examples:
+  - code: اطبع_سطر(رمز_حرف("ا"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FROM_CHAR_CODE
+  canonical: حرف_من_رمز
+  namespace: Maps
+  description_ar: تحويل رمز رقمي (Unicode) إلى حرفه المقابل
+  description_en: Convert a Unicode code point to its character
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(حرف_من_رمز())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: COUNT
+  canonical: عد
+  namespace: Maps
+  description_ar: عد عدد تكرارات نص فرعي أو عنصر داخل مجموعة
+  description_en: Count occurrences of a substring or element in a collection
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(عد())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FORMAT
+  canonical: تنسيق
+  namespace: Maps
+  description_ar: تنسيق نص باستخدام قوالب ومعاملات (sprintf-style)
+  description_en: Format a string using templates and parameters (sprintf-style)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تنسيق())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: STRIP_DIACRITICS
+  canonical: ازل_تشكيل
+  namespace: Maps
+  description_ar: إزالة التشكيل وعلامات الحركات من النص العربي
+  description_en: Remove diacritical marks from Arabic text
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ازل_تشكيل())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: COMPARE_TEXT
+  canonical: مقارنة_نص
+  namespace: Maps
+  description_ar: مقارنة نصَّين مع الأخذ بعين الاعتبار حالة الأحرف
+  description_en: Compare two strings case-sensitively or insensitively
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(مقارنة_نص())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: UNICODE_CODEPOINTS
+  canonical: نص_يونيكود
+  namespace: Maps
+  description_ar: تحويل نص إلى قائمة نقاط Unicode
+  description_en: Convert string to a list of Unicode code points
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(نص_يونيكود())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_CTOR
+  canonical: خريطة
+  namespace: Maps
+  description_ar: إنشاء خريطة (قاموس) جديدة فارغة
+  description_en: Create a new empty map (dictionary)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: 'متغير خ = خريطة()
+
+      خ["اسم"] = "علي"
+
+      اطبع_سطر(خ)'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_GET
+  canonical: خريطة_احصل
+  namespace: Maps
+  description_ar: قراءة قيمة من الخريطة بالمفتاح
+  description_en: Read a value from a map by key
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة
+  - مفتاح
+  examples:
+  - code: 'متغير خ = {"اسم": "علي"}
+
+      اطبع_سطر(خريطة_احصل(خ، "اسم"))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_SET
+  canonical: خريطة_عين
+  namespace: Maps
+  description_ar: تعيين أو تحديث قيمة في الخريطة بالمفتاح
+  description_en: Set or update a value in a map by key
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة
+  - مفتاح
+  - قيمة
+  examples:
+  - code: 'متغير خ = {}
+
+      خريطة_عين(خ، "اسم"، "علي")
+
+      اطبع_سطر(خ)'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_KEYS
+  canonical: خريطة_مفاتيح
+  namespace: Maps
+  description_ar: إرجاع مصفوفة بجميع مفاتيح الخريطة
+  description_en: Return an array of all map keys
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة
+  examples:
+  - code: 'اطبع_سطر(خريطة_مفاتيح({"أ": 1، "ب": 2}))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_VALUES
+  canonical: خريطة_قيم
+  namespace: Maps
+  description_ar: إرجاع مصفوفة بجميع قيم الخريطة
+  description_en: Return an array of all map values
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة
+  examples:
+  - code: 'اطبع_سطر(خريطة_قيم({"أ": 1، "ب": 2}))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_HAS_KEY
+  canonical: خريطة_تحتوي
+  namespace: Maps
+  description_ar: التحقق من وجود مفتاح معين في الخريطة
+  description_en: Check if a key exists in the map
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: 'اطبع_سطر(خريطة_تحتوي({"أ": 1}، "أ"))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_DELETE
+  canonical: خريطة_احذف
+  namespace: Maps
+  description_ar: حذف زوج مفتاح-قيمة من الخريطة
+  description_en: Delete a key-value pair from the map
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة
+  - مفتاح
+  examples:
+  - code: 'متغير خ = {"أ": 1، "ب": 2}
+
+      خريطة_احذف(خ، "أ")
+
+      اطبع_سطر(خ)'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_SIZE
+  canonical: خريطة_حجم
+  namespace: Maps
+  description_ar: إرجاع عدد الأزواج في الخريطة
+  description_en: Return the number of key-value pairs in the map
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة
+  examples:
+  - code: 'اطبع_سطر(خريطة_حجم({"أ": 1، "ب": 2}))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_ENTRIES
+  canonical: خريطة_عناصر
+  namespace: Maps
+  description_ar: إرجاع مصفوفة من أزواج [مفتاح، قيمة] للخريطة
+  description_en: Return an array of [key, value] pairs from the map
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(خريطة_عناصر())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_MERGE
+  canonical: خريطة_دمج
+  namespace: Maps
+  description_ar: دمج خريطتين في خريطة واحدة (القيم المتضاربة للثانية تُحدَّد)
+  description_en: Merge two maps into one (second map wins on key conflict)
+  since: 0.1.0
+  stability: stable
+  params:
+  - خريطة1
+  - خريطة2
+  examples:
+  - code: 'اطبع_سطر(خريطة_دمج({"أ": 1}، {"ب": 2}))'
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAP_FN
+  canonical: تخطيط
+  namespace: Maps
+  description_ar: تطبيق دالة على كل قيمة في الخريطة وإرجاع خريطة جديدة
+  description_en: Apply a function to each map value and return a new map
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تخطيط([1، 2، 3]، لامدا س -> س * 2))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FILTER
+  canonical: تصفية
+  namespace: Maps
+  description_ar: تصفية عناصر مصفوفة بشرط وإرجاع المطابقة فقط
+  description_en: Filter array elements by condition, return only matching ones
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تصفية([1، 2، 3]، لامدا س -> س > 1))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REDUCE
+  canonical: اختزال
+  namespace: Maps
+  description_ar: اختزال مصفوفة إلى قيمة واحدة بدالة تراكم
+  description_en: Reduce an array to a single value using an accumulator function
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(اختزال([1، 2، 3]، لامدا أ، ب -> أ + ب، 0))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FOR_EACH
+  canonical: لكل_عنصر
+  namespace: Maps
+  description_ar: تطبيق دالة على كل عنصر في مصفوفة (للتأثيرات الجانبية)
+  description_en: Apply a function to each array element (for side effects)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(لكل_عنصر())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FLAT_MAP
+  canonical: تخطيط_مسطح
+  namespace: Maps
+  description_ar: تطبيق دالة على كل عنصر ثم تسطيح النتيجة بمستوى واحد
+  description_en: Apply a function to each element then flatten result by one level
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تخطيط_مسطح())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ZIP
+  canonical: ضم
+  namespace: Maps
+  description_ar: دمج مصفوفتين في مصفوفة من الأزواج
+  description_en: Combine two arrays into an array of pairs
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ضم(["أ"، "ب"، "ج"]، "،"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ANY_ELEMENT
+  canonical: أي_عنصر
+  namespace: Maps
+  description_ar: التحقق من أن عنصراً واحداً على الأقل يحقق الشرط
+  description_en: Check if at least one array element satisfies the condition
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(أي_عنصر())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ALL_ELEMENTS
+  canonical: كل_العناصر
+  namespace: Maps
+  description_ar: التحقق من أن جميع عناصر المصفوفة تحقق الشرط
+  description_en: Check if all array elements satisfy the condition
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(كل_العناصر())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: UNIQUE
+  canonical: فريد
+  namespace: Maps
+  description_ar: إزالة العناصر المكررة من مصفوفة
+  description_en: Remove duplicate elements from an array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(فريد([1، 2، 1، 3]))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: UNION
+  canonical: اتحاد
+  namespace: Maps
+  description_ar: دمج مصفوفتين مع حذف العناصر المكررة (اتحاد مجموعتين)
+  description_en: Merge two arrays removing duplicates (set union)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(اتحاد())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: INTERSECT
+  canonical: تقاطع
+  namespace: Maps
+  description_ar: إرجاع العناصر المشتركة بين مصفوفتين (تقاطع مجموعتين)
+  description_en: Return elements present in both arrays (set intersection)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تقاطع())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: DIFFERENCE
+  canonical: فرق
+  namespace: Maps
+  description_ar: إرجاع العناصر الموجودة في المصفوفة الأولى فقط
+  description_en: Return elements present only in the first array (set difference)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(فرق())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: FLATTEN
+  canonical: تسطيح
+  namespace: Maps
+  description_ar: تسطيح مصفوفة متداخلة إلى مصفوفة أحادية البُعد
+  description_en: Flatten a nested array to a one-dimensional array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تسطيح())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: CHUNK
+  canonical: تقطيع
+  namespace: Maps
+  description_ar: تقسيم مصفوفة إلى أجزاء (chunks) بحجم محدد
+  description_en: Split an array into chunks of a specified size
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(تقطيع())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: TAKE
+  canonical: خذ
+  namespace: Maps
+  description_ar: أخذ أول ن عناصر من مصفوفة
+  description_en: Take the first n elements from an array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(خذ([1، 2، 3، 4]، 2))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: DROP
+  canonical: اترك
+  namespace: Maps
+  description_ar: تخطي أول ن عناصر وإرجاع الباقية
+  description_en: Skip the first n elements and return the rest
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(اترك([1، 2، 3، 4]، 2))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ENUMERATE
+  canonical: رقم
+  namespace: Maps
+  description_ar: تعداد عناصر مصفوفة مع إضافة الفهرس لكل عنصر
+  description_en: Enumerate array elements adding index to each element
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(رقم("123"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: AVERAGE
+  canonical: متوسط
+  namespace: Maps
+  description_ar: حساب متوسط عناصر مصفوفة أرقام
+  description_en: Calculate the average of a numeric array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(متوسط([1، 2، 3، 4]))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MIN_ARRAY
+  canonical: أصغر_المصفوفة
+  namespace: Maps
+  description_ar: إرجاع أصغر عنصر في مصفوفة
+  description_en: Return the smallest element in an array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(أصغر_المصفوفة([3، 1، 2]))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MAX_ARRAY
+  canonical: أكبر_المصفوفة
+  namespace: Maps
+  description_ar: إرجاع أكبر عنصر في مصفوفة
+  description_en: Return the largest element in an array
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(أكبر_المصفوفة([3، 1، 2]))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: SORT_ARRAY
+  canonical: ترتيب_مصفوفة
+  namespace: Maps
+  description_ar: ترتيب مصفوفة بشكل تصاعدي أو وفق دالة مقارنة
+  description_en: Sort an array in ascending order or by a comparator function
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(ترتيب_مصفوفة([3، 1، 2]))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: REVERSE_ARRAY
+  canonical: عكس_مصفوفة
+  namespace: Maps
+  description_ar: عكس ترتيب عناصر مصفوفة
+  description_en: Reverse the order of array elements
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(عكس_مصفوفة([1، 2، 3]))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: JOIN
+  canonical: ربط
+  namespace: Maps
+  description_ar: دمج عناصر مصفوفة في نص واحد بفاصل محدد
+  description_en: Join array elements into a single string with a separator
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - فاصل
+  examples:
+  - code: اطبع_سطر(ربط(["أ"، "ب"]، "-"))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MATRIX_NEW
+  canonical: مصفوفة_جديدة
+  namespace: Maps
+  description_ar: إنشاء مصفوفة ثنائية الأبعاد (matrix) بقيمة ابتدائية
+  description_en: Create a 2D matrix with an initial value
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(مصفوفة_جديدة())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: MATRIX_IDENTITY
+  canonical: مصفوفة_وحدة
+  namespace: Maps
+  description_ar: إنشاء مصفوفة هوية n×n
+  description_en: Create an n×n identity matrix
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(مصفوفة_وحدة())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: ARANGE
+  canonical: نطاق_مصفوفة
+  namespace: Maps
+  description_ar: توليد مصفوفة أرقام في نطاق بخطوة محددة
+  description_en: Generate an array of numbers in a range with a step
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(نطاق_مصفوفة(1، 5))
+    runnable: true
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: SHAPE
+  canonical: أبعاد_مصفوفة
+  namespace: Maps
+  description_ar: إرجاع أبعاد مصفوفة ثنائية الأبعاد كـ [صفوف، أعمدة]
+  description_en: Return the dimensions of a 2D matrix as [rows, cols]
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(أبعاد_مصفوفة())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: TRANSPOSE
+  canonical: قلب_محوري
+  namespace: Maps
+  description_ar: قلب صفوف وأعمدة مصفوفة ثنائية الأبعاد (transpose)
+  description_en: Swap rows and columns of a 2D matrix (transpose)
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: اطبع_سطر(قلب_محوري())
+    runnable: false
+  source_file: stdlib_maps.yaml
+  module: maps
+- cpp_id: SQRT
+  canonical: جذر
+  namespace: Math
+  description_ar: إرجاع الجذر التربيعي لعدد
+  description_en: Return the square root of a number
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(جذر(16))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: POWER
+  canonical: أس
+  namespace: Math
+  description_ar: رفع الأساس لأس (قوة)
+  description_en: Raise base to an exponent (power)
+  since: 0.1.0
+  stability: stable
+  params:
+  - أساس
+  - أس
+  examples:
+  - code: اطبع_سطر(أس(2، 10))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: ABS
+  canonical: مطلق
+  namespace: Math
+  description_ar: إرجاع القيمة المطلقة (بدون إشارة) للعدد
+  description_en: Return the absolute (unsigned) value of a number
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(مطلق(-5))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: ROUND
+  canonical: تقريب
+  namespace: Math
+  description_ar: تقريب العدد العشري لأقرب عدد صحيح
+  description_en: Round a float to the nearest integer
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(تقريب(3.7))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: TRUNC
+  canonical: بتر
+  namespace: Math
+  description_ar: حذف الجزء العشري والإبقاء فقط على الجزء الصحيح من العدد
+  description_en: Remove the decimal part and keep only the integer portion of a number
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(بتر(3.9))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: FLOOR
+  canonical: أرضية
+  namespace: Math
+  description_ar: تقريب العدد للأسفل (أكبر عدد صحيح ≤ القيمة)
+  description_en: Round down to the largest integer ≤ value
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(أرضية(3.9))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: CEIL
+  canonical: سقف
+  namespace: Math
+  description_ar: تقريب العدد للأعلى (أصغر عدد صحيح ≥ القيمة)
+  description_en: Round up to the smallest integer ≥ value
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(سقف(3.1))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: SQUARE
+  canonical: مربع
+  namespace: Math
+  description_ar: إرجاع مربع العدد (n²)
+  description_en: Return the square of a number (n²)
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(مربع(5))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: MAX
+  canonical: أكبر
+  namespace: Math
+  description_ar: إرجاع الأكبر بين قيمتين أو مصفوفة
+  description_en: Return the maximum of two values or an array
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: اطبع_سطر(أكبر(10، 20))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: MIN
+  canonical: أصغر
+  namespace: Math
+  description_ar: إرجاع الأصغر بين قيمتين أو مصفوفة
+  description_en: Return the minimum of two values or an array
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: اطبع_سطر(أصغر(10، 20))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: SUM
+  canonical: جمع
+  namespace: Math
+  description_ar: إرجاع مجموع عناصر مصفوفة أرقام
+  description_en: Return the sum of a numeric array
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  examples:
+  - code: اطبع_سطر(جمع([1، 2، 3، 4]))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: SIN
+  canonical: جيب
+  namespace: Math
+  description_ar: إرجاع جيب الزاوية (بالراديان)
+  description_en: Return the sine of an angle (in radians)
+  since: 0.1.0
+  stability: stable
+  params:
+  - زاوية
+  examples:
+  - code: اطبع_سطر(جيب(0))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: COS
+  canonical: جتا
+  namespace: Math
+  description_ar: إرجاع جيب تمام الزاوية (بالراديان)
+  description_en: Return the cosine of an angle (in radians)
+  since: 0.1.0
+  stability: stable
+  params:
+  - زاوية
+  examples:
+  - code: اطبع_سطر(جتا(0))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: TAN
+  canonical: ظل
+  namespace: Math
+  description_ar: إرجاع ظل الزاوية (بالراديان)
+  description_en: Return the tangent of an angle (in radians)
+  since: 0.1.0
+  stability: stable
+  params:
+  - زاوية
+  examples:
+  - code: اطبع_سطر(ظل(0))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: ASIN
+  canonical: معكوس_جيب
+  namespace: Math
+  description_ar: إرجاع القوس الذي جيبه يساوي المدخل (arcsin)
+  description_en: Return the angle whose sine equals input (arcsin)
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(معكوس_جيب(0))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: ACOS
+  canonical: معكوس_جتا
+  namespace: Math
+  description_ar: إرجاع القوس الذي جيب تمامه يساوي المدخل (arccos)
+  description_en: Return the angle whose cosine equals input (arccos)
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(معكوس_جتا(1))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: ATAN
+  canonical: معكوس_ظل
+  namespace: Math
+  description_ar: إرجاع القوس الذي ظله يساوي المدخل (arctan)
+  description_en: Return the angle whose tangent equals input (arctan)
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(معكوس_ظل(0))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: ATAN2
+  canonical: معكوس_ظل2
+  namespace: Math
+  description_ar: إرجاع الزاوية من نقطة (س، ص) بالراديان
+  description_en: Return angle of point (x, y) in radians
+  since: 0.1.0
+  stability: stable
+  params:
+  - ص
+  - س
+  examples:
+  - code: اطبع_سطر(معكوس_ظل2(1، 1))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: LOG
+  canonical: لوغ
+  namespace: Math
+  description_ar: إرجاع اللوغاريتم الطبيعي (ln) للعدد
+  description_en: Return the natural logarithm (ln) of a number
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(لوغ(2.718))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: LOG2
+  canonical: لوغ2
+  namespace: Math
+  description_ar: إرجاع اللوغاريتم الثنائي (log₂) للعدد
+  description_en: Return the binary logarithm (log₂) of a number
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(لوغ2(8))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: LOG10
+  canonical: لوغ10
+  namespace: Math
+  description_ar: إرجاع اللوغاريتم العشري (log₁₀) للعدد
+  description_en: Return the base-10 logarithm (log₁₀) of a number
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(لوغ10(100))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: EXP
+  canonical: أسي
+  namespace: Math
+  description_ar: إرجاع e مرفوعة لأس المدخل (eˣ)
+  description_en: Return e raised to the power of input (eˣ)
+  since: 0.1.0
+  stability: stable
+  params:
+  - أس
+  examples:
+  - code: اطبع_سطر(أسي(1))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: PI
+  canonical: ط
+  namespace: Math
+  description_ar: ثابت باي π ≈ 3.14159 (الدائرة/القطر)
+  description_en: Pi constant π ≈ 3.14159 (circumference/diameter)
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: اطبع_سطر(ط())
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: PI_ALT
+  canonical: باي
+  namespace: Math
+  description_ar: اسم بديل لثابت باي π
+  description_en: Alternative name for the Pi constant π
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: اطبع_سطر(باي())
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: E
+  canonical: هـ
+  namespace: Math
+  description_ar: ثابت أويلر e ≈ 2.71828 (أساس اللوغاريتم الطبيعي)
+  description_en: Euler's number e ≈ 2.71828 (natural log base)
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: اطبع_سطر(هـ())
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: RANDOM
+  canonical: عشوائي
+  namespace: Math
+  description_ar: إرجاع عدد عشري عشوائي في [0.0، 1.0)
+  description_en: Return a random float in [0.0, 1.0)
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: اطبع_سطر(عشوائي())
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: RANDOM_INT
+  canonical: عشوائي_صحيح
+  namespace: Math
+  description_ar: إرجاع عدد صحيح عشوائي في النطاق [أ، ب]
+  description_en: Return a random integer in range [a, b]
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: اطبع_سطر(عشوائي_صحيح(1، 100))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: RANDOM_RANGE
+  canonical: عشوائي_نطاق
+  namespace: Math
+  description_ar: إرجاع عدد عشري عشوائي في النطاق [أ، ب)
+  description_en: Return a random float in range [a, b)
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: اطبع_سطر(عشوائي_نطاق(1، 10))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: RANDOM_FLOAT
+  canonical: عشوائي_عشري
+  namespace: Math
+  description_ar: إرجاع عدد عشري عشوائي بدقة عالية
+  description_en: Return a high-precision random float
+  since: 0.1.0
+  stability: stable
+  params: []
+  examples:
+  - code: اطبع_سطر(عشوائي_عشري())
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: CLAMP
+  canonical: حصر
+  namespace: Math
+  description_ar: تقييد القيمة ضمن نطاق [أدنى، أعلى]
+  description_en: Clamp value within [min, max] range
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  - أدنى
+  - أعلى
+  examples:
+  - code: اطبع_سطر(حصر(15، 1، 10))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: TRUNCATE
+  canonical: اقتطاع
+  namespace: Math
+  description_ar: حذف الجزء العشري (تقريب نحو الصفر)
+  description_en: Truncate fractional part (round toward zero)
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(اقتطاع(3.7))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: FMOD
+  canonical: باقي
+  namespace: Math
+  description_ar: إرجاع باقي قسمة عددين عشريين (modulo)
+  description_en: Return the remainder of dividing two floats (modulo)
+  since: 0.1.0
+  stability: stable
+  params:
+  - أ
+  - ب
+  examples:
+  - code: اطبع_سطر(باقي(10، 3))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: SIGN
+  canonical: إشارة
+  namespace: Math
+  description_ar: 'إرجاع إشارة العدد: 1 للموجب، -1 للسالب، 0 للصفر'
+  description_en: 'Return sign of number: 1 positive, -1 negative, 0 zero'
+  since: 0.1.0
+  stability: stable
+  params:
+  - عدد
+  examples:
+  - code: اطبع_سطر(إشارة(-5))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: LERP
+  canonical: استيفاء_خطي
+  namespace: Math
+  description_ar: الاستيفاء الخطي بين قيمتين بمعامل t ∈ [0،1]
+  description_en: Linear interpolation between two values at factor t ∈ [0,1]
+  since: 0.1.0
+  stability: stable
+  params:
+  - بداية
+  - نهاية
+  - ت
+  examples:
+  - code: اطبع_سطر(استيفاء_خطي(0، 10، 0.5))
+    runnable: true
+  source_file: stdlib_math.yaml
+  module: math
+- cpp_id: STR_LENGTH
+  canonical: طول_نص
+  namespace: Strings
+  description_ar: إرجاع عدد الحروف في النص المُعطى
+  description_en: Return the number of characters in a string
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: اطبع_سطر(طول_نص("مرحبا"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: CHAR_CODE
+  canonical: رمز_حرف
+  namespace: Strings
+  description_ar: إرجاع الرمز الرقمي (Unicode) لحرف واحد
+  description_en: Return the Unicode code point of a single character
+  since: 0.1.0
+  stability: stable
+  params:
+  - حرف
+  examples:
+  - code: اطبع_سطر(رمز_حرف("ا"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: FIND
+  canonical: بحث
+  namespace: Strings
+  description_ar: البحث عن نص فرعي وإرجاع موضعه (-1 إن لم يُوجد)
+  description_en: Search for a substring and return its position (-1 if not found)
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - فرعي
+  examples:
+  - code: اطبع_سطر(بحث("مرحبا بالعالم"، "عالم"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: REPLACE
+  canonical: استبدل
+  namespace: Strings
+  description_ar: استبدال كل تكرارات نص فرعي بنص آخر
+  description_en: Replace all occurrences of a substring with another
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - قديم
+  - جديد
+  examples:
+  - code: اطبع_سطر(استبدل("مرحبا بالعالم"، "عالم"، "ص"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: SUBSTRING
+  canonical: استخراج
+  namespace: Strings
+  description_ar: استخراج جزء من النص بين موضعَي بداية ونهاية
+  description_en: Extract a slice of the string between start and end positions
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - بداية
+  - نهاية
+  examples:
+  - code: اطبع_سطر(استخراج("مرحبا"، 0، 3))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: TRIM
+  canonical: قص_أطراف
+  namespace: Strings
+  description_ar: حذف المسافات والفراغات من طرفَي النص
+  description_en: Remove whitespace from both ends of the string
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: اطبع_سطر(قص_أطراف("  مرحبا  "))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: TO_UPPER
+  canonical: تحويل_كبير
+  namespace: Strings
+  description_ar: تحويل جميع حروف النص إلى أحرف كبيرة
+  description_en: Convert all string characters to uppercase
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: اطبع_سطر(تحويل_كبير("hello"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: TO_LOWER
+  canonical: تحويل_صغير
+  namespace: Strings
+  description_ar: تحويل جميع حروف النص إلى أحرف صغيرة
+  description_en: Convert all string characters to lowercase
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: اطبع_سطر(تحويل_صغير("HELLO"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: SPLIT
+  canonical: تقسيم
+  namespace: Strings
+  description_ar: تقسيم النص إلى مصفوفة من الأجزاء باستخدام فاصل محدد
+  description_en: Split string into an array of parts using a separator
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - فاصل
+  examples:
+  - code: اطبع_سطر(تقسيم("أ،ب،ج"، "،"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: JOIN
+  canonical: دمج
+  namespace: Strings
+  description_ar: دمج مصفوفة نصوص في نص واحد بفاصل محدد
+  description_en: Join an array of strings into one string with a separator
+  since: 0.1.0
+  stability: stable
+  params:
+  - مصفوفة
+  - فاصل
+  examples:
+  - code: اطبع_سطر(دمج(["أ"، "ب"، "ج"]، "-"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: STARTS_WITH
+  canonical: يبدأ_ب
+  namespace: Strings
+  description_ar: التحقق من أن النص يبدأ بنص آخر (مطابقة البداية)
+  description_en: Check if string starts with the given prefix
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - بادئة
+  examples:
+  - code: اطبع_سطر(يبدأ_ب("مرحبا"، "مر"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: ENDS_WITH
+  canonical: ينتهي_ب
+  namespace: Strings
+  description_ar: التحقق من أن النص ينتهي بنص آخر (مطابقة النهاية)
+  description_en: Check if string ends with the given suffix
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - لاحقة
+  examples:
+  - code: اطبع_سطر(ينتهي_ب("مرحبا"، "حبا"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: CONTAINS
+  canonical: يحتوي_على
+  namespace: Strings
+  description_ar: التحقق من وجود نص فرعي داخل النص
+  description_en: Check if string contains a given substring
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - فرعي
+  examples:
+  - code: اطبع_سطر(يحتوي_على("مرحبا"، "رح"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: APPEND
+  canonical: أضف
+  namespace: Strings
+  description_ar: إضافة نص إلى نهاية نص آخر
+  description_en: Append text to the end of a string
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - إضافة
+  examples:
+  - code: اطبع_سطر(أضف("مر"، "حبا"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: REMOVE_ELEM
+  canonical: أزل
+  namespace: Strings
+  description_ar: إزالة كل تكرارات نص فرعي من النص
+  description_en: Remove all occurrences of a substring from the string
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  - فرعي
+  examples:
+  - code: اطبع_سطر(أزل("مرحبا"، "حبا"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: CONVERT_TO_INT
+  canonical: حول_رقم
+  namespace: Strings
+  description_ar: تحويل نص رقمي إلى عدد صحيح
+  description_en: Convert a numeric string to an integer
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: اطبع_سطر(حول_رقم("42"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: TO_ARRAY
+  canonical: لمصفوفة
+  namespace: Strings
+  description_ar: تحويل النص إلى مصفوفة من الحروف الفردية
+  description_en: Convert string to an array of individual characters
+  since: 0.1.0
+  stability: stable
+  params:
+  - نص
+  examples:
+  - code: اطبع_سطر(لمصفوفة("ابج"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: IS_INT
+  canonical: هو_رقم_صحيح
+  namespace: Strings
+  description_ar: التحقق مما إذا كان النص يمثل رقماً صحيحاً
+  description_en: Check if the string represents a valid integer
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(هو_رقم_صحيح("42"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: IS_FLOAT
+  canonical: هو_رقم_عشري
+  namespace: Strings
+  description_ar: التحقق مما إذا كان النص يمثل رقماً عشرياً
+  description_en: Check if the string represents a valid float
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(هو_رقم_عشري("3.14"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: IS_STRING
+  canonical: هو_نص
+  namespace: Strings
+  description_ar: التحقق مما إذا كانت القيمة نصاً (نوع نص)
+  description_en: Check if the value is of string type
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(هو_نص("مرحبا"))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings
+- cpp_id: IS_ARRAY
+  canonical: هو_مصفوفة
+  namespace: Strings
+  description_ar: التحقق مما إذا كانت القيمة مصفوفة
+  description_en: Check if the value is an array
+  since: 0.1.0
+  stability: stable
+  params:
+  - قيمة
+  examples:
+  - code: اطبع_سطر(هو_مصفوفة([1، 2]))
+    runnable: true
+  source_file: stdlib_strings.yaml
+  module: strings

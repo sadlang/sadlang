@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_builtin_requires_arg
+kind: error
+code: E3037
+name: الدالة المدمجة تتطلب وسيطاً
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

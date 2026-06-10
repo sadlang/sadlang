@@ -1,0 +1,8 @@
+# _version.yaml — إصدار بيانات language-truth/
+# تُحدَّث تلقائياً عبر scripts/codegen/gen_all.py
+
+version: "5.0.0"
+date: "2026-06-05"
+schema_version: "draft-2020-12"
+breaking_changes: []
+migration_notes: "ترقية من data/language/ → language-truth/ (V5 Codegen Integration)"

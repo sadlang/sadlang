@@ -1,0 +1,28 @@
+schema_version: 1
+id: builtin.demo
+kind: builtin
+name: تجريبي
+category: meta
+since: "1.0.0"
+signature:
+  params:
+    - name: قيمة
+      type: any
+      required: true
+  returns: any
+  is_variadic: false
+tooling:
+  lsp:
+    completion: true
+    snippet: "تجريبي(${1:قيمة})"
+    documentation_hover: true
+  formatter:
+    breaks_line: false
+  repl:
+    suggest_after:
+      - "متغير "
+      - "ثابت "
+version_info:
+  added: "1.0.0"
+owners:
+  - "@sadlang-core"

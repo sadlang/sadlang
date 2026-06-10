@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_lambda_return_invalid
+kind: error
+code: E3032
+name: إرجاع لامدا غير صالح
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

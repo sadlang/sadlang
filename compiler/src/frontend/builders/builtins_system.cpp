@@ -30,6 +30,9 @@
 #include <filesystem>
 #include <optional>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -54,7 +57,7 @@ namespace Sad
                 if (isUserDefinedFunction)
                     return std::nullopt;
 
-                if (funcName == "منفذ_اكتب" || funcName == "port_write" || funcName == "outb")
+                if (funcName == Bn::KernelCpu::CPU_9)
                 {
                     if (argResults.size() < 2)
                     {
@@ -73,7 +76,7 @@ namespace Sad
                 }
 
                 // (AR) منفذ_اكتب16 / منفذ_اكتب32
-                if (funcName == "منفذ_اكتب16" || funcName == "port_write16" || funcName == "outw")
+                if (funcName == Bn::KernelCpu::CPU_11)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -84,7 +87,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "منفذ_اكتب32" || funcName == "port_write32" || funcName == "outl")
+                if (funcName == Bn::KernelCpu::CPU_13)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -100,7 +103,7 @@ namespace Sad
                 // (AR) منفذ_اقرأ(منفذ) — قراءة بايت من منفذ I/O
                 // (EN) port_read(port) — read byte from I/O port (inb)
                 // ──────────────────────────────────────────────
-                if (funcName == "منفذ_اقرأ" || funcName == "port_read" || funcName == "inb")
+                if (funcName == Bn::KernelCpu::CPU_8)
                 {
                     if (argResults.empty())
                     {
@@ -121,7 +124,7 @@ namespace Sad
                 }
 
                 // (AR) منفذ_اقرأ16 / منفذ_اقرأ32
-                if (funcName == "منفذ_اقرأ16" || funcName == "port_read16" || funcName == "inw")
+                if (funcName == Bn::KernelCpu::CPU_10)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -133,7 +136,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
-                if (funcName == "منفذ_اقرأ32" || funcName == "port_read32" || funcName == "inl")
+                if (funcName == Bn::KernelCpu::CPU_12)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -151,7 +154,7 @@ namespace Sad
                 // (EN) mem_write(address, value) — write byte to memory address (poke)
                 // (AR) يستخدم في: الكتابة على ذاكرة VGA (0xB8000)، جداول المقاطعات
                 // ──────────────────────────────────────────────
-                if (funcName == "ذاكرة_اكتب" || funcName == "mem_write" || funcName == "poke")
+                if (funcName == Bn::KernelCpu::CPU_25)
                 {
                     if (argResults.size() < 2)
                     {
@@ -170,7 +173,7 @@ namespace Sad
                 }
 
                 // (AR) ذاكرة_اكتب16 / ذاكرة_اكتب32 / ذاكرة_اكتب64
-                if (funcName == "ذاكرة_اكتب16" || funcName == "mem_write16" || funcName == "poke16")
+                if (funcName == Bn::CompilerMem::MEM_0)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -181,7 +184,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ذاكرة_اكتب32" || funcName == "mem_write32" || funcName == "poke32")
+                if (funcName == Bn::CompilerMem::MEM_1)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -192,7 +195,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ذاكرة_اكتب64" || funcName == "mem_write64" || funcName == "poke64")
+                if (funcName == Bn::CompilerMem::MEM_2)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -208,7 +211,7 @@ namespace Sad
                 // (AR) ذاكرة_اقرأ(عنوان) — قراءة بايت من عنوان ذاكرة محدد
                 // (EN) mem_read(address) — read byte from memory address (peek)
                 // ──────────────────────────────────────────────
-                if (funcName == "ذاكرة_اقرأ" || funcName == "mem_read" || funcName == "peek")
+                if (funcName == Bn::KernelCpu::CPU_24)
                 {
                     if (argResults.empty())
                     {
@@ -229,7 +232,7 @@ namespace Sad
                 }
 
                 // (AR) ذاكرة_اقرأ16 / ذاكرة_اقرأ32 / ذاكرة_اقرأ64
-                if (funcName == "ذاكرة_اقرأ16" || funcName == "mem_read16" || funcName == "peek16")
+                if (funcName == Bn::CompilerMem::MEM_3)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -241,7 +244,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
-                if (funcName == "ذاكرة_اقرأ32" || funcName == "mem_read32" || funcName == "peek32")
+                if (funcName == Bn::CompilerMem::MEM_4)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -253,7 +256,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
-                if (funcName == "ذاكرة_اقرأ64" || funcName == "mem_read64" || funcName == "peek64")
+                if (funcName == Bn::CompilerMem::MEM_5)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -271,7 +274,7 @@ namespace Sad
                 // (EN) interrupt(number) — trigger software interrupt (int N)
                 // (AR) مثال: مقاطعة(0x80) لاستدعاء نظام Linux
                 // ──────────────────────────────────────────────
-                if (funcName == "مقاطعة" || funcName == "interrupt" || funcName == "int_call")
+                if (funcName == Bn::Kernel::INTERRUPT)
                 {
                     if (argResults.empty())
                     {
@@ -293,7 +296,7 @@ namespace Sad
                 // (EN) halt() — halt CPU until next interrupt (hlt instruction)
                 // (AR) يستخدم في: حلقة الخمول الرئيسية للنواة
                 // ──────────────────────────────────────────────
-                if (funcName == "توقف" || funcName == "halt" || funcName == "hlt")
+                if (funcName == Bn::Kernel::HALT)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_HALT);
                     if (b_.currentBlock_)
@@ -309,7 +312,7 @@ namespace Sad
                 // (EN) disable_interrupts() — disable all interrupts (cli instruction)
                 // (AR) ضروري عند تعديل جداول المقاطعات أو البيانات الحرجة
                 // ──────────────────────────────────────────────
-                if (funcName == "تعطيل_مقاطعات" || funcName == "disable_interrupts" || funcName == "cli")
+                if (funcName == Bn::KernelCpu::CPU_3)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_CLI);
                     if (b_.currentBlock_)
@@ -324,7 +327,7 @@ namespace Sad
                 // (AR) تفعيل_مقاطعات() — تفعيل جميع المقاطعات (sti)
                 // (EN) enable_interrupts() — enable all interrupts (sti instruction)
                 // ──────────────────────────────────────────────
-                if (funcName == "تفعيل_مقاطعات" || funcName == "enable_interrupts" || funcName == "sti")
+                if (funcName == Bn::KernelCpu::CPU_4)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_STI);
                     if (b_.currentBlock_)
@@ -340,7 +343,7 @@ namespace Sad
                 // (EN) vga_write(row, col, char, color) — write char to VGA text memory
                 // (AR) عنوان VGA النصي: 0xB8000 + (صف * 80 + عمود) * 2
                 // ──────────────────────────────────────────────
-                if (funcName == "شاشة_اكتب" || funcName == "vga_write")
+                if (funcName == Bn::Kernel::VGA_WRITE)
                 {
                     if (argResults.size() < 4)
                     {
@@ -362,7 +365,7 @@ namespace Sad
                 // (AR) شاشة_امسح(لون) — مسح شاشة VGA بلون محدد
                 // (EN) vga_clear(color) — clear VGA screen with specified color
                 // ──────────────────────────────────────────────
-                if (funcName == "شاشة_امسح" || funcName == "vga_clear")
+                if (funcName == Bn::Kernel::VGA_CLEAR)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_VGA_CLEAR);
                     if (!argOperands.empty())
@@ -379,7 +382,7 @@ namespace Sad
                 // (AR) انسخ_ذاكرة(وجهة، مصدر، حجم) — نسخ كتلة ذاكرة
                 // (EN) mem_copy(dest, src, size) — copy memory block
                 // ──────────────────────────────────────────────
-                if (funcName == "انسخ_ذاكرة" || funcName == "mem_copy" || funcName == "memcpy")
+                if (funcName == Bn::Kernel::MEMCPY)
                 {
                     if (argResults.size() < 3)
                     {
@@ -401,7 +404,7 @@ namespace Sad
                 // (AR) املأ_ذاكرة(وجهة، قيمة، حجم) — ملء كتلة ذاكرة بقيمة محددة
                 // (EN) mem_set(dest, value, size) — fill memory block with value
                 // ──────────────────────────────────────────────
-                if (funcName == "املأ_ذاكرة" || funcName == "mem_set" || funcName == "memset")
+                if (funcName == Bn::Kernel::MEMSET)
                 {
                     if (argResults.size() < 3)
                     {
@@ -423,7 +426,7 @@ namespace Sad
                 // (AR) ذاكرة_املأ32(عنوان، قيمة، عدد) — ملء بكلمات 32-بت (REP STOSD)
                 // (EN) mem_fill32(dest, value, count) — fill 32-bit words using REP STOSD
                 // ──────────────────────────────────────────────
-                if (funcName == "ذاكرة_املأ32" || funcName == "mem_fill32" || funcName == "memset32")
+                if (funcName == Bn::CompilerMem::MEM_6)
                 {
                     if (argResults.size() < 3)
                     {
@@ -442,7 +445,7 @@ namespace Sad
                 // (AR) ذاكرة_انسخ32(وجهة، مصدر، عدد) — نسخ كلمات 32-بت (REP MOVSD)
                 // (EN) mem_copy32(dest, src, count) — copy 32-bit words using REP MOVSD
                 // ──────────────────────────────────────────────
-                if (funcName == "ذاكرة_انسخ32" || funcName == "mem_copy32" || funcName == "memcpy32")
+                if (funcName == Bn::CompilerMem::MEM_7)
                 {
                     if (argResults.size() < 3)
                     {

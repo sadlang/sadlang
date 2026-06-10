@@ -1,3 +1,58 @@
+## ⚠️ نظام الحوكمة الإلزامي — اقرأ قبل أي عمل في `_bmad-output/`
+
+**هذه أعلى أولوية في المشروع. تجاوزها = خرق مباشر للسياسة.**
+
+قبل أي تعديل/إضافة/قراءة في مجلد `_bmad-output/` (سواء سياسات، أنظمة، ستوريات، حالة، قرارات)، يجب على الوكيل:
+
+### الملفات الإلزامية للقراءة (بالترتيب):
+
+1. **السياسة الأم**: [`_bmad-output/governance/1-policy/planning/PRD.md`](_bmad-output/governance/1-policy/planning/PRD.md)
+2. **إطار إدارة المشروع (PMF)**: [`_bmad-output/governance/1-policy/planning/PROJECT_MANAGEMENT_FRAMEWORK.md`](_bmad-output/governance/1-policy/planning/PROJECT_MANAGEMENT_FRAMEWORK.md)
+3. **آخر تقرير تحقق (Source of Truth للحالة)**: [`_bmad-output/governance/1-policy/status/`](_bmad-output/governance/1-policy/status/) — اقرأ آخر `VERIFICATION_REPORT_<date>.md`
+4. **السبرنت الحالي**: [`_bmad-output/governance/1-policy/sprints/SPRINT_CURRENT.md`](_bmad-output/governance/1-policy/sprints/SPRINT_CURRENT.md)
+5. **عقد الكود**: [`_bmad-output/governance/3-code-contract/planning/prd.md`](_bmad-output/governance/3-code-contract/planning/prd.md)
+
+### البنية الموحَّدة الستة (لكل نظام تحت `_bmad-output/governance/*` و `_bmad-output/systems/*`):
+
+```
+<area>/
+├── planning/    ← PRD, ARCHITECTURE, ROADMAP, مواصفات JSON/YAML، أُطر
+├── epics/       ← BACKLOG.md + EPIC-XXX-*.md
+├── stories/     ← STORY-*.md (قصص فردية قابلة للتطوير في sprint)
+├── sprints/     ← SPRINT_CURRENT.md + SPRINT_<date>_RETRO.md
+├── status/      ← implementation_status.md + VERIFICATION_REPORT_<date>.md
+├── decisions/   ← ADR-XXX-*.md
+└── README.md
+```
+
+**استثناء `living-documentation/` (مُحدَّث 2026-06-02 — ADR-DOCS-CANONICAL):**
+نظام `_bmad-output/systems/living-documentation/` يَتبع بنية خاصة (**GR-DOCS-CANONICAL**):
+- **3 وثائق قانونية في الجذر** هي المصدر المُعتمَد:
+  - [`STRATEGY.md`](../_bmad-output/systems/living-documentation/STRATEGY.md) — الاستراتيجية
+  - [`ARCHITECTURE.md`](../_bmad-output/systems/living-documentation/ARCHITECTURE.md) — المعمارية
+  - [`IMPLEMENTATION_PLAN.md`](../_bmad-output/systems/living-documentation/IMPLEMENTATION_PLAN.md) — خطة التَنفيذ
+- **`stories/`** يَحوي الستوريات النَشطة (`architecture/` + `implementation/`)
+- **`_archive/`** يَحوي المحتوى التاريخي + ADRs النَشطة في `_archive/2-architecture/decisions/` (NOT-A-SoT — للرجوع فقط)
+- البنية القديمة (الطبقات الثلاث `1-strategy/`, `2-architecture/`, `3-implementation/`) أُرشِفَت داخل `_archive/` — لا تَعتمد عليها كمصدر.
+
+### قواعد سلوكية صارمة:
+
+- **GR-01: لا ادعاءات نسب إنجاز بدون أدلة من الكود الفعلي.** إذا كتبت "النظام مكتمل 80%" يجب أن يكون لديك grep/list_dir/build evidence مرفقة. كل ملف `implementation_status.md` يجب أن يكون قابلاً للتدقيق.
+- **GR-02: لا تَحذف ADRs أبداً.** القرار المعماري الذي يُلغى يُعلَّم `status: Superseded` ويُربط بـ `supersededBy`.
+- **GR-03: السبرنت لا ينتهي بدون RETRO.** إن وجدت `SPRINT_<date>_RETRO.md` مفقوداً لسبرنت منتهٍ، اكتبه قبل أي عمل جديد.
+- **GR-04: كل ملف زائف (يدّعي إنجازاً غير موجود) يُعلَّم بـ `status: OUT-OF-DATE` فوراً** مع `outOfDateSince`, `outOfDateReason`, `supersededBy`. لا تَحذف المحتوى التاريخي.
+- **GR-05: قبل إنشاء نظام جديد**، انسخ `_bmad-output/systems/_TEMPLATE/` بنفس بنية الستة المجلدات.
+- **GR-06: التواريخ من الجهاز فقط** — `Get-Date -Format "yyyy-MM-dd"` قبل أي timestamp.
+
+### علامة الإقرار:
+
+في أول رد بعد بدء أي مهمة تَمَس `_bmad-output/`، يجب أن يَظهر في الجواب سطر صريح:
+> "قرأت السياسة في `_bmad-output/governance/1-policy/`؛ آخر تقرير تحقق: `VERIFICATION_REPORT_<YYYY-MM-DD>.md`؛ السبرنت الحالي: `<اسم>`."
+
+بدون هذا السطر = الوكيل لم يَلتزم بالحوكمة، يحق للمستخدم رفض كل المخرجات.
+
+---
+
 ## جميع قواعد لغة ص (ملخص)
 
 - جميع الكتل تنتهي بكلمة `نهاية` فقط (بدلاً من `{}`).
@@ -398,13 +453,13 @@
 | المكون | المجلد | الدور |
 |--------|--------|------|
 | النواة المشتركة | `shared/` | محلل معجمي ونحوي، AST، نظام الأنواع (`Value`)، أنواع الأخطاء — مشترك بين جميع الأنظمة |
-| المفسر | `interpreter_new/` | مفسر شجري؛ `InterpreterCore` يدير المتغيرات والدوال والنطاقات والتقييم والتنفيذ |
-| المترجم | `compiler_new/` | تحويل AST إلى SIR ثم LLVM IR ثم ملف تنفيذي؛ SIR يدعم 12 تعليمة ملكية |
+| المفسر | `interpreter/` | مفسر شجري؛ `InterpreterCore` يدير المتغيرات والدوال والنطاقات والتقييم والتنفيذ |
+| المترجم | `compiler/` | تحويل AST إلى SIR ثم LLVM IR ثم ملف تنفيذي؛ SIR يدعم 12 تعليمة ملكية |
 | الآلة الافتراضية | `vm/` | آلة بايت كود مرتبطة مباشرة بالمفسر |
 | المكتبة القياسية | `stdlib/` | مكتبات عربية: `core/`, `io/`, `math/`, `string/`, `network/`, `graphics/` |
 | الأدوات | `tools/` | `lsp/`, `formatter/`, `pkg/`, `repl/`, `compiler/` (واجهة sadc) |
 | وحدات البناء | `cmake/` | وحدات CMake: `llvm.cmake`, `platform.cmake`, ... |
-| وقت التشغيل | `runtime_new/` | ABI/FFI المستقل (freestanding) + ربط VM — يُفعَّل بـ `HAS_RUNTIME_NEW` |
+| وقت التشغيل | `runtime/` | ABI/FFI المستقل (freestanding) + ربط VM (المجلدات `_new` أُلغيت في يناير 2026) |
 
 ## مسار البيانات الرئيسي
 
@@ -413,7 +468,7 @@
          →  ParserCore (shared/parser)  →  AST (shared/ast)
          ↓                                  ↓
   InterpreterCore/VM                   SIRBuilder → SIROptimizer → LLVMCodeGen → ملف تنفيذي
-     (interpreter_new/vm)                   (compiler_new/src/sir)
+     (interpreter/, vm/)                  (compiler/src/{frontend,sir_optimizer,backend})
 ```
 
 ## البناء والتشغيل
@@ -522,7 +577,7 @@ ctest --test-dir build -R Comprehensive
 2. اربط الكلمة العربية بـ `KEYWORD_FOO` في `shared/lexer/src/lexer_keywords.cpp` (دالة `KeywordTable::initialize()`)
 3. أضف قاعدة في parser ضمن `shared/parser/`
 4. أضف عقدة AST في `shared/ast/include/` (ورث من `ASTNode`)
-5. أضف دعم الزائر في `interpreter_new/include/visitors/` و `compiler_new/src/`
+5. أضف دعم الزائر في `interpreter/include/visitors/` و `compiler/src/frontend/`
 
 ### كلمة سياقية (تعمل كمُعرّف عادي خارج سياقها):
 1. أضف `KEYWORD_FOO` إلى enum في `shared/lexer/include/token.h` (لكن **لا** تسجلها في `lexer_keywords.cpp`)
@@ -551,17 +606,28 @@ ctest --test-dir build -R Comprehensive
 - `shared/lexer/include/token.h` — جميع أنواع الرموز وPosition
 - `shared/lexer/src/lexer_keywords.cpp` — تسجيل الكلمات المحجوزة (40 فقط)
 - `shared/types/include/value.h` — نوع القيم في وقت التشغيل
-- `interpreter_new/include/core/interpreter_core.h` — نقطة دخول المفسر
-- `interpreter_new/include/channel.h` — القنوات، GoroutineManager، SadChannel
-- `compiler_new/src/sir/sir_opcodes.h` — تعليمات SIR (ملكية)
+- `interpreter/include/core/interpreter_core.h` — نقطة دخول المفسر
+- `interpreter/include/channel.h` — القنوات، GoroutineManager، SadChannel
+- `compiler/include/frontend/sir_types.h` — تعليمات وأنواع SIR (الملكية)
 - `docs/SAD_LANGUAGE_COMPLETE_REFERENCE.md` — مواصفات اللغة
 - `cmake/executables.cmake` — تجميع sad وsadc
+
+## مهارات تطوير اللغة (Agent Skills)
+
+| المهارة | متى تُستخدم |
+|---------|------------|
+| `.github/skills/sad-lang-dev/SKILL.md` | **تطوير لغة ص نفسها** — تعديل كود C++ للمفسر/المترجم، الأنظمة الداخلية (الأخطاء، التوثيق/YAML، الدوال المضمنة)، إضافة أنظمة جديدة، خط توليد الكود من `language-truth/` |
+| `.github/skills/sad-lang-coding/SKILL.md` | كتابة برامج **بـ**لغة ص (ملفات `.ص`) |
+| `.github/skills/sad-builtins/SKILL.md` | استخدام الدوال المضمنة ونظام الاستيراد من منظور المستخدم |
+| `.github/skills/sad-os-coding/SKILL.md` | بناء أنظمة تشغيل بلغة ص |
+
+> عند أي مهمة تَمَس بنية اللغة الداخلية (lexer/parser/AST/SIR/LLVM، أو `language-truth/`، أو نظام الأخطاء/الدوال المضمنة)، اقرأ `sad-lang-dev` أولاً — هو يلخّص المعمارية المدفوعة بالبيانات وقواعد التوليد.
 
 ## ملاحظات إضافية
 
 - مترجم sadc مكتمل ويدعم التحويل من AST إلى ملف تنفيذي أصلي بالكامل.
 - الآلة الافتراضية vm مربوطة مباشرة بالمفسر.
-- ميزات `tools/compiler_new/` قيد التطوير وسيتم دمجها في المترجم لاحقاً.
+- واجهة `sadc` تعيش في `tools/compiler/` (ملفات `compiler_driver_*.cpp`).
 - **أمان الخيوط**: كل goroutine يعمل بـ `StatementExecutor` مستقل (مع `ScopeManager`, `VariableManager`, `OwnershipManager` خاصين). يُشارك `FunctionManager` فقط (read-only). المتغيرات تُلتقط كـ snapshot عبر `captureVisibleVariables()`. القنوات آمنة للتزامن عبر mutex داخلي في `SadChannel`.
 
 لا يوجد أي نقص في التعليمات الحالية.

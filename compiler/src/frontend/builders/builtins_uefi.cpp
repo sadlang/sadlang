@@ -11,6 +11,9 @@
 #include "sir_builder.h"
 #include <iostream>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -30,7 +33,7 @@ namespace Sad
                 // =================================================================
 
                 // --- 16a. التهيئة والتحكم ---
-                if (funcName == "uefi_تهيئة" || funcName == "uefi_initialize")
+                if (funcName == Bn::CompilerUefi::UEFI_0)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_INIT);
@@ -41,7 +44,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_إنهاء_خدمات_إقلاع" || funcName == "uefi_exit_boot_services")
+                if (funcName == Bn::CompilerUefi::UEFI_1)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_EXIT_BOOT_SERVICES);
@@ -52,7 +55,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_هل_مهيأ" || funcName == "uefi_is_initialized")
+                if (funcName == Bn::CompilerUefi::UEFI_2)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_IS_INITIALIZED);
@@ -61,7 +64,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_خدمات_إقلاع_منتهية" || funcName == "uefi_boot_services_exited")
+                if (funcName == Bn::CompilerUefi::UEFI_3)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_BS_EXITED);
@@ -70,7 +73,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_إعادة_تشغيل" || funcName == "uefi_reset_system")
+                if (funcName == Bn::CompilerUefi::UEFI_4)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_RESET_SYSTEM);
                     if (!argOperands.empty())
@@ -81,7 +84,7 @@ namespace Sad
                 }
 
                 // --- 16b. إدارة الذاكرة ---
-                if (funcName == "uefi_تخصيص_صفحات" || funcName == "uefi_allocate_pages")
+                if (funcName == Bn::CompilerUefi::UEFI_5)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_ALLOC_PAGES);
@@ -92,7 +95,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_تحرير_صفحات" || funcName == "uefi_free_pages")
+                if (funcName == Bn::CompilerUefi::UEFI_6)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FREE_PAGES);
@@ -103,7 +106,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_تخصيص_كتلة" || funcName == "uefi_allocate_pool")
+                if (funcName == Bn::CompilerUefi::UEFI_7)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_ALLOC_POOL);
@@ -114,7 +117,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_تحرير_كتلة" || funcName == "uefi_free_pool")
+                if (funcName == Bn::CompilerUefi::UEFI_8)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FREE_POOL);
@@ -125,7 +128,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_خريطة_ذاكرة" || funcName == "uefi_get_memory_map")
+                if (funcName == Bn::CompilerUefi::UEFI_9)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_MEMORY_MAP);
@@ -134,7 +137,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_مفتاح_خريطة" || funcName == "uefi_get_memory_map_key")
+                if (funcName == Bn::CompilerUefi::UEFI_10)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_MEMMAP_KEY);
@@ -143,7 +146,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_ذاكرة_متاحة" || funcName == "uefi_total_memory")
+                if (funcName == Bn::CompilerUefi::UEFI_11)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_TOTAL_MEMORY);
@@ -154,7 +157,7 @@ namespace Sad
                 }
 
                 // --- 16c. بروتوكول الرسوميات GOP ---
-                if (funcName == "uefi_تهيئة_رسوميات" || funcName == "uefi_init_gop")
+                if (funcName == Bn::CompilerUefi::UEFI_12)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_INIT_GOP);
@@ -163,7 +166,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_تعيين_وضع_رسوميات" || funcName == "uefi_set_gop_mode")
+                if (funcName == Bn::CompilerUefi::UEFI_13)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_SET_GOP_MODE);
@@ -174,7 +177,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_استعلام_وضع" || funcName == "uefi_query_gop_mode")
+                if (funcName == Bn::CompilerUefi::UEFI_14)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_QUERY_GOP_MODE);
@@ -185,7 +188,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_عدد_أوضاع_رسوميات" || funcName == "uefi_gop_mode_count")
+                if (funcName == Bn::CompilerUefi::UEFI_15)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GOP_MODE_COUNT);
@@ -194,7 +197,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_وضع_رسوميات_حالي" || funcName == "uefi_current_gop_mode")
+                if (funcName == Bn::CompilerUefi::UEFI_16)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_CURRENT_GOP_MODE);
@@ -203,7 +206,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_عنوان_إطار" || funcName == "uefi_framebuffer_base")
+                if (funcName == Bn::CompilerUefi::UEFI_17)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FRAMEBUFFER_BASE);
@@ -212,7 +215,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_حجم_إطار" || funcName == "uefi_framebuffer_size")
+                if (funcName == Bn::CompilerUefi::UEFI_18)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FRAMEBUFFER_SIZE);
@@ -221,7 +224,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_ملء_شاشة" || funcName == "uefi_fill_screen")
+                if (funcName == Bn::CompilerUefi::UEFI_19)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FILL_SCREEN);
@@ -232,7 +235,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_رسم_مستطيل" || funcName == "uefi_draw_rect")
+                if (funcName == Bn::CompilerUefi::UEFI_20)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_DRAW_RECT);
@@ -256,7 +259,7 @@ namespace Sad
                 }
 
                 // --- 16d. خدمات وقت التشغيل ---
-                if (funcName == "uefi_الوقت" || funcName == "uefi_get_time")
+                if (funcName == Bn::CompilerUefi::UEFI_21)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_TIME);
@@ -265,7 +268,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_تعيين_وقت" || funcName == "uefi_set_time")
+                if (funcName == Bn::CompilerUefi::UEFI_22)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_SET_TIME);
@@ -276,7 +279,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_قراءة_متغير" || funcName == "uefi_get_variable")
+                if (funcName == Bn::CompilerUefi::UEFI_23)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_VARIABLE);
@@ -287,7 +290,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_كتابة_متغير" || funcName == "uefi_set_variable")
+                if (funcName == Bn::CompilerUefi::UEFI_24)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_SET_VARIABLE);
@@ -300,7 +303,7 @@ namespace Sad
                 }
 
                 // --- 16e. نظام الملفات ---
-                if (funcName == "uefi_فتح_وحدة_تخزين" || funcName == "uefi_open_volume")
+                if (funcName == Bn::CompilerUefi::UEFI_25)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_OPEN_VOLUME);
@@ -309,7 +312,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_فتح_ملف" || funcName == "uefi_open_file")
+                if (funcName == Bn::CompilerUefi::UEFI_26)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_OPEN_FILE);
@@ -320,7 +323,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_قراءة_ملف" || funcName == "uefi_read_file")
+                if (funcName == Bn::CompilerUefi::UEFI_27)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_READ_FILE);
@@ -331,7 +334,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_كتابة_ملف" || funcName == "uefi_write_file")
+                if (funcName == Bn::CompilerUefi::UEFI_28)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_WRITE_FILE);
@@ -342,7 +345,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_إغلاق_ملف" || funcName == "uefi_close_file")
+                if (funcName == Bn::CompilerUefi::UEFI_29)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_CLOSE_FILE);
@@ -353,7 +356,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_معلومات_ملف" || funcName == "uefi_file_info")
+                if (funcName == Bn::CompilerUefi::UEFI_30)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FILE_INFO);
@@ -366,7 +369,7 @@ namespace Sad
                 }
 
                 // --- 16f. بروتوكولات ومعلومات ---
-                if (funcName == "uefi_بحث_بروتوكول" || funcName == "uefi_locate_protocol")
+                if (funcName == Bn::CompilerUefi::UEFI_31)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_LOCATE_PROTOCOL);
@@ -377,7 +380,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_إصدار" || funcName == "uefi_revision")
+                if (funcName == Bn::CompilerUefi::UEFI_32)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_REVISION);
@@ -386,7 +389,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_بائع" || funcName == "uefi_firmware_vendor")
+                if (funcName == Bn::CompilerUefi::UEFI_33)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_VENDOR);
@@ -395,7 +398,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
-                if (funcName == "uefi_إصدار_بائع" || funcName == "uefi_firmware_revision")
+                if (funcName == Bn::CompilerUefi::UEFI_34)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FW_REVISION);
@@ -404,7 +407,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "uefi_تقرير" || funcName == "uefi_report")
+                if (funcName == Bn::CompilerUefi::UEFI_35)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_REPORT);
@@ -417,14 +420,14 @@ namespace Sad
                 // ─── القسم 17: ACPI الموسّع / Extended ACPI ───
 
                 // 17a: تهيئة وتفعيل
-                if (funcName == "acpi_تهيئة" || funcName == "acpi_init")
+                if (funcName == Bn::CompilerUefi::UEFI_36)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT_FULL);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "acpi_تهيئة_من_rsdp" || funcName == "acpi_init_from_rsdp")
+                if (funcName == Bn::CompilerUefi::UEFI_37)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT_RSDP);
                     if (!argOperands.empty())
@@ -433,7 +436,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "acpi_تفعيل" || funcName == "acpi_enable")
+                if (funcName == Bn::CompilerUefi::UEFI_38)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_ENABLE);
@@ -442,14 +445,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "acpi_تعطيل" || funcName == "acpi_disable")
+                if (funcName == Bn::CompilerUefi::UEFI_39)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_DISABLE);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "acpi_هل_مهيأ" || funcName == "acpi_is_initialized")
+                if (funcName == Bn::CompilerUefi::UEFI_40)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_IS_INITIALIZED);
@@ -458,7 +461,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "acpi_إصدار" || funcName == "acpi_version")
+                if (funcName == Bn::CompilerUefi::UEFI_41)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_VERSION);
@@ -469,14 +472,14 @@ namespace Sad
                 }
 
                 // 17b: إدارة الطاقة
-                if (funcName == "acpi_إعادة_تشغيل" || funcName == "acpi_reboot")
+                if (funcName == Bn::CompilerUefi::UEFI_42)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_REBOOT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "acpi_نوم" || funcName == "acpi_sleep")
+                if (funcName == Bn::CompilerUefi::UEFI_43)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_SLEEP);
@@ -487,7 +490,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "acpi_تأخير" || funcName == "acpi_delay_us")
+                if (funcName == Bn::CompilerUefi::UEFI_44)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_DELAY_US);
                     if (!argOperands.empty())
@@ -498,7 +501,7 @@ namespace Sad
                 }
 
                 // 17c: مؤقت ومعالجات
-                if (funcName == "acpi_قراءة_مؤقت" || funcName == "acpi_read_pm_timer")
+                if (funcName == Bn::CompilerUefi::UEFI_45)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_READ_PM_TIMER);
@@ -507,7 +510,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "acpi_مؤقت_32بت" || funcName == "acpi_is_pm_timer_32bit")
+                if (funcName == Bn::CompilerUefi::UEFI_46)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_IS_PM_32BIT);
@@ -516,7 +519,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "acpi_عدد_معالجات" || funcName == "acpi_processor_count")
+                if (funcName == Bn::CompilerUefi::UEFI_47)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_PROCESSOR_COUNT);
@@ -525,7 +528,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "acpi_عنوان_apic" || funcName == "acpi_local_apic_address")
+                if (funcName == Bn::CompilerUefi::UEFI_48)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_LOCAL_APIC_ADDR);
@@ -536,7 +539,7 @@ namespace Sad
                 }
 
                 // 17d: PCIe ECAM
-                if (funcName == "acpi_ecam_قاعدة" || funcName == "acpi_ecam_base")
+                if (funcName == Bn::CompilerUefi::UEFI_49)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_ECAM_BASE);
@@ -553,7 +556,7 @@ namespace Sad
                 // ─── القسم 18: APIC الموسّع / Extended APIC ───
 
                 // 18a: استعلام ومعلومات
-                if (funcName == "apic_مدعوم" || funcName == "apic_supported")
+                if (funcName == Bn::CompilerUefi::UEFI_50)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SUPPORTED);
@@ -562,7 +565,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "apic_x2_مدعوم" || funcName == "apic_x2_supported")
+                if (funcName == Bn::CompilerUefi::UEFI_51)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_X2_SUPPORTED);
@@ -571,7 +574,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "apic_معرّف" || funcName == "apic_id")
+                if (funcName == Bn::CompilerUefi::UEFI_52)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_ID);
@@ -580,7 +583,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "apic_عدد_io" || funcName == "apic_io_count")
+                if (funcName == Bn::CompilerUefi::UEFI_53)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_IO_COUNT);
@@ -591,7 +594,7 @@ namespace Sad
                 }
 
                 // 18b: مؤقت APIC
-                if (funcName == "apic_تهيئة_مؤقت" || funcName == "apic_init_timer")
+                if (funcName == Bn::CompilerUefi::UEFI_54)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT_TIMER);
                     for (auto &a : argOperands)
@@ -600,7 +603,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_بدء_مؤقت" || funcName == "apic_start_timer")
+                if (funcName == Bn::CompilerUefi::UEFI_55)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_START_TIMER);
                     if (!argOperands.empty())
@@ -609,14 +612,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_إيقاف_مؤقت" || funcName == "apic_stop_timer")
+                if (funcName == Bn::CompilerUefi::UEFI_56)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_STOP_TIMER);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_عداد_مؤقت" || funcName == "apic_timer_count")
+                if (funcName == Bn::CompilerUefi::UEFI_57)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_TIMER_COUNT);
@@ -625,7 +628,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "apic_معايرة_مؤقت" || funcName == "apic_calibrate_timer")
+                if (funcName == Bn::CompilerUefi::UEFI_58)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_CALIBRATE);
@@ -638,7 +641,7 @@ namespace Sad
                 }
 
                 // 18c: أولوية ومقاطعات
-                if (funcName == "apic_أولوية_مهمة" || funcName == "apic_set_priority")
+                if (funcName == Bn::CompilerUefi::UEFI_59)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SET_PRIORITY);
                     if (!argOperands.empty())
@@ -647,14 +650,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_عطّل_pic" || funcName == "apic_disable_pic")
+                if (funcName == Bn::CompilerUefi::UEFI_60)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_DISABLE_PIC);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_قناع_irq" || funcName == "apic_mask_irq")
+                if (funcName == Bn::CompilerUefi::UEFI_61)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_MASK_IRQ);
                     if (!argOperands.empty())
@@ -663,7 +666,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_إلغاء_قناع_irq" || funcName == "apic_unmask_irq")
+                if (funcName == Bn::CompilerUefi::UEFI_62)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_UNMASK_IRQ);
                     if (!argOperands.empty())
@@ -672,7 +675,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_وجّه_irq" || funcName == "apic_route_irq")
+                if (funcName == Bn::CompilerUefi::UEFI_63)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_ROUTE_IRQ);
                     for (auto &a : argOperands)
@@ -683,7 +686,7 @@ namespace Sad
                 }
 
                 // 18d: IPI متقدم
-                if (funcName == "apic_أرسل_للكل" || funcName == "apic_send_ipi_all")
+                if (funcName == Bn::CompilerUefi::UEFI_64)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_IPI_ALL);
                     for (auto &a : argOperands)
@@ -692,7 +695,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_أرسل_init" || funcName == "apic_send_init")
+                if (funcName == Bn::CompilerUefi::UEFI_65)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_INIT_IPI);
                     if (!argOperands.empty())
@@ -701,7 +704,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_أرسل_sipi" || funcName == "apic_send_sipi")
+                if (funcName == Bn::CompilerUefi::UEFI_66)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_SIPI);
                     for (auto &a : argOperands)
@@ -710,14 +713,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_انتظر_تسليم" || funcName == "apic_wait_delivery")
+                if (funcName == Bn::CompilerUefi::UEFI_67)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_WAIT_DELIVERY);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "apic_تهيئة_io" || funcName == "apic_init_io")
+                if (funcName == Bn::CompilerUefi::UEFI_68)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT_IO);

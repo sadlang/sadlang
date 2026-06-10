@@ -1,0 +1,74 @@
+# directives.yaml — التوجيهات في لغة ص
+# المصدر: shared/parser/src/core/parser_main.cpp (دالة parseDirectiveExpr)
+
+version: "1.0"
+description_ar: "التوجيهات (@) — تعليمات تحكم منخفض المستوى"
+description_en: "Directives (@) — low-level control instructions"
+
+directives:
+
+  - id: directive.sizeof
+    symbol: "@حجم(نوع)"
+    name_ar: "حجم النوع"
+    name_en: sizeof
+    description_ar: "إرجاع حجم النوع بالبايتات"
+    description_en: "Return size of type in bytes"
+    context: expression
+    since: "1.0.0"
+    status: stable
+    example: "@حجم(رقم)   # → 8"
+
+  - id: directive.atomic
+    symbol: "@ذري(عملية, ...)"
+    name_ar: "عملية ذرية"
+    name_en: atomic
+    description_ar: "تنفيذ عملية ذرية thread-safe على متغير"
+    description_en: "Thread-safe atomic operation on a variable"
+    context: expression
+    since: "1.0.0"
+    status: stable
+    example: "@ذري(تحميل, س)   # تحميل ذري"
+
+  - id: directive.unsafe
+    symbol: "@غير_آمن ... نهاية"
+    name_ar: "كتلة غير آمنة"
+    name_en: unsafe_block
+    description_ar: "كتلة كود بدون فحوصات أمان (sadc فقط)"
+    description_en: "Code block without safety checks (sadc only)"
+    context: block
+    since: "1.0.0"
+    status: stable
+    example: "@غير_آمن\n  # عمليات منخفضة المستوى\nنهاية"
+
+  - id: directive.comptime
+    symbol: "@وقت_الترجمة ... نهاية"
+    name_ar: "تنفيذ وقت الترجمة"
+    name_en: comptime_block
+    description_ar: "تنفيذ كتلة كود أثناء الترجمة (sadc فقط)"
+    description_en: "Execute code block at compile time (sadc only)"
+    context: block
+    since: "1.0.0"
+    status: stable
+    example: "@وقت_الترجمة\n  ثابت ح = @حجم(رقم)\nنهاية"
+
+  - id: directive.volatile
+    symbol: "@متطاير متغير"
+    name_ar: "متغير متطاير"
+    name_en: volatile_var
+    description_ar: "متغير لا يُحسَّن (للأجهزة والنوى)"
+    description_en: "Variable not subject to compiler optimization"
+    context: declaration
+    since: "1.0.0"
+    status: stable
+    example: "@متطاير متغير س = 0"
+
+  - id: directive.asm
+    symbol: "@تجميع(\"code\")"
+    name_ar: "تجميع مضمَّن"
+    name_en: inline_asm
+    description_ar: "تضمين كود assembly مباشرة (sadc فقط)"
+    description_en: "Embed assembly code directly (sadc only)"
+    context: statement
+    since: "1.0.0"
+    status: stable
+    example: "@تجميع(\"nop\")"

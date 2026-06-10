@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_user_thrown
+kind: error
+code: E3052
+name: قيمة مرمية بـ 'ارمي'
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

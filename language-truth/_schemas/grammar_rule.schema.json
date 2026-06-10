@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/grammar_rule.schema.json",
+  "title": "Grammar Construct Schema (V5)",
+  "description": "مخطط JSON لبنيات النحو في لغة ص — grammar_constructs.yaml / oop_constructs.yaml / expr_constructs.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "schema_version", "name_ar", "name_en", "category", "since", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(grammar|oop|expr)\\.[a-z][a-z0-9_]*$",
+      "description": "معرّف فريد: grammar.<name> | oop.<name> | expr.<name>"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "5.0"
+    },
+    "name_ar": {
+      "type": "string",
+      "minLength": 1,
+      "description": "الاسم العربي للبنية"
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "concurrency", "async", "contract", "macro", "extension",
+        "lifetime", "ffi", "class", "struct", "enum", "trait",
+        "inheritance", "property", "operator_overload", "template",
+        "lambda", "closure", "comprehension", "pipeline", "fstring",
+        "tuple", "pattern_matching", "defer", "error_handling"
+      ],
+      "description": "التصنيف الدلالي للبنية"
+    },
+    "since": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["stable", "experimental", "deprecated", "planned"]
+    },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "syntax": {
+      "type": "string",
+      "description": "صيغة BNF أو شبه-BNF للبنية"
+    },
+    "keywords_used": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "الكلمات المفتاحية المستخدمة في هذه البنية"
+    },
+    "example": { "type": "string" }
+  }
+}

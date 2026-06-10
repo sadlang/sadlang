@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_index_out_of_range
+kind: error
+code: E3002
+name: فهرس خارج النطاق
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

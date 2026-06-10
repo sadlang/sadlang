@@ -11,6 +11,9 @@
 #include "sir_builder.h"
 #include <iostream>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -26,14 +29,14 @@ namespace Sad
             {
 
                 // ─── 15j. وحدة المجدول / Scheduler ───
-                if (funcName == "هيئ_مجدول" || funcName == "sched_init")
+                if (funcName == Bn::CompilerSys::SYS_0)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "انشئ_عملية" || funcName == "sched_create_process")
+                if (funcName == Bn::CompilerSys::SYS_1)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -47,7 +50,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer); // PID
                 }
-                if (funcName == "انشئ_خيط_نواة" || funcName == "sched_create_thread")
+                if (funcName == Bn::CompilerSys::SYS_2)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Integer);
@@ -60,14 +63,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer); // TID
                 }
-                if (funcName == "تنازل" || funcName == "sched_yield")
+                if (funcName == Bn::CompilerSys::SYS_3)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_YIELD);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "نوم_مجدول" || funcName == "sched_sleep")
+                if (funcName == Bn::CompilerSys::SYS_4)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -77,7 +80,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_مجدول" || funcName == "sched_report")
+                if (funcName == Bn::CompilerSys::SYS_5)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_GET_REPORT);
@@ -88,7 +91,7 @@ namespace Sad
                 }
 
                 // ─── 15k. وحدة الإقلاع / Boot ───
-                if (funcName == "معلومات_اقلاع" || funcName == "boot_info")
+                if (funcName == Bn::CompilerSys::SYS_6)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_BOOT_GET_INFO);
@@ -97,7 +100,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "خريطة_ذاكرة_اقلاع" || funcName == "boot_memory_map")
+                if (funcName == Bn::CompilerSys::SYS_7)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_BOOT_GET_MEMORY_MAP);
@@ -106,7 +109,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "تقرير_اقلاع" || funcName == "boot_report")
+                if (funcName == Bn::CompilerSys::SYS_8)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_BOOT_GET_REPORT);
@@ -117,7 +120,7 @@ namespace Sad
                 }
 
                 // ─── 15l. وحدة نظام الملفات الافتراضي / VFS ───
-                if (funcName == "حمل_قرص" || funcName == "vfs_mount")
+                if (funcName == Bn::CompilerSys::SYS_9)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Integer);
@@ -132,7 +135,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "افصل_قرص" || funcName == "vfs_unmount")
+                if (funcName == Bn::CompilerSys::SYS_10)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -142,7 +145,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "افتح_ملف_نواة" || funcName == "vfs_open")
+                if (funcName == Bn::CompilerSys::SYS_11)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -156,7 +159,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer); // fd
                 }
-                if (funcName == "اقرأ_ملف_نواة" || funcName == "vfs_read")
+                if (funcName == Bn::CompilerSys::SYS_12)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Integer);
@@ -169,7 +172,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer); // bytes read
                 }
-                if (funcName == "اكتب_ملف_نواة" || funcName == "vfs_write")
+                if (funcName == Bn::CompilerSys::SYS_13)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Integer);
@@ -182,7 +185,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer); // bytes written
                 }
-                if (funcName == "اغلق_ملف_نواة" || funcName == "vfs_close")
+                if (funcName == Bn::CompilerSys::SYS_14)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -192,7 +195,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_ملفات" || funcName == "vfs_report")
+                if (funcName == Bn::CompilerSys::SYS_15)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_GET_REPORT);
@@ -203,21 +206,21 @@ namespace Sad
                 }
 
                 // ─── 15m. وحدة APIC ───
-                if (funcName == "هيئ_متحكم_مقاطعات" || funcName == "apic_init")
+                if (funcName == Bn::CompilerSys::SYS_16)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ارسل_نهاية_مقاطعة" || funcName == "apic_send_eoi")
+                if (funcName == Bn::CompilerSys::SYS_17)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_EOI);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "ارسل_مقاطعة_معالج" || funcName == "apic_send_ipi")
+                if (funcName == Bn::CompilerSys::SYS_18)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -228,7 +231,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "اضبط_مؤقت_متحكم" || funcName == "apic_set_timer")
+                if (funcName == Bn::CompilerSys::SYS_19)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -239,7 +242,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_متحكم_مقاطعات" || funcName == "apic_report")
+                if (funcName == Bn::CompilerSys::SYS_20)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_GET_REPORT);
@@ -250,14 +253,14 @@ namespace Sad
                 }
 
                 // ─── 15n. وحدة HPET ───
-                if (funcName == "هيئ_مؤقت_دقيق" || funcName == "hpet_init")
+                if (funcName == Bn::CompilerSys::SYS_21)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "اقرأ_مؤقت_دقيق" || funcName == "hpet_read")
+                if (funcName == Bn::CompilerSys::SYS_22)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_READ);
@@ -266,7 +269,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "نوم_دقيق" || funcName == "hpet_sleep")
+                if (funcName == Bn::CompilerSys::SYS_23)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -276,7 +279,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_مؤقت_دقيق" || funcName == "hpet_report")
+                if (funcName == Bn::CompilerSys::SYS_24)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_GET_REPORT);
@@ -287,14 +290,14 @@ namespace Sad
                 }
 
                 // ─── 15o. وحدة استدعاءات النظام / Syscall ───
-                if (funcName == "هيئ_استدعاءات" || funcName == "syscall_init")
+                if (funcName == Bn::CompilerSys::SYS_25)
                 {
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SYSCALL_INIT);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "سجل_استدعاء" || funcName == "syscall_register")
+                if (funcName == Bn::CompilerSys::SYS_26)
                 {
                     if (argResults.size() < 2)
                         return BuildResult("", SadTypeKind::Void);
@@ -305,7 +308,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "نفذ_استدعاء" || funcName == "syscall_invoke")
+                if (funcName == Bn::CompilerSys::SYS_27)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -318,7 +321,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer);
                 }
-                if (funcName == "تقرير_استدعاءات" || funcName == "syscall_report")
+                if (funcName == Bn::CompilerSys::SYS_28)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SYSCALL_GET_REPORT);
@@ -329,7 +332,7 @@ namespace Sad
                 }
 
                 // ─── 15p. عمليات الذاكرة المتقدمة / Advanced Memory ───
-                if (funcName == "خصص_فيزيائي" || funcName == "alloc_physical")
+                if (funcName == Bn::CompilerSys::SYS_29)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
@@ -341,7 +344,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Integer); // physical address
                 }
-                if (funcName == "حرر_فيزيائي" || funcName == "free_physical")
+                if (funcName == Bn::CompilerSys::SYS_30)
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Void);
@@ -351,7 +354,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "رحل_منطقة" || funcName == "map_region")
+                if (funcName == Bn::CompilerSys::SYS_31)
                 {
                     if (argResults.size() < 3)
                         return BuildResult("", SadTypeKind::Void);
@@ -365,7 +368,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                if (funcName == "تقرير_ذاكرة_نواة" || funcName == "mem_report")
+                if (funcName == Bn::CompilerSys::SYS_32)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MEM_GET_REPORT);

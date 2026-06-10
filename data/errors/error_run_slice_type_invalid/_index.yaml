@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_slice_type_invalid
+kind: error
+code: E3017
+name: نوع غير قابل للتشريح
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

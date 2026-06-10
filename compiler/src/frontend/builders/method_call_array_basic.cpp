@@ -9,6 +9,10 @@
 #include <optional>
 #include "sir_builder.h"
 #include "builders/method_call_builder.h"
+// (AR) ثوابت أسماء طرق الأنواع المُولَّدة
+#include "builtin_registry.h"
+
+namespace TM = Sad::Builtins::Names::TypeMethods;
 
 namespace Sad
 {
@@ -20,8 +24,7 @@ namespace Sad
                 const BuildResult &objResult, const std::string &methodName,
                 const std::vector<SIROperand> &args)
             {
-                if (methodName == "أضف" || methodName == "اضف" ||
-                    methodName == "push" || methodName == "append")
+                if (methodName == TM::Array::PUSH)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
@@ -44,8 +47,7 @@ namespace Sad
                 // (EN) size / length - get array size or string length
                 // (AR) ? ????? ??? ???????? ?????: ??? ??? ?????? ???? ? BUILTIN_STRING_LENGTH
                 // (EN) ? Disambiguate: if object is string ? BUILTIN_STRING_LENGTH
-                if (methodName == "حجم" || methodName == "طول" ||
-                    methodName == "size" || methodName == "length" || methodName == "len")
+                if (methodName == TM::Array::LENGTH)
                 {
                     // (AR) ??????: ?? ?????? ??? ? ?????? BUILTIN_STRING_LENGTH
                     // (EN) Check: is object a string? ? use BUILTIN_STRING_LENGTH
@@ -72,8 +74,7 @@ namespace Sad
 
                 // (AR) ??? / pop - ????? ??? ????
                 // (EN) pop / remove - remove last element
-                if (methodName == "أزل" || methodName == "ازل" ||
-                    methodName == "pop" || methodName == "remove_last")
+                if (methodName == TM::Array::REMOVE)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
@@ -88,8 +89,7 @@ namespace Sad
                 // (EN) empty / is_empty - check if array is empty
                 // (AR) ?????? ARRAY_LEN ?????? ?? 0
                 // (EN) Use ARRAY_LEN and compare with 0
-                if (methodName == "فارغة" || methodName == "فارغ" ||
-                    methodName == "empty" || methodName == "is_empty")
+                if (methodName == TM::Array::IS_EMPTY)
                 {
                     // (AR) ?????? 1: ?????? ??? ?????
                     // (EN) Step 1: Get size
@@ -127,8 +127,7 @@ namespace Sad
                 // (EN) contains — check if element exists in array or substring in string
                 // (AR) — تمييز: إذا كان الكائن نصاً → BUILTIN_STRING_CONTAINS
                 // (EN) — Disambiguate: if object is string → BUILTIN_STRING_CONTAINS
-                if (methodName == "يحتوي" || methodName == "contains" ||
-                    methodName == "includes")
+                if (methodName == TM::Array::CONTAINS)
                 {
                     // (AR) ??????: ?? ?????? ??? ? ?????? BUILTIN_STRING_CONTAINS
                     // (EN) Check: is object a string? ? use BUILTIN_STRING_CONTAINS
@@ -186,7 +185,7 @@ namespace Sad
                 //      Without it: codegen defaults to i64 comparator for all arrays
                 //      causing non-deterministic sort order for string arrays (compares pointers)
                 //      Fix: same pattern as builtin sort() in sir_builder_builtins_strings_arrays.cpp
-                if (methodName == "رتب" || methodName == "sort")
+                if (methodName == TM::Array::SORT)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SORT);
@@ -207,8 +206,7 @@ namespace Sad
 
                 // (AR) ??? / ???? / ??? / reverse � ??? ????? ????? ????????
                 // (EN) reverse � reverse array elements in-place
-                if (methodName == "اعكس" || methodName == "عكس" ||
-                    methodName == "عكّس" || methodName == "reverse")
+                if (methodName == TM::Array::REVERSE)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REVERSE);
@@ -221,8 +219,7 @@ namespace Sad
 
                 // (AR) ???? / indexOf � ????? ???? ??? ???? ?????
                 // (EN) indexOf � find index of first occurrence (-1 if not found)
-                if (methodName == "فهرس" || methodName == "indexOf" ||
-                    methodName == "index_of")
+                if (methodName == TM::Array::INDEX_OF)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_INDEX_OF);
@@ -239,8 +236,7 @@ namespace Sad
 
                 // (AR) ??? / first � ?????? ??? ??? ???? ?? ????????
                 // (EN) first � get first element of the array
-                if (methodName == "أول" || methodName == "اول" ||
-                    methodName == "first")
+                if (methodName == TM::Array::FIRST)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_FIRST);
@@ -253,8 +249,7 @@ namespace Sad
 
                 // (AR) ??? / last � ?????? ??? ??? ???? ?? ????????
                 // (EN) last � get last element of the array
-                if (methodName == "آخر" || methodName == "اخر" ||
-                    methodName == "last")
+                if (methodName == TM::Array::LAST)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_LAST);
@@ -267,7 +262,7 @@ namespace Sad
 
                 // (AR) ????? / slice � ??????? ??? ?? ????????
                 // (EN) slice � extract a sub-array from start to end
-                if (methodName == "شريحة" || methodName == "slice")
+                if (methodName == TM::Array::SLICE)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SLICE);
@@ -286,8 +281,7 @@ namespace Sad
 
                 // (AR) ????_???? / pop � ????? ??? ???? (????? ?? ???)
                 // (EN) pop � remove and return last element (alias for ???)
-                if (methodName == "احذف_اخير" || methodName == "احذف_آخر" ||
-                    methodName == "pop_back")
+                if (methodName == TM::Array::POP)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
@@ -300,7 +294,7 @@ namespace Sad
 
                 // (AR) ????? / ????? � ????? ????? (???? ????? ?? ??? ???????)
                 // (EN) length property (aliased)
-                if (methodName == "الطول" || methodName == "الحجم")
+                if (methodName == TM::Array::LENGTH)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ARRAY_LEN);

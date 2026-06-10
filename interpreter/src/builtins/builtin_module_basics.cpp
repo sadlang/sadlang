@@ -15,6 +15,9 @@
  */
 
 #include "builtin_common.h"
+// (AR) ثوابت أسماء الدوال المُولَّدة من YAML
+#include "builtin_registry.h"
+namespace Bb = Sad::Builtins::Names::Basics;
 #include <algorithm>
 #include <condition_variable>
 #include <cstdlib>
@@ -33,7 +36,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(StdLib::Core::exit(plainArgs));
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("اخرج", other_exit_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::EXIT_ALT), other_exit_func);
     
     // assert - التحقق من شرط
     auto other_assert_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -42,7 +45,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(StdLib::Core::assert(plainArgs));
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("تأكد", other_assert_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::ASSERT), other_assert_func);
     
     // ═══════════════════════════════════════════════════════════════
     // Filesystem Module Functions (Part 1 - File I/O & Directories)
@@ -60,7 +63,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("اقرأ_أسطر", fs_read_lines_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::READ_LINES), fs_read_lines_func);
     // append_to_file - إضافة إلى ملف
     auto fs_append_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         if (args.size() < 2) throw std::runtime_error("(AR) أضف_إلى_ملف تتطلب مسار ومحتوى / (EN) append_to_file requires path and content");
@@ -70,7 +73,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>();
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("أضف_إلى_ملف", fs_append_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::APPEND_FILE), fs_append_func);
     // copy_file - نسخ ملف
     auto fs_copy_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         if (args.size() < 2) throw std::runtime_error("(AR) انسخ_ملف تتطلب مصدراً ووجهة / (EN) copy_file requires source and destination");
@@ -81,7 +84,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>();
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("انسخ_ملف", fs_copy_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::COPY_FILE), fs_copy_file_func);
     // move_file - نقل ملف
     auto fs_move_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         if (args.size() < 2) throw std::runtime_error("(AR) انقل_ملف تتطلب مصدراً ووجهة / (EN) move_file requires source and destination");
@@ -91,7 +94,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>();
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("انقل_ملف", fs_move_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::MOVE_FILE), fs_move_file_func);
     // delete_file - حذف ملف
     auto fs_delete_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         if (args.empty()) throw std::runtime_error("(AR) احذف_ملف تتطلب مسار الملف / (EN) delete_file requires file path");
@@ -100,7 +103,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("احذف_ملف", fs_delete_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::DELETE_FILE), fs_delete_file_func);
     // create_directory - إنشاء مجلد
     auto fs_create_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         if (args.empty()) throw std::runtime_error("(AR) أنشئ_مجلد تتطلب مسار المجلد / (EN) create_directory requires path");
@@ -110,7 +113,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_مجلد", fs_create_dir_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::MKDIR), fs_create_dir_func);
     
     // list_directory - سرد محتويات مجلد
     auto fs_list_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -124,7 +127,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("اسرد_مجلد", fs_list_dir_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::LIST_DIR), fs_list_dir_func);
     
     // remove_directory - حذف مجلد
     auto fs_remove_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -135,7 +138,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("احذف_مجلد", fs_remove_dir_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::REMOVE_DIR), fs_remove_dir_func);
     
     // is_file - هل هو ملف
     auto fs_is_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -145,7 +148,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("هل_ملف", fs_is_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::IS_FILE), fs_is_file_func);
     
     // is_directory - هل هو مجلد
     auto fs_is_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -155,7 +158,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(result);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("هل_مجلد", fs_is_dir_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::IS_DIR), fs_is_dir_func);
     
     
     // ═══════════════════════════════════════════════════════════════
@@ -166,7 +169,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return BuiltinFunctions::range(args);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("مدى", range_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::RANGE), range_func);
     
     
     // ═══════════════════════════════════════════════════════════════
@@ -191,7 +194,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(content);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("اقرأ_ملف", read_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::READ_FILE), read_file_func);
     
     // دالة كتابة ملف / Write file function
     auto write_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -213,7 +216,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>();  // void
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("اكتب_ملف", write_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::WRITE_FILE), write_file_func);
     
     // دالة إضافة لملف / Append to file function
     auto append_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -235,7 +238,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>();
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("أضف_إلى_ملف", append_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::APPEND_FILE), append_file_func);
     
     // دالة حذف ملف / Delete file function
     auto delete_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -254,7 +257,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>();
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("احذف_ملف", delete_file_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::DELETE_FILE), delete_file_func);
     
     // دالة التحقق من وجود ملف / Check if file exists
     auto file_exists_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -268,7 +271,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(exists);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("هل_موجود", file_exists_func);
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::FILE_EXISTS), file_exists_func);
 
 
     

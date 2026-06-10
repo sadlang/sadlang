@@ -18,6 +18,9 @@
 #include <filesystem>
 #include <optional>
 
+#include "builtin_registry.h"
+namespace Bn = Sad::Builtins::Names;
+
 namespace Sad
 {
     namespace Compiler
@@ -47,7 +50,7 @@ namespace Sad
                 // 1. تسلسلي_هيئ(منفذ، سرعة) — تهيئة منفذ تسلسلي
                 //    serial_init(port, baud_rate) — initialize serial port
                 // ──────────────────────────────────────────────
-                if (!isUserDefinedFunction && (funcName == "تسلسلي_هيئ" || funcName == "serial_init"))
+                if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_0))
                 {
                     if (argResults.size() < 2)
                     {
@@ -69,7 +72,7 @@ namespace Sad
                 // 2. تسلسلي_ارسل(منفذ، بايت) — إرسال بايت عبر التسلسلي
                 //    serial_send(port, byte) — send byte via serial
                 // ──────────────────────────────────────────────
-                if (!isUserDefinedFunction && (funcName == "تسلسلي_ارسل" || funcName == "serial_send" || funcName == "serial_write"))
+                if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_1))
                 {
                     if (argResults.size() < 2)
                     {
@@ -90,7 +93,7 @@ namespace Sad
                 // 3. تسلسلي_استقبل(منفذ) — استقبال بايت من التسلسلي
                 //    serial_receive(port) — receive byte from serial
                 // ──────────────────────────────────────────────
-                if (!isUserDefinedFunction && (funcName == "تسلسلي_استقبل" || funcName == "serial_receive" || funcName == "serial_read"))
+                if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_2))
                 {
                     if (argResults.empty())
                     {
@@ -114,7 +117,7 @@ namespace Sad
                 // 4. تسلسلي_جاهز(منفذ) — فحص جاهزية البيانات
                 //    serial_ready(port) — check if data available
                 // ──────────────────────────────────────────────
-                if (!isUserDefinedFunction && (funcName == "تسلسلي_جاهز" || funcName == "serial_ready"))
+                if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_3))
                 {
                     if (argResults.empty())
                     {
@@ -138,7 +141,7 @@ namespace Sad
                 // 5. منفذ_رقمي_اكتب(رقم، قيمة) — كتابة GPIO
                 //    gpio_write(pin, value) — write to GPIO pin
                 // ──────────────────────────────────────────────
-                if (funcName == "منفذ_رقمي_اكتب" || funcName == "gpio_write" || funcName == "digital_write")
+                if (funcName == Bn::Kernel::GPIO_WRITE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -160,7 +163,7 @@ namespace Sad
                 // 6. منفذ_رقمي_اقرأ(رقم) — قراءة GPIO
                 //    gpio_read(pin) — read from GPIO pin
                 // ──────────────────────────────────────────────
-                if (funcName == "منفذ_رقمي_اقرأ" || funcName == "gpio_read" || funcName == "digital_read")
+                if (funcName == Bn::Kernel::GPIO_READ)
                 {
                     if (argResults.empty())
                     {
@@ -184,7 +187,7 @@ namespace Sad
                 // 7. حدد_وضع_منفذ(رقم، وضع) — تحديد وضع GPIO
                 //    gpio_mode(pin, mode) — set GPIO pin mode (0=input, 1=output)
                 // ──────────────────────────────────────────────
-                if (funcName == "حدد_وضع_منفذ" || funcName == "gpio_mode" || funcName == "pin_mode")
+                if (funcName == Bn::Kernel::GPIO_MODE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -206,7 +209,7 @@ namespace Sad
                 // 8. مؤقت_هيئ(تردد) — تهيئة مؤقت العتاد
                 //    timer_init(freq) — initialize hardware timer
                 // ──────────────────────────────────────────────
-                if (funcName == "مؤقت_هيئ" || funcName == "timer_init")
+                if (funcName == Bn::CompilerEmbed::EMBED_4)
                 {
                     if (argResults.empty())
                     {
@@ -227,7 +230,7 @@ namespace Sad
                 // 9. مؤقت_قراءة() — قراءة قيمة المؤقت الحالية
                 //    timer_read() — read current timer value
                 // ──────────────────────────────────────────────
-                if (funcName == "مؤقت_قراءة" || funcName == "timer_read")
+                if (funcName == Bn::Kernel::EMBED_TIMER_READ)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -245,7 +248,7 @@ namespace Sad
                 // 10. مؤقت_انتظر(ميكروثانية) — انتظار عدد ميكروثوان
                 //     timer_wait(us) — wait for microseconds
                 // ──────────────────────────────────────────────
-                if (funcName == "مؤقت_انتظر" || funcName == "timer_wait" || funcName == "delay_us")
+                if (funcName == Bn::Kernel::EMBED_TIMER_WAIT)
                 {
                     if (argResults.empty())
                     {
@@ -266,7 +269,7 @@ namespace Sad
                 // 11. اعد_تشغيل() — إعادة تشغيل النظام
                 //     reset() / reboot() — system reset
                 // ──────────────────────────────────────────────
-                if (funcName == "اعد_تشغيل" || funcName == "reset" || funcName == "reboot")
+                if (funcName == Bn::Kernel::RESET)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_RESET);
                     if (b_.currentBlock_)
@@ -281,7 +284,7 @@ namespace Sad
                 // 12. معرف_المعالج() — الحصول على معرّف المعالج
                 //     cpu_id() / cpuid() — get CPU identification
                 // ──────────────────────────────────────────────
-                if (funcName == "معرف_المعالج" || funcName == "cpu_id" || funcName == "cpuid")
+                if (funcName == Bn::Kernel::CPUID)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -301,7 +304,7 @@ namespace Sad
                 // 13. عداد_الدورات() — قراءة عداد الساعة (TSC)
                 //     rdtsc() / cycle_count() — read timestamp counter
                 // ──────────────────────────────────────────────
-                if (funcName == "عداد_الدورات" || funcName == "rdtsc" || funcName == "cycle_count")
+                if (funcName == Bn::Kernel::RDTSC)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -319,7 +322,7 @@ namespace Sad
                 // 14. حاجز_ذاكرة() — حاجز ذاكرة كامل (mfence)
                 //     memory_barrier() / mfence() — full memory fence
                 // ──────────────────────────────────────────────
-                if (funcName == "حاجز_ذاكرة" || funcName == "memory_barrier" || funcName == "mfence")
+                if (funcName == Bn::Kernel::MFENCE)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_MFENCE);
                     if (b_.currentBlock_)
@@ -334,7 +337,7 @@ namespace Sad
                 // 15. حاجز_قراءة() — حاجز قراءة ذاكرة (lfence)
                 //     read_barrier() / lfence() — load fence
                 // ──────────────────────────────────────────────
-                if (funcName == "حاجز_قراءة" || funcName == "read_barrier" || funcName == "lfence")
+                if (funcName == Bn::Kernel::LFENCE)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_LFENCE);
                     if (b_.currentBlock_)
@@ -349,7 +352,7 @@ namespace Sad
                 // 16. حاجز_كتابة() — حاجز كتابة ذاكرة (sfence)
                 //     write_barrier() / sfence() — store fence
                 // ──────────────────────────────────────────────
-                if (funcName == "حاجز_كتابة" || funcName == "write_barrier" || funcName == "sfence")
+                if (funcName == Bn::Kernel::SFENCE)
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_SFENCE);
                     if (b_.currentBlock_)
@@ -364,7 +367,7 @@ namespace Sad
                 // 17. نقل_مباشر_هيئ(قناة، مصدر، وجهة، حجم) — تهيئة DMA
                 //     dma_init(channel, src, dest, size) — initialize DMA channel
                 // ──────────────────────────────────────────────
-                if (funcName == "نقل_مباشر_هيئ" || funcName == "dma_init")
+                if (funcName == Bn::CompilerEmbed::EMBED_5)
                 {
                     if (argResults.size() < 4)
                     {
@@ -386,7 +389,7 @@ namespace Sad
                 // 18. نقل_مباشر_ابدأ(قناة) — بدء نقل DMA
                 //     dma_start(channel) — start DMA transfer
                 // ──────────────────────────────────────────────
-                if (funcName == "نقل_مباشر_ابدأ" || funcName == "dma_start")
+                if (funcName == Bn::Kernel::DMA_START)
                 {
                     if (argResults.empty())
                     {

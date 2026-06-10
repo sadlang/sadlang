@@ -1,0 +1,134 @@
+# patterns.yaml — أنماط المطابقة في لغة ص
+# المصدر: shared/parser/src/statements/parser_advanced.cpp (دالة parsePattern)
+
+version: "1.0"
+description_ar: "أنماط المطابقة المدعومة في جملة طابق...عندما"
+description_en: "Pattern matching patterns supported in match...when"
+
+patterns:
+
+  - id: pattern.literal
+    name_ar: "نمط حرفي"
+    name_en: literal_pattern
+    syntax: "عندما 42:"
+    description_ar: "مطابقة قيمة ثابتة (رقم، نص، منطقي)"
+    description_en: "Match a constant value (number, string, boolean)"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (س)
+          عندما 42:
+              اطبع_سطر("اثنان وأربعون")
+          عندما "مرحبا":
+              اطبع_سطر("تحية")
+      نهاية
+
+  - id: pattern.wildcard
+    name_ar: "نمط شامل"
+    name_en: wildcard_pattern
+    syntax: "عندما _:"
+    description_ar: "مطابقة أي شيء وتجاهل القيمة (مكافئ لـ افتراضي)"
+    description_en: "Match anything, discard the value"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (س)
+          عندما _:
+              اطبع_سطر("أي شيء")
+      نهاية
+
+  - id: pattern.variable
+    name_ar: "نمط متغير"
+    name_en: variable_pattern
+    syntax: "عندما اسم:"
+    description_ar: "مطابقة أي شيء وربطه بمتغير"
+    description_en: "Match anything and bind it to a variable"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (س)
+          عندما ن:
+              اطبع_سطر("القيمة: " + ن)
+      نهاية
+
+  - id: pattern.list
+    name_ar: "نمط قائمة"
+    name_en: list_pattern
+    syntax: "عندما [أ، ب]:"
+    description_ar: "تفكيك مصفوفة إلى عناصرها"
+    description_en: "Destructure an array into its elements"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (مصفوفة)
+          عندما [أول، ثاني]:
+              اطبع_سطر("أول: " + أول)
+      نهاية
+
+  - id: pattern.or
+    name_ar: "نمط OR"
+    name_en: or_pattern
+    syntax: "عندما 1 || 2:"
+    description_ar: "مطابقة إذا تطابق أي من البدائل"
+    description_en: "Match if any alternative matches"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (يوم)
+          عندما "سبت" || "أحد":
+              اطبع_سطر("عطلة")
+      نهاية
+
+  - id: pattern.range
+    name_ar: "نمط نطاق"
+    name_en: range_pattern
+    syntax: "عندما 1..10:"
+    description_ar: "مطابقة إذا كانت القيمة ضمن نطاق (شامل للطرفين)"
+    description_en: "Match if value falls within a range (inclusive)"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (عمر)
+          عندما 0..12:
+              اطبع_سطر("طفل")
+          عندما 13..17:
+              اطبع_سطر("مراهق")
+          افتراضي:
+              اطبع_سطر("بالغ")
+      نهاية
+
+  - id: pattern.struct
+    name_ar: "نمط بنية"
+    name_en: struct_pattern
+    syntax: "عندما {حقل: نمط}:"
+    description_ar: "تفكيك كائن/بنية إلى حقوله"
+    description_en: "Destructure an object/struct into its fields"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (نقطة)
+          عندما {س: 0، ص: 0}:
+              اطبع_سطر("الأصل")
+      نهاية
+
+  - id: pattern.binding
+    name_ar: "نمط ربط"
+    name_en: binding_pattern
+    syntax: "عندما ن @ 1..10:"
+    description_ar: "ربط القيمة بمتغير مع التحقق من نمط"
+    description_en: "Bind value to variable while checking pattern"
+    category: pattern_matching
+    since: "1.0.0"
+    status: stable
+    example: |
+      طابق (رقم)
+          عندما ن @ 1..10:
+              اطبع_سطر("في النطاق: " + ن)
+      نهاية

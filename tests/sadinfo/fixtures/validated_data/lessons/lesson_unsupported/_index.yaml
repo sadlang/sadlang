@@ -1,0 +1,11 @@
+schema_version: 5
+id: "lesson.unsupported"
+kind: "lesson"
+title: "درس-بنسخة-غير-مدعومة"
+level: "beginner"
+order: 1
+prerequisites: []
+tags: []
+uses: []
+owners:
+  - "test"

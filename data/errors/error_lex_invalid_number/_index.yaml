@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.lex_invalid_number
+kind: error
+code: E0003
+name: صيغة رقم غير صالحة
+category: lexer
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

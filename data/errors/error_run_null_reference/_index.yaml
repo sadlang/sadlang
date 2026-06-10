@@ -1,0 +1,10 @@
+schema_version: 1
+id: error.run_null_reference
+kind: error
+code: E3003
+name: مرجع فارغ
+category: runtime
+severity: error
+since: 0.1.0
+owners:
+- '@sadlang-core'

@@ -1,0 +1,226 @@
+version: 1
+namespace_group: Basics
+description_ar: وحدة أساسيات (17 دالة)
+description_en: Basics module (18 functions)
+functions:
+- cpp_id: RANGE
+  canonical: مدى
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: نطاق أرقام
+  description_en: Range
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: EXIT
+  canonical: خروج
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: إنهاء البرنامج
+  description_en: Exit
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: ASSERT
+  canonical: تأكد
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تأكيد شرط
+  description_en: Assert
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: READ_FILE
+  canonical: اقرأ_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: قراءة ملف
+  description_en: Read file
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: WRITE_FILE
+  canonical: اكتب_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: كتابة ملف
+  description_en: Write file
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: FILE_EXISTS
+  canonical: هل_موجود
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: هل موجود؟
+  description_en: File exists
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: IS_FILE
+  canonical: هل_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: هل ملف؟
+  description_en: Is file
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: IS_DIR
+  canonical: هل_مجلد
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: هل مجلد؟
+  description_en: Is dir
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: MKDIR
+  canonical: أنشئ_مجلد
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: إنشاء مجلد
+  description_en: Make dir
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: DELETE_FILE
+  canonical: احذف_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: حذف ملف
+  description_en: Delete file
+  params: []
+  lookup_table: MODULE_FUNCTION
+- cpp_id: EXIT_ALT
+  canonical: اخرج
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: إنهاء البرنامج (بديل)
+  description_en: Exit program (alt)
+  params: []
+  lookup_table: name_only
+- cpp_id: READ_LINES
+  canonical: اقرأ_أسطر
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: قراءة أسطر الملف
+  description_en: Read lines
+  params: []
+  lookup_table: name_only
+- cpp_id: APPEND_FILE
+  canonical: أضف_إلى_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: إضافة لملف
+  description_en: Append to file
+  params: []
+  lookup_table: name_only
+- cpp_id: COPY_FILE
+  canonical: انسخ_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: نسخ ملف
+  description_en: Copy file
+  params: []
+  lookup_table: name_only
+- cpp_id: MOVE_FILE
+  canonical: انقل_ملف
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: نقل ملف
+  description_en: Move file
+  params: []
+  lookup_table: name_only
+- cpp_id: LIST_DIR
+  canonical: اسرد_مجلد
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: سرد محتوى مجلد
+  description_en: List directory
+  params: []
+  lookup_table: name_only
+- cpp_id: REMOVE_DIR
+  canonical: احذف_مجلد
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: حذف مجلد
+  description_en: Remove directory
+  params: []
+  lookup_table: name_only

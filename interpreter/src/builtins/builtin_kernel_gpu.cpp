@@ -9,6 +9,8 @@
  */
 
 #include "interpreter_core.h"
+#include "builtin_registry.h"
+namespace Kgpu = Sad::Builtins::Names::KernelGpu;
 #include "value.h"
 #include "framebuffer.h"
 
@@ -87,7 +89,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
                 LowLevel::PixelFormat::BGRA_8888) ? 0 : -1);
 #endif
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_\xd9\x8a\xd8\xaf\xd9\x88\xd9\x8a", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_0), f);
     }
 
     // 2. شاشة_تعيين_وضع / fb_set_mode
@@ -103,7 +105,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(fb.setVideoMode(w, h, bpp) ? 0 : -1);
 #endif
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x88\xd8\xb6\xd8\xb9", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_1), f);
     }
 
     // 3. شاشة_هل_مهيأ / fb_is_initialized
@@ -113,7 +115,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             auto& fb = LowLevel::FramebufferManager::getInstance();
             return std::make_shared<Data::Value>(fb.isInitialized() ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x87\xd9\x84_\xd9\x85\xd9\x87\xd9\x8a\xd8\xa3", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_2), f);
     }
 
     // 4. شاشة_تهيئة_gpu / fb_init_gpu
@@ -128,7 +130,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(fb.initGPU(gpu) ? 0 : -1);
 #endif
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_gpu", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_3), f);
     }
 
     // 5. شاشة_الوضع_الحالي / fb_current_mode
@@ -142,7 +144,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
                                std::to_string(mode.bitsPerPixel);
             return std::make_shared<Data::Value>(info);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa7\xd9\x84\xd9\x88\xd8\xb6\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_4), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -158,7 +160,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             auto c = fb.getPixel(x, y);
             return std::make_shared<Data::Value>(static_cast<int>(c.toUint32()));
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x82\xd8\xb1\xd8\xa7\xd8\xa1\xd8\xa9_\xd9\x86\xd9\x82\xd8\xb7\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_5), f);
     }
 
     // 7. شاشة_نقطة_شفافة / fb_pixel_alpha
@@ -175,7 +177,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.putPixelAlpha(x, y, LowLevel::Color{r, g, b, a});
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x86\xd9\x82\xd8\xb7\xd8\xa9_\xd8\xb4\xd9\x81\xd8\xa7\xd9\x81\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_6), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -194,7 +196,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.fillCircle(cx, cy, r, LowLevel::Color{cr, cg, cb, 255});
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd8\xa9_\xd9\x85\xd9\x85\xd8\xaa\xd9\x84\xd8\xa6\xd8\xa9", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_7), f);
     }
 
     // 9. شاشة_مثلث / fb_triangle
@@ -211,7 +213,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.drawTriangle(p1, p2, p3, c);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xab\xd9\x84\xd8\xab", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_8), f);
     }
 
     // 10. شاشة_مثلث_ممتلئ / fb_fill_triangle
@@ -228,7 +230,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.fillTriangle(p1, p2, p3, c);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xab\xd9\x84\xd8\xab_\xd9\x85\xd9\x85\xd8\xaa\xd9\x84\xd8\xa6", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_9), f);
     }
 
     // 11. شاشة_قوس / fb_arc
@@ -246,7 +248,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.drawArc(cx, cy, r, start, end, c);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x82\xd9\x88\xd8\xb3", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_10), f);
     }
 
     // 12. شاشة_مستطيل_دائري / fb_rounded_rect
@@ -263,7 +265,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.drawRoundedRect(rect, radius, c);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xaa\xd8\xb7\xd9\x8a\xd9\x84_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd9\x8a", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_11), f);
     }
 
     // 13. شاشة_مستطيل_دائري_ممتلئ / fb_fill_rounded_rect
@@ -280,7 +282,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.fillRoundedRect(rect, radius, c);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xaa\xd8\xb7\xd9\x8a\xd9\x84_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd9\x8a_\xd9\x85\xd9\x85\xd8\xaa\xd9\x84\xd8\xa6", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_12), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -305,7 +307,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.drawChar(x, y, ch, fg, bg);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xad\xd8\xb1\xd9\x81", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_13), f);
     }
 
     // 15. شاشة_نص_utf8 / fb_text_utf8
@@ -322,7 +324,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.drawStringUTF8(x, y, text.c_str(), fg, bg);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x86\xd8\xb5_utf8", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_14), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -338,7 +340,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.setClipRect(rect);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x82\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_15), f);
     }
 
     // 17. شاشة_إلغاء_قص / fb_reset_clip
@@ -349,7 +351,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.resetClipRect();
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa5\xd9\x84\xd8\xba\xd8\xa7\xd8\xa1_\xd9\x82\xd8\xb5", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_16), f);
     }
 
     // 18. شاشة_تمرير / fb_scroll
@@ -364,7 +366,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.scroll(dx, dy, LowLevel::Color{r, g, b, 255});
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd9\x85\xd8\xb1\xd9\x8a\xd8\xb1", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_17), f);
     }
 
     // 19. شاشة_تخزين_مزدوج / fb_double_buffer
@@ -375,7 +377,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.setDoubleBuffering(enable);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x85\xd8\xb2\xd8\xaf\xd9\x88\xd8\xac", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_18), f);
     }
 
     // 20. شاشة_هل_مزدوج / fb_is_double_buffered
@@ -385,7 +387,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             auto& fb = LowLevel::FramebufferManager::getInstance();
             return std::make_shared<Data::Value>(fb.isDoubleBuffered() ? 1 : 0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x87\xd9\x84_\xd9\x85\xd8\xb2\xd8\xaf\xd9\x88\xd8\xac", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_19), f);
     }
 
     // 21. شاشة_انتظار_متزامن / fb_wait_vsync
@@ -406,7 +408,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
 #endif
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xa7\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_20), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -420,7 +422,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.moveCursor(args[0]->toInt(), args[1]->toInt());
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83_\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_21), f);
     }
 
     // 23. شاشة_إظهار_مؤشر / fb_show_cursor
@@ -431,7 +433,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.showCursor(show);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa5\xd8\xb8\xd9\x87\xd8\xa7\xd8\xb1_\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_22), f);
     }
 
     // 24. شاشة_تعيين_vsync / fb_set_vsync
@@ -442,7 +444,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.setVSync(enable);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_vsync", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_23), f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -464,7 +466,7 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             fb.fillGradientV(rect, c1, c2);
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd8\xb9\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a", f);
+        fm.registerBuiltinFunction(std::string(Kgpu::GPU_24), f);
     }
 
 } // registerBuiltinsKernelGPU

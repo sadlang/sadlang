@@ -1,0 +1,11 @@
+schema_version: 1
+id: "builtin.demo"
+kind: "builtin"
+name: "تجريبي"
+category: "io"
+since: "0.1.0"
+signature:
+  params: []
+  returns: "void"
+owners:
+  - "test"

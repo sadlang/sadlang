@@ -38,6 +38,12 @@ add_library(sad_core STATIC ${ALL_SOURCES})
 # ──────────────────────────────────────────────────────────────────────
 add_dependencies(sad_shared sad_keywords_codegen)
 
+# (AR) EM-V5-4 / ق-فرعي-3 (ADR-DOCS-V4-005): ربط كل نطاقات language-truth بالبناء.
+#      sad_all_codegen يجمع الـ13 هدفاً (keywords/builtins/errors/sadinfo + 10 نطاقات)؛
+#      idempotent عبر stamp فلا يُعيد التوليد بلا تغيير YAML.
+# (EN) Wire all language-truth domains into the build so any YAML edit auto-regenerates.
+add_dependencies(sad_shared sad_all_codegen)
+
 # (AR) Phase: dedup sad_shared/sad_core — sad_core يربط sad_shared كـ PUBLIC
 #      ليُمرّر includes ويتجنب ازدواج بناء (lexer/parser/ast/types/errors/modules/utils
 #      + class_manager). كان كل ملف من 49 ملفاً مشتركاً يُترجَم مرتين قبل هذا الإصلاح.
