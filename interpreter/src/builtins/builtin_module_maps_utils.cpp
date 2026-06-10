@@ -90,8 +90,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::NOW_MS), now_ms_fn);
 
             // date_format / صيغة_تاريخ — تنسيق التاريخ
-            auto date_format_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto date_format_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime;
                 if (!args.empty() && args[0]->isNumeric())
                 {
@@ -117,8 +118,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::DATE_FORMAT), date_format_fn);
 
             // date components / مكونات التاريخ — استخراج مكونات التاريخ
-            auto date_component_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto date_component_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime;
                 if (!args.empty() && args[0]->isNumeric())
                 {
@@ -154,8 +156,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::DATE_COMPONENTS), date_component_fn);
 
             // year, month, day, hour, minute, second, weekday
-            auto year_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto year_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -169,8 +172,9 @@ namespace Sad
 
             // (AR) شهر — استخراج الشهر من كائن تاريخ
             // (EN) month — extract month from date object
-            auto month_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto month_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -184,8 +188,9 @@ namespace Sad
 
             // (AR) يوم — استخراج اليوم من كائن تاريخ
             // (EN) day — extract day from date object
-            auto day_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto day_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -199,8 +204,9 @@ namespace Sad
 
             // (AR) ساعة — استخراج الساعة من كائن تاريخ
             // (EN) hour — extract hour from date object
-            auto hour_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto hour_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -214,8 +220,9 @@ namespace Sad
 
             // (AR) دقيقة — استخراج الدقيقة من كائن تاريخ
             // (EN) minute — extract minute from date object
-            auto minute_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto minute_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -229,8 +236,9 @@ namespace Sad
 
             // (AR) ثانية — استخراج الثانية من كائن تاريخ
             // (EN) second — extract second from date object
-            auto second_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto second_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -244,8 +252,9 @@ namespace Sad
 
             // (AR) يوم_الأسبوع — استخراج يوم الأسبوع من كائن تاريخ
             // (EN) weekday — extract weekday from date object
-            auto weekday_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto weekday_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 time_t rawtime = !args.empty() && args[0]->isNumeric() ? static_cast<time_t>(args[0]->toDouble()) : std::time(nullptr);
                 struct tm ti;
 #ifdef _WIN32
@@ -258,10 +267,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::WEEKDAY), weekday_fn);
 
             // time_diff / فرق_وقت — الفرق بين طابعين زمنيين (بالثواني)
-            auto time_diff_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto time_diff_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) فرق_وقت تتطلب طابعين زمنيين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(args[0]->toDouble() - args[1]->toDouble());
             };
             fm.registerBuiltinFunction(std::string(Bmp::TIME_DIFF), time_diff_fn);
@@ -279,21 +289,24 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // file_size / حجم_ملف — حجم ملف بالبايتات
-            auto file_size_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto file_size_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) حجم_ملف تتطلب مسار ملف");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string path = args[0]->toString();
                 std::ifstream file(path, std::ios::binary | std::ios::ate);
                 if (!file.is_open())
-                    throw std::runtime_error("(AR) لا يمكن فتح الملف: " + path);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR,
+                              {{"path", path}, {"reason", "cannot open"}});
                 return makeVal(static_cast<int>(file.tellg()));
             };
             fm.registerBuiltinFunction(std::string(Bmp::FILE_SIZE), file_size_fn);
 
             // path_join / ضم_مسار — ضم أجزاء مسار
-            auto path_join_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto path_join_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     return makeVal(std::string(""));
                 std::string result = args[0]->toString();
@@ -315,10 +328,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::PATH_JOIN), path_join_fn);
 
             // path_dirname / مجلد_مسار — استخراج المجلد من مسار
-            auto path_dirname_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto path_dirname_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) مجلد_مسار تتطلب مسار");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string path = args[0]->toString();
                 auto pos = path.find_last_of("/\\");
                 if (pos == std::string::npos)
@@ -328,10 +342,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::PATH_DIRNAME), path_dirname_fn);
 
             // path_basename / اسم_ملف — استخراج اسم الملف من مسار
-            auto path_basename_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto path_basename_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) اسم_ملف تتطلب مسار");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string path = args[0]->toString();
                 auto pos = path.find_last_of("/\\");
                 if (pos == std::string::npos)
@@ -341,10 +356,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::PATH_BASENAME), path_basename_fn);
 
             // path_extension / امتداد_ملف — استخراج الامتداد من مسار
-            auto path_extension_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto path_extension_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) امتداد_ملف تتطلب مسار");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string path = args[0]->toString();
                 auto pos = path.find_last_of('.');
                 if (pos == std::string::npos)
@@ -359,10 +375,11 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // base64_encode / ترميز_قاعدة64 — ترميز Base64
-            auto base64_encode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto base64_encode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) ترميز_قاعدة64 تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 static const char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
                 std::string input = args[0]->toString();
                 std::string output;
@@ -387,10 +404,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::BASE64_ENCODE), base64_encode_fn);
 
             // base64_decode / فك_قاعدة64 — فك ترميز Base64
-            auto base64_decode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto base64_decode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) فك_قاعدة64 تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 static const std::string table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
                 std::string input = args[0]->toString();
                 std::string output;
@@ -415,10 +433,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::BASE64_DECODE), base64_decode_fn);
 
             // hex_encode / ترميز_ست_عشري — ترميز إلى سداسي عشري
-            auto hex_encode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto hex_encode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) ترميز_ست_عشري تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
                 std::ostringstream oss;
                 for (unsigned char c : input)
@@ -430,10 +449,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::HEX_ENCODE), hex_encode_fn);
 
             // url_encode / ترميز_عنوان — ترميز URL
-            auto url_encode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto url_encode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) ترميز_عنوان تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
                 std::ostringstream oss;
                 for (unsigned char c : input)
@@ -452,10 +472,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::URL_ENCODE), url_encode_fn);
 
             // url_decode / فك_عنوان — فك ترميز URL
-            auto url_decode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto url_decode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) فك_عنوان تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
                 std::string output;
                 output.reserve(input.size());
@@ -515,10 +536,11 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // env_get / متغير_بيئة — الحصول على متغير بيئة
-            auto env_get_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto env_get_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) متغير_بيئة تتطلب اسم المتغير");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string name = args[0]->toString();
 #ifdef _WIN32
                 char *buf = nullptr;
@@ -560,9 +582,12 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // error / خطأ — إنشاء خطأ ورميه
-            auto error_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto error_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::string msg = args.empty() ? "(AR) خطأ غير محدد" : args[0]->toString();
+                // (AR) EM-CPP: رمي خام مقصود — دالة `خطأ` ترفع رسالة المستخدم الحرّة (لا خطأ
+                //      كتالوج). يُلتقَط بالموزّع. لا يُحوَّل لـ ctx.error (الذي يتطلب رمزاً).
                 throw std::runtime_error(msg);
                 return makeVoidVal(); // لن يصل هنا
             };

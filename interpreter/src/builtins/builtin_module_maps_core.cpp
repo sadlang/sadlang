@@ -55,8 +55,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // خريطة() — إنشاء خريطة فارغة أو من أزواج
-            auto map_constructor_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_constructor_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 Data::Value::MapType map;
                 // إذا لم تُعطَ وسائط، أرجع خريطة فارغة
                 if (args.empty())
@@ -83,12 +84,13 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // map_get / خريطة_احصل — الحصول على قيمة من خريطة
-            auto map_get_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_get_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) خريطة_احصل تتطلب وسيطين: الخريطة والمفتاح");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isMap())
-                    throw std::runtime_error("(AR) الوسيط الأول يجب أن يكون خريطة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 const auto &map = args[0]->toMapRef();
                 std::string key = args[1]->toString();
                 auto it = map.find(key);
@@ -101,12 +103,13 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_GET), map_get_fn);
 
             // map_set / خريطة_عيّن — تعيين قيمة في خريطة (يرجع خريطة جديدة)
-            auto map_set_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_set_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 3)
-                    throw std::runtime_error("(AR) خريطة_عيّن تتطلب 3 وسائط: الخريطة، المفتاح، القيمة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isMap())
-                    throw std::runtime_error("(AR) الوسيط الأول يجب أن يكون خريطة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 auto map = args[0]->toMap(); // نسخة
                 map[args[1]->toString()] = *args[2];
                 return makeMapVal(map);
@@ -114,10 +117,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_SET), map_set_fn);
 
             // map_keys / خريطة_مفاتيح — الحصول على مفاتيح الخريطة
-            auto map_keys_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_keys_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) خريطة_مفاتيح تتطلب خريطة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType keys;
                 for (const auto &[k, v] : args[0]->toMapRef())
                 {
@@ -128,10 +132,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_KEYS), map_keys_fn);
 
             // map_values / خريطة_قيم — الحصول على قيم الخريطة
-            auto map_values_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_values_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) خريطة_قيم تتطلب خريطة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType vals;
                 for (const auto &[k, v] : args[0]->toMapRef())
                 {
@@ -142,20 +147,22 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_VALUES), map_values_fn);
 
             // map_has_key / خريطة_تحتوي — التحقق من وجود مفتاح
-            auto map_has_key_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_has_key_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isMap())
-                    throw std::runtime_error("(AR) خريطة_تحتوي تتطلب خريطة ومفتاح");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &map = args[0]->toMapRef();
                 return makeVal(map.find(args[1]->toString()) != map.end());
             };
             fm.registerBuiltinFunction(std::string(Bmp::MAP_HAS_KEY), map_has_key_fn);
 
             // map_delete / خريطة_احذف — حذف مفتاح (يرجع خريطة جديدة)
-            auto map_delete_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_delete_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isMap())
-                    throw std::runtime_error("(AR) خريطة_احذف تتطلب خريطة ومفتاح");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto map = args[0]->toMap(); // نسخة
                 map.erase(args[1]->toString());
                 return makeMapVal(map);
@@ -163,19 +170,21 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_DELETE), map_delete_fn);
 
             // map_size / خريطة_حجم — حجم الخريطة
-            auto map_size_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_size_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) خريطة_حجم تتطلب خريطة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(static_cast<int>(args[0]->toMapRef().size()));
             };
             fm.registerBuiltinFunction(std::string(Bmp::MAP_SIZE), map_size_fn);
 
             // map_entries / خريطة_عناصر — كل عنصر كمصفوفة [مفتاح، قيمة]
-            auto map_entries_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_entries_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) خريطة_عناصر تتطلب خريطة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType entries;
                 for (const auto &[k, v] : args[0]->toMapRef())
                 {
@@ -189,10 +198,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_ENTRIES), map_entries_fn);
 
             // map_merge / خريطة_دمج — دمج خريطتين
-            auto map_merge_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_merge_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isMap() || !args[1]->isMap())
-                    throw std::runtime_error("(AR) خريطة_دمج تتطلب خريطتين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto result = args[0]->toMap(); // نسخة
                 for (const auto &[k, v] : args[1]->toMapRef())
                 {
@@ -208,10 +218,11 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // map / تخطيط — تطبيق دالة على كل عنصر
-            auto map_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto map_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) تخطيط تتطلب مصفوفة واسم دالة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 Data::Value::ArrayType result;
@@ -226,10 +237,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAP_FN), map_fn);
 
             // filter / تصفية — تصفية عناصر المصفوفة
-            auto filter_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto filter_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) تصفية تتطلب مصفوفة واسم دالة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 Data::Value::ArrayType result;
@@ -245,10 +257,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::FILTER), filter_fn);
 
             // reduce / اختزال — تجميع عناصر المصفوفة
-            auto reduce_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto reduce_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 3 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) اختزال تتطلب مصفوفة واسم دالة وقيمة أولية");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 Data::Value accumulator = *args[2];
@@ -262,10 +275,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::REDUCE), reduce_fn);
 
             // forEach / لكل_عنصر — تنفيذ دالة على كل عنصر
-            auto forEach_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto forEach_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) لكل_عنصر تتطلب مصفوفة واسم دالة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 for (const auto &item : arr)
@@ -278,10 +292,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::FOR_EACH), forEach_fn);
 
             // flatMap / تخطيط_مسطح — تخطيط ثم تسطيح
-            auto flatMap_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto flatMap_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) تخطيط_مسطح تتطلب مصفوفة واسم دالة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 Data::Value::ArrayType result;
@@ -304,10 +319,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::FLAT_MAP), flatMap_fn);
 
             // zip / ضم — ضم مصفوفتين في مصفوفة أزواج
-            auto zip_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto zip_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
-                    throw std::runtime_error("(AR) ضم تتطلب مصفوفتين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &a = args[0]->toArrayRef();
                 const auto &b = args[1]->toArrayRef();
                 size_t len = std::min(a.size(), b.size());
@@ -324,10 +340,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::ZIP), zip_fn);
 
             // any / أي_عنصر — هل هناك عنصر يحقق الشرط
-            auto any_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto any_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) أي_عنصر تتطلب مصفوفة واسم دالة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 for (const auto &item : arr)
@@ -342,10 +359,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::ANY_ELEMENT), any_fn);
 
             // all / كل_العناصر — هل كل العناصر تحقق الشرط
-            auto all_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto all_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) كل_العناصر تتطلب مصفوفة واسم دالة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_FUNCTION);
                 const auto &arr = args[0]->toArrayRef();
                 std::string funcName = args[1]->toString();
                 for (const auto &item : arr)
@@ -365,10 +383,11 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // unique / فريد — إزالة العناصر المكررة من مصفوفة
-            auto unique_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto unique_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) فريد تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 Data::Value::ArrayType result;
                 std::unordered_set<std::string> seen;
@@ -386,10 +405,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::UNIQUE), unique_fn);
 
             // union / اتحاد — اتحاد مصفوفتين
-            auto union_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto union_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
-                    throw std::runtime_error("(AR) اتحاد تتطلب مصفوفتين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType result = args[0]->toArray();
                 std::unordered_set<std::string> seen;
                 for (const auto &item : result)
@@ -408,10 +428,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::UNION), union_fn);
 
             // intersect / تقاطع — تقاطع مصفوفتين
-            auto intersect_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto intersect_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
-                    throw std::runtime_error("(AR) تقاطع تتطلب مصفوفتين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::unordered_set<std::string> setB;
                 for (const auto &item : args[1]->toArrayRef())
                     setB.insert(item.toString());
@@ -428,10 +449,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::INTERSECT), intersect_fn);
 
             // difference / فرق — الفرق بين مصفوفتين
-            auto difference_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto difference_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
-                    throw std::runtime_error("(AR) فرق تتطلب مصفوفتين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::unordered_set<std::string> setB;
                 for (const auto &item : args[1]->toArrayRef())
                     setB.insert(item.toString());

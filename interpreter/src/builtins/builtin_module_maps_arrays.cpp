@@ -55,10 +55,11 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // flatten / تسطيح — تسطيح مصفوفة متداخلة
-            auto flatten_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto flatten_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) تسطيح تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType result;
                 std::function<void(const Data::Value::ArrayType &)> flattenHelper;
                 flattenHelper = [&result, &flattenHelper](const Data::Value::ArrayType &arr)
@@ -77,14 +78,15 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::FLATTEN), flatten_fn);
 
             // chunk / تقسيم — تقسيم مصفوفة إلى أجزاء
-            auto chunk_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto chunk_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) تقسيم تتطلب مصفوفة وحجم");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 int chunkSize = args[1]->toInt();
                 if (chunkSize <= 0)
-                    throw std::runtime_error("(AR) حجم التقسيم يجب أن يكون موجباً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 Data::Value::ArrayType result;
                 for (size_t i = 0; i < arr.size(); i += chunkSize)
                 {
@@ -100,10 +102,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::CHUNK), chunk_fn);
 
             // take / خذ — أخذ أول n عنصر
-            auto take_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto take_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) خذ تتطلب مصفوفة وعدد");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 int n = args[1]->toInt();
                 Data::Value::ArrayType result;
@@ -116,10 +119,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::TAKE), take_fn);
 
             // drop / اترك — حذف أول n عنصر
-            auto drop_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto drop_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isArray())
-                    throw std::runtime_error("(AR) اترك تتطلب مصفوفة وعدد");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 int n = args[1]->toInt();
                 Data::Value::ArrayType result;
@@ -132,10 +136,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::DROP), drop_fn);
 
             // enumerate / رقّم — ترقيم عناصر المصفوفة [فهرس، قيمة]
-            auto enumerate_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto enumerate_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) رقّم تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 Data::Value::ArrayType result;
                 for (size_t i = 0; i < arr.size(); i++)
@@ -150,10 +155,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::ENUMERATE), enumerate_fn);
 
             // sum_array / مجموع — مجموع عناصر مصفوفة عددية
-            auto sum_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto sum_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) مجموع تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 double sum = 0;
                 for (const auto &item : args[0]->toArrayRef())
                 {
@@ -163,10 +169,11 @@ namespace Sad
             };
 
             // average / متوسط — متوسط عناصر مصفوفة عددية
-            auto average_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto average_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) متوسط تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 if (arr.empty())
                     return makeVal(0.0);
@@ -178,13 +185,14 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::AVERAGE), average_fn);
 
             // min_array / أصغر_المصفوفة — أصغر قيمة في المصفوفة
-            auto min_array_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto min_array_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) أصغر_المصفوفة تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 if (arr.empty())
-                    throw std::runtime_error("(AR) المصفوفة فارغة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION);
                 double minVal = arr[0].toDouble();
                 for (size_t i = 1; i < arr.size(); i++)
                 {
@@ -197,13 +205,14 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MIN_ARRAY), min_array_fn);
 
             // max_array / أكبر_المصفوفة — أكبر قيمة في المصفوفة
-            auto max_array_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto max_array_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) أكبر_المصفوفة تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 if (arr.empty())
-                    throw std::runtime_error("(AR) المصفوفة فارغة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION);
                 double maxVal = arr[0].toDouble();
                 for (size_t i = 1; i < arr.size(); i++)
                 {
@@ -216,10 +225,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MAX_ARRAY), max_array_fn);
 
             // sort_array / ترتيب — ترتيب مصفوفة عددية (مع دعم دالة مقارنة اختيارية)
-            auto sort_array_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto sort_array_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) ترتيب تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto arr = args[0]->toArray(); // نسخة
 
                 // (AR) إذا تم تمرير دالة مقارنة كوسيط ثانٍ
@@ -261,10 +271,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::SORT_ARRAY), sort_array_fn);
 
             // reverse_array / عكس_مصفوفة — عكس ترتيب مصفوفة
-            auto reverse_arr_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto reverse_arr_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) عكس_مصفوفة تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto arr = args[0]->toArray(); // نسخة
                 std::reverse(arr.begin(), arr.end());
                 return makeArrayVal(arr);
@@ -278,10 +289,11 @@ namespace Sad
             // index_of / فهرس — الحصول على فهرس عنصر في مصفوفة
 
             // join_array / ربط — ربط عناصر مصفوفة بفاصل
-            auto join_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto join_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) ربط تتطلب مصفوفة");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 std::string sep = args.size() >= 2 ? args[1]->toString() : ",";
                 std::string result;
@@ -313,14 +325,15 @@ namespace Sad
             //        مصفوفة_جديدة(صفوف، أعمدة، قيمة) → filled matrix
             //        مصفوفة_جديدة(صفوف، أعمدة، أعماق) → 3D zeros
             //        مصفوفة_جديدة(صفوف، أعمدة، أعماق، قيمة) → 3D filled
-            auto matrix_new_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto matrix_new_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) مصفوفة_جديدة تتطلب بُعدين على الأقل (صفوف، أعمدة). (EN) matrix_new requires at least 2 dimensions.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t rows = args[0]->toInt();
                 int64_t cols = args[1]->toInt();
                 if (rows <= 0 || cols <= 0)
-                    throw std::runtime_error("(AR) الأبعاد يجب أن تكون موجبة. (EN) Dimensions must be positive.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
 
                 // (AR) تحقق من وجود بُعد ثالث (3D)
                 if (args.size() >= 3 && args[2]->isNumeric() && args[2]->toInt() > 0 && (args.size() < 4 || args[3]->isNumeric()))
@@ -374,13 +387,14 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MATRIX_NEW), matrix_new_fn);
 
             // مصفوفة_وحدة / identity_matrix — إنشاء مصفوفة وحدة n×n
-            auto identity_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto identity_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isNumeric())
-                    throw std::runtime_error("(AR) مصفوفة_وحدة تتطلب حجم المصفوفة. (EN) identity_matrix requires size.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t n = args[0]->toInt();
                 if (n <= 0)
-                    throw std::runtime_error("(AR) الحجم يجب أن يكون موجباً. (EN) Size must be positive.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 Data::Value::ArrayType result;
                 for (int64_t i = 0; i < n; ++i)
                 {
@@ -396,10 +410,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::MATRIX_IDENTITY), identity_fn);
 
             // نطاق_مصفوفة / arange — إنشاء مصفوفة أرقام متتالية [start, start+1, ..., end-1]
-            auto arange_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto arange_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) نطاق_مصفوفة تتطلب معاملاً واحداً على الأقل. (EN) arange requires at least one argument.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t start = 0, end = 0, step = 1;
                 if (args.size() == 1)
                 {
@@ -413,7 +428,7 @@ namespace Sad
                         step = args[2]->toInt();
                 }
                 if (step == 0)
-                    throw std::runtime_error("(AR) الخطوة لا يمكن أن تكون صفراً. (EN) Step cannot be zero.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 Data::Value::ArrayType result;
                 if (step > 0)
                 {
@@ -430,10 +445,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::ARANGE), arange_fn);
 
             // أبعاد / shape — إرجاع أبعاد مصفوفة كدالة مستقلة
-            auto shape_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto shape_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) أبعاد تتطلب مصفوفة. (EN) shape requires an array.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType dims;
                 const Data::Value::ArrayType *current = &args[0]->toArrayRef();
                 while (true)
@@ -453,15 +469,16 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::SHAPE), shape_fn);
 
             // قلب_محوري / transpose — تبديل صفوف وأعمدة مصفوفة ثنائية الأبعاد
-            auto transpose_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto transpose_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isArray())
-                    throw std::runtime_error("(AR) قلب_محوري تتطلب مصفوفة ثنائية الأبعاد. (EN) transpose requires a 2D array.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &arr = args[0]->toArrayRef();
                 if (arr.empty())
                     return makeArrayVal(Data::Value::ArrayType{});
                 if (!arr[0].isArray())
-                    throw std::runtime_error("(AR) قلب_محوري تعمل على مصفوفات ثنائية الأبعاد فقط. (EN) transpose only works on 2D arrays.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 size_t rows = arr.size();
                 size_t cols = arr[0].toArrayRef().size();
                 Data::Value::ArrayType result;
