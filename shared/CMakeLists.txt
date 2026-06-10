@@ -53,24 +53,20 @@ add_library(sad_shared STATIC
     
     # Errors
     errors/src/diagnostic.cpp
-    errors/src/error_codes.cpp
     errors/src/error_manager.cpp
     errors/src/error_hints.cpp
     # (AR) المرحلة 1 — سجل قوالب الأخطاء + مستويات الشرح
     # (EN) Phase 1 — Error template catalog + explanation levels
     errors/src/error_catalog.cpp
-    errors/src/error_catalog_init.cpp
-    # (AR) Phase 4 — قوالب وقت التشغيل موزّعة على ملفات حسب الفئة الدلالية
-    # (EN) Phase 4 — runtime templates split by semantic category
-    errors/src/catalog/runtime_arithmetic_catalog.cpp
-    errors/src/catalog/runtime_collections_catalog.cpp
-    errors/src/catalog/runtime_oop_catalog.cpp
-    errors/src/catalog/runtime_functions_catalog.cpp
-    errors/src/catalog/runtime_types_catalog.cpp
-    errors/src/catalog/runtime_builtins_catalog.cpp
-    errors/src/catalog/runtime_contracts_catalog.cpp
-    errors/src/catalog/runtime_concurrency_catalog.cpp
-    errors/src/catalog/runtime_misc_catalog.cpp
+    # (AR) EM-3: المصدر الموحَّد المُولَّد من language-truth/errors/ يستبدل error_codes.cpp +
+    #      error_catalog_init.cpp (يُعرّف getErrorCodeString/Description/Category + registerDefaults
+    #      + kErrorMessages/findByCode/findById). دليل التكافؤ: YAML superset للقوالب اليدوية.
+    # (EN) EM-3: generated single source replaces error_codes.cpp + error_catalog_init.cpp.
+    errors/generated/error_messages_generated.cpp
+    # (AR) EM-3: كتالوجات runtime اليدوية (9) + ترويستها أُزيلت — registerDefaults المُولَّد
+    #      يُسجّل كل الـ75 خطأً من YAML (superset)، فلم يعد لها مستدعٍ (كود ميت مُثبَت).
+    # (EN) EM-3: 9 manual runtime catalogs + helper removed — generated registerDefaults
+    #      registers all 75 errors from YAML (superset); they had zero callers (dead code).
     errors/src/explanation_level.cpp
     errors/src/formatter.cpp
     

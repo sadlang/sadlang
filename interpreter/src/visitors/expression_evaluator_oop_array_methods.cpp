@@ -348,7 +348,7 @@ namespace Sad
                     return;
                 }
                 // ─── عدّ (count) ───
-                if (m == TM::Array::COUNT_ALT)
+                if (m == TM::Array::COUNT)
                 {
                     if (args.empty())
                     {

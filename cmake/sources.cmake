@@ -58,6 +58,8 @@ set(AST_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 set(INTERPRETER_SOURCES
     interpreter/src/core/interpreter_core.cpp
+    # (AR) EM-CPP-0: سياق استدعاء الدوال المضمنة (BuiltinContext) — أساس ترحيل أخطاء C++.
+    interpreter/src/builtins/builtin_context.cpp
     interpreter/src/builtins/builtin_registry.cpp
     interpreter/src/builtins/builtin_core_io.cpp
     interpreter/src/builtins/builtin_module_strings.cpp
