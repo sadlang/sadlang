@@ -642,6 +642,8 @@ namespace Sad
                 {
                     valuePtrs.push_back(std::make_shared<Data::Value>(arg));
                 }
+                // (AR) EM-CPP TODO: callUserFunction بلا معامل موقع — تمرير الموقع يتطلب
+                //      تغيير توقيعها وكل مستدعيها. مؤجَّل؛ ctx.error هنا يستخدم موقعاً افتراضياً.
                 auto result = func->callNative(valuePtrs);
                 return result ? *result : Data::Value();
             }

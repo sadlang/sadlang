@@ -523,7 +523,8 @@ namespace Sad
                 }
 
                 // (AR) استدعاء التنفيذ الأصلي / (EN) Call native implementation
-                auto resultPtr = func->callNative(valuePtrs);
+                // (AR) EM-CPP: تمرير موقع الاستدعاء ليرندر ctx.error من الكتالوج بموقع صحيح.
+                auto resultPtr = func->callNative(valuePtrs, node.position);
 
                 if (resultPtr)
                 {

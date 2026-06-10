@@ -159,10 +159,11 @@ namespace Sad
 
             // (AR) الاستيفاء الخطي — lerp(a, b, t) = a + t*(b-a)
             // (EN) Linear interpolation — lerp(a, b, t) = a + t*(b-a)
-            auto math_lerp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto math_lerp_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 3)
-                    throw std::runtime_error("(AR) استيفاء_خطي تتطلب ثلاث قيم: بداية، نهاية، نسبة");
+                if (ctx.argCount() < 3)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 double a = args[0]->toDouble();
                 double b = args[1]->toDouble();
                 double t = args[2]->toDouble();
@@ -172,10 +173,11 @@ namespace Sad
 
             // (AR) عشوائي_نطاق — رقم صحيح عشوائي في نطاق [min, max]
             // (EN) Random integer in range [min, max]
-            auto math_random_range_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto math_random_range_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("(AR) عشوائي_نطاق تتطلب حد أدنى وحد أعلى");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int lo = args[0]->toInt();
                 int hi = args[1]->toInt();
                 static std::mt19937 gen(std::random_device{}());
@@ -296,10 +298,11 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) محاكاة كتابة منفذ — outb(port, value)
-            auto port_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto port_write_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("منفذ_اكتب: يحتاج معاملين (منفذ، قيمة)");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int port = args[0]->toInt();
                 int val = args[1]->toInt();
                 std::cout << "[OS-SIM] outb(0x" << std::hex << port << ", 0x" << val << std::dec << ")" << std::endl;
@@ -308,10 +311,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_9), port_write_func);
 
             // (AR) محاكاة قراءة منفذ — inb(port)
-            auto port_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto port_read_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("منفذ_اقرأ: يحتاج معامل واحد (رقم المنفذ)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int port = args[0]->toInt();
                 std::cout << "[OS-SIM] inb(0x" << std::hex << port << std::dec << ") -> 0x00" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -319,10 +323,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_8), port_read_func);
 
             // (AR) محاكاة كتابة ذاكرة — poke(addr, value)
-            auto mem_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto mem_write_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("ذاكرة_اكتب: يحتاج معاملين (عنوان، قيمة)");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int addr = args[0]->toInt();
                 int val = args[1]->toInt();
                 std::cout << "[OS-SIM] poke(0x" << std::hex << addr << ", 0x" << val << std::dec << ")" << std::endl;
@@ -331,10 +336,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_25), mem_write_func);
 
             // (AR) محاكاة قراءة ذاكرة — peek(addr)
-            auto mem_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto mem_read_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("ذاكرة_اقرأ: يحتاج معامل واحد (عنوان)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int addr = args[0]->toInt();
                 std::cout << "[OS-SIM] peek(0x" << std::hex << addr << std::dec << ") -> 0x00" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -342,10 +348,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_24), mem_read_func);
 
             // (AR) محاكاة مقاطعة — interrupt(n)
-            auto interrupt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto interrupt_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("مقاطعة: يحتاج معامل واحد (رقم المقاطعة)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int n = args[0]->toInt();
                 std::cout << "[OS-SIM] int 0x" << std::hex << n << std::dec << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -377,10 +384,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_4), sti_func);
 
             // (AR) محاكاة كتابة VGA — vga_write(row, col, char, color)
-            auto vga_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto vga_write_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 4)
-                    throw std::runtime_error("شاشة_اكتب: يحتاج 4 معاملات (صف، عمود، حرف، لون)");
+                if (ctx.argCount() < 4)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int row = args[0]->toInt();
                 int col = args[1]->toInt();
                 int ch = args[2]->toInt();
@@ -403,10 +411,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::VGA_CLEAR), vga_clear_func);
 
             // (AR) محاكاة نسخ ذاكرة — memcpy(dest, src, size)
-            auto memcpy_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto memcpy_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 3)
-                    throw std::runtime_error("انسخ_ذاكرة: يحتاج 3 معاملات");
+                if (ctx.argCount() < 3)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 std::cout << "[OS-SIM] memcpy(0x" << std::hex << args[0]->toInt()
                           << ", 0x" << args[1]->toInt() << ", " << std::dec << args[2]->toInt() << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -414,10 +423,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEMCPY), memcpy_func);
 
             // (AR) محاكاة ملء ذاكرة — memset(dest, value, size)
-            auto memset_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto memset_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 3)
-                    throw std::runtime_error("املأ_ذاكرة: يحتاج 3 معاملات");
+                if (ctx.argCount() < 3)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 std::cout << "[OS-SIM] memset(0x" << std::hex << args[0]->toInt()
                           << ", 0x" << args[1]->toInt() << ", " << std::dec << args[2]->toInt() << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -431,10 +441,11 @@ namespace Sad
             // ─── Serial I/O (4) ─────────────────────────────────────────
 
             // (AR) تهيئة منفذ تسلسل — serial_init(port, baud_rate)
-            auto serial_init_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto serial_init_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("تسلسل_هئ: يحتاج 2 معاملات (منفذ، سرعة)");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int port = args[0]->toInt();
                 int baud = args[1]->toInt();
                 std::cout << "[OS-SIM] Serial init: port=0x" << std::hex << port
@@ -444,10 +455,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_INIT), serial_init_func);
 
             // (AR) إرسال بايت عبر التسلسل — serial_send(port, byte)
-            auto serial_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto serial_write_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("تسلسل_ارسل: يحتاج 2 معاملات (منفذ، بايت)");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int port = args[0]->toInt();
                 int byte = args[1]->toInt();
                 std::cout << "[OS-SIM] Serial send: port=0x" << std::hex << port
@@ -457,10 +469,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_SEND), serial_write_func);
 
             // (AR) استقبال بايت من التسلسل — serial_receive(port)
-            auto serial_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto serial_read_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("تسلسل_استقبل: يحتاج معامل (منفذ)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int port = args[0]->toInt();
                 std::cout << "[OS-SIM] Serial receive: port=0x" << std::hex << port << std::dec
                           << " → simulated byte 0x41 ('A')" << std::endl;
@@ -469,10 +482,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_RECV), serial_read_func);
 
             // (AR) فحص جاهزية البيانات — serial_ready(port)
-            auto serial_ready_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto serial_ready_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("تسلسل_جاهز: يحتاج معامل (منفذ)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int port = args[0]->toInt();
                 std::cout << "[OS-SIM] Serial ready: port=0x" << std::hex << port << std::dec
                           << " → true (simulated)" << std::endl;
@@ -483,10 +497,11 @@ namespace Sad
             // ─── GPIO (3) ──────────────────────────────────────────────
 
             // (AR) كتابة GPIO — gpio_write(pin, value)
-            auto gpio_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto gpio_write_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("منفذ_رقمي_اكتب: يحتاج 2 معاملات (رقم_المنفذ، قيمة)");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int pin = args[0]->toInt();
                 int val = args[1]->toInt();
                 std::cout << "[OS-SIM] GPIO write: pin=" << pin << " value=" << val << std::endl;
@@ -495,10 +510,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::GPIO_WRITE), gpio_write_func);
 
             // (AR) قراءة GPIO — gpio_read(pin)
-            auto gpio_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto gpio_read_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("منفذ_رقمي_اقرأ: يحتاج معامل (رقم_المنفذ)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int pin = args[0]->toInt();
                 std::cout << "[OS-SIM] GPIO read: pin=" << pin << " → 1 (simulated HIGH)" << std::endl;
                 return std::make_shared<Data::Value>(1); // simulated HIGH
@@ -506,10 +522,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::GPIO_READ), gpio_read_func);
 
             // (AR) تحديد وضع GPIO — gpio_mode(pin, mode)
-            auto gpio_mode_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto gpio_mode_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 2)
-                    throw std::runtime_error("حدد_وضع_منفذ: يحتاج 2 معاملات (رقم_المنفذ، الوضع)");
+                if (ctx.argCount() < 2)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int pin = args[0]->toInt();
                 int mode = args[1]->toInt();
                 std::string modeName = (mode == 0) ? "INPUT" : "OUTPUT";
@@ -521,10 +538,11 @@ namespace Sad
             // ─── Timer (3) ─────────────────────────────────────────────
 
             // (AR) تهيئة مؤقت — timer_init(frequency)
-            auto timer_init_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto timer_init_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("مؤقت_هئ: يحتاج معامل (التردد)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int freq = args[0]->toInt();
                 std::cout << "[OS-SIM] Timer init: frequency=" << freq << " Hz" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -542,10 +560,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::EMBED_TIMER_READ), timer_read_func);
 
             // (AR) انتظار ميكروثانية — timer_wait(us)
-            auto timer_wait_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto timer_wait_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("مؤقت_انتظر: يحتاج معامل (ميكروثانية)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int us = args[0]->toInt();
                 std::cout << "[OS-SIM] Timer wait: " << us << " microseconds" << std::endl;
                 // Actually wait (in simulation)
@@ -616,10 +635,11 @@ namespace Sad
             // ─── DMA (2) ───────────────────────────────────────────────
 
             // (AR) تهيئة DMA — dma_init(channel, src, dest, size)
-            auto dma_init_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto dma_init_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.size() < 4)
-                    throw std::runtime_error("نقل_مباشر_هئ: يحتاج 4 معاملات (قناة، مصدر، وجهة، حجم)");
+                if (ctx.argCount() < 4)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int ch = args[0]->toInt();
                 int src = args[1]->toInt();
                 int dest = args[2]->toInt();
@@ -631,10 +651,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::DMA_INIT), dma_init_func);
 
             // (AR) بدء نقل DMA — dma_start(channel)
-            auto dma_start_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto dma_start_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
-                if (args.empty())
-                    throw std::runtime_error("نقل_مباشر_ابدأ: يحتاج معامل (رقم_القناة)");
+                if (ctx.argCount() == 0)
+                    ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                const auto &args = ctx.args();
                 int ch = args[0]->toInt();
                 std::cout << "[OS-SIM] DMA start: channel=" << ch << " — transfer in progress" << std::endl;
                 return std::make_shared<Data::Value>(0);

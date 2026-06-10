@@ -575,7 +575,7 @@ namespace Sad
                                 {
                                     valuePtrs.push_back(std::make_shared<Data::Value>(arg));
                                 }
-                                auto result = func->callNative(valuePtrs);
+                                auto result = func->callNative(valuePtrs, node.position); // (AR) EM-CPP: موقع الاستدعاء لـ ctx.error
                                 lastResult_ = result ? *result : Value();
                             }
                             else if (func->hasBody())
