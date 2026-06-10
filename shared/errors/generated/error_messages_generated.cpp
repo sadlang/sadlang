@@ -511,7 +511,7 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr },
     { ErrorCode::RUN_ASSERTION_FAILED, "RUN048", "runtime",
       "فشل التأكيد", "Assertion failed",
-      "التأكيد 'تأكد' أنتج قيمة فالصة أثناء التنفيذ", "A ''تأكد'' assertion evaluated to false at runtime",
+      "فشل التأكيد: {detail}", "Assertion failed: {detail}",
       "'تأكد' يفرض شرطاً يجب أن يكون صحيحاً. فشله يعني انتهاك ثابت (invariant) في الكود. هذا يكشف bug — لا تحذف التأكيد، صلّح السبب الجذري.", "'تأكد' enforces a condition that must hold. Failure means an invariant violation. This surfaces a bug — don't remove the assertion, fix the root cause.",
       nullptr, nullptr,
       "راجع المنطق قبل التأكيد. التأكيدات الفاشلة تشير لخطأ منطقي يجب إصلاحه، ليس إسكاته.", "Review logic preceding the assertion. Failed assertions indicate a logic bug to fix, not silence.",

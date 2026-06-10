@@ -53,8 +53,9 @@ namespace Sad
             // تحقق / verify — مثل تأكد لكن يعيد منطقي بدل رمي خطأ
 
             // آمن / is_safe — يتحقق إذا كانت القيمة آمنة (ليست null/فارغة)
-            auto is_safe_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto is_safe_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     return std::make_shared<Data::Value>(false);
                 auto &val = args[0];
@@ -67,14 +68,15 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::SAFE_CHECK), is_safe_func);
 
             // ذعر / panic — يرمي خطأ ذعر (غير قابل للتعافي عادة)
-            auto panic_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto panic_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::string message = "(AR) ذعر! / (EN) Panic!";
                 if (!args.empty())
                 {
                     message = "❌ ذعر: " + args[0]->toString() + " / Panic: " + args[0]->toString();
                 }
-                throw std::runtime_error(message);
+                ctx.error(::Sad::Errors::ErrorCode::RUN_PANIC, {{"message", message}});
                 return std::make_shared<Data::Value>(); // unreachable
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::PANIC), panic_func);
@@ -85,10 +87,11 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // تأكد_يساوي / assert_equal — يتحقق أن قيمتين متساويتان
-            auto assert_eq_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_eq_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("تأكد_يساوي: يحتاج معاملين على الأقل (الفعلي، المتوقع)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto &actual = args[0];
                 auto &expected = args[1];
                 if (actual->toString() != expected->toString())
@@ -98,17 +101,18 @@ namespace Sad
                     {
                         message = args[2]->toString() + ": توقعت [" + expected->toString() + "] لكن حصلت على [" + actual->toString() + "]";
                     }
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_EQ), assert_eq_func);
 
             // تأكد_لا_يساوي / assert_not_equal — يتحقق أن قيمتين غير متساويتين
-            auto assert_neq_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_neq_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("تأكد_لا_يساوي: يحتاج معاملين على الأقل (القيمة1، القيمة2)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto &a = args[0];
                 auto &b = args[1];
                 if (a->toString() == b->toString())
@@ -118,17 +122,18 @@ namespace Sad
                     {
                         message = args[2]->toString() + ": القيمتان متساويتان [" + a->toString() + "]";
                     }
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_NEQ), assert_neq_func);
 
             // تأكد_صحيح / assert_true — يتحقق أن القيمة صحيحة
-            auto assert_true_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_true_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("تأكد_صحيح: يحتاج معامل واحد على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->toBool())
                 {
                     std::string message = "فشل التأكيد: القيمة ليست صحيحة";
@@ -136,17 +141,18 @@ namespace Sad
                     {
                         message = args[1]->toString();
                     }
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_TRUE), assert_true_func);
 
             // تأكد_خطأ / assert_false — يتحقق أن القيمة خاطئة
-            auto assert_false_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_false_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("تأكد_خطأ: يحتاج معامل واحد على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (args[0]->toBool())
                 {
                     std::string message = "فشل التأكيد: القيمة ليست خاطئة";
@@ -154,17 +160,18 @@ namespace Sad
                     {
                         message = args[1]->toString();
                     }
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_FALSE), assert_false_func);
 
             // تأكد_لاشيء / assert_null — يتحقق أن القيمة لاشيء
-            auto assert_null_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_null_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("تأكد_لاشيء: يحتاج معامل واحد على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isVoid())
                 {
                     std::string message = "فشل التأكيد: القيمة ليست لاشيء — [" + args[0]->toString() + "]";
@@ -172,17 +179,18 @@ namespace Sad
                     {
                         message = args[1]->toString() + ": القيمة ليست لاشيء — [" + args[0]->toString() + "]";
                     }
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_NULL), assert_null_func);
 
             // تأكد_ليس_لاشيء / assert_not_null — يتحقق أن القيمة ليست لاشيء
-            auto assert_not_null_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_not_null_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("تأكد_ليس_لاشيء: يحتاج معامل واحد على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (args[0]->isVoid())
                 {
                     std::string message = "فشل التأكيد: القيمة لاشيء";
@@ -190,17 +198,18 @@ namespace Sad
                     {
                         message = args[1]->toString();
                     }
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_NOT_NULL), assert_not_null_func);
 
             // تأكد_أكبر / assert_greater — يتحقق أن القيمة الأولى أكبر
-            auto assert_gt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_gt_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("تأكد_أكبر: يحتاج معاملين على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 double a = args[0]->toDouble();
                 double b = args[1]->toDouble();
                 if (!(a > b))
@@ -208,16 +217,17 @@ namespace Sad
                     std::string message = "فشل التأكيد: " + args[0]->toString() + " ليس أكبر من " + args[1]->toString();
                     if (args.size() >= 3)
                         message = args[2]->toString();
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
 
             // تأكد_أصغر / assert_less — يتحقق أن القيمة الأولى أصغر
-            auto assert_lt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_lt_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("تأكد_أصغر: يحتاج معاملين على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 double a = args[0]->toDouble();
                 double b = args[1]->toDouble();
                 if (!(a < b))
@@ -225,7 +235,7 @@ namespace Sad
                     std::string message = "فشل التأكيد: " + args[0]->toString() + " ليس أصغر من " + args[1]->toString();
                     if (args.size() >= 3)
                         message = args[2]->toString();
-                    throw std::runtime_error(message);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", message}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
@@ -237,10 +247,11 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // هاش / hash — يحسب هاش SHA-256 حقيقي لنص
-            auto hash_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto hash_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) هاش: يحتاج نص / (EN) hash: needs a string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
 
                 // ────────────────────────────────────────────────────────
@@ -410,7 +421,7 @@ namespace Sad
             auto hexToBytes = [](const std::string &hex) -> std::string
             {
                 if (hex.size() % 2 != 0)
-                    throw std::runtime_error("(AR) النص المشفر غير صالح: طول غير زوجي / (EN) Invalid encrypted text: odd length");
+                    throw std::runtime_error("(AR) النص المشفر غير صالح: طول غير زوجي / (EN) Invalid encrypted text: odd length"); // (AR) helper داخلي بلا ctx
                 std::string bytes;
                 bytes.reserve(hex.size() / 2);
                 for (size_t i = 0; i + 1 < hex.size(); i += 2)
@@ -418,21 +429,22 @@ namespace Sad
                     std::string hb = hex.substr(i, 2);
                     for (char c : hb)
                         if (!std::isxdigit(static_cast<unsigned char>(c)))
-                            throw std::runtime_error("(AR) حرف hex غير صالح / (EN) Invalid hex char");
+                            throw std::runtime_error("(AR) حرف hex غير صالح / (EN) Invalid hex char"); // (AR) helper داخلي بلا ctx
                     bytes += (char)std::stoi(hb, nullptr, 16);
                 }
                 return bytes;
             };
 
             // شفّر / encrypt — تشفير SHA-256-CTR (تشفير تيار آمن)
-            auto encrypt_func = [sha256_raw](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto encrypt_func = [sha256_raw](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) شفّر: يحتاج نص ومفتاح / (EN) encrypt: needs text and key");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 std::string key = args[1]->toString();
                 if (key.empty())
-                    throw std::runtime_error("(AR) المفتاح فارغ / (EN) Key is empty");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
 
                 // (AR) توليد nonce عشوائي 8 بايت
                 std::random_device rd;
@@ -467,18 +479,19 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ENCRYPT), encrypt_func);
 
             // فك_تشفير / decrypt — فك تشفير SHA-256-CTR
-            auto decrypt_func = [sha256_raw, hexToBytes](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto decrypt_func = [sha256_raw, hexToBytes](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) فك_تشفير: يحتاج نص_مشفر ومفتاح / (EN) decrypt: needs encrypted_text and key");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string hex_text = args[0]->toString();
                 std::string key = args[1]->toString();
                 if (key.empty())
-                    throw std::runtime_error("(AR) المفتاح فارغ / (EN) Key is empty");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
 
                 std::string raw = hexToBytes(hex_text);
                 if (raw.size() < 8)
-                    throw std::runtime_error("(AR) البيانات المشفرة قصيرة جداً / (EN) Encrypted data too short");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
 
                 // (AR) استخراج nonce من أول 8 بايت
                 uint64_t nonce = 0;
@@ -507,10 +520,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::DECRYPT), decrypt_func);
 
             // تأكد_نوع / assert_type — يتحقق من نوع القيمة
-            auto assert_type_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto assert_type_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) تأكد_نوع: يحتاج قيمة واسم_نوع / (EN) assert_type: needs value and type_name");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string actual_type = args[0]->getTypeName();
                 std::string expected_type = args[1]->toString();
                 // خريطة ترجمة الأنواع العربية ↔ الإنجليزية
@@ -538,10 +552,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::ASSERT_GT), assert_gt_func);
 
             // نظّف / sanitize — تنظيف نص من الأحرف الخطيرة (XSS/SQL Injection)
-            auto sanitize_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto sanitize_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) نظّف: يحتاج نص / (EN) sanitize: needs a string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
                 std::string result;
                 for (char c : input)
@@ -586,8 +601,9 @@ namespace Sad
             // وقت_الآن / timestamp — الوقت الحالي (Unix timestamp)
 
             // عشوائي_آمن / secure_random — عدد عشوائي آمن (crypto-grade)
-            auto secure_random_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto secure_random_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int min_val = 0, max_val = 100;
                 if (args.size() >= 1)
                     min_val = static_cast<int>(args[0]->toDouble());
@@ -601,10 +617,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bss::SECURE_RANDOM), secure_random_func);
 
             // base64_encode / ترميز_64
-            auto base64_encode_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto base64_encode_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) ترميز_64: يحتاج نص / (EN) base64_encode: needs a string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
                 std::string input = args[0]->toString();
                 std::string result;
@@ -677,10 +694,11 @@ namespace Sad
             };
 
             // 1. printf — طباعة_تنسيق / formatted print
-            auto ffi_printf_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_printf_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) printf: يحتاج نص التنسيق / (EN) printf: needs format string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string fmt = args[0]->toString();
                 // Simple printf simulation: replace %d, %s, %f, %p with argument values
                 std::string result;
@@ -756,14 +774,15 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_PRINTF), ffi_printf_func);
 
             // 2. malloc — حجز / allocate memory (managed pointer table)
-            auto ffi_malloc_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_malloc_func = [&interpreter, registerPtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) malloc: يحتاج الحجم / (EN) malloc: needs size");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 // (AR) فحص أمني — حظر في وضع الأمان
                 if (interpreter.getOptions().enableSecurity)
                 {
-                    throw std::runtime_error("(AR) malloc محظورة في الوضع الآمن — استخدم مصفوفة بدلاً منها / (EN) malloc blocked in secure mode — use arrays instead");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 size_t size = static_cast<size_t>(args[0]->toDouble());
                 if (size > MAX_FFI_ALLOC_SIZE)
@@ -772,7 +791,7 @@ namespace Sad
                 }
                 if (ptrTable.size() >= MAX_FFI_ALLOC_COUNT)
                 {
-                    throw std::runtime_error("(AR) malloc: تجاوز الحد الأقصى لعدد الحجوزات / (EN) malloc: exceeded max allocation count");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 void *ptr = std::malloc(size);
                 if (!ptr)
@@ -782,13 +801,14 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_MALLOC), ffi_malloc_func);
 
             // 3. free — حرر / free memory (managed pointer table)
-            auto ffi_free_func = [&interpreter, removePtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_free_func = [&interpreter, removePtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) free: يحتاج مؤشر / (EN) free: needs pointer");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (interpreter.getOptions().enableSecurity)
                 {
-                    throw std::runtime_error("(AR) free محظورة في الوضع الآمن / (EN) free blocked in secure mode");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 int id = static_cast<int>(args[0]->toDouble());
                 void *ptr = removePtr(id);
@@ -799,19 +819,20 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_FREE), ffi_free_func);
 
             // 4. realloc — اعد_حجز (managed pointer table)
-            auto ffi_realloc_func = [&interpreter, removePtr, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_realloc_func = [&interpreter, removePtr, registerPtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) realloc: يحتاج مؤشر وحجم / (EN) realloc: needs ptr and size");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (interpreter.getOptions().enableSecurity)
                 {
-                    throw std::runtime_error("(AR) realloc محظورة في الوضع الآمن / (EN) realloc blocked in secure mode");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 int id = static_cast<int>(args[0]->toDouble());
                 size_t size = static_cast<size_t>(args[1]->toDouble());
                 if (size > MAX_FFI_ALLOC_SIZE)
                 {
-                    throw std::runtime_error("(AR) realloc: الحجم يتجاوز الحد 256MB / (EN) realloc: size exceeds 256MB limit");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 void *oldPtr = removePtr(id);
                 void *ptr = std::realloc(oldPtr, size);
@@ -820,23 +841,24 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_REALLOC), ffi_realloc_func);
 
             // 5. calloc — حجز_صفري (managed pointer table)
-            auto ffi_calloc_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_calloc_func = [&interpreter, registerPtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) calloc: يحتاج العدد والحجم / (EN) calloc: needs count and size");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (interpreter.getOptions().enableSecurity)
                 {
-                    throw std::runtime_error("(AR) calloc محظورة في الوضع الآمن / (EN) calloc blocked in secure mode");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 size_t count = static_cast<size_t>(args[0]->toDouble());
                 size_t size = static_cast<size_t>(args[1]->toDouble());
                 if (count * size > MAX_FFI_ALLOC_SIZE)
                 {
-                    throw std::runtime_error("(AR) calloc: الحجم الكلي يتجاوز الحد 256MB / (EN) calloc: total size exceeds 256MB limit");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 if (ptrTable.size() >= MAX_FFI_ALLOC_COUNT)
                 {
-                    throw std::runtime_error("(AR) calloc: تجاوز الحد الأقصى لعدد الحجوزات / (EN) calloc: exceeded max allocation count");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 void *ptr = std::calloc(count, size);
                 return std::make_shared<Data::Value>(registerPtr(ptr));
@@ -844,40 +866,44 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_CALLOC), ffi_calloc_func);
 
             // 6. strlen — طول_نص_س
-            auto ffi_strlen_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_strlen_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) strlen: يحتاج نص / (EN) strlen: needs string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string s = args[0]->toString();
                 return std::make_shared<Data::Value>(static_cast<double>(s.length()));
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_STRLEN), ffi_strlen_func);
 
             // 7. strcpy — انسخ_نص_س
-            auto ffi_strcpy_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_strcpy_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) strcpy: يحتاج نص / (EN) strcpy: needs string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 // In interpreted mode, just return a copy of the string
                 return std::make_shared<Data::Value>(args[0]->toString());
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_STRCPY), ffi_strcpy_func);
 
             // 8. strcmp — قارن_نص_س
-            auto ffi_strcmp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_strcmp_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) strcmp: يحتاج نصين / (EN) strcmp: needs two strings");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int result = args[0]->toString().compare(args[1]->toString());
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_STRCMP), ffi_strcmp_func);
 
             // 9. strcat — الحق_نص_س
-            auto ffi_strcat_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_strcat_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) strcat: يحتاج نصين / (EN) strcat: needs two strings");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return std::make_shared<Data::Value>(args[0]->toString() + args[1]->toString());
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_STRCAT), ffi_strcat_func);
@@ -887,10 +913,11 @@ namespace Sad
             // 11. memset — عبئ_ذاكرة_س (simulated)
 
             // 12. fopen — افتح_ملف_س (managed pointer table + security check)
-            auto ffi_fopen_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_fopen_func = [&interpreter, registerPtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) fopen: يحتاج اسم الملف والوضع / (EN) fopen: needs filename and mode");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string filename = args[0]->toString();
                 std::string mode = args[1]->toString();
                 // (AR) فحص أمني — حظر مسارات خطيرة في الوضع الآمن
@@ -900,12 +927,12 @@ namespace Sad
                     // (AR) حظر المسارات التي تحتوي على تصعيد (..)
                     if (filename.find("..") != std::string::npos)
                     {
-                        throw std::runtime_error("(AR) fopen: مسار غير مسموح في الوضع الآمن (تصعيد مسار) / (EN) fopen: path not allowed in secure mode (path traversal)");
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     }
                     // (AR) حظر المسارات المطلقة في Unix/Windows
                     if (filename[0] == '/' || (filename.size() >= 2 && filename[1] == ':'))
                     {
-                        throw std::runtime_error("(AR) fopen: مسارات مطلقة محظورة في الوضع الآمن / (EN) fopen: absolute paths blocked in secure mode");
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     }
                 }
                 FILE *fp = std::fopen(filename.c_str(), mode.c_str());
@@ -916,10 +943,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_FOPEN), ffi_fopen_func);
 
             // 13. fclose — اغلق_ملف_س (managed pointer table)
-            auto ffi_fclose_func = [removePtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_fclose_func = [removePtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) fclose: يحتاج مؤشر ملف / (EN) fclose: needs file pointer");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int id = static_cast<int>(args[0]->toDouble());
                 if (id == 0)
                     return std::make_shared<Data::Value>(-1);
@@ -932,10 +960,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_FCLOSE), ffi_fclose_func);
 
             // 14. fputs — اكتب_ملف_س (managed pointer table)
-            auto ffi_fputs_func = [getPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_fputs_func = [getPtr](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) fputs: يحتاج نص ومؤشر ملف / (EN) fputs: needs string and file pointer");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 int id = static_cast<int>(args[1]->toDouble());
                 if (id == 0)
@@ -949,10 +978,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_FPUTS), ffi_fputs_func);
 
             // 15. fgets — اقرأ_ملف_س
-            auto ffi_fgets_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_fgets_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) fgets: يحتاج حجم ومؤشر ملف / (EN) fgets: needs size and file pointer");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int size = static_cast<int>(args[0]->toDouble());
                 uintptr_t addr = static_cast<uintptr_t>(args[1]->toDouble());
                 if (addr == 0 || size <= 0)
@@ -968,8 +998,9 @@ namespace Sad
             // 16. system — نفذ_امر
             // (AR) أضيفت حماية أمنية: يُمنع تنفيذ أوامر النظام في الوضع الآمن
             // (EN) Added security: system commands blocked in secure mode
-            auto ffi_system_func = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_system_func = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) فحص وضع الأمان / (EN) Check security mode
                 if (interpreter.getOptions().enableSecurity)
                 {
@@ -978,7 +1009,7 @@ namespace Sad
                         "(EN) Security error: System command execution is blocked in secure mode. Use --no-security to disable.");
                 }
                 if (args.empty())
-                    throw std::runtime_error("(AR) system: يحتاج أمر / (EN) system: needs command");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string cmd = args[0]->toString();
 
                 // (AR) فحص أوامر خطرة حتى خارج الوضع الآمن
@@ -1002,10 +1033,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_SYSTEM), ffi_system_func);
 
             // 17. getenv — قيمة_بيئة
-            auto ffi_getenv_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_getenv_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) getenv: يحتاج اسم المتغير / (EN) getenv: needs variable name");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string varName = args[0]->toString();
                 const char *val = std::getenv(varName.c_str());
                 if (val)
@@ -1017,30 +1049,33 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_GETENV), ffi_getenv_func);
 
             // 18. atoi — نص_لعدد
-            auto ffi_atoi_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_atoi_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) atoi: يحتاج نص / (EN) atoi: needs string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int result = std::atoi(args[0]->toString().c_str());
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_ATOI), ffi_atoi_func);
 
             // 19. atof — نص_لعشري
-            auto ffi_atof_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_atof_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) atof: يحتاج نص / (EN) atof: needs string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 double result = std::atof(args[0]->toString().c_str());
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_ATOF), ffi_atof_func);
 
             // 20. snprintf — تنسيق_نص
-            auto ffi_snprintf_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto ffi_snprintf_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) snprintf: يحتاج نص التنسيق / (EN) snprintf: needs format string");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string fmt = args[0]->toString();
                 // Reuse printf-style formatting to produce a string
                 std::string result;

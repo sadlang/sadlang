@@ -822,8 +822,10 @@ errors:
     ar: فشل التأكيد
     en: Assertion failed
   brief:
-    ar: التأكيد 'تأكد' أنتج قيمة فالصة أثناء التنفيذ
-    en: A ''تأكد'' assertion evaluated to false at runtime
+    ar: 'فشل التأكيد: {detail}'
+    en: 'Assertion failed: {detail}'
+  placeholders:
+  - detail
   fix_hint:
     ar: راجع المنطق قبل التأكيد. التأكيدات الفاشلة تشير لخطأ منطقي يجب إصلاحه، ليس إسكاته.
     en: Review logic preceding the assertion. Failed assertions indicate a logic bug to fix, not silence.
