@@ -28,9 +28,10 @@ namespace Sad
 
             // (1) استثناء_جديد / exception_new
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     std::string msg = args.empty() ? "خطأ غير محدد" : args[0]->toString();
                     std::string type = args.size() > 1 ? args[1]->toString() : "RuntimeError";
                     std::ostringstream oss;
@@ -42,9 +43,10 @@ namespace Sad
 
             // (2) استثناء_رسالة / exception_message
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(std::string(""));
                     return std::make_shared<Data::Value>(args[0]->toString());
@@ -54,9 +56,10 @@ namespace Sad
 
             // (3) مكدس_تتبع / stack_trace (stub)
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     // Stub: return simulated stack trace
                     std::ostringstream oss;
                     oss << "تتبع المكدس (1 إطار):";
@@ -68,9 +71,10 @@ namespace Sad
 
             // (4) مكدس_عمق / stack_depth (stub)
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     // Stub: return 1
                     return std::make_shared<Data::Value>(1.0);
                 };
@@ -79,9 +83,10 @@ namespace Sad
 
             // (5) خطأ_نوع / error_type
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(std::string("غير محدد"));
                     std::string code = args[0]->toString();
@@ -100,9 +105,10 @@ namespace Sad
 
             // (6) أمان_فحص / sandbox_check
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     std::string permission = args[0]->toString();
@@ -121,9 +127,10 @@ namespace Sad
 
             // (7) أمان_قائمة_أذونات / sandbox_permissions
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     std::vector<Data::Value> perms;
                     perms.push_back(Data::Value(std::string("ملفات")));
                     perms.push_back(Data::Value(std::string("شبكة")));
@@ -137,9 +144,10 @@ namespace Sad
 
             // (8) أمان_وضع / sandbox_mode
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     return std::make_shared<Data::Value>(std::string("تطوير"));
                 };
                 fm.registerBuiltinFunction(std::string(Bexc::SECURITY_MODE), f); // أمان_وضع
@@ -147,16 +155,17 @@ namespace Sad
 
             // (9) خطأ_تأكيد / assert_error
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     bool condition = args[0]->toBool();
                     if (!condition)
                     {
                         std::string msg = args.size() > 1 ? args[1]->toString() : "فشل التأكيد";
-                        throw std::runtime_error(msg);
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_ASSERTION_FAILED, {{"detail", msg}});
                     }
                     return std::make_shared<Data::Value>(true);
                 };
@@ -168,9 +177,10 @@ namespace Sad
                 // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
                 thread_local std::string lastError;
                 // (AR) خطأ_آخر — تخزين/استرجاع آخر خطأ / (EN) last_error — store/retrieve last error
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!args.empty())
                     {
                         lastError = args[0]->toString();

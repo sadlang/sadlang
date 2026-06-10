@@ -30,7 +30,8 @@ using namespace StdLib;
 
 void registerBuiltinsBasics(Interpreter& interpreter) {
     // exit - إنهاء البرنامج
-    auto other_exit_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto other_exit_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         std::vector<Data::Value> plainArgs;
         for (const auto& arg : args) plainArgs.push_back(*arg);
         return std::make_shared<Data::Value>(StdLib::Core::exit(plainArgs));
@@ -39,7 +40,8 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::EXIT_ALT), other_exit_func);
     
     // assert - التحقق من شرط
-    auto other_assert_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto other_assert_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         std::vector<Data::Value> plainArgs;
         for (const auto& arg : args) plainArgs.push_back(*arg);
         return std::make_shared<Data::Value>(StdLib::Core::assert(plainArgs));
@@ -52,8 +54,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     // ═══════════════════════════════════════════════════════════════
     // read_lines - قراءة أسطر الملف
-    auto fs_read_lines_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) اقرأ_أسطر تتطلب مسار الملف / (EN) read_lines requires file path");
+    auto fs_read_lines_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         auto lines = sad::stdlib::filesystem::read_lines(path);
         std::vector<Data::Value> result;
@@ -65,8 +68,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::READ_LINES), fs_read_lines_func);
     // append_to_file - إضافة إلى ملف
-    auto fs_append_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.size() < 2) throw std::runtime_error("(AR) أضف_إلى_ملف تتطلب مسار ومحتوى / (EN) append_to_file requires path and content");
+    auto fs_append_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         std::string content = args[1]->toString();
         sad::stdlib::filesystem::append_to_file(path, content);
@@ -75,8 +79,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::APPEND_FILE), fs_append_func);
     // copy_file - نسخ ملف
-    auto fs_copy_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.size() < 2) throw std::runtime_error("(AR) انسخ_ملف تتطلب مصدراً ووجهة / (EN) copy_file requires source and destination");
+    auto fs_copy_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string source = args[0]->toString();
         std::string dest = args[1]->toString();
         bool overwrite = args.size() > 2 ? args[2]->toBool() : false;
@@ -86,8 +91,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::COPY_FILE), fs_copy_file_func);
     // move_file - نقل ملف
-    auto fs_move_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.size() < 2) throw std::runtime_error("(AR) انقل_ملف تتطلب مصدراً ووجهة / (EN) move_file requires source and destination");
+    auto fs_move_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string source = args[0]->toString();
         std::string dest = args[1]->toString();
         sad::stdlib::filesystem::move_file(source, dest);
@@ -96,8 +102,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::MOVE_FILE), fs_move_file_func);
     // delete_file - حذف ملف
-    auto fs_delete_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) احذف_ملف تتطلب مسار الملف / (EN) delete_file requires file path");
+    auto fs_delete_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         bool result = sad::stdlib::filesystem::delete_file(path);
         return std::make_shared<Data::Value>(result);
@@ -105,8 +112,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::DELETE_FILE), fs_delete_file_func);
     // create_directory - إنشاء مجلد
-    auto fs_create_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) أنشئ_مجلد تتطلب مسار المجلد / (EN) create_directory requires path");
+    auto fs_create_dir_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         bool recursive = args.size() > 1 ? args[1]->toBool() : true;
         bool result = sad::stdlib::filesystem::create_directory(path, recursive);
@@ -116,8 +124,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::MKDIR), fs_create_dir_func);
     
     // list_directory - سرد محتويات مجلد
-    auto fs_list_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) اسرد_مجلد تتطلب مسار المجلد / (EN) list_directory requires path");
+    auto fs_list_dir_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         auto entries = sad::stdlib::filesystem::list_directory(path);
         std::vector<Data::Value> result;
@@ -130,8 +139,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::LIST_DIR), fs_list_dir_func);
     
     // remove_directory - حذف مجلد
-    auto fs_remove_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) احذف_مجلد تتطلب مسار المجلد / (EN) remove_directory requires path");
+    auto fs_remove_dir_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         bool recursive = args.size() > 1 ? args[1]->toBool() : false;
         bool result = sad::stdlib::filesystem::remove_directory(path, recursive);
@@ -141,8 +151,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::REMOVE_DIR), fs_remove_dir_func);
     
     // is_file - هل هو ملف
-    auto fs_is_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) هل_ملف تتطلب مسار الملف / (EN) is_file requires path");
+    auto fs_is_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         bool result = sad::stdlib::filesystem::is_file(path);
         return std::make_shared<Data::Value>(result);
@@ -151,8 +162,9 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::IS_FILE), fs_is_file_func);
     
     // is_directory - هل هو مجلد
-    auto fs_is_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("(AR) هل_مجلد تتطلب مسار المجلد / (EN) is_directory requires path");
+    auto fs_is_dir_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string path = args[0]->toString();
         bool result = sad::stdlib::filesystem::is_directory(path);
         return std::make_shared<Data::Value>(result);
@@ -165,7 +177,8 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     // (AR) دوال المدى والتكرار / (EN) Range & Iteration Functions
     
     // ═══════════════════════════════════════════════════════════════
-    auto range_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto range_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         return BuiltinFunctions::range(args);
     };
     
@@ -177,15 +190,16 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     // ═══════════════════════════════════════════════════════════════
     // دالة قراءة ملف / Read file function
-    auto read_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto read_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]) {
-            throw std::runtime_error("(AR) اقرأ_ملف: المعامل الأول مطلوب (مسار الملف) / (EN) read_file: First argument required (file path)");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         std::string path = args[0]->toString();
         
         std::ifstream file(path);
         if (!file.is_open()) {
-            throw std::runtime_error("(AR) اقرأ_ملف: فشل فتح الملف '" + path + "' / (EN) read_file: Failed to open file '" + path + "'");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "read"}});
         }
         
         std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -197,9 +211,10 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::READ_FILE), read_file_func);
     
     // دالة كتابة ملف / Write file function
-    auto write_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto write_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0] || !args[1]) {
-            throw std::runtime_error("(AR) اكتب_ملف: معاملان مطلوبان (مسار، محتوى) / (EN) write_file: Two arguments required (path, content)");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         
         std::string path = args[0]->toString();
@@ -207,7 +222,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         
         std::ofstream file(path);
         if (!file.is_open()) {
-            throw std::runtime_error("(AR) اكتب_ملف: فشل فتح الملف '" + path + "' للكتابة / (EN) write_file: Failed to open file '" + path + "' for writing");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "write"}});
         }
         
         file << content;
@@ -219,9 +234,10 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::WRITE_FILE), write_file_func);
     
     // دالة إضافة لملف / Append to file function
-    auto append_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto append_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0] || !args[1]) {
-            throw std::runtime_error("(AR) أضف_إلى_ملف: معاملان مطلوبان / (EN) append_to_file: Two arguments required");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         
         std::string path = args[0]->toString();
@@ -229,7 +245,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         
         std::ofstream file(path, std::ios::app);
         if (!file.is_open()) {
-            throw std::runtime_error("(AR) أضف_إلى_ملف: فشل فتح الملف / (EN) append_to_file: Failed to open file");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         
         file << content;
@@ -241,9 +257,10 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::APPEND_FILE), append_file_func);
     
     // دالة حذف ملف / Delete file function
-    auto delete_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto delete_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]) {
-            throw std::runtime_error("(AR) احذف_ملف: المعامل الأول مطلوب / (EN) delete_file: First argument required");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         
         std::string path = args[0]->toString();
@@ -251,7 +268,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         if (std::filesystem::exists(path)) {
             std::filesystem::remove(path);
         } else {
-            throw std::runtime_error("(AR) احذف_ملف: الملف غير موجود / (EN) delete_file: File not found");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         
         return std::make_shared<Data::Value>();
@@ -260,9 +277,10 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::DELETE_FILE), delete_file_func);
     
     // دالة التحقق من وجود ملف / Check if file exists
-    auto file_exists_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+    auto file_exists_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+                const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]) {
-            throw std::runtime_error("(AR) هل_موجود: المعامل الأول مطلوب / (EN) exists: First argument required");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         }
         
         std::string path = args[0]->toString();

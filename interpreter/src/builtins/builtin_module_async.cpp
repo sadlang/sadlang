@@ -85,8 +85,9 @@ namespace Sad
             static std::unordered_map<int64_t, std::shared_ptr<std::atomic<int64_t>>> async_atomics;
 
             // 1. spawn / async_spawn
-            auto async_spawn_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto async_spawn_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int64_t taskId = async_task_counter.fetch_add(1);
                 std::cout << "[ASYNC-SIM] Spawned task #" << taskId << std::endl;
                 return std::make_shared<Data::Value>(static_cast<int>(taskId));
@@ -94,10 +95,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ASYNC_SPAWN), async_spawn_func);
 
             // 2. await / async_await
-            auto async_await_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto async_await_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("انتظر: يتطلب وسيطاً واحداً (معرّف_المهمة) / await requires 1 argument (task_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t taskId = 0;
                 if (args[0]->isInteger())
                     taskId = args[0]->toInt();
@@ -125,8 +127,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ASYNC_AWAIT), async_await_func);
 
             // 3. yield / async_yield
-            auto async_yield_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto async_yield_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[ASYNC-SIM] Yielding execution" << std::endl;
                 std::this_thread::yield();
                 return std::make_shared<Data::Value>(0);
@@ -134,10 +137,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ASYNC_YIELD), async_yield_func);
 
             // 4. async_sleep
-            auto async_sleep_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto async_sleep_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("نم_غير_متزامن: يتطلب وسيطاً واحداً (مللي_ثانية) / async_sleep requires 1 argument (ms)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t ms = 0;
                 if (args[0]->isInteger())
                     ms = args[0]->toInt();
@@ -150,8 +154,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ASYNC_SLEEP), async_sleep_func);
 
             // 5. create_future
-            auto create_future_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto create_future_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int64_t futureId = async_future_counter.fetch_add(1);
                 auto future = std::make_shared<AsyncFuture>();
                 {
@@ -164,10 +169,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CREATE_FUTURE_ALT), create_future_func);
 
             // 6. resolve_future
-            auto resolve_future_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto resolve_future_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("حل_مستقبل: يتطلب وسيطين (معرّف_المستقبل، القيمة) / resolve_future requires 2 args (future_id, value)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t futureId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_futures_mutex);
                 auto it = async_futures.find(futureId);
@@ -190,10 +196,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::FUTURE_RESOLVE), resolve_future_func);
 
             // 7. get_future
-            auto get_future_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto get_future_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("احصل_مستقبل: يتطلب وسيطاً واحداً (معرّف_المستقبل) / get_future requires 1 argument (future_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t futureId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_futures_mutex);
                 auto it = async_futures.find(futureId);
@@ -212,8 +219,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::FUTURE_GET), get_future_func);
 
             // 8. create_channel
-            auto create_channel_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto create_channel_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int64_t chanId = async_channel_counter.fetch_add(1);
                 auto chan = std::make_shared<AsyncChannel>();
                 if (!args.empty())
@@ -230,10 +238,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CREATE_CHANNEL), create_channel_func);
 
             // 9. channel_send
-            auto channel_send_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto channel_send_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("أرسل_قناة: يتطلب وسيطين (معرّف_القناة، القيمة) / channel_send requires 2 args (channel_id, value)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t chanId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_channels_mutex);
                 auto it = async_channels.find(chanId);
@@ -255,10 +264,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CHANNEL_SEND_ALT), channel_send_func);
 
             // 10. channel_recv
-            auto channel_recv_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto channel_recv_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("استقبل_قناة: يتطلب وسيطاً واحداً (معرّف_القناة) / channel_recv requires 1 argument (channel_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t chanId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_channels_mutex);
                 auto it = async_channels.find(chanId);
@@ -282,10 +292,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CHANNEL_RECV_ALT), channel_recv_func);
 
             // 11. channel_close
-            auto channel_close_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto channel_close_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("أغلق_قناة: يتطلب وسيطاً واحداً (معرّف_القناة) / channel_close requires 1 argument (channel_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t chanId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_channels_mutex);
                 auto it = async_channels.find(chanId);
@@ -300,8 +311,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CHANNEL_CLOSE), channel_close_func);
 
             // 12. create_mutex
-            auto create_mutex_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto create_mutex_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int64_t mutexId = async_mutex_counter.fetch_add(1);
                 auto mtx = std::make_shared<std::mutex>();
                 {
@@ -314,10 +326,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CREATE_MUTEX), create_mutex_func);
 
             // 13. mutex_lock
-            auto mutex_lock_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto mutex_lock_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("قفل: يتطلب وسيطاً واحداً (معرّف_القفل) / mutex_lock requires 1 argument (mutex_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t mutexId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_mutexes_mutex);
                 auto it = async_mutexes.find(mutexId);
@@ -331,10 +344,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::MUTEX_LOCK), mutex_lock_func);
 
             // 14. mutex_unlock
-            auto mutex_unlock_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto mutex_unlock_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("افتح_قفل: يتطلب وسيطاً واحداً (معرّف_القفل) / mutex_unlock requires 1 argument (mutex_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t mutexId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_mutexes_mutex);
                 auto it = async_mutexes.find(mutexId);
@@ -348,8 +362,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::MUTEX_UNLOCK), mutex_unlock_func);
 
             // 15. thread_spawn
-            auto thread_spawn_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto thread_spawn_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int64_t threadId = async_task_counter.fetch_add(1);
                 std::cout << "[ASYNC-SIM] Spawned thread #" << threadId << std::endl;
                 return std::make_shared<Data::Value>(static_cast<int>(threadId));
@@ -358,10 +373,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::THREAD_ALT), thread_spawn_func);
 
             // 16. thread_join
-            auto thread_join_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto thread_join_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("انضمام_خيط: يتطلب وسيطاً واحداً (معرّف_الخيط) / thread_join requires 1 argument (thread_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t threadId = args[0]->toInt();
                 std::cout << "[ASYNC-SIM] Joined thread #" << threadId << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -369,8 +385,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::THREAD_JOIN), thread_join_func);
 
             // 16b. create_atomic ג€” ״¥†״´״§״¡ …״×״÷״± ״°״±
-            auto create_atomic_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto create_atomic_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int64_t initVal = 0;
                 if (!args.empty())
                     initVal = args[0]->toInt();
@@ -386,10 +403,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CREATE_ATOMIC), create_atomic_func);
 
             // 17. atomic_load
-            auto atomic_load_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto atomic_load_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("تحميل_ذري: يتطلب وسيطاً واحداً (معرّف_الذري) / atomic_load requires 1 argument (atomic_id)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t atomicId = args[0]->toInt();
                 std::lock_guard<std::mutex> lock(async_atomics_mutex);
                 auto it = async_atomics.find(atomicId);
@@ -405,10 +423,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ATOMIC_LOAD), atomic_load_func);
 
             // 18. atomic_store
-            auto atomic_store_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto atomic_store_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("تخزين_ذري: يتطلب وسيطين (معرّف_الذري، القيمة) / atomic_store requires 2 args (atomic_id, value)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t atomicId = args[0]->toInt();
                 int64_t value = args[1]->toInt();
                 std::lock_guard<std::mutex> lock(async_atomics_mutex);
@@ -427,10 +446,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ATOMIC_STORE), atomic_store_func);
 
             // 19. atomic_add
-            auto atomic_add_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto atomic_add_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("إضافة_ذرية: يتطلب وسيطين (معرّف_الذري، القيمة) / atomic_add requires 2 args (atomic_id, value)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t atomicId = args[0]->toInt();
                 int64_t addVal = args[1]->toInt();
                 std::lock_guard<std::mutex> lock(async_atomics_mutex);
@@ -450,10 +470,11 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ATOMIC_ADD), atomic_add_func);
 
             // 20. compare_and_swap / CAS
-            auto atomic_cas_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto atomic_cas_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 3)
-                    throw std::runtime_error("تبديل_ذري: يتطلب 3 وسائط (معرّف_الذري، المتوقع، المطلوب) / CAS requires 3 args (atomic_id, expected, desired)");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t atomicId = args[0]->toInt();
                 int64_t expected = args[1]->toInt();
                 int64_t desired = args[2]->toInt();
@@ -471,8 +492,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::ATOMIC_CAS), atomic_cas_func);
 
             // 21. wait_all
-            auto wait_all_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto wait_all_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[ASYNC-SIM] Waiting for all " << args.size() << " tasks" << std::endl;
                 for (size_t i = 0; i < args.size(); i++)
                 {
@@ -483,8 +505,9 @@ namespace Sad
             };
 
             // 22. wait_any
-            auto wait_any_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto wait_any_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     return std::make_shared<Data::Value>(-1);
                 int64_t taskId = args[0]->toInt();
@@ -494,8 +517,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::WAIT_ANY), wait_any_func);
 
             // 23. select / channel_select
-            auto channel_select_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto channel_select_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[ASYNC-SIM] Select on " << args.size() << " channels" << std::endl;
                 if (!args.empty())
                 {
@@ -513,8 +537,9 @@ namespace Sad
             // ג”€ג”€ג”€ ‡ˆ_…״«„(ƒ״§״¦†״ "״§״³…_״µ†") ג€” instanceof check ג”€ג”€ג”€
             // (AR) ״×״­‚‚ ‡„ ״§„ƒ״§״¦† …† †ˆ״¹ ״§„״µ† ״§„…״­״¯״¯ (״£ˆ ״£ ״µ† ״£״¨)
             // (EN) Checks if object is instance of specified class (or any parent class)
-            auto instanceof_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto instanceof_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
                     return std::make_shared<Data::Value>(0);
                 if (!args[0]->isObject())
@@ -534,8 +559,9 @@ namespace Sad
             // ג”€ג”€ג”€ †ˆ״¹_״§„ƒ״§״¦†(ƒ״§״¦†) ג€” get object class name ג”€ג”€ג”€
             // (AR) ״±״¬״¹ ״§״³… ״µ† ״§„ƒ״§״¦† ƒ†״µ
             // (EN) Returns the class name of an object as string
-            auto get_class_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto get_class_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     return std::make_shared<Data::Value>(std::string(""));
                 if (!args[0]->isObject())
@@ -581,8 +607,9 @@ namespace Sad
             // ג”€ג”€ג”€ ״­‚ˆ„_״§„ƒ״§״¦†(ƒ״§״¦†) ג€” get object fields as map ג”€ג”€ג”€
             // (AR) ״±״¬״¹ ‚״§…ˆ״³ ״¨״­‚ˆ„ ״§„ƒ״§״¦†
             // (EN) Returns a map of object fields
-            auto get_fields_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto get_fields_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isObject())
                     return std::make_shared<Data::Value>();
                 auto obj = args[0]->toObject();
