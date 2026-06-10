@@ -82,6 +82,7 @@
 #include <stdexcept>
 
 #include "value.h"
+#include "builtins/builtin_context.h" // (AR) EM-CPP: سياق استدعاء الدوال المضمنة / (EN) built-in invocation context
 
 // (AR) تصريحات أمامية لعقد AST / (EN) Forward declarations for AST nodes
 namespace Sad
@@ -175,13 +176,29 @@ namespace Sad
              * @brief (AR) استدعاء التنفيذ الأصلي
              * @brief (EN) Call native implementation
              */
-            std::shared_ptr<Data::Value> callNative(const std::vector<std::shared_ptr<Data::Value>> &args) const
+            std::shared_ptr<Data::Value> callNative(
+                const std::vector<std::shared_ptr<Data::Value>> &args,
+                const Sad::Lexer::Position &pos = Sad::Lexer::Position{}) const
             {
+                // (AR) EM-CPP: التوقيع الجديد (BuiltinContext) يُفضَّل؛ القديم (args) انتقالي.
+                // (EN) EM-CPP: prefer new (BuiltinContext) signature; old (args) is transitional.
+                if (nativeImplementationCtx_)
+                {
+                    Sad::Interpreter::BuiltinContext ctx(args, pos, name_);
+                    return nativeImplementationCtx_(ctx);
+                }
                 if (nativeImplementation_)
                 {
                     return nativeImplementation_(args);
                 }
                 return nullptr;
+            }
+
+            /// (AR) EM-CPP: تعيين تنفيذ بالتوقيع الجديد. / (EN) set new-signature native impl.
+            void setNativeImplementationCtx(
+                std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> impl)
+            {
+                nativeImplementationCtx_ = std::move(impl);
             }
 
             std::string getReturnType() const { return returnType_; }
@@ -285,7 +302,8 @@ namespace Sad
             std::shared_ptr<AST::ASTNode> body_;                                                                                  ///< (AR) جسم الدالة (AST) / (EN) Function body (AST)
             std::shared_ptr<AST::ASTNode> declaration_;                                                                           ///< (AR) التصريح الأصلي (للوصول للـ defaults) / (EN) Original declaration (for defaults access)
             std::shared_ptr<AST::ASTNode> functionDecl_;                                                                          ///< (AR) FunctionDecl الأصلي (للوصول لـ Parameters) / (EN) Original FunctionDecl (for Parameters access)
-            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> nativeImplementation_; ///< (AR) تنفيذ أصلي (للدوال المضمنة) / (EN) Native implementation (for built-in)
+            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> nativeImplementation_; ///< (AR) تنفيذ أصلي قديم (انتقالي) / (EN) old native impl (transitional)
+            std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> nativeImplementationCtx_;            ///< (AR) EM-CPP: تنفيذ بسياق / (EN) context-based native impl
             std::string returnType_;                                                                                              ///< (AR) نوع الإرجاع / (EN) Return type
             bool isGenerator_ = false;                                                                                            ///< (AR) هل هذه دالة مولد؟ / (EN) Is this a generator function?
             bool isAsync_ = false;                                                                                                ///< (AR) هل هذه دالة غير متزامنة؟ / (EN) Is this an async function?
@@ -388,6 +406,13 @@ namespace Sad
              */
             void registerBuiltinFunction(const std::string &name,
                                          const std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>> &)> &func);
+
+            /**
+             * @brief (AR) EM-CPP: تسجيل دالة مضمنة بالتوقيع الجديد (BuiltinContext&).
+             * @brief (EN) EM-CPP: register a built-in with the new (BuiltinContext&) signature.
+             */
+            void registerBuiltinFunction(const std::string &name,
+                                         const std::function<std::shared_ptr<Value>(Sad::Interpreter::BuiltinContext &)> &func);
 
             /**
              * @brief (AR) حذف دالة

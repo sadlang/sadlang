@@ -638,6 +638,40 @@ namespace Sad
             }
         }
 
+        // (AR) EM-CPP: نسخة التوقيع الجديد (BuiltinContext&). نفس منطق القديمة + setNativeImplementationCtx.
+        // (EN) EM-CPP: new-signature (BuiltinContext&) variant. Same logic + setNativeImplementationCtx.
+        void FunctionManager::registerBuiltinFunction(
+            const std::string &name,
+            const std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> &func)
+        {
+            removeFunction(name);
+
+            std::vector<FunctionParameter> params;
+            // (AR) تنفيذ قديم فارغ — السياق هو المُستخدَم. / (EN) empty old-impl; ctx is used.
+            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> emptyOld;
+            auto funcDef = std::make_shared<FunctionDefinition>(name, params, emptyOld);
+            funcDef->setNativeImplementationCtx(func);
+            functions_[name].push_back(funcDef);
+
+            // (AR) alias بلا تشكيل (نفس منطق النسخة القديمة). / (EN) diacritics-free alias.
+            const std::string normalizedName = stripArabicDiacritics(name);
+            if (!normalizedName.empty() && normalizedName != name && !hasFunction(normalizedName))
+            {
+                auto normalizedDef = std::make_shared<FunctionDefinition>(normalizedName, params, emptyOld);
+                normalizedDef->setNativeImplementationCtx(func);
+                functions_[normalizedName].push_back(normalizedDef);
+                if (trackingRegistrations_)
+                {
+                    trackedRegistrations_.push_back(normalizedName);
+                }
+            }
+
+            if (trackingRegistrations_)
+            {
+                trackedRegistrations_.push_back(name);
+            }
+        }
+
         // ============================================================================
         // (AR) تتبع تسجيل الدوال — آلية تتبع لدعم loadModule
         // (EN) Registration tracking — tracking mechanism to support loadModule

@@ -219,65 +219,39 @@ function(sad_add_codegen NAME)
     add_dependencies(sad_${NAME}_codegen sad_check_codegen_env)
 endfunction()
 
-# ─── (AR) نطاقات بمخرَج .h واحد (--out-h) ───
-sad_add_codegen(operators
-    OUTPUTS ${SAD_GEN}/operators_generated.h
-    DEPS    ${SAD_LT}/operators.yaml ${SAD_SCH}/operator.schema.json ${SAD_CG}/gen_operators.py
-    ARGS    ${SAD_CG}/gen_operators.py --yaml ${SAD_LT}/operators.yaml --schema ${SAD_SCH}/operator.schema.json --out-h ${SAD_GEN}/operators_generated.h)
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) ⚠️ نطاقات codegen مُعطَّلة مؤقتاً — سكربتاتها مفقودة (فقدان بيانات سابق،
+#      غير متعقّبة في git) ومخرجاتها صفر استهلاك في الشجرة الفعلية (سقالة V5 سابقة
+#      لأوانها). تعطيلها يرفع حاجز البناء بلا خسارة وظيفية.
+#      الاستعادة الصحيحة: عند بدء استهلاك C++ لهذه الترويسات (راجع
+#      _recovered/full_to_restore/) — تُكتب السكربتات وتُتعقّب في git أولاً.
+#      النطاقات: operators, directives, types, grammar, modules, stdlib,
+#               type_methods, patterns, oop_constructs, expr_constructs.
+# (EN) ⚠️ Temporarily disabled codegen domains — scripts lost (prior data loss,
+#      untracked) and outputs have ZERO consumers (premature V5 scaffolding).
+#      Disabling unblocks the build with no functional loss. Restore properly
+#      when C++ starts consuming these headers (see _recovered/full_to_restore/).
+# ════════════════════════════════════════════════════════════════════════════
+# sad_add_codegen(operators ...)       # مُعطَّل: gen_operators.py مفقود + غير مُستهلَك
+# sad_add_codegen(directives ...)      # مُعطَّل: gen_directives.py مفقود + غير مُستهلَك
+# sad_add_codegen(types ...)           # مُعطَّل: gen_types.py مفقود + غير مُستهلَك
+# sad_add_codegen(grammar ...)         # مُعطَّل: gen_grammar.py مفقود + غير مُستهلَك
+# sad_add_codegen(modules ...)         # مُعطَّل: gen_modules.py مفقود + غير مُستهلَك
+# sad_add_codegen(stdlib ...)          # مُعطَّل: gen_stdlib.py مفقود + غير مُستهلَك
+# sad_add_codegen(type_methods ...)    # مُعطَّل: gen_type_methods.py مفقود + غير مُستهلَك
+# sad_add_codegen(patterns ...)        # مُعطَّل: gen_constructs.py مفقود + غير مُستهلَك
+# sad_add_codegen(oop_constructs ...)  # مُعطَّل: gen_constructs.py مفقود + غير مُستهلَك
+# sad_add_codegen(expr_constructs ...) # مُعطَّل: gen_constructs.py مفقود + غير مُستهلَك
 
-sad_add_codegen(directives
-    OUTPUTS ${SAD_GEN}/directives_generated.h
-    DEPS    ${SAD_LT}/directives.yaml ${SAD_SCH}/directive.schema.json ${SAD_CG}/gen_directives.py
-    ARGS    ${SAD_CG}/gen_directives.py --yaml ${SAD_LT}/directives.yaml --schema ${SAD_SCH}/directive.schema.json --out-h ${SAD_GEN}/directives_generated.h)
-
-sad_add_codegen(types
-    OUTPUTS ${SAD_GEN}/types_generated.h
-    DEPS    ${SAD_LT}/types.yaml ${SAD_SCH}/type.schema.json ${SAD_CG}/gen_types.py
-    ARGS    ${SAD_CG}/gen_types.py --yaml ${SAD_LT}/types.yaml --schema ${SAD_SCH}/type.schema.json --out-h ${SAD_GEN}/types_generated.h)
-
-sad_add_codegen(grammar
-    OUTPUTS ${SAD_GEN}/grammar_constructs_generated.h
-    DEPS    ${SAD_LT}/grammar_constructs.yaml ${SAD_SCH}/grammar_rule.schema.json ${SAD_CG}/gen_grammar.py
-    ARGS    ${SAD_CG}/gen_grammar.py --yaml ${SAD_LT}/grammar_constructs.yaml --schema ${SAD_SCH}/grammar_rule.schema.json --out-h ${SAD_GEN}/grammar_constructs_generated.h)
-
-sad_add_codegen(modules
-    OUTPUTS ${SAD_GEN}/modules_generated.h
-    DEPS    ${SAD_LT}/stdlib/modules.yaml ${SAD_SCH}/module.schema.json ${SAD_CG}/gen_modules.py
-    ARGS    ${SAD_CG}/gen_modules.py --yaml ${SAD_LT}/stdlib/modules.yaml --schema ${SAD_SCH}/module.schema.json --out-h ${SAD_GEN}/modules_generated.h)
-
-sad_add_codegen(stdlib
-    OUTPUTS ${SAD_GEN}/stdlib_functions_generated.h
-    DEPS    ${SAD_LT}/stdlib/functions.yaml ${SAD_SCH}/stdlib_functions.schema.json ${SAD_CG}/gen_stdlib.py
-    ARGS    ${SAD_CG}/gen_stdlib.py --yaml ${SAD_LT}/stdlib/functions.yaml --schema ${SAD_SCH}/stdlib_functions.schema.json --out-h ${SAD_GEN}/stdlib_functions_generated.h)
-
-# ─── (AR) type_methods (مخرَجان: --out-header/--out-source) ───
-sad_add_codegen(type_methods
-    OUTPUTS ${SAD_GEN}/type_methods_generated.h ${SAD_GEN}/type_methods_generated.cpp
-    DEPS    ${SAD_LT}/type_methods.yaml ${SAD_SCH}/type_method.schema.json ${SAD_CG}/gen_type_methods.py
-    ARGS    ${SAD_CG}/gen_type_methods.py --yaml ${SAD_LT}/type_methods.yaml --schema ${SAD_SCH}/type_method.schema.json --out-header ${SAD_GEN}/type_methods_generated.h --out-source ${SAD_GEN}/type_methods_generated.cpp)
-
-# ─── (AR) constructs (gen_constructs.py مع وسائط بنية إضافية) ───
-sad_add_codegen(patterns
-    OUTPUTS ${SAD_GEN}/patterns_generated.h
-    DEPS    ${SAD_LT}/patterns.yaml ${SAD_SCH}/grammar_rule.schema.json ${SAD_CG}/gen_constructs.py
-    ARGS    ${SAD_CG}/gen_constructs.py --yaml ${SAD_LT}/patterns.yaml --schema ${SAD_SCH}/grammar_rule.schema.json --out-h ${SAD_GEN}/patterns_generated.h --list-key patterns --struct-name PatternEntry --func-name allPatterns --count-name kPatternCount)
-
-sad_add_codegen(oop_constructs
-    OUTPUTS ${SAD_GEN}/oop_constructs_generated.h
-    DEPS    ${SAD_LT}/oop_constructs.yaml ${SAD_SCH}/grammar_rule.schema.json ${SAD_CG}/gen_constructs.py
-    ARGS    ${SAD_CG}/gen_constructs.py --yaml ${SAD_LT}/oop_constructs.yaml --schema ${SAD_SCH}/grammar_rule.schema.json --out-h ${SAD_GEN}/oop_constructs_generated.h --list-key constructs --struct-name OopConstructEntry --func-name allOopConstructs --count-name kOopConstructCount)
-
-sad_add_codegen(expr_constructs
-    OUTPUTS ${SAD_GEN}/expr_constructs_generated.h
-    DEPS    ${SAD_LT}/expr_constructs.yaml ${SAD_SCH}/grammar_rule.schema.json ${SAD_CG}/gen_constructs.py
-    ARGS    ${SAD_CG}/gen_constructs.py --yaml ${SAD_LT}/expr_constructs.yaml --schema ${SAD_SCH}/grammar_rule.schema.json --out-h ${SAD_GEN}/expr_constructs_generated.h --list-key constructs --struct-name ExprConstructEntry --func-name allExprConstructs --count-name kExprConstructCount)
-
-# ─── (AR) هدف تجميعي يجمع كل نطاقات V5 (راحة + ترتيب) ───
+# ─── (AR) هدف تجميعي — يقتصر على النطاقات العاملة (سكربت موجود + مخرَج مُستهلَك) ───
+# (EN) Aggregate — only the working domains (script present + output consumed).
 add_custom_target(sad_all_codegen DEPENDS
     sad_keywords_codegen sad_builtin_registry_codegen sad_error_messages_codegen
-    sad_sadinfo_errors_codegen
-    sad_operators_codegen sad_directives_codegen sad_types_codegen sad_grammar_codegen
-    sad_modules_codegen sad_stdlib_codegen sad_type_methods_codegen
-    sad_patterns_codegen sad_oop_constructs_codegen sad_expr_constructs_codegen
 )
-message(STATUS "(sad) All-domains codegen wired (V5): 13 targets via sad_all_codegen")
+# (AR) sad_sadinfo_errors_codegen مُستبعَد من مُجمِّع بناء C++: مُخرَجه (data/errors) إسقاط
+#      تشغيلي للأدوات/الموقع، صفر استهلاك في كود C++، ومخططه (data/_schemas/error.schema.json)
+#      مفقود حالياً. الهدف يبقى معرّفاً ويُشغَّل يدوياً عند الحاجة (بعد استعادة المخطط).
+# (EN) sad_sadinfo_errors_codegen excluded from the C++ build aggregate: its output
+#      (data/errors) is a tooling/site projection with zero C++ consumers and a currently
+#      missing schema. The target stays defined; run it manually when needed.
+message(STATUS "(sad) Codegen wired: 3 C++ build domains (keywords/builtins/error_messages); sadinfo + 10 V5 scaffolds excluded")
