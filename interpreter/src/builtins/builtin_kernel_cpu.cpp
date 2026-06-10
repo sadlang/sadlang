@@ -51,7 +51,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 1. وحدة المعالج / CPU Module
     // ═══════════════════════════════════════════════════════════════
-    auto cpu_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto cpu_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& cpu = LowLevel::CPUManager::getInstance();
         return std::make_shared<Data::Value>(cpu.generateReport());
@@ -59,7 +60,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_0), cpu_info);
 
     // إيقاف المعالج (تعليمة HLT)
-    auto cpu_halt = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto cpu_halt = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         LowLevel::CPUManager::halt();
         return std::make_shared<Data::Value>(0);
@@ -67,7 +69,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_1), cpu_halt);
 
     // قراءة عداد الطوابع الزمنية (TSC)
-    auto cpu_rdtsc = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto cpu_rdtsc = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         uint64_t tsc = LowLevel::CPUManager::readTSC();
         return std::make_shared<Data::Value>(static_cast<double>(tsc));
@@ -75,7 +78,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_2), cpu_rdtsc);
 
     // تعطيل المقاطعات (CLI)
-    auto cpu_cli = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto cpu_cli = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         LowLevel::CPUManager::disableInterrupts();
         return std::make_shared<Data::Value>(0);
@@ -83,7 +87,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_3), cpu_cli);
 
     // تفعيل المقاطعات (STI)
-    auto cpu_sti = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto cpu_sti = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         LowLevel::CPUManager::enableInterrupts();
         return std::make_shared<Data::Value>(0);
@@ -91,8 +96,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_4), cpu_sti);
 
     // قراءة سجل MSR بالرقم المحدد
-    auto cpu_read_msr = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("معالج_اقرأ_msr: يحتاج رقم MSR");
+    auto cpu_read_msr = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint32_t msr = static_cast<uint32_t>(args[0]->toInt());
         uint64_t val = LowLevel::CPUManager::readMSR(msr);
         return std::make_shared<Data::Value>(static_cast<double>(val));
@@ -100,8 +106,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_5), cpu_read_msr);
 
     // كتابة قيمة في سجل MSR
-    auto cpu_write_msr = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("معالج_اكتب_msr: يحتاج رقم MSR وقيمة");
+    auto cpu_write_msr = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint32_t msr = static_cast<uint32_t>(args[0]->toInt());
         uint64_t val = static_cast<uint64_t>(args[1]->toDouble());
         LowLevel::CPUManager::writeMSR(msr, val);
@@ -110,8 +117,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_6), cpu_write_msr);
 
     // إبطال صفحة ذاكرة محددة (INVLPG)
-    auto cpu_invlpg = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("cpu_invlpg: يحتاج عنوان");
+    auto cpu_invlpg = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t addr = static_cast<uint64_t>(args[0]->toDouble());
         LowLevel::CPUManager::invlpg(addr);
         return std::make_shared<Data::Value>(0);
@@ -121,8 +129,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 2. منافذ الإدخال/الإخراج / IO Ports
     // ═══════════════════════════════════════════════════════════════
-    auto io_inb = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("منفذ_اقرأ: يحتاج رقم المنفذ");
+    auto io_inb = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint16_t port = static_cast<uint16_t>(args[0]->toInt());
         uint8_t val = LowLevel::IOPorts::inb(port);
         return std::make_shared<Data::Value>(static_cast<int>(val));
@@ -130,8 +139,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_8), io_inb);
 
     // كتابة بايت واحد إلى منفذ الإخراج (outb)
-    auto io_outb = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("منفذ_اكتب: يحتاج منفذ وقيمة");
+    auto io_outb = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint16_t port = static_cast<uint16_t>(args[0]->toInt());
         uint8_t val = static_cast<uint8_t>(args[1]->toInt());
         LowLevel::IOPorts::outb(port, val);
@@ -140,8 +150,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_9), io_outb);
 
     // قراءة كلمة 16-بت من منفذ الإدخال (inw)
-    auto io_inw = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("منفذ_اقرأ16: يحتاج رقم المنفذ");
+    auto io_inw = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint16_t port = static_cast<uint16_t>(args[0]->toInt());
         uint16_t val = LowLevel::IOPorts::inw(port);
         return std::make_shared<Data::Value>(static_cast<int>(val));
@@ -149,8 +160,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_10), io_inw);
 
     // كتابة كلمة 16-بت إلى منفذ الإخراج (outw)
-    auto io_outw = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("منفذ_اكتب16: يحتاج منفذ وقيمة");
+    auto io_outw = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint16_t port = static_cast<uint16_t>(args[0]->toInt());
         uint16_t val = static_cast<uint16_t>(args[1]->toInt());
         LowLevel::IOPorts::outw(port, val);
@@ -159,8 +171,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_11), io_outw);
 
     // قراءة كلمة مزدوجة 32-بت من منفذ الإدخال (inl)
-    auto io_inl = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("منفذ_اقرأ32: يحتاج رقم المنفذ");
+    auto io_inl = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint16_t port = static_cast<uint16_t>(args[0]->toInt());
         uint32_t val = LowLevel::IOPorts::inl(port);
         return std::make_shared<Data::Value>(static_cast<int>(val));
@@ -168,8 +181,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_12), io_inl);
 
     // كتابة كلمة مزدوجة 32-بت إلى منفذ الإخراج (outl)
-    auto io_outl = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("منفذ_اكتب32: يحتاج منفذ وقيمة");
+    auto io_outl = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint16_t port = static_cast<uint16_t>(args[0]->toInt());
         uint32_t val = static_cast<uint32_t>(args[1]->toInt());
         LowLevel::IOPorts::outl(port, val);
@@ -180,50 +194,57 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 3. العمليات البتية / Bitwise Operations
     // ═══════════════════════════════════════════════════════════════
-    auto bit_and = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_و: يحتاج قيمتين");
+    auto bit_and = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         return std::make_shared<Data::Value>(args[0]->toInt() & args[1]->toInt());
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_14), bit_and);
 
     // عملية OR بتية بين قيمتين
-    auto bit_or = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_أو: يحتاج قيمتين");
+    auto bit_or = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         return std::make_shared<Data::Value>(args[0]->toInt() | args[1]->toInt());
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_15), bit_or);
 
     // عملية XOR بتية حصرية بين قيمتين
-    auto bit_xor = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_حصري: يحتاج قيمتين");
+    auto bit_xor = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         return std::make_shared<Data::Value>(args[0]->toInt() ^ args[1]->toInt());
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_16), bit_xor);
 
     // عملية NOT بتية (نفي بتي)
-    auto bit_not = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("بت_نفي: يحتاج قيمة");
+    auto bit_not = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         return std::make_shared<Data::Value>(~args[0]->toInt());
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_17), bit_not);
 
     // إزاحة بتية لليسار (SHL)
-    auto bit_shl = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_يسار: يحتاج قيمة وعدد");
+    auto bit_shl = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         return std::make_shared<Data::Value>(args[0]->toInt() << args[1]->toInt());
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_18), bit_shl);
 
     // إزاحة بتية لليمين (SHR)
-    auto bit_shr = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_يمين: يحتاج قيمة وعدد");
+    auto bit_shr = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         return std::make_shared<Data::Value>(args[0]->toInt() >> args[1]->toInt());
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_19), bit_shr);
 
     // اختبار بت محدد في قيمة
-    auto bit_test = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_اختبار: يحتاج قيمة ورقم بت");
+    auto bit_test = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int val = args[0]->toInt();
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>((val >> bit) & 1);
@@ -231,8 +252,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_20), bit_test);
 
     // تعيين بت محدد في قيمة
-    auto bit_set = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_عيّن: يحتاج قيمة ورقم بت");
+    auto bit_set = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int val = args[0]->toInt();
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>(val | (1 << bit));
@@ -240,8 +262,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_21), bit_set);
 
     // مسح بت محدد في قيمة
-    auto bit_clear = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("بت_امسح: يحتاج قيمة ورقم بت");
+    auto bit_clear = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int val = args[0]->toInt();
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>(val & ~(1 << bit));
@@ -251,7 +274,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 4. إدارة الذاكرة / Memory Management
     // ═══════════════════════════════════════════════════════════════
-    auto mem_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto mem_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& mm = LowLevel::MemoryManager::getInstance();
         return std::make_shared<Data::Value>(mm.getMemoryReport());
@@ -259,8 +283,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_23), mem_info);
 
     // قراءة بايت من عنوان ذاكرة مباشر (peek)
-    auto mem_peek = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("ذاكرة_اقرأ: يحتاج عنوان");
+    auto mem_peek = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t addr = static_cast<uint64_t>(args[0]->toDouble());
         uint8_t val = *reinterpret_cast<volatile uint8_t*>(addr);
         return std::make_shared<Data::Value>(static_cast<int>(val));
@@ -268,8 +293,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_24), mem_peek);
 
     // كتابة بايت إلى عنوان ذاكرة مباشر (poke)
-    auto mem_poke = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("ذاكرة_اكتب: يحتاج عنوان وقيمة");
+    auto mem_poke = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t addr = static_cast<uint64_t>(args[0]->toDouble());
         uint8_t val = static_cast<uint8_t>(args[1]->toInt());
         *reinterpret_cast<volatile uint8_t*>(addr) = val;
@@ -280,7 +306,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 5. المقاطعات / Interrupts
     // ═══════════════════════════════════════════════════════════════
-    auto int_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto int_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& im = LowLevel::InterruptManager::getInstance();
         return std::make_shared<Data::Value>(im.getInterruptReport());
@@ -288,7 +315,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_26), int_info);
 
     // تهيئة جدول المقاطعات IDT وتحميله
-    auto int_init = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto int_init = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& im = LowLevel::InterruptManager::getInstance();
         im.initialize();
@@ -300,14 +328,16 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 6. GDT / TSS
     // ═══════════════════════════════════════════════════════════════
-    auto gdt_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto gdt_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& gdt = LowLevel::GDTManager::getInstance();
         return std::make_shared<Data::Value>(gdt.generateReport());
     };
 
     // تهيئة جدول الواصفات العام GDT
-    auto gdt_init = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto gdt_init = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& gdt = LowLevel::GDTManager::getInstance();
         gdt.initialize();
@@ -317,7 +347,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 7. الترحيل (Paging)
     // ═══════════════════════════════════════════════════════════════
-    auto paging_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto paging_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& pg = LowLevel::PagingManager::getInstance();
         return std::make_shared<Data::Value>(pg.generateReport());
@@ -325,8 +356,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_28), paging_info);
 
     // ربط صفحة افتراضية بعنوان فيزيائي
-    auto paging_map = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("ترحيل_خريطة: يحتاج عنوان افتراضي وفيزيائي");
+    auto paging_map = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t virt = static_cast<uint64_t>(args[0]->toDouble());
         uint64_t phys = static_cast<uint64_t>(args[1]->toDouble());
         uint64_t flags = args.size() > 2 ? static_cast<uint64_t>(args[2]->toInt()) : 0x3;
@@ -337,8 +369,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_29), paging_map);
 
     // إلغاء ربط صفحة افتراضية
-    auto paging_unmap = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("ترحيل_إلغاء: يحتاج عنوان افتراضي");
+    auto paging_unmap = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t virt = static_cast<uint64_t>(args[0]->toDouble());
         auto& pg = LowLevel::PagingManager::getInstance();
         pg.unmapPage(virt);
@@ -349,14 +382,16 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 8. PCI / PCIe
     // ═══════════════════════════════════════════════════════════════
-    auto pci_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto pci_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& pci = LowLevel::PCIManager::getInstance();
         return std::make_shared<Data::Value>(pci.generateReport());
     };
 
     // مسح ناقل PCI واكتشاف الأجهزة
-    auto pci_scan = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto pci_scan = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& pci = LowLevel::PCIManager::getInstance();
         pci.enumerate();
@@ -364,8 +399,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // قراءة سجل تهيئة PCI (32-بت)
-    auto pci_read = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 4) throw std::runtime_error("pci_اقرأ: يحتاج ناقل، جهاز، وظيفة، إزاحة");
+    auto pci_read = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 4) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         LowLevel::PCIAddress addr;
         addr.bus = static_cast<uint8_t>(args[0]->toInt());
         addr.device = static_cast<uint8_t>(args[1]->toInt());
@@ -376,8 +412,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // كتابة سجل تهيئة PCI (32-بت)
-    auto pci_write = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 5) throw std::runtime_error("pci_اكتب: يحتاج ناقل، جهاز، وظيفة، إزاحة، قيمة");
+    auto pci_write = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 5) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         LowLevel::PCIAddress addr;
         addr.bus = static_cast<uint8_t>(args[0]->toInt());
         addr.device = static_cast<uint8_t>(args[1]->toInt());
@@ -389,7 +426,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // البحث عن بطاقات GPU في ناقل PCI
-    auto pci_find_gpu = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto pci_find_gpu = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& pci = LowLevel::PCIManager::getInstance();
         auto gpus = pci.findGPUs();
@@ -407,7 +445,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 9. DMA
     // ═══════════════════════════════════════════════════════════════
-    auto dma_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto dma_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& dma = LowLevel::DMAManager::getInstance();
         return std::make_shared<Data::Value>(dma.generateReport());
@@ -416,7 +455,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 10. إطار الشاشة / Framebuffer & GPU
     // ═══════════════════════════════════════════════════════════════
-    auto fb_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto fb_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& fb = LowLevel::FramebufferManager::getInstance();
         return std::make_shared<Data::Value>(fb.generateReport());
@@ -424,8 +464,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_31), fb_info);
 
     // رسم نقطة (بكسل) على الشاشة بإحداثيات ولون RGB
-    auto fb_pixel = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 5) throw std::runtime_error("شاشة_نقطة: يحتاج x, y, r, g, b");
+    auto fb_pixel = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 5) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int32_t x = args[0]->toInt(), y = args[1]->toInt();
         uint8_t r = static_cast<uint8_t>(args[2]->toInt());
         uint8_t g = static_cast<uint8_t>(args[3]->toInt());
@@ -437,8 +478,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_32), fb_pixel);
 
     // رسم خط مستقيم بين نقطتين بلون RGB
-    auto fb_line = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 7) throw std::runtime_error("شاشة_خط: يحتاج x1,y1,x2,y2,r,g,b");
+    auto fb_line = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 7) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int32_t x1 = args[0]->toInt(), y1 = args[1]->toInt();
         int32_t x2 = args[2]->toInt(), y2 = args[3]->toInt();
         uint8_t r = static_cast<uint8_t>(args[4]->toInt());
@@ -451,8 +493,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_33), fb_line);
 
     // رسم إطار مستطيل (بدون تعبئة) بلون RGB
-    auto fb_rect = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 7) throw std::runtime_error("شاشة_مستطيل: يحتاج x,y,w,h,r,g,b");
+    auto fb_rect = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 7) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(), static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
         uint8_t r = static_cast<uint8_t>(args[4]->toInt());
         uint8_t g = static_cast<uint8_t>(args[5]->toInt());
@@ -464,8 +507,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_34), fb_rect);
 
     // رسم مستطيل ممتلئ بلون RGB
-    auto fb_fill_rect = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 7) throw std::runtime_error("شاشة_مستطيل_ممتلئ: يحتاج x,y,w,h,r,g,b");
+    auto fb_fill_rect = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 7) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(), static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
         uint8_t r = static_cast<uint8_t>(args[4]->toInt());
         uint8_t g = static_cast<uint8_t>(args[5]->toInt());
@@ -477,8 +521,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_35), fb_fill_rect);
 
     // رسم دائرة بمركز ونصف قطر ولون RGB
-    auto fb_circle = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 6) throw std::runtime_error("شاشة_دائرة: يحتاج cx,cy,radius,r,g,b");
+    auto fb_circle = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 6) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int32_t cx = args[0]->toInt(), cy = args[1]->toInt();
         int32_t radius = args[2]->toInt();
         uint8_t r = static_cast<uint8_t>(args[3]->toInt());
@@ -491,8 +536,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_36), fb_circle);
 
     // رسم نص على الشاشة بإحداثيات ولون RGB
-    auto fb_text = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 6) throw std::runtime_error("شاشة_نص: يحتاج x,y,نص,r,g,b");
+    auto fb_text = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 6) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int32_t x = args[0]->toInt(), y = args[1]->toInt();
         std::string text = args[2]->toString();
         uint8_t r = static_cast<uint8_t>(args[3]->toInt());
@@ -505,7 +551,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_37), fb_text);
 
     // مسح الشاشة بلون محدد (أسود افتراضياً)
-    auto fb_clear = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto fb_clear = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         uint8_t r = 0, g = 0, b = 0;
         if (args.size() >= 3) {
             r = static_cast<uint8_t>(args[0]->toInt());
@@ -519,7 +566,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_38), fb_clear);
 
     // تبديل المخزن المؤقت (double buffering)
-    auto fb_swap = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto fb_swap = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& fb = LowLevel::FramebufferManager::getInstance();
         fb.swapBuffers();
@@ -528,8 +576,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_39), fb_swap);
 
     // رسم تدرج لوني (أفقي أو عمودي) في مستطيل
-    auto fb_gradient = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 11) throw std::runtime_error("شاشة_تدرج: يحتاج x,y,w,h,r1,g1,b1,r2,g2,b2,أفقي");
+    auto fb_gradient = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 11) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(), static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
         LowLevel::Color c1(static_cast<uint8_t>(args[4]->toInt()),
                            static_cast<uint8_t>(args[5]->toInt()),
@@ -551,14 +600,16 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 11. ACPI — إدارة الطاقة
     // ═══════════════════════════════════════════════════════════════
-    auto acpi_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto acpi_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& acpi = LowLevel::ACPIManager::getInstance();
         return std::make_shared<Data::Value>(acpi.generateReport());
     };
 
     // إيقاف تشغيل الجهاز عبر ACPI
-    auto acpi_shutdown = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto acpi_shutdown = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& acpi = LowLevel::ACPIManager::getInstance();
         acpi.shutdown();
@@ -566,7 +617,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // إعادة تشغيل الجهاز عبر ACPI
-    auto acpi_reboot = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto acpi_reboot = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& acpi = LowLevel::ACPIManager::getInstance();
         acpi.reboot();
@@ -578,7 +630,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 12. التزامن / Synchronization
     // ═══════════════════════════════════════════════════════════════
-    auto sync_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto sync_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         std::ostringstream oss;
         oss << "وحدة التزامن جاهزة / Sync module ready\n";
@@ -588,7 +641,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_41), sync_info);
 
     // توقف مؤقت للمعالج (تعليمة PAUSE للحلقات المزدحمة)
-    auto sync_pause = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto sync_pause = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         LowLevel::Atomic::pause();
         return std::make_shared<Data::Value>(0);
@@ -596,7 +650,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_42), sync_pause);
 
     // حاجز ذاكرة لضمان ترتيب العمليات
-    auto sync_barrier = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto sync_barrier = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         LowLevel::Atomic::memoryBarrier();
         return std::make_shared<Data::Value>(0);
@@ -606,7 +661,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 13. المجدول / Scheduler
     // ═══════════════════════════════════════════════════════════════
-    auto sched_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto sched_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& sched = LowLevel::SchedulerManager::getInstance();
         return std::make_shared<Data::Value>(sched.generateReport());
@@ -614,7 +670,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_44), sched_info);
 
     // إنشاء عملية جديدة في المجدول
-    auto sched_create_process = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto sched_create_process = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         std::string name = args.empty() ? "عملية" : args[0]->toString();
         auto& sched = LowLevel::SchedulerManager::getInstance();
         uint64_t pid = sched.createProcess(name.c_str());
@@ -623,7 +680,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_45), sched_create_process);
 
     // تنازل العملية الحالية عن المعالج
-    auto sched_yield = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto sched_yield = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& sched = LowLevel::SchedulerManager::getInstance();
         sched.yield();
@@ -634,7 +692,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 14. الإقلاع / Boot
     // ═══════════════════════════════════════════════════════════════
-    auto boot_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto boot_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& boot = LowLevel::BootManager::getInstance();
         return std::make_shared<Data::Value>(boot.generateReport());
@@ -644,7 +703,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 15. VFS — نظام الملفات الافتراضي
     // ═══════════════════════════════════════════════════════════════
-    auto vfs_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto vfs_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& vfs = LowLevel::VFSManager::getInstance();
         return std::make_shared<Data::Value>(vfs.generateReport());
@@ -652,8 +712,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_48), vfs_info);
 
     // تركيب نظام ملفات على مسار محدد
-    auto vfs_mount = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 3) throw std::runtime_error("ملفات_حمّل: يحتاج جهاز، مسار، نوع");
+    auto vfs_mount = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 3) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string dev = args[0]->toString();
         std::string path = args[1]->toString();
         std::string fsType = args[2]->toString();
@@ -665,8 +726,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_49), vfs_mount);
 
     // فصل نظام ملفات مركّب
-    auto vfs_unmount = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("ملفات_افصل: يحتاج مسار");
+    auto vfs_unmount = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         auto& vfs = LowLevel::VFSManager::getInstance();
         bool ok = vfs.unmount(args[0]->toString());
         return std::make_shared<Data::Value>(ok ? 1 : 0);
@@ -674,8 +736,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_50), vfs_unmount);
 
     // التحقق من وجود ملف أو مجلد
-    auto vfs_exists = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("ملفات_موجود: يحتاج مسار");
+    auto vfs_exists = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         auto& vfs = LowLevel::VFSManager::getInstance();
         bool ok = vfs.exists(args[0]->toString());
         return std::make_shared<Data::Value>(ok ? 1 : 0);
@@ -683,8 +746,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_51), vfs_exists);
 
     // إنشاء مجلد جديد في نظام الملفات
-    auto vfs_mkdir = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("ملفات_مجلد: يحتاج مسار");
+    auto vfs_mkdir = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         auto& vfs = LowLevel::VFSManager::getInstance();
         bool ok = vfs.mkdir(args[0]->toString());
         return std::make_shared<Data::Value>(ok ? 1 : 0);
@@ -694,14 +758,16 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 16. APIC — المقاطعات المتقدمة
     // ═══════════════════════════════════════════════════════════════
-    auto apic_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto apic_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& apic = LowLevel::APICManager::getInstance();
         return std::make_shared<Data::Value>(apic.generateReport());
     };
 
     // إرسال نهاية المقاطعة (End of Interrupt)
-    auto apic_eoi = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto apic_eoi = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& apic = LowLevel::APICManager::getInstance();
         apic.sendEOI();
@@ -709,8 +775,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // إرسال مقاطعة بين المعالجات (IPI)
-    auto apic_ipi = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 2) throw std::runtime_error("apic_ipi: يحتاج معرّف APIC ومتجه");
+    auto apic_ipi = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint8_t dest = static_cast<uint8_t>(args[0]->toInt());
         uint8_t vec = static_cast<uint8_t>(args[1]->toInt());
         auto& apic = LowLevel::APICManager::getInstance();
@@ -719,8 +786,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // توجيه مقاطعة IRQ إلى معالج محدد عبر IO APIC
-    auto apic_route_irq = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.size() < 3) throw std::runtime_error("apic_وجّه_irq: يحتاج irq, متجه, معالج_هدف");
+    auto apic_route_irq = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.size() < 3) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint8_t irq = static_cast<uint8_t>(args[0]->toInt());
         uint8_t vec = static_cast<uint8_t>(args[1]->toInt());
         uint8_t dest = static_cast<uint8_t>(args[2]->toInt());
@@ -734,15 +802,17 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 17. HPET — المؤقت عالي الدقة
     // ═══════════════════════════════════════════════════════════════
-    auto hpet_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto hpet_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& hpet = LowLevel::HPETManager::getInstance();
         return std::make_shared<Data::Value>(hpet.generateReport());
     };
 
     // تهيئة مؤقت HPET بعنوان MMIO
-    auto hpet_init = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("hpet_تهيئة: يحتاج عنوان MMIO");
+    auto hpet_init = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t base = static_cast<uint64_t>(args[0]->toDouble());
         auto& hpet = LowLevel::HPETManager::getInstance();
         bool ok = hpet.init(base);
@@ -750,7 +820,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // تفعيل مؤقت HPET
-    auto hpet_enable = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto hpet_enable = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& hpet = LowLevel::HPETManager::getInstance();
         hpet.enable();
@@ -758,7 +829,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // قراءة عداد HPET الحالي
-    auto hpet_read = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto hpet_read = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& hpet = LowLevel::HPETManager::getInstance();
         uint64_t count = hpet.readCounter();
@@ -766,8 +838,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // تأخير بالمايكروثانية عبر HPET
-    auto hpet_delay_us = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("hpet_تأخير: يحتاج مايكروثانية");
+    auto hpet_delay_us = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t us = static_cast<uint64_t>(args[0]->toInt());
         auto& hpet = LowLevel::HPETManager::getInstance();
         hpet.delayMicroseconds(us);
@@ -775,8 +848,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // تأخير بالمللي ثانية عبر HPET
-    auto hpet_delay_ms = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("hpet_تأخير_مللي: يحتاج ميلي ثانية");
+    auto hpet_delay_ms = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t ms = static_cast<uint64_t>(args[0]->toInt());
         auto& hpet = LowLevel::HPETManager::getInstance();
         hpet.delayMilliseconds(ms);
@@ -784,8 +858,9 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // حساب الوقت المنقضي بالنانوثانية منذ عداد بداية
-    auto hpet_elapsed_ns = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
-        if (args.empty()) throw std::runtime_error("hpet_منقضي: يحتاج عداد بداية");
+    auto hpet_elapsed_ns = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t start = static_cast<uint64_t>(args[0]->toDouble());
         auto& hpet = LowLevel::HPETManager::getInstance();
         uint64_t ns = hpet.elapsedNanoseconds(start);
@@ -793,7 +868,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // الحصول على تردد مؤقت HPET بالهرتز
-    auto hpet_frequency = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto hpet_frequency = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& hpet = LowLevel::HPETManager::getInstance();
         return std::make_shared<Data::Value>(static_cast<double>(hpet.getFrequency()));
@@ -802,14 +878,16 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 18. استدعاءات النظام / System Calls
     // ═══════════════════════════════════════════════════════════════
-    auto syscall_info = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto syscall_info = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& sc = LowLevel::SyscallManager::getInstance();
         return std::make_shared<Data::Value>(sc.generateReport());
     };
 
     // تهيئة آلية SYSCALL/SYSRET بشرائح النواة والمستخدم
-    auto syscall_init = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto syscall_init = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         uint16_t kCS = args.size() > 0 ? static_cast<uint16_t>(args[0]->toInt()) : 0x08;
         uint16_t kSS = args.size() > 1 ? static_cast<uint16_t>(args[1]->toInt()) : 0x10;
         uint16_t uCS = args.size() > 2 ? static_cast<uint16_t>(args[2]->toInt()) : 0x18;
@@ -820,7 +898,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // تسجيل استدعاءات النظام الافتراضية
-    auto syscall_register_defaults = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto syscall_register_defaults = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& sc = LowLevel::SyscallManager::getInstance();
         sc.registerDefaultSyscalls();
@@ -828,7 +907,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     };
 
     // الحصول على إحصائيات استدعاءات النظام
-    auto syscall_stats = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto syscall_stats = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         auto& sc = LowLevel::SyscallManager::getInstance();
         auto stats = sc.getStats();
@@ -840,7 +920,8 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 19. دالة تقرير شامل / Comprehensive Report
     // ═══════════════════════════════════════════════════════════════
-    auto lowlevel_report = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto lowlevel_report = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
         (void)args;
         std::ostringstream oss;
         oss << "\n" << std::string(70, '#') << "\n";

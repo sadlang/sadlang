@@ -232,24 +232,27 @@ namespace Sad
 #ifdef _WIN32
             {
                 // (AR) تهيئة APIC عبر SEH / (EN) SEH-safe APIC init
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint64_t base = args.empty() ? 0xFEE00000ULL : static_cast<uint64_t>(args[0]->toDouble());
                     return std::make_shared<Data::Value>(sehAPICInit(base));
                 };
             }
             {
                 // تعطيل وحدة التحكم PIC القديمة عبر SEH
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(sehAPICDisablePIC());
                 };
             }
             {
                 // معايرة مؤقت APIC عبر SEH
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint32_t hz = args.empty() ? 1000 : static_cast<uint32_t>(args[0]->toInt());
                     return std::make_shared<Data::Value>(static_cast<double>(sehAPICCalibrateTimer(hz)));
                 };
@@ -261,8 +264,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 1. acpi_تهيئة / acpi_init
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehACPIInit());
@@ -276,8 +280,9 @@ namespace Sad
 
             // 2. acpi_تهيئة_من_rsdp / acpi_init_from_rsdp
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(-1);
                     uint64_t addr = static_cast<uint64_t>(args[0]->toDouble());
@@ -293,8 +298,9 @@ namespace Sad
 
             // 3. acpi_بحث_جدول / acpi_find_table
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(0);
 #ifdef _WIN32
@@ -309,8 +315,9 @@ namespace Sad
 
             // 4. acpi_تفعيل / acpi_enable
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehACPIEnable());
@@ -323,8 +330,9 @@ namespace Sad
 
             // 5. acpi_تعطيل / acpi_disable
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(0);
                 };
@@ -332,8 +340,9 @@ namespace Sad
 
             // 6. acpi_نوم / acpi_sleep
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int state = args.empty() ? 3 : args[0]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehACPISleep(state));
@@ -346,8 +355,9 @@ namespace Sad
 
             // 7. acpi_قراءة_مؤقت / acpi_read_pm_timer
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<double>(a.readPMTimer()));
@@ -356,8 +366,9 @@ namespace Sad
 
             // 8. acpi_مؤقت_32بت / acpi_is_pm_timer_32bit
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(a.isPMTimer32Bit() ? 1 : 0);
@@ -366,8 +377,9 @@ namespace Sad
 
             // 9. acpi_تأخير / acpi_delay_us
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint32_t us = args.empty() ? 1000 : static_cast<uint32_t>(args[0]->toInt());
                     auto &a = LowLevel::ACPIManager::getInstance();
                     a.delayMicroseconds(us);
@@ -377,8 +389,9 @@ namespace Sad
 
             // 10. acpi_عدد_معالجات / acpi_processor_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getProcessorCount()));
@@ -387,8 +400,9 @@ namespace Sad
 
             // 11. acpi_إصدار / acpi_version
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getACPIVersion()));
@@ -397,8 +411,9 @@ namespace Sad
 
             // 12. acpi_هل_مهيأ / acpi_is_initialized
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(a.isInitialized() ? 1 : 0);
@@ -407,8 +422,9 @@ namespace Sad
 
             // 13. acpi_عنوان_apic / acpi_local_apic_address
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<double>(a.getLocalAPICAddress()));
@@ -417,8 +433,9 @@ namespace Sad
 
             // 14. acpi_ecam_قاعدة / acpi_ecam_base
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint16_t seg = args.size() > 0 ? static_cast<uint16_t>(args[0]->toInt()) : 0;
                     uint8_t bus = args.size() > 1 ? static_cast<uint8_t>(args[1]->toInt()) : 0;
                     auto &a = LowLevel::ACPIManager::getInstance();
@@ -431,8 +448,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 1. apic_مدعوم / apic_supported
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(a.isAPICSupported() ? 1 : 0);
@@ -441,8 +459,9 @@ namespace Sad
 
             // 2. apic_x2_مدعوم / apic_x2_supported
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(a.isX2APICSupported() ? 1 : 0);
@@ -451,8 +470,9 @@ namespace Sad
 
             // 3. apic_معرّف / apic_id
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getAPICId()));
@@ -461,8 +481,9 @@ namespace Sad
 
             // 4. apic_أولوية_مهمة / apic_set_priority
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint8_t prio = args.empty() ? 0 : static_cast<uint8_t>(args[0]->toInt());
                     auto &a = LowLevel::APICManager::getInstance();
                     a.setTaskPriority(prio);
@@ -472,8 +493,9 @@ namespace Sad
 
             // 5. apic_تهيئة_مؤقت / apic_init_timer
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint8_t vec = args.size() > 0 ? static_cast<uint8_t>(args[0]->toInt()) : 32;
                     int mode = args.size() > 1 ? args[1]->toInt() : 0;
                     int div = args.size() > 2 ? args[2]->toInt() : 3;
@@ -485,8 +507,9 @@ namespace Sad
 
             // 6. apic_بدء_مؤقت / apic_start_timer
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint32_t count = args.empty() ? 1000000 : static_cast<uint32_t>(args[0]->toInt());
                     auto &a = LowLevel::APICManager::getInstance();
                     a.startTimer(count);
@@ -496,8 +519,9 @@ namespace Sad
 
             // 7. apic_إيقاف_مؤقت / apic_stop_timer
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     a.stopTimer();
@@ -507,8 +531,9 @@ namespace Sad
 
             // 8. apic_عداد_مؤقت / apic_timer_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getTimerCount()));
@@ -517,8 +542,9 @@ namespace Sad
 
             // 9. apic_أرسل_للكل / apic_send_ipi_all
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint8_t vec = args.empty() ? 0 : static_cast<uint8_t>(args[0]->toInt());
                     bool self = args.size() > 1 ? (args[1]->toInt() != 0) : false;
                     auto &a = LowLevel::APICManager::getInstance();
@@ -530,8 +556,9 @@ namespace Sad
             // 10. apic_أرسل_init / apic_send_init
             {
                 // تهيئة APIC المحلي عبر SEH (آمن ضد الأعطال)
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint8_t dest = args.empty() ? 0 : static_cast<uint8_t>(args[0]->toInt());
                     auto &a = LowLevel::APICManager::getInstance();
                     a.sendINIT(dest);
@@ -541,8 +568,9 @@ namespace Sad
 
             // 11. apic_أرسل_sipi / apic_send_sipi
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(-1);
                     uint8_t dest = static_cast<uint8_t>(args[0]->toInt());
@@ -555,8 +583,9 @@ namespace Sad
 
             // 12. apic_انتظر_تسليم / apic_wait_delivery
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     a.waitForDelivery();
@@ -566,8 +595,9 @@ namespace Sad
 
             // 13. apic_قناع_irq / apic_mask_irq
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint8_t irq = args.empty() ? 0 : static_cast<uint8_t>(args[0]->toInt());
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehAPICMaskIRQ(irq));
@@ -581,8 +611,9 @@ namespace Sad
 
             // 14. apic_إلغاء_قناع_irq / apic_unmask_irq
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint8_t irq = args.empty() ? 0 : static_cast<uint8_t>(args[0]->toInt());
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehAPICUnmaskIRQ(irq));
@@ -596,8 +627,9 @@ namespace Sad
 
             // 15. apic_عدد_io / apic_io_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getIOAPICCount()));
@@ -606,8 +638,9 @@ namespace Sad
 
             // 16. apic_تهيئة_io / apic_init_io
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
                         return std::make_shared<Data::Value>(-1);
                     uint8_t id = static_cast<uint8_t>(args[0]->toInt());
@@ -626,10 +659,11 @@ namespace Sad
             // Diacritic-free alias for part19 apic_وجّه_irq (lexer strips shaddah)
             // ═══════════════════════════════════════════════════════════════
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
-                        throw std::runtime_error("توجيه_مقاطعة: يتطلب irq وvector وdest / apic_route_irq: needs irq, vector, dest");
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     uint8_t irq = static_cast<uint8_t>(args[0]->toInt());
                     uint8_t vec = static_cast<uint8_t>(args[1]->toInt());
                     uint8_t dest = static_cast<uint8_t>(args[2]->toInt());
