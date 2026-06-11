@@ -56,28 +56,30 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // regex_match / تعبير_مطابقة — مطابقة كاملة
-            auto regex_match_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto regex_match_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) تعبير_مطابقة تتطلب نص ونمط");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 try
                 {
                     std::string text = args[0]->toString();
                     std::regex pattern(args[1]->toString());
                     return makeVal(std::regex_match(text, pattern));
                 }
-                catch (const std::regex_error &e)
+                catch (const std::regex_error &)
                 {
-                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX), regex_match_fn);
 
             // regex_search / تعبير_بحث — بحث جزئي
-            auto regex_search_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto regex_search_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) تعبير_بحث تتطلب نص ونمط");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 try
                 {
                     std::string text = args[0]->toString();
@@ -89,18 +91,19 @@ namespace Sad
                     }
                     return makeVoidVal();
                 }
-                catch (const std::regex_error &e)
+                catch (const std::regex_error &)
                 {
-                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX_SEARCH), regex_search_fn);
 
             // regex_replace / تعبير_استبدال — استبدال بنمط
-            auto regex_replace_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto regex_replace_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 3)
-                    throw std::runtime_error("(AR) تعبير_استبدال تتطلب نص ونمط وبديل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 try
                 {
                     std::string text = args[0]->toString();
@@ -108,18 +111,19 @@ namespace Sad
                     std::string replacement = args[2]->toString();
                     return makeVal(std::regex_replace(text, pattern, replacement));
                 }
-                catch (const std::regex_error &e)
+                catch (const std::regex_error &)
                 {
-                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX_REPLACE), regex_replace_fn);
 
             // regex_find_all / تعبير_جد_الكل — إيجاد جميع المطابقات
-            auto regex_find_all_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto regex_find_all_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) تعبير_جد_الكل تتطلب نص ونمط");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 try
                 {
                     std::string text = args[0]->toString();
@@ -133,9 +137,9 @@ namespace Sad
                     }
                     return makeArrayVal(results);
                 }
-                catch (const std::regex_error &e)
+                catch (const std::regex_error &)
                 {
-                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX_FIND_ALL), regex_find_all_fn);
@@ -146,10 +150,11 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // repeat / تكرار_نص — تكرار نص عدة مرات
-            auto repeat_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto repeat_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) تكرار_نص تتطلب نص وعدد");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 int count = args[1]->toInt();
                 std::string result;
@@ -160,10 +165,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::TEXT_REPEAT), repeat_fn);
 
             // padStart / حشو_بداية — حشو نص من البداية
-            auto padStart_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto padStart_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) حشو_بداية تتطلب نص وطول");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 int targetLen = args[1]->toInt();
                 std::string pad = " ";
@@ -180,10 +186,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::PAD_START), padStart_fn);
 
             // padEnd / حشو_نهاية — حشو نص من النهاية
-            auto padEnd_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto padEnd_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) حشو_نهاية تتطلب نص وطول");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 int targetLen = args[1]->toInt();
                 std::string pad = " ";
@@ -200,10 +207,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::PAD_END), padEnd_fn);
 
             // reverse_string / عكس_نص — عكس نص
-            auto reverse_string_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto reverse_string_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) عكس_نص تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 std::reverse(text.begin(), text.end());
                 return makeVal(text);
@@ -211,32 +219,35 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::REVERSE_TEXT), reverse_string_fn);
 
             // charCodeAt / رمز_حرف — الحصول على رمز UTF-8 لحرف
-            auto charCodeAt_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto charCodeAt_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) رمز_حرف تتطلب نص وموضع");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 int idx = args[1]->toInt();
                 if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(text.size(), "builtin_module_maps_text_size"))
-                    throw std::runtime_error("(AR) الموضع خارج النطاق");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(static_cast<int>(static_cast<unsigned char>(text[idx])));
             };
             fm.registerBuiltinFunction(std::string(Bmp::CHAR_CODE), charCodeAt_fn);
 
             // fromCharCode / حرف_من_رمز — إنشاء حرف من رمز
-            auto fromCharCode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto fromCharCode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) حرف_من_رمز تتطلب رقماً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(std::string(1, static_cast<char>(args[0]->toInt())));
             };
             fm.registerBuiltinFunction(std::string(Bmp::FROM_CHAR_CODE), fromCharCode_fn);
 
             // count / عدّ — عدد ظهور نص فرعي في نص
-            auto count_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto count_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    throw std::runtime_error("(AR) عدّ تتطلب نص ونص فرعي");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string text = args[0]->toString();
                 std::string sub = args[1]->toString();
                 if (sub.empty())
@@ -253,10 +264,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::COUNT), count_fn);
 
             // format / تنسيق — تنسيق نص بسيط (استبدال {} بالقيم)
-            auto format_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto format_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("(AR) تنسيق تتطلب نص قالب على الأقل");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string tmpl = args[0]->toString();
                 std::string result;
                 size_t argIdx = 1;
@@ -292,10 +304,11 @@ namespace Sad
 
             // ازل_تشكيل / strip_diacritics — إزالة التشكيل العربي من النص
             // Arabic diacritics are U+064B to U+065F (encoded as 2-byte UTF-8: 0xD9 0x8B-0x9F, 0xDA 0x80-0x9F)
+            // (AR) EM-CPP: يبقى بالتوقيع القديم — يُستدعى داخلياً بـvector (دالة عليا).
             auto strip_diacritics_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty() || !args[0]->isString())
-                    throw std::runtime_error("(AR) ازل_تشكيل تتطلب نصاً");
+                    throw std::runtime_error("(AR) إزالة_تشكيل تتطلب نصاً / (EN) strip_diacritics requires a string");
                 std::string input = args[0]->toString();
                 std::string result;
                 result.reserve(input.size());
@@ -367,10 +380,11 @@ namespace Sad
 
             // مقارنة_نص / compare_text — مقارنة نصوص مع خيار تجاهل التشكيل
             // Compares two strings optionally ignoring Arabic diacritics
-            auto compare_text_fn = [&strip_diacritics_fn](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto compare_text_fn = [&strip_diacritics_fn](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2 || !args[0]->isString() || !args[1]->isString())
-                    throw std::runtime_error("(AR) مقارنة_نص تتطلب نصين");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
 
                 bool ignoreDiacritics = false;
                 if (args.size() >= 3 && args[2]->isBoolean())
@@ -395,10 +409,11 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::COMPARE_TEXT), compare_text_fn);
 
             // نص_يونيكود / unicode_codepoints — تحويل نص إلى مصفوفة نقاط يونيكود
-            auto unicode_codepoints_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto unicode_codepoints_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
-                    throw std::runtime_error("(AR) نص_يونيكود تتطلب نصاً");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
                 Data::Value::ArrayType codepoints;
                 size_t i = 0;

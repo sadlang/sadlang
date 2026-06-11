@@ -542,7 +542,8 @@ namespace Sad
                     c = toupper(c);
                 if (actual_upper != normalized && actual_type != expected_type)
                 {
-                    throw std::runtime_error("(AR) خطأ نوع: توقعت '" + expected_type + "' لكن وجدت '" + actual_type + "' / (EN) Type error: expected '" + expected_type + "' but got '" + actual_type + "'");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
+                              {{"expected", expected_type}, {"actual", actual_type}});
                 }
                 return std::make_shared<Data::Value>(true);
             };
@@ -787,7 +788,8 @@ namespace Sad
                 size_t size = static_cast<size_t>(args[0]->toDouble());
                 if (size > MAX_FFI_ALLOC_SIZE)
                 {
-                    throw std::runtime_error("(AR) malloc: الحجم " + std::to_string(size) + " يتجاوز الحد 256MB / (EN) malloc: size exceeds 256MB limit");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
+                              {{"expected", "size <= 256MB"}, {"actual", std::to_string(size)}});
                 }
                 if (ptrTable.size() >= MAX_FFI_ALLOC_COUNT)
                 {
@@ -1004,9 +1006,8 @@ namespace Sad
                 // (AR) فحص وضع الأمان / (EN) Check security mode
                 if (interpreter.getOptions().enableSecurity)
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ أمني: تنفيذ أوامر النظام محظور في الوضع الآمن. استخدم --no-security لتعطيل الحماية.\n"
-                        "(EN) Security error: System command execution is blocked in secure mode. Use --no-security to disable.");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                              {{"resource", "نظام/system"}, {"reason", "secure-mode blocks system commands (use --no-security)"}});
                 }
                 if (args.empty())
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
@@ -1021,9 +1022,8 @@ namespace Sad
                 {
                     if (cmd.find(pattern) != std::string::npos)
                     {
-                        throw std::runtime_error(
-                            "(AR) خطأ أمني: الأمر يحتوي على نمط خطير: " + pattern +
-                            "\n(EN) Security error: Command contains dangerous pattern: " + pattern);
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
+                                  {{"resource", "نظام/system"}, {"reason", "dangerous pattern: " + pattern}});
                     }
                 }
 
