@@ -586,9 +586,9 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 std::string msg = args.empty() ? "(AR) خطأ غير محدد" : args[0]->toString();
-                // (AR) EM-CPP: رمي خام مقصود — دالة `خطأ` ترفع رسالة المستخدم الحرّة (لا خطأ
-                //      كتالوج). يُلتقَط بالموزّع. لا يُحوَّل لـ ctx.error (الذي يتطلب رمزاً).
-                throw std::runtime_error(msg);
+                // (AR) EM-CPP: دالة `خطأ` ترفع رسالة المستخدم الحرّة عبر RUN_USER_THROWN
+                //      (إطار الكتالوج + الرسالة كبيانات {message}) — مثل مسار 'ارمي'.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_USER_THROWN, {{"message", msg}});
                 return makeVoidVal(); // لن يصل هنا
             };
             fm.registerBuiltinFunction(std::string(Bmp::ERROR_FN), error_fn);

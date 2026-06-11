@@ -656,9 +656,10 @@ namespace Sad
 
             // (AR) تجاوز عدد المحاولات — خطأ
             // (EN) Exceeded poll attempts — error
-            throw std::runtime_error(
-                "خطأ: جملة اختر تجاوزت الحد الأقصى للانتظار — جميع القنوات محجوبة / "
-                "Error: select statement exceeded max wait — all channels blocked");
+            ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED,
+                                        Sad::Lexer::Position{},
+                                        {{"operation", "اختر / select"},
+                                         {"reason", "تجاوزت الحد الأقصى للانتظار — جميع القنوات محجوبة / max wait exceeded — all channels blocked"}});
         }
 
     } // namespace Interpreter
