@@ -202,7 +202,7 @@ namespace Sad
         {
             if (!sirModule)
             {
-                cg_.reportError("SIR module is null in emitModule");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "SIR"}});
                 return;
             }
 
@@ -287,7 +287,7 @@ namespace Sad
 
                 if (!llvmType)
                 {
-                    cg_.reportError("Failed to convert type for global variable: " + varName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("Failed to convert type for global variable:") + varName}});
                     continue;
                 }
 
@@ -591,7 +591,7 @@ namespace Sad
                     else
                     {
                         // Keep null as defensive fallback, but report missing entry.
-                        cg_.reportError("Missing vtable method at patch time: " + fullMethodName);
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", std::string("Missing vtable method at patch time:") + fullMethodName}});
                         entries.push_back(llvm::ConstantPointerNull::get(ptrTy));
                     }
                 }

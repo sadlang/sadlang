@@ -453,7 +453,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("ARRAY_SLICE requires at least 3 operands (array, start, end[, step])");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_SLICE"}});
                 return nullptr;
             }
 

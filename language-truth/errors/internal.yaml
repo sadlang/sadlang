@@ -1,53 +1,144 @@
-# internal.yaml — أخطاء المترجم الداخلية (ICE — Internal Compiler Error) في لغة ص
+# internal.yaml — أخطاء المترجم الداخلية (ICE) في لغة ص
 # ============================================================================
-# (AR) هذه أخطاء "لا ينبغي أن تحدث" في المترجم (sadc): IR/SIR مشوّه، operands
-#      غير صالحة، عُقد فارغة. تظهر للمستخدم فقط عند خلل في المترجم نفسه — لذا
-#      تأتي من الكتالوج (مصدر موحَّد) مع إشارة صريحة "خطأ مترجم داخلي" وطلب الإبلاغ.
-#      أُضيفت ضمن ترحيل EM-CPP-7 (أخطاء المترجم → الكتالوج).
-# (EN) "Should never happen" compiler (sadc) errors: malformed IR/SIR, invalid
-#      operands, null nodes. Surfaced only on a compiler defect — so they come
-#      from the catalog (single source) with an explicit "internal compiler
-#      error" marker and a request to report.
+# (AR) أخطاء "لا ينبغي أن تحدث" في المترجم (sadc): تمثيل وسيط (SIR/IR) مشوّه،
+#      معاملات غير صالحة، مراجع غير معرَّفة، فشل في الواجهة الخلفية (LLVM).
+#      مبدأ صالح (saleh): مطوّر المترجم يستحق شرحاً غنياً مثل المستخدم — لذا كل
+#      رمز يحمل title/brief/fix_hint/detailed موجَّهة لمن يُصلح المترجم نفسه،
+#      ويُوسَم صراحةً كـICE يُبلَّغ. كلها من YAML — لا نصّ رسالة يدوي في C++.
+#      placeholders تحمل بياناتٍ فقط ({op}/{name}/{detail}) لا نثراً.
+# (EN) "Should never happen" compiler (sadc) errors: malformed SIR/IR, invalid
+#      operands, undefined refs, LLVM backend failures. Each carries rich,
+#      developer-oriented bilingual guidance (how to fix it in the compiler).
 # ============================================================================
 
 version: "1.0"
 category: internal
-description_ar: "أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، تُبلَّغ"
-description_en: "Internal compiler errors (ICE) — compiler defects; please report"
+description_ar: "أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، تُبلَّغ مع شرح للمطوّر"
+description_en: "Internal compiler errors (ICE) — compiler defects, reported with developer guidance"
 
 errors:
   - code: INT_COMPILER_NULL_IR
     id: INT001
     category: internal
     title:
-      ar: خطأ مترجم داخلي — عقدة IR فارغة
+      ar: خطأ مترجم داخلي — عقدة تمثيل وسيط فارغة
       en: Internal compiler error — null IR node
     brief:
-      ar: 'خطأ داخلي في المترجم (IR فارغ): {detail} — يُرجى الإبلاغ عن هذا الخطأ'
-      en: 'Internal compiler error (null IR): {detail} — please report this bug'
+      ar: 'خطأ مترجم داخلي: عنصر تمثيل وسيط فارغ ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal compiler error: null IR element ({detail}) — please report'
     placeholders:
     - detail
     fix_hint:
-      ar: هذا خلل في المترجم لا في برنامجك. أبلِغ عنه مع مثال يعيد إنتاجه. كحلٍّ مؤقت، جرّب المفسر.
-      en: 'This is a compiler defect, not your program. Please report it with a reproducer. Workaround: try the interpreter.'
+      ar: 'لمطوّر المترجم: ابحث عن نقطة بناء {detail} في باني SIR/IR وتحقّق من عدم تمرير nullptr (أضِف فحص توليد قبلها). للمستخدم: ليست علّة في برنامجك — أبلِغ، وجرّب المفسر مؤقتاً.'
+      en: 'Compiler dev: find where {detail} is built in the SIR/IR builder and ensure no nullptr is passed (add a generation-time check). User: not your bug — report it; use the interpreter meanwhile.'
     detailed:
-      ar: المترجم حاول بناء تمثيل وسيط (IR/SIR) بعقدة فارغة (null). يعني هذا انتهاك ثابت داخلي في توليد الكود — لا علاقة له بصحّة كود ص. الرجاء الإبلاغ.
-      en: The compiler tried to build IR/SIR with a null node — an internal invariant violation in codegen, unrelated to your ص code's validity. Please report.
+      ar: حاول المترجم إدراج عنصر فارغ (null) في التمثيل الوسيط ({detail}). يعني انتهاك ثابت داخلي في توليد الكود — غالباً مسار توليد لم يُنشئ العقدة قبل استخدامها. لا علاقة له بصحّة كود ص.
+      en: The compiler tried to insert a null element into the IR ({detail}). An internal codegen invariant was violated — usually a generation path that did not create the node before use. Unrelated to your ص code.
 
   - code: INT_COMPILER_INVALID_OPERANDS
     id: INT002
     category: internal
     title:
-      ar: خطأ مترجم داخلي — operands غير صالحة
-      en: Internal compiler error — invalid operands
+      ar: خطأ مترجم داخلي — عدد معاملات تعليمة غير صحيح
+      en: Internal compiler error — wrong instruction operand count
     brief:
-      ar: 'خطأ داخلي في المترجم (operands غير صالحة): {detail} — يُرجى الإبلاغ عن هذا الخطأ'
-      en: 'Internal compiler error (invalid operands): {detail} — please report this bug'
+      ar: 'خطأ مترجم داخلي: التعليمة ({detail}) وصلت بعدد معاملات غير متوقَّع — يُرجى الإبلاغ'
+      en: 'Internal compiler error: instruction ({detail}) reached codegen with an unexpected operand count — please report'
     placeholders:
     - detail
     fix_hint:
-      ar: هذا خلل في المترجم لا في برنامجك. أبلِغ عنه مع مثال يعيد إنتاجه. كحلٍّ مؤقت، جرّب المفسر.
-      en: 'This is a compiler defect, not your program. Please report it with a reproducer. Workaround: try the interpreter.'
+      ar: 'لمطوّر المترجم: تحقّق من باني SIR للتعليمة {detail} (عدد المعاملات المُصدَر) وأن التحليل الدلالي يفرض الـarity قبل التوليد. للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: check the SIR builder for {detail} (emitted operand count) and that semantic analysis enforces arity before codegen. User: compiler bug — report it.'
     detailed:
-      ar: تعليمة في التمثيل الوسيط (SIR) وصلت لمولِّد الكود بعدد/نوع operands غير متوقَّع. التحليل الدلالي يُفترض أن يمنع هذا قبل التوليد — وصوله هنا يعني خللاً داخلياً. الرجاء الإبلاغ.
-      en: An SIR instruction reached codegen with an unexpected operand count/type. Semantic analysis should prevent this before codegen — reaching here means an internal defect. Please report.
+      ar: تعليمة في التمثيل الوسيط ({detail}) بلغت مولِّد الكود بعدد معاملات لا يطابق عقدها. التحليل الدلالي يُفترض أن يمنع هذا قبل التوليد؛ وصولها هنا يعني خللاً في بناء SIR.
+      en: An SIR instruction ({detail}) reached codegen with an operand count that violates its contract. Semantic analysis should prevent this earlier; reaching codegen indicates a defect in SIR construction.
+
+  - code: INT_SIR_OPERAND_RESOLVE
+    id: INT003
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — تعذّر حلّ معامل تعليمة
+      en: Internal compiler error — failed to resolve an instruction operand
+    brief:
+      ar: 'خطأ مترجم داخلي: تعذّر حلّ معامل للتعليمة ({detail}) في خريطة القيم — يُرجى الإبلاغ'
+      en: 'Internal compiler error: could not resolve an operand for ({detail}) in the value map — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المترجم: المعامل غير موجود في خريطة SSA/القيم عند خفض {detail}. تحقّق من ترتيب التعريف-قبل-الاستخدام وأن القيمة المصدر سُجّلت في valueMap. للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: the operand is absent from the SSA/value map when lowering {detail}. Check def-before-use ordering and that the source value was registered in the valueMap. User: compiler bug — report.'
+    detailed:
+      ar: أثناء خفض التعليمة ({detail}) إلى LLVM، لم يجد المولِّد قيمة LLVM المقابلة لأحد معاملاتها في خريطة القيم. غالباً القيمة المصدر لم تُولَّد بعد أو لم تُسجَّل (انتهاك SSA).
+      en: While lowering ({detail}) to LLVM, the generator could not find the LLVM value for one of its operands in the value map. Usually the source value was not yet generated or not registered (SSA violation).
+
+  - code: INT_SIR_UNDEFINED_REF
+    id: INT004
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — مرجع غير معرَّف في التمثيل الوسيط
+      en: Internal compiler error — undefined reference in IR
+    brief:
+      ar: 'خطأ مترجم داخلي: مرجع غير معرَّف ({detail}) أثناء التوليد — يُرجى الإبلاغ'
+      en: 'Internal compiler error: undefined reference ({detail}) during codegen — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المترجم: الرمز {detail} (سجلّ/عام/دالة/صنف/كائن) لم يُسجَّل قبل استخدامه. تحقّق من ترتيب التصريحات وتعبئة جداول الرموز (globals/functions/classes) قبل الخفض. للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: the symbol {detail} (register/global/function/class/object) was not registered before use. Verify declaration order and that symbol tables (globals/functions/classes) are populated before lowering. User: compiler bug — report.'
+    detailed:
+      ar: حاول المولِّد الإشارة إلى رمز ({detail}) غير موجود في جداول الرموز. غالباً تصريح مفقود أو ترتيب خفض خاطئ (استُخدم الرمز قبل تسجيله).
+      en: The generator referenced a symbol ({detail}) absent from the symbol tables. Usually a missing declaration or wrong lowering order (symbol used before registration).
+
+  - code: INT_SIR_FIELD_LAYOUT
+    id: INT005
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — تعذّر حلّ تخطيط حقل/بنية صنف
+      en: Internal compiler error — failed class field/struct layout
+    brief:
+      ar: 'خطأ مترجم داخلي: تعذّر حلّ تخطيط صنف/حقل ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal compiler error: could not resolve class/field layout ({detail}) — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المترجم: بنية LLVM للصنف أو أسماء حقوله ({detail}) غير مُسجَّلة. تحقّق من تسجيل تخطيط الأصناف (struct mapping + fieldOrder) قبل emitLoad/emitStore. للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: the class LLVM struct or its field names ({detail}) are not registered. Verify class layout registration (struct mapping + fieldOrder) before emitLoad/emitStore. User: compiler bug — report.'
+    detailed:
+      ar: أثناء توليد وصول لحقل كائن ({detail})، لم يجد المولِّد بنية LLVM للصنف أو ترتيب حقوله. يعني أن تخطيط الصنف لم يُبنَ/يُسجَّل قبل استخدامه في تحميل/تخزين الحقل.
+      en: While generating object field access ({detail}), the generator could not find the class LLVM struct or its field order. The class layout was not built/registered before the field load/store.
+
+  - code: INT_BACKEND_EMIT
+    id: INT006
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — فشل الواجهة الخلفية في إصدار المخرجات
+      en: Internal compiler error — backend failed to emit output
+    brief:
+      ar: 'خطأ مترجم داخلي: فشل إصدار مخرجات الواجهة الخلفية ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal compiler error: backend output emission failed ({detail}) — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المترجم: تحقّق من تهيئة الوحدة وآلة الهدف (TargetMachine) قبل الإصدار، ومن صلاحيات/مسار ملف الإخراج ({detail}). قد يكون الهدف (target triple) غير مدعوم. للمستخدم: تحقّق من مسار الإخراج وصلاحياته، وأبلِغ إن تكرّر.'
+      en: 'Compiler dev: verify the module and TargetMachine are initialized before emission, and the output file path/permissions ({detail}). The target triple may be unsupported. User: check the output path/permissions; report if it persists.'
+    detailed:
+      ar: فشلت الواجهة الخلفية (LLVM) في إصدار كائن/تجميع ({detail}) — إمّا لعدم تهيئة الوحدة/آلة الهدف، أو تعذّر فتح ملف الإخراج، أو هدف غير قادر على الإصدار. هذا مزيج من حالة داخلية وبيئة تشغيل.
+      en: The LLVM backend failed to emit object/assembly ({detail}) — either the module/target machine was not initialized, the output file could not be opened, or the target cannot emit. A mix of internal state and runtime environment.
+
+  - code: INT_SIR_TYPE_CONSTRAINT
+    id: INT007
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — انتهاك قيد نوع أثناء التوليد
+      en: Internal compiler error — type constraint violated during codegen
+    brief:
+      ar: 'خطأ مترجم داخلي: انتهاك قيد نوع أثناء التوليد ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal compiler error: type constraint violated during codegen ({detail}) — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المترجم: التعليمة ({detail}) تتطلّب نوعاً محدّداً (مثل عدد صحيح لشرط switch) لكن وصل نوع مخالف. كان يجب أن يلتقطه التحليل الدلالي/الأنواع قبل التوليد. للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: the instruction ({detail}) requires a specific type (e.g., integer for a switch condition) but a different type arrived. Type/semantic analysis should have caught this before codegen. User: compiler bug — report.'
+    detailed:
+      ar: بلغت تعليمة ({detail}) مولِّد الكود بنوع معامل يخالف قيدها. التحقّق من الأنواع يُفترض أن يمنع هذا قبل التوليد؛ وصوله يعني فجوة في فحص الأنواع.
+      en: An instruction ({detail}) reached codegen with an operand type that violates its constraint. Type checking should prevent this before codegen; reaching here indicates a gap in type checking.

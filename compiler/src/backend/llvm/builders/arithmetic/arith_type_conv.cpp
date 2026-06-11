@@ -53,7 +53,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("I64_TO_F64 requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "I64_TO_F64"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -87,7 +87,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("F64_TO_I64 requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "F64_TO_I64"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -115,7 +115,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("I64_TO_BOOL requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "I64_TO_BOOL"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -149,7 +149,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("BOOL_TO_I64 requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "BOOL_TO_I64"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -181,7 +181,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("I64_TO_STRING requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "I64_TO_STRING"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -232,7 +232,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("F64_TO_STRING requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "F64_TO_STRING"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -288,7 +288,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("BOOL_TO_STRING requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "BOOL_TO_STRING"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);
@@ -347,7 +347,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ARRAY_TO_STRING requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_TO_STRING"}});
                 return nullptr;
             }
             llvm::Value *arrPtr = resolveOperand(inst->operands[0]);
@@ -415,7 +415,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("CAST requires at least 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CAST"}});
                 return nullptr;
             }
             llvm::Value *val = resolveOperand(inst->operands[0]);

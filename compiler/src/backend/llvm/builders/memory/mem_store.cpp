@@ -40,7 +40,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Store instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Store"}});
                 return nullptr;
             }
 
@@ -62,7 +62,7 @@ namespace Sad
                 llvm::Value *value = cg_.resolveOperand(inst->operands[0]);
                 if (!value)
                 {
-                    cg_.reportError("emitStore: cannot resolve value operand: " + inst->operands[0].name);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("emitStore: cannot resolve value operand:") + inst->operands[0].name}});
                     return nullptr;
                 }
 
@@ -109,7 +109,7 @@ namespace Sad
                     }
                     else
                     {
-                        cg_.reportError("emitStore: object not found: " + objName);
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("emitStore: object not found:") + objName}});
                         return nullptr;
                     }
                 }
@@ -232,7 +232,7 @@ namespace Sad
                 auto structIt = cg_.context_info_.classStructTypes.find(className);
                 if (structIt == cg_.context_info_.classStructTypes.end())
                 {
-                    cg_.reportError("emitStore: struct type not found for class: " + className);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("emitStore: struct type not found for class:") + className}});
                     return nullptr;
                 }
                 llvm::StructType *structType = structIt->second;
@@ -241,7 +241,7 @@ namespace Sad
                 auto fieldNamesIt = cg_.context_info_.classFieldNames.find(className);
                 if (fieldNamesIt == cg_.context_info_.classFieldNames.end())
                 {
-                    cg_.reportError("emitStore: field names not found for class: " + className);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("emitStore: field names not found for class:") + className}});
                     return nullptr;
                 }
 
@@ -309,14 +309,14 @@ namespace Sad
                     }
                     if (!foundField)
                     {
-                        cg_.reportError("emitStore: field '" + fieldName + "' not found in class: " + className);
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("emitStore: field '") + fieldName + "' not found in class: " + className}});
                         return nullptr;
                     }
                     // (AR) تحديث نوع الهيكل مع الصنف الجديد
                     structIt = cg_.context_info_.classStructTypes.find(className);
                     if (structIt == cg_.context_info_.classStructTypes.end())
                     {
-                        cg_.reportError("emitStore: struct type not found for class: " + className);
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("emitStore: struct type not found for class:") + className}});
                         return nullptr;
                     }
                     structType = structIt->second;
@@ -446,7 +446,7 @@ namespace Sad
                 }
                 if (!value || !ptr)
                 {
-                    cg_.reportError("Operands not found for store: value=" + valueOp.name + ", ptr=" + ptrName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("Operands not found for store: value=") + valueOp.name + ", ptr=" + ptrName}});
                     return nullptr;
                 }
             }

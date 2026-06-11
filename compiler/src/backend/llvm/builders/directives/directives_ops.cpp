@@ -52,7 +52,7 @@ namespace LLVM {
  */
 llvm::Value* DirectivesCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.empty()) {
-        cg_.reportError("emitSizeof: invalid instruction");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitSizeof"}});
         return nullptr;
     }
     
@@ -98,7 +98,7 @@ llvm::Value* DirectivesCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst)
  */
 llvm::Value* DirectivesCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.empty()) {
-        cg_.reportError("emitAtomicLoad: invalid instruction");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicLoad"}});
         return nullptr;
     }
     
@@ -106,7 +106,7 @@ llvm::Value* DirectivesCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> i
     // (EN) Get pointer operand
     llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
     if (!ptr) {
-        cg_.reportError("emitAtomicLoad: could not resolve pointer operand");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicLoad"}});
         return nullptr;
     }
     
@@ -158,7 +158,7 @@ llvm::Value* DirectivesCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> i
  */
 llvm::Value* DirectivesCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        cg_.reportError("emitAtomicStore: invalid instruction (need 2 operands)");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicStore"}});
         return nullptr;
     }
     
@@ -168,14 +168,14 @@ llvm::Value* DirectivesCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> 
     llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        cg_.reportError("emitAtomicStore: could not resolve operands");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicStore"}});
         return nullptr;
     }
     
     // (AR) التأكد من أن المؤشر من نوع pointer
     // (EN) Ensure pointer is a pointer type
     if (!ptr->getType()->isPointerTy()) {
-        cg_.reportError("emitAtomicStore: first operand must be a pointer");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicStore"}});
         return nullptr;
     }
     
@@ -217,7 +217,7 @@ llvm::Value* DirectivesCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> 
  */
 llvm::Value* DirectivesCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        cg_.reportError("emitAtomicAdd: invalid instruction (need 2 operands)");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicAdd"}});
         return nullptr;
     }
     
@@ -227,14 +227,14 @@ llvm::Value* DirectivesCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> in
     llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        cg_.reportError("emitAtomicAdd: could not resolve operands");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicAdd"}});
         return nullptr;
     }
     
     // (AR) التأكد من أن المؤشر من نوع pointer
     // (EN) Ensure pointer is a pointer type
     if (!ptr->getType()->isPointerTy()) {
-        cg_.reportError("emitAtomicAdd: first operand must be a pointer");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicAdd"}});
         return nullptr;
     }
     
@@ -284,7 +284,7 @@ llvm::Value* DirectivesCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> in
  */
 llvm::Value* DirectivesCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        cg_.reportError("emitAtomicSub: invalid instruction (need 2 operands)");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicSub"}});
         return nullptr;
     }
     
@@ -292,12 +292,12 @@ llvm::Value* DirectivesCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> in
     llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        cg_.reportError("emitAtomicSub: could not resolve operands");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicSub"}});
         return nullptr;
     }
     
     if (!ptr->getType()->isPointerTy()) {
-        cg_.reportError("emitAtomicSub: first operand must be a pointer");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicSub"}});
         return nullptr;
     }
     
@@ -341,7 +341,7 @@ llvm::Value* DirectivesCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> in
  */
 llvm::Value* DirectivesCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        cg_.reportError("emitAtomicExchange: invalid instruction (need 2 operands)");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicExchange"}});
         return nullptr;
     }
     
@@ -349,12 +349,12 @@ llvm::Value* DirectivesCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstructio
     llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        cg_.reportError("emitAtomicExchange: could not resolve operands");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicExchange"}});
         return nullptr;
     }
     
     if (!ptr->getType()->isPointerTy()) {
-        cg_.reportError("emitAtomicExchange: first operand must be a pointer");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicExchange"}});
         return nullptr;
     }
     
@@ -399,7 +399,7 @@ llvm::Value* DirectivesCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstructio
  */
 llvm::Value* DirectivesCodeGen::emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 3) {
-        cg_.reportError("emitAtomicCmpXchg: invalid instruction (need 3 operands)");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicCmpXchg"}});
         return nullptr;
     }
     
@@ -408,12 +408,12 @@ llvm::Value* DirectivesCodeGen::emitAtomicCmpXchg(std::shared_ptr<SIRInstruction
     llvm::Value* desired = cg_.resolveOperand(inst->operands[2]);
     
     if (!ptr || !expected || !desired) {
-        cg_.reportError("emitAtomicCmpXchg: could not resolve operands");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicCmpXchg"}});
         return nullptr;
     }
     
     if (!ptr->getType()->isPointerTy()) {
-        cg_.reportError("emitAtomicCmpXchg: first operand must be a pointer");
+        cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "emitAtomicCmpXchg"}});
         return nullptr;
     }
     

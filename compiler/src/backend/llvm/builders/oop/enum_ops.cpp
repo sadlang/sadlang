@@ -64,7 +64,7 @@ namespace Sad
 
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ENUM_CONSTRUCT requires at least 2 operands (struct name, tag)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_CONSTRUCT"}});
                 return nullptr;
             }
 
@@ -187,14 +187,14 @@ namespace Sad
 
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ENUM_GET_TAG requires 1 operand (enum value)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_GET_TAG"}});
                 return nullptr;
             }
 
             llvm::Value *enumPtr = cg_.resolveOperand(inst->operands[0]);
             if (!enumPtr)
             {
-                cg_.reportError("ENUM_GET_TAG: could not resolve enum value");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_GET_TAG"}});
                 return nullptr;
             }
 
@@ -260,14 +260,14 @@ namespace Sad
 
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ENUM_GET_PAYLOAD requires 2 operands (enum value, field index)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", "ENUM_GET_PAYLOAD"}});
                 return nullptr;
             }
 
             llvm::Value *enumPtr = cg_.resolveOperand(inst->operands[0]);
             if (!enumPtr)
             {
-                cg_.reportError("ENUM_GET_PAYLOAD: could not resolve enum value");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_GET_PAYLOAD"}});
                 return nullptr;
             }
 
@@ -443,14 +443,14 @@ namespace Sad
 
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ENUM_IS_VARIANT requires at least 2 operands (enum value, variant tag)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_IS_VARIANT"}});
                 return nullptr;
             }
 
             llvm::Value *enumVal = cg_.resolveOperand(inst->operands[0]);
             if (!enumVal)
             {
-                cg_.reportError("ENUM_IS_VARIANT: could not resolve enum value");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_IS_VARIANT"}});
                 return nullptr;
             }
 
@@ -614,14 +614,14 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ENUM_FREE requires 1 operand (enum value)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_FREE"}});
                 return nullptr;
             }
 
             llvm::Value *enumPtr = cg_.resolveOperand(inst->operands[0]);
             if (!enumPtr)
             {
-                cg_.reportError("ENUM_FREE: could not resolve enum value");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_FREE"}});
                 return nullptr;
             }
 

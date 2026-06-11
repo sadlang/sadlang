@@ -285,7 +285,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ARRAY_GET requires 2 operands (array, index)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_GET"}});
                 return nullptr;
             }
 
@@ -393,7 +393,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("ARRAY_SET requires 3 operands (array, index, value)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_SET"}});
                 return nullptr;
             }
 
@@ -525,7 +525,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ARRAY_LEN requires 1 operand (array)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_LEN"}});
                 return nullptr;
             }
 
@@ -565,7 +565,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ARRAY_CONCAT requires 2 operands (array1, array2)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_CONCAT"}});
                 return nullptr;
             }
 
@@ -576,7 +576,7 @@ namespace Sad
 
             if (!arr1 || !arr2)
             {
-                cg_.reportError("ARRAY_CONCAT: could not resolve operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "ARRAY_CONCAT"}});
                 return nullptr;
             }
 

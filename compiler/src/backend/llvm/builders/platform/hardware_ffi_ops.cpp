@@ -54,14 +54,14 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("port_write: needs 2 operands (port, value)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "port_write"}});
                 return nullptr;
             }
             llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
             llvm::Value *value = cg_.resolveOperand(inst->operands[1]);
             if (!port || !value)
             {
-                cg_.reportError("port_write: failed to resolve operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "port_write"}});
                 return nullptr;
             }
             llvm::Value *port16 = cg_.builder_->CreateIntCast(port, llvm::Type::getInt16Ty(*cg_.context_), false, "port");
@@ -94,13 +94,13 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("port_read: needs 1 operand (port)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "port_read"}});
                 return nullptr;
             }
             llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
             if (!port)
             {
-                cg_.reportError("port_read: failed");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "port_read"}});
                 return nullptr;
             }
             llvm::Value *port16 = cg_.builder_->CreateIntCast(port, llvm::Type::getInt16Ty(*cg_.context_), false, "port");
@@ -135,14 +135,14 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("mem_write: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_write"}});
                 return nullptr;
             }
             llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
             llvm::Value *value = cg_.resolveOperand(inst->operands[1]);
             if (!addr || !value)
             {
-                cg_.reportError("mem_write: failed");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "mem_write"}});
                 return nullptr;
             }
             llvm::Type *valType;
@@ -165,13 +165,13 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("mem_read: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_read"}});
                 return nullptr;
             }
             llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
             if (!addr)
             {
-                cg_.reportError("mem_read: failed");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "mem_read"}});
                 return nullptr;
             }
             llvm::Type *valType;
@@ -200,7 +200,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("interrupt: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "interrupt"}});
                 return nullptr;
             }
             llvm::Value *intNum = cg_.resolveOperand(inst->operands[0]);
@@ -241,7 +241,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 4)
             {
-                cg_.reportError("vga_write: needs 4 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "vga_write"}});
                 return nullptr;
             }
             llvm::Value *row = cg_.resolveOperand(inst->operands[0]);
@@ -305,7 +305,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("addr_of: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "addr_of"}});
                 return nullptr;
             }
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
@@ -323,7 +323,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("mem_copy: needs 3 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_copy"}});
                 return nullptr;
             }
             llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
@@ -342,7 +342,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("mem_set: needs 3 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_set"}});
                 return nullptr;
             }
             llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
@@ -365,7 +365,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("mem_fill32: needs 3 operands (dest, value, count)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_fill32"}});
                 return nullptr;
             }
             llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
@@ -416,7 +416,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("mem_copy32: needs 3 operands (dest, src, count)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_copy32"}});
                 return nullptr;
             }
             llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
@@ -448,7 +448,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("serial_init: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_init"}});
                 return nullptr;
             }
             llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
@@ -483,7 +483,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("serial_write: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_write"}});
                 return nullptr;
             }
             llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
@@ -515,7 +515,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("serial_read: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_read"}});
                 return nullptr;
             }
             llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
@@ -546,7 +546,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("serial_ready: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_ready"}});
                 return nullptr;
             }
             llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
@@ -569,7 +569,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("gpio_write: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "gpio_write"}});
                 return nullptr;
             }
             llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
@@ -587,7 +587,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("gpio_read: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "gpio_read"}});
                 return nullptr;
             }
             llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
@@ -607,7 +607,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("gpio_mode: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "gpio_mode"}});
                 return nullptr;
             }
             llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
@@ -626,7 +626,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("timer_init: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "timer_init"}});
                 return nullptr;
             }
             llvm::Value *freq = cg_.resolveOperand(inst->operands[0]);
@@ -664,7 +664,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("timer_wait: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "timer_wait"}});
                 return nullptr;
             }
             llvm::Value *us = cg_.resolveOperand(inst->operands[0]);

@@ -47,7 +47,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Branch instruction requires target label");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Branch"}});
                 return nullptr;
             }
 
@@ -57,7 +57,7 @@ namespace Sad
             auto it = cg_.context_info_.basicBlocks.find(targetLabel);
             if (it == cg_.context_info_.basicBlocks.end())
             {
-                cg_.reportError("Target block not found for branch: " + targetLabel);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Target block not found for branch:") + targetLabel}});
                 return nullptr;
             }
 
@@ -85,7 +85,7 @@ namespace Sad
 
             if (inst->operands.size() < 3)
             {
-                cg_.reportError("Conditional branch requires 3 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Conditional"}});
                 return nullptr;
             }
 
@@ -105,7 +105,7 @@ namespace Sad
 
             if (!condition)
             {
-                cg_.reportError("Condition not found for conditional branch");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", "Condition"}});
                 return nullptr;
             }
 
@@ -166,7 +166,7 @@ namespace Sad
             if (trueIt == cg_.context_info_.basicBlocks.end() ||
                 falseIt == cg_.context_info_.basicBlocks.end())
             {
-                cg_.reportError("Target blocks not found for conditional branch");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", "Target"}});
                 return nullptr;
             }
 
@@ -186,7 +186,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Call instruction requires function name");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Call"}});
                 return nullptr;
             }
 
@@ -380,7 +380,7 @@ namespace Sad
 
                 if (!callee)
                 {
-                    cg_.reportError("Failed to create extern declaration for: " + funcName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("Failed to create extern declaration for:") + funcName}});
                     return nullptr;
                 }
 

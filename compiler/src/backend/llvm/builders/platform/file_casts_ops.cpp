@@ -38,7 +38,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("FILE_READ requires 1 operand (filename)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "FILE_READ"}});
                 return nullptr;
             }
             llvm::Value *filename = cg_.resolveOperand(inst->operands[0]);
@@ -87,7 +87,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("FILE_WRITE requires 2 operands (filename, content)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "FILE_WRITE"}});
                 return nullptr;
             }
             llvm::Value *filename = cg_.resolveOperand(inst->operands[0]);
@@ -124,7 +124,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("FILE_APPEND requires 2 operands (filename, content)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "FILE_APPEND"}});
                 return nullptr;
             }
             llvm::Value *filename = cg_.resolveOperand(inst->operands[0]);

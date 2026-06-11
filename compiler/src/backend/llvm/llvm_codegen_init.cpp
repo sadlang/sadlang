@@ -201,7 +201,7 @@ namespace Sad
 
                 if (!target)
                 {
-                    reportError("Failed to lookup target: " + error);
+                    reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("Failed to lookup target:") + error}});
                     return false;
                 }
 
@@ -218,7 +218,7 @@ namespace Sad
 
                 if (!targetMachine_)
                 {
-                    reportError("Failed to create target machine");
+                    reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Failed"}});
                     return false;
                 }
 
@@ -238,7 +238,7 @@ namespace Sad
                 // Source: llvm_optimizer.h:100 - initialize(llvm::TargetMachine*)
                 if (!optimizer_->initialize(targetMachine_))
                 {
-                    reportError("Failed to initialize optimizer");
+                    reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Failed"}});
                     return false;
                 }
 
@@ -250,7 +250,7 @@ namespace Sad
             }
             catch (const std::exception &e)
             {
-                reportError(std::string("Initialization exception: ") + e.what());
+                reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", e.what()}});
                 return false;
             }
         }
@@ -288,7 +288,7 @@ namespace Sad
         {
             if (!sirModule)
             {
-                reportError("SIR module is null");
+                reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "SIR"}});
                 return nullptr;
             }
 
@@ -317,7 +317,7 @@ namespace Sad
             if (!verify())
             {
                 std::cerr << "[WARNING] Module verification failed, continuing anyway...\n";
-                // reportError("Module verification failed");
+                // reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Module"}});
                 // return nullptr;
             }
 

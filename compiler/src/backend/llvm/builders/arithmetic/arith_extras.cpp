@@ -23,7 +23,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("CmpGt instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CmpGt"}});
                 return nullptr;
             }
 
@@ -32,7 +32,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for cmpgt");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -107,7 +107,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("CmpGe instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CmpGe"}});
                 return nullptr;
             }
 
@@ -116,7 +116,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for cmpge");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 

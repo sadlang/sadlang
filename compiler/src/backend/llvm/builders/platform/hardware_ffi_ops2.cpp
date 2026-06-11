@@ -61,7 +61,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 4)
             {
-                cg_.reportError("dma_init: needs 4 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "dma_init"}});
                 return nullptr;
             }
             llvm::Value *ch = cg_.resolveOperand(inst->operands[0]);
@@ -92,7 +92,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("dma_start: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "dma_start"}});
                 return nullptr;
             }
             llvm::Value *ch = cg_.resolveOperand(inst->operands[0]);
@@ -116,7 +116,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("printf: needs operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "printf"}});
                 return nullptr;
             }
             llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*cg_.context_), {llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo()}, true);
@@ -141,7 +141,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("malloc: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "malloc"}});
                 return nullptr;
             }
             llvm::Value *size = cg_.resolveOperand(inst->operands[0]);
@@ -159,7 +159,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("free: needs 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "free"}});
                 return nullptr;
             }
             llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
@@ -177,7 +177,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("realloc: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "realloc"}});
                 return nullptr;
             }
             llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
@@ -199,7 +199,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("calloc: needs 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "calloc"}});
                 return nullptr;
             }
             llvm::Value *count = cg_.resolveOperand(inst->operands[0]);

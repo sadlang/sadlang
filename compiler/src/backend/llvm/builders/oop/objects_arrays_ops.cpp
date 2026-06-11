@@ -55,7 +55,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("OBJECT_CALL requires at least 2 operands (object, method_name)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "OBJECT_CALL"}});
                 return nullptr;
             }
 
@@ -89,7 +89,7 @@ namespace Sad
                 }
                 else
                 {
-                    cg_.reportError("Object not found: " + objRegName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Object not found:") + objRegName}});
                     return nullptr;
                 }
             }
@@ -567,7 +567,7 @@ namespace Sad
             }
             if (!method)
             {
-                cg_.reportError("Method not found: " + className + "." + methodName + " (searched inheritance chain)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Method not found:") + className + "." + methodName + " (searched inheritance chain)"}});
                 return nullptr;
             }
 
@@ -680,7 +680,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("OBJECT_CAST requires 2 operands (object, target_class)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "OBJECT_CAST"}});
                 return nullptr;
             }
 
@@ -739,7 +739,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("CONSTRUCTOR_CALL requires at least 1 operand (class name)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CONSTRUCTOR_CALL"}});
                 return nullptr;
             }
 
@@ -749,7 +749,7 @@ namespace Sad
             // (EN) Abstract class check — cannot instantiate abstract classes
             if (cg_.context_info_.abstractClasses.count(className))
             {
-                cg_.reportError("Cannot instantiate abstract class: " + className);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", std::string("Cannot instantiate abstract class:") + className}});
                 return nullptr;
             }
 
@@ -758,7 +758,7 @@ namespace Sad
             auto structIt = cg_.context_info_.classStructTypes.find(className);
             if (structIt == cg_.context_info_.classStructTypes.end())
             {
-                cg_.reportError("Class not found for constructor: " + className);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Class not found for constructor:") + className}});
                 return nullptr;
             }
 

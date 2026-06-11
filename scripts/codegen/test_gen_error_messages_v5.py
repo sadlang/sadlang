@@ -145,4 +145,4 @@ def test_em_cpp7_internal_ice_codes(merged):
         assert "{detail}" in _brief_ar(e), f"brief لـ {code} لا يحوي {{detail}}"
         assert "detail" in (e.get("placeholders") or []), f"{code}: placeholders بلا 'detail'"
         # (AR) وسم «خطأ مترجم — أبلِغ» موجود (لا يُعامَل كخطأ مستخدِم)
-        assert "المترجم" in _brief_ar(e), f"{code}: لا يوسم كخطأ مترجم داخلي"
+        assert "مترجم" in _brief_ar(e), f"{code}: لا يوسم كخطأ مترجم داخلي"

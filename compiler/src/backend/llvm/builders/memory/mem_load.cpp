@@ -64,7 +64,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Load instruction requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Load"}});
                 return nullptr;
             }
 
@@ -128,7 +128,7 @@ namespace Sad
 
             if (!ptr)
             {
-                cg_.reportError("Pointer not found for load");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", "Pointer"}});
                 return nullptr;
             }
 

@@ -293,14 +293,14 @@ namespace Sad
             // Source: cg_.optimizer_ is defined at llvm_codegen.h:657
             if (!cg_.optimizer_)
             {
-                cg_.reportError("Optimizer not initialized");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Optimizer"}});
                 return false;
             }
 
             // Source: cg_.module_ is defined at llvm_codegen.h:634
             if (!cg_.module_)
             {
-                cg_.reportError("Module not initialized");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Module"}});
                 return false;
             }
 

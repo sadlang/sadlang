@@ -285,7 +285,7 @@ namespace Sad
                         }
                     }
                 }
-                cg_.reportError("Undefined register: " + operand.name);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Undefined register:") + operand.name}});
                 // (AR) إرجاع قيمة صفرية ثابتة كـ fallback لتجنب crash
                 // (EN) Return a zero constant as fallback to avoid crash
                 return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0, true);
@@ -366,7 +366,7 @@ namespace Sad
                         return loaded;
                     }
                 }
-                cg_.reportError("Undefined global: " + operand.name);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Undefined global:") + operand.name}});
                 return nullptr;
             }
             case SIROperandType::FUNCTION:
@@ -374,7 +374,7 @@ namespace Sad
                 llvm::Function *fn = cg_.module_->getFunction(operand.name);
                 if (fn)
                     return fn;
-                cg_.reportError("Undefined function: " + operand.name);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Undefined function:") + operand.name}});
                 return nullptr;
             }
             case SIROperandType::LABEL:
@@ -382,7 +382,7 @@ namespace Sad
                 return nullptr;
             }
             default:
-                cg_.reportError("Unknown operand type");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Unknown"}});
                 return nullptr;
             }
         }

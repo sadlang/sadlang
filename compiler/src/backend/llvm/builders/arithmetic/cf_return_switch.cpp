@@ -42,7 +42,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Return instruction requires value");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Return"}});
                 return nullptr;
             }
 
@@ -92,7 +92,7 @@ namespace Sad
 
             if (!retValue)
             {
-                cg_.reportError("Return value not found: " + operand.name);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Return value not found:") + operand.name}});
                 return nullptr;
             }
 
@@ -189,7 +189,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("SWITCH instruction requires at least 2 operands (condition + default)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "SWITCH"}});
                 return nullptr;
             }
 
@@ -198,7 +198,7 @@ namespace Sad
             llvm::Value *condVal = cg_.resolveOperand(inst->operands[0]);
             if (!condVal)
             {
-                cg_.reportError("SWITCH: failed to resolve condition operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "SWITCH"}});
                 return nullptr;
             }
 
@@ -216,7 +216,7 @@ namespace Sad
                 }
                 else
                 {
-                    cg_.reportError("SWITCH: condition must be integer type");
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_TYPE_CONSTRAINT, {{"detail", "SWITCH"}});
                     return nullptr;
                 }
             }

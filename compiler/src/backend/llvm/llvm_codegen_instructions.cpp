@@ -109,7 +109,7 @@ namespace Sad
         {
             if (!function)
             {
-                reportError("Null function in createBasicBlock");
+                reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "Null"}});
                 return nullptr;
             }
 
@@ -136,7 +136,7 @@ namespace Sad
         {
             if (!inst)
             {
-                reportError("Null instruction in emitInstruction");
+                reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "Null"}});
                 return nullptr;
             }
 
@@ -169,7 +169,7 @@ namespace Sad
 
             // (AR) لا توجد طبقة تعرف هذا الـ opcode
             // (EN) No tier recognized this opcode
-            reportError("Unsupported opcode: " + std::to_string(static_cast<int>(inst->opcode)));
+            reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", std::string("Unsupported opcode:") + std::to_string(static_cast<int>(inst->opcode))}});
             return nullptr;
         }
 

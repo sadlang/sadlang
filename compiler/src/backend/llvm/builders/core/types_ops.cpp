@@ -193,7 +193,7 @@ namespace Sad
                 type = getInt64Type();
                 break;
             default:
-                cg_.reportError("Unsupported integer bit width: " + std::to_string(bits));
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", std::string("Unsupported integer bit width:") + std::to_string(bits)}});
                 return nullptr;
             }
 

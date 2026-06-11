@@ -39,7 +39,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("SAR requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "SAR"}});
                 return nullptr;
             }
             llvm::Value *lhs = cg_.resolveOperand(inst->operands[0]);
@@ -58,7 +58,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ROL requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ROL"}});
                 return nullptr;
             }
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
@@ -86,7 +86,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("CALL_INDIRECT requires at least 1 operand (function pointer)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CALL_INDIRECT"}});
                 return nullptr;
             }
             // operand[0] = function pointer, rest = args
@@ -144,7 +144,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ALLOC_HEAP requires 1 operand (size)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ALLOC_HEAP"}});
                 return nullptr;
             }
             llvm::Value *size = cg_.resolveOperand(inst->operands[0]);
@@ -167,7 +167,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("FREE requires 1 operand (pointer)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "FREE"}});
                 return nullptr;
             }
             llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
@@ -216,7 +216,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("CLOSURE_CREATE requires at least 1 operand (function)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CLOSURE_CREATE"}});
                 return nullptr;
             }
 
@@ -227,7 +227,7 @@ namespace Sad
             lambdaFn = cg_.module_->getFunction(fnName);
             if (!lambdaFn)
             {
-                cg_.reportError("CLOSURE_CREATE: function '" + fnName + "' not found in module");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", std::string("CLOSURE_CREATE: function '") + fnName + "' not found in module"}});
                 return nullptr;
             }
 
@@ -532,7 +532,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("CLOSURE_CALL requires at least 1 operand (closure pointer)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CLOSURE_CALL"}});
                 return nullptr;
             }
 
@@ -641,7 +641,7 @@ namespace Sad
                 }
                 else
                 {
-                    cg_.reportError("CLOSURE_CALL: failed to resolve argument: " + inst->operands[i].name);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("CLOSURE_CALL: failed to resolve argument:") + inst->operands[i].name}});
                     return nullptr;
                 }
             } // (AR) إضافة env_ptr كمعامل أخير (دائماً)
@@ -716,7 +716,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ENV_LOAD requires 2 operands (env pointer, index)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENV_LOAD"}});
                 return nullptr;
             }
 
@@ -793,7 +793,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("ENV_STORE requires 3 operands (value, env pointer, index)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENV_STORE"}});
                 return nullptr;
             }
 

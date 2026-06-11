@@ -39,7 +39,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("STRING_CONCAT requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_CONCAT"}});
                 return nullptr;
             }
 
@@ -48,7 +48,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 
             if (!left || !right)
             {
-                cg_.reportError("STRING_CONCAT: failed to resolve operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "STRING_CONCAT"}});
                 return nullptr;
             }
 
@@ -573,7 +573,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("BUILTIN_STRING_CHAR_AT requires 2 operands (string, index)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "BUILTIN_STRING_CHAR_AT"}});
                 return nullptr;
             }
 
@@ -620,7 +620,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("STRING_CMP requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_CMP"}});
                 return nullptr;
             }
 
@@ -628,7 +628,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             llvm::Value *right = cg_.resolveOperand(inst->operands[1]);
             if (!left || !right)
             {
-                cg_.reportError("STRING_CMP: operands not found");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_CMP"}});
                 return nullptr;
             }
 
@@ -715,7 +715,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("STRING_TO_I64 requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_TO_I64"}});
                 return nullptr;
             }
             llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
@@ -752,7 +752,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("STRING_TO_F64 requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_TO_F64"}});
                 return nullptr;
             }
             llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
@@ -868,7 +868,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("STRING_FIND requires 2 operands (haystack, needle)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_FIND"}});
                 return nullptr;
             }
             llvm::Value *haystack = cg_.resolveOperand(inst->operands[0]);
@@ -915,7 +915,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             // Full string replace: call runtime helper sad_string_replace(str, old, new) -> char*
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("STRING_REPLACE requires 3 operands (str, old, new)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_REPLACE"}});
                 return nullptr;
             }
             llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
@@ -997,7 +997,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("STRING_SUBSTRING requires 3 operands (str, start, length)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_SUBSTRING"}});
                 return nullptr;
             }
             llvm::Value *str = cg_.resolveOperand(inst->operands[0]);

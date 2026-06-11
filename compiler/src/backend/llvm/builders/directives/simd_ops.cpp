@@ -109,7 +109,7 @@ namespace Sad
                     llvm::Value *elem = cg_.resolveOperand(inst->operands[i]);
                     if (!elem)
                     {
-                        cg_.reportError("VECTOR_BUILD: missing operand " + std::to_string(i));
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", std::string("VECTOR_BUILD: missing operand") + std::to_string(i)}});
                         return nullptr;
                     }
                     // (AR) تحويل النوع إذا لزم
@@ -136,7 +136,7 @@ namespace Sad
                 int laneCount = inst->vectorLaneCount;
                 if (laneCount <= 0)
                 {
-                    cg_.reportError("VECTOR_SPLAT: invalid lane count");
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "VECTOR_SPLAT"}});
                     return nullptr;
                 }
                 llvm::FixedVectorType *vTy = vectorType(cg_.builder_.get(), inst->vectorElementType, laneCount);

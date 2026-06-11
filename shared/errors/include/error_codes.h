@@ -202,8 +202,13 @@ namespace Sad
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.
             // (EN) Internal compiler errors (ICE) — compiler defects, catalog-based.
             // ════════════════════════════════════════════════════════════════
-            INT_COMPILER_NULL_IR,         ///< INT001: (AR) عقدة IR فارغة / (EN) Null IR node
-            INT_COMPILER_INVALID_OPERANDS ///< INT002: (AR) operands غير صالحة / (EN) Invalid operands
+            INT_COMPILER_NULL_IR,          ///< INT001: (AR) عقدة IR فارغة / (EN) Null IR node
+            INT_COMPILER_INVALID_OPERANDS, ///< INT002: (AR) عدد معاملات خاطئ / (EN) Wrong operand count
+            INT_SIR_OPERAND_RESOLVE,       ///< INT003: (AR) تعذّر حلّ معامل / (EN) Operand resolution failed
+            INT_SIR_UNDEFINED_REF,         ///< INT004: (AR) مرجع غير معرَّف / (EN) Undefined IR reference
+            INT_SIR_FIELD_LAYOUT,          ///< INT005: (AR) تخطيط حقل/صنف / (EN) Class/field layout failed
+            INT_BACKEND_EMIT,              ///< INT006: (AR) فشل إصدار الخلفية / (EN) Backend emit failure
+            INT_SIR_TYPE_CONSTRAINT        ///< INT007: (AR) انتهاك قيد نوع / (EN) Type constraint violated
         };
 
         /**

@@ -39,7 +39,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ADDR requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ADDR"}});
                 return nullptr;
             }
             // Return the alloca pointer itself (not loading the value)
@@ -69,7 +69,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("PTR_ADD requires 2 operands (ptr, offset)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "PTR_ADD"}});
                 return nullptr;
             }
             llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
@@ -98,7 +98,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("PTR_CAST requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "PTR_CAST"}});
                 return nullptr;
             }
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
@@ -128,7 +128,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("OBJECT_NEW requires class name operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "OBJECT_NEW"}});
                 return nullptr;
             }
 
@@ -138,7 +138,7 @@ namespace Sad
             auto structIt = cg_.context_info_.classStructTypes.find(className);
             if (structIt == cg_.context_info_.classStructTypes.end())
             {
-                cg_.reportError("Class not found: " + className);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Class not found:") + className}});
                 return nullptr;
             }
 
@@ -241,7 +241,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("OBJECT_GET requires 2 operands (object, field_name)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", "OBJECT_GET"}});
                 return nullptr;
             }
 
@@ -270,7 +270,7 @@ namespace Sad
                 }
                 else
                 {
-                    cg_.reportError("Object not found: " + objRegName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Object not found:") + objRegName}});
                     return nullptr;
                 }
             }
@@ -342,7 +342,7 @@ namespace Sad
 
             if (className.empty())
             {
-                cg_.reportError("No class mapping for: " + objRegName);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("No class mapping for:") + objRegName}});
                 return nullptr;
             }
 
@@ -440,7 +440,7 @@ namespace Sad
             if (structIt == cg_.context_info_.classStructTypes.end() ||
                 fieldNamesIt == cg_.context_info_.classFieldNames.end())
             {
-                cg_.reportError("Class struct not found: " + className);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("Class struct not found:") + className}});
                 return nullptr;
             }
 
@@ -519,7 +519,7 @@ namespace Sad
 
             if (fieldIndex < 0)
             {
-                cg_.reportError("Field '" + fieldName + "' not found in class '" + className + "' or its parents");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("Field '") + fieldName + "' not found in class '" + className + "' or its parents"}});
                 return nullptr;
             }
 
@@ -580,7 +580,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
             {
-                cg_.reportError("OBJECT_SET requires 3 operands (object, field_name, value)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", "OBJECT_SET"}});
                 return nullptr;
             }
 
@@ -609,7 +609,7 @@ namespace Sad
 
             if (!objPtr || !value)
             {
-                cg_.reportError("Operands not found for OBJECT_SET");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -675,7 +675,7 @@ namespace Sad
 
             if (className.empty())
             {
-                cg_.reportError("No class mapping for: " + objRegName);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("No class mapping for:") + objRegName}});
                 return nullptr;
             }
 
@@ -799,7 +799,7 @@ namespace Sad
             if (structIt == cg_.context_info_.classStructTypes.end() ||
                 fieldNamesIt == cg_.context_info_.classFieldNames.end())
             {
-                cg_.reportError("Class struct not found: " + className);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("Class struct not found:") + className}});
                 return nullptr;
             }
 
@@ -873,7 +873,7 @@ namespace Sad
 
             if (fieldIndex < 0)
             {
-                cg_.reportError("Field '" + fieldName + "' not found in class '" + className + "' or its parents");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("Field '") + fieldName + "' not found in class '" + className + "' or its parents"}});
                 return nullptr;
             }
 

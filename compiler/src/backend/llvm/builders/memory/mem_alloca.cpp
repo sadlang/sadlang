@@ -559,13 +559,13 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Move instruction requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Move"}});
                 return nullptr;
             }
 
             if (!inst->result.has_value())
             {
-                cg_.reportError("Move instruction requires a result register");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Move"}});
                 return nullptr;
             }
 
@@ -591,7 +591,7 @@ namespace Sad
                     value = cg_.getConstantString(srcOp.name);
                     break;
                 default:
-                    cg_.reportError("Unsupported constant type in move");
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Unsupported"}});
                     return nullptr;
                 }
             }
@@ -618,7 +618,7 @@ namespace Sad
                 }
                 else
                 {
-                    cg_.reportError("Function not found in move: " + srcOp.name);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Function not found in move:") + srcOp.name}});
                     return nullptr;
                 }
             }
@@ -666,7 +666,7 @@ namespace Sad
                 }
                 else
                 {
-                    cg_.reportError("Source value not found for move: " + srcOp.name);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Source value not found for move:") + srcOp.name}});
                     return nullptr;
                 }
             }
@@ -691,7 +691,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("GEP instruction requires at least 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "GEP"}});
                 return nullptr;
             }
 
@@ -699,7 +699,7 @@ namespace Sad
 
             if (!ptr)
             {
-                cg_.reportError("Pointer not found for GEP");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", "Pointer"}});
                 return nullptr;
             }
 

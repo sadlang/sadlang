@@ -64,7 +64,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Shl instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Shl"}});
                 return nullptr;
             }
 
@@ -73,7 +73,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for shl");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -117,7 +117,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Shr instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Shr"}});
                 return nullptr;
             }
 
@@ -126,7 +126,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for shr");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -175,7 +175,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("CmpEq instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CmpEq"}});
                 return nullptr;
             }
 
@@ -184,7 +184,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for cmpeq: " + inst->operands[0].name + ", " + inst->operands[1].name);
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("Operands not found for cmpeq:") + inst->operands[0].name + ", " + inst->operands[1].name}});
                 return nullptr;
             }
 
@@ -328,7 +328,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("CmpNe instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CmpNe"}});
                 return nullptr;
             }
 
@@ -337,7 +337,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for cmpne");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -429,7 +429,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("CmpLt instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CmpLt"}});
                 return nullptr;
             }
 
@@ -438,7 +438,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for cmplt");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -511,7 +511,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("CmpLe instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CmpLe"}});
                 return nullptr;
             }
 
@@ -520,7 +520,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for cmple");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 

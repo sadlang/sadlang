@@ -204,7 +204,7 @@ namespace Sad
             // (AR) التحقق من وجود الوحدة / (EN) Check module exists
             if (!cg_.module_ || !cg_.targetMachine_)
             {
-                cg_.reportError("Module or target machine not initialized for emitAssembly");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Module"}});
                 return false;
             }
 
@@ -221,7 +221,7 @@ namespace Sad
         {
             if (!module || !cg_.targetMachine_)
             {
-                cg_.reportError("Module or target machine not initialized for emitAssembly");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Module"}});
                 return false;
             }
 
@@ -242,7 +242,7 @@ namespace Sad
 
             if (EC)
             {
-                cg_.reportError("Could not open file for assembly: " + EC.message());
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("Could not open file for assembly:") + EC.message()}});
                 return false;
             }
 
@@ -251,7 +251,7 @@ namespace Sad
 
             if (cg_.targetMachine_->addPassesToEmitFile(pass, dest, nullptr, FileType))
             {
-                cg_.reportError("Target machine cannot emit assembly file");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Target"}});
                 return false;
             }
 
@@ -262,7 +262,7 @@ namespace Sad
             {
                 if (!moveFileToFinal(writePath, filename))
                 {
-                    cg_.reportError("Failed to move assembly file to final path: " + filename);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("Failed to move assembly file to final path:") + filename}});
                     return false;
                 }
             }
@@ -283,7 +283,7 @@ namespace Sad
             // (AR) التحقق من وجود الوحدة / (EN) Check module exists
             if (!cg_.module_ || !cg_.targetMachine_)
             {
-                cg_.reportError("Module or target machine not initialized for emitObjectFile");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Module"}});
                 return false;
             }
 
@@ -300,7 +300,7 @@ namespace Sad
         {
             if (!module || !cg_.targetMachine_)
             {
-                cg_.reportError("Module or target machine not initialized for emitObjectFile");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Module"}});
                 return false;
             }
 
@@ -323,7 +323,7 @@ namespace Sad
 
             if (EC)
             {
-                cg_.reportError("Could not open file for object: " + EC.message());
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("Could not open file for object:") + EC.message()}});
                 return false;
             }
 
@@ -332,7 +332,7 @@ namespace Sad
 
             if (cg_.targetMachine_->addPassesToEmitFile(pass, dest, nullptr, FileType))
             {
-                cg_.reportError("Target machine cannot emit object file");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "Target"}});
                 return false;
             }
 
@@ -344,7 +344,7 @@ namespace Sad
             {
                 if (!moveFileToFinal(writePath, filename))
                 {
-                    cg_.reportError("Failed to move object file to final path: " + filename);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", std::string("Failed to move object file to final path:") + filename}});
                     return false;
                 }
             }

@@ -50,7 +50,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ARRAY_APPEND requires 2 operands (array, value)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_APPEND"}});
                 return nullptr;
             }
 
@@ -155,7 +155,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("ARRAY_REMOVE requires 2 operands (array, index)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_REMOVE"}});
                 return nullptr;
             }
 

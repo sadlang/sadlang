@@ -35,7 +35,7 @@ namespace Sad
         {
             if (!sirFunc)
             {
-                cg_.reportError("SIR function is null in emitFunction");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "SIR"}});
                 return nullptr;
             }
 
@@ -67,7 +67,7 @@ namespace Sad
         {
             if (!sirFunc)
             {
-                cg_.reportError("SIR function is null in emitFunctionPrototype");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "SIR"}});
                 return nullptr;
             }
 
@@ -405,7 +405,7 @@ namespace Sad
         {
             if (!sirFunc || !llvmFunc)
             {
-                cg_.reportError("Null function in emitFunctionBody");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "Null"}});
                 return;
             }
 
@@ -587,7 +587,7 @@ namespace Sad
                 auto it = cg_.context_info_.basicBlocks.find(blockName);
                 if (it == cg_.context_info_.basicBlocks.end())
                 {
-                    cg_.reportError("Basic block not found: " + blockName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Basic block not found:") + blockName}});
                     continue;
                 }
 

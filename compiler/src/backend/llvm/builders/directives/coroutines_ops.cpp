@@ -130,7 +130,7 @@ namespace Sad
 
             if (!coroHdl || !coroId)
             {
-                cg_.reportError("Coroutine epilogue: missing handle or id");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Coroutine"}});
                 return;
             }
 
@@ -197,7 +197,7 @@ namespace Sad
 
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("CORO_SUSPEND requires at least 1 operand (coroutine handle)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "CORO_SUSPEND"}});
                 return nullptr;
             }
 
@@ -211,7 +211,7 @@ namespace Sad
             llvm::Value *innerHdl = cg_.resolveOperand(inst->operands[0]);
             if (!innerHdl)
             {
-                cg_.reportError("CORO_SUSPEND: failed to resolve inner coroutine handle");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "CORO_SUSPEND"}});
                 return nullptr;
             }
 
@@ -347,7 +347,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("GENERATOR_YIELD requires at least 1 operand (value to yield)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "GENERATOR_YIELD"}});
                 return nullptr;
             }
 
@@ -360,7 +360,7 @@ namespace Sad
             llvm::Value *yieldVal = cg_.resolveOperand(inst->operands[0]);
             if (!yieldVal)
             {
-                cg_.reportError("GENERATOR_YIELD: failed to resolve yield value");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "GENERATOR_YIELD"}});
                 return nullptr;
             }
 
@@ -393,7 +393,7 @@ namespace Sad
             llvm::Value *coroHdl = cg_.context_info_.coroHandle;
             if (!coroHdl)
             {
-                cg_.reportError("GENERATOR_YIELD: no coroutine handle");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "GENERATOR_YIELD"}});
                 return nullptr;
             }
 
@@ -438,7 +438,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("GENERATOR_CONSUME requires at least 1 operand (generator handle)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "GENERATOR_CONSUME"}});
                 return nullptr;
             }
 
@@ -460,7 +460,7 @@ namespace Sad
             llvm::Value *genHdl = cg_.resolveOperand(inst->operands[0]);
             if (!genHdl)
             {
-                cg_.reportError("GENERATOR_CONSUME: failed to resolve generator handle");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "GENERATOR_CONSUME"}});
                 return nullptr;
             }
 

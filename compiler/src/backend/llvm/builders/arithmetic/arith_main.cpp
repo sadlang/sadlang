@@ -59,7 +59,7 @@ namespace Sad
             // Source: SIRInstruction::operands is PUBLIC member at sir_instruction.h:62
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Add instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Add"}});
                 return nullptr;
             }
 
@@ -70,7 +70,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for add");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -138,7 +138,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Sub instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Sub"}});
                 return nullptr;
             }
 
@@ -147,7 +147,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for sub");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -205,7 +205,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Mul instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Mul"}});
                 return nullptr;
             }
 
@@ -214,7 +214,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for mul");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -272,7 +272,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Div instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Div"}});
                 return nullptr;
             }
 
@@ -281,7 +281,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for div");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -349,7 +349,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Mod instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Mod"}});
                 return nullptr;
             }
 
@@ -358,7 +358,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for mod");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -404,7 +404,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Neg instruction requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Neg"}});
                 return nullptr;
             }
 
@@ -412,7 +412,7 @@ namespace Sad
 
             if (!operand)
             {
-                cg_.reportError("Operand not found for neg");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operand"}});
                 return nullptr;
             }
 
@@ -451,7 +451,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("And instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "And"}});
                 return nullptr;
             }
 
@@ -460,7 +460,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for and");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -504,7 +504,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Or instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Or"}});
                 return nullptr;
             }
 
@@ -513,7 +513,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for or");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -557,7 +557,7 @@ namespace Sad
 
             if (inst->operands.size() < 2)
             {
-                cg_.reportError("Xor instruction requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Xor"}});
                 return nullptr;
             }
 
@@ -566,7 +566,7 @@ namespace Sad
 
             if (!left || !right)
             {
-                cg_.reportError("Operands not found for xor");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
 
@@ -610,7 +610,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("Not instruction requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Not"}});
                 return nullptr;
             }
 
@@ -618,7 +618,7 @@ namespace Sad
 
             if (!operand)
             {
-                cg_.reportError("Operand not found for not");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operand"}});
                 return nullptr;
             }
 

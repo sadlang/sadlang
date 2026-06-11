@@ -65,7 +65,7 @@ llvm::Value* AggregateOpsCodeGen::emitExtractValue(std::shared_ptr<SIRInstructio
         return result;
     }
     
-    cg_.reportError("EXTRACT_VALUE requires constant index");
+    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "EXTRACT_VALUE"}});
     return nullptr;
 }
 
@@ -85,7 +85,7 @@ llvm::Value* AggregateOpsCodeGen::emitInsertValue(std::shared_ptr<SIRInstruction
         return result;
     }
     
-    cg_.reportError("INSERT_VALUE requires constant index");
+    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "INSERT_VALUE"}});
     return nullptr;
 }
 

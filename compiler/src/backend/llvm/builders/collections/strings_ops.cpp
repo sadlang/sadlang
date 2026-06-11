@@ -58,7 +58,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                cg_.reportError("INLINE_ASM: requires at least 1 operand (assembly text)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "INLINE_ASM"}});
                 return nullptr;
             }
 
@@ -72,7 +72,7 @@ namespace Sad
             }
             else
             {
-                cg_.reportError("INLINE_ASM: first operand must be a string constant (assembly text)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_BACKEND_EMIT, {{"detail", "INLINE_ASM"}});
                 return nullptr;
             }
 
