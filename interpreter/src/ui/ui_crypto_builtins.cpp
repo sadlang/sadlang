@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -28,8 +29,9 @@ namespace Sad
             // ═══ التشفير ═══
 
             // شفر_نص(نص, مفتاح) → نص مشفر
-            auto encrypt_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto encrypt_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>(std::string(""));
@@ -38,8 +40,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bcc::ENCRYPT), encrypt_fn);
 
             // فك_تشفير(نص, مفتاح) → نص أصلي
-            auto decrypt_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto decrypt_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>(std::string(""));
@@ -48,8 +51,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bcc::DECRYPT), decrypt_fn);
 
             // هاش(نص, [خوارزمية]) → نص
-            auto hash_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto hash_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(std::string(""));
@@ -61,8 +65,9 @@ namespace Sad
             // ═══ قاعدة البيانات ═══
 
             // افتح_قاعدة(اسم) → منطقي
-            auto db_open_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto db_open_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(false);
@@ -71,8 +76,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bcc::DB_OPEN), db_open_fn);
 
             // نفذ_استعلام(أمر) → نص
-            auto db_exec_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto db_exec_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(std::string(""));
@@ -81,8 +87,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bcc::DB_EXEC), db_exec_fn);
 
             // أغلق_قاعدة()
-            auto db_close_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto db_close_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)

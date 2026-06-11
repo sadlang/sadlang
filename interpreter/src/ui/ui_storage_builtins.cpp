@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -28,8 +29,9 @@ namespace Sad
             // ═══ الحافظة ═══
 
             // انسخ(نص)
-            auto copy_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto copy_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(false);
@@ -40,8 +42,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bs::COPY), copy_fn);
 
             // الصق()
-            auto paste_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto paste_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)
@@ -51,8 +54,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bs::PASTE), paste_fn);
 
             // هل_يوجد_نص_منسوخ()
-            auto has_clipboard_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto has_clipboard_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)
@@ -64,8 +68,9 @@ namespace Sad
             // ═══ التخزين المحلي ═══
 
             // خزّن(مفتاح، قيمة)
-            auto storage_set_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto storage_set_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>();
@@ -76,8 +81,9 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bs::STORE), storage_set_fn);
             // استرجع(مفتاح)
-            auto storage_get_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto storage_get_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(std::string(""));
@@ -86,8 +92,9 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bs::RETRIEVE), storage_get_fn);
             // احذف_مخزن(مفتاح)
-            auto storage_remove_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto storage_remove_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>();
@@ -97,8 +104,9 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bs::REMOVE_STORED), storage_remove_fn);
             // امسح_المخزن()
-            auto storage_clear_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto storage_clear_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)

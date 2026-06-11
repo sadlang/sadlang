@@ -45,16 +45,18 @@ namespace Sad
             // (AR) دوال الإخراج / (EN) Output Functions
             // ═════════════════════════════════════════════════════════════════
 
-            auto print_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto print_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::print(args);
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::PRINT), print_func);
             // (AR) اطبع_سطر — طباعة قيمة مع سطر جديد
             // (EN) println — print value with newline
-            auto println_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto println_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::println(args);
             };
 
@@ -63,8 +65,9 @@ namespace Sad
             // (AR) دوال الإدخال / (EN) Input Functions
             // ═════════════════════════════════════════════════════════════════
 
-            auto input_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto input_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::input(args);
             };
 
@@ -78,9 +81,10 @@ namespace Sad
             //      In interpreter: no-op, returns condition unchanged
             //      In compiler: lowered to llvm.expect.i1 for CPU branch prediction
             // ═════════════════════════════════════════════════════════════════
-            auto expect_true_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto expect_true_func = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) متوقع(شرط) → يُرجع الشرط (no-op في المفسر)
                 if (args.empty())
                     return std::make_shared<Data::Value>(false);
@@ -89,9 +93,10 @@ namespace Sad
             // (AR) متوقع/غير_متوقع — تلميحات فروع (Branch hints) — غير مُدرجَتَين في YAML بعد
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::EXPECT), expect_true_func);
 
-            auto expect_false_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto expect_false_func = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) غير_متوقع(شرط) → يُرجع الشرط (no-op في المفسر)
                 if (args.empty())
                     return std::make_shared<Data::Value>(false);
@@ -103,8 +108,9 @@ namespace Sad
             // (AR) دوال الطول الأساسية / (EN) Basic Length Functions
             // ═════════════════════════════════════════════════════════════════
 
-            auto len_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto len_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::length(args);
             };
 
@@ -113,8 +119,9 @@ namespace Sad
             // (AR) دوال النوع / (EN) Type Functions
             // ═════════════════════════════════════════════════════════════════
 
-            auto type_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto type_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::type_of(args);
             };
 
@@ -124,31 +131,35 @@ namespace Sad
             // ═════════════════════════════════════════════════════════════════
 
             // نص / str / to_string
-            auto to_string_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_string_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::to_string(args);
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_STRING), to_string_func);
 
             // رقم / int / to_int
-            auto to_int_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_int_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::to_int(args);
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_INT), to_int_func);
             // عشري / float / to_float
-            auto to_float_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_float_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::to_float(args);
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_FLOAT), to_float_func);
 
             // منطقي / bool / to_bool
-            auto to_bool_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_bool_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -163,8 +174,9 @@ namespace Sad
 
             // (AR) قناة(حجم) — إنشاء قناة اتصال جديدة
             // (EN) channel(size) — create a new communication channel
-            auto channel_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto channel_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) حجم المخزن المؤقت — 0 افتراضياً (unbuffered)
                 size_t bufferSize = 0;
                 if (!args.empty() && args[0])
@@ -192,8 +204,9 @@ namespace Sad
 
             // (AR) انتظر_الكل() — انتظار جميع المهام المتزامنة (goroutines)
             // (EN) waitAll() — wait for all concurrent goroutines to complete
-            auto wait_all_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto wait_all_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args; // (AR) لا تتطلب وسائط
                 GoroutineManager::getInstance().waitAll();
                 return std::make_shared<Data::Value>(); // void
@@ -203,8 +216,9 @@ namespace Sad
 
             // (AR) عدد_المهام() — عدد المهام المتزامنة النشطة
             // (EN) activeGoroutines() — number of active goroutines
-            auto active_count_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto active_count_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 int count = static_cast<int>(GoroutineManager::getInstance().activeCount());
                 return std::make_shared<Data::Value>(count);
@@ -216,8 +230,9 @@ namespace Sad
             // (AR) مجموعة_انتظار() — إنشاء WaitGroup جديدة
             // (EN) waitGroup() — create a new WaitGroup
             // ═══════════════════════════════════════════════════════════════
-            auto waitgroup_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto waitgroup_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto wg = std::make_shared<SadWaitGroup>();
                 auto &registry = SadWaitGroupRegistry::getInstance();
@@ -237,8 +252,9 @@ namespace Sad
             // (AR) قفل() — إنشاء Mutex جديد
             // (EN) mutex() — create a new Mutex
             // ═══════════════════════════════════════════════════════════════
-            auto mutex_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto mutex_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto mtx = std::make_shared<SadMutex>();
                 auto &registry = SadMutexRegistry::getInstance();
@@ -268,8 +284,9 @@ namespace Sad
             //   var f = future()
             //   go { ... f.set(result) }
             //   var r = f.get()  # blocks until result is ready
-            auto future_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto future_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
 
                 // (AR) إنشاء المستقبل / (EN) Create the future

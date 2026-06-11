@@ -71,7 +71,7 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             // now / الآن — الحصول على الطابع الزمني الحالي (بالثواني)
-            auto now_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
+            auto now_fn = [](Sad::Interpreter::BuiltinContext &) -> std::shared_ptr<Data::Value>
             {
                 auto t = std::chrono::system_clock::now();
                 auto epoch = t.time_since_epoch();
@@ -80,7 +80,7 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bmp::NOW), now_fn);
             // now_ms / الآن_مللي — الطابع الزمني بالمللي ثانية
-            auto now_ms_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
+            auto now_ms_fn = [](Sad::Interpreter::BuiltinContext &) -> std::shared_ptr<Data::Value>
             {
                 auto t = std::chrono::system_clock::now();
                 auto epoch = t.time_since_epoch();
@@ -563,7 +563,7 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bmp::ENV_GET), env_get_fn);
 
             // cwd / المجلد_الحالي — الحصول على المجلد الحالي
-            auto cwd_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
+            auto cwd_fn = [](Sad::Interpreter::BuiltinContext &) -> std::shared_ptr<Data::Value>
             {
                 char buffer[4096];
                 if (getcwd(buffer, sizeof(buffer)))

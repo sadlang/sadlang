@@ -29,7 +29,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 1. serial_scan / تسلسلي_مسح
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().scanPorts());
         };
@@ -38,7 +39,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 2. serial_port_count / تسلسلي_عدد_المنافذ
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().getPortCount());
         };
@@ -47,7 +49,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 3. serial_init / تسلسلي_تهيئة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int baud = args.size() > 1 ? args[1]->toInt() : 9600;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().initPort(port, baud));
@@ -57,7 +60,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 4. serial_close / تسلسلي_اغلاق
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().closePort(port));
         };
@@ -66,7 +70,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 5. serial_is_open / تسلسلي_مفتوح
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().isPortOpen(port) ? 1 : 0);
@@ -76,7 +81,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 6. serial_report / تسلسلي_تقرير
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().generateReport());
         };
@@ -88,7 +94,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 7. serial_send_byte / تسلسلي_ارسال_بايت
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int byte = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(
@@ -99,7 +106,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 8. serial_send_string / تسلسلي_ارسال_نص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             std::string data = args.size() > 1 ? args[1]->toString() : "";
             return std::make_shared<Data::Value>(
@@ -110,7 +118,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 9. serial_send_hex / تسلسلي_ارسال_ست_عشري
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             std::string hex = args.size() > 1 ? args[1]->toString() : "";
             return std::make_shared<Data::Value>(
@@ -121,7 +130,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 10. serial_tx_ready / تسلسلي_جاهز_ارسال
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().isTxReady(port) ? 1 : 0);
@@ -134,7 +144,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 11. serial_receive_byte / تسلسلي_استقبال_بايت
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().receiveByte(port));
@@ -144,7 +155,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 12. serial_receive_string / تسلسلي_استقبال_نص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int maxLen = args.size() > 1 ? args[1]->toInt() : 256;
             return std::make_shared<Data::Value>(
@@ -155,7 +167,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 13. serial_available / تسلسلي_متاح
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().available(port));
@@ -165,7 +178,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 14. serial_rx_ready / تسلسلي_جاهز_استقبال
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().isRxReady(port) ? 1 : 0);
@@ -178,7 +192,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 15. serial_set_baud / تسلسلي_تعيين_بود
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int baud = args.size() > 1 ? args[1]->toInt() : 9600;
             return std::make_shared<Data::Value>(
@@ -189,7 +204,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 16. serial_get_baud / تسلسلي_معدل_البود
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getBaudRate(port));
@@ -199,7 +215,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 17. serial_set_data_bits / تسلسلي_بتات_بيانات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int bits = args.size() > 1 ? args[1]->toInt() : 8;
             return std::make_shared<Data::Value>(
@@ -210,7 +227,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 18. serial_set_stop_bits / تسلسلي_بتات_توقف
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int bits = args.size() > 1 ? args[1]->toInt() : 1;
             return std::make_shared<Data::Value>(
@@ -221,7 +239,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 19. serial_set_parity / تسلسلي_تكافؤ
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             int par = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(
@@ -232,7 +251,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 20. serial_set_flow / تسلسلي_تحكم_تدفق
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             bool rtscts = args.size() > 1 ? (args[1]->toInt() != 0) : false;
             return std::make_shared<Data::Value>(
@@ -246,7 +266,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 21. serial_line_status / تسلسلي_حالة_الخط
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getLineStatus(port));
@@ -256,7 +277,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 22. serial_modem_status / تسلسلي_حالة_المودم
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getModemStatus(port));
@@ -266,7 +288,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 23. serial_tx_count / تسلسلي_عداد_ارسال
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(static_cast<int>(
                 LowLevel::SerialManager::getInstance().getTxCount(port)));
@@ -276,7 +299,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 24. serial_rx_count / تسلسلي_عداد_استقبال
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(static_cast<int>(
                 LowLevel::SerialManager::getInstance().getRxCount(port)));
@@ -289,7 +313,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 25. serial_loopback / تسلسلي_اختبار_حلقي
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().loopbackTest(port));
@@ -299,7 +324,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 26. serial_clear / تسلسلي_مسح_المخزن
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().clearBuffers(port));
@@ -309,7 +335,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 27. serial_reset / تسلسلي_اعادة_تعيين
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             LowLevel::SerialManager::getInstance().reset();
             return std::make_shared<Data::Value>(0);
@@ -319,7 +346,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 28. serial_port_exists / تسلسلي_منفذ_موجود
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getPortInfo(port).exists ? 1 : 0);
@@ -329,7 +357,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 29. serial_port_addr / تسلسلي_عنوان_منفذ
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::SerialManager::getInstance().getPortInfo(port).baseAddr));
@@ -339,7 +368,8 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
 
     // 30. serial_port_state / تسلسلي_حالة_منفذ
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::SerialManager::getInstance().getPortInfo(port).serialState));

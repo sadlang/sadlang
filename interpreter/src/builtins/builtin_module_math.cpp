@@ -47,8 +47,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // Natural logarithm / اللوغاريتم الطبيعي
-            auto math_log_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_log_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -58,8 +59,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::LOG), math_log_func);
 
             // Base-10 logarithm / لوغاريتم عشري
-            auto math_log10_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_log10_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -69,8 +71,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::LOG10), math_log10_func);
 
             // Base-2 logarithm / لوغاريتم ثنائي
-            auto math_log2_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_log2_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -81,8 +84,9 @@ namespace Sad
 
             // (AR) الدالة الأسية e^x — اسمها "أسي" لتجنب تعارض مع "أس" (القوة x^y)
             // (EN) Exponential e^x — named "أسي" to avoid conflict with "أس" (power x^y)
-            auto math_exp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_exp_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -92,8 +96,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::EXP), math_exp_func);
 
             // Clamp / تقييد القيمة
-            auto math_clamp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_clamp_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -103,8 +108,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::CLAMP), math_clamp_func);
 
             // Truncate / اقتطاع
-            auto math_trunc_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_trunc_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -114,8 +120,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::TRUNCATE), math_trunc_func);
 
             // Modulo / باقي القسمة
-            auto math_mod_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_mod_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -125,8 +132,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::FMOD), math_mod_func);
 
             // Sign / إشارة
-            auto math_sign_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_sign_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -136,8 +144,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::SIGN), math_sign_func);
 
             // Pi constant / ثابت باي
-            auto math_pi_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_pi_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::pi());
             };
 
@@ -145,8 +154,9 @@ namespace Sad
 
             // (AR) ثابت أويلر e — الاسم الموحد "هـ" (يطابق stdlib_manager)
             // (EN) Euler's e constant — unified name "هـ" (matches stdlib_manager)
-            auto math_e_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_e_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::e());
             };
 
@@ -188,7 +198,7 @@ namespace Sad
 
             // (AR) عشوائي_عشري — رقم عشري عشوائي بين 0.0 و 1.0
             // (EN) Random float between 0.0 and 1.0
-            auto math_random_float_func = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
+            auto math_random_float_func = [](Sad::Interpreter::BuiltinContext &) -> std::shared_ptr<Data::Value>
             {
                 static std::mt19937 gen(std::random_device{}());
                 std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -201,8 +211,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // Get environment variable / الحصول على متغير بيئة
-            auto sys_getenv_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_getenv_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -212,8 +223,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::GET_ENV), sys_getenv_func);
 
             // Set environment variable / تعيين متغير بيئة
-            auto sys_setenv_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_setenv_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -223,8 +235,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::SET_ENV), sys_setenv_func);
 
             // Get current directory / الحصول على المجلد الحالي
-            auto sys_curdir_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_curdir_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -234,8 +247,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::CUR_DIR), sys_curdir_func);
 
             // Change directory / تغيير المجلد
-            auto sys_chdir_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_chdir_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -245,8 +259,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::CHANGE_DIR), sys_chdir_func);
 
             // Execute command / تنفيذ أمر
-            auto sys_execute_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_execute_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -256,32 +271,36 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::EXECUTE), sys_execute_func);
 
             // Get platform / المنصة
-            auto sys_platform_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_platform_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::platform());
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::PLATFORM_NAME), sys_platform_func);
 
             // Get OS name / اسم نظام التشغيل
-            auto sys_osname_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_osname_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::osName());
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::OS_NAME), sys_osname_func);
 
             // Get timestamp / الطابع الزمني
-            auto sys_timestamp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_timestamp_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::timestamp());
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::TIMESTAMP), sys_timestamp_func);
 
             // Get clock time / وقت الساعة
-            auto sys_clock_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sys_clock_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::clock_time());
             };
 
@@ -360,24 +379,27 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::INTERRUPT), interrupt_func);
 
             // (AR) محاكاة إيقاف المعالج — hlt
-            auto halt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto halt_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] hlt — CPU halted" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::HALT), halt_func);
 
             // (AR) محاكاة تعطيل المقاطعات — cli
-            auto cli_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto cli_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] cli — interrupts disabled" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bkc::CPU_3), cli_func);
 
             // (AR) محاكاة تفعيل المقاطعات — sti
-            auto sti_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto sti_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] sti — interrupts enabled" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
@@ -400,8 +422,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::VGA_WRITE), vga_write_func);
 
             // (AR) محاكاة مسح الشاشة — vga_clear(color?)
-            auto vga_clear_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto vga_clear_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int color = 0x0F;
                 if (!args.empty())
                     color = args[0]->toInt();
@@ -550,8 +573,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::EMBED_TIMER_INIT), timer_init_func);
 
             // (AR) قراءة المؤقت — timer_read()
-            auto timer_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto timer_read_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto now = std::chrono::high_resolution_clock::now();
                 auto us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
                 std::cout << "[OS-SIM] Timer read: " << us << " us" << std::endl;
@@ -576,8 +600,9 @@ namespace Sad
             // ─── System Control (3) ────────────────────────────────────
 
             // (AR) إعادة تشغيل — reset()
-            auto reset_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto reset_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] *** SYSTEM RESET ***" << std::endl;
                 std::cout << "[OS-SIM] (in simulation: program continues)" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -585,8 +610,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::RESET), reset_func);
 
             // (AR) معرّف المعالج — cpu_id(leaf?)
-            auto cpuid_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto cpuid_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 int leaf = 0;
                 if (!args.empty())
                     leaf = args[0]->toInt();
@@ -596,8 +622,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::CPUID), cpuid_func);
 
             // (AR) عداد الدورات — rdtsc()
-            auto rdtsc_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto rdtsc_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto now = std::chrono::high_resolution_clock::now();
                 auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
                 int simCycles = static_cast<int>(ns & 0x7FFFFFFF);
@@ -609,24 +636,27 @@ namespace Sad
             // ─── Memory Barriers (3) ───────────────────────────────────
 
             // (AR) حاجز ذاكرة كامل — mfence()
-            auto mfence_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto mfence_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] MFENCE — full memory barrier" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MFENCE), mfence_func);
 
             // (AR) حاجز قراءة — lfence()
-            auto lfence_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto lfence_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] LFENCE — load fence" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::LFENCE), lfence_func);
 
             // (AR) حاجز كتابة — sfence()
-            auto sfence_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto sfence_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::cout << "[OS-SIM] SFENCE — store fence" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };

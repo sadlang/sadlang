@@ -663,8 +663,9 @@ namespace Sad
 
             // (AR) تحليل_جيسون — تحليل نص JSON إلى قيمة (يستدعي الدوال الـ static)
             // (EN) json_parse — parse JSON string to value (calls static functions)
-            auto json_parse_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto json_parse_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string json = args[0]->toString();
@@ -678,8 +679,9 @@ namespace Sad
 
             // (AR) نص_جيسون — تحويل قيمة إلى نص JSON (يستدعي الدالة الـ static)
             // (EN) json_stringify — convert value to JSON string (calls static function)
-            auto json_stringify_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto json_stringify_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     return makeVal(std::string("null"));
                 return makeVal(jsonStringifyValue(*args[0]));
@@ -688,8 +690,9 @@ namespace Sad
 
             // (AR) json_منسق — تنسيق JSON بمسافات بادئة
             // (EN) json_pretty — format JSON with indentation
-            auto json_pretty_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto json_pretty_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     return makeVal(std::string("null"));
                 std::string raw = jsonStringifyValue(*args[0]);
@@ -761,8 +764,9 @@ namespace Sad
 
             // (AR) حلل_xml — تحليل نص XML إلى خريطة (يستدعي الدوال الـ static)
             // (EN) xml_parse — parse XML string to map (calls static functions)
-            auto xml_parse_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto xml_parse_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string xml = args[0]->toString();
@@ -785,8 +789,9 @@ namespace Sad
 
             // (AR) حول_لـxml — تحويل خريطة إلى نص XML (يستدعي الدالة الـ static)
             // (EN) xml_stringify — convert map to XML string (calls static function)
-            auto xml_stringify_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto xml_stringify_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isMap())
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(xmlValueToString(*args[0]));
@@ -795,8 +800,9 @@ namespace Sad
 
             // (AR) xml_منسق — XML بمسافات بادئة (يستدعي الدالة الـ static)
             // (EN) xml_pretty — XML with indentation (calls static function)
-            auto xml_pretty_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto xml_pretty_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isMap())
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int indentSize = (args.size() > 1 && args[1]->isInteger()) ? args[1]->toInt() : 2;

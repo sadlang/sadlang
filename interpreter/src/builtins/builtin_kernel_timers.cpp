@@ -34,8 +34,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 1. timer_pit_init / مؤقت_تهيئة
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int freq = args.size() > 0 ? args[0]->toInt() : 1000;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().pitInit(freq));
                 };
@@ -44,8 +45,9 @@ namespace Sad
 
             // 2. timer_pit_freq / مؤقت_التردد
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getPITFrequency());
                 };
@@ -54,8 +56,9 @@ namespace Sad
 
             // 3. timer_pit_count / مؤقت_العداد
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(static_cast<int>(
                         LowLevel::TimerManager::getInstance().getPITCount()));
@@ -65,8 +68,9 @@ namespace Sad
 
             // 4. timer_pit_set_freq / مؤقت_تعيين_تردد
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int freq = args.size() > 0 ? args[0]->toInt() : 1000;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().pitSetFrequency(freq));
                 };
@@ -78,8 +82,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 5. timer_rtc_seconds / مؤقت_الثواني
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCSeconds());
                 };
@@ -88,8 +93,9 @@ namespace Sad
 
             // 6. timer_rtc_minutes / مؤقت_الدقائق
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCMinutes());
                 };
@@ -98,8 +104,9 @@ namespace Sad
 
             // 7. timer_rtc_hours / مؤقت_الساعات
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCHours());
                 };
@@ -108,8 +115,9 @@ namespace Sad
 
             // 8. timer_rtc_day / مؤقت_اليوم
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCDay());
                 };
@@ -118,8 +126,9 @@ namespace Sad
 
             // 9. timer_rtc_month / مؤقت_الشهر
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCMonth());
                 };
@@ -128,8 +137,9 @@ namespace Sad
 
             // 10. timer_rtc_year / مؤقت_السنة
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCYear());
                 };
@@ -138,8 +148,9 @@ namespace Sad
 
             // 11. timer_rtc_time / مؤقت_الوقت
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCTimeString());
                 };
@@ -148,8 +159,9 @@ namespace Sad
 
             // 12. timer_rtc_date / مؤقت_التاريخ
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getRTCDateString());
                 };
@@ -158,8 +170,9 @@ namespace Sad
 
             // 13. timer_rtc_alarm / مؤقت_منبه
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int h = args.size() > 0 ? args[0]->toInt() : 0;
                     int m = args.size() > 1 ? args[1]->toInt() : 0;
                     int s = args.size() > 2 ? args[2]->toInt() : 0;
@@ -173,8 +186,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 14. timer_ticks / مؤقت_نبضات
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(static_cast<int>(
                         LowLevel::TimerManager::getInstance().getSystemTicks()));
@@ -184,8 +198,9 @@ namespace Sad
 
             // 15. timer_uptime_ms / مؤقت_وقت_التشغيل
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(static_cast<int>(
                         LowLevel::TimerManager::getInstance().getUptimeMs()));
@@ -195,8 +210,9 @@ namespace Sad
 
             // 16. timer_uptime_sec / مؤقت_ثواني_التشغيل
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(static_cast<int>(
                         LowLevel::TimerManager::getInstance().getUptimeSeconds()));
@@ -206,8 +222,9 @@ namespace Sad
 
             // 17. timer_sleep / مؤقت_انتظار
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int ms = args.size() > 0 ? args[0]->toInt() : 1;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().sleepMs(ms));
                 };
@@ -216,8 +233,9 @@ namespace Sad
 
             // 18. timer_tick_rate / مؤقت_معدل_النبضات
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().getTickRate());
                 };
@@ -226,8 +244,9 @@ namespace Sad
 
             // 19. timer_set_tick_rate / مؤقت_تعيين_معدل
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int hz = args.size() > 0 ? args[0]->toInt() : 1000;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().setTickRate(hz));
                 };
@@ -236,8 +255,9 @@ namespace Sad
 
             // 20. timer_tick / مؤقت_نقرة
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     LowLevel::TimerManager::getInstance().tick();
                     return std::make_shared<Data::Value>(0);
@@ -250,8 +270,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 21. timer_sw_create / مؤقت_ساعة_جديدة
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().createStopwatch());
                 };
@@ -260,8 +281,9 @@ namespace Sad
 
             // 22. timer_sw_start / مؤقت_ساعة_بدء
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int id = args.size() > 0 ? args[0]->toInt() : 0;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().startStopwatch(id));
                 };
@@ -270,8 +292,9 @@ namespace Sad
 
             // 23. timer_sw_stop / مؤقت_ساعة_ايقاف
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int id = args.size() > 0 ? args[0]->toInt() : 0;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().stopStopwatch(id));
                 };
@@ -280,8 +303,9 @@ namespace Sad
 
             // 24. timer_sw_reset / مؤقت_ساعة_صفر
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int id = args.size() > 0 ? args[0]->toInt() : 0;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().resetStopwatch(id));
                 };
@@ -290,8 +314,9 @@ namespace Sad
 
             // 25. timer_sw_ms / مؤقت_ساعة_ملي
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int id = args.size() > 0 ? args[0]->toInt() : 0;
                     return std::make_shared<Data::Value>(static_cast<int>(
                         LowLevel::TimerManager::getInstance().getStopwatchMs(id)));
@@ -301,8 +326,9 @@ namespace Sad
 
             // 26. timer_sw_running / مؤقت_ساعة_تعمل
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int id = args.size() > 0 ? args[0]->toInt() : 0;
                     return std::make_shared<Data::Value>(
                         LowLevel::TimerManager::getInstance().isStopwatchRunning(id) ? 1 : 0);
@@ -315,8 +341,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 27. timer_report / مؤقت_تقرير
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(LowLevel::TimerManager::getInstance().generateReport());
                 };
@@ -325,8 +352,9 @@ namespace Sad
 
             // 28. timer_reset / مؤقت_اعادة_تعيين
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     LowLevel::TimerManager::getInstance().reset();
                     return std::make_shared<Data::Value>(0);
@@ -336,8 +364,9 @@ namespace Sad
 
             // 29. timer_rtc_read / مؤقت_قراءة_rtc
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto dt = LowLevel::TimerManager::getInstance().rtcRead();
                     // (AR) ارجع نص تاريخ+وقت / (EN) Return date+time string
@@ -354,8 +383,9 @@ namespace Sad
 
             // 30. timer_pit_enabled / مؤقت_مفعل
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     // (AR) PIT مفعل إذا كان التردد > 0 / (EN) PIT is enabled if freq > 0
                     return std::make_shared<Data::Value>(

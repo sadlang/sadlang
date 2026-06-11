@@ -178,7 +178,14 @@ namespace Sad
              * @brief (AR) التحقق من وجود تنفيذ أصلي (دالة مضمنة)
              * @brief (EN) Check if has native implementation (built-in function)
              */
-            bool hasNativeImplementation() const { return nativeImplementation_ != nullptr; }
+            bool hasNativeImplementation() const
+            {
+                // (AR) EM-CPP: يفحص كلا التوقيعين (القديم args + الجديد BuiltinContext).
+                //      علة كامنة: كان يفحص القديم فقط → الدوال المُحوّلة لـctx تُرى "غير أصلية"
+                //      فتفشل أولوية الـ fallback في الموزّع (SEM004).
+                // (EN) EM-CPP: checks both signatures — old (args) and new (BuiltinContext).
+                return nativeImplementation_ != nullptr || nativeImplementationCtx_ != nullptr;
+            }
 
             /**
              * @brief (AR) استدعاء التنفيذ الأصلي
@@ -420,6 +427,11 @@ namespace Sad
             void defineBuiltInFunction(const std::string &name,
                                        const std::vector<FunctionParameter> &params,
                                        std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>> &)> impl);
+
+            /// (AR) EM-CPP: نسخة بالتوقيع الجديد (BuiltinContext&). / (EN) new-signature variant.
+            void defineBuiltInFunction(const std::string &name,
+                                       const std::vector<FunctionParameter> &params,
+                                       std::function<std::shared_ptr<Value>(Sad::Interpreter::BuiltinContext &)> impl);
 
             /**
              * @brief (AR) تسجيل دالة مضمنة جديدة (مع معالج ValuePtr)

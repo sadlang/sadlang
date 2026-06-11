@@ -204,8 +204,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 1. usb_مسح / usb_scan
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBScan());
@@ -218,8 +219,9 @@ namespace Sad
 
             // 2. usb_عدد_متحكمات / usb_controller_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(usb.getControllerCount()));
@@ -228,8 +230,9 @@ namespace Sad
 
             // 3. usb_معلومات_متحكم / usb_controller_info
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int idx = args.empty() ? 0 : args[0]->toInt();
                     auto &usb = LowLevel::USBManager::getInstance();
                     auto info = usb.getControllerInfo(idx);
@@ -263,8 +266,9 @@ namespace Sad
 
             // 4. usb_تهيئة_متحكم / usb_init_controller
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int idx = args.empty() ? 0 : args[0]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBInit(idx));
@@ -277,8 +281,9 @@ namespace Sad
 
             // 5. usb_إعادة_تعيين_متحكم / usb_reset_controller
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int idx = args.empty() ? 0 : args[0]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBReset(idx));
@@ -294,8 +299,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 6. usb_عدد_منافذ / usb_port_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int idx = args.empty() ? 0 : args[0]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBPortCount(idx));
@@ -308,8 +314,9 @@ namespace Sad
 
             // 7. usb_حالة_منفذ / usb_port_status
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(0);
                     int ctrl = args[0]->toInt(), port = args[1]->toInt();
@@ -324,8 +331,9 @@ namespace Sad
 
             // 8. usb_متصل / usb_port_connected
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(0);
                     int ctrl = args[0]->toInt(), port = args[1]->toInt();
@@ -340,8 +348,9 @@ namespace Sad
 
             // 9. usb_إعادة_تعيين_منفذ / usb_reset_port
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(-1);
                     int ctrl = args[0]->toInt(), port = args[1]->toInt();
@@ -359,8 +368,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 10. usb_اكتشاف_أجهزة / usb_enumerate
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBEnumerate());
@@ -373,8 +383,9 @@ namespace Sad
 
             // 11. usb_عدد_أجهزة / usb_device_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(usb.getDeviceCount()));
@@ -383,8 +394,9 @@ namespace Sad
 
             // 12. usb_معلومات_جهاز / usb_device_info
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     int idx = args.empty() ? 0 : args[0]->toInt();
                     auto &usb = LowLevel::USBManager::getInstance();
                     auto info = usb.getDeviceInfo(idx);
@@ -422,8 +434,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 13. لوحة_تهيئة / keyboard_init
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBInitKB());
@@ -437,8 +450,9 @@ namespace Sad
 
             // 14. لوحة_استطلاع / keyboard_poll
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBPollKB());
@@ -452,8 +466,9 @@ namespace Sad
 
             // 15. لوحة_مفتاح_مضغوط / keyboard_is_pressed
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(0);
                     uint8_t keycode = static_cast<uint8_t>(args[0]->toInt());
@@ -465,8 +480,9 @@ namespace Sad
 
             // 16. لوحة_آخر_مفتاح / keyboard_last_key
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(usb.getLastKeycode()));
@@ -476,8 +492,9 @@ namespace Sad
 
             // 17. لوحة_آخر_فحص / keyboard_last_scancode
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(usb.getLastScancode()));
@@ -487,8 +504,9 @@ namespace Sad
 
             // 18. لوحة_معدلات / keyboard_modifiers
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(usb.getKeyModifiers()));
@@ -498,8 +516,9 @@ namespace Sad
 
             // 19. لوحة_إلى_حرف / keyboard_to_ascii
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(0);
                     uint8_t keycode = static_cast<uint8_t>(args[0]->toInt());
@@ -513,8 +532,9 @@ namespace Sad
 
             // 20. لوحة_متصلة / keyboard_connected
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isKeyboardConnected() ? 1 : 0);
@@ -527,8 +547,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 21. فأرة_تهيئة / mouse_init
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBInitMouse());
@@ -542,8 +563,9 @@ namespace Sad
 
             // 22. فأرة_استطلاع / mouse_poll
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBPollMouse());
@@ -557,8 +579,9 @@ namespace Sad
 
             // 23. فأرة_س / mouse_x
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.getMouseX());
@@ -568,8 +591,9 @@ namespace Sad
 
             // 24. فأرة_ص / mouse_y
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.getMouseY());
@@ -579,8 +603,9 @@ namespace Sad
 
             // 25. فأرة_يسار / mouse_left
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isLeftButtonPressed() ? 1 : 0);
@@ -590,8 +615,9 @@ namespace Sad
 
             // 26. فأرة_يمين / mouse_right
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isRightButtonPressed() ? 1 : 0);
@@ -601,8 +627,9 @@ namespace Sad
 
             // 27. فأرة_وسط / mouse_middle
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isMiddleButtonPressed() ? 1 : 0);
@@ -612,8 +639,9 @@ namespace Sad
 
             // 28. فأرة_عجلة / mouse_scroll
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.getScrollDelta());
@@ -623,8 +651,9 @@ namespace Sad
 
             // 29. فأرة_متصلة / mouse_connected
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isMouseConnected() ? 1 : 0);
@@ -634,8 +663,9 @@ namespace Sad
 
             // 30. فأرة_حدود / mouse_set_bounds
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(-1);
                     int32_t maxX = args[0]->toInt(), maxY = args[1]->toInt();
@@ -651,8 +681,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 31. usb_هل_hid_مهيأ / usb_hid_initialized
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isHIDInitialized() ? 1 : 0);
@@ -661,8 +692,9 @@ namespace Sad
 
             // 32. usb_تقرير / usb_report
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.generateReport());
@@ -671,8 +703,9 @@ namespace Sad
 
             // 33. usb_إعادة_تعيين_الكل / usb_reset_all
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     auto &usb = LowLevel::USBManager::getInstance();
                     usb.resetAll();
@@ -685,8 +718,9 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════
             // 34. لوحة_ثابت / keyboard_const — returns HID keycode constants
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(0);
                     std::string name = args[0]->toString();

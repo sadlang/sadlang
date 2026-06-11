@@ -29,7 +29,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 1. net_scan / شبكة_مسح
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().scanNICs());
         };
@@ -38,7 +39,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 2. net_nic_count / شبكة_عدد_البطاقات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getNICCount());
         };
@@ -47,7 +49,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 3. net_nic_model / شبكة_موديل_البطاقة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getNICInfo(id).model);
         };
@@ -56,7 +59,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 4. net_init / شبكة_تهيئة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().initNIC(id));
         };
@@ -65,7 +69,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 5. net_report / شبكة_تقرير
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().generateReport());
         };
@@ -77,7 +82,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 6. net_set_ip / شبكة_تعيين_ip
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             std::string ip = args.size() > 1 ? args[1]->toString() : "0.0.0.0";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().setIP(id, ip));
@@ -87,7 +93,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 7. net_get_ip / شبكة_عنوان_ip
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getIP(id));
         };
@@ -96,7 +103,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 8. net_get_mac / شبكة_عنوان_mac
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getMAC(id));
         };
@@ -105,7 +113,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 9. net_set_subnet / شبكة_تعيين_القناع
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             std::string mask = args.size() > 1 ? args[1]->toString() : "255.255.255.0";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().setSubnet(id, mask));
@@ -115,7 +124,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 10. net_set_gateway / شبكة_تعيين_البوابة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             std::string gw = args.size() > 1 ? args[1]->toString() : "0.0.0.0";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().setGateway(id, gw));
@@ -125,7 +135,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 11. net_get_subnet / شبكة_القناع
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getSubnet(id));
         };
@@ -134,7 +145,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 12. net_get_gateway / شبكة_البوابة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getGateway(id));
         };
@@ -146,7 +158,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 13. net_arp_request / شبكة_طلب_arp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             std::string ip = args.size() > 1 ? args[1]->toString() : "";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().arpRequest(id, ip));
@@ -156,7 +169,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 14. net_arp_lookup / شبكة_بحث_arp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             std::string ip = args.size() > 0 ? args[0]->toString() : "";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().arpLookup(ip));
         };
@@ -165,7 +179,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 15. net_arp_table_size / شبكة_حجم_جدول_arp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getARPTableSize());
         };
@@ -174,7 +189,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 16. net_arp_clear / شبكة_مسح_جدول_arp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().clearARPTable());
         };
@@ -186,7 +202,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 17. net_ping / شبكة_بنج
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             std::string ip = args.size() > 1 ? args[1]->toString() : "127.0.0.1";
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().ping(id, ip));
@@ -196,7 +213,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 18. net_last_ping / شبكة_اخر_بنج
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::NetworkManager::getInstance().getLastPingTime());
         };
@@ -208,7 +226,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 19. net_udp_send / شبكة_ارسال_udp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int nicId = args.size() > 0 ? args[0]->toInt() : 0;
             std::string destIP = args.size() > 1 ? args[1]->toString() : "";
             int destPort = args.size() > 2 ? args[2]->toInt() : 0;
@@ -222,7 +241,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 20. net_udp_receive / شبكة_استقبال_udp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int nicId = args.size() > 0 ? args[0]->toInt() : 0;
             int port = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(
@@ -233,7 +253,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 21. net_udp_bind / شبكة_ربط_udp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int nicId = args.size() > 0 ? args[0]->toInt() : 0;
             int port = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(
@@ -247,7 +268,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 22. net_link_up / شبكة_الارتباط_فعال
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().isLinkUp(id) ? 1 : 0);
@@ -257,7 +279,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 23. net_link_speed / شبكة_سرعة_الارتباط
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::NetworkManager::getInstance().getLinkSpeed(id));
@@ -267,7 +290,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 24. net_send_raw / شبكة_ارسال_خام
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             std::string hex = args.size() > 1 ? args[1]->toString() : "";
             return std::make_shared<Data::Value>(
@@ -278,7 +302,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 25. net_tx_packets / شبكة_الحزم_المرسلة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto info = LowLevel::NetworkManager::getInstance().getNICInfo(id);
             return std::make_shared<Data::Value>(static_cast<int>(info.txPackets));
@@ -288,7 +313,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 26. net_rx_packets / شبكة_الحزم_المستقبلة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto info = LowLevel::NetworkManager::getInstance().getNICInfo(id);
             return std::make_shared<Data::Value>(static_cast<int>(info.rxPackets));
@@ -298,7 +324,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 27. net_nic_state / شبكة_حاله_البطاقة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::NetworkManager::getInstance().getNICInfo(id).nicState));
@@ -308,7 +335,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 28. net_reset / شبكة_اعادة_تعيين
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             LowLevel::NetworkManager::getInstance().reset();
             return std::make_shared<Data::Value>(0);
@@ -318,7 +346,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 29. net_nic_vendor / شبكة_مصنع_البطاقة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto info = LowLevel::NetworkManager::getInstance().getNICInfo(id);
             return std::make_shared<Data::Value>(static_cast<int>(info.vendorId));
@@ -328,7 +357,8 @@ void registerBuiltinsKernelNetwork(Interpreter& interpreter) {
 
     // 30. net_udp_unbind / شبكة_فك_ربط_udp
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int nicId = args.size() > 0 ? args[0]->toInt() : 0;
             int port = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(

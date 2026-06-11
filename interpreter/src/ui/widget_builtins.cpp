@@ -42,6 +42,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -54,8 +55,9 @@ namespace Sad
 // (AR) ينشئ WidgetBuilder من النوع المحدد ويُرجعه
 // (EN) Creates WidgetBuilder of specified type and returns it
 #define MAKE_SIMPLE_WIDGET_FN(nodeType)                       \
-    [](const std::vector<std::shared_ptr<Data::Value>> &args) \
+    [](Sad::Interpreter::BuiltinContext &ctx)                 \
         -> std::shared_ptr<Data::Value> {                                              \
+        const auto &args = ctx.args(); (void)args;                                     \
         /* (AR) B-step5b: WidgetBuilder تُخصَّص بـnew وتُدار بـGC */                  \
         auto *builder = new WidgetBuilder(sad::ui::UINodeType::nodeType);              \
         /* إضافة جميع الوسائط كأبناء إذا كانت WidgetBuilder */                        \
@@ -74,8 +76,9 @@ namespace Sad
 // (AR) ينشئ WidgetBuilder ويعيّن خاصية من الوسيط الأول إن وُجد
 // (EN) Creates WidgetBuilder and sets first arg as property if present
 #define MAKE_WIDGET_WITH_PROP_FN(nodeType, propName)          \
-    [](const std::vector<std::shared_ptr<Data::Value>> &args) \
+    [](Sad::Interpreter::BuiltinContext &ctx)                 \
         -> std::shared_ptr<Data::Value> {                                              \
+        const auto &args = ctx.args(); (void)args;                                     \
         /* (AR) B-step5b: WidgetBuilder تُخصَّص بـnew وتُدار بـGC عند أول لف في Value */ \
         auto *builder = new WidgetBuilder(sad::ui::UINodeType::nodeType);              \
         if (!args.empty() && args[0]) {                                                \
@@ -193,9 +196,10 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bw::FLEXIBLE), flexible_fn); // مرن
 
             // مقاس(عرض, ارتفاع) — صندوق بأبعاد ثابتة
-            auto sizedbox_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto sizedbox_fn = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) B-step5b: WidgetBuilder خام مُدار بـGC
                 auto *builder = new WidgetBuilder(sad::ui::UINodeType::SizedBox);
                 // (AR) معالجة وسائط عرض وارتفاع

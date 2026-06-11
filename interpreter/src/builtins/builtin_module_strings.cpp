@@ -47,8 +47,9 @@ namespace Sad
             // (AR) دوال المصفوفات والقوائم / (EN) Array/List Functions
 
             // ═══════════════════════════════════════════════════════════════
-            auto append_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto append_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::append(args);
             };
 
@@ -56,8 +57,9 @@ namespace Sad
 
             // (AR) أزل — حذف عنصر من مصفوفة
             // (EN) remove — remove element from array
-            auto remove_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto remove_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::remove(args);
             };
 
@@ -72,8 +74,9 @@ namespace Sad
             // (AR) دوال النوع والتحويل / (EN) Type & Conversion Functions
 
             // ═══════════════════════════════════════════════════════════════
-            auto to_int_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_int_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::to_int(args);
             };
 
@@ -81,8 +84,9 @@ namespace Sad
 
             // (AR) نص — تحويل قيمة إلى نص
             // (EN) to_string — convert value to string
-            auto to_string_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_string_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 return BuiltinFunctions::to_string(args);
             };
 
@@ -94,8 +98,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // TODO 1: toArray / لمصفوفة
-            auto to_array_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_array_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -105,8 +110,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::TO_ARRAY), to_array_func);
 
             // TODO 2: toBool / لمنطقي
-            auto to_bool_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto to_bool_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -114,8 +120,9 @@ namespace Sad
             };
 
             // TODO 3: isInt / هو_رقم_صحيح
-            auto is_int_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto is_int_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -125,8 +132,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::IS_INT), is_int_func);
 
             // TODO 4: isFloat / هو_رقم_عشري
-            auto is_float_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto is_float_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -136,8 +144,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::IS_FLOAT), is_float_func);
 
             // TODO 5: isString / هو_نص
-            auto is_string_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto is_string_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -147,8 +156,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::IS_STRING), is_string_func);
 
             // TODO 6: isArray / هو_مصفوفة
-            auto is_array_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto is_array_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -162,8 +172,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // TODO 1: length / طول (String length - Unicode-aware)
-            auto string_length_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_length_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -173,8 +184,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::STR_LENGTH), string_length_func);
 
             // TODO 2: find / بحث (Find substring)
-            auto string_find_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_find_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -183,8 +195,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::FIND), string_find_func);
             // TODO 3: replace / استبدل (Replace substring)
-            auto string_replace_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_replace_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -194,8 +207,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::REPLACE), string_replace_func);
 
             // TODO 4: substring / استخراج (Extract substring)
-            auto string_substring_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_substring_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -204,8 +218,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::SUBSTRING), string_substring_func);
             // TODO 5: toLower / تحويل_صغير (Convert to lowercase)
-            auto string_tolower_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_tolower_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -214,8 +229,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::TO_LOWER), string_tolower_func);
             // TODO 6: toUpper / تحويل_كبير (Convert to uppercase)
-            auto string_toupper_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_toupper_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -224,8 +240,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::TO_UPPER), string_toupper_func);
             // TODO 7: trim / قص_أطراف (Remove leading/trailing whitespace)
-            auto string_trim_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_trim_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -234,8 +251,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::TRIM), string_trim_func);
             // TODO 8: split / تقسيم (Split string into array)
-            auto string_split_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_split_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -245,8 +263,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::SPLIT), string_split_func);
 
             // TODO 9: join / دمج (Join array elements into string)
-            auto string_join_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_join_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -255,8 +274,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::JOIN), string_join_func);
             // TODO 10: startsWith / يبدأ_ب (Check if starts with prefix)
-            auto string_startswith_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_startswith_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -265,8 +285,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::STARTS_WITH), string_startswith_func);
             // TODO 11: endsWith / ينتهي_ب (Check if ends with suffix)
-            auto string_endswith_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_endswith_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -275,8 +296,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bs::ENDS_WITH), string_endswith_func);
             // TODO 12: contains / يحتوي_على (Check if contains substring)
-            auto string_contains_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto string_contains_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -290,8 +312,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // TODO 1: append / إضافة (Add element to array)
-            auto array_append_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_append_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -301,8 +324,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::ADD), array_append_func);
 
             // TODO 2: pop / إزالة (Remove last element)
-            auto array_pop_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_pop_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -312,8 +336,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::REMOVE), array_pop_func);
 
             // TODO 3: size / حجم (Get array size)
-            auto array_size_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_size_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -323,8 +348,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::SIZE), array_size_func);
 
             // TODO 4: indexOf / فهرس (Find element index)
-            auto array_indexof_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_indexof_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -334,8 +360,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::INDEX_OF), array_indexof_func);
 
             // TODO 5: contains / يحتوي (Check if contains element)
-            auto array_contains_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_contains_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -345,8 +372,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::ARRAY_CONTAINS), array_contains_func);
 
             // TODO 6: reverse / قلب (Reverse array)
-            auto array_reverse_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_reverse_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -356,8 +384,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::REVERSE), array_reverse_func);
 
             // TODO 7: sort / فرز (Sort array)
-            auto array_sort_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_sort_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -367,8 +396,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::SORT), array_sort_func);
 
             // TODO 8: first / أول (Get first element)
-            auto array_first_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_first_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -378,8 +408,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::FIRST), array_first_func);
 
             // TODO 9: last / آخر (Get last element)
-            auto array_last_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_last_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -389,8 +420,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Ba::LAST), array_last_func);
 
             // TODO 10: slice / شريحة (Extract subarray)
-            auto array_slice_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto array_slice_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -404,8 +436,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // TODO 1: sqrt / جذر (Square root)
-            auto math_sqrt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_sqrt_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -414,8 +447,9 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::SQRT), math_sqrt_func);
             // TODO 2: power / أس (Power)
-            auto math_power_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_power_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -425,8 +459,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::POWER), math_power_func);
 
             // TODO 3: abs / مطلق (Absolute value) - Enhanced registration
-            auto math_abs_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_abs_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -436,8 +471,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::ABS), math_abs_func);
 
             // TODO 4: max / أكبر (Maximum) - Enhanced registration
-            auto math_max_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_max_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -447,8 +483,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::MAX), math_max_func);
 
             // TODO 5: min / أصغر (Minimum) - Enhanced registration
-            auto math_min_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_min_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -458,8 +495,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::MIN), math_min_func);
 
             // TODO 6: round / تقريب (Round)
-            auto math_round_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_round_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -469,8 +507,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::ROUND), math_round_func);
 
             // TODO 7: floor / أرضية (Floor)
-            auto math_floor_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_floor_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -480,8 +519,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::FLOOR), math_floor_func);
 
             // TODO 8: ceil / سقف (Ceiling)
-            auto math_ceil_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_ceil_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);
@@ -491,8 +531,9 @@ namespace Sad
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::CEIL), math_ceil_func);
 
             // TODO 9: square / مربع (Square)
-            auto math_square_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto math_square_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
+                const auto &args = ctx.args(); (void)args;
                 std::vector<Data::Value> plainArgs;
                 for (const auto &arg : args)
                     plainArgs.push_back(*arg);

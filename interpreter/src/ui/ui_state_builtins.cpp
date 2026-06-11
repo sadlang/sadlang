@@ -32,6 +32,7 @@
 #include <vector>
 #include <iostream>
 #include <unordered_set>
+#include "builtins/builtin_context.h"
 
 namespace Sad {
 namespace Interpreter {
@@ -92,9 +93,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── عرّف_حالة(اسم, قيمة_أولية) ──────────────────────────────
     // تعريف متغير حالة جديد بقيمة أولية
-    auto define_state_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto define_state_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0]->isString()) {
             throw std::runtime_error(
                 "\xd8\xb9\xd8\xb1\xd9\x91\xd9\x81_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
@@ -133,9 +135,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── عيّن_حالة(اسم, قيمة) ──────────────────────────────────
     // تعيين قيمة حالة (تعريف تلقائي إذا لم تكن موجودة)
-    auto set_state_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto set_state_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0]->isString()) {
             throw std::runtime_error(
                 "\xd8\xb9\xd9\x8a\xd9\x91\xd9\x86_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
@@ -181,9 +184,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── اقرأ_حالة(اسم) ──────────────────────────────────────
     // قراءة قيمة حالة مخزّنة
-    auto get_state_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto get_state_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]->isString()) {
             throw std::runtime_error(
                 "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
@@ -216,9 +220,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── هل_توجد_حالة(اسم) ──────────────────────────────────
     // فحص وجود حالة معرّفة
-    auto has_state_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto has_state_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]->isString()) {
             throw std::runtime_error(
                 "\xd9\x87\xd9\x84_\xd8\xaa\xd9\x88\xd8\xac\xd8\xaf_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
@@ -240,9 +245,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── ابدأ_تجميع() ────────────────────────────────────────
     // بدء تجميع التحديثات — لا يُخطر المراقبون حتى إنهاء التجميع
-    auto begin_batch_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto begin_batch_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         auto* bridge = UIBridge::active();
         if (bridge) {
             bridge->getStateStore().beginBatch();
@@ -256,9 +262,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── أنهِ_تجميع() ────────────────────────────────────────
     // إنهاء التجميع + إعادة بناء الواجهة إذا تغيرت الحالة
-    auto end_batch_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto end_batch_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         auto* bridge = UIBridge::active();
         if (bridge) {
             bridge->getStateStore().endBatch();
@@ -280,9 +287,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── عرّف_محسوب(اسم, [اعتمادات], دالة_الحساب) ──────────
     // تعريف حالة محسوبة تلقائياً من حالات أخرى
-    auto define_computed_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto define_computed_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         if (args.size() < 3 || !args[0]->isString() ||
             !args[1]->isArray() || !args[2]->isFunction()) {
             throw std::runtime_error(
@@ -339,9 +347,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── راقب_حالة(اسم, دالة_المراقبة) ─────────────────────
     // تسجيل دالة تُستدعى عند تغيّر حالة معينة
-    auto observe_state_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto observe_state_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0]->isString() || !args[1]->isFunction()) {
             throw std::runtime_error(
                 "\xd8\xb1\xd8\xa7\xd9\x82\xd8\xa8_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
@@ -376,9 +385,10 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
 
     // ─── أفرغ_الحالة() ──────────────────────────────────────
     // طباعة محتويات مخزن الحالة (للتصحيح والتطوير)
-    auto dump_state_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+    auto dump_state_fn = [](Sad::Interpreter::BuiltinContext &ctx)
         -> std::shared_ptr<Data::Value>
     {
+                const auto &args = ctx.args(); (void)args;
         auto* bridge = UIBridge::active();
         if (!bridge) return std::make_shared<Data::Value>(std::string(""));
 

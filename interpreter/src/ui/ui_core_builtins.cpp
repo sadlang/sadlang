@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -174,9 +175,10 @@ namespace Sad
             namespace Bc = Builtins::Names::UICore;
 
             // ─── _محرك_واجهات(عنصر_جذر) — تشغيل التطبيق بشجرة عناصر تعريحية أو دالة بنّاء ───
-            auto engine_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto engine_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                 {
                     throw std::runtime_error(
@@ -218,9 +220,10 @@ namespace Sad
             // ─── تشغيل_تطبيق(عنصر_أو_دالة) — نقطة الدخول العامة (مثل runApp في Flutter) ───
             // (AR) هذه الدالة العامة التي يستخدمها المبرمج لتشغيل تطبيق واجهة رسومية
             // (EN) Public entry point for running a GUI application (like Flutter's runApp)
-            auto run_app_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto run_app_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                 {
                     throw std::runtime_error(
@@ -245,9 +248,10 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::RUN_APP), run_app_fn); // تشغيل_تطبيق
 
             // ─── طباعة_شجرة(عنصر) — طباعة شجرة العناصر للتصحيح ───
-            auto print_tree_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto print_tree_fn = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (!args.empty())
                 {
                     printWidgetTree(*args[0], 0);
@@ -257,8 +261,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::PRINT_TREE), print_tree_fn); // طباعة_شجرة
 
             // ─── دوال التنقل ───
-            auto navigate_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto navigate_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     throw std::runtime_error("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9");
                 auto *bridge = UIBridge::active();
@@ -271,9 +276,10 @@ namespace Sad
             // ─── انتقل_بتحريك(صفحة, نوع_انتقال, مدة؟) — تنقل مع تحريك بصري ───
             // (AR) دالة الانتقال مع تحريك — تدعم أنواع مثل "ظهور"، "انزلاق_يمين"، "تكبير"
             // (EN) Navigate with page transition animation — supports types like "fadeIn", "slideRight"
-            auto navigate_transition_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto navigate_transition_fn = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) يحتاج 2 وسائط على الأقل: الصفحة + نوع الانتقال
                 if (args.size() < 2)
                     throw std::runtime_error(
@@ -299,9 +305,10 @@ namespace Sad
             // ─── انتقل_بتحريك_كامل(صفحة, دخول, خروج, مدة؟) — تنقل مع خروج + دخول ───
             // (AR) دالة انتقال مع تحريك خروج على الصفحة الحالية + تحريك دخول على الجديدة
             // (EN) Navigate with exit transition on current page + entry on new page
-            auto navigate_exit_transition_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto navigate_exit_transition_fn = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // (AR) يحتاج 3 وسائط على الأقل: الصفحة + دخول + خروج
                 if (args.size() < 3)
                     throw std::runtime_error(
@@ -326,8 +333,9 @@ namespace Sad
                 std::string(Bc::NAVIGATE_EXIT_TRANSITION),
                 navigate_exit_transition_fn); // انتقل_بتحريك_كامل
 
-            auto back_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto back_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateBack();
@@ -338,9 +346,10 @@ namespace Sad
             // ─── عودة_بتحريك(نوع_انتقال, مدة؟) — العودة مع تحريك بصري ───
             // (AR) العودة للصفحة السابقة مع تحريك انتقالي
             // (EN) Navigate back with visual page transition
-            auto back_transition_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto back_transition_fn = [](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 std::string transType = "\xd8\xb8\xd9\x87\xd9\x88\xd8\xb1"; // ظهور (افتراضي)
                 float duration = 0.3f;
                 if (!args.empty())
@@ -357,8 +366,9 @@ namespace Sad
                 std::string(Bc::BACK_TRANSITION),
                 back_transition_fn); // عودة_بتحريك
 
-            auto root_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto root_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateToRoot();
@@ -366,8 +376,9 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::BACK_TO_ROOT), root_fn);
 
-            auto replace_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto replace_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     throw std::runtime_error("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9");
                 auto *bridge = UIBridge::active();
@@ -378,8 +389,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::REPLACE_PAGE), replace_fn);
 
             // ─── دوال الثيم ───
-            auto toggle_theme_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto toggle_theme_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 sad::ui::toggleTheme();
                 auto *bridge = UIBridge::active();
                 if (bridge)
@@ -388,8 +400,9 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::TOGGLE_THEME), toggle_theme_fn);
 
-            auto dark_mode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto dark_mode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 sad::ui::setTheme(sad::ui::ThemeMode::Dark);
                 auto *bridge = UIBridge::active();
                 if (bridge)
@@ -398,8 +411,9 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::DARK_MODE), dark_mode_fn);
 
-            auto light_mode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto light_mode_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 sad::ui::setTheme(sad::ui::ThemeMode::Light);
                 auto *bridge = UIBridge::active();
                 if (bridge)
@@ -408,15 +422,17 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::LIGHT_MODE), light_mode_fn);
 
-            auto is_dark_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto is_dark_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 return std::make_shared<Data::Value>(sad::ui::isDarkMode());
             };
             fm.registerBuiltinFunction(std::string(Bc::IS_DARK), is_dark_fn);
 
             // ─── تحديث الحالة ───
-            auto set_state_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto set_state_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->rebuildUI();
@@ -425,8 +441,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::UPDATE_STATE), set_state_fn);
 
             // ─── عنوان النافذة ───
-            auto set_title_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto set_title_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
                 {
                     throw std::runtime_error("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd9\x86\xd8\xb5");
@@ -439,8 +456,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::SET_TITLE), set_title_fn);
 
             // ─── عدد الصفحات ───
-            auto page_count_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto page_count_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     return std::make_shared<Data::Value>(static_cast<int64_t>(bridge->getNavigationDepth()));
@@ -449,8 +467,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::PAGE_COUNT), page_count_fn);
 
             // ─── إغلاق النافذة ───
-            auto close_window_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto close_window_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->closeWindow();
@@ -461,9 +480,10 @@ namespace Sad
             // ─── عيّن_الحالة(دالة_تحديث) — تحديث حالة + إعادة بناء (مثل setState في Flutter) ───
             // (AR) يستدعي دالة التحديث أولاً ثم يُعيد بناء الواجهة
             // (EN) Calls update function first, then rebuilds UI (like Flutter's setState)
-            auto set_state_v2_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto set_state_v2_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 // إذا مُررت دالة تحديث، نفّذها أولاً
                 if (!args.empty() && (args[0]->isFunction() || args[0]->isCallable()))
                 {
@@ -493,9 +513,10 @@ namespace Sad
             // ─── توليد_ويب(عنصر_أو_دالة) — توليد HTML من شجرة عناصر ───
             // (AR) يحوّل شجرة عناصر ص إلى صفحة HTML كاملة
             // (EN) Converts Sad widget tree to complete HTML page
-            auto gen_web_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args)
+            auto gen_web_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                 {
                     throw std::runtime_error(

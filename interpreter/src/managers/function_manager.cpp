@@ -342,6 +342,22 @@ namespace Sad
             functions_[name].push_back(funcDef);
         }
 
+        // (AR) EM-CPP: نسخة التوقيع الجديد (BuiltinContext&).
+        void FunctionManager::defineBuiltInFunction(const std::string &name,
+                                                    const std::vector<FunctionParameter> &params,
+                                                    std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> impl)
+        {
+            if (name.empty())
+            {
+                throwError("لا يمكن تعريف دالة مضمنة بدون اسم",
+                           "Cannot define built-in function without name");
+            }
+            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> emptyOld;
+            auto funcDef = std::make_shared<FunctionDefinition>(name, params, emptyOld);
+            funcDef->setNativeImplementationCtx(impl);
+            functions_[name].push_back(funcDef);
+        }
+
         size_t FunctionManager::removeFunction(const std::string &name, int paramCount)
         {
             // (AR) حذف دالة أو مجموعة دوال

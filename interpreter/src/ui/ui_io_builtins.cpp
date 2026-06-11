@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -26,8 +27,9 @@ namespace Sad
             namespace Bio = Builtins::Names::UIIO;
 
             // ═══ سحب وإفلات ═══
-            auto drop_handler_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto drop_handler_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>();
@@ -37,8 +39,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bio::ON_DROP), drop_handler_fn);
 
             // ═══ لقطة الشاشة ═══
-            auto screenshot_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto screenshot_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(false);
@@ -51,8 +54,9 @@ namespace Sad
             // ═══ الملفات ═══
 
             // اقرأ_ملف(مسار) → نص
-            auto read_file_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto read_file_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(std::string(""));
@@ -62,8 +66,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bio::READ_FILE), read_file_fn);
 
             // اكتب_ملف(مسار، محتوى)
-            auto write_file_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto write_file_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>(false);
@@ -74,8 +79,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bio::WRITE_FILE), write_file_fn);
 
             // هل_ملف_موجود(مسار)
-            auto file_exists_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto file_exists_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(false);
@@ -87,8 +93,9 @@ namespace Sad
             // ═══ اختيار الملفات ═══
 
             // اختر_ملف(فلتر) → نص
-            auto file_picker_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto file_picker_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)
                     return std::make_shared<Data::Value>(std::string(""));
@@ -98,8 +105,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bio::FILE_PICKER), file_picker_fn);
 
             // حفظ_ملف(اسم_افتراضي) → نص
-            auto save_picker_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto save_picker_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)
                     return std::make_shared<Data::Value>(std::string(""));

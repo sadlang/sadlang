@@ -86,8 +86,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (1) مكتبة_حمل / ffi_load
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(-1.0);
             std::string path = args[0]->toString();
             try {
@@ -105,8 +106,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (2) مكتبة_أفرغ / ffi_unload
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(false);
             uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
             return std::make_shared<Data::Value>(g_libraries.erase(id) > 0);
@@ -116,8 +118,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (3) مكتبة_دالة / ffi_get_func
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(false);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string funcName = args[1]->toString();
@@ -131,8 +134,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (4) مكتبة_استدع / ffi_call
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(false);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string funcName = args[1]->toString();
@@ -153,8 +157,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (5) مكتبة_استدع_رقم / ffi_call_int
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string funcName = args[1]->toString();
@@ -172,8 +177,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (6) مكتبة_استدع_نص / ffi_call_string
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(std::string(""));
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string funcName = args[1]->toString();
@@ -191,8 +197,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (7) مكتبة_رمز / ffi_has_symbol
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(false);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string symbol = args[1]->toString();
@@ -205,8 +212,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (8) مكتبة_مسار / ffi_path
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(std::string(""));
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             auto it = g_libraries.find(libId);
@@ -218,8 +226,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (9) مكتبة_قائمة / ffi_list
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             std::vector<Data::Value> result;
             for (auto& [id, lib] : g_libraries) {
                 result.push_back(Data::Value(static_cast<double>(id)));
@@ -231,8 +240,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (10) مكتبة_عدد / ffi_count
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_libraries.size()));
         };
         fm.registerBuiltinFunction(std::string(Bffi::LIB_COUNT), f); // مكتبة_عدد
@@ -240,8 +250,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (11) نوع_حجم / type_size
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(0.0);
             std::string typeName = args[0]->toString();
             size_t size = 0;
@@ -259,8 +270,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (12) نوع_محاذاة / type_alignment
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(0.0);
             std::string typeName = args[0]->toString();
             size_t align = 0;
@@ -276,8 +288,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (13) نوع_مؤشر / pointer_size
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(sizeof(void*) * 8));
         };
         fm.registerBuiltinFunction(std::string(Bffi::TYPE_PTR), f); // نوع_مؤشر
@@ -285,8 +298,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (14) منصة / platform
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
 #ifdef _WIN32
             return std::make_shared<Data::Value>(std::string("ويندوز"));
 #elif __APPLE__
@@ -302,8 +316,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 
     // (15) امتداد_مكتبة / lib_extension
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
 #ifdef _WIN32
             return std::make_shared<Data::Value>(std::string(".dll"));
 #elif __APPLE__

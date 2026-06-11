@@ -90,9 +90,10 @@ namespace Sad
 
             // (1) خيط_جديد / thread_new
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint64_t id = g_nextId++;
                     g_threads[id] = std::make_unique<StubThread>();
                     return std::make_shared<Data::Value>(static_cast<double>(id));
@@ -102,9 +103,10 @@ namespace Sad
 
             // (2) خيط_ابدأ / thread_start (stub — actual thread execution not yet supported)
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -121,9 +123,10 @@ namespace Sad
 
             // (3) خيط_انتظر / thread_join
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -139,9 +142,10 @@ namespace Sad
 
             // (4) خيط_حالة / thread_state
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(std::string("غير موجود"));
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -169,9 +173,10 @@ namespace Sad
 
             // (5) خيط_نوم / thread_sleep
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int ms = static_cast<int>(args[0]->toDouble());
@@ -183,9 +188,10 @@ namespace Sad
 
             // (6) خيط_معرف / thread_id
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     auto id = std::this_thread::get_id();
                     std::ostringstream oss;
                     oss << id;
@@ -196,9 +202,10 @@ namespace Sad
 
             // (7) خيط_عدد_معالجات / thread_cpu_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     return std::make_shared<Data::Value>(static_cast<double>(std::thread::hardware_concurrency()));
                 };
                 fm.registerBuiltinFunction(std::string(Bth::THREAD_CPU_COUNT), f); // خيط_عدد_معالجات
@@ -206,9 +213,10 @@ namespace Sad
 
             // (8) قفل_جديد / mutex_new
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint64_t id = g_nextId++;
                     g_mutexes[id] = std::make_unique<std::mutex>();
                     return std::make_shared<Data::Value>(static_cast<double>(id));
@@ -218,9 +226,10 @@ namespace Sad
 
             // (9) قفل_أقفل / mutex_lock
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -235,9 +244,10 @@ namespace Sad
 
             // (10) قفل_حرر / mutex_unlock
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -252,9 +262,10 @@ namespace Sad
 
             // (11) قفل_حاول / mutex_try_lock
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -268,9 +279,10 @@ namespace Sad
 
             // (12) قفل_احذف / mutex_destroy
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -281,9 +293,10 @@ namespace Sad
 
             // (13) إشارة_جديدة / semaphore_new
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     uint32_t count = args.empty() ? 1 : static_cast<uint32_t>(args[0]->toDouble());
                     uint64_t id = g_nextId++;
                     g_semaphores[id] = std::make_unique<StubSemaphore>(count);
@@ -294,9 +307,10 @@ namespace Sad
 
             // (14) إشارة_انتظر / semaphore_wait
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -311,9 +325,10 @@ namespace Sad
 
             // (15) إشارة_أطلق / semaphore_signal
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -328,9 +343,10 @@ namespace Sad
 
             // (16) إشارة_حاول / semaphore_try_wait
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -344,9 +360,10 @@ namespace Sad
 
             // (17) خيط_قائمة / thread_list
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     std::vector<Data::Value> ids;
                     for (auto &[id, _] : g_threads)
                     {
@@ -359,9 +376,10 @@ namespace Sad
 
             // (18) خيط_احذف / thread_destroy
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
@@ -372,9 +390,10 @@ namespace Sad
 
             // (19) خيط_تنازل / thread_yield
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     std::this_thread::yield();
                     return std::make_shared<Data::Value>(true);
                 };
@@ -383,9 +402,10 @@ namespace Sad
 
             // (20) خيط_عدد / thread_count
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     return std::make_shared<Data::Value>(static_cast<double>(g_threads.size()));
                 };
                 fm.registerBuiltinFunction(std::string(Bth::THREAD_COUNT), f); // خيط_عدد

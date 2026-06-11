@@ -29,7 +29,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 1. audio_scan / صوت_مسح
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().scanDevices());
         };
@@ -38,7 +39,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 2. audio_device_count / صوت_عدد_الأجهزة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getDeviceCount());
         };
@@ -47,7 +49,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 3. audio_device_model / صوت_موديل_الجهاز
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getDeviceInfo(id).model);
         };
@@ -56,7 +59,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 4. audio_device_type / صوت_نوع_الجهاز
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::AudioManager::getInstance().getDeviceInfo(id).deviceType));
@@ -66,7 +70,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 5. audio_init / صوت_تهيئة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().initDevice(id));
         };
@@ -75,7 +80,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 6. audio_report / صوت_تقرير
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().generateReport());
         };
@@ -87,7 +93,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 7. audio_play_tone / صوت_تشغيل_نغمة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int freq = args.size() > 1 ? args[1]->toInt() : 440;
             int dur = args.size() > 2 ? args[2]->toInt() : 100;
@@ -98,7 +105,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 8. audio_stop / صوت_ايقاف
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().stopPlayback(id));
         };
@@ -107,7 +115,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 9. audio_pause / صوت_ايقاف_مؤقت
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().pausePlayback(id));
         };
@@ -116,7 +125,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 10. audio_resume / صوت_استئناف
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().resumePlayback(id));
         };
@@ -125,7 +135,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 11. audio_is_playing / صوت_يعمل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::AudioManager::getInstance().isPlaying(id) ? 1 : 0);
@@ -138,7 +149,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 12. audio_set_volume / صوت_تعيين_مستوى
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int vol = args.size() > 1 ? args[1]->toInt() : 50;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setVolume(id, vol));
@@ -148,7 +160,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 13. audio_get_volume / صوت_المستوى
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getVolume(id));
         };
@@ -157,7 +170,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 14. audio_mute / صوت_كتم
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             bool mute = args.size() > 1 ? (args[1]->toInt() != 0) : true;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setMute(id, mute));
@@ -167,7 +181,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 15. audio_is_muted / صوت_مكتوم
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::AudioManager::getInstance().isMuted(id) ? 1 : 0);
@@ -177,7 +192,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 16. audio_set_balance / صوت_تعيين_ميزان
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int bal = args.size() > 1 ? args[1]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setBalance(id, bal));
@@ -190,7 +206,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 17. audio_start_record / صوت_بدء_تسجيل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().startRecording(id));
         };
@@ -199,7 +216,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 18. audio_stop_record / صوت_انهاء_تسجيل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().stopRecording(id));
         };
@@ -208,7 +226,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 19. audio_is_recording / صوت_يسجل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(
                 LowLevel::AudioManager::getInstance().isRecording(id) ? 1 : 0);
@@ -218,7 +237,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 20. audio_recorded_samples / صوت_العينات_المسجلة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getRecordedSamples(id));
         };
@@ -230,7 +250,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 21. audio_beep / صوت_صافرة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int freq = args.size() > 0 ? args[0]->toInt() : 1000;
             int dur = args.size() > 1 ? args[1]->toInt() : 200;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().beep(freq, dur));
@@ -240,7 +261,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 22. audio_beep_off / صوت_ايقاف_صافرة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().beepOff());
         };
@@ -252,7 +274,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 23. audio_set_sample_rate / صوت_تعيين_معدل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int rate = args.size() > 1 ? args[1]->toInt() : 48000;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setSampleRate(id, rate));
@@ -262,7 +285,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 24. audio_get_sample_rate / صوت_المعدل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getSampleRate(id));
         };
@@ -271,7 +295,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 25. audio_set_channels / صوت_تعيين_قنوات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int ch = args.size() > 1 ? args[1]->toInt() : 2;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setChannels(id, ch));
@@ -281,7 +306,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 26. audio_get_channels / صوت_القنوات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getChannels(id));
         };
@@ -290,7 +316,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 27. audio_set_bits / صوت_تعيين_بتات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int bits = args.size() > 1 ? args[1]->toInt() : 16;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().setBitsPerSample(id, bits));
@@ -300,7 +327,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 28. audio_get_bits / صوت_البتات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().getBitsPerSample(id));
         };
@@ -309,7 +337,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 29. audio_silence / صوت_صمت
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             int dur = args.size() > 1 ? args[1]->toInt() : 100;
             return std::make_shared<Data::Value>(LowLevel::AudioManager::getInstance().playSilence(id, dur));
@@ -319,7 +348,8 @@ void registerBuiltinsKernelAudio(Interpreter& interpreter) {
 
     // 30. audio_reset / صوت_اعادة_تعيين
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             LowLevel::AudioManager::getInstance().reset();
             return std::make_shared<Data::Value>(0);

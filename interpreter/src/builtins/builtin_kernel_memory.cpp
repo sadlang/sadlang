@@ -53,8 +53,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (1) ذاكرة_خصص / memory_alloc
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(-1.0);
             size_t size = static_cast<size_t>(args[0]->toDouble());
             uintptr_t addr = g_nextAddr;
@@ -72,8 +73,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (2) ذاكرة_حرر / memory_free
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) return std::make_shared<Data::Value>(false);
             uintptr_t addr = static_cast<uintptr_t>(args[0]->toDouble());
             auto it = g_allocMap.find(addr);
@@ -91,8 +93,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (3) ذاكرة_إحصائيات / memory_stats
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             std::ostringstream oss;
             oss << "{"
                 << "\"إجمالي_المخصص\": " << g_allocStats.total_allocated << ", "
@@ -109,8 +112,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (4) ذاكرة_حجم / memory_size
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.current_usage));
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_3), f); // ذاكرة_حجم
@@ -118,8 +122,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (5) ذاكرة_ذروة / memory_peak
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.peak_usage));
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_4), f); // ذاكرة_ذروة
@@ -127,8 +132,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (6) ذاكرة_صفر / memory_zero (stub)
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(false);
             // Stub: in real impl would zero memory at address
             return std::make_shared<Data::Value>(true);
@@ -138,8 +144,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (7) ذاكرة_انسخ / memory_copy (stub)
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 3) return std::make_shared<Data::Value>(false);
             // Stub: in real impl would copy memory
             return std::make_shared<Data::Value>(true);
@@ -149,8 +156,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (8) ذاكرة_أعد_حجم / memory_resize
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
             size_t newSize = static_cast<size_t>(args[1]->toDouble());
             uintptr_t addr = g_nextAddr;
@@ -168,8 +176,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (9) ذاكرة_محاذاة / memory_aligned_alloc
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
             size_t size = static_cast<size_t>(args[0]->toDouble());
             size_t alignment = static_cast<size_t>(args[1]->toDouble());
@@ -188,8 +197,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (10) ذاكرة_تسرب / memory_check_leaks
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             bool hasLeaks = (g_allocStats.allocation_count > g_allocStats.deallocation_count);
             if (hasLeaks) {
                 std::ostringstream oss;
@@ -204,8 +214,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (11) قمامة_اجمع / gc_collect
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             g_gcStats.total_collections++;
             return std::make_shared<Data::Value>(true);
         };
@@ -214,8 +225,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (12) قمامة_إحصائيات / gc_stats
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             std::ostringstream oss;
             oss << "{"
                 << "\"عدد_الجمعات\": " << g_gcStats.total_collections << ", "
@@ -232,8 +244,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (13) قمامة_فعل / gc_enable
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             g_gcEnabled = true;
             return std::make_shared<Data::Value>(true);
         };
@@ -242,8 +255,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (14) قمامة_عطل / gc_disable
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             g_gcEnabled = false;
             return std::make_shared<Data::Value>(true);
         };
@@ -252,8 +266,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (15) قمامة_عتبة / gc_threshold
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             if (args.empty()) {
                 return std::make_shared<Data::Value>(static_cast<double>(g_gcThreshold));
             }
@@ -265,8 +280,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (16) قمامة_كائنات_حية / gc_live_objects
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_gcStats.live_objects));
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_15), f); // قمامة_كائنات_حية
@@ -274,8 +290,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (17) قمامة_حجم_كومة / gc_heap_size
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_gcStats.heap_size));
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_16), f); // قمامة_حجم_كومة
@@ -283,8 +300,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (18) قمامة_أقصى_توقف / gc_max_pause
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(g_gcStats.max_pause_ms);
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_17), f); // قمامة_أقصى_توقف
@@ -292,8 +310,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (19) ذاكرة_عدد_تخصيصات / memory_alloc_count
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.allocation_count));
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_18), f); // ذاكرة_عدد_تخصيصات
@@ -301,8 +320,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
 
     // (20) ذاكرة_إجمالي / memory_total
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.total_allocated));
         };
         fm.registerBuiltinFunction(std::string(Kmem::MEM_19), f); // ذاكرة_إجمالي

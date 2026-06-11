@@ -199,9 +199,10 @@ namespace Sad
 
             // ─── 1. مقبس_tcp_جديد / tcp_new ─────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     socket_handle_t s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                     if (s == SAD_INVALID_SOCKET)
@@ -216,9 +217,10 @@ namespace Sad
 
             // ─── 2. مقبس_اتصال / tcp_connect ────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -250,9 +252,10 @@ namespace Sad
 
             // ─── 3. مقبس_ارسال / tcp_send ───────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                     {
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
@@ -274,9 +277,10 @@ namespace Sad
 
             // ─── 4. مقبس_استقبال / tcp_recv ─────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(std::string(""));
@@ -308,9 +312,10 @@ namespace Sad
 
             // ─── 5. مقبس_ربط / tcp_bind ─────────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -342,9 +347,10 @@ namespace Sad
 
             // ─── 6. مقبس_استماع / tcp_listen ────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -369,9 +375,10 @@ namespace Sad
 
             // ─── 7. مقبس_قبول / tcp_accept ──────────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
@@ -409,9 +416,10 @@ namespace Sad
 
             // ─── 8. مقبس_اغلاق / socket_close ──────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -424,9 +432,10 @@ namespace Sad
 
             // ─── 9. مقبس_متصل / tcp_is_connected ───────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -444,9 +453,10 @@ namespace Sad
 
             // ─── 10. مقبس_عنوان_بعيد / tcp_peer_address ────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(std::string(""));
@@ -484,9 +494,10 @@ namespace Sad
 
             // ─── 11. مقبس_udp_جديد / udp_new ───────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     socket_handle_t s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
                     if (s == SAD_INVALID_SOCKET)
@@ -501,9 +512,10 @@ namespace Sad
 
             // ─── 12. مقبس_udp_ربط / udp_bind ───────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -531,9 +543,10 @@ namespace Sad
 
             // ─── 13. مقبس_udp_ارسال / udp_send_to ──────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 4)
                     {
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
@@ -565,9 +578,10 @@ namespace Sad
             // ─── 14. مقبس_udp_استقبال / udp_recv_from ──────────────────────
             // (AR) يُرجع خريطة: "بيانات"/"data"، "عنوان"/"address"، "منفذ"/"port"
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(std::string(""));
@@ -625,9 +639,10 @@ namespace Sad
 
             // ─── 15. مقبس_udp_اغلاق / udp_close ────────────────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -644,9 +659,10 @@ namespace Sad
 
             // ─── 16. مقبس_مهلة_استقبال / socket_recv_timeout ───────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -676,9 +692,10 @@ namespace Sad
 
             // ─── 17. مقبس_مهلة_ارسال / socket_send_timeout ─────────────────
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -709,9 +726,10 @@ namespace Sad
             // ─── 18. مقبس_بدون_تأخير / socket_nodelay ──────────────────────
             // (AR) تعطيل/تفعيل خوارزمية Nagle — TCP فقط
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                     {
                         return std::make_shared<Data::Value>(false);
@@ -737,9 +755,10 @@ namespace Sad
             // (AR) الحصول على رقم المنفذ المحلي الفعلي للمقبس بعد الربط بـ 0
             // (EN) Get the actual local port number after binding with port 0 (ephemeral)
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());

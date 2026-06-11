@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -26,8 +27,9 @@ namespace Sad
             namespace Btm = Builtins::Names::UITimer;
 
             // بعد_مدة(دالة_رد، مدة_بالمللي_ثانية) — setTimeout
-            auto timeout_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto timeout_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>();
@@ -38,8 +40,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Btm::TIMEOUT), timeout_fn);
 
             // كل_مدة(دالة_رد، مدة_بالمللي_ثانية) — setInterval
-            auto interval_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto interval_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>();
@@ -50,8 +53,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Btm::INTERVAL), interval_fn);
 
             // أوقف_مؤقت(معرّف) — clearTimer
-            auto cancel_timer_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto cancel_timer_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>();

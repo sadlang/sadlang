@@ -29,7 +29,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 1. storage_scan / تخزين_مسح
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.scanDrives());
@@ -39,7 +40,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 2. storage_drive_count / تخزين_عدد_الأقراص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveCount());
@@ -49,7 +51,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 3. storage_drive_model / تخزين_موديل_القرص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveInfo(id).model);
@@ -59,7 +62,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 4. storage_drive_serial / تخزين_رقم_القرص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveInfo(id).serial);
@@ -69,7 +73,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 5. storage_drive_type / تخزين_نوع_القرص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveInfo(id).type));
@@ -79,7 +84,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 6. storage_drive_state / تخزين_حاله_القرص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveInfo(id).state));
@@ -89,7 +95,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 7. storage_report / تخزين_تقرير
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.generateReport());
@@ -102,7 +109,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 8. storage_read_sector / تخزين_قراءة_قطاع
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int driveId = args.size() > 0 ? args[0]->toInt() : 0;
             uint64_t lba = args.size() > 1 ? static_cast<uint64_t>(args[1]->toDouble()) : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
@@ -113,7 +121,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 9. storage_write_sector / تخزين_كتابة_قطاع
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int driveId = args.size() > 0 ? args[0]->toInt() : 0;
             uint64_t lba = args.size() > 1 ? static_cast<uint64_t>(args[1]->toDouble()) : 0;
             std::string data = args.size() > 2 ? args[2]->toString() : "";
@@ -125,7 +134,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 10. storage_read_sectors / تخزين_قراءة_قطاعات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int driveId = args.size() > 0 ? args[0]->toInt() : 0;
             uint64_t lba = args.size() > 1 ? static_cast<uint64_t>(args[1]->toDouble()) : 0;
             int count = args.size() > 2 ? args[2]->toInt() : 1;
@@ -137,7 +147,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 11. storage_zero_sectors / تخزين_تصفير_قطاعات
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int driveId = args.size() > 0 ? args[0]->toInt() : 0;
             uint64_t lba = args.size() > 1 ? static_cast<uint64_t>(args[1]->toDouble()) : 0;
             int count = args.size() > 2 ? args[2]->toInt() : 1;
@@ -152,7 +163,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 12. storage_smart_healthy / تخزين_صحة_القرص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.isDriveHealthy(id) ? 1 : 0);
@@ -162,7 +174,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 13. storage_temperature / تخزين_حرارة_القرص
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveTemperature(id));
@@ -172,7 +185,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 14. storage_smart_report / تخزين_تقرير_صحة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).report);
@@ -182,7 +196,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 15. storage_smart_hours / تخزين_ساعات_التشغيل
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).powerOnHours);
@@ -192,7 +207,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 16. storage_smart_percent / تخزين_نسبة_الاستخدام
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).percentUsed);
@@ -205,7 +221,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 17. storage_partition_count / تخزين_عدد_الأقسام
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getPartitionCount(id));
@@ -215,7 +232,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 18. storage_partition_label / تخزين_اسم_القسم
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int driveId = args.size() > 0 ? args[0]->toInt() : 0;
             int partIdx = args.size() > 1 ? args[1]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
@@ -226,7 +244,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 19. storage_partition_bootable / تخزين_القسم_اقلاعي
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int driveId = args.size() > 0 ? args[0]->toInt() : 0;
             int partIdx = args.size() > 1 ? args[1]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
@@ -237,7 +256,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 20. storage_partition_scheme / تخزين_نظام_الأقسام
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getPartitionScheme(id)));
@@ -250,7 +270,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
     // ═══════════════════════════════════════════════════════════════
     // 21. storage_capacity_mb / تخزين_السعة_ميغا
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveCapacityMB(id)));
@@ -260,7 +281,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 22. storage_is_nvme / تخزين_هل_nvme
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.isNVMe(id) ? 1 : 0);
@@ -270,7 +292,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 23. storage_is_ahci / تخزين_هل_ahci
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.isAHCI(id) ? 1 : 0);
@@ -280,7 +303,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 24. storage_flush / تخزين_مزامنة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.flushCache(id));
@@ -290,7 +314,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 25. storage_create_ramdisk / تخزين_انشاء_قرص_ذاكرة
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             uint64_t size = args.size() > 0 ? static_cast<uint64_t>(args[0]->toDouble()) : 65536;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.createRamdisk(size));
@@ -300,7 +325,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 26. storage_read_partitions / تخزين_قراءة_الأقسام
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.readPartitionTable(id));
@@ -310,7 +336,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 27. storage_firmware / تخزين_البرنامج_الثابت
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getDriveInfo(id).firmware);
@@ -320,7 +347,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 28. storage_sector_size / تخزين_حجم_القطاع
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(static_cast<int>(sm.getDriveInfo(id).sectorSize));
@@ -330,7 +358,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 29. storage_reset / تخزين_اعادة_تعيين
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             (void)args;
             auto& sm = LowLevel::StorageManager::getInstance();
             sm.reset();
@@ -341,7 +370,8 @@ void registerBuiltinsKernelStorage(Interpreter& interpreter) {
 
     // 30. storage_smart_spare / تخزين_الاحتياطي
     {
-        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+                const auto &args = ctx.args(); (void)args;
             int id = args.size() > 0 ? args[0]->toInt() : 0;
             auto& sm = LowLevel::StorageManager::getInstance();
             return std::make_shared<Data::Value>(sm.getSmartInfo(id).availableSpare);

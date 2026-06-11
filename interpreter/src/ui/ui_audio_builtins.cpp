@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -26,8 +27,9 @@ namespace Sad
             namespace Ba = Builtins::Names::UIAudio;
 
             // شغّل_صوت(مسار، تكرار=خطأ) → معرّف
-            auto play_sound_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto play_sound_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>(0.0);
@@ -39,8 +41,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Ba::PLAY_SOUND), play_sound_fn);
 
             // أوقف_صوت(معرّف)
-            auto stop_sound_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto stop_sound_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>();
@@ -51,8 +54,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Ba::STOP_SOUND), stop_sound_fn);
 
             // أوقف_كل_الأصوات()
-            auto stop_all_sounds_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto stop_all_sounds_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (bridge)
@@ -62,8 +66,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Ba::STOP_ALL), stop_all_sounds_fn);
 
             // مستوى_الصوت(قيمة) — set volume
-            auto set_volume_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto set_volume_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.empty())
                     return std::make_shared<Data::Value>();
@@ -74,8 +79,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Ba::SET_VOLUME), set_volume_fn);
 
             // احصل_مستوى_الصوت()
-            auto get_volume_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto get_volume_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)

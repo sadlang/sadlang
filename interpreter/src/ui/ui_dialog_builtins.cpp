@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -26,8 +27,9 @@ namespace Sad
             namespace Bd = Builtins::Names::UIDialog;
 
             // حوار_تنبيه(عنوان، رسالة)
-            auto alert_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto alert_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>();
@@ -39,8 +41,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bd::ALERT), alert_fn);
 
             // حوار_تأكيد(عنوان، رسالة) → منطقي
-            auto confirm_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto confirm_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>(false);
@@ -52,8 +55,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bd::CONFIRM), confirm_fn);
 
             // أظهر_رسالة(نص, [مدة])
-            auto show_snackbar_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto show_snackbar_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
                 {
                     throw std::runtime_error("\xd8\xa3\xd8\xb8\xd9\x87\xd8\xb1_\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd9\x86\xd8\xb5");
@@ -72,8 +76,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bd::SHOW_SNACKBAR), show_snackbar_fn);
 
             // أظهر_إشعار(عنوان، محتوى)
-            auto notification_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto notification_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>();

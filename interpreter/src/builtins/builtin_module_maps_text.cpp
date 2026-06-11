@@ -306,8 +306,9 @@ namespace Sad
             // ازل_تشكيل / strip_diacritics — إزالة التشكيل العربي من النص
             // Arabic diacritics are U+064B to U+065F (encoded as 2-byte UTF-8: 0xD9 0x8B-0x9F, 0xDA 0x80-0x9F)
             // (AR) EM-CPP: يبقى بالتوقيع القديم — يُستدعى داخلياً بـvector (دالة عليا).
-            auto strip_diacritics_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto strip_diacritics_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
@@ -401,8 +402,11 @@ namespace Sad
                     // Strip diacritics from both before comparison
                     std::vector<std::shared_ptr<Data::Value>> wrapA = {std::make_shared<Data::Value>(a)};
                     std::vector<std::shared_ptr<Data::Value>> wrapB = {std::make_shared<Data::Value>(b)};
-                    a = strip_diacritics_fn(wrapA)->toString();
-                    b = strip_diacritics_fn(wrapB)->toString();
+                    // (AR) EM-CPP: سياق للاستدعاء الداخلي (التوقيع الجديد BuiltinContext).
+                    Sad::Interpreter::BuiltinContext _ctxA(wrapA, Sad::Lexer::Position{}, "ازل_تشكيل");
+                    Sad::Interpreter::BuiltinContext _ctxB(wrapB, Sad::Lexer::Position{}, "ازل_تشكيل");
+                    a = strip_diacritics_fn(_ctxA)->toString();
+                    b = strip_diacritics_fn(_ctxB)->toString();
                 }
 
                 return makeVal(a == b);

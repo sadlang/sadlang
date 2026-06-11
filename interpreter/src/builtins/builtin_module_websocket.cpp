@@ -131,9 +131,10 @@ namespace Sad
 
             // أنشئ_عميل_ويبسوكت() → معرّف
             fm.registerBuiltinFunction(std::string(Bwsc::NEW_CLIENT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            (void)args;
                                            void *c = sad_ws_client_new();
                                            if (!c)
@@ -143,9 +144,10 @@ namespace Sad
 
             // أزل_عميل_ويبسوكت(معرّف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwsc::FREE_CLIENT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *c = getWsClient(id);
                                            if (!c)
@@ -157,9 +159,10 @@ namespace Sad
 
             // اتصل_بويبسوكت(معرّف، رابط) → منطقي
             fm.registerBuiltinFunction(std::string(Bwsc::CONNECT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            std::string url = argStr(args, 1);
                                            void *c = getWsClient(id);
@@ -171,9 +174,10 @@ namespace Sad
 
             // أغلق_ويبسوكت(معرّف، رمز، سبب) → فراغ
             fm.registerBuiltinFunction(std::string(Bwsc::CLOSE),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            uint16_t code = static_cast<uint16_t>(argNum(args, 1, 1000));
                                            std::string reason = argStr(args, 2);
@@ -185,9 +189,10 @@ namespace Sad
 
             // هل_متصل_ويبسوكت(معرّف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwsc::IS_CONNECTED),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *c = getWsClient(id);
                                            if (!c)
@@ -197,9 +202,10 @@ namespace Sad
 
             // أرسل_ويبسوكت(معرّف، رسالة) → منطقي
             fm.registerBuiltinFunction(std::string(Bwsc::SEND),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            std::string msg = argStr(args, 1);
                                            void *c = getWsClient(id);
@@ -211,9 +217,10 @@ namespace Sad
 
             // نبض_ويبسوكت(معرّف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwsc::PING),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *c = getWsClient(id);
                                            if (!c)
@@ -223,9 +230,10 @@ namespace Sad
 
             // استقبل_ويبسوكت(معرّف، مهلة_بالمللي) → نص
             fm.registerBuiltinFunction(std::string(Bwsc::RECEIVE),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            int timeout = static_cast<int>(argNum(args, 1, 5000));
                                            void *c = getWsClient(id);
@@ -237,9 +245,10 @@ namespace Sad
 
             // يوجد_رسالة_ويبسوكت(معرّف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwsc::HAS_MESSAGE),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *c = getWsClient(id);
                                            if (!c)
@@ -249,9 +258,10 @@ namespace Sad
 
             // رابط_ويبسوكت(معرّف) → نص
             fm.registerBuiltinFunction(std::string(Bwsc::GET_URL),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *c = getWsClient(id);
                                            if (!c)
@@ -262,9 +272,10 @@ namespace Sad
 
             // خطأ_ويبسوكت(معرّف) → نص
             fm.registerBuiltinFunction(std::string(Bwsc::LAST_ERROR),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *c = getWsClient(id);
                                            if (!c)
@@ -275,9 +286,10 @@ namespace Sad
 
             // حدد_مهلة_استقبال_ويبسوكت(معرّف، مللي) → فراغ
             fm.registerBuiltinFunction(std::string(Bwsc::SET_RECV_TIMEOUT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            int t = static_cast<int>(argNum(args, 1, 0));
                                            void *c = getWsClient(id);
@@ -288,9 +300,10 @@ namespace Sad
 
             // حدد_مهلة_إرسال_ويبسوكت(معرّف، مللي) → فراغ
             fm.registerBuiltinFunction(std::string(Bwsc::SET_SEND_TIMEOUT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            int t = static_cast<int>(argNum(args, 1, 0));
                                            void *c = getWsClient(id);
@@ -303,9 +316,10 @@ namespace Sad
 
             // أنشئ_خادم_ويبسوكت() → معرّف
             fm.registerBuiltinFunction(std::string(Bwss::NEW_SERVER),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            (void)args;
                                            void *s = sad_ws_server_new();
                                            if (!s)
@@ -315,9 +329,10 @@ namespace Sad
 
             // أزل_خادم_ويبسوكت(معرّف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwss::FREE_SERVER),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (!s)
@@ -329,9 +344,10 @@ namespace Sad
 
             // ابدأ_خادم_ويبسوكت(معرّف، منفذ، مضيف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwss::START),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            uint16_t port = static_cast<uint16_t>(argNum(args, 1, 0));
                                            std::string host = argStr(args, 2, "0.0.0.0");
@@ -344,9 +360,10 @@ namespace Sad
 
             // أوقف_خادم_ويبسوكت(معرّف) → فراغ
             fm.registerBuiltinFunction(std::string(Bwss::STOP),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (s)
@@ -356,9 +373,10 @@ namespace Sad
 
             // هل_يعمل_خادم_ويبسوكت(معرّف) → منطقي
             fm.registerBuiltinFunction(std::string(Bwss::IS_RUNNING),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (!s)
@@ -368,9 +386,10 @@ namespace Sad
 
             // عدد_اتصالات_ويبسوكت(معرّف) → رقم
             fm.registerBuiltinFunction(std::string(Bwss::CONN_COUNT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (!s)
@@ -381,9 +400,10 @@ namespace Sad
 
             // منفذ_خادم_ويبسوكت(معرّف) → رقم
             fm.registerBuiltinFunction(std::string(Bwss::GET_PORT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (!s)
@@ -394,9 +414,10 @@ namespace Sad
 
             // بث_ويبسوكت(معرّف، رسالة) → رقم (عدد الذين أُرسل لهم)
             fm.registerBuiltinFunction(std::string(Bwss::BROADCAST),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            std::string msg = argStr(args, 1);
                                            void *s = getWsServer(id);
@@ -408,9 +429,10 @@ namespace Sad
 
             // بث_لغرفة_ويبسوكت(معرّف، غرفة، رسالة) → رقم
             fm.registerBuiltinFunction(std::string(Bwss::BROADCAST_ROOM),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            std::string room = argStr(args, 1);
                                            std::string msg = argStr(args, 2);
@@ -424,9 +446,10 @@ namespace Sad
 
             // عدد_غرف_ويبسوكت(معرّف) → رقم
             fm.registerBuiltinFunction(std::string(Bwss::ROOM_COUNT),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (!s)
@@ -437,9 +460,10 @@ namespace Sad
 
             // حجم_غرفة_ويبسوكت(معرّف، غرفة) → رقم
             fm.registerBuiltinFunction(std::string(Bwss::ROOM_SIZE),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            std::string room = argStr(args, 1);
                                            void *s = getWsServer(id);
@@ -451,9 +475,10 @@ namespace Sad
 
             // أغلق_كل_اتصالات_ويبسوكت(معرّف) → فراغ
             fm.registerBuiltinFunction(std::string(Bwss::CLOSE_ALL),
-                                       [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                                       [](Sad::Interpreter::BuiltinContext &ctx)
                                            -> std::shared_ptr<Data::Value>
                                        {
+                const auto &args = ctx.args(); (void)args;
                                            int64_t id = static_cast<int64_t>(argNum(args, 0, -1));
                                            void *s = getWsServer(id);
                                            if (s)

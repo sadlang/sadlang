@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -28,8 +29,9 @@ namespace Sad
             // ═══ الشبكة ═══
 
             // طلب_شبكة(طريقة, رابط, [جسم], [ترويسات]) → نص
-            auto http_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto http_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>(std::string(""));
@@ -42,8 +44,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bnn::HTTP_REQUEST), http_fn);
 
             // هل_متصل() → منطقي
-            auto online_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto online_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)
@@ -55,8 +58,9 @@ namespace Sad
             // ═══ JSON ═══
 
             // حلل_جيسون(نص, مفتاح) → نص
-            auto json_parse_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto json_parse_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge || args.size() < 2)
                     return std::make_shared<Data::Value>(std::string(""));
@@ -65,8 +69,9 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bnn::JSON_PARSE), json_parse_fn);
 
             // صدر_جيسون(مفتاح1, قيمة1, ...) → نص JSON
-            auto json_stringify_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            auto json_stringify_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
+                const auto &args = ctx.args(); (void)args;
                 auto *bridge = UIBridge::active();
                 if (!bridge)
                     return std::make_shared<Data::Value>(std::string("{}"));

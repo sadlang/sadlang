@@ -308,9 +308,10 @@ namespace Sad
 
             // ─── أنشئ_متصفح() → معرّف العميل ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     void *client = sad_http_client_new();
                     if (!client)
@@ -325,9 +326,10 @@ namespace Sad
 
             // ─── أغلق_متصفح(معرّف) → صحيح/خطأ ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
@@ -346,9 +348,10 @@ namespace Sad
 
             // ─── اجلب(معرّف، رابط) → معرّف استجابة ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return makeError("اجلب تحتاج: معرّف_متصفح، رابط");
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -366,9 +369,10 @@ namespace Sad
 
             // ─── أرسل(معرّف، رابط، محتوى) → معرّف استجابة ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
                         return makeError("أرسل تحتاج: معرّف_متصفح، رابط، محتوى");
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -387,9 +391,10 @@ namespace Sad
 
             // ─── استبدل(معرّف، رابط، محتوى) → معرّف استجابة ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
                         return makeError("استبدل تحتاج: معرّف_متصفح، رابط، محتوى");
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -408,9 +413,10 @@ namespace Sad
 
             // ─── احذف_مورد(معرّف، رابط) → معرّف استجابة ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return makeError("احذف_مورد تحتاج: معرّف_متصفح، رابط");
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -428,9 +434,10 @@ namespace Sad
 
             // ─── عدّل_مورد(معرّف، رابط، محتوى) → معرّف استجابة ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
                         return makeError("عدّل_مورد تحتاج: معرّف_متصفح، رابط، محتوى");
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -449,9 +456,10 @@ namespace Sad
 
             // ─── حدد_الموقع(معرّف، رابط_أساسي) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(false);
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -467,9 +475,10 @@ namespace Sad
 
             // ─── أضف_ترويسة(معرّف، مفتاح، قيمة) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
                         return std::make_shared<Data::Value>(false);
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -486,9 +495,10 @@ namespace Sad
 
             // ─── حدد_الانتظار(معرّف، مللي_ثانية) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(false);
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -504,9 +514,10 @@ namespace Sad
 
             // ─── سجّل_دخول_برمز(معرّف، رمز) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(false);
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -522,9 +533,10 @@ namespace Sad
 
             // ─── سبب_الفشل(معرّف) → نص ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>("");
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -542,9 +554,10 @@ namespace Sad
 
             // ─── هل_نجح(معرّف) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int64_t clientId = static_cast<int64_t>(args[0]->toDouble());
@@ -562,9 +575,10 @@ namespace Sad
 
             // ─── تجاهل_الرد(معرّف) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
@@ -583,9 +597,10 @@ namespace Sad
 
             // ─── رمز_الحالة(معرّف) → رقم ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
@@ -599,9 +614,10 @@ namespace Sad
 
             // ─── نص_الرد(معرّف) → نص ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>("");
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
@@ -619,9 +635,10 @@ namespace Sad
 
             // ─── معلومة_الرد(معرّف، مفتاح) → نص ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>("");
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
@@ -640,9 +657,10 @@ namespace Sad
 
             // ─── هل_الرد_ناجح(معرّف) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
@@ -690,9 +708,10 @@ namespace Sad
 
             // ─── أنشئ_خادم(منفذ) → رقم (معرّف الخادم) ───
             {
-                auto f = [&storeServer](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&storeServer](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(std::string("خطأ: يجب تحديد رقم المنفذ"));
                     int port = static_cast<int>(args[0]->toDouble());
@@ -706,9 +725,10 @@ namespace Sad
 
             // ─── أزل_خادم(معرّف) ───
             {
-                auto f = [&getServer, &removeServer](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getServer, &removeServer](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -725,9 +745,10 @@ namespace Sad
 
             // ─── ابدأ_الاستماع(معرّف) ───
             {
-                auto f = [&getServer](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getServer](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -742,9 +763,10 @@ namespace Sad
 
             // ─── أوقف_الخادم(معرّف) ───
             {
-                auto f = [&getServer](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getServer](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -759,9 +781,10 @@ namespace Sad
 
             // ─── اسمح_بالوصول_الخارجي(معرّف، أصل) ───
             {
-                auto f = [&getServer](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getServer](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -821,9 +844,10 @@ namespace Sad
 
             // ─── نوع_الطلب() → نص (GET/POST/PUT/DELETE/...) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     if (!tl_currentRequest)
                         return makeError("نوع_الطلب متاحة فقط داخل معالج طلب");
@@ -838,9 +862,10 @@ namespace Sad
 
             // ─── وجهة_الطلب() → نص (المسار) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     if (!tl_currentRequest)
                         return makeError("وجهة_الطلب متاحة فقط داخل معالج طلب");
@@ -855,9 +880,10 @@ namespace Sad
 
             // ─── بيانات_الطلب() → نص (جسم الطلب) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     if (!tl_currentRequest)
                         return makeError("بيانات_الطلب متاحة فقط داخل معالج طلب");
@@ -872,9 +898,10 @@ namespace Sad
 
             // ─── معلومة_الطلب(اسم_الترويسة) → نص (قيمة الترويسة) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentRequest)
                         return makeError("معلومة_الطلب متاحة فقط داخل معالج طلب");
                     if (args.empty())
@@ -891,9 +918,10 @@ namespace Sad
 
             // ─── قيمة_من_الرابط(اسم_المعامل) → نص (قيمة query param) ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentRequest)
                         return makeError("قيمة_من_الرابط متاحة فقط داخل معالج طلب");
                     if (args.empty())
@@ -915,9 +943,10 @@ namespace Sad
 
             // ─── عيّن_حالة_الرد(رمز) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentResponse)
                         return makeError("عيّن_حالة_الرد متاحة فقط داخل معالج طلب");
                     if (args.empty())
@@ -931,9 +960,10 @@ namespace Sad
 
             // ─── عيّن_نص_الرد(نص) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentResponse)
                         return makeError("عيّن_نص_الرد متاحة فقط داخل معالج طلب");
                     if (args.empty())
@@ -947,9 +977,10 @@ namespace Sad
 
             // ─── عيّن_رد_جيسون(نص_جيسون) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentResponse)
                         return makeError("عيّن_رد_جيسون متاحة فقط داخل معالج طلب");
                     if (args.empty())
@@ -963,9 +994,10 @@ namespace Sad
 
             // ─── عيّن_رد_صفحة(نص_html) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentResponse)
                         return makeError("عيّن_رد_صفحة متاحة فقط داخل معالج طلب");
                     if (args.empty())
@@ -979,9 +1011,10 @@ namespace Sad
 
             // ─── عيّن_ترويسة_الرد(اسم، قيمة) → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (!tl_currentResponse)
                         return makeError("عيّن_ترويسة_الرد متاحة فقط داخل معالج طلب");
                     if (args.size() < 2)
@@ -1000,9 +1033,10 @@ namespace Sad
 
             // ─── جهّز_الشبكة() → منطقي ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(sad_network_init());
                 };
@@ -1011,9 +1045,10 @@ namespace Sad
 
             // ─── نظّف_الشبكة() ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     sad_network_cleanup();
                     return std::make_shared<Data::Value>(true);
@@ -1023,9 +1058,10 @@ namespace Sad
 
             // ─── رمز_آخر_خطأ() → رقم ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     return std::make_shared<Data::Value>(static_cast<double>(sad_network_get_last_error()));
                 };
@@ -1034,9 +1070,10 @@ namespace Sad
 
             // ─── وصف_آخر_خطأ() → نص ───
             {
-                auto f = [](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     (void)args;
                     const char *msg = sad_network_get_last_error_message();
                     return std::make_shared<Data::Value>(msg ? std::string(msg) : "");
@@ -1077,9 +1114,10 @@ namespace Sad
 
             // ─── عنوان(ip، منفذ) → رقم (معرّف) ───
             {
-                auto f = [&storeAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&storeAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(std::string("خطأ: عنوان() يحتاج (ip، منفذ)"));
                     std::string ip = args[0]->toString();
@@ -1094,9 +1132,10 @@ namespace Sad
 
             // ─── عنوان_حديث(ip، منفذ) → رقم (معرّف) ───
             {
-                auto f = [&storeAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&storeAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>(std::string("خطأ: عنوان_حديث() يحتاج (ip، منفذ)"));
                     std::string ip = args[0]->toString();
@@ -1111,9 +1150,10 @@ namespace Sad
 
             // ─── حرر_عنوان(معرّف) → منطقي ───
             {
-                auto f = [&getAddr, &removeAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getAddr, &removeAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -1130,9 +1170,10 @@ namespace Sad
 
             // ─── رقم_الجهاز(معرّف) → نص ───
             {
-                auto f = [&getAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(std::string(""));
                     int id = static_cast<int>(args[0]->toDouble());
@@ -1147,9 +1188,10 @@ namespace Sad
 
             // ─── رقم_المنفذ(معرّف) → رقم ───
             {
-                auto f = [&getAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(0.0);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -1163,9 +1205,10 @@ namespace Sad
 
             // ─── هل_عنوان_قديم(معرّف) → منطقي ───
             {
-                auto f = [&getAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -1179,9 +1222,10 @@ namespace Sad
 
             // ─── هل_عنوان_حديث(معرّف) → منطقي ───
             {
-                auto f = [&getAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int id = static_cast<int>(args[0]->toDouble());
@@ -1195,9 +1239,10 @@ namespace Sad
 
             // ─── العنوان_كنص(معرّف) → نص ───
             {
-                auto f = [&getAddr](const std::vector<std::shared_ptr<Data::Value>> &args)
+                auto f = [&getAddr](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
                 {
+                const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(std::string(""));
                     int id = static_cast<int>(args[0]->toDouble());
@@ -1218,7 +1263,7 @@ namespace Sad
 
             auto stubFn = [](const std::string &name)
             {
-                return [name](const std::vector<std::shared_ptr<Data::Value>> &)
+                return [name](Sad::Interpreter::BuiltinContext &)
                            -> std::shared_ptr<Data::Value>
                 {
                     return std::make_shared<Data::Value>(
