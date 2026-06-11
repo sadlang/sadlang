@@ -57,15 +57,17 @@ namespace Bn = Sad::Builtins::Names;   // أعلى الملف (موجود مسب
 
 // (AR) جذر_تكعيبي — الجذر التكعيبي لرقم
 // (EN) cbrt — cube root of a number
-auto cbrt_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+// التوقيع الموحَّد (EM-CPP): (BuiltinContext& ctx) — يحمل الوسائط + الموقع + الاسم.
+auto cbrt_fn = [](Sad::Interpreter::BuiltinContext& ctx)
     -> std::shared_ptr<Data::Value> {
+    const auto& args = ctx.args();
     // ① نظام الأنواع: استخدم فاحصات Value لا فحصاً يدوياً
     if (args.size() != 1 || !args[0]->isNumeric()) {
-        // ② نظام الأخطاء: ErrorCode مُولَّد + placeholders — ممنوع نص حر (runtime_throw.h)
-        Sad::Errors::throwRuntime(
-            Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,   // رمز فعلي من error_codes.h
-            pos,                                              // Position (انظر ملاحظة الموقع)
-            {{"func", "جذر_تكعيبي"}});                       // متغيّرات القالب
+        // ② نظام الأخطاء: ctx.error — يحقن func/builtin والموقع تلقائياً (لا pos يدوي، لا نص حر).
+        //    RUN_BUILTIN_REQUIRES_ARG يكفيه {func} المحقون، وbriefه يغطّي «ناقص أو نوع خاطئ».
+        //    ⚠️ لا تستخدم رمزاً يتطلّب placeholders إضافية (مثل RUN_TYPE_CHECK_FAILED:
+        //       {expected}/{actual}) دون تمريرها — تظهر فارغة (أو {key} في وضع التطوير).
+        ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
     }
     double x = args[0]->isInteger()
                  ? static_cast<double>(args[0]->toInt64())   // الدالة الفعلية toInt64()
@@ -80,14 +82,13 @@ interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Math::C
 > **قواعد إلزامية (مؤكَّدة من الكود — ليست أسلوبية):**
 > - **التسجيل بالثابت المُولَّد** `Bn::<Group>::<CPP_ID>` (انظر `builtin_core_io.cpp`). الألقاب
 >   النصية اليدوية **مُلغاة** (`scripts/codegen/remove_aliases.py`) — الاسم القانوني من YAML وحده.
-> - **الأخطاء بـ `ErrorCode` + placeholders فقط.** `runtime_throw.h` ينصّ صراحةً: «لا توجد نسخة
->   تأخذ نصاً حراً؛ نص الرسالة يعيش في ErrorCatalog وحده». استخدم رمزاً فعلياً
->   (`RUN_TYPE_CHECK_FAILED`, `SEM_WRONG_ARG_COUNT`...) أو **أضِف رمزاً جديداً** عبر كتيّب 2 +
->   [./error-system.md](./error-system.md) §4 إن لم يناسب الموجود. الرسالة العربية/الإنجليزية + `fix_hint`
->   تعيش كلها في YAML الأخطاء — لا في كود C++.
-> - **ملاحظة الموقع (Position):** `throwRuntime(ErrorCode, Position, placeholders)`. مرّر `pos` من
->   سياق الاستدعاء؛ إن كانت بنية الـ lambda لا تملكه، اتبع نمط ملفات الدوال **المُحدَّثة حديثاً**
->   (التي تستخدم `Bn::`/`ErrorCode`) لا الملفات القديمة التي ما زالت ترمي `std::runtime_error` (مهجور).
+> - **الأخطاء بـ `ctx.error(ErrorCode, {{...}})` داخل الدالة المضمنة** (التوقيع الموحَّد): يرندر من
+>   الكتالوج، **يحقن `func/builtin` والموقع تلقائياً** — لا `pos` يدوي ولا `{func}` يدوي ولا نص حر.
+>   مرّر كل placeholder يطلبه الـbrief (لفحص الأرغ `RUN_BUILTIN_REQUIRES_ARG`). أو **أضِف رمزاً
+>   جديداً** عبر [./error-system.md](./error-system.md) §4. الرسالة + `fix_hint` كلها في YAML.
+> - **`placeholders` بيانات لا نثر:** مرّر مُعرِّفات/قيماً فقط؛ الجملة في YAML (لا جملاً في `{detail}`).
+> - **الطبقة الأدنى (`shared/builtins`، بلا `Position`):** `throwBuiltin(code, {{...}})` — حامل يُلتقَط
+>   في `callNative` فيُكمل الموقع. ملفات قديمة قد تُظهر `throw std::runtime_error` — **مهجور محذوف**.
 > - **النوع:** اعتمد فاحصات `Value` (`isNumeric/isInteger/...`) وبنّاءاته — لا تحويلات خام (CW-14).
 
 ### المهمة 4 — نفّذ في المترجم

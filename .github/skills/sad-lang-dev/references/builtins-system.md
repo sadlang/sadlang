@@ -91,11 +91,11 @@ shared/builtins/generated/
    namespace Bn = Sad::Builtins::Names;   // أعلى الملف
    // (AR) جذر — الجذر التربيعي لرقم
    // (EN) sqrt — square root of a number
-   auto sqrt_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+   auto sqrt_fn = [](Sad::Interpreter::BuiltinContext& ctx)   // التوقيع الموحَّد (EM-CPP)
        -> std::shared_ptr<Data::Value> {
+       const auto& args = ctx.args();
        if (args.size() != 1 || !args[0]->isNumeric()) {   // CW-18: فاحصات Value
-           Sad::Errors::throwRuntime(
-               Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED, pos, {{"func", "جذر"}});
+           ctx.error(Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);  // {func} محقون؛ يغطّي ناقص/نوع خاطئ
        }
        double x = args[0]->isInteger()
                     ? static_cast<double>(args[0]->toInt64()) : args[0]->toDouble();
@@ -104,9 +104,14 @@ shared/builtins/generated/
    // الثابت المُولَّد فقط — الألقاب اليدوية مُلغاة (remove_aliases.py)
    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Math::SQRT), sqrt_fn);
    ```
-   > **قاعدة صارمة** (`runtime_throw.h`): لا نسخة من `throwRuntime` تقبل نصاً حراً — نص الرسالة
-   > (عربي/إنجليزي + `fix_hint`) يعيش في YAML الأخطاء وحده. لا تخترع `ErrorCode` غير موجود.
-   > الملفات القديمة قد تُظهر `throw std::runtime_error("...")` — هذا **نمط مهجور**، لا تقلّده.
+   > **قاعدة صارمة** (`runtime_throw.h`): لا نسخة تقبل نصاً حراً — نص الرسالة (عربي/إنجليزي +
+   > `fix_hint`) يعيش في YAML الأخطاء وحده. لا تخترع `ErrorCode` غير موجود.
+   >
+   > ✅ **النمط الصحيح (EM-CPP، التوقيع الموحَّد `(BuiltinContext& ctx)`):** `ctx.error(code, {{...}})`
+   > يرندر من الكتالوج ويحقن `func/builtin` والموقع تلقائياً. مرّر كل placeholder يطلبه الـbrief
+   > (لفحص الأرغ استخدم `RUN_BUILTIN_REQUIRES_ARG` — يكفيه `{func}` المحقون). الطبقة الأدنى
+   > (`shared/builtins`، بلا `Position`): `throwBuiltin(code, {{...}})`. **`throw std::runtime_error`
+   > نمط مهجور محذوف — لا تقلّده.**
 4. **نفّذها في المترجم** (إن كان `sadc` يدعمها) — أضِف codegen في
    `compiler/src/backend/llvm/builders/builtins/` وفق `compiler_strategy`. الملفات هناك
    مقسّمة بالمجال: `math_builtins.cpp`, `io_builtins_ops.cpp`, `builtins_network_ops.cpp`,
