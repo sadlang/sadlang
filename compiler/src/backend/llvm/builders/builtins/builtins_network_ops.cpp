@@ -183,9 +183,8 @@ namespace Sad
                 llvm::Value *val = cg_.resolveOperand(inst->operands[i]);
                 if (!val)
                 {
-                    cg_.reportError(std::string("خطأ: معامل فارغ في دالة شبكة / "
-                                            "Error: null operand in network function ") +
-                                cFuncName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
+                                    {{"detail", std::string("null operand in network function ") + cFuncName}});
                     return nullptr;
                 }
 
@@ -377,8 +376,8 @@ namespace Sad
             {
                 if (preparedArgs.size() != paramTypes.size())
                 {
-                    cg_.reportError(std::string("خطأ: عدد معاملات غير متطابق في دالة شبكة / ") +
-                                "Error: mismatched network argument count for " + cFuncName);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                    {{"detail", std::string("mismatched network argument count for ") + cFuncName}});
                     return nullptr;
                 }
 
@@ -389,8 +388,8 @@ namespace Sad
                     llvm::Value *arg = adaptNetworkArgument(cg_.builder_.get(), *cg_.context_, preparedArgs[i], paramTypes[i]);
                     if (!arg)
                     {
-                        cg_.reportError(std::string("خطأ: معامل مُحضَّر فارغ في دالة شبكة / ") +
-                                    "Error: null prepared network argument in " + cFuncName);
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
+                                        {{"detail", std::string("null prepared network argument in ") + cFuncName}});
                         return nullptr;
                     }
                     args.push_back(arg);

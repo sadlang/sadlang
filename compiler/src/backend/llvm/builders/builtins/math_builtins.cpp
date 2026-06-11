@@ -27,7 +27,7 @@ namespace LLVM {
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("MIN requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "MIN requires 2 operands"}});
                 return nullptr;
             }
             llvm::Value *a = cg_.resolveOperand(inst->operands[0]);
@@ -64,7 +64,7 @@ namespace LLVM {
         {
             if (!inst || inst->operands.size() < 2)
             {
-                cg_.reportError("MAX requires 2 operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "MAX requires 2 operands"}});
                 return nullptr;
             }
             llvm::Value *a = cg_.resolveOperand(inst->operands[0]);

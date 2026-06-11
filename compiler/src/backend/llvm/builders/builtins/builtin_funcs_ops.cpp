@@ -32,7 +32,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("ASSERT requires 1 operand (condition)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ASSERT requires 1 operand (condition)"}});
                 return nullptr;
             }
 
@@ -122,7 +122,7 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2 || inst->operands.size() % 2 != 0)
             {
-                cg_.reportError("PHI requires pairs of (value, block) operands");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "PHI requires pairs of (value, block) operands"}});
                 return nullptr;
             }
 
@@ -207,7 +207,7 @@ namespace Sad
             // (EN) In static compilation, variable type is known at compile time
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("is_type requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "is_type requires 1 operand"}});
                 return nullptr;
             }
 
@@ -249,7 +249,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("to_bool requires 1 operand");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "to_bool requires 1 operand"}});
                 return nullptr;
             }
 
@@ -354,7 +354,7 @@ namespace Sad
             // For static compilation, we implement a loop over the array
             if (!inst || inst->operands.empty())
             {
-                cg_.reportError("SUM requires 1 operand (array)");
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "SUM requires 1 operand (array)"}});
                 return nullptr;
             }
 

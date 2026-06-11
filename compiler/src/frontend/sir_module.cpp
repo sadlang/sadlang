@@ -18,10 +18,22 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
+#include <map>
+#include "error_manager.h"  // (AR) EM-CPP-7: رسائل ICE من الكتالوج
+#include "error_catalog.h"
+#include "error_codes.h"
 
 namespace Sad {
 namespace Compiler {
 namespace SIR {
+
+// (AR) EM-CPP-7: يرندر رسالة خطأ مترجم داخلي (ICE) من الكتالوج (YAML).
+// (EN) EM-CPP-7: render an internal compiler error (ICE) message from the catalog.
+static std::string iceMsg(::Sad::Errors::ErrorCode code, const std::string &detail) {
+    ::Sad::Errors::RenderContext ctx;
+    ctx.placeholders = {{"detail", detail}};
+    return ::Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx);
+}
 
 // ============================================================================
 // SIRParameter Implementation
@@ -46,7 +58,7 @@ void SIRFunction::addParameter(const SIRParameter& param) {
 
 void SIRFunction::addBasicBlock(std::shared_ptr<SIRBasicBlock> block) {
     if (!block) {
-        throw std::runtime_error("Cannot add null basic block to function");
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null basic block to function"));
     }
     basicBlocks.push_back(block);
 }
@@ -162,7 +174,7 @@ void SIRClass::addField(const std::string& name, SadTypeKind type) {
 
 void SIRClass::addMethod(std::shared_ptr<SIRFunction> method) {
     if (!method) {
-        throw std::runtime_error("Cannot add null method to class");
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null method to class"));
     }
     methods_[method->name] = method;
 }
@@ -231,21 +243,21 @@ const std::vector<std::shared_ptr<SIRFunction>>& SIRModule::getFunctions() const
 
 void SIRModule::addFunction(std::shared_ptr<SIRFunction> func) {
     if (!func) {
-        throw std::runtime_error("Cannot add null function to module");
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null function to module"));
     }
     functions_.push_back(func);
 }
 
 void SIRModule::addGlobalVariable(std::shared_ptr<SIRGlobalVariable> globalVar) {
     if (!globalVar) {
-        throw std::runtime_error("Cannot add null global variable to module");
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null global variable to module"));
     }
     globalVariables_.push_back(globalVar);
 }
 
 void SIRModule::addClass(std::shared_ptr<SIRClass> cls) {
     if (!cls) {
-        throw std::runtime_error("Cannot add null class to module");
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null class to module"));
     }
     classes_.push_back(cls);
 }

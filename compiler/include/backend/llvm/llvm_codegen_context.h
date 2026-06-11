@@ -31,11 +31,14 @@
 #ifndef SAD_LLVM_CODEGEN_CONTEXT_H
 #define SAD_LLVM_CODEGEN_CONTEXT_H
 
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "error_codes.h" // (AR) EM-CPP-7: Sad::Errors::ErrorCode للكتالوج
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -146,6 +149,11 @@ namespace Sad
              * (EN) Record an error and print to stderr
              */
             void reportError(const std::string &message);
+
+            /// (AR) EM-CPP-7: تسجيل خطأ من الكتالوج (ErrorCode + placeholders).
+            /// (EN) EM-CPP-7: record an error from the catalog (ErrorCode + placeholders).
+            void reportError(Sad::Errors::ErrorCode code,
+                             std::map<std::string, std::string> placeholders = {});
 
             /**
              * (AR) هل هناك أخطاء مسجّلة؟

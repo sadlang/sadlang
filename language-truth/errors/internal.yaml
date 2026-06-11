@@ -1,0 +1,53 @@
+# internal.yaml — أخطاء المترجم الداخلية (ICE — Internal Compiler Error) في لغة ص
+# ============================================================================
+# (AR) هذه أخطاء "لا ينبغي أن تحدث" في المترجم (sadc): IR/SIR مشوّه، operands
+#      غير صالحة، عُقد فارغة. تظهر للمستخدم فقط عند خلل في المترجم نفسه — لذا
+#      تأتي من الكتالوج (مصدر موحَّد) مع إشارة صريحة "خطأ مترجم داخلي" وطلب الإبلاغ.
+#      أُضيفت ضمن ترحيل EM-CPP-7 (أخطاء المترجم → الكتالوج).
+# (EN) "Should never happen" compiler (sadc) errors: malformed IR/SIR, invalid
+#      operands, null nodes. Surfaced only on a compiler defect — so they come
+#      from the catalog (single source) with an explicit "internal compiler
+#      error" marker and a request to report.
+# ============================================================================
+
+version: "1.0"
+category: internal
+description_ar: "أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، تُبلَّغ"
+description_en: "Internal compiler errors (ICE) — compiler defects; please report"
+
+errors:
+  - code: INT_COMPILER_NULL_IR
+    id: INT001
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — عقدة IR فارغة
+      en: Internal compiler error — null IR node
+    brief:
+      ar: 'خطأ داخلي في المترجم (IR فارغ): {detail} — يُرجى الإبلاغ عن هذا الخطأ'
+      en: 'Internal compiler error (null IR): {detail} — please report this bug'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: هذا خلل في المترجم لا في برنامجك. أبلِغ عنه مع مثال يعيد إنتاجه. كحلٍّ مؤقت، جرّب المفسر.
+      en: 'This is a compiler defect, not your program. Please report it with a reproducer. Workaround: try the interpreter.'
+    detailed:
+      ar: المترجم حاول بناء تمثيل وسيط (IR/SIR) بعقدة فارغة (null). يعني هذا انتهاك ثابت داخلي في توليد الكود — لا علاقة له بصحّة كود ص. الرجاء الإبلاغ.
+      en: The compiler tried to build IR/SIR with a null node — an internal invariant violation in codegen, unrelated to your ص code's validity. Please report.
+
+  - code: INT_COMPILER_INVALID_OPERANDS
+    id: INT002
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — operands غير صالحة
+      en: Internal compiler error — invalid operands
+    brief:
+      ar: 'خطأ داخلي في المترجم (operands غير صالحة): {detail} — يُرجى الإبلاغ عن هذا الخطأ'
+      en: 'Internal compiler error (invalid operands): {detail} — please report this bug'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: هذا خلل في المترجم لا في برنامجك. أبلِغ عنه مع مثال يعيد إنتاجه. كحلٍّ مؤقت، جرّب المفسر.
+      en: 'This is a compiler defect, not your program. Please report it with a reproducer. Workaround: try the interpreter.'
+    detailed:
+      ar: تعليمة في التمثيل الوسيط (SIR) وصلت لمولِّد الكود بعدد/نوع operands غير متوقَّع. التحليل الدلالي يُفترض أن يمنع هذا قبل التوليد — وصوله هنا يعني خللاً داخلياً. الرجاء الإبلاغ.
+      en: An SIR instruction reached codegen with an unexpected operand count/type. Semantic analysis should prevent this before codegen — reaching here means an internal defect. Please report.

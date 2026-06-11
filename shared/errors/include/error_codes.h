@@ -196,7 +196,14 @@ namespace Sad
             RUN_OFFSET_OUT_OF_RANGE, ///< RUN051: (AR) إزاحة خارج النطاق / (EN) Offset out of range
 
             // --- User-thrown / استثناء المستخدم ---
-            RUN_USER_THROWN ///< RUN052: (AR) قيمة مرمية بـ ارمي / (EN) User-thrown value via 'throw'
+            RUN_USER_THROWN, ///< RUN052: (AR) قيمة مرمية بـ ارمي / (EN) User-thrown value via 'throw'
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.
+            // (EN) Internal compiler errors (ICE) — compiler defects, catalog-based.
+            // ════════════════════════════════════════════════════════════════
+            INT_COMPILER_NULL_IR,         ///< INT001: (AR) عقدة IR فارغة / (EN) Null IR node
+            INT_COMPILER_INVALID_OPERANDS ///< INT002: (AR) operands غير صالحة / (EN) Invalid operands
         };
 
         /**

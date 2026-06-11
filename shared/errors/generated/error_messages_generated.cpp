@@ -544,6 +544,20 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr, nullptr,
       "هذه قيمة رماها المستخدم بـ 'ارمي'. التقطها بـ 'حاول/امسك' وعالجها وفق منطق التطبيق.", "This value was thrown by user code with 'ارمي'. Catch it with 'حاول/امسك' and handle per application logic.",
       nullptr },
+    { ErrorCode::INT_COMPILER_NULL_IR, "INT001", "internal",
+      "خطأ مترجم داخلي — عقدة IR فارغة", "Internal compiler error — null IR node",
+      "خطأ داخلي في المترجم (IR فارغ): {detail} — يُرجى الإبلاغ عن هذا الخطأ", "Internal compiler error (null IR): {detail} — please report this bug",
+      "المترجم حاول بناء تمثيل وسيط (IR/SIR) بعقدة فارغة (null). يعني هذا انتهاك ثابت داخلي في توليد الكود — لا علاقة له بصحّة كود ص. الرجاء الإبلاغ.", "The compiler tried to build IR/SIR with a null node — an internal invariant violation in codegen, unrelated to your ص code's validity. Please report.",
+      nullptr, nullptr,
+      "هذا خلل في المترجم لا في برنامجك. أبلِغ عنه مع مثال يعيد إنتاجه. كحلٍّ مؤقت، جرّب المفسر.", "This is a compiler defect, not your program. Please report it with a reproducer. Workaround: try the interpreter.",
+      nullptr },
+    { ErrorCode::INT_COMPILER_INVALID_OPERANDS, "INT002", "internal",
+      "خطأ مترجم داخلي — operands غير صالحة", "Internal compiler error — invalid operands",
+      "خطأ داخلي في المترجم (operands غير صالحة): {detail} — يُرجى الإبلاغ عن هذا الخطأ", "Internal compiler error (invalid operands): {detail} — please report this bug",
+      "تعليمة في التمثيل الوسيط (SIR) وصلت لمولِّد الكود بعدد/نوع operands غير متوقَّع. التحليل الدلالي يُفترض أن يمنع هذا قبل التوليد — وصوله هنا يعني خللاً داخلياً. الرجاء الإبلاغ.", "An SIR instruction reached codegen with an unexpected operand count/type. Semantic analysis should prevent this before codegen — reaching here means an internal defect. Please report.",
+      nullptr, nullptr,
+      "هذا خلل في المترجم لا في برنامجك. أبلِغ عنه مع مثال يعيد إنتاجه. كحلٍّ مؤقت، جرّب المفسر.", "This is a compiler defect, not your program. Please report it with a reproducer. Workaround: try the interpreter.",
+      nullptr },
 };
 
 const std::size_t kErrorMessagesCount =

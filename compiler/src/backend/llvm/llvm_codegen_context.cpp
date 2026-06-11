@@ -10,6 +10,8 @@
  */
 
 #include "llvm_codegen_context.h"
+#include "error_manager.h"  // (AR) EM-CPP-7: buildBilingualMessage من الكتالوج
+#include "error_catalog.h"  // (AR) RenderContext
 #include <iostream>
 
 namespace Sad
@@ -33,6 +35,16 @@ namespace Sad
             // (AR) طباعة فورية على stderr
             // (EN) Immediate stderr print
             std::cerr << "LLVM CodeGen Error: " << message << std::endl;
+        }
+
+        // (AR) EM-CPP-7: نسخة من الكتالوج (ErrorCode + placeholders) — كل الرسائل من YAML.
+        // (EN) EM-CPP-7: catalog-based variant (ErrorCode + placeholders) — all messages from YAML.
+        void LLVMCodeGenContext::reportError(Sad::Errors::ErrorCode code,
+                                             std::map<std::string, std::string> placeholders)
+        {
+            Sad::Errors::RenderContext ctx;
+            ctx.placeholders = std::move(placeholders);
+            reportError(Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx));
         }
 
     } // namespace LLVM
