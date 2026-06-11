@@ -775,7 +775,7 @@ namespace Sad
                 ::Sad::Errors::throwRuntime(
                     ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
                     node.position,
-                    {{"operand", result.getTypeName()}, {"operator", "انشر"}});
+                    {{"type", result.getTypeName()}, {"operation", "انشر"}});
             }
 
             auto mapVal = result.toMap();
@@ -787,7 +787,7 @@ namespace Sad
                 ::Sad::Errors::throwRuntime(
                     ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
                     node.position,
-                    {{"operand", "non-ADT map"}, {"operator", "انشر"}});
+                    {{"type", "non-ADT map"}, {"operation", "انشر"}});
             }
 
             // ─── الخطوة 3: استخراج اسم العضو ───
@@ -797,7 +797,7 @@ namespace Sad
                 ::Sad::Errors::throwRuntime(
                     ::Sad::Errors::ErrorCode::RUN_PROPERTY_NOT_FOUND,
                     node.position,
-                    {{"property", "__عضو__"}, {"class", "ADT"}});
+                    {{"member", "__عضو__"}, {"class", "ADT"}});
             }
             std::string memberName = memberIt->second.toString();
 

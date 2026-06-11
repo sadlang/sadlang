@@ -688,7 +688,7 @@ namespace Sad
                             ::Sad::Errors::throwRuntime(
                                 ::Sad::Errors::ErrorCode::RUN_NULL_REFERENCE,
                                 node.position,
-                                {});
+                                {{"class", ""}, {"member", "__call__"}, {"reason", "كائن غير قابل للاستدعاء / not callable"}});
                         }
                     }
                     else

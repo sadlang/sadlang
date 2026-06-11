@@ -409,7 +409,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
                         node.position,
-                        {{"operand", objectValue.getTypeName()}, {"operator", "." + node.methodName + "()"}});
+                        {{"type", objectValue.getTypeName()}, {"operation", "." + node.methodName + "()"}});
                 }
             }
 

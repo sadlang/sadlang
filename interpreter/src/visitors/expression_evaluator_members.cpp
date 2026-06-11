@@ -87,7 +87,7 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
                             node.position,
-                            {{"member", node.member}, {"reason", "non-static accessed via class name"}});
+                            {{"resource", node.member}, {"reason", "non-static accessed via class name"}});
                     }
 
                     // فحص الوصول
@@ -195,14 +195,14 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_TUPLE_INDEX_NOT_NUMBER,
                         node.position,
-                        {{"member", node.member}});
+                        {{"actual", node.member}});
                 }
                 catch (const std::out_of_range &)
                 {
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
                         node.position,
-                        {{"index", node.member}, {"container", "tuple"}});
+                        {{"index", node.member}, {"container", "tuple"}, {"length", std::to_string(tupleElements.size())}});
                 }
             }
             else
@@ -277,7 +277,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
                         node.position,
-                        {{"member", node.member}, {"reason", "write-only property (no getter)"}});
+                        {{"resource", node.member}, {"reason", "write-only property (no getter)"}});
                 }
 
                 // ═══════════════════════════════════════════════════════════════
@@ -392,7 +392,7 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
                             node.position,
-                            {{"member", node.memberName}, {"reason", "non-static accessed via class name"}});
+                            {{"resource", node.memberName}, {"reason", "non-static accessed via class name"}});
                     }
 
                     checkMemberAccess(field->visibility, node.memberName, classType);
@@ -481,7 +481,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_TUPLE_INDEX_NOT_NUMBER,
                         node.position,
-                        {{"member", node.memberName}});
+                        {{"actual", node.memberName}});
                 }
                 catch (const std::out_of_range &)
                 {
@@ -555,7 +555,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
                         node.position,
-                        {{"member", node.memberName}, {"reason", "write-only property (no getter)"}});
+                        {{"resource", node.memberName}, {"reason", "write-only property (no getter)"}});
                 }
 
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "get_" + node.memberName);

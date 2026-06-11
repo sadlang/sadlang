@@ -233,11 +233,10 @@ errors:
     ar: فهرس الصف غير رقمي
     en: Tuple index not numeric
   brief:
-    ar: فهرس الصف للعضو '{member}' يجب أن يكون رقماً، لكن المدخل {actual}
-    en: Tuple index for member '{member}' must be numeric, but got {actual}
+    ar: فهرس الصف يجب أن يكون رقماً، لكن المُدخل '{actual}'
+    en: Tuple index must be numeric, but got '{actual}'
   placeholders:
   - actual
-  - member
   fix_hint:
     ar: الصفوف (tuples) تستخدم فهارس رقمية ثابتة. تأكّد من تمرير رقم صحيح في القوسين المربّعين.
     en: Tuples use fixed numeric indices. Ensure you pass an integer in [].
@@ -561,12 +560,10 @@ errors:
     ar: نوع المعامل غير صالح
     en: Operand type invalid
   brief:
-    ar: العامل '{operator}' لا يدعم نوع المعامل '{operand}' ({type}) في العملية '{operation}'
-    en: Operator '{operator}' does not support operand '{operand}' ({type}) in operation '{operation}'
+    ar: نوع المعامل '{type}' غير مدعوم في العملية '{operation}'
+    en: Operand type '{type}' is not supported in operation '{operation}'
   placeholders:
-  - operand
   - operation
-  - operator
   - type
   fix_hint:
     ar: تحقّق من أنواع المعاملات قبل العملية. حوّل بـ رقم()، نص()، عشري() إذا لزم.
@@ -855,11 +852,9 @@ errors:
     ar: صلاحية مرفوضة
     en: Permission denied
   brief:
-    ar: 'تم رفض الوصول إلى ''{resource}'': {reason}'
-    en: 'Access to ''{resource}'' was denied: {reason}'
+    ar: تم رفض الوصول إلى '{resource}'
+    en: Access to '{resource}' was denied
   placeholders:
-  - member
-  - reason
   - resource
   fix_hint:
     ar: 'تحقّق من صلاحيات الملف/المجلد/المورد. على Windows: انقر يمين → خصائص → الأمان. على Unix: chmod/chown.'
