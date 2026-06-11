@@ -434,7 +434,7 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr },
     { ErrorCode::RUN_BUILTIN_REQUIRES_ARG, "RUN037", "runtime",
       "الدالة المدمجة تتطلب وسيطاً", "Builtin requires argument",
-      "الدالة المدمجة استُدعيت بدون الوسائط الإلزامية", "The built-in function was called without its required arguments",
+      "الدالة المدمجة '{func}' استُدعيت بوسائط ناقصة أو من نوع خاطئ", "Built-in '{func}' called with missing or wrong-type arguments",
       "الدوال المدمجة (طول، نوع، اطبع...) لها توقيعات صارمة. استدعاؤها بدون المعاملات الإلزامية يرفع هذا الخطأ. توثيق الدوال المدمجة في `.github/skills/sad-builtins/`.", "Built-in functions (طول, نوع, اطبع...) have strict signatures. Calling without required args raises this error. Built-ins documented in `.github/skills/sad-builtins/`.",
       nullptr, nullptr,
       "راجع توقيع الدالة المدمجة. كل دالة مدمجة لها عدد محدّد من المعاملات الإلزامية.", "Check the built-in's signature. Each built-in has a specific number of required arguments.",

@@ -634,8 +634,10 @@ errors:
     ar: الدالة المدمجة تتطلب وسيطاً
     en: Builtin requires argument
   brief:
-    ar: الدالة المدمجة استُدعيت بدون الوسائط الإلزامية
-    en: The built-in function was called without its required arguments
+    ar: 'الدالة المدمجة ''{func}'' استُدعيت بوسائط ناقصة أو من نوع خاطئ'
+    en: 'Built-in ''{func}'' called with missing or wrong-type arguments'
+  placeholders:
+  - func
   fix_hint:
     ar: راجع توقيع الدالة المدمجة. كل دالة مدمجة لها عدد محدّد من المعاملات الإلزامية.
     en: Check the built-in's signature. Each built-in has a specific number of required arguments.

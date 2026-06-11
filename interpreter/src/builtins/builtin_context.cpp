@@ -15,11 +15,17 @@ namespace Sad
         void BuiltinContext::error(Sad::Errors::ErrorCode code,
                                    std::map<std::string, std::string> placeholders) const
         {
-            // (AR) حقن اسم الدالة افتراضياً (placeholder "func" شائع في رسائل الأخطاء).
-            // (EN) Inject the function name by default ("func" is a common placeholder).
+            // (AR) حقن اسم الدالة افتراضياً تحت الاسمين الشائعين "func" و"builtin"
+            //      (رموز الكتالوج تستخدم أحدهما) — يضمن ملء الـplaceholder أياً كان اسمه.
+            // (EN) Inject the function name under both common placeholder names "func"
+            //      and "builtin" (catalog codes use either) — ensures it is filled.
             if (placeholders.find("func") == placeholders.end())
             {
                 placeholders.emplace("func", std::string(name_));
+            }
+            if (placeholders.find("builtin") == placeholders.end())
+            {
+                placeholders.emplace("builtin", std::string(name_));
             }
             // (AR) المسار الموحَّد: يبلّغ الكتالوج بالموقع ثم يرمي RuntimeAbort.
             // (EN) Unified path: report from catalog at position, then abort.
