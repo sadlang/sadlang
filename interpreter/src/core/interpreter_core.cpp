@@ -627,10 +627,8 @@ namespace Sad
 
             if (!func)
             {
-                throw std::runtime_error(
-                    "(AR) الدالة '" + funcName + "' غير موجودة / "
-                                                 "(EN) Function '" +
-                    funcName + "' not found");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                                            Sad::Lexer::Position{}, {{"function", funcName}});
             }
 
             // ─── (AR) إذا كانت دالة مضمنة — استدعاء مباشر ───
@@ -663,10 +661,8 @@ namespace Sad
             // ─── (EN) Check function has body ───
             if (!func->hasBody())
             {
-                throw std::runtime_error(
-                    "(AR) الدالة '" + funcName + "' ليس لها جسم / "
-                                                 "(EN) Function '" +
-                    funcName + "' has no body");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                                            Sad::Lexer::Position{}, {{"function", funcName}});
             }
 
             // ─── (AR) إنشاء نطاق جديد للدالة ───
@@ -778,9 +774,9 @@ namespace Sad
         {
             if (!obj)
             {
-                throw std::runtime_error(
-                    "(AR) لا يمكن استدعاء طريقة على كائن فارغ / "
-                    "(EN) Cannot call method on null object");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_NULL_REFERENCE,
+                                            Sad::Lexer::Position{},
+                                            {{"member", methodName}, {"class", ""}, {"reason", "الكائن فارغ / null object"}});
             }
 
             // ─── (AR) البحث عن الطريقة في صنف الكائن ───
@@ -788,20 +784,18 @@ namespace Sad
             auto *method = obj->getMethod(methodName);
             if (!method)
             {
-                throw std::runtime_error(
-                    "(AR) الطريقة '" + methodName + "' غير موجودة في الصنف '" +
-                    obj->getClassName() + "' / "
-                                          "(EN) Method '" +
-                    methodName + "' not found in class '" +
-                    obj->getClassName() + "'");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                                            Sad::Lexer::Position{},
+                                            {{"method", methodName}, {"class", obj->getClassName()},
+                                             {"suggestion_clause", ""}, {"suggestion_clause_en", ""}});
             }
 
             if (!method->getBody())
             {
-                throw std::runtime_error(
-                    "(AR) الطريقة '" + methodName + "' ليس لها جسم / "
-                                                    "(EN) Method '" +
-                    methodName + "' has no body");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND,
+                                            Sad::Lexer::Position{},
+                                            {{"method", methodName}, {"class", obj->getClassName()},
+                                             {"suggestion_clause", ""}, {"suggestion_clause_en", ""}});
             }
 
             // ─── (AR) إنشاء نطاق جديد للطريقة ───
@@ -908,18 +902,14 @@ namespace Sad
 
             if (!func)
             {
-                throw std::runtime_error(
-                    "(AR) الدالة '" + funcName + "' غير موجودة / "
-                                                 "(EN) Function '" +
-                    funcName + "' not found");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                                            Sad::Lexer::Position{}, {{"function", funcName}});
             }
 
             if (!func->hasBody())
             {
-                throw std::runtime_error(
-                    "(AR) الدالة '" + funcName + "' ليس لها جسم / "
-                                                 "(EN) Function '" +
-                    funcName + "' has no body");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_FUNCTION_NOT_FOUND,
+                                            Sad::Lexer::Position{}, {{"function", funcName}});
             }
 
             // ─── (AR) إنشاء نطاق جديد مع سياق الكائن ───
