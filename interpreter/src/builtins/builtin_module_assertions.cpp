@@ -1007,7 +1007,7 @@ namespace Sad
                 if (interpreter.getOptions().enableSecurity)
                 {
                     ctx.error(::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
-                              {{"resource", "نظام/system"}, {"reason", "secure-mode blocks system commands (use --no-security)"}});
+                              {{"resource", "نظام/system"}, {"reason", "(AR) الوضع الآمن يمنع أوامر النظام (استخدم --no-security) / (EN) secure-mode blocks system commands"}});
                 }
                 if (args.empty())
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
@@ -1023,7 +1023,7 @@ namespace Sad
                     if (cmd.find(pattern) != std::string::npos)
                     {
                         ctx.error(::Sad::Errors::ErrorCode::RUN_PERMISSION_DENIED,
-                                  {{"resource", "نظام/system"}, {"reason", "dangerous pattern: " + pattern}});
+                                  {{"resource", "نظام/system"}, {"reason", "(AR) نمط خطير / (EN) dangerous pattern: " + pattern}});
                     }
                 }
 

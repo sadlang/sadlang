@@ -298,7 +298,7 @@ namespace Sad
                 std::ifstream file(path, std::ios::binary | std::ios::ate);
                 if (!file.is_open())
                     ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR,
-                              {{"path", path}, {"reason", "cannot open"}});
+                              {{"path", path}, {"reason", "(AR) تعذّر الفتح / (EN) cannot open"}});
                 return makeVal(static_cast<int>(file.tellg()));
             };
             fm.registerBuiltinFunction(std::string(Bmp::FILE_SIZE), file_size_fn);

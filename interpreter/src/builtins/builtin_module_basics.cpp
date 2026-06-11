@@ -199,7 +199,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         
         std::ifstream file(path);
         if (!file.is_open()) {
-            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "read"}});
+            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "(AR) قراءة / (EN) read"}});
         }
         
         std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -222,7 +222,7 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
         
         std::ofstream file(path);
         if (!file.is_open()) {
-            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "write"}});
+            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "(AR) كتابة / (EN) write"}});
         }
         
         file << content;

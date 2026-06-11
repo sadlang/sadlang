@@ -99,3 +99,31 @@ def test_merge_is_idempotent(merged):
     once = [e["code"] for e in sort_entries(merged)]
     twice = [e["code"] for e in sort_entries({**merged, "errors": sort_entries(merged)})]
     assert once == twice
+
+
+def _brief_ar(entry):
+    """(AR) يعيد brief.ar كنص (يدعم dict أو str)."""
+    b = entry.get("brief")
+    return b.get("ar", "") if isinstance(b, dict) else (b or "")
+
+
+def test_em_cpp_builtin_error_placeholders(merged):
+    """
+    (AR) حارس انحدار لترحيل EM-CPP (PR #24): رموز أخطاء الدوال المضمنة المُرحَّلة
+         يجب أن تعرض اسم الدالة/التفصيل عبر placeholders — لا رسائل عامة.
+    (EN) Regression guard for EM-CPP: migrated builtin error codes must surface
+         the function name / detail via placeholders, not generic messages.
+    """
+    by_code = {e["code"]: e for e in merged["errors"]}
+
+    # RUN_BUILTIN_REQUIRES_ARG يعرض اسم الدالة {func} (يُحقَن من ctx.error)
+    req = by_code.get("RUN_BUILTIN_REQUIRES_ARG")
+    assert req, "RUN_BUILTIN_REQUIRES_ARG مفقود من الكتالوج"
+    assert "{func}" in _brief_ar(req), "brief لـ RUN_BUILTIN_REQUIRES_ARG لا يحوي {func}"
+    assert "func" in (req.get("placeholders") or []), "placeholders بلا 'func'"
+
+    # RUN_ASSERTION_FAILED يحفظ تفصيل التأكيد {detail}
+    af = by_code.get("RUN_ASSERTION_FAILED")
+    assert af, "RUN_ASSERTION_FAILED مفقود"
+    assert "{detail}" in _brief_ar(af), "brief لـ RUN_ASSERTION_FAILED لا يحوي {detail}"
+    assert "detail" in (af.get("placeholders") or []), "placeholders بلا 'detail'"
