@@ -488,7 +488,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
                         node.position,
-                        {{"index", node.memberName}, {"container", "tuple"}});
+                        {{"index", node.memberName}, {"container", "tuple"}, {"length", std::to_string(tupleElements.size())}});
                 }
             }
             else
