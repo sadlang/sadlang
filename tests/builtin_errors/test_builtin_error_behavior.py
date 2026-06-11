@@ -72,3 +72,18 @@ def test_no_raw_builtin_messages_leak():
     assert "requires at least one argument" not in out, (
         "رسالة خام قديمة تسرّبت — يجب أن تأتي من الكتالوج:\n" + out
     )
+
+
+def test_imported_module_function_is_callable():
+    """
+    (AR) حارس: استيراد وحدة مضمنة ثم استدعاء دالة منها يعمل (بالاسم المُسجَّل الصحيح).
+         يحرس ضد تشخيص 'علة الاستيراد' الخاطئ — الاستيراد سليم؛ كان الخطأ في أسماء الاختبار.
+         لوغ = Bm::LOG (اللوغاريتم الطبيعي)؛ لوغ(e) ≈ 1.
+    (EN) Guard: importing a builtin module then calling its function works (correct
+         registered name). Refutes the false 'import bug' diagnosis.
+    """
+    out = _run('استورد رياضيات\nاطبع_سطر(لوغ(2.718))\n')
+    assert "0.99" in out or "1.0" in out or "1\n" in out, (
+        "لوغ(2.718) لم يُرجع ~1 بعد استورد رياضيات — الاستيراد/الإرسال معطوب:\n" + out
+    )
+    assert "SEM004" not in out, f"SEM004 — الدالة غير موجودة بعد الاستيراد:\n{out}"
