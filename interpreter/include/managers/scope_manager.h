@@ -272,12 +272,7 @@ private:
     // ═══════════════════════════════════════════════════════════════
     std::vector<std::unique_ptr<Scope>> scopePool_;  ///< (AR) مجمع النطاقات المعاد تدويرها / (EN) Recycled scope pool
     static constexpr size_t MAX_POOL_SIZE = 32;      ///< (AR) الحد الأقصى لحجم المجمع / (EN) Maximum pool size
-    
-    /**
-     * @brief (AR) رمي خطأ ثنائي اللغة
-     * @brief (EN) Throw bilingual error
-     */
-    void throwError(const std::string& messageAr, const std::string& messageEn) const;
+    // (AR) EM-CPP: حُذف throwError — كل المستدعين على الكتالوج (throwRuntime).
 };
 
 /**

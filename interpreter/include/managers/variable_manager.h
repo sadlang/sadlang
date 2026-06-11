@@ -459,14 +459,7 @@ namespace Sad
              */
             Scope *findVariableScope(const std::string &name) const;
 
-            /**
-             * @brief (AR) رمي خطأ ثنائي اللغة
-             * @brief (EN) Throw bilingual error
-             *
-             * @param messageAr (AR) الرسالة بالعربية / (EN) Arabic message
-             * @param messageEn (AR) الرسالة بالإنجليزية / (EN) English message
-             */
-            void throwError(const std::string &messageAr, const std::string &messageEn) const;
+            // (AR) EM-CPP: حُذف throwError — كل المستدعين على الكتالوج (throwRuntime).
         };
 
     } // namespace Data

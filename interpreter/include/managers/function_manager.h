@@ -573,11 +573,7 @@ namespace Sad
             bool trackingRegistrations_ = false;
             std::vector<std::string> trackedRegistrations_;
 
-            /**
-             * @brief (AR) رمي خطأ ثنائي اللغة
-             * @brief (EN) Throw bilingual error
-             */
-            void throwError(const std::string &messageAr, const std::string &messageEn) const;
+            // (AR) EM-CPP: حُذف throwError — كل المستدعين على الكتالوج (throwRuntime).
         };
 
     } // namespace Data
