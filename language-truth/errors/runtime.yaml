@@ -422,12 +422,11 @@ errors:
     ar: خاصية غير موجودة
     en: Property not found
   brief:
-    ar: الخاصية '{property}' غير معرّفة في الصنف '{class}'
-    en: Property '{property}' is not defined in class '{class}'
+    ar: الخاصية '{member}' غير معرّفة في الصنف '{class}'
+    en: Property '{member}' is not defined in class '{class}'
   placeholders:
   - class
   - member
-  - property
   fix_hint:
     ar: تحقّق من اسم الخاصية وأنّها معرّفة في الصنف. للوصول للحقول الخاصّة استخدم دالة 'احصل' عامّة.
     en: Check property name and that it's defined in the class. For private fields use a public 'احصل' (getter).
@@ -494,12 +493,10 @@ errors:
     ar: معامل إلزامي مفقود
     en: Missing required argument
   brief:
-    ar: 'الدالة ''{function}'' تتوقّع المعامل ''{param}'' (الوسيط #{argument})'
-    en: 'Function ''{function}'' expects parameter ''{param}'' (argument #{argument})'
+    ar: 'الدالة ''{function}'' استُدعيت بمعامل إلزامي ناقص'
+    en: 'Function ''{function}'' was called with a missing required argument'
   placeholders:
-  - argument
   - function
-  - param
   fix_hint:
     ar: مرّر جميع المعاملات الإلزامية. للقيم الاختيارية، عرّف الدالة بمعاملات افتراضية.
     en: Pass all required arguments. For optional values, define the function with default parameters.
