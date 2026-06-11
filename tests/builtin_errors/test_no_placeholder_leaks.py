@@ -73,9 +73,13 @@ def test_no_unreplaced_placeholder_leaks(name, src):
 
 
 def test_index_error_shows_container_data():
-    """(AR) بعد الطبقة 3: خطأ الفهرس يُظهر بيانات الحاوية (لا فراغاً ولا {container})."""
+    """
+    (AR) بعد الطبقة 3: خطأ الفهرس يُظهر **نوع الحاوية الفعلي** (عبر getTypeName، دقيق
+         للمصفوفة/الصفوف/النص) لا فراغاً ولا {container} حرفياً.
+    """
     out = _run(_SNIPPETS["index_out_of_range"])
     assert "{container}" not in out, f"تسرّب {{container}}:\n{out}"
-    assert "مصفوفة" in out or "array" in out, (
-        f"لم تُمرَّر بيانات الحاوية (الطبقة 3) — يُتوقّع 'مصفوفة/array':\n{out}"
+    # (AR) getTypeName يُرجع الاسم الداخلي (ARRAY) — متّسق مع بقية رسائل الأخطاء
+    assert "ARRAY" in out, (
+        f"لم تُمرَّر بيانات الحاوية الفعلية (الطبقة 3، obj.getTypeName):\n{out}"
     )
