@@ -6,6 +6,7 @@
 
 #include "error_catalog.h"
 
+#include <cstdlib> // (AR) EM-CPP الطبقة 1: std::getenv لوضع SAD_DEBUG_PLACEHOLDERS
 #include <sstream>
 
 namespace Sad
@@ -67,11 +68,22 @@ namespace Sad
                     }
                     else
                     {
-                        // (AR) مفتاح غير موجود — أبقِ {key} كما هو لكشف الأخطاء
-                        // (EN) Missing key — keep {key} as-is to surface bugs
-                        out.push_back('{');
-                        out.append(key);
-                        out.push_back('}');
+                        // (AR) مفتاح غير موجود. حاجز دفاعي (الطبقة 1):
+                        //  - افتراضياً (إنتاج): يُترك فارغاً — لا يتسرّب '{key}' للمستخدم أبداً.
+                        //  - وضع التطوير (SAD_DEBUG_PLACEHOLDERS مضبوط): يُبقى '{key}' لكشف
+                        //    العلّة للمطوّر (placeholder مطلوب لم يُمرَّر في موقع الاستدعاء).
+                        // (EN) Missing key. Defensive barrier (Layer 1):
+                        //  - Default (prod): blanked — '{key}' never leaks to the user.
+                        //  - Dev mode (SAD_DEBUG_PLACEHOLDERS set): keep '{key}' to surface the bug.
+                        static const bool debugPh =
+                            (std::getenv("SAD_DEBUG_PLACEHOLDERS") != nullptr);
+                        if (debugPh)
+                        {
+                            out.push_back('{');
+                            out.append(key);
+                            out.push_back('}');
+                        }
+                        // وإلا: لا شيء (يُفرَّغ) / else: blanked
                     }
                     i = close + 1;
                 }
