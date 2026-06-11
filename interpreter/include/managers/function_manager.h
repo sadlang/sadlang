@@ -82,7 +82,13 @@
 #include <stdexcept>
 
 #include "value.h"
-#include "builtins/builtin_context.h" // (AR) EM-CPP: سياق استدعاء الدوال المضمنة / (EN) built-in invocation context
+// (AR) EM-CPP: سياق استدعاء الدوال المضمنة. ملاحظة طبقية: FunctionDefinition في
+//      namespace Sad::Data (تاريخي) لكنه ضمن وحدة المفسر (interpreter/)، مثل
+//      BuiltinContext (Sad::Interpreter، interpreter/) — فلا اعتماد بين وحدتين.
+// (EN) Built-in invocation context. Layering note: FunctionDefinition lives in the
+//      Sad::Data namespace (historical) but within the interpreter module, same as
+//      BuiltinContext — so this is not a cross-module dependency.
+#include "builtins/builtin_context.h"
 #include "builtin_error.h"            // (AR) EM-CPP: حامل خطأ الطبقة الأدنى / (EN) lower-layer error carrier
 #include "runtime_throw.h"            // (AR) EM-CPP: throwRuntime لرندرة BuiltinError / (EN) render BuiltinError
 

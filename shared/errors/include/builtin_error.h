@@ -11,6 +11,17 @@
  *      بدل `throw std::runtime_error("نص")`، ترمي `BuiltinError(code, placeholders)`؛
  *      الموزّع (الذي يملك node.position) يلتقطه ويستدعي throwRuntime → الكتالوج.
  *      هذا يحفظ دقّة الموقع ويوحّد الرسائل من YAML.
+ *
+ * @warning (AR) ⚠️ عُرف إلزامي (مراجعة أميليا): BuiltinError يرث std::runtime_error،
+ *          فأي `catch(const std::exception&)` أو `catch(...)` **يلفّ استدعاء دالة مضمنة
+ *          أخرى** سيبتلعه قبل بلوغ callNative (نقطة الالتقاط). لتفادي ذلك في مثل تلك
+ *          الكتل، أعِد رميه صراحةً قبل الالتقاط الواسع:
+ *              catch (const ::Sad::Errors::BuiltinError&) { throw; }
+ *          (تدقيق 2026-06-11: الكتل الواسعة الحالية تلفّ عمليات منخفضة المستوى
+ *           — stoi/تحميل مكتبة/mutex — لا استدعاءات دوال مضمنة، فلا ابتلاع فعلي.)
+ * @warning (EN) ⚠️ Convention: BuiltinError derives from std::runtime_error, so a broad
+ *          `catch(std::exception)`/`catch(...)` that wraps a *call to another builtin*
+ *          will swallow it before it reaches callNative. Re-throw it first in such blocks.
  */
 #ifndef SAD_ERRORS_BUILTIN_ERROR_H
 #define SAD_ERRORS_BUILTIN_ERROR_H
