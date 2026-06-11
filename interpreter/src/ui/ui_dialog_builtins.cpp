@@ -60,7 +60,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
                 {
-                    throw std::runtime_error("\xd8\xa3\xd8\xb8\xd9\x87\xd8\xb1_\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd9\x86\xd8\xb5");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 std::string message = args[0]->toString();
                 int durationMs = 3000;

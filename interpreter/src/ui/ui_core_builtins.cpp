@@ -181,9 +181,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                 {
-                    throw std::runtime_error(
-                        "\xd8\xb4\xd8\xba\xd9\x91\xd9\x84() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac "
-                        "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd8\xac\xd8\xb0\xd8\xb1");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 const auto &rootWidget = *args[0];
 
@@ -202,10 +200,7 @@ namespace Sad
 
                 if (!rootWidget.isObject() && !rootWidget.isMap())
                 {
-                    throw std::runtime_error(
-                        "\xd8\xb4\xd8\xba\xd9\x91\xd9\x84() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac "
-                        "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86 \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 "
-                        "\xd8\xa3\xd9\x88 \xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 \xd8\xa8\xd9\x86\xd9\x91\xd8\xa7\xd8\xa1");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 UIBridge bridge;
                 bool success = bridge.run(rootWidget, const_cast<Interpreter *>(&interpreter));
@@ -226,11 +221,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                 {
-                    throw std::runtime_error(
-                        "\xd8\xaa\xd8\xb4\xd8\xba\xd9\x8a\xd9\x84_\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82() "
-                        "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 "
-                        "\xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9 \xd8\xa3\xd9\x88 "
-                        "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 \xd8\xa8\xd9\x86\xd9\x91\xd8\xa7\xd8\xa1");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     // "تشغيل_تطبيق() يحتاج عنصر واجهة أو دالة بنّاء"
                 }
                 const auto &rootWidget = *args[0];
@@ -265,7 +256,7 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateTo(*args[0]);
@@ -282,10 +273,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 // (AR) يحتاج 2 وسائط على الأقل: الصفحة + نوع الانتقال
                 if (args.size() < 2)
-                    throw std::runtime_error(
-                        "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83() "
-                        "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9 "
-                        "\xd9\x88\xd9\x86\xd9\x88\xd8\xb9 \xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd8\xa7\xd9\x84");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 // "انتقل_بتحريك() يحتاج صفحة ونوع انتقال"
 
                 std::string transType = args[1]->toString();
@@ -311,11 +299,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 // (AR) يحتاج 3 وسائط على الأقل: الصفحة + دخول + خروج
                 if (args.size() < 3)
-                    throw std::runtime_error(
-                        "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83_\xd9\x83\xd8\xa7\xd9\x85\xd9\x84() "
-                        "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9 "
-                        "\xd9\x88\xd9\x86\xd9\x88\xd8\xb9 \xd8\xaf\xd8\xae\xd9\x88\xd9\x84 "
-                        "\xd9\x88\xd9\x86\xd9\x88\xd8\xb9 \xd8\xae\xd8\xb1\xd9\x88\xd8\xac");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 // "انتقل_بتحريك_كامل() يحتاج صفحة ونوع دخول ونوع خروج"
 
                 std::string entryType = args[1]->toString();
@@ -380,7 +364,7 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    throw std::runtime_error("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->replacePage(*args[0]);
@@ -446,7 +430,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty() || !args[0]->isString())
                 {
-                    throw std::runtime_error("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9() \xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd9\x86\xd8\xb5");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 auto *bridge = UIBridge::active();
                 if (bridge)
@@ -519,10 +503,7 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                 {
-                    throw std::runtime_error(
-                        "\xd8\xaa\xd9\x88\xd9\x84\xd9\x8a\xd8\xaf_\xd9\x88\xd9\x8a\xd8\xa8() "
-                        "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 "
-                        "\xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     // "توليد_ويب() يحتاج عنصر واجهة"
                 }
 
@@ -543,10 +524,7 @@ namespace Sad
                     }
                     catch (const std::exception &e)
                     {
-                        throw std::runtime_error(
-                            std::string("\xd9\x81\xd8\xb4\xd9\x84 \xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9\xd8\xa7\xd8\xa1 "
-                                        "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xa8\xd9\x86\xd9\x91\xd8\xa7\xd8\xa1: ") +
-                            e.what());
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                         // "فشل استدعاء دالة البنّاء: ..."
                     }
                 }
@@ -556,9 +534,7 @@ namespace Sad
                 auto irRoot = bridge.convertToIR(actualWidget);
                 if (!irRoot)
                 {
-                    throw std::runtime_error(
-                        "\xd9\x81\xd8\xb4\xd9\x84 \xd8\xaa\xd8\xad\xd9\x88\xd9\x8a\xd9\x84 "
-                        "\xd8\xa7\xd9\x84\xd8\xb4\xd8\xac\xd8\xb1\xd8\xa9 \xd8\xa5\xd9\x84\xd9\x89 IR");
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     // "فشل تحويل الشجرة إلى IR"
                 }
 

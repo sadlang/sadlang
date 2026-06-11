@@ -98,11 +98,7 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
     {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0]->isString()) {
-            throw std::runtime_error(
-                "\xd8\xb9\xd8\xb1\xd9\x91\xd9\x81_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
-                "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xa7\xd8\xb3\xd9\x85 "
-                "(\xd9\x86\xd8\xb5) \xd9\x88\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9 "
-                "\xd8\xa3\xd9\x88\xd9\x84\xd9\x8a\xd8\xa9");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // عرّف_حالة() يحتاج اسم (نص) وقيمة أولية
         }
 
@@ -140,10 +136,7 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
     {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0]->isString()) {
-            throw std::runtime_error(
-                "\xd8\xb9\xd9\x8a\xd9\x91\xd9\x86_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
-                "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xa7\xd8\xb3\xd9\x85 "
-                "(\xd9\x86\xd8\xb5) \xd9\x88\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // عيّن_حالة() يحتاج اسم (نص) وقيمة
         }
 
@@ -189,10 +182,7 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
     {
                 const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]->isString()) {
-            throw std::runtime_error(
-                "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
-                "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xa7\xd8\xb3\xd9\x85 "
-                "(\xd9\x86\xd8\xb5)");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // اقرأ_حالة() يحتاج اسم (نص)
         }
 
@@ -225,10 +215,7 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
     {
                 const auto &args = ctx.args(); (void)args;
         if (args.empty() || !args[0]->isString()) {
-            throw std::runtime_error(
-                "\xd9\x87\xd9\x84_\xd8\xaa\xd9\x88\xd8\xac\xd8\xaf_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
-                "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xa7\xd8\xb3\xd9\x85 "
-                "(\xd9\x86\xd8\xb5)");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // هل_توجد_حالة() يحتاج اسم (نص)
         }
 
@@ -293,11 +280,7 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 3 || !args[0]->isString() ||
             !args[1]->isArray() || !args[2]->isFunction()) {
-            throw std::runtime_error(
-                "\xd8\xb9\xd8\xb1\xd9\x91\xd9\x81_\xd9\x85\xd8\xad\xd8\xb3\xd9\x88\xd8\xa8() "
-                "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xa7\xd8\xb3\xd9\x85\xd8\x8c "
-                "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9_\xd8\xa7\xd8\xb9\xd8\xaa\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa7\xd8\xaa\xd8\x8c "
-                "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // عرّف_محسوب() يحتاج اسم، مصفوفة_اعتمادات، دالة
         }
 
@@ -352,10 +335,7 @@ void registerUIStateBuiltins(Interpreter& interpreter) {
     {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2 || !args[0]->isString() || !args[1]->isFunction()) {
-            throw std::runtime_error(
-                "\xd8\xb1\xd8\xa7\xd9\x82\xd8\xa8_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9() "
-                "\xd9\x8a\xd8\xad\xd8\xaa\xd8\xa7\xd8\xac \xd8\xa7\xd8\xb3\xd9\x85 "
-                "(\xd9\x86\xd8\xb5) \xd9\x88\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9");
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // راقب_حالة() يحتاج اسم (نص) ودالة
         }
 
