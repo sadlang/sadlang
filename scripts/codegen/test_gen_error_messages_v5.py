@@ -127,3 +127,22 @@ def test_em_cpp_builtin_error_placeholders(merged):
     assert af, "RUN_ASSERTION_FAILED مفقود"
     assert "{detail}" in _brief_ar(af), "brief لـ RUN_ASSERTION_FAILED لا يحوي {detail}"
     assert "detail" in (af.get("placeholders") or []), "placeholders بلا 'detail'"
+
+
+def test_em_cpp7_internal_ice_codes(merged):
+    """
+    (AR) حارس EM-CPP-7 (PR #34/#35): أخطاء المترجم الداخلية (ICE) من الكتالوج.
+         يجب أن تكون فئتها 'internal'، وتحمل {detail} (بيانات لا نثر)، وتوسم
+         صراحةً كخطأ مترجم يُبلَّغ — حتى لا يتسرّب نصّ رسالة مكتوب يدوياً في C++.
+    (EN) EM-CPP-7 guard: internal compiler errors (ICE) come from the catalog —
+         category 'internal', {detail} placeholder, explicit "report" framing.
+    """
+    by_code = {e["code"]: e for e in merged["errors"]}
+    for code in ("INT_COMPILER_NULL_IR", "INT_COMPILER_INVALID_OPERANDS"):
+        e = by_code.get(code)
+        assert e, f"{code} مفقود من الكتالوج (internal.yaml)"
+        assert e["category"] == "internal", f"{code} ليس في فئة internal"
+        assert "{detail}" in _brief_ar(e), f"brief لـ {code} لا يحوي {{detail}}"
+        assert "detail" in (e.get("placeholders") or []), f"{code}: placeholders بلا 'detail'"
+        # (AR) وسم «خطأ مترجم — أبلِغ» موجود (لا يُعامَل كخطأ مستخدِم)
+        assert "المترجم" in _brief_ar(e), f"{code}: لا يوسم كخطأ مترجم داخلي"

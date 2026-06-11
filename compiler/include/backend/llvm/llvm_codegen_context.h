@@ -151,9 +151,12 @@ namespace Sad
             void reportError(const std::string &message);
 
             /// (AR) EM-CPP-7: تسجيل خطأ من الكتالوج (ErrorCode + placeholders).
-            /// (EN) EM-CPP-7: record an error from the catalog (ErrorCode + placeholders).
+            ///      placeholders إلزامية: إطارات INT تتطلّب {detail} — لا افتراضي فارغ
+            ///      يمنع تسرّب "{detail}" حرفياً عند نسيان التمرير.
+            /// (EN) EM-CPP-7: record an error from the catalog. placeholders are required —
+            ///      INT frames need {detail}; no empty default (avoids literal "{detail}").
             void reportError(Sad::Errors::ErrorCode code,
-                             std::map<std::string, std::string> placeholders = {});
+                             std::map<std::string, std::string> placeholders);
 
             /**
              * (AR) هل هناك أخطاء مسجّلة؟
