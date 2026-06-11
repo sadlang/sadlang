@@ -889,7 +889,6 @@ errors:
     ar: 'خطأ رماه الكود ولم يُلتقط بـ ''حاول/امسك'': {message}'
     en: 'Error thrown by code and not caught by ''حاول/امسك'': {message}'
   placeholders:
-  - type
   - message
   fix_hint:
     ar: هذه قيمة رماها المستخدم بـ 'ارمي' أو 'خطأ'. التقطها بـ 'حاول/امسك' وعالجها وفق منطق التطبيق.

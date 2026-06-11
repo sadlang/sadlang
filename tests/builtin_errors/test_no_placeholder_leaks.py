@@ -33,13 +33,17 @@ pytestmark = pytest.mark.skipif(
     reason="sad-run.exe غير مبني — يتطلب: cmake --build build --target sad-run",
 )
 
-# (AR) نمط placeholder حرفي مُتسرّب: {كلمة_إنجليزية} (لا يطابق محتوى عربياً أو أقواساً برمجية)
-_LEAK = re.compile(r"\{[a-z_]{3,}\}")
+# (AR) نمط placeholder حرفي مُتسرّب: {اسم_بأحرف_صغيرة}. الحدّ {1,} (لا {3,}) ليرصد
+#      المفاتيح القصيرة مثل {a} (قسمة على صفر) و{op} (مراجعة أميليا — كان {3,} يفوتها).
+_LEAK = re.compile(r"\{[a-z_]+\}")
 
 # (AR) مقاطع تُطلِق أخطاءً وقت التشغيل في مسارات متنوّعة (يجب أن تُرندَر بلا تسرّب)
 _SNIPPETS = {
     "index_out_of_range": "متغير ل = [1، 2]؛ اطبع_سطر(ل[10])\n",
     "index_assign": "متغير ل = [1، 2]؛ ل[9] = 3\n",
+    "division_by_zero": "اطبع_سطر(5 ÷ 0)\n",
+    "modulo_by_zero": "اطبع_سطر(5 % 0)\n",
+    "builtin_no_arg": "طول()\n",
 }
 
 
