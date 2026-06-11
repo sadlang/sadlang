@@ -70,7 +70,7 @@ namespace Sad
                 }
                 catch (const std::regex_error &)
                 {
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX), regex_match_fn);
@@ -94,7 +94,7 @@ namespace Sad
                 }
                 catch (const std::regex_error &)
                 {
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX_SEARCH), regex_search_fn);
@@ -114,7 +114,7 @@ namespace Sad
                 }
                 catch (const std::regex_error &)
                 {
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX_REPLACE), regex_replace_fn);
@@ -140,7 +140,7 @@ namespace Sad
                 }
                 catch (const std::regex_error &)
                 {
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
             };
             fm.registerBuiltinFunction(std::string(Bmp::REGEX_FIND_ALL), regex_find_all_fn);

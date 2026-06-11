@@ -86,7 +86,7 @@ namespace Sad
                 const auto &arr = args[0]->toArrayRef();
                 int chunkSize = args[1]->toInt();
                 if (chunkSize <= 0)
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType result;
                 for (size_t i = 0; i < arr.size(); i += chunkSize)
                 {
@@ -333,7 +333,7 @@ namespace Sad
                 int64_t rows = args[0]->toInt();
                 int64_t cols = args[1]->toInt();
                 if (rows <= 0 || cols <= 0)
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
 
                 // (AR) تحقق من وجود بُعد ثالث (3D)
                 if (args.size() >= 3 && args[2]->isNumeric() && args[2]->toInt() > 0 && (args.size() < 4 || args[3]->isNumeric()))
@@ -394,7 +394,7 @@ namespace Sad
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t n = args[0]->toInt();
                 if (n <= 0)
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType result;
                 for (int64_t i = 0; i < n; ++i)
                 {
@@ -428,7 +428,7 @@ namespace Sad
                         step = args[2]->toInt();
                 }
                 if (step == 0)
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 Data::Value::ArrayType result;
                 if (step > 0)
                 {

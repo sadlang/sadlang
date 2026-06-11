@@ -90,7 +90,7 @@ namespace Sad
                 if (args.size() < 2)
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isMap())
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 const auto &map = args[0]->toMapRef();
                 std::string key = args[1]->toString();
                 auto it = map.find(key);
@@ -109,7 +109,7 @@ namespace Sad
                 if (args.size() < 3)
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isMap())
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto map = args[0]->toMap(); // نسخة
                 map[args[1]->toString()] = *args[2];
                 return makeMapVal(map);
