@@ -1,0 +1,74 @@
+"""
+============================================================================
+(AR) اختبارات سلوكية end-to-end لترحيل أخطاء الدوال المضمنة (EM-CPP).
+     تشغّل لقطات .ص عبر المفسر (sad-run) وتتحقّق أن أخطاء الدوال المضمنة
+     تُعرَض من الكتالوج المُولَّد (رمز [RUN0XX] + اسم الدالة) — لا رسائل خام.
+(EN) End-to-end behavioral tests for the builtin-error migration (EM-CPP).
+     Runs .ص snippets through the interpreter and asserts builtin errors render
+     from the generated catalog (code [RUN0XX] + function name), not raw strings.
+----------------------------------------------------------------------------
+(AR) يُثبت: المسار shared/builtins → BuiltinError → callNative → throwRuntime →
+     الكتالوج. الدوال الأساسية (طول/أضف) قابلة للوصول (غير مُبوّبة).
+============================================================================
+"""
+from __future__ import annotations
+
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+
+# (AR) مواقع محتملة لـ sad-run.exe (Debug build)
+_CANDIDATES = [
+    ROOT / "build" / "bin" / "Debug" / "sad-run.exe",
+    ROOT / "build" / "bin" / "sad-run.exe",
+    ROOT / "build" / "bin" / "Release" / "sad-run.exe",
+]
+SAD_RUN = next((p for p in _CANDIDATES if p.exists()), None)
+
+pytestmark = pytest.mark.skipif(
+    SAD_RUN is None,
+    reason="sad-run.exe غير مبني — يتطلب: cmake --build build --target sad-run",
+)
+
+
+def _run(source: str) -> str:
+    """(AR) يكتب لقطة .ص ويشغّلها، ويعيد stdout+stderr مجمَّعين."""
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".ص", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(source)
+        path = f.name
+    try:
+        proc = subprocess.run(
+            [str(SAD_RUN), path],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+        return (proc.stdout or "") + (proc.stderr or "")
+    finally:
+        os.unlink(path)
+
+
+def test_length_no_args_renders_run037_with_name():
+    """(AR) طول() بلا وسائط → [RUN037] من الكتالوج مع اسم الدالة 'طول'."""
+    out = _run("طول()\n")
+    assert "[RUN037]" in out, f"رمز الخطأ المتوقّع [RUN037] غائب:\n{out}"
+    assert "طول" in out, f"اسم الدالة 'طول' غائب عن الرسالة:\n{out}"
+    # (AR) تأكيد أنها رسالة الكتالوج لا رسالة خام قديمة
+    assert "الدالة المدمجة" in out, f"رسالة الكتالوج غائبة:\n{out}"
+
+
+def test_no_raw_builtin_messages_leak():
+    """(AR) لا تتسرّب رسائل خام قديمة (مثل 'requires at least one argument')."""
+    out = _run("طول()\n")
+    assert "requires at least one argument" not in out, (
+        "رسالة خام قديمة تسرّبت — يجب أن تأتي من الكتالوج:\n" + out
+    )
