@@ -382,7 +382,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
                         node.position,
-                        {{"index", std::to_string(idx)}, {"length", std::to_string(size)}});
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(size)}, {"container", "مصفوفة/array"}});
                 }
 
                 arr[idx] = newValue;

@@ -404,7 +404,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
                         node.position,
-                        {{"index", std::to_string(idx)}, {"length", std::to_string(sz)}});
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(sz)}, {"container", "مصفوفة/array"}});
                 }
 
                 lastResult_ = arr[idx];
@@ -491,7 +491,7 @@ namespace Sad
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
                         node.position,
-                        {{"index", std::to_string(idx)}, {"length", std::to_string(sz)}});
+                        {{"index", std::to_string(idx)}, {"length", std::to_string(sz)}, {"container", "مصفوفة/array"}});
                 }
 
                 lastResult_ = tupleElements[idx];
