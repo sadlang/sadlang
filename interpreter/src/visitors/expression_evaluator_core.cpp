@@ -222,20 +222,20 @@ namespace Sad
                 }
                 catch (const std::invalid_argument &)
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
-                        "تنسيق عدد غير صالح: " + value,
-                        "Invalid number format: " + value);
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"detail", value}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                     return Value(0);
                 }
                 catch (const std::out_of_range &)
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
-                        "العدد خارج النطاق: " + value,
-                        "Number out of range: " + value);
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"detail", value}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                     return Value(0);
                 }
             }
@@ -248,20 +248,20 @@ namespace Sad
                 }
                 catch (const std::invalid_argument &)
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
-                        "تنسيق عدد عشري غير صالح: " + token.getValue(),
-                        "Invalid float format: " + token.getValue());
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"detail", token.getValue()}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                     return Value(0.0);
                 }
                 catch (const std::out_of_range &)
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
-                        "العدد العشري خارج النطاق: " + token.getValue(),
-                        "Float out of range: " + token.getValue());
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"detail", token.getValue()}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                     return Value(0.0);
                 }
             }
@@ -279,11 +279,11 @@ namespace Sad
                 return Value(); // VOID
 
             default:
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
-                    "نوع رمز غير مدعوم: " + token.getValue(),
-                    "Unsupported token type: " + token.getValue());
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"detail", token.getValue()}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                    Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                 return Value(); // Return null
             }
         }
@@ -344,24 +344,18 @@ namespace Sad
 
                 // متغير غير معرّف — مع اقتراح "هل قصدت؟"
                 // (EN) Undefined variable — with "Did you mean?" suggestion
-                std::string msgAr = "متغير غير معرّف: " + node.name;
-                std::string msgEn = "Undefined variable: " + node.name;
-
-                // (AR) بحث عن أسماء مشابهة / (EN) Search for similar names
+                // (AR) بحث عن أسماء مشابهة للاقتراح "هل قصدت؟"
                 auto availableNames = variableManager_.getVariableNames();
                 Sad::Errors::SuggestionEngine sugEngine;
                 auto similar = sugEngine.findSimilarSymbols(node.name, availableNames);
+                std::string suggestion;
                 if (!similar.empty())
-                {
-                    msgAr += " — هل قصدت: '" + similar[0] + "'؟";
-                    msgEn += " — Did you mean: '" + similar[0] + "'?";
-                }
-
-                Sad::Errors::ErrorManager::getInstance().reportError(
+                    suggestion = " — هل قصدت: '" + similar[0] + "'؟ / Did you mean: '" + similar[0] + "'?";
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"name", node.name}, {"suggestion", suggestion}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                     Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    msgAr,
-                    msgEn);
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
                 lastResult_ = Value(); // Return null
                 return;
             }
@@ -411,11 +405,13 @@ namespace Sad
             // (AR) التحقق من وجود المتغير / (EN) Check variable exists
             if (!variableManager_.exists(node.variableName))
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85\xD8\xB9\xD8\xB1\xD9\x91\xD9\x81: " + node.variableName,
-                    "Undefined variable: " + node.variableName);
+                {
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"name", node.variableName}, {"suggestion", ""}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                    ::Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                }
                 lastResult_ = Value();
                 return;
             }
@@ -479,11 +475,13 @@ namespace Sad
             }
             else
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "(AR) 'هذا' غير متاح في هذا السياق. (EN) 'this' is not available in this context.",
-                    "'this' keyword used outside of class context");
+                {
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"keyword", "هذا/this"}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                    Sad::Errors::ErrorCode::SEM_THIS_SUPER_UNAVAILABLE,
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                }
                 lastResult_ = Value();
             }
         }
@@ -531,20 +529,24 @@ namespace Sad
                         return;
                     }
                 }
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "(AR) 'الأساس' غير متاح - الصنف لا يرث من صنف آخر. (EN) 'super' not available - class does not inherit.",
-                    "'super' keyword used in class without base class");
+                {
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"keyword", "الأساس/super"}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                    Sad::Errors::ErrorCode::SEM_THIS_SUPER_UNAVAILABLE,
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                }
                 lastResult_ = Value();
             }
             else
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "(AR) 'الأساس' غير متاح في هذا السياق. (EN) 'super' is not available in this context.",
-                    "'super' keyword used outside of class context or class without base");
+                {
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"keyword", "الأساس/super"}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                    Sad::Errors::ErrorCode::SEM_THIS_SUPER_UNAVAILABLE,
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                }
                 lastResult_ = Value();
             }
         }

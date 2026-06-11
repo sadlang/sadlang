@@ -19,8 +19,7 @@ errors:
     en: 'Check denominator before dividing: إذا (denom != 0) ارجع num / denom. For safe division use a ternary expression.'
   detailed:
     ar: القسمة على صفر غير معرّفة رياضياً. لغة ص ترفع هذا الخطأ بدلاً من إنتاج قيمة لانهائية أو NaN كبعض اللغات. يحدث مع العامل '/' أو دالة قسمة. تأكّد دائماً من قيمة المقام قبل العملية.
-    en: Division by zero is mathematically undefined. Sad raises this error instead of producing infinity or NaN like some languages. Occurs with '/' operator or division functions. Always validate the
-      denominator first.
+    en: Division by zero is mathematically undefined. Sad raises this error instead of producing infinity or NaN like some languages. Occurs with '/' operator or division functions. Always validate the denominator first.
 - code: RUN_INDEX_OUT_OF_RANGE
   id: RUN002
   category: runtime
@@ -105,8 +104,7 @@ errors:
     en: 'Ensure the value holds a valid representation of the target type. Example: رقم(''abc'') fails since ''abc'' isn''t numeric.'
   detailed:
     ar: دوال التحويل (رقم، عشري، نص، منطقي) تحاول تفسير القيمة كنوع آخر. إذا فشل التفسير (نص غير رقمي، رقم خارج النطاق، إلخ) يُرفع هذا الخطأ. للتحويلات المحفوفة بالمخاطر، أحط الاستدعاء بـ 'حاول/امسك'.
-    en: Conversion functions (رقم, عشري, نص, منطقي) try to reinterpret a value as another type. If interpretation fails (non-numeric string, out-of-range number, etc.), this error fires. For risky conversions,
-      wrap in 'حاول/امسك'.
+    en: Conversion functions (رقم, عشري, نص, منطقي) try to reinterpret a value as another type. If interpretation fails (non-numeric string, out-of-range number, etc.), this error fires. For risky conversions, wrap in 'حاول/امسك'.
 - code: RUN_FILE_ERROR
   id: RUN007
   category: runtime
@@ -190,8 +188,7 @@ errors:
     ar: استخدم نوع 'عشري' لمدى أوسع، أو قسّم العملية لخطوات أصغر، أو تحقّق من الحدود قبل الضرب/الجمع.
     en: Use 'عشري' (float) for wider range, split the operation into smaller steps, or check bounds before multiply/add.
   detailed:
-    ar: نوع 'رقم' هو عدد صحيح 64-بت، حدّه الأقصى ~9.2 × 10^18. العمليات التي تتجاوز هذا الحد ترفع تجاوزاً عددياً بدلاً من الالتفاف الصامت (wrap-around). للحسابات الكبيرة استخدم 'عشري' (53 بت دقّة، مدى أوسع
-      بكثير).
+    ar: نوع 'رقم' هو عدد صحيح 64-بت، حدّه الأقصى ~9.2 × 10^18. العمليات التي تتجاوز هذا الحد ترفع تجاوزاً عددياً بدلاً من الالتفاف الصامت (wrap-around). للحسابات الكبيرة استخدم 'عشري' (53 بت دقّة، مدى أوسع بكثير).
     en: '''رقم'' is a signed 64-bit integer, max ~9.2 × 10^18. Operations exceeding this raise overflow rather than silent wrap-around. For large arithmetic use ''عشري'' (53-bit precision, much wider range).'
 - code: RUN_STRING_INDEX_OUT_OF_RANGE
   id: RUN012
@@ -412,8 +409,7 @@ errors:
     en: Inspect the constructor ('باني(...)'). Ensure correct arguments and that internal operations don't throw.
   detailed:
     ar: الباني يُنفّذ عند 'جديد صنف(...)'. أي خطأ داخل الباني (قسمة على صفر، استدعاء فاشل، رمي صريح) يلغي إنشاء الكائن ويرفع هذا الخطأ. الاستثناء الأصلي عادةً متاح في تفاصيل الرسالة.
-    en: The constructor runs on 'جديد ClassName(...)'. Any error inside (division by zero, failed call, explicit throw) cancels instantiation and raises this error. The underlying exception is usually in
-      the message details.
+    en: The constructor runs on 'جديد ClassName(...)'. Any error inside (division by zero, failed call, explicit throw) cancels instantiation and raises this error. The underlying exception is usually in the message details.
 - code: RUN_PROPERTY_NOT_FOUND
   id: RUN025
   category: runtime
@@ -492,8 +488,8 @@ errors:
     ar: معامل إلزامي مفقود
     en: Missing required argument
   brief:
-    ar: 'الدالة ''{function}'' استُدعيت بمعامل إلزامي ناقص'
-    en: 'Function ''{function}'' was called with a missing required argument'
+    ar: الدالة '{function}' استُدعيت بمعامل إلزامي ناقص
+    en: Function '{function}' was called with a missing required argument
   placeholders:
   - function
   fix_hint:
@@ -628,8 +624,8 @@ errors:
     ar: الدالة المدمجة تتطلب وسيطاً
     en: Builtin requires argument
   brief:
-    ar: 'الدالة المدمجة ''{func}'' استُدعيت بوسائط ناقصة أو من نوع خاطئ'
-    en: 'Built-in ''{func}'' called with missing or wrong-type arguments'
+    ar: الدالة المدمجة '{func}' استُدعيت بوسائط ناقصة أو من نوع خاطئ
+    en: Built-in '{func}' called with missing or wrong-type arguments
   placeholders:
   - func
   fix_hint:
@@ -724,8 +720,7 @@ errors:
     en: Usually a bug inside the function (it broke its own promise). Review the code to ensure the result satisfies 'يضمن'.
   detailed:
     ar: العقد اللاحق 'يضمن' يصف ضماناً تقدّمه الدالة بعد التنفيذ. فشله يعني أن المنطق الداخلي خاطئ ولا ينتج ما وعد به. هذا خطأ مبرمج، ليس مستخدم.
-    en: The 'يضمن' postcondition describes a guarantee the function makes after execution. Failure means internal logic is wrong and doesn't produce the promised result. This is a programmer error, not
-      a user one.
+    en: The 'يضمن' postcondition describes a guarantee the function makes after execution. Failure means internal logic is wrong and doesn't produce the promised result. This is a programmer error, not a user one.
 - code: RUN_CONTRACT_WHERE_FAILED
   id: RUN043
   category: runtime
@@ -896,3 +891,54 @@ errors:
   detailed:
     ar: '''ارمي قيمة'' يولّد استثناء يحمل القيمة المرماة. إذا لم يُلتقط بـ ''امسك'' في أي مستوى أعلى، يصل إلى أعلى مستوى ويُنهي البرنامج بهذا الخطأ. للتعافي، أحط الكود بـ ''حاول/امسك''.'
     en: '''ارمي value'' generates an exception carrying the thrown value. If uncaught by ''امسك'' at any level, it propagates to top level and terminates with this error. For recovery, wrap in ''حاول/امسك''.'
+- code: RUN_NUMERIC_REQUIRED
+  id: RUN053
+  category: runtime
+  title:
+    ar: تتطلّب قيمة رقمية
+    en: Numeric value required
+  brief:
+    ar: العملية '{op}' تتطلّب قيمة رقمية
+    en: Operation '{op}' requires a numeric value
+  placeholders:
+  - op
+  fix_hint:
+    ar: تأكّد أن المعاملات أرقام؛ حوّل بـ رقم()/عشري().
+    en: Ensure operands are numbers; convert with رقم()/عشري().
+  detailed:
+    ar: طُبّقت العملية '{op}' على قيمة غير رقمية.
+    en: Operation '{op}' was applied to a non-numeric value.
+- code: RUN_COMPREHENSION_NEEDS_ARRAY
+  id: RUN054
+  category: runtime
+  title:
+    ar: الاستيعاب يتطلّب مصفوفة
+    en: Comprehension needs array
+  brief:
+    ar: الاستيعاب ({kind}) يتطلّب مصفوفة
+    en: Comprehension ({kind}) requires an array
+  placeholders:
+  - kind
+  fix_hint:
+    ar: مرّر مصفوفة كمصدر للاستيعاب.
+    en: Pass an array as the comprehension source.
+  detailed:
+    ar: الاستيعاب ({kind}) يمرّ على عناصر مصفوفة؛ وُصِل بنوع آخر.
+    en: The comprehension ({kind}) iterates an array; a non-array was supplied.
+- code: RUN_NOT_ITERABLE
+  id: RUN055
+  category: runtime
+  title:
+    ar: نوع غير قابل للتكرار
+    en: Type not iterable
+  brief:
+    ar: النوع '{type}' غير قابل للتكرار
+    en: Type '{type}' is not iterable
+  placeholders:
+  - type
+  fix_hint:
+    ar: استخدم نوعاً قابلاً للتكرار (مصفوفة/نص/قاموس/مولّد).
+    en: Use an iterable type (array/string/map/generator).
+  detailed:
+    ar: حاول الكود التكرار على قيمة لا تدعم التكرار ('{type}').
+    en: The code tried to iterate a non-iterable value ('{type}').

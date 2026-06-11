@@ -181,11 +181,11 @@ namespace Sad
             // (AR) التحقق من أننا داخل حلقة / (EN) Check that we're inside a loop
             if (!isInLoop())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "'اخرج' خارج حلقة",
-                    "'break' outside loop");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"keyword", "اخرج/break"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_CONTROL_OUTSIDE_LOOP, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 return;
             }
 
@@ -198,11 +198,11 @@ namespace Sad
             // (AR) التحقق من أننا داخل حلقة / (EN) Check that we're inside a loop
             if (!isInLoop())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "'تابع' خارج حلقة",
-                    "'continue' outside loop");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"keyword", "تابع/continue"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_CONTROL_OUTSIDE_LOOP, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 return;
             }
 
@@ -219,13 +219,7 @@ namespace Sad
             // (AR) التحقق من أننا داخل مولّد / (EN) Check that we're inside a generator
             if (!inGenerator_)
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "(AR) 'أنتج' (yield) يستخدم فقط داخل الدوال المولّدة.\n"
-                    "الحل: استخدم 'دالة مولّد' بدلاً من 'دالة' لتعريف المولّد.",
-                    "(EN) 'yield' can only be used inside generator functions.\n"
-                    "Solution: Use 'generator function' instead of 'function' to define a generator.");
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_YIELD_OUTSIDE_GENERATOR, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)));
                 return;
             }
 
@@ -240,11 +234,11 @@ namespace Sad
 
                     if (!iterable.isArray())
                     {
-                        Sad::Errors::ErrorManager::getInstance().reportError(
-                            Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                            "(AR) 'yield from' يتطلب قيمة قابلة للتكرار (مصفوفة).",
-                            "(EN) 'yield from' requires an iterable value (array).");
+                        {
+                            Sad::Errors::RenderContext _rc;
+                            _rc.placeholders = {{"type", "?"}};
+                            Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                        };
                         return;
                     }
 

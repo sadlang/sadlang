@@ -128,11 +128,13 @@ namespace Sad
                 if (!param.hasDefaultValue)
                 {
                     variableManager_.exitScope();
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
-                        Sad::Errors::SourceLocation(getUserFuncSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                        "معامل إلزامي مفقود: " + param.name,
-                        "Required parameter missing: " + param.name);
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"function", param.name}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                            ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
+                            Sad::Errors::SourceLocation(getUserFuncSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                    }
                     lastResult_ = Value();
                     return;
                 }
@@ -533,11 +535,7 @@ namespace Sad
                 if (!bodyExpr)
                 {
                     variableManager_.exitScope();
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-                        Sad::Errors::SourceLocation(getUserFuncSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                        "جسم الدالة فارغ",
-                        "Function body is null");
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_EMPTY_FUNCTION_BODY, Sad::Errors::SourceLocation(getUserFuncSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)));
                     lastResult_ = Value();
                     return;
                 }

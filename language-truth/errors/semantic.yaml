@@ -10,8 +10,8 @@ errors:
     ar: متغير غير معرَّف
     en: Undefined variable
   brief:
-    ar: المتغير '{name}' غير معرَّف
-    en: Variable '{name}' is not defined
+    ar: المتغير '{name}' غير معرَّف{suggestion}
+    en: Variable '{name}' is not defined{suggestion}
   fix_hint:
     ar: 'هل قصدت ''{suggestion}''؟ وإلا، عرّف المتغير قبل استخدامه: متغير {name} = <قيمة>'
     en: 'Did you mean ''{suggestion}''? Otherwise, declare it first: متغير {name} = <value>'
@@ -20,8 +20,7 @@ errors:
   - suggestion
   detailed:
     ar: لغة ص تتطلّب تعريف كل متغيّر بـ'متغير' أو 'ثابت' قبل الاستخدام. هذا الخطأ يحدث عند الإشارة لاسم لم يُعرَّف في النطاق الحالي ولا في النطاقات الأعلى. غالباً يكون السبب خطأً إملائياً أو نسيان التعريف.
-    en: Sad requires every variable declared with 'متغير' or 'ثابت' before use. This error fires when referencing a name not defined in the current scope or any enclosing scope. Usually caused by typos
-      or forgotten declarations.
+    en: Sad requires every variable declared with 'متغير' or 'ثابت' before use. This error fires when referencing a name not defined in the current scope or any enclosing scope. Usually caused by typos or forgotten declarations.
 - code: SEM_TYPE_MISMATCH
   id: SEM002
   category: semantic
@@ -56,8 +55,7 @@ errors:
     en: Remove the duplicate definition or rename it. To reassign an existing variable, drop the 'متغير' keyword on the new line.
   detailed:
     ar: كل اسم في نطاق واحد يُعرَّف مرّة واحدة فقط. تكرار 'متغير اسم = ...' مرّتين في نفس النطاق يُربك المحلّل الدلالي. الإسناد العادي 'اسم = ...' بدون 'متغير' يُحدّث قيمة موجودة بأمان.
-    en: Each name in a single scope is defined only once. Repeating 'متغير name = ...' twice in the same scope confuses semantic analysis. Plain assignment 'name = ...' without 'متغير' safely updates an
-      existing value.
+    en: Each name in a single scope is defined only once. Repeating 'متغير name = ...' twice in the same scope confuses semantic analysis. Plain assignment 'name = ...' without 'متغير' safely updates an existing value.
 - code: SEM_UNDEFINED_FUNCTION
   id: SEM004
   category: semantic
@@ -110,10 +108,8 @@ errors:
     ar: العامل '{op}' غير مدعوم للنوع '{type}'. إن أردت سلوكاً مخصّصاً، عرّف 'عامل {op}' داخل الصنف.
     en: Operator '{op}' is not supported for type '{type}'. For custom behavior, define 'عامل {op}' inside the class.
   detailed:
-    ar: 'كل عامل (+، -، *، /، <، == ...) يعمل على مجموعة محدّدة من الأنواع. مثلاً: ''/'' للأرقام فقط، ''+'' للأرقام والنصوص (تجميع)، ''<'' للأرقام والنصوص (مقارنة). الأنواع المخصّصة (الأصناف) تحتاج تحميل
-      العامل (عامل overloading).'
-    en: 'Each operator (+, -, *, /, <, == ...) works on a specific set of types. For example: ''/'' for numbers only, ''+'' for numbers and strings (concat), ''<'' for numbers and strings (compare). Custom
-      types (classes) need operator overloading.'
+    ar: 'كل عامل (+، -، *، /، <، == ...) يعمل على مجموعة محدّدة من الأنواع. مثلاً: ''/'' للأرقام فقط، ''+'' للأرقام والنصوص (تجميع)، ''<'' للأرقام والنصوص (مقارنة). الأنواع المخصّصة (الأصناف) تحتاج تحميل العامل (عامل overloading).'
+    en: 'Each operator (+, -, *, /, <, == ...) works on a specific set of types. For example: ''/'' for numbers only, ''+'' for numbers and strings (concat), ''<'' for numbers and strings (compare). Custom types (classes) need operator overloading.'
 - code: SEM_CONST_ASSIGNMENT
   id: SEM007
   category: semantic
@@ -163,7 +159,150 @@ errors:
     ar: أضف دالة 'عام' داخل الصنف للوصول إلى '{name}'، أو غيّر '{name}' من 'خاص' إلى 'عام'.
     en: Add a 'عام' (public) method inside the class to access '{name}', or change '{name}' from 'خاص' to 'عام'.
   detailed:
-    ar: الأعضاء المعلَّمة بـ'خاص' متاحة فقط داخل صنفها. الأعضاء المعلَّمة بـ'محمي' متاحة داخل الصنف والأصناف الوارثة. لا يوجد وصول خارجي مباشر إلا للأعضاء العامة. استخدم دوال الوصول (getters) لتعريض البيانات
-      بأمان.
-    en: Members marked 'خاص' (private) are accessible only within their class. 'محمي' (protected) are accessible within the class and inheritors. External direct access works only for public members. Use
-      accessor methods (getters) to safely expose data.
+    ar: الأعضاء المعلَّمة بـ'خاص' متاحة فقط داخل صنفها. الأعضاء المعلَّمة بـ'محمي' متاحة داخل الصنف والأصناف الوارثة. لا يوجد وصول خارجي مباشر إلا للأعضاء العامة. استخدم دوال الوصول (getters) لتعريض البيانات بأمان.
+    en: Members marked 'خاص' (private) are accessible only within their class. 'محمي' (protected) are accessible within the class and inheritors. External direct access works only for public members. Use accessor methods (getters) to safely expose data.
+- code: SEM_ONLY_EQUALITY_ALLOWED
+  id: SEM010
+  category: semantic
+  title:
+    ar: مقارنة غير مسموحة
+    en: Comparison not allowed
+  brief:
+    ar: لا تُدعَم إلا '==' و '!=' مع النوع '{type}'
+    en: Only '==' and '!=' are supported with type '{type}'
+  placeholders:
+  - type
+  fix_hint:
+    ar: استخدم == أو != فقط مع هذا النوع؛ عوامل الترتيب غير معرّفة له.
+    en: Use only == or != with this type; ordering operators are undefined for it.
+  detailed:
+    ar: النوع '{type}' لا يملك ترتيباً طبيعياً، فلا تُدعَم إلا المساواة وعدمها.
+    en: Type '{type}' has no natural ordering, so only equality/inequality are supported.
+- code: SEM_INDEXING_NOT_SUPPORTED
+  id: SEM011
+  category: semantic
+  title:
+    ar: الفهرسة غير مدعومة
+    en: Indexing not supported
+  brief:
+    ar: النوع '{type}' لا يدعم الفهرسة []
+    en: Type '{type}' does not support [] indexing
+  placeholders:
+  - type
+  fix_hint:
+    ar: الفهرسة تعمل على المصفوفات والقواميس والنصوص والصفوف؛ للكائنات عرّف عامل الفهرسة في الصنف.
+    en: Indexing works on arrays/maps/strings/tuples; for objects define an index operator.
+  detailed:
+    ar: حاولت الفهرسة على نوع لا يدعمها.
+    en: You indexed a type that doesn't support it.
+- code: SEM_INVALID_NUMBER_LITERAL
+  id: SEM012
+  category: semantic
+  title:
+    ar: ثابت عددي غير صالح
+    en: Invalid number literal
+  brief:
+    ar: 'ثابت عددي غير صالح: {detail}'
+    en: 'Invalid numeric literal: {detail}'
+  placeholders:
+  - detail
+  fix_hint:
+    ar: تحقّق من صيغة الرقم (تنسيق/مدى).
+    en: Check the number format/range.
+  detailed:
+    ar: تعذّر تحليل ثابت عددي في المصدر ({detail}).
+    en: A numeric literal could not be parsed ({detail}).
+- code: SEM_CONTROL_OUTSIDE_LOOP
+  id: SEM013
+  category: semantic
+  title:
+    ar: تحكّم خارج حلقة
+    en: Control outside loop
+  brief:
+    ar: '''{keyword}'' مُستخدَمة خارج حلقة'
+    en: '''{keyword}'' used outside a loop'
+  placeholders:
+  - keyword
+  fix_hint:
+    ar: اخرج وتابع تُستخدَمان داخل الحلقات فقط.
+    en: Break/continue are valid only inside loops.
+  detailed:
+    ar: جملة تحكّم الحلقة '{keyword}' ظهرت خارج أي حلقة.
+    en: The loop-control statement '{keyword}' appeared outside any loop.
+- code: SEM_YIELD_OUTSIDE_GENERATOR
+  id: SEM014
+  category: semantic
+  title:
+    ar: أنتج خارج مولّد
+    en: yield outside generator
+  brief:
+    ar: أنتج (yield) لا تُستخدَم إلا داخل دالة مولّدة
+    en: yield is only valid inside a generator function
+  fix_hint:
+    ar: ضع أنتج داخل دالة مولّدة، أو استخدم ارجع.
+    en: Place yield inside a generator, or use return.
+  detailed:
+    ar: أنتج تتطلّب سياق دالة مولّدة؛ استُخدِمت خارجه.
+    en: yield requires a generator context; it was used outside one.
+- code: SEM_THIS_SUPER_UNAVAILABLE
+  id: SEM015
+  category: semantic
+  title:
+    ar: this/super غير متاح
+    en: this/super unavailable
+  brief:
+    ar: '''{keyword}'' غير متاح في هذا السياق'
+    en: '''{keyword}'' is not available in this context'
+  placeholders:
+  - keyword
+  fix_hint:
+    ar: هذا يتاح داخل طرائق الصنف، والأساس داخل صنف وارث.
+    en: this is available inside class methods, super inside a subclass.
+  detailed:
+    ar: وصول إلى '{keyword}' خارج سياقه الصحيح.
+    en: Access to '{keyword}' outside its valid context.
+- code: SEM_EMPTY_FUNCTION_BODY
+  id: SEM016
+  category: semantic
+  title:
+    ar: جسم دالة فارغ
+    en: Empty function body
+  brief:
+    ar: جسم الدالة فارغ
+    en: Function body is empty
+  fix_hint:
+    ar: أضِف جسماً للدالة أو احذف التصريح.
+    en: Add a body to the function, or remove the declaration.
+  detailed:
+    ar: حاول المفسر تنفيذ دالة بلا جسم.
+    en: The interpreter tried to execute a function with no body.
+- code: SEM_COMPARE_DIFFERENT_TYPES
+  id: SEM017
+  category: semantic
+  title:
+    ar: مقارنة أنواع مختلفة
+    en: Comparing different types
+  brief:
+    ar: لا يمكن مقارنة قيمتين من نوعين مختلفين
+    en: Cannot compare values of two different types
+  fix_hint:
+    ar: حوّل القيمتين لنفس النوع قبل المقارنة.
+    en: Convert both values to the same type before comparing.
+  detailed:
+    ar: عوامل المقارنة تتطلّب نوعين متوافقين.
+    en: Comparison operators require compatible types.
+- code: SEM_MAIN_FUNCTION_RULE
+  id: SEM018
+  category: semantic
+  title:
+    ar: قاعدة الدالة الرئيسية
+    en: Main function rule
+  brief:
+    ar: تعارض الدالة الرئيسية مع كود المستوى الأعلى
+    en: Main function conflicts with top-level code
+  fix_hint:
+    ar: اجعل رئيسية نقطة الدخول الوحيدة.
+    en: Make the main function the only entry point.
+  detailed:
+    ar: وجود دالة رئيسية يجعل كود المستوى الأعلى ملتبساً.
+    en: A main function makes top-level code ambiguous.

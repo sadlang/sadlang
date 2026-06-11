@@ -297,13 +297,15 @@ namespace Sad
                 default:
                     break;
                 }
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(
-                        Sad::Errors::ErrorManager::getInstance().getSourceFilename().empty() ? "<input>" : Sad::Errors::ErrorManager::getInstance().getSourceFilename(),
-                        static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "العملية '" + opStr + "' غير مدعومة بين نوعي '" + left.getTypeName() + "' و '" + right.getTypeName() + "'",
-                    "Operation '" + opStr + "' not supported between types '" + left.getTypeName() + "' and '" + right.getTypeName() + "'");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"op", opStr}, {"type", left.getTypeName() + " / " + right.getTypeName()}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        ::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                        Sad::Errors::SourceLocation(
+                            Sad::Errors::ErrorManager::getInstance().getSourceFilename().empty() ? "<input>" : Sad::Errors::ErrorManager::getInstance().getSourceFilename(),
+                            static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                }
                 lastResult_ = Value(); // Return null
             }
             }
@@ -351,11 +353,11 @@ namespace Sad
             // التأكد من أن الطرفين رقميين / Ensure both operands are numeric
             if (!left.isNumeric() || !right.isNumeric())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                    "العمليات الحسابية تتطلب قيم رقمية",
-                    "Arithmetic operations require numeric values");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"op", "حسابية / arithmetic"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NUMERIC_REQUIRED, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                };
                 return Value(0); // Return default
             }
 
@@ -481,11 +483,11 @@ namespace Sad
                 }
             }
 
-            Sad::Errors::ErrorManager::getInstance().reportError(
-                Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                "عملية حسابية غير مدعومة",
-                "Unsupported arithmetic operation");
+            {
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"op", "حسابية/arithmetic"}, {"type", "المُعطى/given"}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+            };
             return Value(0); // Return default
         }
 

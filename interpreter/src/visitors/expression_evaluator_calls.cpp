@@ -140,11 +140,11 @@ namespace Sad
                 }
                 else
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                        "السالب يتطلب قيمة رقمية",
-                        "Negation requires numeric value");
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"op", "- (سالب)"}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NUMERIC_REQUIRED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                    };
                     lastResult_ = Value(0);
                 }
                 break;
@@ -157,11 +157,11 @@ namespace Sad
             case TokenType::OP_PLUS: // +x (no-op)
                 if (!operand.isNumeric())
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                        "الموجب يتطلب قيمة رقمية",
-                        "Positive requires numeric value");
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"op", "+ (موجب)"}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NUMERIC_REQUIRED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                    };
                     lastResult_ = Value(0);
                     break;
                 }
@@ -248,11 +248,11 @@ namespace Sad
             }
 
             default:
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "عملية أحادية غير مدعومة",
-                    "Unsupported unary operation");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"op", "أحادية/unary"}, {"type", "المُعطى/given"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 lastResult_ = Value(0);
             }
         }
@@ -381,11 +381,11 @@ namespace Sad
                 // (EN) Accept doubles that represent whole numbers (e.g. 4.0) or truncate them (e.g. 4.5 → 4)
                 if (!index.isNumeric())
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                        "فهرس المصفوفة يجب أن يكون رقماً",
-                        "Array index must be a number");
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"actual", "غير رقمي/non-numeric"}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_ARRAY_INDEX_NOT_NUMBER, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                    };
                     lastResult_ = Value();
                     return;
                 }
@@ -519,20 +519,20 @@ namespace Sad
                 }
                 // (AR) لم يُعرَّف عامل [] — إبلاغ خطأ
                 // (EN) No operator[] defined — report error
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "الكائن لا يدعم الفهرسة — عرّف 'عامل []' في الصنف",
-                    "Object does not support indexing — define 'operator []' in the class");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"type", "كائن/object"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 lastResult_ = Value();
             }
             else
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "الفهرسة تعمل فقط على المصفوفات والقواميس والنصوص والصفوف",
-                    "Indexing works only on arrays, maps, strings, and tuples");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"type", "هذا النوع / this type"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 lastResult_ = Value();
             }
         }

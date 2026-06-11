@@ -115,6 +115,17 @@ namespace Sad
             SEM_PRIVATE_ACCESS, ///< SEM009: (AR) وصول لعضو خاص
                                 ///< (EN) Access to private member
 
+            // (AR) EM: رموز محدَّدة لترحيل reportError اليدوية (السابقة العامة) — SEM010+
+            SEM_ONLY_EQUALITY_ALLOWED,    ///< SEM010: (AR) لا تُدعَم إلا == و!= / (EN) Only equality allowed
+            SEM_INDEXING_NOT_SUPPORTED,   ///< SEM011: (AR) الفهرسة غير مدعومة / (EN) Indexing not supported
+            SEM_INVALID_NUMBER_LITERAL,   ///< SEM012: (AR) ثابت عددي غير صالح / (EN) Invalid number literal
+            SEM_CONTROL_OUTSIDE_LOOP,     ///< SEM013: (AR) تحكّم خارج حلقة / (EN) Control outside loop
+            SEM_YIELD_OUTSIDE_GENERATOR,  ///< SEM014: (AR) أنتج خارج مولّد / (EN) yield outside generator
+            SEM_THIS_SUPER_UNAVAILABLE,   ///< SEM015: (AR) this/super غير متاح / (EN) this/super unavailable
+            SEM_EMPTY_FUNCTION_BODY,      ///< SEM016: (AR) جسم دالة فارغ / (EN) Empty function body
+            SEM_COMPARE_DIFFERENT_TYPES,  ///< SEM017: (AR) مقارنة أنواع مختلفة / (EN) Comparing different types
+            SEM_MAIN_FUNCTION_RULE,       ///< SEM018: (AR) قاعدة الدالة الرئيسية / (EN) Main function rule
+
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors
             // Range: RUN001 - RUN099
@@ -197,6 +208,11 @@ namespace Sad
 
             // --- User-thrown / استثناء المستخدم ---
             RUN_USER_THROWN, ///< RUN052: (AR) قيمة مرمية بـ ارمي / (EN) User-thrown value via 'throw'
+
+            // (AR) EM: رموز محدَّدة لترحيل reportError اليدوية — RUN053+
+            RUN_NUMERIC_REQUIRED,          ///< RUN053: (AR) تتطلّب قيمة رقمية / (EN) Numeric required
+            RUN_COMPREHENSION_NEEDS_ARRAY, ///< RUN054: (AR) الاستيعاب يتطلّب مصفوفة / (EN) Comprehension needs array
+            RUN_NOT_ITERABLE,              ///< RUN055: (AR) نوع غير قابل للتكرار / (EN) Not iterable
 
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.

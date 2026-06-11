@@ -551,11 +551,9 @@ namespace Sad
             // (AR) التحقق من وجود جسم للدالة / (EN) Check if function has body
             if (!func->hasBody())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-                    Sad::Errors::SourceLocation(getDispatchSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "الدالة '" + funcName + "' ليس لها جسم",
-                    "Function '" + funcName + "' has no body");
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                    ::Sad::Errors::ErrorCode::SEM_EMPTY_FUNCTION_BODY,
+                    Sad::Errors::SourceLocation(getDispatchSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)));
                 lastResult_ = Value();
                 return;
             }

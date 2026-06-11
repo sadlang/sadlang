@@ -68,11 +68,11 @@ namespace Sad
                 case TokenType::OP_NOT_EQUAL:
                     return Value(!left.isVoid() || !right.isVoid());
                 default:
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                        Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                        "لا يمكن استخدام عمليات المقارنة (<، >، <=، >=) مع null. استخدم == أو != فقط",
-                        "Cannot use comparison operators (<, >, <=, >=) with null. Use == or != only");
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"type", "null/فارغ"}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_ONLY_EQUALITY_ALLOWED, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                    };
                     return Value(false);
                 }
             }
@@ -110,11 +110,7 @@ namespace Sad
                     return Value(false);
                 if (op == TokenType::OP_NOT_EQUAL)
                     return Value(true);
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                    "لا يمكن مقارنة أنواع مختلفة",
-                    "Cannot compare different types");
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_COMPARE_DIFFERENT_TYPES, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column));
                 return Value(false); // Return default
             }
 
@@ -185,11 +181,11 @@ namespace Sad
                 case TokenType::OP_NOT_EQUAL:
                     return Value(l != r);
                 default:
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                        Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                        "فقط == و != مسموح بهما للقيم المنطقية",
-                        "Only == and != allowed for boolean values");
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"type", "منطقي/bool"}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_ONLY_EQUALITY_ALLOWED, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                    };
                     return Value(false);
                 }
             }
@@ -272,11 +268,11 @@ namespace Sad
                 }
                 // (AR) العمليات الترتيبية غير مدعومة للكائنات
                 // (EN) Ordering operations not supported for objects
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                    "فقط == و != مسموح بهما للكائنات",
-                    "Only == and != allowed for objects");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"type", "كائن/object"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_ONLY_EQUALITY_ALLOWED, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                };
                 return Value(false);
             }
 
@@ -340,11 +336,11 @@ namespace Sad
                 }
             }
 
-            Sad::Errors::ErrorManager::getInstance().reportError(
-                Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                "عملية مقارنة غير مدعومة",
-                "Unsupported comparison operation");
+            {
+                Sad::Errors::RenderContext _rc;
+                _rc.placeholders = {{"op", "مقارنة/comparison"}, {"type", "المُعطى/given"}};
+                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+            };
             return Value(false);
         }
 
@@ -365,11 +361,11 @@ namespace Sad
             case TokenType::OP_OR:
                 return Value(l || r);
             default:
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                    "عملية منطقية غير مدعومة",
-                    "Unsupported logical operation");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"op", "منطقية/logical"}, {"type", "المُعطى/given"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                };
                 return Value(false);
             }
         }
@@ -382,11 +378,11 @@ namespace Sad
         {
             if (!left.isNumeric() || !right.isNumeric())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                    "عمليات البت تتطلب قيم صحيحة",
-                    "Bitwise operations require integer values");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"op", "عمليات البت / bitwise"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NUMERIC_REQUIRED, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                };
                 return Value(0);
             }
 
@@ -426,11 +422,11 @@ namespace Sad
                 return Value(l >> r);
             }
             default:
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
-                    "عملية بت غير مدعومة",
-                    "Unsupported bitwise operation");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"op", "بت/bitwise"}, {"type", "المُعطى/given"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                };
                 return Value(0);
             }
         }

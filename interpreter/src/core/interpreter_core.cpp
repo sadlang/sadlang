@@ -288,15 +288,8 @@ namespace Sad
                             // (EN) Create location from statement (default if not available)
                             Sad::Errors::SourceLocation location("<input>", 1, 1);
 
-                            Sad::Errors::ErrorManager::getInstance().reportError(
-                                Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, // (AR) استخدام خطأ دلالي عام / (EN) Use general semantic error
-                                location,
-                                "(AR) خطأ: عند وجود الدالة الرئيسية 'رئيسية'، يجب أن تكون جميع الجمل التنفيذية داخل دوال.\n"
-                                "       لا يُسمح بكتابة كود تنفيذي خارج الدوال عندما يحتوي البرنامج على دالة رئيسية.\n"
-                                "       الحل: ضع الكود داخل الدالة الرئيسية أو دالة أخرى.",
-                                "(EN) Error: When main function 'رئيسية' exists, all executable statements must be inside functions.\n"
-                                "       Writing executable code outside functions is not allowed when the program has a main function.\n"
-                                "       Solution: Place the code inside the main function or another function.");
+                            Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_MAIN_FUNCTION_RULE, // (AR) استخدام خطأ دلالي عام / (EN) Use general semantic error
+                                location);
 
                             return ExecutionResult(false, Data::Value(),
                                                    "(AR) خطأ: كود تنفيذي خارج الدوال عند وجود main / "

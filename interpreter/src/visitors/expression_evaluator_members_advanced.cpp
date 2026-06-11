@@ -52,11 +52,11 @@ namespace Sad
 
             if (!iterableValue.isArray())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "الاستيعاب القائمي يتطلب مصفوفة",
-                    "List comprehension requires an array");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"kind", "قائمي/list"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_COMPREHENSION_NEEDS_ARRAY, Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 lastResult_ = Value(std::vector<Value>());
                 return;
             }
@@ -119,11 +119,11 @@ namespace Sad
 
             if (!iterableValue.isArray())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "الاستيعاب القاموسي يتطلب مصفوفة",
-                    "Dictionary comprehension requires an array");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"kind", "قاموسي/dict"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_COMPREHENSION_NEEDS_ARRAY, Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
                 lastResult_ = Value(std::unordered_map<std::string, Value>());
                 return;
             }
@@ -197,11 +197,11 @@ namespace Sad
 
             if (!iterableValue.isArray())
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<input>", 0, 0),
-                    "الاستيعاب المجموعة يتطلب مصفوفة",
-                    "Set comprehension requires an array");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"kind", "مجموعة/set"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_COMPREHENSION_NEEDS_ARRAY, Sad::Errors::SourceLocation("<input>", 0, 0), _rc);
+                };
                 lastResult_ = Value(std::vector<Value>());
                 return;
             }

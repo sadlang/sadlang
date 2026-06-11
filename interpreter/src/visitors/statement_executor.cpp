@@ -700,11 +700,11 @@ namespace Sad
                     auto channelIt = objPtr->fields.find("__channel_id__");
                     if (channelIt == objPtr->fields.end())
                     {
-                        Sad::Errors::ErrorManager::getInstance().reportError(
-                            Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                            "كائن قناة تالف",
-                            "Corrupt channel object");
+                        {
+                            Sad::Errors::RenderContext _rc;
+                            _rc.placeholders = {{"operation", "قناة/channel"}, {"reason", "كائن قناة تالف / corrupt channel object"}};
+                            Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                        };
                     }
                     else
                     {
@@ -714,11 +714,11 @@ namespace Sad
 
                         if (!channel)
                         {
-                            Sad::Errors::ErrorManager::getInstance().reportError(
-                                Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                                Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                                "قناة غير موجودة",
-                                "Channel not found");
+                            {
+                                Sad::Errors::RenderContext _rc;
+                                _rc.placeholders = {{"operation", "قناة/channel"}, {"reason", "قناة غير موجودة / channel not found"}};
+                                Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_CHANNEL_OPERATION_FAILED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                            };
                         }
                         else
                         {
@@ -770,20 +770,20 @@ namespace Sad
                 }
                 else
                 {
-                    Sad::Errors::ErrorManager::getInstance().reportError(
-                        Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                        "نوع غير قابل للتكرار",
-                        "Non-iterable type");
+                    {
+                        Sad::Errors::RenderContext _rc;
+                        _rc.placeholders = {{"type", "غير معروف/unknown"}};
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                    };
                 }
             }
             else
             {
-                Sad::Errors::ErrorManager::getInstance().reportError(
-                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                    "نوع غير قابل للتكرار",
-                    "Non-iterable type");
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"type", "غير معروف/unknown"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
+                };
             }
 
             // (AR) تقليل عمق الحلقة / (EN) Decrease loop depth
