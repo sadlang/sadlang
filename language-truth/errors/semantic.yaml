@@ -13,8 +13,8 @@ errors:
     ar: المتغير '{name}' غير معرَّف{suggestion}
     en: Variable '{name}' is not defined{suggestion}
   fix_hint:
-    ar: 'هل قصدت ''{suggestion}''؟ وإلا، عرّف المتغير قبل استخدامه: متغير {name} = <قيمة>'
-    en: 'Did you mean ''{suggestion}''? Otherwise, declare it first: متغير {name} = <value>'
+    ar: 'عرّف المتغير قبل استخدامه: متغير {name} = <قيمة>'
+    en: 'Declare the variable before use: متغير {name} = <value>'
   placeholders:
   - name
   - suggestion

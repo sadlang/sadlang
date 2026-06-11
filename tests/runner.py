@@ -23,6 +23,7 @@
 
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -84,6 +85,9 @@ class TestMetadata:
     priority: str = "P1"
     expect_error: str = ""  # (AR) إذا غير فارغ: الاختبار يتوقع خطأ يحتوي هذا النص
     stdin_data: str = ""    # (AR) إذا غير فارغ: يُمرَّر كـ stdin للمفسر والمترجم
+    # ── وسوم الحتمية (ADR-004 / TEST-007) ──
+    unordered: bool = False        # (AR) @unordered: يُفرز الخرج قبل المقارنة (التزامن — ترتيب غير حتمي)
+    nondeterministic: bool = False # (AR) @nondeterministic: خرج لاحتمي مُثبَت — مقارنة كمجموعة لا تسلسل
 
 
 @dataclass
@@ -115,6 +119,8 @@ _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
 _RE_DESC = re.compile(r"^#\s*@description:?\s+(.+)$")
 _RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-9]+(?:\.[\w.]+)?)$")
 _RE_STDIN = re.compile(r"^#\s*@stdin_data:?\s+(.+)$")  # (AR) بيانات stdin للاختبارات التفاعلية
+_RE_UNORDERED = re.compile(r"^#\s*@unordered\b")          # (AR) فرز الخرج قبل المقارنة
+_RE_NONDET = re.compile(r"^#\s*@nondeterministic\b")      # (AR) خرج لاحتمي مُثبَت
 
 
 def parse_metadata(filepath: Path) -> TestMetadata:
@@ -167,6 +173,15 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                 if m:
                     # (AR) تحويل \n الحرفي إلى سطر جديد فعلي في stdin_data
                     meta.stdin_data = m.group(1).replace(r"\n", "\n")
+                    continue
+                if _RE_UNORDERED.match(line):
+                    meta.unordered = True
+                    continue
+                if _RE_NONDET.match(line):
+                    # (AR) @nondeterministic يستلزم فرز الخرج (مقارنة كمجموعة)
+                    meta.nondeterministic = True
+                    meta.unordered = True
+                    continue
     except (OSError, UnicodeDecodeError):
         pass
     return meta
@@ -284,6 +299,81 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
                 pass
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════
+# الجزء ③ب: وضع التطبيع والمقارنة (ADR-004 / TEST-007)
+# Part ③b: Output normalization & comparison
+# ═══════════════════════════════════════════════════════════════════════════════════
+#
+# (AR) المقارنة الحرفية للخرج تترفرف في حالتين أثبتهما الأساس المرجعي (baseline):
+#   1. التزامن: ترتيب goroutines/القنوات غير حتمي → @unordered يفرز قبل المقارنة.
+#   2. العشري: `/` يُرجع عشري دائماً → فروق تمثيل عائم → تساهل بـ epsilon.
+# (EN) Literal comparison flakes on concurrency ordering and float representation.
+
+FLOAT_EPSILON = 1e-9
+_RE_NUMERIC = re.compile(r"^[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$")
+
+
+def _lines_equal_with_float(a: str, b: str, eps: float = FLOAT_EPSILON) -> bool:
+    """(AR) مقارنة سطرين مع تساهل عائم على الرموز الرقمية.
+    (EN) Compare two lines with float tolerance on numeric tokens.
+    يقارن نصّياً أولاً؛ ثم رمزاً برمز: الرقمية بـ epsilon والباقي نصّياً.
+    """
+    if a == b:
+        return True
+    tokens_a, tokens_b = a.split(), b.split()
+    if len(tokens_a) != len(tokens_b):
+        return False
+    for ta, tb in zip(tokens_a, tokens_b):
+        if ta == tb:
+            continue
+        if _RE_NUMERIC.match(ta) and _RE_NUMERIC.match(tb):
+            try:
+                if math.isclose(float(ta), float(tb), rel_tol=eps, abs_tol=eps):
+                    continue
+            except ValueError:
+                pass
+        return False
+    return True
+
+
+def compare_outputs(interp_out: str, compiler_out: str, meta: TestMetadata) -> bool:
+    """(AR) مقارنة مخرجَي المفسر والمترجم وفق وسوم التطبيع.
+    (EN) Compare interpreter/compiler outputs honoring normalization tags.
+
+    - @unordered / @nondeterministic: تُفرز الأسطر قبل المقارنة (كمجموعة مرتّبة).
+    - تساهل عائم بـ epsilon يُطبَّق دائماً على الرموز الرقمية.
+    - بلا وسوم وبلا فروق عائمة: يكافئ المقارنة الحرفية تماماً (لا تغيير سلوكي).
+    """
+    a_lines = interp_out.split("\n")
+    b_lines = compiler_out.split("\n")
+    if meta and (meta.unordered or meta.nondeterministic):
+        a_lines = sorted(a_lines)
+        b_lines = sorted(b_lines)
+    if len(a_lines) != len(b_lines):
+        return False
+    return all(_lines_equal_with_float(x, y) for x, y in zip(a_lines, b_lines))
+
+
+def classify_flakiness(sad_exe: Path, test_files: list, n: int, timeout: int) -> dict:
+    """(AR) مصنّف الرفرفة (ADR-004 / TEST-007 T1.6).
+    (EN) Flakiness classifier.
+
+    يشغّل كل اختبار N مرة **بالمفسر وحده** ويصنّفه:
+      - 'flaky'        : مخرجات مختلفة بين التشغيلات → لا-حتمية فعلية → مرشّح @nondeterministic.
+      - 'deterministic': مخرجات ثابتة → أي فشل تكافؤ لاحق = خطأ حقيقي (لا يُقنَّع — BF-09).
+    """
+    flaky, deterministic = [], []
+    for tf in test_files:
+        meta = parse_metadata(tf)
+        outs = set()
+        for _ in range(n):
+            out, _t, _e = run_interpreter(sad_exe, tf, meta.timeout or timeout,
+                                          stdin_data=meta.stdin_data)
+            outs.add(out)
+        (flaky if len(outs) > 1 else deterministic).append(str(tf))
+    return {"runs": n, "flaky": flaky, "deterministic": deterministic}
+
+
 def run_single_test(
     sad_exe: Path,
     sadc_exe: Path,
@@ -347,7 +437,7 @@ def run_single_test(
         # (AR) إذا تم تخطي المترجم، نقارن مع @expected فقط
         if meta.expected_output:
             expected = "\n".join(meta.expected_output)
-            if interp_out == expected:
+            if compare_outputs(interp_out, expected, meta):
                 return TestResult(file=rel_path, status=Status.PASS,
                                   interp_output=interp_out, interp_time_ms=interp_time,
                                   metadata=meta)
@@ -380,12 +470,12 @@ def run_single_test(
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                           metadata=meta, error_message=compiler_err)
 
-    # (AR) مقارنة المخرجات
-    if interp_out == compiler_out:
+    # (AR) مقارنة المخرجات — عبر وضع التطبيع (ADR-004: فرز @unordered + تساهل عائم)
+    if compare_outputs(interp_out, compiler_out, meta):
         # (AR) تحقق إضافي من @expected إن وُجد
         if meta.expected_output:
             expected = "\n".join(meta.expected_output)
-            if interp_out != expected:
+            if not compare_outputs(interp_out, expected, meta):
                 return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
                                   interp_output=interp_out, compiler_output=compiler_out,
                                   interp_time_ms=interp_time, compiler_time_ms=compiler_time,
@@ -834,6 +924,16 @@ def main():
                         help="اسم قسم الميزات المختصر (مثل: متغيرات، أنواع، كائني، أنماط، أخطاء، ...)")
     parser.add_argument("--repeat", type=int, default=1,
                         help="عدد تكرارات التشغيل (burn-in). الافتراضي: 1")
+    parser.add_argument("--classify", type=int, nargs="?", const=5, default=0,
+                        metavar="N",
+                        help="مصنّف الرفرفة (ADR-004/TEST-007): يشغّل كل اختبار N مرة "
+                             "بالمفسر (الافتراضي 5)، ويميّز: لاحتمي (مرشّح @nondeterministic) "
+                             "مقابل حتمي-فاشل (خطأ حقيقي يُصلَح لا يُقنَّع). لا يقارن المترجم.")
+    parser.add_argument("--gate", action="store_true",
+                        help="بوّابة قرار (ADR-004): يُصدر PASS/CONCERNS/FAIL. "
+                             "FAIL إذا فشل دخان P0 أو هبطت النسبة تحت --gate-floor.")
+    parser.add_argument("--gate-floor", type=float, default=None, metavar="PCT",
+                        help="أدنى نسبة نجاح مقبولة للبوّابة (مثل 86.0). دونها = FAIL.")
     parser.add_argument("--timeout", type=int, default=0,
                         help="مهلة التنفيذ بالثواني (يتجاوز القيمة في config.yaml)")
     parser.add_argument("--interp", help="مسار المفسر")
@@ -857,8 +957,11 @@ def main():
     args = parser.parse_args()
 
     # (AR) تحديد جذر المشروع
+    # (AR) بعد رفع المشغّل إلى جذر `tests/` (نظام testing-system، TEST-002):
+    #      runner.py يعيش في tests/ → جذر المشروع هو المجلد الأب مباشرةً.
+    # (EN) After lifting the runner to the `tests/` root, project root is the parent dir.
     runner_dir = Path(__file__).resolve().parent
-    project_root = runner_dir.parent.parent  # tests/dual_execution/../../
+    project_root = runner_dir.parent  # tests/../
 
     # (AR) تحميل الإعدادات
     config = load_config(runner_dir / "config.yaml")
@@ -866,7 +969,12 @@ def main():
     # (AR) المسارات
     sad_exe = Path(args.interp) if args.interp else project_root / config["paths"]["interpreter"]
     sadc_exe = Path(args.compiler) if args.compiler else project_root / config["paths"]["compiler"]
-    tests_dir = runner_dir
+    # (AR) موقع المشغّل مفصول عن موقع المحتوى: مجلد الاختبارات يأتي من
+    #      config["paths"]["tests_dir"] (نسبيّ لجذر المشروع) — يسمح بالترحيل التدريجي
+    #      (dual_execution الآن → behavior لاحقاً في TEST-003) دون تعديل المشغّل.
+    # (EN) Runner location decoupled from content: tests dir comes from config,
+    #      enabling gradual migration without touching the runner.
+    tests_dir = project_root / config["paths"].get("tests_dir", "tests/dual_execution")
     temp_dir = project_root / config["execution"]["temp_dir"]
     timeout = args.timeout if args.timeout > 0 else config["execution"]["timeout_seconds"]
     use_colors = not args.no_color and config["output"].get("colors", True)
@@ -951,6 +1059,27 @@ def main():
 
     if not test_files:
         print("⚠️ لا توجد ملفات اختبار")
+        sys.exit(0)
+
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) وضع المصنّف --classify (ADR-004 / TEST-007 T1.6)
+    # ═══════════════════════════════════════════════════════════════
+    if args.classify:
+        b = _BOLD if use_colors else ""
+        r = _RESET if use_colors else ""
+        print(f"\n{b}═══ مصنّف الرفرفة ({args.classify}× بالمفسر) ═══{r}")
+        print(f"  ملفات: {len(test_files)}\n")
+        res = classify_flakiness(sad_exe, test_files, args.classify, timeout)
+        print(f"{b}لاحتمي (مرشّح @nondeterministic): {len(res['flaky'])}{r}")
+        for f in res["flaky"]:
+            print(f"  🔀 {Path(f).name}")
+        print(f"\n{b}حتمي (أي فشل تكافؤ = خطأ حقيقي): {len(res['deterministic'])}{r}")
+        if args.report:
+            out_path = project_root / "build" / "_classify_report.json"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_path, "w", encoding="utf-8") as fh:
+                json.dump(res, fh, ensure_ascii=False, indent=2)
+            print(f"\n📄 التقرير: {out_path}")
         sys.exit(0)
 
     # (AR) الطباعة الأولية
@@ -1112,6 +1241,39 @@ def main():
 
     # (AR) كود الخروج: 0 = كل شيء نجح أو تخطي، 1 = يوجد فشل (أو burn-in به فشل)
     failed = sum(1 for t in results if t.status.value.startswith("FAIL"))
+
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) بوّابة القرار --gate (ADR-004 / TEST-007 T4)
+    # (EN) Decision gate: PASS / CONCERNS / FAIL
+    # ═══════════════════════════════════════════════════════════════
+    if args.gate:
+        total = len(results)
+        passed = sum(1 for t in results if t.status == Status.PASS)
+        rate = (passed / total * 100.0) if total else 0.0
+        # (AR) فشل دخان P0 = حاجز فوري (أعلى مخاطرة)
+        p0_failed = any(
+            t.status.value.startswith("FAIL") and "P0_smoke" in str(t.file).replace("\\", "/")
+            for t in results
+        )
+        floor_breached = args.gate_floor is not None and rate < args.gate_floor
+        g = _GREEN if use_colors else ""
+        rd = _RED if use_colors else ""
+        y = _YELLOW if use_colors else ""
+        re = _RESET if use_colors else ""
+        if p0_failed or floor_breached or burn_in_failures > 0:
+            verdict, color, code = "FAIL", rd, 1
+            reason = ("فشل دخان P0" if p0_failed else
+                      f"النسبة {rate:.1f}% < الحد {args.gate_floor}%" if floor_breached else
+                      "رفرفة burn-in")
+        elif failed > 0:
+            verdict, color, code = "CONCERNS", y, 0
+            reason = f"{failed} فشل ضمن الحد المقبول (بلا تراجع حرج)"
+        else:
+            verdict, color, code = "PASS", g, 0
+            reason = "صفر فشل"
+        print(f"\n{color}{_BOLD if use_colors else ''}بوّابة القرار: {verdict}{re} — {reason}")
+        sys.exit(code)
+
     sys.exit(1 if (failed > 0 or burn_in_failures > 0) else 0)
 
 

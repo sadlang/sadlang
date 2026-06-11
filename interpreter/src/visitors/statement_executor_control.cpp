@@ -236,7 +236,7 @@ namespace Sad
                     {
                         {
                             Sad::Errors::RenderContext _rc;
-                            _rc.placeholders = {{"type", "?"}};
+                            _rc.placeholders = {{"type", iterable.getTypeName()}};
                             Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
                         };
                         return;

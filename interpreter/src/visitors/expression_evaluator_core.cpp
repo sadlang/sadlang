@@ -279,12 +279,14 @@ namespace Sad
                 return Value(); // VOID
 
             default:
+            {
                 Sad::Errors::RenderContext _rc;
-                _rc.placeholders = {{"detail", token.getValue()}};
+                _rc.placeholders = {{"op", "تقييم رمز / literal eval"}, {"type", token.getValue()}};
                 Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
-                    Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
                     Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                 return Value(); // Return null
+            }
             }
         }
 
@@ -350,7 +352,7 @@ namespace Sad
                 auto similar = sugEngine.findSimilarSymbols(node.name, availableNames);
                 std::string suggestion;
                 if (!similar.empty())
-                    suggestion = " — هل قصدت: '" + similar[0] + "'؟ / Did you mean: '" + similar[0] + "'?";
+                    suggestion = " — هل قصدت/did you mean: '" + similar[0] + "'؟";
                 Sad::Errors::RenderContext _rc;
                 _rc.placeholders = {{"name", node.name}, {"suggestion", suggestion}};
                 Sad::Errors::ErrorManager::getInstance().reportFromCatalog(

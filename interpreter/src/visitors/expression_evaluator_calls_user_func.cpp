@@ -130,7 +130,7 @@ namespace Sad
                     variableManager_.exitScope();
                     {
                         Sad::Errors::RenderContext _rc;
-                        _rc.placeholders = {{"function", param.name}};
+                        _rc.placeholders = {{"function", funcName}, {"param", param.name}};
                         Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                             ::Sad::Errors::ErrorCode::RUN_MISSING_REQUIRED_ARG,
                             Sad::Errors::SourceLocation(getUserFuncSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);

@@ -530,7 +530,7 @@ namespace Sad
             {
                 {
                     Sad::Errors::RenderContext _rc;
-                    _rc.placeholders = {{"type", "هذا النوع / this type"}};
+                    _rc.placeholders = {{"type", obj.getTypeName()}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
                 };
                 lastResult_ = Value();

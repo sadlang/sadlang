@@ -488,10 +488,11 @@ errors:
     ar: معامل إلزامي مفقود
     en: Missing required argument
   brief:
-    ar: الدالة '{function}' استُدعيت بمعامل إلزامي ناقص
-    en: Function '{function}' was called with a missing required argument
+    ar: الدالة '{function}' استُدعيت دون المعامل الإلزامي '{param}'
+    en: Function '{function}' was called without the required parameter '{param}'
   placeholders:
   - function
+  - param
   fix_hint:
     ar: مرّر جميع المعاملات الإلزامية. للقيم الاختيارية، عرّف الدالة بمعاملات افتراضية.
     en: Pass all required arguments. For optional values, define the function with default parameters.
