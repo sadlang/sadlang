@@ -22,6 +22,7 @@
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الطبقة الأدنى
 #ifdef VOID
 #undef VOID
 #endif
@@ -308,7 +309,7 @@ namespace Sad
             auto strip_diacritics_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty() || !args[0]->isString())
-                    throw std::runtime_error("(AR) إزالة_تشكيل تتطلب نصاً / (EN) strip_diacritics requires a string");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string input = args[0]->toString();
                 std::string result;
                 result.reserve(input.size());

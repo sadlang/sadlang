@@ -16,6 +16,7 @@
 #include "interpreter_core.h"
 #include "builtin_registry.h"
 #include <sstream>
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الطبقة الأدنى
 
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
 #ifdef VOID
@@ -61,7 +62,7 @@ namespace Sad
         static std::string jsonParseString(const std::string &json, size_t &pos)
         {
             if (pos >= json.size() || json[pos] != '"')
-                throw std::runtime_error("(AR) JSON غير صالح: متوقع '\"'");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             pos++; // تخطي " الافتتاحية
             std::string result;
             while (pos < json.size() && json[pos] != '"')
@@ -99,7 +100,7 @@ namespace Sad
                     {
                         // (AR) تسلسل هروب يونيكود \uXXXX
                         if (pos + 4 >= json.size())
-                            throw std::runtime_error("(AR) JSON غير صالح: تسلسل \\u غير مكتمل");
+                            throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                         std::string hex = json.substr(pos + 1, 4);
                         unsigned int codepoint = 0;
                         for (char h : hex)
@@ -112,7 +113,7 @@ namespace Sad
                             else if (h >= 'A' && h <= 'F')
                                 codepoint |= (h - 'A' + 10);
                             else
-                                throw std::runtime_error("(AR) JSON غير صالح: حرف hex غير صالح في \\u");
+                                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                         }
                         pos += 4; // تخطي 4 أرقام hex
                         // (AR) معالجة أزواج UTF-16 البديلة (surrogate pairs)
@@ -134,7 +135,7 @@ namespace Sad
                                     else if (h >= 'A' && h <= 'F')
                                         low |= (h - 'A' + 10);
                                     else
-                                        throw std::runtime_error("(AR) JSON غير صالح: surrogate pair منخفض غير صالح");
+                                        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                                 }
                                 pos += 4;
                                 codepoint = 0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00);
@@ -177,7 +178,7 @@ namespace Sad
                 pos++;
             }
             if (pos >= json.size())
-                throw std::runtime_error("(AR) JSON غير صالح: نص غير منتهٍ");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             pos++; // تخطي " الختامية
             return result;
         }
@@ -230,7 +231,7 @@ namespace Sad
                 std::string key = jsonParseString(json, pos);
                 jsonSkipWhitespace(json, pos);
                 if (pos >= json.size() || json[pos] != ':')
-                    throw std::runtime_error("(AR) JSON غير صالح: متوقع ':'");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 pos++; // تخطي :
                 jsonSkipWhitespace(json, pos);
                 mp[key] = jsonParseValue(json, pos);
@@ -245,7 +246,7 @@ namespace Sad
                     pos++;
                     break;
                 }
-                throw std::runtime_error("(AR) JSON غير صالح: متوقع ',' أو '}'");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             }
             return Data::Value(mp);
         }
@@ -276,7 +277,7 @@ namespace Sad
                     pos++;
                     break;
                 }
-                throw std::runtime_error("(AR) JSON غير صالح: متوقع ',' أو ']'");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             }
             return Data::Value(arr);
         }
@@ -286,7 +287,7 @@ namespace Sad
         {
             jsonSkipWhitespace(json, pos);
             if (pos >= json.size())
-                throw std::runtime_error("(AR) JSON غير صالح: نهاية غير متوقعة");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             char c = json[pos];
             if (c == '{')
                 return jsonParseObject(json, pos);
@@ -311,7 +312,7 @@ namespace Sad
                 pos += 4;
                 return Data::Value();
             }
-            throw std::runtime_error("(AR) JSON غير صالح: قيمة غير متوقعة عند الموضع " + std::to_string(pos));
+            throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -510,7 +511,7 @@ namespace Sad
             while (pos < s.size() && std::isspace(s[pos]))
                 pos++;
             if (pos >= s.size() || s[pos] != '<')
-                throw std::runtime_error("(AR) XML غير صالح: متوقع '<'");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             pos++; // تخطي <
             // (AR) قراءة اسم العنصر
             size_t nameStart = pos;
@@ -521,7 +522,7 @@ namespace Sad
             while (pos < s.size() && s[pos] != '>')
                 pos++;
             if (pos >= s.size())
-                throw std::runtime_error("(AR) XML غير صالح: متوقع '>'");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             pos++; // تخطي >
 
             // (AR) قراءة المحتوى: نص أو عناصر فرعية
@@ -560,7 +561,7 @@ namespace Sad
                 }
                 else
                 {
-                    throw std::runtime_error("(AR) XML غير صالح: وسم إغلاق غير متطابق لـ '" + node.name + "'");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
             }
             return node;
@@ -665,7 +666,7 @@ namespace Sad
             auto json_parse_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty())
-                    throw std::runtime_error("(AR) تحليل_جيسون تتطلب نصاً / (EN) json_parse requires a string");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string json = args[0]->toString();
                 if (json.empty())
                     return makeVoidVal();
@@ -763,7 +764,7 @@ namespace Sad
             auto xml_parse_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty() || !args[0]->isString())
-                    throw std::runtime_error("(AR) حلل_xml تتطلب نصاً / (EN) xml_parse requires a string");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string xml = args[0]->toString();
                 size_t pos = 0;
                 // (AR) تخطي BOM والمسافات
@@ -787,7 +788,7 @@ namespace Sad
             auto xml_stringify_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) حول_لـxml تتطلب خريطة / (EN) xml_stringify requires a map");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(xmlValueToString(*args[0]));
             };
             fm.registerBuiltinFunction(std::string(Bmp::XML_STRINGIFY), xml_stringify_fn);
@@ -797,7 +798,7 @@ namespace Sad
             auto xml_pretty_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) تنسيق_وسائم تتطلب خريطة / (EN) xml_pretty requires a map");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int indentSize = (args.size() > 1 && args[1]->isInteger()) ? args[1]->toInt() : 2;
                 return makeVal(xmlValueToPretty(*args[0], 0, indentSize));
             };

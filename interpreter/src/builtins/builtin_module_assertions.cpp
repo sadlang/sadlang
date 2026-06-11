@@ -34,6 +34,7 @@ namespace Bffi = Sad::Builtins::Names::FFI;
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الطبقة الأدنى
 namespace Sad
 {
     namespace Interpreter
@@ -421,7 +422,7 @@ namespace Sad
             auto hexToBytes = [](const std::string &hex) -> std::string
             {
                 if (hex.size() % 2 != 0)
-                    throw std::runtime_error("(AR) النص المشفر غير صالح: طول غير زوجي / (EN) Invalid encrypted text: odd length"); // (AR) helper داخلي بلا ctx
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED); // (AR) helper داخلي بلا ctx
                 std::string bytes;
                 bytes.reserve(hex.size() / 2);
                 for (size_t i = 0; i + 1 < hex.size(); i += 2)
@@ -429,7 +430,7 @@ namespace Sad
                     std::string hb = hex.substr(i, 2);
                     for (char c : hb)
                         if (!std::isxdigit(static_cast<unsigned char>(c)))
-                            throw std::runtime_error("(AR) حرف hex غير صالح / (EN) Invalid hex char"); // (AR) helper داخلي بلا ctx
+                            throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED); // (AR) helper داخلي بلا ctx
                     bytes += (char)std::stoi(hb, nullptr, 16);
                 }
                 return bytes;
