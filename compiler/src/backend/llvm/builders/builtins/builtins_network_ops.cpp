@@ -184,7 +184,7 @@ namespace Sad
                 if (!val)
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
-                                    {{"detail", std::string("null operand in network function ") + cFuncName}});
+                                    {{"detail", cFuncName}});
                     return nullptr;
                 }
 
@@ -377,7 +377,7 @@ namespace Sad
                 if (preparedArgs.size() != paramTypes.size())
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
-                                    {{"detail", std::string("mismatched network argument count for ") + cFuncName}});
+                                    {{"detail", cFuncName}});
                     return nullptr;
                 }
 
@@ -389,7 +389,7 @@ namespace Sad
                     if (!arg)
                     {
                         cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
-                                        {{"detail", std::string("null prepared network argument in ") + cFuncName}});
+                                        {{"detail", cFuncName}});
                         return nullptr;
                     }
                     args.push_back(arg);

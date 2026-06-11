@@ -58,7 +58,7 @@ void SIRFunction::addParameter(const SIRParameter& param) {
 
 void SIRFunction::addBasicBlock(std::shared_ptr<SIRBasicBlock> block) {
     if (!block) {
-        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null basic block to function"));
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "basic block"));
     }
     basicBlocks.push_back(block);
 }
@@ -174,7 +174,7 @@ void SIRClass::addField(const std::string& name, SadTypeKind type) {
 
 void SIRClass::addMethod(std::shared_ptr<SIRFunction> method) {
     if (!method) {
-        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null method to class"));
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "method"));
     }
     methods_[method->name] = method;
 }
@@ -243,21 +243,21 @@ const std::vector<std::shared_ptr<SIRFunction>>& SIRModule::getFunctions() const
 
 void SIRModule::addFunction(std::shared_ptr<SIRFunction> func) {
     if (!func) {
-        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null function to module"));
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "function"));
     }
     functions_.push_back(func);
 }
 
 void SIRModule::addGlobalVariable(std::shared_ptr<SIRGlobalVariable> globalVar) {
     if (!globalVar) {
-        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null global variable to module"));
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "global variable"));
     }
     globalVariables_.push_back(globalVar);
 }
 
 void SIRModule::addClass(std::shared_ptr<SIRClass> cls) {
     if (!cls) {
-        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "Cannot add null class to module"));
+        throw std::runtime_error(iceMsg(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, "class"));
     }
     classes_.push_back(cls);
 }
