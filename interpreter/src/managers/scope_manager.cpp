@@ -9,6 +9,7 @@
  */
 
 #include "../../include/managers/scope_manager.h"
+#include "runtime_throw.h" // (AR) EM-CPP: throwRuntime — أخطاء من الكتالوج
 #include <sstream>
 #include <iostream>
 
@@ -112,19 +113,15 @@ void ScopeManager::pushScope(ScopeType type, const std::string& name) {
 void ScopeManager::popScope() {
     // Cannot pop global scope
     if (currentScope_ == globalScope_) {
-        throwError(
-            "لا يمكن إزالة النطاق العام",
-            "Cannot pop global scope"
-        );
+        ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::INT_INTERP_SCOPE_STACK,
+                                    Sad::Lexer::Position{}, {{"detail", "النطاق العام / global scope"}});
     }
     
     // (AR) تحقق إضافي من حجم المكدس لمنع سلوك غير محدد
     // (EN) Additional stack size guard to prevent undefined behavior
     if (scopeStack_.size() <= 1) {
-        throwError(
-            "مكدس النطاقات فارغ — لا يمكن الإزالة",
-            "Scope stack is empty — cannot pop"
-        );
+        ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::INT_INTERP_SCOPE_STACK,
+                                    Sad::Lexer::Position{}, {{"detail", "مكدّس فارغ / empty stack"}});
     }
     
     // Update current scope to parent
@@ -191,10 +188,8 @@ bool ScopeManager::isVariableDeclared(const std::string& name) const {
 void ScopeManager::declareVariable(const std::string& name) {
     // Check if already declared in current scope (no shadowing in same scope)
     if (currentScope_->hasVariable(name)) {
-        std::ostringstream oss;
-        oss << "(AR) المتغير '" << name << "' معرّف مسبقاً في هذا النطاق "
-            << "(EN) Variable '" << name << "' already declared in this scope";
-        throw std::runtime_error(oss.str());
+        ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::SEM_REDEFINITION,
+                                    Sad::Lexer::Position{}, {{"name", name}});
     }
     
     // Declare in current scope
@@ -240,11 +235,8 @@ void ScopeManager::printScopeStack() const {
     std::cout << "=================================\n\n";
 }
 
-void ScopeManager::throwError(const std::string& messageAr, const std::string& messageEn) const {
-    std::ostringstream oss;
-    oss << "(AR) " << messageAr << " (EN) " << messageEn;
-    throw std::runtime_error(oss.str());
-}
+// (AR) EM-CPP: حُذف throwError — كل المستدعين رُحِّلوا إلى الكتالوج (throwRuntime).
+// (EN) EM-CPP: throwError removed — all callers migrated to the catalog (throwRuntime).
 
 } // namespace Data
 } // namespace Sad

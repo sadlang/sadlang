@@ -217,8 +217,8 @@ namespace Sad
             // (EN) Validate name
             if (name.empty())
             {
-                throwError("لا يمكن تعريف دالة بدون اسم",
-                           "Cannot define function without name");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::INT_INTERP_NAMELESS_DEFINITION,
+                                            Sad::Lexer::Position{}, {{"detail", "دالة / function"}});
             }
 
             // (AR) السماح بإعادة تعريف الدوال — ضروري للإغلاقات والدوال المتداخلة
@@ -259,8 +259,8 @@ namespace Sad
             // (EN) Validate name
             if (name.empty())
             {
-                throwError("لا يمكن تعريف دالة بدون اسم",
-                           "Cannot define function without name");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::INT_INTERP_NAMELESS_DEFINITION,
+                                            Sad::Lexer::Position{}, {{"detail", "دالة / function"}});
             }
 
             // (AR) السماح بإعادة تعريف الدوال — ضروري للإغلاقات والدوال المتداخلة
@@ -329,8 +329,8 @@ namespace Sad
         {
             if (name.empty())
             {
-                throwError("لا يمكن تعريف دالة مضمنة بدون اسم",
-                           "Cannot define built-in function without name");
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::INT_INTERP_NAMELESS_DEFINITION,
+                                            Sad::Lexer::Position{}, {{"detail", "دالة مضمنة / builtin"}});
             }
             auto funcDef = std::make_shared<FunctionDefinition>(name, params, impl);
             functions_[name].push_back(funcDef);
@@ -568,17 +568,8 @@ namespace Sad
             return oss.str();
         }
 
-        void FunctionManager::throwError(const std::string &messageAr,
-                                         const std::string &messageEn) const
-        {
-            // (AR) رمي خطأ ثنائي اللغة
-            // (EN) Throw bilingual error
-
-            std::ostringstream oss;
-            oss << "(AR) خطأ في مدير الدوال: " << messageAr << "\n";
-            oss << "(EN) Function Manager Error: " << messageEn;
-            throw std::runtime_error(oss.str());
-        }
+        // (AR) EM-CPP: حُذف throwError — كل المستدعين رُحِّلوا إلى الكتالوج (throwRuntime).
+        // (EN) EM-CPP: throwError removed — all callers migrated to the catalog.
 
         // ============================================================================
         // (AR) تسجيل الدوال المضمنة

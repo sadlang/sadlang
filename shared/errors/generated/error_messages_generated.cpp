@@ -593,6 +593,20 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr, nullptr,
       "لمطوّر المترجم: التعليمة ({detail}) تتطلّب نوعاً محدّداً (مثل عدد صحيح لشرط switch) لكن وصل نوع مخالف. كان يجب أن يلتقطه التحليل الدلالي/الأنواع قبل التوليد. للمستخدم: علّة مترجم — أبلِغ.", "Compiler dev: the instruction ({detail}) requires a specific type (e.g., integer for a switch condition) but a different type arrived. Type/semantic analysis should have caught this before codegen. User: compiler bug — report.",
       nullptr },
+    { ErrorCode::INT_INTERP_NAMELESS_DEFINITION, "INT008", "internal",
+      "خطأ داخلي في المفسر — تعريف دالة بلا اسم", "Internal interpreter error — nameless function definition",
+      "خطأ داخلي في المفسر: محاولة تسجيل دالة بلا اسم ({detail}) — يُرجى الإبلاغ", "Internal interpreter error: attempt to register a nameless function ({detail}) — please report",
+      "حاول المفسر تسجيل دالة (أو دالة مضمنة) باسم فارغ في FunctionManager. هذا ثابت داخلي — التسجيل يتطلّب اسماً غير فارغ دائماً. لا علاقة له بكود ص.", "The interpreter tried to register a function (or builtin) with an empty name in FunctionManager. An internal invariant — registration always requires a non-empty name. Unrelated to your ص code.",
+      nullptr, nullptr,
+      "لمطوّر المفسر: مُستدعي تسجيل الدالة ({detail}) مرّر اسماً فارغاً إلى FunctionManager. تحقّق من بناء الاسم قبل التسجيل. للمستخدم: علّة مفسر — أبلِغ.", "Interpreter dev: the registration caller ({detail}) passed an empty name to FunctionManager. Check name construction before registration. User: interpreter bug — report.",
+      nullptr },
+    { ErrorCode::INT_INTERP_SCOPE_STACK, "INT009", "internal",
+      "خطأ داخلي في المفسر — خلل في مكدّس النطاقات", "Internal interpreter error — scope stack violation",
+      "خطأ داخلي في المفسر: عملية غير صالحة على مكدّس النطاقات ({detail}) — يُرجى الإبلاغ", "Internal interpreter error: invalid scope-stack operation ({detail}) — please report",
+      "عملية على مكدّس النطاقات انتهكت ثابتاً ({detail}) — مثل إزالة النطاق العام (الجذر) أو الإزالة من مكدّس فارغ. يشير لعدم توازن في أزواج enterScope/exitScope داخل المفسر.", "A scope-stack operation violated an invariant ({detail}) — e.g., removing the global (root) scope or popping an empty stack. Indicates an enterScope/exitScope imbalance inside the interpreter.",
+      nullptr, nullptr,
+      "لمطوّر المفسر: عدم توازن enterScope/exitScope ({detail}) — محاولة إزالة النطاق العام أو الإزالة من مكدّس فارغ. دقّق أزواج الدخول/الخروج في الموزّع. للمستخدم: علّة مفسر — أبلِغ.", "Interpreter dev: enterScope/exitScope imbalance ({detail}) — removing the global scope or popping an empty stack. Audit enter/exit pairs in the dispatcher. User: interpreter bug — report.",
+      nullptr },
 };
 
 const std::size_t kErrorMessagesCount =

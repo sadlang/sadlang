@@ -125,6 +125,42 @@ errors:
       ar: فشلت الواجهة الخلفية (LLVM) في إصدار كائن/تجميع ({detail}) — إمّا لعدم تهيئة الوحدة/آلة الهدف، أو تعذّر فتح ملف الإخراج، أو هدف غير قادر على الإصدار. هذا مزيج من حالة داخلية وبيئة تشغيل.
       en: The LLVM backend failed to emit object/assembly ({detail}) — either the module/target machine was not initialized, the output file could not be opened, or the target cannot emit. A mix of internal state and runtime environment.
 
+  - code: INT_INTERP_NAMELESS_DEFINITION
+    id: INT008
+    category: internal
+    title:
+      ar: خطأ داخلي في المفسر — تعريف دالة بلا اسم
+      en: Internal interpreter error — nameless function definition
+    brief:
+      ar: 'خطأ داخلي في المفسر: محاولة تسجيل دالة بلا اسم ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal interpreter error: attempt to register a nameless function ({detail}) — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المفسر: مُستدعي تسجيل الدالة ({detail}) مرّر اسماً فارغاً إلى FunctionManager. تحقّق من بناء الاسم قبل التسجيل. للمستخدم: علّة مفسر — أبلِغ.'
+      en: 'Interpreter dev: the registration caller ({detail}) passed an empty name to FunctionManager. Check name construction before registration. User: interpreter bug — report.'
+    detailed:
+      ar: حاول المفسر تسجيل دالة (أو دالة مضمنة) باسم فارغ في FunctionManager. هذا ثابت داخلي — التسجيل يتطلّب اسماً غير فارغ دائماً. لا علاقة له بكود ص.
+      en: The interpreter tried to register a function (or builtin) with an empty name in FunctionManager. An internal invariant — registration always requires a non-empty name. Unrelated to your ص code.
+
+  - code: INT_INTERP_SCOPE_STACK
+    id: INT009
+    category: internal
+    title:
+      ar: خطأ داخلي في المفسر — خلل في مكدّس النطاقات
+      en: Internal interpreter error — scope stack violation
+    brief:
+      ar: 'خطأ داخلي في المفسر: عملية غير صالحة على مكدّس النطاقات ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal interpreter error: invalid scope-stack operation ({detail}) — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المفسر: عدم توازن enterScope/exitScope ({detail}) — محاولة إزالة النطاق العام أو الإزالة من مكدّس فارغ. دقّق أزواج الدخول/الخروج في الموزّع. للمستخدم: علّة مفسر — أبلِغ.'
+      en: 'Interpreter dev: enterScope/exitScope imbalance ({detail}) — removing the global scope or popping an empty stack. Audit enter/exit pairs in the dispatcher. User: interpreter bug — report.'
+    detailed:
+      ar: عملية على مكدّس النطاقات انتهكت ثابتاً ({detail}) — مثل إزالة النطاق العام (الجذر) أو الإزالة من مكدّس فارغ. يشير لعدم توازن في أزواج enterScope/exitScope داخل المفسر.
+      en: A scope-stack operation violated an invariant ({detail}) — e.g., removing the global (root) scope or popping an empty stack. Indicates an enterScope/exitScope imbalance inside the interpreter.
+
   - code: INT_SIR_TYPE_CONSTRAINT
     id: INT007
     category: internal

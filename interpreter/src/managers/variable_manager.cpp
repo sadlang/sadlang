@@ -10,6 +10,7 @@
 
 #include "variable_manager.h"
 #include "memory/gc/engine/garbage_collector.h"
+#include "runtime_throw.h" // (AR) EM-CPP: throwRuntime — أخطاء من الكتالوج
 #include <sstream>
 #include <iostream>
 
@@ -214,9 +215,8 @@ namespace Sad
                         auto constIt = constVariables_.find(scope);
                         if (constIt != constVariables_.end() && constIt->second.count(name) > 0)
                         {
-                            throwError(
-                                "لا يمكن تعديل الثابت '" + name + "'",
-                                "Cannot reassign constant '" + name + "'");
+                            ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::SEM_CONST_ASSIGNMENT,
+                                                        Sad::Lexer::Position{}, {{"name", name}});
                         }
                         varIt->second = value;
                         return;
@@ -227,9 +227,8 @@ namespace Sad
 
             // (AR) إذا لم يُعثر على المتغير، رمي خطأ
             // (EN) If variable not found, throw error
-            throwError(
-                "المتغير '" + name + "' غير معرّف",
-                "Variable '" + name + "' not defined");
+            ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
+                                        Sad::Lexer::Position{}, {{"name", name}, {"suggestion", ""}});
         }
 
         void VariableManager::defineOrAssign(const std::string &name, const Value &value)
@@ -298,9 +297,8 @@ namespace Sad
 
             // (AR) إذا لم يُعثر على المتغير، رمي خطأ
             // (EN) If variable not found, throw error
-            throwError(
-                "المتغير '" + name + "' غير معرّف",
-                "Variable '" + name + "' not defined");
+            ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
+                                        Sad::Lexer::Position{}, {{"name", name}, {"suggestion", ""}});
 
             // (AR) لن نصل هنا أبداً — ثابت ساكن لتجنب تحذيرات المترجم
             // (EN) Never reached — static const for compiler warning suppression
@@ -586,14 +584,8 @@ namespace Sad
             return nullptr;
         }
 
-        void VariableManager::throwError(const std::string &messageAr, const std::string &messageEn) const
-        {
-            // (AR) رمي خطأ ثنائي اللغة
-            // (EN) Throw bilingual error
-            std::ostringstream oss;
-            oss << "(AR) " << messageAr << " (EN) " << messageEn;
-            throw std::runtime_error(oss.str());
-        }
+        // (AR) EM-CPP: حُذف throwError — كل المستدعين رُحِّلوا إلى الكتالوج (throwRuntime).
+        // (EN) EM-CPP: throwError removed — all callers migrated to the catalog.
 
         void VariableManager::cleanupScope(Scope *scope)
         {
