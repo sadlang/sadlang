@@ -22,7 +22,8 @@ namespace Sad {
 namespace Interpreter {
 
 void registerBuiltinsPlatform(Interpreter& interpreter) {
-    using Args = const std::vector<std::shared_ptr<Data::Value>>&;
+    // (AR) EM-CPP: التوقيع الموحَّد — دوال المنصة لا تستخدم الوسائط (المعامل غير مُسمّى).
+    using Args = Sad::Interpreter::BuiltinContext &;
 
     // المنصة / get_platform
     interpreter.getFunctionManager().registerBuiltinFunction(

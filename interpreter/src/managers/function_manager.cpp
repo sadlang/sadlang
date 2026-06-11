@@ -64,18 +64,19 @@ namespace Sad
                                                std::shared_ptr<AST::ASTNode> body)
             : name_(name), type_(FunctionType::USER_DEFINED), parameters_(params),
               body_(body), declaration_(body), functionDecl_(nullptr),
-              nativeImplementation_(nullptr), returnType_("auto")
+              nativeImplementationCtx_(nullptr), returnType_("auto")
         {
             // (AR) نحفظ body كـ declaration للوصول للـ Parameters
             // (EN) Save body as declaration to access Parameters
         }
 
+        // (AR) EM-CPP: باني الدالة المضمنة بالتوقيع الموحَّد (BuiltinContext).
         FunctionDefinition::FunctionDefinition(const std::string &name,
                                                const std::vector<FunctionParameter> &params,
-                                               std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> nativeImpl)
+                                               std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> nativeImpl)
             : name_(name), type_(FunctionType::BUILT_IN), parameters_(params),
               body_(nullptr), declaration_(nullptr), functionDecl_(nullptr),
-              nativeImplementation_(nativeImpl), returnType_("auto")
+              nativeImplementationCtx_(nativeImpl), returnType_("auto")
         {
         }
 
@@ -320,29 +321,8 @@ namespace Sad
             functions_[name].push_back(funcDef);
         }
 
-        void FunctionManager::defineBuiltInFunction(const std::string &name,
-                                                    const std::vector<FunctionParameter> &params,
-                                                    std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> impl)
-        {
-            // (AR) تعريف دالة مضمنة
-            // (EN) Define built-in function
-
-            if (name.empty())
-            {
-                throwError("لا يمكن تعريف دالة مضمنة بدون اسم",
-                           "Cannot define built-in function without name");
-            }
-
-            // (AR) إنشاء تعريف الدالة المضمنة
-            // (EN) Create built-in function definition
-            auto funcDef = std::make_shared<FunctionDefinition>(name, params, impl);
-
-            // (AR) إضافة الدالة
-            // (EN) Add function
-            functions_[name].push_back(funcDef);
-        }
-
-        // (AR) EM-CPP: نسخة التوقيع الجديد (BuiltinContext&).
+        // (AR) EM-CPP: تعريف دالة مضمنة بالتوقيع الموحَّد (BuiltinContext&).
+        // (EN) EM-CPP: define a built-in with the unified (BuiltinContext&) signature.
         void FunctionManager::defineBuiltInFunction(const std::string &name,
                                                     const std::vector<FunctionParameter> &params,
                                                     std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> impl)
@@ -352,9 +332,7 @@ namespace Sad
                 throwError("لا يمكن تعريف دالة مضمنة بدون اسم",
                            "Cannot define built-in function without name");
             }
-            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> emptyOld;
-            auto funcDef = std::make_shared<FunctionDefinition>(name, params, emptyOld);
-            funcDef->setNativeImplementationCtx(impl);
+            auto funcDef = std::make_shared<FunctionDefinition>(name, params, impl);
             functions_[name].push_back(funcDef);
         }
 
@@ -607,55 +585,8 @@ namespace Sad
         // (EN) Register Built-in Functions
         // ============================================================================
 
-        void FunctionManager::registerBuiltinFunction(
-            const std::string &name,
-            const std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> &func)
-        {
-
-            // (AR) إنشاء دالة مضمنة جديدة مع دعم معاملات متعددة
-            // (EN) Create new built-in function with support for multiple arguments
-
-            // (AR) حذف الدالة إذا كانت موجودة بالفعل
-            // (EN) Remove function if it already exists
-            removeFunction(name);
-
-            // (AR) إنشاء تعريف دالة مضمنة جديدة - نستخدم func مباشرة بدون wrapper
-            // (EN) Create new built-in function definition - use func directly without wrapper
-            std::vector<FunctionParameter> params;
-            auto funcDef = std::make_shared<FunctionDefinition>(name, params, func);
-
-            // (AR) تخزين الدالة في الخريطة
-            // (EN) Store function in map
-            functions_[name].push_back(funcDef);
-
-            // (AR) أضف alias بلا تشكيل إذا كان الاسم الأصلي يحتوي شدة/تنوين.
-            //      هذا يمنع تعطل استدعاء الدوال المضمنة عندما يزيل lexer التشكيل.
-            // (EN) Add a diacritics-free alias if the original name contains
-            //      harakat, preventing builtin lookup failures after lexer normalization.
-            const std::string normalizedName = stripArabicDiacritics(name);
-            if (!normalizedName.empty() && normalizedName != name && !hasFunction(normalizedName))
-            {
-                auto normalizedDef = std::make_shared<FunctionDefinition>(normalizedName, params, func);
-                functions_[normalizedName].push_back(normalizedDef);
-
-                if (trackingRegistrations_)
-                {
-                    trackedRegistrations_.push_back(normalizedName);
-                }
-            }
-
-            // (AR) تتبع التسجيل إن كان مفعّلاً — يُستخدم بواسطة loadModule
-            //      لبناء قائمة الصادرات بدقة (حتى لو كانت الدالة موجودة مسبقاً)
-            // (EN) Track registration if enabled — used by loadModule
-            //      to build export list accurately (even if function existed before)
-            if (trackingRegistrations_)
-            {
-                trackedRegistrations_.push_back(name);
-            }
-        }
-
-        // (AR) EM-CPP: نسخة التوقيع الجديد (BuiltinContext&). نفس منطق القديمة + setNativeImplementationCtx.
-        // (EN) EM-CPP: new-signature (BuiltinContext&) variant. Same logic + setNativeImplementationCtx.
+        // (AR) EM-CPP: تسجيل دالة مضمنة بالتوقيع الموحَّد (BuiltinContext&).
+        // (EN) EM-CPP: register a built-in with the unified (BuiltinContext&) signature.
         void FunctionManager::registerBuiltinFunction(
             const std::string &name,
             const std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> &func)
@@ -663,18 +594,15 @@ namespace Sad
             removeFunction(name);
 
             std::vector<FunctionParameter> params;
-            // (AR) تنفيذ قديم فارغ — السياق هو المُستخدَم. / (EN) empty old-impl; ctx is used.
-            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> emptyOld;
-            auto funcDef = std::make_shared<FunctionDefinition>(name, params, emptyOld);
-            funcDef->setNativeImplementationCtx(func);
+            auto funcDef = std::make_shared<FunctionDefinition>(name, params, func);
             functions_[name].push_back(funcDef);
 
-            // (AR) alias بلا تشكيل (نفس منطق النسخة القديمة). / (EN) diacritics-free alias.
+            // (AR) أضف alias بلا تشكيل إذا كان الاسم يحتوي شدة/تنوين (يزيله lexer).
+            // (EN) Add a diacritics-free alias if the name contains harakat.
             const std::string normalizedName = stripArabicDiacritics(name);
             if (!normalizedName.empty() && normalizedName != name && !hasFunction(normalizedName))
             {
-                auto normalizedDef = std::make_shared<FunctionDefinition>(normalizedName, params, emptyOld);
-                normalizedDef->setNativeImplementationCtx(func);
+                auto normalizedDef = std::make_shared<FunctionDefinition>(normalizedName, params, func);
                 functions_[normalizedName].push_back(normalizedDef);
                 if (trackingRegistrations_)
                 {

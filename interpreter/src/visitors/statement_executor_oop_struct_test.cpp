@@ -15,6 +15,7 @@
 #include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
+#include "builtins/builtin_context.h"
 
 namespace Sad
 {
@@ -128,8 +129,9 @@ namespace Sad
                 auto *rawClassType = classType.get(); // (AR) مؤشر خام لاستخدامه في اللامدا
 
                 funcMgr.registerBuiltinFunction(structName,
-                                                [structName, fieldsCopy, rawClassType](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                                                [structName, fieldsCopy, rawClassType](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                                                 {
+                const auto &args = ctx.args(); (void)args;
                                                     // (AR) إنشاء نسخة جديدة وتهيئة الحقول بقيمها الافتراضية
                                                     // (EN) Create new instance and initialize fields with defaults
                                                     auto *classMgr = Data::ClassManager::getInstance();
@@ -181,8 +183,9 @@ namespace Sad
                 auto fieldsCopy = node.fields;
 
                 funcMgr.registerBuiltinFunction(structName,
-                                                [structName, fieldsCopy](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+                                                [structName, fieldsCopy](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
                                                 {
+                const auto &args = ctx.args(); (void)args;
                                                     auto *classMgr = Data::ClassManager::getInstance();
                                                     auto *classType = classMgr->getClass(structName);
 

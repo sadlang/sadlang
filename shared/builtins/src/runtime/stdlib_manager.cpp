@@ -410,9 +410,11 @@ namespace Sad
             try
             {
                 // Create function that wraps the Value-based implementation
-                std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>> &)> wrapper =
-                    [implementation](const std::vector<std::shared_ptr<Value>> &ptrArgs) -> std::shared_ptr<Value>
+                // (AR) EM-CPP: التوقيع الموحَّد (BuiltinContext&).
+                std::function<std::shared_ptr<Value>(Sad::Interpreter::BuiltinContext &)> wrapper =
+                    [implementation](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Value>
                 {
+                    const auto &ptrArgs = ctx.args();
                     // Convert shared_ptr<Value> to Value for the implementation
                     std::vector<Value> args;
                     for (const auto &ptr : ptrArgs)

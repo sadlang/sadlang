@@ -162,7 +162,7 @@ namespace Sad
              */
             FunctionDefinition(const std::string &name,
                                const std::vector<FunctionParameter> &params,
-                               std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> nativeImpl);
+                               std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> nativeImpl);
 
             // Getters
             std::string getName() const { return name_; }
@@ -184,7 +184,7 @@ namespace Sad
                 //      علة كامنة: كان يفحص القديم فقط → الدوال المُحوّلة لـctx تُرى "غير أصلية"
                 //      فتفشل أولوية الـ fallback في الموزّع (SEM004).
                 // (EN) EM-CPP: checks both signatures — old (args) and new (BuiltinContext).
-                return nativeImplementation_ != nullptr || nativeImplementationCtx_ != nullptr;
+                return nativeImplementationCtx_ != nullptr;
             }
 
             /**
@@ -195,18 +195,14 @@ namespace Sad
                 const std::vector<std::shared_ptr<Data::Value>> &args,
                 const Sad::Lexer::Position &pos = Sad::Lexer::Position{}) const
             {
-                // (AR) EM-CPP: التوقيع الجديد (BuiltinContext) يُفضَّل؛ القديم (args) انتقالي.
-                // (EN) EM-CPP: prefer new (BuiltinContext) signature; old (args) is transitional.
+                // (AR) EM-CPP: التوقيع الموحَّد (BuiltinContext) — حُذف التوقيع القديم (args).
+                // (EN) EM-CPP: unified (BuiltinContext) signature — old (args) signature removed.
                 try
                 {
                     if (nativeImplementationCtx_)
                     {
                         Sad::Interpreter::BuiltinContext ctx(args, pos, name_);
                         return nativeImplementationCtx_(ctx);
-                    }
-                    if (nativeImplementation_)
-                    {
-                        return nativeImplementation_(args);
                     }
                     return nullptr;
                 }
@@ -333,8 +329,7 @@ namespace Sad
             std::shared_ptr<AST::ASTNode> body_;                                                                                  ///< (AR) جسم الدالة (AST) / (EN) Function body (AST)
             std::shared_ptr<AST::ASTNode> declaration_;                                                                           ///< (AR) التصريح الأصلي (للوصول للـ defaults) / (EN) Original declaration (for defaults access)
             std::shared_ptr<AST::ASTNode> functionDecl_;                                                                          ///< (AR) FunctionDecl الأصلي (للوصول لـ Parameters) / (EN) Original FunctionDecl (for Parameters access)
-            std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>> &)> nativeImplementation_; ///< (AR) تنفيذ أصلي قديم (انتقالي) / (EN) old native impl (transitional)
-            std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> nativeImplementationCtx_;            ///< (AR) EM-CPP: تنفيذ بسياق / (EN) context-based native impl
+            std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> nativeImplementationCtx_; ///< (AR) EM-CPP: تنفيذ الدالة المضمنة بالسياق / (EN) context-based native impl
             std::string returnType_;                                                                                              ///< (AR) نوع الإرجاع / (EN) Return type
             bool isGenerator_ = false;                                                                                            ///< (AR) هل هذه دالة مولد؟ / (EN) Is this a generator function?
             bool isAsync_ = false;                                                                                                ///< (AR) هل هذه دالة غير متزامنة؟ / (EN) Is this an async function?
@@ -424,11 +419,7 @@ namespace Sad
              * @param params (AR) قائمة المعاملات / (EN) Parameter list
              * @param impl (AR) التنفيذ الأصلي / (EN) Native implementation
              */
-            void defineBuiltInFunction(const std::string &name,
-                                       const std::vector<FunctionParameter> &params,
-                                       std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>> &)> impl);
-
-            /// (AR) EM-CPP: نسخة بالتوقيع الجديد (BuiltinContext&). / (EN) new-signature variant.
+            /// (AR) EM-CPP: التوقيع الموحَّد (BuiltinContext&). / (EN) unified (BuiltinContext&) signature.
             void defineBuiltInFunction(const std::string &name,
                                        const std::vector<FunctionParameter> &params,
                                        std::function<std::shared_ptr<Value>(Sad::Interpreter::BuiltinContext &)> impl);
@@ -439,13 +430,6 @@ namespace Sad
              *
              * @param name (AR) اسم الدالة / (EN) Function name
              * @param func (AR) الدالة / (EN) Function implementation
-             */
-            void registerBuiltinFunction(const std::string &name,
-                                         const std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>> &)> &func);
-
-            /**
-             * @brief (AR) EM-CPP: تسجيل دالة مضمنة بالتوقيع الجديد (BuiltinContext&).
-             * @brief (EN) EM-CPP: register a built-in with the new (BuiltinContext&) signature.
              */
             void registerBuiltinFunction(const std::string &name,
                                          const std::function<std::shared_ptr<Value>(Sad::Interpreter::BuiltinContext &)> &func);

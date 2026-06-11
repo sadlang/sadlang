@@ -42,6 +42,7 @@ extern "C"
 {
 #include "http_bindings.h"
 #include "network/network_bindings.h"
+#include "builtins/builtin_context.h"
 }
 #endif
 
@@ -808,9 +809,10 @@ namespace Sad
             auto makeRouteRegistrar = [&interpreter, &getServer](const std::string &httpMethod)
             {
                 return [&interpreter, &getServer, httpMethod](
-                           const std::vector<std::shared_ptr<Data::Value>> &args)
+                           Sad::Interpreter::BuiltinContext &ctx)
                            -> std::shared_ptr<Data::Value>
                 {
+                    const auto &args = ctx.args(); (void)args;
                     // (AR) التحقق من المعاملات: (معرّف_خادم، مسار، معالج)
                     if (args.size() < 3)
                         return makeError("تحتاج 3 معاملات: (معرّف_خادم، مسار، دالة_معالجة)");
