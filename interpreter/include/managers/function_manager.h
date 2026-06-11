@@ -83,6 +83,8 @@
 
 #include "value.h"
 #include "builtins/builtin_context.h" // (AR) EM-CPP: سياق استدعاء الدوال المضمنة / (EN) built-in invocation context
+#include "builtin_error.h"            // (AR) EM-CPP: حامل خطأ الطبقة الأدنى / (EN) lower-layer error carrier
+#include "runtime_throw.h"            // (AR) EM-CPP: throwRuntime لرندرة BuiltinError / (EN) render BuiltinError
 
 // (AR) تصريحات أمامية لعقد AST / (EN) Forward declarations for AST nodes
 namespace Sad
@@ -182,16 +184,32 @@ namespace Sad
             {
                 // (AR) EM-CPP: التوقيع الجديد (BuiltinContext) يُفضَّل؛ القديم (args) انتقالي.
                 // (EN) EM-CPP: prefer new (BuiltinContext) signature; old (args) is transitional.
-                if (nativeImplementationCtx_)
+                try
                 {
-                    Sad::Interpreter::BuiltinContext ctx(args, pos, name_);
-                    return nativeImplementationCtx_(ctx);
+                    if (nativeImplementationCtx_)
+                    {
+                        Sad::Interpreter::BuiltinContext ctx(args, pos, name_);
+                        return nativeImplementationCtx_(ctx);
+                    }
+                    if (nativeImplementation_)
+                    {
+                        return nativeImplementation_(args);
+                    }
+                    return nullptr;
                 }
-                if (nativeImplementation_)
+                catch (const Sad::Errors::BuiltinError &be)
                 {
-                    return nativeImplementation_(args);
+                    // (AR) حامل الطبقة الأدنى (shared/builtins) → يُرندَر من الكتالوج بموقع الاستدعاء.
+                    //      نحقن اسم الدالة ({func}/{builtin}) كما في BuiltinContext::error.
+                    // (EN) Lower-layer carrier → rendered at the call site; inject the function
+                    //      name ({func}/{builtin}) like BuiltinContext::error does.
+                    auto ph = be.placeholders;
+                    if (ph.find("func") == ph.end())
+                        ph.emplace("func", name_);
+                    if (ph.find("builtin") == ph.end())
+                        ph.emplace("builtin", name_);
+                    Sad::Errors::throwRuntime(be.code, pos, ph);
                 }
-                return nullptr;
             }
 
             /// (AR) EM-CPP: تعيين تنفيذ بالتوقيع الجديد. / (EN) set new-signature native impl.

@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <cmath>
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الكتالوج
 
 namespace Sad {
 namespace StdLib {
@@ -25,9 +26,7 @@ void TypeFunctions::validateArgCount(const std::vector<Data::Value>& args,
                                      size_t expected,
                                      const std::string& funcName) {
     if (args.size() != expected) {
-        throw std::runtime_error(funcName + " expects " + 
-                               std::to_string(expected) + " argument(s), got " + 
-                               std::to_string(args.size()));
+        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
     }
 }
 
@@ -67,10 +66,7 @@ Data::Value TypeFunctions::toInt(const std::vector<Data::Value>& args) {
     catch (const std::exception& e) {
         // (AR) إطلاق خطأ واضح عند فشل التحويل بدلاً من إرجاع 0 بصمت
         // (EN) Throw descriptive error on conversion failure instead of silently returning 0
-        throw std::runtime_error(
-            "(AR) خطأ: لا يمكن تحويل القيمة من نوع '" + value.getTypeName() + 
-            "' إلى رقم صحيح / (EN) Cannot convert value of type '" + 
-            value.getTypeName() + "' to integer: " + e.what());
+        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
     }
 }
 
@@ -92,10 +88,7 @@ Data::Value TypeFunctions::toFloat(const std::vector<Data::Value>& args) {
     catch (const std::exception& e) {
         // (AR) إطلاق خطأ واضح عند فشل التحويل بدلاً من إرجاع 0.0 بصمت
         // (EN) Throw descriptive error on conversion failure instead of silently returning 0.0
-        throw std::runtime_error(
-            "(AR) خطأ: لا يمكن تحويل القيمة من نوع '" + value.getTypeName() + 
-            "' إلى رقم عشري / (EN) Cannot convert value of type '" + 
-            value.getTypeName() + "' to float: " + e.what());
+        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
     }
 }
 
@@ -157,10 +150,7 @@ Data::Value TypeFunctions::toBool(const std::vector<Data::Value>& args) {
     catch (const std::exception& e) {
         // (AR) إطلاق خطأ واضح عند فشل التحويل بدلاً من إرجاع false بصمت
         // (EN) Throw descriptive error on conversion failure instead of silently returning false
-        throw std::runtime_error(
-            "(AR) خطأ: لا يمكن تحويل القيمة من نوع '" + value.getTypeName() + 
-            "' إلى منطقي / (EN) Cannot convert value of type '" + 
-            value.getTypeName() + "' to boolean: " + e.what());
+        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
     }
 }
 

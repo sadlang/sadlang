@@ -19,6 +19,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الكتالوج
 // Undefine Windows VOID macro to avoid conflict with ValueType::VOID
 #ifdef VOID
 #undef VOID
@@ -115,9 +116,7 @@ namespace Sad
             {
                 if (args.empty())
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة الطول تحتاج معامل واحد على الأقل / "
-                        "(EN) length() requires at least one argument");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 auto &value = args[0];
@@ -134,9 +133,7 @@ namespace Sad
             {
                 if (args.size() < 2)
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة أضف تحتاج معاملين / "
-                        "(EN) append() requires two arguments");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 auto &array = args[0];
@@ -144,9 +141,7 @@ namespace Sad
 
                 if (!array || !array->isArray())
                 {
-                    throw std::runtime_error(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 if (value)
@@ -164,9 +159,7 @@ namespace Sad
             {
                 if (args.size() < 2)
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة أزل تحتاج معاملين / "
-                        "(EN) remove() requires two arguments");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 auto &array = args[0];
@@ -174,16 +167,12 @@ namespace Sad
 
                 if (!array || !array->isArray())
                 {
-                    throw std::runtime_error(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 if (!index || !index->isInteger())
                 {
-                    throw std::runtime_error(
-                        "(AR) المعامل الثاني يجب أن يكون رقماً / "
-                        "(EN) Second argument must be a number");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 int idx = index->toInt();
@@ -196,9 +185,7 @@ namespace Sad
                 }
                 else
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: الفهرس خارج حدود المصفوفة / "
-                        "(EN) Error: Index out of array bounds");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE);
                 }
 
                 return std::make_shared<Data::Value>(); // VOID
@@ -323,27 +310,21 @@ namespace Sad
                 // (EN) Validate argument count
                 if (args.size() != 2)
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: دالة split تحتاج معاملين (النص، الفاصل).\n"
-                        "(EN) Error: split function requires 2 arguments (text, delimiter).");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 // (AR) التحقق من أن المعامل الأول نص
                 // (EN) Validate first argument is string
                 if (!args[0]->isString())
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: المعامل الأول لدالة split يجب أن يكون نصاً.\n"
-                        "(EN) Error: First argument to split must be a string.");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 // (AR) التحقق من أن المعامل الثاني نص
                 // (EN) Validate second argument is string
                 if (!args[1]->isString())
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: المعامل الثاني لدالة split يجب أن يكون نصاً.\n"
-                        "(EN) Error: Second argument to split must be a string.");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::string text = args[0]->toString();
@@ -416,27 +397,21 @@ namespace Sad
                 // (EN) Validate argument count
                 if (args.size() != 2)
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: دالة join تحتاج معاملين (المصفوفة، الفاصل).\n"
-                        "(EN) Error: join function requires 2 arguments (array, delimiter).");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 // (AR) التحقق من أن المعامل الأول مصفوفة
                 // (EN) Validate first argument is array
                 if (!args[0]->isArray())
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: المعامل الأول لدالة join يجب أن يكون مصفوفة.\n"
-                        "(EN) Error: First argument to join must be an array.");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 // (AR) التحقق من أن المعامل الثاني نص
                 // (EN) Validate second argument is string
                 if (!args[1]->isString())
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: المعامل الثاني لدالة join يجب أن يكون نصاً.\n"
-                        "(EN) Error: Second argument to join must be a string.");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 const auto &array = args[0]->toArray();
@@ -468,9 +443,7 @@ namespace Sad
             {
                 if (args.empty() || !args[0])
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة القيمة المطلقة تحتاج معامل واحد / "
-                        "(EN) abs() requires one argument");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 if (args[0]->isInteger())
@@ -483,18 +456,14 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::abs(args[0]->toDouble()));
                 }
 
-                throw std::runtime_error(
-                    "(AR) المعامل يجب أن يكون رقماً / "
-                    "(EN) Argument must be a number");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
             }
 
             std::shared_ptr<Data::Value> max(const std::vector<std::shared_ptr<Data::Value>> &args)
             {
                 if (args.size() < 2)
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة أكبر تحتاج معاملين على الأقل / "
-                        "(EN) max() requires at least two arguments");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 Data::Value result = *args[0];
@@ -523,9 +492,7 @@ namespace Sad
             {
                 if (args.size() < 2)
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة أصغر تحتاج معاملين على الأقل / "
-                        "(EN) min() requires at least two arguments");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 Data::Value result = *args[0];
@@ -582,9 +549,7 @@ namespace Sad
             {
                 if (args.empty() || !args[0])
                 {
-                    throw std::runtime_error(
-                        "(AR) دالة الجذر تحتاج معامل واحد / "
-                        "(EN) sqrt() requires one argument");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 double value = 0;
@@ -640,8 +605,7 @@ namespace Sad
             {
                 if (args.empty() || !args[0])
                 {
-                    throw std::runtime_error(
-                        "(AR) \u062e\u0637\u0623: \u062f\u0627\u0644\u0629 \u0625\u0644\u0649_\u0631\u0642\u0645() \u062a\u062d\u062a\u0627\u062c \u0648\u0633\u064a\u0637\u0629 \u0648\u0627\u062d\u062f\u0629. (EN) Error: to_int() requires one argument.");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 if (args[0]->isInteger())
@@ -668,23 +632,18 @@ namespace Sad
                     }
                     catch (...)
                     {
-                        throw std::runtime_error(
-                            "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 '" + s + "' \u0625\u0644\u0649 \u0631\u0642\u0645. "
-                                                                                                                                    "(EN) Error: cannot convert '" +
-                            s + "' to integer.");
+                        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     }
                 }
 
-                throw std::runtime_error(
-                    "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 \u0627\u0644\u0642\u064a\u0645\u0629 \u0625\u0644\u0649 \u0631\u0642\u0645. (EN) Error: cannot convert value to integer.");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             }
 
             std::shared_ptr<Data::Value> to_float(const std::vector<std::shared_ptr<Data::Value>> &args)
             {
                 if (args.empty() || !args[0])
                 {
-                    throw std::runtime_error(
-                        "(AR) \u062e\u0637\u0623: \u062f\u0627\u0644\u0629 \u0625\u0644\u0649_\u0639\u0634\u0631\u064a() \u062a\u062d\u062a\u0627\u062c \u0648\u0633\u064a\u0637\u0629 \u0648\u0627\u062d\u062f\u0629. (EN) Error: to_float() requires one argument.");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 if (args[0]->isDouble())
@@ -711,15 +670,11 @@ namespace Sad
                     }
                     catch (...)
                     {
-                        throw std::runtime_error(
-                            "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 '" + s + "' \u0625\u0644\u0649 \u0639\u062f\u062f \u0639\u0634\u0631\u064a. "
-                                                                                                                                    "(EN) Error: cannot convert '" +
-                            s + "' to float.");
+                        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     }
                 }
 
-                throw std::runtime_error(
-                    "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 \u0627\u0644\u0642\u064a\u0645\u0629 \u0625\u0644\u0649 \u0639\u062f\u062f \u0639\u0634\u0631\u064a. (EN) Error: cannot convert value to float.");
+                throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             }
 
             std::shared_ptr<Data::Value> to_string(const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -759,9 +714,7 @@ namespace Sad
                 // (EN) Validate argument count
                 if (args.empty() || args.size() > 3)
                 {
-                    throw std::runtime_error(
-                        "(AR) خطأ: دالة range تحتاج 1-3 معاملات (stop) أو (start, stop) أو (start, stop, step).\n"
-                        "(EN) Error: range function requires 1-3 arguments (stop) or (start, stop) or (start, stop, step).");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
                 int start = 0;
@@ -792,9 +745,7 @@ namespace Sad
                     // (EN) Validate step is not zero
                     if (step == 0)
                     {
-                        throw std::runtime_error(
-                            "(AR) خطأ: قيمة step في range لا يمكن أن تكون صفراً.\n"
-                            "(EN) Error: step value in range cannot be zero.");
+                        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     }
                 }
 

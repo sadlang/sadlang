@@ -14,6 +14,7 @@
 #include "sad_type_system.h"
 #include <algorithm>
 #include <stdexcept>
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الكتالوج
 
 namespace Sad
 {
@@ -36,11 +37,11 @@ namespace Sad
             {
                 if (args.size() < minArgs)
                 {
-                    throw std::invalid_argument("Too few arguments");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 if (maxArgs >= 0 && args.size() > static_cast<size_t>(maxArgs))
                 {
-                    throw std::invalid_argument("Too many arguments");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 return true;
             }
@@ -90,9 +91,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 // (AR) نسخ المصفوفة وإضافة العنصر
@@ -115,18 +114,14 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل يجب أن يكون مصفوفة / "
-                        "(EN) Argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
 
                 if (arr.empty())
                 {
-                    throw std::runtime_error(
-                        "(AR) لا يمكن إزالة عنصر من مصفوفة فارغة / "
-                        "(EN) Cannot pop from empty array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION);
                 }
 
                 // (AR) إرجاع آخر عنصر
@@ -148,9 +143,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل يجب أن يكون مصفوفة / "
-                        "(EN) Argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
@@ -171,9 +164,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
@@ -214,9 +205,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
@@ -247,9 +236,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل يجب أن يكون مصفوفة / "
-                        "(EN) Argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
@@ -273,9 +260,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
@@ -316,18 +301,14 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل يجب أن يكون مصفوفة / "
-                        "(EN) Argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
 
                 if (arr.empty())
                 {
-                    throw std::runtime_error(
-                        "(AR) لا يمكن الحصول على أول عنصر من مصفوفة فارغة / "
-                        "(EN) Cannot get first element from empty array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION);
                 }
 
                 return arr[0];
@@ -345,18 +326,14 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل يجب أن يكون مصفوفة / "
-                        "(EN) Argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();
 
                 if (arr.empty())
                 {
-                    throw std::runtime_error(
-                        "(AR) لا يمكن الحصول على آخر عنصر من مصفوفة فارغة / "
-                        "(EN) Cannot get last element from empty array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_EMPTY_OPERATION);
                 }
 
                 return arr.back();
@@ -374,9 +351,7 @@ namespace Sad
 
                 if (args[0].getKind() != Types::SadTypeKind::Array)
                 {
-                    throw std::invalid_argument(
-                        "(AR) المعامل الأول يجب أن يكون مصفوفة / "
-                        "(EN) First argument must be an array");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::vector<Data::Value> arr = args[0].toArray();

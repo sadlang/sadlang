@@ -18,6 +18,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الكتالوج
 #endif
 
 namespace Sad
@@ -176,8 +177,7 @@ namespace Sad
                     int max = args[0].toInt();
                     if (max <= 0)
                     {
-                        throw std::invalid_argument(
-                            "(AR) خطأ: random() الحد الأقصى يجب أن يكون موجباً / (EN) random() max must be positive");
+                        throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                     }
                     std::uniform_int_distribution<int> dist(0, max - 1);
                     return Value(dist(rng));
@@ -190,8 +190,7 @@ namespace Sad
 
                 if (min >= max)
                 {
-                    throw std::invalid_argument(
-                        "(AR) خطأ: random() الحد الأدنى يجب أن يكون أقل من الحد الأقصى / (EN) random() min must be less than max");
+                    throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
                 std::uniform_int_distribution<int> dist(min, max - 1);
