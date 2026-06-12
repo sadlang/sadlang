@@ -35,16 +35,23 @@
 |---|---|---|
 | `pull_request` | كل تغيير يمرّ بـ PR (لا دفع مباشر) | `git push origin graphic` → **مرفوض** |
 | `required_signatures` | كل commit يصل للفرع **موقَّع** | دفع commit غير موقَّع → **مرفوض** |
-| `required_linear_history` | تاريخ خطّي — **لا merge commits** | دمج `merge` عبر API → **`405 Merge commits are not allowed`** |
+| `required_linear_history` | تاريخ خطّي — **لا merge commits** (commit بأبوين) | دمج `merge` عبر API → **`405 Merge commits are not allowed`** |
 | `non_fast_forward` | منع force-push / إعادة الكتابة | `push --force` → **مرفوض** |
 | `deletion` | منع حذف الفرع | حذف `graphic` → **مرفوض** |
 | `pull_request.approvals = 0` | **لا مراجعة إلزامية حاليّاً** (فريق مالك واحد) | الدمج يمضي دون موافقة ثانية |
 
+**ملاحظة دقيقة عن منع `merge`:** قاعدة `pull_request` في الـRuleset تُدرج
+`allowed_merge_methods: [merge, squash, rebase]` — أي أن `merge` يبدو **مسموحاً** ظاهريّاً.
+لكن المنع الفعلي يأتي من قاعدة **منفصلة** هي `required_linear_history`: فأيّ commit بأبوين
+(merge commit) يُرفض، ولذلك يردّ GitHub `405 Merge commits are not allowed`.
+أما `squash` و`rebase` فينتجان commit بأب واحد (تاريخ خطّي) → **كلاهما مسموح عمليّاً**.
+
 **ملاحظتان مهمّتان:**
 
 1. **لا توجد فحوص CI إلزامية في الـRuleset.** فحوص GitHub Actions (Windows/Linux/macOS/تحليل ساكن)
-   تظهر على الـPR وقد يقول GitHub `BLOCKED` أثناء انتظارها، لكنها **لا تمنع الدمج عبر REST API**.
-   هي إشارة جودة، لا بوّابة صارمة. (التحقّق المحلّي قبل الدمج يبقى مسؤوليتك — انظر §3.)
+   إشارة جودة لا بوّابة صارمة. مع ذلك، حالة الـPR على الفرع الافتراضي تظهر `BLOCKED` بسبب
+   **سياسة الفرع** نفسها (لا بالضرورة بسبب CI)، فيرفضها `gh pr merge` العاديّ ويتطلّب الدمج
+   **تجاوز المالك** (REST API أو `--admin` — انظر §4.2). (التحقّق المحلّي قبل الدمج يبقى مسؤوليتك — انظر §3.)
 2. **لماذا ينجح الدمج عبر API رغم `required_signatures`؟** لأن GitHub **يوقّع** commit الـsquash
    من طرف الخادم (web-flow signature). أما الدفع المحلّي المباشر فيحمل commits غير موقَّعة → يُرفض.
 
@@ -77,6 +84,12 @@ git checkout -b feat/اسم-الميزة-المختصر graphic
 - رسائل commit بصيغة [Conventional Commits](https://www.conventionalcommits.org/):
   `feat(scope): وصف` · `fix(scope): وصف` · `test(scope): وصف`.
 - إن وُجد توقيع GPG محلّي فعّله (`commit.gpgsign true`)؛ وإلا فالخادم يوقّع عند الدمج.
+
+> **توقيع GPG محلّياً (اختياري):** بما أن الدمج عبر الخادم يوقّع تلقائيّاً، التوقيع المحلّي
+> ليس ضروريّاً للمساهمة. لكن إن أردت دفع commits موقَّعة مباشرةً إلى فرع ميزتك بتوقيع موثَّق:
+> ولِّد مفتاحاً (`gpg --full-generate-key`)، أضِف مفتاحه العامّ إلى
+> GitHub → Settings → SSH and GPG keys، ثم `git config user.signingkey <المعرّف>` و
+> `git config commit.gpgsign true`.
 
 ### 2.4 قلِّل التداخل مع الميزات الموازية
 
@@ -124,16 +137,28 @@ gh pr create --base graphic --head feat/اسم-الميزة-المختصر `
 
 ### 4.2 ادمج — **squash حصراً**
 
-التاريخ الخطّي يمنع merge commits، فالطريقة الوحيدة المسموحة هي **squash**
-(و`rebase` نظريّاً). استخدم REST API:
+التاريخ الخطّي يرفض merge commits، فالطريقتان المسموحتان عمليّاً هما **`squash`**
+(الموصى بها — تطوي الفرع في commit واحد نظيف) و**`rebase`**. تجنّب `merge`.
+
+> ⚠️ **مهمّ:** سياسة الفرع الافتراضي تجعل حالة الـPR تظهر `BLOCKED`، فيرفض `gh pr merge <رقم> --squash`
+> العاديّ الدمجَ برسالة *"base branch policy prohibits the merge"*. الدمج يتطلّب **تجاوز المالك (admin)**.
+
+الطريقة المُتحقَّق منها (تجاوز المالك عبر REST API):
 
 ```bash
 gh api --method PUT repos/SalehKadah/s-programming-language/pulls/<رقم>/merge `
   -f merge_method=squash
 ```
 
+أو مكافئها عبر `gh` مع علم التجاوز:
+
+```bash
+gh pr merge <رقم> --squash --admin
+```
+
 > ✅ `{"merged": true}` = نجح. الخادم يوقّع commit الناتج.
 > ❌ `405 Merge commits are not allowed` = استخدمت `merge_method=merge` — حوّلها إلى `squash`.
+> ❌ `base branch policy prohibits the merge` = استخدمت `gh pr merge` بلا `--admin` — أضِف `--admin` أو استخدم REST API.
 
 ### 4.3 إن كان الـPR متعارضاً (CONFLICTING)
 
@@ -172,7 +197,8 @@ git push origin --delete feat/اسم-الميزة-المختصر  # الريمو
 | `push declined due to repository rule violations` على `graphic` | دفع مباشر للفرع المحميّ | افتح PR بدلاً منه (§4.1) |
 | `405 Merge commits are not allowed` | `merge_method=merge` | استخدم `merge_method=squash` |
 | الدفع مرفوض بسبب توقيع | commit غير موقَّع على فرع يفرض التوقيع | الدمج عبر API (الخادم يوقّع)، أو فعّل GPG محلّياً |
-| `gh pr view` يقول `BLOCKED` | فحوص CI ما زالت `pending` | ليست بوّابة صارمة؛ تحقّق محلّياً ثم ادمج عبر API |
+| `gh pr view` يقول `BLOCKED` | سياسة الفرع الافتراضي (وليس بالضرورة فحوص CI) | تجاوز المالك: REST API أو `gh pr merge --admin` |
+| `base branch policy prohibits the merge` | `gh pr merge` بلا `--admin` | أضِف `--admin` أو استخدم REST API (§4.2) |
 | تعارض في ملف مشترك ساخن | فرعان لمسا نفس السطور | حُلّه في فرع الميزة (§4.3) قبل الدمج |
 
 ---
@@ -181,4 +207,5 @@ git push origin --delete feat/اسم-الميزة-المختصر  # الريمو
 
 - [`.github/BRANCH_PROTECTION_POLICY.md`](../../.github/BRANCH_PROTECTION_POLICY.md) — السياسة الكاملة وخطة إعادة التشديد
 - [`.github/PULL_REQUEST_TEMPLATE.md`](../../.github/PULL_REQUEST_TEMPLATE.md) — قالب وصف الـPR
-- [دستور التوثيق](../CONTRIBUTING_DOCS.md) · [دليل الأسلوب](../STYLE_GUIDE.md)
+- [دليل أسلوب الكتابة](../دليل_أسلوب_الكتابة.md) — أسلوب الوثائق العربية
+- [دليل المساهمين](README.md) · [فهرس فئة المساهمين](index.md)
