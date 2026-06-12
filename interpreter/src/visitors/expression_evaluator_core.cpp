@@ -280,10 +280,12 @@ namespace Sad
 
             default:
             {
+                // (AR) خرق ثابت داخلي: المُحلِّل سلّم رمزاً ليس حرفيّاً لمُقيِّم القيم الحرفية (ICE)
+                // (EN) Internal invariant violation: parser handed a non-literal token to the literal evaluator (ICE)
                 Sad::Errors::RenderContext _rc;
-                _rc.placeholders = {{"op", "تقييم رمز / literal eval"}, {"type", token.getValue()}};
+                _rc.placeholders = {{"detail", token.getValue()}};
                 Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
-                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                    Sad::Errors::ErrorCode::INT_INTERP_UNEXPECTED_TOKEN,
                     Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
                 return Value(); // Return null
             }

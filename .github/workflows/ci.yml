@@ -312,15 +312,15 @@ jobs:
       - name: "🧪 اختبارات Regression (المفسر) / Regression Tests (Interpreter)"
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad.exe"
+          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           if (Test-Path $sad) {
-            if (Test-Path "tests/regression/run_regression_tests.ps1") {
-              & "tests/regression/run_regression_tests.ps1" -SadExe $sad -Mode interpreter
+            if (Test-Path "tests/behavior/_regression/run_regression_tests.ps1") {
+              & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sad -Mode interpreter
             } else {
               Write-Host "⚠️ SKIP: Regression test runner not found" -ForegroundColor Yellow
             }
           } else {
-            Write-Host "❌ MISSING: sad.exe not built" -ForegroundColor Red
+            Write-Host "❌ MISSING: sad-run.exe not built" -ForegroundColor Red
             exit 1
           }
 
@@ -330,8 +330,8 @@ jobs:
         run: |
           $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
           if (Test-Path $sadc) {
-            if (Test-Path "tests/regression/run_regression_tests.ps1") {
-              & "tests/regression/run_regression_tests.ps1" -SadExe $sadc -Mode compiler
+            if (Test-Path "tests/behavior/_regression/run_regression_tests.ps1") {
+              & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sadc -Mode compiler
             } else {
               Write-Host "⚠️ SKIP: Regression test runner not found" -ForegroundColor Yellow
             }
@@ -349,18 +349,18 @@ jobs:
         shell: pwsh
         if: matrix.config == 'Release'
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad.exe"
+          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
           if ((Test-Path $sad) -and (Test-Path $sadc)) {
             Write-Host "▶️ Running dual execution tests..." -ForegroundColor Cyan
-            python tests/dual_execution/runner.py --level P0 --timeout 30 --interp $sad --compiler $sadc --report
+            python tests/runner.py --level P0 --timeout 30 --interp $sad --compiler $sadc --report
             if ($LASTEXITCODE -ne 0) {
               Write-Host "⚠️ Dual execution tests had failures" -ForegroundColor Yellow
             } else {
               Write-Host "✅ Dual execution tests passed" -ForegroundColor Green
             }
           } else {
-            Write-Host "⚠️ SKIP: sad.exe or sadc.exe not found" -ForegroundColor Yellow
+            Write-Host "⚠️ SKIP: sad-run.exe or sadc.exe not found" -ForegroundColor Yellow
           }
 
       - name: "💾 حفظ الملفات التنفيذية / Upload Artifacts"
@@ -475,16 +475,16 @@ jobs:
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
-          sad="build/bin/sad"
+          sad="build/bin/sad-run"
           if [ -x "$sad" ]; then
-            if [ -f "tests/regression/run_regression_tests.sh" ]; then
-              chmod +x tests/regression/run_regression_tests.sh
-              tests/regression/run_regression_tests.sh "$sad" interpreter
+            if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
+              chmod +x tests/behavior/_regression/run_regression_tests.sh
+              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
             else
               echo "⚠️ SKIP: Regression test runner not found"
             fi
           else
-            echo "❌ MISSING: sad not built"
+            echo "❌ MISSING: sad-run not built"
             exit 1
           fi
 
@@ -496,11 +496,11 @@ jobs:
       - name: "� اختبارات التنفيذ المزدوج / Dual Execution Tests"
         if: matrix.config == 'Release'
         run: |
-          sad="build/bin/sad"
+          sad="build/bin/sad-run"
           sadc="build/bin/sadc"
           if [ -x "$sad" ] && [ -x "$sadc" ]; then
             echo "▶️ Running dual execution tests..."
-            python3 tests/dual_execution/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
+            python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
               echo "⚠️ Dual execution tests had failures"
           else
             echo "⚠️ SKIP: sad or sadc not found"
@@ -597,14 +597,14 @@ jobs:
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
-          sad="build/bin/sad"
+          sad="build/bin/sad-run"
           if [ -x "$sad" ]; then
-            if [ -f "tests/regression/run_regression_tests.sh" ]; then
-              chmod +x tests/regression/run_regression_tests.sh
-              tests/regression/run_regression_tests.sh "$sad" interpreter
+            if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
+              chmod +x tests/behavior/_regression/run_regression_tests.sh
+              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
             fi
           else
-            echo "❌ MISSING: sad not built"
+            echo "❌ MISSING: sad-run not built"
             exit 1
           fi
 
@@ -616,11 +616,11 @@ jobs:
       - name: "� اختبارات التنفيذ المزدوج / Dual Execution Tests"
         if: matrix.config == 'Release'
         run: |
-          sad="build/bin/sad"
+          sad="build/bin/sad-run"
           sadc="build/bin/sadc"
           if [ -x "$sad" ] && [ -x "$sadc" ]; then
             echo "▶️ Running dual execution tests..."
-            python3 tests/dual_execution/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
+            python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
               echo "⚠️ Dual execution tests had failures"
           else
             echo "⚠️ SKIP: sad or sadc not found"

@@ -17,13 +17,13 @@ message(STATUS "═════════════════════�
 # ──────────────────────────────────────────────────────────────────────
 macro(add_comprehensive_test TEST_NAME TEST_SOURCE)
     add_executable(${TEST_NAME}
-        ${CMAKE_SOURCE_DIR}/tests/comprehensive/${TEST_SOURCE}
+        ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/${TEST_SOURCE}
     )
 
     target_link_libraries(${TEST_NAME} PRIVATE sad_shared)
 
     target_include_directories(${TEST_NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/tests/comprehensive
+        ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive
         ${CMAKE_SOURCE_DIR}/shared/lexer/include
         ${CMAKE_SOURCE_DIR}/shared/parser/include
         ${CMAKE_SOURCE_DIR}/shared/ast/include
@@ -52,7 +52,9 @@ macro(add_comprehensive_test TEST_NAME TEST_SOURCE)
     target_compile_features(${TEST_NAME} PRIVATE cxx_std_17)
 
     add_test(NAME "Comprehensive_${TEST_NAME}" COMMAND ${TEST_NAME})
-    set_tests_properties("Comprehensive_${TEST_NAME}" PROPERTIES TIMEOUT 120)
+    # (AR) TEST-004 AC-02: وسم Unit — تشغيل طبقة الوحدة كاملة بـ ctest -L Unit
+    # (EN) TEST-004 AC-02: Unit label — run the whole unit layer via ctest -L Unit
+    set_tests_properties("Comprehensive_${TEST_NAME}" PROPERTIES TIMEOUT 120 LABELS "Unit")
 
     message(STATUS "  ✅ ${TEST_NAME}")
 endmacro()
@@ -75,9 +77,10 @@ add_comprehensive_test(test_value_comprehensive test_value_comprehensive.cpp)
 
 # 4. المفسر / Interpreter Tests (76 tests)
 add_comprehensive_test(test_interpreter_comprehensive test_interpreter_comprehensive.cpp)
-target_link_libraries(test_interpreter_comprehensive PRIVATE sad_interpreter sad_semantic sad_profiler_lib)
+# (AR) TEST-004: sad_interpreter جزئية بالتصميم (vtable الزائرين غير مكتمل) — المفسر الكامل في sad_core
+target_link_libraries(test_interpreter_comprehensive PRIVATE sad_core sad_profiler_lib)
 target_sources(test_interpreter_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
+    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/interpreter_test_stubs.cpp)
 
 # 5. المكتبة القياسية / Standard Library Tests (90 tests)
 add_comprehensive_test(test_stdlib_comprehensive test_stdlib_comprehensive.cpp)
@@ -104,7 +107,7 @@ add_comprehensive_test(test_docs_extractor_comprehensive test_docs_extractor_com
 
 # 7. الآلة الافتراضية والمترجم / VM & Compiler Tests (77 tests)
 add_comprehensive_test(test_vm_compiler_comprehensive test_vm_compiler_comprehensive.cpp)
-target_link_libraries(test_vm_compiler_comprehensive PRIVATE sad_vm sad_interpreter sad_frontend)
+target_link_libraries(test_vm_compiler_comprehensive PRIVATE sad_vm sad_core sad_frontend)
 target_include_directories(test_vm_compiler_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
     ${CMAKE_SOURCE_DIR}/compiler/include
@@ -134,15 +137,15 @@ target_include_directories(test_compiler_comprehensive PRIVATE
 
 # 11.5. اختبارات نظام الاستثناءات / Throw-Catch Exception Tests (35 tests)
 add_comprehensive_test(test_throw_catch_comprehensive test_throw_catch_comprehensive.cpp)
-target_link_libraries(test_throw_catch_comprehensive PRIVATE sad_interpreter sad_semantic sad_profiler_lib)
+target_link_libraries(test_throw_catch_comprehensive PRIVATE sad_core sad_profiler_lib)
 target_sources(test_throw_catch_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
+    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/interpreter_test_stubs.cpp)
 
 # 11.6. اختبارات ?. و ?? / Optional Chain & Null Coalesce Tests (30+ tests)
 add_comprehensive_test(test_optional_null_comprehensive test_optional_null_comprehensive.cpp)
-target_link_libraries(test_optional_null_comprehensive PRIVATE sad_interpreter sad_semantic sad_profiler_lib)
+target_link_libraries(test_optional_null_comprehensive PRIVATE sad_core sad_profiler_lib)
 target_sources(test_optional_null_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
+    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/interpreter_test_stubs.cpp)
 
 # 12. اختبارات الانحدار / Regression Tests (22 tests - bugs from مشاكل.md)
 add_comprehensive_test(test_regression_comprehensive test_regression_comprehensive.cpp)
@@ -150,7 +153,7 @@ add_comprehensive_test(test_regression_comprehensive test_regression_comprehensi
 # تمرير مسار sad.exe ومجلد الاختبارات / Pass interpreter and test directory paths
 target_compile_definitions(test_regression_comprehensive PRIVATE
     SAD_EXE_PATH="$<TARGET_FILE:sad>"
-    REGRESSION_DIR="${CMAKE_SOURCE_DIR}/tests/regression"
+    REGRESSION_DIR="${CMAKE_SOURCE_DIR}/tests/behavior/_regression"
 )
 
 # مهلة أطول للانحدار — بعض الاختبارات تتضمن حلقات لا نهائية / Longer timeout for regression
@@ -261,7 +264,7 @@ target_include_directories(test_reconciler_performance PRIVATE
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
 # ──────────────────────────────────────────────────────────────────────
 # تسجيل كل ملف .ص كاختبار CTest مستقل — يسهل التشخيص / Register each .ص as standalone CTest
-set(REGRESSION_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/regression")
+set(REGRESSION_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/behavior/_regression")
 
 # P0 — عاجل / Critical
 set(REGRESSION_P0_TESTS
@@ -336,7 +339,11 @@ message(STATUS "  ✅ test_regression_comprehensive (30 regression tests)")
 # اختبارات ?. و ?? عبر ملفات .ص / Optional Chain & Null Coalesce .ص tests
 # ──────────────────────────────────────────────────────────────────────
 if(TARGET sad)
-    set(OPT_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/ownership")
+    # (AR) TEST-005: نُقلت ملفات ?./?? إلى behavior/_regression (موطن .ص التي
+    #      يشغّلها ctest) بعد أرشفة tests/ownership — راجع tests/_archive/README.md
+    # (EN) TEST-005: optional-null .ص files moved to behavior/_regression after
+    #      tests/ownership was archived.
+    set(OPT_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/behavior/_regression")
     file(GLOB OPT_NULL_TESTS "${OPT_TEST_DIR}/test_optional_null*")
     foreach(OPT_FILE IN LISTS OPT_NULL_TESTS)
         get_filename_component(OPT_NAME "${OPT_FILE}" NAME_WE)

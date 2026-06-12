@@ -178,3 +178,21 @@ errors:
     detailed:
       ar: بلغت تعليمة ({detail}) مولِّد الكود بنوع معامل يخالف قيدها. التحقّق من الأنواع يُفترض أن يمنع هذا قبل التوليد؛ وصوله يعني فجوة في فحص الأنواع.
       en: An instruction ({detail}) reached codegen with an operand type that violates its constraint. Type checking should prevent this before codegen; reaching here indicates a gap in type checking.
+
+  - code: INT_INTERP_UNEXPECTED_TOKEN
+    id: INT010
+    category: internal
+    title:
+      ar: خطأ داخلي في المفسر — نوع رمز حرفي غير متوقَّع
+      en: Internal interpreter error — unexpected literal token type
+    brief:
+      ar: 'خطأ داخلي في المفسر: نوع رمز غير حرفي ({detail}) وصل لمُقيِّم القيم الحرفية — يُرجى الإبلاغ'
+      en: 'Internal interpreter error: a non-literal token type ({detail}) reached the literal-value evaluator — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المفسر: المُحلِّل (parser) سلّم لـtokenToValue رمزاً ({detail}) ليس حرفيّاً. تحقّق من أن بناء عقدة التعبير الحرفي يقتصر على أنواع الرموز الحرفية. للمستخدم: علّة مفسر — أبلِغ، وليست علّة في برنامجك.'
+      en: 'Interpreter dev: the parser handed tokenToValue a token ({detail}) that is not a literal. Ensure literal-expression node construction is restricted to literal token types. User: interpreter bug — report; not an error in your code.'
+    detailed:
+      ar: حاول المفسر تحويل رمز ({detail}) إلى قيمة حرفية، لكن نوع الرمز ليس من الأنواع الحرفية المعروفة (عدد/نص/منطقي/فراغ). ثابت داخلي — المُحلِّل يُفترض ألّا يُنشئ عقدة تعبير حرفي إلا لرمز حرفي. لا علاقة له بصحّة كود ص.
+      en: The interpreter tried to convert a token ({detail}) into a literal value, but the token type is not among the known literal types (number/string/boolean/null). An internal invariant — the parser should only build a literal-expression node for a literal token. Unrelated to your ص code.

@@ -1,8 +1,0 @@
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/string_functions_tests.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/array_functions_tests.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/math_functions_tests.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/type_functions_tests.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/other_functions_tests.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/RUN_TESTS.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/ALL_BUILD.dir
-C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/ZERO_CHECK.dir

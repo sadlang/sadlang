@@ -74,8 +74,8 @@
 
 | النظام | المجلد | الدور | مرجع |
 |--------|--------|------|------|
-| التنفيذ المزدوج | `tests/dual_execution/` | `runner.py` يقارن المفسر بالمترجم | [build-test](./build-test.md) |
-| اختبارات C++ | `tests/unit/`, `tests/comprehensive/` | وحدات + الحزمة الشاملة | [build-test](./build-test.md) |
+| التنفيذ المزدوج | `tests/behavior/` | `runner.py` يقارن المفسر بالمترجم | [build-test](./build-test.md) |
+| اختبارات C++ | `tests/unit/` (الشاملة في `unit/comprehensive/`) | وحدات + الحزمة الشاملة | [build-test](./build-test.md) |
 | اختبارات sadinfo | `tests/sadinfo/` | تحقّق بيانات اللغة | [docs-yaml-system](./docs-yaml-system.md) |
 | البناء | `cmake/` | `codegen.cmake`, `executables.cmake`, `llvm.cmake` | [build-test](./build-test.md) |
 

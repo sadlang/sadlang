@@ -100,7 +100,7 @@ interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Math::C
 عبر [./error-system.md](./error-system.md) §4.
 
 ### المهمة 6 — اختبار `.ص`
-`tests/dual_execution/math/cbrt.ص`:
+`tests/behavior/sections/09_المكتبة_القياسية/02_رياضيات/cbrt.ص`:
 ```sad
 # @description: الجذر التكعيبي
 # @expected: 3
@@ -114,8 +114,8 @@ interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Math::C
 ```powershell
 cmake --build build --config Debug --target sad
 cmake --build build --config Release --target sadc
-python tests/dual_execution/runner.py --section رياضيات
-python tests/dual_execution/runner.py --level P1
+python tests/runner.py --section رياضيات
+python tests/runner.py --level P1
 ```
 
 ### المهمة 8 — التسليم

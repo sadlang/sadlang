@@ -16,12 +16,12 @@ find_package(GTest CONFIG QUIET)
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات المحلل النحوي / Parser Tests
 # ──────────────────────────────────────────────────────────────────────
-set(PARSER_TEST_SOURCES tests/parser_tests/test_runner.cpp)
+set(PARSER_TEST_SOURCES tests/unit/parser/test_runner.cpp)
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/parser_tests/test_lambda_simple.cpp")
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_lambda_simple.cpp")
     add_executable(parser_tests ${PARSER_TEST_SOURCES})
     target_link_libraries(parser_tests PRIVATE sad_core)
-    target_include_directories(parser_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests/parser_tests)
+    target_include_directories(parser_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests/unit/parser)
     set_target_properties(parser_tests PROPERTIES
         OUTPUT_NAME "parser_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     add_test(NAME ParserTests COMMAND parser_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -33,11 +33,11 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات تحليل الوحدات / Module Parsing Tests
 # ──────────────────────────────────────────────────────────────────────
-if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/parser/test_module_parsing.cpp")
-    add_executable(test_module_parsing tests/parser/test_module_parsing.cpp)
+if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_module_parsing.cpp")
+    add_executable(test_module_parsing tests/unit/parser/test_module_parsing.cpp)
     target_link_libraries(test_module_parsing PRIVATE sad_core)
     target_include_directories(test_module_parsing PRIVATE
-        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/parser)
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/unit/parser)
     set_target_properties(test_module_parsing PROPERTIES
         OUTPUT_NAME "test_module_parsing" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     add_test(NAME ModuleParsingTests COMMAND test_module_parsing WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -49,11 +49,11 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات عُقد الأنواع / Type Nodes Tests
 # ──────────────────────────────────────────────────────────────────────
-if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/parser_tests/test_type_nodes.cpp")
-    add_executable(test_type_nodes tests/parser_tests/test_type_nodes.cpp)
+if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_type_nodes.cpp")
+    add_executable(test_type_nodes tests/unit/parser/test_type_nodes.cpp)
     target_link_libraries(test_type_nodes PRIVATE sad_core)
     target_include_directories(test_type_nodes PRIVATE
-        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/parser_tests)
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/unit/parser)
     set_target_properties(test_type_nodes PROPERTIES
         OUTPUT_NAME "test_type_nodes" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     add_test(NAME TypeNodesTests COMMAND test_type_nodes WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -123,8 +123,8 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات بناء SIR / SIR Builder Tests
 # ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_builder.cpp")
-    add_executable(sir_builder_tests tests/compiler/frontend/test_sir_builder.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_builder.cpp")
+    add_executable(sir_builder_tests tests/unit/sir/test_sir_builder.cpp)
     target_link_libraries(sir_builder_tests PRIVATE sad_core)
     target_include_directories(sir_builder_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
@@ -137,8 +137,8 @@ else()
 endif()
 
 # SIR Integration Tests
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_integration.cpp")
-    add_executable(sir_integration_tests tests/compiler/frontend/test_sir_integration.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_integration.cpp")
+    add_executable(sir_integration_tests tests/unit/sir/test_sir_integration.cpp)
     target_link_libraries(sir_integration_tests PRIVATE sad_core)
     target_include_directories(sir_integration_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
@@ -151,8 +151,8 @@ else()
 endif()
 
 # SIR Edge Cases Tests
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_edge_cases.cpp")
-    add_executable(sir_edge_cases_tests tests/compiler/frontend/test_sir_edge_cases.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_edge_cases.cpp")
+    add_executable(sir_edge_cases_tests tests/unit/sir/test_sir_edge_cases.cpp)
     target_link_libraries(sir_edge_cases_tests PRIVATE sad_core)
     target_include_directories(sir_edge_cases_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
@@ -167,7 +167,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات دوال الإدخال والإخراج / I/O Functions Tests
 # ──────────────────────────────────────────────────────────────────────
-add_executable(io_functions_tests tests/stdlib_tests/test_io_simple.cpp)
+add_executable(io_functions_tests tests/unit/stdlib/test_io_simple.cpp)
 target_link_libraries(io_functions_tests PRIVATE sad_core)
 target_include_directories(io_functions_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 set_target_properties(io_functions_tests PROPERTIES
@@ -177,8 +177,8 @@ add_test(NAME IOFunctionsTests COMMAND io_functions_tests WORKING_DIRECTORY ${CM
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات Code Actions وتعافي الأخطاء في LSP / LSP Code Actions Tests
 # ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/test_lsp_code_actions.cpp")
-    add_executable(lsp_code_actions_tests tests/test_lsp_code_actions.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/lsp/test_lsp_code_actions.cpp")
+    add_executable(lsp_code_actions_tests tests/system/lsp/test_lsp_code_actions.cpp)
     target_link_libraries(lsp_code_actions_tests PRIVATE sad_core)
     set_target_properties(lsp_code_actions_tests PROPERTIES
         OUTPUT_NAME "lsp_code_actions_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
@@ -248,8 +248,8 @@ endif()
 # DISABLED: includes reference old paths (include/data/types/, include/parser/ast/)
 # that no longer exist after shared/ reorganization. Needs full rewrite.
 # ──────────────────────────────────────────────────────────────────────
-if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/oop_tests/class_declaration_tests.cpp")
-    add_executable(oop_tests tests/oop_tests/class_declaration_tests.cpp)
+if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/oop/class_declaration_tests.cpp")
+    add_executable(oop_tests tests/unit/oop/class_declaration_tests.cpp)
     target_link_libraries(oop_tests PRIVATE sad_core)
     target_include_directories(oop_tests PRIVATE ${CMAKE_SOURCE_DIR})
     set_target_properties(oop_tests PROPERTIES
@@ -265,10 +265,10 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 
 # SIR Types Tests
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_types.cpp"
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_types.cpp"
    AND EXISTS "${CMAKE_SOURCE_DIR}/compiler/frontend/src/type_info.cpp")
     add_executable(sir_types_tests
-        tests/compiler/frontend/test_sir_types.cpp
+        tests/unit/sir/test_sir_types.cpp
         compiler/frontend/src/type_info.cpp)
     target_link_libraries(sir_types_tests PRIVATE sad_core)
     target_include_directories(sir_types_tests PRIVATE ${CMAKE_SOURCE_DIR}/compiler/frontend/include)
@@ -281,8 +281,8 @@ else()
 endif()
 
 # SIR Instruction Tests (updated to current API - February 2026)
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_instruction.cpp")
-    add_executable(sir_instruction_tests tests/compiler/frontend/test_sir_instruction.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/test_sir_instruction.cpp")
+    add_executable(sir_instruction_tests tests/unit/sir/test_sir_instruction.cpp)
     target_link_libraries(sir_instruction_tests PRIVATE sad_core)
     target_include_directories(sir_instruction_tests PRIVATE ${CMAKE_SOURCE_DIR}/compiler/frontend/include)
     set_target_properties(sir_instruction_tests PROPERTIES
@@ -296,8 +296,8 @@ endif()
 message(STATUS "⊘ اختبارات وحدات SIR معطلة مؤقتاً / SIR Module tests disabled (WIP)")
 
 # SIR Optimizer Tests
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/optimizer/CMakeLists.txt")
-    add_subdirectory(tests/compiler/optimizer)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/sir/optimizer/CMakeLists.txt")
+    add_subdirectory(tests/unit/sir/optimizer)
     message(STATUS "✓ اختبارات محسّن SIR / SIR Optimizer tests enabled")
 else()
     message(STATUS "⚠ اختبارات محسّن SIR غير متاحة / SIR Optimizer tests not available")
@@ -306,8 +306,8 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات طبقة الجسر — ADR-01 Phase 1 / Type Bridge Tests
 # ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/test_type_bridge.cpp")
-    add_executable(test_type_bridge tests/unit/test_type_bridge.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/types/test_type_bridge.cpp")
+    add_executable(test_type_bridge tests/unit/types/test_type_bridge.cpp)
     target_link_libraries(test_type_bridge PRIVATE sad_core)
     target_include_directories(test_type_bridge PRIVATE
         ${CMAKE_SOURCE_DIR}/shared/types/include
@@ -325,8 +325,8 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 message(STATUS "⊘ اختبارات نظام المؤشرات معطلة مؤقتاً / Pointer system tests disabled (WIP)")
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/low_level/test_bitwise.cpp")
-    add_executable(bitwise_tests tests/low_level/test_bitwise.cpp)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/low_level/test_bitwise.cpp")
+    add_executable(bitwise_tests tests/unit/low_level/test_bitwise.cpp)
     target_link_libraries(bitwise_tests PRIVATE sad_core)
     target_include_directories(bitwise_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
     set_target_properties(bitwise_tests PROPERTIES
@@ -343,7 +343,7 @@ endif()
 
 # اختبارات نظام الملفات / Filesystem Tests (تحتاج GTest)
 if(GTest_FOUND)
-    add_executable(filesystem_tests tests/stdlib/test_filesystem_module.cpp)
+    add_executable(filesystem_tests tests/unit/stdlib/test_filesystem_module.cpp)
     target_include_directories(filesystem_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(filesystem_tests PRIVATE sad_core GTest::gtest GTest::gtest_main)
     set_target_properties(filesystem_tests PROPERTIES
@@ -351,7 +351,7 @@ if(GTest_FOUND)
     message(STATUS "✓ اختبارات نظام الملفات / Filesystem tests enabled")
 
     # اختبارات HTTP / HTTP Tests
-    add_executable(http_tests tests/stdlib/test_http_module.cpp)
+    add_executable(http_tests tests/unit/stdlib/test_http_module.cpp)
     target_include_directories(http_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(http_tests PRIVATE sad_core GTest::gtest GTest::gtest_main)
     if(WIN32)
@@ -362,7 +362,7 @@ if(GTest_FOUND)
     message(STATUS "✓ اختبارات HTTP / HTTP tests enabled")
 
     # اختبارات JSON/XML / JSON/XML Tests
-    add_executable(json_xml_tests tests/stdlib/test_json_module.cpp tests/stdlib/test_xml_module.cpp)
+    add_executable(json_xml_tests tests/unit/stdlib/test_json_module.cpp tests/unit/stdlib/test_xml_module.cpp)
     target_include_directories(json_xml_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(json_xml_tests PRIVATE sad_core GTest::gtest GTest::gtest_main)
     set_target_properties(json_xml_tests PROPERTIES
@@ -373,13 +373,13 @@ else()
 endif()
 
 # اختبارات HTTP الجديدة (تحتاج GTest) / New HTTP Tests (requires GTest)
-if(BUILD_TESTS AND TARGET sad_http AND GTest_FOUND)
-    add_subdirectory(tests/network/http)
+if(BUILD_TESTS AND SAD_ENABLE_NETWORK_TESTS AND TARGET sad_http AND GTest_FOUND)
+    add_subdirectory(tests/system/network/http)
 endif()
 
 # اختبارات التشفير / Cryptography Tests
 if(OPENSSL_FOUND)
-    add_executable(crypto_tests tests/stdlib/test_crypto_module.cpp)
+    add_executable(crypto_tests tests/unit/stdlib/test_crypto_module.cpp)
     target_include_directories(crypto_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
     target_link_libraries(crypto_tests PRIVATE
@@ -391,9 +391,9 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات الوحدات الإضافية / Additional Module Tests (Sprint 1 — ريم)
 # ──────────────────────────────────────────────────────────────────────
-# ملاحظة: تم نقل الاختبارات إلى tests/comprehensive/ واستخدام sad_test_framework.h
+# ملاحظة: تم نقل الاختبارات إلى tests/unit/comprehensive/ واستخدام sad_test_framework.h
 # بدلاً من GTest. انظر cmake/tests_comprehensive.cmake للتسجيل.
-# Note: Tests moved to tests/comprehensive/ using sad_test_framework.h
+# Note: Tests moved to tests/unit/comprehensive/ using sad_test_framework.h
 # instead of GTest. See cmake/tests_comprehensive.cmake for registration.
 
 # Type Checker Tests
@@ -407,16 +407,56 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # (AR) اختبارات الهب و sad-check / (EN) Hub & sad-check tests
 # ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/hub/CMakeLists.txt")
-    add_subdirectory(tests/hub)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/hub/CMakeLists.txt")
+    add_subdirectory(tests/system/hub)
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
 # (AR) اختبارات sadinfo (Story 1.2)
 # (EN) sadinfo tests (Story 1.2)
 # ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/sadinfo/CMakeLists.txt")
-    add_subdirectory(tests/sadinfo)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/sadinfo/CMakeLists.txt")
+    add_subdirectory(tests/system/sadinfo)
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# (AR) TEST-004 AC-02: وسم Unit للاختبارات الفردية لطبقة الوحدة —
+#      يُكمل وسم ماكرو الحزمة الشاملة في tests_comprehensive.cmake،
+#      فيشغّل `ctest -L Unit` الطبقة كلها. حارس if(TEST) يتخطى المعطّل.
+# (EN) TEST-004 AC-02: Unit label for individual unit-layer tests —
+#      complements the comprehensive macro labeling, so `ctest -L Unit`
+#      runs the whole layer. The if(TEST) guard skips disabled ones.
+# ──────────────────────────────────────────────────────────────────────
+foreach(_unit_test IN ITEMS ParserTests SIRBuilderTests SIRIntegrationTests
+        SIREdgeCasesTests SIRInstructionTests SIRTypesTests IOFunctionsTests
+        BitwiseTests TypeBridgeTests LspCodeActionsTests OptimizerSimpleTests)
+    if(TEST ${_unit_test})
+        set_property(TEST ${_unit_test} APPEND PROPERTY LABELS "Unit")
+    endif()
+endforeach()
+
+# ──────────────────────────────────────────────────────────────────────
+# (AR) TEST-005 AC-04: بوّابة العتبات غير الوظيفية (NFR) — تقيس أزمنة برامج
+#      مرجعية (وسيط 7 تشغيلات) وتفشل عند تجاوز خط الأساس المقيس × (1+التسامح)
+#      من tests/system/benchmark/nfr_thresholds.yaml — لا أرقام سحرية (CW-10).
+#      إعادة المعايرة قرار بشري: python nfr_gate.py --calibrate (ليست خطوة CI).
+# (EN) TEST-005 AC-04: NFR gate — median-of-7 timings of reference programs;
+#      fails on regression beyond calibrated baseline × (1 + tolerance).
+#      Recalibration is a human action (--calibrate), never a CI step.
+# ──────────────────────────────────────────────────────────────────────
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py" AND TARGET sad)
+    # (AR) ملاحظة: هدف المفسر اسمه `sad` (OUTPUT_NAME=sad-run)؛ `sad-run` مجرد
+    #      custom target للاكتشاف ولا يملك TARGET_FILE.
+    # (EN) Note: the interpreter target is `sad` (OUTPUT_NAME=sad-run).
+    add_test(
+        NAME NFR_Gate
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py"
+                --interp "$<TARGET_FILE:sad>"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(NFR_Gate PROPERTIES TIMEOUT 180 LABELS "System;nfr")
+    message(STATUS "✓ بوّابة NFR / NFR gate enabled (tests/system/benchmark)")
 endif()
 
 message(STATUS "✓ الاختبارات مفعلة / Tests enabled")

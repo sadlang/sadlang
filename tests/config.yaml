@@ -12,7 +12,7 @@
 paths:
   interpreter: "build/bin/Debug/sad-run.exe"
   compiler: "build/bin/Release/sadc.exe"
-  tests_dir: "tests/dual_execution"
+  tests_dir: "tests/behavior"
 
 # (AR) إعدادات التنفيذ
 # (EN) Execution settings
@@ -46,38 +46,38 @@ output:
 # (AR) كل قسم يُشير إلى مجلد ميزة واحدة بالضبط
 sections:
   # ── أساسيات اللغة ──
-  متغيرات:   "features/01_أساسيات_اللغة/02_المتغيرات"
-  تحكم:      "features/01_أساسيات_اللغة/03_التحكم_في_التدفق"
-  دوال:      "features/01_أساسيات_اللغة/04_الدوال"
-  أساسيات:   "features/01_أساسيات_اللغة"
+  متغيرات:   "sections/01_أساسيات_اللغة/02_المتغيرات"
+  تحكم:      "sections/01_أساسيات_اللغة/03_التحكم_في_التدفق"
+  دوال:      "sections/01_أساسيات_اللغة/04_الدوال"
+  أساسيات:   "sections/01_أساسيات_اللغة"
   # ── أنواع وهياكل ──
-  أنواع:     "features/02_الأنواع_المدمجة"
+  أنواع:     "sections/02_الأنواع_المدمجة"
   # ── برمجة كائنية ──
-  كائني:     "features/03_البرمجة_الكائنية"
-  oop:       "features/03_البرمجة_الكائنية"
+  كائني:     "sections/03_البرمجة_الكائنية"
+  oop:       "sections/03_البرمجة_الكائنية"
   # ── مطابقة الأنماط ──
-  أنماط:     "features/04_مطابقة_الأنماط"
-  match:     "features/04_مطابقة_الأنماط"
+  أنماط:     "sections/04_مطابقة_الأنماط"
+  match:     "sections/04_مطابقة_الأنماط"
   # ── معالجة الأخطاء ──
-  أخطاء:     "features/05_معالجة_الأخطاء"
-  errors:    "features/05_معالجة_الأخطاء"
+  أخطاء:     "sections/05_معالجة_الأخطاء"
+  errors:    "sections/05_معالجة_الأخطاء"
   # ── دوال متقدمة ──
-  لامدا:     "features/06_الدوال_المتقدمة"
-  closures:  "features/06_الدوال_المتقدمة"
+  لامدا:     "sections/06_الدوال_المتقدمة"
+  closures:  "sections/06_الدوال_المتقدمة"
   # ── تزامن ──
-  تزامن:     "features/07_التزامن"
+  تزامن:     "sections/07_التزامن"
   # ── ميزات متقدمة ──
-  متقدم:     "features/08_ميزات_متقدمة"
+  متقدم:     "sections/08_ميزات_متقدمة"
   # ── مكتبة قياسية ──
-  مكتبة:     "features/09_المكتبة_القياسية"
-  stdlib:    "features/09_المكتبة_القياسية"
+  مكتبة:     "sections/09_المكتبة_القياسية"
+  stdlib:    "sections/09_المكتبة_القياسية"
   # ── استيراد ──
-  استيراد:   "features/10_الاستيراد"
+  استيراد:   "sections/10_الاستيراد"
   # ── سلبي ──
-  سلبي:      "features/11_سلبي"
-  negative:  "features/11_سلبي"
+  سلبي:      "sections/11_سلبي"
+  negative:  "sections/11_سلبي"
   # ── تكامل ──
-  تكامل:     "features/12_تكامل"
+  تكامل:     "sections/12_تكامل"
 
 # ═══════════════════════════════════════════════════════════════════════════════════
 # مستويات الاختبار — بنية هرمية من P0 (دخان) إلى full (شامل)
@@ -91,7 +91,7 @@ sections:
 #   python runner.py --level P1                 ← أساسيات كاملة
 #   python runner.py --level P2                 ← P1 + OOP + أنماط + أخطاء
 #   python runner.py --level P3                 ← كل الميزات
-#   python runner.py --level P4                 ← P3 + الأرشيف القديم
+#   python runner.py --level P4                 ← كل الأقسام الـ12
 #   python runner.py --level full               ← كل شيء بدون استثناء
 #   python runner.py --section متغيرات         ← قسم ميزة واحدة مباشرة
 #   python runner.py --cpu moderate             ← تحكم بقوة CPU
@@ -115,77 +115,73 @@ levels:
   P0.متغيرات:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة/02_المتغيرات"
+      - "sections/01_أساسيات_اللغة/02_المتغيرات"
     description: "دخان + متغيرات — تحقق سريع أثناء تطوير نظام المتغيرات"
 
   P0.تحكم:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة/03_التحكم_في_التدفق"
+      - "sections/01_أساسيات_اللغة/03_التحكم_في_التدفق"
     description: "دخان + التحكم في التدفق"
 
   P0.دوال:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة/04_الدوال"
+      - "sections/01_أساسيات_اللغة/04_الدوال"
     description: "دخان + الدوال الأساسية"
 
   P0.أساسيات:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة"
+      - "sections/01_أساسيات_اللغة"
     description: "دخان + أساسيات اللغة الكاملة"
 
   P0.أنواع:
     dirs:
       - "P0_smoke"
-      - "features/02_الأنواع_المدمجة"
+      - "sections/02_الأنواع_المدمجة"
     description: "دخان + الأنواع المدمجة"
 
   P0.كائني:
     dirs:
       - "P0_smoke"
-      - "features/03_البرمجة_الكائنية"
+      - "sections/03_البرمجة_الكائنية"
     description: "دخان + البرمجة الكائنية"
 
   P0.أنماط:
     dirs:
       - "P0_smoke"
-      - "features/04_مطابقة_الأنماط"
-      - "match"
+      - "sections/04_مطابقة_الأنماط"
     description: "دخان + مطابقة الأنماط"
 
   P0.أخطاء:
     dirs:
       - "P0_smoke"
-      - "features/05_معالجة_الأخطاء"
-      - "errors"
+      - "sections/05_معالجة_الأخطاء"
     description: "دخان + معالجة الأخطاء"
 
   P0.لامدا:
     dirs:
       - "P0_smoke"
-      - "features/06_الدوال_المتقدمة"
+      - "sections/06_الدوال_المتقدمة"
     description: "دخان + اللامدا والإغلاقات"
 
   P0.تزامن:
     dirs:
       - "P0_smoke"
-      - "features/07_التزامن"
-      - "concurrency"
+      - "sections/07_التزامن"
     description: "دخان + التزامن والقنوات"
 
   P0.متقدم:
     dirs:
       - "P0_smoke"
-      - "features/08_ميزات_متقدمة"
+      - "sections/08_ميزات_متقدمة"
     description: "دخان + الميزات المتقدمة (ماكرو، تأجيل، ...)"
 
   P0.مكتبة:
     dirs:
       - "P0_smoke"
-      - "features/09_المكتبة_القياسية"
-      - "stdlib"
+      - "sections/09_المكتبة_القياسية"
     description: "دخان + المكتبة القياسية"
 
   # ══════════════════════════════════════════════════════
@@ -194,8 +190,8 @@ levels:
   P1:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة"
-      - "features/02_الأنواع_المدمجة"
+      - "sections/01_أساسيات_اللغة"
+      - "sections/02_الأنواع_المدمجة"
     description: "اختبارات أساسية — اللغة والأنواع — كل PR"
 
   # ══════════════════════════════════════════════════════
@@ -204,11 +200,11 @@ levels:
   P2:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة"
-      - "features/02_الأنواع_المدمجة"
-      - "features/03_البرمجة_الكائنية"
-      - "features/04_مطابقة_الأنماط"
-      - "features/05_معالجة_الأخطاء"
+      - "sections/01_أساسيات_اللغة"
+      - "sections/02_الأنواع_المدمجة"
+      - "sections/03_البرمجة_الكائنية"
+      - "sections/04_مطابقة_الأنماط"
+      - "sections/05_معالجة_الأخطاء"
     description: "اختبارات كاملة — OOP + patterns + errors — Nightly"
 
   # ══════════════════════════════════════════════════════
@@ -217,34 +213,28 @@ levels:
   P3:
     dirs:
       - "P0_smoke"
-      - "features/01_أساسيات_اللغة"
-      - "features/02_الأنواع_المدمجة"
-      - "features/03_البرمجة_الكائنية"
-      - "features/04_مطابقة_الأنماط"
-      - "features/05_معالجة_الأخطاء"
-      - "features/06_الدوال_المتقدمة"
-      - "features/07_التزامن"
-      - "features/08_ميزات_متقدمة"
-      - "features/09_المكتبة_القياسية"
-      - "features/10_الاستيراد"
+      - "sections/01_أساسيات_اللغة"
+      - "sections/02_الأنواع_المدمجة"
+      - "sections/03_البرمجة_الكائنية"
+      - "sections/04_مطابقة_الأنماط"
+      - "sections/05_معالجة_الأخطاء"
+      - "sections/06_الدوال_المتقدمة"
+      - "sections/07_التزامن"
+      - "sections/08_ميزات_متقدمة"
+      - "sections/09_المكتبة_القياسية"
+      - "sections/10_الاستيراد"
     description: "اختبارات شاملة — كل الميزات — قبل الإصدار"
 
   # ══════════════════════════════════════════════════════
-  # P4: P3 + الأرشيف القديم — تحقق تكافؤ شامل
+  # P4: كل الأقسام الـ12 — تحقق تكافؤ شامل
+  # (الأرشيف القديم نُقل إلى tests/_archive/dual_execution_legacy — TEST-003؛
+  #  دمج الفريد منه في الأقسام يقع ضمن TEST-005)
   # ══════════════════════════════════════════════════════
   P4:
     dirs:
       - "P0_smoke"
-      - "features"
-      - "core"
-      - "oop"
-      - "match"
-      - "advanced"
-      - "concurrency"
-      - "errors"
-      - "negative"
-      - "stdlib"
-    description: "جميع الاختبارات — القديمة والجديدة — تكافؤ كامل"
+      - "sections"
+    description: "جميع الاختبارات — كل الأقسام الـ12 — تكافؤ كامل"
 
   # ══════════════════════════════════════════════════════
   # full: كل شيء بدون استثناء
@@ -252,40 +242,32 @@ levels:
   full:
     dirs:
       - "P0_smoke"
-      - "features"
-      - "core"
-      - "oop"
-      - "match"
-      - "advanced"
-      - "concurrency"
-      - "errors"
-      - "negative"
-      - "stdlib"
-    description: "جميع الاختبارات — القديمة والجديدة"
+      - "sections"
+    description: "جميع الاختبارات — كل الأقسام الـ12"
 
   # ══════════════════════════════════════════════════════
   # مستويات ميزات مخصصة (للمطورين) — نفس --section لكن بـ --level
   # ══════════════════════════════════════════════════════
   match:
-    dirs: ["features/04_مطابقة_الأنماط", "match"]
+    dirs: ["sections/04_مطابقة_الأنماط"]
     description: "اختبارات مطابقة الأنماط فقط"
 
   oop:
-    dirs: ["features/03_البرمجة_الكائنية", "oop"]
+    dirs: ["sections/03_البرمجة_الكائنية"]
     description: "اختبارات OOP فقط"
 
   concurrency:
-    dirs: ["features/07_التزامن", "concurrency"]
+    dirs: ["sections/07_التزامن"]
     description: "اختبارات التزامن فقط"
 
   errors:
-    dirs: ["features/05_معالجة_الأخطاء", "errors"]
+    dirs: ["sections/05_معالجة_الأخطاء"]
     description: "اختبارات معالجة الأخطاء فقط"
 
   negative:
-    dirs: ["features/11_سلبي", "negative"]
+    dirs: ["sections/11_سلبي"]
     description: "اختبارات سلبية — خطأ متوقع"
 
   stdlib:
-    dirs: ["features/09_المكتبة_القياسية", "stdlib"]
+    dirs: ["sections/09_المكتبة_القياسية"]
     description: "اختبارات المكتبة القياسية فقط"

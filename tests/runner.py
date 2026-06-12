@@ -525,7 +525,7 @@ def load_config(config_path: Path) -> dict:
         "paths": {
             "interpreter": "build/bin/Debug/sad-run.exe",
             "compiler": "build/bin/Release/sadc.exe",
-            "tests_dir": "tests/dual_execution",
+            "tests_dir": "tests/behavior",
         },
         "execution": {
             "timeout_seconds": 30,
@@ -970,11 +970,11 @@ def main():
     sad_exe = Path(args.interp) if args.interp else project_root / config["paths"]["interpreter"]
     sadc_exe = Path(args.compiler) if args.compiler else project_root / config["paths"]["compiler"]
     # (AR) موقع المشغّل مفصول عن موقع المحتوى: مجلد الاختبارات يأتي من
-    #      config["paths"]["tests_dir"] (نسبيّ لجذر المشروع) — يسمح بالترحيل التدريجي
-    #      (dual_execution الآن → behavior لاحقاً في TEST-003) دون تعديل المشغّل.
-    # (EN) Runner location decoupled from content: tests dir comes from config,
-    #      enabling gradual migration without touching the runner.
-    tests_dir = project_root / config["paths"].get("tests_dir", "tests/dual_execution")
+    #      config["paths"]["tests_dir"] (نسبيّ لجذر المشروع) — اكتمل الترحيل إلى
+    #      tests/behavior في TEST-003 (القديم مؤرشف في tests/_archive/dual_execution_legacy).
+    # (EN) Runner location decoupled from content: tests dir comes from config;
+    #      migration to tests/behavior completed in TEST-003.
+    tests_dir = project_root / config["paths"].get("tests_dir", "tests/behavior")
     temp_dir = project_root / config["execution"]["temp_dir"]
     timeout = args.timeout if args.timeout > 0 else config["execution"]["timeout_seconds"]
     use_colors = not args.no_color and config["output"].get("colors", True)

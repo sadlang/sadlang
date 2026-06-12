@@ -58,6 +58,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # خيارات البناء / Build Options
 # ══════════════════════════════════════════════════════════════════════
 option(BUILD_TESTS "بناء الاختبارات / Build tests" OFF)
+# (AR) TEST-005 T1.3: اختبارات الشبكة تجري نداءات خارجية — معزولة خلف علم
+#      افتراضيه OFF حتى لا تُفشِل CI بأسباب بيئية (Architecture §9)
+# (EN) TEST-005 T1.3: network tests make external calls — isolated behind a
+#      flag (default OFF) so environment issues never fail CI (Architecture §9)
+option(SAD_ENABLE_NETWORK_TESTS "تفعيل اختبارات الشبكة الخارجية / Enable external network tests" OFF)
 option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
 option(ENABLE_DEBUG_LOGGING "تفعيل سجلات التنقيح / Enable debug logging" OFF)
 option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" ON)

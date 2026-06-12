@@ -691,6 +691,13 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr, nullptr,
       "لمطوّر المفسر: عدم توازن enterScope/exitScope ({detail}) — محاولة إزالة النطاق العام أو الإزالة من مكدّس فارغ. دقّق أزواج الدخول/الخروج في الموزّع. للمستخدم: علّة مفسر — أبلِغ.", "Interpreter dev: enterScope/exitScope imbalance ({detail}) — removing the global scope or popping an empty stack. Audit enter/exit pairs in the dispatcher. User: interpreter bug — report.",
       nullptr },
+    { ErrorCode::INT_INTERP_UNEXPECTED_TOKEN, "INT010", "internal",
+      "خطأ داخلي في المفسر — نوع رمز حرفي غير متوقَّع", "Internal interpreter error — unexpected literal token type",
+      "خطأ داخلي في المفسر: نوع رمز غير حرفي ({detail}) وصل لمُقيِّم القيم الحرفية — يُرجى الإبلاغ", "Internal interpreter error: a non-literal token type ({detail}) reached the literal-value evaluator — please report",
+      "حاول المفسر تحويل رمز ({detail}) إلى قيمة حرفية، لكن نوع الرمز ليس من الأنواع الحرفية المعروفة (عدد/نص/منطقي/فراغ). ثابت داخلي — المُحلِّل يُفترض ألّا يُنشئ عقدة تعبير حرفي إلا لرمز حرفي. لا علاقة له بصحّة كود ص.", "The interpreter tried to convert a token ({detail}) into a literal value, but the token type is not among the known literal types (number/string/boolean/null). An internal invariant — the parser should only build a literal-expression node for a literal token. Unrelated to your ص code.",
+      nullptr, nullptr,
+      "لمطوّر المفسر: المُحلِّل (parser) سلّم لـtokenToValue رمزاً ({detail}) ليس حرفيّاً. تحقّق من أن بناء عقدة التعبير الحرفي يقتصر على أنواع الرموز الحرفية. للمستخدم: علّة مفسر — أبلِغ، وليست علّة في برنامجك.", "Interpreter dev: the parser handed tokenToValue a token ({detail}) that is not a literal. Ensure literal-expression node construction is restricted to literal token types. User: interpreter bug — report; not an error in your code.",
+      nullptr },
 };
 
 const std::size_t kErrorMessagesCount =

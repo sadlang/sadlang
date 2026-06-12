@@ -226,7 +226,8 @@ namespace Sad
             INT_BACKEND_EMIT,              ///< INT006: (AR) فشل إصدار الخلفية / (EN) Backend emit failure
             INT_SIR_TYPE_CONSTRAINT,       ///< INT007: (AR) انتهاك قيد نوع / (EN) Type constraint violated
             INT_INTERP_NAMELESS_DEFINITION, ///< INT008: (AR) تعريف دالة بلا اسم / (EN) Nameless function definition
-            INT_INTERP_SCOPE_STACK          ///< INT009: (AR) خلل مكدّس النطاقات / (EN) Scope stack violation
+            INT_INTERP_SCOPE_STACK,         ///< INT009: (AR) خلل مكدّس النطاقات / (EN) Scope stack violation
+            INT_INTERP_UNEXPECTED_TOKEN     ///< INT010: (AR) نوع رمز حرفي غير متوقَّع / (EN) Unexpected literal token type
         };
 
         /**

@@ -21,7 +21,7 @@ if(NOT Python3_FOUND)
     return()
 endif()
 
-set(DOC_GEN_RUNNER "${CMAKE_SOURCE_DIR}/tests/doc_gen_dual_execution/runner.py")
+set(DOC_GEN_RUNNER "${CMAKE_SOURCE_DIR}/tests/system/docs/doc_gen/runner.py")
 
 if(NOT EXISTS "${DOC_GEN_RUNNER}")
     message(STATUS "⚠ doc_gen_dual_execution/runner.py غير موجود")

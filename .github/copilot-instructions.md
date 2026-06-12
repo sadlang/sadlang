@@ -591,7 +591,7 @@ ctest --test-dir build -R Comprehensive
 
 - شغّل سكريبتات `.ص` مباشرة مع `sad.exe` لاختبار المفسر بسرعة.
 - اختبارات C++ مرتبطة بمكتبة `sad_core`.
-- الحزمة الشاملة في `tests/comprehensive/` (~900 اختبار).
+- الحزمة الشاملة في `tests/unit/comprehensive/` (~900 اختبار).
 - اختبارات parser/OOP (`parser_tests`, `oop_tests`) حالياً معطلة — لا تتسبب في تراجع بقية الاختبارات.
 
 ## الاعتمادات الخارجية

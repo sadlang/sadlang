@@ -56,26 +56,26 @@ python scripts/validate_schemas.py            # يقبل --strict / --verbose ف
 
 ## 4. الاختبارات — مُشغّل التنفيذ المزدوج (الأساسي)
 
-الأداة المعتمَدة لاختبار `.ص` هي **`tests/dual_execution/runner.py`**: تُشغّل كل ملف عبر
+الأداة المعتمَدة لاختبار `.ص` هي **`tests/runner.py`**: تُشغّل كل ملف عبر
 المفسر **والمترجم** وتقارن المخرجات (لا تمر إلا إذا تطابقا). هذا يحقق قاعدة BF-08 آلياً.
 
 ```powershell
 pip install pyyaml
 
 # دخان سريع (5 اختبارات — لكل commit)
-python tests/dual_execution/runner.py --level P0
+python tests/runner.py --level P0
 
 # قسم ميزة واحدة أثناء التطوير
-python tests/dual_execution/runner.py --section متغيرات
-python tests/dual_execution/runner.py --level P0.أنماط      # دخان + قسم
+python tests/runner.py --section متغيرات
+python tests/runner.py --level P0.أنماط      # دخان + قسم
 
 # هرم المستويات: P0 (commit) ⊂ P1 (كل PR) ⊂ P2 (nightly) ⊂ P3 ⊂ P4 ⊂ full (807+)
-python tests/dual_execution/runner.py --level P1            # المطلوب قبل أي PR
-python tests/dual_execution/runner.py --level P0 --cpu sequential  # تسلسلي للتشخيص
-python tests/dual_execution/runner.py --level full --report --html # تقرير شامل
+python tests/runner.py --level P1            # المطلوب قبل أي PR
+python tests/runner.py --level P0 --cpu sequential  # تسلسلي للتشخيص
+python tests/runner.py --level full --report --html # تقرير شامل
 ```
 
-دليل كامل: `tests/dual_execution/TESTING_GUIDE.md`. المسارات في `tests/dual_execution/config.yaml`
+دليل كامل: `tests/behavior/README.md`. المسارات في `tests/config.yaml`
 (`interpreter: build/bin/Debug/sad-run.exe`, `compiler: build/bin/Release/sadc.exe`).
 
 ### 4.1 صيغة ملف اختبار `.ص` (توجيهات التعليق)
@@ -89,7 +89,7 @@ python tests/dual_execution/runner.py --level full --report --html # تقرير 
 
 اطبع_سطر("مرحبا بالعالم")
 ```
-- ضع الملف في القسم المناسب تحت `tests/dual_execution/<category>/` (مثل `core/`, `match/`, `errors/`).
+- ضع الملف في القسم المناسب تحت `tests/behavior/sections/<القسم>/` (مثل `core/`, `match/`, `errors/`).
 - `@expected` يطابق مخرج **كلا** المسارين؛ مع `@skip_compiler` يطابق مخرج المفسر فقط.
 
 ### 4.2 اختبارات C++ والمولّدات والتدقيقات

@@ -1,0 +1,16 @@
+# عتبات NFR — خط أساس مقيس فعلياً (GR-01) — يُعاد توليده بـ --calibrate فقط
+# NFR thresholds — actually-measured baseline; regenerate via --calibrate only
+# آخر معايرة / last calibration: 2026-06-12 06:21
+# عدد التشغيلات لكل قياس / runs per sample: 7 (median)
+
+001_hello:
+  baseline_ms: 41.6
+  tolerance: 0.5
+
+002_arithmetic:
+  baseline_ms: 43.7
+  tolerance: 0.5
+
+004_functions:
+  baseline_ms: 43.7
+  tolerance: 0.5

@@ -1,6 +1,0 @@
-StringFunctionsTests 1 0.114942
-ArrayFunctionsTests 1 0.103936
-MathFunctionsTests 1 0.106737
-TypeFunctionsTests 1 0.103643
-OtherFunctionsTests 1 0.458994
----

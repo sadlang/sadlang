@@ -12,6 +12,19 @@ add_library(sad_interpreter STATIC
     src/core/interpreter_core.cpp
     
     # Visitors
+    # ⚠️ (AR) تحذير معماري (TEST-004): هذه القائمة جزئية عمداً (7 من 27 ملف زائر) —
+    #      تقسيمات المقيِّم/المنفِّذ اللاحقة (binary_ops/calls_*/control/...) ليست هنا،
+    #      وملف expression_evaluator_ui.cpp يسحب سلسلة sad_ui/SDL كاملة.
+    #      لذلك vtable الزائرَين غير مكتمل في هذه المكتبة، و**يُمنع ربطها مباشرة** —
+    #      أي مستهلك يحتاج المفسر يربط sad_core (التجميعة الكاملة عبر ALL_SOURCES).
+    #      مستهلكو الاختبارات الأربعة حُوِّلوا إلى sad_core في tests_comprehensive.cmake.
+    # ⚠️ (EN) Architectural warning (TEST-004): this list is intentionally partial
+    #      (7 of 27 visitor files) — later evaluator/executor splits are absent and
+    #      expression_evaluator_ui.cpp would drag the whole sad_ui/SDL chain.
+    #      The visitor vtables are therefore incomplete in this library and it
+    #      MUST NOT be linked directly — consumers needing the interpreter link
+    #      sad_core (the full aggregate). The 4 test consumers were switched to
+    #      sad_core in tests_comprehensive.cmake.
     src/visitors/expression_evaluator_core.cpp
     src/visitors/expression_evaluator_calls.cpp
     src/visitors/expression_evaluator_members.cpp

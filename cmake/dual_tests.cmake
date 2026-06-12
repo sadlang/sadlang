@@ -25,7 +25,7 @@ if(NOT Python3_FOUND)
     return()
 endif()
 
-set(DUAL_RUNNER "${CMAKE_SOURCE_DIR}/tests/dual_execution/runner.py")
+set(DUAL_RUNNER "${CMAKE_SOURCE_DIR}/tests/runner.py")
 set(DUAL_INTERP "$<TARGET_FILE:sad>")
 
 # (AR) التحقق من وجود runner.py

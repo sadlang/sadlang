@@ -198,6 +198,19 @@ add_subdirectory(memory_policy)
 # ============================================================================
 add_subdirectory(memory_gc)
 
+# (AR) B-step5b (إصلاح TEST-004): types/src/value.cpp يستدعي محرك GC مباشرة
+#      (defaultEngine/registerObject/setVisitor/isTracked) — التبعية تُعلَن هنا
+#      حيث تنشأ (CW-06) لا في sad_core فقط، وإلا انكسر كل مستهلك يربط sad_shared
+#      وحدها (اختبارات الحزمة الشاملة كانت تفشل ربطاً بـ LNK2019).
+#      الدورة الساكنة sad_shared ⇄ sad_memory_gc مقصودة ومدعومة من CMake
+#      (يكرّر المكتبتين على سطر الربط).
+# (EN) B-step5b (TEST-004 fix): types/src/value.cpp calls the GC engine directly,
+#      so the dependency must be declared where it originates (CW-06), not only
+#      on sad_core — otherwise every consumer linking bare sad_shared breaks
+#      (comprehensive tests failed with LNK2019). The static cycle
+#      sad_shared ⇄ sad_memory_gc is intentional; CMake repeats both libs.
+target_link_libraries(sad_shared PUBLIC sad_memory_gc)
+
 # ============================================================================
 # (AR) مكتبة متتبع الملكية في وقت التشغيل — shared/ownership_runtime/
 #      نُقلت من compiler/{include/ffi/ffi_wrapper.h, src/backend/ffi_wrapper.cpp}
