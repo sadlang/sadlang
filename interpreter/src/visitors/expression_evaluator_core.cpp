@@ -226,7 +226,7 @@ namespace Sad
                     _rc.placeholders = {{"detail", value}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                         Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
+                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(token.getPosition().line), static_cast<int>(token.getPosition().column)), _rc);
                     return Value(0);
                 }
                 catch (const std::out_of_range &)
@@ -235,7 +235,7 @@ namespace Sad
                     _rc.placeholders = {{"detail", value}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                         Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
+                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(token.getPosition().line), static_cast<int>(token.getPosition().column)), _rc);
                     return Value(0);
                 }
             }
@@ -252,7 +252,7 @@ namespace Sad
                     _rc.placeholders = {{"detail", token.getValue()}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                         Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
+                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(token.getPosition().line), static_cast<int>(token.getPosition().column)), _rc);
                     return Value(0.0);
                 }
                 catch (const std::out_of_range &)
@@ -261,7 +261,7 @@ namespace Sad
                     _rc.placeholders = {{"detail", token.getValue()}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                         Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
-                        Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
+                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(token.getPosition().line), static_cast<int>(token.getPosition().column)), _rc);
                     return Value(0.0);
                 }
             }
@@ -286,7 +286,7 @@ namespace Sad
                 _rc.placeholders = {{"detail", token.getValue()}};
                 Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                     Sad::Errors::ErrorCode::INT_INTERP_UNEXPECTED_TOKEN,
-                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1), _rc);
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(token.getPosition().line), static_cast<int>(token.getPosition().column)), _rc);
                 return Value(); // Return null
             }
             }
