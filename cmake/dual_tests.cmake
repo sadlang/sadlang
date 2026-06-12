@@ -73,7 +73,7 @@ endif()
 add_custom_target(dual_tests_p0
     COMMAND ${_DUAL_COMMON_ARGS} --level P0
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "🔄 تشغيل اختبارات P0 (أساسية) — dual_execution/core"
+    COMMENT "🔄 تشغيل اختبارات P0 (أساسية) — behavior/P0_smoke"
     DEPENDS sad
     USES_TERMINAL
 )
@@ -84,7 +84,7 @@ add_custom_target(dual_tests_p0
 add_custom_target(dual_tests_p1
     COMMAND ${_DUAL_COMMON_ARGS} --level P1
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "🔄 تشغيل اختبارات P1 (كاملة) — dual_execution/core + oop"
+    COMMENT "🔄 تشغيل اختبارات P1 (كاملة) — behavior (P1: أساسيات + أنواع)"
     DEPENDS sad
     USES_TERMINAL
 )
@@ -95,7 +95,7 @@ add_custom_target(dual_tests_p1
 add_custom_target(dual_tests_p2
     COMMAND ${_DUAL_COMMON_ARGS} --level P2
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "🔄 تشغيل اختبارات P2 (متقدمة) — dual_execution/*"
+    COMMENT "🔄 تشغيل اختبارات P2 (متقدمة) — behavior/sections/*"
     DEPENDS sad
     USES_TERMINAL
 )
@@ -133,7 +133,7 @@ add_custom_target(dual_tests_burnin
 add_custom_target(dual_tests
     COMMAND ${_DUAL_COMMON_ARGS}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "🔄 تشغيل جميع اختبارات التنفيذ المزدوج — dual_execution"
+    COMMENT "🔄 تشغيل جميع اختبارات التنفيذ المزدوج — behavior"
     DEPENDS sad
     USES_TERMINAL
 )

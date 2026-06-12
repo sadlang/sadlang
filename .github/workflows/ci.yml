@@ -24,6 +24,10 @@ on:
   pull_request:
     branches: [ main, master, develop ]
     types: [opened, synchronize, reopened]
+  # (AR) تشغيل ليلي (Nightly) — يرفع مستوى اختبارات التنفيذ المزدوج إلى P2 (TEST-006).
+  # (EN) Nightly schedule — raises dual-execution level to P2.
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC يومياً
 
 # منع التشغيل المتزامن لنفس الفرع
 concurrency:
@@ -56,7 +60,7 @@ jobs:
               echo "❌ Non-UTF-8: $f"
               errors=$((errors + 1))
             fi
-          done < <(find shared/ interpreter_new/ stdlib/ compiler_new/ -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -print0 2>/dev/null)
+          done < <(find shared/ interpreter/ stdlib/ compiler/ -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -print0 2>/dev/null)
           if [ $errors -gt 0 ]; then
             echo "::error::Found $errors files with non-UTF-8 encoding"
             exit 1
@@ -66,7 +70,7 @@ jobs:
       - name: "📏 فحص حجم الملفات / Check File Sizes"
         shell: bash
         run: |
-          large=$(find shared/ interpreter_new/ stdlib/ compiler_new/ \
+          large=$(find shared/ interpreter/ stdlib/ compiler/ \
             \( -name '*.cpp' -o -name '*.h' \) -size +512k 2>/dev/null)
           if [ -n "$large" ]; then
             echo "::warning::Large files found: $large"
@@ -136,9 +140,9 @@ jobs:
             -I shared/ast/include \
             -I shared/types/include \
             -I shared/errors/include \
-            -I interpreter_new/include \
-            -I compiler_new/include \
-            shared/ interpreter_new/ compiler_new/ stdlib/ 2>&1 | head -100
+            -I interpreter/include \
+            -I compiler/include \
+            shared/ interpreter/ compiler/ stdlib/ 2>&1 | head -100
           echo "✅ cppcheck اكتمل / cppcheck completed"
 
       - name: "🔍 clang-tidy (ملفات مُعدَّلة فقط) / Run clang-tidy (changed files only)"
@@ -345,23 +349,55 @@ jobs:
           cd build
           ctest --config ${{ matrix.config }} --output-on-failure --timeout 120 -j4
 
-      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests (مستوى هرمي + بوّابة)"
         shell: pwsh
         if: matrix.config == 'Release'
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
-          if ((Test-Path $sad) -and (Test-Path $sadc)) {
-            Write-Host "▶️ Running dual execution tests..." -ForegroundColor Cyan
-            python tests/runner.py --level P0 --timeout 30 --interp $sad --compiler $sadc --report
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "⚠️ Dual execution tests had failures" -ForegroundColor Yellow
-            } else {
-              Write-Host "✅ Dual execution tests passed" -ForegroundColor Green
-            }
-          } else {
+          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) {
             Write-Host "⚠️ SKIP: sad-run.exe or sadc.exe not found" -ForegroundColor Yellow
+            exit 0
           }
+          # (AR) اختيار المستوى حسب حدث CI (ADR-002 / TEST-006):
+          #      push → P0 (دخان، 100% مطلوب) · pull_request → P1 · schedule → P2.
+          # (EN) Pick hierarchical level by CI event.
+          $ev = "${{ github.event_name }}"
+          if ($ev -eq 'pull_request') { $level = 'P1'; $floor = '86.0' }
+          elseif ($ev -eq 'schedule') { $level = 'P2'; $floor = '86.0' }
+          else { $level = 'P0'; $floor = $null }
+          Write-Host "▶️ المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
+          # (AR) --gate يُصدر PASS/CONCERNS/FAIL؛ --gate-floor يمنع التراجع تحت الأساس (86%).
+          #      P0 بلا أرضية: أي فشل دخان = FAIL.
+          $gateArgs = @('--gate')
+          if ($floor) { $gateArgs += @('--gate-floor', $floor) }
+          python tests/runner.py --level $level --timeout 30 --interp $sad --compiler $sadc --report @gateArgs
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ بوّابة القرار: FAIL — تراجع تحت الأساس أو فشل دخان" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "✅ بوّابة القرار: PASS/CONCERNS — لا تراجع حرج" -ForegroundColor Green
+
+      - name: "🔥 Burn-in للاختبارات الجديدة في PR / Burn-in changed tests"
+        shell: pwsh
+        if: matrix.config == 'Release' && github.event_name == 'pull_request'
+        run: |
+          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
+          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) { exit 0 }
+          # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـ PR وتشغيلها 5× لاكتشاف الرفرفة (R6).
+          git fetch origin $env:GITHUB_BASE_REF --depth=1 2>$null
+          $changed = git diff --name-only --diff-filter=AM "origin/$env:GITHUB_BASE_REF...HEAD" -- 'tests/behavior/**/*.ص' 2>$null
+          if (-not $changed) { Write-Host "لا اختبارات .ص جديدة في هذا الـ PR." -ForegroundColor Cyan; exit 0 }
+          $failed = 0
+          foreach ($f in $changed) {
+            $name = Split-Path $f -Leaf
+            Write-Host "🔥 Burn-in 5× → $name" -ForegroundColor Cyan
+            python tests/runner.py --file $name --repeat 5 --interp $sad --compiler $sadc --no-color
+            if ($LASTEXITCODE -ne 0) { $failed++; Write-Host "  ⚠️ رفرفة/فشل في $name" -ForegroundColor Yellow }
+          }
+          if ($failed -gt 0) { Write-Host "❌ $failed اختبار جديد مترفرف/فاشل في burn-in" -ForegroundColor Red; exit 1 }
+          Write-Host "✅ Burn-in نظيف لكل الاختبارات الجديدة" -ForegroundColor Green
 
       - name: "💾 حفظ الملفات التنفيذية / Upload Artifacts"
         uses: actions/upload-artifact@v4

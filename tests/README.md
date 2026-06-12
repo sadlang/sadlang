@@ -42,6 +42,25 @@ python tests/runner.py --cpu moderate      # تحكم بقوة CPU
 | P3 | كل الميزات الـ12 | قبل الإصدار |
 | full | كل شيء + unit + system | بوّابة الإصدار |
 
+## بوّابة CI (TEST-006)
+
+CI يربط الحدث بالمستوى عبر المشغّل الموحّد + بوّابة قرار (`.github/workflows/ci.yml`):
+
+| حدث CI | المستوى | البوّابة |
+|---|---|---|
+| `push` | P0 | `--gate` (أي فشل دخان = FAIL) |
+| `pull_request` | P1 | `--gate --gate-floor 86.0` (تراجع تحت 86% = FAIL) |
+| `schedule` (ليلي 03:00 UTC) | P2 | `--gate --gate-floor 86.0` |
+
+- **بوّابة القرار** `--gate`: تُصدر `PASS` (صفر فشل) / `CONCERNS` (فشل ضمن الأرضية، لا يكسر البناء) / `FAIL` (فشل دخان P0 أو تراجع تحت الأرضية أو رفرفة).
+- **burn-in في PR**: كل ملف `.ص` جديد/معدَّل يُشغَّل `--repeat 5` لكشف الرفرفة قبل الدمج.
+
+```bash
+python tests/runner.py --level P1 --gate --gate-floor 86.0   # كما في PR
+python tests/runner.py --section تزامن --classify 10          # تمييز الرفرفة من خطأ المترجم
+python tests/runner.py --file X.ص --repeat 5                  # burn-in يدوي
+```
+
 ## كيف تضيف اختباراً سلوكياً؟
 
 1. انسخ [`behavior/sections/_TEMPLATE/`](behavior/sections/_TEMPLATE/) للقسم المناسب.
