@@ -1,19 +1,112 @@
-# types.yaml — الأنواع المدمجة في لغة ص
-# المصدر: shared/types/include/value.h + shared/lexer/include/token.h
+# ============================================================================
+# types.yaml — مصدر الحقيقة (SoT) لكل أنواع لغة ص
+# Single Source of Truth for ALL Sad language type kinds
+# ----------------------------------------------------------------------------
+# (AR) يُولّد منه shared/types/generated/sad_type_kind_generated.h عبر
+#      scripts/codegen/gen_types.py (مُفعَّل في cmake/codegen.cmake).
+#      ⚠️ الترتيب حرج: قيم enum تُولَّد بنفس ترتيب هذه القائمة (توافق ثنائي).
+# (EN) Generates SadTypeKind enum. ORDER IS CRITICAL — enum values are emitted
+#      in this list's order (binary/serialization compatibility).
+# ----------------------------------------------------------------------------
+# (AR) كل نوع: kind (اسم enum) + category (التجميع) + surface (هل له كلمة/رمز).
+#      الأنواع السطحية (surface: true) لها token_type وكلمة يكتبها المستخدم.
+#      الأنواع الداخلية تمثيلات للمفسّر/المترجم بلا صيغة مصدرية مباشرة.
+# ============================================================================
 
-version: "1.0"
-description_ar: "الأنواع المدمجة التسعة — مُعرّفات عادية (ليست محجوزة)"
-description_en: "9 built-in types — regular identifiers (not reserved)"
-note: "يمكن استخدام أسماء الأنواع كأسماء متغيرات خارج سياقها النحوي"
+version: "5.0"
+schema_version: "5.0"
+description_ar: "كل أنواع لغة ص (49 نوعًا) — سطحية وداخلية، مصدر توليد SadTypeKind"
+description_en: "All Sad type kinds (49) — surface + internal, SoT for SadTypeKind"
+
+# (AR) ملاحظة: النوع السطحي «عدم» (TYPE_NULL، مسجّل في keywords.yaml) ينتظر
+#      قيمة SadTypeKind::Null (قصّة S-TS-P1). حاليًّا لا قيمة enum له.
+# (EN) Surface type «عدم»/null awaits SadTypeKind::Null (story S-TS-P1).
+
+categories_ar:
+  primitive:       "بدائية"
+  sized_primitive: "بدائية بحجم محدد (للمترجم)"
+  composite:       "مركّبة"
+  oop:             "كائنية"
+  function:        "وظيفية"
+  advanced:        "متقدمة (جبرية/عامة)"
+  pointer:         "مؤشرات ومراجع"
+  special:         "خاصة"
+  async:           "غير متزامنة"
+  graphics:        "رسومات"
+  simd:            "متجهات SIMD"
 
 types:
 
-  - { id: type.integer,  word: رقم,    name_en: integer, token_type: TYPE_INTEGER, category: primitive, can_be_identifier: true, description_ar: "عدد صحيح (integer 64-bit)",     since: "1.0.0", status: stable }
-  - { id: type.double,   word: عشري,   name_en: double,  token_type: TYPE_DOUBLE,  category: primitive, can_be_identifier: true, description_ar: "عدد عشري (float 64-bit)",       since: "1.0.0", status: stable }
-  - { id: type.string,   word: نص,     name_en: string,  token_type: TYPE_STRING,  category: primitive, can_be_identifier: true, description_ar: "نص (UTF-8 string)",             since: "1.0.0", status: stable }
-  - { id: type.boolean,  word: منطقي,  name_en: boolean, token_type: TYPE_BOOLEAN, category: primitive, can_be_identifier: true, description_ar: "قيمة منطقية (صحيح/خطأ)",        since: "1.0.0", status: stable }
-  - { id: type.void,     word: فراغ,   name_en: void,    token_type: TYPE_VOID,    category: special,   can_be_identifier: true, description_ar: "نوع الإرجاع الفارغ",            since: "1.0.0", status: stable }
-  - { id: type.null,     word: عدم,    name_en: null,    token_type: TYPE_NULL,    category: special,   can_be_identifier: true, description_ar: "غياب القيمة",                   since: "1.0.0", status: stable }
-  - { id: type.array,    word: مصفوفة, name_en: array,   token_type: TYPE_ARRAY,   category: composite, can_be_identifier: true, description_ar: "مصفوفة (dynamic array)",         since: "1.0.0", status: stable }
-  - { id: type.map,      word: خريطة,  name_en: map,     token_type: TYPE_MAP,     category: composite, can_be_identifier: true, description_ar: "خريطة (hash map)",               since: "1.0.0", status: stable }
-  - { id: type.any,      word: أي,     name_en: any,     token_type: TYPE_ANY,     category: special,   can_be_identifier: true, description_ar: "أي نوع (dynamic typing)",        since: "1.0.0", status: stable }
+  # ─── بدائية / Primitive ───
+  - { id: type.void,    kind: Void,    word: فراغ,   name_en: void,    category: primitive, surface: true,  token_type: TYPE_VOID,    can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "نوع الإرجاع الفارغ — لا قيمة", description_en: "Empty return type — no value" }
+  - { id: type.integer, kind: Integer, word: رقم,    name_en: integer, category: primitive, surface: true,  token_type: TYPE_INTEGER, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "عدد صحيح (i64)", description_en: "64-bit integer" }
+  - { id: type.float,   kind: Float,   word: عشري,   name_en: float,   category: primitive, surface: true,  token_type: TYPE_DOUBLE,  can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "عدد عشري (f64)", description_en: "64-bit float" }
+  - { id: type.boolean, kind: Boolean, word: منطقي,  name_en: boolean, category: primitive, surface: true,  token_type: TYPE_BOOLEAN, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "قيمة منطقية (صحيح/خطأ)", description_en: "Boolean (true/false)" }
+  - { id: type.string,  kind: String,  word: نص,     name_en: string,  category: primitive, surface: true,  token_type: TYPE_STRING,  can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "نص (UTF-8)", description_en: "UTF-8 string" }
+  - { id: type.byte,    kind: Byte,    word: بايت,   name_en: byte,    category: primitive, surface: false, since: "1.0.0", status: stable, description_ar: "بايت (i8)", description_en: "Byte (i8)" }
+
+  # ─── بدائية بحجم محدد / Sized primitives (compiler) ───
+  - { id: type.int8,    kind: Int8,    word: عدد8,   name_en: int8,    category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد صحيح 8-بت", description_en: "8-bit signed integer" }
+  - { id: type.int16,   kind: Int16,   word: عدد16,  name_en: int16,   category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد صحيح 16-بت", description_en: "16-bit signed integer" }
+  - { id: type.int32,   kind: Int32,   word: عدد32,  name_en: int32,   category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد صحيح 32-بت", description_en: "32-bit signed integer" }
+  - { id: type.int64,   kind: Int64,   word: عدد64,  name_en: int64,   category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد صحيح 64-بت", description_en: "64-bit signed integer" }
+  - { id: type.uint8,   kind: UInt8,   word: طبيعي8, name_en: uint8,   category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 8-بت", description_en: "8-bit unsigned integer" }
+  - { id: type.uint16,  kind: UInt16,  word: طبيعي16, name_en: uint16, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 16-بت", description_en: "16-bit unsigned integer" }
+  - { id: type.uint32,  kind: UInt32,  word: طبيعي32, name_en: uint32, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 32-بت", description_en: "32-bit unsigned integer" }
+  - { id: type.uint64,  kind: UInt64,  word: طبيعي64, name_en: uint64, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 64-بت", description_en: "64-bit unsigned integer" }
+  - { id: type.float32, kind: Float32, word: عشري32, name_en: float32, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عشري 32-بت", description_en: "32-bit float" }
+  - { id: type.float64, kind: Float64, word: عشري64, name_en: float64, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عشري 64-بت", description_en: "64-bit float" }
+  - { id: type.char,    kind: Char,    word: حرف,    name_en: char,    category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "حرف", description_en: "Character" }
+
+  # ─── مركّبة / Composite ───
+  - { id: type.array, kind: Array, word: مصفوفة, name_en: array, category: composite, surface: true,  token_type: TYPE_ARRAY, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "مصفوفة<T> ديناميكية", description_en: "Dynamic array<T>" }
+  - { id: type.map,   kind: Map,   word: خريطة,  name_en: map,   category: composite, surface: true,  token_type: TYPE_MAP,   can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "خريطة<K,V>", description_en: "Map/dictionary<K,V>" }
+  - { id: type.tuple, kind: Tuple, word: صف,     name_en: tuple, category: composite, surface: false, since: "1.0.0", status: stable, description_ar: "صف (T1, T2, ...)", description_en: "Tuple (T1, T2, ...)" }
+  - { id: type.slice, kind: Slice, word: شريحة,  name_en: slice, category: composite, surface: false, since: "1.0.0", status: stable, description_ar: "شريحة", description_en: "Slice" }
+
+  # ─── كائنية / OOP ───
+  - { id: type.class,  kind: Class,  word: صنف,   name_en: class,  category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "صنف", description_en: "Class" }
+  - { id: type.struct, kind: Struct, word: بنية,  name_en: struct, category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "بنية", description_en: "Struct" }
+  - { id: type.enum,   kind: Enum,   word: تعداد, name_en: enum,   category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "تعداد", description_en: "Enum" }
+  - { id: type.trait,  kind: Trait,  word: سمة,   name_en: trait,  category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "سمة (واجهة)", description_en: "Trait/interface" }
+
+  # ─── وظيفية / Function ───
+  - { id: type.function, kind: Function, word: دالة,  name_en: function, category: function, surface: false, since: "1.0.0", status: stable, description_ar: "دالة (Params)->Return", description_en: "Function (Params)->Return" }
+  - { id: type.closure,  kind: Closure,  word: إغلاق, name_en: closure,  category: function, surface: false, since: "1.0.0", status: stable, description_ar: "إغلاق (دالة + سياق)", description_en: "Closure (function + context)" }
+
+  # ─── متقدمة / Advanced ───
+  - { id: type.union,          kind: Union,         word: اتحاد,        name_en: union,          category: advanced, surface: false, since: "1.0.0", status: stable, description_ar: "اتحاد T1|T2", description_en: "Union T1|T2" }
+  - { id: type.intersection,   kind: Intersection,  word: تقاطع,        name_en: intersection,   category: advanced, surface: false, since: "1.0.0", status: stable, description_ar: "تقاطع T1&T2", description_en: "Intersection T1&T2" }
+  - { id: type.optional,       kind: Optional,      word: اختياري,      name_en: optional,       category: advanced, surface: false, since: "1.0.0", status: experimental, description_ar: "اختياري T? (قد يكون عدم)", description_en: "Optional T? (may be null)" }
+  - { id: type.result,         kind: Result,        word: نتيجة,        name_en: result,         category: advanced, surface: false, since: "1.0.0", status: experimental, description_ar: "نتيجة<T, E> (نجاح أو خطأ)", description_en: "Result<T, E>" }
+  - { id: type.generic,        kind: Generic,       word: نوع_عام,      name_en: generic,        category: advanced, surface: false, since: "1.0.0", status: stable, description_ar: "نوع عام (T)", description_en: "Generic type (T)" }
+  - { id: type.type_parameter, kind: TypeParameter, word: معامل_نوع,    name_en: type_parameter, category: advanced, surface: false, since: "1.0.0", status: stable, description_ar: "معامل نوع فعلي", description_en: "Type parameter" }
+  - { id: type.type_alias,     kind: TypeAlias,     word: اسم_مستعار,   name_en: type_alias,     category: advanced, surface: false, since: "1.0.0", status: stable, description_ar: "اسم مستعار لنوع", description_en: "Type alias" }
+
+  # ─── مؤشرات ومراجع / Pointers & references ───
+  - { id: type.pointer,     kind: Pointer,    word: مؤشر,        name_en: pointer,     category: pointer, surface: false, since: "1.0.0", status: stable, description_ar: "مؤشر خام", description_en: "Raw pointer" }
+  - { id: type.reference,   kind: Reference,  word: مرجع,        name_en: reference,   category: pointer, surface: false, since: "1.0.0", status: stable, description_ar: "مرجع &T", description_en: "Reference &T" }
+  - { id: type.mutable_ref, kind: MutableRef, word: مرجع_متغير,  name_en: mutable_ref, category: pointer, surface: false, since: "1.0.0", status: stable, description_ar: "مرجع متغير &mut T", description_en: "Mutable reference &mut T" }
+
+  # ─── خاصة / Special ───
+  - { id: type.any,     kind: Any,     word: أي,     name_en: any,     category: special, surface: true,  token_type: TYPE_ANY, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "أي نوع (ديناميكي)", description_en: "Any type (dynamic)" }
+  - { id: type.never,   kind: Never,   word: أبدا,   name_en: never,   category: special, surface: false, since: "1.0.0", status: stable, description_ar: "أبداً — لا تُرجع", description_en: "Never returns" }
+  - { id: type.unknown, kind: Unknown, word: مجهول,  name_en: unknown, category: special, surface: false, since: "1.0.0", status: stable, description_ar: "مجهول — يُستنتَج لاحقاً", description_en: "Unknown — inferred later" }
+  - { id: type.error,   kind: Error,   word: خطأ,    name_en: error,   category: special, surface: false, since: "1.0.0", status: stable, description_ar: "نوع خطأ", description_en: "Error type" }
+
+  # ─── غير متزامنة / Async ───
+  - { id: type.future,        kind: Future,        word: مستقبل,  name_en: future,        category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "مستقبل<T> غير متزامن", description_en: "Future<T>" }
+  - { id: type.generator,     kind: Generator,     word: مولد,    name_en: generator,     category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "مولّد<T>", description_en: "Generator<T>" }
+  - { id: type.comprehension, kind: Comprehension, word: استيعاب, name_en: comprehension, category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "استيعاب (comprehension)", description_en: "Comprehension" }
+
+  # ─── رسومات / Graphics (قابل للتوسّع — S-TS-P11) ───
+  - { id: type.color,  kind: Color,  word: لون,         name_en: color,  category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "لون (RGBA)", description_en: "Color (RGBA)" }
+  - { id: type.widget, kind: Widget, word: عنصر_واجهة,  name_en: widget, category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "عنصر واجهة", description_en: "UI widget" }
+  - { id: type.window, kind: Window, word: نافذة,       name_en: window, category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "نافذة", description_en: "Window" }
+  - { id: type.event,  kind: Event,  word: حدث,         name_en: event,  category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "حدث", description_en: "Event" }
+
+  # ─── متجهات SIMD / SIMD vectors ───
+  - { id: type.vector, kind: Vector, word: متجه, name_en: vector, category: simd, surface: false, since: "1.0.0", status: experimental, description_ar: "متجه SIMD <نوع_عنصر، عدد> — <N x T> في LLVM", description_en: "SIMD vector <elem, count> — <N x T> in LLVM" }
+
+  # ─── العدم / Null (S-TS-P1) — مُلحَق بالنهاية للحفاظ على ترتيب القيم السابقة (ABI) ───
+  - { id: "type.null", kind: "Null", word: عدم, name_en: "null", category: special, surface: true, token_type: TYPE_NULL, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "العدم — غياب القيمة، متمايز عن فراغ (void)", description_en: "Null — absence of value, distinct from void" }

@@ -1,52 +1,73 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sadlang.org/schemas/v5/type.schema.json",
-  "title": "Builtin Type Schema (V5)",
-  "description": "مخطط JSON للأنواع المدمجة في لغة ص — types.yaml",
+  "title": "Sad Type Kind Schema (V5 — rich, all kinds)",
+  "description": "مخطط JSON لكل أنواع لغة ص — types.yaml (سطحية وداخلية). يُولّد منه SadTypeKind.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "schema_version", "word", "name_en", "token_type", "category", "since", "status"],
+  "required": ["id", "kind", "word", "name_en", "category", "surface", "since", "status"],
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^type\\.[a-z][a-z0-9_]*$"
+      "pattern": "^type\\.[a-z][a-z0-9_]*$",
+      "description": "معرّف فريد، مثل type.integer أو type.uint32"
     },
-    "schema_version": {
+    "kind": {
       "type": "string",
-      "const": "5.0"
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "اسم قيمة enum في C++ (SadTypeKind) — يُولّد منه التعداد. مثل Integer, Int8, MutableRef"
     },
     "word": {
       "type": "string",
-      "description": "الكلمة العربية للنوع"
+      "description": "الاسم العربي للعرض (وللأنواع السطحية: الكلمة المفتاحية)"
     },
     "name_en": {
       "type": "string",
       "description": "الاسم الإنجليزي"
     },
+    "category": {
+      "type": "string",
+      "enum": [
+        "primitive",
+        "sized_primitive",
+        "composite",
+        "oop",
+        "function",
+        "advanced",
+        "pointer",
+        "special",
+        "async",
+        "graphics",
+        "simd"
+      ],
+      "description": "تصنيف النوع — يُجمَّع به التعداد في أقسام"
+    },
+    "surface": {
+      "type": "boolean",
+      "description": "هل للنوع صيغة سطحية (كلمة + token) يكتبها المستخدم؟"
+    },
     "token_type": {
       "type": "string",
       "pattern": "^TYPE_",
-      "description": "نوع الرمز في Lexer مثل TYPE_INTEGER"
+      "description": "رمز Lexer (للأنواع السطحية فقط) مثل TYPE_INTEGER"
     },
-    "category": {
-      "type": "string",
-      "enum": ["primitive", "composite", "special"],
-      "description": "تصنيف النوع"
+    "can_be_identifier": {
+      "type": "boolean",
+      "description": "هل يمكن استخدام الكلمة كاسم متغير؟ (للسطحية)"
     },
-    "since": {
-      "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
-    },
+    "since": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
     "status": {
       "type": "string",
-      "enum": ["stable", "experimental", "deprecated"]
+      "enum": ["stable", "experimental", "deprecated", "planned"]
     },
     "description_ar": { "type": "string" },
     "description_en": { "type": "string" },
-    "can_be_identifier": {
-      "type": "boolean",
-      "description": "هل يمكن استخدامها كاسم متغير؟ (دائماً true للأنواع المدمجة)"
-    },
     "example": { "type": "string" }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "surface": { "const": true } }, "required": ["surface"] },
+      "then": { "required": ["token_type"] }
+    }
+  ]
 }
