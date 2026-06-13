@@ -1867,6 +1867,20 @@ namespace Sad
             case SadTypeKind::Closure:
                 type_ = ValueType::FUNCTION;
                 break;
+            // (AR) [S-TS-P1] عدم: نحفظ تمايزه (لا نُسقطه إلى فراغ).
+            case SadTypeKind::Null:
+                type_ = ValueType::Null;
+                break;
+            // (AR) [S-TS-P4] Future/Generator مُمثَّلان ككائن في الـruntime: نُبقي type_=OBJECT
+            //      (ليعمل isObject() وفحص الطرق .احصل())، بينما sadType_ يحمل النوع الحقيقي
+            //      فيُرجع getKind()=Future/Generator وتُعرّبه نوع() صحيحًا.
+            // (EN) [S-TS-P4] Future/Generator are object-represented at runtime: keep
+            //      type_=OBJECT so isObject()/method dispatch works, while sadType_ carries
+            //      the real kind (getKind()=Future/Generator → نوع() reports it correctly).
+            case SadTypeKind::Future:
+            case SadTypeKind::Generator:
+                type_ = ValueType::OBJECT;
+                break;
             default:
                 type_ = ValueType::VOID;
                 break;

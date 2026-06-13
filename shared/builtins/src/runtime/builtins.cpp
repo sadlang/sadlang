@@ -598,6 +598,10 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::string("\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba")); // فراغ
                 case Types::SadTypeKind::Null:
                     return std::make_shared<Data::Value>(std::string("\xd8\xb9\xd8\xaf\xd9\x85")); // عدم — S-TS-P1
+                case Types::SadTypeKind::Future:
+                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")); // مستقبل — S-TS-P4
+                case Types::SadTypeKind::Generator:
+                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd9\x88\xd9\x84\xd9\x91\xd8\xaf")); // مولّد — S-TS-P4
                 default:
                     return std::make_shared<Data::Value>(std::string("\xd9\x85\xd8\xac\xd9\x87\xd9\x88\xd9\x84")); // مجهول
                 }

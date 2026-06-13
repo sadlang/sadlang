@@ -301,7 +301,13 @@ namespace Sad
                 obj->fields["__class__"] = Data::Value(std::string("__\xD9\x85\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84__")); // __مستقبل__
                 obj->fields["__future_id__"] = Data::Value(static_cast<int>(futureId));
 
-                return std::make_shared<Data::Value>(obj);
+                // (AR) [S-TS-P4] وسم القيمة بنوع Future الموحَّد: getKind()=Future فيُرجع
+                //      نوع()=«مستقبل»، مع إبقاء type_=OBJECT (setSadType) ليعمل فحص الطرق.
+                // (EN) [S-TS-P4] Tag with the unified Future type so نوع()=«مستقبل» while
+                //      keeping type_=OBJECT (method dispatch intact).
+                auto futVal = std::make_shared<Data::Value>(obj);
+                futVal->setSadType(Types::SadTypeRegistry::instance().makeFuture());
+                return futVal;
             };
 
             // (AR) تسجيل بالعربية والإنجليزية / (EN) Register in Arabic and English
