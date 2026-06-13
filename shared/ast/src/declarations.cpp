@@ -16,6 +16,7 @@
  */
 
 #include "declarations.h"
+#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنات الحقول تتمحور على SadTypeKind
 #include <sstream>
 
 namespace Sad {
@@ -110,7 +111,7 @@ std::string FunctionDecl::toString() const {
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";
         oss << parameters[i].name;
-        if (parameters[i].type != Data::DataType::UNKNOWN) {
+        if (Types::fromDataType(parameters[i].type) != Types::SadTypeKind::Unknown) {
             oss << ": " << typeToString(parameters[i].type);
         }
         if (parameters[i].defaultValue) {
@@ -120,7 +121,7 @@ std::string FunctionDecl::toString() const {
     
     oss << ")";
     
-    if (returnType != Data::DataType::NONE) {
+    if (Types::fromDataType(returnType) != Types::SadTypeKind::Void) {
         oss << " -> " << typeToString(returnType);
     }
     
@@ -198,7 +199,7 @@ std::string FieldDecl::toString() const {
     
     oss << "var " << name;
     
-    if (type != Data::DataType::UNKNOWN) {
+    if (Types::fromDataType(type) != Types::SadTypeKind::Unknown) {
         oss << ": " << typeToString(type);
     }
     
@@ -249,14 +250,14 @@ std::string MethodDecl::toString() const {
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";
         oss << parameters[i].name;
-        if (parameters[i].type != Data::DataType::UNKNOWN) {
+        if (Types::fromDataType(parameters[i].type) != Types::SadTypeKind::Unknown) {
             oss << ": " << typeToString(parameters[i].type);
         }
     }
     
     oss << ")";
     
-    if (returnType != Data::DataType::NONE) {
+    if (Types::fromDataType(returnType) != Types::SadTypeKind::Void) {
         oss << " -> " << typeToString(returnType);
     }
     
@@ -286,7 +287,7 @@ std::string ConstructorDecl::toString() const {
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";
         oss << parameters[i].name;
-        if (parameters[i].type != Data::DataType::UNKNOWN) {
+        if (Types::fromDataType(parameters[i].type) != Types::SadTypeKind::Unknown) {
             oss << ": " << typeToString(parameters[i].type);
         }
     }
