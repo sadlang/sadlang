@@ -749,7 +749,7 @@ namespace Sad
                 // (AR) ?????? 1: ??? ????? AST ???????
                 for (const auto &param : lambdaExpr->parameters)
                 {
-                    if (param.type != Data::DataType::UNKNOWN)
+                    if (param.type != Types::SadTypeKind::Unknown)
                         result[param.name] = astTypeToSIRType(param.type);
                 }
                 if (result.size() == lambdaExpr->parameters.size())

@@ -269,7 +269,7 @@ namespace Sad
              * @brief (AR) جسر حدود الـAST: DataType → SadTypeKind → TypePtr (يُحذف في S-TS-P2.5a)
              * @brief (EN) AST-boundary bridge: DataType → SadTypeKind → TypePtr (removed in S-TS-P2.5a)
              */
-            TypeSystem::TypePtr dataTypeToTypePtr(Data::DataType dt) const;
+            TypeSystem::TypePtr dataTypeToTypePtr(Types::SadTypeKind dt) const;
 
             /**
              * @brief (AR) التحقق من توافق نوعين
@@ -530,7 +530,7 @@ namespace Sad
              * @brief (AR) جسر حدود الـAST: DataType → SadTypeKind → اسم عربي (يُحذف في S-TS-P2.5a)
              * @brief (EN) AST-boundary bridge: DataType → SadTypeKind → Arabic name (removed in S-TS-P2.5a)
              */
-            std::string dataTypeArabicName(Data::DataType t) const;
+            std::string dataTypeArabicName(Types::SadTypeKind t) const;
         };
 
         // ============================================================================

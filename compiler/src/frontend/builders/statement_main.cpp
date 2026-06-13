@@ -143,7 +143,7 @@ namespace Sad
                             // (AR) استخدام النوع المُستنتج من b_.functionTable_ إن وُجد
                             // (EN) Use inferred type from b_.functionTable_ if available
                             if (paramType == SadTypeKind::Integer &&
-                                param.type == Data::DataType::UNKNOWN &&
+                                param.type == Types::SadTypeKind::Unknown &&
                                 ftIt != b_.functionTable_.end() &&
                                 i < ftIt->second.parameters.size() &&
                                 ftIt->second.parameters[i].type != SadTypeKind::Integer)
@@ -157,8 +157,8 @@ namespace Sad
                         // (AR) استنتاج نوع الإرجاع
                         // (EN) Infer return type
                         SadTypeKind returnType;
-                        if (funcDecl->returnType == Data::DataType::UNKNOWN ||
-                            funcDecl->returnType == Data::DataType::NONE)
+                        if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                            funcDecl->returnType == Types::SadTypeKind::Void)
                         {
                             returnType = b_.inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
                         }

@@ -47,17 +47,17 @@ namespace Data {
  */
 struct TraitMethodInfo {
     std::string name;                           ///< (AR) اسم الدالة / (EN) method name
-    std::vector<DataType> paramTypes;           ///< (AR) أنواع المعاملات / (EN) parameter types
+    std::vector<Types::SadTypeKind> paramTypes;           ///< (AR) أنواع المعاملات / (EN) parameter types
     std::vector<std::string> paramNames;        ///< (AR) أسماء المعاملات / (EN) parameter names
-    DataType returnType;                        ///< (AR) نوع الإرجاع / (EN) return type
+    Types::SadTypeKind returnType;                        ///< (AR) نوع الإرجاع / (EN) return type
     bool hasDefaultImpl;                        ///< (AR) هل لها تنفيذ افتراضي / (EN) has default implementation
     
     /// (AR) جسم التنفيذ الافتراضي — ملكية مشتركة مع AST السمة
     /// (EN) Default body AST — shared ownership with trait AST
     std::shared_ptr<AST::BlockStmt> defaultBody;
     
-    TraitMethodInfo() : returnType(DataType::NONE), hasDefaultImpl(false) {}
-    TraitMethodInfo(const std::string& n, DataType ret, bool hasDef = false)
+    TraitMethodInfo() : returnType(Types::SadTypeKind::Void), hasDefaultImpl(false) {}
+    TraitMethodInfo(const std::string& n, Types::SadTypeKind ret, bool hasDef = false)
         : name(n), returnType(ret), hasDefaultImpl(hasDef) {}
     TraitMethodInfo(TraitMethodInfo&&) = default;
     TraitMethodInfo& operator=(TraitMethodInfo&&) = default;

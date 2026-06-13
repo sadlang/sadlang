@@ -1705,7 +1705,7 @@ namespace Sad
                  * @brief (AR) تحويل نوع AST إلى SadTypeKind
                  * @brief (EN) Convert AST Type to SadTypeKind
                  */
-                SadTypeKind astTypeToSIRType(const Sad::Data::DataType &astType);
+                SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind &astType);
 
                 /**
                  * @brief (AR) تحويل نوع AST إلى SadTypePtr (النظام الموحد)
@@ -1713,7 +1713,7 @@ namespace Sad
                  * @param astType نوع AST / AST DataType
                  * @return مؤشر SadType الموحد / Unified SadType pointer
                  */
-                Sad::Types::SadTypePtr astTypeToSadType(const Sad::Data::DataType &astType);
+                Sad::Types::SadTypePtr astTypeToSadType(const Sad::Types::SadTypeKind &astType);
 
                 /**
                  * @brief (AR) استنتاج نوع الإرجاع من جسم الدالة مع تتبع أنواع المتغيرات

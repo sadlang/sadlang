@@ -516,18 +516,18 @@ namespace Sad
                         return SadTypeKind::Function;
                     // (AR) ״­״µ DataType …† ״§„״×״¹״¨״± †״³‡ (״¥״°״§ ״×ˆ״±)
                     // (EN) Check DataType from expression itself (if available)
-                    auto dtype = expr->getDataType();
-                    if (dtype == Sad::Data::DataType::FLOAT)
+                    auto dtype = expr->getTypeKind();
+                    if (dtype == Sad::Types::SadTypeKind::Float)
                         return SadTypeKind::Float;
-                    if (dtype == Sad::Data::DataType::BOOLEAN)
+                    if (dtype == Sad::Types::SadTypeKind::Boolean)
                         return SadTypeKind::Boolean;
-                    if (dtype == Sad::Data::DataType::STRING)
+                    if (dtype == Sad::Types::SadTypeKind::String)
                         return SadTypeKind::String;
-                    if (dtype == Sad::Data::DataType::ARRAY)
+                    if (dtype == Sad::Types::SadTypeKind::Array)
                         return SadTypeKind::Array;
-                    if (dtype == Sad::Data::DataType::OBJECT)
+                    if (dtype == Sad::Types::SadTypeKind::Class)
                         return SadTypeKind::Struct;
-                    if (dtype == Sad::Data::DataType::MAP)
+                    if (dtype == Sad::Types::SadTypeKind::Map)
                         return SadTypeKind::Map;
 
                     return SadTypeKind::Integer;

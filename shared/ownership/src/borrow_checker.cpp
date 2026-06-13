@@ -658,15 +658,15 @@ namespace Sad
                 {
                     // (AR) ״§„‚… ״§„״­״±״© (״£״±‚״§…״ ״¹״´״±״©״ …†״·‚״©) ‚״§״¨„״© „„†״³״®
                     // (EN) Literal values (integers, floats, booleans) are copy types
-                    Data::DataType litType = lit->getDataType();
+                    Types::SadTypeKind litType = lit->getTypeKind();
                     isCopy = true;
-                    if (litType == Data::DataType::INTEGER)
+                    if (litType == Types::SadTypeKind::Integer)
                         typeName = "״±‚…";
-                    else if (litType == Data::DataType::FLOAT)
+                    else if (litType == Types::SadTypeKind::Float)
                         typeName = "״¹״´״±";
-                    else if (litType == Data::DataType::BOOLEAN)
+                    else if (litType == Types::SadTypeKind::Boolean)
                         typeName = "…†״·‚";
-                    else if (litType == Data::DataType::STRING)
+                    else if (litType == Types::SadTypeKind::String)
                     {
                         typeName = "†״µ";
                         isCopy = false; // Strings are not copy types

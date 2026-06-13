@@ -141,8 +141,8 @@ namespace Sad
                     //      for string-returning functions (e.g. وصف() in trait impl)
                     //      Fix: use b_.inferReturnTypeFromBody as in buildClass
                     SIR::SadTypeKind retType;
-                    if (funcDecl->returnType == Data::DataType::UNKNOWN ||
-                        funcDecl->returnType == Data::DataType::NONE)
+                    if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                        funcDecl->returnType == Types::SadTypeKind::Void)
                     {
                         // (AR) تعيين الصنف الحالي مؤقتاً لتمكين b_.inferReturnTypeFromBody
                         //      من الوصول لحقول الصنف عبر b_.module_->getClass(b_.currentClassName_)
@@ -390,8 +390,8 @@ namespace Sad
                                             //      [إصلاح BF-04] نفس إصلاح buildImpl الأساسي
                                             // (EN) Convert return type — with automatic inference
                                             SIR::SadTypeKind retType;
-                                            if (traitMethod.returnType == Data::DataType::UNKNOWN ||
-                                                traitMethod.returnType == Data::DataType::NONE)
+                                            if (traitMethod.returnType == Types::SadTypeKind::Unknown ||
+                                                traitMethod.returnType == Types::SadTypeKind::Void)
                                             {
                                                 auto savedClassName = b_.currentClassName_;
                                                 b_.currentClassName_ = className;

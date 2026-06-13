@@ -204,7 +204,7 @@ namespace Sad
         {
             std::string operatorSymbol;             ///< (AR) رمز العامل (+, -, *, /, ==, <, ...) / (EN) operator symbol
             std::vector<AST::Parameter> parameters; ///< (AR) المعاملات / (EN) parameters
-            Data::DataType returnType;              ///< (AR) نوع الإرجاع / (EN) return type
+            Types::SadTypeKind returnType;          ///< (AR) نوع الإرجاع / (EN) return type (S-TS-P2.5a)
             std::unique_ptr<AST::Statement> body;   ///< (AR) جسم العامل / (EN) operator body
             AST::AccessModifier access;             ///< (AR) معدّل الوصول / (EN) access modifier
 
@@ -213,7 +213,7 @@ namespace Sad
              * @brief (EN) Constructor with operator symbol
              */
             OperatorOverload(const std::string &op, AST::AccessModifier acc = AST::AccessModifier::PUBLIC)
-                : operatorSymbol(op), returnType(Data::DataType::UNKNOWN), access(acc) {}
+                : operatorSymbol(op), returnType(Types::SadTypeKind::Unknown), access(acc) {}
         };
 
         // ======================================================================

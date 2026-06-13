@@ -79,7 +79,7 @@ namespace Sad
         {
         public:
             std::string name;          ///< Variable name / اسم المتغير
-            Data::DataType type;       ///< Variable type (legacy) / نوع المتغير (قديم)
+            Types::SadTypeKind type;       ///< Variable type (legacy) / نوع المتغير (قديم)
             ExprPtr initializer;       ///< Initial value (optional) / القيمة الأولية
             bool isConst;              ///< Is constant? / ثابت؟
             Types::SadTypePtr sadType; ///< (AR) النوع الموحد الجديد / (EN) Unified type (new system)
@@ -92,11 +92,11 @@ namespace Sad
              * @param isConst Is constant / ثابت
              * @param pos Source position / الموقع في الكود
              */
-            VarDeclStmt(const std::string &n, Data::DataType t, ExprPtr init,
+            VarDeclStmt(const std::string &n, Types::SadTypeKind t, ExprPtr init,
                         bool isConst = false, const Lexer::Position &pos = Lexer::Position())
                 : Statement(pos), name(n), type(t),
                   initializer(std::move(init)), isConst(isConst),
-                  sadType(Types::SadType::fromDataType(t)) {}
+                  sadType(Types::SadType::fromValueType(t)) {}
 
             void accept(ASTVisitor &visitor) override
             {
@@ -808,11 +808,11 @@ namespace Sad
         struct CatchClause
         {
             std::string exceptionVar;      ///< Exception variable name / اسم متغير الاستثناء
-            Data::DataType exceptionType;  ///< Exception type / نوع الاستثناء
+            Types::SadTypeKind exceptionType;  ///< Exception type / نوع الاستثناء
             std::string exceptionTypeName; ///< Custom exception class name / اسم صنف الاستثناء المخصص
             StmtPtr body;                  ///< Catch body / جسم الالتقاط
 
-            CatchClause(const std::string &var, Data::DataType type, StmtPtr body,
+            CatchClause(const std::string &var, Types::SadTypeKind type, StmtPtr body,
                         const std::string &typeName = "")
                 : exceptionVar(var), exceptionType(type), exceptionTypeName(typeName),
                   body(std::move(body)) {}

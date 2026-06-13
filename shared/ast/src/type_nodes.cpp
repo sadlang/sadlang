@@ -64,63 +64,63 @@ bool SimpleTypeNode::isCompatibleWith(const TypeNode& other) const {
     return false;
 }
 
-std::string SimpleTypeNode::dataTypeToString(Data::DataType type) {
-    // تحويل Data::DataType إلى نص / Convert Data::DataType to string
+std::string SimpleTypeNode::kindToString(Types::SadTypeKind type) {
+    // تحويل Types::SadTypeKind إلى نص / Convert Types::SadTypeKind to string
     // المصدر: include/data/types/data_types.h
     // Source: include/data/types/data_types.h
     switch (type) {
-        case Data::DataType::NONE:      return "فراغ";     // void/none
-        case Data::DataType::INTEGER:   return "رقم";      // number (int)
-        case Data::DataType::FLOAT:     return "عشري";     // decimal/float
-        case Data::DataType::BOOLEAN:   return "منطقي";    // boolean
-        case Data::DataType::STRING:    return "نص";       // string
-        case Data::DataType::ARRAY:     return "مصفوفة";   // array
-        case Data::DataType::MAP:       return "قاموس";    // dictionary
-        case Data::DataType::FUNCTION:  return "دالة";     // function
-        case Data::DataType::OBJECT:    return "كائن";     // object (class instance)
-        case Data::DataType::TUPLE:     return "ثنائي";    // tuple
-        case Data::DataType::ENUM:      return "تعداد";    // enum
-        case Data::DataType::BYTE:      return "بايت";     // byte
-        case Data::DataType::ERROR:     return "خطأ";      // error
-        case Data::DataType::UNKNOWN:   return "مجهول";    // unknown
+        case Types::SadTypeKind::Void:      return "فراغ";     // void/none
+        case Types::SadTypeKind::Integer:   return "رقم";      // number (int)
+        case Types::SadTypeKind::Float:     return "عشري";     // decimal/float
+        case Types::SadTypeKind::Boolean:   return "منطقي";    // boolean
+        case Types::SadTypeKind::String:    return "نص";       // string
+        case Types::SadTypeKind::Array:     return "مصفوفة";   // array
+        case Types::SadTypeKind::Map:       return "قاموس";    // dictionary
+        case Types::SadTypeKind::Function:  return "دالة";     // function
+        case Types::SadTypeKind::Class:    return "كائن";     // object (class instance)
+        case Types::SadTypeKind::Tuple:     return "ثنائي";    // tuple
+        case Types::SadTypeKind::Enum:      return "تعداد";    // enum
+        case Types::SadTypeKind::Byte:      return "بايت";     // byte
+        case Types::SadTypeKind::Error:     return "خطأ";      // error
+        case Types::SadTypeKind::Unknown:   return "مجهول";    // unknown
         default:                        return "غير_معروف"; // undefined
     }
 }
 
-Data::DataType SimpleTypeNode::stringToDataType(const std::string& name) {
-    // تحويل نص إلى Data::DataType / Convert string to Data::DataType
+Types::SadTypeKind SimpleTypeNode::stringToKind(const std::string& name) {
+    // تحويل نص إلى Types::SadTypeKind / Convert string to Types::SadTypeKind
     // دعم العربية والإنجليزية / Support Arabic and English
     
     // العربية / Arabic
     if (name == "فراغ" || name == "لاشيء" || name == "void" || name == "none")
-        return Data::DataType::NONE;
+        return Types::SadTypeKind::Void;
     if (name == "رقم" || name == "صحيح" || name == "integer" || name == "int") 
-        return Data::DataType::INTEGER;
+        return Types::SadTypeKind::Integer;
     if (name == "عشري" || name == "مضاعف" || name == "float" || name == "double") 
-        return Data::DataType::FLOAT;
+        return Types::SadTypeKind::Float;
     if (name == "منطقي" || name == "boolean" || name == "bool") 
-        return Data::DataType::BOOLEAN;
+        return Types::SadTypeKind::Boolean;
     if (name == "نص" || name == "string")           
-        return Data::DataType::STRING;
+        return Types::SadTypeKind::String;
     if (name == "مصفوفة" || name == "array")        
-        return Data::DataType::ARRAY;
+        return Types::SadTypeKind::Array;
     if (name == "قاموس" || name == "map" || name == "dictionary" || name == "dict") 
-        return Data::DataType::MAP;
+        return Types::SadTypeKind::Map;
     if (name == "دالة" || name == "function")       
-        return Data::DataType::FUNCTION;
+        return Types::SadTypeKind::Function;
     if (name == "كائن" || name == "صنف" || name == "object" || name == "class")
-        return Data::DataType::OBJECT;
+        return Types::SadTypeKind::Class;
     if (name == "ثنائي" || name == "ثلاثي" || name == "tuple")
-        return Data::DataType::TUPLE;
+        return Types::SadTypeKind::Tuple;
     if (name == "تعداد" || name == "enum")
-        return Data::DataType::ENUM;
+        return Types::SadTypeKind::Enum;
     if (name == "بايت" || name == "byte")
-        return Data::DataType::BYTE;
+        return Types::SadTypeKind::Byte;
     if (name == "خطأ" || name == "error")
-        return Data::DataType::ERROR;
+        return Types::SadTypeKind::Error;
     
     // افتراضي: مجهول / Default: unknown
-    return Data::DataType::UNKNOWN;
+    return Types::SadTypeKind::Unknown;
 }
 
 // ============================================================================
@@ -435,7 +435,7 @@ bool DictionaryTypeNode::isCompatibleWith(const TypeNode& other) const {
 // Helper Functions Implementation / تنفيذ الدوال المساعدة
 // ============================================================================
 
-TypeNodePtr makeSimpleType(Data::DataType type, const Lexer::Position& pos) {
+TypeNodePtr makeSimpleType(Types::SadTypeKind type, const Lexer::Position& pos) {
     // إنشاء عُقدة نوع بسيط / Create simple type node
     return std::make_shared<SimpleTypeNode>(type, pos);
 }

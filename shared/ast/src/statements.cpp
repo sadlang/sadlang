@@ -6,7 +6,6 @@
  */
 
 #include "statements.h"
-#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنة الحقل تتمحور على SadTypeKind
 #include <sstream>
 
 namespace Sad {
@@ -21,7 +20,7 @@ std::string VarDeclStmt::toString() const {
     
     oss << (isConst ? "const " : "var ") << name;
     
-    if (Types::fromDataType(type) != Types::SadTypeKind::Unknown) {
+    if (type != Types::SadTypeKind::Unknown) {
         oss << ": " << static_cast<int>(type);
     }
     

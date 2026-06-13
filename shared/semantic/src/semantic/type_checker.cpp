@@ -236,9 +236,9 @@ namespace Sad
 
         // (AR) جسر حدود الـAST (S-TS-P2): DataType→SadTypeKind→TypePtr. يُحذف في S-TS-P2.5a.
         // (EN) AST-boundary bridge (S-TS-P2): DataType→SadTypeKind→TypePtr. Removed in S-TS-P2.5a.
-        TypePtr TypeChecker::dataTypeToTypePtr(Data::DataType dt) const
+        TypePtr TypeChecker::dataTypeToTypePtr(Types::SadTypeKind dt) const
         {
-            return sadKindToTypePtr(Types::fromDataType(dt));
+            return sadKindToTypePtr(dt);
         }
 
         // ============================================================================
@@ -299,7 +299,7 @@ namespace Sad
                 // (AR) Fallback: نوع الـAST (DataType) مُجسَّرًا إلى SadTypeKind — S-TS-P2
                 //      (الجسر يُحذف في S-TS-P2.5a عند ترحيل حقول الـAST).
                 // (EN) Fallback: AST DataType bridged to SadTypeKind — S-TS-P2.
-                result = sadKindToTypePtr(Types::fromDataType(expr->getDataType()));
+                result = sadKindToTypePtr(expr->getTypeKind());
             }
 
             currentResult_.totalInferred++;

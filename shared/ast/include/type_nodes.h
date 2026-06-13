@@ -4,8 +4,8 @@
  * @author Sad Language Team
  * @date January 3, 2026
  * 
- * هذا الملف يوسّع نظام الأنواع الحالي (Data::DataType) ليدعم:
- * This file extends the current type system (Data::DataType) to support:
+ * هذا الملف يوسّع نظام الأنواع الحالي (Types::SadTypeKind) ليدعم:
+ * This file extends the current type system (Types::SadTypeKind) to support:
  * - Generic types: مصفوفة<T> / Array<T>
  * - Union types: رقم | نص / number | string
  * - Optional types: T? / T?
@@ -20,7 +20,6 @@
 #include "ast_node.h"
 #include "data_types.h"
 #include "sad_type_system.h" // (S-TS-P2.5a) SadTypeKind — المحور الموحَّد
-#include "type_bridge.h"     // (S-TS-P2.5a) Types::fromDataType — جسر يُحذف في الدفعة الأخيرة
 #include <string>
 #include <vector>
 #include <memory>
@@ -100,26 +99,25 @@ public:
  * - var age: number
  * - var name: string
  * 
- * @note يستخدم Data::DataType الحالي كأساس
- *       Uses existing Data::DataType as base
+ * @note يستخدم Types::SadTypeKind الحالي كأساس
+ *       Uses existing Types::SadTypeKind as base
  *       الأنواع المدعومة: INTEGER, FLOAT, STRING, BOOLEAN, ARRAY, MAP, etc.
  *       Supported types: INTEGER, FLOAT, STRING, BOOLEAN, ARRAY, MAP, etc.
  */
 class SimpleTypeNode : public TypeNode {
 public:
-    Data::DataType dataType; ///< (موروث — يُحذف في S-TS-P2.5a دفعة 6) النوع الأساسي / Legacy base data type
-    Types::SadTypeKind kind; ///< (S-TS-P2.5a) المحور الموحَّد — يحلّ محلّ dataType تدريجيًّا
+    Types::SadTypeKind kind; ///< (S-TS-P2.5a) المحور الموحَّد — نوع العقدة
+
     std::string typeName;    ///< اسم النوع (عربي أو إنجليزي) / Type name (Arabic or English)
 
     /**
-     * @brief البناء من Data::DataType / Construct from Data::DataType
+     * @brief البناء من Types::SadTypeKind / Construct from Types::SadTypeKind
      */
-    explicit SimpleTypeNode(Data::DataType type,
+    explicit SimpleTypeNode(Types::SadTypeKind type,
                            const Lexer::Position& pos = Lexer::Position())
         : TypeNode(TypeAnnotationKind::SIMPLE, pos),
-          dataType(type),
-          kind(Types::fromDataType(type)),
-          typeName(dataTypeToString(type)) {}
+          kind(type),
+          typeName(kindToString(type)) {}
 
     /**
      * @brief البناء من اسم النوع / Construct from type name
@@ -127,8 +125,7 @@ public:
     explicit SimpleTypeNode(const std::string& name,
                            const Lexer::Position& pos = Lexer::Position())
         : TypeNode(TypeAnnotationKind::SIMPLE, pos),
-          dataType(stringToDataType(name)),
-          kind(Types::fromDataType(stringToDataType(name))),
+          kind(stringToKind(name)),
           typeName(name) {}
     
     std::string toString() const override {
@@ -141,14 +138,14 @@ public:
     
 private:
     /**
-     * @brief تحويل Data::DataType إلى نص / Convert Data::DataType to string
+     * @brief تحويل Types::SadTypeKind إلى نص / Convert Types::SadTypeKind to string
      */
-    static std::string dataTypeToString(Data::DataType type);
-    
+    static std::string kindToString(Types::SadTypeKind type);
+
     /**
-     * @brief تحويل نص إلى Data::DataType / Convert string to Data::DataType
+     * @brief تحويل نص إلى Types::SadTypeKind / Convert string to Types::SadTypeKind
      */
-    static Data::DataType stringToDataType(const std::string& name);
+    static Types::SadTypeKind stringToKind(const std::string& name);
 };
 
 // ============================================================================
@@ -414,7 +411,7 @@ public:
 /**
  * @brief إنشاء عُقدة نوع بسيط / Create a simple type node
  */
-TypeNodePtr makeSimpleType(Data::DataType type, const Lexer::Position& pos = Lexer::Position());
+TypeNodePtr makeSimpleType(Types::SadTypeKind type, const Lexer::Position& pos = Lexer::Position());
 
 /**
  * @brief إنشاء عُقدة نوع بسيط من اسم / Create a simple type node from name

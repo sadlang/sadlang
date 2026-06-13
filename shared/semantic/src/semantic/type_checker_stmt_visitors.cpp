@@ -472,8 +472,8 @@ namespace Sad
             currentFunction_ = decl.name;
             // (AR) إذا كان نوع الإرجاع غير معروف أو فراغ — محور SadTypeKind (S-TS-P2)
             // (EN) If return type is Unknown or Void — SadTypeKind-centric (S-TS-P2)
-            if (Types::fromDataType(decl.returnType) == Types::SadTypeKind::Unknown ||
-                Types::fromDataType(decl.returnType) == Types::SadTypeKind::Void)
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void)
             {
                 if (decl.isExtern)
                 {
@@ -578,8 +578,8 @@ namespace Sad
             currentFunction_ = decl.name;
             // (AR) إذا كان نوع الإرجاع غير معروف أو فراغ، لا نفحص نوع return — محور SadTypeKind (S-TS-P2)
             // (EN) If return type is Unknown or Void, skip return type checking — SadTypeKind-centric (S-TS-P2)
-            if (Types::fromDataType(decl.returnType) == Types::SadTypeKind::Unknown ||
-                Types::fromDataType(decl.returnType) == Types::SadTypeKind::Void)
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void)
             {
                 expectedReturnType_ = nullptr;
             }
@@ -717,9 +717,9 @@ namespace Sad
             currentFunction_ = decl.name;
             // (AR) محور SadTypeKind (S-TS-P2): Unknown/Void/Class → لا فحص للإرجاع
             // (EN) SadTypeKind-centric (S-TS-P2): Unknown/Void/Class → skip return checking
-            if (Types::fromDataType(decl.returnType) == Types::SadTypeKind::Unknown ||
-                Types::fromDataType(decl.returnType) == Types::SadTypeKind::Void ||
-                Types::fromDataType(decl.returnType) == Types::SadTypeKind::Class)
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void ||
+                decl.returnType == Types::SadTypeKind::Class)
             {
                 // (AR) نوع غير معروف أو معامل نوع T → لا فحص للإرجاع
                 // (EN) Unknown type or type param T → skip return checking
@@ -1099,7 +1099,7 @@ namespace Sad
                         continue;
                     auto buildSig = [this](const std::string &name,
                                            const std::vector<AST::Parameter> &params,
-                                           Data::DataType ret,
+                                           Types::SadTypeKind ret,
                                            const std::string &retTypeName = "")
                     {
                         TraitMethodSig s;
@@ -1462,9 +1462,9 @@ namespace Sad
 
         // (AR) جسر حدود الـAST (S-TS-P2): DataType→SadTypeKind→اسم عربي. يُحذف في S-TS-P2.5a.
         // (EN) AST-boundary bridge (S-TS-P2): DataType→SadTypeKind→Arabic name. Removed in S-TS-P2.5a.
-        std::string TypeChecker::dataTypeArabicName(Data::DataType t) const
+        std::string TypeChecker::dataTypeArabicName(Types::SadTypeKind t) const
         {
-            return sadKindArabicName(Types::fromDataType(t));
+            return sadKindArabicName(t);
         }
 
         std::string TypeChecker::paramTypeNameOf(const AST::Parameter &p) const
@@ -1474,7 +1474,7 @@ namespace Sad
             if (!p.typeName.empty())
                 return p.typeName;
             // (AR) قراءة AST (DataType) مُجسَّرة إلى SadTypeKind — S-TS-P2 (تُزال في P2.5a)
-            return sadKindArabicName(Types::fromDataType(p.type));
+            return sadKindArabicName(p.type);
         }
 
         std::string TypeChecker::extractTypeNameFromExpr(AST::Expression *expr) const

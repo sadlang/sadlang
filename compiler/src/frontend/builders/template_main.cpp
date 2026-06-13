@@ -89,7 +89,7 @@ namespace Sad
             // - typeParameters: std::vector<TypeParameter> (line 472)
             // - name: std::string (line 473)
             // - parameters: std::vector<Parameter> (line 474)
-            // - returnType: Data::DataType (line 475)
+            // - returnType: Types::SadTypeKind (line 475)
             // - body: StmtPtr (line 476)
             // ============================================================================
             void TemplateBuilder::buildTemplateFunction(AST::TemplateFunctionDecl *templateDecl)
@@ -304,7 +304,7 @@ namespace Sad
 
                 // (AR) إذا كان نوع الإرجاع OBJECT نستخدم أول استبدال نوع متاح كحل عملي
                 // (EN) If return type is OBJECT, use the first available type substitution pragmatically
-                if (templateDecl->returnType == Data::DataType::OBJECT &&
+                if (templateDecl->returnType == Types::SadTypeKind::Class &&
                     !typeParamNames.empty())
                 {
                     auto it = typeSubstitutions.find(typeParamNames.front());
@@ -355,7 +355,7 @@ namespace Sad
 
                     // (AR) إذا كان نوع المعامل هو OBJECT، قد يكون معامل قالب
                     // (EN) If parameter type is OBJECT, might be template parameter
-                    if (param.type == Data::DataType::OBJECT)
+                    if (param.type == Types::SadTypeKind::Class)
                     {
                         // (AR) البحث في جدول الاستبدال باسم النوع المعلن (param.typeName)
                         // (EN) Look up type name in substitution table (param.typeName)

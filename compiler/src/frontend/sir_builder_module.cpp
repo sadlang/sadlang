@@ -387,7 +387,7 @@ namespace Sad
                         //      var x = 3.14 ג†’ type UNKNOWN ג†’ should be F64 not I64
                         //      Without this: double stored as i64 (raw bits) and printed incorrectly
                         // ================================================================
-                        if (varDecl->type == Data::DataType::UNKNOWN && varDecl->initializer)
+                        if (varDecl->type == Types::SadTypeKind::Unknown && varDecl->initializer)
                         {
                             // (AR) ״§״³״×†״×״§״¬ ״§„†ˆ״¹ …† ״£ ״×״¹״¨״± ג€” „״³ ‚״· ״§„״­״±״§״×
                             //      †״³״×״®״¯… ״¯״§„״© …״³״§״¹״¯״© ״×…״´  ״´״¬״±״© ״§„״×״¹״¨״± ״¨״´ƒ„ ״¹…‚

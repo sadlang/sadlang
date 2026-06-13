@@ -96,8 +96,8 @@ namespace Sad
                                             {
                                                 if (param.name == varExpr->name)
                                                 {
-                                                    if (param.type != Data::DataType::UNKNOWN &&
-                                                        param.type != Data::DataType::OBJECT)
+                                                    if (param.type != Types::SadTypeKind::Unknown &&
+                                                        param.type != Types::SadTypeKind::Class)
                                                     {
                                                         fieldType = b_.astTypeToSIRType(param.type);
                                                     }
@@ -157,9 +157,9 @@ namespace Sad
                                         //      e.g.: this.area = width * height → I64
                                         else if (auto *binExpr = dynamic_cast<Sad::AST::BinaryExpr *>(memberAssign->value.get()))
                                         {
-                                            auto dataType = binExpr->getDataType();
-                                            if (dataType != Data::DataType::UNKNOWN &&
-                                                dataType != Data::DataType::OBJECT)
+                                            auto dataType = binExpr->getTypeKind();
+                                            if (dataType != Types::SadTypeKind::Unknown &&
+                                                dataType != Types::SadTypeKind::Class)
                                             {
                                                 exprType = b_.astTypeToSIRType(dataType);
                                             }
@@ -168,9 +168,9 @@ namespace Sad
                                         // (EN) this.field = unary expr → infer type
                                         else if (auto *unaryExpr = dynamic_cast<Sad::AST::UnaryExpr *>(memberAssign->value.get()))
                                         {
-                                            auto dataType = unaryExpr->getDataType();
-                                            if (dataType != Data::DataType::UNKNOWN &&
-                                                dataType != Data::DataType::OBJECT)
+                                            auto dataType = unaryExpr->getTypeKind();
+                                            if (dataType != Types::SadTypeKind::Unknown &&
+                                                dataType != Types::SadTypeKind::Class)
                                             {
                                                 exprType = b_.astTypeToSIRType(dataType);
                                             }

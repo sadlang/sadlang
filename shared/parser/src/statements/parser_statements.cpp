@@ -880,7 +880,7 @@ namespace Sad
                 // (EN) Read optional exception type then variable name
                 // (AR) الصيغة: امسك (متغير) أو امسك (نوع_الاستثناء متغير)
                 // (EN) Syntax: catch (var) or catch (ExceptionType var)
-                Data::DataType exceptionType = Data::DataType::UNKNOWN;
+                Types::SadTypeKind exceptionType = Types::SadTypeKind::Unknown;
                 std::string exceptionTypeName = "";
 
                 // (AR) دعم الكلمات المفتاحية كأسماء استثناء (مثل: امسك خطأ)
@@ -915,7 +915,7 @@ namespace Sad
                     // (AR) الرمز الأول هو اسم نوع الاستثناء المخصص
                     // (EN) First token is custom exception type name
                     exceptionTypeName = firstToken.getValue();
-                    exceptionType = Data::DataType::OBJECT;
+                    exceptionType = Types::SadTypeKind::Class;
                     if (check(TT::IDENTIFIER))
                     {
                         exceptionVar = current_;

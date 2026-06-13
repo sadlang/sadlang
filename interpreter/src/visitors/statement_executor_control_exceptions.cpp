@@ -103,19 +103,19 @@ namespace Sad
                     // (EN) Match exception type — UNKNOWN matches everything (catch-all)
                     bool typeMatches = false;
 
-                    if (Types::fromDataType(catchClause.exceptionType) == Types::SadTypeKind::Unknown)
+                    if (catchClause.exceptionType == Types::SadTypeKind::Unknown)
                     {
                         // (AR) catch-all: يلتقط أي استثناء
                         typeMatches = true;
                     }
-                    else if (Types::fromDataType(catchClause.exceptionType) == Types::SadTypeKind::Error)
+                    else if (catchClause.exceptionType == Types::SadTypeKind::Error)
                     {
                         // (AR) مطابقة نوع ERROR فقط — نقارن مع نوع الاستثناء الفعلي
                         // (EN) Match ERROR type — compare against actual exception type
                         typeMatches = (exType == "RuntimeError" || exType == "Error" ||
                                        exType == "خطأ" || exType == "خطأ_تشغيل" || exType.empty());
                     }
-                    else if (Types::fromDataType(catchClause.exceptionType) == Types::SadTypeKind::Class)
+                    else if (catchClause.exceptionType == Types::SadTypeKind::Class)
                     {
                         // (AR) مطابقة نوع كائن مخصص مع دعم الوراثة
                         // (EN) Match custom object type with inheritance support
@@ -173,8 +173,8 @@ namespace Sad
                 {
                     // (AR) مطابقة نوع الاستثناء — UNKNOWN يلتقط الكل
                     // (EN) Type matching — UNKNOWN catches all
-                    if (Types::fromDataType(catchClause.exceptionType) != Types::SadTypeKind::Unknown &&
-                        Types::fromDataType(catchClause.exceptionType) != Types::SadTypeKind::Error)
+                    if (catchClause.exceptionType != Types::SadTypeKind::Unknown &&
+                        catchClause.exceptionType != Types::SadTypeKind::Error)
                     {
                         continue;
                     }
@@ -207,8 +207,8 @@ namespace Sad
                 {
                     // (AR) مطابقة نوع الاستثناء — UNKNOWN يلتقط الكل
                     // (EN) Type matching — UNKNOWN catches all
-                    if (Types::fromDataType(catchClause.exceptionType) != Types::SadTypeKind::Unknown &&
-                        Types::fromDataType(catchClause.exceptionType) != Types::SadTypeKind::Error)
+                    if (catchClause.exceptionType != Types::SadTypeKind::Unknown &&
+                        catchClause.exceptionType != Types::SadTypeKind::Error)
                     {
                         continue;
                     }
@@ -241,7 +241,7 @@ namespace Sad
                 {
                     // (AR) للاستثناءات غير المعروفة، فقط catch-all (UNKNOWN) يلتقطها
                     // (EN) For unknown exceptions, only catch-all (UNKNOWN) matches
-                    if (Types::fromDataType(catchClause.exceptionType) != Types::SadTypeKind::Unknown)
+                    if (catchClause.exceptionType != Types::SadTypeKind::Unknown)
                     {
                         continue;
                     }

@@ -16,7 +16,6 @@
  */
 
 #include "declarations.h"
-#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنات الحقول تتمحور على SadTypeKind
 #include <sstream>
 
 namespace Sad {
@@ -50,24 +49,24 @@ namespace {
      *        (EN) Converts data type enum to its string representation.
      * 
      * @param type (AR) نوع البيانات (صحيح، عائم، نص، إلخ).
-     *             (EN) DataType enum value (int, float, string, etc).
+     *             (EN) SadTypeKind enum value (int, float, string, etc).
      * @return (AR) سلسلة نصية تمثل نوع البيانات.
      *         (EN) String representation of data type.
      */
-    std::string typeToString(Data::DataType type) {
+    std::string typeToString(Types::SadTypeKind type) {
         switch (type) {
-            case Data::DataType::INTEGER:   return "int";
-            case Data::DataType::FLOAT:     return "float";
-            case Data::DataType::STRING:    return "string";
-            case Data::DataType::BOOLEAN:   return "bool";
-            case Data::DataType::NONE:      return "none";
-            case Data::DataType::ARRAY:     return "array";
-            case Data::DataType::MAP:       return "map";
-            case Data::DataType::TUPLE:     return "tuple";
-            case Data::DataType::FUNCTION:  return "function";
-            case Data::DataType::OBJECT:    return "object";
-            case Data::DataType::ENUM:      return "enum";
-            case Data::DataType::BYTE:      return "byte";
+            case Types::SadTypeKind::Integer:   return "int";
+            case Types::SadTypeKind::Float:     return "float";
+            case Types::SadTypeKind::String:    return "string";
+            case Types::SadTypeKind::Boolean:   return "bool";
+            case Types::SadTypeKind::Void:      return "none";
+            case Types::SadTypeKind::Array:     return "array";
+            case Types::SadTypeKind::Map:       return "map";
+            case Types::SadTypeKind::Tuple:     return "tuple";
+            case Types::SadTypeKind::Function:  return "function";
+            case Types::SadTypeKind::Class:    return "object";
+            case Types::SadTypeKind::Enum:      return "enum";
+            case Types::SadTypeKind::Byte:      return "byte";
             default:                        return "unknown";
         }
     }
@@ -111,7 +110,7 @@ std::string FunctionDecl::toString() const {
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";
         oss << parameters[i].name;
-        if (Types::fromDataType(parameters[i].type) != Types::SadTypeKind::Unknown) {
+        if (parameters[i].type != Types::SadTypeKind::Unknown) {
             oss << ": " << typeToString(parameters[i].type);
         }
         if (parameters[i].defaultValue) {
@@ -121,7 +120,7 @@ std::string FunctionDecl::toString() const {
     
     oss << ")";
     
-    if (Types::fromDataType(returnType) != Types::SadTypeKind::Void) {
+    if (returnType != Types::SadTypeKind::Void) {
         oss << " -> " << typeToString(returnType);
     }
     
@@ -199,7 +198,7 @@ std::string FieldDecl::toString() const {
     
     oss << "var " << name;
     
-    if (Types::fromDataType(type) != Types::SadTypeKind::Unknown) {
+    if (type != Types::SadTypeKind::Unknown) {
         oss << ": " << typeToString(type);
     }
     
@@ -250,14 +249,14 @@ std::string MethodDecl::toString() const {
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";
         oss << parameters[i].name;
-        if (Types::fromDataType(parameters[i].type) != Types::SadTypeKind::Unknown) {
+        if (parameters[i].type != Types::SadTypeKind::Unknown) {
             oss << ": " << typeToString(parameters[i].type);
         }
     }
     
     oss << ")";
     
-    if (Types::fromDataType(returnType) != Types::SadTypeKind::Void) {
+    if (returnType != Types::SadTypeKind::Void) {
         oss << " -> " << typeToString(returnType);
     }
     
@@ -287,7 +286,7 @@ std::string ConstructorDecl::toString() const {
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";
         oss << parameters[i].name;
-        if (Types::fromDataType(parameters[i].type) != Types::SadTypeKind::Unknown) {
+        if (parameters[i].type != Types::SadTypeKind::Unknown) {
             oss << ": " << typeToString(parameters[i].type);
         }
     }

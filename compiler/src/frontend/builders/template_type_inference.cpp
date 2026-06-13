@@ -507,12 +507,12 @@ namespace Sad
                     }
                     // (AR) ??? DataType ?? AST
                     // (EN) Check AST DataType
-                    auto dtype = var->getDataType();
-                    if (dtype == Sad::Data::DataType::STRING)
+                    auto dtype = var->getTypeKind();
+                    if (dtype == Sad::Types::SadTypeKind::String)
                         return SadTypeKind::String;
-                    if (dtype == Sad::Data::DataType::FLOAT)
+                    if (dtype == Sad::Types::SadTypeKind::Float)
                         return SadTypeKind::Float;
-                    if (dtype == Sad::Data::DataType::BOOLEAN)
+                    if (dtype == Sad::Types::SadTypeKind::Boolean)
                         return SadTypeKind::Boolean;
                     return SadTypeKind::Integer;
                 }
@@ -624,16 +624,16 @@ namespace Sad
 
                 // (AR) ??? DataType ?? ???????
                 // (EN) Check DataType from expression
-                auto dtype = expr->getDataType();
-                if (dtype == Sad::Data::DataType::STRING)
+                auto dtype = expr->getTypeKind();
+                if (dtype == Sad::Types::SadTypeKind::String)
                     return SadTypeKind::String;
-                if (dtype == Sad::Data::DataType::FLOAT)
+                if (dtype == Sad::Types::SadTypeKind::Float)
                     return SadTypeKind::Float;
-                if (dtype == Sad::Data::DataType::BOOLEAN)
+                if (dtype == Sad::Types::SadTypeKind::Boolean)
                     return SadTypeKind::Boolean;
-                if (dtype == Sad::Data::DataType::ARRAY)
+                if (dtype == Sad::Types::SadTypeKind::Array)
                     return SadTypeKind::Array;
-                if (dtype == Sad::Data::DataType::MAP)
+                if (dtype == Sad::Types::SadTypeKind::Map)
                     return SadTypeKind::Map;
 
                 // (AR) ??????? � I64

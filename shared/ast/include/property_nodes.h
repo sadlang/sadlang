@@ -76,14 +76,14 @@ public:
 class SetterBlock {
 public:
     std::string parameterName;         ///< (AR) اسم المعامل / (EN) parameter name
-    Data::DataType parameterType;      ///< (AR) نوع المعامل / (EN) parameter type
+    Types::SadTypeKind parameterType;      ///< (AR) نوع المعامل / (EN) parameter type
     std::unique_ptr<BlockStmt> body;   ///< (AR) جسم الـ setter / (EN) setter body
     
     /**
      * @brief (AR) منشئ مع اسم المعامل والجسم
      * @brief (EN) Constructor with parameter name and body
      */
-    SetterBlock(const std::string& paramName, Data::DataType paramType, 
+    SetterBlock(const std::string& paramName, Types::SadTypeKind paramType, 
                 std::unique_ptr<BlockStmt> blockBody)
         : parameterName(paramName), parameterType(paramType), 
           body(std::move(blockBody)) {}
@@ -118,7 +118,7 @@ public:
 class PropertyDecl : public Statement {
 public:
     std::string name;                         ///< (AR) اسم الخاصية / (EN) property name
-    Data::DataType type;                      ///< (AR) نوع الخاصية / (EN) property type
+    Types::SadTypeKind type;                      ///< (AR) نوع الخاصية / (EN) property type
     std::unique_ptr<GetterBlock> getter;      ///< (AR) كتلة القراءة / (EN) getter block
     std::unique_ptr<SetterBlock> setter;      ///< (AR) كتلة الكتابة / (EN) setter block (optional)
     AccessModifier visibility;                ///< (AR) مستوى الوصول / (EN) access level
@@ -129,14 +129,14 @@ public:
      * @brief (EN) Constructor for property
      * 
      * @param propName (std::string) — (AR) اسم الخاصية / (EN) property name
-     * @param propType (Data::DataType) — (AR) نوع الخاصية / (EN) property type
+     * @param propType (Types::SadTypeKind) — (AR) نوع الخاصية / (EN) property type
      * @param getterBlock (std::unique_ptr<GetterBlock>) — (AR) كتلة القراءة / (EN) getter block
      * @param setterBlock (std::unique_ptr<SetterBlock>) — (AR) كتلة الكتابة / (EN) setter block (can be null)
      * @param vis (AccessModifier) — (AR) مستوى الوصول / (EN) access level
      * @param isStaticProp (bool) — (AR) هل ثابتة / (EN) is static
      */
     PropertyDecl(const std::string& propName, 
-                 Data::DataType propType,
+                 Types::SadTypeKind propType,
                  std::unique_ptr<GetterBlock> getterBlock,
                  std::unique_ptr<SetterBlock> setterBlock,
                  AccessModifier vis = AccessModifier::PUBLIC,

@@ -1499,7 +1499,7 @@ namespace Sad
                         }
 
                         std::string paramName;
-                        Data::DataType paramType = Data::DataType::NONE;
+                        Types::SadTypeKind paramType = Types::SadTypeKind::Void;
                         std::string templateTypeName; // (AR) لحفظ اسم نوع القالب / (EN) To store template type name
 
                         // (AR) معامل يبدأ بالنوع أو الاسم
@@ -1508,7 +1508,7 @@ namespace Sad
                         {
                             // (AR) نوع مدمج مثل: رقم س
                             // (EN) Built-in type like: int x
-                            paramType = mapTokenTypeToDataType(current_.getType());
+                            paramType = mapTokenTypeToKind(current_.getType());
                             advance();
                             if (check(TT::IDENTIFIER))
                             {
@@ -1529,7 +1529,7 @@ namespace Sad
                                 // (EN) Format: T x (identifier type + name)
                                 templateTypeName = firstIdent;
                                 paramName = current_.getValue();
-                                paramType = Data::DataType::OBJECT; // Template type as OBJECT
+                                paramType = Types::SadTypeKind::Class; // Template type as OBJECT
                                 advance();
                             }
                             else if (match(TT::COLON))
@@ -1539,7 +1539,7 @@ namespace Sad
                                 paramName = firstIdent;
                                 if (isTypeToken(current_.getType()))
                                 {
-                                    paramType = mapTokenTypeToDataType(current_.getType());
+                                    paramType = mapTokenTypeToKind(current_.getType());
                                     advance();
                                 }
                                 else if (check(TT::IDENTIFIER))
@@ -1547,7 +1547,7 @@ namespace Sad
                                     // (AR) قد يكون معامل نوع من القالب
                                     // (EN) Might be a template type parameter
                                     templateTypeName = current_.getValue();
-                                    paramType = Data::DataType::OBJECT;
+                                    paramType = Types::SadTypeKind::Class;
                                     advance();
                                 }
                             }
@@ -1574,7 +1574,7 @@ namespace Sad
 
                 // (AR) تحليل نوع الإرجاع
                 // (EN) Parse return type
-                Data::DataType returnType = Data::DataType::NONE;
+                Types::SadTypeKind returnType = Types::SadTypeKind::Void;
                 std::string returnTypeName;
 
                 // (AR) البحث عن نوع الإرجاع بعد المعاملات مع كلمة "ترجع" الاختيارية
@@ -1597,7 +1597,7 @@ namespace Sad
                 {
                     if (isTypeToken(current_.getType()))
                     {
-                        returnType = mapTokenTypeToDataType(current_.getType());
+                        returnType = mapTokenTypeToKind(current_.getType());
                         advance();
                     }
                     else if (check(TT::IDENTIFIER))
@@ -1608,20 +1608,20 @@ namespace Sad
                         // (EN) [Phase 8] Primitive type names as return type in template functions
                         //      Example: template<type T> function name(T a) returns int
                         if (rn == "\xD8\xB1\xD9\x82\xD9\x85") // رقم
-                            returnType = Data::DataType::INTEGER;
+                            returnType = Types::SadTypeKind::Integer;
                         else if (rn == "\xD9\x86\xD8\xB5") // نص
-                            returnType = Data::DataType::STRING;
+                            returnType = Types::SadTypeKind::String;
                         else if (rn == "\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A" ||
                                  rn == "\xD9\x85\xD8\xB6\xD8\xA7\xD8\xB9\xD9\x81") // عشري/مضاعف
-                            returnType = Data::DataType::FLOAT;
+                            returnType = Types::SadTypeKind::Float;
                         else if (rn == "\xD9\x85\xD9\x86\xD8\xB7\xD9\x82\xD9\x8A") // منطقي
-                            returnType = Data::DataType::BOOLEAN;
+                            returnType = Types::SadTypeKind::Boolean;
                         else if (rn == "\xD9\x81\xD8\xB1\xD8\xA7\xD8\xBA") // فراغ
-                            returnType = Data::DataType::NONE;
+                            returnType = Types::SadTypeKind::Void;
                         else
                         {
                             returnTypeName = rn;
-                            returnType = Data::DataType::OBJECT;
+                            returnType = Types::SadTypeKind::Class;
                         }
                         advance();
                     }
@@ -1629,7 +1629,7 @@ namespace Sad
                 else if (isTypeToken(current_.getType()))
                 {
                     // Built-in type without "ترجع"
-                    returnType = mapTokenTypeToDataType(current_.getType());
+                    returnType = mapTokenTypeToKind(current_.getType());
                     advance();
                 }
                 else if (check(TT::IDENTIFIER))
@@ -1653,7 +1653,7 @@ namespace Sad
                     if (isTemplateParam)
                     {
                         returnTypeName = possibleType;
-                        returnType = Data::DataType::OBJECT;
+                        returnType = Types::SadTypeKind::Class;
                         advance();
                     }
                 }
@@ -1844,7 +1844,7 @@ namespace Sad
                                 if (matchSemicolon())
                                 {
                                 }
-                                return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                                return std::make_unique<FieldDecl>(nameToken.getValue(), Types::SadTypeKind::Class,
                                                                    std::move(initializer), access, isStatic, nameToken.getPosition());
                             }
                         }
@@ -1873,7 +1873,7 @@ namespace Sad
                             if (matchSemicolon())
                             {
                             }
-                            return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                            return std::make_unique<FieldDecl>(nameToken.getValue(), Types::SadTypeKind::Class,
                                                                std::move(initializer), access, isStatic, nameToken.getPosition());
                         }
 
@@ -1965,7 +1965,7 @@ namespace Sad
                         if (matchSemicolon())
                         {
                         }
-                        return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                        return std::make_unique<FieldDecl>(nameToken.getValue(), Types::SadTypeKind::Class,
                                                            std::move(initializer), access, isStatic, nameToken.getPosition());
                     }
 
@@ -2000,7 +2000,7 @@ namespace Sad
                             if (matchSemicolon())
                             {
                             }
-                            return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                            return std::make_unique<FieldDecl>(nameToken.getValue(), Types::SadTypeKind::Class,
                                                                std::move(initializer), access, isStatic, nameToken.getPosition());
                         }
                     }
@@ -2321,17 +2321,17 @@ namespace Sad
                     std::string paramName = current_.getValue();
                     advance();
 
-                    Data::DataType paramType = Data::DataType::NONE;
+                    Types::SadTypeKind paramType = Types::SadTypeKind::Void;
                     if (match(TT::COLON))
                     {
                         if (isTypeToken(current_.getType()))
                         {
-                            paramType = mapTokenTypeToDataType(current_.getType());
+                            paramType = mapTokenTypeToKind(current_.getType());
                             advance();
                         }
                         else if (check(TT::IDENTIFIER))
                         {
-                            paramType = Data::DataType::OBJECT;
+                            paramType = Types::SadTypeKind::Class;
                             advance();
                         }
                     }
@@ -2363,10 +2363,10 @@ namespace Sad
 
             // (AR) تحليل نوع الإرجاع — يأتي مباشرة بعد القوس (بدون سهم)
             // (EN) Parse return type — bare type after closing paren (no arrow)
-            Data::DataType returnType = Data::DataType::NONE;
+            Types::SadTypeKind returnType = Types::SadTypeKind::Void;
             if (isTypeToken(current_.getType()))
             {
-                returnType = mapTokenTypeToDataType(current_.getType());
+                returnType = mapTokenTypeToKind(current_.getType());
                 advance();
             }
             else if (check(TT::IDENTIFIER) && !check(TT::KEYWORD_END) &&
@@ -2376,7 +2376,7 @@ namespace Sad
             {
                 // (AR) قد يكون نوع صنف مخصص كنوع إرجاع
                 // (EN) Could be a custom class type as return type
-                returnType = Data::DataType::OBJECT;
+                returnType = Types::SadTypeKind::Class;
                 advance();
             }
 
@@ -2452,7 +2452,7 @@ namespace Sad
 
             // (AR) تحليل وسائط الأنواع
             // (EN) Parse type arguments
-            std::vector<Data::DataType> typeArgs;
+            std::vector<Types::SadTypeKind> typeArgs;
             std::vector<std::string> typeArgNames;
             // ==========================================================================
             // (AR) [Phase 4] وسائط ثابتة (const-generic args) موازية لوسائط الأنواع
@@ -2501,14 +2501,14 @@ namespace Sad
                 }
                 else
                 {
-                    Data::DataType argType = Data::DataType::UNKNOWN;
+                    Types::SadTypeKind argType = Types::SadTypeKind::Unknown;
                     std::string typeName;
 
                     if (isTypeToken(current_.getType()))
                     {
                         // (AR) نوع مدمج
                         // (EN) Built-in type
-                        argType = mapTokenTypeToDataType(current_.getType());
+                        argType = mapTokenTypeToKind(current_.getType());
                         typeName = current_.getValue();
                         advance();
                     }
@@ -2517,7 +2517,7 @@ namespace Sad
                         // (AR) قد يكون اسم صنف
                         // (EN) Could be class name
                         typeName = current_.getValue();
-                        argType = Data::DataType::OBJECT;
+                        argType = Types::SadTypeKind::Class;
                         advance();
                     }
                     else

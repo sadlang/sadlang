@@ -340,19 +340,19 @@ namespace Sad
                         SadTypeKind fieldType = SadTypeKind::Integer;
                         switch (field.type)
                         {
-                        case Sad::Data::DataType::INTEGER:
+                        case Sad::Types::SadTypeKind::Integer:
                             fieldType = SadTypeKind::Integer;
                             break;
-                        case Sad::Data::DataType::FLOAT:
+                        case Sad::Types::SadTypeKind::Float:
                             fieldType = SadTypeKind::Float;
                             break;
-                        case Sad::Data::DataType::BOOLEAN:
+                        case Sad::Types::SadTypeKind::Boolean:
                             fieldType = SadTypeKind::Boolean;
                             break;
-                        case Sad::Data::DataType::STRING:
+                        case Sad::Types::SadTypeKind::String:
                             fieldType = SadTypeKind::String;
                             break;
-                        case Sad::Data::DataType::ARRAY:
+                        case Sad::Types::SadTypeKind::Array:
                             fieldType = SadTypeKind::Array;
                             break;
                         default:
@@ -522,19 +522,19 @@ namespace Sad
                         SadTypeKind fieldType = SadTypeKind::Integer;
                         switch (field->type)
                         {
-                        case Sad::Data::DataType::INTEGER:
+                        case Sad::Types::SadTypeKind::Integer:
                             fieldType = SadTypeKind::Integer;
                             break;
-                        case Sad::Data::DataType::FLOAT:
+                        case Sad::Types::SadTypeKind::Float:
                             fieldType = SadTypeKind::Float;
                             break;
-                        case Sad::Data::DataType::BOOLEAN:
+                        case Sad::Types::SadTypeKind::Boolean:
                             fieldType = SadTypeKind::Boolean;
                             break;
-                        case Sad::Data::DataType::STRING:
+                        case Sad::Types::SadTypeKind::String:
                             fieldType = SadTypeKind::String;
                             break;
-                        case Sad::Data::DataType::ARRAY:
+                        case Sad::Types::SadTypeKind::Array:
                             fieldType = SadTypeKind::Array;
                             break;
                         default:

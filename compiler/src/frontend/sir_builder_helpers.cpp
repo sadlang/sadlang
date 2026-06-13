@@ -107,10 +107,10 @@ namespace Sad
             // astTypeToSIRType - ״×״­ˆ„ DataType ״¥„‰ SadTypeKind
             // ============================================================================
             // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:741
-            // ״§„״×ˆ‚״¹ / Signature: SadTypeKind astTypeToSIRType(const Sad::Data::DataType& type);
+            // ״§„״×ˆ‚״¹ / Signature: SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind& type);
             //
             // ״§„…״¹״§…„״§״× / Parameters:
-            // - type: const Sad::Data::DataType& (parser/data.h)
+            // - type: const Sad::Types::SadTypeKind& (parser/data.h)
             //
             // ״§„״¥״±״¬״§״¹ / Returns:
             // - SadTypeKind: sir_types.h:57 (enum class SadTypeKind)
@@ -122,32 +122,32 @@ namespace Sad
             // - UNKNOWN, INTEGER, FLOAT, STRING, BOOLEAN, NONE, ARRAY, MAP, TUPLE,
             //   FUNCTION, OBJECT, ENUM, BYTE, ERROR
             // ============================================================================
-            SadTypeKind SIRBuilder::astTypeToSIRType(const Sad::Data::DataType &type)
+            SadTypeKind SIRBuilder::astTypeToSIRType(const Sad::Types::SadTypeKind &type)
             {
                 // (AR) ״×״­ˆ„ DataType ״¥„‰ SadTypeKind
                 // (EN) Convert DataType to SadTypeKind
                 switch (type)
                 {
-                case Data::DataType::INTEGER:
+                case Types::SadTypeKind::Integer:
                     return SadTypeKind::Integer;
-                case Data::DataType::FLOAT:
+                case Types::SadTypeKind::Float:
                     return SadTypeKind::Float;
-                case Data::DataType::BOOLEAN:
+                case Types::SadTypeKind::Boolean:
                     return SadTypeKind::Boolean;
-                case Data::DataType::STRING:
+                case Types::SadTypeKind::String:
                     return SadTypeKind::String;
-                case Data::DataType::ARRAY:
+                case Types::SadTypeKind::Array:
                     return SadTypeKind::Array;
-                case Data::DataType::FUNCTION:
+                case Types::SadTypeKind::Function:
                     return SadTypeKind::Function;
-                case Data::DataType::OBJECT:
+                case Types::SadTypeKind::Class:
                     // (AR) ƒ״§״¦† -  ״§„״÷״§„״¨ …״¹״§…„ ״¨״¯ˆ† †ˆ״¹ ״µ״±״­
                     // (EN) Object - usually a parameter without explicit type
                     //  LLVM״ †״³״×״®״¯… i64 „״×…״±״± ״§„…״₪״´״±״§״×/״§„‚…
                     return SadTypeKind::Integer;
-                case Data::DataType::NONE:
+                case Types::SadTypeKind::Void:
                     return SadTypeKind::Void;
-                case Data::DataType::UNKNOWN:
+                case Types::SadTypeKind::Unknown:
                     // (AR) †ˆ״¹ ״÷״± …״¹״±ˆ - ״³״×… ״§״³״×†״×״§״¬‡ …† ״§„״×״¹״¨״±
                     // (EN) Unknown type - will be inferred from expression
                     return SadTypeKind::Integer; // Default, will be overwritten by type inference
@@ -170,9 +170,9 @@ namespace Sad
             //      Uses SadType::fromDataType for direct conversion
             //      This is the ideal path ג€” avoids type information loss
             // ============================================================================
-            Sad::Types::SadTypePtr SIRBuilder::astTypeToSadType(const Sad::Data::DataType &type)
+            Sad::Types::SadTypePtr SIRBuilder::astTypeToSadType(const Sad::Types::SadTypeKind &type)
             {
-                return Sad::Types::SadType::fromDataType(type);
+                return Sad::Types::SadType::fromValueType(type);
             }
 
             // ============================================================================

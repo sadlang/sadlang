@@ -171,7 +171,7 @@ namespace Sad
         public:
             std::string className;                          ///< (AR) اسم الصنف / (EN) class name
             std::vector<std::unique_ptr<Expr>> arguments;   ///< (AR) معاملات الباني / (EN) constructor arguments
-            std::vector<Data::DataType> templateArguments;  ///< (AR) أنواع القالب / (EN) template type arguments
+            std::vector<Types::SadTypeKind> templateArguments;  ///< (AR) أنواع القالب / (EN) template type arguments
             std::vector<std::string> templateArgumentNames; ///< (AR) أسماء أنواع القالب / (EN) template type argument names
 
             /**

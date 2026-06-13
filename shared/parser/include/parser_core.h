@@ -1498,7 +1498,7 @@ namespace Sad
              * auto type2 = parseType(); // "Array<int>" → ARRAY
              * @endcode
              */
-            Data::DataType parseType();
+            Types::SadTypeKind parseType();
 
             /**
              * @brief (AR) يحلل نوع بيانات ويُرجع SadTypePtr من النظام الموحد
@@ -1534,7 +1534,7 @@ namespace Sad
              * @note (AR) التنفيذ الحالي يسجل المعاملات العامة لكن لا يستخدمها في runtime.
              *       (EN) Current implementation records generic parameters but doesn't use them at runtime.
              */
-            Data::DataType parseGenericType(Data::DataType baseType);
+            Types::SadTypeKind parseGenericType(Types::SadTypeKind baseType);
 
             /**
              * @brief (AR) يفحص ما إذا كان نوع الرمز يمثل نوع بيانات.
@@ -1591,7 +1591,7 @@ namespace Sad
              * @param tokenType (AR) نوع الرمز (EN) Token type
              * @return (AR) نوع البيانات المقابل (EN) Corresponding data type
              */
-            Data::DataType mapTokenTypeToDataType(Lexer::TokenType tokenType);
+            Types::SadTypeKind mapTokenTypeToKind(Lexer::TokenType tokenType);
 
         private:
             // ======================================================================

@@ -654,35 +654,35 @@ namespace Sad
             return false;
         }
 
-        std::string BorrowChecker::dataTypeToString(Data::DataType type) const
+        std::string BorrowChecker::dataTypeToString(Types::SadTypeKind type) const
         {
             // (AR) ״×״­ˆ„ †ˆ״¹ ״§„״¨״§†״§״× ״¥„‰ †״µ „…״·״§״¨‚״© ״£†ˆ״§״¹ ״§„†״³״®
             // (EN) Convert DataType enum to string for copy type matching
             switch (type)
             {
-            case Data::DataType::INTEGER:
+            case Types::SadTypeKind::Integer:
                 return "״±‚…";
-            case Data::DataType::FLOAT:
+            case Types::SadTypeKind::Float:
                 return "״¹״´״±";
-            case Data::DataType::BOOLEAN:
+            case Types::SadTypeKind::Boolean:
                 return "…†״·‚";
-            case Data::DataType::STRING:
+            case Types::SadTypeKind::String:
                 return "†״µ";
-            case Data::DataType::BYTE:
+            case Types::SadTypeKind::Byte:
                 return "״¨״§״×";
-            case Data::DataType::ARRAY:
+            case Types::SadTypeKind::Array:
                 return "…״µˆ״©";
-            case Data::DataType::MAP:
+            case Types::SadTypeKind::Map:
                 return "‚״§…ˆ״³";
-            case Data::DataType::TUPLE:
+            case Types::SadTypeKind::Tuple:
                 return "״«†״§״¦";
-            case Data::DataType::FUNCTION:
+            case Types::SadTypeKind::Function:
                 return "״¯״§„״©";
-            case Data::DataType::NONE:
+            case Types::SadTypeKind::Void:
                 return "„״§״´״¡";
-            case Data::DataType::ENUM:
+            case Types::SadTypeKind::Enum:
                 return "״×״¹״¯״§״¯";
-            case Data::DataType::ERROR:
+            case Types::SadTypeKind::Error:
                 return "״®״·״£";
             default:
                 return "unknown";

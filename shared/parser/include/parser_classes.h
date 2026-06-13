@@ -355,7 +355,7 @@ bool isVisibilityKeyword(Parser* parser);
  * @param parser (Parser*) — (AR) المحلل / (EN) parser
  * @return (bool) — (AR) true إذا كان نوع بيانات / (EN) true if data type
  */
-bool isDataType(Parser* parser);
+bool isTypeTokenKind(Parser* parser);
 
 /**
  * @brief (AR) تحليل نوع بيانات

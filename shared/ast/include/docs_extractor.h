@@ -2195,36 +2195,36 @@ namespace Sad
                 }
             }
 
-            static std::string dataTypeName(Data::DataType t)
+            static std::string dataTypeName(Types::SadTypeKind t)
             {
-                using DT = Data::DataType;
+                using DT = Types::SadTypeKind;
                 switch (t)
                 {
-                case DT::INTEGER:
+                case Types::SadTypeKind::Integer:
                     return "رقم";
-                case DT::FLOAT:
+                case Types::SadTypeKind::Float:
                     return "عشري";
-                case DT::STRING:
+                case Types::SadTypeKind::String:
                     return "نص";
-                case DT::BOOLEAN:
+                case Types::SadTypeKind::Boolean:
                     return "منطقي";
-                case DT::NONE:
+                case Types::SadTypeKind::Void:
                     return "لاشيء";
-                case DT::ARRAY:
+                case Types::SadTypeKind::Array:
                     return "مصفوفة";
-                case DT::MAP:
+                case Types::SadTypeKind::Map:
                     return "خريطة";
-                case DT::TUPLE:
+                case Types::SadTypeKind::Tuple:
                     return "صف";
-                case DT::FUNCTION:
+                case Types::SadTypeKind::Function:
                     return "دالة";
-                case DT::OBJECT:
+                case Types::SadTypeKind::Class:
                     return "كائن";
-                case DT::ENUM:
+                case Types::SadTypeKind::Enum:
                     return "تعداد";
-                case DT::BYTE:
+                case Types::SadTypeKind::Byte:
                     return "بايت";
-                case DT::ERROR:
+                case Types::SadTypeKind::Error:
                     return "خطأ";
                 default:
                     return ""; // UNKNOWN — لا تُعرض
