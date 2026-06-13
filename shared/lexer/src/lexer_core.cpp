@@ -1269,9 +1269,10 @@ namespace Sad
                     if (current_ + 1 < source_.length())
                     {
                         unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
-                        if (next == 0x8C || next == 0x9B)
+                        if (next == 0x8C || next == 0x9B || next == 0x9F)
                         {
-                            // هذا فاصلة عربية أو فاصلة منقوطة عربية - لا نقرأها
+                            // (AR) ، (0x8C) أو ؛ (0x9B) أو ؟ (0x9F) — علامات ترقيم عربية،
+                            //      لا تُقرأ كجزء من المعرّف (؟ مضافة في S-TS-P8 للاحقة `رقم؟`).
                             break;
                         }
                     }
@@ -1755,6 +1756,35 @@ namespace Sad
                     advance(); // consume 0xD8
                     advance(); // consume 0x9B
                     return Token(TokenType::ARABIC_SEMICOLON, "؛", start_position_);
+                }
+                else if (next == 0x9F)
+                {
+                    // (AR) [S-TS-P8 AC3] ؟ علامة الاستفهام العربية (U+061F) = مرادف `?`
+                    //      لاحقة اختياري `رقم؟`، ثلاثي `أ ؟ ب : ج`، واندماج `؟؟`/وصول آمن `؟.`.
+                    // (EN) [S-TS-P8 AC3] Arabic question mark as synonym of `?`.
+                    advance(); // consume 0xD8
+                    advance(); // consume 0x9F
+                    // (AR) ؟. → QUESTION_DOT (وصول آمن)
+                    if (peek() == '.')
+                    {
+                        advance();
+                        return Token(TokenType::QUESTION_DOT, "?.", start_position_);
+                    }
+                    // (AR) ؟؟ (عربي) أو ؟? (مختلط) → QUESTION_QUESTION (اندماج فارغ)
+                    if (peek() == '?')
+                    {
+                        advance();
+                        return Token(TokenType::QUESTION_QUESTION, "??", start_position_);
+                    }
+                    if (static_cast<unsigned char>(peek()) == 0xD8 &&
+                        (current_ + 1) < source_.length() &&
+                        static_cast<unsigned char>(source_[current_ + 1]) == 0x9F)
+                    {
+                        advance(); // 0xD8
+                        advance(); // 0x9F
+                        return Token(TokenType::QUESTION_QUESTION, "??", start_position_);
+                    }
+                    return Token(TokenType::QUESTION, "?", start_position_);
                 }
             }
 
