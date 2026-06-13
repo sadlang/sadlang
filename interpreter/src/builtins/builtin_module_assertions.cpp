@@ -530,7 +530,7 @@ namespace Sad
                 std::string expected_type = args[1]->toString();
                 // خريطة ترجمة الأنواع العربية ↔ الإنجليزية
                 static const std::unordered_map<std::string, std::string> type_map = {
-                    {"رقم", "INTEGER"}, {"عدد", "INTEGER"}, {"صحيح", "INTEGER"}, {"عشري", "DOUBLE"}, {"حقيقي", "DOUBLE"}, {"نص", "STRING"}, {"سلسلة", "STRING"}, {"منطقي", "BOOLEAN"}, {"مصفوفة", "ARRAY"}, {"قائمة", "ARRAY"}, {"قاموس", "MAP"}, {"خريطة", "MAP"}, {"فراغ", "VOID"}, {"لاشيء", "VOID"}};
+                    {"رقم", "INTEGER"}, {"عدد", "INTEGER"}, {"صحيح", "INTEGER"}, {"عشري", "DOUBLE"}, {"حقيقي", "DOUBLE"}, {"نص", "STRING"}, {"سلسلة", "STRING"}, {"منطقي", "BOOLEAN"}, {"مصفوفة", "ARRAY"}, {"قائمة", "ARRAY"}, {"قاموس", "MAP"}, {"خريطة", "MAP"}, {"فراغ", "VOID"}, {"عدم", "NULL"}, {"لاشيء", "NULL"}};
                 std::string normalized = expected_type;
                 auto it = type_map.find(expected_type);
                 if (it != type_map.end())

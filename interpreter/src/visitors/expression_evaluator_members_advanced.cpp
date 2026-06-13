@@ -682,17 +682,17 @@ namespace Sad
             // تقييم الكائن أولاً
             node.object->accept(*this);
 
-            // إذا كان لاشيء (فراغ)، أرجع لاشيء
-            if (lastResult_.isVoid())
+            // (AR) إذا كان عدم (null)، أرجع عدم — S-TS-P1 (isNull لا isVoid)
+            if (lastResult_.isNull())
             {
-                lastResult_ = Value(); // VOID = لاشيء
+                lastResult_ = Value::makeNull();
                 return;
             }
 
-            // إذا لم يكن كائناً، أرجع لاشيء أيضاً
+            // إذا لم يكن كائناً، أرجع عدم أيضاً
             if (!lastResult_.isObject())
             {
-                lastResult_ = Value(); // VOID = لاشيء
+                lastResult_ = Value::makeNull();
                 return;
             }
 
@@ -700,7 +700,7 @@ namespace Sad
             auto obj = lastResult_.toObject();
             if (!obj)
             {
-                lastResult_ = Value(); // VOID = لاشيء
+                lastResult_ = Value::makeNull();
                 return;
             }
 
@@ -714,12 +714,12 @@ namespace Sad
                 }
                 else
                 {
-                    lastResult_ = Value(); // VOID = لاشيء
+                    lastResult_ = Value::makeNull();
                 }
             }
             else
             {
-                lastResult_ = Value(); // VOID = لاشيء
+                lastResult_ = Value::makeNull();
             }
         }
 
@@ -735,13 +735,13 @@ namespace Sad
             // تقييم الطرف الأيسر أولاً
             node.left->accept(*this);
 
-            // إذا لم يكن لاشيء (فراغ)، أرجعه
-            if (!lastResult_.isVoid())
+            // (AR) إذا لم يكن عدم (null)، أرجعه — S-TS-P1 (isNull لا isVoid)
+            if (!lastResult_.isNull())
             {
                 return; // lastResult_ يحمل القيمة بالفعل
             }
 
-            // إذا كان لاشيء، قيّم الطرف الأيمن
+            // إذا كان عدم، قيّم الطرف الأيمن
             node.right->accept(*this);
             // lastResult_ يحمل الآن قيمة الطرف الأيمن
         }

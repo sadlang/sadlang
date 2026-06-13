@@ -313,6 +313,8 @@ namespace Sad
             {
             case VT::Void:
                 return reg.getVoid();
+            case Types::SadTypeKind::Null: // (AR) عدم — S-TS-P1
+                return reg.getNull();
 
             case VT::Integer:
                 return reg.getInteger();

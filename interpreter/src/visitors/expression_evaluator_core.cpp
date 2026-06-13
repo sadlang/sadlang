@@ -276,7 +276,7 @@ namespace Sad
                 return Value(false);
 
             case TokenType::LITERAL_NULL:
-                return Value(); // VOID
+                return Value::makeNull(); // (AR) عدم — متمايز عن فراغ (S-TS-P1)
 
             default:
             {
