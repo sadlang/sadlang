@@ -8,6 +8,7 @@
  */
 
 #include "statement_executor.h"
+#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنات الحقول تتمحور على SadTypeKind
 #include "declarations.h"
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
@@ -106,12 +107,12 @@ namespace Sad
                 value = evaluateExpression(*node.initializer);
 
                 // (AR) تحويل النوع إذا لزم الأمر / (EN) Type conversion if needed
-                if (node.type == Data::DataType::INTEGER && value.getKind() == Types::SadTypeKind::Float)
+                if (Types::fromDataType(node.type) == Types::SadTypeKind::Integer && value.getKind() == Types::SadTypeKind::Float)
                 {
                     // (AR) تحويل عشري → رقم صحيح / (EN) Convert double → integer
                     value = Data::Value(static_cast<int>(value.toDouble()));
                 }
-                else if (node.type == Data::DataType::FLOAT && value.getKind() == Types::SadTypeKind::Integer)
+                else if (Types::fromDataType(node.type) == Types::SadTypeKind::Float && value.getKind() == Types::SadTypeKind::Integer)
                 {
                     // (AR) تحويل رقم صحيح → عشري / (EN) Convert integer → double
                     value = Data::Value(static_cast<double>(value.toInt()));
@@ -121,7 +122,7 @@ namespace Sad
                 // (AR) التحقق من توافقية الأنواع عبر النظام الموحد
                 // (EN) Unified type system compatibility check
                 // ═══════════════════════════════════════════════════════════
-                if (node.sadType && node.type != Data::DataType::UNKNOWN)
+                if (node.sadType && Types::fromDataType(node.type) != Types::SadTypeKind::Unknown)
                 {
                     auto valueType = Types::SadType::fromValueType(value.getType());
                     if (valueType && !valueType->isAssignableTo(node.sadType.get()))
