@@ -26,7 +26,6 @@
 #include "expressions.h"
 #include "declarations.h"
 #include "type.h"
-#include "data_types.h"
 #include <vector>
 #include <memory>
 #include <string>

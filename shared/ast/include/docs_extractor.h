@@ -36,7 +36,6 @@
 #include "module_nodes.h"
 #include "statements.h"
 #include "doc_comment.h"
-#include "data_types.h"
 
 #include <algorithm>
 #include <cctype>

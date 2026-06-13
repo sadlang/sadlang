@@ -65,7 +65,6 @@
 #include <memory>
 #include <vector>
 #include "token.h"
-#include "data_types.h"
 #include "sad_type_system.h"
 
 namespace Sad

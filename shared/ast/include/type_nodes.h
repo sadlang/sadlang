@@ -18,7 +18,6 @@
 #define SAD_AST_TYPE_NODES_H
 
 #include "ast_node.h"
-#include "data_types.h"
 #include "sad_type_system.h" // (S-TS-P2.5a) SadTypeKind — المحور الموحَّد
 #include <string>
 #include <vector>

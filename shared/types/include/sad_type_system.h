@@ -37,7 +37,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════════
 // الاعتمادات / Dependencies
 // ═══════════════════════════════════════════════════════════════════════════════════
-#include "data_types.h" // (AR) DataType القديم — للتوافق الخلفي
 #include "../generated/sad_type_kind_generated.h" // (AR) تعداد SadTypeKind — مُولَّد من language-truth/types.yaml (لا يُحرَّر يدويًّا)
 #include <memory>
 #include <string>
@@ -419,11 +418,12 @@ namespace Sad
 
             // ─── تحويل إلى تمثيل النوع التشغيلي المتوافق / Runtime compatibility kind ───
             SadTypeKind toValueType() const;
-            Data::DataType toDataType() const;
+            // (AR) [S-TS-P2.5b] حُذف toDataType() — صفر مستهلك بعد توحيد المحور على SadTypeKind.
+            // (EN) [S-TS-P2.5b] toDataType() removed — zero consumers after SadTypeKind unification.
 
             // ─── Factory Methods ثابتة / Static factories ───
             static SadTypePtr fromValueType(SadTypeKind vt);
-            static SadTypePtr fromDataType(Data::DataType dt);
+            // (AR) [S-TS-P2.5b] حُذف fromDataType() — استُبدِل بـ fromValueType(SadTypeKind).
             static SadTypePtr fromArabicName(const std::string &name);
 
         protected:
