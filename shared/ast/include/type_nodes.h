@@ -19,6 +19,8 @@
 
 #include "ast_node.h"
 #include "data_types.h"
+#include "sad_type_system.h" // (S-TS-P2.5a) SadTypeKind — المحور الموحَّد
+#include "type_bridge.h"     // (S-TS-P2.5a) Types::fromDataType — جسر يُحذف في الدفعة الأخيرة
 #include <string>
 #include <vector>
 #include <memory>
@@ -105,18 +107,20 @@ public:
  */
 class SimpleTypeNode : public TypeNode {
 public:
-    Data::DataType dataType; ///< النوع الأساسي / Base data type
+    Data::DataType dataType; ///< (موروث — يُحذف في S-TS-P2.5a دفعة 6) النوع الأساسي / Legacy base data type
+    Types::SadTypeKind kind; ///< (S-TS-P2.5a) المحور الموحَّد — يحلّ محلّ dataType تدريجيًّا
     std::string typeName;    ///< اسم النوع (عربي أو إنجليزي) / Type name (Arabic or English)
-    
+
     /**
      * @brief البناء من Data::DataType / Construct from Data::DataType
      */
-    explicit SimpleTypeNode(Data::DataType type, 
+    explicit SimpleTypeNode(Data::DataType type,
                            const Lexer::Position& pos = Lexer::Position())
-        : TypeNode(TypeAnnotationKind::SIMPLE, pos), 
+        : TypeNode(TypeAnnotationKind::SIMPLE, pos),
           dataType(type),
+          kind(Types::fromDataType(type)),
           typeName(dataTypeToString(type)) {}
-    
+
     /**
      * @brief البناء من اسم النوع / Construct from type name
      */
@@ -124,6 +128,7 @@ public:
                            const Lexer::Position& pos = Lexer::Position())
         : TypeNode(TypeAnnotationKind::SIMPLE, pos),
           dataType(stringToDataType(name)),
+          kind(Types::fromDataType(stringToDataType(name))),
           typeName(name) {}
     
     std::string toString() const override {

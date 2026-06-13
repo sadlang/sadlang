@@ -49,15 +49,15 @@ bool SimpleTypeNode::isCompatibleWith(const TypeNode& other) const {
     // مقارنة الأنواع البسيطة / Compare simple types
     const auto& otherSimple = static_cast<const SimpleTypeNode&>(other);
     
-    // تطابق تام / Exact match
-    if (dataType == otherSimple.dataType) {
+    // تطابق تام / Exact match — (S-TS-P2.5a) المحور SadTypeKind
+    if (kind == otherSimple.kind) {
         return true;
     }
-    
+
     // قواعد التحويل الضمني / Implicit conversion rules
     // رقم صحيح يمكن تحويله إلى رقم عشري / Integer can be converted to float
-    if (dataType == Data::DataType::INTEGER && 
-        otherSimple.dataType == Data::DataType::FLOAT) {
+    if (kind == Types::SadTypeKind::Integer &&
+        otherSimple.kind == Types::SadTypeKind::Float) {
         return true;
     }
     
