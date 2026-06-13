@@ -1,0 +1,10 @@
+# @rule: gr.program.block
+# @description: كود بعد إغلاق الكتلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: في\nبعد
+
+إذا (1 > 0)
+    اطبع_سطر("في")
+نهاية
+اطبع_سطر("بعد")

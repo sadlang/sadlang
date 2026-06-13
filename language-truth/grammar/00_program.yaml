@@ -1,0 +1,136 @@
+# ============================================================================
+# (AR) 00_program.yaml — البنية العليا لقواعد لغة ص (طبقة البرنامج)
+# (EN) Top-level program-structure productions for the Sad grammar
+# ----------------------------------------------------------------------------
+# (AR) هذا ملف نموذجي (exemplar) يُوضّح الصيغة الكاملة لقاعدة إنتاج في مصدر
+#      الحقيقة. يغطي: البرنامج، التصريح/الجملة الأعلى، الكتلة المُغلَقة بـ«نهاية».
+#      الحقول maps_to تربط كل قاعدة بدالة التحليل الفعلية للتتبُّع والتحقق في CI.
+# (EN) Exemplar file demonstrating the full production format. Covers program,
+#      top-level declaration/statement, and the «نهاية»-terminated block.
+# ----------------------------------------------------------------------------
+# (AR) المرجِع الدلالي هو حقل alternatives؛ حقل ebnf للعرض. الطرفيات تُشير إلى
+#      المعجم (keywords.yaml) ولا تُعرَّف هنا. راجع _notation.yaml.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: program
+
+description_ar: "البنية العليا — البرنامج، التصريح الأعلى، الجملة، الكتلة"
+description_en: "Top-level structure — program, top-level declaration, statement, block"
+
+productions:
+
+  # ── البرنامج: قائمة تصريحات حتى نهاية الملف ────────────────────────────────
+  - id: gr.program.program
+    lhs: { nonterminal: Program, name_ar: "برنامج", name_en: program }
+    ebnf: "Program = { Declaration } EOF ;"
+    alternatives:
+      - symbols:
+          - kind: repeat
+            children:
+              - { kind: nonterminal, ref: gr.program.declaration }
+          - { kind: terminal, ref: EOF, value: "<نهاية الملف>" }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseProgram" }
+    ast_node: "StmtList"
+    description_ar: "نقطة الجذر — يقرأ المُحلِّل تصريحات متتالية حتى نهاية الملف"
+    since: "1.0.0"
+    status: stable
+    conformance:
+      compiler_optional: false
+      test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 }
+    example: |
+      متغير س = 1
+      دالة جمع(أ، ب) ارجع أ + ب نهاية
+
+  # ── التصريح الأعلى: إمّا تصريح معلَن أو جملة عادية ────────────────────────
+  - id: gr.program.declaration
+    lhs: { nonterminal: Declaration, name_ar: "تصريح", name_en: declaration }
+    ebnf: >
+      Declaration = FunctionDecl | ClassDecl | StructDecl | EnumDecl
+                  | TraitDecl | ImplDecl | ImportDecl | ExportDecl
+                  | VarDecl | Statement ;
+    alternatives:
+      - label: "تصريحات معلَنة"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.decl.function }
+              - { kind: nonterminal, ref: gr.oop.class }
+              - { kind: nonterminal, ref: gr.oop.struct }
+              - { kind: nonterminal, ref: gr.oop.enum }
+              - { kind: nonterminal, ref: gr.oop.trait }
+              - { kind: nonterminal, ref: gr.oop.impl }
+              - { kind: nonterminal, ref: gr.decl.import }
+              - { kind: nonterminal, ref: gr.decl.export }
+              - { kind: nonterminal, ref: gr.decl.variable }
+      - label: "جملة عادية"
+        symbols:
+          - { kind: nonterminal, ref: gr.program.statement }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDeclaration" }
+    description_ar: "المُحلِّل يميّز التصريح بالكلمة المفتاحية الأولى؛ وإلا يُفوّض للجملة"
+    since: "1.0.0"
+    status: stable
+    conformance:
+      compiler_optional: false
+      test_budget: { basic: 8, edge: 5, negative: 4, interaction: 3 }
+
+  # ── الجملة: تحويل لأنواع الجمل التنفيذية ──────────────────────────────────
+  - id: gr.program.statement
+    lhs: { nonterminal: Statement, name_ar: "جملة", name_en: statement }
+    ebnf: >
+      Statement = IfStatement | WhileStatement | ForStatement | MatchStatement
+                | TryStatement | ReturnStatement | BreakStatement | ContinueStatement
+                | BlockStatement | ExpressionStatement ;
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.stmt.if }
+              - { kind: nonterminal, ref: gr.stmt.while }
+              - { kind: nonterminal, ref: gr.stmt.for }
+              - { kind: nonterminal, ref: gr.stmt.match }
+              - { kind: nonterminal, ref: gr.stmt.try }
+              - { kind: nonterminal, ref: gr.stmt.return }
+              - { kind: nonterminal, ref: gr.stmt.break }
+              - { kind: nonterminal, ref: gr.stmt.continue }
+              - { kind: nonterminal, ref: gr.program.block }
+              - { kind: nonterminal, ref: gr.stmt.expression }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseStatement" }
+    description_ar: "موزّع الجمل التنفيذية — يختار حسب الرمز الحالي"
+    since: "1.0.0"
+    status: stable
+    conformance:
+      compiler_optional: false
+      test_budget: { basic: 8, edge: 5, negative: 3, interaction: 3 }
+
+  # ── الكتلة: قائمة جمل تُغلَق بـ«نهاية» (اصطلاح اللغة الأساسي) ────────────────
+  - id: gr.program.block
+    lhs: { nonterminal: Block, name_ar: "كتلة", name_en: block }
+    ebnf: "Block = { Statement } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - kind: repeat
+            children:
+              - { kind: nonterminal, ref: gr.program.statement }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references:
+      keywords: ["KW-RES-007"]   # نهاية / KEYWORD_END
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseBlockStmt" }
+    ast_node: "BlockStmtNode"
+    description_ar: >
+      الكتلة هي العمود الفقري لبنية لغة ص: لا أقواس {} — كل كتلة تنتهي بالكلمة
+      المحجوزة «نهاية». بعض الكتل (مثل if) قد تُغلَق ضمنياً عبر «وإلا» بدل «نهاية».
+    since: "1.0.0"
+    status: stable
+    conformance:
+      compiler_optional: false
+      test_budget: { basic: 6, edge: 7, negative: 4, interaction: 3 }
+    example: |
+      إذا (س > 0)
+          اطبع("موجب")
+      نهاية

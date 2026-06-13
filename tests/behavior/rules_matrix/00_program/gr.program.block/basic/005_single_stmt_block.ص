@@ -1,0 +1,9 @@
+# @rule: gr.program.block
+# @description: كتلة بجملة واحدة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: واحدة
+
+إذا (صحيح)
+    اطبع_سطر("واحدة")
+نهاية

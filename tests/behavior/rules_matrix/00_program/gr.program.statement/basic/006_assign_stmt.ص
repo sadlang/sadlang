@@ -1,0 +1,9 @@
+# @rule: gr.program.statement
+# @description: جملة إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س = 1
+س = 5
+اطبع_سطر(س)

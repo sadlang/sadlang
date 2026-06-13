@@ -1,0 +1,9 @@
+# @rule: gr.program.declaration
+# @description: ثابت ثم متغير يستعمله
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+ثابت ك = 5
+متغير د = ك + 1
+اطبع_سطر(د)

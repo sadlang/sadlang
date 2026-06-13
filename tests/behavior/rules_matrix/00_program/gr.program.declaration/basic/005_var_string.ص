@@ -1,0 +1,8 @@
+# @rule: gr.program.declaration
+# @description: متغير نصي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: سلام
+
+متغير ر = "سلام"
+اطبع_سطر(ر)

@@ -1,0 +1,8 @@
+# @rule: gr.program.statement
+# @description: بينما بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+بينما (1 > 0)
+    توقف

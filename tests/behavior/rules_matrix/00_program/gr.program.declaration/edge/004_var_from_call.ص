@@ -1,0 +1,9 @@
+# @rule: gr.program.declaration
+# @description: متغير مهيّأ من استدعاء دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 42
+
+دالة أحضر() ارجع 42 نهاية
+متغير ق = أحضر()
+اطبع_سطر(ق)

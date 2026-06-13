@@ -1,0 +1,8 @@
+# @rule: gr.program.program
+# @description: تعريف دالة ثم استدعاؤها
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+دالة ضعف(س) ارجع س * 2 نهاية
+اطبع_سطر(ضعف(4))

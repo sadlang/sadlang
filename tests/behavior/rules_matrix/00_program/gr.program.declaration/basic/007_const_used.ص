@@ -1,0 +1,9 @@
+# @rule: gr.program.declaration
+# @description: ثابت يُستعمل في تعبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+ثابت ث = 4
+متغير م = ث * 2
+اطبع_سطر(م)

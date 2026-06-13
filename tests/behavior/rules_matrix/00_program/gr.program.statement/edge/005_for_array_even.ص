@@ -1,0 +1,9 @@
+# @rule: gr.program.statement
+# @description: لكل على مصفوفة قيم زوجية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n4\n6
+
+لكل ن في [2، 4، 6]
+    اطبع_سطر(ن)
+نهاية

@@ -1,0 +1,9 @@
+# @rule: gr.program.program
+# @description: وإلا بلا إذا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+وإلا
+    اطبع_سطر("x")
+نهاية

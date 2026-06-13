@@ -1,0 +1,12 @@
+# @rule: gr.program.program, gr.program.declaration, gr.program.statement, gr.program.block
+# @description: تعريف متغير داخل كتلة شرط ونطاقه
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10\n20
+
+متغير خارجي = 10
+إذا (خارجي == 10)
+    متغير داخلي = 20
+    اطبع_سطر(خارجي)
+    اطبع_سطر(داخلي)
+نهاية

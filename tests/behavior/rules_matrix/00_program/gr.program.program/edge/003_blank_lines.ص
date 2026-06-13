@@ -1,0 +1,10 @@
+# @rule: gr.program.program
+# @description: أسطر فارغة بين التصريحات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير س = 6
+
+
+اطبع_سطر(س)

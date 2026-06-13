@@ -1,0 +1,14 @@
+# @rule: gr.program.program, gr.program.declaration, gr.program.statement, gr.program.block
+# @description: دالة تحوي حلقة وشرط معاً
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n4
+
+دالة عُد()
+    لكل ن في [1، 2، 3، 4]
+        إذا (ن % 2 == 0)
+            اطبع_سطر(ن)
+        نهاية
+    نهاية
+نهاية
+عُد()

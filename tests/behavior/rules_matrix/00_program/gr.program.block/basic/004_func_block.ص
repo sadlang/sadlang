@@ -1,0 +1,10 @@
+# @rule: gr.program.block
+# @description: كتلة جسم دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أهلاً
+
+دالة حيّ()
+    اطبع_سطر("أهلاً")
+نهاية
+حيّ()

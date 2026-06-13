@@ -1,0 +1,10 @@
+# @rule: gr.program.program
+# @description: تعليق كتلة بين التصريحات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+
+متغير س = 4
+#* هذا تعليق
+   متعدد الأسطر *#
+اطبع_سطر(س)

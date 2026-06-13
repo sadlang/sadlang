@@ -1,0 +1,11 @@
+# @rule: gr.program.block
+# @description: كتلة داخل بينما
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1
+
+متغير ع = 0
+بينما (ع < 2)
+    اطبع_سطر(ع)
+    ع = ع + 1
+نهاية

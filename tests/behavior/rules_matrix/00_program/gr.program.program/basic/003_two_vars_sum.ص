@@ -1,0 +1,9 @@
+# @rule: gr.program.program
+# @description: متغيران ثم مجموعهما
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير أ = 2
+متغير ب = 3
+اطبع_سطر(أ + ب)

@@ -1,0 +1,10 @@
+# @rule: gr.program.program
+# @description: تعليقات سطرية بين التصريحات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+# تعليق أول
+متغير س = 3
+# تعليق ثانٍ
+اطبع_سطر(س)

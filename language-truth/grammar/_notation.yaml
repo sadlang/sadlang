@@ -1,0 +1,68 @@
+# ============================================================================
+# (AR) ترميز القواعد النحوية — الميتا-قواعد (Metagrammar) لمصدر حقيقة قواعد لغة ص
+# (EN) Grammar Notation — the metagrammar for the Sad grammar Single Source of Truth
+# ----------------------------------------------------------------------------
+# (AR) هذا الملف يُعرّف "كيف نقرأ" ملفات القواعد في هذا المجلد. كل قاعدة إنتاج
+#      (production) تُكتب بصيغتين متطابقتين دلالياً:
+#        1) حقل ebnf:        نص EBNF مقروء بشريّاً — للتوثيق والمخططات السككية.
+#        2) حقل alternatives: تمثيل منظَّم آلياً (رموز) — للتوليد والتحقق الآلي.
+#      عند أي تعارض بين الصيغتين، التمثيل المنظَّم (alternatives) هو المرجِع.
+# ----------------------------------------------------------------------------
+# (AR) لماذا صيغتان؟ لأن المُحلِّل في لغة ص مكتوب يدوياً (recursive descent)؛ هذا
+#      المجلد ليس مولِّداً للمُحلِّل بل المواصفة المعيارية له + خريطة تتبُّع (maps_to)
+#      تربط كل قاعدة بدالة التحليل الفعلية، ليفحص CI بقاءهما متزامنين.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+
+description_ar: "ترميز EBNF المُعتمَد + اصطلاحات تسمية اللاطرفيات + روابط الطرفيات بالمعجم"
+description_en: "Adopted EBNF notation, nonterminal naming conventions, terminal-to-lexicon binding"
+
+# ── رموز EBNF المُعتمَدة في حقل ebnf ─────────────────────────────────────────
+ebnf_operators:
+  - { symbol: "=",      meaning_ar: "تعريف (اللاطرفي = إنتاجه)",          kind: definition }
+  - { symbol: "|",      meaning_ar: "بديل (أو)",                           kind: alt }
+  - { symbol: "[ ... ]", meaning_ar: "اختياري (صفر أو واحد)",             kind: optional }
+  - { symbol: "{ ... }", meaning_ar: "تكرار (صفر أو أكثر)",               kind: repeat }
+  - { symbol: "( ... )", meaning_ar: "تجميع",                             kind: group }
+  - { symbol: "+",      meaning_ar: "تكرار واحد أو أكثر (لاحقة)",         kind: repeat1 }
+  - { symbol: "'...'",  meaning_ar: "طرفي حرفي (نص الكلمة كما يُكتب)",     kind: terminal_literal }
+  - { symbol: "UPPER",  meaning_ar: "طرفي بنوع رمز (مثل IDENTIFIER، NUMBER)", kind: terminal_token }
+  - { symbol: "PascalCase", meaning_ar: "لاطرفي (يشير لقاعدة أخرى)",      kind: nonterminal }
+
+# ── أنواع الرموز في التمثيل المنظَّم (حقل alternatives[].symbols[].kind) ──────
+symbol_kinds:
+  - { kind: terminal,    desc_ar: "رمز طرفي — يُربط بمعرّف من keywords.yaml/operators.yaml أو نوع رمز من token.h عبر ref" }
+  - { kind: nonterminal, desc_ar: "لاطرفي — يشير إلى id قاعدة إنتاج أخرى عبر ref (مثال gr.expr.expression)" }
+  - { kind: optional,    desc_ar: "[...] — يحوي children (صفر أو واحد)" }
+  - { kind: repeat,      desc_ar: "{...} — يحوي children (صفر أو أكثر)، مع separator اختياري" }
+  - { kind: repeat1,     desc_ar: "+ — واحد أو أكثر، مع separator اختياري" }
+  - { kind: group,       desc_ar: "(...) — تجميع children كوحدة" }
+  - { kind: alt,         desc_ar: "بدائل داخلية — كل عنصر في children بديل مستقل" }
+
+# ── ربط الطرفيات بمصدر الحقيقة (منع التكرار) ────────────────────────────────
+# (AR) لا تُعرَّف الطرفيات هنا. terminal.ref يشير دائماً إلى:
+terminal_ref_sources:
+  - source: keywords.yaml      # معرّفات مثل KW-RES-012، أو نوع الرمز KEYWORD_IF
+  - source: operators.yaml     # معرّفات العوامل، أو OP_PLUS ...
+  - source: shared/lexer/include/token.h  # أنواع الرموز المعجمية العامة (IDENTIFIER، NUMBER، STRING)
+
+# ── اصطلاحات تسمية اللاطرفيات ───────────────────────────────────────────────
+naming_conventions:
+  nonterminal_style: PascalCase           # IfStatement، Expression، ClassDeclaration
+  production_id: "gr.<area>.<snake_case>"  # gr.stmt.if، gr.expr.binary
+  areas:
+    program: "gr.program.*  — البنية العليا (برنامج، كتلة، قائمة جمل)"
+    stmt:    "gr.stmt.*     — الجمل التنفيذية"
+    decl:    "gr.decl.*     — التصريحات (متغير/دالة/استيراد)"
+    oop:     "gr.oop.*      — البرمجة الكائنية"
+    expr:    "gr.expr.*     — التعبيرات وسلسلة الأسبقية"
+    pattern: "gr.pattern.*  — أنماط المطابقة"
+    adv:     "gr.adv.*      — البنيات المتقدمة (عقود/تزامن/ماكرو/امتداد/عمر/async/ffi)"
+    lex:     "gr.lex.*      — القواعد المعجمية (معرّف/رقم/نص/تعليق)"
+
+# ── اصطلاح إغلاق الكتل ──────────────────────────────────────────────────────
+block_convention_ar: >
+  جميع الكتل في لغة ص تُغلَق بالكلمة المحجوزة «نهاية» (KEYWORD_END) — لا أقواس {}.
+  لذا أي قاعدة كتلة تنتهي بطرفي KEYWORD_END، وتشير ضمناً إلى gr.program.block.

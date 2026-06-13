@@ -1,0 +1,8 @@
+# @rule: gr.program.statement
+# @description: جملة ارجع داخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+دالة د() ارجع 9 نهاية
+اطبع_سطر(د())

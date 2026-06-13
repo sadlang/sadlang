@@ -78,6 +78,13 @@ sections:
   negative:  "sections/11_سلبي"
   # ── تكامل ──
   تكامل:     "sections/12_تكامل"
+  # ── مصفوفة القواعد (rules_matrix) — مطابقة قواعد language-truth/grammar ──
+  # (AR) منظَّمة منطقة/قاعدة/فئة. يُفضَّل تشغيلها عبر الفاحص الشامل:
+  #      python scripts/codegen/check_grammar_conformance.py --run
+  قواعد:        "rules_matrix"
+  rules:        "rules_matrix"
+  قواعد_برنامج: "rules_matrix/00_program"
+  قواعد_تداخل:  "rules_matrix/_interactions"
 
 # ═══════════════════════════════════════════════════════════════════════════════════
 # مستويات الاختبار — بنية هرمية من P0 (دخان) إلى full (شامل)
@@ -271,3 +278,12 @@ levels:
   stdlib:
     dirs: ["sections/09_المكتبة_القياسية"]
     description: "اختبارات المكتبة القياسية فقط"
+
+  # ── مصفوفة القواعد — مطابقة قواعد language-truth/grammar ──
+  rules:
+    dirs: ["rules_matrix"]
+    description: "مصفوفة القواعد كاملة — مطابقة قواعد اللغة (منطقة/قاعدة/فئة)"
+
+  rules.program:
+    dirs: ["rules_matrix/00_program", "rules_matrix/_interactions"]
+    description: "قواعد طبقة البرنامج + اختبارات التداخل"

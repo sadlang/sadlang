@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/grammar_production.schema.json",
+  "title": "Grammar Production Rule Schema (V5)",
+  "description": "مخطط JSON لقواعد الإنتاج النحوية الصورية في لغة ص — language-truth/grammar/*.yaml. يصف قاعدة إنتاج واحدة (production) بصيغة EBNF منظَّمة + تتبُّع للمُحلِّل المكتوب يدوياً + عقدة AST المُنتَجة.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "version", "layer", "productions"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "5.0" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+(\\.\\d+)?$" },
+    "layer": {
+      "type": "string",
+      "description": "طبقة التحليل التي ينتمي لها الملف — تعكس ترتيب المُحلِّل (CW-02)",
+      "enum": ["program", "statements", "declarations", "oop", "expressions", "patterns", "advanced", "lexical"]
+    },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "productions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/production" }
+    }
+  },
+  "$defs": {
+    "production": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "lhs", "ebnf", "alternatives", "since", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^gr\\.(program|stmt|decl|oop|expr|pattern|adv|lex)\\.[a-z][a-z0-9_]*$",
+          "description": "معرّف فريد للقاعدة: gr.<area>.<name> — مثال gr.stmt.if"
+        },
+        "lhs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nonterminal", "name_ar", "name_en"],
+          "properties": {
+            "nonterminal": { "type": "string", "description": "اسم اللاطرفي (Nonterminal) — مثال IfStatement" },
+            "name_ar": { "type": "string", "minLength": 1 },
+            "name_en": { "type": "string", "minLength": 1 }
+          }
+        },
+        "ebnf": {
+          "type": "string",
+          "description": "الصيغة المقروءة بشريّاً (EBNF) — للتوثيق وتوليد المخططات السككية. مُلزَمة بترميز _notation.yaml"
+        },
+        "alternatives": {
+          "type": "array",
+          "minItems": 1,
+          "description": "البدائل (alternations) للقاعدة — كل بديل تسلسل رموز منظَّم آلياً",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["symbols"],
+            "properties": {
+              "label": { "type": "string", "description": "وسم اختياري للبديل (للتوثيق)" },
+              "symbols": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/symbol" }
+              }
+            }
+          }
+        },
+        "references": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "روابط لمصدر الحقيقة القائم — تمنع التكرار وتُفعّل فحص التماسك في CI",
+          "properties": {
+            "keywords": { "type": "array", "items": { "type": "string" }, "description": "معرّفات كلمات من keywords.yaml (مثال KW-RES-012)" },
+            "operators": { "type": "array", "items": { "type": "string" }, "description": "معرّفات عوامل من operators.yaml" },
+            "constructs": { "type": "array", "items": { "type": "string" }, "description": "معرّفات تراكيب من *_constructs.yaml (مثال grammar.requires)" }
+          }
+        },
+        "maps_to": {
+          "type": "array",
+          "description": "تتبُّع للمُحلِّل المكتوب يدوياً (المصدر الفعلي للحقيقة اليوم) — ملف:دالة. يفحصه CI للتأكد من بقاء القاعدة متزامنة مع التنفيذ.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file", "function"],
+            "properties": {
+              "file": { "type": "string", "description": "مسار نسبي مثل shared/parser/src/statements/parser_statements.cpp" },
+              "function": { "type": "string", "description": "اسم دالة التحليل مثل ParserCore::parseIfStatement" }
+            }
+          }
+        },
+        "ast_node": {
+          "type": "string",
+          "description": "عقدة AST المُنتَجة (من shared/ast/include/*) — مثال IfStatementNode"
+        },
+        "description_ar": { "type": "string" },
+        "description_en": { "type": "string" },
+        "example": { "type": "string", "description": "مثال كود .ص يطابق القاعدة" },
+        "since": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "status": { "type": "string", "enum": ["stable", "experimental", "deprecated", "planned"] },
+        "conformance": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "إعدادات فحص المطابقة. الأدلة الفعلية (هل تنجح في المفسر/المترجم) تُولَّد كأثر بناء في build/_grammar_conformance.json (مثل تقرير runner) ولا تُكتب يدوياً (GR-01).",
+          "properties": {
+            "compiler_optional": {
+              "type": "boolean",
+              "default": false,
+              "description": "true إذا كانت القاعدة مدعومة في المفسر فقط بشكل مشروع (لا تُحسَب فجوة المترجم خرقاً). الافتراضي: يجب أن تعمل في الاثنين."
+            },
+            "test_budget": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "الحد الأدنى لعدد الاختبارات لكل فئة تحت tests/behavior/rules_matrix/<area>/<rule_id>/<category>/. الفئة تُشتق من اسم المجلد. القواعد المتقدمة المتداخلة تحتاج ميزانيات كبيرة (interaction ≥ 150 ممكن).",
+              "properties": {
+                "basic":       { "type": "integer", "minimum": 0, "default": 3, "description": "الأشكال الأساسية الصحيحة" },
+                "edge":        { "type": "integer", "minimum": 0, "default": 0, "description": "حالات حدّية: فراغ، تعشيش، حدود، تداخل بسيط" },
+                "negative":    { "type": "integer", "minimum": 0, "default": 0, "description": "حالات خطأ متوقَّع (@expect_error)" },
+                "interaction": { "type": "integer", "minimum": 0, "default": 0, "description": "تداخل مع قواعد أخرى — تعيش في rules_matrix/_interactions/ بوسم @rule متعدد" }
+              }
+            },
+            "notes_ar": { "type": "string", "description": "سبب أي إعفاء (مثلاً: ميزة قيد التطوير في المترجم)" }
+          }
+        },
+        "notes_ar": { "type": "string" }
+      }
+    },
+    "symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "description": "رمز واحد في تسلسل بديل — طرفي/لاطرفي/تكرار/اختياري/مجموعة/بديل",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["terminal", "nonterminal", "optional", "repeat", "repeat1", "group", "alt"],
+          "description": "terminal=طرفي | nonterminal=لاطرفي | optional=[...] | repeat=*  | repeat1=+ | group=(...) | alt=بدائل داخلية"
+        },
+        "ref": {
+          "type": "string",
+          "description": "لِـ terminal: معرّف كلمة/عامل أو نوع رمز (KEYWORD_IF، OP_PLUS، IDENTIFIER). لِـ nonterminal: id قاعدة أخرى (gr.expr.expression)."
+        },
+        "value": { "type": "string", "description": "نص الطرفي الحرفي للعرض (مثال «نهاية») — للتوثيق فقط" },
+        "children": {
+          "type": "array",
+          "description": "رموز فرعية لِـ optional/repeat/repeat1/group/alt",
+          "items": { "$ref": "#/$defs/symbol" }
+        },
+        "separator": {
+          "type": "string",
+          "description": "لِـ repeat: الفاصل بين العناصر (مثال OP_COMMA للقوائم المفصولة بفواصل)"
+        }
+      }
+    }
+  }
+}

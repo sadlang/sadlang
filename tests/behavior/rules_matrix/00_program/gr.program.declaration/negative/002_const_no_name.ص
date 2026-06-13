@@ -1,0 +1,7 @@
+# @rule: gr.program.declaration
+# @description: ثابت بلا اسم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+ثابت = 9

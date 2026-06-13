@@ -1,0 +1,7 @@
+# @rule: gr.program.statement
+# @description: جملة تعبير (طباعة)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+اطبع_سطر("مرحبا")

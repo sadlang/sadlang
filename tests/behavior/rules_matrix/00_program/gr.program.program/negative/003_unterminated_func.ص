@@ -1,0 +1,8 @@
+# @rule: gr.program.program
+# @description: دالة بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة س()
+    اطبع_سطر("x")

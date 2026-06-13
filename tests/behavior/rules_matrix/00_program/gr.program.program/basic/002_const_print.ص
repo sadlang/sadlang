@@ -1,0 +1,8 @@
+# @rule: gr.program.program
+# @description: ثابت ثم طباعة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+ثابت ع = 7
+اطبع_سطر(ع)

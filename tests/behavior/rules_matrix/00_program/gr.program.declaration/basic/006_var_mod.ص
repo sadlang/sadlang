@@ -1,0 +1,8 @@
+# @rule: gr.program.declaration
+# @description: متغير من باقي القسمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+متغير ق = 10 % 3
+اطبع_سطر(ق)

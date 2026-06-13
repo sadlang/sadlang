@@ -1,0 +1,9 @@
+# @rule: gr.program.program
+# @description: ثلاث جمل طباعة متتالية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أ\nب\nج
+
+اطبع_سطر("أ")
+اطبع_سطر("ب")
+اطبع_سطر("ج")

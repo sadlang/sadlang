@@ -1,0 +1,13 @@
+# @rule: gr.program.statement
+# @description: إذا متداخلة ثلاث طبقات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: عميق
+
+إذا (1 > 0)
+    إذا (2 > 1)
+        إذا (3 > 2)
+            اطبع_سطر("عميق")
+        نهاية
+    نهاية
+نهاية

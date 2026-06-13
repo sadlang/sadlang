@@ -1,0 +1,14 @@
+# @rule: gr.program.program, gr.program.declaration, gr.program.statement, gr.program.block
+# @description: تصريحات متعددة ثم منطق متتابع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+ثابت حد = 3
+متغير مجموع = 0
+متغير ع = 1
+بينما (ع <= حد)
+    مجموع = مجموع + ع
+    ع = ع + 1
+نهاية
+اطبع_سطر(مجموع)

@@ -15,6 +15,17 @@ files:
   grammar_constructs: grammar_constructs.yaml
   oop_constructs: oop_constructs.yaml
   expr_constructs: expr_constructs.yaml
+  # قواعد الإنتاج النحوية الصورية (Grammar SoT) — مقسَّمة حسب طبقة التحليل
+  grammar:
+    notation:     grammar/_notation.yaml
+    program:      grammar/00_program.yaml
+    statements:   grammar/10_statements.yaml
+    declarations: grammar/20_declarations.yaml
+    oop:          grammar/30_oop.yaml
+    expressions:  grammar/40_expressions.yaml
+    patterns:     grammar/50_patterns.yaml
+    advanced:     grammar/60_advanced.yaml
+    lexical:      grammar/70_lexical.yaml
   builtins:
     core:        builtins/core.yaml
     concurrency: builtins/concurrency.yaml

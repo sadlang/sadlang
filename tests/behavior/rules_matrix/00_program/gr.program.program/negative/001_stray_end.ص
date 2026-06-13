@@ -1,0 +1,6 @@
+# @rule: gr.program.program
+# @description: نهاية شاردة بلا كتلة
+# @priority: P1
+# @expect_error
+
+نهاية

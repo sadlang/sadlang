@@ -1,0 +1,8 @@
+# @rule: gr.program.statement
+# @description: إذا بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+إذا (1 > 0)
+    اطبع_سطر("x")

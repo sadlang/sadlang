@@ -1,0 +1,10 @@
+# @rule: gr.program.declaration
+# @description: ثلاثة متغيرات وطباعة مجموعها
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير أ = 1
+متغير ب = 2
+متغير ج = 3
+اطبع_سطر(أ + ب + ج)

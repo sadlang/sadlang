@@ -1,0 +1,9 @@
+# @rule: gr.program.program
+# @description: تعليق متصدّر وسطر فارغ ختامي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+# بداية
+متغير س = 9
+اطبع_سطر(س)

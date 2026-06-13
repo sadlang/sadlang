@@ -1,0 +1,8 @@
+# @rule: gr.program.declaration
+# @description: نتيجة دالة داخل تعبير طباعة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة ثلاثة() ارجع 3 نهاية
+اطبع_سطر(ثلاثة() + 2)

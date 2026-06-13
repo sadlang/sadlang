@@ -1,0 +1,9 @@
+# @rule: gr.program.program
+# @description: إسناد ثم إعادة إسناد ثم طباعة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير س = 1
+س = س + 9
+اطبع_سطر(س)

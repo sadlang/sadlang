@@ -1,0 +1,7 @@
+# @rule: gr.program.declaration
+# @description: متغير بقيمة ابتدائية مفقودة بعد =
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير ك =

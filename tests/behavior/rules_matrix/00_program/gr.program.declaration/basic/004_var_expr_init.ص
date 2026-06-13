@@ -1,0 +1,8 @@
+# @rule: gr.program.declaration
+# @description: متغير بقيمة تعبيرية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير ن = 2 + 3
+اطبع_سطر(ن)

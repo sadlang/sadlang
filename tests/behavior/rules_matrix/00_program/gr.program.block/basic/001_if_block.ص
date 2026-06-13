@@ -1,0 +1,10 @@
+# @rule: gr.program.block
+# @description: كتلة داخل إذا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: موجب
+
+متغير س = 5
+إذا (س > 0)
+    اطبع_سطر("موجب")
+نهاية
