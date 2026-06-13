@@ -25,6 +25,16 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+# (AR) [S-TS-P11] إعادة ضبط ترميز الإخراج إلى UTF-8 — لمنع انهيار طباعة الرموز (✓)
+#      والعربية على وحدات تحكّم Windows (cp1252) أثناء استدعاء CMake للمولّد.
+# (EN) [S-TS-P11] Force UTF-8 output so the ✓ glyph and Arabic don't crash on
+#      Windows cp1252 consoles when CMake invokes the generator.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
 # (AR) إضافة مجلد codegen للمسار لاستيراد المكتبة المشتركة _lib
 # (EN) Add codegen dir to path for the shared _lib import
 _CODEGEN_DIR = Path(__file__).resolve().parent

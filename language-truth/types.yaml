@@ -110,3 +110,8 @@ types:
 
   # ─── العدم / Null (S-TS-P1) — مُلحَق بالنهاية للحفاظ على ترتيب القيم السابقة (ABI) ───
   - { id: "type.null", kind: "Null", word: عدم, name_en: "null", category: special, surface: true, token_type: TYPE_NULL, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "العدم — غياب القيمة، متمايز عن فراغ (void)", description_en: "Null — absence of value, distinct from void" }
+
+  # ─── أنواع رسومات هندسية (S-TS-P11) — إثبات التوسّع: مُضافة من YAML فقط ثم مُولَّدة ───
+  #     (مُلحَقة بالنهاية للحفاظ على ABI؛ surface:false = داخلية بلا كلمة سطحية بعد)
+  - { id: type.point, kind: Point, word: نقطة,    name_en: point, category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "نقطة هندسية (س، ص)", description_en: "Geometric point (x, y)" }
+  - { id: type.rect,  kind: Rect,  word: مستطيل, name_en: rect,  category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "مستطيل (س، ص، عرض، ارتفاع)", description_en: "Rectangle (x, y, w, h)" }

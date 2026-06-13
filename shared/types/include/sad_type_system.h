@@ -13,7 +13,7 @@
  *        • شجرة AST (shared/ast/)
  *
  *      المحتويات:
- *        ① SadTypeKind — تعداد موحد (50 قيمة، مُولَّد من types.yaml) يغطي كل الأنظمة
+ *        ① SadTypeKind — تعداد موحد (52 قيمة، مُولَّد من types.yaml) يغطي كل الأنظمة
  *        ② SadType — الصنف الأساسي المجرد + 15 صنف فرعي
  *        ③ SadTypeRegistry — Singleton لتخزين الأنواع وإنشائها
  *        ④ دوال مساعدة — أسماء عربية/إنجليزية، فحوصات، تحويلات
@@ -52,8 +52,8 @@ namespace Sad
 
         // █████████████████████████████████████████████████████████████████████████████████
         //
-        //  الجزء ①: التعداد الموحد SadTypeKind — مُولَّد من types.yaml (50 قيمة)
-        //  Part ①: Unified SadTypeKind enum — generated from types.yaml (50 values)
+        //  الجزء ①: التعداد الموحد SadTypeKind — مُولَّد من types.yaml (52 قيمة)
+        //  Part ①: Unified SadTypeKind enum — generated from types.yaml (52 values)
         //
         //  ⚠️ التعداد نفسه في: shared/types/generated/sad_type_kind_generated.h
         //     مصدر الحقيقة: language-truth/types.yaml — عدّل هناك ثم أعد البناء.

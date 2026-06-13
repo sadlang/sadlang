@@ -15,8 +15,8 @@ namespace Sad
          * @brief (AR) التعداد الموحد لكل أنواع لغة ص — مُولَّد من types.yaml
          * @brief (EN) Unified type kind enum — generated from types.yaml
          *
-         * (AR) عدد القيم: 50 — الترتيب حرج (توافق ثنائي).
-         * (EN) 50 values — order is critical (binary compat).
+         * (AR) عدد القيم: 52 — الترتيب حرج (توافق ثنائي).
+         * (EN) 52 values — order is critical (binary compat).
          */
         enum class SadTypeKind : int
         {
@@ -82,6 +82,9 @@ namespace Sad
             Vector,        ///< متجه / vector
             // ─── أنواع خاصة / Special types ───
             Null,          ///< عدم / null
+            // ─── أنواع الرسومات / Graphics types ───
+            Point,         ///< نقطة / point
+            Rect,          ///< مستطيل / rect
         };
 
     } // namespace Types
