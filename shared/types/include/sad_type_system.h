@@ -321,6 +321,7 @@ namespace Sad
 
         // ─── إعلان مسبق للأنواع الفرعية (مطلوب لـ isAssignableTo) ───
         class SadOptionalType;
+        class SadResultType; // (S-TS-P3)
         class SadUnionType;
         class SadTypeAlias;
         class SadArrayType;
@@ -979,6 +980,59 @@ namespace Sad
         };
 
         // ─────────────────────────────────────────────────────────────────────────────────
+        //  نوع نتيجة / Result type: نتيجة<T, E> (نجاح T أو خطأ E)
+        //  (AR) [S-TS-P3] نوع جبري يمثّل إمّا قيمة نجاح من النوع T أو خطأ من النوع E.
+        //       على نسق SadOptionalType لكن بنوعين داخليين.
+        //  (EN) [S-TS-P3] Algebraic type representing either a success value (T) or an
+        //       error (E). Modeled on SadOptionalType but with two inner types.
+        // ─────────────────────────────────────────────────────────────────────────────────
+        class SadResultType : public SadType
+        {
+        public:
+            SadResultType(SadTypePtr okType, SadTypePtr errType)
+                : SadType(SadTypeKind::Result), okType_(std::move(okType)), errType_(std::move(errType)) {}
+
+            SadTypePtr getOkType() const { return okType_; }
+            SadTypePtr getErrType() const { return errType_; }
+
+            std::string arabicName() const override
+            {
+                return "نتيجة<" + (okType_ ? okType_->arabicName() : "أي") + "، " +
+                       (errType_ ? errType_->arabicName() : "خطأ") + ">";
+            }
+            std::string englishName() const override
+            {
+                return "Result<" + (okType_ ? okType_->englishName() : "Any") + ", " +
+                       (errType_ ? errType_->englishName() : "Error") + ">";
+            }
+
+            bool equals(const SadType *other) const override
+            {
+                if (!other || other->getKind() != SadTypeKind::Result)
+                    return false;
+                auto o = static_cast<const SadResultType *>(other);
+                auto eq = [](const SadTypePtr &a, const SadTypePtr &b) {
+                    if (!a && !b) return true;
+                    if (!a || !b) return false;
+                    return a->equals(b.get());
+                };
+                return eq(okType_, o->okType_) && eq(errType_, o->errType_);
+            }
+
+            std::vector<SadTypePtr> getTypeParams() const override
+            {
+                std::vector<SadTypePtr> params;
+                if (okType_) params.push_back(okType_);
+                if (errType_) params.push_back(errType_);
+                return params;
+            }
+
+        private:
+            SadTypePtr okType_;  ///< (AR) نوع قيمة النجاح T / (EN) success value type
+            SadTypePtr errType_; ///< (AR) نوع الخطأ E / (EN) error type
+        };
+
+        // ─────────────────────────────────────────────────────────────────────────────────
         //  نوع عام / Generic type parameter: T, U, K, V...
         // ─────────────────────────────────────────────────────────────────────────────────
         class SadGenericType : public SadType
@@ -1312,6 +1366,13 @@ namespace Sad
                 return std::make_shared<SadOptionalType>(std::move(inner));
             }
 
+            // (AR) [S-TS-P3] إنشاء نوع نتيجة نتيجة<T, E> (نجاح T أو خطأ E)
+            // (EN) [S-TS-P3] Create a Result<T, E> type (success T or error E)
+            SadTypePtr makeResult(SadTypePtr okType, SadTypePtr errType)
+            {
+                return std::make_shared<SadResultType>(std::move(okType), std::move(errType));
+            }
+
             SadTypePtr makeGeneric(const std::string &name, SadTypePtr constraint = nullptr)
             {
                 return std::make_shared<SadGenericType>(name, std::move(constraint));
@@ -1425,6 +1486,21 @@ namespace Sad
                 if (kind_ == SadTypeKind::Void)
                     return true;
                 if (opt->getInnerType() && isAssignableTo(opt->getInnerType().get()))
+                    return true;
+            }
+
+            // (AR) الهدف Result<T,E> → المصدر Result بأنواع نجاح/خطأ متوافقة (تغايُر) — S-TS-P3
+            // (EN) Target Result<T,E> → source Result with compatible ok/err types (covariant)
+            if (target->getKind() == SadTypeKind::Result && kind_ == SadTypeKind::Result)
+            {
+                auto tr = static_cast<const SadResultType *>(target);
+                auto sr = static_cast<const SadResultType *>(this);
+                auto compat = [](const SadTypePtr &s, const SadTypePtr &t) {
+                    if (!s || !t)
+                        return true; // (AR) نوع مفتوح يُقبل
+                    return s->isAssignableTo(t.get());
+                };
+                if (compat(sr->getOkType(), tr->getOkType()) && compat(sr->getErrType(), tr->getErrType()))
                     return true;
             }
 

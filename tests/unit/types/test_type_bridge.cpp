@@ -213,48 +213,50 @@ void test_kind_valuetype_roundtrip()
 
 // █████████████████████████████████████████████████████████████████████████████████
 //
-//  ② اختبارات SadTypeKind ↔ DataType
+//  ② اختبارات نوع النتيجة Result<T, E> (S-TS-P3)
+//  (AR) DataType أُزيل نهائيًّا (S-TS-P2.5b)؛ هذا القسم يختبر النوع الجبري الجديد
+//       SadResultType: البناء، الأنواع الداخلية، المساواة، وقابلية الإسناد (التغايُر).
 //
 // █████████████████████████████████████████████████████████████████████████████████
 
-void test_kind_to_datatype()
+void test_result_construct()
 {
-    TEST_START("SadTypeKind → DataType: جميع الأنواع الأساسية");
+    TEST_START("Result<T,E>: البناء واستخراج الأنواع الداخلية");
 
-    ASSERT_EQ(toDataType(SadTypeKind::Void), DataType::NONE, "Void→NONE");
-    ASSERT_EQ(toDataType(SadTypeKind::Integer), DataType::INTEGER, "Integer");
-    ASSERT_EQ(toDataType(SadTypeKind::Float), DataType::FLOAT, "Float");
-    ASSERT_EQ(toDataType(SadTypeKind::Boolean), DataType::BOOLEAN, "Boolean");
-    ASSERT_EQ(toDataType(SadTypeKind::String), DataType::STRING, "String");
-    ASSERT_EQ(toDataType(SadTypeKind::Byte), DataType::BYTE, "Byte");
-    ASSERT_EQ(toDataType(SadTypeKind::Array), DataType::ARRAY, "Array");
-    ASSERT_EQ(toDataType(SadTypeKind::Map), DataType::MAP, "Map");
-    ASSERT_EQ(toDataType(SadTypeKind::Tuple), DataType::TUPLE, "Tuple");
-    ASSERT_EQ(toDataType(SadTypeKind::Function), DataType::FUNCTION, "Function");
-    ASSERT_EQ(toDataType(SadTypeKind::Enum), DataType::ENUM, "Enum");
-    ASSERT_EQ(toDataType(SadTypeKind::Error), DataType::ERROR, "Error");
+    auto &reg = SadTypeRegistry::instance();
+    auto res = reg.makeResult(reg.getInteger(), reg.getString()); // نتيجة<رقم، نص>
+
+    ASSERT_NOT_NULL(res, "makeResult أرجع nullptr");
+    ASSERT_EQ(res->getKind(), SadTypeKind::Result, "kind = Result");
+
+    auto rt = std::static_pointer_cast<const SadResultType>(res);
+    ASSERT_NOT_NULL(rt->getOkType(), "نوع النجاح غير موجود");
+    ASSERT_NOT_NULL(rt->getErrType(), "نوع الخطأ غير موجود");
+    ASSERT_EQ(rt->getOkType()->getKind(), SadTypeKind::Integer, "okType = Integer");
+    ASSERT_EQ(rt->getErrType()->getKind(), SadTypeKind::String, "errType = String");
 
     TEST_PASS();
 }
 
-void test_datatype_to_kind()
+void test_result_equals_and_assign()
 {
-    TEST_START("DataType → SadTypeKind: جميع القيم");
+    TEST_START("Result<T,E>: المساواة وقابلية الإسناد");
 
-    ASSERT_EQ(fromDataType(DataType::NONE), SadTypeKind::Void, "NONE→Void");
-    ASSERT_EQ(fromDataType(DataType::INTEGER), SadTypeKind::Integer, "INTEGER");
-    ASSERT_EQ(fromDataType(DataType::FLOAT), SadTypeKind::Float, "FLOAT→Float");
-    ASSERT_EQ(fromDataType(DataType::BOOLEAN), SadTypeKind::Boolean, "BOOLEAN");
-    ASSERT_EQ(fromDataType(DataType::STRING), SadTypeKind::String, "STRING");
-    ASSERT_EQ(fromDataType(DataType::BYTE), SadTypeKind::Byte, "BYTE");
-    ASSERT_EQ(fromDataType(DataType::ARRAY), SadTypeKind::Array, "ARRAY");
-    ASSERT_EQ(fromDataType(DataType::MAP), SadTypeKind::Map, "MAP");
-    ASSERT_EQ(fromDataType(DataType::TUPLE), SadTypeKind::Tuple, "TUPLE");
-    ASSERT_EQ(fromDataType(DataType::FUNCTION), SadTypeKind::Function, "FUNCTION");
-    ASSERT_EQ(fromDataType(DataType::OBJECT), SadTypeKind::Class, "OBJECT→Class");
-    ASSERT_EQ(fromDataType(DataType::ENUM), SadTypeKind::Enum, "ENUM");
-    ASSERT_EQ(fromDataType(DataType::ERROR), SadTypeKind::Error, "ERROR");
-    ASSERT_EQ(fromDataType(DataType::UNKNOWN), SadTypeKind::Unknown, "UNKNOWN");
+    auto &reg = SadTypeRegistry::instance();
+    auto r1 = reg.makeResult(reg.getInteger(), reg.getString());
+    auto r2 = reg.makeResult(reg.getInteger(), reg.getString());
+    auto r3 = reg.makeResult(reg.getString(), reg.getString()); // نوع نجاح مختلف
+
+    // المساواة البنيوية: r1 == r2، r1 != r3
+    ASSERT_TRUE_MSG(r1->equals(r2.get()), "نتيجتان متطابقتان لم تتساويا");
+    ASSERT_TRUE_MSG(!r1->equals(r3.get()), "نتيجتان مختلفتان تساوتا خطأً");
+
+    // قابلية الإسناد: نفس النوع يُسنَد، والمختلف لا يُسنَد
+    ASSERT_TRUE_MSG(r1->isAssignableTo(r2.get()), "Result متطابق غير قابل للإسناد");
+    ASSERT_TRUE_MSG(!r1->isAssignableTo(r3.get()), "Result مختلف قُبِل إسناده خطأً");
+
+    // الإسناد إلى Any مسموح دائمًا
+    ASSERT_TRUE_MSG(r1->isAssignableTo(reg.getAny().get()), "Result غير قابل للإسناد إلى أي");
 
     TEST_PASS();
 }
@@ -982,10 +984,10 @@ int main()
     test_valuetype_to_kind();
     test_kind_valuetype_roundtrip();
 
-    // ② SadTypeKind ↔ DataType
-    std::cout << "\n── ② SadTypeKind ↔ DataType ──" << std::endl;
-    test_kind_to_datatype();
-    test_datatype_to_kind();
+    // ② نوع النتيجة Result<T,E> (S-TS-P3) — DataType أُزيل في S-TS-P2.5b
+    std::cout << "\n── ② نوع النتيجة Result<T,E> ──" << std::endl;
+    test_result_construct();
+    test_result_equals_and_assign();
 
     // ③ SadTypePtr ↔ ValueType
     std::cout << "\n── ③ SadTypePtr ↔ ValueType ──" << std::endl;
