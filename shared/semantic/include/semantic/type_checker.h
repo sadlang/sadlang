@@ -44,6 +44,7 @@
 #include "types/generics.h"
 #include "types/trait_system.h"
 #include "types/union_types.h"
+#include "sad_type_system.h" // (AR) SadTypeKind — محور المدقّق بعد S-TS-P2
 
 #include <memory>
 #include <vector>
@@ -256,8 +257,17 @@ namespace Sad
             // ==================================================================
 
             /**
-             * @brief (AR) تحويل DataType إلى TypePtr من نظام الأنواع المتقدم
-             * @brief (EN) Convert DataType to advanced type system TypePtr
+             * @brief (AR) تحويل SadTypeKind إلى TypePtr من نظام الأنواع المتقدم (S-TS-P2: المحور SadTypeKind)
+             * @brief (EN) Convert SadTypeKind to advanced type system TypePtr (S-TS-P2: SadTypeKind-centric)
+             *
+             * (AR) قراءات الـAST (DataType) تُجسَّر عبر Types::fromDataType عند نقطة الاستدعاء؛
+             *      هذا الجسر يُحذف في S-TS-P2.5a عند ترحيل حقول الـAST إلى SadTypeKind.
+             */
+            TypeSystem::TypePtr sadKindToTypePtr(Types::SadTypeKind kind) const;
+
+            /**
+             * @brief (AR) جسر حدود الـAST: DataType → SadTypeKind → TypePtr (يُحذف في S-TS-P2.5a)
+             * @brief (EN) AST-boundary bridge: DataType → SadTypeKind → TypePtr (removed in S-TS-P2.5a)
              */
             TypeSystem::TypePtr dataTypeToTypePtr(Data::DataType dt) const;
 
@@ -508,8 +518,17 @@ namespace Sad
             std::string paramTypeNameOf(const AST::Parameter &p) const;
 
             /**
-             * @brief (AR) [Phase 5d] حوّل DataType إلى اسم عربي.
-             * @brief (EN) [Phase 5d] Map DataType enum to Arabic name.
+             * @brief (AR) [Phase 5d / S-TS-P2] حوّل SadTypeKind إلى اسم عربي (محور SadTypeKind).
+             * @brief (EN) [Phase 5d / S-TS-P2] Map SadTypeKind to Arabic name (SadTypeKind-centric).
+             *
+             * (AR) السلاسل المُرجَعة مطابقة للسابق (لا تغيير في رسائل الأخطاء)؛
+             *      قراءات الـAST تُجسَّر عبر Types::fromDataType حتى S-TS-P2.5a.
+             */
+            std::string sadKindArabicName(Types::SadTypeKind t) const;
+
+            /**
+             * @brief (AR) جسر حدود الـAST: DataType → SadTypeKind → اسم عربي (يُحذف في S-TS-P2.5a)
+             * @brief (EN) AST-boundary bridge: DataType → SadTypeKind → Arabic name (removed in S-TS-P2.5a)
              */
             std::string dataTypeArabicName(Data::DataType t) const;
         };
