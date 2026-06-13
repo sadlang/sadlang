@@ -66,8 +66,23 @@
   Color, Widget, Window, Event
 ```
 
-> ❌ **لا توجد** القيم التالية رغم ذكرها في النسخة القديمة من الوثيقة: `Null` و`Qubit` و`URL`.
-> Qubit مؤرشف فقط (`archived/experimental_types/qubit_type.cpp`).
+> `Null` مُضاف في S-TS-P1 (عدم متمايز عن فراغ). `Qubit` مؤرشف فقط
+> (`archived/experimental_types/qubit_type.cpp`) ولا قيمة enum له؛ `URL` غير موجود.
+
+### تدقيق الاستهلاك (S-TS-P6) — لا قيمة ميتة
+
+تدقيق grep لكل القيم الـ50 عبر `interpreter`/`compiler`/`shared`/`vm`/`tools`
+(عدا الترويسة المُولَّدة). **النتيجة: كل قيمة مُستهلَكة (الحدّ الأدنى 4 مواضع) — صفر قيمة ميتة، فلا إزالة (AC2).**
+
+| الفئة | القيم | الاستهلاك |
+|------|------|:---------:|
+| مُطبَّق بكثافة | Integer(1058)، Boolean(471)، Void(424)، String(420)، Float(303)، Array(183)، Pointer(173)، Unknown(101)، Class(85)، Function(67)، Map(62) | >60 |
+| مُطبَّق | Struct(46)، Tuple(38)، Byte(23)، Any(23)، Error(19)، Union(17)، Enum/Never(16)، Optional(13)، Null(12)، Trait(12)، Closure(11) | 11–46 |
+| مُطبَّق (SIMD) | **Vector(24)** — SIMD، **ليس ميتًا** (`builtins_simd.cpp`) | 24 |
+| مُستهلَك (بنيوي/قليل) | Future(10)، Generator(9)، Generic(9)، Int8(8)، TypeParameter(8)، Float64/Char/Result/Reference/MutableRef/TypeAlias/Intersection/Float32/Int16-64(6)، Slice/UInt*(5) | 5–10 |
+| مُستهلَك (واجهات/استيعاب) | Comprehension، Color، Widget، Window، Event | 4 لكلٍّ |
+
+**ملاحظات تطبيق (تقاطع P3/P4):** `Result` نوعٌ مطبَّق + مختبَر (S-TS-P3)؛ `Optional` له سطح `رقم?` + إسناد (S-TS-P4)؛ `Future`/`Generator` أصنافها موجودة لكن **ربط الـruntime جزئيّ** (مخطّط — S-TS-P4 المتبقّي)، لا تُزال (مستهلَكة). لا قيمة تحتاج وسم «ميت».
 
 ### الطبقة 2️⃣: **هرمية `SadType`** — **17 صنفًا فرعيًّا فعليًّا** (لا 15)
 
