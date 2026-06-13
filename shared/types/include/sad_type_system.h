@@ -1479,11 +1479,13 @@ namespace Sad
             if (kind_ == SadTypeKind::Never)
                 return true;
 
-            // (AR) الهدف Optional<T> → يقبل T أو Void
+            // (AR) الهدف Optional<T> → يقبل عدم (Null) أو T — S-TS-P4 (AC7)
+            //      (Null <: T?‎ و T <: T?‎). Void يبقى مقبولًا للتوافق الخلفي مؤقتًا.
+            // (EN) Target Optional<T> → accepts Null or T (Null <: T?, T <: T?) — S-TS-P4.
             if (target->getKind() == SadTypeKind::Optional)
             {
                 auto opt = static_cast<const SadOptionalType *>(target);
-                if (kind_ == SadTypeKind::Void)
+                if (kind_ == SadTypeKind::Null || kind_ == SadTypeKind::Void)
                     return true;
                 if (opt->getInnerType() && isAssignableTo(opt->getInnerType().get()))
                     return true;
