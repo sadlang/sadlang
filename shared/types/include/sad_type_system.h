@@ -1302,17 +1302,17 @@ namespace Sad
             // ─── أنواع مركبة / Composite types ───
             SadTypePtr makeArray(SadTypePtr elem = nullptr)
             {
-                return std::make_shared<SadArrayType>(std::move(elem));
+                return intern(std::make_shared<SadArrayType>(std::move(elem))); // (S-TS-P7) interning
             }
 
             SadTypePtr makeMap(SadTypePtr key = nullptr, SadTypePtr val = nullptr)
             {
-                return std::make_shared<SadMapType>(std::move(key), std::move(val));
+                return intern(std::make_shared<SadMapType>(std::move(key), std::move(val))); // (S-TS-P7)
             }
 
             SadTypePtr makeTuple(std::vector<SadTypePtr> elems)
             {
-                return std::make_shared<SadTupleType>(std::move(elems));
+                return intern(std::make_shared<SadTupleType>(std::move(elems))); // (S-TS-P7)
             }
 
             // ─── أنواع وظيفية / Function types ───
@@ -1363,14 +1363,14 @@ namespace Sad
 
             SadTypePtr makeOptional(SadTypePtr inner)
             {
-                return std::make_shared<SadOptionalType>(std::move(inner));
+                return intern(std::make_shared<SadOptionalType>(std::move(inner))); // (S-TS-P7)
             }
 
             // (AR) [S-TS-P3] إنشاء نوع نتيجة نتيجة<T, E> (نجاح T أو خطأ E)
             // (EN) [S-TS-P3] Create a Result<T, E> type (success T or error E)
             SadTypePtr makeResult(SadTypePtr okType, SadTypePtr errType)
             {
-                return std::make_shared<SadResultType>(std::move(okType), std::move(errType));
+                return intern(std::make_shared<SadResultType>(std::move(okType), std::move(errType))); // (S-TS-P7)
             }
 
             SadTypePtr makeGeneric(const std::string &name, SadTypePtr constraint = nullptr)
@@ -1458,6 +1458,28 @@ namespace Sad
             SadTypePtr any_, never_, unknown_, error_;
             mutable std::mutex mutex_;
             std::unordered_map<std::string, SadTypePtr> classTypes_;
+            // (AR) [S-TS-P7] interning للأنواع المركّبة: مفتاح = التوقيع البنيوي (الاسم العربي).
+            //      يضمن أن المركّبات المتماثلة بنيويًّا تتشارك المؤشر ⇒ مقارنة `==` صحيحة.
+            // (EN) [S-TS-P7] Composite-type interning keyed by structural signature (arabicName),
+            //      so structurally-equal composites share one pointer ⇒ pointer `==` is correct.
+            std::unordered_map<std::string, SadTypePtr> compositeCache_;
+
+        public:
+            // (AR) [S-TS-P7] يُعيد النسخة المُخزَّنة لنوع مركّب بنفس التوقيع البنيوي، أو يخزّنه.
+            // (EN) [S-TS-P7] Returns the interned instance for a composite with the same structural
+            //      signature, or stores and returns it. Bounded by distinct signatures (no leak).
+            SadTypePtr intern(SadTypePtr t)
+            {
+                if (!t)
+                    return t;
+                std::lock_guard<std::mutex> lock(mutex_);
+                const std::string key = t->arabicName();
+                auto it = compositeCache_.find(key);
+                if (it != compositeCache_.end())
+                    return it->second;
+                compositeCache_[key] = t;
+                return t;
+            }
         };
 
         // █████████████████████████████████████████████████████████████████████████████████

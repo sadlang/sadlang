@@ -261,6 +261,33 @@ void test_result_equals_and_assign()
     TEST_PASS();
 }
 
+void test_composite_interning()
+{
+    // (S-TS-P7) interning: المركّبات المتماثلة بنيويًّا تتشارك المؤشر ⇒ == مؤشري صحيح.
+    TEST_START("interning: مقارنة المؤشر للمركّبات المتماثلة");
+
+    auto &reg = SadTypeRegistry::instance();
+
+    // مصفوفة<رقم> == مصفوفة<رقم> (نفس المؤشر المُخزَّن)
+    auto a1 = reg.makeArray(reg.getInteger());
+    auto a2 = reg.makeArray(reg.getInteger());
+    ASSERT_TRUE_MSG(a1.get() == a2.get(), "مصفوفة<رقم> ليست interned (مؤشران مختلفان)");
+
+    // مصفوفة<رقم> != مصفوفة<نص> (مؤشران مختلفان)
+    auto a3 = reg.makeArray(reg.getString());
+    ASSERT_TRUE_MSG(a1.get() != a3.get(), "مصفوفتان مختلفتان تشاركتا المؤشر خطأً");
+
+    // خريطة + اختياري + نتيجة كذلك
+    ASSERT_TRUE_MSG(reg.makeMap(reg.getString(), reg.getInteger()).get() ==
+                        reg.makeMap(reg.getString(), reg.getInteger()).get(),
+                    "خريطة<نص،رقم> ليست interned");
+    ASSERT_TRUE_MSG(reg.makeOptional(reg.getInteger()).get() ==
+                        reg.makeOptional(reg.getInteger()).get(),
+                    "اختياري<رقم> ليس interned");
+
+    TEST_PASS();
+}
+
 // █████████████████████████████████████████████████████████████████████████████████
 //
 //  ③ اختبارات SadTypePtr ↔ ValueType
@@ -988,6 +1015,7 @@ int main()
     std::cout << "\n── ② نوع النتيجة Result<T,E> ──" << std::endl;
     test_result_construct();
     test_result_equals_and_assign();
+    test_composite_interning();
 
     // ③ SadTypePtr ↔ ValueType
     std::cout << "\n── ③ SadTypePtr ↔ ValueType ──" << std::endl;
