@@ -26,6 +26,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/collections/strings_codegen.h"
+#include "sir_constants.h" // (AR) kSadNullSentinel لوعي نوع() بـعدم زمن التشغيل
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -101,12 +102,40 @@ namespace Sad
             case SadTypeKind::Void:
                 typeName = "فراغ";
                 break;
+            case SadTypeKind::Null:
+                // (AR) عدم (Null) متمايز عن فراغ (Void) — S-TS-P1/P4
+                // (EN) null (Null) is distinct from void (Void) — S-TS-P1/P4
+                typeName = "عدم";
+                break;
             default:
                 typeName = "مجهول";
                 break;
             }
 
-            llvm::Value *result = cg_.builder_->CreateGlobalStringPtr(typeName, "typeof_str");
+            llvm::Value *staticStr = cg_.builder_->CreateGlobalStringPtr(typeName, "typeof_str");
+
+            // ================================================================
+            // (AR) [S-TS-P4 codegen] وعي زمن-التشغيل بـعدم (Null):
+            //      قيمة i64 قد تحمل حارس Null (kSadNullSentinel) حتى لو كان نوعها
+            //      الساكن «عدد_صحيح» — مثل متغير اختياري `رقم؟` أُسنِد إليه `لاشيء`.
+            //      نُصدر اختيارًا زمن-التشغيل: (القيمة == الحارس) ? «عدم» : الاسم الساكن.
+            //      الأنواع غير i64 (عشري/نص/مصفوفة/منطقي) لا يمكن أن تحمل الحارس → تتخطّى.
+            // (EN) [S-TS-P4 codegen] Runtime null awareness: an i64 value may carry the
+            //      Null sentinel even when its static type is «عدد_صحيح» (e.g. an optional
+            //      `رقم؟` assigned `لاشيء`). Emit a runtime select: (val == sentinel)
+            //      ? «عدم» : static-name. Non-i64 types can't hold the sentinel → skipped.
+            // ================================================================
+            llvm::Value *result = staticStr;
+            llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
+            if (val && val->getType()->isIntegerTy(64))
+            {
+                auto *i64Ty = cg_.getInt64Type();
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
+                    val, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel), "typeof.isnull");
+                llvm::Value *nullStr = cg_.builder_->CreateGlobalStringPtr("عدم", "typeof_null");
+                result = cg_.builder_->CreateSelect(isNull, nullStr, staticStr, "typeof.sel");
+            }
+
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = result;

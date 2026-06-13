@@ -244,6 +244,11 @@ namespace Sad
                 // خطأ — مؤشر لبنية الخطأ / Error — pointer to error struct
                 return getStringPtrType();
 
+            case Compiler::SIR::SadTypeKind::Null:
+                // (AR) عدم: يُمثَّل بحارس i64 (kSadNullSentinel) — S-TS-P4 codegen
+                // (EN) null: represented as an i64 sentinel (kSadNullSentinel) — S-TS-P4 codegen
+                return getInt64Type();
+
             default:
                 // نوع غير معروف - افتراضي i64 / Unknown type - default i64
                 return getInt64Type();
