@@ -96,6 +96,14 @@ namespace Sad
                 return reg.makeFunction({});
             case VT::Class:
                 return reg.getAny(); // (AR) كائن عام — لا نعرف الصنف هنا
+            // (AR) [S-TS-P4] أنواع متقدّمة بلا نوع داخلي على مستوى الـkind → أي (Any)
+            //      حتى لا تنهار إلى فراغ (Void) فتُطلِق تحذيرات كاذبة. النوع الداخلي
+            //      الغنيّ يُبنى مباشرةً عبر makeOptional/makeResult/makeFuture/makeGenerator.
+            case VT::Optional:
+            case VT::Result:
+            case VT::Future:
+            case VT::Generator:
+                return reg.getAny();
             }
             return reg.getVoid();
         }

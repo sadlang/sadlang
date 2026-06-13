@@ -1607,7 +1607,24 @@ namespace Sad
          *               - مصفوفة / array → ARRAY (with optional generic params)
          *               - قاموس / dict/map → MAP (with optional generic params)
          */
+        // (AR) [S-TS-P4] غلاف parseType: يحلّل النوع الأساس ثم يستهلك لاحقة `؟` الاختيارية.
+        //      `رقم؟` → Optional. parseType يُستدعى في مواضع الأنواع فقط (لا وسط تعبير)،
+        //      فلا غموض مع الثلاثي `أ ؟ ب : ج`. (النوع الداخلي الغنيّ لـOptional<T> عبر
+        //      sadType في العقد — تمثيل أغنى مخطّط لاحقًا؛ هنا على مستوى الـkind.)
+        // (EN) [S-TS-P4] parseType wrapper: parse base type then consume optional `?` suffix.
+        //      parseType is only called in type positions, so no ternary ambiguity.
         Types::SadTypeKind ParserCore::parseType()
+        {
+            Types::SadTypeKind base = parseTypeCore();
+            if (check(TT::QUESTION))
+            {
+                advance(); // consume '?'
+                return Types::SadTypeKind::Optional;
+            }
+            return base;
+        }
+
+        Types::SadTypeKind ParserCore::parseTypeCore()
         {
             // ========== الأنواع الأساسية - من رموز TYPE_* ==========
             // Basic Types - from TYPE_* tokens (legacy support)

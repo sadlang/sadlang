@@ -228,6 +228,14 @@ namespace Sad
                 return registry_.getIntegerType(); // byte -> int
             case K::Error:
                 return registry_.getUnknownType();
+            // (AR) [S-TS-P4] أنواع متقدّمة على مستوى الـkind (دون نوع داخلي هنا) → Any
+            //      حتى لا يُطلِق المدقّق تحذيرات إسناد كاذبة لـ`رقم?` ونحوه. النوع الداخلي
+            //      الغنيّ يُحمَل عبر sadType في العقد (تمثيل أغنى مخطّط لاحقًا).
+            case K::Optional:
+            case K::Result:
+            case K::Future:
+            case K::Generator:
+                return registry_.getAnyType();
             case K::Unknown:
             default:
                 return registry_.getUnknownType();

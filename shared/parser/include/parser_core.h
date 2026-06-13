@@ -1499,6 +1499,8 @@ namespace Sad
              * @endcode
              */
             Types::SadTypeKind parseType();
+            // (AR) [S-TS-P4] النواة: تحلّل النوع الأساس دون لاحقة `؟` (يستدعيها parseType).
+            Types::SadTypeKind parseTypeCore();
 
             /**
              * @brief (AR) يحلل نوع بيانات ويُرجع SadTypePtr من النظام الموحد
