@@ -193,6 +193,19 @@ namespace Sad
                 auto t = getType();
                 return t ? t->toDataType() : Data::DataType::UNKNOWN;
             }
+
+            /**
+             * @brief (AR) نوع العقدة كـ SadTypeKind — المحور الموحَّد (S-TS-P2.5a)
+             * @brief (EN) Node kind as SadTypeKind — the unified pivot (S-TS-P2.5a)
+             *
+             * (AR) يحلّ محلّ getDataType() القديم؛ يُشتقّ مباشرة من getType()->getKind()
+             *      دون المرور بـ DataType. getDataType() يُحذف في S-TS-P2.5b.
+             */
+            Types::SadTypeKind getTypeKind() const
+            {
+                auto t = getType();
+                return t ? t->getKind() : Types::SadTypeKind::Unknown;
+            }
         };
 
         /**

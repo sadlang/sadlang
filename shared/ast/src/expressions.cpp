@@ -44,15 +44,16 @@ namespace Sad
 
             // Arithmetic operators: if either operand is float, result is float
             // العوامل الحسابية: إذا كان أحد المعاملات float، النتيجة float
-            auto leftDT = left->getDataType();
-            auto rightDT = right->getDataType();
+            // (S-TS-P2.5a) المحور SadTypeKind (لا الجسر القديم)
+            auto leftDT = left->getTypeKind();
+            auto rightDT = right->getTypeKind();
 
-            if (leftDT == Data::DataType::FLOAT || rightDT == Data::DataType::FLOAT)
+            if (leftDT == Types::SadTypeKind::Float || rightDT == Types::SadTypeKind::Float)
             {
                 return reg().getFloat();
             }
 
-            if (leftDT == Data::DataType::STRING || rightDT == Data::DataType::STRING)
+            if (leftDT == Types::SadTypeKind::String || rightDT == Types::SadTypeKind::String)
             {
                 return reg().getString();
             }
@@ -97,8 +98,9 @@ namespace Sad
          */
         Types::SadTypePtr TernaryExpr::getType() const
         {
-            auto trueDT = trueExpr->getDataType();
-            auto falseDT = falseExpr->getDataType();
+            // (S-TS-P2.5a) المحور SadTypeKind (لا الجسر القديم)
+            auto trueDT = trueExpr->getTypeKind();
+            auto falseDT = falseExpr->getTypeKind();
 
             // If both branches have same type, return it
             // إذا كان الفرعان من نفس النوع، ارجعه
@@ -109,8 +111,8 @@ namespace Sad
 
             // Numeric type promotion: FLOAT takes precedence
             // ترقية النوع الرقمي: FLOAT له الأولوية
-            if ((trueDT == Data::DataType::INTEGER && falseDT == Data::DataType::FLOAT) ||
-                (trueDT == Data::DataType::FLOAT && falseDT == Data::DataType::INTEGER))
+            if ((trueDT == Types::SadTypeKind::Integer && falseDT == Types::SadTypeKind::Float) ||
+                (trueDT == Types::SadTypeKind::Float && falseDT == Types::SadTypeKind::Integer))
             {
                 return reg().getFloat();
             }
@@ -205,22 +207,22 @@ namespace Sad
 
         Types::SadTypePtr IndexExpr::getType() const
         {
-            auto objDT = object->getDataType();
+            auto objDT = object->getTypeKind(); // (S-TS-P2.5a) المحور SadTypeKind
 
             // Arrays and strings return element type
             // المصفوفات والنصوص تُرجع نوع العنصر
-            if (objDT == Data::DataType::ARRAY)
+            if (objDT == Types::SadTypeKind::Array)
             {
                 // Element type will be determined during semantic analysis
                 return nullptr;
             }
 
-            if (objDT == Data::DataType::STRING)
+            if (objDT == Types::SadTypeKind::String)
             {
                 return reg().getString();
             }
 
-            if (objDT == Data::DataType::MAP)
+            if (objDT == Types::SadTypeKind::Map)
             {
                 // Value type will be determined during semantic analysis
                 return nullptr;
