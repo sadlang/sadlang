@@ -146,7 +146,11 @@ namespace Sad
                 return reg().getBoolean();
 
             case TT::LITERAL_NULL:
-                return reg().getVoid();
+                // (AR) [S-TS-P9/P1] النوع الساكن للحرفية `لاشيء` = عدم (Null) متمايز عن فراغ —
+                //      متّسق مع قيمة وقت التشغيل Value::makeNull().
+                // (EN) [S-TS-P9/P1] Static type of `null` literal = Null (distinct from Void),
+                //      consistent with the runtime Value::makeNull().
+                return reg().getNull();
 
             default:
                 return nullptr;

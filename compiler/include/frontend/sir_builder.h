@@ -1753,7 +1753,7 @@ namespace Sad
                  * @param program البرنامج الكامل / Full program AST
                  *
                  * يمسح جميع CallExpr في البرنامج ويحدّث functionTable_ عندما
-                 * يكون المعامل I64 (من DataType::UNKNOWN) والوسيط الفعلي STRING/F64/BOOL
+                 * يكون المعامل I64 (من Unknown) والوسيط الفعلي STRING/F64/BOOL
                  */
                 void inferParamTypesFromCallSites(Sad::AST::StmtList *program)
                 {
