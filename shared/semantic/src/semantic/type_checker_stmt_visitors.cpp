@@ -66,6 +66,7 @@ namespace Sad
             }
 
             // التحقق من التوافق / Check compatibility
+            // (AR) ملاحظة (S-TS-P9): فرض أمان null في طبقة المفسّر (statement_executor) عبر isNull.
             if (initType && declaredType && !declaredType->isUnknown() && !initType->isUnknown())
             {
                 if (!areTypesCompatible(declaredType, initType))

@@ -124,6 +124,38 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════
                 if (node.sadType && node.type != Types::SadTypeKind::Unknown)
                 {
+                    // ═══════════════════════════════════════════════════════════
+                    // (AR) [S-TS-P9] أمان null: `لاشيء` (عدم) لا يُسنَد لنوع مُصرَّح غير
+                    //      اختياري. الحارس الخارجي (node.type != Unknown) يحفظ النمط
+                    //      السائد `متغير س = لاشيء` (مُستنتَج) من أي إنذار كاذب — لا انحدار.
+                    //      `رقم؟`(Optional)/`أي`(Any)/فراغ مستثناة. عدم يهرب من isAssignableTo
+                    //      لذا يلزم فحص isNull() صريح هنا.
+                    // (EN) [S-TS-P9] Null safety: `null` is not assignable to an explicitly
+                    //      non-optional type. The outer (node.type != Unknown) guard exempts
+                    //      inferred `var x = null`. Optional/Any/Void excluded. Null escapes
+                    //      isAssignableTo, hence the explicit isNull() check.
+                    // ═══════════════════════════════════════════════════════════
+                    if (value.isNull() &&
+                        node.type != Types::SadTypeKind::Optional &&
+                        node.type != Types::SadTypeKind::Any &&
+                        node.type != Types::SadTypeKind::Null &&
+                        node.type != Types::SadTypeKind::Void)
+                    {
+                        std::string wAr =
+                            "تحذير: إسناد 'لاشيء' (عدم) لمتغير '" + node.name +
+                            "' من نوع غير اختياري '" + node.sadType->arabicName() +
+                            "'. اجعله اختياريًّا: '" + node.sadType->arabicName() + "؟'";
+                        std::string wEn =
+                            "Assigning 'null' to non-optional variable '" + node.name +
+                            "' of type '" + node.sadType->englishName() + "'. Make it optional: 'T?'";
+                        std::cerr << "[تحذير نوع] سطر " << node.position.line
+                                  << ": " << wAr << std::endl;
+                        Sad::Errors::SourceLocation locN(
+                            "", node.position.line, node.position.column);
+                        Sad::Errors::ErrorManager::getInstance().reportWarning(
+                            Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, locN, wAr, wEn);
+                    }
+
                     auto valueType = Types::SadType::fromValueType(value.getType());
                     if (valueType && !valueType->isAssignableTo(node.sadType.get()))
                     {
