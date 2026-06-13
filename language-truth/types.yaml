@@ -65,8 +65,8 @@ types:
   - { id: type.slice, kind: Slice, word: شريحة,  name_en: slice, category: composite, surface: false, since: "1.0.0", status: stable, description_ar: "شريحة", description_en: "Slice" }
 
   # ─── كائنية / OOP ───
-  - { id: type.class,  kind: Class,  word: صنف,   name_en: class,  category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "صنف", description_en: "Class" }
-  - { id: type.struct, kind: Struct, word: بنية,  name_en: struct, category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "بنية", description_en: "Struct" }
+  - { id: type.class,  kind: Class,  word: صنف,   typeof_ar: كائن, name_en: class,  category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "صنف", description_en: "Class" }
+  - { id: type.struct, kind: Struct, word: بنية,  typeof_ar: كائن, name_en: struct, category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "بنية", description_en: "Struct" }
   - { id: type.enum,   kind: Enum,   word: تعداد, name_en: enum,   category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "تعداد", description_en: "Enum" }
   - { id: type.trait,  kind: Trait,  word: سمة,   name_en: trait,  category: oop, surface: false, since: "1.0.0", status: stable, description_ar: "سمة (واجهة)", description_en: "Trait/interface" }
 
@@ -96,7 +96,7 @@ types:
 
   # ─── غير متزامنة / Async ───
   - { id: type.future,        kind: Future,        word: مستقبل,  name_en: future,        category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "مستقبل<T> غير متزامن", description_en: "Future<T>" }
-  - { id: type.generator,     kind: Generator,     word: مولد,    name_en: generator,     category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "مولّد<T>", description_en: "Generator<T>" }
+  - { id: type.generator,     kind: Generator,     word: مولد,    typeof_ar: مولّد, name_en: generator,     category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "مولّد<T>", description_en: "Generator<T>" }
   - { id: type.comprehension, kind: Comprehension, word: استيعاب, name_en: comprehension, category: async, surface: false, since: "1.0.0", status: experimental, description_ar: "استيعاب (comprehension)", description_en: "Comprehension" }
 
   # ─── رسومات / Graphics (قابل للتوسّع — S-TS-P11) ───

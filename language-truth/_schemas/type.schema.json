@@ -21,6 +21,10 @@
       "type": "string",
       "description": "الاسم العربي للعرض (وللأنواع السطحية: الكلمة المفتاحية)"
     },
+    "typeof_ar": {
+      "type": "string",
+      "description": "اسم النوع الذي تُرجعه نوع() زمن التشغيل — عند اختلافه عن word (مثل Class: word=صنف لكن نوع(كائن)=كائن). افتراضيًّا = word."
+    },
     "name_en": {
       "type": "string",
       "description": "الاسم الإنجليزي"

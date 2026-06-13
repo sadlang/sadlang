@@ -126,6 +126,35 @@ def emit_header(types: list[dict[str, Any]]) -> str:
 
     lines.append("        };")
     lines.append("")
+
+    # ========================================================================
+    # (AR) دالة الاسم العربي لـنوع() — مصدر حقيقة واحد للمحرّكين (مفسّر + مترجم).
+    #      تُرجع typeof_ar إن وُجد، وإلا word، وإلا «مجهول». تُرمَّز القيم بـ\xHH
+    #      (بايتات UTF-8) لضمان صحّتها في MSVC بغضّ النظر عن ترميز الملف المصدر.
+    # (EN) Arabic name for نوع()/typeof — single source of truth for BOTH engines.
+    #      Returns typeof_ar if set, else word, else «مجهول». Names are emitted as
+    #      \xHH UTF-8 byte escapes so MSVC reads them correctly regardless of file
+    #      encoding (mirrors the previous hand-written interpreter literals).
+    # ========================================================================
+    def hex_escape(s: str) -> str:
+        return "".join(f"\\x{b:02x}" for b in s.encode("utf-8"))
+
+    unknown = hex_escape("مجهول")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) الاسم العربي الذي تُرجعه نوع() لنوعٍ ما — مُولَّد من types.yaml")
+    lines.append("         * @brief (EN) Arabic name returned by نوع()/typeof for a kind — generated")
+    lines.append("         */")
+    lines.append("        inline const char *sadTypeKindArabicName(SadTypeKind kind)")
+    lines.append("        {")
+    lines.append("            switch (kind)")
+    lines.append("            {")
+    for t in types:
+        name = t.get("typeof_ar") or t.get("word") or "مجهول"
+        lines.append(f'            case SadTypeKind::{t["kind"]}: return "{hex_escape(name)}"; // {name}')
+    lines.append(f'            default: return "{unknown}"; // مجهول')
+    lines.append("            }")
+    lines.append("        }")
+    lines.append("")
     lines.append("    } // namespace Types")
     lines.append("} // namespace Sad")
     lines.append("")

@@ -74,43 +74,13 @@ namespace Sad
                 return cg_.builder_->CreateGlobalStringPtr("مجهول", "typeof_unknown");
             }
 
-            // Determine type from operand's dataType at compile time
-            const char *typeName = "مجهول";
-            switch (inst->operands[0].dataType)
-            {
-            case SadTypeKind::Integer:
-                typeName = "عدد_صحيح";
-                break;
-            case SadTypeKind::Float:
-                typeName = "عدد_عشري";
-                break;
-            case SadTypeKind::Boolean:
-                typeName = "منطقي";
-                break;
-            case SadTypeKind::String:
-                typeName = "نص";
-                break;
-            case SadTypeKind::Array:
-                typeName = "مصفوفة";
-                break;
-            case SadTypeKind::Struct:
-                typeName = "كائن";
-                break;
-            case SadTypeKind::Pointer:
-                typeName = "مؤشر";
-                break;
-            case SadTypeKind::Void:
-                typeName = "فراغ";
-                break;
-            case SadTypeKind::Null:
-                // (AR) عدم (Null) متمايز عن فراغ (Void) — S-TS-P1/P4
-                // (EN) null (Null) is distinct from void (Void) — S-TS-P1/P4
-                typeName = "عدم";
-                break;
-            default:
-                typeName = "مجهول";
-                break;
-            }
+            // (AR) اسم النوع من المصدر الموحَّد (types.yaml) عبر الدالة المولَّدة
+            //      sadTypeKindArabicName — نفس مصدر المفسّر، فيتطابق نوع() بين المحرّكين
+            //      (لا «عدد_صحيح» في المترجم مقابل «رقم» في المفسّر). [توحيد أسماء نوع()]
+            // (EN) Type name from the unified SoT (types.yaml) via the generated
+            //      sadTypeKindArabicName — same source as the interpreter, so نوع() matches
+            //      across engines (no «عدد_صحيح» vs «رقم» divergence).
+            const char *typeName = ::Sad::Types::sadTypeKindArabicName(inst->operands[0].dataType);
 
             llvm::Value *staticStr = cg_.builder_->CreateGlobalStringPtr(typeName, "typeof_str");
 

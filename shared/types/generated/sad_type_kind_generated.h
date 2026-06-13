@@ -87,5 +87,69 @@ namespace Sad
             Rect,          ///< مستطيل / rect
         };
 
+        /**
+         * @brief (AR) الاسم العربي الذي تُرجعه نوع() لنوعٍ ما — مُولَّد من types.yaml
+         * @brief (EN) Arabic name returned by نوع()/typeof for a kind — generated
+         */
+        inline const char *sadTypeKindArabicName(SadTypeKind kind)
+        {
+            switch (kind)
+            {
+            case SadTypeKind::Void: return "\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba"; // فراغ
+            case SadTypeKind::Integer: return "\xd8\xb1\xd9\x82\xd9\x85"; // رقم
+            case SadTypeKind::Float: return "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a"; // عشري
+            case SadTypeKind::Boolean: return "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a"; // منطقي
+            case SadTypeKind::String: return "\xd9\x86\xd8\xb5"; // نص
+            case SadTypeKind::Byte: return "\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa"; // بايت
+            case SadTypeKind::Int8: return "\xd8\xb9\xd8\xaf\xd8\xaf\x38"; // عدد8
+            case SadTypeKind::Int16: return "\xd8\xb9\xd8\xaf\xd8\xaf\x31\x36"; // عدد16
+            case SadTypeKind::Int32: return "\xd8\xb9\xd8\xaf\xd8\xaf\x33\x32"; // عدد32
+            case SadTypeKind::Int64: return "\xd8\xb9\xd8\xaf\xd8\xaf\x36\x34"; // عدد64
+            case SadTypeKind::UInt8: return "\xd8\xb7\xd8\xa8\xd9\x8a\xd8\xb9\xd9\x8a\x38"; // طبيعي8
+            case SadTypeKind::UInt16: return "\xd8\xb7\xd8\xa8\xd9\x8a\xd8\xb9\xd9\x8a\x31\x36"; // طبيعي16
+            case SadTypeKind::UInt32: return "\xd8\xb7\xd8\xa8\xd9\x8a\xd8\xb9\xd9\x8a\x33\x32"; // طبيعي32
+            case SadTypeKind::UInt64: return "\xd8\xb7\xd8\xa8\xd9\x8a\xd8\xb9\xd9\x8a\x36\x34"; // طبيعي64
+            case SadTypeKind::Float32: return "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a\x33\x32"; // عشري32
+            case SadTypeKind::Float64: return "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a\x36\x34"; // عشري64
+            case SadTypeKind::Char: return "\xd8\xad\xd8\xb1\xd9\x81"; // حرف
+            case SadTypeKind::Array: return "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9"; // مصفوفة
+            case SadTypeKind::Map: return "\xd8\xae\xd8\xb1\xd9\x8a\xd8\xb7\xd8\xa9"; // خريطة
+            case SadTypeKind::Tuple: return "\xd8\xb5\xd9\x81"; // صف
+            case SadTypeKind::Slice: return "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xad\xd8\xa9"; // شريحة
+            case SadTypeKind::Class: return "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86"; // كائن
+            case SadTypeKind::Struct: return "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86"; // كائن
+            case SadTypeKind::Enum: return "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf"; // تعداد
+            case SadTypeKind::Trait: return "\xd8\xb3\xd9\x85\xd8\xa9"; // سمة
+            case SadTypeKind::Function: return "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9"; // دالة
+            case SadTypeKind::Closure: return "\xd8\xa5\xd8\xba\xd9\x84\xd8\xa7\xd9\x82"; // إغلاق
+            case SadTypeKind::Union: return "\xd8\xa7\xd8\xaa\xd8\xad\xd8\xa7\xd8\xaf"; // اتحاد
+            case SadTypeKind::Intersection: return "\xd8\xaa\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9"; // تقاطع
+            case SadTypeKind::Optional: return "\xd8\xa7\xd8\xae\xd8\xaa\xd9\x8a\xd8\xa7\xd8\xb1\xd9\x8a"; // اختياري
+            case SadTypeKind::Result: return "\xd9\x86\xd8\xaa\xd9\x8a\xd8\xac\xd8\xa9"; // نتيجة
+            case SadTypeKind::Generic: return "\xd9\x86\xd9\x88\xd8\xb9\x5f\xd8\xb9\xd8\xa7\xd9\x85"; // نوع_عام
+            case SadTypeKind::TypeParameter: return "\xd9\x85\xd8\xb9\xd8\xa7\xd9\x85\xd9\x84\x5f\xd9\x86\xd9\x88\xd8\xb9"; // معامل_نوع
+            case SadTypeKind::TypeAlias: return "\xd8\xa7\xd8\xb3\xd9\x85\x5f\xd9\x85\xd8\xb3\xd8\xaa\xd8\xb9\xd8\xa7\xd8\xb1"; // اسم_مستعار
+            case SadTypeKind::Pointer: return "\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1"; // مؤشر
+            case SadTypeKind::Reference: return "\xd9\x85\xd8\xb1\xd8\xac\xd8\xb9"; // مرجع
+            case SadTypeKind::MutableRef: return "\xd9\x85\xd8\xb1\xd8\xac\xd8\xb9\x5f\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1"; // مرجع_متغير
+            case SadTypeKind::Any: return "\xd8\xa3\xd9\x8a"; // أي
+            case SadTypeKind::Never: return "\xd8\xa3\xd8\xa8\xd8\xaf\xd8\xa7"; // أبدا
+            case SadTypeKind::Unknown: return "\xd9\x85\xd8\xac\xd9\x87\xd9\x88\xd9\x84"; // مجهول
+            case SadTypeKind::Error: return "\xd8\xae\xd8\xb7\xd8\xa3"; // خطأ
+            case SadTypeKind::Future: return "\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84"; // مستقبل
+            case SadTypeKind::Generator: return "\xd9\x85\xd9\x88\xd9\x84\xd9\x91\xd8\xaf"; // مولّد
+            case SadTypeKind::Comprehension: return "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x8a\xd8\xb9\xd8\xa7\xd8\xa8"; // استيعاب
+            case SadTypeKind::Color: return "\xd9\x84\xd9\x88\xd9\x86"; // لون
+            case SadTypeKind::Widget: return "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1\x5f\xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9"; // عنصر_واجهة
+            case SadTypeKind::Window: return "\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9"; // نافذة
+            case SadTypeKind::Event: return "\xd8\xad\xd8\xaf\xd8\xab"; // حدث
+            case SadTypeKind::Vector: return "\xd9\x85\xd8\xaa\xd8\xac\xd9\x87"; // متجه
+            case SadTypeKind::Null: return "\xd8\xb9\xd8\xaf\xd9\x85"; // عدم
+            case SadTypeKind::Point: return "\xd9\x86\xd9\x82\xd8\xb7\xd8\xa9"; // نقطة
+            case SadTypeKind::Rect: return "\xd9\x85\xd8\xb3\xd8\xaa\xd8\xb7\xd9\x8a\xd9\x84"; // مستطيل
+            default: return "\xd9\x85\xd8\xac\xd9\x87\xd9\x88\xd9\x84"; // مجهول
+            }
+        }
+
     } // namespace Types
 } // namespace Sad

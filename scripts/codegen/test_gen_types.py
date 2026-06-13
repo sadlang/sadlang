@@ -70,6 +70,21 @@ def test_emitted_enum_order_matches_yaml():
     assert emitted == [t["kind"] for t in types]
 
 
+def test_arabic_name_function_emitted():
+    # (AR) دالة أسماء نوع() المولَّدة — مصدر حقيقة واحد للمحرّكين. تتحقّق من:
+    #      وجود الدالة، وتطبيق typeof_ar فوق word (Class/Struct → كائن لا صنف/بنية).
+    # (EN) Generated نوع() name function — one SoT for both engines. Asserts the
+    #      function exists and typeof_ar overrides word (Class/Struct → كائن).
+    types = _types()
+    header = emit_header(types)
+    assert "sadTypeKindArabicName" in header
+    # (AR) رقم (word) لـInteger، وكائن (typeof_ar) لـClass — مُرمَّزة UTF-8 بـ\x
+    word_int = "".join(f"\\x{b:02x}" for b in "رقم".encode("utf-8"))
+    typeof_class = "".join(f"\\x{b:02x}" for b in "كائن".encode("utf-8"))
+    assert f"case SadTypeKind::Integer: return \"{word_int}\"" in header
+    assert f"case SadTypeKind::Class: return \"{typeof_class}\"" in header
+
+
 @pytest.mark.skipif(not GEN_HEADER.exists(), reason="الترويسة المُولَّدة غير موجودة")
 def test_generated_header_in_sync_with_yaml():
     types = _types()
