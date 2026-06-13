@@ -116,7 +116,13 @@ namespace Sad
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "create_future" || funcName == "\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")
                 {
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    // (AR) [S-TS-P4] نوع النتيجة Future (لا Integer) كي يُرجع نوع(مستقبل())=«مستقبل»
+                    //      مطابقةً للمفسّر. التمثيل يبقى i64 (mapSIRType(Future)→i64: معرّف
+                    //      المستقبل عدد)، وإرسال الطرق يعتمد className="__future__" مستقلًّا.
+                    // (EN) [S-TS-P4] Tag result as Future (not Integer) so typeof=«مستقبل»,
+                    //      matching the interpreter. Representation stays i64 (future-id), and
+                    //      method dispatch keys on className="__future__" independently.
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Future);
                     SIRInstruction inst(SIROpcode::ASYNC_CREATE_FUTURE);
                     inst.result = resultOp;
                     if (b_.currentBlock_)
@@ -126,7 +132,7 @@ namespace Sad
 #endif
                     // (AR) [Fix BF-04] تعليم النتيجة بأنها مستقبل لدعم dot-syntax
                     // (EN) [Fix BF-04] Mark result as future for dot-syntax method dispatch
-                    BuildResult res(resultReg, SadTypeKind::Integer);
+                    BuildResult res(resultReg, SadTypeKind::Future);
                     res.className = "__future__";
                     return res;
                 }
