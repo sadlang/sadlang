@@ -221,7 +221,7 @@ def run_dual_execution(args) -> dict:
     """(AR) يُشغّل runner.py على rules_matrix ويُرجع تقرير JSON المُحلَّل."""
     cmd = [sys.executable, str(RUNNER), "--dir", "rules_matrix", "--report"]
     if args.interpreter:
-        cmd += ["--interpreter", args.interpreter]
+        cmd += ["--interp", args.interpreter]   # (AR) runner.py يستخدم --interp لا --interpreter
     if args.compiler:
         cmd += ["--compiler", args.compiler]
     print(f"▶ {' '.join(cmd)}\n")
