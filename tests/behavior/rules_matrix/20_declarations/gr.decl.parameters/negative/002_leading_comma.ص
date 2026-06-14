@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: فاصلة بادئة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د(،أ) ارجع أ نهاية
+اطبع_سطر(د(1))

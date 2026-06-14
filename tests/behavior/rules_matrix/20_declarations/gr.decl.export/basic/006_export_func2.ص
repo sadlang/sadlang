@@ -1,0 +1,8 @@
+# @rule: gr.decl.export
+# @description: تصدير دالة أخرى
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+صدّر دالة ا() ارجع 1 نهاية
+اطبع_سطر(ا())

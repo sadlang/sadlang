@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: حافة 17
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 17
+
+دالة د17(س) ارجع س+17 نهاية
+اطبع_سطر(د17(0))

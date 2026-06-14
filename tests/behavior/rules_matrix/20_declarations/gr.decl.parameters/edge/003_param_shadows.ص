@@ -1,0 +1,9 @@
+# @rule: gr.decl.parameters
+# @description: معامل يظلّل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س=99
+دالة د(س) ارجع س نهاية
+اطبع_سطر(د(5))

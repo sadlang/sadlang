@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة ت(رقم س=5) ارجع س نهاية
+اطبع_سطر(ت())

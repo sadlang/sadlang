@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استيراد منصة
+# @priority: P1
+# @requires: اطبع_سطر, منصة
+# @expected: تم
+
+استورد منصة
+اطبع_سطر("تم")

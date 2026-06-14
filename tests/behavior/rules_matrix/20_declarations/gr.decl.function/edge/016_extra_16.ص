@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: حافة 16
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 16
+
+دالة د16(س) ارجع س+16 نهاية
+اطبع_سطر(د16(0))

@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: عادي + افتراضي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة د(أ، ب=1) ارجع أ+ب نهاية
+اطبع_سطر(د(9))

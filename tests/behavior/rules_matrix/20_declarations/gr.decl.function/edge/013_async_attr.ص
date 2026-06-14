@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: صفة غير_متزامن
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: معرّفة
+
+دالة جلب غير_متزامن() ارجع 1 نهاية
+اطبع_سطر("معرّفة")

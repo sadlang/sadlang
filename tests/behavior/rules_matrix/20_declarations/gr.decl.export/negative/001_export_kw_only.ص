@@ -1,0 +1,7 @@
+# @rule: gr.decl.export
+# @description: صدّر وحدها
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صدّر

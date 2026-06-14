@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معاملان
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة ج(أ،ب) ارجع أ+ب نهاية
+اطبع_سطر(ج(3،4))

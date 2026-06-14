@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معامل متغير ... غير مدعوم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة جمع(...أرقام) ارجع 0 نهاية
+اطبع_سطر(جمع(1،2))

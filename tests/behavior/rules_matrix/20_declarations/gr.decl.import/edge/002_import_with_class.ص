@@ -1,0 +1,11 @@
+# @rule: gr.decl.import
+# @description: استيراد مع صنف
+# @priority: P1
+# @requires: اطبع_سطر, رياضيات
+# @expected: 3
+
+استورد رياضيات
+صنف ع
+ متغير عام ق=3
+نهاية
+اطبع_سطر(ع().ق)

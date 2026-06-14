@@ -1,0 +1,9 @@
+# @rule: gr.decl.export
+# @description: تصدير ضمن برنامج
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+متغير س=1
+صدّر دالة د() ارجع س نهاية
+اطبع_سطر(د())

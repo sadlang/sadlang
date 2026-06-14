@@ -1,0 +1,9 @@
+# @rule: gr.decl.function
+# @description: جسم بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د()
+ اطبع_سطر("x")
+ اطبع_سطر("y")

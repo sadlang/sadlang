@@ -1,0 +1,10 @@
+# @rule: gr.decl.import
+# @description: ثلاثة استيرادات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+استورد رياضيات
+استورد نصوص
+استورد خرائط
+اطبع_سطر("تم")

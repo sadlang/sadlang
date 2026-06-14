@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable, gr.stmt.try
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+
+متغير ر="ب"
+حاول ارمي "ع" امسك خطأ ر="م" نهاية
+اطبع_سطر(ر)

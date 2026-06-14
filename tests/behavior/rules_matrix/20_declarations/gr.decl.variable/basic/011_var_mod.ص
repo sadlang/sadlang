@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: متغير = 10%3
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+متغير س = 10%3
+اطبع_سطر(س)

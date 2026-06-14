@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 16
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 16
+
+دالة د16() ارجع 16 نهاية
+اطبع_سطر(د16())

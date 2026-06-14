@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: تهيئة بثلاثي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+متغير س = 1>0 ؟ "ن" : "خ"
+اطبع_سطر(س)

@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: إضافي 36
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 36
+
+متغير س = 36
+اطبع_سطر(س)

@@ -1,0 +1,7 @@
+# @rule: gr.decl.function
+# @description: كلمة دالة وحدها
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة

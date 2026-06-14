@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable
+# @description: اسم رقمي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير 123 = 5

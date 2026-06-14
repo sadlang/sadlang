@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 22
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 22
+
+دالة د22() ارجع 22 نهاية
+اطبع_سطر(د22())

@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: إضافي استيراد
+# @priority: P1
+# @requires: اطبع_سطر, نصوص
+# @expected: ok
+
+استورد نصوص
+اطبع_سطر("ok")

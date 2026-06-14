@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: تُرجع مصفوفة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة د() ارجع [1،2،3] نهاية
+اطبع_سطر(طول(د()))

@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable
+# @description: عامل زائد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير س = 5 +

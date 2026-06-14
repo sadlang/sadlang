@@ -1,0 +1,10 @@
+# @rule: gr.decl.function, gr.stmt.while
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة ز(س) ارجع س+1 نهاية
+متغير ع=0
+بينما (ع<3) ع=ز(ع) نهاية
+اطبع_سطر(ع)

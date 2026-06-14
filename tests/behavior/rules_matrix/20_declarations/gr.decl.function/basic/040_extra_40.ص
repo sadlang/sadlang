@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 40
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 40
+
+دالة د40() ارجع 40 نهاية
+اطبع_سطر(د40())

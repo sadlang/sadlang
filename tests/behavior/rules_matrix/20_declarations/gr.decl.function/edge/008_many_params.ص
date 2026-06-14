@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معاملات كثيرة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+
+دالة م(أ،ب،ج،د،هـ) ارجع أ+ب+ج+د+هـ نهاية
+اطبع_سطر(م(1،2،3،4،5))

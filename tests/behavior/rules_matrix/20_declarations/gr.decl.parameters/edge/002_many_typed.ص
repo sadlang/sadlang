@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: معاملات بأنواع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ك
+
+دالة د(رقم أ، نص ب) ارجع ب نهاية
+اطبع_سطر(د(1،"ك"))

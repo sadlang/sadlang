@@ -1,0 +1,8 @@
+# @rule: gr.decl.extern
+# @description: خارجي بمعاملين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+خارجي دالة جمع(رقم، رقم)
+اطبع_سطر("تم")

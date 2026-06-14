@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: ثلاثة معاملات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+دالة م(أ،ب،ج) ارجع أ+ب+ج نهاية
+اطبع_سطر(م(1،2،3))

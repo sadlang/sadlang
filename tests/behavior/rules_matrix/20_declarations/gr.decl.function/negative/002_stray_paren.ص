@@ -1,0 +1,9 @@
+# @rule: gr.decl.function
+# @description: قوس شارد في الجسم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د()
+ ارجع )
+نهاية

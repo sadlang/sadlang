@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: حافة 35
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 35
+
+دالة د35(س) ارجع س+35 نهاية
+اطبع_سطر(د35(0))

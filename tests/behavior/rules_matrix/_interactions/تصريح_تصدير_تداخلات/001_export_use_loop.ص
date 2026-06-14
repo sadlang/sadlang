@@ -1,0 +1,8 @@
+# @rule: gr.decl.export, gr.stmt.for
+# @description: تداخل تصدير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n4
+
+صدّر دالة ض(س) ارجع س*2 نهاية
+لكل ن في [1،2] اطبع_سطر(ض(ن)) نهاية

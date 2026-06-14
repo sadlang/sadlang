@@ -1,0 +1,9 @@
+# @rule: gr.decl.extern
+# @description: خارجي ثم كود
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+خارجي دالة س(نص)
+متغير ق=5
+اطبع_سطر(ق)

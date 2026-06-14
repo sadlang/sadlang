@@ -1,0 +1,11 @@
+# @rule: gr.decl.function, gr.stmt.return
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة د(ن)
+ إذا (ن==0) ارجع 0 نهاية
+ ارجع ن+د(ن-1)
+نهاية
+اطبع_سطر(د(4))

@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 18
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 18
+
+دالة د18() ارجع 18 نهاية
+اطبع_سطر(د18())

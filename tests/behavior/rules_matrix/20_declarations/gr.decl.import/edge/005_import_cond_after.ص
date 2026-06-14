@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استيراد ثم شرط
+# @priority: P1
+# @requires: اطبع_سطر, رياضيات
+# @expected: ن
+
+استورد رياضيات
+إذا (صحيح) اطبع_سطر("ن") نهاية

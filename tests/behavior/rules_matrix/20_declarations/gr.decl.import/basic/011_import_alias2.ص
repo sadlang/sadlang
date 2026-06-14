@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: اسم مستعار آخر
+# @priority: P1
+# @requires: اطبع_سطر, أساسيات
+# @expected: تم
+
+استورد أساسيات كـ أس
+اطبع_سطر("تم")

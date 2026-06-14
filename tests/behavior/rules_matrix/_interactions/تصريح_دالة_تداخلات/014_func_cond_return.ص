@@ -1,0 +1,10 @@
+# @rule: gr.decl.function, gr.stmt.if
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -
+
+دالة إشارة(ن)
+ إذا (ن>=0) ارجع "+" وإلا ارجع "-" نهاية
+نهاية
+اطبع_سطر(إشارة(-1))

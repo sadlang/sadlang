@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable, gr.stmt.match
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+طابق(1) عندما 1: متغير ك=9 اطبع_سطر(ك) نهاية

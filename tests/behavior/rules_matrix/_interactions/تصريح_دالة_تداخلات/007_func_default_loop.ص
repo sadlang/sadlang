@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters, gr.stmt.for
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n2
+
+دالة ت(س=2) ارجع س نهاية
+لكل ن في [1،2] اطبع_سطر(ت()) نهاية

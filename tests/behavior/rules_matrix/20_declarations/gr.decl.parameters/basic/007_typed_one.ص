@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: معامل بنوع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة د(رقم س) ارجع س نهاية
+اطبع_سطر(د(7))

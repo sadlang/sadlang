@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: تهيئة بخريطة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+متغير خ = {"أ":1}
+اطبع_سطر(خ["أ"])

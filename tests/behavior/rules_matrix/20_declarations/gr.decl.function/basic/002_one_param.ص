@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معامل واحد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+دالة ض(س) ارجع س*2 نهاية
+اطبع_سطر(ض(4))

@@ -1,0 +1,10 @@
+# @rule: gr.decl.function, gr.stmt.try
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+
+دالة آمن(ن)
+ حاول إذا (ن==0) ارمي "ع" نهاية ارجع "س" امسك خطأ ارجع "م" نهاية
+نهاية
+اطبع_سطر(آمن(0))

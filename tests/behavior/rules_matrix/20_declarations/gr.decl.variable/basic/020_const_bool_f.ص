@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: ثابت = خطأ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: خطأ
+
+ثابت س = خطأ
+اطبع_سطر(س)

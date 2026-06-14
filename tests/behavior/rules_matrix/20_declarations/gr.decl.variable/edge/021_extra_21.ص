@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: حافة 21
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 21
+
+متغير أ = 21
+متغير ب = أ
+اطبع_سطر(ب)

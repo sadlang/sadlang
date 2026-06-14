@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable, gr.stmt.while
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+متغير س=1
+بينما (س<5) س=س*2 نهاية
+اطبع_سطر(س)

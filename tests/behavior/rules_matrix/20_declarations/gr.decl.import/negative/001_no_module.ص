@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استورد بلا وحدة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+استورد
+اطبع_سطر("x")

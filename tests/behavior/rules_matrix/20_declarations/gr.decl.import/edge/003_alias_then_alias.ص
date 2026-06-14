@@ -1,0 +1,9 @@
+# @rule: gr.decl.import
+# @description: اسمان مستعاران
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+استورد رياضيات كـ ر
+استورد نصوص كـ ن
+اطبع_سطر("تم")

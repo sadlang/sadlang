@@ -1,0 +1,10 @@
+# @rule: gr.decl.function
+# @description: حاول في الجسم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+
+دالة آمن()
+ حاول ارمي "ع" امسك خطأ ارجع "م" نهاية
+نهاية
+اطبع_سطر(آمن())

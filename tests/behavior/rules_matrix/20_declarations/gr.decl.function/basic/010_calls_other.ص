@@ -1,0 +1,9 @@
+# @rule: gr.decl.function
+# @description: تستدعي أخرى
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+دالة ز(س) ارجع س+1 نهاية
+دالة ض(س) ارجع ز(س)*2 نهاية
+اطبع_سطر(ض(3))

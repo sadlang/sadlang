@@ -1,0 +1,10 @@
+# @rule: gr.decl.import
+# @description: استيراد ثم جمل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+استورد رياضيات
+متغير أ=1
+متغير ب=2
+اطبع_سطر(أ+ب)

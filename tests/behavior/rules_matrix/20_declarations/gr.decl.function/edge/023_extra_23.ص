@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: حافة 23
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 23
+
+دالة د23(س) ارجع س+23 نهاية
+اطبع_سطر(د23(0))

@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: ثابت = "ص"
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ص
+
+ثابت س = "ص"
+اطبع_سطر(س)

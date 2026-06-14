@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استيراد خرائط
+# @priority: P1
+# @requires: اطبع_سطر, خرائط
+# @expected: تم
+
+استورد خرائط
+اطبع_سطر("تم")

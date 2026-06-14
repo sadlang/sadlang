@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: افتراضي بتعبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة ت(س=2+3) ارجع س نهاية
+اطبع_سطر(ت())

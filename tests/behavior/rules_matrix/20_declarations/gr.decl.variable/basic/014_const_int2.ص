@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: ثابت = 42
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 42
+
+ثابت س = 42
+اطبع_سطر(س)

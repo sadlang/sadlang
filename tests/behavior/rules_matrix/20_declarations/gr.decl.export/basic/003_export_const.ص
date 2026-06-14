@@ -1,0 +1,8 @@
+# @rule: gr.decl.export
+# @description: تصدير ثابت
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+صدّر ثابت ع = 7
+اطبع_سطر(ع)

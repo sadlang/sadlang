@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable, gr.stmt.match
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ا
+
+متغير س=2
+طابق(س) عندما 2: اطبع_سطر("ا") نهاية

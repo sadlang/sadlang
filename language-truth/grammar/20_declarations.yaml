@@ -1,0 +1,196 @@
+# ============================================================================
+# (AR) 20_declarations.yaml — قواعد التصريحات في لغة ص (طبقة التصريحات)
+# (EN) Declaration productions for the Sad grammar (declarations layer)
+# ----------------------------------------------------------------------------
+# (AR) المصدر: shared/parser/src/declarations/{parser_declarations,parser_modules}.cpp
+#      الطرفيات تُشير إلى المعجم (keywords.yaml). المرجِع الدلالي: alternatives.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: declarations
+
+description_ar: "التصريحات — متغير/ثابت/ساكن، دالة، معاملات، استيراد، تصدير، خارجي"
+description_en: "Declarations — var/const/static, function, parameters, import, export, extern"
+
+productions:
+
+  # ── تصريح متغير/ثابت/ساكن ─────────────────────────────────────────────
+  - id: gr.decl.variable
+    lhs: { nonterminal: VarDeclaration, name_ar: "تصريح متغير", name_en: variable_declaration }
+    ebnf: "VarDeclaration = ('متغير' | 'ثابت' | 'ساكن') [ Type ] Identifier [ '=' Expression ] ;"
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: KEYWORD_VAR, value: "متغير" }
+              - { kind: terminal, ref: KEYWORD_CONST, value: "ثابت" }
+              - { kind: terminal, ref: KEYWORD_STATIC, value: "ساكن" }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_ASSIGN, value: "=" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-034", "KW-RES-035", "KW-RES-036"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
+    ast_node: "VarDeclStmt"
+    description_ar: >
+      تصريح متغير قابل للتغيير (متغير)، ثابت غير قابل لإعادة الإسناد (ثابت)، أو ساكن.
+      اسم النوع اختياري قبل المعرّف (متغير رقم س)؛ التهيئة اختيارية.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
+    example: |
+      متغير س = 5
+      ثابت ع = 7
+      متغير رقم ك = 3
+
+  # ── إشارة نوع (مساعِدة) ────────────────────────────────────────────────
+  - id: gr.decl.type_ref
+    lhs: { nonterminal: TypeRef, name_ar: "إشارة نوع", name_en: type_reference }
+    ebnf: "TypeRef = ('رقم' | 'عشري' | 'نص' | 'منطقي' | 'مصفوفة' | 'خريطة' | 'أي' | Identifier) ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: IDENTIFIER, value: "<اسم نوع>" }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
+    description_ar: "اسم نوع مدمج أو معرّف صنف — يُلفظ كـIDENTIFIER (الأنواع غير محجوزة)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3 } }
+    example: |
+      متغير نص اسم = "ص"
+
+  # ── تصريح دالة ─────────────────────────────────────────────────────────
+  - id: gr.decl.function
+    lhs: { nonterminal: FunctionDeclaration, name_ar: "تصريح دالة", name_en: function_declaration }
+    ebnf: "FunctionDeclaration = 'دالة' Identifier '(' [ Parameters ] ')' Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.parameters } ] }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+    references: { keywords: ["KW-RES-001"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
+    ast_node: "FunctionDecl"
+    description_ar: >
+      تصريح دالة باسم ومعاملات وجسم. الصفة «غير_متزامن» تأتي بعد الاسم (سياقية).
+      ملاحظة: نوع الإرجاع بصيغة «-> نوع» غير مدعوم حالياً (ISSUE-023).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
+    example: |
+      دالة جمع(أ، ب)
+          ارجع أ + ب
+      نهاية
+
+  # ── المعاملات ──────────────────────────────────────────────────────────
+  - id: gr.decl.parameters
+    lhs: { nonterminal: Parameters, name_ar: "المعاملات", name_en: parameters }
+    ebnf: "Parameters = Parameter { ',' Parameter } ;  Parameter = [ Type ] Identifier [ '=' Expression ] ;"
+    alternatives:
+      - symbols:
+          - kind: repeat1
+            separator: OP_COMMA
+            children:
+              - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
+              - { kind: terminal, ref: IDENTIFIER }
+              - kind: optional
+                children:
+                  - { kind: terminal, ref: OP_ASSIGN, value: "=" }
+                  - { kind: nonterminal, ref: gr.expr.expression }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
+    description_ar: >
+      قائمة معاملات مفصولة بفواصل؛ يدعم النوع الاختياري (رقم س) والقيمة الافتراضية (س = 10).
+      ملاحظة: المعامل المتغير «...اسم» غير مدعوم في الدوال حالياً (ISSUE-022).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 20, edge: 15, negative: 5, interaction: 3 } }
+    example: |
+      دالة ت(رقم س، ب = 10)
+          ارجع س + ب
+      نهاية
+
+  # ── الاستيراد ──────────────────────────────────────────────────────────
+  - id: gr.decl.import
+    lhs: { nonterminal: ImportDeclaration, name_ar: "تصريح استيراد", name_en: import_declaration }
+    ebnf: >
+      ImportDeclaration = 'استورد' ModulePath [ 'كـ' Identifier ]
+                        | 'من' ModulePath 'استورد' (Identifier { ',' Identifier } | '*') ;
+    alternatives:
+      - label: "استيراد وحدة"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_IMPORT, value: "استورد" }
+          - { kind: terminal, ref: IDENTIFIER, value: "<وحدة>" }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_AS, value: "كـ" }
+              - { kind: terminal, ref: IDENTIFIER }
+      - label: "استيراد محدد من وحدة"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_FROM, value: "من" }
+          - { kind: terminal, ref: IDENTIFIER, value: "<وحدة>" }
+          - { kind: terminal, ref: KEYWORD_IMPORT, value: "استورد" }
+          - { kind: terminal, ref: IDENTIFIER, value: "<اسم|*>" }
+    references: { keywords: ["KW-RES-030", "KW-RES-031", "KW-RES-032"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_modules.cpp, function: "ParserCore::parseImportStmt" }
+    ast_node: "ImportStmt | FromImportStmt"
+    description_ar: >
+      استيراد وحدة كاملة (مع اسم مستعار اختياري «كـ»)، أو أسماء محددة عبر «من ... استورد».
+      ملاحظة: «من ... استورد» يفشل حالياً في بعض الحالات (ISSUE-024).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 12, edge: 8, negative: 4, interaction: 6 } }
+    example: |
+      استورد رياضيات
+      استورد رياضيات كـ ر
+
+  # ── التصدير ────────────────────────────────────────────────────────────
+  - id: gr.decl.export
+    lhs: { nonterminal: ExportDeclaration, name_ar: "تصريح تصدير", name_en: export_declaration }
+    ebnf: "ExportDeclaration = 'صدّر' Declaration ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_EXPORT, value: "صدّر" }
+          - { kind: nonterminal, ref: gr.program.declaration }
+    references: { keywords: ["KW-RES-033"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExportStmt" }
+    ast_node: "ExportStmt"
+    description_ar: "تصدير تصريح (دالة/صنف/متغير) من وحدة لإتاحته للاستيراد"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 3 } }
+    example: |
+      صدّر دالة جمع(أ، ب) ارجع أ + ب نهاية
+
+  # ── الربط الخارجي (FFI) ────────────────────────────────────────────────
+  - id: gr.decl.extern
+    lhs: { nonterminal: ExternDeclaration, name_ar: "تصريح خارجي", name_en: extern_declaration }
+    ebnf: "ExternDeclaration = 'خارجي' 'دالة' Identifier '(' [ Parameters ] ')' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجي" }
+          - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.parameters } ] }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+    references: { keywords: ["KW-RES-037", "KW-RES-001"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExternFunctionDecl" }
+    ast_node: "FunctionDecl"
+    description_ar: "ربط دالة خارجية (C/C++ ABI) — تصريح بلا جسم"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: true, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 1 }, notes_ar: "FFI قد لا يُنفَّذ مستقلاً بلا رمز خارجي" }
+    example: |
+      خارجي دالة printf(نص)

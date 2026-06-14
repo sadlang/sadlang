@@ -1,0 +1,9 @@
+# @rule: gr.decl.import
+# @description: استيرادان
+# @priority: P1
+# @requires: اطبع_سطر, رياضيات, نصوص
+# @expected: تم
+
+استورد رياضيات
+استورد نصوص
+اطبع_سطر("تم")

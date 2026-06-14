@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: تهيئة من متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+متغير أ = 7
+متغير ب = أ
+اطبع_سطر(ب)

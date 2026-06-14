@@ -1,0 +1,10 @@
+# @rule: gr.decl.export
+# @description: تصدير تعداد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+
+صدّر تعداد لون
+ أحمر
+نهاية
+اطبع_سطر(لون.أحمر)

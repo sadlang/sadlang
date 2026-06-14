@@ -1,0 +1,7 @@
+# @rule: gr.decl.export
+# @description: تصدير كلمة محجوزة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صدّر نهاية

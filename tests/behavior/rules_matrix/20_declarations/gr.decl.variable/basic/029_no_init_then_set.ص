@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: بلا تهيئة ثم إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير س
+س = 9
+اطبع_سطر(س)

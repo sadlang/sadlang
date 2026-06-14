@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: اسم مستعار قصير
+# @priority: P1
+# @requires: اطبع_سطر, أساسيات
+# @expected: تم
+
+استورد أساسيات كـ أ
+اطبع_سطر("تم")

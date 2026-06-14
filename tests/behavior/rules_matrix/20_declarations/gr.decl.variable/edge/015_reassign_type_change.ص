@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: تغيير القيمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: نص
+
+متغير س = 1
+س = "نص"
+اطبع_سطر(س)

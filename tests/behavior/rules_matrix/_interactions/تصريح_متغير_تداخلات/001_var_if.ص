@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable, gr.stmt.if
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س=5
+إذا (س>0)
+ اطبع_سطر(س)
+نهاية

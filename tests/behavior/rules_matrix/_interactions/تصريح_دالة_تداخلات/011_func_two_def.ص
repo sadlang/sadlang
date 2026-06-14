@@ -1,0 +1,9 @@
+# @rule: gr.decl.function, gr.stmt.expression
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة أ() ارجع 1 نهاية
+دالة ب() ارجع 2 نهاية
+اطبع_سطر(أ()+ب())

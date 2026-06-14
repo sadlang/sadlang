@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: 5 معاملات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+
+دالة د(ا،ب،ة،ت،ث) ارجع ا + ب + ة + ت + ث نهاية
+اطبع_سطر(د(1،2،3،4،5))

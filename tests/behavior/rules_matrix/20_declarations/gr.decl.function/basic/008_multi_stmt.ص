@@ -1,0 +1,12 @@
+# @rule: gr.decl.function
+# @description: جمل متعددة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+دالة د()
+ متغير س=1
+ س=س+1
+ ارجع س
+نهاية
+اطبع_سطر(د())

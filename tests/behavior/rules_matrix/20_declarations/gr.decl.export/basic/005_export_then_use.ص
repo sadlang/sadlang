@@ -1,0 +1,8 @@
+# @rule: gr.decl.export
+# @description: تصدير ثم استخدام
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+صدّر دالة ض(س) ارجع س*2 نهاية
+اطبع_سطر(ض(4))

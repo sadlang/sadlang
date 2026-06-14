@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable
+# @description: إسناد مزدوج
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير س = = 5

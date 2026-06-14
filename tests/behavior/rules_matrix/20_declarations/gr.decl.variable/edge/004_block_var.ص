@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: متغير داخل كتلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+إذا (صحيح)
+ متغير ك = 2
+ اطبع_سطر(ك)
+نهاية

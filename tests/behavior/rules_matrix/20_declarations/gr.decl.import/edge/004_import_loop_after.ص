@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استيراد ثم حلقة
+# @priority: P1
+# @requires: اطبع_سطر, رياضيات
+# @expected: 1\n2
+
+استورد رياضيات
+لكل ن في [1،2] اطبع_سطر(ن) نهاية

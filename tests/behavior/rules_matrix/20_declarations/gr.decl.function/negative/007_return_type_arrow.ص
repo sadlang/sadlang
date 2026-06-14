@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: نوع إرجاع -> غير مدعوم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة ت() -> رقم ارجع 5 نهاية
+اطبع_سطر(ت())

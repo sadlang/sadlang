@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: إعادة إسناد ثابت
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+ثابت ع = 7
+ع = 8

@@ -1,0 +1,9 @@
+# @rule: gr.decl.import, gr.decl.variable
+# @description: تداخل استيراد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+استورد نصوص
+متغير س=7
+اطبع_سطر(س)

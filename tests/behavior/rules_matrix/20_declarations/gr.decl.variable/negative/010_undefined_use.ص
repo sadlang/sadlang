@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable
+# @description: استخدام غير معرَّف
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(غير_موجود)

@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: بلا إرجاع صريح
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ت
+
+دالة د() اطبع_سطر("ت") نهاية
+د()

@@ -1,0 +1,9 @@
+# @rule: gr.decl.import
+# @description: استيراد ثم كود
+# @priority: P1
+# @requires: اطبع_سطر, رياضيات
+# @expected: 5
+
+استورد رياضيات
+متغير س=5
+اطبع_سطر(س)

@@ -1,0 +1,10 @@
+# @rule: gr.decl.parameters
+# @description: معامل في حلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n7
+
+دالة د(ن)
+ لكل ع في [1،ن] اطبع_سطر(ع) نهاية
+نهاية
+د(7)

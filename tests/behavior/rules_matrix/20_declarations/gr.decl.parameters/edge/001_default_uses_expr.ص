@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: افتراضي بتعبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+دالة د(س=3*2) ارجع س نهاية
+اطبع_سطر(د())

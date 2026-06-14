@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: اسم لاتيني
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+متغير xVal = 8
+اطبع_سطر(xVal)

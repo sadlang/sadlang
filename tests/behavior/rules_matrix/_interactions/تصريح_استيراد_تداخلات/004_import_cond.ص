@@ -1,0 +1,8 @@
+# @rule: gr.decl.import, gr.stmt.if
+# @description: تداخل استيراد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+استورد رياضيات
+إذا (1>0) اطبع_سطر("ن") نهاية

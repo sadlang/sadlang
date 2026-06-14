@@ -1,0 +1,8 @@
+# @rule: gr.decl.type_ref
+# @description: تصريح بنوع مصفوفة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير مصفوفة م = [1،2]
+اطبع_سطر(طول(م))

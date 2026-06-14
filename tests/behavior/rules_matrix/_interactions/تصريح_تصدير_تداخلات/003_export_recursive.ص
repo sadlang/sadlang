@@ -1,0 +1,11 @@
+# @rule: gr.decl.export, gr.stmt.return
+# @description: تداخل تصدير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 24
+
+صدّر دالة ع(ن)
+ إذا (ن<=1) ارجع 1 نهاية
+ ارجع ن*ع(ن-1)
+نهاية
+اطبع_سطر(ع(4))

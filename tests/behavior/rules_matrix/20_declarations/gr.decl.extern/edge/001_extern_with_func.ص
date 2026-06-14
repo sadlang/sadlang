@@ -1,0 +1,9 @@
+# @rule: gr.decl.extern
+# @description: خارجي مع دالة محلية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+خارجي دالة س(نص)
+دالة م() ارجع 1 نهاية
+اطبع_سطر(م())

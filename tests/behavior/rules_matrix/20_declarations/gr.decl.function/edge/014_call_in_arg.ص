@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: استدعاء كوسيط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة ز(س) ارجع س+1 نهاية
+اطبع_سطر(ز(ز(ز(0))))

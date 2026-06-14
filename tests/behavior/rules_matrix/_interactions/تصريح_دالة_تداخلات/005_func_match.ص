@@ -1,0 +1,10 @@
+# @rule: gr.decl.function, gr.stmt.match
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ص
+
+دالة سمّ(ن)
+ طابق(ن) عندما 0: ارجع "ص" افتراضي: ارجع "غ" نهاية
+نهاية
+اطبع_سطر(سمّ(0))

@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable
+# @description: متغير بلا اسم ولا قيمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير

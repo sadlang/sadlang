@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: سلسلة حسابات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير أ = 1
+متغير ب = أ + 1
+متغير ج = ب + 1
+اطبع_سطر(ج)

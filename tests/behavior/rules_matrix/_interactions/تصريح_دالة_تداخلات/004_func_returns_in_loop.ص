@@ -1,0 +1,10 @@
+# @rule: gr.decl.function, gr.stmt.for
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة أول(م)
+ لكل ن في م ارجع ن نهاية
+نهاية
+اطبع_سطر(أول([7،8]))

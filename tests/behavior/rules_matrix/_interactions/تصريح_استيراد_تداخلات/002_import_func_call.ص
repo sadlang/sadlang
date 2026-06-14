@@ -1,0 +1,9 @@
+# @rule: gr.decl.import, gr.decl.function
+# @description: تداخل استيراد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+استورد أساسيات
+دالة د() ارجع 5 نهاية
+اطبع_سطر(د())

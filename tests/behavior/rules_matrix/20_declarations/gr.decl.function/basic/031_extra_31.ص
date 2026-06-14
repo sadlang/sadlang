@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 31
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 31
+
+دالة د31() ارجع 31 نهاية
+اطبع_سطر(د31())

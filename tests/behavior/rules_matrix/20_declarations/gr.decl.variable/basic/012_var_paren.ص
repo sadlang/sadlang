@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: متغير = (1+2)*2
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير س = (1+2)*2
+اطبع_سطر(س)

@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معامل افتراضي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة ت(س=10) ارجع س نهاية
+اطبع_سطر(ت())

@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: تهيئة من دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة خمسة() ارجع 5 نهاية
+متغير س = خمسة()
+اطبع_سطر(س)

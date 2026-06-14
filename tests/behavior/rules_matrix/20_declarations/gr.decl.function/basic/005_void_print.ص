@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: دالة تطبع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أهلاً
+
+دالة ح() اطبع_سطر("أهلاً") نهاية
+ح()

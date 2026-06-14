@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 37
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 37
+
+دالة د37() ارجع 37 نهاية
+اطبع_سطر(د37())

@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: افتراضي بلا قيمة (ثانٍ)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د(أ، ب=) ارجع أ نهاية
+اطبع_سطر(د(1))

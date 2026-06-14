@@ -1,0 +1,8 @@
+# @rule: gr.decl.extern
+# @description: خارجي بلا معامل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+خارجي دالة الآن()
+اطبع_سطر("تم")

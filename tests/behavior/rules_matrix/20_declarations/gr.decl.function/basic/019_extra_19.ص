@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 19
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 19
+
+دالة د19() ارجع 19 نهاية
+اطبع_سطر(د19())

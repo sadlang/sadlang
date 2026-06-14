@@ -1,0 +1,9 @@
+# @rule: gr.decl.extern
+# @description: عدّة خارجية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+خارجي دالة أ(نص)
+خارجي دالة ب(رقم)
+اطبع_سطر("تم")

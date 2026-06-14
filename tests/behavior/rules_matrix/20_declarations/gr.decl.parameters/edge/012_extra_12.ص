@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: حافة 12
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 24
+
+دالة د(أ،ب) ارجع أ*ب نهاية
+اطبع_سطر(د(2،12))

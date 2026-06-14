@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: تجاوز الافتراضي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة ت(س=10) ارجع س نهاية
+اطبع_سطر(ت(3))

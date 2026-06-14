@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معامل بنوع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة ت(رقم س) ارجع س*2 نهاية
+اطبع_سطر(ت(5))

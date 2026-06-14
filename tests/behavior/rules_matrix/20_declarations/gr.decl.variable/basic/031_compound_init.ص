@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: تهيئة مركّبة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س = 2
+متغير ص = س * س + 1
+اطبع_سطر(ص)

@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: متغير عشري
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير عشري س = 2
+اطبع_سطر(س)

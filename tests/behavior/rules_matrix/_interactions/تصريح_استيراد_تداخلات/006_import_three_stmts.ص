@@ -1,0 +1,10 @@
+# @rule: gr.decl.import
+# @description: تداخل استيراد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+استورد رياضيات
+استورد نصوص
+متغير س=1
+اطبع_سطر(س)

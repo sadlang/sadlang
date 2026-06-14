@@ -1,0 +1,8 @@
+# @rule: gr.decl.export, gr.stmt.if
+# @description: تداخل تصدير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+صدّر متغير س=5
+إذا (س>0) اطبع_سطر(س) نهاية

@@ -1,0 +1,11 @@
+# @rule: gr.decl.variable
+# @description: تصريح داخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة د()
+ متغير م = 3
+ ارجع م
+نهاية
+اطبع_سطر(د())

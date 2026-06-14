@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: عدّة تصاريح
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير أ = 1
+متغير ب = 2
+اطبع_سطر(أ+ب)

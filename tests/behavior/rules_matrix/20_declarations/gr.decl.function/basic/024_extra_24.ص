@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: إضافي 24
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 24
+
+دالة د24() ارجع 24 نهاية
+اطبع_سطر(د24())

@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استيراد تأكيدات
+# @priority: P1
+# @requires: اطبع_سطر, تأكيدات
+# @expected: تم
+
+استورد تأكيدات
+اطبع_سطر("تم")

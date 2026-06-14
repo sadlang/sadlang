@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable, gr.stmt.if
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: كبير
+
+متغير س=5
+متغير ر= س>3 ؟ "ك":"ص"
+إذا (ر=="ك") اطبع_سطر("كبير") نهاية

@@ -1,0 +1,11 @@
+# @rule: gr.decl.function
+# @description: إرجاع مبكر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+
+دالة د(س)
+ إذا (س>0) ارجع "م" نهاية
+ ارجع "غ"
+نهاية
+اطبع_سطر(د(1))

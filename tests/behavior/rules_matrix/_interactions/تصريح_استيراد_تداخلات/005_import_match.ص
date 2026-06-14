@@ -1,0 +1,8 @@
+# @rule: gr.decl.import, gr.stmt.match
+# @description: تداخل استيراد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: و
+
+استورد رياضيات
+طابق(1) عندما 1: اطبع_سطر("و") نهاية

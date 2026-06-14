@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable, gr.decl.function
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+ثابت ث=10
+دالة د() ارجع ث نهاية
+اطبع_سطر(د())

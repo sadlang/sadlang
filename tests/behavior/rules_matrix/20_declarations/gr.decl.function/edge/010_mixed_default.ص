@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: معامل عادي وافتراضي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+
+دالة ت(أ،ب=10) ارجع أ+ب نهاية
+اطبع_سطر(ت(5))

@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: إعادة إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير س = 1
+س = 2
+اطبع_سطر(س)

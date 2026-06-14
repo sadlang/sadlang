@@ -1,0 +1,8 @@
+# @rule: gr.decl.type_ref
+# @description: تصريح بنوع نص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: س
+
+متغير نص م = "س"
+اطبع_سطر(م)

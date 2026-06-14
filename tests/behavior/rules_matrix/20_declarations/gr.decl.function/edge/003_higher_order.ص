@@ -1,0 +1,9 @@
+# @rule: gr.decl.function
+# @description: عالية الرتبة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة طبّق(د،ق) ارجع د(ق) نهاية
+دالة ز(س) ارجع س+1 نهاية
+اطبع_سطر(طبّق(ز،4))

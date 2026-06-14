@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: تُرجع نص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ص
+
+دالة ا() ارجع "ص" نهاية
+اطبع_سطر(ا())

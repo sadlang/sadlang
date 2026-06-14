@@ -1,0 +1,8 @@
+# @rule: gr.decl.function, gr.stmt.if
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+دالة موجب(س) ارجع س>0 نهاية
+إذا (موجب(5)) اطبع_سطر("ن") نهاية

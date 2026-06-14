@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: صفر معاملات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+دالة د() ارجع 1 نهاية
+اطبع_سطر(د())

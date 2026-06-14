@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: تصريح داخل حلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n4
+
+لكل ن في [1،2]
+ متغير ضعف = ن*2
+ اطبع_سطر(ضعف)
+نهاية

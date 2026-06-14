@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: تهيئة بدمج
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أب
+
+متغير س = "أ" + "ب"
+اطبع_سطر(س)

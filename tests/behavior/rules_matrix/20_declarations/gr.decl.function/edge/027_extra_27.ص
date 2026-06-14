@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: حافة 27
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 27
+
+دالة د27(س) ارجع س+27 نهاية
+اطبع_سطر(د27(0))

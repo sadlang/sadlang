@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: تُرجع منطقي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+دالة ا() ارجع صحيح نهاية
+اطبع_سطر(ا())

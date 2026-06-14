@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: 3 معاملات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+دالة د(ا،ب،ة) ارجع ا + ب + ة نهاية
+اطبع_سطر(د(1،2،3))

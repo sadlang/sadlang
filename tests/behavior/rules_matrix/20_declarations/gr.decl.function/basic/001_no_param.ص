@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: دالة بلا معاملات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة ت() ارجع 5 نهاية
+اطبع_سطر(ت())

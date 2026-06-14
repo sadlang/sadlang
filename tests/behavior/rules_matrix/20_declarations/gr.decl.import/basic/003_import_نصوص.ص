@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: استيراد نصوص
+# @priority: P1
+# @requires: اطبع_سطر, نصوص
+# @expected: تم
+
+استورد نصوص
+اطبع_سطر("تم")

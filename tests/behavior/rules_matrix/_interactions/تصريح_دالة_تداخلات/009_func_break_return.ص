@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.break
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة جد(م)
+ لكل ن في م
+  إذا (ن>2) ارجع ن نهاية
+ نهاية
+ ارجع -1
+نهاية
+اطبع_سطر(جد([1،2،3]))

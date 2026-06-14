@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: متغير = "مرحبا"
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+متغير س = "مرحبا"
+اطبع_سطر(س)

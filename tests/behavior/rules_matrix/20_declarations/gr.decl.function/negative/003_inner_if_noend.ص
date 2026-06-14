@@ -1,0 +1,10 @@
+# @rule: gr.decl.function
+# @description: إذا داخلية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د()
+ إذا (1>0)
+  ارجع 1
+نهاية

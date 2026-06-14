@@ -1,0 +1,9 @@
+# @rule: gr.decl.function
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 11
+
+دالة طبّق(د) ارجع د(10) نهاية
+دالة نص_(س) ارجع س+1 نهاية
+اطبع_سطر(طبّق(نص_))

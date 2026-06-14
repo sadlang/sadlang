@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable, gr.stmt.for
+# @description: تداخل متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10\n20
+
+متغير م=[10،20]
+لكل ن في م اطبع_سطر(ن) نهاية

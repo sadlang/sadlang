@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: إضافي 18
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 18
+
+دالة د(س) ارجع س نهاية
+اطبع_سطر(د(18))

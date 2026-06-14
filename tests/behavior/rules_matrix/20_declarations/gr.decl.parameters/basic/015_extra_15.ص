@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: إضافي 15
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+
+دالة د(س) ارجع س نهاية
+اطبع_سطر(د(15))

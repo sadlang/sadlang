@@ -1,0 +1,8 @@
+# @rule: gr.decl.extern
+# @description: خارجي بأنواع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+خارجي دالة ج(رقم س)
+اطبع_سطر("تم")

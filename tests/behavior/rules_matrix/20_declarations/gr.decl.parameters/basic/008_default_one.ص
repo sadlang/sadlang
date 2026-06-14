@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: معامل افتراضي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+
+دالة د(س=4) ارجع س نهاية
+اطبع_سطر(د())

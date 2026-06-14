@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: اسم طويل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير عدد_العناصر_الكلي = 10
+اطبع_سطر(عدد_العناصر_الكلي)

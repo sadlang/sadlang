@@ -1,0 +1,12 @@
+# @rule: gr.decl.parameters, gr.stmt.for
+# @description: تداخل دالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة مجموع(م)
+ متغير س=0
+ لكل ن في م س=س+ن نهاية
+ ارجع س
+نهاية
+اطبع_سطر(مجموع([1،2،3،4]))

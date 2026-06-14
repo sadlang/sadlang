@@ -1,0 +1,11 @@
+# @rule: gr.decl.function
+# @description: دالة متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة خ()
+ دالة د() ارجع 3 نهاية
+ ارجع د()
+نهاية
+اطبع_سطر(خ())

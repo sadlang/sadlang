@@ -1,0 +1,10 @@
+# @rule: gr.decl.function
+# @description: داخلية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة خ()
+ دالة د()
+  ارجع 1
+نهاية

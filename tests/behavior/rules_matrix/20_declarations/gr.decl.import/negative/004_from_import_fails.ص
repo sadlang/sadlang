@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: من...استورد (ISSUE-024)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+من رياضيات استورد جذر
+اطبع_سطر(جذر(9))

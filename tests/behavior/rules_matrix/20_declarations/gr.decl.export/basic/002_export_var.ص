@@ -1,0 +1,8 @@
+# @rule: gr.decl.export
+# @description: تصدير متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+صدّر متغير س = 5
+اطبع_سطر(س)

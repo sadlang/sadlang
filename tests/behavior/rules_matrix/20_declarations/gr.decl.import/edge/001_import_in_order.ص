@@ -1,0 +1,9 @@
+# @rule: gr.decl.import
+# @description: استيراد قبل تعريف
+# @priority: P1
+# @requires: اطبع_سطر, رياضيات
+# @expected: 1
+
+استورد رياضيات
+دالة د() ارجع 1 نهاية
+اطبع_سطر(د())

@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: حافة 32
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 32
+
+دالة د32(س) ارجع س+32 نهاية
+اطبع_سطر(د32(0))

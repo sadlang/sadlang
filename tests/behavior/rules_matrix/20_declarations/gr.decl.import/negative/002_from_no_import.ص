@@ -1,0 +1,8 @@
+# @rule: gr.decl.import
+# @description: من بلا استورد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+من رياضيات جذر
+اطبع_سطر("x")

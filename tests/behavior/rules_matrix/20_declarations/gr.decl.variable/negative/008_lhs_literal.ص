@@ -1,0 +1,7 @@
+# @rule: gr.decl.variable
+# @description: إسناد لحرفي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+5 = س

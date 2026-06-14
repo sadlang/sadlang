@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters
+# @description: معامل متغير غير مدعوم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د(...ك) ارجع 0 نهاية
+اطبع_سطر(د(1))
