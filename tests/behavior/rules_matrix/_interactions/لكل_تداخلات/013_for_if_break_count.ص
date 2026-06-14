@@ -1,0 +1,12 @@
+# @rule: gr.stmt.for, gr.stmt.if, gr.stmt.break, gr.stmt.expression
+# @description: لكل + إذا + توقف + عدّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ك=0
+لكل ن في [1،2،3،4،5]
+    إذا (ن>3) توقف نهاية
+    ك=ك+1
+نهاية
+اطبع_سطر(ك)

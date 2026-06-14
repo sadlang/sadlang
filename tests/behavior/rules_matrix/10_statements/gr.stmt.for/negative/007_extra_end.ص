@@ -1,9 +1,10 @@
 # @rule: gr.stmt.for
-# @description: لكل بلا في
+# @description: نهاية زائدة
 # @priority: P1
 # @requires: اطبع_سطر
 # @expect_error
 
-لكل ن [1،2]
+لكل ن في [1]
     اطبع_سطر(ن)
+نهاية
 نهاية

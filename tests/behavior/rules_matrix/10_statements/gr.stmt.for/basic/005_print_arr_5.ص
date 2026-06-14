@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: طباعة عناصر [0، 1، 2، 3]
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1\n2\n3
+
+لكل ن في [0، 1، 2، 3]
+    اطبع_سطر(ن)
+نهاية

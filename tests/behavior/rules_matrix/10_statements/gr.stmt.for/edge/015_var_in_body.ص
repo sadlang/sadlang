@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: متغير في الجسم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n4\n6
+
+لكل ن في [1،2،3]
+    متغير ضعف=ن*2
+    اطبع_سطر(ضعف)
+نهاية

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: مصفوفة من متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n3
+
+متغير ق=[1،2،3]
+لكل ن في ق
+    اطبع_سطر(ن)
+نهاية

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: دمج لكل عنصر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: حرف:أ\nحرف:ب
+
+لكل ك في ["أ"، "ب"]
+    اطبع_سطر("حرف:" + ك)
+نهاية

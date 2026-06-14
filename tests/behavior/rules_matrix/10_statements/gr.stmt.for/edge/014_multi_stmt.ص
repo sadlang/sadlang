@@ -1,8 +1,10 @@
 # @rule: gr.stmt.for
-# @description: لكل بلا نهاية
+# @description: جسم بجمل متعددة
 # @priority: P1
 # @requires: اطبع_سطر
-# @expect_error
+# @expected: أ\n1\nأ\n2
 
 لكل ن في [1،2]
+    اطبع_سطر("أ")
     اطبع_سطر(ن)
+نهاية

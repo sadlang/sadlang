@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: الخارجية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+لكل ا في [1]
+    لكل ب في [1]
+        اطبع_سطر(ب)
+    نهاية

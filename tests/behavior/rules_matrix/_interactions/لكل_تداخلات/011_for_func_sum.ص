@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for, gr.stmt.return
+# @description: لكل + دالة + إرجاع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n4\n9
+
+دالة مربع(س) ارجع س*س نهاية
+لكل ن في [1،2،3]
+    اطبع_سطر(مربع(ن))
+نهاية

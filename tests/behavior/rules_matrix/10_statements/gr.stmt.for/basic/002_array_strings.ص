@@ -1,9 +1,0 @@
-# @rule: gr.stmt.for
-# @description: لكل على مصفوفة نصوص
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: أ\nب
-
-لكل ك في ["أ"، "ب"]
-    اطبع_سطر(ك)
-نهاية

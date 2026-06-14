@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: جمع 3 عناصر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير م=0
+لكل ن في [1،2،3]
+    م=م+ن
+نهاية
+اطبع_سطر(م)

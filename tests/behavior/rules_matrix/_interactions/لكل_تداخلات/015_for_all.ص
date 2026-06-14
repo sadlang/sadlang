@@ -1,0 +1,17 @@
+# @rule: gr.stmt.for, gr.stmt.if, gr.stmt.return, gr.stmt.while
+# @description: لكل مع عدّة قواعد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة عدّ_حتى(م،حد)
+    متغير ك=0
+    لكل ن في م
+        إذا (ك>=حد)
+            ارجع ك
+        نهاية
+        ك=ك+1
+    نهاية
+    ارجع ك
+نهاية
+اطبع_سطر(عدّ_حتى([1،2،3،4،5]،3))

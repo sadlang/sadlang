@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: طباعة عناصر [10، 20، 30]
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10\n20\n30
+
+لكل ن في [10، 20، 30]
+    اطبع_سطر(ن)
+نهاية

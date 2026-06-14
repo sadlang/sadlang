@@ -1,9 +1,9 @@
 # @rule: gr.stmt.for
-# @description: لكل بلا في
+# @description: لكل بلا مجموعة
 # @priority: P1
 # @requires: اطبع_سطر
 # @expect_error
 
-لكل ن [1،2]
+لكل ن في
     اطبع_سطر(ن)
 نهاية

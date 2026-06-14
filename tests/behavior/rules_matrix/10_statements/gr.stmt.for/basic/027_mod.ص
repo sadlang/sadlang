@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: باقي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n0
+
+لكل ن في [10،11،12]
+    اطبع_سطر(ن%3)
+نهاية

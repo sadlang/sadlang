@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for, gr.stmt.if
+# @description: لكل + إذا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4\n5
+
+لكل ن في [1،2،3،4،5]
+    إذا (ن>3)
+        اطبع_سطر(ن)
+    نهاية
+نهاية

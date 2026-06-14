@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: سالب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -1\n-2\n-3
+
+لكل ن في [1،2،3]
+    اطبع_سطر(0-ن)
+نهاية

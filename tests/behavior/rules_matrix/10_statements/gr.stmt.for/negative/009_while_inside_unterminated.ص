@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: بينما داخلية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+لكل ن في [1]
+    بينما (صحيح)
+        توقف
+نهاية

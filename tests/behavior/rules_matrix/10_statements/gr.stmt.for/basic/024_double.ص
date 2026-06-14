@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: مضاعفة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2\n4\n6
+
+لكل ن في [1،2،3]
+    اطبع_سطر(ن*2)
+نهاية

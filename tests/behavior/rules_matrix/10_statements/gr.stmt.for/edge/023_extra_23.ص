@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: حافة إضافية 23
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+لكل ن في [1،2،3]
+    إذا (ن==3)
+        اطبع_سطر(ن)
+    نهاية
+نهاية

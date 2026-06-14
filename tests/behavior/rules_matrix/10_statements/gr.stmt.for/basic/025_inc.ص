@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: زيادة 1
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 11\n21
+
+لكل ن في [10،20]
+    اطبع_سطر(ن+1)
+نهاية

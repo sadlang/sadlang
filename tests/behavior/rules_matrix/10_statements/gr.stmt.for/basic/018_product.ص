@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: ضرب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 24
+
+متغير م=1
+لكل ن في [1،2،3،4]
+    م=م*ن
+نهاية
+اطبع_سطر(م)

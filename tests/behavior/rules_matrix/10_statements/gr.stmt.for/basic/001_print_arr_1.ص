@@ -1,9 +1,9 @@
 # @rule: gr.stmt.for
-# @description: لكل بلا في
+# @description: طباعة عناصر [1، 2، 3]
 # @priority: P1
 # @requires: اطبع_سطر
-# @expect_error
+# @expected: 1\n2\n3
 
-لكل ن [1،2]
+لكل ن في [1، 2، 3]
     اطبع_سطر(ن)
 نهاية

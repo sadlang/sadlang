@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: مصفوفة بقيم متغيّرة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5\n6\n7
+
+متغير ق=5
+لكل ن في [ق، ق+1، ق+2]
+    اطبع_سطر(ن)
+نهاية

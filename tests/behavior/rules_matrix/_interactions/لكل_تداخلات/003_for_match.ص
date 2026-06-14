@@ -1,0 +1,14 @@
+# @rule: gr.stmt.for, gr.stmt.match
+# @description: لكل + طابق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ص\nغ\nغ
+
+لكل ن في [0،1،2]
+    طابق (ن)
+        عندما 0:
+            اطبع_سطر("ص")
+        افتراضي:
+            اطبع_سطر("غ")
+    نهاية
+نهاية

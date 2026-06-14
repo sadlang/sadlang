@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: طباعة عناصر [11، 22، 33، 44]
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 11\n22\n33\n44
+
+لكل ن في [11، 22، 33، 44]
+    اطبع_سطر(ن)
+نهاية

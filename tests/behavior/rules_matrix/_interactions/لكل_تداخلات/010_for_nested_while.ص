@@ -1,0 +1,13 @@
+# @rule: gr.stmt.for, gr.stmt.while
+# @description: لكل + بينما متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n1
+
+لكل ن في [1،2]
+    متغير ع=ن
+    بينما (ع>0)
+        اطبع_سطر(ع)
+        ع=ع-1
+    نهاية
+نهاية

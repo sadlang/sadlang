@@ -1,0 +1,13 @@
+# @rule: gr.stmt.for
+# @description: لكل + حاول
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2
+
+لكل ن في [1،2]
+    حاول
+        ارمي "ع"
+    امسك خطأ
+        اطبع_سطر(ن)
+    نهاية
+نهاية

@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: طابق داخلية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+لكل ن في [1]
+    طابق (ن)
+        عندما 1:
+            اطبع_سطر(ن)
+نهاية

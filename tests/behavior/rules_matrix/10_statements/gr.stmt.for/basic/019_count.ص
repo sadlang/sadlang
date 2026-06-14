@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: عدّ عناصر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير ك=0
+لكل ن في [5،5،5،5،5]
+    ك=ك+1
+نهاية
+اطبع_سطر(ك)

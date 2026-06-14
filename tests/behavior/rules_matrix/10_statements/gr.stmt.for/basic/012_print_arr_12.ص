@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: طباعة عناصر [8، 6، 4، 2]
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8\n6\n4\n2
+
+لكل ن في [8، 6، 4، 2]
+    اطبع_سطر(ن)
+نهاية

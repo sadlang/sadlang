@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: تربيع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4\n9\n16
+
+لكل ن في [2،3،4]
+    اطبع_سطر(ن*ن)
+نهاية

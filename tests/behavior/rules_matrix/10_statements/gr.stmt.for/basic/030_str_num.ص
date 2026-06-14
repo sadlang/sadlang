@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: تحويل لنص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: #1\n#2
+
+لكل ن في [1،2]
+    اطبع_سطر("#" + نص(ن))
+نهاية

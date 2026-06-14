@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: جمع كبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 100
+
+متغير م=0
+لكل ن في [10،20،30،40]
+    م=م+ن
+نهاية
+اطبع_سطر(م)

@@ -109,7 +109,7 @@ productions:
     description_ar: "حلقة تكرار على مصفوفة/مدى/خريطة؛ تدعم التفكيك «لكل فهرس، عنصر في ...» (بلا أقواس)"
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       لكل ن في [1، 2، 3]
           اطبع_سطر(ن)

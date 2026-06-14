@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: جمع بالطول
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير م=0
+لكل ن في [2،2،2]
+    م=م+ن
+نهاية
+اطبع_سطر(م)

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for, gr.stmt.break
+# @description: لكل + توقف
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2
+
+لكل ن في [1،2،3،4]
+    إذا (ن==3) توقف نهاية
+    اطبع_سطر(ن)
+نهاية

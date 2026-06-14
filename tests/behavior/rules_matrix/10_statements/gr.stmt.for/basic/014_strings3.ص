@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: ثلاثة نصوص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: س\nص\nع
+
+لكل ك في ["س"، "ص"، "ع"]
+    اطبع_سطر(ك)
+نهاية

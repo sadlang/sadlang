@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: إضافة ثابت
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 101\n102
+
+ثابت ك=100
+لكل ن في [1،2]
+    اطبع_سطر(ن+ك)
+نهاية

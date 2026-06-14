@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for, gr.stmt.expression
+# @description: لكل + إسناد مركّب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير م=0
+لكل ن في [1،2،3،4]
+    م += ن
+نهاية
+اطبع_سطر(م)
