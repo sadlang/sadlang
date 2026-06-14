@@ -308,6 +308,74 @@ def write_evidence(matrix: dict, counts: dict) -> None:
     print(f"\n📝 أدلة (أثر بناء): {EVIDENCE_OUT.relative_to(ROOT)}")
 
 
+# (AR) أسماء الحالات بالعربية للتقرير المقروء
+_STATUS_AR = {
+    "PASS": "تطابق ✅", "FAIL_OUTPUT": "تباعد المخرجات ⚠️", "FAIL_INTERP": "فشل المفسر ❌",
+    "FAIL_COMPILE": "فشل الترجمة ❌", "FAIL_RUNTIME": "تعطّل التنفيذي ❌",
+    "FAIL_TIMEOUT": "تجاوز المهلة ⏱", "SKIP": "تخطٍّ", "NOT_RUN": "لم يُشغَّل",
+}
+_VERDICT_AR = {
+    "dual_ok": "مطلقة (مفسر≡مترجم)", "compiler_gap": "فجوة مترجم", "interp_only": "مفسر فقط (مُعفاة)",
+    "broken": "مكسورة", "no_tests": "بلا اختبارات", "not_run": "لم تُشغَّل",
+}
+
+
+def write_markdown(matrix: dict, counts: dict, report: dict, out_path: Path) -> None:
+    """(AR) يكتب تقريراً بشريّاً (Markdown) يُظهر مقارنة المفسر بالمترجم لكل قاعدة + التباعدات.
+    (EN) Write a human-readable Markdown report of the interpreter-vs-compiler comparison.
+    """
+    import time
+    by_name = {Path(e["file"]).name: e for e in report.get("tests", [])}
+    total = len(report.get("tests", []))
+    passed = sum(1 for e in report.get("tests", []) if e["status"] == "PASS")
+    # (AR) جمع كل التباعدات/الإخفاقات (هنا «نعرف الاختلافات لنصحّحها»)
+    diffs = [e for e in report.get("tests", [])
+             if e["status"] not in ("PASS", "SKIP")]
+
+    L = []
+    L.append("# تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم")
+    L.append("")
+    L.append("> **مُولَّد آلياً** بـ`scripts/codegen/check_grammar_conformance.py --run`. لا يُحرَّر يدوياً.")
+    L.append(f"> التوليد: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    L.append("")
+    L.append("كل اختبار يُشغَّل عبر **المفسر** (sad-run) و**المترجم** (sadc) ويُقارَن مخرجاهما:")
+    L.append("`تطابق` = المخرجان متطابقان؛ `تباعد` = اختلفا (هنا يظهر ما يجب تصحيحه).")
+    L.append("")
+    L.append("## الملخص")
+    L.append("")
+    L.append(f"- إجمالي الاختبارات: **{total}** — تطابق مزدوج: **{passed}** — تباعد/إخفاق: **{len(diffs)}**")
+    sm = {v: sum(1 for m in matrix.values() if m["verdict"] == v)
+          for v in ("dual_ok", "compiler_gap", "interp_only", "broken", "no_tests", "not_run")}
+    L.append(f"- القواعد: {len(matrix)} — مطلقة: **{sm['dual_ok']}** · "
+             f"فجوة مترجم: {sm['compiler_gap']} · مكسورة: {sm['broken']} · بلا اختبارات: {sm['no_tests']}")
+    L.append("")
+    # ── قسم التباعدات (الأهم: «كيف نعرف الاختلافات لنصحّحها») ──
+    L.append("## التباعدات والإخفاقات (للتصحيح)")
+    L.append("")
+    if not diffs:
+        L.append("✅ **لا تباعد** — كل الاختبارات أعطت مخرجاً متطابقاً في المفسر والمترجم.")
+    else:
+        L.append("| الاختبار | الحالة | مخرج المفسر | مخرج المترجم |")
+        L.append("|---|---|---|---|")
+        for e in diffs:
+            io = (e.get("interp_output", "") or "").replace("\n", "⏎")[:60]
+            co = (e.get("compiler_output", "") or "").replace("\n", "⏎")[:60]
+            L.append(f"| `{e['file']}` | {_STATUS_AR.get(e['status'], e['status'])} | `{io}` | `{co}` |")
+    L.append("")
+    # ── جدول القواعد ──
+    L.append("## المقارنة المزدوجة لكل قاعدة")
+    L.append("")
+    L.append("| القاعدة | الطبقة | اختبارات | الحُكم |")
+    L.append("|---|---|---|---|")
+    for rid, m in sorted(matrix.items()):
+        tot = sum(counts.get(rid, {}).values())
+        L.append(f"| `{rid}` | {m['layer']} | {tot} | {_VERDICT_AR.get(m['verdict'], m['verdict'])} |")
+    L.append("")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(L), encoding="utf-8")
+    print(f"📄 تقرير مقروء: {out_path}")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════════
 # ⑤ نقطة الدخول
 # ═══════════════════════════════════════════════════════════════════════════════════
@@ -318,6 +386,8 @@ def main() -> int:
     ap.add_argument("--run", action="store_true", help="تشغيل التنفيذ المزدوج + توليد الأدلة")
     ap.add_argument("--interpreter", help="مسار مفسر مخصص")
     ap.add_argument("--compiler", help="مسار مترجم مخصص")
+    ap.add_argument("--report-md", dest="report_md",
+                    help="مسار كتابة تقرير Markdown مقروء (مقارنة المفسر/المترجم + التباعدات)")
     args = ap.parse_args()
 
     productions = load_productions()
@@ -344,6 +414,8 @@ def main() -> int:
         if report:
             matrix = derive_matrix(productions, records, report)
             write_evidence(matrix, counts)
+            if args.report_md:
+                write_markdown(matrix, counts, report, Path(args.report_md))
             bad = sorted(r for r, m in matrix.items()
                          if m["verdict"] in ("broken", "compiler_gap", "not_run"))
             for rid in bad:
