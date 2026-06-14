@@ -60,6 +60,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 GRAMMAR_DIR = ROOT / "language-truth" / "grammar"
 RULES_MATRIX_DIR = ROOT / "tests" / "behavior" / "rules_matrix"
 RUNNER = ROOT / "tests" / "runner.py"
+# (AR) منطقة الاختبارات الكاشفة للثغرات — منفصلة عن البوّابات (لا تُفشِل البناء)
+GAPS_DIR = ROOT / "tests" / "behavior" / "grammar_gaps"
 DUAL_REPORT = ROOT / "build" / "_dual_report.json"
 # (AR) الأدلة أثر بناء — مثل تقرير runner تماماً (build/ متجاهَل في git)
 EVIDENCE_OUT = ROOT / "build" / "_grammar_conformance.json"
@@ -217,9 +219,9 @@ def check_coverage_and_linkage(productions: dict, records: list[dict]):
 # ④ البوّابة ③: التنفيذ المزدوج عبر runner.py
 # ═══════════════════════════════════════════════════════════════════════════════════
 
-def run_dual_execution(args) -> dict:
-    """(AR) يُشغّل runner.py على rules_matrix ويُرجع تقرير JSON المُحلَّل."""
-    cmd = [sys.executable, str(RUNNER), "--dir", "rules_matrix", "--report"]
+def run_dual_execution(args, subdir: str = "rules_matrix") -> dict:
+    """(AR) يُشغّل runner.py على مجلد فرعي ويُرجع تقرير JSON المُحلَّل."""
+    cmd = [sys.executable, str(RUNNER), "--dir", subdir, "--report"]
     if args.interpreter:
         cmd += ["--interp", args.interpreter]   # (AR) runner.py يستخدم --interp لا --interpreter
     if args.compiler:
@@ -320,7 +322,25 @@ _VERDICT_AR = {
 }
 
 
-def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict], out_path: Path) -> None:
+_RE_GAP_TAG = re.compile(r"^#\s*@gap:?\s+(.+)$")
+
+
+def _gap_tag(filepath: Path) -> str:
+    """(AR) يقرأ وسم @gap من ملف اختبار كاشف."""
+    try:
+        for i, line in enumerate(open(filepath, encoding="utf-8")):
+            if i >= 30:
+                break
+            m = _RE_GAP_TAG.match(line.strip())
+            if m:
+                return m.group(1).strip()
+    except OSError:
+        pass
+    return "—"
+
+
+def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict],
+                   out_path: Path, gaps_report: dict | None = None) -> None:
     """(AR) يكتب تقريرين: ملخّص (out_path) + تفصيل لكل اختبار (out_path_detail.md)
     يُظهران مقارنة المفسر بالمترجم، الأزمنة، أسماء الاختبارات، والتباعدات.
     (EN) Writes a summary report + a per-test detail report (names, times, status).
@@ -372,6 +392,25 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
             L.append(f"| `{e['file']}` | {_STATUS_AR.get(e['status'], e['status'])} | "
                      f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} | `{io}` | `{co}` |")
     L.append("")
+    # ── قسم الاختبارات الكاشفة للثغرات (غير مُبوَّب) ──
+    if gaps_report is not None:
+        gtests = gaps_report.get("tests", [])
+        gfail = [e for e in gtests if e["status"] != "PASS"]
+        L.append("## اختبارات كاشفة للثغرات (Gaps) — غير مُبوَّبة (لا تُفشِل البناء)")
+        L.append("")
+        L.append(f"تتعمّد اختبار ميزات مشكوكة لكشف ما لا يعمل. كاشفة: **{len(gtests)}** — "
+                 f"تكشف ثغرة: **{len(gfail)}**. (راجع [DISCOVERED_ISSUES.md](./DISCOVERED_ISSUES.md))")
+        L.append("")
+        L.append("| الاختبار | الثغرة | النتيجة | مفسر(ms) | مترجم(ms) |")
+        L.append("|---|---|---|---|---|")
+        for e in sorted(gtests, key=lambda x: x["file"]):
+            # (AR) ابحث عن الملف فعلياً (قد يكون في مجلد ثيمة فرعي) لقراءة وسم @gap
+            matches = list(GAPS_DIR.rglob(Path(e["file"]).name))
+            tag = _gap_tag(matches[0]) if matches else "—"
+            verdict = "تعمل ✅" if e["status"] == "PASS" else f"تكشف ثغرة ❌ ({_STATUS_AR.get(e['status'], e['status'])})"
+            L.append(f"| `{Path(e['file']).name}` | {tag} | {verdict} | "
+                     f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} |")
+        L.append("")
     # ── جدول القواعد ──
     L.append("## المقارنة المزدوجة لكل قاعدة")
     L.append("")
@@ -444,8 +483,13 @@ def main() -> int:
         if report:
             matrix = derive_matrix(productions, records, report)
             write_evidence(matrix, counts)
+            # (AR) تشغيل الاختبارات الكاشفة للثغرات منفصلاً (غير مُبوَّب)
+            gaps_report = None
+            if GAPS_DIR.is_dir():
+                print("\n   ▸ تشغيل الاختبارات الكاشفة للثغرات (grammar_gaps)...")
+                gaps_report = run_dual_execution(args, "grammar_gaps") or None
             if args.report_md:
-                write_markdown(matrix, counts, report, records, Path(args.report_md))
+                write_markdown(matrix, counts, report, records, Path(args.report_md), gaps_report)
             bad = sorted(r for r, m in matrix.items()
                          if m["verdict"] in ("broken", "compiler_gap", "not_run"))
             for rid in bad:
