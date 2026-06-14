@@ -1,0 +1,16 @@
+# @rule: gr.stmt.expression, gr.stmt.for, gr.stmt.if, gr.stmt.return
+# @description: تعبير مع عدّة قواعد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+دالة مجموع_فردي(م)
+    متغير مج=0
+    لكل ن في م
+        إذا (ن%2==1)
+            مج += ن
+        نهاية
+    نهاية
+    ارجع مج
+نهاية
+اطبع_سطر(مجموع_فردي([1،2،3،4،5]))

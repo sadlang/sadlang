@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: عدّة طباعات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n3
+
+اطبع_سطر(1)
+اطبع_سطر(2)
+اطبع_سطر(3)

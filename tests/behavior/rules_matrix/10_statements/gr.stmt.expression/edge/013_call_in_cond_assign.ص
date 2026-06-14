@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: نتيجة دالة في إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 17
+
+دالة مربع(س) ارجع س*س نهاية
+متغير ر = مربع(4) + 1
+اطبع_سطر(ر)

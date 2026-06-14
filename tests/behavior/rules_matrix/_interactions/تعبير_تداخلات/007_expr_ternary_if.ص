@@ -1,0 +1,11 @@
+# @rule: gr.stmt.expression, gr.stmt.if
+# @description: تعبير ثلاثي + إذا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: فردي
+
+متغير ن=7
+متغير ف = ن%2==0 ؟ "ز" : "ف"
+إذا (ف=="ف")
+    اطبع_سطر("فردي")
+نهاية

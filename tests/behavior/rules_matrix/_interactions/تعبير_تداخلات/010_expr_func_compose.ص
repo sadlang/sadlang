@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression, gr.stmt.return
+# @description: تعبير + تركيب دوال
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+دالة ز(س) ارجع س+1 نهاية
+دالة ض(س) ارجع س*2 نهاية
+اطبع_سطر(ض(ز(3)))

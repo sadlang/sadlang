@@ -1,0 +1,10 @@
+# @rule: gr.stmt.expression
+# @description: نتيجة دالة بإسناد مركّب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة خمسة() ارجع 5 نهاية
+متغير س=0
+س += خمسة()
+اطبع_سطر(س)

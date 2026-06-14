@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: إعادة إسناد بتعبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير س=2
+س=س*5
+اطبع_سطر(س)

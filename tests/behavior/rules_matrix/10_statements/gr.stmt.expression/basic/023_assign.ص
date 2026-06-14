@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: إسناد بسيط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير س=1
+س=9
+اطبع_سطر(س)

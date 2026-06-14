@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: دمج نصّين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أب
+
+اطبع_سطر("أ" + "ب")

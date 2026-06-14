@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: إسناد بلا يمين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير س = 1
+س =

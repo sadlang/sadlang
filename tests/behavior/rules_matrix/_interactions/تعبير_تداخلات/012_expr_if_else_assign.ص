@@ -1,0 +1,14 @@
+# @rule: gr.stmt.expression, gr.stmt.if
+# @description: تعبير + إذا/وإلا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 20
+
+متغير ن=10
+متغير ر=0
+إذا (ن>5)
+    ر = ن * 2
+وإلا
+    ر = ن + 1
+نهاية
+اطبع_سطر(ر)

@@ -1,0 +1,13 @@
+# @rule: gr.stmt.expression, gr.stmt.while
+# @description: تعبير + بينما
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير م=0
+متغير ع=1
+بينما (ع<=4)
+    م += ع
+    ع += 1
+نهاية
+اطبع_سطر(م)

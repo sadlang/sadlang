@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: ثلاثي بنتيجة حسابية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+
+متغير ر = 5>3 ؟ 10+5 : 0
+اطبع_سطر(ر)

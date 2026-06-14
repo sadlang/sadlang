@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: طباعة صفر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+
+اطبع_سطر(0)

@@ -1,0 +1,16 @@
+# @rule: gr.stmt.expression, gr.stmt.match, gr.stmt.for
+# @description: تعبير + طابق تراكمي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+
+متغير مج=0
+لكل ن في [1،2،3]
+    طابق (ن)
+        عندما 1:
+            مج += 10
+        افتراضي:
+            مج += 1
+    نهاية
+نهاية
+اطبع_سطر(مج)

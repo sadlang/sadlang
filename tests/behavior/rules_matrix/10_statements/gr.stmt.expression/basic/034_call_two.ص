@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: دالتان
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة أ() ارجع 1 نهاية
+دالة ب() ارجع 2 نهاية
+اطبع_سطر(أ()+ب())

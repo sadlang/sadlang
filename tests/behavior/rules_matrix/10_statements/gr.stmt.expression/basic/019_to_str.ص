@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: تحويل لنص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 123
+
+اطبع_سطر(نص(123))

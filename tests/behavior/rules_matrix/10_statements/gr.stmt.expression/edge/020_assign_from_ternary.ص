@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: إسناد من ثلاثي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: فردي
+
+متغير ع=7
+متغير ف = ع%2==0 ؟ "زوجي" : "فردي"
+اطبع_سطر(ف)

@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: ثلاثي خطأ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ب
+
+متغير س = 1 > 3 ؟ "أ" : "ب"
+اطبع_سطر(س)

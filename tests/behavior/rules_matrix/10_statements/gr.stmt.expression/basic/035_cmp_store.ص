@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: تخزين مقارنة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+متغير ر = 5 > 3
+اطبع_سطر(ر)

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: ثلاثي متداخل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: اثنان
+
+متغير س=2
+متغير ر = س==1 ؟ "و" : (س==2 ؟ "اثنان" : "غ")
+اطبع_سطر(ر)

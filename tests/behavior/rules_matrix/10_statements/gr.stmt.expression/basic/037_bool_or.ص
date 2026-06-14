@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: قيمة أو
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+متغير ر = خطأ أو صحيح
+اطبع_سطر(ر)

@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: طول مصفوفة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+
+اطبع_سطر(طول([1،2،3،4]))

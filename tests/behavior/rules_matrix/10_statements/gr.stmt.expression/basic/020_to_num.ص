@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: تحويل لعدد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+اطبع_سطر(رقم("7") + 1)

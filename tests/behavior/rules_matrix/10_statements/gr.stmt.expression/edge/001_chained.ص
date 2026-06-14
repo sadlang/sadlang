@@ -1,8 +1,0 @@
-# @rule: gr.stmt.expression
-# @description: استدعاء متسلسل
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: 6
-
-دالة جمع(أ، ب) ارجع أ + ب نهاية
-اطبع_سطر(جمع(جمع(1، 2)، 3))

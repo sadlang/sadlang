@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: ثلاثي بسلسلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ب
+
+متغير ن=85
+متغير د = ن>=90 ؟ "أ" : (ن>=80 ؟ "ب" : "ج")
+اطبع_سطر(د)

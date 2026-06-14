@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: فاصلة شاردة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(1، )

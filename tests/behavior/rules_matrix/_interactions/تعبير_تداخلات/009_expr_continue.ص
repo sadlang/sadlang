@@ -1,0 +1,12 @@
+# @rule: gr.stmt.expression, gr.stmt.continue, gr.stmt.for
+# @description: تعبير + استمر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+
+متغير م=0
+لكل ن في [1،2،3،4]
+    إذا (ن%2==0) استمر نهاية
+    م += ن
+نهاية
+اطبع_سطر(م)

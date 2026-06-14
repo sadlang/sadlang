@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression, gr.stmt.return
+# @description: تعبير + ارجع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+دالة حساب(س) ارجع س*2 + 1 نهاية
+اطبع_سطر(حساب(4))

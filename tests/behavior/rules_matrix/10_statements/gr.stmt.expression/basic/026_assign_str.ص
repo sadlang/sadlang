@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: إسناد نص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ب
+
+متغير ك="أ"
+ك="ب"
+اطبع_سطر(ك)

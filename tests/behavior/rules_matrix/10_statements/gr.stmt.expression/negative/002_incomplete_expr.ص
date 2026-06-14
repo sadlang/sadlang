@@ -1,7 +1,0 @@
-# @rule: gr.stmt.expression
-# @description: تعبير ناقص
-# @priority: P1
-# @requires: اطبع_سطر
-# @expect_error
-
-متغير س = 2 +

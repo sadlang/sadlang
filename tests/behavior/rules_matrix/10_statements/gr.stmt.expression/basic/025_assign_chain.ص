@@ -1,0 +1,10 @@
+# @rule: gr.stmt.expression
+# @description: إسنادات متتالية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س=1
+متغير ص=2
+س=ص+3
+اطبع_سطر(س)

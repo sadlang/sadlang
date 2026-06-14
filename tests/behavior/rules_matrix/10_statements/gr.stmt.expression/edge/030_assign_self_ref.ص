@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: إسناد بمرجع ذاتي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير س=5
+س=س+س
+اطبع_سطر(س)

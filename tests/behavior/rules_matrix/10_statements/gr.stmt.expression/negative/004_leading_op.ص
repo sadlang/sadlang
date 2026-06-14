@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: عامل بادئ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير س = * 5

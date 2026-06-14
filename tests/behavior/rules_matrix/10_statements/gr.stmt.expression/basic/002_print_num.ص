@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: طباعة عدد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 42
+
+اطبع_سطر(42)

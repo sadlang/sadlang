@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: حساب 10 % 3
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+اطبع_سطر(10 % 3)

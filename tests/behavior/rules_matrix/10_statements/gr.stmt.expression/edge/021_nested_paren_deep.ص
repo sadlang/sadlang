@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: أقواس متداخلة عميقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+اطبع_سطر((((1+1))))

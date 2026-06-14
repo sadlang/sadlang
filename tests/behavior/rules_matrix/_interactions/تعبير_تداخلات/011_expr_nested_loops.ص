@@ -1,0 +1,15 @@
+# @rule: gr.stmt.expression, gr.stmt.for, gr.stmt.while
+# @description: تعبير + حلقات متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير م=0
+لكل ا في [1،2]
+    متغير ع=0
+    بينما (ع<2)
+        م += ا
+        ع += 1
+    نهاية
+نهاية
+اطبع_سطر(م)

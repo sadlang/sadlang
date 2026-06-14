@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: دمج طويل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أبجد
+
+اطبع_سطر("أ"+"ب"+"ج"+"د")

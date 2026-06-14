@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: -=
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير س=10
+س -= 4
+اطبع_سطر(س)

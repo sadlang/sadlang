@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: ثلاثي كوسيط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: نعم
+
+اطبع_سطر(5>3 ؟ "نعم" : "لا")

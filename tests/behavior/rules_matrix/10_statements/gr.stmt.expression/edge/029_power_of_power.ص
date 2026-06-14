@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: أُس مزدوج
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 16
+
+اطبع_سطر(2 ** 2 ** 2)

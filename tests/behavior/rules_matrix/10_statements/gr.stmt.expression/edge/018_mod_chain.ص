@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: باقٍ متسلسل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+
+اطبع_سطر(17 % 5 % 2)

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression, gr.stmt.for
+# @description: تعبير ثلاثي في حلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ف\nز\nف\nز
+
+لكل ن في [1،2،3،4]
+    اطبع_سطر(ن%2==0 ؟ "ز" : "ف")
+نهاية

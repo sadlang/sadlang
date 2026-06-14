@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: استدعاء بلا قيمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أهلاً
+
+دالة حيّ() اطبع_سطر("أهلاً") نهاية
+حيّ()

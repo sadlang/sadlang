@@ -1,0 +1,10 @@
+# @rule: gr.stmt.expression
+# @description: حسابات متعددة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+متغير ا=2
+متغير ب=3
+متغير ج=ا*ب+ا
+اطبع_سطر(ج)

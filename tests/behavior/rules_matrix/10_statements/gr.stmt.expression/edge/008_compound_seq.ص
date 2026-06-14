@@ -1,0 +1,11 @@
+# @rule: gr.stmt.expression
+# @description: إسنادات مركّبة متتالية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+متغير س=1
+س += 4
+س *= 2
+س -= 3
+اطبع_سطر(س)

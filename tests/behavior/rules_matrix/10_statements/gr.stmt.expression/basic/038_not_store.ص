@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: تخزين ليس
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+متغير ر = ليس خطأ
+اطبع_سطر(ر)

@@ -288,6 +288,6 @@ productions:
     description_ar: "تعبير يُقيَّم كجملة (استدعاء دالة، إسناد، ...)؛ المنقوطة اختيارية"
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       اطبع_سطر("مرحبا")

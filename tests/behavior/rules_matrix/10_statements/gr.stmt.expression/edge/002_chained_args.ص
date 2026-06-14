@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: وسائط من استدعاءات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة جمع(أ،ب) ارجع أ+ب نهاية
+اطبع_سطر(جمع(جمع(1،2)،جمع(3،4)))

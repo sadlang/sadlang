@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: دمج بحساب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: =6
+
+اطبع_سطر("=" + نص(2*3))

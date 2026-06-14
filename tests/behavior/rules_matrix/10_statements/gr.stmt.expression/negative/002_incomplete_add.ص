@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: جمع ناقص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير س = 2 +

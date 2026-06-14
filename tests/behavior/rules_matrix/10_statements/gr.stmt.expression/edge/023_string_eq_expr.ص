@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: مساواة نص مخزّنة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+متغير ر = "أ" == "أ"
+اطبع_سطر(ر)

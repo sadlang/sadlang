@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: أُس مع حساب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+اطبع_سطر(2 ** 3 + 1)

@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: حساب 3 * 4
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+
+اطبع_سطر(3 * 4)

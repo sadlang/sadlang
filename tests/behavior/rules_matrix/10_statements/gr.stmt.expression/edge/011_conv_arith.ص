@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: تحويل ضمن حساب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+
+اطبع_سطر(رقم("10") + رقم("5"))

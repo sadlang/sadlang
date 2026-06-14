@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: دمج أنواع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1-2
+
+اطبع_سطر(نص(1) + "-" + نص(2))

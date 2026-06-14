@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: طول ضمن تعبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+اطبع_سطر(طول("أب") + طول("جده"))

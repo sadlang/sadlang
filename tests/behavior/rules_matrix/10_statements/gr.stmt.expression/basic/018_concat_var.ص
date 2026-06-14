@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: دمج بمتغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: لغة ص
+
+متغير اسم="ص"
+اطبع_سطر("لغة " + اسم)

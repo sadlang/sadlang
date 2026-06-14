@@ -1,0 +1,14 @@
+# @rule: gr.stmt.expression, gr.stmt.break, gr.stmt.while
+# @description: تعبير + توقف
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير م=0
+متغير ع=0
+بينما (صحيح)
+    م += ع
+    ع += 1
+    إذا (ع>3) توقف نهاية
+نهاية
+اطبع_سطر(م)

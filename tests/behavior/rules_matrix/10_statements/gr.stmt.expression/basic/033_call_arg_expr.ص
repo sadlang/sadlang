@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: وسيط تعبيري
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة ضعف(س) ارجع س*2 نهاية
+اطبع_سطر(ضعف(3+2))

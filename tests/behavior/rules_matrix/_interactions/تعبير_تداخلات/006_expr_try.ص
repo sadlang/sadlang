@@ -1,0 +1,14 @@
+# @rule: gr.stmt.expression, gr.stmt.try, gr.stmt.throw
+# @description: تعبير + حاول
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: بدء-حاول-ماسك
+
+متغير ر="بدء"
+حاول
+    ر = ر + "-حاول"
+    ارمي "ع"
+امسك خطأ
+    ر = ر + "-ماسك"
+نهاية
+اطبع_سطر(ر)

@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: طباعة نص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+اطبع_سطر("مرحبا")

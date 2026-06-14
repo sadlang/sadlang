@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: طباعة سالب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -5
+
+اطبع_سطر(0-5)

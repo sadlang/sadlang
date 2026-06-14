@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: دمج ثلاثة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أبج
+
+اطبع_سطر("أ" + "ب" + "ج")

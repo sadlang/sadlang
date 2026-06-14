@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: دمج نص بعدد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن=5
+
+اطبع_سطر("ن=" + نص(5))

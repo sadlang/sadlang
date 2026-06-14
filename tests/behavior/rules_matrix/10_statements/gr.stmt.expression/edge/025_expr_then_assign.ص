@@ -1,0 +1,10 @@
+# @rule: gr.stmt.expression
+# @description: تعبير ثم إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10\n20
+
+متغير س=10
+اطبع_سطر(س)
+س=20
+اطبع_سطر(س)

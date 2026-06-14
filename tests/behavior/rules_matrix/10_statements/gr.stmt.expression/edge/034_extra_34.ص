@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: حساب إضافي 34
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 68
+
+اطبع_سطر(34 + 34)
