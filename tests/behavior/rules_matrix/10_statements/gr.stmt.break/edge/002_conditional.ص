@@ -1,0 +1,12 @@
+# @rule: gr.stmt.break
+# @description: توقف بشرط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1\n2
+
+متغير ع = 0
+بينما (صحيح)
+    اطبع_سطر(ع)
+    ع = ع + 1
+    إذا (ع == 3) توقف نهاية
+نهاية

@@ -1,0 +1,286 @@
+# ============================================================================
+# (AR) 10_statements.yaml — قواعد الجمل التنفيذية في لغة ص (طبقة الجمل)
+# (EN) Executable-statement productions for the Sad grammar (statements layer)
+# ----------------------------------------------------------------------------
+# (AR) المصدر: shared/parser/src/statements/parser_statements.cpp
+#      + موزّع الجمل في shared/parser/src/core/parser_main.cpp (parseStatement)
+#      الطرفيات تُشير إلى المعجم (keywords.yaml). المرجِع الدلالي: alternatives.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: statements
+
+description_ar: "الجمل التنفيذية — إذا/بينما/لكل/طابق/حاول/ارمي/ارجع/توقف/استمر/تعبير"
+description_en: "Executable statements — if/while/for/match/try/throw/return/break/continue/expr"
+
+productions:
+
+  # ── إذا / وإلا إذا / وإلا ──────────────────────────────────────────────
+  - id: gr.stmt.if
+    lhs: { nonterminal: IfStatement, name_ar: "جملة إذا", name_en: if_statement }
+    ebnf: >
+      IfStatement = 'إذا' '(' Expression ')' Block
+                    { 'وإلا' 'إذا' '(' Expression ')' Block }
+                    [ 'وإلا' Block ] ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: KEYWORD_ELSE, value: "وإلا" }
+              - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+              - { kind: nonterminal, ref: gr.program.block }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_ELSE, value: "وإلا" }
+              - { kind: nonterminal, ref: gr.program.block }
+    references: { keywords: ["KW-RES-012", "KW-RES-013"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseIfStmt" }
+    ast_node: "IfStmt"
+    description_ar: "تفرّع شرطي؛ الكتلة قد تُغلَق بـ«نهاية» أو ضمنياً بـ«وإلا»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 } }
+    example: |
+      إذا (س > 0)
+          اطبع_سطر("موجب")
+      وإلا
+          اطبع_سطر("غير موجب")
+      نهاية
+
+  # ── بينما ──────────────────────────────────────────────────────────────
+  - id: gr.stmt.while
+    lhs: { nonterminal: WhileStatement, name_ar: "جملة بينما", name_en: while_statement }
+    ebnf: "WhileStatement = 'بينما' '(' Expression ')' Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_WHILE, value: "بينما" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+    references: { keywords: ["KW-RES-014"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseWhileStmt" }
+    ast_node: "WhileStmt"
+    description_ar: "حلقة تتكرّر ما دام الشرط صحيحاً"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    example: |
+      متغير ع = 0
+      بينما (ع < 3)
+          اطبع_سطر(ع)
+          ع = ع + 1
+      نهاية
+
+  # ── لكل ... في ... ─────────────────────────────────────────────────────
+  - id: gr.stmt.for
+    lhs: { nonterminal: ForStatement, name_ar: "جملة لكل", name_en: for_statement }
+    ebnf: "ForStatement = 'لكل' Identifier [ ',' Identifier ] 'في' Expression Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: KEYWORD_IN, value: "في" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: nonterminal, ref: gr.program.block }
+    references: { keywords: ["KW-RES-015", "KW-RES-016"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseForStmt" }
+    ast_node: "ForStmt | ForRangeStmt"
+    description_ar: "حلقة تكرار على مصفوفة/مدى/خريطة؛ تدعم التفكيك «لكل فهرس، عنصر في ...» (بلا أقواس)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    example: |
+      لكل ن في [1، 2، 3]
+          اطبع_سطر(ن)
+      نهاية
+
+  # ── طابق / عندما / افتراضي ──────────────────────────────────────────────
+  - id: gr.stmt.match
+    lhs: { nonterminal: MatchStatement, name_ar: "جملة طابق", name_en: match_statement }
+    ebnf: >
+      MatchStatement = 'طابق' '(' Expression ')'
+                       { 'عندما' Pattern [ ':' ] { Statement } }
+                       [ 'افتراضي' [ ':' ] { Statement } ] 'نهاية' ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_MATCH, value: "طابق" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - kind: repeat1
+            children:
+              - { kind: terminal, ref: KEYWORD_WHEN, value: "عندما" }
+              - { kind: nonterminal, ref: gr.pattern.pattern }
+              - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" } ] }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_DEFAULT, value: "افتراضي" }
+              - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" } ] }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-019", "KW-RES-020", "KW-RES-021", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseSwitchStmt" }
+    ast_node: "SwitchStmt"
+    description_ar: "مطابقة أنماط؛ النقطتان «:» بعد النمط اختيارية. تفاصيل الأنماط في gr.pattern.*"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }
+    example: |
+      طابق (عمر)
+          عندما 0:
+              اطبع_سطر("صفر")
+          افتراضي:
+              اطبع_سطر("غير")
+      نهاية
+
+  # ── حاول / امسك / أخيراً ────────────────────────────────────────────────
+  - id: gr.stmt.try
+    lhs: { nonterminal: TryStatement, name_ar: "جملة حاول", name_en: try_statement }
+    ebnf: >
+      TryStatement = 'حاول' Block
+                     [ 'امسك' Identifier Block ]
+                     [ 'أخيراً' Block ] 'نهاية' ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_TRY, value: "حاول" }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_CATCH, value: "امسك" }
+              - { kind: terminal, ref: IDENTIFIER, value: "خطأ" }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_FINALLY, value: "أخيراً" }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-022", "KW-RES-023", "KW-RES-025", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseTryStmt" }
+    ast_node: "TryStmt"
+    description_ar: "معالجة الأخطاء؛ «امسك خطأ» بلا أقواس (خطأ = اسم المتغير الملتقَط)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      حاول
+          ارمي "عطل"
+      امسك خطأ
+          اطبع_سطر("أُمسك")
+      نهاية
+
+  # ── ارمي ────────────────────────────────────────────────────────────────
+  - id: gr.stmt.throw
+    lhs: { nonterminal: ThrowStatement, name_ar: "جملة ارمي", name_en: throw_statement }
+    ebnf: "ThrowStatement = 'ارمي' Expression ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_THROW, value: "ارمي" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-024"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseRaiseStmt" }
+    ast_node: "RaiseStmt"
+    description_ar: "إطلاق استثناء بقيمة/رسالة — يُلتقَط بأقرب «حاول/امسك»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 2 } }
+    example: |
+      ارمي "حدث خطأ"
+
+  # ── ارجع ────────────────────────────────────────────────────────────────
+  - id: gr.stmt.return
+    lhs: { nonterminal: ReturnStatement, name_ar: "جملة ارجع", name_en: return_statement }
+    ebnf: "ReturnStatement = 'ارجع' [ Expression ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_RETURN, value: "ارجع" }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.expr.expression } ] }
+    references: { keywords: ["KW-RES-002"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseReturnStmt" }
+    ast_node: "ReturnStmt"
+    description_ar: "إرجاع قيمة من دالة (أو إرجاع فارغ)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 3, negative: 2, interaction: 2 } }
+    example: |
+      دالة جمع(أ، ب) ارجع أ + ب نهاية
+
+  # ── توقف ────────────────────────────────────────────────────────────────
+  - id: gr.stmt.break
+    lhs: { nonterminal: BreakStatement, name_ar: "جملة توقف", name_en: break_statement }
+    ebnf: "BreakStatement = 'توقف' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_BREAK, value: "توقف" }
+    references: { keywords: ["KW-RES-017"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseBreakStmt" }
+    ast_node: "BreakStmt"
+    description_ar: "الخروج من أقرب حلقة محيطة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 2 } }
+    example: |
+      بينما (صحيح)
+          توقف
+      نهاية
+
+  # ── استمر ───────────────────────────────────────────────────────────────
+  - id: gr.stmt.continue
+    lhs: { nonterminal: ContinueStatement, name_ar: "جملة استمر", name_en: continue_statement }
+    ebnf: "ContinueStatement = 'استمر' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_CONTINUE, value: "استمر" }
+    references: { keywords: ["KW-RES-018"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseContinueStmt" }
+    ast_node: "ContinueStmt"
+    description_ar: "تخطّي بقية التكرار الحالي والانتقال للتالي"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 2 } }
+    example: |
+      لكل ن في [1، 2، 3]
+          إذا (ن == 2) استمر نهاية
+          اطبع_سطر(ن)
+      نهاية
+
+  # ── جملة تعبير ───────────────────────────────────────────────────────────
+  - id: gr.stmt.expression
+    lhs: { nonterminal: ExpressionStatement, name_ar: "جملة تعبير", name_en: expression_statement }
+    ebnf: "ExpressionStatement = Expression [ ';' ] ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: optional, children: [ { kind: terminal, ref: SEMICOLON, value: "؛" } ] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseExpressionStmt" }
+    ast_node: "ExprStmt"
+    description_ar: "تعبير يُقيَّم كجملة (استدعاء دالة، إسناد، ...)؛ المنقوطة اختيارية"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      اطبع_سطر("مرحبا")

@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: استدعاء تحويل نوع
+# @priority: P1
+# @requires: اطبع_سطر, نص
+# @expected: 5
+
+اطبع_سطر(نص(5))

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: إذا داخلية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+لكل ن في [1]
+    إذا (ن == 1)
+        اطبع_سطر(ن)
+نهاية

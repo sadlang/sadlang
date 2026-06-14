@@ -1,0 +1,11 @@
+# @rule: gr.stmt.match
+# @description: تعبير المطابقة متغير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: اثنان
+
+متغير س = 2
+طابق (س)
+    عندما 2:
+        اطبع_سطر("اثنان")
+نهاية

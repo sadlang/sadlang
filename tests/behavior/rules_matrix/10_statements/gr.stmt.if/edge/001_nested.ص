@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if
+# @description: إذا متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: عمق
+
+إذا (1 > 0)
+    إذا (2 > 1)
+        اطبع_سطر("عمق")
+    نهاية
+نهاية

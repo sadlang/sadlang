@@ -1,0 +1,8 @@
+# @rule: gr.stmt.return
+# @description: إرجاع قيمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة د() ارجع 7 نهاية
+اطبع_سطر(د())

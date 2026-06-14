@@ -1,0 +1,6 @@
+# @rule: gr.stmt.break
+# @description: توقف خارج حلقة
+# @priority: P1
+# @expect_error
+
+توقف

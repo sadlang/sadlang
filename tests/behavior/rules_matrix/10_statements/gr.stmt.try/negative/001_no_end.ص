@@ -1,0 +1,8 @@
+# @rule: gr.stmt.try
+# @description: حاول بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+حاول
+    اطبع_سطر("x")

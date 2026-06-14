@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: تعبير حسابي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+اطبع_سطر(2 * 3 + 4)

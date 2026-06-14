@@ -1,0 +1,8 @@
+# @rule: gr.stmt.expression
+# @description: استدعاء متداخل في طباعة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+
+دالة ضعف(س) ارجع س * 2 نهاية
+اطبع_سطر(ضعف(ضعف(3)))

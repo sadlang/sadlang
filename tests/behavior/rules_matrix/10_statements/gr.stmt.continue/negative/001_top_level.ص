@@ -1,0 +1,6 @@
+# @rule: gr.stmt.continue
+# @description: استمر خارج حلقة
+# @priority: P1
+# @expect_error
+
+استمر

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: مصفوفة عنصرين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7\n8
+
+لكل ن في [7، 8]
+    اطبع_سطر(ن)
+نهاية

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.continue
+# @description: تخطّي عدّة قيم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3\n4
+
+لكل ن في [1، 2، 3، 4]
+    إذا (ن < 3) استمر نهاية
+    اطبع_سطر(ن)
+نهاية

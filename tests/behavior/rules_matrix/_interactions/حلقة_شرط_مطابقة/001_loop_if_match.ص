@@ -1,0 +1,17 @@
+# @rule: gr.stmt.if, gr.stmt.while, gr.stmt.for, gr.stmt.match, gr.stmt.try, gr.stmt.throw, gr.stmt.return, gr.stmt.break, gr.stmt.continue, gr.stmt.expression
+# @description: حلقة + شرط + مطابقة + إرجاع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: فردي\nزوجي
+
+دالة وصف(ن)
+    طابق (ن % 2)
+        عندما 0:
+            ارجع "زوجي"
+        افتراضي:
+            ارجع "فردي"
+    نهاية
+نهاية
+لكل ن في [1، 2]
+    اطبع_سطر(وصف(ن))
+نهاية

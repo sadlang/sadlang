@@ -1,0 +1,10 @@
+# @rule: gr.stmt.break
+# @description: توقف من حلقة لانهائية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مرة
+
+بينما (صحيح)
+    اطبع_سطر("مرة")
+    توقف
+نهاية

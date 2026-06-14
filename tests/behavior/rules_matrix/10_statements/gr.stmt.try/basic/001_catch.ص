@@ -1,0 +1,11 @@
+# @rule: gr.stmt.try
+# @description: حاول/امسك
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أُمسك
+
+حاول
+    ارمي "عطل"
+امسك خطأ
+    اطبع_سطر("أُمسك")
+نهاية

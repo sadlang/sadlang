@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: استدعاء غير مكتمل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(

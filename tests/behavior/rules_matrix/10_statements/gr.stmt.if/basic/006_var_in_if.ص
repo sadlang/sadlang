@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: تعريف متغير داخل إذا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+إذا (1 > 0)
+    متغير ك = 3
+    اطبع_سطر(ك)
+نهاية

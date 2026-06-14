@@ -1,0 +1,11 @@
+# @rule: gr.stmt.match
+# @description: جسم حالة بجمل متعددة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أ\nب
+
+طابق (1)
+    عندما 1:
+        اطبع_سطر("أ")
+        اطبع_سطر("ب")
+نهاية

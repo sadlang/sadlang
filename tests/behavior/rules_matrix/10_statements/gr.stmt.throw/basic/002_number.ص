@@ -1,0 +1,11 @@
+# @rule: gr.stmt.throw
+# @description: رمي عدد يُمسَك
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: رقم
+
+حاول
+    ارمي 42
+امسك خطأ
+    اطبع_سطر("رقم")
+نهاية

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.while
+# @description: شرط خطأ بلا تكرار
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: بعد
+
+بينما (1 > 2)
+    اطبع_سطر("خ")
+نهاية
+اطبع_سطر("بعد")

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.continue
+# @description: استمر في لكل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n3
+
+لكل ن في [1، 2، 3]
+    إذا (ن == 2) استمر نهاية
+    اطبع_سطر(ن)
+نهاية

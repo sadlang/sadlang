@@ -1,0 +1,19 @@
+# @rule: gr.stmt.if, gr.stmt.while, gr.stmt.for, gr.stmt.match, gr.stmt.try, gr.stmt.throw, gr.stmt.return, gr.stmt.break, gr.stmt.continue, gr.stmt.expression
+# @description: تكرار مع معالجة أخطاء ورمي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: معالَج\nسليم
+
+دالة آمن(ن)
+    حاول
+        إذا (ن == 0)
+            ارمي "صفر"
+        نهاية
+        ارجع "سليم"
+    امسك خطأ
+        ارجع "معالَج"
+    نهاية
+نهاية
+لكل ن في [0، 1]
+    اطبع_سطر(آمن(ن))
+نهاية

@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: جملة بمنقوطة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: س
+
+اطبع_سطر("س")؛

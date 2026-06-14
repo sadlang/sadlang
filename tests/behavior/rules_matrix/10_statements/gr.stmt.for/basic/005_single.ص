@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: عنصر واحد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 99
+
+لكل ن في [99]
+    اطبع_سطر(ن)
+نهاية

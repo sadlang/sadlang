@@ -1,0 +1,9 @@
+# @rule: gr.stmt.match
+# @description: طابق بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+طابق (1)
+    عندما 1:
+        اطبع_سطر("ا")

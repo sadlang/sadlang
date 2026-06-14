@@ -1,0 +1,11 @@
+# @rule: gr.stmt.return
+# @description: إرجاع من دالة متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة خ()
+    دالة د() ارجع 5 نهاية
+    ارجع د()
+نهاية
+اطبع_سطر(خ())

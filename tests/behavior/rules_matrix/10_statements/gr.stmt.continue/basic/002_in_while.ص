@@ -1,0 +1,12 @@
+# @rule: gr.stmt.continue
+# @description: استمر في بينما
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n3\n4
+
+متغير ع = 0
+بينما (ع < 4)
+    ع = ع + 1
+    إذا (ع == 2) استمر نهاية
+    اطبع_سطر(ع)
+نهاية

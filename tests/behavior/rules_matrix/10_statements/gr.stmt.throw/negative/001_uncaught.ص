@@ -1,0 +1,7 @@
+# @rule: gr.stmt.throw
+# @description: رمي بلا ماسك
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+ارمي "بلا ماسك"

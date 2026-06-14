@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: لكل على مصفوفة أعداد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n3
+
+لكل ن في [1، 2، 3]
+    اطبع_سطر(ن)
+نهاية

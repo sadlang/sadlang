@@ -1,0 +1,10 @@
+# @rule: gr.stmt.break
+# @description: توقف في أول تكرار
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: انتهى
+
+لكل ن في [5، 6، 7]
+    توقف
+نهاية
+اطبع_سطر("انتهى")

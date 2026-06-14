@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: جمع عناصر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 60
+
+متغير م = 0
+لكل ن في [10، 20، 30]
+    م = م + ن
+نهاية
+اطبع_سطر(م)

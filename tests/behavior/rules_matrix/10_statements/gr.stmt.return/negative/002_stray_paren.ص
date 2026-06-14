@@ -1,0 +1,9 @@
+# @rule: gr.stmt.return
+# @description: قوس شارد بعد ارجع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة د()
+    ارجع )
+نهاية

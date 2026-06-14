@@ -1,0 +1,9 @@
+# @rule: gr.stmt.try
+# @description: امسك بلا حاول
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+امسك خطأ
+    اطبع_سطر("x")
+نهاية

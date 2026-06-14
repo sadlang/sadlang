@@ -1,0 +1,11 @@
+# @rule: gr.stmt.throw
+# @description: رمي نص يُمسَك
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ملتقَط
+
+حاول
+    ارمي "خطأ ما"
+امسك خطأ
+    اطبع_سطر("ملتقَط")
+نهاية

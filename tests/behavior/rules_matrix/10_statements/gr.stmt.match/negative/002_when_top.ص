@@ -1,0 +1,8 @@
+# @rule: gr.stmt.match
+# @description: عندما خارج طابق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+عندما 1:
+    اطبع_سطر("ا")

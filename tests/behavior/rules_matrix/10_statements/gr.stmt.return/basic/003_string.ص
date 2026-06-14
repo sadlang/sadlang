@@ -1,0 +1,8 @@
+# @rule: gr.stmt.return
+# @description: إرجاع نص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أهلاً
+
+دالة حيّ() ارجع "أهلاً" نهاية
+اطبع_سطر(حيّ())
