@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: تعبير محسوب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ثلاثة
+
+طابق (2+1)
+    عندما 3:
+        اطبع_سطر("ثلاثة")
+نهاية

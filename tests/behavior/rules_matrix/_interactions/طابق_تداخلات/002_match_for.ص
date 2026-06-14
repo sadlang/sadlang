@@ -1,10 +1,10 @@
-# @rule: gr.stmt.match
-# @description: طابق داخل حلقة
+# @rule: gr.stmt.match, gr.stmt.for
+# @description: طابق + لكل
 # @priority: P1
 # @requires: اطبع_سطر
 # @expected: و\nا
 
-لكل ن في [1، 2]
+لكل ن في [1،2]
     طابق (ن)
         عندما 1:
             اطبع_سطر("و")

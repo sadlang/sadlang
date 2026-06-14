@@ -1,0 +1,11 @@
+# @rule: gr.stmt.match
+# @description: حلقة داخلية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+طابق (1)
+    عندما 1:
+        لكل ن في [1]
+            اطبع_سطر(ن)
+نهاية

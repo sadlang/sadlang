@@ -1,0 +1,11 @@
+# @rule: gr.stmt.match
+# @description: كود بعد طابق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: في\nبعد
+
+طابق (1)
+    عندما 1:
+        اطبع_سطر("في")
+نهاية
+اطبع_سطر("بعد")

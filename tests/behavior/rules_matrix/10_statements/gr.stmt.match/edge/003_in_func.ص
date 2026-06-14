@@ -1,5 +1,5 @@
 # @rule: gr.stmt.match
-# @description: طابق داخل دالة
+# @description: طابق داخل دالة تُرجع
 # @priority: P1
 # @requires: اطبع_سطر
 # @expected: صفر

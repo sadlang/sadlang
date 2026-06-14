@@ -150,7 +150,7 @@ productions:
       (parser_main.cpp:1200) — يُغطَّى لاحقاً منفصلاً.
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       طابق (عمر)
           عندما 0:

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: حالة واحدة 5
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+طابق (5)
+    عندما 5:
+        اطبع_سطر("ن")
+نهاية

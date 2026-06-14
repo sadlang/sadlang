@@ -1,0 +1,17 @@
+# @rule: gr.stmt.match, gr.stmt.return, gr.stmt.for
+# @description: طابق + دالة + حلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ف\nز
+
+دالة وصف(ن)
+    طابق (ن%2)
+        عندما 0:
+            ارجع "ز"
+        افتراضي:
+            ارجع "ف"
+    نهاية
+نهاية
+لكل ن في [1،2]
+    اطبع_سطر(وصف(ن))
+نهاية

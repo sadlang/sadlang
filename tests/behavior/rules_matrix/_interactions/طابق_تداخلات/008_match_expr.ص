@@ -1,0 +1,14 @@
+# @rule: gr.stmt.match, gr.stmt.expression
+# @description: طابق على تعبير + إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير ك=0
+لكل ن في [1،2،3،4]
+    طابق (ن%2)
+        عندما 0:
+            ك += 1
+    نهاية
+نهاية
+اطبع_سطر(ك)

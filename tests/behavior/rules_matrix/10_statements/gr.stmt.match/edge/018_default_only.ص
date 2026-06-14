@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: افتراضي فقط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: دائماً
+
+طابق (123)
+    افتراضي:
+        اطبع_سطر("دائماً")
+نهاية

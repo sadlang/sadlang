@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: قيمة سالبة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: سالب
+
+طابق (0-1)
+    عندما -1:
+        اطبع_سطر("سالب")
+نهاية

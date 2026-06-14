@@ -1,0 +1,17 @@
+# @rule: gr.stmt.match, gr.stmt.for, gr.stmt.return, gr.stmt.if
+# @description: طابق مع عدّة قواعد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة عُد_أصفار(م)
+    متغير ك=0
+    لكل ن في م
+        طابق (ن)
+            عندما 0:
+                ك=ك+1
+        نهاية
+    نهاية
+    ارجع ك
+نهاية
+اطبع_سطر(عُد_أصفار([0،1،0،2،0]))

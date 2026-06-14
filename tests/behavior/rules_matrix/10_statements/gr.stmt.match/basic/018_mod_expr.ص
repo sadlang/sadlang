@@ -1,12 +1,10 @@
 # @rule: gr.stmt.match
-# @description: فرع افتراضي
+# @description: تعبير باقي
 # @priority: P1
 # @requires: اطبع_سطر
-# @expected: غير
+# @expected: واحد
 
-طابق (9)
+طابق (10%3)
     عندما 1:
         اطبع_سطر("واحد")
-    افتراضي:
-        اطبع_سطر("غير")
 نهاية

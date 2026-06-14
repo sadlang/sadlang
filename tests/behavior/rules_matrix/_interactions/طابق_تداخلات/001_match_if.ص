@@ -1,0 +1,13 @@
+# @rule: gr.stmt.match, gr.stmt.if
+# @description: طابق + إذا
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: كبير
+
+متغير س=2
+طابق (س)
+    عندما 2:
+        إذا (س>1)
+            اطبع_سطر("كبير")
+        نهاية
+نهاية

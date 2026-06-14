@@ -1,0 +1,11 @@
+# @rule: gr.stmt.match
+# @description: نهاية زائدة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+طابق (1)
+    عندما 1:
+        اطبع_سطر("ا")
+نهاية
+نهاية

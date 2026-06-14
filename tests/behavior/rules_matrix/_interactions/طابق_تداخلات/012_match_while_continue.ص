@@ -1,0 +1,15 @@
+# @rule: gr.stmt.match, gr.stmt.while, gr.stmt.continue
+# @description: طابق + بينما + استمر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n3
+
+متغير ع=0
+بينما (ع<4)
+    ع=ع+1
+    طابق (ع%2)
+        عندما 0:
+            استمر
+    نهاية
+    اطبع_سطر(ع)
+نهاية

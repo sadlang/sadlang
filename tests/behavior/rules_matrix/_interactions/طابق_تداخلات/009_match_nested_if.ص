@@ -1,0 +1,14 @@
+# @rule: gr.stmt.match, gr.stmt.if
+# @description: طابق + إذا متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: بين
+
+طابق (5)
+    عندما 5:
+        إذا (5>0)
+            إذا (5<10)
+                اطبع_سطر("بين")
+            نهاية
+        نهاية
+نهاية

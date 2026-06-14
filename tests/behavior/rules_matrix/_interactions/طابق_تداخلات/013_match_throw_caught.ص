@@ -1,0 +1,14 @@
+# @rule: gr.stmt.match, gr.stmt.throw, gr.stmt.try
+# @description: طابق يرمي يُمسَك خارجاً
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أُمسك
+
+حاول
+    طابق (1)
+        عندما 1:
+            ارمي "ع"
+    نهاية
+امسك خطأ
+    اطبع_سطر("أُمسك")
+نهاية

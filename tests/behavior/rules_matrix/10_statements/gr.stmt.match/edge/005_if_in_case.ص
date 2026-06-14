@@ -1,0 +1,12 @@
+# @rule: gr.stmt.match
+# @description: إذا داخل حالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ش
+
+طابق (1)
+    عندما 1:
+        إذا (صحيح)
+            اطبع_سطر("ش")
+        نهاية
+نهاية

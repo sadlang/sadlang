@@ -1,5 +1,5 @@
 # @rule: gr.stmt.match
-# @description: جسم حالة بجمل متعددة
+# @description: جسم بجملتين
 # @priority: P1
 # @requires: اطبع_سطر
 # @expected: أ\nب

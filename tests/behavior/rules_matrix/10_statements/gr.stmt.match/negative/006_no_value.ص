@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: طابق بلا تعبير
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+طابق
+    عندما 1:
+        اطبع_سطر("x")
+نهاية

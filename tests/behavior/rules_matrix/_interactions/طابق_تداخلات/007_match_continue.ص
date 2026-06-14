@@ -1,0 +1,13 @@
+# @rule: gr.stmt.match, gr.stmt.continue, gr.stmt.for
+# @description: طابق + استمر في حلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n3
+
+لكل ن في [1،2،3]
+    طابق (ن)
+        عندما 2:
+            استمر
+    نهاية
+    اطبع_سطر(ن)
+نهاية

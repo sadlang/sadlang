@@ -1,0 +1,12 @@
+# @rule: gr.stmt.match
+# @description: إسناد داخل حالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س=0
+طابق (1)
+    عندما 1:
+        س=5
+نهاية
+اطبع_سطر(س)

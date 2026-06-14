@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: الصفر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صفر
+
+طابق (0)
+    عندما 0:
+        اطبع_سطر("صفر")
+نهاية

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: حالة واحدة 7
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+طابق (7)
+    عندما 7:
+        اطبع_سطر("ن")
+نهاية

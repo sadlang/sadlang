@@ -1,0 +1,14 @@
+# @rule: gr.stmt.match, gr.stmt.try, gr.stmt.throw
+# @description: طابق + حاول داخل حالة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أُمسك
+
+طابق (1)
+    عندما 1:
+        حاول
+            ارمي "ع"
+        امسك خطأ
+            اطبع_سطر("أُمسك")
+        نهاية
+نهاية

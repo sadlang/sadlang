@@ -1,0 +1,12 @@
+# @rule: gr.stmt.match
+# @description: طابق داخلي بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+طابق (1)
+    عندما 1:
+        طابق (2)
+            عندما 2:
+                اطبع_سطر("x")
+نهاية

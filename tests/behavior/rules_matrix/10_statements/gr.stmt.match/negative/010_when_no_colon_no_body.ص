@@ -1,0 +1,8 @@
+# @rule: gr.stmt.match
+# @description: عندما بلا جسم ولا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+طابق (1)
+    عندما 1:
