@@ -575,7 +575,7 @@ namespace Sad
             std::vector<std::vector<AST::Statement *>> deferStacks_;
 
             // (AR) نوع إرجاع الدالة الحالية / (EN) Current function return type
-            Data::DataType currentFunctionReturnType_;
+            Types::SadTypeKind currentFunctionReturnType_;
 
             // (AR) نوع إرجاع الدالة الحالية في النظام الموحد
             // (EN) Current function return type in unified type system
@@ -585,7 +585,7 @@ namespace Sad
             std::string currentFunctionName_;
 
             // (AR) خريطة أنواع إرجاع الدوال / (EN) Map of function return types
-            std::unordered_map<std::string, Data::DataType> functionReturnTypes_;
+            std::unordered_map<std::string, Types::SadTypeKind> functionReturnTypes_;
 
             // =========================================================================
             // (AR) تخزين القوالب / (EN) Template Storage
@@ -720,7 +720,7 @@ namespace Sad
              */
             Data::Value executeFunctionBodyWithReturnType(
                 AST::Statement &body,
-                Data::DataType returnType,
+                Types::SadTypeKind returnType,
                 const std::string &functionName);
 
             /**

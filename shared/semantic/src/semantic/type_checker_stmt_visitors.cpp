@@ -14,6 +14,7 @@
 #endif
 
 #include "semantic/type_checker.h"
+#include "type_bridge.h" // (AR) Types::fromDataType — جسر AST(DataType)→SadTypeKind (S-TS-P2)
 #include "token.h"
 #include "class_nodes.h"
 #include "types/composite_type_classes.h"
@@ -65,6 +66,7 @@ namespace Sad
             }
 
             // التحقق من التوافق / Check compatibility
+            // (AR) ملاحظة (S-TS-P9): فرض أمان null في طبقة المفسّر (statement_executor) عبر isNull.
             if (initType && declaredType && !declaredType->isUnknown() && !initType->isUnknown())
             {
                 if (!areTypesCompatible(declaredType, initType))
@@ -469,10 +471,10 @@ namespace Sad
             TypePtr prevReturnType = expectedReturnType_;
 
             currentFunction_ = decl.name;
-            // (AR) إذا كان نوع الإرجاع غير معروف أو NONE
-            // (EN) If return type is UNKNOWN or NONE
-            if (decl.returnType == Data::DataType::UNKNOWN ||
-                decl.returnType == Data::DataType::NONE)
+            // (AR) إذا كان نوع الإرجاع غير معروف أو فراغ — محور SadTypeKind (S-TS-P2)
+            // (EN) If return type is Unknown or Void — SadTypeKind-centric (S-TS-P2)
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void)
             {
                 if (decl.isExtern)
                 {
@@ -575,10 +577,10 @@ namespace Sad
             TypePtr prevReturnType = expectedReturnType_;
 
             currentFunction_ = decl.name;
-            // (AR) إذا كان نوع الإرجاع غير معروف أو NONE، لا نفحص نوع return
-            // (EN) If return type is UNKNOWN or NONE, skip return type checking
-            if (decl.returnType == Data::DataType::UNKNOWN ||
-                decl.returnType == Data::DataType::NONE)
+            // (AR) إذا كان نوع الإرجاع غير معروف أو فراغ، لا نفحص نوع return — محور SadTypeKind (S-TS-P2)
+            // (EN) If return type is Unknown or Void, skip return type checking — SadTypeKind-centric (S-TS-P2)
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void)
             {
                 expectedReturnType_ = nullptr;
             }
@@ -714,9 +716,11 @@ namespace Sad
             std::string prevFunction = currentFunction_;
             TypePtr prevReturnType = expectedReturnType_;
             currentFunction_ = decl.name;
-            if (decl.returnType == Data::DataType::UNKNOWN ||
-                decl.returnType == Data::DataType::NONE ||
-                decl.returnType == Data::DataType::OBJECT)
+            // (AR) محور SadTypeKind (S-TS-P2): Unknown/Void/Class → لا فحص للإرجاع
+            // (EN) SadTypeKind-centric (S-TS-P2): Unknown/Void/Class → skip return checking
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void ||
+                decl.returnType == Types::SadTypeKind::Class)
             {
                 // (AR) نوع غير معروف أو معامل نوع T → لا فحص للإرجاع
                 // (EN) Unknown type or type param T → skip return checking
@@ -1096,7 +1100,7 @@ namespace Sad
                         continue;
                     auto buildSig = [this](const std::string &name,
                                            const std::vector<AST::Parameter> &params,
-                                           Data::DataType ret,
+                                           Types::SadTypeKind ret,
                                            const std::string &retTypeName = "")
                     {
                         TraitMethodSig s;
@@ -1415,42 +1419,53 @@ namespace Sad
         // (EN) [Phase 5d] Type-name extraction helpers
         // ====================================================================
 
-        std::string TypeChecker::dataTypeArabicName(Data::DataType t) const
+        std::string TypeChecker::sadKindArabicName(Types::SadTypeKind t) const
         {
-            using DT = Data::DataType;
+            // (AR) [S-TS-P2] المحور SadTypeKind. السلاسل مطابقة للسابق تمامًا
+            //      (لا تغيير في رسائل الأخطاء/التشخيص). Class تُرجِع "" لأن اسم الصنف
+            //      يأتي من typeName، وVoid/Null تُرجِع "لاشيء" (التمييز الدلالي في S-TS-P9).
+            using K = Types::SadTypeKind;
             switch (t)
             {
-            case DT::INTEGER:
+            case K::Integer:
                 return "رقم";
-            case DT::FLOAT:
+            case K::Float:
                 return "عشري";
-            case DT::STRING:
+            case K::String:
                 return "نص";
-            case DT::BOOLEAN:
+            case K::Boolean:
                 return "منطقي";
-            case DT::BYTE:
+            case K::Byte:
                 return "بايت";
-            case DT::ARRAY:
+            case K::Array:
                 return "مصفوفة";
-            case DT::MAP:
+            case K::Map:
                 return "خريطة";
-            case DT::TUPLE:
+            case K::Tuple:
                 return "ثنائي";
-            case DT::FUNCTION:
+            case K::Function:
                 return "دالة";
-            case DT::ENUM:
+            case K::Enum:
                 return "تعداد";
-            case DT::NONE:
+            case K::Void:
+            case K::Null:
                 return "لاشيء";
-            case DT::OBJECT:
+            case K::Class:
                 return ""; // اسم الصنف يأتي من typeName
-            case DT::UNKNOWN:
+            case K::Unknown:
                 return "";
-            case DT::ERROR:
+            case K::Error:
                 return "خطأ";
             default:
                 return "";
             }
+        }
+
+        // (AR) جسر حدود الـAST (S-TS-P2): DataType→SadTypeKind→اسم عربي. يُحذف في S-TS-P2.5a.
+        // (EN) AST-boundary bridge (S-TS-P2): DataType→SadTypeKind→Arabic name. Removed in S-TS-P2.5a.
+        std::string TypeChecker::dataTypeArabicName(Types::SadTypeKind t) const
+        {
+            return sadKindArabicName(t);
         }
 
         std::string TypeChecker::paramTypeNameOf(const AST::Parameter &p) const
@@ -1459,7 +1474,8 @@ namespace Sad
             // (EN) Explicit class name in typeName takes priority.
             if (!p.typeName.empty())
                 return p.typeName;
-            return dataTypeArabicName(p.type);
+            // (AR) قراءة AST (DataType) مُجسَّرة إلى SadTypeKind — S-TS-P2 (تُزال في P2.5a)
+            return sadKindArabicName(p.type);
         }
 
         std::string TypeChecker::extractTypeNameFromExpr(AST::Expression *expr) const

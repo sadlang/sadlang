@@ -44,7 +44,6 @@ namespace Sad
     {
 
         using VT = Sad::Types::SadTypeKind;
-        using DT = Sad::Data::DataType;
 
         // █████████████████████████████████████████████████████████████████████████████████
         //
@@ -185,88 +184,6 @@ namespace Sad
             return SadTypeKind::Void;
         }
 
-        Data::DataType toDataType(SadTypeKind kind)
-        {
-            switch (kind)
-            {
-            case SadTypeKind::Void:
-                return DT::NONE;
-            case SadTypeKind::Integer:
-                return DT::INTEGER;
-            case SadTypeKind::Float:
-                return DT::FLOAT;
-            case SadTypeKind::Float32:
-                return DT::FLOAT;
-            case SadTypeKind::Float64:
-                return DT::FLOAT;
-            case SadTypeKind::Boolean:
-                return DT::BOOLEAN;
-            case SadTypeKind::String:
-                return DT::STRING;
-            case SadTypeKind::Byte:
-                return DT::BYTE;
-            case SadTypeKind::Array:
-                return DT::ARRAY;
-            case SadTypeKind::Map:
-                return DT::MAP;
-            case SadTypeKind::Tuple:
-                return DT::TUPLE;
-            case SadTypeKind::Function:
-                return DT::FUNCTION;
-            case SadTypeKind::Closure:
-                return DT::FUNCTION;
-            case SadTypeKind::Class:
-                return DT::OBJECT;
-            case SadTypeKind::Struct:
-                return DT::OBJECT;
-            case SadTypeKind::Enum:
-                return DT::ENUM;
-            case SadTypeKind::Trait:
-                return DT::OBJECT;
-            case SadTypeKind::Error:
-                return DT::ERROR;
-            case SadTypeKind::Unknown:
-                return DT::UNKNOWN;
-            default:
-                return DT::UNKNOWN;
-            }
-        }
-
-        SadTypeKind fromDataType(Data::DataType dt)
-        {
-            switch (dt)
-            {
-            case DT::NONE:
-                return SadTypeKind::Void;
-            case DT::INTEGER:
-                return SadTypeKind::Integer;
-            case DT::FLOAT:
-                return SadTypeKind::Float;
-            case DT::BOOLEAN:
-                return SadTypeKind::Boolean;
-            case DT::STRING:
-                return SadTypeKind::String;
-            case DT::BYTE:
-                return SadTypeKind::Byte;
-            case DT::ARRAY:
-                return SadTypeKind::Array;
-            case DT::MAP:
-                return SadTypeKind::Map;
-            case DT::TUPLE:
-                return SadTypeKind::Tuple;
-            case DT::FUNCTION:
-                return SadTypeKind::Function;
-            case DT::OBJECT:
-                return SadTypeKind::Class;
-            case DT::ENUM:
-                return SadTypeKind::Enum;
-            case DT::ERROR:
-                return SadTypeKind::Error;
-            case DT::UNKNOWN:
-                return SadTypeKind::Unknown;
-            }
-            return SadTypeKind::Unknown;
-        }
 
         // █████████████████████████████████████████████████████████████████████████████████
         //
@@ -287,17 +204,6 @@ namespace Sad
             return SadType::fromValueType(vt);
         }
 
-        Data::DataType sadTypeToDataType(const SadTypePtr &type)
-        {
-            if (!type)
-                return DT::UNKNOWN;
-            return toDataType(type->getKind());
-        }
-
-        SadTypePtr sadTypeFromDataType(Data::DataType dt)
-        {
-            return SadType::fromDataType(dt);
-        }
 
         // █████████████████████████████████████████████████████████████████████████████████
         //
@@ -313,6 +219,8 @@ namespace Sad
             {
             case VT::Void:
                 return reg.getVoid();
+            case Types::SadTypeKind::Null: // (AR) عدم — S-TS-P1
+                return reg.getNull();
 
             case VT::Integer:
                 return reg.getInteger();

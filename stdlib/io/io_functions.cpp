@@ -222,6 +222,7 @@ namespace Sad
 
                 switch (value.getKind())
                 {
+                case VT::Null: // S-TS-P1
                 case VT::Void:
                     return "\u0644\u0627\u0634\u064a\u0621"; // لاشيء
 

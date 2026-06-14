@@ -60,33 +60,33 @@ namespace Sad
         void StatementExecutor::visitFunctionDecl(AST::FunctionDecl &node)
         {
             // (AR) Helper function لتحويل DataType إلى string / (EN) Helper to convert DataType to string
-            auto dataTypeToString = [](Data::DataType type) -> std::string
+            auto dataTypeToString = [](Types::SadTypeKind type) -> std::string
             {
                 switch (type)
                 {
-                case Data::DataType::INTEGER:
+                case Types::SadTypeKind::Integer:
                     return "integer";
-                case Data::DataType::FLOAT:
+                case Types::SadTypeKind::Float:
                     return "float";
-                case Data::DataType::STRING:
+                case Types::SadTypeKind::String:
                     return "string";
-                case Data::DataType::BOOLEAN:
+                case Types::SadTypeKind::Boolean:
                     return "boolean";
-                case Data::DataType::NONE:
+                case Types::SadTypeKind::Void:
                     return "none";
-                case Data::DataType::ARRAY:
+                case Types::SadTypeKind::Array:
                     return "array";
-                case Data::DataType::MAP:
+                case Types::SadTypeKind::Map:
                     return "map";
-                case Data::DataType::TUPLE:
+                case Types::SadTypeKind::Tuple:
                     return "tuple";
-                case Data::DataType::FUNCTION:
+                case Types::SadTypeKind::Function:
                     return "function";
-                case Data::DataType::OBJECT:
+                case Types::SadTypeKind::Class:
                     return "object";
-                case Data::DataType::ENUM:
+                case Types::SadTypeKind::Enum:
                     return "enum";
-                case Data::DataType::BYTE:
+                case Types::SadTypeKind::Byte:
                     return "byte";
                 default:
                     return "unknown";
@@ -432,14 +432,14 @@ namespace Sad
         {
             // (AR) توجيه إلى الدالة الموسعة مع نوع إرجاع UNKNOWN واسم فارغ
             // (EN) Delegate to extended function with UNKNOWN return type and empty name
-            return executeFunctionBodyWithReturnType(body, Data::DataType::UNKNOWN, "");
+            return executeFunctionBodyWithReturnType(body, Types::SadTypeKind::Unknown, "");
         }
 
         Data::Value StatementExecutor::executeFunctionBodyWithFuncName(AST::Statement &body, const std::string &functionName)
         {
             // (AR) البحث عن نوع الإرجاع في الـ map
             // (EN) Look up return type in map
-            Data::DataType returnType = Data::DataType::UNKNOWN;
+            Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
             auto it = functionReturnTypes_.find(functionName);
             if (it != functionReturnTypes_.end())
             {
@@ -455,13 +455,13 @@ namespace Sad
         // (EN) New helper function to execute function body with return type tracking
         Data::Value StatementExecutor::executeFunctionBodyWithReturnType(
             AST::Statement &body,
-            Data::DataType returnType,
+            Types::SadTypeKind returnType,
             const std::string &functionName)
         {
             // (AR) حفظ الحالة الحالية / (EN) Save current state
             FlowControl previousFlowControl = flowControl_;
             Data::Value previousReturnValue = returnValue_;
-            Data::DataType previousReturnType = currentFunctionReturnType_;
+            Types::SadTypeKind previousReturnType = currentFunctionReturnType_;
             std::string previousFunctionName = currentFunctionName_;
             Types::SadTypePtr previousSadReturnType = currentFunctionSadReturnType_;
 

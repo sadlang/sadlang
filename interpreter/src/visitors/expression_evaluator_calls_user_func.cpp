@@ -265,9 +265,19 @@ namespace Sad
                     i < astFuncDecl->parameters.size())
                 {
                     const auto &astParam = astFuncDecl->parameters[i];
-                    if (astParam.sadType &&
+                    // (AR) لا نُحذّر إلا للمعاملات المُصرَّح نوعها صراحةً. المعامل غير المُقيَّد
+                    //      (مثل `دالة f(ق)`) نوعه القديم Unknown، لكن sadType يُشتقّ منه عبر
+                    //      fromValueType(Unknown)=فراغ، فكان يُطلق تحذيرًا كاذبًا على كل وسيط
+                    //      غير-فراغ ويكسر التكافؤ المزدوج (المترجم لا يفحص). [إصلاح X04/P09]
+                    // (EN) Only warn for EXPLICITLY-typed params. An unconstrained param (e.g.
+                    //      `fn f(x)`) has legacy type=Unknown, but its sadType is derived via
+                    //      fromValueType(Unknown)=Void, which spuriously warned on any non-void
+                    //      arg and broke dual parity (compiler has no such check). [Fix X04/P09]
+                    if (astParam.type != Types::SadTypeKind::Unknown &&
+                        astParam.sadType &&
                         astParam.sadType->getKind() != Types::SadTypeKind::Unknown &&
-                        astParam.sadType->getKind() != Types::SadTypeKind::Any)
+                        astParam.sadType->getKind() != Types::SadTypeKind::Any &&
+                        astParam.sadType->getKind() != Types::SadTypeKind::Void)
                     {
                         auto argSadType = Types::SadType::fromValueType(arguments[i].getType());
                         if (argSadType && !argSadType->isAssignableTo(astParam.sadType.get()))

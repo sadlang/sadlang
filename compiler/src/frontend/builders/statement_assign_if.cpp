@@ -209,7 +209,7 @@ namespace Sad
             //
             // VarDeclStmt Members (statements.h:74-100):
             // - name: std::string (line 76)
-            // - type: Data::DataType (line 77)
+            // - type: Types::SadTypeKind (line 77)
             // - initializer: ExprPtr (line 78)
             // - isConst: bool (line 79)
             // ============================================================================
@@ -248,10 +248,10 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״×״­ˆ„ ״§„†ˆ״¹ (VarDeclStmt::type: Data::DataType, line 77)
+                // (AR) ״×״­ˆ„ ״§„†ˆ״¹ (VarDeclStmt::type: Types::SadTypeKind, line 77)
                 // (EN) Convert type
                 SadTypeKind varType = b_.astTypeToSIRType(varDecl->type);
-                bool needsTypeInference = (varDecl->type == Data::DataType::UNKNOWN);
+                bool needsTypeInference = (varDecl->type == Types::SadTypeKind::Unknown);
 
                 // (AR) ״¥†״´״§״¡ …״¹„ˆ…״§״× ״§„…״×״÷״± (sir_builder.h:139 - VariableInfo)
                 // (EN) Create variable info

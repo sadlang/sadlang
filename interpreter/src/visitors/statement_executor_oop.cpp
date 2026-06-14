@@ -263,16 +263,16 @@ namespace Sad
                         // (EN) No initializer — use type default
                         switch (fieldDecl->type)
                         {
-                        case Data::DataType::INTEGER:
+                        case Types::SadTypeKind::Integer:
                             defaultValue = Value(0);
                             break;
-                        case Data::DataType::FLOAT:
+                        case Types::SadTypeKind::Float:
                             defaultValue = Value(0.0);
                             break;
-                        case Data::DataType::STRING:
+                        case Types::SadTypeKind::String:
                             defaultValue = Value("");
                             break;
-                        case Data::DataType::BOOLEAN:
+                        case Types::SadTypeKind::Boolean:
                             defaultValue = Value(false);
                             break;
                         default:
@@ -703,16 +703,16 @@ namespace Sad
                 {
                     switch (field->type)
                     {
-                    case Data::DataType::INTEGER:
+                    case Types::SadTypeKind::Integer:
                         defaultValue = Value(0);
                         break;
-                    case Data::DataType::FLOAT:
+                    case Types::SadTypeKind::Float:
                         defaultValue = Value(0.0);
                         break;
-                    case Data::DataType::STRING:
+                    case Types::SadTypeKind::String:
                         defaultValue = Value("");
                         break;
-                    case Data::DataType::BOOLEAN:
+                    case Types::SadTypeKind::Boolean:
                         defaultValue = Value(false);
                         break;
                     default:

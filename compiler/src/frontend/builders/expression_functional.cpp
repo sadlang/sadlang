@@ -110,7 +110,7 @@ namespace Sad
                     SadTypeKind paramType = SadTypeKind::Integer; // (AR) افتراضي / (EN) Default
                     // (AR) الأولوية 1: نوع AST صريح (المبرمج حدد النوع)
                     // (EN) Priority 1: explicit AST type (programmer specified)
-                    if (param.type != Data::DataType::UNKNOWN)
+                    if (param.type != Types::SadTypeKind::Unknown)
                     {
                         paramType = b_.astTypeToSIRType(param.type);
                     }

@@ -53,7 +53,7 @@ namespace Sad
             // Spec: docs/language_spec/rules/02_functions.md - function_decl ::= 'دالة' [type] IDENTIFIER '(' [param_list] ')' block
             // Optional return type BEFORE function name: دالة [type] name(...)
             // (AR) نوع الإرجاع الاختياري قبل اسم الدالة: دالة [نوع] اسم(...)
-            Data::DataType returnType = Data::DataType::UNKNOWN;
+            Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
             std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
             // (AR) راية للإشارة إذا كانت هذه هي الدالة الرئيسية
@@ -85,12 +85,12 @@ namespace Sad
             // (AR) [Phase 5e] نوع إرجاع من صنف مُعرَّف من المستخدم: "دالة نقطة احصل_نقطة()"
             // (EN) [Phase 5e] User-defined class return type: "function نقطة getPoint()"
             // شرط: returnType لا يزال UNKNOWN (لم يُحدَّد بعد) + رمزان متتاليان من نوع IDENTIFIER
-            if (returnType == Data::DataType::UNKNOWN &&
+            if (returnType == Types::SadTypeKind::Unknown &&
                 check(TT::IDENTIFIER) &&
                 peekNext().getType() == TT::IDENTIFIER)
             {
                 returnTypeName = current_.getValue();
-                returnType = Data::DataType::OBJECT;
+                returnType = Types::SadTypeKind::Class;
                 advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
             }
 
@@ -106,9 +106,9 @@ namespace Sad
 
                 // (AR) إذا لم يتم تحديد نوع الإرجاع، استخدام صحيح (int) كإعداد افتراضي للدالة الرئيسية
                 // (EN) If return type not specified, use INTEGER as default for main function
-                if (returnType == Data::DataType::UNKNOWN)
+                if (returnType == Types::SadTypeKind::Unknown)
                 {
-                    returnType = Data::DataType::INTEGER;
+                    returnType = Types::SadTypeKind::Integer;
                 }
 
                 // (AR) استخدام "رئيسية" كاسم للدالة
@@ -228,7 +228,7 @@ namespace Sad
             {
                 // (AR) التحقق من نوع الإرجاع - يجب أن يكون صحيح (int)
                 // (EN) Check return type - must be INTEGER
-                if (returnType != Data::DataType::INTEGER && returnType != Data::DataType::UNKNOWN)
+                if (returnType != Types::SadTypeKind::Integer && returnType != Types::SadTypeKind::Unknown)
                 {
                     std::cerr << "\n";
                     std::cerr << "⚠️ ========================================\n";
@@ -268,7 +268,7 @@ namespace Sad
                 {
                     // (AR) التحقق من أن المعامل من نوع نص[] (string array)
                     // (EN) Check that parameter is of type string[] (string array)
-                    if (paramObjs[0].type != Data::DataType::ARRAY)
+                    if (paramObjs[0].type != Types::SadTypeKind::Array)
                     {
                         std::cerr << "\n";
                         std::cerr << "⚠️ ========================================\n";
@@ -374,7 +374,7 @@ namespace Sad
             // (AR) التحقق من توافق نوع الإرجاع
             // (EN) Check return type compatibility
             // If function has UNKNOWN return type (no type specified), it should not have return statements with values
-            if (returnType == Data::DataType::UNKNOWN)
+            if (returnType == Types::SadTypeKind::Unknown)
             {
                 // Check if body contains return statements with values
                 // This is a simplified check - proper semantic analysis would be better
@@ -449,7 +449,7 @@ namespace Sad
 
             // (AR) نوع الإرجاع الاختياري قبل اسم الدالة
             // (EN) Optional return type before function name
-            Data::DataType returnType = Data::DataType::UNKNOWN;
+            Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
 
             // Check if next token is a type keyword or built-in type identifier (before function name)
             if (isTypeToken(current_.getType()) &&
@@ -926,7 +926,7 @@ namespace Sad
                     }
 
                     auto field = std::make_unique<FieldDecl>(
-                        fieldName.getValue(), Data::DataType::UNKNOWN,
+                        fieldName.getValue(), Types::SadTypeKind::Unknown,
                         std::move(initializer), access, true, fieldName.getPosition());
                     // (AR) إرفاق التوثيق الملتقط بالحقل الأول فقط — الحقول التالية
                     //      في نفس السطر (بفاصلة) لا تأخذ نفس التعليق
@@ -965,7 +965,7 @@ namespace Sad
                         }
 
                         auto nextField = std::make_unique<FieldDecl>(
-                            nextFieldName.getValue(), Data::DataType::UNKNOWN,
+                            nextFieldName.getValue(), Types::SadTypeKind::Unknown,
                             std::move(nextInit), access, true, nextFieldName.getPosition());
                         members.push_back(std::move(nextField));
                     }
@@ -1013,7 +1013,7 @@ namespace Sad
                     // (AR) دعم تحديد النوع: متغير اسم: نوع [= قيمة]
                     // (EN) Support type annotation: var name: type [= value]
                     // ═══════════════════════════════════════════════════════════════
-                    Data::DataType fieldType = Data::DataType::UNKNOWN;
+                    Types::SadTypeKind fieldType = Types::SadTypeKind::Unknown;
                     std::string typeName;
 
                     if (match(TT::COLON))
@@ -1026,7 +1026,7 @@ namespace Sad
                             Token typeToken = current_;
                             advance();
                             typeName = typeToken.getValue();
-                            fieldType = mapTokenTypeToDataType(typeToken.getType());
+                            fieldType = mapTokenTypeToKind(typeToken.getType());
                         }
                         else if (check(TT::IDENTIFIER))
                         {
@@ -1034,7 +1034,7 @@ namespace Sad
                             Token typeToken = current_;
                             advance();
                             typeName = typeToken.getValue();
-                            fieldType = Data::DataType::OBJECT;
+                            fieldType = Types::SadTypeKind::Class;
                         }
                         else
                         {
@@ -1081,19 +1081,19 @@ namespace Sad
                         }
 
                         // (AR) نوع اختياري / (EN) Optional type
-                        Data::DataType nextFieldType = Data::DataType::UNKNOWN;
+                        Types::SadTypeKind nextFieldType = Types::SadTypeKind::Unknown;
                         if (match(TT::COLON))
                         {
                             if (isTypeToken(current_.getType()))
                             {
                                 Token typeToken = current_;
                                 advance();
-                                nextFieldType = mapTokenTypeToDataType(typeToken.getType());
+                                nextFieldType = mapTokenTypeToKind(typeToken.getType());
                             }
                             else if (check(TT::IDENTIFIER))
                             {
                                 advance();
-                                nextFieldType = Data::DataType::OBJECT;
+                                nextFieldType = Types::SadTypeKind::Class;
                             }
                         }
 
@@ -1266,7 +1266,7 @@ namespace Sad
                 return std::make_unique<TupleDestructureStmt>(names, isConst, std::move(initializer), startPos);
             }
 
-            Data::DataType varType = Data::DataType::UNKNOWN;
+            Types::SadTypeKind varType = Types::SadTypeKind::Unknown;
             std::string className = "";     // For class-typed variables
             Token name(TT::IDENTIFIER, ""); // Initialize with default
 
@@ -1315,7 +1315,7 @@ namespace Sad
                     // Class-typed variable: ClassName varName = ...;
                     // (AR) متغير من نوع صنف: اسم_الصنف اسم_المتغير = ...;
                     className = current_.getValue();
-                    varType = Data::DataType::OBJECT;
+                    varType = Types::SadTypeKind::Class;
                     advance(); // Consume class name
 
                     // Check if identifier follows the class name
@@ -1379,11 +1379,11 @@ namespace Sad
                     {
                         // We have a type annotation, parse it
                         // (AR) لدينا تصريح نوع، قم بتحليله
-                        Data::DataType annotatedType = parseType();
+                        Types::SadTypeKind annotatedType = parseType();
 
                         // Check if the type was parsed successfully
                         // (AR) تحقق مما إذا تم تحليل النوع بنجاح
-                        if (annotatedType == Data::DataType::UNKNOWN)
+                        if (annotatedType == Types::SadTypeKind::Unknown)
                         {
                             errorBilingual(
                                 "نوع غير صحيح أو غير معروف بعد ':' في تصريح المتغير '" + name.getValue() + "'.",
@@ -1407,8 +1407,8 @@ namespace Sad
                 // Optional type annotation: name : type
                 if (match(TT::COLON))
                 {
-                    Data::DataType annotatedType = parseType();
-                    if (annotatedType != Data::DataType::UNKNOWN)
+                    Types::SadTypeKind annotatedType = parseType();
+                    if (annotatedType != Types::SadTypeKind::Unknown)
                     {
                         varType = annotatedType;
                     }
@@ -1536,7 +1536,7 @@ namespace Sad
                     // (AR) تحليل المتغير التالي: اسم [: نوع] [= قيمة]
                     // (EN) Parse next variable: name [: type] [= value]
                     Token nextName(TT::IDENTIFIER, "");
-                    Data::DataType nextType = Data::DataType::UNKNOWN;
+                    Types::SadTypeKind nextType = Types::SadTypeKind::Unknown;
 
                     if (check(TT::IDENTIFIER))
                     {
@@ -1564,7 +1564,7 @@ namespace Sad
                     if (match(TT::COLON))
                     {
                         nextType = parseType();
-                        if (nextType == Data::DataType::UNKNOWN)
+                        if (nextType == Types::SadTypeKind::Unknown)
                         {
                             errorBilingual(
                                 "نوع غير صحيح بعد ':' في تصريح المتغير '" + nextName.getValue() + "'.",
@@ -1991,7 +1991,7 @@ namespace Sad
 
                 // (AR) حقل بنية: [متغير|ثابت] [عام|خاص|محمي] [نوع] اسم [= قيمة]
                 // (EN) Struct field: [var|const] [public|private|protected] [type] name [= value]
-                Data::DataType fieldType = Data::DataType::UNKNOWN;
+                Types::SadTypeKind fieldType = Types::SadTypeKind::Unknown;
                 bool fieldIsMutable = true;
 
                 // ================================================================
@@ -2352,7 +2352,7 @@ namespace Sad
                     }
                     (void)methodIsAbstract; // (AR) جميع دوال السمة مجردة ضمنياً إن لم يكن لها جسم
                     // (AR) نوع الإرجاع (اختياري قبل الاسم)
-                    Data::DataType returnType = Data::DataType::NONE;
+                    Types::SadTypeKind returnType = Types::SadTypeKind::Void;
                     std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
                     // (AR) التحقق من نوع الإرجاع (دعم الأنواع كمُعرّفات مدمجة)
@@ -2365,7 +2365,7 @@ namespace Sad
                     else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER)
                     {
                         returnTypeName = current_.getValue();
-                        returnType = Data::DataType::OBJECT;
+                        returnType = Types::SadTypeKind::Class;
                         advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
                     }
 

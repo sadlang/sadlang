@@ -57,6 +57,28 @@ namespace Sad
         {
             // المقارنة تعمل على أي نوعين / Comparison works on any two types
 
+            // (AR) معالجة خاصة لـ عدم (Null) — S-TS-P1: عدم قيمة وحيدة تساوي نفسها فقط.
+            //      عدم == عدم ⇐ صحيح؛ عدم == أي قيمة أخرى ⇐ خطأ (متمايز عن فراغ وعن 0/"").
+            // (EN) Special handling for Null — S-TS-P1: null is a unit value equal only to itself.
+            //      null can be compared (==/!=) against any type; ordering is not allowed.
+            if (left.isNull() || right.isNull())
+            {
+                switch (op)
+                {
+                case TokenType::OP_EQUAL:
+                    return Value(left.isNull() && right.isNull());
+                case TokenType::OP_NOT_EQUAL:
+                    return Value(!(left.isNull() && right.isNull()));
+                default:
+                {
+                    Sad::Errors::RenderContext _rc;
+                    _rc.placeholders = {{"type", "عدم/null"}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_ONLY_EQUALITY_ALLOWED, Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column), _rc);
+                };
+                    return Value(false);
+                }
+            }
+
             // معالجة خاصة لـ null (VOID) / Special handling for null (VOID)
             // null يمكن مقارنته بأي نوع / null can be compared with any type
             if (left.isVoid() || right.isVoid())

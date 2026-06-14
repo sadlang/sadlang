@@ -237,6 +237,20 @@ namespace Sad
                 {
                     bool isStringCmp = (inst->operands[0].dataType == SadTypeKind::String ||
                                         inst->operands[1].dataType == SadTypeKind::String);
+                    // (AR) [S-TS-P4 codegen] حارس: `لاشيء == نص`. الطرف العددي هنا قد يكون
+                    //      حارس Null (kSadNullSentinel)؛ تحويله إلى مؤشر وتمريره لـstrcmp
+                    //      يُسقِط التنفيذ. عدم لا يساوي أيّ نص فعليّ → النتيجة «خطأ» مباشرة.
+                    // (EN) [S-TS-P4 codegen] Guard: `null == string`. The integer side may be the
+                    //      Null sentinel; IntToPtr+strcmp on it segfaults. null never equals a real
+                    //      string → return constant false directly.
+                    if (inst->operands[0].dataType == SadTypeKind::Null ||
+                        inst->operands[1].dataType == SadTypeKind::Null)
+                    {
+                        result = llvm::ConstantInt::get(cg_.getInt1Type(), 0); // false
+                        if (inst->result.has_value())
+                            cg_.context_info_.namedValues[inst->result->name] = result;
+                        return result;
+                    }
                     if (isStringCmp &&
                         ((leftTy->isIntegerTy(64) && rightTy->isPointerTy()) ||
                          (leftTy->isPointerTy() && rightTy->isIntegerTy(64))))

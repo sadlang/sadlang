@@ -1392,7 +1392,7 @@ namespace Sad
                 {
                     // (AR) دعم صيغتين: "نوع اسم" أو "اسم: نوع"
                     // (EN) Support two syntaxes: "type name" or "name: type"
-                    Data::DataType paramType = Data::DataType::UNKNOWN;
+                    Types::SadTypeKind paramType = Types::SadTypeKind::Unknown;
 
                     // Check if next token is a type keyword (type-first syntax: "رقم س")
                     // (AR) تحقق إذا كان الرمز التالي كلمة مفتاحية لنوع (صيغة النوع أولاً: "رقم س")
@@ -1478,7 +1478,7 @@ namespace Sad
 
                         parameters.emplace_back(
                             paramName.getValue(),
-                            Data::DataType::OBJECT,
+                            Types::SadTypeKind::Class,
                             std::move(defaultValue),
                             className);
                     }
@@ -1607,37 +1607,52 @@ namespace Sad
          *               - مصفوفة / array → ARRAY (with optional generic params)
          *               - قاموس / dict/map → MAP (with optional generic params)
          */
-        Data::DataType ParserCore::parseType()
+        // (AR) [S-TS-P4] غلاف parseType: يحلّل النوع الأساس ثم يستهلك لاحقة `؟` الاختيارية.
+        //      `رقم؟` → Optional. parseType يُستدعى في مواضع الأنواع فقط (لا وسط تعبير)،
+        //      فلا غموض مع الثلاثي `أ ؟ ب : ج`. (النوع الداخلي الغنيّ لـOptional<T> عبر
+        //      sadType في العقد — تمثيل أغنى مخطّط لاحقًا؛ هنا على مستوى الـkind.)
+        // (EN) [S-TS-P4] parseType wrapper: parse base type then consume optional `?` suffix.
+        //      parseType is only called in type positions, so no ternary ambiguity.
+        Types::SadTypeKind ParserCore::parseType()
         {
-            using DT = Data::DataType;
+            Types::SadTypeKind base = parseTypeCore();
+            if (check(TT::QUESTION))
+            {
+                advance(); // consume '?'
+                return Types::SadTypeKind::Optional;
+            }
+            return base;
+        }
 
+        Types::SadTypeKind ParserCore::parseTypeCore()
+        {
             // ========== الأنواع الأساسية - من رموز TYPE_* ==========
             // Basic Types - from TYPE_* tokens (legacy support)
 
             if (match(TT::TYPE_INTEGER))
-                return DT::INTEGER;
+                return Types::SadTypeKind::Integer;
             if (match(TT::TYPE_DOUBLE))
-                return DT::FLOAT;
+                return Types::SadTypeKind::Float;
             if (match(TT::TYPE_STRING))
-                return DT::STRING;
+                return Types::SadTypeKind::String;
             if (match(TT::TYPE_BOOLEAN))
-                return DT::BOOLEAN;
+                return Types::SadTypeKind::Boolean;
             if (match(TT::TYPE_VOID))
-                return DT::NONE;
+                return Types::SadTypeKind::Void;
             if (match(TT::TYPE_NULL))
-                return DT::NONE;
+                return Types::SadTypeKind::Void;
 
             if (match(TT::TYPE_ARRAY))
             {
                 if (check(TT::OP_LESS))
-                    return parseGenericType(DT::ARRAY);
-                return DT::ARRAY;
+                    return parseGenericType(Types::SadTypeKind::Array);
+                return Types::SadTypeKind::Array;
             }
             if (match(TT::TYPE_MAP))
             {
                 if (check(TT::OP_LESS))
-                    return parseGenericType(DT::MAP);
-                return DT::MAP;
+                    return parseGenericType(Types::SadTypeKind::Map);
+                return Types::SadTypeKind::Map;
             }
 
             // ========== الأنواع كمُعرّفات مدمجة ==========
@@ -1646,37 +1661,37 @@ namespace Sad
             if (check(TT::IDENTIFIER))
             {
                 const std::string &name = current_.getValue();
-                DT resolved = DT::UNKNOWN;
+                Types::SadTypeKind resolved = Types::SadTypeKind::Unknown;
                 if (name == "رقم")
-                    resolved = DT::INTEGER;
+                    resolved = Types::SadTypeKind::Integer;
                 else if (name == "عشري")
-                    resolved = DT::FLOAT;
+                    resolved = Types::SadTypeKind::Float;
                 else if (name == "مضاعف")
                 {
                     // (AR) ❌ كلمة `مضاعف` أُزيلت — استخدم `عشري`
                     error("(AR) ❌ `مضاعف` لم تعد مدعومة. استخدم `عشري` بدلاً منها.\n"
                           "(EN) `مضاعف` is no longer supported. Use `عشري` instead.");
-                    resolved = DT::FLOAT; // recover
+                    resolved = Types::SadTypeKind::Float; // recover
                 }
                 else if (name == "نص")
-                    resolved = DT::STRING;
+                    resolved = Types::SadTypeKind::String;
                 else if (name == "منطقي")
-                    resolved = DT::BOOLEAN;
+                    resolved = Types::SadTypeKind::Boolean;
                 else if (name == "فراغ")
-                    resolved = DT::NONE;
+                    resolved = Types::SadTypeKind::Void;
                 else if (name == "عدم")
-                    resolved = DT::NONE;
+                    resolved = Types::SadTypeKind::Void;
                 else if (name == "مصفوفة")
-                    resolved = DT::ARRAY;
+                    resolved = Types::SadTypeKind::Array;
                 else if (name == "خريطة")
-                    resolved = DT::MAP;
+                    resolved = Types::SadTypeKind::Map;
                 else if (name == "أي")
-                    resolved = DT::OBJECT;
+                    resolved = Types::SadTypeKind::Class;
 
-                if (resolved != DT::UNKNOWN)
+                if (resolved != Types::SadTypeKind::Unknown)
                 {
                     advance(); // consume the identifier
-                    if ((resolved == DT::ARRAY || resolved == DT::MAP) && check(TT::OP_LESS))
+                    if ((resolved == Types::SadTypeKind::Array || resolved == Types::SadTypeKind::Map) && check(TT::OP_LESS))
                     {
                         return parseGenericType(resolved);
                     }
@@ -1687,7 +1702,7 @@ namespace Sad
             // ========== Type not found ==========
             error("(AR) توقع نوع بيانات صحيح (رقم، نص، منطقي، إلخ). "
                   "(EN) Expected valid data type (int, string, bool, etc).");
-            return DT::UNKNOWN;
+            return Types::SadTypeKind::Unknown;
         }
 
         /**
@@ -1709,7 +1724,7 @@ namespace Sad
          *       (EN) Current implementation reads generic parameters but doesn't store them.
          *            Will be enhanced in next phase to support full Type Checking.
          */
-        Data::DataType ParserCore::parseGenericType(Data::DataType baseType)
+        Types::SadTypeKind ParserCore::parseGenericType(Types::SadTypeKind baseType)
         {
             // Consume '<'
             consume(TT::OP_LESS,
@@ -1718,18 +1733,18 @@ namespace Sad
 
             // Parse first type parameter
             // (AR) تحليل معامل النوع الأول
-            Data::DataType param1 = parseType();
+            Types::SadTypeKind param1 = parseType();
             (void)param1; // Suppress unused variable warning
 
             // For Map type, parse second parameter
             // (AR) للنوع Map، تحليل المعامل الثاني
-            if (baseType == Data::DataType::MAP)
+            if (baseType == Types::SadTypeKind::Map)
             {
                 consume(TT::COMMA,
                         "(AR) توقع ',' بين معاملات Map. "
                         "(EN) Expected ',' between Map parameters.");
 
-                Data::DataType param2 = parseType();
+                Types::SadTypeKind param2 = parseType();
                 (void)param2; // Suppress unused variable warning
             }
 
@@ -2072,30 +2087,30 @@ namespace Sad
             }
         }
 
-        Data::DataType ParserCore::mapTokenTypeToDataType(TokenType tokenType)
+        Types::SadTypeKind ParserCore::mapTokenTypeToKind(TokenType tokenType)
         {
             using TT = TokenType;
 
             switch (tokenType)
             {
             case TT::TYPE_INTEGER:
-                return Data::DataType::INTEGER;
+                return Types::SadTypeKind::Integer;
             case TT::TYPE_DOUBLE:
-                return Data::DataType::FLOAT;
+                return Types::SadTypeKind::Float;
             case TT::TYPE_STRING:
-                return Data::DataType::STRING;
+                return Types::SadTypeKind::String;
             case TT::TYPE_BOOLEAN:
-                return Data::DataType::BOOLEAN;
+                return Types::SadTypeKind::Boolean;
             case TT::TYPE_VOID:
-                return Data::DataType::NONE;
+                return Types::SadTypeKind::Void;
             case TT::TYPE_NULL:
-                return Data::DataType::NONE;
+                return Types::SadTypeKind::Void;
             case TT::TYPE_ARRAY:
-                return Data::DataType::ARRAY;
+                return Types::SadTypeKind::Array;
             case TT::TYPE_MAP:
-                return Data::DataType::MAP;
+                return Types::SadTypeKind::Map;
             default:
-                return Data::DataType::UNKNOWN;
+                return Types::SadTypeKind::Unknown;
             }
         }
 

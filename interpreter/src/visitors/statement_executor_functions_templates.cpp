@@ -244,33 +244,33 @@ namespace Sad
 
             // (AR) Helper function لتحويل DataType إلى string
             // (EN) Helper to convert DataType to string
-            auto dataTypeToString = [](Data::DataType type) -> std::string
+            auto dataTypeToString = [](Types::SadTypeKind type) -> std::string
             {
                 switch (type)
                 {
-                case Data::DataType::INTEGER:
+                case Types::SadTypeKind::Integer:
                     return "integer";
-                case Data::DataType::FLOAT:
+                case Types::SadTypeKind::Float:
                     return "float";
-                case Data::DataType::STRING:
+                case Types::SadTypeKind::String:
                     return "string";
-                case Data::DataType::BOOLEAN:
+                case Types::SadTypeKind::Boolean:
                     return "boolean";
-                case Data::DataType::NONE:
+                case Types::SadTypeKind::Void:
                     return "none";
-                case Data::DataType::ARRAY:
+                case Types::SadTypeKind::Array:
                     return "array";
-                case Data::DataType::MAP:
+                case Types::SadTypeKind::Map:
                     return "map";
-                case Data::DataType::TUPLE:
+                case Types::SadTypeKind::Tuple:
                     return "tuple";
-                case Data::DataType::FUNCTION:
+                case Types::SadTypeKind::Function:
                     return "function";
-                case Data::DataType::OBJECT:
+                case Types::SadTypeKind::Class:
                     return "object";
-                case Data::DataType::ENUM:
+                case Types::SadTypeKind::Enum:
                     return "enum";
-                case Data::DataType::BYTE:
+                case Types::SadTypeKind::Byte:
                     return "byte";
                 default:
                     return "unknown";

@@ -487,27 +487,27 @@ namespace Sad
 
             // (AR) تحويل المعاملات من AST Parameter إلى FunctionParameter
             // (EN) Convert parameters from AST Parameter to FunctionParameter
-            auto dataTypeToString = [](DataType type) -> std::string
+            auto dataTypeToString = [](Types::SadTypeKind type) -> std::string
             {
                 switch (type)
                 {
-                case DataType::INTEGER:
+                case Types::SadTypeKind::Integer:
                     return "integer";
-                case DataType::FLOAT:
+                case Types::SadTypeKind::Float:
                     return "float";
-                case DataType::STRING:
+                case Types::SadTypeKind::String:
                     return "string";
-                case DataType::BOOLEAN:
+                case Types::SadTypeKind::Boolean:
                     return "boolean";
-                case DataType::NONE:
+                case Types::SadTypeKind::Void:
                     return "none";
-                case DataType::ARRAY:
+                case Types::SadTypeKind::Array:
                     return "array";
-                case DataType::MAP:
+                case Types::SadTypeKind::Map:
                     return "map";
-                case DataType::FUNCTION:
+                case Types::SadTypeKind::Function:
                     return "function";
-                case DataType::OBJECT:
+                case Types::SadTypeKind::Class:
                     return "object";
                 default:
                     return "unknown";

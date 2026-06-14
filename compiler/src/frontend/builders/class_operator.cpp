@@ -123,8 +123,8 @@ namespace Sad
                 // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
                 // (EN) Infer return type if not specified
                 SadTypeKind returnType;
-                if (operatorDecl->returnType == Data::DataType::UNKNOWN ||
-                    operatorDecl->returnType == Data::DataType::NONE)
+                if (operatorDecl->returnType == Types::SadTypeKind::Unknown ||
+                    operatorDecl->returnType == Types::SadTypeKind::Void)
                 {
                     auto savedClassName = b_.currentClassName_;
                     b_.currentClassName_ = classDecl->name;
@@ -224,8 +224,8 @@ namespace Sad
                         //      هذا يسمح بالوصول لحقول المعامل (مثل آخر.س) داخل جسم العامل
                         // (EN) If param has no explicit type (UNKNOWN/NONE), assume it's an object of the same class
                         //      This allows member access (e.g. other.x) inside operator body
-                        if (param.type == Data::DataType::UNKNOWN || param.type == Data::DataType::NONE ||
-                            param.type == Data::DataType::OBJECT)
+                        if (param.type == Types::SadTypeKind::Unknown || param.type == Types::SadTypeKind::Void ||
+                            param.type == Types::SadTypeKind::Class)
                         {
                             b_.classInstanceTypes_[param.name] = classDecl->name;
                             b_.classInstanceTypes_["%" + param.name] = classDecl->name;

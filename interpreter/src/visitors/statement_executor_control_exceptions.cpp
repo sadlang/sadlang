@@ -7,6 +7,7 @@
  */
 
 #include "statement_executor.h"
+#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنات الحقول تتمحور على SadTypeKind
 #include "declarations.h"
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
@@ -102,19 +103,19 @@ namespace Sad
                     // (EN) Match exception type — UNKNOWN matches everything (catch-all)
                     bool typeMatches = false;
 
-                    if (catchClause.exceptionType == Data::DataType::UNKNOWN)
+                    if (catchClause.exceptionType == Types::SadTypeKind::Unknown)
                     {
                         // (AR) catch-all: يلتقط أي استثناء
                         typeMatches = true;
                     }
-                    else if (catchClause.exceptionType == Data::DataType::ERROR)
+                    else if (catchClause.exceptionType == Types::SadTypeKind::Error)
                     {
                         // (AR) مطابقة نوع ERROR فقط — نقارن مع نوع الاستثناء الفعلي
                         // (EN) Match ERROR type — compare against actual exception type
                         typeMatches = (exType == "RuntimeError" || exType == "Error" ||
                                        exType == "خطأ" || exType == "خطأ_تشغيل" || exType.empty());
                     }
-                    else if (catchClause.exceptionType == Data::DataType::OBJECT)
+                    else if (catchClause.exceptionType == Types::SadTypeKind::Class)
                     {
                         // (AR) مطابقة نوع كائن مخصص مع دعم الوراثة
                         // (EN) Match custom object type with inheritance support
@@ -172,8 +173,8 @@ namespace Sad
                 {
                     // (AR) مطابقة نوع الاستثناء — UNKNOWN يلتقط الكل
                     // (EN) Type matching — UNKNOWN catches all
-                    if (catchClause.exceptionType != Data::DataType::UNKNOWN &&
-                        catchClause.exceptionType != Data::DataType::ERROR)
+                    if (catchClause.exceptionType != Types::SadTypeKind::Unknown &&
+                        catchClause.exceptionType != Types::SadTypeKind::Error)
                     {
                         continue;
                     }
@@ -206,8 +207,8 @@ namespace Sad
                 {
                     // (AR) مطابقة نوع الاستثناء — UNKNOWN يلتقط الكل
                     // (EN) Type matching — UNKNOWN catches all
-                    if (catchClause.exceptionType != Data::DataType::UNKNOWN &&
-                        catchClause.exceptionType != Data::DataType::ERROR)
+                    if (catchClause.exceptionType != Types::SadTypeKind::Unknown &&
+                        catchClause.exceptionType != Types::SadTypeKind::Error)
                     {
                         continue;
                     }
@@ -240,7 +241,7 @@ namespace Sad
                 {
                     // (AR) للاستثناءات غير المعروفة، فقط catch-all (UNKNOWN) يلتقطها
                     // (EN) For unknown exceptions, only catch-all (UNKNOWN) matches
-                    if (catchClause.exceptionType != Data::DataType::UNKNOWN)
+                    if (catchClause.exceptionType != Types::SadTypeKind::Unknown)
                     {
                         continue;
                     }

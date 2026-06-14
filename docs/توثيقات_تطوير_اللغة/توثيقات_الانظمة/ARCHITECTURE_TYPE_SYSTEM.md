@@ -1,193 +1,152 @@
 # وثيقة المعمارية: نظام الأنواع الموحد (SadTypeKind)
 
+> **حالة التحقّق (محدَّثة بعد تنفيذ خطّة الإكمال — فرع `type_system`):** ارتفع التطبيق من ≈55-60% إلى
+> اكتمال القلب: **الاستبدال الكامل DataType→SadTypeKind تمّ** (P2/P2.5a/P2.5b — `DataType` محذوف نهائيًّا)؛
+> **Null متمايز** (P1)؛ **المدقّق موحَّد على SadTypeKind** (P2)؛ **Result مطبَّق** (P3)؛ **سطح Optional `رقم?`** (P4)؛
+> **فرض أمان null في المفسّر** (P9)؛ **interning للمركّبة** (P7). المتبقّي: ربط Future/Generator runtime + codegen المترجم لـnull/Optional + تضييق التدفّق (P10).
+> انظر [خطّة الإكمال](./TYPE_SYSTEM_COMPLETION_PLAN.md) و`status/implementation_status.md`.
+
 ## 📋 نظرة عامة
 
-**الهدف الأساسي**: توحيد نظام الأنواع في لغة ص من 5 أنظمة منفصلة إلى نظام واحد موحد (SadTypeKind).
+**الهدف الأساسي**: توحيد نظام الأنواع في لغة ص من عدّة أنظمة منفصلة إلى نظام واحد موحّد (`Types::SadTypeKind`).
 
-**الحالة الحالية**: ✅ مكتملة بنسبة 100% — Phase 5 نجحت
-- إزالة `enum Data::ValueType` القديم بالكامل
-- تحويل السيستم بالكامل إلى `Types::SadTypeKind`
-- جميع الاختبارات تمر (34/34 P3 + 20 Type Safety)
+**الحالة الفعلية (مدعومة بالكود):**
+- ✅ إزالة `enum Data::ValueType` القديم من المسار النشط (بقي فقط في `archived/` و`sad_ui/`). البديل ثوابت توافقية `constexpr SadTypeKind` في [value.h:83-99](../../../../shared/types/include/value.h#L83-L99).
+- ✅ `Value` يخزّن النوع كـ`Types::SadTypeKind` + `SadTypePtr` ([value.h:236-246](../../../../shared/types/include/value.h#L236)).
+- ✅ المترجم يستورد `Sad::Types::SadTypeKind` (`compiler/include/types/type.h:33`, `sir_types.h:46`) — أنجح جزء في التوحيد.
+- ✅ **المدقّق الدلالي موحَّد** على SadTypeKind (S-TS-P2): `grep "Data::DataType::"` = 0؛ و`DataType` محذوف من المشروع كلّه (P2.5a/b).
+- ◑ **الأنواع المتقدّمة**: Result مطبَّق+مختبَر (P3)؛ Optional له سطح `رقم?`+إسناد (P4)؛ Future/Generator أصنافها موجودة (ربط runtime جزئيّ — متبقٍّ).
+- ✅ **نوع `Null` متمايز** (S-TS-P1): `نوع(لاشيء)`=«عدم»؛ وفرض أمان null في المفسّر (P9).
 
 ---
 
 ## 🏛️ المشكلة الأصلية
 
-قبل التوحيد، كانت هناك **5 أنظمة نوع مستقلة**:
-
-```
-System 1: ValueType (enum - قديم)
-   ├─ VOID, INTEGER, DOUBLE, STRING, BOOLEAN, ARRAY, MAP, OBJECT, FUNCTION, NULL
-
-System 2: DataType (قديم)
-   ├─ المستخدم في AST nodes
-
-System 3: SadTypeKind (جديد - غير متكامل)
-   ├─ محاولة أولى للتوحيد
-
-System 4: SIRValueType (المترجم)
-   ├─ لـ codegen و LLVM
-
-System 5: runtime ValueType (المفسر)
-   ├─ نظام مستقل في السياق
-```
-
-**المشاكل الناتجة:**
-- ❌ تحويلات متعددة بين الأنظمة = أخطاء محتملة
-- ❌ صعوبة إضافة أنواع جديدة (Generics, Optional, Result)
-- ❌ فقدان المعلومات في التحويلات
-- ❌ Null checking غير آمن
-- ❌ صعوبة في الصيانة والفهم
+قبل التوحيد كانت هناك أنظمة نوع مستقلّة متعدّدة (ValueType القديم في المفسّر، DataType في الـAST، SIRValueType في المترجم) أدّت إلى:
+- ❌ تحويلات متعدّدة بين الأنظمة = أخطاء محتملة وفقدان معلومات.
+- ❌ صعوبة إضافة أنواع جديدة وصيانة الكود.
 
 ---
 
-## ✨ الحل: النظام الموحد
+## ✨ الحل: النظام الموحّد
 
-### المستويات الثلاث
+### الطبقة 1️⃣: **`SadTypeKind` enum** — العدد الفعلي **52 قيمة**
 
-```mermaid
-graph TD
-    A["🎯 SadTypeKind (46 نوع)<br/>─── النظام الموحد الأساسي"]
-    B["🔧 Type Bridge Layer<br/>─── التحويلات ثنائية الاتجاه"]
-    C["⚙️ Runtime/Compiler<br/>─── التنفيذ الفعلي"]
-    
-    A -->|تحويلات SadTypeKind →<br/>ValueType/DataType| B
-    B -->|تحويلات عكسية | A
-    B -->|تطبيق| C
-```
+**الملف**: [shared/types/generated/sad_type_kind_generated.h](../../../../shared/types/generated/sad_type_kind_generated.h) (مُولَّد من `language-truth/types.yaml`)
 
-### الطبقة 1️⃣: **SadTypeKind enum**
+> ✅ تصحيح اتّساق (S-TS-P0/P1): العدّ الموحَّد الآن **52 قيمة** (49 + Null في P1 + Point/Rect في P11). تعليق الترويسة في `sad_type_system.h:16,55-56` صُحِّح إلى 52، والعدد يُولَّد آليًّا من YAML فلا انحراف بنيويًّا.
 
-**الملف**: `shared/types/include/sad_type_system.h`
-
-**46 نوع موحد:**
+**القيم الـ52 الفعلية (مُولَّدة من المصدر):**
 
 ```
-التصنيفات الأساسية:
-├─ Void              (بدون قيمة)
-├─ Integer           (رقم صحيح)
-├─ Float             (رقم عشري)
-├─ String            (نص)
-├─ Boolean           (منطقي)
-└─ Null              (عدم/لاشيء)
+البدائيات والعددية:
+  Void, Integer, Float, Boolean, String, Byte,
+  Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64,
+  Float32, Float64, Char
 
-الأنواع المركبة:
-├─ Array<T>
-├─ Map<K,V>
-├─ Tuple<...>
-└─ Function(Args) → ReturnType
+المركّبة:
+  Array, Map, Tuple, Slice, Vector
 
-الأنواع المتقدمة:
-├─ Class / Struct
-├─ Generic<T>
-├─ Optional<T>
-├─ Result<T,E>
-├─ Future<T>
-├─ Qubit (للحوسبة الكمية)
-├─ URL (النوع الويب)
-└─ ... (36 نوع متقدم)
+الكائنية/التصنيفية:
+  Class, Struct, Enum, Trait, Function, Closure
+
+الجبرية/العامة:
+  Union, Intersection, Optional, Result, Generic,
+  TypeParameter, TypeAlias
+
+المؤشّرات والمراجع:
+  Pointer, Reference, MutableRef
+
+الخاصّة:
+  Any, Never, Unknown, Error, Null
+
+غير المتزامن/المولّدات:
+  Future, Generator, Comprehension
+
+واجهة المستخدم (GUI):
+  Color, Widget, Window, Event, Point, Rect
 ```
 
-### الطبقة 2️⃣: **SadType Hierarchy**
+> `Null` مُضاف في S-TS-P1 (عدم متمايز عن فراغ). `Qubit` مؤرشف فقط
+> (`archived/experimental_types/qubit_type.cpp`) ولا قيمة enum له؛ `URL` غير موجود.
 
-**15 صنف فرعي متخصص:**
+### تدقيق الاستهلاك (S-TS-P6) — لا قيمة ميتة
+
+تدقيق grep لكل القيم الـ52 عبر `interpreter`/`compiler`/`shared`/`vm`/`tools`
+(عدا الترويسة المُولَّدة). **النتيجة: كل قيمة مُستهلَكة (الحدّ الأدنى 4 مواضع) — صفر قيمة ميتة، فلا إزالة (AC2).**
+
+| الفئة | القيم | الاستهلاك |
+|------|------|:---------:|
+| مُطبَّق بكثافة | Integer(1058)، Boolean(471)، Void(424)، String(420)، Float(303)، Array(183)، Pointer(173)، Unknown(101)، Class(85)، Function(67)، Map(62) | >60 |
+| مُطبَّق | Struct(46)، Tuple(38)، Byte(23)، Any(23)، Error(19)، Union(17)، Enum/Never(16)، Optional(13)، Null(12)، Trait(12)، Closure(11) | 11–46 |
+| مُطبَّق (SIMD) | **Vector(24)** — SIMD، **ليس ميتًا** (`builtins_simd.cpp`) | 24 |
+| مُستهلَك (بنيوي/قليل) | Future(10)، Generator(9)، Generic(9)، Int8(8)، TypeParameter(8)، Float64/Char/Result/Reference/MutableRef/TypeAlias/Intersection/Float32/Int16-64(6)، Slice/UInt*(5) | 5–10 |
+| مُستهلَك (واجهات/استيعاب) | Comprehension، Color، Widget، Window، Event | 4 لكلٍّ |
+
+**ملاحظات تطبيق (تقاطع P3/P4):** `Result` نوعٌ مطبَّق + مختبَر (S-TS-P3)؛ `Optional` له سطح `رقم?` + إسناد (S-TS-P4)؛ `Future`/`Generator` أصنافها موجودة لكن **ربط الـruntime جزئيّ** (مخطّط — S-TS-P4 المتبقّي)، لا تُزال (مستهلَكة). لا قيمة تحتاج وسم «ميت».
+
+### الطبقة 2️⃣: **هرمية `SadType`** — **17 صنفًا فرعيًّا فعليًّا** (لا 15)
+
+**الأصناف الموجودة فعلًا** (من [sad_type_system.h](../../../../shared/types/include/sad_type_system.h)):
 
 ```cpp
 SadType (الأساس)
-├─ IntType           : نوع الأعداد الصحيحة
-├─ FloatType         : نوع الأعداد العشرية
-├─ StringType        : نوع النصوص
-├─ BooleanType       : نوع القيم المنطقية
-├─ ArrayType<T>      : نوع المصفوفات (معامل عام)
-├─ MapType<K,V>      : نوع الخرائط
-├─ TupleType<...>    : نوع الـ Tuples
-├─ ClassType         : نوع الأصناف
-├─ FunctionType      : نوع الدوال
-├─ GenericType<T>    : الأنواع العامة
-├─ OptionalType<T>   : أنواع اختيارية (قد تكون null)
-├─ ResultType<T,E>   : نتائج (نجاح أو خطأ)
-├─ FutureType<T>     : الـ Futures الغير متزامنة
-├─ QubitType         : للحوسبة الكمية
-└─ URLType           : النوع المخصص للـ URLs
+├─ SadPrimitiveType   (517)  // يغطّي كل البدائيات والعددية — لا توجد IntType/FloatType منفصلة
+├─ SadSpecialType     (555)  // Any/Never/Unknown/Error
+├─ SadArrayType       (583)
+├─ SadMapType         (630)
+├─ SadTupleType       (684)
+├─ SadFunctionType    (744)
+├─ SadClassType       (832)
+├─ SadEnumType        (889)
+├─ SadTraitType       (925)
+├─ SadUnionType       (959)
+├─ SadOptionalType    (1018)
+├─ SadGenericType     (1062)
+├─ SadReferenceType   (1125)
+├─ SadFutureType      (1174)
+├─ SadGeneratorType   (1217)
+└─ SadResultType      (S-TS-P3)  // نتيجة<T, E> — مُضاف
 ```
 
-### الطبقة 3️⃣: **SadTypeRegistry (Singleton)**
+> البدائيات يغطّيها `SadPrimitiveType` الواحد (لا `SadIntType`/`SadFloatType`... منفصلة). `Qubit`/`URL` غير موجودة.
+> **تحديث (S-TS-P3):** `Result` أصبح له صنف `SadResultType` + `makeResult` + إسناد تغايُري — لم يعد «قيمة ميتة».
 
-**المركز المركزي لإنشاء الأنواع:**
+### الطبقة 3️⃣: **`SadTypeRegistry` (Singleton)**
 
-```cpp
-SadTypeRegistry registry;
+**الملف**: [sad_type_system.h:1272-1476](../../../../shared/types/include/sad_type_system.h#L1272)
 
-// الإنشاء المركزي
-auto intType = registry->getIntType();
-auto arrayType = registry->getArrayType(intType);
-auto functionType = registry->getFunctionType(args, returnType);
+المركز المركزي لإنشاء الأنواع.
 
-// التخزين الكفؤ
-// كل نوع يُنشأ مرة واحدة فقط → مقارنة pointer بسيطة
-if (type1 == type2) {  // مؤشرات متطابقة
-    // نفس النوع تماماً
-}
-```
+> ✅ **تحديث (S-TS-P7):** interning صار يشمل الأنواع المركّبة (Array/Map/Tuple/Optional/Result)
+> عبر `SadTypeRegistry::intern()` (مفتاح = التوقيع البنيوي) → **مقارنة المؤشر `==` صحيحة** للمتماثلة بنيويًّا.
 
 ---
 
 ## 🌉 طبقة الجسر (Type Bridge)
 
-**الملف**: `shared/types/include/type_bridge.h`
+**الملف**: [shared/types/include/type_bridge.h](../../../../shared/types/include/type_bridge.h)
 
-### التحويلات الثلاثة الاتجاهات:
+تحويلات `SadTypeKind ↔ ValueType` (+ runtime: `inferSadType`/`isValueCompatible`).
 
-```
-SadTypeKind ↔ ValueType ↔ DataType
-```
+> ✅ **تحديث (S-TS-P2.5b):** أُزيلت دوال `DataType` الأربع من الجسر و`data_types.h` كاملًا
+> (`grep DataType` في المشروع = 0). لم يعد ثمّة تحويل مُسقِط `Optional/Result → Void`؛
+> النظام الأفقر `DataType` (14 قيمة) أُزيل نهائيًّا، والمحور الوحيد `SadTypeKind`.
 
-### الدوال الأساسية:
+### جدول المطابقة (SadTypeKind ↔ ValueType — البدائيات)
 
-```cpp
-// من SadTypeKind إلى ValueType (للكود القديم)
-ValueType sadTypeToValueType(SadTypeKind kind);
-
-// من ValueType إلى SadTypeKind
-SadTypeKind sadTypeFromValueType(ValueType vt);
-
-// من SadTypeKind إلى DataType (AST)
-DataType sadTypeToDataType(SadTypeKind kind);
-
-// من DataType إلى SadTypeKind
-SadTypeKind sadTypeFromDataType(DataType dt);
-```
-
-### مثال استخدام الجسر:
-
-```cpp
-// في الكود الجديد (SadType)
-SadTypeKind kind = SadTypeKind::Integer;
-
-// تحويل لتمرير إلى كود قديم
-ValueType oldType = sadTypeToValueType(kind);
-
-// استخدام الكود القديم
-legacyFunction(oldType);
-
-// تحويل النتيجة للخلف
-SadTypeKind result = sadTypeFromValueType(oldType);
-```
-
-### جدول المطابقة:
-
-| SadTypeKind | ValueType | DataType |
-|-------------|-----------|----------|
-| Void | VOID | UNKNOWN |
-| Integer | INTEGER | INTEGER |
-| Float | DOUBLE | FLOAT |
-| String | STRING | STRING |
-| Boolean | BOOLEAN | BOOLEAN |
-| Array | ARRAY | ARRAY |
-| Map | MAP | MAP |
-| Null | NULL | UNKNOWN |
-| Class | OBJECT | OBJECT |
-| Function | FUNCTION | FUNCTION |
+| SadTypeKind | ValueType |
+|-------------|-----------|
+| Void | VOID |
+| Null | NULL (عدم — متمايز، S-TS-P1) |
+| Integer | INTEGER |
+| Float | DOUBLE |
+| String | STRING |
+| Boolean | BOOLEAN |
+| Array | ARRAY |
+| Map | MAP |
+| Class | OBJECT |
+| Function | FUNCTION |
 
 ---
 
@@ -196,262 +155,84 @@ SadTypeKind result = sadTypeFromValueType(oldType);
 ```mermaid
 graph LR
     A["📄 مصدر .ص<br/>دالة ف(س: رقم)"]
-    B["🔍 Lexer<br/>اسم الرمز"]
-    C["📝 Parser<br/>AST node"]
-    D["🎯 Type Inference<br/>getDataType()"]
-    E["🔄 Type Bridge<br/>DataType → SadTypeKind"]
-    F["⚙️ SadTypeRegistry<br/>getIntType()"]
-    G["💾 Value<br/>مع نوع محفوظ"]
-    H["🏃 Runtime Execution<br/>تقييم آمن بالنوع"]
-    
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
+    B["🔍 Lexer"]
+    C["📝 Parser → AST<br/>(SadTypeKind مباشرة)"]
+    D["🎯 Type Inference<br/>getTypeKind()"]
+    F["💾 Value<br/>(SadTypePtr محفوظ)"]
+    G["🏃 Runtime / Codegen"]
+    A --> B --> C --> D --> F --> G
 ```
+
+> تحديث (S-TS-P2.5a): المحلّل يُنتج `SadTypeKind` مباشرة؛ لا عبور `DataType` (محذوف). المدقّق موحَّد على SadTypeKind (P2).
 
 ---
 
-## 📊 مخطط العلاقات المعقد
+## 📊 حالة الأنواع المتقدّمة (تصنيف صادق)
 
-```mermaid
-graph TB
-    subgraph "النظام الموحد"
-        SK["SadTypeKind enum<br/>46 قيمة"]
-        SR["SadTypeRegistry<br/>Singleton"]
-        ST["SadType Hierarchy<br/>15 صنف"]
-    end
-    
-    subgraph "طبقة الجسر"
-        TB["Type Bridge<br/>8 دوال تحويل"]
-    end
-    
-    subgraph "الأنظمة القديمة"
-        VT["ValueType<br/>كود قديم"]
-        DT["DataType<br/>AST nodes"]
-    end
-    
-    subgraph "التطبيقات"
-        INT["Interpreter<br/>المفسر"]
-        COM["Compiler<br/>المترجم"]
-        VM["Virtual Machine<br/>الآلة الافتراضية"]
-    end
-    
-    SK --> SR
-    SR --> ST
-    SK --> TB
-    VT --> TB
-    DT --> TB
-    TB --> INT
-    TB --> COM
-    TB --> VM
-    
-    ST -.-> INT
-    ST -.-> COM
-```
+| النوع | قيمة enum | صنف SadType | بناء في السجلّ | استخدام دلالي/تنفيذي | التصنيف |
+|---|:---:|:---:|:---:|---|---|
+| Optional | ✅ | ✅ `SadOptionalType` | ✅ `makeOptional` (interned P7) | سطح `رقم?` يُحلَّل ويعمل في المفسّر (P4)؛ `Null<:T?`؛ codegen مؤجَّل | **مطبَّق (سطح kind-level)** |
+| Result | ✅ | ✅ `SadResultType` (P3) | ✅ `makeResult` (interned P7) | إسناد تغايُري + اختبار وحدة 47/0 (P3) | **مطبَّق** |
+| Future | ✅ | ✅ `SadFutureType` | ✅ `makeFuture` | الصنف موجود؛ ربط async runtime — **متبقٍّ** | **هيكل (ربط runtime متبقٍّ)** |
+| Generator | ✅ | ✅ `SadGeneratorType` | ✅ `makeGenerator` | الصنف موجود؛ ربط المولّدات — **متبقٍّ** | **هيكل (ربط runtime متبقٍّ)** |
+| Qubit | ❌ | ❌ (مؤرشف) | ❌ | — | **غير موجود** |
+
+> ملاحظة (محدَّثة): فرض أمان null يحدث في **طبقة المفسّر** (`statement_executor`، P9) لا المدقّق الدلالي (الأخير لا يُفعَّل في sad-run الافتراضي).
 
 ---
 
-## ✅ Phase 5: حذف جذري لـ Data::ValueType
+## 🛡️ ضمانات الأمان — الوضع الفعلي
 
-### ما تم إنجازه:
+### 1. Type Safety (البدائيات)
+يعمل فعليًّا: `نوع(42)`→«رقم»، `نوع(3.14)`→«عشري»، `نوع("نص")`→«نص»، `نوع(صحيح)`→«منطقي»، `نوع([..])`→«مصفوفة». ✅
 
-1. **✅ حذف enum ValueType من value.h**
-   - كانت 10 قيم فقط
-   - الآن: SadTypeKind يحل محلها (46 قيمة)
+### 2. ❌ Null Safety — **غير مطبَّق (0%)** — مع أن الـSoT يطلبه
+لا توجد قيمة `SadTypeKind::Null`. `LITERAL_NULL → Value()` أي `Void` ([expression_evaluator_core.cpp:278-279](../../../../interpreter/src/visitors/expression_evaluator_core.cpp#L278)). تأكيدات الاختبار نفسها تطابق `لاشيء → VOID` (`builtin_module_assertions.cpp:533`). نتيجة `نوع(لاشيء)` = «فراغ».
+> ⚠️ **مخالفة SoT:** `language-truth/types.yaml` يُعرّف `type.null` بكلمة **«عدم»** منفصلًا عن `type.void` («فراغ») — فالتطبيق يخالف مصدر الحقيقة. الإصلاح (S-TS-P1): `نوع(لاشيء)` يجب أن يُرجع **«عدم»**.
 
-2. **✅ تحديث جميع الملفات الرئيسية:**
-   - `shared/types/value.h/cpp` — حذف ValueType، إضافة SadTypeKind
-   - `shared/types/sad_type_system.h/cpp` — نظام موحد جديد
-   - `shared/types/type_bridge.h/cpp` — تحويلات آمنة
-
-3. **✅ ثوابت توافقية بدلاً من enum:**
-   ```cpp
-   namespace ValueType {
-       constexpr SadTypeKind VOID = SadTypeKind::Void;
-       constexpr SadTypeKind INTEGER = SadTypeKind::Integer;
-       // ... (للتوافق الخلفي)
-   }
-   ```
-
-4. **✅ جودة الكود:**
-   - بناء Debug: ✅ EXIT: 0
-   - بناء Release: ✅ EXIT: 0
-   - الاختبارات: ✅ 34/34 P3 PASS
-   - اختبارات Type Safety: ✅ 10/10 PASS
+### 3. Inheritance Type Checking
+يعمل للبدائيات/الكائنات؛ لم يُتحقّق من حالات الأنواع المتقدّمة.
 
 ---
 
-## 🛡️ ضمانات الأمان
+## 🧪 الاختبارات — الوضع الفعلي
 
-### 1. **Type Safety — تحديد النوع بدقة**
-
-```sad
-# الكود غير آمن قديماً
-متغير قيمة = 42  # ValueType::INTEGER فقط
-
-# الكود الجديد — آمن تماماً
-متغير قيمة = 42  # SadTypeKind::Integer + IntType + getIntType()
-نوع(قيمة)       # "رقم" مضمون الصحة
-```
-
-### 2. **Null Safety**
-
-```sad
-متغير ن = لاشيء        # SadTypeKind::Null
-إذا (ن == لاشيء)       # فحص آمن
-   اطبع("فارغ")
-نهاية
-```
-
-### 3. **Inheritance Type Checking**
-
-```sad
-صنف والد
-متغير عام بيانات = "نص"
-نهاية
-
-صنف فرع يرث والد
-متغير عام بيانات = 100  # override آمن
-نهاية
-
-متغير ف = فرع()
-نوع(ف.بيانات)         # "رقم" — Type preserved!
-```
-
----
-
-## 🚀 الخطوات المتقدمة (Phase 6+)
-
-### Phase 6: **Foundation Hardening** (4 أسابيع)
-
-```
-الأسبوع 1: Type Safety Regression Suite (25 اختبار)
-الأسبوع 2: Concurrency Stress Tests (30+ goroutines)
-الأسبوع 3: Exception Flow Control (nested defer)
-الأسبوع 4: Pattern Matching Exhaustiveness
-```
-
-### Phase 7: **Performance & Security**
-
-```
-- Baseline performance tests
-- Memory leak detection
-- Fuzzing of critical paths
-- CI/CD quality gating
-```
+> ⚠️ الأرقام في النسخة القديمة («34/34 P3 + 20 Type Safety + 10/10») **غير قابلة للإثبات ومتضاربة داخليًّا**:
+> - `tests/safety/` **غير موجود**.
+> - ملف الأمان النوعي الوحيد **مؤرشف**: `tests/_archive/safety/type_safety_regression.ص`.
+> - لا يوجد suite باسم «P3» بـ34 اختبارًا (فقط `test_p30..p36` متفرّقة).
+>
+> يلزم إنشاء suite حقيقي ومُشغَّل قبل أي ادّعاء «تمرّ 100%».
 
 ---
 
 ## 📚 الملفات الرئيسية
 
-| الملف | السطور | الوصف |
-|------|-------|-------|
-| `shared/types/sad_type_system.h` | 700+ | SadTypeKind + SadType hierarchy |
-| `shared/types/sad_type_system.cpp` | 1100+ | التنفيذ الكامل |
-| `shared/types/type_bridge.h` | 200+ | واجهات التحويل |
-| `shared/types/type_bridge.cpp` | 500+ | تنفيذ التحويلات |
-| `shared/types/value.h` | 550+ | Value مع SadTypeKind |
-| `shared/types/value.cpp` | 300+ | معالجات القيم |
+| الملف | الوصف |
+|------|-------|
+| [shared/types/include/sad_type_system.h](../../../../shared/types/include/sad_type_system.h) | `SadTypeKind` (52 قيمة) + هرمية `SadType` (17 صنف) + `SadTypeRegistry` |
+| [shared/types/include/type_bridge.h](../../../../shared/types/include/type_bridge.h) | واجهات التحويل (مُسقِطة للمتقدّمة) |
+| [shared/types/include/value.h](../../../../shared/types/include/value.h) | `Value` يخزّن `SadTypePtr` + ثوابت `ValueType` التوافقية |
+| [shared/semantic/src/semantic/type_checker.cpp](../../../../shared/semantic/src/semantic/type_checker.cpp) | المدقّق الدلالي — **لا يزال غالبًا على DataType** |
 
 ---
 
-## 🎓 دليل سريع للمطورين الجدد
-
-### كيفية استخدام النظام الموحد؟
-
-```cpp
-// 1. الحصول على نوع
-SadTypeKind kind = SadTypeKind::Integer;
-
-// 2. إنشاء نوع متقدم
-auto intType = SadTypeRegistry::instance()->getIntType();
-
-// 3. نوع مركب
-auto arrayType = SadTypeRegistry::instance()->getArrayType(intType);
-
-// 4. التحويل للكود القديم (عند الحاجة فقط)
-ValueType oldType = sadTypeToValueType(kind);
-```
-
-### كيفية إضافة نوع جديد؟
-
-1. أضف قيمة إلى `SadTypeKind enum`
-2. أنشئ صنف فرعي جديد من `SadType`
-3. أضف دالة إنشاء في `SadTypeRegistry`
-4. أضف تحويل في `type_bridge.h`
-5. اختبر في `tests/safety/`
-
----
-
-## ⚠️ أخطاء شائعة
-
-### ❌ خطأ 1: استخدام ValueType بدل SadTypeKind
-
-```cpp
-// خطأ قديم
-if (value.getType() == ValueType::INTEGER) { }
-
-// صحيح if(value.getSadType() == SadTypeKind::Integer) { }
-```
-
-### ❌ خطأ 2: نسيان الفحص قبل التحويل
-
-```cpp
-// خطأ
-auto vt = GET_FROM_LEGACY();  // قد تكون null
-SadTypeKind kind = sadTypeFromValueType(vt);  // انهيار!
-
-// صحيح
-auto vt = GET_FROM_LEGACY();
-if (vt != ValueType::UNKNOWN) {
-    SadTypeKind kind = sadTypeFromValueType(vt);
-}
-```
-
-### ❌ خطأ 3: استخدام الجسر بدون داع
-
-```cpp
-// سيء — تحويلات متعددة
-SadTypeKind k = ...;
-ValueType v = sadTypeToValueType(k);
-SadTypeKind k2 = sadTypeFromValueType(v);  // ✗ فقدان معلومات!
-
-// صحيح — ابق مع SadTypeKind
-SadTypeKind k = ...;
-// استخدم k مباشرة
-```
-
----
-
-## 📞 الدعم والأسئلة الشائعة
-
-**س: متى استخدم الجسر (type_bridge.h)?**
-جـ: فقط عند التفاعل مع الكود القديم (ValueType) على حدود التكامل.
-
-**س: ماذا لو أضفت نوع جديد؟**
-جـ: أضفه إلى SadTypeKind وأنشئ صنف SadType جديد.
-
-**س: هل سيكون هناك الجسر دائماً؟**
-جـ: في Phase 3 (Phase 7+) سيتم حذفه بعد ترحيل كامل.
-
----
-
-## 📋 الخلاصة
+## 📋 الخلاصة الصادقة
 
 | الجانب | الحالة | الملاحظة |
 |-------|--------|---------|
-| **Design** | ✅ ممتاز | توحيد شامل وآمن |
-| **Implementation** | ✅ مكتملة | Phase 5 نجحت |
-| **Testing** | ✅ موثوق | 34/34 + 10/10 |
-| **Documentation** | ✅ هذه الوثيقة | توضيح كامل |
-| **Backward Compatibility** | ✅ محفوظة | الجسر آمن |
+| **توحيد البدائيات (Value→SadTypeKind)** | ✅ ~85% | صلب وحيّ؛ النقص: المدقّق الدلالي |
+| **توحيد المترجم على SadTypeKind** | ✅ | أنجح جزء |
+| **المدقّق الدلالي** | ⚠️ ~15% | DataType ×18 مقابل SadTypeKind ×3 |
+| **الأنواع المتقدّمة (Optional/Result/Future/Generator)** | ❌ ~15% | هياكل ميتة/غير موصولة |
+| **Null Safety** | ❌ 0% | لا قيمة Null؛ `لاشيء`=Void |
+| **Qubit / URL** | ❌ غير موجود | كانت ادّعاءً في النسخة القديمة |
+| **الاختبارات** | ⚠️ | المُدّعاة مؤرشفة/غير موجودة |
 
-**الحالة النهائية**: النظام الموحد **صاهز للإنتاج** ✅
+**الحالة النهائية الواقعية**: نواة توحيد قويّة (~85%) فوقها طبقة متقدّمة غير مكتملة. **التطبيق المجمّع ≈ 55–60%، لا 100%.**
+
+انظر [خطّة الإكمال](./TYPE_SYSTEM_COMPLETION_PLAN.md).
 
 ---
 
-*آخر تحديث: Phase 5 اكتملة بنجاح*
+*صُحِّحت هذه الوثيقة بناءً على نقد أميليا (وكيل فرعي) — مطابقة الكود الفعلي بـملف:سطر.*

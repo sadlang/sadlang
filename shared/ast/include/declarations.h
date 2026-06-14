@@ -54,7 +54,7 @@ namespace Sad
         public:
             std::string name;                  ///< Function name / اسم الدالة
             std::vector<Parameter> parameters; ///< Parameters / المعاملات
-            Data::DataType returnType;         ///< Return type (legacy) / نوع الإرجاع (قديم)
+            Types::SadTypeKind returnType;         ///< Return type (legacy) / نوع الإرجاع (قديم)
             // (AR) [Phase 5e] اسم نوع الإرجاع للأصناف المُعرَّفة من المستخدم.
             // (EN) [Phase 5e] Return type name for user-defined classes.
             std::string returnTypeName;
@@ -98,13 +98,13 @@ namespace Sad
              * @param pos Source position / الموقع في الكود
              */
             FunctionDecl(const std::string &name, std::vector<Parameter> params,
-                         Data::DataType retType, StmtPtr body, bool exported = false,
+                         Types::SadTypeKind retType, StmtPtr body, bool exported = false,
                          bool async_func = false, bool generator = false,
                          const Lexer::Position &pos = Lexer::Position())
                 : Statement(pos), name(name), parameters(std::move(params)),
                   returnType(retType), body(std::move(body)), isExported(exported),
                   isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), linkName(), decorators(),
-                  sadReturnType(Types::SadType::fromDataType(retType)) {}
+                  sadReturnType(Types::SadType::fromValueType(retType)) {}
 
             /**
              * @brief Constructor with decorators / البناء مع مُزخرِفات
@@ -119,13 +119,13 @@ namespace Sad
              * @param pos Source position / الموقع في الكود
              */
             FunctionDecl(const std::string &name, std::vector<Parameter> params,
-                         Data::DataType retType, StmtPtr body, ExprList decs,
+                         Types::SadTypeKind retType, StmtPtr body, ExprList decs,
                          bool exported = false, bool async_func = false, bool generator = false,
                          const Lexer::Position &pos = Lexer::Position())
                 : Statement(pos), name(name), parameters(std::move(params)),
                   returnType(retType), body(std::move(body)), isExported(exported),
                   isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), linkName(), decorators(std::move(decs)),
-                  sadReturnType(Types::SadType::fromDataType(retType)) {}
+                  sadReturnType(Types::SadType::fromValueType(retType)) {}
 
             void accept(ASTVisitor &visitor) override
             {
@@ -234,7 +234,7 @@ namespace Sad
         {
         public:
             std::string name;      ///< Field name / اسم الحقل
-            Data::DataType type;   ///< Field type / نوع الحقل
+            Types::SadTypeKind type;   ///< Field type / نوع الحقل
             ExprPtr initializer;   ///< Initial value (optional) / القيمة الأولية
             AccessModifier access; ///< Access modifier / معدّل الوصول
             bool isStatic;         ///< Is static? / ثابت؟
@@ -242,7 +242,7 @@ namespace Sad
             /**
              * @brief Constructor / البناء
              */
-            FieldDecl(const std::string &name, Data::DataType type, ExprPtr init,
+            FieldDecl(const std::string &name, Types::SadTypeKind type, ExprPtr init,
                       AccessModifier access = AccessModifier::PUBLIC,
                       bool isStatic = false,
                       const Lexer::Position &pos = Lexer::Position())
@@ -277,7 +277,7 @@ namespace Sad
         public:
             std::string name;                  ///< Method name / اسم الطريقة
             std::vector<Parameter> parameters; ///< Parameters / المعاملات
-            Data::DataType returnType;         ///< Return type / نوع الإرجاع
+            Types::SadTypeKind returnType;         ///< Return type / نوع الإرجاع
             // (AR) [Phase 5e] اسم نوع الإرجاع للأصناف المُعرَّفة من المستخدم.
             // (EN) [Phase 5e] Return type name for user-defined classes.
             std::string returnTypeName;
@@ -301,7 +301,7 @@ namespace Sad
              * @brief Constructor / البناء
              */
             MethodDecl(const std::string &name, std::vector<Parameter> params,
-                       Data::DataType retType, StmtPtr body,
+                       Types::SadTypeKind retType, StmtPtr body,
                        AccessModifier access = AccessModifier::PUBLIC,
                        bool isStatic = false, bool isVirtual = false,
                        bool isOverride = false, bool isAbstract = false,
@@ -713,7 +713,7 @@ namespace Sad
             WhereClause whereClause;                   ///< Where clause / جملة حيث (اختيارية)
             std::string name;                          ///< Function name / اسم الدالة
             std::vector<Parameter> parameters;         ///< Function parameters / معاملات الدالة
-            Data::DataType returnType;                 ///< Return type / نوع الإرجاع
+            Types::SadTypeKind returnType;                 ///< Return type / نوع الإرجاع
             StmtPtr body;                              ///< Function body / جسم الدالة
             bool isExported;                           ///< Is exported? / مصدّر؟
 
@@ -723,7 +723,7 @@ namespace Sad
             TemplateFunctionDecl(std::vector<TypeParameter> typeParams,
                                  const std::string &name,
                                  std::vector<Parameter> params,
-                                 Data::DataType retType,
+                                 Types::SadTypeKind retType,
                                  StmtPtr body,
                                  bool exported = false,
                                  const Lexer::Position &pos = Lexer::Position())
@@ -805,7 +805,7 @@ namespace Sad
         {
         public:
             std::string templateName;                   ///< Template name / اسم القالب
-            std::vector<Data::DataType> typeArguments;  ///< Type arguments / وسائط الأنواع
+            std::vector<Types::SadTypeKind> typeArguments;  ///< Type arguments / وسائط الأنواع
             std::vector<std::string> typeArgumentNames; ///< Type argument names / أسماء وسائط الأنواع (e.g., "رقم", "مركبة")
 
             // ==========================================================================
@@ -828,12 +828,12 @@ namespace Sad
              * @brief Constructor / البناء
              */
             TemplateInstantiation(const std::string &name,
-                                  std::vector<Data::DataType> typeArgs,
+                                  std::vector<Types::SadTypeKind> typeArgs,
                                   const Lexer::Position &pos = Lexer::Position())
                 : Expression(pos), templateName(name), typeArguments(std::move(typeArgs)) {}
 
             TemplateInstantiation(const std::string &name,
-                                  std::vector<Data::DataType> typeArgs,
+                                  std::vector<Types::SadTypeKind> typeArgs,
                                   std::vector<std::string> typeArgNames,
                                   const Lexer::Position &pos = Lexer::Position())
                 : Expression(pos), templateName(name), typeArguments(std::move(typeArgs)),
@@ -908,7 +908,7 @@ namespace Sad
         public:
             std::string operatorSymbol;        ///< Operator symbol / رمز العامل (+, -, *, etc.)
             std::vector<Parameter> parameters; ///< Parameters / المعاملات
-            Data::DataType returnType;         ///< Return type / نوع الإرجاع
+            Types::SadTypeKind returnType;         ///< Return type / نوع الإرجاع
             StmtPtr body;                      ///< Operator body / جسم العامل
             AccessModifier access;             ///< Access modifier / معدّل الوصول
 
@@ -916,7 +916,7 @@ namespace Sad
              * @brief Constructor / البناء
              */
             OperatorDecl(const std::string &op, std::vector<Parameter> params,
-                         Data::DataType retType, StmtPtr body,
+                         Types::SadTypeKind retType, StmtPtr body,
                          AccessModifier access = AccessModifier::PUBLIC,
                          const Lexer::Position &pos = Lexer::Position())
                 : Statement(pos), operatorSymbol(op), parameters(std::move(params)),
@@ -961,11 +961,11 @@ namespace Sad
         struct StructField
         {
             std::string name;     ///< Field name / اسم الحقل
-            Data::DataType type;  ///< Field type / نوع الحقل
+            Types::SadTypeKind type;  ///< Field type / نوع الحقل
             ExprPtr defaultValue; ///< Default value (optional) / القيمة الافتراضية
             bool isPublic;        ///< Is public? / عام؟
 
-            StructField(const std::string &n, Data::DataType t,
+            StructField(const std::string &n, Types::SadTypeKind t,
                         ExprPtr def = nullptr, bool pub = true)
                 : name(n), type(t), defaultValue(std::move(def)), isPublic(pub) {}
 
@@ -1026,7 +1026,7 @@ namespace Sad
         {
             std::string name;              ///< Method name / اسم الدالة
             std::vector<Parameter> params; ///< Parameters / المعاملات
-            Data::DataType returnType;     ///< Return type / نوع الإرجاع
+            Types::SadTypeKind returnType;     ///< Return type / نوع الإرجاع
             // (AR) [Phase 5e] اسم نوع الإرجاع للأصناف المُعرَّفة من المستخدم.
             //      غير فارغ عندما يكون نوع الإرجاع صنفاً مثل: "نقطة"، "شخص".
             // (EN) [Phase 5e] Return type name for user-defined classes.
@@ -1038,7 +1038,7 @@ namespace Sad
             std::shared_ptr<Statement> defaultImpl;
 
             TraitMethod(const std::string &n, std::vector<Parameter> p,
-                        Data::DataType ret, StmtPtr impl = nullptr)
+                        Types::SadTypeKind ret, StmtPtr impl = nullptr)
                 : name(n), params(std::move(p)), returnType(ret),
                   defaultImpl(std::move(impl)) {}
 
@@ -1179,10 +1179,10 @@ namespace Sad
         {
         public:
             std::string name;         ///< Variable name / اسم المتغير
-            Data::DataType innerType; ///< Inner type / النوع الداخلي
+            Types::SadTypeKind innerType; ///< Inner type / النوع الداخلي
             ExprPtr initialValue;     ///< Initial value / القيمة الأولية
 
-            AtomicDecl(const std::string &name, Data::DataType type,
+            AtomicDecl(const std::string &name, Types::SadTypeKind type,
                        ExprPtr init = nullptr,
                        const Lexer::Position &pos = Lexer::Position())
                 : Statement(pos), name(name), innerType(type),

@@ -29,8 +29,6 @@ namespace Sad
     {
 
         using VT = Sad::Types::SadTypeKind;
-        using DT = Sad::Data::DataType;
-
         // =================================================================================
         // SadType::toValueType() — تحويل النوع الموحد إلى نوع التشغيل المتوافق
         // =================================================================================
@@ -69,48 +67,6 @@ namespace Sad
             }
         }
 
-        // =================================================================================
-        // SadType::toDataType() — تحويل النوع الموحد إلى DataType (AST)
-        // =================================================================================
-        Data::DataType SadType::toDataType() const
-        {
-            switch (kind_)
-            {
-            case SadTypeKind::Void:
-                return DT::NONE;
-            case SadTypeKind::Integer:
-                return DT::INTEGER;
-            case SadTypeKind::Float:
-                return DT::FLOAT;
-            case SadTypeKind::Boolean:
-                return DT::BOOLEAN;
-            case SadTypeKind::String:
-                return DT::STRING;
-            case SadTypeKind::Byte:
-                return DT::BYTE;
-            case SadTypeKind::Array:
-                return DT::ARRAY;
-            case SadTypeKind::Map:
-                return DT::MAP;
-            case SadTypeKind::Tuple:
-                return DT::TUPLE;
-            case SadTypeKind::Function:
-            case SadTypeKind::Closure:
-                return DT::FUNCTION;
-            case SadTypeKind::Class:
-            case SadTypeKind::Struct:
-            case SadTypeKind::Trait:
-                return DT::OBJECT;
-            case SadTypeKind::Enum:
-                return DT::ENUM;
-            case SadTypeKind::Error:
-                return DT::ERROR;
-            case SadTypeKind::Unknown:
-                return DT::UNKNOWN;
-            default:
-                return DT::UNKNOWN;
-            }
-        }
 
         // =================================================================================
         // SadType::fromValueType() — إنشاء نوع موحد من نوع التشغيل المتوافق
@@ -140,49 +96,18 @@ namespace Sad
                 return reg.makeFunction({});
             case VT::Class:
                 return reg.getAny(); // (AR) كائن عام — لا نعرف الصنف هنا
+            // (AR) [S-TS-P4] أنواع متقدّمة بلا نوع داخلي على مستوى الـkind → أي (Any)
+            //      حتى لا تنهار إلى فراغ (Void) فتُطلِق تحذيرات كاذبة. النوع الداخلي
+            //      الغنيّ يُبنى مباشرةً عبر makeOptional/makeResult/makeFuture/makeGenerator.
+            case VT::Optional:
+            case VT::Result:
+            case VT::Future:
+            case VT::Generator:
+                return reg.getAny();
             }
             return reg.getVoid();
         }
 
-        // =================================================================================
-        // SadType::fromDataType() — إنشاء نوع موحد من DataType (AST)
-        // =================================================================================
-        SadTypePtr SadType::fromDataType(Data::DataType dt)
-        {
-            auto &reg = SadTypeRegistry::instance();
-            switch (dt)
-            {
-            case DT::NONE:
-                return reg.getVoid();
-            case DT::INTEGER:
-                return reg.getInteger();
-            case DT::FLOAT:
-                return reg.getFloat();
-            case DT::BOOLEAN:
-                return reg.getBoolean();
-            case DT::STRING:
-                return reg.getString();
-            case DT::BYTE:
-                return reg.getByte();
-            case DT::ARRAY:
-                return reg.makeArray();
-            case DT::MAP:
-                return reg.makeMap();
-            case DT::TUPLE:
-                return reg.makeTuple({});
-            case DT::FUNCTION:
-                return reg.makeFunction({});
-            case DT::OBJECT:
-                return reg.getAny();
-            case DT::ENUM:
-                return reg.getAny(); // (AR) تعداد عام — لا نعرف الاسم هنا
-            case DT::ERROR:
-                return reg.getError();
-            case DT::UNKNOWN:
-                return reg.getUnknown();
-            }
-            return reg.getUnknown();
-        }
 
         // =================================================================================
         // SadType::fromArabicName() — إنشاء نوع من الاسم العربي

@@ -19,6 +19,13 @@ operators:
   # ── ثلاثي ───────────────────────────────────────────────────────────────
   - { id: op.ternary, symbol: "? :", name_ar: "ثلاثي", name_en: ternary, category: ternary, arity: ternary, precedence: 14, associativity: right, since: "1.0.0", status: stable, example: "س > 0 ? 1 : -1" }
 
+  # ── أمان null (S-TS-P8 — توثيق SoT لعوامل منفّذة أصلًا) ───────────────────
+  # (AR) منفّذة في كل الطبقات (token.h:391-392، المحلّل، المفسّر، المترجم)؛ تُبنى على
+  #      عدم (Null) المتمايز (S-TS-P1). فضّ الغموض: `؟` بعد نوع = لاحقة اختياري `T?`
+  #      (موضع نوع)؛ `? :` تعبيرٌ ثلاثي (موضع تعبير) — راجع op.ternary أعلاه.
+  - { id: op.null_coalesce,  symbol: "??", name_ar: "اندماج فارغ", name_en: null_coalescing,   category: null_safety, arity: binary, precedence: 13, associativity: left, since: "1.0.0", status: stable, example: "س ?? 0" }
+  - { id: op.optional_chain, symbol: "?.", name_ar: "وصول آمن",   name_en: optional_chaining, category: null_safety, arity: binary, precedence: 2,  associativity: left, since: "1.0.0", status: stable, example: "كائن?.حقل" }
+
   # ── OR المنطقي ────────────────────────────────────────────────────────
   - { id: op.logical_or,  symbol: "||",  name_ar: "أو المنطقي",  name_en: logical_or,  category: logical, arity: binary, precedence: 13, associativity: left, since: "1.0.0", status: stable }
   - { id: op.word_or,     symbol: "أو",  name_ar: "أو (كلمة)",   name_en: word_or,     category: logical, arity: binary, precedence: 13, associativity: left, since: "1.0.0", status: stable }

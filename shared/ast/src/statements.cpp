@@ -20,7 +20,7 @@ std::string VarDeclStmt::toString() const {
     
     oss << (isConst ? "const " : "var ") << name;
     
-    if (type != Data::DataType::UNKNOWN) {
+    if (type != Types::SadTypeKind::Unknown) {
         oss << ": " << static_cast<int>(type);
     }
     

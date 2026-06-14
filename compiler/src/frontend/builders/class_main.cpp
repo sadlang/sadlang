@@ -174,8 +174,8 @@ namespace Sad
 
                         // (AR) الحقول الديناميكية (UNKNOWN/OBJECT): استنتاج النوع من المُهيئ أولاً
                         // (EN) Dynamic fields (UNKNOWN/OBJECT): infer type from initializer first
-                        if (fieldDecl->type == Data::DataType::UNKNOWN ||
-                            fieldDecl->type == Data::DataType::OBJECT)
+                        if (fieldDecl->type == Types::SadTypeKind::Unknown ||
+                            fieldDecl->type == Types::SadTypeKind::Class)
                         {
                             fieldType = SadTypeKind::Pointer; // الافتراضي / default
 
@@ -325,8 +325,8 @@ namespace Sad
                         // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
                         // (EN) Infer return type if not specified
                         SadTypeKind returnType;
-                        if (methodDecl->returnType == Data::DataType::UNKNOWN ||
-                            methodDecl->returnType == Data::DataType::NONE)
+                        if (methodDecl->returnType == Types::SadTypeKind::Unknown ||
+                            methodDecl->returnType == Types::SadTypeKind::Void)
                         {
                             // (AR) تعيين اسم الصنف الحالي مؤقتاً لتمكين b_.inferReturnTypeFromBody
                             //      من البحث عن أنواع الحقول عبر b_.module_->getClass(b_.currentClassName_)
@@ -379,7 +379,7 @@ namespace Sad
                                             break;
                                         }
                                         // (AR) إذا كان النوع الأصلي UNKNOWN (= Integer) والمُستنتج أكثر تحديداً
-                                        if (ip.name == param.name && param.type == Data::DataType::UNKNOWN && ip.type != paramType)
+                                        if (ip.name == param.name && param.type == Types::SadTypeKind::Unknown && ip.type != paramType)
                                         {
                                             paramType = ip.type;
                                             break;
@@ -607,8 +607,8 @@ namespace Sad
                         // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
                         // (EN) Infer return type if not specified
                         SadTypeKind returnType;
-                        if (funcDecl->returnType == Data::DataType::UNKNOWN ||
-                            funcDecl->returnType == Data::DataType::NONE)
+                        if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                            funcDecl->returnType == Types::SadTypeKind::Void)
                         {
                             auto savedClassName = b_.currentClassName_;
                             b_.currentClassName_ = classDecl->name;

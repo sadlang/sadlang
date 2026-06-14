@@ -11,6 +11,7 @@
  */
 
 #include "semantic/type_checker.h"
+#include "type_bridge.h" // (AR) Types::fromDataType — جسر AST(DataType)→SadTypeKind (S-TS-P2)
 #include "token.h"
 #include "class_nodes.h"
 #include "types/composite_type_classes.h"
@@ -188,43 +189,64 @@ namespace Sad
         }
 
         // ============================================================================
-        // تحويل DataType إلى TypePtr / Convert DataType to TypePtr
+        // (AR) [S-TS-P2] تحويل SadTypeKind إلى TypePtr — المحور SadTypeKind
+        // (EN) [S-TS-P2] Convert SadTypeKind to TypePtr — SadTypeKind-centric
+        //
+        // (AR) قراءات الـAST (DataType) تُجسَّر عبر Types::fromDataType عند نقطة الاستدعاء.
+        //      هذا الجسر يُحذف في S-TS-P2.5a عند ترحيل حقول الـAST إلى SadTypeKind.
         // ============================================================================
 
-        TypePtr TypeChecker::dataTypeToTypePtr(Data::DataType dt) const
+        TypePtr TypeChecker::sadKindToTypePtr(Types::SadTypeKind kind) const
         {
-            switch (dt)
+            using K = Types::SadTypeKind;
+            switch (kind)
             {
-            case Data::DataType::INTEGER:
+            case K::Integer:
                 return registry_.getIntegerType();
-            case Data::DataType::FLOAT:
+            case K::Float:
                 return registry_.getFloatType();
-            case Data::DataType::STRING:
+            case K::String:
                 return registry_.getStringType();
-            case Data::DataType::BOOLEAN:
+            case K::Boolean:
                 return registry_.getBooleanType();
-            case Data::DataType::NONE:
+            case K::Void:
+            case K::Null: // (AR) عدم — لا تمييز دلالي بعد (انظر S-TS-P9)؛ يُعامل كفراغ حاليًّا
                 return registry_.getVoidType();
-            case Data::DataType::ARRAY:
+            case K::Array:
                 return std::make_shared<ArrayType>(registry_.getAnyType()); // عنصر المصفوفة يُحدد لاحقاً
-            case Data::DataType::MAP:
+            case K::Map:
                 return std::make_shared<DictionaryType>(registry_.getStringType(), registry_.getAnyType()); // مفتاح/قيمة يُحددان لاحقاً
-            case Data::DataType::FUNCTION:
+            case K::Function:
                 return std::make_shared<FunctionType>(TypeList{}, registry_.getVoidType()); // توقيع الدالة يُحدد لاحقاً
-            case Data::DataType::OBJECT:
+            case K::Class:
                 return registry_.getAnyType(); // يُحدد من StructRegistry عند الوصول
-            case Data::DataType::ENUM:
+            case K::Enum:
                 return registry_.getAnyType(); // يُحدد من EnumRegistry عند الوصول
-            case Data::DataType::TUPLE:
+            case K::Tuple:
                 return std::make_shared<TupleType>(TypeList{}); // عناصر الصف تُحدد لاحقاً
-            case Data::DataType::BYTE:
+            case K::Byte:
                 return registry_.getIntegerType(); // byte -> int
-            case Data::DataType::ERROR:
+            case K::Error:
                 return registry_.getUnknownType();
-            case Data::DataType::UNKNOWN:
+            // (AR) [S-TS-P4] أنواع متقدّمة على مستوى الـkind (دون نوع داخلي هنا) → Any
+            //      حتى لا يُطلِق المدقّق تحذيرات إسناد كاذبة لـ`رقم?` ونحوه. النوع الداخلي
+            //      الغنيّ يُحمَل عبر sadType في العقد (تمثيل أغنى مخطّط لاحقًا).
+            case K::Optional:
+            case K::Result:
+            case K::Future:
+            case K::Generator:
+                return registry_.getAnyType();
+            case K::Unknown:
             default:
                 return registry_.getUnknownType();
             }
+        }
+
+        // (AR) جسر حدود الـAST (S-TS-P2): DataType→SadTypeKind→TypePtr. يُحذف في S-TS-P2.5a.
+        // (EN) AST-boundary bridge (S-TS-P2): DataType→SadTypeKind→TypePtr. Removed in S-TS-P2.5a.
+        TypePtr TypeChecker::dataTypeToTypePtr(Types::SadTypeKind dt) const
+        {
+            return sadKindToTypePtr(dt);
         }
 
         // ============================================================================
@@ -282,8 +304,10 @@ namespace Sad
             TypePtr result = lastInferredType_;
             if (!result)
             {
-                // Fallback: استخدم DataType من AST / use DataType from AST
-                result = dataTypeToTypePtr(expr->getDataType());
+                // (AR) Fallback: نوع الـAST (DataType) مُجسَّرًا إلى SadTypeKind — S-TS-P2
+                //      (الجسر يُحذف في S-TS-P2.5a عند ترحيل حقول الـAST).
+                // (EN) Fallback: AST DataType bridged to SadTypeKind — S-TS-P2.
+                result = sadKindToTypePtr(expr->getTypeKind());
             }
 
             currentResult_.totalInferred++;

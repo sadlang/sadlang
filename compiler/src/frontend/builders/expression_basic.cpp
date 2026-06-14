@@ -106,7 +106,13 @@ namespace Sad
                     // (EN) null literal — use a sentinel distinct from numeric zero.
                     //      This preserves language semantics: (null == null) true and (null != 0) true.
                     //      A large negative sentinel is used to avoid clashes with common integers.
-                    result.type = SadTypeKind::Integer;
+                    // (AR) [S-TS-P4 codegen] نوسم القيمة بـKind=Null (لا Integer) كي يُرجع
+                    //      `نوع(لاشيء)`=«عدم»، مع إبقاء التمثيل i64 (الحارس) فيتوافق مع كل
+                    //      مسارات المقارنة/?? القائمة (Null يُخطَّط إلى i64 في mapSIRType).
+                    // (EN) [S-TS-P4 codegen] Tag the value as Kind=Null (not Integer) so
+                    //      `typeof(null)`=«عدم», keeping the i64 sentinel representation so all
+                    //      existing comparison/?? paths still work (Null maps to i64 in mapSIRType).
+                    result.type = SadTypeKind::Null;
                     result.constantValue = Sad::Compiler::kSadNullSentinelStr;
                     result.isConstant = true;
                 }
@@ -156,6 +162,18 @@ namespace Sad
                         break;
                     case SadTypeKind::Pointer:
                         moveInst.operands.push_back(SIROperand::ConstantI64(0));
+                        break;
+                    case SadTypeKind::Null:
+                        // (AR) لاشيء: يحمل الحارس i64 (لا 0) ليتمايز عن الصفر العددي.
+                        // (EN) null: carry the i64 sentinel (not 0) to stay distinct from numeric zero.
+                        try
+                        {
+                            moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(result.constantValue)));
+                        }
+                        catch (const std::exception &)
+                        {
+                            moveInst.operands.push_back(SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel));
+                        }
                         break;
                     default:
                         moveInst.operands.push_back(SIROperand::ConstantI64(0));

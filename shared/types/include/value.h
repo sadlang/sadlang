@@ -87,6 +87,7 @@ namespace Sad
             // (EN) Compatibility constants only: preserve legacy ValueType::X
             //      syntax while the actual runtime type is now SadTypeKind.
             static constexpr Types::SadTypeKind VOID = Types::SadTypeKind::Void;
+            static constexpr Types::SadTypeKind Null = Types::SadTypeKind::Null; // (AR) عدم — S-TS-P1
             static constexpr Types::SadTypeKind INTEGER = Types::SadTypeKind::Integer;
             static constexpr Types::SadTypeKind DOUBLE = Types::SadTypeKind::Float;
             static constexpr Types::SadTypeKind STRING = Types::SadTypeKind::String;
@@ -168,6 +169,7 @@ namespace Sad
             // (EN) Constructors — each value type has its own constructor
             // ══════════════════════════════════════════════════════════════════
             Value();                              ///< (AR) إنشاء قيمة فارغة VOID / (EN) Create VOID value
+            static Value makeNull();              ///< (AR) إنشاء قيمة عدم (Null) متمايزة عن فراغ / (EN) Create NULL value (distinct from void)
             explicit Value(int val);              ///< (AR) إنشاء قيمة رقم صحيح / (EN) Create INTEGER value (32-bit, auto-promoted to 64-bit)
             explicit Value(int64_t val);          ///< (AR) إنشاء قيمة رقم صحيح 64-bit / (EN) Create INTEGER value (64-bit)
             explicit Value(double val);           ///< (AR) إنشاء قيمة رقم عشري / (EN) Create DOUBLE value
@@ -253,6 +255,9 @@ namespace Sad
              */
             void setSadType(Types::SadTypePtr t);
 
+            // (AR) عدم (Null) نوع متمايز تمامًا عن فراغ (Void) — S-TS-P1.
+            // (EN) Null is a fully distinct kind from Void — S-TS-P1.
+            bool isNull() const { return type_ == Types::SadTypeKind::Null; }
             bool isVoid() const { return type_ == ValueType::VOID; }
             bool isInteger() const { return type_ == ValueType::INTEGER; }
             bool isDouble() const { return type_ == ValueType::DOUBLE; }

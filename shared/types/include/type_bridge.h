@@ -110,23 +110,10 @@ namespace Sad
          */
         SadTypeKind fromValueType(SadTypeKind vt);
 
-        /**
-         * @brief (AR) تحويل SadTypeKind إلى DataType (للربط مع AST)
-         * @brief (EN) Convert SadTypeKind to DataType (for AST binding)
-         *
-         * @param kind نوع SadTypeKind
-         * @return DataType المقابل
-         */
-        Data::DataType toDataType(SadTypeKind kind);
-
-        /**
-         * @brief (AR) تحويل DataType إلى SadTypeKind
-         * @brief (EN) Convert DataType to SadTypeKind
-         *
-         * @param dt نوع DataType
-         * @return SadTypeKind المقابل
-         */
-        SadTypeKind fromDataType(Data::DataType dt);
+        // (AR) [S-TS-P2.5b] حُذفت دوال DataType (toDataType/fromDataType) — صفر مستهلك بعد
+        //      ترحيل الـAST/المحلّل/الدلالات إلى SadTypeKind (P2.5a/P2). النظام الأفقر أُزيل.
+        // (EN) [S-TS-P2.5b] DataType conversions removed — zero consumers after the AST/parser/
+        //      semantic migration to SadTypeKind. The poorer representation is gone.
 
         // █████████████████████████████████████████████████████████████████████████████████
         //
@@ -158,23 +145,8 @@ namespace Sad
          */
         SadTypePtr sadTypeFromValueType(SadTypeKind vt);
 
-        /**
-         * @brief (AR) تحويل SadTypePtr إلى DataType
-         * @brief (EN) Convert SadTypePtr to DataType
-         *
-         * @param type مؤشر النوع الذكي
-         * @return DataType المقابل
-         */
-        Data::DataType sadTypeToDataType(const SadTypePtr &type);
-
-        /**
-         * @brief (AR) إنشاء SadTypePtr من DataType
-         * @brief (EN) Create SadTypePtr from DataType
-         *
-         * @param dt نوع DataType
-         * @return SadTypePtr نوع ذكي جديد
-         */
-        SadTypePtr sadTypeFromDataType(Data::DataType dt);
+        // (AR) [S-TS-P2.5b] حُذفت sadTypeToDataType/sadTypeFromDataType — صفر مستهلك.
+        // (EN) [S-TS-P2.5b] sadTypeToDataType/sadTypeFromDataType removed — zero consumers.
 
         // █████████████████████████████████████████████████████████████████████████████████
         //

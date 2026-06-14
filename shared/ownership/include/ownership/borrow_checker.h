@@ -319,7 +319,7 @@ namespace Sad
              * @brief (AR) تحويل نوع البيانات إلى نص
              * @brief (EN) Convert DataType enum to string name
              */
-            std::string dataTypeToString(Data::DataType type) const;
+            std::string dataTypeToString(Types::SadTypeKind type) const;
 
             /**
              * @brief (AR) الحصول على موقع المصدر من عقدة

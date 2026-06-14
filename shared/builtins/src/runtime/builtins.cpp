@@ -576,29 +576,14 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::string("\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba")); // فراغ
                 }
 
-                switch (args[0]->getKind())
-                {
-                case Types::SadTypeKind::Integer:
-                    return std::make_shared<Data::Value>(std::string("\xd8\xb1\xd9\x82\xd9\x85")); // رقم
-                case Types::SadTypeKind::Float:
-                    return std::make_shared<Data::Value>(std::string("\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a")); // عشري
-                case Types::SadTypeKind::String:
-                    return std::make_shared<Data::Value>(std::string("\xd9\x86\xd8\xb5")); // نص
-                case Types::SadTypeKind::Boolean:
-                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a")); // منطقي
-                case Types::SadTypeKind::Array:
-                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9")); // مصفوفة
-                case Types::SadTypeKind::Map:
-                    return std::make_shared<Data::Value>(std::string("\xd8\xae\xd8\xb1\xd9\x8a\xd8\xb7\xd8\xa9")); // خريطة
-                case Types::SadTypeKind::Class:
-                    return std::make_shared<Data::Value>(std::string("\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86")); // كائن
-                case Types::SadTypeKind::Function:
-                    return std::make_shared<Data::Value>(std::string("\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9")); // دالة
-                case Types::SadTypeKind::Void:
-                    return std::make_shared<Data::Value>(std::string("\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba")); // فراغ
-                default:
-                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd8\xac\xd9\x87\xd9\x88\xd9\x84")); // مجهول
-                }
+                // (AR) اسم النوع من مصدر الحقيقة الموحَّد (types.yaml) عبر الدالة المولَّدة
+                //      sadTypeKindArabicName — لا نصوص عربية مكرّرة هنا. هذا يضمن تطابق
+                //      نوع() بين المفسّر والمترجم (كلاهما يقرأ من المصدر نفسه).
+                // (EN) Type name from the unified SoT (types.yaml) via the generated
+                //      sadTypeKindArabicName — no duplicated Arabic literals. Guarantees
+                //      نوع() parity between interpreter and compiler (one source).
+                return std::make_shared<Data::Value>(
+                    std::string(Types::sadTypeKindArabicName(args[0]->getKind())));
             }
 
             std::shared_ptr<Data::Value> to_int(const std::vector<std::shared_ptr<Data::Value>> &args)

@@ -3,8 +3,8 @@
 // (AR) ملف مولَّد تلقائياً. لإجراء تعديل، عدّل YAML وأعد البناء.
 // (EN) Auto-generated file. To modify, edit YAML and rebuild.
 //
-// (AR) نسخة المعجم: 4.1
-// (EN) Lexicon version: 4.1
+// (AR) نسخة المعجم: 5.0
+// (EN) Lexicon version: 5.0
 // ============================================================================
 
 #include "keywords_generated.h"

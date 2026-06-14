@@ -344,7 +344,7 @@ namespace Sad
                             b_.currentFunction_->addBasicBlock(catchCheckBlocks[i]);
                         b_.currentBlock_ = catchCheckBlocks[i];
 
-                        if (clause.exceptionType == Sad::Data::DataType::UNKNOWN)
+                        if (clause.exceptionType == Sad::Types::SadTypeKind::Unknown)
                         {
                             // (AR) catch-all: يطابق أي استثناء — اذهب مباشرة للجسم
                             // (EN) Catch-all: matches any exception — go directly to body
@@ -354,7 +354,7 @@ namespace Sad
                                     SIROperand::Label(catchBodyLabels[i])));
                             }
                         }
-                        else if (clause.exceptionType == Sad::Data::DataType::ERROR)
+                        else if (clause.exceptionType == Sad::Types::SadTypeKind::Error)
                         {
                             // (AR) مطابقة نوع ERROR — قارن مع "خطأ"
                             // (EN) Match ERROR type — compare with "خطأ"
@@ -390,7 +390,7 @@ namespace Sad
                                     b_.currentBlock_->addInstruction(brInst);
                             }
                         }
-                        else if (clause.exceptionType == Sad::Data::DataType::OBJECT)
+                        else if (clause.exceptionType == Sad::Types::SadTypeKind::Class)
                         {
                             // (AR) مطابقة نوع كائن مخصص — قارن مع اسم الصنف
                             // (EN) Match custom object type — compare with class name

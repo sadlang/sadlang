@@ -792,16 +792,16 @@ namespace Sad
         struct Parameter
         {
             std::string name;                         ///< Parameter name / اسم المعامل
-            Data::DataType type;                      ///< Parameter type (legacy) / نوع المعامل (قديم)
+            Types::SadTypeKind type;                      ///< Parameter type (legacy) / نوع المعامل (قديم)
             std::string typeName;                     ///< (AR) اسم الصنف (عندما يكون النوع OBJECT) / (EN) Class name (when type is OBJECT)
             std::shared_ptr<Expression> defaultValue; ///< Default value (optional) / القيمة الافتراضية — shared_ptr للسماح بالنسخ الآمن
             Types::SadTypePtr sadType;                ///< (AR) النوع الموحد الجديد / (EN) Unified type (new system)
 
-            Parameter(const std::string &n, Data::DataType t = Data::DataType::UNKNOWN,
+            Parameter(const std::string &n, Types::SadTypeKind t = Types::SadTypeKind::Unknown,
                       ExprPtr def = nullptr, const std::string &tn = "",
                       Types::SadTypePtr st = nullptr)
                 : name(n), type(t), typeName(tn), defaultValue(std::move(def)),
-                  sadType(st ? std::move(st) : Types::SadType::fromDataType(t)) {}
+                  sadType(st ? std::move(st) : Types::SadType::fromValueType(t)) {}
 
             // (AR) النسخ آمن الآن — shared_ptr يشارك ملكية التعبير الافتراضي
             // (EN) Copy is safe now — shared_ptr shares ownership of default expression
@@ -1182,7 +1182,7 @@ namespace Sad
 
             /**
              * @brief Get expression type / الحصول على نوع التعبير
-             * @return DataType::FUNCTION (decorators are function-like) / دالة (المُزخرِفات شبيهة بالدوال)
+             * @return Function kind (decorators are function-like) / دالة (المُزخرِفات شبيهة بالدوال)
              */
             Types::SadTypePtr getType() const override
             {

@@ -43,13 +43,13 @@ namespace Sad
             // FunctionDecl Members (declarations.h:19-64):
             // - name: std::string (line 43)
             // - parameters: std::vector<Parameter> (line 44)
-            // - returnType: Data::DataType (line 45)
+            // - returnType: Types::SadTypeKind (line 45)
             // - body: StmtPtr (line 46)
             // - isBuiltin: bool (line 47)
             //
             // Parameter Structure (declarations.h:24-41):
             // - name: std::string
-            // - type: Data::DataType
+            // - type: Types::SadTypeKind
             // - defaultValue: ExprPtr (optional)
             //
             // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
@@ -101,8 +101,8 @@ namespace Sad
 
                 // (AR) ״¥״°״§ ƒ״§† †ˆ״¹ ״§„״¥״±״¬״§״¹ ״÷״± …״­״¯״¯ (UNKNOWN/NONE)״ †״³״×†״×״¬‡ …† ״¬״³… ״§„״¯״§„״©
                 // (EN) If return type is unspecified (UNKNOWN/NONE), infer it from function body
-                if (funcDecl->returnType == Data::DataType::UNKNOWN ||
-                    funcDecl->returnType == Data::DataType::NONE)
+                if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                    funcDecl->returnType == Types::SadTypeKind::Void)
                 {
                     // (AR) ״§״³״×†״×״§״¬ ״§„†ˆ״¹ …† ״¬״³… ״§„״¯״§„״© …״¹ …״¹„ˆ…״§״× ״§„…״¹״§…„״§״×
                     // (EN) Infer type from function body with parameter information
@@ -180,7 +180,7 @@ namespace Sad
                     // (EN) FIX X04: Don't override to Boolean (i1) — null is passed as i64 sentinel
                     //      Overriding UNKNOWN→Boolean causes trunc i64→i1 at call site, corrupting null
                     if (paramType == SadTypeKind::Integer &&
-                        param.type == Data::DataType::UNKNOWN &&
+                        param.type == Types::SadTypeKind::Unknown &&
                         ftIt != functionTable_.end() &&
                         i < ftIt->second.parameters.size() &&
                         ftIt->second.parameters[i].type != SadTypeKind::Integer &&
@@ -229,7 +229,7 @@ namespace Sad
                     // (AR) إصلاح X04: نفس الشرط — لا تُبدِّل إلى Boolean
                     // (EN) FIX X04: Same condition — don't override to Boolean
                     if (paramType == SadTypeKind::Integer &&
-                        param.type == Data::DataType::UNKNOWN &&
+                        param.type == Types::SadTypeKind::Unknown &&
                         ftIt != functionTable_.end() &&
                         i < ftIt->second.parameters.size() &&
                         ftIt->second.parameters[i].type != SadTypeKind::Integer &&
@@ -744,7 +744,7 @@ namespace Sad
             //
             // VarDeclStmt Members (statements.h:74-100):
             // - name: std::string (line 76)
-            // - type: Data::DataType (line 77)
+            // - type: Types::SadTypeKind (line 77)
             // - initializer: ExprPtr (line 78)
             // - isConst: bool (line 79)
             //
@@ -768,7 +768,7 @@ namespace Sad
                 // (EN) If type is UNKNOWN (defaults to Integer), infer from initializer
                 //      Needed for namespace vars like: var PI = 3.14159
                 //      where type is not explicit and must be inferred from literal value
-                if (varDecl->type == Data::DataType::UNKNOWN && varDecl->initializer)
+                if (varDecl->type == Types::SadTypeKind::Unknown && varDecl->initializer)
                 {
                     if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
                     {

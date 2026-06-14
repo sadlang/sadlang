@@ -121,7 +121,7 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
 
             Token typeToken = current_;
-            Data::DataType fieldType;
+            Types::SadTypeKind fieldType;
             std::string typeName;
 
             if (isTypeToken(current_.getType()))
@@ -130,7 +130,7 @@ namespace Sad
                 // (EN) Primitive type: number, string, boolean, etc.
                 advance(); // consume type
                 typeName = typeToken.getValue();
-                fieldType = mapTokenTypeToDataType(typeToken.getType());
+                fieldType = mapTokenTypeToKind(typeToken.getType());
             }
             else if (check(TT::IDENTIFIER))
             {
@@ -145,7 +145,7 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════════
                 advance(); // consume class name
                 typeName = typeToken.getValue();
-                fieldType = Data::DataType::OBJECT; // Custom class → OBJECT type
+                fieldType = Types::SadTypeKind::Class; // Custom class → OBJECT type
             }
             else
             {
@@ -212,7 +212,7 @@ namespace Sad
             // (AR) نوع الإرجاع (اختياري - يأتي قبل اسم الطريقة)
             // (EN) Return type (optional - comes BEFORE method name)
             // Spec: docs\language_spec\rules\03_oop.md §1 - method_decl ::= ... 'دالة' [type] IDENTIFIER ...
-            Data::DataType returnType = Data::DataType::NONE;
+            Types::SadTypeKind returnType = Types::SadTypeKind::Void;
             std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
             // Check if next token is a type (keyword like رقم، نص) or identifier (for method name)
@@ -277,7 +277,7 @@ namespace Sad
             else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER)
             {
                 returnTypeName = current_.getValue();
-                returnType = Data::DataType::OBJECT;
+                returnType = Types::SadTypeKind::Class;
                 advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
                 if (check(TT::IDENTIFIER))
                 {
@@ -334,7 +334,7 @@ namespace Sad
                     //   b) method(x, s) — without type (treated as OBJECT/dynamic)
                     //   c) method(T value) — where T is template type param (OBJECT)
                     // ─────────────────────────────────────────────────────────────
-                    Data::DataType paramType = Data::DataType::OBJECT;
+                    Types::SadTypeKind paramType = Types::SadTypeKind::Class;
 
                     // (AR) تحقق: هل هذا نوع مدمج متبوع بمعرّف؟ أم أنه اسم معامل فقط؟
                     // (EN) Check: is this a built-in type followed by identifier? Or just a param name?
@@ -379,7 +379,7 @@ namespace Sad
                             {
                                 defaultValue = parseExpression();
                             }
-                            parameters.push_back(Parameter(paramToken.getValue(), Data::DataType::OBJECT, std::move(defaultValue)));
+                            parameters.push_back(Parameter(paramToken.getValue(), Types::SadTypeKind::Class, std::move(defaultValue)));
                         }
                         else
                         {
@@ -543,7 +543,7 @@ namespace Sad
                     // (AR) نوع المعامل (اختياري) / (EN) Parameter type (optional)
                     // (AR) ندعم ثلاث صيغ: باني(رقم س) أو باني(س) أو باني(هذا.س)
                     // (EN) Support three forms: constructor(int x) or constructor(x) or constructor(this.x)
-                    Data::DataType paramType = Data::DataType::OBJECT;
+                    Types::SadTypeKind paramType = Types::SadTypeKind::Class;
                     ExprPtr defaultValue = nullptr;
 
                     if (check(TT::KEYWORD_THIS) && peekNext().getType() == TT::DOT)
@@ -835,7 +835,7 @@ namespace Sad
 
             // (AR) دعم القوالب: جديد صنف<نوع>(معاملات)
             // (EN) Template support: new Class<Type>(args)
-            std::vector<Data::DataType> templateArgs;
+            std::vector<Types::SadTypeKind> templateArgs;
             std::vector<std::string> templateArgNames;
             if (check(TT::OP_LESS))
             {
@@ -844,7 +844,7 @@ namespace Sad
                 {
                     if (isTypeToken(current_.getType()))
                     {
-                        templateArgs.push_back(mapTokenTypeToDataType(current_.getType()));
+                        templateArgs.push_back(mapTokenTypeToKind(current_.getType()));
                         templateArgNames.push_back(current_.getValue());
                         advance();
                     }
@@ -852,7 +852,7 @@ namespace Sad
                     {
                         // (AR) نوع مخصص - نعتبره OBJECT
                         // (EN) Custom type - treat as OBJECT
-                        templateArgs.push_back(Data::DataType::OBJECT);
+                        templateArgs.push_back(Types::SadTypeKind::Class);
                         templateArgNames.push_back(current_.getValue());
                         advance();
                     }
@@ -991,7 +991,7 @@ namespace Sad
             // (AR) النوع (اختياري) / (EN) Type (optional)
             // (AR) إذا لم يكن الرمز الحالي نوعاً، نستخدم UNKNOWN
             // (EN) If current token is not a type, use UNKNOWN
-            Data::DataType propertyType = Data::DataType::UNKNOWN;
+            Types::SadTypeKind propertyType = Types::SadTypeKind::Unknown;
             if (isTypeToken(current_.getType()))
             {
                 propertyType = parseType();

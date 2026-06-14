@@ -40,7 +40,6 @@
 #include "ast_visitor.h"
 #include "expressions.h"
 #include "statements.h"
-#include "data_types.h"
 #include <vector>
 #include <memory>
 #include <string>

@@ -265,7 +265,7 @@ namespace Sad
                                 {
                                     params.push_back(AST::Parameter(
                                         reqMethod.paramNames[i],
-                                        i < reqMethod.paramTypes.size() ? reqMethod.paramTypes[i] : DataType::UNKNOWN));
+                                        i < reqMethod.paramTypes.size() ? reqMethod.paramTypes[i] : Types::SadTypeKind::Unknown));
                                 }
 
                                 // (AR) استخدام الجسم المشترك مباشرة — shared_ptr يضمن الحياة

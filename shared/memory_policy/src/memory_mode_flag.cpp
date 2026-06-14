@@ -86,10 +86,16 @@ namespace Sad
                  "refcount"},
 
                 // أعلام الملكية
+                // (AR) ملاحظة (إصلاح S-TS): أُزيل الاسم المختصر "o" — كان يتعارض مع علم
+                //      الإخراج العام "-o" في مترجم sadc فيبتلعه ويمنع كتابة التنفيذيّ.
+                //      مستوى الملكية يُستخدَم عبر --ownership / --ملكية فقط.
+                // (EN) Fix (S-TS): removed short alias "o" — it collided with the universal
+                //      output flag "-o" of the sadc compiler, swallowing it and its value so
+                //      no executable was written. Use --ownership / --ملكية only.
                 {
                     "ملكية",
                     "ownership",
-                    "o",
+                    "",
                     "مستوى فحص الملكية: off|warnings|strict|ultra",
                     true,
                     "warnings"},
@@ -199,7 +205,8 @@ namespace Sad
                 handleOwnershipFlag(s, v);
             };
             flagHandlers_["--ownership"] = flagHandlers_["--ملكية"];
-            flagHandlers_["-o"] = flagHandlers_["--ملكية"];
+            // (AR) إصلاح S-TS: لا تُسجّل "-o" للملكية — تتعارض مع علم الإخراج العام في sadc.
+            // (EN) Fix S-TS: do NOT register "-o" for ownership — collides with sadc's output flag.
 
             // أعلام إضافية
             flagHandlers_["--اقتراحات"] = [](MemoryModeSettings &s, const std::string &)
@@ -473,7 +480,7 @@ namespace Sad
                 help << "                               tracing  - تتبع (Mark & Sweep)\n";
                 help << "                               incremental - تدريجي\n";
                 help << "\n";
-                help << "    --ملكية=LEVEL, -o=LEVEL  مستوى فحص الملكية:\n";
+                help << "    --ملكية=LEVEL            مستوى فحص الملكية:\n";
                 help << "                               off      - إيقاف الفحص\n";
                 help << "                               warnings - تحذيرات فقط (افتراضي)\n";
                 help << "                               strict   - صارم (أخطاء)\n";
@@ -514,7 +521,7 @@ namespace Sad
                 help << "  Advanced Options:\n";
                 help << "  ─────────────────\n";
                 help << "    --gc=STRATEGY             GC strategy: none|refcount|atomic|tracing|incremental\n";
-                help << "    --ownership=LEVEL, -o     Ownership level: off|warnings|strict|ultra\n";
+                help << "    --ownership=LEVEL         Ownership level: off|warnings|strict|ultra\n";
                 help << "    --suggestions, -s         Enable ownership suggestions\n";
                 help << "    --detect-cycles           Enable reference cycle detection\n";
                 help << "    --gc-memory-limit=MB      GC memory limit (default: 1024)\n";

@@ -111,7 +111,7 @@ namespace sad
         //  القسم ٢: دوال مساعدة لتحويل أنواع البيانات
         // ══════════════════════════════════════════════════════════════════════════════════════════════════
         //
-        //  هذه الدوال تحول بين أنواع البيانات في المحلل (Sad::Data::DataType)
+        //  هذه الدوال تحول بين أنواع البيانات في المحلل (Sad::Types::SadTypeKind)
         //  وأنواع البيانات في LSP (TypeInfo). التحويل ضروري لأن:
         //  - المحلل يستخدم enum DataType (رقم ثابت)
         //  - LSP يحتاج TypeInfo (اسم نصي + خصائص إضافية)
@@ -128,48 +128,48 @@ namespace sad
         ///   OBJECT → "كائن"    | ENUM → "تعداد"   | BYTE → "بايت"
         ///   ERROR → "خطأ"      | غير معروف → "غير_محدد" (مستنتج)
         /// ──────────────────────────────────────────────────────────────────────────────
-        static TypeInfo data_type_to_type_info(Sad::Data::DataType dt)
+        static TypeInfo data_type_to_type_info(Sad::Types::SadTypeKind dt)
         {
             TypeInfo ti;
             switch (dt)
             {
-            case Sad::Data::DataType::INTEGER:
+            case Sad::Types::SadTypeKind::Integer:
                 ti.name = "رقم";
                 break;
-            case Sad::Data::DataType::FLOAT:
+            case Sad::Types::SadTypeKind::Float:
                 ti.name = "عشري";
                 break;
-            case Sad::Data::DataType::STRING:
+            case Sad::Types::SadTypeKind::String:
                 ti.name = "نص";
                 break;
-            case Sad::Data::DataType::BOOLEAN:
+            case Sad::Types::SadTypeKind::Boolean:
                 ti.name = "منطقي";
                 break;
-            case Sad::Data::DataType::NONE:
+            case Sad::Types::SadTypeKind::Void:
                 ti.name = "عدم";
                 break;
-            case Sad::Data::DataType::ARRAY:
+            case Sad::Types::SadTypeKind::Array:
                 ti.name = "مصفوفة";
                 break;
-            case Sad::Data::DataType::MAP:
+            case Sad::Types::SadTypeKind::Map:
                 ti.name = "قاموس";
                 break;
-            case Sad::Data::DataType::TUPLE:
+            case Sad::Types::SadTypeKind::Tuple:
                 ti.name = "صف";
                 break;
-            case Sad::Data::DataType::FUNCTION:
+            case Sad::Types::SadTypeKind::Function:
                 ti.name = "دالة";
                 break;
-            case Sad::Data::DataType::OBJECT:
+            case Sad::Types::SadTypeKind::Class:
                 ti.name = "كائن";
                 break;
-            case Sad::Data::DataType::ENUM:
+            case Sad::Types::SadTypeKind::Enum:
                 ti.name = "تعداد";
                 break;
-            case Sad::Data::DataType::BYTE:
+            case Sad::Types::SadTypeKind::Byte:
                 ti.name = "بايت";
                 break;
-            case Sad::Data::DataType::ERROR:
+            case Sad::Types::SadTypeKind::Error:
                 ti.name = "خطأ";
                 break;
             default:
@@ -462,22 +462,22 @@ namespace sad
             auto *literal = dynamic_cast<const Sad::AST::LiteralExpr *>(expr);
             if (literal)
             {
-                Sad::Data::DataType literalType = literal->getDataType();
+                Sad::Types::SadTypeKind literalType = literal->getTypeKind();
                 switch (literalType)
                 {
-                case Sad::Data::DataType::STRING:
+                case Sad::Types::SadTypeKind::String:
                     ti.name = "نص";
                     break;
-                case Sad::Data::DataType::INTEGER:
+                case Sad::Types::SadTypeKind::Integer:
                     ti.name = "رقم";
                     break;
-                case Sad::Data::DataType::FLOAT:
+                case Sad::Types::SadTypeKind::Float:
                     ti.name = "عشري";
                     break;
-                case Sad::Data::DataType::BOOLEAN:
+                case Sad::Types::SadTypeKind::Boolean:
                     ti.name = "منطقي";
                     break;
-                case Sad::Data::DataType::NONE:
+                case Sad::Types::SadTypeKind::Void:
                     ti.name = "عدم";
                     break;
                 default:

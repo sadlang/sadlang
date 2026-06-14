@@ -1705,7 +1705,7 @@ namespace Sad
                  * @brief (AR) تحويل نوع AST إلى SadTypeKind
                  * @brief (EN) Convert AST Type to SadTypeKind
                  */
-                SadTypeKind astTypeToSIRType(const Sad::Data::DataType &astType);
+                SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind &astType);
 
                 /**
                  * @brief (AR) تحويل نوع AST إلى SadTypePtr (النظام الموحد)
@@ -1713,7 +1713,7 @@ namespace Sad
                  * @param astType نوع AST / AST DataType
                  * @return مؤشر SadType الموحد / Unified SadType pointer
                  */
-                Sad::Types::SadTypePtr astTypeToSadType(const Sad::Data::DataType &astType);
+                Sad::Types::SadTypePtr astTypeToSadType(const Sad::Types::SadTypeKind &astType);
 
                 /**
                  * @brief (AR) استنتاج نوع الإرجاع من جسم الدالة مع تتبع أنواع المتغيرات
@@ -1753,7 +1753,7 @@ namespace Sad
                  * @param program البرنامج الكامل / Full program AST
                  *
                  * يمسح جميع CallExpr في البرنامج ويحدّث functionTable_ عندما
-                 * يكون المعامل I64 (من DataType::UNKNOWN) والوسيط الفعلي STRING/F64/BOOL
+                 * يكون المعامل I64 (من Unknown) والوسيط الفعلي STRING/F64/BOOL
                  */
                 void inferParamTypesFromCallSites(Sad::AST::StmtList *program)
                 {

@@ -74,6 +74,40 @@ add_dependencies(sad_keywords_codegen sad_check_codegen_env)
 message(STATUS "(sad) Keyword codegen configured: YAML=${SAD_KW_YAML}")
 
 # ============================================================================
+# (AR) Types Codegen — توليد SadTypeKind من types.yaml (S-TS-P0.5)
+# (EN) Types Codegen — generate SadTypeKind enum from types.yaml
+# ============================================================================
+
+set(SAD_TY_YAML       "${CMAKE_SOURCE_DIR}/language-truth/types.yaml"                        CACHE INTERNAL "")
+set(SAD_TY_SCHEMA     "${CMAKE_SOURCE_DIR}/language-truth/_schemas/type.schema.json"         CACHE INTERNAL "")
+set(SAD_TY_GEN_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/codegen/gen_types.py"                     CACHE INTERNAL "")
+set(SAD_TY_GEN_DIR    "${CMAKE_SOURCE_DIR}/shared/types/generated"                           CACHE INTERNAL "")
+set(SAD_TY_GEN_H      "${SAD_TY_GEN_DIR}/sad_type_kind_generated.h"                          CACHE INTERNAL "")
+
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/sad_types_codegen.stamp
+    BYPRODUCTS ${SAD_TY_GEN_H}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${SAD_TY_GEN_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8
+            ${Python3_EXECUTABLE} ${SAD_TY_GEN_SCRIPT}
+                --yaml   ${SAD_TY_YAML}
+                --schema ${SAD_TY_SCHEMA}
+                --header ${SAD_TY_GEN_H}
+                --quiet
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/sad_types_codegen.stamp
+    DEPENDS ${SAD_TY_YAML} ${SAD_TY_SCHEMA} ${SAD_TY_GEN_SCRIPT}
+    COMMENT "(sad) Generating SadTypeKind from language-truth/types.yaml (V5)..."
+    VERBATIM
+)
+
+add_custom_target(sad_types_codegen
+    DEPENDS ${CMAKE_BINARY_DIR}/sad_types_codegen.stamp
+)
+add_dependencies(sad_types_codegen sad_check_codegen_env)
+
+message(STATUS "(sad) Types codegen configured: YAML=${SAD_TY_YAML}")
+
+# ============================================================================
 # (AR) Builtin Registry Codegen — توليد builtin_registry_generated.h من YAML
 # (EN) Builtin Registry Codegen — generate builtin_registry_generated.h from YAML
 # ============================================================================
@@ -234,7 +268,7 @@ endfunction()
 # ════════════════════════════════════════════════════════════════════════════
 # sad_add_codegen(operators ...)       # مُعطَّل: gen_operators.py مفقود + غير مُستهلَك
 # sad_add_codegen(directives ...)      # مُعطَّل: gen_directives.py مفقود + غير مُستهلَك
-# sad_add_codegen(types ...)           # مُعطَّل: gen_types.py مفقود + غير مُستهلَك
+# sad_add_codegen(types ...)           # ✅ مُفعَّل: انظر كتلة Types Codegen أعلاه (gen_types.py — S-TS-P0.5)
 # sad_add_codegen(grammar ...)         # مُعطَّل: gen_grammar.py مفقود + غير مُستهلَك
 # sad_add_codegen(modules ...)         # مُعطَّل: gen_modules.py مفقود + غير مُستهلَك
 # sad_add_codegen(stdlib ...)          # مُعطَّل: gen_stdlib.py مفقود + غير مُستهلَك
@@ -246,7 +280,7 @@ endfunction()
 # ─── (AR) هدف تجميعي — يقتصر على النطاقات العاملة (سكربت موجود + مخرَج مُستهلَك) ───
 # (EN) Aggregate — only the working domains (script present + output consumed).
 add_custom_target(sad_all_codegen DEPENDS
-    sad_keywords_codegen sad_builtin_registry_codegen sad_error_messages_codegen
+    sad_types_codegen sad_keywords_codegen sad_builtin_registry_codegen sad_error_messages_codegen
 )
 # (AR) sad_sadinfo_errors_codegen مُستبعَد من مُجمِّع بناء C++: مُخرَجه (data/errors) إسقاط
 #      تشغيلي للأدوات/الموقع، صفر استهلاك في كود C++، ومخططه (data/_schemas/error.schema.json)
@@ -254,4 +288,4 @@ add_custom_target(sad_all_codegen DEPENDS
 # (EN) sad_sadinfo_errors_codegen excluded from the C++ build aggregate: its output
 #      (data/errors) is a tooling/site projection with zero C++ consumers and a currently
 #      missing schema. The target stays defined; run it manually when needed.
-message(STATUS "(sad) Codegen wired: 3 C++ build domains (keywords/builtins/error_messages); sadinfo + 10 V5 scaffolds excluded")
+message(STATUS "(sad) Codegen wired: 4 C++ build domains (types/keywords/builtins/error_messages); sadinfo + 9 V5 scaffolds excluded")

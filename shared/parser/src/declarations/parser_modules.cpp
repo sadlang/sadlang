@@ -582,7 +582,7 @@ StmtPtr ParserCore::parseExportDecl() {
             // (AR) إنشاء تصريح ثابت ضمني / (EN) Create implicit const declaration
             declaration = std::make_unique<VarDeclStmt>(
                 nameToken.getValue(),
-                Data::DataType::UNKNOWN,  // (AR) سيُستنتج من القيمة
+                Types::SadTypeKind::Unknown,  // (AR) سيُستنتج من القيمة
                 std::move(value),
                 true,  // isConst = true
                 nameToken.getPosition()
@@ -594,7 +594,7 @@ StmtPtr ParserCore::parseExportDecl() {
             auto varRef = std::make_unique<VariableExpr>(nameToken.getValue(), nameToken.getPosition());
             declaration = std::make_unique<VarDeclStmt>(
                 nameToken.getValue(),
-                Data::DataType::UNKNOWN,
+                Types::SadTypeKind::Unknown,
                 std::move(varRef),
                 true,
                 nameToken.getPosition()

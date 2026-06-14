@@ -91,7 +91,7 @@ namespace Sad
                         for (auto &param : funcDecl->parameters)
                         {
                             SadTypeKind paramType = SadTypeKind::Integer;
-                            if (param.type != Sad::Data::DataType::UNKNOWN)
+                            if (param.type != Sad::Types::SadTypeKind::Unknown)
                             {
                                 paramType = b_.astTypeToSIRType(param.type);
                             }

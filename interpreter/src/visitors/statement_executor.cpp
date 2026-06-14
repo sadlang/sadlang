@@ -8,6 +8,7 @@
  */
 
 #include "statement_executor.h"
+#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنات الحقول تتمحور على SadTypeKind
 #include "declarations.h"
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
@@ -65,7 +66,7 @@ namespace Sad
                                              Data::FunctionManager &funcMgr,
                                              Data::ScopeManager &scopeMgr,
                                              Data::OwnershipManager &ownershipMgr)
-            : variableManager_(varMgr), functionManager_(funcMgr), scopeManager_(scopeMgr), ownershipManager_(ownershipMgr), flowControl_(FlowControl::NONE), returnValue_(), yieldValue_(), inGenerator_(false), loopDepth_(0), currentFunctionReturnType_(Data::DataType::UNKNOWN), currentFunctionName_("")
+            : variableManager_(varMgr), functionManager_(funcMgr), scopeManager_(scopeMgr), ownershipManager_(ownershipMgr), flowControl_(FlowControl::NONE), returnValue_(), yieldValue_(), inGenerator_(false), loopDepth_(0), currentFunctionReturnType_(Types::SadTypeKind::Unknown), currentFunctionName_("")
         {
             // (AR) إنشاء مُقيِّم التعابير / (EN) Create expression evaluator
             // Note: Pass *this to allow ExpressionEvaluator to call back for function execution
@@ -106,12 +107,12 @@ namespace Sad
                 value = evaluateExpression(*node.initializer);
 
                 // (AR) تحويل النوع إذا لزم الأمر / (EN) Type conversion if needed
-                if (node.type == Data::DataType::INTEGER && value.getKind() == Types::SadTypeKind::Float)
+                if (node.type == Types::SadTypeKind::Integer && value.getKind() == Types::SadTypeKind::Float)
                 {
                     // (AR) تحويل عشري → رقم صحيح / (EN) Convert double → integer
                     value = Data::Value(static_cast<int>(value.toDouble()));
                 }
-                else if (node.type == Data::DataType::FLOAT && value.getKind() == Types::SadTypeKind::Integer)
+                else if (node.type == Types::SadTypeKind::Float && value.getKind() == Types::SadTypeKind::Integer)
                 {
                     // (AR) تحويل رقم صحيح → عشري / (EN) Convert integer → double
                     value = Data::Value(static_cast<double>(value.toInt()));
@@ -121,8 +122,40 @@ namespace Sad
                 // (AR) التحقق من توافقية الأنواع عبر النظام الموحد
                 // (EN) Unified type system compatibility check
                 // ═══════════════════════════════════════════════════════════
-                if (node.sadType && node.type != Data::DataType::UNKNOWN)
+                if (node.sadType && node.type != Types::SadTypeKind::Unknown)
                 {
+                    // ═══════════════════════════════════════════════════════════
+                    // (AR) [S-TS-P9] أمان null: `لاشيء` (عدم) لا يُسنَد لنوع مُصرَّح غير
+                    //      اختياري. الحارس الخارجي (node.type != Unknown) يحفظ النمط
+                    //      السائد `متغير س = لاشيء` (مُستنتَج) من أي إنذار كاذب — لا انحدار.
+                    //      `رقم؟`(Optional)/`أي`(Any)/فراغ مستثناة. عدم يهرب من isAssignableTo
+                    //      لذا يلزم فحص isNull() صريح هنا.
+                    // (EN) [S-TS-P9] Null safety: `null` is not assignable to an explicitly
+                    //      non-optional type. The outer (node.type != Unknown) guard exempts
+                    //      inferred `var x = null`. Optional/Any/Void excluded. Null escapes
+                    //      isAssignableTo, hence the explicit isNull() check.
+                    // ═══════════════════════════════════════════════════════════
+                    if (value.isNull() &&
+                        node.type != Types::SadTypeKind::Optional &&
+                        node.type != Types::SadTypeKind::Any &&
+                        node.type != Types::SadTypeKind::Null &&
+                        node.type != Types::SadTypeKind::Void)
+                    {
+                        std::string wAr =
+                            "تحذير: إسناد 'لاشيء' (عدم) لمتغير '" + node.name +
+                            "' من نوع غير اختياري '" + node.sadType->arabicName() +
+                            "'. اجعله اختياريًّا: '" + node.sadType->arabicName() + "؟'";
+                        std::string wEn =
+                            "Assigning 'null' to non-optional variable '" + node.name +
+                            "' of type '" + node.sadType->englishName() + "'. Make it optional: 'T?'";
+                        std::cerr << "[تحذير نوع] سطر " << node.position.line
+                                  << ": " << wAr << std::endl;
+                        Sad::Errors::SourceLocation locN(
+                            "", node.position.line, node.position.column);
+                        Sad::Errors::ErrorManager::getInstance().reportWarning(
+                            Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, locN, wAr, wEn);
+                    }
+
                     auto valueType = Types::SadType::fromValueType(value.getType());
                     if (valueType && !valueType->isAssignableTo(node.sadType.get()))
                     {
@@ -155,16 +188,16 @@ namespace Sad
                 // (AR) قيمة افتراضية حسب النوع / (EN) Default value based on type
                 switch (node.type)
                 {
-                case Data::DataType::INTEGER:
+                case Types::SadTypeKind::Integer:
                     value = Data::Value(0);
                     break;
-                case Data::DataType::FLOAT:
+                case Types::SadTypeKind::Float:
                     value = Data::Value(0.0);
                     break;
-                case Data::DataType::STRING:
+                case Types::SadTypeKind::String:
                     value = Data::Value("");
                     break;
-                case Data::DataType::BOOLEAN:
+                case Types::SadTypeKind::Boolean:
                     value = Data::Value(false);
                     break;
                 default:
@@ -198,25 +231,25 @@ namespace Sad
                     std::string typeName;
                     switch (node.type)
                     {
-                    case Data::DataType::INTEGER:
+                    case Types::SadTypeKind::Integer:
                         typeName = "INTEGER";
                         break;
-                    case Data::DataType::FLOAT:
+                    case Types::SadTypeKind::Float:
                         typeName = "FLOAT";
                         break;
-                    case Data::DataType::STRING:
+                    case Types::SadTypeKind::String:
                         typeName = "نص";
                         break;
-                    case Data::DataType::BOOLEAN:
+                    case Types::SadTypeKind::Boolean:
                         typeName = "BOOLEAN";
                         break;
-                    case Data::DataType::ARRAY:
+                    case Types::SadTypeKind::Array:
                         typeName = "مصفوفة";
                         break;
-                    case Data::DataType::MAP:
+                    case Types::SadTypeKind::Map:
                         typeName = "قاموس";
                         break;
-                    case Data::DataType::OBJECT:
+                    case Types::SadTypeKind::Class:
                         typeName = "كائن";
                         break;
                     default:

@@ -49,7 +49,7 @@
  * الاعتماديات:
  * ──────────
  * - token.h: بنية Position لتحديد موقع العقدة في المصدر
- * - data_types.h: تعداد DataType لتحديد نوع التعبير
+ * - sad_type_system.h: تعداد SadTypeKind لتحديد نوع التعبير
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * @file ast_node.h
@@ -65,7 +65,6 @@
 #include <memory>
 #include <vector>
 #include "token.h"
-#include "data_types.h"
 #include "sad_type_system.h"
 
 namespace Sad
@@ -180,18 +179,16 @@ namespace Sad
             virtual Types::SadTypePtr getType() const = 0;
 
             /**
-             * @brief (AR) الحصول على نوع البيانات القديم (جسر مؤقت) / (EN) Get legacy DataType (temporary bridge)
-             * @return (AR) نوع البيانات القديم / (EN) The legacy data type
+             * @brief (AR) نوع العقدة كـ SadTypeKind — المحور الموحَّد (S-TS-P2.5a)
+             * @brief (EN) Node kind as SadTypeKind — the unified pivot (S-TS-P2.5a)
              *
-             * (AR) جسر توافقي — يحول SadTypePtr إلى DataType للكود القديم.
-             *      سيُزال في Phase 3 بعد ترحيل جميع المستخدمين.
-             * (EN) Backward-compatibility bridge — converts SadTypePtr to DataType.
-             *      Will be removed in Phase 3 after all consumers are migrated.
+             * (AR) يحلّ محلّ getTypeKind() القديم؛ يُشتقّ مباشرة من getType()->getKind()
+             *      المحور الموحَّد للنوع (S-TS-P2.5a).
              */
-            Data::DataType getDataType() const
+            Types::SadTypeKind getTypeKind() const
             {
                 auto t = getType();
-                return t ? t->toDataType() : Data::DataType::UNKNOWN;
+                return t ? t->getKind() : Types::SadTypeKind::Unknown;
             }
         };
 

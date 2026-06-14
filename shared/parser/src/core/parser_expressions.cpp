@@ -1503,7 +1503,7 @@ namespace Sad
                     if (auto *varExpr = dynamic_cast<VariableExpr *>(expr.get()))
                     {
                         std::vector<Parameter> params;
-                        params.emplace_back(varExpr->name, Data::DataType::UNKNOWN, nullptr);
+                        params.emplace_back(varExpr->name, Types::SadTypeKind::Unknown, nullptr);
                         auto body = parseExpression();
                         return std::make_unique<LambdaExpr>(std::move(params), std::move(body), leftPos);
                     }
@@ -1666,7 +1666,7 @@ namespace Sad
             params.reserve(paramNames.size());
             for (const auto &name : paramNames)
             {
-                params.emplace_back(name, Data::DataType::UNKNOWN, nullptr);
+                params.emplace_back(name, Types::SadTypeKind::Unknown, nullptr);
             }
 
             // ─── Arrow form: لامدا(params) => expression [نهاية] ───

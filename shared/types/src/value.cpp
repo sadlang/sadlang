@@ -152,6 +152,16 @@ namespace Sad
 
         Value::Value() : sadType_(reg().getVoid()), type_(ValueType::VOID), data_(std::monostate{}) {}
 
+        // (AR) عدم (Null) — قيمة متمايزة عن فراغ (Void) — S-TS-P1
+        // (EN) Null — a value distinct from void — S-TS-P1
+        Value Value::makeNull()
+        {
+            Value v;
+            v.type_ = Types::SadTypeKind::Null;
+            v.sadType_ = reg().getNull();
+            return v;
+        }
+
         Value::Value(int val) : sadType_(reg().getInteger()), type_(ValueType::INTEGER), data_(static_cast<int64_t>(val)) {}
 
         Value::Value(int64_t val) : sadType_(reg().getInteger()), type_(ValueType::INTEGER), data_(val) {}
@@ -1196,6 +1206,11 @@ namespace Sad
             case ValueType::VOID:
                 return Value(true);
 
+            // (AR) عدم == عدم ⇐ صحيح (قيمة وحيدة) — متمايزة عن فراغ لكن متساوية مع نفسها (S-TS-P1)
+            // (EN) null == null ⇒ true (unit value) — distinct from void yet equal to itself (S-TS-P1)
+            case Types::SadTypeKind::Null:
+                return Value(true);
+
             case ValueType::ARRAY:
             {
                 // (AR) مقارنة عنصرية للمصفوفات — [1,2] == [1,2] ترجع صحيح
@@ -1461,6 +1476,8 @@ namespace Sad
             {
             case ValueType::VOID:
                 return "VOID";
+            case Types::SadTypeKind::Null:
+                return "NULL";
             case ValueType::INTEGER:
                 return "INTEGER";
             case ValueType::DOUBLE:
@@ -1849,6 +1866,20 @@ namespace Sad
             case SadTypeKind::Function:
             case SadTypeKind::Closure:
                 type_ = ValueType::FUNCTION;
+                break;
+            // (AR) [S-TS-P1] عدم: نحفظ تمايزه (لا نُسقطه إلى فراغ).
+            case SadTypeKind::Null:
+                type_ = ValueType::Null;
+                break;
+            // (AR) [S-TS-P4] Future/Generator مُمثَّلان ككائن في الـruntime: نُبقي type_=OBJECT
+            //      (ليعمل isObject() وفحص الطرق .احصل())، بينما sadType_ يحمل النوع الحقيقي
+            //      فيُرجع getKind()=Future/Generator وتُعرّبه نوع() صحيحًا.
+            // (EN) [S-TS-P4] Future/Generator are object-represented at runtime: keep
+            //      type_=OBJECT so isObject()/method dispatch works, while sadType_ carries
+            //      the real kind (getKind()=Future/Generator → نوع() reports it correctly).
+            case SadTypeKind::Future:
+            case SadTypeKind::Generator:
+                type_ = ValueType::OBJECT;
                 break;
             default:
                 type_ = ValueType::VOID;

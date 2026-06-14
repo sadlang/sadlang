@@ -13,7 +13,7 @@
  *        • شجرة AST (shared/ast/)
  *
  *      المحتويات:
- *        ① SadTypeKind — تعداد موحد بـ 34 قيمة يغطي كل الأنظمة
+ *        ① SadTypeKind — تعداد موحد (52 قيمة، مُولَّد من types.yaml) يغطي كل الأنظمة
  *        ② SadType — الصنف الأساسي المجرد + 15 صنف فرعي
  *        ③ SadTypeRegistry — Singleton لتخزين الأنواع وإنشائها
  *        ④ دوال مساعدة — أسماء عربية/إنجليزية، فحوصات، تحويلات
@@ -37,7 +37,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════════
 // الاعتمادات / Dependencies
 // ═══════════════════════════════════════════════════════════════════════════════════
-#include "data_types.h" // (AR) DataType القديم — للتوافق الخلفي
+#include "../generated/sad_type_kind_generated.h" // (AR) تعداد SadTypeKind — مُولَّد من language-truth/types.yaml (لا يُحرَّر يدويًّا)
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,97 +52,14 @@ namespace Sad
 
         // █████████████████████████████████████████████████████████████████████████████████
         //
-        //  الجزء ①: التعداد الموحد SadTypeKind — 34 قيمة
-        //  Part ①: Unified SadTypeKind enum — 34 values
+        //  الجزء ①: التعداد الموحد SadTypeKind — مُولَّد من types.yaml (52 قيمة)
+        //  Part ①: Unified SadTypeKind enum — generated from types.yaml (52 values)
+        //
+        //  ⚠️ التعداد نفسه في: shared/types/generated/sad_type_kind_generated.h
+        //     مصدر الحقيقة: language-truth/types.yaml — عدّل هناك ثم أعد البناء.
+        //     The enum lives in the generated header above; SoT is types.yaml.
         //
         // █████████████████████████████████████████████████████████████████████████████████
-
-        /**
-         * @brief (AR) التعداد الموحد لكل أنواع لغة ص — يُستخدم في كل مكان (مفسر + مترجم)
-         * @brief (EN) Unified type kind enum — used everywhere (interpreter + compiler)
-         *
-         * (AR) يُوحِّد 5 أنظمة أنواع سابقة في تعداد واحد:
-         *   ① ValueType (runtime) — ② DataType (AST) — ③ SadTypeKind (type checker)
-         *   ④ SadTypeKind (codegen) — ⑤ sad::sir::TypeKind (validator)
-         */
-        enum class SadTypeKind : int
-        {
-            // ─── أنواع بدائية / Primitive types ───
-            Void,    ///< فراغ / void
-            Integer, ///< رقم صحيح (i64) / integer
-            Float,   ///< عشري (f64) / float/double
-            Boolean, ///< منطقي / boolean
-            String,  ///< نص / string
-            Byte,    ///< بايت (i8) / byte
-
-            // ─── أنواع بدائية بحجم محدد (للمترجم) / Sized primitives (for compiler) ───
-            Int8,    ///< عدد8 / 8-bit signed integer
-            Int16,   ///< عدد16 / 16-bit signed integer
-            Int32,   ///< عدد32 / 32-bit signed integer
-            Int64,   ///< عدد64 / 64-bit signed integer
-            UInt8,   ///< طبيعي8 / 8-bit unsigned integer
-            UInt16,  ///< طبيعي16 / 16-bit unsigned integer
-            UInt32,  ///< طبيعي32 / 32-bit unsigned integer
-            UInt64,  ///< طبيعي64 / 64-bit unsigned integer
-            Float32, ///< عشري32 / 32-bit float
-            Float64, ///< عشري64 / 64-bit float
-            Char,    ///< حرف / character
-
-            // ─── أنواع مركبة / Composite types ───
-            Array, ///< مصفوفة<T> / array
-            Map,   ///< خريطة<K,V> / map/dictionary
-            Tuple, ///< صف (T1, T2, ...) / tuple
-            Slice, ///< شريحة / slice
-
-            // ─── أنواع كائنية / OOP types ───
-            Class,  ///< صنف / class
-            Struct, ///< بنية / struct
-            Enum,   ///< تعداد / enum
-            Trait,  ///< سمة (واجهة) / trait/interface
-
-            // ─── أنواع وظيفية / Function types ───
-            Function, ///< دالة (Params)->Return / function
-            Closure,  ///< إغلاق (دالة + سياق) / closure
-
-            // ─── أنواع متقدمة / Advanced types ───
-            Union,         ///< اتحاد T1|T2 / union
-            Intersection,  ///< تقاطع T1&T2 / intersection
-            Optional,      ///< اختياري T? / optional
-            Result,        ///< نتيجة<T, E> / result
-            Generic,       ///< نوع عام (T) / generic
-            TypeParameter, ///< معامل نوع فعلي / type parameter
-            TypeAlias,     ///< اسم مستعار / type alias
-
-            // ─── مؤشرات ومراجع / Pointers and references ───
-            Pointer,    ///< مؤشر خام (ptr, void*) / raw pointer
-            Reference,  ///< مرجع &T / reference
-            MutableRef, ///< مرجع متغير &mut T / mutable reference
-
-            // ─── أنواع خاصة / Special types ───
-            Any,     ///< أي — يقبل كل شيء / any
-            Never,   ///< أبداً — لا تُرجع / never
-            Unknown, ///< مجهول — يُستنتج لاحقاً / unknown
-            Error,   ///< خطأ / error
-
-            // ─── أنواع غير متزامنة / Async types ───
-            Future,        ///< مستقبل<T> / future
-            Generator,     ///< مولّد<T> / generator
-            Comprehension, ///< استيعاب (list comprehension) / comprehension
-
-            // ─── أنواع الرسومات / Graphics types ───
-            Color,  ///< لون (RGBA) / color
-            Widget, ///< عنصر واجهة / widget
-            Window, ///< نافذة / window
-            Event,  ///< حدث / event
-
-            // ─── متجهات SIMD / SIMD vectors ───
-            // (AR) متجه SIMD <نوع_عنصر، عدد_عناصر> — يقابل <N x T> في LLVM
-            //      الأنواع الفرعية المسموح بها: Float32, Float64, Int8, Int16,
-            //      Int32, Int64, UInt8, UInt16, UInt32, UInt64, Boolean.
-            //      الحجم يجب أن يكون قوة 2 (2, 4, 8, 16, 32, 64).
-            // (EN) SIMD vector <element_type, count> — maps to <N x T> in LLVM
-            Vector,
-        };
 
         // ═══════════════════════════════════════════════════════════════════════════════════
         // دوال مساعدة للتعداد / Helper functions for the enum
@@ -155,6 +72,8 @@ namespace Sad
             {
             case SadTypeKind::Void:
                 return "فراغ";
+            case SadTypeKind::Null:
+                return "عدم";
             case SadTypeKind::Integer:
                 return "رقم";
             case SadTypeKind::Float:
@@ -262,6 +181,8 @@ namespace Sad
             {
             case SadTypeKind::Void:
                 return "Void";
+            case SadTypeKind::Null:
+                return "Null";
             case SadTypeKind::Integer:
                 return "Integer";
             case SadTypeKind::Float:
@@ -400,6 +321,7 @@ namespace Sad
 
         // ─── إعلان مسبق للأنواع الفرعية (مطلوب لـ isAssignableTo) ───
         class SadOptionalType;
+        class SadResultType; // (S-TS-P3)
         class SadUnionType;
         class SadTypeAlias;
         class SadArrayType;
@@ -497,11 +419,12 @@ namespace Sad
 
             // ─── تحويل إلى تمثيل النوع التشغيلي المتوافق / Runtime compatibility kind ───
             SadTypeKind toValueType() const;
-            Data::DataType toDataType() const;
+            // (AR) [S-TS-P2.5b] حُذف toDataType() — صفر مستهلك بعد توحيد المحور على SadTypeKind.
+            // (EN) [S-TS-P2.5b] toDataType() removed — zero consumers after SadTypeKind unification.
 
             // ─── Factory Methods ثابتة / Static factories ───
             static SadTypePtr fromValueType(SadTypeKind vt);
-            static SadTypePtr fromDataType(Data::DataType dt);
+            // (AR) [S-TS-P2.5b] حُذف fromDataType() — استُبدِل بـ fromValueType(SadTypeKind).
             static SadTypePtr fromArabicName(const std::string &name);
 
         protected:
@@ -1057,6 +980,59 @@ namespace Sad
         };
 
         // ─────────────────────────────────────────────────────────────────────────────────
+        //  نوع نتيجة / Result type: نتيجة<T, E> (نجاح T أو خطأ E)
+        //  (AR) [S-TS-P3] نوع جبري يمثّل إمّا قيمة نجاح من النوع T أو خطأ من النوع E.
+        //       على نسق SadOptionalType لكن بنوعين داخليين.
+        //  (EN) [S-TS-P3] Algebraic type representing either a success value (T) or an
+        //       error (E). Modeled on SadOptionalType but with two inner types.
+        // ─────────────────────────────────────────────────────────────────────────────────
+        class SadResultType : public SadType
+        {
+        public:
+            SadResultType(SadTypePtr okType, SadTypePtr errType)
+                : SadType(SadTypeKind::Result), okType_(std::move(okType)), errType_(std::move(errType)) {}
+
+            SadTypePtr getOkType() const { return okType_; }
+            SadTypePtr getErrType() const { return errType_; }
+
+            std::string arabicName() const override
+            {
+                return "نتيجة<" + (okType_ ? okType_->arabicName() : "أي") + "، " +
+                       (errType_ ? errType_->arabicName() : "خطأ") + ">";
+            }
+            std::string englishName() const override
+            {
+                return "Result<" + (okType_ ? okType_->englishName() : "Any") + ", " +
+                       (errType_ ? errType_->englishName() : "Error") + ">";
+            }
+
+            bool equals(const SadType *other) const override
+            {
+                if (!other || other->getKind() != SadTypeKind::Result)
+                    return false;
+                auto o = static_cast<const SadResultType *>(other);
+                auto eq = [](const SadTypePtr &a, const SadTypePtr &b) {
+                    if (!a && !b) return true;
+                    if (!a || !b) return false;
+                    return a->equals(b.get());
+                };
+                return eq(okType_, o->okType_) && eq(errType_, o->errType_);
+            }
+
+            std::vector<SadTypePtr> getTypeParams() const override
+            {
+                std::vector<SadTypePtr> params;
+                if (okType_) params.push_back(okType_);
+                if (errType_) params.push_back(errType_);
+                return params;
+            }
+
+        private:
+            SadTypePtr okType_;  ///< (AR) نوع قيمة النجاح T / (EN) success value type
+            SadTypePtr errType_; ///< (AR) نوع الخطأ E / (EN) error type
+        };
+
+        // ─────────────────────────────────────────────────────────────────────────────────
         //  نوع عام / Generic type parameter: T, U, K, V...
         // ─────────────────────────────────────────────────────────────────────────────────
         class SadGenericType : public SadType
@@ -1280,6 +1256,7 @@ namespace Sad
 
             // ─── أنواع بدائية مُخزَّنة مسبقاً / Pre-interned primitives ───
             SadTypePtr getVoid() const { return void_; }
+            SadTypePtr getNull() const { return null_; } // (AR) عدم — S-TS-P1
             SadTypePtr getInteger() const { return integer_; }
             SadTypePtr getFloat() const { return float_; }
             SadTypePtr getBoolean() const { return boolean_; }
@@ -1325,17 +1302,17 @@ namespace Sad
             // ─── أنواع مركبة / Composite types ───
             SadTypePtr makeArray(SadTypePtr elem = nullptr)
             {
-                return std::make_shared<SadArrayType>(std::move(elem));
+                return intern(std::make_shared<SadArrayType>(std::move(elem))); // (S-TS-P7) interning
             }
 
             SadTypePtr makeMap(SadTypePtr key = nullptr, SadTypePtr val = nullptr)
             {
-                return std::make_shared<SadMapType>(std::move(key), std::move(val));
+                return intern(std::make_shared<SadMapType>(std::move(key), std::move(val))); // (S-TS-P7)
             }
 
             SadTypePtr makeTuple(std::vector<SadTypePtr> elems)
             {
-                return std::make_shared<SadTupleType>(std::move(elems));
+                return intern(std::make_shared<SadTupleType>(std::move(elems))); // (S-TS-P7)
             }
 
             // ─── أنواع وظيفية / Function types ───
@@ -1386,7 +1363,14 @@ namespace Sad
 
             SadTypePtr makeOptional(SadTypePtr inner)
             {
-                return std::make_shared<SadOptionalType>(std::move(inner));
+                return intern(std::make_shared<SadOptionalType>(std::move(inner))); // (S-TS-P7)
+            }
+
+            // (AR) [S-TS-P3] إنشاء نوع نتيجة نتيجة<T, E> (نجاح T أو خطأ E)
+            // (EN) [S-TS-P3] Create a Result<T, E> type (success T or error E)
+            SadTypePtr makeResult(SadTypePtr okType, SadTypePtr errType)
+            {
+                return intern(std::make_shared<SadResultType>(std::move(okType), std::move(errType))); // (S-TS-P7)
             }
 
             SadTypePtr makeGeneric(const std::string &name, SadTypePtr constraint = nullptr)
@@ -1455,6 +1439,7 @@ namespace Sad
             SadTypeRegistry()
             {
                 void_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Void);
+                null_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Null); // (AR) عدم — S-TS-P1
                 integer_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Integer);
                 float_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Float);
                 boolean_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Boolean);
@@ -1469,10 +1454,32 @@ namespace Sad
             SadTypeRegistry(const SadTypeRegistry &) = delete;
             SadTypeRegistry &operator=(const SadTypeRegistry &) = delete;
 
-            SadTypePtr void_, integer_, float_, boolean_, string_, byte_;
+            SadTypePtr void_, null_, integer_, float_, boolean_, string_, byte_;
             SadTypePtr any_, never_, unknown_, error_;
             mutable std::mutex mutex_;
             std::unordered_map<std::string, SadTypePtr> classTypes_;
+            // (AR) [S-TS-P7] interning للأنواع المركّبة: مفتاح = التوقيع البنيوي (الاسم العربي).
+            //      يضمن أن المركّبات المتماثلة بنيويًّا تتشارك المؤشر ⇒ مقارنة `==` صحيحة.
+            // (EN) [S-TS-P7] Composite-type interning keyed by structural signature (arabicName),
+            //      so structurally-equal composites share one pointer ⇒ pointer `==` is correct.
+            std::unordered_map<std::string, SadTypePtr> compositeCache_;
+
+        public:
+            // (AR) [S-TS-P7] يُعيد النسخة المُخزَّنة لنوع مركّب بنفس التوقيع البنيوي، أو يخزّنه.
+            // (EN) [S-TS-P7] Returns the interned instance for a composite with the same structural
+            //      signature, or stores and returns it. Bounded by distinct signatures (no leak).
+            SadTypePtr intern(SadTypePtr t)
+            {
+                if (!t)
+                    return t;
+                std::lock_guard<std::mutex> lock(mutex_);
+                const std::string key = t->arabicName();
+                auto it = compositeCache_.find(key);
+                if (it != compositeCache_.end())
+                    return it->second;
+                compositeCache_[key] = t;
+                return t;
+            }
         };
 
         // █████████████████████████████████████████████████████████████████████████████████
@@ -1494,13 +1501,30 @@ namespace Sad
             if (kind_ == SadTypeKind::Never)
                 return true;
 
-            // (AR) الهدف Optional<T> → يقبل T أو Void
+            // (AR) الهدف Optional<T> → يقبل عدم (Null) أو T — S-TS-P4 (AC7)
+            //      (Null <: T?‎ و T <: T?‎). Void يبقى مقبولًا للتوافق الخلفي مؤقتًا.
+            // (EN) Target Optional<T> → accepts Null or T (Null <: T?, T <: T?) — S-TS-P4.
             if (target->getKind() == SadTypeKind::Optional)
             {
                 auto opt = static_cast<const SadOptionalType *>(target);
-                if (kind_ == SadTypeKind::Void)
+                if (kind_ == SadTypeKind::Null || kind_ == SadTypeKind::Void)
                     return true;
                 if (opt->getInnerType() && isAssignableTo(opt->getInnerType().get()))
+                    return true;
+            }
+
+            // (AR) الهدف Result<T,E> → المصدر Result بأنواع نجاح/خطأ متوافقة (تغايُر) — S-TS-P3
+            // (EN) Target Result<T,E> → source Result with compatible ok/err types (covariant)
+            if (target->getKind() == SadTypeKind::Result && kind_ == SadTypeKind::Result)
+            {
+                auto tr = static_cast<const SadResultType *>(target);
+                auto sr = static_cast<const SadResultType *>(this);
+                auto compat = [](const SadTypePtr &s, const SadTypePtr &t) {
+                    if (!s || !t)
+                        return true; // (AR) نوع مفتوح يُقبل
+                    return s->isAssignableTo(t.get());
+                };
+                if (compat(sr->getOkType(), tr->getOkType()) && compat(sr->getErrType(), tr->getErrType()))
                     return true;
             }
 

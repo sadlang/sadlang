@@ -460,9 +460,9 @@ public:
             "نجاح",          // success
             "فشل",           // failure
             
-            // أنواع شائعة | Common types
-            "عدد_صحيح",       // int
-            "عدد_عشري",       // float
+            // أنواع شائعة | Common types — أسماء نوع() الموحَّدة (SoT: types.yaml word)
+            "رقم",            // integer (نوع())
+            "عشري",           // float   (نوع())
             "نص",            // string
             "منطقي",          // bool
             "قائمة",          // list
