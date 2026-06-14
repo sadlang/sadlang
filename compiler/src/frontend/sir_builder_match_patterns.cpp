@@ -108,14 +108,14 @@ namespace Sad
                         litValue = lit.toString();
                         litType = SadTypeKind::String;
                     }
-                    else if (lit.getKind() == SadTypeKind::Void)
+                    else if (lit.getKind() == SadTypeKind::Null || lit.getKind() == SadTypeKind::Void)
                     {
-                        // (AR) إصلاح X04: لاشيء / null — Data::Value() بدون وسائط = Void kind
-                        //      يجب مقارنتها مع kSadNullSentinel وليس 0
-                        //      لأن 0 يُطابق false أيضاً مما يُسبّب تعارضاً
-                        // (EN) FIX X04: null literal — Data::Value() with no args = Void kind
-                        //      Must compare against kSadNullSentinel, not 0
-                        //      Because 0 would also match false, causing collision
+                        // (AR) إصلاح X04: نمط لاشيء / null. بعد S-TS-P1 يُبنى بـmakeNull()
+                        //      (Null kind)؛ نقبل Void أيضًا لأي بقايا قديمة. يُقارَن مع
+                        //      kSadNullSentinel وليس 0 (إذ 0 يُطابق false فيتعارض).
+                        // (EN) FIX X04: null pattern. Post S-TS-P1 it's built via makeNull()
+                        //      (Null kind); accept Void too for any legacy residue. Compare
+                        //      against kSadNullSentinel, not 0 (0 collides with false).
                         litValue = Sad::Compiler::kSadNullSentinelStr;
                         litType = SadTypeKind::Integer;
                     }

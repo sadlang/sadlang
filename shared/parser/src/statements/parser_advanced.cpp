@@ -937,11 +937,16 @@ namespace Sad
             }
 
             // null
-            // (AR) قيمة null
+            // (AR) قيمة null — يجب أن تُبنى كـNull (عدم) لا Void الافتراضي. بعد S-TS-P1
+            //      صار «عدم» متمايزًا عن «فراغ»، فلو بقي النمط Void لما طابق المُسنَد
+            //      «لاشيء» (Null) ⇒ انكسرت مطابقة `عندما لاشيء:`.
+            // (EN) null pattern must be built as Null, not default Void. After S-TS-P1
+            //      «عدم» is distinct from «فراغ»; a Void pattern no longer matches a Null
+            //      scrutinee, breaking `when null:` matching.
             if (check(TT::LITERAL_NULL))
             {
                 advance();
-                return std::make_unique<AST::LiteralPattern>(Data::Value());
+                return std::make_unique<AST::LiteralPattern>(Data::Value::makeNull());
             }
 
             // Variable pattern (identifier) — or qualified enum member: Enum.Value
