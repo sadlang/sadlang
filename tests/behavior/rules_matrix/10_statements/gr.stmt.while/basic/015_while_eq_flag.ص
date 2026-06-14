@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: شرط == على علم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مرة
+
+متغير ع=5
+بينما (ع==5)
+    اطبع_سطر("مرة")
+    ع=6
+نهاية

@@ -1,10 +1,12 @@
 # @rule: gr.stmt.while
-# @description: إذا داخلية بلا نهاية
+# @description: إذا/وإلا داخلية ناقصة
 # @priority: P1
 # @requires: اطبع_سطر
 # @expect_error
 
 بينما (1>0)
     إذا (1>0)
+        توقف
+    وإلا
         توقف
 نهاية

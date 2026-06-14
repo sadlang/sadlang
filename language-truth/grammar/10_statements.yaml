@@ -79,7 +79,7 @@ productions:
     description_ar: "حلقة تتكرّر ما دام الشرط صحيحاً"
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       متغير ع = 0
       بينما (ع < 3)

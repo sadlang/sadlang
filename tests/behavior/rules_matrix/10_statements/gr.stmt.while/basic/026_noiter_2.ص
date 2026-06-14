@@ -1,0 +1,10 @@
+# @rule: gr.stmt.while
+# @description: لا تكرار: 0>5
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: بعد
+
+بينما (0>5)
+    اطبع_سطر("خ")
+نهاية
+اطبع_سطر("بعد")

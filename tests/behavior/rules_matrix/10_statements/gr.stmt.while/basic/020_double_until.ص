@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: مضاعفة حتى حد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n4\n8
+
+متغير ع=1
+بينما (ع<10)
+    اطبع_سطر(ع)
+    ع=ع*2
+نهاية

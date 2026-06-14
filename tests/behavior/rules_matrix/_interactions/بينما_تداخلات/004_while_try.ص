@@ -1,0 +1,15 @@
+# @rule: gr.stmt.while, gr.stmt.try, gr.stmt.throw
+# @description: بينما + حاول/ارمي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1
+
+متغير ع=0
+بينما (ع<2)
+    حاول
+        ارمي "x"
+    امسك خطأ
+        اطبع_سطر(ع)
+    نهاية
+    ع=ع+1
+نهاية

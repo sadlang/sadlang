@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: بناء عدّ نصّي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: س1\nس2\nس3
+
+متغير ع=1
+بينما (ع<=3)
+    اطبع_سطر("س" + نص(ع))
+    ع=ع+1
+نهاية

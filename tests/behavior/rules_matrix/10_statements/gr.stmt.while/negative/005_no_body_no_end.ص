@@ -1,8 +1,7 @@
 # @rule: gr.stmt.while
-# @description: بينما بلا نهاية
+# @description: شرط بلا جسم بلا نهاية
 # @priority: P1
 # @requires: اطبع_سطر
 # @expect_error
 
 بينما (1>0)
-    توقف

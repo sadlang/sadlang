@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: شرط بقيمة محسوبة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2\n3\n4
+
+متغير ع=1
+بينما (ع*ع<20)
+    اطبع_سطر(ع)
+    ع=ع+1
+نهاية

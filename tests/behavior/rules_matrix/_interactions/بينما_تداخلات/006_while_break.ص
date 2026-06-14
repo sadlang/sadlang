@@ -1,0 +1,12 @@
+# @rule: gr.stmt.while, gr.stmt.break
+# @description: بينما + توقف
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1\n2
+
+متغير ع=0
+بينما (صحيح)
+    إذا (ع==3) توقف نهاية
+    اطبع_سطر(ع)
+    ع=ع+1
+نهاية

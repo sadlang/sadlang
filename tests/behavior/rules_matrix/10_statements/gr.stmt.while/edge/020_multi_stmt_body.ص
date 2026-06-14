@@ -1,0 +1,12 @@
+# @rule: gr.stmt.while
+# @description: جسم بجمل كثيرة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أ\nب\nأ\nب
+
+متغير ع=0
+بينما (ع<2)
+    اطبع_سطر("أ")
+    اطبع_سطر("ب")
+    ع=ع+1
+نهاية

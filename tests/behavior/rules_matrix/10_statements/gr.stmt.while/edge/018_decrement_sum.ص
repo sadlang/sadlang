@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: جمع بالتنازل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير ع=3
+متغير م=0
+بينما (ع>0)
+    م=م+ع
+    ع=ع-1
+نهاية
+اطبع_سطر(م)

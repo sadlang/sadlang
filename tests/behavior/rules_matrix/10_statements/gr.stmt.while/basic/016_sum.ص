@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: جمع 1..3
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير م=0
+متغير ع=1
+بينما (ع<=3)
+    م=م+ع
+    ع=ع+1
+نهاية
+اطبع_سطر(م)

@@ -1,10 +1,11 @@
 # @rule: gr.stmt.while
-# @description: جسم بلا نهاية
+# @description: عدّ 0..4 بـ<
 # @priority: P1
 # @requires: اطبع_سطر
-# @expect_error
+# @expected: 0\n1\n2\n3\n4
 
 متغير ع=0
-بينما (ع<3)
+بينما (ع<5)
     اطبع_سطر(ع)
     ع=ع+1
+نهاية

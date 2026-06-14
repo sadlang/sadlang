@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: عدّادان
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ا=0
+متغير ب=0
+بينما (ا<3)
+    ب=ب+ا
+    ا=ا+1
+نهاية
+اطبع_سطر(ب)

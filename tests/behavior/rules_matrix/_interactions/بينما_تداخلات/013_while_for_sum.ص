@@ -1,0 +1,15 @@
+# @rule: gr.stmt.while, gr.stmt.for, gr.stmt.expression
+# @description: بينما + لكل تراكمي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+
+متغير ع=0
+متغير ك=0
+بينما (ع<2)
+    لكل ن في [1،2،3]
+        ك=ك+ن
+    نهاية
+    ع=ع+1
+نهاية
+اطبع_سطر(ك)

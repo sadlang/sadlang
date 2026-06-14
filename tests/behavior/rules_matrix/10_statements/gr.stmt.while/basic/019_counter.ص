@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: عدّاد تكرارات
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+
+متغير ك=0
+متغير ع=0
+بينما (ع<4)
+    ك=ك+1
+    ع=ع+1
+نهاية
+اطبع_سطر(ك)
