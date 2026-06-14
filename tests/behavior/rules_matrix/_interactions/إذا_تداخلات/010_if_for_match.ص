@@ -1,0 +1,16 @@
+# @rule: gr.stmt.if, gr.stmt.for, gr.stmt.match
+# @description: إذا + لكل + طابق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: و\nا
+
+لكل ن في [1،2]
+    إذا (ن>0)
+        طابق (ن)
+            عندما 1:
+                اطبع_سطر("و")
+            عندما 2:
+                اطبع_سطر("ا")
+        نهاية
+    نهاية
+نهاية

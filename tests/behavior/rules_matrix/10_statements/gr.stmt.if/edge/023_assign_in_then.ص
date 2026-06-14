@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if
+# @description: إسناد في then
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير س=1
+إذا (صحيح)
+    س=9
+نهاية
+اطبع_سطر(س)

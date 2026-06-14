@@ -1,9 +1,0 @@
-# @rule: gr.stmt.if
-# @description: شرط قيمة منطقية
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: ن
-
-إذا (صحيح)
-    اطبع_سطر("ن")
-نهاية

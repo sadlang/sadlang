@@ -1,10 +1,10 @@
 # @rule: gr.stmt.if
-# @description: وإلا إذا بلا نهاية
+# @description: جمل متعددة في then
 # @priority: P1
 # @requires: اطبع_سطر
-# @expect_error
+# @expected: أ\nب
 
 إذا (1>0)
     اطبع_سطر("أ")
-وإلا إذا (2>1)
     اطبع_سطر("ب")
+نهاية

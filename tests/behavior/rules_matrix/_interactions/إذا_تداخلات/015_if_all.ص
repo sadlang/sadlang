@@ -1,0 +1,15 @@
+# @rule: gr.stmt.if, gr.stmt.for, gr.stmt.return, gr.stmt.break
+# @description: إذا مع عدّة قواعد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة أول_فوق(مصفوفة، حد)
+    لكل ن في مصفوفة
+        إذا (ن>حد)
+            ارجع ن
+        نهاية
+    نهاية
+    ارجع -1
+نهاية
+اطبع_سطر(أول_فوق([1،2،5،8]، 4))

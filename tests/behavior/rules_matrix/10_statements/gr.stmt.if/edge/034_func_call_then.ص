@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: استدعاء دالة في then
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أهلاً
+
+دالة حيّ() اطبع_سطر("أهلاً") نهاية
+إذا (1>0)
+    حيّ()
+نهاية

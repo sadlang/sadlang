@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: الخارجية بلا نهاية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+إذا (1>0)
+    إذا (2>1)
+        اطبع_سطر("x")
+    نهاية

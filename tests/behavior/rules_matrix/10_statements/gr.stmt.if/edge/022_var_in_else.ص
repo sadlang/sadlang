@@ -1,0 +1,12 @@
+# @rule: gr.stmt.if
+# @description: تعريف متغير في else
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+
+إذا (1>5)
+    اطبع_سطر("x")
+وإلا
+    متغير ك=8
+    اطبع_سطر(ك)
+نهاية

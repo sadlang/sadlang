@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: شرط بقيمة محسوبة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: زوجي
+
+متغير س=10
+إذا (س % 2 == 0)
+    اطبع_سطر("زوجي")
+نهاية

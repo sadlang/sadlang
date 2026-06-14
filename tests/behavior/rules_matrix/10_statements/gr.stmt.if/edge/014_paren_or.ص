@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: أقواس مع أو
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أ
+
+إذا ((1>5) أو (2>1))
+    اطبع_سطر("أ")
+نهاية

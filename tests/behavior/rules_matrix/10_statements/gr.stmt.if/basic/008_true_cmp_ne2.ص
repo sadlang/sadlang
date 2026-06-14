@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: 9 != 0
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (9 != 0)
+    اطبع_سطر("ن")
+نهاية

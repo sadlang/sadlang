@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: مزيج و/أو
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+
+إذا (1>0 و (5>9 أو 2>1))
+    اطبع_سطر("م")
+نهاية

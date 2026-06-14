@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: ثلاثة و
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ث
+
+إذا (1>0 و 2>1 و 3>2)
+    اطبع_سطر("ث")
+نهاية

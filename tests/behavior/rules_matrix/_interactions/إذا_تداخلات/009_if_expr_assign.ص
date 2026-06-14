@@ -1,0 +1,14 @@
+# @rule: gr.stmt.if, gr.stmt.expression
+# @description: إذا + إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير س=0
+إذا (1>0)
+    س=س+5
+نهاية
+إذا (س==5)
+    س=س*2
+نهاية
+اطبع_سطر(س)

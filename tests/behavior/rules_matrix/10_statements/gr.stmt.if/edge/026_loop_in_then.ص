@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if
+# @description: حلقة في then
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n2
+
+إذا (1>0)
+    لكل ن في [1،2]
+        اطبع_سطر(ن)
+    نهاية
+نهاية

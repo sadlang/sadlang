@@ -1,10 +1,11 @@
 # @rule: gr.stmt.if
-# @description: وإلا إذا بلا نهاية
+# @description: فرع وإلا يُؤخذ
 # @priority: P1
 # @requires: اطبع_سطر
-# @expect_error
+# @expected: ب
 
-إذا (1>0)
+إذا (1>5)
     اطبع_سطر("أ")
-وإلا إذا (2>1)
+وإلا
     اطبع_سطر("ب")
+نهاية

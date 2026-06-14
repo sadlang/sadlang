@@ -1,9 +1,0 @@
-# @rule: gr.stmt.if
-# @description: شرط بعامل و
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: كلاهما
-
-إذا (1 > 0 و 2 > 1)
-    اطبع_سطر("كلاهما")
-نهاية

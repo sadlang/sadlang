@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.stmt.try, gr.stmt.throw
+# @description: إذا + حاول/ارمي
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أُمسك
+
+حاول
+    إذا (1>0)
+        ارمي "ع"
+    نهاية
+امسك خطأ
+    اطبع_سطر("أُمسك")
+نهاية

@@ -1,9 +1,0 @@
-# @rule: gr.stmt.if
-# @description: شرط بعامل أو
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: أحدهما
-
-إذا (1 > 5 أو 2 > 1)
-    اطبع_سطر("أحدهما")
-نهاية

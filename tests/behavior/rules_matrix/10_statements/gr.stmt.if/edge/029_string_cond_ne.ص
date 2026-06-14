@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط نص مختلف
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مختلف
+
+إذا ("أ" != "ب")
+    اطبع_سطر("مختلف")
+نهاية

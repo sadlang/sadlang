@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: أقواس مع و
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ك
+
+إذا ((1>0) و (2>1))
+    اطبع_سطر("ك")
+نهاية

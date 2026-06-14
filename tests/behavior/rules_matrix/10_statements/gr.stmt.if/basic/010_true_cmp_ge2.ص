@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: 6 >= 2
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (6 >= 2)
+    اطبع_سطر("ن")
+نهاية

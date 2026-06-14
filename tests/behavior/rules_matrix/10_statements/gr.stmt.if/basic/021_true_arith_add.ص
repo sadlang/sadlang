@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: 2 + 3 > 4
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (2 + 3 > 4)
+    اطبع_سطر("ن")
+نهاية

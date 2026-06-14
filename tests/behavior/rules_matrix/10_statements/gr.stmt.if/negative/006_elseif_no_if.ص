@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: وإلا إذا بلا إذا سابقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+وإلا إذا (1>0)
+    اطبع_سطر("x")
+نهاية

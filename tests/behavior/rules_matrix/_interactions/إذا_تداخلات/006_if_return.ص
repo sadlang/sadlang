@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.stmt.return
+# @description: إذا + ارجع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: موجب
+
+دالة ق(ن)
+    إذا (ن>0)
+        ارجع "موجب"
+    نهاية
+    ارجع "غير"
+نهاية
+اطبع_سطر(ق(7))

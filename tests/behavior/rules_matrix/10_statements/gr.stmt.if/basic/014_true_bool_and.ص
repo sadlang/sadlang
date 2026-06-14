@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: صحيح و صحيح
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (صحيح و صحيح)
+    اطبع_سطر("ن")
+نهاية

@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if, gr.stmt.expression
+# @description: إذا + تعريف متغير + نطاق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 30
+
+متغير خ=10
+إذا (خ==10)
+    متغير د=20
+    اطبع_سطر(خ + د)
+نهاية

@@ -53,7 +53,7 @@ productions:
     description_ar: "تفرّع شرطي؛ الكتلة قد تُغلَق بـ«نهاية» أو ضمنياً بـ«وإلا»"
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       إذا (س > 0)
           اطبع_سطر("موجب")

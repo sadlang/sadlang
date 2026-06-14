@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: 7 == 7
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (7 == 7)
+    اطبع_سطر("ن")
+نهاية

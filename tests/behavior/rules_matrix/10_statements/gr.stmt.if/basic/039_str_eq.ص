@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط مساواة نص
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: متطابق
+
+إذا ("أ" == "أ")
+    اطبع_سطر("متطابق")
+نهاية

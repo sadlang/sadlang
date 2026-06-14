@@ -1,0 +1,12 @@
+# @rule: gr.stmt.if, gr.stmt.continue, gr.stmt.for
+# @description: إذا + استمر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n3
+
+لكل ن في [1،2،3،4]
+    إذا (ن%2==0)
+        استمر
+    نهاية
+    اطبع_سطر(ن)
+نهاية

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: 5 > 1 أو 1 > 5
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (5 > 1 أو 1 > 5)
+    اطبع_سطر("ن")
+نهاية

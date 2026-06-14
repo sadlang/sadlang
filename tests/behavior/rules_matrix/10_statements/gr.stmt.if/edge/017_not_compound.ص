@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: ليس على مركّب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ل
+
+إذا (ليس (1>5 أو 2>9))
+    اطبع_سطر("ل")
+نهاية

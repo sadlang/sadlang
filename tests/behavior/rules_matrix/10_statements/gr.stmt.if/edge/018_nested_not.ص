@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: ليس متداخل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن2
+
+إذا (ليس ليس صحيح)
+    اطبع_سطر("ن2")
+نهاية

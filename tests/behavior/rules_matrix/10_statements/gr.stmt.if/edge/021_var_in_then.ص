@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: تعريف متغير في then
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+إذا (1>0)
+    متغير ك=7
+    اطبع_سطر(ك)
+نهاية

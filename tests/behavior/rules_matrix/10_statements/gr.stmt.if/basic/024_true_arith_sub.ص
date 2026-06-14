@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط صحيح: 10 - 3 > 5
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+
+إذا (10 - 3 > 5)
+    اطبع_سطر("ن")
+نهاية

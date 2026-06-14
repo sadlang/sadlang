@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.stmt.match
+# @description: إذا + طابق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: واحد
+
+متغير س=1
+إذا (س==1)
+    طابق (س)
+        عندما 1:
+            اطبع_سطر("واحد")
+    نهاية
+نهاية

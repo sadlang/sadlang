@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if
+# @description: تعشيش طبقتين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ع2
+
+إذا (1 > 0)
+    إذا (2 > 1)
+        اطبع_سطر("ع2")
+    نهاية
+نهاية
