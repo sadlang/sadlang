@@ -2,9 +2,13 @@
 # (AR) 10_statements.yaml — قواعد الجمل التنفيذية في لغة ص (طبقة الجمل)
 # (EN) Executable-statement productions for the Sad grammar (statements layer)
 # ----------------------------------------------------------------------------
-# (AR) المصدر: shared/parser/src/statements/parser_statements.cpp
+# (AR) المصدر: shared/parser/src/statements/parser_statements.cpp + parser_advanced.cpp
 #      + موزّع الجمل في shared/parser/src/core/parser_main.cpp (parseStatement)
 #      الطرفيات تُشير إلى المعجم (keywords.yaml). المرجِع الدلالي: alternatives.
+#
+# (AR) حدّ النطاق: هذا الملف يغطّي الجمل التنفيذية الأساسية. الجمل المتقدمة/التزامنية
+#      التي يوزّعها parseStatement أيضاً — أنتج(yield)/باستخدام(with)/أجّل(defer)/
+#      أطلق(go)/اختر(select) — تقع في 60_advanced.yaml لا هنا (تجنّباً للتكرار).
 # ============================================================================
 
 schema_version: "5.0"
@@ -138,9 +142,12 @@ productions:
           - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
     references: { keywords: ["KW-RES-019", "KW-RES-020", "KW-RES-021", "KW-RES-007"] }
     maps_to:
-      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseSwitchStmt" }
-    ast_node: "SwitchStmt"
-    description_ar: "مطابقة أنماط؛ النقطتان «:» بعد النمط اختيارية. تفاصيل الأنماط في gr.pattern.*"
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMatchStmt" }
+    ast_node: "MatchStmt"
+    description_ar: >
+      مطابقة أنماط بكلمة «طابق»؛ النقطتان «:» بعد النمط اختيارية. تفاصيل الأنماط في
+      gr.pattern.*. ملاحظة: «حالة» (KEYWORD_CASE) بناء شقيق يوزّعه parseSwitchStmt
+      (parser_main.cpp:1200) — يُغطَّى لاحقاً منفصلاً.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }
