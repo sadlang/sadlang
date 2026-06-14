@@ -320,17 +320,21 @@ _VERDICT_AR = {
 }
 
 
-def write_markdown(matrix: dict, counts: dict, report: dict, out_path: Path) -> None:
-    """(AR) يكتب تقريراً بشريّاً (Markdown) يُظهر مقارنة المفسر بالمترجم لكل قاعدة + التباعدات.
-    (EN) Write a human-readable Markdown report of the interpreter-vs-compiler comparison.
+def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict], out_path: Path) -> None:
+    """(AR) يكتب تقريرين: ملخّص (out_path) + تفصيل لكل اختبار (out_path_detail.md)
+    يُظهران مقارنة المفسر بالمترجم، الأزمنة، أسماء الاختبارات، والتباعدات.
+    (EN) Writes a summary report + a per-test detail report (names, times, status).
     """
     import time
-    by_name = {Path(e["file"]).name: e for e in report.get("tests", [])}
-    total = len(report.get("tests", []))
-    passed = sum(1 for e in report.get("tests", []) if e["status"] == "PASS")
+    tests = report.get("tests", [])
+    by_name = {Path(e["file"]).name: e for e in tests}
+    total = len(tests)
+    passed = sum(1 for e in tests if e["status"] == "PASS")
+    # (AR) أزمنة التنفيذ الكلية
+    tot_interp = sum(e.get("interp_time_ms", 0) for e in tests)
+    tot_comp = sum(e.get("compiler_time_ms", 0) for e in tests)
     # (AR) جمع كل التباعدات/الإخفاقات (هنا «نعرف الاختلافات لنصحّحها»)
-    diffs = [e for e in report.get("tests", [])
-             if e["status"] not in ("PASS", "SKIP")]
+    diffs = [e for e in tests if e["status"] not in ("PASS", "SKIP")]
 
     L = []
     L.append("# تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم")
@@ -348,6 +352,11 @@ def write_markdown(matrix: dict, counts: dict, report: dict, out_path: Path) -> 
           for v in ("dual_ok", "compiler_gap", "interp_only", "broken", "no_tests", "not_run")}
     L.append(f"- القواعد: {len(matrix)} — مطلقة: **{sm['dual_ok']}** · "
              f"فجوة مترجم: {sm['compiler_gap']} · مكسورة: {sm['broken']} · بلا اختبارات: {sm['no_tests']}")
+    avg_i = tot_interp / total if total else 0
+    avg_c = tot_comp / total if total else 0
+    L.append(f"- زمن التنفيذ: المفسر **{tot_interp/1000:.1f}s** (متوسط {avg_i:.0f}ms/اختبار) · "
+             f"المترجم **{tot_comp/1000:.1f}s** (متوسط {avg_c:.0f}ms/اختبار)")
+    L.append(f"- التفصيل الكامل لكل اختبار: [`{out_path.stem}_detail.md`](./{out_path.stem}_detail.md)")
     L.append("")
     # ── قسم التباعدات (الأهم: «كيف نعرف الاختلافات لنصحّحها») ──
     L.append("## التباعدات والإخفاقات (للتصحيح)")
@@ -355,12 +364,13 @@ def write_markdown(matrix: dict, counts: dict, report: dict, out_path: Path) -> 
     if not diffs:
         L.append("✅ **لا تباعد** — كل الاختبارات أعطت مخرجاً متطابقاً في المفسر والمترجم.")
     else:
-        L.append("| الاختبار | الحالة | مخرج المفسر | مخرج المترجم |")
-        L.append("|---|---|---|---|")
+        L.append("| الاختبار | الحالة | مفسر(ms) | مترجم(ms) | مخرج المفسر | مخرج المترجم |")
+        L.append("|---|---|---|---|---|---|")
         for e in diffs:
-            io = (e.get("interp_output", "") or "").replace("\n", "⏎")[:60]
-            co = (e.get("compiler_output", "") or "").replace("\n", "⏎")[:60]
-            L.append(f"| `{e['file']}` | {_STATUS_AR.get(e['status'], e['status'])} | `{io}` | `{co}` |")
+            io = (e.get("interp_output", "") or "").replace("\n", "⏎")[:50]
+            co = (e.get("compiler_output", "") or "").replace("\n", "⏎")[:50]
+            L.append(f"| `{e['file']}` | {_STATUS_AR.get(e['status'], e['status'])} | "
+                     f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} | `{io}` | `{co}` |")
     L.append("")
     # ── جدول القواعد ──
     L.append("## المقارنة المزدوجة لكل قاعدة")
@@ -374,6 +384,26 @@ def write_markdown(matrix: dict, counts: dict, report: dict, out_path: Path) -> 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(L), encoding="utf-8")
     print(f"📄 تقرير مقروء: {out_path}")
+
+    # ── التقرير التفصيلي: كل اختبار بكل معلوماته ──
+    D = []
+    D.append("# تفصيل اختبارات مطابقة القواعد — كل اختبار بكل معلوماته")
+    D.append("")
+    D.append("> مُولَّد آلياً مع [التقرير الملخّص](./" + out_path.name + "). أعمدة: الرقم، الاختبار،")
+    D.append("> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم)، زمن المفسر، زمن المترجم.")
+    D.append("")
+    D.append("| # | الاختبار | القاعدة | الفئة | الحالة | مفسر(ms) | مترجم(ms) |")
+    D.append("|---|---|---|---|---|---|---|")
+    for i, rec in enumerate(sorted(records, key=lambda r: r["rel"]), start=1):
+        e = by_name.get(rec["name"], {})
+        rid = rec.get("folder_rule") or (rec["rule_ids"][0] if rec["rule_ids"] else "—")
+        st = _STATUS_AR.get(e.get("status", "NOT_RUN"), e.get("status", "؟"))
+        D.append(f"| {i} | `{rec['rel']}` | `{rid}` | {rec['category']} | {st} | "
+                 f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} |")
+    D.append("")
+    detail_path = out_path.with_name(out_path.stem + "_detail.md")
+    detail_path.write_text("\n".join(D), encoding="utf-8")
+    print(f"📄 تفصيل كل اختبار: {detail_path}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════
@@ -415,7 +445,7 @@ def main() -> int:
             matrix = derive_matrix(productions, records, report)
             write_evidence(matrix, counts)
             if args.report_md:
-                write_markdown(matrix, counts, report, Path(args.report_md))
+                write_markdown(matrix, counts, report, records, Path(args.report_md))
             bad = sorted(r for r, m in matrix.items()
                          if m["verdict"] in ("broken", "compiler_gap", "not_run"))
             for rid in bad:
