@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: متغير ثابت رقم (صفة + نوع)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير ثابت رقم ص = 10
+اطبع_سطر(ص)

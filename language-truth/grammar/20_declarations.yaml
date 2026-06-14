@@ -18,7 +18,7 @@ productions:
   # ── تصريح متغير/ثابت/ساكن ─────────────────────────────────────────────
   - id: gr.decl.variable
     lhs: { nonterminal: VarDeclaration, name_ar: "تصريح متغير", name_en: variable_declaration }
-    ebnf: "VarDeclaration = ('متغير' | 'ثابت' | 'ساكن') [ Type ] Identifier [ '=' Expression ] ;"
+    ebnf: "VarDeclaration = ('متغير' | 'ثابت' | 'ساكن') { Modifier } [ Type ] Identifier [ '=' Expression ] ;"
     alternatives:
       - symbols:
           - kind: alt
@@ -26,26 +26,42 @@ productions:
               - { kind: terminal, ref: KEYWORD_VAR, value: "متغير" }
               - { kind: terminal, ref: KEYWORD_CONST, value: "ثابت" }
               - { kind: terminal, ref: KEYWORD_STATIC, value: "ساكن" }
+          # (AR) الصفة بعد الموصوف: صفر أو أكثر من المُعدِّلات بعد الكلمة المفتاحية
+          #      (مثال: متغير ثابت ص = 10 / متغير عام س / متغير ساكن عام ك)
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: KEYWORD_CONST,     value: "ثابت" }
+                  - { kind: terminal, ref: KEYWORD_STATIC,    value: "ساكن" }
+                  - { kind: terminal, ref: KEYWORD_PUBLIC,    value: "عام" }
+                  - { kind: terminal, ref: KEYWORD_PRIVATE,   value: "خاص" }
+                  - { kind: terminal, ref: KEYWORD_PROTECTED, value: "محمي" }
           - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
             children:
               - { kind: terminal, ref: OP_ASSIGN, value: "=" }
               - { kind: nonterminal, ref: gr.expr.expression }
-    references: { keywords: ["KW-RES-034", "KW-RES-035", "KW-RES-036"] }
+    references: { keywords: ["KW-RES-034", "KW-RES-035", "KW-RES-036", "KW-RES-026", "KW-RES-027", "KW-RES-028"] }
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
     ast_node: "VarDeclStmt"
     description_ar: >
-      تصريح متغير قابل للتغيير (متغير)، ثابت غير قابل لإعادة الإسناد (ثابت)، أو ساكن.
-      اسم النوع اختياري قبل المعرّف (متغير رقم س)؛ التهيئة اختيارية.
+      تصريح متغير قابل للتغيير (متغير)، ثابت (ثابت)، أو ساكن. اسم النوع اختياري قبل المعرّف
+      (متغير رقم س)؛ التهيئة اختيارية.
+      ⭐ قاعدة «الصفة بعد الموصوف»: تأتي المُعدِّلات بعد الكلمة المفتاحية:
+      «متغير ثابت ص = 10»، «متغير عام س»، «متغير خاص س»، «متغير ساكن عام ك».
+      ملاحظات سلوك: «متغير ثابت» لا يمنع إعادة الإسناد حالياً (ISSUE-030)؛ وبعض تركيبات
+      المُعدِّلات تفشل مثل «متغير ثابت عام» (ISSUE-031).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       متغير س = 5
       ثابت ع = 7
-      متغير رقم ك = 3
+      متغير ثابت ص = 10        # الصفة بعد الموصوف
+      متغير عام رقم ك = 3
 
   # ── إشارة نوع (مساعِدة) ────────────────────────────────────────────────
   - id: gr.decl.type_ref

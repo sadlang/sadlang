@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: متغير ساكن عام (تركيب صفتين يعمل)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+
+صنف ع
+    متغير ساكن عام ك = 4
+نهاية
+اطبع_سطر(ع.ك)
