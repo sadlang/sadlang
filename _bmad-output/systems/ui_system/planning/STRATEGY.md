@@ -77,6 +77,54 @@ relatedSystems:
 **مبدأ العزل:** كل طبقة تعتمد فقط على التي تحتها (CW-02). النواة L2 محايدة تماماً —
 لا تعرف SDL2 ولا HTML؛ الباطن L1 هو من يترجم IR إلى تقنية المنصة.
 
+### مخطط الطبقات (Mermaid)
+
+```mermaid
+flowchart TD
+    L5["🧑‍💻 L5 — المستهلكون: كود ص (.ص)"]
+    L4["📝 L4 — الواجهة اللغوية<br/>واجهة · @حالة · معدّلات · اعرض<br/>📁 shared/lexer · shared/parser/src/ui"]
+    L3["🧠 L3 — النموذج الدلالي<br/>UINode · UIWidgetExprNode · UIStateDecl · أحداث<br/>📁 shared/ast · interpreter/src/ui (الجسر)"]
+    L2["⚙️ L2 — النواة المحايدة<br/>IR · IRBuilder · layout(Flexbox) · state · reconciler · theme<br/>📁 sad_ui/core (28 ملف · 10790 سطر)"]
+    L1["🎨 L1 — الباطن لكل منصة (Platform Backends)"]
+    L0["🖥️ L0 — العتاد/نظام التشغيل (Screen · Input · GPU)"]
+
+    L5 --> L4 --> L3 --> L2 --> L1 --> L0
+
+    subgraph BACKENDS [" "]
+        direction LR
+        D["Desktop<br/>SDL2+GL ✅"]
+        W["Web<br/>HTML/CSS ✅"]
+        I["iOS<br/>SwiftUI ✅"]
+        A["Android<br/>JNI 🟡"]
+        M["macOS<br/>✅"]
+        F["Freestanding<br/>✅"]
+    end
+    L1 -.-> BACKENDS
+
+    style L5 fill:#e0e7ff,stroke:#3730a3,color:#000
+    style L4 fill:#dbeafe,stroke:#1d4ed8,color:#000
+    style L3 fill:#fef9c3,stroke:#a16207,color:#000
+    style L2 fill:#dcfce7,stroke:#15803d,color:#000
+    style L1 fill:#fae8ff,stroke:#a21caf,color:#000
+    style L0 fill:#f1f5f9,stroke:#475569,color:#000
+```
+
+### مسار البيانات (من نصّ `.ص` إلى الشاشة)
+
+```mermaid
+flowchart LR
+    SRC["📜 واجهة/عنصر في .ص"] --> PARSE["🌲 parseUIDeclaration<br/>(shared/parser/src/ui)"]
+    PARSE --> NODE["🧱 UIDeclarationNode /<br/>UIWidgetExprNode"]
+    NODE --> BRIDGE["🌉 ui_bridge<br/>(interpreter/src/ui)<br/>Value → IRNode"]
+    BRIDGE --> IR["⚙️ شجرة IRNode<br/>(sad_ui/core)"]
+    IR --> BACK["🎨 الباطن<br/>(renderer/codegen لكل منصة)"]
+    BACK --> SCREEN["🖥️ نافذة فعليّة<br/>(مُثبَت: 800×600 SDL2)"]
+
+    style SRC fill:#fef3c7,stroke:#b45309,color:#000
+    style IR fill:#dcfce7,stroke:#15803d,color:#000
+    style SCREEN fill:#bfdbfe,stroke:#1d4ed8,color:#000
+```
+
 ---
 
 ## 3. المستهلكون (Consumers)
@@ -126,9 +174,30 @@ relatedSystems:
    └─────────────────┘
 ```
 
+### مخطط التكامل (Mermaid)
+
+```mermaid
+flowchart LR
+    UI(("🎨 نظام SadUI"))
+    TYPES["🧬 نظام الأنواع<br/>@حالة: نوع · وسم العنصر"]
+    ERR["⛔ نظام الأخطاء<br/>أخطاء UI ثنائية + SEM*"]
+    BLT["🧩 الدوال المدمجة<br/>العناصر كـBuiltinFunction"]
+    DOC["📚 التوثيق الحيّ<br/>المخططات + التوثيق"]
+    SHARED["🔗 النواة المشتركة<br/>Lexer/Parser/AST/Value"]
+
+    TYPES <-->|"نوع(عنصر)=«كائن» — تباعد مفسّر/مترجم 🔴"| UI
+    ERR <-->|"يعمل ✅"| UI
+    BLT <-->|"مسجَّلة كسولًا عند استورد رسومات ✅"| UI
+    UI -->|"تُغذّي"| DOC
+    SHARED -->|"يُعاد استخدامها (لا مكدّس منفصل) ✅"| UI
+
+    style UI fill:#fae8ff,stroke:#a21caf,color:#000
+    style TYPES fill:#dcfce7,stroke:#15803d,color:#000
+```
+
 | النظام | طبيعة التكامل | الحالة |
 |--------|---------------|--------|
-| **نظام الأنواع** (`type-system`) | `@حالة اسم: نوع` يستخدم أنواع اللغة (`عدد`، `نص`...)؛ يجب تسجيل `واجهة_تصريحية` كنوع قابل لـ `جديد` | 🔴 ناقص (فجوة status §3.5) |
+| **نظام الأنواع** (`type-system`) | `@حالة اسم: نوع` يستخدم أنواع اللغة؛ وسم العنصر/الكائن في `نوع()` | 🔴 تباعد مفسّر(«أي»)/مترجم(«كائن») — انظر التحقّق الوظيفيّ |
 | **نظام الأخطاء** (`error-messages`) | أخطاء UI نحوية ثنائية اللغة + SEM001 من `error_messages.yaml` | ✅ يعمل (شوهد فعلياً) |
 | **الدوال المدمجة** (`builtin-functions`) | العناصر مُسجَّلة كدوال مدمجة عبر `BuiltinModuleRegistry` | ✅ مسجّلة (التقييم ناقص) |
 | **التوثيق الحي** (`living-documentation`) | التوثيق + المخططات هنا تُغذّي المصدر المُعتمد | ✅ هذه الوثيقة |
