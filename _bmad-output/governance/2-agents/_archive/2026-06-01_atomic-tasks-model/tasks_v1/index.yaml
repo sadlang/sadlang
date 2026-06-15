@@ -1,0 +1,57 @@
+version: 1
+updated_at: 2026-06-01T08:48:00Z
+updated_by: PM (John)
+schema: "_bmad-output/governance/2-agents/AGENT_ORCHESTRATION.md#5"
+
+# قائمة كل المهام النَشطة، المنُجَزة، والمؤجَّلة
+# الحالة: queued / in-progress / blocked / done / failed / reviewed
+
+tasks:
+  T-0001:
+    title: "إنشاء data/_schemas/keywords.yaml"
+    agent: agent_delta
+    status: queued
+    priority: P0
+    milestone: M1
+    story: S-015b
+    created: 2026-06-01T08:50:00Z
+    deadline: 2026-06-08
+    file: inbox/T-0001-delta-keywords-yaml.md
+
+  T-0003:
+    title: "إنشاء scripts/agent_orchestrator.ps1 — CLI"
+    agent: agent_delta
+    status: queued
+    priority: P0
+    milestone: M0
+    story: M0-INFRA
+    created: 2026-06-01T08:50:00Z
+    deadline: 2026-06-03
+    file: inbox/T-0003-delta-orchestrator-cli.md
+
+  T-0006:
+    title: "Foundation Schemas (JSON Schema)"
+    agent: agent_alpha
+    status: queued
+    priority: P0
+    milestone: M1
+    story: S-000a
+    created: 2026-06-01T08:50:00Z
+    deadline: 2026-06-10
+    depends_on: [T-0008]
+    file: inbox/T-0006-alpha-foundation-schemas.md
+
+# --- إحصائيات ---
+stats:
+  total: 3
+  queued: 3
+  in_progress: 0
+  done: 0
+  failed: 0
+  blocked: 0
+
+# --- ملاحظات PM ---
+notes: |
+  هذا الفهرس هو SoT لكل المهام.
+  أي تَعديل عبر scripts/agent_orchestrator.ps1 (سيُنشأ في T-0003).
+  حتى ذلك الحين: تَحديث يَدوي من PM فقط.

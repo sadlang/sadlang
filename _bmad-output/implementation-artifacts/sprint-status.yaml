@@ -1,0 +1,284 @@
+﻿# generated: 2026-04-15T00:00:00Z
+# last_updated: 2026-05-17T00:00:00Z
+# project: s-programming-language
+# project_key: SADC-PARITY
+# tracking_system: file-system
+# story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review
+#   - done: Story completed
+#
+# SPRINT PLAN:
+# ============
+# Sprint 1 (سريع): Stories 1.1, 1.2, 1.3 — إصلاحات LLVM IR الأساسية
+# Sprint 2 (تزامن): Stories 2.1, 2.2, 2.3 — نظام المزامنة
+# Sprint 3 (إغلاقات + OOP): Stories 3.1, 3.2, 4.1 — الإغلاقات والكائنات
+# Sprint 4 (تأجيل + استيراد): Stories 5.1, 6.1 — التأجيل ونظام الاستيراد
+# Sprint 5 (متقدم): Stories 7.1, 7.2, 8.1, 8.2, 8.3 — المولدات والسلبية
+
+generated: "2026-04-15T00:00:00Z"
+last_updated: "2026-05-17T12:00:00Z"
+project: s-programming-language
+project_key: SADC-PARITY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # ════════════════════════════════════════════════════════════════
+  # ══ Contract-as-Code — نظام إلزام معايير الكود               ══
+  # ════════════════════════════════════════════════════════════════
+  # PRD: _bmad-output/planning-artifacts/prd-contract-as-code.md
+  # الخطة: _bmad-output/governance/3-code-contract/contract-as-code-plan.md
+
+  # ================================
+  # Epic CC: نظام Contract-as-Code
+  # ================================
+  epic-cc: in-progress
+  cc-1-code-standards-spec: backlog        # إنشاء SPEC (code_standards.yaml)
+  cc-2-code-standards-enforcer: backlog    # إنشاء ENFORCER (check_code_standards.py)
+  cc-3-cmake-integration: backlog          # ربط CMake (code_standards_guard.cmake)
+  cc-4-fix-violations: backlog             # إصلاح المخالفات الحالية
+  epic-cc-retrospective: optional
+
+  # ================================
+  # Epic 1: إصلاحات LLVM IR الأساسية
+  # ================================
+  epic-1: backlog
+  1-1-icmp-type-mismatch: backlog           # 035, 037 — ICmp ptr vs i0
+  1-2-ring-buffer-count: backlog            # 021 — الحجم() المرجعة خاطئة
+  1-3-contract-require-exception: backlog   # 028 — يتطلب يطبع بدلاً من رمي استثناء
+  epic-1-retrospective: optional
+
+  # ================================
+  # Epic 2: نظام المزامنة (Concurrency)
+  # ================================
+  epic-2: backlog
+  2-1-mutex-future-waitgroup-methods: backlog  # 023, 024, 025 — طرق المزامنة مفقودة
+  2-2-goroutine-createthread-wrapper: backlog  # 022, 057 — توقيع CreateThread خاطئ
+  2-3-advanced-concurrency-integration: backlog # 026-028_conc, 036, 058, 059
+  epic-2-retrospective: optional
+
+  # ================================
+  # Epic 3: الإغلاقات والدوال
+  # ================================
+  epic-3: backlog
+  3-1-closure-create-inline-lambdas: backlog   # 049, 060 — لامدات داخلية
+  3-2-edge-cases-fix: backlog                  # 061 — حالات حدية
+  epic-3-retrospective: optional
+
+  # ================================
+  # Epic 4: طباعة الكائنات والسمات
+  # ================================
+  epic-4: backlog
+  4-1-object-print-description: backlog        # 052 — طباعة عنوان بدلاً من وصف()
+  epic-4-retrospective: optional
+
+  # ================================
+  # Epic 5: التأجيل والاستثناءات
+  # ================================
+  epic-5: backlog
+  5-1-defer-with-try-catch: backlog            # 054 — تأجيل مع حاول/امسك
+  epic-5-retrospective: optional
+
+  # ================================
+  # Epic 6: نظام الاستيراد
+  # ================================
+  epic-6: backlog
+  6-1-stdlib-import-resolution: backlog        # 019, 056 — لوغ/إشارة مفقودة
+  epic-6-retrospective: optional
+
+  # ================================
+  # Epic 7: المولدات والبرمجة غير المتزامنة
+  # ================================
+  epic-7: backlog
+  7-1-generators-coroutines: backlog           # 030 — أنتج/مولد
+  7-2-async-await-support: backlog             # 031 — غير_متزامن/انتظر
+  epic-7-retrospective: optional
+
+  # ================================
+  # Epic 8: الاختبارات السلبية والخصائص
+  # ================================
+  epic-8: backlog
+  8-1-negative-test-errors: backlog            # N02, N03, N04
+  8-2-property-testing-reports: backlog        # 033
+  8-3-syntax-error-exit-code: backlog          # N01
+  epic-8-retrospective: optional
+
+  # ════════════════════════════════════════════════════════════════
+  # ══ المرحلة 2: سد فجوة الاختبارات (أسابيع 5-8)             ══
+  # ════════════════════════════════════════════════════════════════
+
+  # ================================
+  # Epic 9: OOP متقدمة
+  # ================================
+  epic-9: done
+  9-1-abstract-classes-test: done                # 062 — أصناف مجردة ✅
+  9-2-operator-overload-advanced: done           # 064 — تحميل عوامل متقدم ✅
+  9-3-properties-test: done                      # 076 — خصائص getter/setter ✅
+  epic-9-retrospective: optional
+
+  # ================================
+  # Epic 10: أنماط متقدمة
+  # ================================
+  epic-10: done
+  10-1-pattern-list-or: done                     # 065 — أنماط القائمة/البدائل ✅
+  10-2-pattern-bind-guard: done                  # 066 — أنماط الربط/الحراسة/المتغير ✅ (إصلاح BUG-GUARD-SCOPE مكتمل)
+  epic-10-retrospective: optional
+
+  # ================================
+  # Epic 11: ماكروز
+  # ================================
+  epic-11: done
+  11-1-macros-basic-test: done                   # 067 — ماكروز أساسية ✅
+  11-2-macros-variadic-test: done                # 068 — ماكروز متغيرة المعاملات ✅
+  epic-11-retrospective: optional
+
+  # ================================
+  # Epic 12: أنواع بيانات متقدمة
+  # ================================
+  epic-12: done
+  12-1-enums-adt-advanced: done                  # 072 — تعدادات ADT متقدمة ✅
+  12-2-tuples-test: done                         # 073 — الصفوف (Tuples) ✅
+  epic-12-retrospective: optional
+
+  # ================================
+  # Epic 13: ميزات لغوية إضافية
+  # ================================
+  epic-13: done
+  13-1-extensions-advanced: done                 # 075 — امتدادات متقدمة ✅
+  13-2-contracts-advanced: done                  # 077 — عقود متقدمة ✅
+  13-3-generators-advanced: done                 # 078 — مولدات متقدمة ✅
+  epic-13-retrospective: optional
+
+  # ================================
+  # Epic 14: اختبارات سلبية — الموجة 2
+  # ================================
+  epic-14: done
+  14-1-type-mismatch: done                       # N06 — عدم تطابق أنواع ✅
+  14-2-invalid-cast: done                        # N07 — تحويل نوع غير صالح ✅
+  14-3-readonly-violation: done                  # N08 — تعديل ثابت ✅
+  14-4-missing-method: done                      # N09 — دالة عضوية مفقودة ✅
+  14-5-index-out-of-bounds: done                 # N10 — فهرس خارج النطاق ✅
+  epic-14-retrospective: optional
+
+# ═══════════════════════════════════════════════════════
+# SPRINT PLAN — المرحلة 2:
+# ════════════════════════════════════════════════════════
+# Sprint 6 (الأسبوع 5 — OOP + أنماط): 9.1, 9.2, 10.1, 10.2, 9.3
+# Sprint 7 (الأسبوع 6 — ماكروز + أنواع): 11.1, 11.2, 12.1, 12.2
+# Sprint 8 (الأسبوع 7 — ميزات + سلبية): 13.1-13.3, 14.1-14.5
+
+  # ════════════════════════════════════════════════════════════════
+  # ══ ADR-006b: نظام توليد التوثيق التلقائي (Doc Codegen)     ══
+  # ════════════════════════════════════════════════════════════════
+
+  # ================================
+  # ADR-006b Epic 1: DocIR Foundation
+  # ================================
+  adr006b-epic-1: done  # كل Stories 1.1→1.4 مكتملة ✅
+  adr006b-1-1-doc-ir-builder: done         # doc_ir_builder.py ✅
+  adr006b-1-2-doc-ir-validator: done       # doc_ir_validator.py + 23 pytest ✅
+  adr006b-1-3-diátaxis-mapping: done       # Diátaxis mapping + 28 pytest ✅
+  adr006b-1-4-diataxis-docir: done         # Story 1.4: build_from_docs_yaml + T-21→T-25 + goroutine_basics.yaml ✅
+
+  # ================================
+  # ADR-006b Epic 3: LSP + REPL Renderers
+  # ================================
+  adr006b-epic-3: done
+  adr006b-3-1-render-lsp: done             # render_lsp.py ✅
+  adr006b-3-2-completion-items: done       # completion items ✅
+  adr006b-3-3-render-repl: done            # render_repl.py ✅
+
+  # ════════════════════════════════════════════════════════════════
+  # ══ CodeRolePlan — Contract-as-Code (تفصيل 4 ملاحم/16 قصة) ══
+  # ════════════════════════════════════════════════════════════════
+  # المصدر: _bmad-output/governance/3-code-contract/{prd.md, epics.md, contract-as-code-plan.md}
+  # التاريخ: 2026-05-17
+  # ملاحظة: يلتقي مع epic-cc أعلاه (نسخة مبكّرة بـ 4 قصص فقط) ويُوسّعه
+
+  # ================================
+  # CRP Epic 1: الأساس — Clang-Tidy + إصلاح المخالفات
+  # ================================
+  crp-epic-1: done                              # ✅ 2026-05-17
+  crp-1-1-clang-tidy-cs04: done                 # ✅ .clang-tidy جذري + 6 ملفات أبناء FFI (network/crypto/filesystem/database/runtime/vm)
+  crp-1-2-fix-cs01-ui-evaluator: done           # ✅ switch(UINodeType) بدل مقارنة UTF-8 — يُجمَّع بنجاح
+  crp-epic-1-retrospective: optional
+
+  # ================================
+  # CRP Epic 2: SAD_INVARIANT — ثوابت معمارية
+  # ================================
+  crp-epic-2: done
+  crp-2-1-sad-invariant-header: done            # ✅ shared/include/sad_invariant.h + ARABIC_STRING_UTF8_NORMALIZED
+  crp-2-2-sir-scope-balanced: done              # ✅ SIR_SCOPE_STACK_BALANCED + runtime SAD_INVARIANT في exitScope
+  crp-2-3-lexer-position-one-based: done        # ✅ LEXER_TOKEN_POSITION_ONE_BASED
+  crp-2-4-parser-scope-balanced: done           # ✅ PARSER_SCOPE_STACK_BALANCED
+  crp-2-5-interpreter-scope-no-leak: done       # ✅ INTERPRETER_SCOPE_NO_LEAK
+  crp-2-6-goroutine-snapshot-immutable: done    # ✅ DEF في variable_manager.cpp + CHECK في statement_executor_control.cpp
+  crp-2-7-invariants-central-doc: done          # ✅ سجل مركزي (جدول) داخل shared/include/sad_invariant.h
+  crp-2-8-check-invariants-linter: done         # ✅ scripts/lint/check_invariants.py — ينجح بـ exit 0
+  crp-epic-2-retrospective: optional
+
+  # ================================
+  # CRP Epic 3: Contract-as-Code — YAML + Python + CMake
+  # ================================
+  crp-epic-3: backlog
+  crp-3-1-code-standards-yaml: backlog          # scripts/lint/code_standards.yaml
+  crp-3-2-check-code-standards-py: backlog      # scripts/lint/check_code_standards.py
+  crp-3-3-allowlist-policy: backlog             # code_standards_allowlist.yaml + expiry
+  crp-3-4-cmake-guard-integration: backlog      # cmake/code_standards_guard.cmake
+  crp-epic-3-retrospective: optional
+
+  # ================================
+  # CRP Epic 4: اختبار وتحقق الحارس
+  # ================================
+  crp-epic-4: backlog
+  crp-4-1-test-code-standards: backlog          # scripts/codegen/test_code_standards.py
+  crp-4-2-test-invariants: backlog              # scripts/codegen/test_invariants.py
+  crp-epic-4-retrospective: optional
+
+# ═══════════════════════════════════════════════════════
+# CRP SPRINT PLAN — Contract-as-Code (ترتيب حرج):
+# ═══════════════════════════════════════════════════════
+# Sprint CRP-1 (الأساس):     crp-1-1, crp-1-2
+# Sprint CRP-2 (الثوابت):    crp-2-1 → ثم crp-2-2..2-8 بالتوازي
+# Sprint CRP-3 (الحارس):     crp-3-1 → crp-3-2 → crp-3-3 → crp-3-4
+# Sprint CRP-4 (الاختبارات): crp-4-1, crp-4-2 (بالتوازي مع CRP-3)
+#
+# قاعدة حرجة: crp-1-2 يجب أن يكتمل قبل crp-3-4 (الحارس)
+
+  # ================================
+  # ADR-006b Epic 4: مصفوفة الترحيل
+  # ================================
+  adr006b-epic-4: in-progress
+  adr006b-4-1-migration-matrix: done       # data/docs/migration_matrix.yaml ✅ 2026-06-10
+  adr006b-4-2-ci-guard: done              # test_migration_guard.py + 18 pytest ✅ 2026-06-10
+  adr006b-4-3-priority-50-functions: done  # story-4.3 ✅ audit 50/50 + pytest 187/187
+  adr006b-4-4-doc-quality-12-fixes: done   # story-4.4 ✅ 12 desc_ar قصيرة → ≥20 حرف + pytest 225/225
+  adr006b-4-5-versioning-555-functions: done  # story-4.5 ✅ since+stability لـ 555 دالة + 7 pytest + 232/232
+  adr006b-versioning-auto-report: done         # ✅ report_versioning_coverage تلقائي + 8 اختبارات + 240/240
+
+  # ================================
+  # ADR-006b Epic 5: enforce_docs_coverage + pipeline AI
+  # ================================
+  adr006b-epic-5: ready-for-dev
+  adr006b-5-1-enforce-coverage: ready-for-dev  # story-5.1-enforce-coverage.md ✅ قصة مكتوبة
+  adr006b-5-2-ai-lessons: backlog              # story-5.2-ai-lessons-pipeline.md ✅ قصة مكتوبة
+  adr006b-5-3-deploy-pipeline: backlog         # story-5.3-deployment-pipeline.md ✅ قصة مكتوبة
+
+# SUMMARY:
+# ========
+# Total Epics: 14 SADC-PARITY + 3 ADR-006b (in-progress)
+# Total Stories: 32 SADC-PARITY + 8 ADR-006b
+# pytest (codegen): 187 passed, 2 skipped (2026-06-10)
+# Target: pytest 200+ (Story 4.3 + 5.1)

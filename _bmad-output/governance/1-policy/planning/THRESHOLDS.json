@@ -1,0 +1,71 @@
+﻿{
+    "_meta": {
+        "version": "1.0.0",
+        "created_at": "2026-05-22T07:30:00Z",
+        "created_by": "quinn (PMF v1.7 — root cause #10)",
+        "purpose": "AR: مصدر وحيد للأرقام السحرية في PMF (يستبدل الأرقام المدفونة في النص). | EN: Single source of truth for magic numbers in PMF (replaces hardcoded values in prose).",
+        "consumers": [
+            "_bmad-output/governance/1-policy/PROJECT_MANAGEMENT_FRAMEWORK.md",
+            "scripts/check_arabic_ratio.py",
+            "scripts/governance_metrics.py",
+            ".github/workflows/monthly-pmf-check.yml"
+        ],
+        "update_policy": "AR: أي تعديل يتطلب PR + موافقة صالح (محمي بـ CODEOWNERS).",
+        "validation": "scripts/validate_thresholds.py (to be created)"
+    },
+    "arabic_ratio": {
+        "min_ratio_percent": 70,
+        "min_word_count": 300,
+        "rationale_ar": "النسبة الدنيا لاعتبار الوثيقة عربية الهوية (حسب check_arabic_ratio.py).",
+        "rationale_en": "Minimum ratio for a document to be considered Arabic-native."
+    },
+    "token_budget": {
+        "context_window_tokens": 200000,
+        "governance_max_tokens": 18000,
+        "governance_warning_tokens": 22000,
+        "governance_critical_tokens": 25000,
+        "per_file_max_words": {
+            "PMF": 5000,
+            "STATUS": 800,
+            "AGENT_CONTEXT": 400,
+            "copilot_instructions": 2500
+        },
+        "rationale_ar": "ميزانية الرموز للملفات الحاكمة (محسوبة بقياسات حقيقية في 2026-05-22).",
+        "measured_actual": {
+            "copilot_instructions_bytes": 54945,
+            "STATUS_bytes": 5232,
+            "AGENT_CONTEXT_bytes": 4202,
+            "PMF_bytes": 36791,
+            "total_governance_bytes": 101170,
+            "measured_at": "2026-05-22T05:45:00Z"
+        }
+    },
+    "schedule": {
+        "sprint_weeks": 3,
+        "monthly_check_day_of_month": 21,
+        "monthly_check_hour_utc": 3,
+        "max_days_between_pmf_reviews": 35,
+        "max_days_between_reviewer_repeats": 30,
+        "lock_ttl_hours": 4,
+        "rationale_ar": "كل القيم الزمنية للحوكمة (سبرنت، فحص شهري، مدة القفل، استقلالية المراجع)."
+    },
+    "review_governance": {
+        "min_reviewers_per_adversarial": 1,
+        "min_distinct_reviewers_per_30_days": 3,
+        "min_obstacles_in_critique": 5,
+        "max_pmf_versions_per_day_after_bootstrap": 1,
+        "bootstrap_date_utc": "2025-11-22T00:00:00Z",
+        "rationale_ar": "حدود سياسة المراجعة (انظر §5.2 و §8.2)."
+    },
+    "code_quality": {
+        "max_function_lines": 50,
+        "max_file_lines": 800,
+        "max_cyclomatic_complexity": 10,
+        "rationale_ar": "حدود جودة الكود (انظر CW-01, CW-05 في copilot-instructions.md)."
+    },
+    "layers_meta": {
+        "layers_source": "_bmad-output/governance/1-policy/LAYERS.json",
+        "auto_refresh_script": "scripts/scan_layers.py",
+        "rationale_ar": "عدد الطبقات M لا يُكتب هنا — يُقرأ من LAYERS.json التي يُحدِّثها scan_layers.py آلياً."
+    }
+}
