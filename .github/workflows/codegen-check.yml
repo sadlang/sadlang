@@ -15,15 +15,15 @@ name: "🔑 Codegen Sync — Keywords YAML SoT"
 on:
   push:
     paths:
-      - "data/language/keywords.yaml"
-      - "data/language/keywords.schema.json"
+      - "language-truth/keywords.yaml"
+      - "language-truth/_schemas/keywords.schema.json"
       - "scripts/codegen/gen_keywords.py"
       - "shared/lexer/generated/**"
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, master, develop, graphic ]
     paths:
-      - "data/language/keywords.yaml"
-      - "data/language/keywords.schema.json"
+      - "language-truth/keywords.yaml"
+      - "language-truth/_schemas/keywords.schema.json"
       - "scripts/codegen/gen_keywords.py"
       - "shared/lexer/generated/**"
 
@@ -55,10 +55,10 @@ jobs:
       - name: "⚙️ توليد keywords_generated.{h,cpp}"
         run: |
           python3 scripts/codegen/gen_keywords.py \
-            data/language/keywords.yaml \
-            data/language/keywords.schema.json \
-            shared/lexer/generated/keywords_generated.h \
-            shared/lexer/generated/keywords_generated.cpp
+            --yaml   language-truth/keywords.yaml \
+            --schema language-truth/_schemas/keywords.schema.json \
+            --header shared/lexer/generated/keywords_generated.h \
+            --source shared/lexer/generated/keywords_generated.cpp
 
       # ── (AR) يفشل إذا كانت الملفات المولَّدة في المستودع لا تطابق ما يُولِّده YAML الحالي
       - name: "🔍 التحقق: لا انجراف يدوي في الملفات المولَّدة"
