@@ -8,10 +8,19 @@ governanceAck: "قرأت 1-policy؛ آخر تحقق VERIFICATION_REPORT_2026-05-
 
 # نظام الواجهات والرسومات (SadUI)
 
-يتبع هذا المجلد البنية الموحّدة الستة (GR-05): `planning/ epics/ stories/ sprints/ status/ decisions/`.
+يتبع هذا المجلد البنية الموحّدة الستة (GR-05): `planning/ epics/ stories/ sprints/ status/ decisions/` + `docs/`.
+
+## 🚀 ابدأ هنا (ترتيب القراءة)
+1. **🗺️ المعمارية الموحّدة بالمخططات:** [`docs/المعمارية_الموحدة_لنظام_الرسومات.md`](docs/المعمارية_الموحدة_لنظام_الرسومات.md) — 9 مخططات Mermaid (الطبقات · مسار البيانات · الباطن · تمثيل العنصر · الكتالوج · الحالة · التكامل · الجاهزية · الملفات). **أفضل نقطة بدء لفهم النظام بصريًّا.**
+2. **الرؤية:** [`planning/STRATEGY.md`](planning/STRATEGY.md) (بمخططات Mermaid).
+3. **السلوك المُثبَت بالتشغيل + الفجوات:** [`status/FUNCTIONAL_VERIFICATION_2026-06-15.md`](status/FUNCTIONAL_VERIFICATION_2026-06-15.md) (10 نقاط مُشغَّلة، 3 فجوات P0).
+4. **الفحص العميق (ساكن):** [`status/DEEP_DIVE_2026-06-15.md`](status/DEEP_DIVE_2026-06-15.md).
 
 ## الوثائق المعتمدة
-- [`planning/STRATEGY.md`](planning/STRATEGY.md) — **الاستراتيجية** (لماذا، الطبقات، المستهلكون، التكامل) بمخططات.
+- [`docs/المعمارية_الموحدة_لنظام_الرسومات.md`](docs/المعمارية_الموحدة_لنظام_الرسومات.md) — **المعمارية الموحّدة بالمخططات Mermaid** (نقطة البدء).
+- [`status/FUNCTIONAL_VERIFICATION_2026-06-15.md`](status/FUNCTIONAL_VERIFICATION_2026-06-15.md) — **تحقّق وظيفيّ مُشغَّل** (10 نقاط؛ تباعد `نوع()` مفسّر/مترجم؛ نافذة فعليّة).
+- [`status/DEEP_DIVE_2026-06-15.md`](status/DEEP_DIVE_2026-06-15.md) — فحص عميق ساكن (أميليا، GR-01).
+- [`planning/STRATEGY.md`](planning/STRATEGY.md) — **الاستراتيجية** (لماذا، الطبقات، المستهلكون، التكامل) بمخططات Mermaid.
 - [`planning/ROADMAP.md`](planning/ROADMAP.md) — **خارطة الطريق الموحّدة** (المراحل، التسلسل، التبعيات).
 - [`planning/SADUI_SYSTEM_REPORT.md`](planning/SADUI_SYSTEM_REPORT.md) — تقرير النظام (ماذا يدعم، كيف يعمل، كيف نكتب).
 - [`status/implementation_status.md`](status/implementation_status.md) — حالة التنفيذ مع نتائج التحقق الوظيفي (P0).
@@ -27,5 +36,5 @@ governanceAck: "قرأت 1-policy؛ آخر تحقق VERIFICATION_REPORT_2026-05-
 ## ملاحظات
 - **المصدر الموثوق للصيغة:** المحلل النحوي `shared/parser/src/ui/parser_ui.cpp` — لا أمثلة `examples/` القديمة.
 - التوثيق القديم (`docs/تقرير_نظام_الواجهات_SadUI.md`, `docs/تصميم_نظام_الواجهات_v2.md`) حُذف لاحتوائه صيغة قديمة (`صنف...يرث حالة_عنصر` / أقواس `{}`) لا يقبلها المحلل، واستُبدل بالتوثيق الجديد الدقيق.
-- المثال العامل بالصيغة المعتمدة: `tests/integration/test_event_system.ص`.
-- التزاماً بـ GR-01: لا نِسَب إنجاز بلا دليل من الكود.
+- ⚠️ **`tests/unit/integration/test_event_system.ص` يفشل حاليًّا** (تحقّق 2026-06-15): يستعمل `جديد` بادئة (لا تعمل) وتأكيد `نوع()=="object"` بالإنجليزية، ويكشف فجوة إنشاء `واجهة`. ليس مثالًا عاملًا الآن.
+- التزاماً بـ GR-01: لا نِسَب إنجاز بلا دليل من الكود؛ و«منفّذ» = «مُثبَت بالتشغيل» لا «يوجد كود».
