@@ -90,6 +90,7 @@ type-system/
 ## 📚 ترتيب القراءة
 
 1. **نظرة عامة:** هذا README ثم [status/FINAL_REPORT_2026-06-15.md](status/FINAL_REPORT_2026-06-15.md).
-2. **المعمارية:** [docs/ARCHITECTURE_TYPE_SYSTEM.md](docs/ARCHITECTURE_TYPE_SYSTEM.md).
-3. **التفاصيل:** [stories/](stories/) (P0–P11) + [decisions/ADR-TYPESYSTEM-001-NULL-SAFETY.md](decisions/ADR-TYPESYSTEM-001-NULL-SAFETY.md).
-4. **الحالة/الجودة:** [status/implementation_status.md](status/implementation_status.md) + [status/05_quality_gates.md](status/05_quality_gates.md).
+2. **🗺️ الخرائط البصرية (ابدأ هنا لفهم التدفّق):** [docs/خرائط_نظام_الأنواع_البصرية.md](docs/خرائط_نظام_الأنواع_البصرية.md) — مخططات Mermaid لمسار النوع من SoT إلى المحرّكين.
+3. **المعمارية:** [docs/ARCHITECTURE_TYPE_SYSTEM.md](docs/ARCHITECTURE_TYPE_SYSTEM.md).
+4. **التفاصيل:** [stories/](stories/) (P0–P11) + [decisions/ADR-TYPESYSTEM-001-NULL-SAFETY.md](decisions/ADR-TYPESYSTEM-001-NULL-SAFETY.md).
+5. **الحالة/الجودة:** [status/implementation_status.md](status/implementation_status.md) + [status/05_quality_gates.md](status/05_quality_gates.md).
