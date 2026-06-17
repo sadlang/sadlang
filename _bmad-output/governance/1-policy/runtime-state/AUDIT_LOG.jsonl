@@ -1,0 +1,22 @@
+{"ts": "2026-05-22T03:38:46Z", "event": "lock_acquired", "story": "STORY-PMF-ZERO", "agent": "mary", "session": "test1234"}
+{"ts": "2026-05-22T03:38:52Z", "event": "lock_denied", "story": "STORY-PMF-ZERO", "requester": "john", "holder": "mary"}
+{"ts": "2026-05-22T03:38:55Z", "event": "lock_released", "story": "STORY-PMF-ZERO", "agent": "mary"}
+{"ts": "2026-05-22T03:43:14Z", "event": "lock_acquired", "story": "STORY-PMF-TEST-001", "agent": "mary", "session": "marytest"}
+{"ts": "2026-05-22T03:43:20Z", "event": "lock_denied", "story": "STORY-PMF-TEST-001", "requester": "john", "holder": "mary"}
+{"ts": "2026-05-22T03:44:46Z", "event": "lock_released", "story": "STORY-PMF-TEST-001", "agent": "mary"}
+{"ts": "2026-05-22T03:48:16Z", "event": "lock_acquired", "story": "STORY-PMF-V15-FIX-OBSTACLES", "agent": "amelia", "session": "ameliav15"}
+{"ts": "2026-05-22T03:52:13Z", "event": "lock_released", "story": "STORY-PMF-V15-FIX-OBSTACLES", "agent": "amelia"}
+{"ts": "2026-05-22T04:09:36Z", "event": "lock_acquired", "story": "STORY-PMF-V16-FIX-7-OBSTACLES", "agent": "amelia", "session": "a2805b9b"}
+{"ts": "2026-05-22T04:19:12Z", "event": "lock_released", "story": "STORY-PMF-V16-FIX-7-OBSTACLES", "agent": "amelia"}
+{"ts": "2026-05-22T04:40:06Z", "event": "lock_acquired", "story": "STORY-PMF-V17-QUINN", "agent": "quinn", "session": "a2805b9b"}
+{"ts": "2026-05-22T04:46:47Z", "event": "lock_released", "story": "STORY-PMF-V17-QUINN", "agent": "quinn"}
+{"ts": "2026-05-22T05:58:18Z", "event": "lock_acquired", "story": "STORY-PMF-V17-REVIEW-9", "agent": "pentester", "session": "a2805b9b"}
+{"ts": "2026-05-22T06:03:29Z", "event": "lock_released", "story": "STORY-PMF-V17-REVIEW-9", "agent": "pentester"}
+{"ts": "2026-05-22T06:05:15Z", "event": "lock_acquired", "story": "STORY-PMF-V18-PENTESTER-FIXES", "agent": "fixer", "session": "a2805b9b"}
+{"ts": "2026-05-22T06:07:02Z", "event": "lock_acquired", "story": "TEST-TTL-DEMO", "agent": "tester", "session": "demo1234"}
+{"ts": "2026-05-22T06:07:07Z", "event": "lock_released", "story": "TEST-TTL-DEMO", "agent": "tester"}
+{"ts": "2026-05-22T06:12:22Z", "event": "lock_released", "story": "STORY-PMF-V18-PENTESTER-FIXES", "agent": "fixer"}
+{"ts": "2026-05-22T06:13:40Z", "event": "lock_acquired", "story": "STORY-PMF-V19-RESILIENCE", "agent": "fixer", "session": "a2805b9b"}
+{"ts": "2026-05-22T06:18:09Z", "event": "lock_released", "story": "STORY-PMF-V19-RESILIENCE", "agent": "fixer"}
+{"ts": "2026-05-22T08:55:38Z", "event": "lock_acquired", "story": "STORY-EXEC-LAYER-V1", "agent": "execution-architect", "session": "SESSION-20260522115538"}
+{"ts": "2026-05-22T09:00:38Z", "event": "lock_released", "story": "STORY-EXEC-LAYER-V1", "agent": "execution-architect"}

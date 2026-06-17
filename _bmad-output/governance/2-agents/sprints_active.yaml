@@ -1,0 +1,155 @@
+# 🏃 سبرنتات نَشطة — SoT
+
+**التَحديث الأخير:** 2026-06-01  
+**القاعدة:** هذا الملف هو **مَصدر الحقيقة الوحيد** للسبرنتات الجارية. PM فقط يَكتب هنا.
+
+---
+
+```yaml
+schema_version: "2.0"
+last_updated: "2026-06-01T09:30:00Z"
+
+sprints:
+
+  # ✅ مُكتمل في يوم واحد (التَوازي على 4 zones)
+  AUDIT-2026-06:
+    title: "Reality Reconciliation — مقارنة الخُطط بالكود الفعلي"
+    description: "4 dev_audit_* instances متوازية فَحَصوا النَواة + stdlib + tools + governance"
+    dev_instances: [dev_audit_kernel, dev_audit_stdlib, dev_audit_tools, dev_audit_governance]
+    status: done             # ✅ تم في 2026-06-01
+    priority: P0
+    completion_report: "_bmad-output/governance/1-policy/status/REALITY_GAP_2026-06-05.md"
+    findings_count: 13       # 13 مشكلة مُكتشفة (P-01..P-13)
+    confidence: 88           # 88% متوسط الصدق
+    started: 2026-06-01
+    completed: 2026-06-01
+    deadline: 2026-06-05     # أُكمل قبل 4 أيام من الموعد
+
+  # � مُتاح للإطلاق (AUDIT اكتشف P-03..P-07 = 5/5 ستوريات M0 صحيحة فعلاً مَفقودة)
+  M0-INFRA:
+    title: "البنية التَحتية للحوكمة"
+    description: "إنشاء scripts/agent_orchestrator.ps1, agent_lock.py, scan_layers.py + DEPUTY_OWNER + PMF_EVOLUTION"
+    dev_instance: dev_M0
+    status: ready            # 🔓 جاهز للإطلاق (AUDIT أكَّد الحاجة)
+    priority: P0
+    blocked_by: []           # AUDIT اكتمل
+    zone:
+      - "scripts/"
+      - "_bmad-output/governance/2-agents/"
+    stories:
+      - S-M0-01-orchestrator
+      - S-M0-02-agent-lock
+      - S-M0-03-scan-layers
+      - S-M0-04-deputy-owner
+      - S-M0-05-pmf-evolution
+    sprint_file: "_bmad-output/governance/2-agents/sprints/SPRINT_M0_INFRASTRUCTURE.md"
+    adrs_required: ["ADR-ORCHESTRATION-2026-06-01"]
+    test_strategy: null
+    started: null
+    deadline: "2026-06-15"
+    assigned_to: null
+
+  # 🆕 سبرنت جديد مُقترَح من AUDIT — يُغطي P-01, P-02, P-12, P-13
+  DOCS-FIX-2026-06:
+    title: "إصلاح فجوات التَوثيق المُكتشفة في AUDIT"
+    description: "إصلاح: P-01 (SIR 90+ opcodes), P-12 (Extension methods), P-13 (متوقع/غير_متوقع). ⚠️ P-02 أُزيل — يَحل بنيوياً عبر UNBLOCK-CODEGEN"
+    dev_instance: dev_docs_fix
+    status: planned
+    priority: P0
+    zone:
+      - ".github/copilot-instructions.md"
+      - "docs/هيكل_المترجم.md"
+    stories:
+      - S-DOCS-01-sir-opcodes-90plus
+      - S-DOCS-03-extension-methods
+      - S-DOCS-04-expect-builtins
+    blocked_by: []
+    started: null
+    deadline: 2026-06-04
+    assigned_to: null
+
+  # 🚨 سبرنت جذري مُكتشف من التَحقيق الجنائي — أولوية قُصوى
+  UNBLOCK-CODEGEN-2026-06:
+    title: "تَفعيل CMake integration لـgen_builtins.py (utm-6.3 الحقيقي)"
+    description: "ADR-006a مَعتمدة + الكود كامل + الاختبارات تَمر — لكن المُكاملة مع CMake مَفقودة. يَحل P-02 + P-14 بنيوياً"
+    dev_instance: dev_codegen
+    status: ready
+    priority: P0
+    zone:
+      - "cmake/codegen.cmake"
+      - "scripts/codegen/"
+      - "shared/builtins/include/builtin_registry.h"
+      - "shared/builtins/generated/"
+      - "interpreter/src/builtins/builtin_core_io.cpp"
+    stories:
+      - S-UCG-01-cmake-target
+      - S-UCG-02-orchestrator-update
+      - S-UCG-03-first-run
+      - S-UCG-04-replace-manual-constants
+      - S-UCG-05-fix-noaa-usage
+      - S-UCG-06-update-adr
+    sprint_file: "_bmad-output/governance/2-agents/sprints/SPRINT_UNBLOCK_CODEGEN.md"
+    adrs_required: ["ADR-UNBLOCK-CODEGEN-2026-06-01"]
+    test_strategy: "build + run examples/test_simple.ص + اطبع(نوع(42))"
+    started: null
+    deadline: 2026-06-04
+    assigned_to: null
+    solves: [P-02, P-14, P-15]
+
+  # 🆕 سبرنت جديد مُقترَح من AUDIT — يُغطي P-08
+  ADR-BACKFILL-2026-06:
+    title: "استخراج ADRs مَفقودة من ARCHITECTURE/PMF/stories"
+    description: "Winston (Architect) + dev_governance يَستخرجون 6-10 ADRs ويَكتبونها في governance/*/decisions/"
+    dev_instance: dev_governance
+    architect: Winston
+    status: planned
+    priority: P1
+    zone:
+      - "_bmad-output/governance/1-policy/decisions/"
+      - "_bmad-output/governance/3-code-contract/decisions/"
+    stories:
+      - S-ADR-01-value-type
+      - S-ADR-02-gpg-enforcement
+      - S-ADR-03-six-folder-pattern
+      - S-ADR-04-parent-system
+      - S-ADR-05-sprint-per-dev
+      - S-ADR-06-audit-cycle
+    started: null
+    deadline: 2026-06-12     # 5 أيام
+    assigned_to: null
+
+  # 🆕 سبرنت تَنظيف — يُغطي P-10, P-11
+  CLEANUP-ROOT-2026-06:
+    title: "تَنظيف جذر المشروع والمجلدات المَهجورة"
+    description: "نقل _*.py, _*.ps1, _build_*.txt + أرشفة 4 مجلدات مَهجورة مع WHY_ARCHIVED.md"
+    dev_instance: dev_cleanup
+    status: planned
+    priority: P2
+    zone:
+      - "(جذر المشروع — ملفات _*)"
+      - "_bmad-output/discovery/"
+      - "_bmad-output/planning-artifacts/"
+      - "_bmad-output/implementation-artifacts/"
+      - "_bmad-output/test-artifacts/"
+    started: null
+    deadline: 2026-06-08     # 1 يوم
+    assigned_to: null
+
+# مَكان لسبرنتات أُخرى عند الإضافة
+# M1A-SCHEMAS: ...
+# M1B-MVP: ...
+# KERNEL-S04: ...
+
+# --- إحصائيات ---
+stats:
+  total: 6
+  planned: 3       # DOCS-FIX, ADR-BACKFILL, CLEANUP-ROOT
+  ready: 2         # M0-INFRA, UNBLOCK-CODEGEN
+  in_progress: 0
+  review: 0
+  done: 1          # AUDIT-2026-06 ✅
+  blocked: 0
+
+# --- zones مَحجوزة (لمنع التَصادم) ---
+locked_zones: []  # تُملأ عند بَدء سبرنت: { zone: "scripts/", by: "M0-INFRA" }
+```

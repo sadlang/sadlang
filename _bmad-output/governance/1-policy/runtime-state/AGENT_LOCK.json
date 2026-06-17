@@ -1,0 +1,6 @@
+{
+  "_schema_version": "1.0",
+  "_description": "حجز الستوريات بين الوكلاء — يدعمه scripts/agent_lock.py (PMF-001 §4.3)",
+  "_ttl_hours": 4,
+  "active_claims": []
+}

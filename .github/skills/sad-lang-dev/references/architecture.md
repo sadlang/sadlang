@@ -90,9 +90,10 @@ language-truth/errors/*.yaml  → gen_error_messages.py   → (كتالوج ال
 
 - `shared/types/include/value.h` — يحمل `ValueType` داخلي + القيمة
 - `OBJECT` يُدار بـ GC (`ObjectInstance*`)، يُمرَّر بالمرجع تلقائياً (`Pin` للتثبيت كجذر)
-- تجنّب تعارض ماكرو `VOID` مع Windows (الملف يلغي تعريفه قبل `ValueType::VOID`)
-- `DataType` enum **لا يحتوي** `ANY` — استخدم `DT::OBJECT` بدلاً منه
-- نظام الأنواع الثابت `SadTypeKind` (للمترجم/الدلالي) **مختلف** عن `ValueType` (لوقت التشغيل)
+- تجنّب تعارض ماكرو `VOID` مع Windows (الملف يلغي تعريفه قبل `ValueType::VOID`/`Null`)
+- `Value` يحمل `type_` (ValueType مبسّط) + `sadType_` (النوع الموحَّد الغنيّ)؛ `getKind()` يقرأ الثاني
+- 🔴 `DataType` القديم **محذوف كليّاً** (S-TS-P2.5) — استخدم `SadTypeKind` المُولَّد من `types.yaml` حصراً
+- النوع الموحَّد `SadTypeKind` (مصدر واحد للمفسّر والمترجم) **مختلف** عن `ValueType` (تمثيل وقت التشغيل)
 
 > تفصيل كامل لـ `Value`/`SadTypeKind`/SIR opcodes في [./types-and-sir.md](./types-and-sir.md).
 

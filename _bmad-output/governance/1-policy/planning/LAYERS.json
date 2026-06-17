@@ -1,0 +1,136 @@
+{
+    "_meta": {
+        "purpose_ar": "المصدر الموثوق الوحيد لقائمة الطبقات الرئيسية للمشروع. تُستخدم في PMF §2.2 وفي حساب N/M في IN_PROGRESS_PARTIAL.",
+        "purpose_en": "Single source of truth for the project's main layers. Used by PMF §2.2 and in computing N/M in IN_PROGRESS_PARTIAL.",
+        "version": "1.0",
+        "created_at": "2026-05-22T07:10:00Z",
+        "owner": "saleh",
+        "update_policy_ar": "أي إضافة/حذف طبقة يتطلب ستوري منفصلة + موافقة صالح في PR (يحرس CODEOWNERS هذا الملف)."
+    },
+    "code_layers": [
+        {
+            "name": "shared",
+            "path": "shared/",
+            "role_ar": "النواة المشتركة (lexer, parser, AST, types)"
+        },
+        {
+            "name": "interpreter",
+            "path": "interpreter/",
+            "role_ar": "المفسر الشجري"
+        },
+        {
+            "name": "compiler",
+            "path": "compiler/",
+            "role_ar": "المترجم sadc (SIR + LLVM)"
+        },
+        {
+            "name": "vm",
+            "path": "vm/",
+            "role_ar": "الآلة الافتراضية للبايت كود"
+        },
+        {
+            "name": "runtime",
+            "path": "runtime/",
+            "role_ar": "وقت التشغيل (ABI/FFI + freestanding)"
+        },
+        {
+            "name": "stdlib",
+            "path": "stdlib/",
+            "role_ar": "المكتبة القياسية العربية"
+        },
+        {
+            "name": "tools",
+            "path": "tools/",
+            "role_ar": "أدوات (LSP, formatter, pkg, REPL)"
+        },
+        {
+            "name": "graphics",
+            "path": "graphics/",
+            "role_ar": "مكتبة الرسوميات (SDL2 + OpenGL)"
+        },
+        {
+            "name": "network",
+            "path": "network/",
+            "role_ar": "شبكة sadnet (P2P, crypto, DHT)"
+        },
+        {
+            "name": "sad_ui",
+            "path": "sad_ui/",
+            "role_ar": "واجهات المستخدم متعددة المنصات"
+        },
+        {
+            "name": "platform",
+            "path": "platform/",
+            "role_ar": "تكاملات منصة (Android)"
+        },
+        {
+            "name": "tests",
+            "path": "tests/",
+            "role_ar": "حزم الاختبارات الشاملة"
+        },
+        {
+            "name": "scripts",
+            "path": "scripts/",
+            "role_ar": "سكربتات الحوكمة والبناء والقياس"
+        },
+        {
+            "name": "cmake",
+            "path": "cmake/",
+            "role_ar": "وحدات CMake القابلة لإعادة الاستخدام"
+        },
+        {
+            "name": "data",
+            "path": "data/",
+            "role_ar": "البيانات المرجعية للأنواع والكلمات"
+        }
+    ],
+    "content_layers": [
+        {
+            "name": "docs",
+            "path": "docs/",
+            "role_ar": "الوثائق العربية"
+        },
+        {
+            "name": "examples",
+            "path": "examples/",
+            "role_ar": "أمثلة بلغة ص"
+        },
+        {
+            "name": "specs",
+            "path": "specs/",
+            "role_ar": "مواصفات تقنية"
+        },
+        {
+            "name": "templates",
+            "path": "templates/",
+            "role_ar": "قوالب مشاريع جاهزة"
+        },
+        {
+            "name": "deployment",
+            "path": "deployment/",
+            "role_ar": "إعدادات النشر"
+        },
+        {
+            "name": "distribution",
+            "path": "distribution/",
+            "role_ar": "حزم التوزيع"
+        }
+    ],
+    "exclusions": {
+        "comment_ar": "مجلدات مستبعدة من العدّ: بُنى البناء، الأرشيف، تبعيات خارجية، الموقع، مجلدات تدريب/وثائق مفردة.",
+        "patterns": [
+            "build*",
+            "_*",
+            "archived",
+            "third_party",
+            "website",
+            "ملفات_التدريب",
+            "وثائق"
+        ]
+    },
+    "totals": {
+        "M_code_layers": 15,
+        "M_content_layers": 6,
+        "M_total": 21
+    }
+}

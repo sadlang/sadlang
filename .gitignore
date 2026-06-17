@@ -56,7 +56,7 @@ _deps/
 _scratch/
 
 # ── مخرجات BMAD / BMAD outputs ──
-_bmad-output/
+# (متتبَّعة في git — حوكمة BMAD جزء من المستودع / tracked: BMAD governance is part of the repo)
 
 # ── مخرجات بناء واختبار في الجذر ──
 build_*.txt
@@ -135,6 +135,8 @@ Desktop.ini
 
 # ── ملفات تجريبية في الجذر ──
 /_*
+# استثناء: مخرجات حوكمة BMAD متتبَّعة في git / exception: BMAD governance tracked
+!/_bmad-output/
 /[0-9]*_*.ll
 /[0-9]*_*.exe
 /E[0-9]*_*.ll

@@ -55,30 +55,60 @@ std::string toString() const;           // لأي نوع
 const std::string& toStringRef() const; // STRING فقط (بلا نسخ) — للأنواع الأخرى استخدم toString()
 ```
 
-### تنبيهات مهمة (من معايير المشروع)
+### العلاقة بين `type_` و `sadType_` (مهمّ جداً)
 
-- **تعارض ماكرو `VOID` مع Windows:** الملف يلغي تعريف `VOID` قبل استخدام `ValueType::VOID`.
-- `getType()` يُرجع `Types::SadTypeKind` (نظام الأنواع الثابت) — وهو **مختلف** عن `ValueType`
-  الداخلي لوقت التشغيل. لا تخلط بينهما.
+`Value` يحمل تمثيلين للنوع، لا تخلط بينهما:
+
+| الحقل | النوع | الدور |
+|------|------|------|
+| `type_` | `ValueType` | تمثيل وقت التشغيل المُبسَّط (يُستخدم في `isObject()`/`isInteger()`/التخزين الفعلي) |
+| `sadType_` | `SadTypePtr` | النوع الموحَّد الغنيّ (Optional/Result/Null/الرسوميات…) — مصدر `getKind()` |
+
+- **`getKind()`** = `getSadType()->getKind()` ← يُرجع `SadTypeKind` (النظام الموحَّد). **استخدمه** لتصنيف النوع.
+- **`setSadType(ptr)`** يَسِم القيمة بنوع موحَّد غنيّ مع الإبقاء على `type_` الصحيح لإرسال الطرق
+  (مثلاً Future/Generator/Widget: `getKind()`=النوع الحقيقي بينما `type_`=OBJECT ليبقى `isObject()` سليماً).
+- **`makeNull()`** ينشئ قيمة `عدم` (Null) — **متمايزة عن `Void`** (فراغ) منذ توحيد الأنواع.
+- **تعارض ماكرو `VOID` مع Windows:** الملف يلغي تعريف `VOID` قبل استخدام `ValueType::Null`/`VOID`.
 
 ---
 
-## ب. نظام الأنواع الثابت — `SadTypeKind`
+## ب. نظام الأنواع الموحَّد — `SadTypeKind` (مُولَّد من SoT)
 
-الملف: `shared/types/include/sad_type_system.h` — `enum class SadTypeKind : int`. يصف الأنواع
-كما يفهمها المترجم/المدقّق الدلالي (أوسع بكثير من `ValueType`):
+> ⚠️ **مُولَّد آلياً:** `SadTypeKind` يُولَّد من `language-truth/types.yaml` عبر
+> `scripts/codegen/gen_types.py` إلى `shared/types/generated/sad_type_kind_generated.h` (**52 قيمة**).
+> **لإضافة نوع: عدّل `types.yaml` ثم أعد التوليد** — لا تحرّر الـenum يدوياً.
+> الواجهة + المساعدات الغنيّة في `shared/types/include/sad_type_system.h`.
+
+> 🔴 **`DataType`/`DT` القديم محذوف كليّاً** (S-TS-P2.5). أي إشارة إليه نمط مهجور — استخدم
+> `SadTypeKind` حصراً. التحويلات القديمة (`toDataType`/`fromDataType`) أُزيلت.
+
+التعداد الموحَّد يصف الأنواع كما يفهمها المفسّر **والمترجم** (مصدر واحد للاثنين):
 
 | الفئة | القيم |
 |------|-------|
-| بدائية | `Void`, `Integer` (i64), `Float` (f64), `Boolean`, `String`, `Byte`, `Char` |
+| بدائية | `Void`, **`Null`** (عدم — متمايز عن Void)، `Integer` (i64), `Float` (f64), `Boolean`, `String`, `Byte`, `Char` |
 | بحجم محدد | `Int8/16/32/64`, `UInt8/16/32/64`, `Float32/64` (للمترجم/FFI/الأنظمة المنخفضة) |
 | مركّبة | `Array`, `Map`, `Tuple`, `Slice` |
 | كائنية | `Class`, `Struct`, `Enum`, `Trait` |
 | وظيفية | `Function`, `Closure` |
-| متقدمة | `Union` (T1\|T2), `Intersection` (T1&T2), `Optional` (T?), `Result<T,E>`, `Generic` (T) |
+| متقدمة | `Union` (T1\|T2), `Intersection` (T1&T2), **`Optional` (T?/T؟)**, **`Result<T,E>`**, `Generic` (T) |
+| غير متزامن | **`Future`** (مستقبل)، **`Generator`** (مولّد) — موسومة بـ`setSadType` |
+| رسوميات (تجريبي) | `Color`, `Widget`, `Window`, `Event`, `Point`, `Rect` (`surface:false` — بنية تحتية لـSadUI) |
+| SIMD | `Vector` (`<N x T>`) |
 
-> عند العمل على المدقّق الدلالي أو الأنواع المُعمَّمة (generics)/القيود (`حيث`)، هذا هو التعداد المعنيّ.
-> `DataType`/`DT` enum القديم **لا يحتوي `ANY`** — استخدم `DT::OBJECT` بدلاً منه.
+### مفاهيم رئيسية (من توحيد الأنواع S-TS-P0..P11)
+
+- **مصدر واحد لـ`نوع()`:** الدالة المضمّنة `type_of` تُرجع `sadTypeKindArabicName(getKind())`،
+  والاسم العربيّ من حقل **`typeof_ar`** في `types.yaml` (مثلاً `type.class` → `typeof_ar: كائن`).
+  هذا يضمن **تطابق `نوع()` بين المفسّر والمترجم** (لا سلاسل عربية مكرّرة).
+- **null-safety:** `Null` متمايز عن `Void`؛ `Optional` (`T?`/`T؟`) سطحيّ؛ `isAssignableTo` يسمح
+  `Null <: T?`؛ عوامل `?.`/`??`/`؟` مسجَّلة في `operators.yaml`. (نظام null-safety المتقدّم
+  — التضييق/`!!` — نظام مستقلّ منفصل.)
+- **interning:** `intern()` يوحّد مثيلات الأنواع المتماثلة (S-TS-P7).
+- **codegen-null:** القيمة الحرفية `لاشيء` تُوسَم `Null` مع تمثيل i64 (حارس)؛ `mapSIRType(Null)`→i64؛
+  `نوع(لاشيء)`=«عدم» في المحرّكين.
+
+> التوثيق الكامل للنظام: `_bmad-output/systems/type-system/` (README + docs/ARCHITECTURE + stories P0–P11).
 
 ---
 
