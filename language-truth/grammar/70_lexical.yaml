@@ -1,0 +1,134 @@
+# ============================================================================
+# (AR) 70_lexical.yaml — القواعد المعجمية في لغة ص (طبقة المعجم — جسر للمحلل المعجمي)
+# (EN) Lexical productions (lexical layer — bridge to the lexer)
+# ----------------------------------------------------------------------------
+# (AR) تصف الطرفيات (tokens) التي يُنتجها LexerCore وتستهلكها الطبقات الأعلى.
+#      المصدر: shared/lexer/src/lexer_core.cpp (LexerCore::nextToken).
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: lexical
+
+description_ar: "القواعد المعجمية — معرّف/عدد صحيح/عشري/نص/نص خام/نص منسَّق/عمر/تعليق"
+description_en: "Lexical productions — identifier/integer/double/string/raw/fstring/lifetime/comment"
+
+productions:
+
+  - id: gr.lex.identifier
+    lhs: { nonterminal: Identifier, name_ar: "مُعرّف", name_en: identifier }
+    ebnf: "Identifier = ( Letter | '_' | ArabicLetter ) { Letter | Digit | '_' | ArabicLetter } ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(IDENTIFIER)"
+    description_ar: "اسم مُعرّف — يدعم العربية واللاتينية و«_»؛ يبدأ بحرف/«_»؛ UTF-8"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }
+    example: |
+      متغير الاسم_الأول = "أحمد"
+
+  - id: gr.lex.integer
+    lhs: { nonterminal: IntegerLiteral, name_ar: "عدد صحيح", name_en: integer_literal }
+    ebnf: "IntegerLiteral = Digit { Digit | '_' } ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: NUMBER_INTEGER }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(NUMBER_INTEGER)"
+    description_ar: "عدد صحيح عشريّ/سداسيّ‑عشريّ/ثنائيّ/ثمانيّ؛ يُقبَل فاصل «_» للقراءة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 1 } }
+
+  - id: gr.lex.double
+    lhs: { nonterminal: DoubleLiteral, name_ar: "عدد عشريّ", name_en: double_literal }
+    ebnf: "DoubleLiteral = Digit { Digit } '.' Digit { Digit } [ ( 'e' | 'E' ) [ '+' | '-' ] Digit { Digit } ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: NUMBER_DOUBLE }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(NUMBER_DOUBLE)"
+    description_ar: "عدد بفاصلة عشريّة وأُسّ اختياريّ؛ ملاحظة: «0.0» قد يُقسَّم لوصول صفوف «صف.0.0»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 1 } }
+
+  - id: gr.lex.string
+    lhs: { nonterminal: StringLiteral, name_ar: "نص حرفيّ", name_en: string_literal }
+    ebnf: "StringLiteral = '\"' { Char | Escape } '\"' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: STRING_LITERAL }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(STRING_LITERAL)"
+    description_ar: "نص بين علامتي اقتباس مع تسلسلات هروب «\\n \\t \\\" ...»؛ UTF-8"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 5, negative: 2, interaction: 2 } }
+
+  - id: gr.lex.raw_string
+    lhs: { nonterminal: RawString, name_ar: "نص خام", name_en: raw_string }
+    ebnf: "RawString = 'r' '\"' { Char } '\"' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: STRING_RAW }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(STRING_RAW)"
+    description_ar: "نص خام «r\"...\"» بلا معالجة تسلسلات الهروب — يُعامَل كنص عاديّ في الأوّليّ"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 1 } }
+
+  - id: gr.lex.fstring
+    lhs: { nonterminal: FStringToken, name_ar: "رمز نص منسَّق", name_en: fstring_token }
+    ebnf: "FStringToken = 'f' '\"' { Char | '{' ... '}' } '\"' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: STRING_FSTRING }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(STRING_FSTRING)"
+    description_ar: "رمز نص منسَّق «f\"...{تعبير}...\"»؛ يُوسَّع لاحقًا في gr.expr.fstring"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 1 } }
+
+  - id: gr.lex.lifetime
+    lhs: { nonterminal: Lifetime, name_ar: "تعليق عمر", name_en: lifetime }
+    ebnf: "Lifetime = '\\'' Identifier ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: LIFETIME }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(LIFETIME)"
+    description_ar: "تعليق عمر «'أ» يبدأ بفاصلة عليا؛ يُستهلَك في معاملات العمر والاستعارة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 1 } }
+
+  - id: gr.lex.comment
+    lhs: { nonterminal: Comment, name_ar: "تعليق", name_en: comment }
+    ebnf: >
+      Comment = '#' { Char } NEWLINE | '#*' { Char } '*#' | '##' { Char } NEWLINE | '#**' { Char } '**#' ;
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: COMMENT }
+              - { kind: terminal, ref: DOC_COMMENT }
+    maps_to:
+      - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
+    ast_node: "Token(COMMENT) | Token(DOC_COMMENT)"
+    description_ar: "تعليق سطر «#»، كتلة «#* *#»، توثيق «##» أو «#** **#»؛ تعليقات «##» تُرفَق بالتصريح التالي"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 1, interaction: 2 } }

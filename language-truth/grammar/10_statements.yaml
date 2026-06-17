@@ -291,3 +291,42 @@ productions:
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
       اطبع_سطر("مرحبا")
+
+  # ── حالة / عندما / افتراضي (switch — بناء شقيق لـ طابق) ─────────────────────
+  - id: gr.stmt.switch
+    lhs: { nonterminal: SwitchStatement, name_ar: "جملة حالة", name_en: switch_statement }
+    ebnf: >
+      SwitchStatement = 'حالة' Expression
+                        { 'عندما' Expression [ ':' ] { Statement } }
+                        [ 'افتراضي' [ ':' ] { Statement } ] 'نهاية' ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_CASE, value: "حالة" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: KEYWORD_WHEN, value: "عندما" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" } ] }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_DEFAULT, value: "افتراضي" }
+              - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" } ] }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-020", "KW-RES-021", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseSwitchStmt" }
+    ast_node: "SwitchStmt"
+    description_ar: >
+      بناء شقيق لـ«طابق» بكلمة «حالة» (KEYWORD_CASE)؛ الأقواس «(تعبير)» أُزيلت. «:» اختياريّة بعد
+      القيمة و«افتراضي». «افتراضي» يجب أن يكون الأخير. «حالة» سياقيّة (تُستثنى مع ( . [ أو عوامل إسناد).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    example: |
+      حالة الرقم
+          عندما 1: اطبع_سطر("واحد")
+          افتراضي: اطبع_سطر("آخر")
+      نهاية

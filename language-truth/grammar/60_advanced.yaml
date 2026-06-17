@@ -1,0 +1,584 @@
+# ============================================================================
+# (AR) 60_advanced.yaml — البنيات المتقدمة في لغة ص (طبقة متقدمة)
+# (EN) Advanced constructs (advanced layer)
+# ----------------------------------------------------------------------------
+# (AR) المصدر: parser_helpers.cpp (الأنواع)، parser_advanced.cpp (القوالب/where)،
+#      parser_declarations.cpp (العمر/الماكرو/الاختبار)، parser_statements.cpp
+#      (yield/with/defer/go/select)، specs/{ffi,patterns,...}، ui/parser_ui.cpp.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: advanced
+
+description_ar: "بنيات متقدمة — أنواع/قوالب/عمر/قيود + أنتج/باستخدام/أجّل/أطلق/اختر + استيعاب/ماكرو/اختبار/عقد/FFI/واجهة"
+description_en: "Advanced — types/templates/lifetimes + yield/with/defer/go/select + comprehensions/macro/test/contract/ffi/ui"
+
+productions:
+
+  - id: gr.adv.type
+    lhs: { nonterminal: Type, name_ar: "نوع", name_en: type }
+    ebnf: >
+      Type = TypeCore [ '?' ] ;
+      TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
+               | ( 'مصفوفة' | 'خريطة' ) [ '<' Type [ ',' Type ] '>' ] | Identifier ;
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: TYPE_INTEGER, value: "رقم" }
+              - { kind: terminal, ref: TYPE_DOUBLE, value: "عشري" }
+              - { kind: terminal, ref: TYPE_STRING, value: "نص" }
+              - { kind: terminal, ref: TYPE_BOOLEAN, value: "منطقي" }
+              - { kind: terminal, ref: TYPE_VOID, value: "فراغ" }
+              - { kind: terminal, ref: TYPE_ARRAY, value: "مصفوفة" }
+              - { kind: terminal, ref: TYPE_MAP, value: "خريطة" }
+              - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_LESS, value: "<" }
+              - { kind: nonterminal, ref: gr.adv.type }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.adv.type } ] }
+              - { kind: terminal, ref: OP_GREATER, value: ">" }
+          - { kind: optional, children: [ { kind: terminal, ref: QUESTION, value: "؟" } ] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseType" }
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseTypeCore" }
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseGenericType" }
+    ast_node: "SadTypeKind | SadTypePtr"
+    description_ar: >
+      أنواع مدمجة كمُعرّفات سياقيّة (رقم/نص/...) لا كلمات محجوزة. اللاحقة «؟» ⇒ اختياريّ.
+      الأنواع العامّة «مصفوفة<T>»/«خريطة<K,V>». «مضاعف» أُزيلت (استخدم «عشري»).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 } }
+
+  - id: gr.adv.lifetime_params
+    lhs: { nonterminal: LifetimeParams, name_ar: "معاملات عمر", name_en: lifetime_parameters }
+    ebnf: "LifetimeParams = '<' Lifetime { ( ',' | '،' ) Lifetime } '>' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: OP_LESS, value: "<" }
+          - kind: repeat1
+            separator: OP_COMMA
+            children:
+              - { kind: terminal, ref: LIFETIME }
+          - { kind: terminal, ref: OP_GREATER, value: ">" }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseLifetimeParams" }
+    ast_node: "std::vector<std::string>"
+    description_ar: "نظر مسبق يميّز «<'أ>» عن المقارنة/القالب. أمثلة: «دالة أطول<'أ>(...)»، «بنية مرجع<'أ>»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.template_decl
+    lhs: { nonterminal: TemplateDecl, name_ar: "تصريح قالب", name_en: template_declaration }
+    ebnf: "TemplateDecl = 'قالب' TemplateParams ( FunctionDecl | ClassDecl ) ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_TEMPLATE, value: "قالب" }
+          - { kind: nonterminal, ref: gr.adv.template_params }
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.decl.function }
+              - { kind: nonterminal, ref: gr.oop.class }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseTemplateDecl" }
+    ast_node: "TemplateFunctionDecl | TemplateClassDecl"
+    description_ar: "قالب عامّ لدالة/صنف؛ يجب معامل نوع واحد على الأقل. الاسم يُسجَّل في knownTemplateNames_"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 3, interaction: 3 } }
+
+  - id: gr.adv.template_params
+    lhs: { nonterminal: TemplateParams, name_ar: "معاملات قالب", name_en: template_parameters }
+    ebnf: >
+      TemplateParams = '<' TParam { ( ',' | '،' ) TParam } '>' ;
+      TParam = 'ثابت' Type Identifier [ '=' Expression ] | 'نوع' Identifier [ ':' Constraint { '+' Constraint } ] ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: OP_LESS, value: "<" }
+          - kind: repeat1
+            separator: OP_COMMA
+            children:
+              - kind: alt
+                children:
+                  - { kind: group, children: [ { kind: terminal, ref: KEYWORD_CONST, value: "ثابت" }, { kind: nonterminal, ref: gr.adv.type }, { kind: terminal, ref: IDENTIFIER } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: KEYWORD_TYPENAME, value: "نوع" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - { kind: terminal, ref: OP_GREATER, value: ">" }
+    references: { keywords: ["KW-RES-035"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseTemplateParameters" }
+    ast_node: "std::vector<TypeParameter>"
+    description_ar: "يدعم const-generics «ثابت رقم N = 4» والقيود المتعدّدة «ت: قيد1 + قيد2»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 3, interaction: 2 } }
+
+  - id: gr.adv.template_args
+    lhs: { nonterminal: TemplateArgs, name_ar: "وسائط قالب", name_en: template_arguments }
+    ebnf: "TemplateArgs = ( Type | Expression ) { ',' ( Type | Expression ) } ;"
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.adv.type }
+              - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: alt, children: [ { kind: nonterminal, ref: gr.adv.type }, { kind: nonterminal, ref: gr.expr.expression } ] } ] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseTemplateInstantiation" }
+    ast_node: "TemplateInstantiation"
+    description_ar: "وسائط أنواع/قيم بين «<...>» عند تخصيص قالب؛ تُستهلَك من gr.expr.primary"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.where_clause
+    lhs: { nonterminal: WhereClause, name_ar: "جملة حيث", name_en: where_clause }
+    ebnf: "WhereClause = 'حيث' ConstraintItem { ( ',' | '،' ) ConstraintItem } ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_WHERE, value: "حيث" }
+          - kind: repeat1
+            separator: OP_COMMA
+            children:
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: terminal, ref: COLON, value: ":" }
+              - { kind: terminal, ref: IDENTIFIER }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseWhereClause" }
+    ast_node: "WhereClause"
+    description_ar: "قيود القوالب المتقدمة؛ يدعم الأنواع المرتبطة «ت.عنصر: قابل_للمقارنة» والقيود المتعدّدة بـ«+»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.yield
+    lhs: { nonterminal: YieldStatement, name_ar: "جملة أنتج", name_en: yield_statement }
+    ebnf: "YieldStatement = 'أنتج' [ 'from' ] [ Expression ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_YIELD, value: "أنتج" }
+          - { kind: optional, children: [ { kind: terminal, ref: IDENTIFIER, value: "from" } ] }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.expr.expression } ] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseYieldStmt" }
+    ast_node: "YieldStmt"
+    description_ar: "إنتاج قيمة من مولّد؛ «from» (مُعرّف) لتفويض التوليد. «اعطِ» أُزيلت"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.with
+    lhs: { nonterminal: WithStatement, name_ar: "جملة باستخدام", name_en: with_statement }
+    ebnf: "WithStatement = 'باستخدام' Expression [ 'كـ' Identifier ] { Statement } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_WITH, value: "باستخدام" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_AS, value: "كـ" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-032", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseWithStmt" }
+    ast_node: "WithStmt"
+    description_ar: "مدير سياق؛ الاسم المستعار بعد «كـ» اختياريّ. «نهاية_استخدام» أُزيلت"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.defer
+    lhs: { nonterminal: DeferStatement, name_ar: "جملة أجّل", name_en: defer_statement }
+    ebnf: "DeferStatement = 'أجّل' ( Statement | { Statement } 'نهاية' ) ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_DEFER, value: "أجّل" }
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.program.statement }
+              - { kind: group, children: [ { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }, { kind: terminal, ref: KEYWORD_END, value: "نهاية" } ] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseDeferStmt" }
+    ast_node: "DeferStmt"
+    description_ar: "تنظيف مضمون عند الخروج (LIFO)؛ سياقيّة (تُستثنى مع =/+=/.). جملة واحدة أو كتلة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.go
+    lhs: { nonterminal: GoStatement, name_ar: "جملة أطلق", name_en: go_statement }
+    ebnf: "GoStatement = 'أطلق' ( Expression | { Declaration } 'نهاية' ) ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_GO, value: "أطلق" }
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: group, children: [ { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.declaration } ] }, { kind: terminal, ref: KEYWORD_END, value: "نهاية" } ] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseGoStmt" }
+    ast_node: "GoStmt"
+    description_ar: "إطلاق goroutine؛ سطر واحد (استدعاء/لامدا) أو كتلة (تدعم متغير/ثابت). التمييز بفرق السطر"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 3 } }
+
+  - id: gr.adv.select
+    lhs: { nonterminal: SelectStatement, name_ar: "جملة اختر", name_en: select_statement }
+    ebnf: >
+      SelectStatement = 'اختر' { 'عندما' Expression ':' { Statement } } [ 'افتراضي' ':' { Statement } ] 'نهاية' ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_SELECT, value: "اختر" }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: KEYWORD_WHEN, value: "عندما" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: terminal, ref: COLON, value: ":" }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_DEFAULT, value: "افتراضي" }
+              - { kind: terminal, ref: COLON, value: ":" }
+              - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-020", "KW-RES-021", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseSelectStmt" }
+    ast_node: "SelectStmt"
+    description_ar: "اختيار من قنوات متعددة؛ «:» إلزاميّة بعد القناة و«افتراضي»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 3 } }
+
+  - id: gr.adv.list_comprehension
+    lhs: { nonterminal: ListComprehension, name_ar: "استيعاب قائمة", name_en: list_comprehension }
+    ebnf: "ListComprehension = Expression 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: KEYWORD_IN, value: "في" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseListComprehension" }
+    ast_node: "ListComprehensionExpr"
+    description_ar: "«[تعبير لكل س في مجموعة إذا شرط]» داخل «[]»؛ الشرط اختياريّ"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 5, negative: 2, interaction: 3 } }
+    example: |
+      متغير ز = [س * 2 لكل س في [1، 2، 3]]
+
+  - id: gr.adv.dict_comprehension
+    lhs: { nonterminal: DictComprehension, name_ar: "استيعاب قاموس", name_en: dict_comprehension }
+    ebnf: "DictComprehension = Expression ':' Expression 'لكل' Identifier ',' Identifier 'في' Expression [ 'إذا' Expression ] ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: COLON, value: ":" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: OP_COMMA, value: "،" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: KEYWORD_IN, value: "في" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseDictComprehension" }
+    ast_node: "DictComprehensionExpr"
+    description_ar: "«{م: ق لكل م، ق في قاموس إذا شرط}» داخل «{}»؛ الشرط اختياريّ"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }
+
+  - id: gr.adv.macro
+    lhs: { nonterminal: MacroDecl, name_ar: "تصريح ماكرو", name_en: macro_declaration }
+    ebnf: "MacroDecl = 'ماكرو' Identifier '(' [ Parameters [ '...' Identifier ] ] ')' { Statement } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_MACRO, value: "ماكرو" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.parameters }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseMacroDecl" }
+    ast_node: "MacroDecl"
+    description_ar: "تعريف ماكرو يُستدعى بعلامة تعجّب «اسم!(...)»؛ يدعم معاملًا متغيّرًا «...رسائل». «ماكرو» سياقيّة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 3 } }
+
+  - id: gr.adv.property_test
+    lhs: { nonterminal: TestDecl, name_ar: "اختبار خصائص", name_en: property_test }
+    ebnf: "TestDecl = 'اختبر' '(' STRING ')' [ 'تكرارات' Number ] [ 'بذرة' Number ] { Statement } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_TEST, value: "اختبر" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: terminal, ref: STRING_LITERAL }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_ITERATIONS, value: "تكرارات" }, { kind: terminal, ref: NUMBER_INTEGER } ] }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_SEED, value: "بذرة" }, { kind: terminal, ref: NUMBER_INTEGER } ] }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseTestDecl" }
+    ast_node: "TestDecl"
+    description_ar: "«اختبر(\"اسم\") تكرارات N بذرة S ... نهاية»؛ الأقواس حول الاسم إلزاميّة. «اختبر» سياقيّة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.await
+    lhs: { nonterminal: AwaitExpr, name_ar: "تعبير انتظر", name_en: await_expression }
+    ebnf: "AwaitExpr = 'انتظر' Expression ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_AWAIT, value: "انتظر" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePrimary" }
+    ast_node: "AwaitExpr"
+    description_ar: "تعبير انتظار لقيمة غير متزامنة؛ «انتظر» كلمة سياقيّة تُحلَّل في الأوّليّ (gr.expr.primary)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 2 } }
+
+  - id: gr.adv.contract
+    lhs: { nonterminal: ContractDecl, name_ar: "عقد ذكيّ", name_en: smart_contract }
+    ebnf: "ContractDecl = 'عقد' Identifier [ 'يرث' Identifier { ',' Identifier } ] { ClassMember } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_CONTRACT, value: "عقد" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.oop.member } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDeclaration" }
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseClassDecl" }
+    ast_node: "ClassDecl"
+    description_ar: >
+      عقد ذكيّ بكلمة «عقد» — يُعامَل صنفًا مع isContract=true (نفس بنية gr.oop.class). «عقد» سياقيّة.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 3 } }
+    example: |
+      عقد محفظة
+          متغير عام رصيد
+          دالة عام إيداع(مبلغ) هذا.رصيد = هذا.رصيد + مبلغ نهاية
+      نهاية
+
+  - id: gr.adv.ffi_extern_block
+    lhs: { nonterminal: ExternBlock, name_ar: "كتلة خارجي", name_en: extern_block }
+    ebnf: "ExternBlock = Linkage '{' { ExternFunction } '}' ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.adv.ffi_linkage }
+          - { kind: terminal, ref: BRACE_LEFT, value: "{" }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.decl.extern } ] }
+          - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
+    references: { keywords: ["KW-RES-037"] }
+    maps_to:
+      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseExternBlock" }
+      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseExternFunction" }
+    ast_node: "ExternBlockAST"
+    description_ar: >
+      كتلة ربط أجنبيّ نمط‑C «خارجي \"C\" { دالة ... }» — تستخدم الأقواس «{}» (لا «نهاية»).
+      يحلّلها مُحلّل فرعيّ مستقلّ ExternParser؛ تدعم C/C++/نظام كاتفاقيّات ربط.
+    since: "1.0.0"
+    status: experimental
+    conformance:
+      compiler_optional: true
+      test_budget: { basic: 3, edge: 2, negative: 2, interaction: 1 }
+      notes_ar: "FFI متقدّم — قد يكون مدعومًا في المفسّر/المترجم بدرجات متفاوتة"
+
+  - id: gr.adv.ffi_linkage
+    lhs: { nonterminal: Linkage, name_ar: "اتفاقيّة ربط", name_en: linkage }
+    ebnf: "Linkage = 'خارجي' [ '\"C\"' | '\"C++\"' | 'نظام' ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجي" }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: STRING_LITERAL, value: "\"C\"" }
+    references: { keywords: ["KW-RES-037"] }
+    maps_to:
+      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseLinkage" }
+    ast_node: "ExternLinkage"
+    description_ar: "نوع الربط الأجنبيّ: C (افتراضيّ) أو C++ أو نظام (system)"
+    since: "1.0.0"
+    status: experimental
+    conformance: { compiler_optional: true, test_budget: { basic: 2, edge: 1, negative: 1, interaction: 0 } }
+
+  - id: gr.adv.ffi_ctype
+    lhs: { nonterminal: CType, name_ar: "نوع C", name_en: c_type }
+    ebnf: "CType = BasicCType { '*' } [ '[' Number ']' ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: repeat, children: [ { kind: terminal, ref: OP_MULTIPLY, value: "*" } ] }
+    maps_to:
+      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseCType" }
+      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseBasicType" }
+    ast_node: "CTypePtr"
+    description_ar: "نوع C في توقيع دالة خارجيّة: نوع أساسيّ + مؤشّرات «*» + مصفوفة «[N]» اختياريّة"
+    since: "1.0.0"
+    status: experimental
+    conformance: { compiler_optional: true, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 0 } }
+
+  - id: gr.adv.inline_asm
+    lhs: { nonterminal: InlineAsm, name_ar: "تجميع مضمَّن", name_en: inline_asm }
+    ebnf: "InlineAsm = '@تجميع' '(' STRING { ',' ( STRING | 'متطاير' ) } ')' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: AT_SIGN, value: "@" }
+          - { kind: terminal, ref: KEYWORD_ASM, value: "تجميع" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: terminal, ref: STRING_LITERAL }
+          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: STRING_LITERAL } ] }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::tryParseDirective" }
+    ast_node: "InlineAsmExpr"
+    description_ar: >
+      تجميع مضمَّن «@تجميع(\"code\", outputs, inputs, clobbers)» — sadc فقط. يُحلَّل في tryParseDirective
+      ويُلَفّ في ExprStmt.
+    since: "1.0.0"
+    status: experimental
+    conformance:
+      compiler_optional: true
+      test_budget: { basic: 2, edge: 2, negative: 1, interaction: 1 }
+      notes_ar: "خاص بالمترجم sadc (تجميع مضمَّن) — مُعفى من المفسّر"
+
+  - id: gr.adv.ui_decl
+    lhs: { nonterminal: UIDeclaration, name_ar: "تصريح واجهة", name_en: ui_declaration }
+    ebnf: "UIDeclaration = 'واجهة' Identifier [ 'يرث' Identifier ] { UIStateDecl | 'دالة' FunctionDecl } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_UI_DECL, value: "واجهة" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: nonterminal, ref: gr.adv.ui_state }
+                  - { kind: nonterminal, ref: gr.decl.function }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-006", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/ui/parser_ui.cpp, function: "ParserCore::parseUIDeclaration" }
+    ast_node: "UIDeclarationNode"
+    description_ar: >
+      مكوّن واجهة تصريحيّ «واجهة عداد ... نهاية»؛ يحوي تصريحات حالة ودوال. «واجهة» سياقيّة.
+    since: "1.0.0"
+    status: experimental
+    conformance:
+      compiler_optional: true
+      test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 }
+      notes_ar: "نظام الواجهة (SadUI) — قيد التطوير"
+
+  - id: gr.adv.ui_state
+    lhs: { nonterminal: UIStateDecl, name_ar: "تصريح حالة واجهة", name_en: ui_state_decl }
+    ebnf: "UIStateDecl = '@' ( 'حالة' | 'ربط' | 'بيئة' | 'محسوب' ) Identifier [ ':' Type ] [ '=' Expression ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: AT_SIGN, value: "@" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: nonterminal, ref: gr.adv.type } ] }
+          - { kind: optional, children: [ { kind: terminal, ref: OP_ASSIGN, value: "=" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+    maps_to:
+      - { file: shared/parser/src/ui/parser_ui.cpp, function: "ParserCore::parseUIStateDecl" }
+    ast_node: "UIStateDecl"
+    description_ar: >
+      حالة مكوّن: «@حالة اسم: نوع = قيمة» (محليّة)، «@ربط» (مرجع)، «@بيئة» (عالميّة)،
+      «@محسوب اسم = تعبير» (مشتقّة).
+    since: "1.0.0"
+    status: experimental
+    conformance: { compiler_optional: true, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.widget
+    lhs: { nonterminal: WidgetExpr, name_ar: "تعبير عنصر واجهة", name_en: widget_expression }
+    ebnf: "WidgetExpr = WidgetName [ '(' [ Arg { ',' Arg } ] ')' ] ModifierChain [ ChildrenBlock 'نهاية' ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: nonterminal, ref: gr.decl.arg_list }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.adv.ui_modifier_chain }
+    maps_to:
+      - { file: shared/parser/src/ui/parser_ui.cpp, function: "ParserCore::parseWidgetExpression" }
+    ast_node: "UIWidgetExprNode"
+    description_ar: >
+      عنصر واجهة «نص("مرحبا").حجم(32)»؛ يدعم وسائط مسمّاة وغير مسمّاة، سلسلة معدّلات،
+      وكتلة أبناء للحاويات تُغلَق بـ«نهاية». يُحلَّل بعد «اعرض» أو في موضع تعبير.
+    since: "1.0.0"
+    status: experimental
+    conformance: { compiler_optional: true, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }
+    example: |
+      اعرض نص("مرحبا").حجم(32)
+
+  - id: gr.adv.ui_modifier_chain
+    lhs: { nonterminal: ModifierChain, name_ar: "سلسلة معدّلات", name_en: modifier_chain }
+    ebnf: "ModifierChain = { '.' Identifier '(' [ ArgList ] ')' | UIEventHandler } ;"
+    alternatives:
+      - symbols:
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: DOT, value: "." }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: nonterminal, ref: gr.decl.arg_list }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+    maps_to:
+      - { file: shared/parser/src/ui/parser_ui.cpp, function: "ParserCore::parseModifierChain" }
+    ast_node: "std::vector<UIModifierNode>"
+    description_ar: "سلسلة معدّلات لاحقيّة على عنصر «.حجم(32).لون(أحمر)»؛ تشمل معالجات الأحداث"
+    since: "1.0.0"
+    status: experimental
+    conformance: { compiler_optional: true, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.adv.ui_event
+    lhs: { nonterminal: UIEventHandler, name_ar: "معالج حدث", name_en: ui_event_handler }
+    ebnf: "UIEventHandler = '.' EventName '=>' ( Expression | Block 'نهاية' ) ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: DOT, value: "." }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: FAT_ARROW, value: "=>" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+    maps_to:
+      - { file: shared/parser/src/ui/parser_ui.cpp, function: "ParserCore::parseUIEventHandler" }
+    ast_node: "UIEventHandlerNode"
+    description_ar: "معالج حدث «.عند_النقر => اطبع(\"تم!\")»؛ الجسم تعبير «=>» أو كتلة تنتهي بـ«نهاية»"
+    since: "1.0.0"
+    status: experimental
+    conformance: { compiler_optional: true, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 2 } }

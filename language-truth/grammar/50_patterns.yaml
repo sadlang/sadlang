@@ -1,0 +1,164 @@
+# ============================================================================
+# (AR) 50_patterns.yaml — قواعد أنماط المطابقة في لغة ص (طبقة الأنماط)
+# (EN) Match-pattern productions (patterns layer)
+# ----------------------------------------------------------------------------
+# (AR) المصدر: shared/parser/src/statements/parser_advanced.cpp (parsePattern وفروعها)
+#      + shared/parser/src/specs/patterns/parser_pattern_guard.cpp (الحارس).
+#      تُستهلَك من gr.stmt.match (فروع «عندما»).
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: patterns
+
+description_ar: "أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق/قائمة/بنية/ربط/بدائل"
+description_en: "Match patterns — wildcard/literal/variable/range/list/struct/binding/or"
+
+productions:
+
+  - id: gr.pattern.pattern
+    lhs: { nonterminal: Pattern, name_ar: "نمط", name_en: pattern }
+    ebnf: >
+      Pattern = '_' | StructPattern | ListPattern
+              | PrimaryPattern [ '@' Pattern ] | PrimaryPattern { '|' PrimaryPattern } ;
+    alternatives:
+      - label: "شامل"
+        symbols:
+          - { kind: terminal, ref: IDENTIFIER, value: "_" }
+      - label: "بنية / قائمة"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.pattern.struct }
+              - { kind: nonterminal, ref: gr.pattern.list }
+      - label: "أوّليّ مع ربط/بدائل"
+        symbols:
+          - { kind: nonterminal, ref: gr.pattern.primary }
+          - kind: optional
+            children:
+              - kind: alt
+                children:
+                  - { kind: group, children: [ { kind: terminal, ref: AT_SIGN, value: "@" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+                  - { kind: repeat1, children: [ { kind: terminal, ref: OP_OR, value: "|" }, { kind: nonterminal, ref: gr.pattern.primary } ] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePattern" }
+    ast_node: "WildcardPattern | StructPattern | ListPattern | BindingPattern | OrPattern"
+    description_ar: "موزّع النمط: شامل «_»، بنية «{}»، قائمة «[]»، أوّليّ، ربط «@»، بدائل «|»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 4 } }
+
+  - id: gr.pattern.primary
+    lhs: { nonterminal: PrimaryPattern, name_ar: "نمط أوّليّ", name_en: primary_pattern }
+    ebnf: >
+      PrimaryPattern = [ '-' ] Number [ '..' [ '-' ] Number ]
+                     | String | BoolLit | NullLit | Identifier ;
+    alternatives:
+      - label: "حرفيّ / نطاق رقميّ"
+        symbols:
+          - { kind: optional, children: [ { kind: terminal, ref: OP_MINUS, value: "-" } ] }
+          - kind: alt
+            children:
+              - { kind: terminal, ref: NUMBER_INTEGER }
+              - { kind: terminal, ref: NUMBER_DOUBLE }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: DOT_DOT, value: ".." }
+              - { kind: optional, children: [ { kind: terminal, ref: OP_MINUS, value: "-" } ] }
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: NUMBER_INTEGER }
+                  - { kind: terminal, ref: NUMBER_DOUBLE }
+      - label: "حرفيّ آخر"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: STRING_LITERAL }
+              - { kind: terminal, ref: LITERAL_TRUE, value: "صحيح" }
+              - { kind: terminal, ref: LITERAL_FALSE, value: "خطأ" }
+              - { kind: terminal, ref: LITERAL_NULL, value: "لاشيء" }
+      - label: "متغيّر (ربط)"
+        symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePrimaryPattern" }
+    ast_node: "LiteralPattern | RangePattern | VariablePattern"
+    description_ar: "حرفيّ (يدعم السالب)، نطاق «1..10» ⇒ RangePattern، أو مُعرّف ⇒ VariablePattern (يربط القيمة)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }
+
+  - id: gr.pattern.list
+    lhs: { nonterminal: ListPattern, name_ar: "نمط قائمة", name_en: list_pattern }
+    ebnf: "ListPattern = '[' [ Pattern { ( ',' | '،' ) Pattern } ] ']' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: BRACKET_LEFT, value: "[" }
+          - kind: optional
+            children:
+              - { kind: nonterminal, ref: gr.pattern.pattern }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+          - { kind: terminal, ref: BRACKET_RIGHT, value: "]" }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseListPattern" }
+    ast_node: "ListPattern"
+    description_ar: "تفكيك المصفوفة «[أ، ب]»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.pattern.struct
+    lhs: { nonterminal: StructPattern, name_ar: "نمط بنية", name_en: struct_pattern }
+    ebnf: "StructPattern = '{' Identifier ':' Pattern { ( ',' | '،' ) Identifier ':' Pattern } '}' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: BRACE_LEFT, value: "{" }
+          - kind: repeat1
+            separator: OP_COMMA
+            children:
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: terminal, ref: COLON, value: ":" }
+              - { kind: nonterminal, ref: gr.pattern.pattern }
+          - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseStructPattern" }
+    ast_node: "StructPattern"
+    description_ar: "تفكيك الكائن «{س: س}»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.pattern.binding
+    lhs: { nonterminal: BindingPattern, name_ar: "نمط ربط", name_en: binding_pattern }
+    ebnf: "BindingPattern = Identifier '@' Pattern ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: AT_SIGN, value: "@" }
+          - { kind: nonterminal, ref: gr.pattern.pattern }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePattern" }
+    ast_node: "BindingPattern"
+    description_ar: "«ن @ 1..10» يربط «ن» ويطابق النطاق"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 2 } }
+
+  - id: gr.pattern.or
+    lhs: { nonterminal: OrPattern, name_ar: "نمط بدائل", name_en: or_pattern }
+    ebnf: "OrPattern = PrimaryPattern '|' PrimaryPattern { '|' PrimaryPattern } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.pattern.primary }
+          - kind: repeat1
+            children:
+              - { kind: terminal, ref: OP_OR, value: "|" }
+              - { kind: nonterminal, ref: gr.pattern.primary }
+    references: { operators: ["op.logical_or"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePattern" }
+    ast_node: "OrPattern"
+    description_ar: "بدائل «1 | 2» (تستخدم OP_OR)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 2 } }

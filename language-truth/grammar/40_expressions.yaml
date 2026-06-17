@@ -1,0 +1,645 @@
+# ============================================================================
+# (AR) 40_expressions.yaml — قواعد التعابير وسلسلة الأسبقية في لغة ص (طبقة التعابير)
+# (EN) Expression productions and precedence chain (expressions layer)
+# ----------------------------------------------------------------------------
+# (AR) المصدر: shared/parser/src/core/parser_expressions.cpp — محلّل نزولي تعاودي
+#      يرتّب العوامل من الأدنى أسبقيةً (pipeline) إلى الأعلى (primary).
+#      الطرفيات العواملية تُشير إلى operators.yaml (op.*)؛ المرجِع الدلاليّ: alternatives.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: expressions
+
+description_ar: "التعابير وسلسلة الأسبقية — أنبوب/إسناد/ثلاثي/منطقي/بتّي/مقارنة/مدى/حسابي/أحادي/أس/لاحقي/أوّلي"
+description_en: "Expressions and precedence chain — pipeline/assignment/ternary/.../primary"
+
+productions:
+
+  - id: gr.expr.expression
+    lhs: { nonterminal: Expression, name_ar: "تعبير", name_en: expression }
+    ebnf: "Expression = Pipeline ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.pipeline }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseExpression" }
+    description_ar: "غلاف نقطة الدخول — يفوّض لأدنى مستوى أسبقية (الأنبوب)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 4, negative: 2, interaction: 3 } }
+
+  - id: gr.expr.pipeline
+    lhs: { nonterminal: Pipeline, name_ar: "أنبوب", name_en: pipeline }
+    ebnf: "Pipeline = Assignment { '|>' Assignment } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.assignment }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: OP_PIPE_ARROW, value: "|>" }
+              - { kind: nonterminal, ref: gr.expr.assignment }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePipeline" }
+    ast_node: "CallExpr"
+    description_ar: >
+      عامل الأنبوب يساريّ التجميع مع إزالة سكر نحوي: «أ |> د» ← «د(أ)»؛
+      «أ |> د(ب)» ← «د(أ، ب)»؛ «أ |> د |> ت» ← «ت(د(أ))».
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }
+    example: |
+      متغير ن = [1، 2، 3] |> طول
+
+  - id: gr.expr.assignment
+    lhs: { nonterminal: Assignment, name_ar: "إسناد", name_en: assignment }
+    ebnf: >
+      Assignment = Ternary [ ( ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '//=' | '%=' ) Assignment ] ;
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.ternary }
+          - kind: optional
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: OP_WALRUS, value: ":=" }
+                  - { kind: terminal, ref: OP_ASSIGN, value: "=" }
+                  - { kind: terminal, ref: OP_PLUS_ASSIGN, value: "+=" }
+                  - { kind: terminal, ref: OP_MINUS_ASSIGN, value: "-=" }
+                  - { kind: terminal, ref: OP_MULTIPLY_ASSIGN, value: "*=" }
+                  - { kind: terminal, ref: OP_DIVIDE_ASSIGN, value: "/=" }
+                  - { kind: terminal, ref: OP_FLOOR_DIVIDE_ASSIGN, value: "//=" }
+                  - { kind: terminal, ref: OP_MODULO_ASSIGN, value: "%=" }
+              - { kind: nonterminal, ref: gr.expr.assignment }
+    references:
+      operators: ["op.assign", "op.plus_assign", "op.minus_assign", "op.mul_assign", "op.div_assign", "op.mod_assign"]
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseAssignment" }
+    ast_node: "AssignExpr | MemberAssignExpr | IndexAssignExpr | WalrusExpr"
+    description_ar: >
+      يمينيّ التجميع. الهدف: متغيّر/عضو(كائن.حقل)/فهرس(م[ف]). «:=» (walrus) يتطلّب اسم متغيّر.
+      المركّب «س += ص» سكر ← «س = س + ص» (يُعاد بناء طرف القراءة للمتداخل).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 8, negative: 4, interaction: 4 } }
+    example: |
+      متغير س = 0
+      س += 5
+
+  - id: gr.expr.ternary
+    lhs: { nonterminal: Ternary, name_ar: "شرطي ثلاثي", name_en: ternary }
+    ebnf: "Ternary = NullCoalesce [ '?' Expression ':' Ternary ] ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.null_coalesce }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: QUESTION, value: "؟" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: terminal, ref: COLON, value: ":" }
+              - { kind: nonterminal, ref: gr.expr.ternary }
+    references: { operators: ["op.ternary"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseTernary" }
+    ast_node: "TernaryExpr"
+    description_ar: "شرطيّ ثلاثيّ يمينيّ التجميع: «أ ؟ ب : ج ؟ د : هـ» ← «أ ؟ ب : (ج ؟ د : هـ)»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }
+    example: |
+      متغير ن = س > 0 ? "موجب" : "غير موجب"
+
+  - id: gr.expr.null_coalesce
+    lhs: { nonterminal: NullCoalesce, name_ar: "تجميع فارغ", name_en: null_coalesce }
+    ebnf: "NullCoalesce = LogicalOr { '??' LogicalOr } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.logical_or }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: QUESTION_QUESTION, value: "??" }
+              - { kind: nonterminal, ref: gr.expr.logical_or }
+    references: { operators: ["op.null_coalesce"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseNullCoalesce" }
+    ast_node: "NullCoalesceExpr"
+    description_ar: "يُرجِع الطرف الأيسر إن لم يكن لاشيء، وإلا الأيمن"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.logical_or
+    lhs: { nonterminal: LogicalOr, name_ar: "أو المنطقي", name_en: logical_or }
+    ebnf: "LogicalOr = LogicalAnd { ( '||' | 'أو' ) LogicalAnd } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.logical_and }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: OP_OR, value: "||" }
+              - { kind: nonterminal, ref: gr.expr.logical_and }
+    references: { operators: ["op.logical_or", "op.word_or"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseLogicalOr" }
+    ast_node: "BinaryExpr"
+    description_ar: "أو منطقيّ يساريّ التجميع (يقبل «||» و«أو»)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.logical_and
+    lhs: { nonterminal: LogicalAnd, name_ar: "و المنطقي", name_en: logical_and }
+    ebnf: "LogicalAnd = BitwiseOr { ( '&&' | 'و' ) BitwiseOr } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.bitwise_or }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: OP_AND, value: "&&" }
+              - { kind: nonterminal, ref: gr.expr.bitwise_or }
+    references: { operators: ["op.logical_and", "op.word_and"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseLogicalAnd" }
+    ast_node: "BinaryExpr"
+    description_ar: "و منطقيّ يساريّ التجميع (يقبل «&&» و«و»)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.bitwise_or
+    lhs: { nonterminal: BitwiseOr, name_ar: "أو البتّي", name_en: bitwise_or }
+    ebnf: "BitwiseOr = BitwiseXor { '|' BitwiseXor } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.bitwise_xor }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: OP_BITWISE_OR, value: "|" }
+              - { kind: nonterminal, ref: gr.expr.bitwise_xor }
+    references: { operators: ["op.bitwise_or"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseBitwiseOr" }
+    ast_node: "BinaryExpr"
+    description_ar: "أو بتّي يساريّ التجميع"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 1, interaction: 2 } }
+
+  - id: gr.expr.bitwise_xor
+    lhs: { nonterminal: BitwiseXor, name_ar: "XOR البتّي", name_en: bitwise_xor }
+    ebnf: "BitwiseXor = BitwiseAnd { '^' BitwiseAnd } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.bitwise_and }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: OP_XOR, value: "^" }
+              - { kind: nonterminal, ref: gr.expr.bitwise_and }
+    references: { operators: ["op.bitwise_xor"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseBitwiseXor" }
+    ast_node: "BinaryExpr"
+    description_ar: "XOR بتّي يساريّ التجميع"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 1, interaction: 2 } }
+
+  - id: gr.expr.bitwise_and
+    lhs: { nonterminal: BitwiseAnd, name_ar: "و البتّي", name_en: bitwise_and }
+    ebnf: "BitwiseAnd = Equality { '&' Equality } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.equality }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: OP_BITWISE_AND, value: "&" }
+              - { kind: nonterminal, ref: gr.expr.equality }
+    references: { operators: ["op.bitwise_and"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseBitwiseAnd" }
+    ast_node: "BinaryExpr"
+    description_ar: "و بتّي يساريّ التجميع؛ يميَّز عن «&» الاستعارة الأحاديّة بالموضع"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 1, interaction: 2 } }
+
+  - id: gr.expr.equality
+    lhs: { nonterminal: Equality, name_ar: "مساواة", name_en: equality }
+    ebnf: "Equality = Comparison { ( '==' | '!=' ) Comparison } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.comparison }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: OP_EQUAL, value: "==" }
+                  - { kind: terminal, ref: OP_NOT_EQUAL, value: "!=" }
+              - { kind: nonterminal, ref: gr.expr.comparison }
+    references: { operators: ["op.equal", "op.not_equal"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseEquality" }
+    ast_node: "BinaryExpr"
+    description_ar: "مقارنة المساواة/عدمها يساريّ التجميع"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.comparison
+    lhs: { nonterminal: Comparison, name_ar: "مقارنة", name_en: comparison }
+    ebnf: "Comparison = Range { ( '<' | '<=' | '>' | '>=' | 'في' ) Range } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.range }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: OP_LESS, value: "<" }
+                  - { kind: terminal, ref: OP_LESS_EQUAL, value: "<=" }
+                  - { kind: terminal, ref: OP_GREATER, value: ">" }
+                  - { kind: terminal, ref: OP_GREATER_EQUAL, value: ">=" }
+                  - { kind: terminal, ref: KEYWORD_IN, value: "في" }
+              - { kind: nonterminal, ref: gr.expr.range }
+    references:
+      operators: ["op.less", "op.less_equal", "op.greater", "op.greater_equal", "op.in"]
+      keywords: ["KW-RES-016"]
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseComparison" }
+    ast_node: "BinaryExpr"
+    description_ar: "مقارنات ترتيبيّة + عامل العضويّة «في» في نفس المستوى"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.range
+    lhs: { nonterminal: Range, name_ar: "مدى", name_en: range }
+    ebnf: "Range = Term [ '..' [ Term ] ] ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.term }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: DOT_DOT, value: ".." }
+              - { kind: optional, children: [ { kind: nonterminal, ref: gr.expr.term } ] }
+    references: { operators: ["op.range"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseRange" }
+    ast_node: "RangeExpr"
+    description_ar: "مدى «بداية..نهاية»؛ يدعم المدى المفتوح «1..» عند ملاقاة ] ) , أو نهاية الإدخال"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 5, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.term
+    lhs: { nonterminal: Term, name_ar: "حد جمعي", name_en: term }
+    ebnf: "Term = Factor { ( '+' | '-' ) Factor } { ( '<<' | '>>' ) Factor } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.factor }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: OP_PLUS, value: "+" }
+                  - { kind: terminal, ref: OP_MINUS, value: "-" }
+              - { kind: nonterminal, ref: gr.expr.factor }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: OP_SHIFT_LEFT, value: "<<" }
+                  - { kind: terminal, ref: OP_SHIFT_RIGHT, value: ">>" }
+              - { kind: nonterminal, ref: gr.expr.factor }
+    references: { operators: ["op.plus", "op.minus", "op.shift_left", "op.shift_right"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseTerm" }
+    ast_node: "BinaryExpr"
+    description_ar: "الجمع/الطرح ثم الإزاحة البتّيّة «<< >>» في نفس المستوى (بعد +/-)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 3 } }
+
+  - id: gr.expr.factor
+    lhs: { nonterminal: Factor, name_ar: "حد ضربي", name_en: factor }
+    ebnf: "Factor = Unary { ( '*' | '/' | '//' | '%' ) Unary } ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.unary }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: OP_MULTIPLY, value: "*" }
+                  - { kind: terminal, ref: OP_DIVIDE, value: "/" }
+                  - { kind: terminal, ref: OP_FLOOR_DIVIDE, value: "//" }
+                  - { kind: terminal, ref: OP_MODULO, value: "%" }
+              - { kind: nonterminal, ref: gr.expr.unary }
+    references: { operators: ["op.multiply", "op.divide", "op.floor_divide", "op.modulo"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseFactor" }
+    ast_node: "BinaryExpr"
+    description_ar: "الضرب/القسمة/القسمة الصحيحة/الباقي يساريّ التجميع"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.unary
+    lhs: { nonterminal: Unary, name_ar: "أحادي", name_en: unary }
+    ebnf: >
+      Unary = '&' [ Lifetime ] [ 'متغير' | 'mut' ] Identifier
+            | ( '!' | '-' | '++' | '--' | '~' ) Unary
+            | Power ;
+    alternatives:
+      - label: "استعارة"
+        symbols:
+          - { kind: terminal, ref: OP_BITWISE_AND, value: "&" }
+          - { kind: optional, children: [ { kind: terminal, ref: LIFETIME } ] }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_VAR, value: "متغير" } ] }
+          - { kind: terminal, ref: IDENTIFIER }
+      - label: "أحادي بادئ"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: OP_NOT, value: "!" }
+              - { kind: terminal, ref: OP_MINUS, value: "-" }
+              - { kind: terminal, ref: OP_INCREMENT, value: "++" }
+              - { kind: terminal, ref: OP_DECREMENT, value: "--" }
+              - { kind: terminal, ref: OP_BITWISE_NOT, value: "~" }
+          - { kind: nonterminal, ref: gr.expr.unary }
+      - label: "تفويض للأس"
+        symbols:
+          - { kind: nonterminal, ref: gr.expr.power }
+    references: { operators: ["op.not", "op.negate", "op.increment", "op.decrement", "op.bitwise_not", "op.bitwise_and"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseUnary" }
+    ast_node: "UnaryExpr | BorrowExpr"
+    description_ar: >
+      «&متغير» / «&'أ متغير» استعارة (قابلة للتعديل عند «متغير»/«mut»)؛ تعليق العمر اختياريّ.
+      تُميَّز عن «&» البتّي بالموضع البادئ. باقي الأحاديّات بادئة وتعاوديّة.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }
+
+  - id: gr.expr.power
+    lhs: { nonterminal: Power, name_ar: "أس", name_en: power }
+    ebnf: "Power = Postfix [ '**' Power ] ;"
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.postfix }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_POWER, value: "**" }
+              - { kind: nonterminal, ref: gr.expr.power }
+    references: { operators: ["op.power"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePower" }
+    ast_node: "BinaryExpr"
+    description_ar: "الأس يمينيّ التجميع: «2 ** 3 ** 2» ← «2 ** (3 ** 2)»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 1, interaction: 2 } }
+
+  - id: gr.expr.postfix
+    lhs: { nonterminal: Postfix, name_ar: "لاحقي", name_en: postfix }
+    ebnf: >
+      Postfix = Primary { PostfixOp } ;
+      PostfixOp = Identifier '!' '(' ArgList ')' | '(' ArgList ')' [ 'جديد' ]
+                | '.' Member [ '(' ArgList ')' ] | '?.' Member
+                | '[' IndexOrSlice ']' | ( '++' | '--' ) | '?' '[' Expression ']' ;
+    alternatives:
+      - symbols:
+          - { kind: nonterminal, ref: gr.expr.primary }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: group, children: [ { kind: terminal, ref: OP_NOT, value: "!" }, { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" }, { kind: optional, children: [ { kind: terminal, ref: KEYWORD_NEW, value: "جديد" } ] } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: DOT, value: "." }, { kind: terminal, ref: IDENTIFIER }, { kind: optional, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: QUESTION_DOT, value: "?." }, { kind: terminal, ref: IDENTIFIER } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: BRACKET_LEFT, value: "[" }, { kind: nonterminal, ref: gr.expr.expression }, { kind: terminal, ref: BRACKET_RIGHT, value: "]" } ] }
+                  - { kind: alt, children: [ { kind: terminal, ref: OP_INCREMENT, value: "++" }, { kind: terminal, ref: OP_DECREMENT, value: "--" } ] }
+    references: { operators: ["op.call", "op.dot", "op.subscript", "op.optional_chain", "op.increment", "op.decrement"], keywords: ["KW-RES-008"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePostfix" }
+    ast_node: "CallExpr | MethodCallExpr | MemberExpr | OptionalChainExpr | IndexExpr | SliceExpr | NewExpr | UnaryExpr"
+    description_ar: >
+      حلقة لواحق يساريّة: استدعاء «()»، إنشاء لاحقيّ «(...) جديد»، عضو «.»، استدعاء طريقة،
+      وصول آمن «?.»، فهرسة/شريحة «[...]»/«[ب:ن:خطوة]»/«[ب..ن]»، بعديّ «++/--»، فهرسة آمنة «?[...]»،
+      واستدعاء ماكرو «اسم!(...)». يدعم الوصول الرقميّ للصفوف «صف.0.0».
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 10, edge: 10, negative: 4, interaction: 5 } }
+    example: |
+      شخص("أحمد", 30) جديد
+
+  - id: gr.expr.primary
+    lhs: { nonterminal: Primary, name_ar: "أوّلي", name_en: primary }
+    ebnf: >
+      Primary = 'إذا' '(' Expression ')' [ 'ثم' ] Expression 'وإلا' Expression
+              | 'انتظر' Expression | 'انشر' Expression | 'هذا' | 'الأساس' '.' Member
+              | DirectiveExpr | Lambda | Literal | FString | '|' Expression '|'
+              | 'اعرض' Widget | Identifier [ '<' TemplateArgs '>' ]
+              | '(' [ Expression { ',' Expression } ] ')' [ '=>' Expression ]
+              | ArrayLiteral | MapLiteral | BuiltinType | SoftKeywordAsName ;
+    alternatives:
+      - label: "تعبير-إذا"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: KEYWORD_ELSE, value: "وإلا" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+      - label: "هذا/الأساس"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: KEYWORD_THIS, value: "هذا" }
+              - { kind: terminal, ref: KEYWORD_SUPER, value: "الأساس" }
+      - label: "لامدا"
+        symbols:
+          - { kind: nonterminal, ref: gr.expr.lambda }
+      - label: "قيمة حرفيّة"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: LITERAL_TRUE, value: "صحيح" }
+              - { kind: terminal, ref: LITERAL_FALSE, value: "خطأ" }
+              - { kind: terminal, ref: LITERAL_NULL, value: "لاشيء" }
+              - { kind: terminal, ref: NUMBER_INTEGER }
+              - { kind: terminal, ref: NUMBER_DOUBLE }
+              - { kind: terminal, ref: STRING_LITERAL }
+              - { kind: terminal, ref: STRING_RAW }
+      - label: "نص منسَّق"
+        symbols:
+          - { kind: nonterminal, ref: gr.expr.fstring }
+      - label: "متغيّر / تخصيص قالب"
+        symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_LESS, value: "<" }
+              - { kind: nonterminal, ref: gr.adv.template_args }
+              - { kind: terminal, ref: OP_GREATER, value: ">" }
+      - label: "تجميع / صف / سهميّة"
+        symbols:
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - kind: optional
+            children:
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: FAT_ARROW, value: "=>" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+      - label: "مصفوفة / خريطة حرفيّة"
+        symbols:
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.expr.array_literal }
+              - { kind: nonterminal, ref: gr.expr.map_literal }
+    references: { keywords: ["KW-RES-012", "KW-RES-013", "KW-RES-009", "KW-RES-011"] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePrimary" }
+    ast_node: "LiteralExpr | VariableExpr | TupleExpr | ArrayExpr | MapExpr | ThisExpr | SuperExpr | AwaitExpr | ErrorPropagateExpr | TernaryExpr | LambdaExpr | CallExpr | TemplateInstantiation"
+    description_ar: >
+      أعلى مستوى أسبقية. يشمل القيم الحرفيّة، المتغيّر/تخصيص القالب، التجميع/الصف/السهميّة،
+      المصفوفة/الخريطة الحرفيّة، «هذا»/«الأساس»، «انتظر»/«انشر»، تعبير-إذا، القيمة المطلقة «|x|»،
+      وتعبير الواجهة «اعرض». تمييز «(»: «()» صف فارغ، «(x)» تجميع، «(x،...)» صف، «(x) =>» سهميّة.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 12, edge: 10, negative: 5, interaction: 5 } }
+    example: |
+      متغير ص = (1، 2، 3)
+
+  - id: gr.expr.lambda
+    lhs: { nonterminal: Lambda, name_ar: "لامدا", name_en: lambda }
+    ebnf: "Lambda = 'لامدا' '(' Parameters ')' ( '=>' Expression | '=>' Block 'نهاية' | Block 'نهاية' ) ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_LAMBDA, value: "لامدا" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.parameters }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - kind: alt
+            children:
+              - { kind: group, children: [ { kind: terminal, ref: FAT_ARROW, value: "=>" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+              - { kind: group, children: [ { kind: nonterminal, ref: gr.program.block } ] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseLambda" }
+    ast_node: "LambdaExpr"
+    description_ar: "دالة مجهولة؛ الأقواس حول المعاملات إلزاميّة. الجسم تعبير «=>» أو كتلة تنتهي بـ«نهاية»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    example: |
+      متغير ضعف = لامدا(س) => س * 2
+
+  - id: gr.expr.fstring
+    lhs: { nonterminal: FString, name_ar: "نص منسَّق", name_en: fstring }
+    ebnf: "FString = FSTRING_TOKEN ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: STRING_FSTRING }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseFStringExpr" }
+    ast_node: "BinaryExpr | LiteralExpr"
+    description_ar: >
+      نص منسَّق بتعابير مدمجة «{تعبير}»؛ يُزال السكر إلى سلسلة جمع «نص(...) + نصوص».
+      بلا «{}» يُعامَل نصًّا عاديًّا (LiteralExpr).
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 5, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.decorator
+    lhs: { nonterminal: Decorator, name_ar: "مُزخرِف", name_en: decorator }
+    ebnf: "Decorator = '@' Identifier [ '(' ArgList ')' ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: AT_SIGN, value: "@" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: nonterminal, ref: gr.decl.arg_list }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+    maps_to:
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseDecorator" }
+    ast_node: "DecoratorExpr"
+    description_ar: "مُزخرِف يسبق تصريح الدالة؛ بلا/مع وسائط استدعاء"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.directive
+    lhs: { nonterminal: DirectiveExpr, name_ar: "تعبير توجيه", name_en: directive_expr }
+    ebnf: "DirectiveExpr = '@' Name '(' ArgList ')' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: AT_SIGN, value: "@" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.arg_list }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDirectiveExpr" }
+    ast_node: "SizeofExpr | AtomicExpr | InlineAsmExpr"
+    description_ar: "تعابير التوجيهات: «@حجم(نوع)»، «@ذري(عملية، ...)» — تتطلّب «(» بعد الاسم"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.expr.array_literal
+    lhs: { nonterminal: ArrayLiteral, name_ar: "مصفوفة حرفيّة", name_en: array_literal }
+    ebnf: "ArrayLiteral = '[' [ Expression { ( ',' | '،' ) Expression } | ListComprehension ] ']' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: BRACKET_LEFT, value: "[" }
+          - kind: optional
+            children:
+              - kind: alt
+                children:
+                  - { kind: nonterminal, ref: gr.adv.list_comprehension }
+                  - { kind: group, children: [ { kind: nonterminal, ref: gr.expr.expression }, { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] } ] }
+          - { kind: terminal, ref: BRACKET_RIGHT, value: "]" }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseArrayLiteral" }
+    ast_node: "ArrayExpr | ListComprehensionExpr"
+    description_ar: "مصفوفة «[أ، ب، ج]» أو فارغة «[]»؛ تتحوّل لاستيعاب قائمة إن تلا العنصر الأول «لكل»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }
+    example: |
+      متغير ق = [1، 2، 3]
+
+  - id: gr.expr.map_literal
+    lhs: { nonterminal: MapLiteral, name_ar: "خريطة حرفيّة", name_en: map_literal }
+    ebnf: "MapLiteral = '{' [ Expression ( ':' | '=' ) Expression { ',' ... } | DictComprehension ] '}' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: BRACE_LEFT, value: "{" }
+          - kind: optional
+            children:
+              - kind: alt
+                children:
+                  - { kind: nonterminal, ref: gr.adv.dict_comprehension }
+                  - kind: group
+                    children:
+                      - { kind: nonterminal, ref: gr.expr.expression }
+                      - { kind: alt, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: terminal, ref: OP_ASSIGN, value: "=" } ] }
+                      - { kind: nonterminal, ref: gr.expr.expression }
+                      - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+          - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }
+    ast_node: "MapExpr | DictComprehensionExpr"
+    description_ar: "خريطة «{مفتاح: قيمة، ...}» (يُقبَل «=» بدل «:») أو فارغة؛ تتحوّل لاستيعاب قاموس إن وُجد «لكل»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }
+    example: |
+      متغير خ = {"أ": 1، "ب": 2}

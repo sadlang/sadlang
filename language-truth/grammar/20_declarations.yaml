@@ -210,3 +210,20 @@ productions:
     conformance: { compiler_optional: true, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 1 }, notes_ar: "FFI قد لا يُنفَّذ مستقلاً بلا رمز خارجي" }
     example: |
       خارجي دالة printf(نص)
+
+  # ── قائمة الوسائط (مساعِدة) — يستهلكها استدعاء الدوال/الطرق/المُزخرِفات ──────
+  - id: gr.decl.arg_list
+    lhs: { nonterminal: ArgList, name_ar: "قائمة وسائط", name_en: argument_list }
+    ebnf: "ArgList = [ Expression { ( ',' | '،' ) Expression } ] ;"
+    alternatives:
+      - symbols:
+          - kind: optional
+            children:
+              - { kind: nonterminal, ref: gr.expr.expression }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+    maps_to:
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseArgumentList" }
+    description_ar: "وسائط الاستدعاء مفصولة بفواصل (عربيّة أو لاتينيّة)؛ مساعِدة لاستدعاءات gr.expr.postfix والمُزخرِفات والعناصر"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }

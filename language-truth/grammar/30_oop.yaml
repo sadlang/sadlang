@@ -1,0 +1,405 @@
+# ============================================================================
+# (AR) 30_oop.yaml — قواعد البرمجة الكائنية في لغة ص (طبقة OOP)
+# (EN) Object-oriented productions (oop layer)
+# ----------------------------------------------------------------------------
+# (AR) المصدر: shared/parser/src/declarations/parser_declarations.cpp (الصنف/السمة/
+#      التنفيذ/الامتداد) + shared/parser/src/declarations/parser_oop.cpp (الأعضاء).
+#      قاعدة محوريّة: الصفة بعد الموصوف — المعدّلات تأتي بعد الكلمة المفتاحيّة.
+# ============================================================================
+
+schema_version: "5.0"
+version: "1.0"
+layer: oop
+
+description_ar: "البرمجة الكائنية — صنف/أعضاء/حقل/طريقة/باني/هادم/خاصية/سمة/تنفيذ/امتداد/جديد/هذا/الأساس"
+description_en: "OOP — class/members/field/method/constructor/destructor/property/trait/impl/extension/new/this/super"
+
+productions:
+
+  - id: gr.oop.class
+    lhs: { nonterminal: ClassDecl, name_ar: "تصريح صنف", name_en: class_declaration }
+    ebnf: >
+      ClassDecl = 'صنف' { 'مجرد' | 'محكم' } Identifier
+                  [ 'يرث' Identifier { ',' Identifier } ]
+                  [ 'نفّذ' Identifier { ',' Identifier } ]
+                  { ClassMember } 'نهاية' ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_CLASS, value: "صنف" }
+          - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: KEYWORD_ABSTRACT, value: "مجرد" }, { kind: terminal, ref: KEYWORD_SEALED, value: "محكم" } ] } ] }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_IMPL, value: "نفّذ" }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.oop.member } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-003", "KW-RES-006", "KW-RES-007", "KW-RES-029"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseClassDecl" }
+    ast_node: "ClassDecl"
+    description_ar: >
+      الجسم بلا أقواس (ينتهي بـ«نهاية»). المعدّلات «مجرد»/«محكم» بعد «صنف» (الصفة بعد الموصوف).
+      الوراثة بـ«يرث»، وتنفيذ السمات بـ«نفّذ». أسماء الأنواع المدمجة مقبولة كأسماء.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
+    example: |
+      صنف نقطة
+          متغير عام س
+          باني(س) هذا.س = س نهاية
+      نهاية
+
+  - id: gr.oop.enum
+    lhs: { nonterminal: EnumDecl, name_ar: "تصريح تعداد", name_en: enum_declaration }
+    ebnf: "EnumDecl = 'تعداد' Identifier EnumMember { [ ',' ] EnumMember } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_ENUM, value: "تعداد" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: repeat1
+            separator: OP_COMMA
+            children:
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: optional, children: [ { kind: terminal, ref: OP_ASSIGN, value: "=" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-005", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseEnumDecl" }
+    ast_node: "EnumDecl"
+    description_ar: "الأقواس {} مُزالة. عضو واحد على الأقل. أسماء أعضاء مرنة (تقبل كلمات محجوزة غير بنيويّة)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 2 } }
+    example: |
+      تعداد لون
+          أحمر، أخضر، أزرق
+      نهاية
+
+  - id: gr.oop.struct
+    lhs: { nonterminal: StructDecl, name_ar: "تصريح بنية", name_en: struct_declaration }
+    ebnf: "StructDecl = 'بنية' Identifier [ LifetimeParams ] { [ AccessMod ] ( Field | Constructor | Method ) } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_STRUCT, value: "بنية" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.lifetime_params } ] }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: nonterminal, ref: gr.oop.field }
+                  - { kind: nonterminal, ref: gr.oop.constructor }
+                  - { kind: nonterminal, ref: gr.oop.method }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-004", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseStructDecl" }
+    ast_node: "StructDecl"
+    description_ar: "الأقواس {} مُزالة. معاملات عمر اختياريّة. الصفة بعد الموصوف («باني عام» لا «عام باني»)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    example: |
+      بنية نقطة
+          متغير عام س
+          متغير عام ص
+      نهاية
+
+  - id: gr.oop.member
+    lhs: { nonterminal: ClassMember, name_ar: "عضو صنف", name_en: class_member }
+    ebnf: "ClassMember = Property | Method | Constructor | Destructor | Operator | Field ;"
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: nonterminal, ref: gr.oop.property }
+              - { kind: nonterminal, ref: gr.oop.method }
+              - { kind: nonterminal, ref: gr.oop.constructor }
+              - { kind: nonterminal, ref: gr.oop.destructor }
+              - { kind: nonterminal, ref: gr.oop.operator }
+              - { kind: nonterminal, ref: gr.oop.field }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseClassDecl" }
+    description_ar: >
+      موزّع الأعضاء يميّز بالكلمة المفتاحيّة (خاصية/دالة/باني/هدم/عامل/متغير/ثابت). الصيغة القديمة
+      (معدّل قبل الكلمة) تُنتج خطأً توجيهيًّا مع استرداد عبر parseModifiers.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 4, interaction: 3 } }
+
+  - id: gr.oop.field
+    lhs: { nonterminal: FieldDecl, name_ar: "حقل", name_en: field }
+    ebnf: "FieldDecl = ( 'متغير' | 'ثابت' ) Modifiers [ Type ] Identifier [ '=' Expression ] ;"
+    alternatives:
+      - symbols:
+          - kind: alt
+            children:
+              - { kind: terminal, ref: KEYWORD_VAR, value: "متغير" }
+              - { kind: terminal, ref: KEYWORD_CONST, value: "ثابت" }
+          - { kind: nonterminal, ref: gr.oop.modifiers }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: optional, children: [ { kind: terminal, ref: OP_ASSIGN, value: "=" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+    references: { keywords: ["KW-RES-034", "KW-RES-035"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseFieldDeclaration" }
+    ast_node: "FieldDecl"
+    description_ar: "حقل بيانات في صنف/بنية؛ المعدّلات بعد «متغير/ثابت». تُقبَل كلمات ناعمة كأسماء حقول"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.oop.method
+    lhs: { nonterminal: MethodDecl, name_ar: "طريقة", name_en: method }
+    ebnf: "MethodDecl = 'دالة' Modifiers [ 'غير_متزامن' ] [ ReturnType ] Identifier '(' Parameters ')' Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+          - { kind: nonterminal, ref: gr.oop.modifiers }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_ASYNC, value: "غير_متزامن" } ] }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.parameters }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+    references: { keywords: ["KW-RES-001"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseMethodDeclaration" }
+    ast_node: "MethodDecl"
+    description_ar: "طريقة صنف؛ المعدّلات (عام/خاص/محمي/ساكن/مجرد) بعد «دالة». الطرق المجرّدة بلا جسم"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 } }
+
+  - id: gr.oop.constructor
+    lhs: { nonterminal: ConstructorDecl, name_ar: "باني", name_en: constructor }
+    ebnf: "ConstructorDecl = 'باني' Modifiers '(' Parameters ')' [ ':' 'الأساس' '(' ArgList ')' ] Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_CONSTRUCTOR, value: "باني" }
+          - { kind: nonterminal, ref: gr.oop.modifiers }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.parameters }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: COLON, value: ":" }
+              - { kind: terminal, ref: KEYWORD_SUPER, value: "الأساس" }
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: nonterminal, ref: gr.decl.arg_list }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+    references: { keywords: ["KW-RES-010", "KW-RES-011"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseConstructorDeclaration" }
+    ast_node: "ConstructorDecl"
+    description_ar: "الباني بكلمة «باني» (لا __تهيئة__)؛ يدعم استدعاء باني الأساس «: الأساس(...)»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+
+  - id: gr.oop.destructor
+    lhs: { nonterminal: DestructorDecl, name_ar: "هادم", name_en: destructor }
+    ebnf: "DestructorDecl = 'هدم' Modifiers '(' ')' Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_DESTRUCTOR, value: "هدم" }
+          - { kind: nonterminal, ref: gr.oop.modifiers }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseDestructorDeclaration" }
+    ast_node: "DestructorDecl"
+    description_ar: "هادم الصنف بكلمة «هدم»؛ بلا معاملات"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 1 } }
+
+  - id: gr.oop.property
+    lhs: { nonterminal: PropertyDecl, name_ar: "خاصيّة", name_en: property }
+    ebnf: "PropertyDecl = 'خاصية' Modifiers [ Type ] Identifier { ( 'احصل' Block | 'عيّن' Block ) } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_PROPERTY, value: "خاصية" }
+          - { kind: nonterminal, ref: gr.oop.modifiers }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: group, children: [ { kind: terminal, ref: KEYWORD_GET, value: "احصل" }, { kind: nonterminal, ref: gr.program.block } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: KEYWORD_SET, value: "عيّن" }, { kind: nonterminal, ref: gr.program.block } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parsePropertyDeclaration" }
+    ast_node: "PropertyDecl"
+    description_ar: "خاصيّة بكتل «احصل»/«عيّن» (سياقيّتان داخل الخاصيّة)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.oop.operator
+    lhs: { nonterminal: OperatorDecl, name_ar: "تحميل عامل", name_en: operator_overload }
+    ebnf: "OperatorDecl = 'عامل' Modifiers Operator '(' Parameters ')' Block ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_OPERATOR, value: "عامل" }
+          - { kind: nonterminal, ref: gr.oop.modifiers }
+          - { kind: terminal, ref: OP_PLUS, value: "+" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.parameters }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: nonterminal, ref: gr.program.block }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseOperatorDecl" }
+    ast_node: "OperatorDecl"
+    description_ar: "تحميل عامل زائد (+ - * / == ...) داخل صنف بكلمة «عامل»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.oop.modifiers
+    lhs: { nonterminal: Modifiers, name_ar: "معدّلات وصول", name_en: access_modifiers }
+    ebnf: "Modifiers = { 'عام' | 'خاص' | 'محمي' | 'ساكن' | 'مجرد' } ;"
+    alternatives:
+      - symbols:
+          - kind: repeat
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: KEYWORD_PUBLIC, value: "عام" }
+                  - { kind: terminal, ref: KEYWORD_PRIVATE, value: "خاص" }
+                  - { kind: terminal, ref: KEYWORD_PROTECTED, value: "محمي" }
+                  - { kind: terminal, ref: KEYWORD_STATIC, value: "ساكن" }
+                  - { kind: terminal, ref: KEYWORD_ABSTRACT, value: "مجرد" }
+    references: { keywords: ["KW-RES-026", "KW-RES-027", "KW-RES-028", "KW-RES-036", "KW-RES-029"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseModifiers" }
+    description_ar: "معدّلات تأتي بعد الكلمة المفتاحيّة (الصفة بعد الموصوف)؛ الافتراضيّ «عام»"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.oop.trait
+    lhs: { nonterminal: TraitDecl, name_ar: "تصريح سمة", name_en: trait_declaration }
+    ebnf: >
+      TraitDecl = 'سمة' Identifier [ 'يرث' Identifier { ',' Identifier } ]
+                  { 'دالة' [ 'مجرد' ] [ ReturnType ] Identifier '(' Parameters ')' [ DefaultBody 'نهاية' ] }
+                  'نهاية' ;
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_TRAIT, value: "سمة" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+              - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_ABSTRACT, value: "مجرد" } ] }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: nonterminal, ref: gr.decl.parameters }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-006", "KW-RES-001", "KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseTraitDecl" }
+    ast_node: "TraitDecl"
+    description_ar: "سمة (واجهة) بدوال مجرّدة ضمنيًّا (بلا جسم) أو بجسم افتراضيّ اختياريّ. «سمة» سياقيّة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }
+
+  - id: gr.oop.impl
+    lhs: { nonterminal: ImplDecl, name_ar: "كتلة تنفيذ", name_en: impl_block }
+    ebnf: "ImplDecl = 'نفّذ' ( Identifier 'لـ' Identifier | Identifier ) { 'دالة' FunctionDecl } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_IMPL, value: "نفّذ" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: IDENTIFIER, value: "لـ" }
+              - { kind: terminal, ref: IDENTIFIER }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.decl.function } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseImplDecl" }
+    ast_node: "ImplDecl"
+    description_ar: "صيغتان: «نفّذ سمة لـ صنف» و«نفّذ صنف». «نفّذ» سياقيّة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 3 } }
+
+  - id: gr.oop.extension
+    lhs: { nonterminal: ExtensionDecl, name_ar: "كتلة امتداد", name_en: extension_block }
+    ebnf: "ExtensionDecl = 'امتداد' Identifier { 'دالة' FunctionDecl } 'نهاية' ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_EXTENSION, value: "امتداد" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.decl.function } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    references: { keywords: ["KW-RES-007"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExtensionDecl" }
+    ast_node: "ExtensionDecl"
+    description_ar: "إضافة دوال لنوع موجود (اختصار لـ«نفّذ نوع» بلا سمة). «امتداد» سياقيّة"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+
+  - id: gr.oop.new
+    lhs: { nonterminal: NewExpr, name_ar: "إنشاء كائن", name_en: new_expression }
+    ebnf: "NewExpr = ClassName '(' ArgList ')' [ 'جديد' ] ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: nonterminal, ref: gr.decl.arg_list }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_NEW, value: "جديد" } ] }
+    references: { keywords: ["KW-RES-008"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseNewExpr" }
+    ast_node: "NewExpr"
+    description_ar: "«جديد» لاحقيّة اختياريّة (الصفة بعد الموصوف)؛ بادئةً تُعامَل مُعرّفًا. يُبنى في gr.expr.postfix"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+
+  - id: gr.oop.this_super
+    lhs: { nonterminal: ThisSuperExpr, name_ar: "هذا/الأساس", name_en: this_super }
+    ebnf: "ThisSuper = 'هذا' | 'الأساس' '.' Member ;"
+    alternatives:
+      - label: "هذا"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_THIS, value: "هذا" }
+      - label: "الأساس"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_SUPER, value: "الأساس" }
+          - { kind: terminal, ref: DOT, value: "." }
+          - { kind: terminal, ref: IDENTIFIER }
+    references: { keywords: ["KW-RES-009", "KW-RES-011"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseThisExpression" }
+      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseSuperExpression" }
+    ast_node: "ThisExpr | SuperExpr"
+    description_ar: "«هذا» للكائن الحاليّ؛ «الأساس» تُعامَل تعبيرَ أساسٍ فقط إن تلاها «.» (وإلا مُعرّف عاديّ)"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 1, interaction: 2 } }
