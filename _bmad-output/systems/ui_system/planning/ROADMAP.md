@@ -11,6 +11,13 @@ governanceAck: "قرأت 1-policy؛ آخر تحقق VERIFICATION_REPORT_2026-05-
 > خارطة موحّدة تربط كل الخطط الفرعية المتعددة لنظام الرسومات بتسلسل وأولويات.
 > المصدر: الحالة المؤكَّدة في [`../status/implementation_status.md`](../status/implementation_status.md)
 > و [`../status/platform_support_matrix.md`](../status/platform_support_matrix.md).
+>
+> **🔗 ربط خارجي (RFC — مضاف 2026-06-18):** هذه الخارطة معتمَدة علناً كـ **RFC-0001**
+> في مستودع المقترحات `sadlang/rfcs` (PR #1، مدموج). تتبُّع التنفيذ العلني في
+> **Issue #2**. المراحل أدناه تطابق مراحل RFC-0001. الأدلّة السطرية لكل فجوة في
+> [`../status/CODE_PATH_REPORT_2026-06-17.md`](../status/CODE_PATH_REPORT_2026-06-17.md).
+> - المقترح: https://github.com/sadlang/rfcs/blob/main/text/0001-تطوير-نظام-الرسومات.md
+> - تتبُّع التنفيذ: https://github.com/sadlang/rfcs/issues/2
 
 ## 1. أين نحن الآن؟ (خط الأساس 2026-06-08)
 
