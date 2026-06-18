@@ -57,3 +57,43 @@
 - ❌ ادّعاء أن الاختبارات مكتوبة/ناجحة دون وجودها ونجاحها فعلاً (100%).
 - ❌ دعم المفسر فقط دون المترجم بلا `@skip_compiler` موثّق.
 - ❌ تمرير `--level P0` فقط واعتباره كافياً لـ PR (المطلوب P1 على الأقل).
+
+## 5. سير عمل الفروع (git على فرع `dev`)
+
+> **العمل يتكامل في فرع `dev`، لا في `graphic`.** الفرعان **محميّان على GitHub**
+> (Rulesets: `dev`=`17779574`، `graphic`=`16775713`) بقواعد متطابقة:
+> منع الحذف · منع force-push · تاريخ خطّيّ · **توقيع GPG إلزاميّ** · **PR إلزاميّ**.
+> المستودع نُقل إلى منظمة **`sadlang/s-programming-language`** (استخدم `sadlang/...` في `gh api`).
+> راجع `.github/BRANCH_PROTECTION_POLICY.md` و`C:/s_lang/temp-brunch/README.md`.
+
+**القاعدة الذهبية:** لا تُودِع/تدفع **مباشرةً** على `dev` أو `graphic` — كل تغيير يدخل `dev` **عبر PR**
+من فرع `agent/*` معزول في worktree.
+
+1. **أنشئ worktree للمهمة** (فرع من `dev`):
+   ```bash
+   cd /c/s_lang/s-programming-language
+   git fetch origin
+   git worktree add /c/s_lang/temp-brunch/<مهمة> -b agent/<مهمة> origin/dev
+   ```
+2. **اعمل وأودِع داخل المجلد الفرعيّ** (commits **موقّعة GPG** — `commit.gpgsign=true`،
+   المفتاح مُهيّأ؛ وإلا يرفض `dev` الدمج لاشتراط `required_signatures`):
+   ```bash
+   cd /c/s_lang/temp-brunch/<مهمة>
+   git add -A && git commit -m "وصف"   # موقّع تلقائيًّا
+   ```
+3. **ادفع الفرع وافتح PR إلى `dev`** (بعد اجتياز DoD §3 — خصوصًا `runner.py --level P1`):
+   ```bash
+   git push -u origin agent/<مهمة>
+   gh pr create --base dev --head agent/<مهمة> --title "<عنوان>" --body "<وصف + قائمة الملفات>"
+   gh pr merge --merge
+   ```
+4. **نظّف بعد الدمج:**
+   ```bash
+   cd /c/s_lang/s-programming-language
+   git worktree remove /c/s_lang/temp-brunch/<مهمة> && git branch -D agent/<مهمة>
+   ```
+
+**ممنوعات الفروع:** ❌ `git push origin dev` مباشرةً (محظور بالحماية) · ❌ العمل في المجلد الأساسي
+على `dev`/`graphic` مباشرةً · ❌ commit غير موقّع (يُرفَض عند الدمج) · ❌ خلط مهمّتين في worktree واحد.
+
+> **إضافة لـDoD §3 عند العمل المحكوم بفرع:** [ ] العمل على فرع `agent/*` من `dev` (لا commit مباشر على `dev`/`graphic`) · [ ] كل الـcommits موقّعة GPG · [ ] الدمج عبر PR إلى `dev`.

@@ -85,3 +85,25 @@ gh api repos/:owner/:repo/branches/main/protection \
 
 قبل التفعيل، تطبَّق السياسة الاحتياطية الموصوفة في
 `_bmad-output/governance/1-policy/STORY-PMF-V17-ENFORCE-GPG.md` (قسم "الفترة الانتقالية").
+
+---
+
+## حماية فرع `dev` (2026-06-17)
+
+فرع `dev` (فرع تكامل عمل الوكلاء) محميّ **بنفس قواعد `graphic`** عبر Ruleset
+مستقلّ `17779574` ("PMF - Dev Branch Protection"، `enforcement: active`، يستهدف
+`refs/heads/dev`، `bypass_actors: []`). القواعد المتطابقة:
+`deletion` · `non_fast_forward` · `required_linear_history` · `required_signatures` (GPG)
+· `pull_request` (PR إلزاميّ، 0 مراجعات حاليًّا — فريق صغير، كتخفيف graphic).
+
+- **التكوين المحفوظ:** [`ruleset-dev-protection.json`](./ruleset-dev-protection.json).
+- **سير عمل الوكلاء:** فروع `agent/*` في worktrees بمجلد `C:/s_lang/temp-brunch/`،
+  تُدمَج في `dev` **عبر PR فقط** (لا دفع مباشر). راجع `C:/s_lang/temp-brunch/README.md`.
+- **إعادة التطبيق/التحقّق:**
+  ```bash
+  gh api repos/sadlang/s-programming-language/rulesets --method POST \
+    --input .github/ruleset-dev-protection.json        # إنشاء
+  gh api repos/sadlang/s-programming-language/rulesets/17779574 \
+    --jq '{name, enforcement, refs:.conditions.ref_name.include, rules:[.rules[].type]}'  # تحقّق
+  ```
+  > ملاحظة: المستودع نُقل إلى منظمة **`sadlang`** (`sadlang/s-programming-language`).

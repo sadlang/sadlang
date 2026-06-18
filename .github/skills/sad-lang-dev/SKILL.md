@@ -90,7 +90,7 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 | **فهرس كل الأنظمة** | لمعرفة كل أنظمة اللغة وأين تقع (لتحليل الأثر) | [./references/systems-catalog.md](./references/systems-catalog.md) |
 | **الأنظمة متشابكة (اقرأه أولاً)** | **قبل أي تغيير** — لماذا لا يوجد تغيير معزول | [./references/interconnected-systems.md](./references/interconnected-systems.md) |
 | **نظام الحوكمة الإلزامي** | إن مسّت `_bmad-output/` أو عملت ضمن ستوري محكوم | [./references/governance.md](./references/governance.md) |
-| **سير العمل الصارم + معيار الإنجاز** | قبل البدء بأي تغيير — التسلسل، قائمة الملفات، DoD | [./references/workflow.md](./references/workflow.md) |
+| **سير العمل الصارم + معيار الإنجاز + سير عمل الفروع** | قبل البدء بأي تغيير — التسلسل، قائمة الملفات، DoD، **والعمل على فرع `dev` عبر worktree + PR** (§5) | [./references/workflow.md](./references/workflow.md) |
 | **شروط التسليم + تحليل الأثر + قائمة ختامية** | **قبل إعلان الإنجاز** — هل أثّرت على كل المسارات؟ هل نسيتُ شيئاً؟ | [./references/delivery-checklist.md](./references/delivery-checklist.md) |
 | المعمارية وخط الأنابيب الكامل | قبل أي تعديل بنيوي | [./references/architecture.md](./references/architecture.md) |
 | نظام الأخطاء والتشخيص | إضافة/تعديل رمز خطأ أو رسالة | [./references/error-system.md](./references/error-system.md) |
@@ -123,4 +123,8 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 - **مزدوج اللغة:** كل API عام موثّق بـ `@brief (AR)` و `@brief (EN)` (CW-08).
 - **التوافق الخلفي:** إضافة opcode/token/AST node مسموحة — تغيير معنى موجود ممنوع (CW-24).
 - **اختبار المفسر + المترجم:** لا تكتفِ بأحدهما (BF-08, BF-29).
+- **فرع `dev` عبر PR فقط:** العمل يتكامل في فرع **`dev`** (لا `graphic`). كلاهما محميّ على GitHub
+  (Rulesets، توقيع GPG + PR إلزاميّان). أنشئ فرع `agent/<مهمة>` من `dev` في **worktree** بمجلد
+  `C:/s_lang/temp-brunch/`، أودِع بـcommits **موقّعة GPG**، وادمج في `dev` **عبر PR** — لا دفع مباشر.
+  المستودع: `sadlang/s-programming-language`. التفصيل في [./references/workflow.md](./references/workflow.md) §5.
 - **كل تعليق بالعربية وموسّع** — وكل ملف يبدأ بكتلة تشرح وظيفته.
