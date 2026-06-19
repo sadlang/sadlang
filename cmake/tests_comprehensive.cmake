@@ -253,6 +253,17 @@ target_link_libraries(test_ui_reactive_state PRIVATE sad_core sad_profiler_lib)
 target_include_directories(test_ui_reactive_state PRIVATE
     ${CMAKE_SOURCE_DIR}/interpreter/include/ui)
 
+# 14a-ter. خفض «واجهة» إلى SIR في المترجم / UI -> SIR lowering (STORY-UI-W15-04)
+# (AR) يثبت أن SIRBuilder يخفض UIDeclarationNode إلى ClassDecl (Phase 0) فيظهر
+#      صنف SIR بحقول @حالة ودواله مع احترام «يرث». يُربط بـsad_core + sad_frontend.
+# (EN) Verifies SIRBuilder lowers UIDeclarationNode -> ClassDecl (Phase 0):
+#      a SIR class with @state fields + methods + يرث inheritance.
+add_comprehensive_test(test_ui_sir_lowering test_ui_sir_lowering.cpp)
+target_link_libraries(test_ui_sir_lowering PRIVATE sad_core sad_frontend)
+target_include_directories(test_ui_sir_lowering PRIVATE
+    ${CMAKE_SOURCE_DIR}/compiler/include/frontend
+    ${CMAKE_SOURCE_DIR}/compiler/include)
+
 # 14b. اختبارات منصات الرسومات الشاملة / Comprehensive Backend Tests (IR + Pipeline + Codegen)
 add_comprehensive_test(test_backends_comprehensive test_backends_comprehensive.cpp)
 target_link_libraries(test_backends_comprehensive PRIVATE sad_ui)

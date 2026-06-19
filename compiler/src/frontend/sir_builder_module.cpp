@@ -18,6 +18,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "ui_nodes.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -103,6 +104,88 @@ namespace Sad
             // - Sad::AST::VarDeclStmt: statements.h:74
             // - Sad::AST::ClassDecl: declarations.h:122
             // ============================================================================
+            // ============================================================================
+            // (AR) خفض عقد الواجهة (واجهة) إلى أصناف SIR — STORY-UI-W15-04
+            // (EN) Lowering UI declaration nodes (واجهة) to SIR classes — STORY-UI-W15-04
+            // ============================================================================
+            // (AR) عقدة `واجهة` تُعامَل كصنف خاص بالواجهة: تصريحات @حالة تصبح حقولًا،
+            //      ودوال المكوّن (بما فيها `بناء()`) تصبح طُرقًا. نُعيد بناء `ClassDecl`
+            //      مكافئة لتمرّ عبر مسار بناء الأصناف القائم (المراحل 1.3/1.35/2A)،
+            //      تماشيًا مع منطق المفسّر في `statement_executor_oop_struct_test.cpp:503`
+            //      (إعادة استخدام آلية الأصناف القائمة — CW-19/CW-20).
+            // (EN) A `واجهة` node is treated as a UI-specific class: @state declarations
+            //      become fields and component methods (including `بناء()`) become methods.
+            //      We synthesize an equivalent `ClassDecl` so it flows through the existing
+            //      class-building phases (1.3/1.35/2A), mirroring the interpreter logic.
+            namespace
+            {
+                // (AR) خريطة اسم النوع → نوع الحقل (مطابِقة لاصطلاح expression_lowlevel.cpp:232)
+                // (EN) Type-name → field type (matches expression_lowlevel.cpp:232 convention)
+                Sad::Types::SadTypeKind uiTypeNameToKind(const std::string &typeName)
+                {
+                    if (typeName == "\xD8\xB1\xD9\x82\xD9\x85" /*رقم*/ ||
+                        typeName == "\xD8\xB9\xD8\xAF\xD8\xAF" /*عدد*/ ||
+                        typeName == "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD" /*صحيح*/ ||
+                        typeName == "i64" || typeName == "int" || typeName == "integer")
+                        return Sad::Types::SadTypeKind::Integer;
+                    if (typeName == "\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A" /*عشري*/ ||
+                        typeName == "\xD9\x85\xD8\xB6\xD8\xA7\xD8\xB9\xD9\x81" /*مضاعف*/ ||
+                        typeName == "\xD8\xAD\xD9\x82\xD9\x8A\xD9\x82\xD9\x8A" /*حقيقي*/ ||
+                        typeName == "f64" || typeName == "float" || typeName == "double")
+                        return Sad::Types::SadTypeKind::Float;
+                    if (typeName == "\xD9\x85\xD9\x86\xD8\xB7\xD9\x82\xD9\x8A" /*منطقي*/ ||
+                        typeName == "bool" || typeName == "boolean")
+                        return Sad::Types::SadTypeKind::Boolean;
+                    if (typeName == "\xD9\x86\xD8\xB5" /*نص*/ ||
+                        typeName == "string" || typeName == "str")
+                        return Sad::Types::SadTypeKind::String;
+                    if (typeName == "\xD9\x85\xD8\xB5\xD9\x81\xD9\x88\xD9\x81\xD8\xA9" /*مصفوفة*/ ||
+                        typeName == "array")
+                        return Sad::Types::SadTypeKind::Array;
+                    // (AR) بدون نوع صريح → غير معروف (يُستنتج من المُهيّئ لاحقًا)
+                    // (EN) No explicit type → Unknown (inferred from initializer later)
+                    return Sad::Types::SadTypeKind::Unknown;
+                }
+
+                // (AR) تركيب ClassDecl مكافئة لعقدة واجهة (تستهلك حقول العقدة بالنقل)
+                // (EN) Synthesize an equivalent ClassDecl from a UI node (consumes node fields by move)
+                std::unique_ptr<Sad::AST::ClassDecl> synthesizeClassFromUI(Sad::AST::UIDeclarationNode &ui)
+                {
+                    Sad::AST::StmtList members;
+
+                    // (AR) تصريحات @حالة → حقول الصنف
+                    // (EN) @state declarations → class fields
+                    for (auto &sd : ui.stateDecls)
+                    {
+                        if (!sd)
+                            continue;
+                        Sad::Types::SadTypeKind ft = uiTypeNameToKind(sd->typeName);
+                        members.push_back(std::make_unique<Sad::AST::FieldDecl>(
+                            sd->name, ft, std::move(sd->initializer),
+                            Sad::AST::AccessModifier::PUBLIC, /*isStatic*/ false, sd->position));
+                    }
+
+                    // (AR) دوال المكوّن (FunctionDecl) → طُرق الصنف (MethodDecl)
+                    // (EN) Component methods (FunctionDecl) → class methods (MethodDecl)
+                    for (auto &m : ui.methods)
+                    {
+                        auto *fn = dynamic_cast<Sad::AST::FunctionDecl *>(m.get());
+                        if (!fn)
+                            continue;
+                        members.push_back(std::make_unique<Sad::AST::MethodDecl>(
+                            fn->name, std::move(fn->parameters), fn->returnType,
+                            std::move(fn->body), Sad::AST::AccessModifier::PUBLIC,
+                            /*isStatic*/ false, /*isVirtual*/ false, /*isOverride*/ false,
+                            /*isAbstract*/ false, fn->position, fn->is_async));
+                    }
+
+                    // (AR) باني الصنف ذو الأب الواحد (الوراثة `يرث` → superclass)
+                    // (EN) Single-base ClassDecl constructor (`يرث` inheritance → superclass)
+                    return std::make_unique<Sad::AST::ClassDecl>(
+                        ui.name, ui.parentName, std::move(members), ui.isExported, ui.position);
+                }
+            } // namespace
+
             std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode *program)
             {
                 if (!program)
@@ -114,6 +197,26 @@ namespace Sad
                 // (AR) ״¥†״´״§״¡ ˆ״­״¯״© SIR ״¬״¯״¯״© (sir_module.h:501 - SIRModule constructor)
                 // (EN) Create new SIR module
                 module_ = std::make_shared<SIRModule>("main");
+
+                // ===========================================================
+                // Phase 0: Lower UI components (واجهة) to equivalent ClassDecl
+                // so the existing class-building phases (1.3/1.35/2A) handle
+                // them. Mirrors the interpreter's visitUIDeclaration (CW-19/20).
+                // ===========================================================
+                for (auto &uiStmt : *program)
+                {
+                    if (!uiStmt)
+                        continue;
+                    if (auto *uiNode = dynamic_cast<Sad::AST::UIDeclarationNode *>(uiStmt.get()))
+                    {
+                        uiStmt = synthesizeClassFromUI(*uiNode);
+#ifdef SIR_BUILDER_DEBUG
+                        std::cerr << "[SIR-DBG] Phase0: lowered UI component '"
+                                  << static_cast<Sad::AST::ClassDecl *>(uiStmt.get())->name
+                                  << "' to ClassDecl" << std::endl;
+#endif
+                    }
+                }
 
                 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
                 // (AR) ״§„…״±״­„״© ״§„״£ˆ„‰: ״×״³״¬„ ״×ˆ‚״¹״§״× ״¬…״¹ ״§„״¯ˆ״§„ …״³״¨‚״§‹
