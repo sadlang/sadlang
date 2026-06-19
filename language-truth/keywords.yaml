@@ -137,7 +137,7 @@ categories:
       - { id: "KW-CTX-021", subcategory: "namespace", since: "1.0.0", word: "نهاية_فضاء",   tokenType: KEYWORD_END_NAMESPACE, english: end_namespace, roles: [block_closer] }
 
       # ── BeeOS / أنظمة ──
-      - { id: "KW-CTX-022", subcategory: "traits", since: "1.0.0", word: "سمة",     tokenType: KEYWORD_TRAIT,     english: trait,     aliases: ["واجهة"], roles: [block_opener] }
+      - { id: "KW-CTX-022", subcategory: "traits", since: "1.0.0", word: "سمة",     tokenType: KEYWORD_TRAIT,     english: trait,     roles: [block_opener] }
       - { id: "KW-CTX-023", subcategory: "traits", since: "1.0.0", word: "نفّذ",    tokenType: KEYWORD_IMPL,      english: impl,      aliases: ["نفذ"],   roles: [block_opener] }
       - { id: "KW-CTX-024", subcategory: "traits", since: "1.0.0", word: "امتداد",  tokenType: KEYWORD_EXTENSION, english: extension, roles: [block_opener] }
       - { id: "KW-CTX-025", subcategory: "macros", since: "1.0.0", word: "ماكرو",   tokenType: KEYWORD_MACRO,     english: macro,     roles: [block_opener] }
@@ -146,7 +146,7 @@ categories:
       # ── التزامن على نمط Go ──
       - { id: "KW-CTX-027", subcategory: "concurrency", since: "1.0.0", word: "أطلق",  tokenType: KEYWORD_GO,      english: go,      aliases: ["اطلق"] }
       - { id: "KW-CTX-028", subcategory: "concurrency", since: "1.0.0", word: "اختر",  tokenType: KEYWORD_SELECT,  english: select,  roles: [block_opener] }
-      - { id: "KW-CTX-029", subcategory: "ui", since: "1.0.0", word: "واجهة_تصريحية", tokenType: KEYWORD_UI_DECL, english: ui_decl }
+      - { id: "KW-CTX-029", subcategory: "ui", since: "1.0.0", word: "واجهة", tokenType: KEYWORD_UI_DECL, english: ui_decl }
       - { id: "KW-CTX-030", subcategory: "ui", since: "1.0.0", word: "اعرض", tokenType: KEYWORD_SHOW, english: show }
 
       # ── التجميع المضمَّن (inline assembly) ──

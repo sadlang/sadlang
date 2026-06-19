@@ -215,7 +215,19 @@ namespace Sad
         //      to functions or assigned to other variables (Python/Java-like behavior)
         // ════════════════════════════════════════════════════════════════════════
         Value::Value(ObjectPtr obj)
-            : sadType_(reg().getAny()), type_(ValueType::OBJECT), data_(obj)
+            // (AR) [W15-01 / إصلاح جذري P0-1] نَسِم الكائن بنوع صنفه (Class) لا بـAny،
+            //      ليُرجع getKind()=Class ⇒ نوع()=«كائن» — مطابقةً للمترجم (المرجع الصحيح).
+            //      كان reg().getAny() يجعل نوع(زر()) ونوع(نقطة(5)) تُرجع «أي» خطأً (تباعد
+            //      مزدوج: المفسّر≠المترجم). getOrCreateClass مُموَّه (interned) فالكلفة بحث
+            //      مفهرس لا تخصيصٌ متكرّر. اسمٌ فارغ (كائن داخليّ بلا صنف) يبقى Class=«كائن».
+            // (EN) [W15-01 / P0-1 root fix] Tag the object with its class type (Class) not
+            //      Any, so getKind()=Class ⇒ نوع()=«object» — matching the compiler (the
+            //      correct reference). reg().getAny() wrongly made نوع(button())/نوع(point(5))
+            //      return «any» (interpreter≠compiler divergence). getOrCreateClass is
+            //      interned (cached lookup, not re-alloc); an empty name (internal object
+            //      without a class) still yields Class ⇒ «object».
+            : sadType_(obj ? reg().getOrCreateClass(obj->getClassName()) : reg().getAny()),
+              type_(ValueType::OBJECT), data_(obj)
         {
             // (AR) B-step5b: تأكّد أن الكائن مسجَّل في GC ومُجهَّز بـdestroyer + visitor.
             //      نتجنّب التسجيل المكرّر لأن الكائن قد يكون مُسجَّلاً مسبقاً (مثلاً في

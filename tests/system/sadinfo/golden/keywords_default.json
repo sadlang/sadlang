@@ -602,8 +602,6 @@
       "category": "contextual",
       "tokenType": 70,
       "emittedByLexer": false,
-      "aliases": ["واجهة"
-      ],
       "roles": ["block_opener"
       ]
     },
@@ -673,7 +671,7 @@
     },
     {
       "id": "contextual.ui_decl",
-      "word": "واجهة_تصريحية",
+      "word": "واجهة",
       "english": "ui_decl",
       "category": "contextual",
       "tokenType": 77,

@@ -242,6 +242,17 @@ target_include_directories(test_ui_phase1 PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
 )
 
+# 14a-bis. اختبارات السلسلة التفاعلية لـ@حالة / Reactive @state chain Tests (STORY-UI-W15-03)
+# تختبر UIStateManager مباشرة: تسجيل → مراقبة → تصفية → batching → flush
+add_comprehensive_test(test_ui_reactive_state test_ui_reactive_state.cpp)
+# (AR) نربط sad_core للتنفيذ الحقيقي لـUIStateManager — بدون interpreter_test_stubs
+#      لأن تلك البدائل تُبطل (no-op) دوال UIStateManager وتُفشل اختبار التفاعلية.
+# (EN) Link the REAL UIStateManager from sad_core — NOT interpreter_test_stubs,
+#      whose no-op overrides would shadow the implementation under test.
+target_link_libraries(test_ui_reactive_state PRIVATE sad_core sad_profiler_lib)
+target_include_directories(test_ui_reactive_state PRIVATE
+    ${CMAKE_SOURCE_DIR}/interpreter/include/ui)
+
 # 14b. اختبارات منصات الرسومات الشاملة / Comprehensive Backend Tests (IR + Pipeline + Codegen)
 add_comprehensive_test(test_backends_comprehensive test_backends_comprehensive.cpp)
 target_link_libraries(test_backends_comprehensive PRIVATE sad_ui)
