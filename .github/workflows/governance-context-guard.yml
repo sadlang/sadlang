@@ -1,0 +1,87 @@
+# ======================================================================
+# (AR) ملف: .github/workflows/governance-context-guard.yml
+# (AR) الوصف: حارس نظام السياق المتدرّج (RFC 0004 / ADR-GOV-001). ثلاثة فحوص:
+#   1) سقف الحجم: .github/copilot-instructions.md ≤ 200 سطر (النواة تبقى نحيلة).
+#   2) طزاجة الـDigest: GOVERNANCE_DIGEST.md مطابق لما يولّده مصدره (لا انجراف).
+#   3) اكتمال القواعد: docs/ENGINEERING_RULES.md يحوي CW-01..30 و BF-01..30 كاملة.
+# (EN) Description: Tiered-context guard (RFC 0004). Three checks: size cap,
+#                   digest freshness, and engineering-rules completeness.
+# ======================================================================
+
+name: "🧭 Governance Context Guard — RFC 0004"
+
+on:
+  push:
+    paths:
+      - ".github/copilot-instructions.md"
+      - "docs/ENGINEERING_RULES.md"
+      - "_bmad-output/GOVERNANCE_DIGEST.md"
+      - "_bmad-output/governance/1-policy/sprints/**"
+      - "_bmad-output/governance/1-policy/status/**"
+      - "_bmad-output/systems/*/status/implementation_status.md"
+      - "scripts/governance/gen_governance_digest.py"
+  pull_request:
+    branches: [ main, master, develop, dev, graphic ]
+    paths:
+      - ".github/copilot-instructions.md"
+      - "docs/ENGINEERING_RULES.md"
+      - "_bmad-output/GOVERNANCE_DIGEST.md"
+      - "_bmad-output/governance/1-policy/sprints/**"
+      - "_bmad-output/governance/1-policy/status/**"
+      - "_bmad-output/systems/*/status/implementation_status.md"
+      - "scripts/governance/gen_governance_digest.py"
+
+concurrency:
+  group: governance-context-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  context-guard:
+    name: "🧭 فحص النواة + الـDigest + القواعد"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      # ── (1) سقف حجم النواة النحيلة ───────────────────────────────────
+      - name: "📏 سقف الحجم: copilot-instructions.md ≤ 200 سطر"
+        run: |
+          LIMIT=200
+          FILE=".github/copilot-instructions.md"
+          LINES=$(wc -l < "$FILE")
+          echo "(AR) أسطر $FILE = $LINES (الحد $LIMIT)"
+          if [ "$LINES" -gt "$LIMIT" ]; then
+            echo "❌ (AR) النواة تجاوزت السقف ($LINES > $LIMIT). انقل التفاصيل إلى المراجع (docs/المهارات)."
+            echo "❌ (EN) Core exceeded the cap ($LINES > $LIMIT). Move detail into references."
+            exit 1
+          fi
+          echo "✅ (EN) Core within cap: $LINES ≤ $LIMIT"
+
+      # ── (2) طزاجة الـDigest ─────────────────────────────────────────
+      - name: "🐍 تثبيت Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: "🔄 طزاجة GOVERNANCE_DIGEST.md (لا انجراف)"
+        run: |
+          python scripts/governance/gen_governance_digest.py --root . --check
+
+      # ── (3) اكتمال القواعد الـ60 ────────────────────────────────────
+      - name: "📜 اكتمال القواعد: CW-01..30 + BF-01..30"
+        run: |
+          FILE="docs/ENGINEERING_RULES.md"
+          MISSING=0
+          for n in $(seq -w 1 30); do
+            for p in CW BF; do
+              if ! grep -q "${p}-${n}" "$FILE"; then
+                echo "❌ (AR) القاعدة ${p}-${n} مفقودة من $FILE"
+                MISSING=1
+              fi
+            done
+          done
+          if [ "$MISSING" -ne 0 ]; then
+            echo "❌ (EN) ENGINEERING_RULES.md is incomplete (missing rules above)."
+            exit 1
+          fi
+          echo "✅ (EN) All 60 engineering rules present (CW-01..30 + BF-01..30)."
