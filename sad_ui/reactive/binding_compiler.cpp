@@ -912,7 +912,14 @@ namespace sad
                 {
                     try
                     {
-                        return BindingValue(std::stoll(val.asString()));
+                        // (AR) cast صريح إلى int64_t: std::stoll تُرجع long long،
+                        //      وعلى Linux (LP64) int64_t=long فيصير الاستدعاء غامضًا
+                        //      بين بناة BindingValue. على Windows int64_t=long long
+                        //      فلا يظهر الغموض — لذا الإصلاح ضروري لبناء GCC/Clang.
+                        // (EN) Explicit int64_t cast: std::stoll returns long long;
+                        //      on Linux (LP64) int64_t=long, making the call ambiguous
+                        //      across BindingValue ctors (not on Windows LLP64).
+                        return BindingValue(static_cast<int64_t>(std::stoll(val.asString())));
                     }
                     catch (...)
                     {

@@ -74,6 +74,17 @@ function(sad_check_orphan_sources)
         set(SAD_ORPHAN_GUARD_MODE "FATAL")
     endif()
 
+    # (AR) عند إيقاف LLVM (مثل Windows Debug على CI حيث لا يتوفّر LLVM Debug)،
+    #      مصادر مولّد LLVM في compiler/src/backend/ لا تُضاف لأيّ هدف شرعًا،
+    #      فلا يجوز عدّها «يتيمة». نستثنيها ديناميكيًا حسب ENABLE_LLVM_BACKEND.
+    # (EN) When LLVM is OFF (e.g. CI Windows Debug, no Debug LLVM), the LLVM
+    #      codegen sources under compiler/src/backend/ are legitimately not added
+    #      to any target, so they must not be flagged as orphans. Exclude them
+    #      dynamically based on ENABLE_LLVM_BACKEND.
+    if(NOT ENABLE_LLVM_BACKEND)
+        list(APPEND SAD_ORPHAN_EXCLUDE_PATTERNS "/compiler/src/backend/")
+    endif()
+
     # (1) جمع جميع الـ targets ومصادرها
     _sad_collect_all_targets(_all_targets)
     set(_referenced_sources "")

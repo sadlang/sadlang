@@ -18,8 +18,13 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الكتالوج
 #endif
+// (AR) EM-CPP: حامل خطأ الكتالوج — مطلوب على كل المنصّات (Sad::Errors::BuiltinError
+//      يُستعمل دون شرط منصّة). كان محبوسًا خطأً داخل كتلة _WIN32 فكسر بناء Linux.
+// (EN) Catalog error carrier — needed on all platforms (Sad::Errors::BuiltinError
+//      is used unconditionally). It was wrongly trapped inside the _WIN32 block,
+//      breaking the Linux build.
+#include "builtin_error.h"
 
 namespace Sad
 {

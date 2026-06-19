@@ -25,6 +25,11 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+// (AR) <thread> صراحةً لأجل std::this_thread::sleep_for — GCC/Clang لا يضمّانه
+//      ضمنيًا (يعمل على MSVC عبر تضمين عابر). ضروري لبناء Linux.
+// (EN) Explicit <thread> for std::this_thread::sleep_for — GCC/Clang don't pull
+//      it transitively (MSVC does). Required for the Linux build.
+#include <thread>
 
 namespace Sad
 {

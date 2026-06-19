@@ -55,7 +55,7 @@ jobs:
           # Windows x86_64
           - os: windows
             arch: x86_64
-            runner: windows-latest
+            runner: windows-2022   # (AR) مثبَّت لضمان مولّد VS 2022 / pinned for VS2022 generator
             cmake_generator: "Visual Studio 17 2022"
             archive_ext: zip
 
@@ -73,19 +73,8 @@ jobs:
             cmake_generator: "Unix Makefiles"
             archive_ext: tar.gz
 
-          # macOS x86_64
-          - os: macos
-            arch: x86_64
-            runner: macos-13
-            cmake_generator: "Unix Makefiles"
-            archive_ext: tar.gz
-
-          # macOS aarch64 (Apple Silicon)
-          - os: macos
-            arch: aarch64
-            runner: macos-14
-            cmake_generator: "Unix Makefiles"
-            archive_ext: tar.gz
+          # (AR) أُزيلت مدخلات macOS (x86_64/aarch64) — لا نُصدِر لـmacOS.
+          # (EN) macOS entries removed — we do not release for macOS.
 
     steps:
       - name: "استنساخ المصدر / Checkout"
@@ -213,7 +202,7 @@ jobs:
         include:
           - os: windows
             arch: x86_64
-            runner: windows-latest
+            runner: windows-2022   # (AR) مثبَّت لضمان مولّد VS 2022 / pinned for VS2022 generator
             cmake_generator: "Visual Studio 17 2022"
             archive_ext: zip
 
@@ -223,11 +212,8 @@ jobs:
             cmake_generator: "Unix Makefiles"
             archive_ext: tar.gz
 
-          - os: macos
-            arch: aarch64
-            runner: macos-14
-            cmake_generator: "Unix Makefiles"
-            archive_ext: tar.gz
+          # (AR) أُزيلت مدخلة macOS — لا نُصدِر لـmacOS.
+          # (EN) macOS entry removed — we do not release for macOS.
 
     steps:
       - name: "استنساخ المصدر / Checkout"

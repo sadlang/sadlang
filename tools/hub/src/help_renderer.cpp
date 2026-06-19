@@ -4,6 +4,9 @@
 #include "hub/help_renderer.h"
 
 #include <algorithm>
+// (AR) <cstdint> صراحةً لـ SIZE_MAX — GCC/Clang لا يضمّانه ضمنيًا (يعمل على MSVC).
+// (EN) Explicit <cstdint> for SIZE_MAX — not pulled transitively on GCC/Clang.
+#include <cstdint>
 #include <sstream>
 
 namespace Sad

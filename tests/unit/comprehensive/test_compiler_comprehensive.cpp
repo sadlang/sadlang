@@ -17,6 +17,9 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
+// (AR) <cstring> صراحةً لـ strlen — GCC/Clang لا يضمّانه ضمنيًا (يعمل على MSVC).
+// (EN) Explicit <cstring> for strlen — not pulled transitively on GCC/Clang.
+#include <cstring>
 #include "sad_test_framework.h"
 
 // ══════════════════════════════════════════════════════════════════════

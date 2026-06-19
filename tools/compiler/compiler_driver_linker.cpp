@@ -39,6 +39,12 @@
 // Windows API for paths
 #ifdef _WIN32
 #include <windows.h>
+#else
+// (AR) <unistd.h> لـ ::getpid على POSIX (المقابل لـ GetCurrentProcessId على Windows).
+//      كان مفقودًا فيفشل بناء GCC؛ MSVC يستعمل الفرع الويندوزي فلا يحتاجه.
+// (EN) <unistd.h> for ::getpid on POSIX (Windows uses GetCurrentProcessId). It was
+//      missing, breaking the GCC build; MSVC uses the Windows branch.
+#include <unistd.h>
 #endif
 
 // (AR) بيانات runtime المضمّنة — تم توليدها تلقائياً من sad_embedded_runtime.c

@@ -360,10 +360,20 @@ private:
 
 /**
  * إنشاء نص مُدار من حرفي
+ * (AR) محصور بـ MSVC: عوامل الحرفية المُعرَّفة (UDL) بلاحقة غير ASCII (هنا «_مُدار»)
+ *      غير مدعومة في GCC/Clang — مُحلِّلها يقطع اللاحقة عند «_» فيفشل بناء Linux.
+ *      هذا العامل غير مستعمَل في الشيفرة (0 استدعاء)، فحصره لا يكسر شيئًا؛ استخدم
+ *      نص_مُدار("...") مباشرةً للنقل عبر المنصّات.
+ * (EN) MSVC-only: user-defined literals with non-ASCII suffixes («_مُدار») are not
+ *      supported by GCC/Clang (the lexer cuts the suffix at «_»), breaking the
+ *      Linux build. This operator is unused (0 call sites), so guarding it is safe;
+ *      use نص_مُدار("...") directly for portability.
  */
+#if defined(_MSC_VER)
 inline نص_مُدار operator""_مُدار(const char* نص, size_t) {
     return نص_مُدار(نص);
 }
+#endif
 
 } // namespace نص
 } // namespace sad

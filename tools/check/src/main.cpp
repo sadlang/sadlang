@@ -38,6 +38,15 @@
 #include <io.h>
 #else
 #include <unistd.h>
+// (AR) إعلان نطاق-ملف بربط C لـ isatty: في هذه الوحدة لا يُصرّح <unistd.h> عنها
+//      (تعارض سلسلة التضمينات مع -std=c++17 الصارم → __STRICT_ANSI__). الإعلان هنا
+//      (نطاق عام) يطابق توقيع POSIX/libc فيُحَلّ الرمز عند الربط. extern "C" يجب أن
+//      يكون في نطاق ملف لا داخل دالة.
+// (EN) File-scope C-linkage declaration for isatty: <unistd.h> doesn't expose it
+//      in this TU (include chain vs strict -std=c++17). This global declaration
+//      matches the POSIX/libc signature and resolves at link time. extern "C"
+//      must be at namespace scope, not inside a function.
+extern "C" int isatty(int) noexcept;
 #endif
 
 namespace fs = std::filesystem;
@@ -689,7 +698,11 @@ int main(int argc, char **argv)
 #ifdef _WIN32
             opts.color.enabled = (_isatty(_fileno(stdout)) != 0);
 #else
-            opts.color.enabled = isatty(fileno(stdout));
+            // (AR) ::isatty مُعلَنة بربط C في نطاق الملف (انظر أعلاه) — في هذه الوحدة
+            //      لا يُصرّح <unistd.h> عنها (تعارض سلسلة التضمينات مع -std=c++17).
+            // (EN) ::isatty is declared with C linkage at file scope (see above) —
+            //      <unistd.h> doesn't expose it in this TU under strict c++17.
+            opts.color.enabled = (::isatty(fileno(stdout)) != 0);
 #endif
             if (opts.color.enabled)
                 enableVirtualTerminal();

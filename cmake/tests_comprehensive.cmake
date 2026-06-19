@@ -210,12 +210,21 @@ target_include_directories(test_image_comprehensive PRIVATE
 # ──────────────────────────────────────────────────────────────────────
 # 14. اختبارات الواجهة الرسومية + المترجم SIR / UI Widget + Compiler SIR Tests
 # ──────────────────────────────────────────────────────────────────────
-add_comprehensive_test(test_ui_comprehensive test_ui_comprehensive.cpp)
-target_link_libraries(test_ui_comprehensive PRIVATE sad_ui)
-target_include_directories(test_ui_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/compiler/src/sir
-    ${CMAKE_SOURCE_DIR}/compiler/src
-    ${CMAKE_SOURCE_DIR}/sad_ui/core/include)
+# (AR) مُعطَّل: test_ui_comprehensive.cpp كود ميّت لا يُترجَم — يضمّ مجلدًا محذوفًا
+#      (compiler/src/sir/ غير موجود) ورأسًا محذوفًا (sir_opcodes.h) ويستعمل قيم
+#      تعداد UI أُزيلت (Opcode::UICreateWidget… غير معرّفة إطلاقًا) عند تقليص كتالوج
+#      SadUI. لا يمكن إصلاحه لأنه يختبر وظائف أُزيلت عمدًا؛ يُعاد تفعيله فقط إن
+#      أُعيدت أوبكودات UI في SIR. (كان يكسر بناء الاختبارات على كل المنصّات.)
+# (EN) Disabled: test_ui_comprehensive.cpp is uncompilable dead code — it includes
+#      a deleted dir (compiler/src/sir/) and header (sir_opcodes.h) and uses removed
+#      UI opcode enum values (Opcode::UICreateWidget… undefined). It tests removed
+#      functionality, so it is disabled until UI SIR opcodes are reintroduced.
+# add_comprehensive_test(test_ui_comprehensive test_ui_comprehensive.cpp)
+# target_link_libraries(test_ui_comprehensive PRIVATE sad_ui)
+# target_include_directories(test_ui_comprehensive PRIVATE
+#     ${CMAKE_SOURCE_DIR}/compiler/src/sir
+#     ${CMAKE_SOURCE_DIR}/compiler/src
+#     ${CMAKE_SOURCE_DIR}/sad_ui/core/include)
 
 # 14a. اختبارات قبول المرحلة 0: Parser UI (إذا/وإلا + لكل + knownWidgets)
 # Phase 0 Acceptance Tests: UI Parser (conditional rendering + loops + widget registry)

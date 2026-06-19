@@ -54,7 +54,11 @@
 #include "interpreter_core.h"
 #include "error_manager.h"
 #include "value.h"
-#include "../../interpreter/include/exception.h"
+// (AR) ExitException نُقلت إلى user_thrown.h (الرأس القديم exception.h حُذف).
+//      interpreter/include ضمن مسارات التضمين، فنستعمل اسمًا بسيطًا قابلًا للنقل.
+// (EN) ExitException moved to user_thrown.h (old exception.h was removed);
+//      interpreter/include is on the include path, so use a simple portable name.
+#include "user_thrown.h"
 #include "utf8_utils.h"
 
 #include <iostream>

@@ -28,8 +28,12 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <algorithm>
 #endif
+// (AR) <algorithm> صراحةً لـ std::replace — كان محبوسًا خطأً داخل كتلة _WIN32
+//      فكسر بناء Linux (يُستعمل دون شرط منصّة).
+// (EN) Explicit <algorithm> for std::replace — was wrongly trapped inside the
+//      _WIN32 block, breaking the Linux build (used unconditionally).
+#include <algorithm>
 
 namespace fs = std::filesystem;
 

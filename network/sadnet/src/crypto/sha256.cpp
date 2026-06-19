@@ -16,12 +16,23 @@
 #include <intrin.h>
 #include <immintrin.h>
 #define SADNET_X86_INTRINSICS 1
+// (AR) MSVC يقبل تعليمات SHA-NI/SSE دون سمة هدف على مستوى الدالة.
+// (EN) MSVC accepts SHA-NI/SSE intrinsics without a per-function target attribute.
+#define SADNET_SHANI_TARGET
 #elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
 #include <cpuid.h>
 #include <immintrin.h>
 #define SADNET_X86_INTRINSICS 1
+// (AR) GCC/Clang يتطلب سمة هدف لترجمة تعليمات SHA-NI داخل دالة دون -msha عام،
+//      وإلا فشل تضمين always_inline («target specific option mismatch»). الإرسال
+//      وقت التشغيل عبر HAS_SHA_NI يضمن عدم استدعائها على معالج لا يدعمها.
+// (EN) GCC/Clang need a per-function target attribute to compile SHA-NI intrinsics
+//      without a global -msha (otherwise always_inline inlining fails). Runtime
+//      dispatch via HAS_SHA_NI guarantees it is never called on unsupported CPUs.
+#define SADNET_SHANI_TARGET __attribute__((target("sha,sse4.1,ssse3")))
 #else
 #define SADNET_X86_INTRINSICS 0
+#define SADNET_SHANI_TARGET
 #endif
 
 namespace sad::net::crypto
@@ -289,6 +300,7 @@ namespace sad::net::crypto
         0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
 
     /// معالجة كتلة 512 بت بـ SHA-NI
+    SADNET_SHANI_TARGET
     static void sha256_transform_shani(SHA256State &state)
     {
         __m128i STATE0, STATE1;

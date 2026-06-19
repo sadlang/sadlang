@@ -12,6 +12,11 @@
 #include "sadnet/crypto/crypto.h"
 #include <algorithm>
 #include <atomic>
+// (AR) <condition_variable> صراحةً — يُستعمل std::condition_variable (resp_cv)؛
+//      GCC/Clang لا يضمّانه ضمنيًا (يعمل على MSVC عبر تضمين عابر).
+// (EN) Explicit <condition_variable> — std::condition_variable is used; GCC/Clang
+//      don't pull it transitively (works on MSVC via a transitive include).
+#include <condition_variable>
 #include <cstring>
 #include <map>
 #include <mutex>

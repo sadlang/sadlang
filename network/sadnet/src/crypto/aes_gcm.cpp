@@ -40,6 +40,19 @@
 #define SADNET_AESNI_AVAILABLE 0
 #endif
 
+// (AR) على GCC/Clang: تعليمات AES-NI/PCLMUL تتطلّب تفعيل ISA لترجمتها داخل
+//      الدوال (وإلا فشل تضمين always_inline: «target specific option mismatch»).
+//      نُفعّلها لكامل وحدة الترجمة عبر pragma؛ والإرسال وقت التشغيل (HAS_AESNI)
+//      يضمن ألّا تُنفَّذ على معالج لا يدعمها. MSVC لا يحتاج ذلك (يتجاهل الـpragma).
+// (EN) On GCC/Clang, AES-NI/PCLMUL intrinsics need the ISA enabled to compile
+//      inside functions (else always_inline inlining fails). We enable it for the
+//      whole TU via pragma; runtime dispatch (HAS_AESNI) ensures it never executes
+//      on unsupported CPUs. MSVC needs no such flag (ignores the pragma).
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+#pragma GCC push_options
+#pragma GCC target("aes,pclmul,sse4.1,ssse3")
+#endif
+
 namespace sad::net::crypto
 {
 
@@ -1140,3 +1153,9 @@ namespace sad::net::crypto
     }
 
 } // namespace sad::net::crypto
+
+// (AR) إنهاء تفعيل ISA الخاص بـ AES-NI/PCLMUL (يقابل push_options أعلاه).
+// (EN) End AES-NI/PCLMUL ISA scope (matches push_options above).
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+#pragma GCC pop_options
+#endif
