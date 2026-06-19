@@ -80,7 +80,7 @@ jobs:
   #        -DBUILD_TESTS=OFF
     
   #  - name: 🔨 Build sad interpreter
-  #    run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
+  #    run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
     
   #  - name: ✅ Test interpreter
   #    run: |
@@ -149,7 +149,7 @@ jobs:
     - name: 🔨 Build
       run: |
         export CCACHE_MAXSIZE=${{ env.CCACHE_MAXSIZE }}
-        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad -j$(nproc)
+        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run -j$(nproc)
         ccache -s
     
     - name: ✅ Test
@@ -215,7 +215,7 @@ jobs:
     - name: 🔨 Build
       run: |
         export CCACHE_MAXSIZE=${{ env.CCACHE_MAXSIZE }}
-        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad -j$(sysctl -n hw.ncpu)
+        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run -j$(sysctl -n hw.ncpu)
         ccache -s
     
     - name: ✅ Test

@@ -149,11 +149,11 @@ build_project() {
     
     # البناء
     echo "بناء المفسر (sad)..."
-    cmake --build . --target sad --parallel $(nproc)
+    cmake --build . --target sad-run --parallel $(nproc)
     
     if [ "$HAVE_LLVM" = true ]; then
         echo "بناء المترجم (sadc)..."
-        cmake --build . --target sadc --parallel $(nproc)
+        cmake --build . --target sad-build --parallel $(nproc)
     fi
     
     cd ..

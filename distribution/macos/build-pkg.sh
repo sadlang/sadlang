@@ -44,7 +44,7 @@ cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR/cmake-build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX"
 
-cmake --build "$BUILD_DIR/cmake-build" --config Release --target sad -- -j"$(sysctl -n hw.ncpu)"
+cmake --build "$BUILD_DIR/cmake-build" --config Release --target sad-run -- -j"$(sysctl -n hw.ncpu)"
 
 # === إعداد هيكل الحزمة ===
 echo "→ إعداد هيكل الحزمة..."

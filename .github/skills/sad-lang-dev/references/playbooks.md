@@ -112,8 +112,8 @@ interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Math::C
 
 ### المهمة 7 — ابنِ وشغّل
 ```powershell
-cmake --build build --config Debug --target sad
-cmake --build build --config Release --target sadc
+cmake --build build --config Debug --target sad-run
+cmake --build build --config Release --target sad-build
 python tests/runner.py --section رياضيات
 python tests/runner.py --level P1
 ```

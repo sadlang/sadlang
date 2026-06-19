@@ -132,13 +132,13 @@ cmake --build build --config Debug --target sad_shared
 cmake --build build --config Debug --target sad_hub
 
 # 🟩 المسار 1 — بناء المفسر الشجري (sad-run.exe)
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 
 # 🟧 المسار 2 — بناء الآلة الافتراضية
 cmake --build build --config Debug --target sad_vm
 
 # 🟪 المسار 3 — بناء المترجم الأصلي (sad-build.exe)
-cmake --build build --config Debug --target sadc
+cmake --build build --config Debug --target sad-build
 
 # ✓ فاحص الملكية الثابت (sad-check.exe)
 cmake --build build --config Debug --target sad_check

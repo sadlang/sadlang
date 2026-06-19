@@ -445,14 +445,14 @@ endforeach()
 #      Recalibration is a human action (--calibrate), never a CI step.
 # ──────────────────────────────────────────────────────────────────────
 find_package(Python3 COMPONENTS Interpreter QUIET)
-if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py" AND TARGET sad)
+if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py" AND TARGET sad-run)
     # (AR) ملاحظة: هدف المفسر اسمه `sad` (OUTPUT_NAME=sad-run)؛ `sad-run` مجرد
     #      custom target للاكتشاف ولا يملك TARGET_FILE.
     # (EN) Note: the interpreter target is `sad` (OUTPUT_NAME=sad-run).
     add_test(
         NAME NFR_Gate
         COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py"
-                --interp "$<TARGET_FILE:sad>"
+                --interp "$<TARGET_FILE:sad-run>"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
     set_tests_properties(NFR_Gate PROPERTIES TIMEOUT 180 LABELS "System;nfr")

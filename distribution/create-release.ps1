@@ -103,7 +103,7 @@ if (-not $DryRun) {
     }
     
     # Build Release
-    cmake --build $BuildDir --config Release --target sad
+    cmake --build $BuildDir --config Release --target sad-run
     cmake --build $BuildDir --config Release --target sad-lsp
     cmake --build $BuildDir --config Release --target sad-pkg
     cmake --build $BuildDir --config Release --target sad-fmt

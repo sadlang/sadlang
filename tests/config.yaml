@@ -9,9 +9,21 @@
 #      المفسر الفعلي هو `sad-run.exe` ويُستدعى مباشرة لتفادي الحمل الزائد.
 # (EN) Note: After tools restructure, `sad.exe` is the dispatcher hub.
 #      The real interpreter is `sad-run.exe`; invoked directly for less overhead.
+# (AR) المترجم: هدف CMake `sad-build` يُنتج `sad-build.exe` — وحَّدنا اسم الهدف مع
+#      اسم المخرج، فلم يَعُد اسم `sadc.exe` البائت (الذي لا يُنتجه أيّ هدف) مستعملاً.
+#      كلا المسارين من تهيئة Debug نفسها: أُصلح بناء المترجم في Debug جذريًا في
+#      cmake/llvm.cmake (مسار بحث LLVM مُدرِك للتهيئة + سرد مكتبات Debug بالأسماء
+#      المجرّدة + مكتبات النظام) فزال تعارض _ITERATOR_DEBUG_LEVEL/RuntimeLibrary.
+#      هذا يُزيل عثرتَي «الثنائي البائت» و«مفسّر Debug + مترجم Release» معًا.
+# (EN) Compiler: CMake target `sad-build` outputs `sad-build.exe` — target name
+#      unified with output; the stale `sadc.exe` is gone. Both paths use the same
+#      Debug config: the Debug compiler build was root-fixed in cmake/llvm.cmake
+#      (config-aware LLVM search dir + bare-name Debug lib listing + system libs),
+#      removing the _ITERATOR_DEBUG_LEVEL/RuntimeLibrary mismatch. This removes the
+#      "stale binary" and "Debug interp + Release compiler" gotchas together.
 paths:
   interpreter: "build/bin/Debug/sad-run.exe"
-  compiler: "build/bin/Release/sadc.exe"
+  compiler: "build/bin/Debug/sad-build.exe"
   tests_dir: "tests/behavior"
 
 # (AR) إعدادات التنفيذ

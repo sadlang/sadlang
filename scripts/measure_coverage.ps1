@@ -164,10 +164,10 @@ if (-not $SkipBuild -and -not $HtmlOnly) {
     Write-Host "  بناء هدف sad..."
 
     if ($Verbose) {
-        & $CMAKE --build $BUILD_COV --target sad --config Debug
+        & $CMAKE --build $BUILD_COV --target sad-run --config Debug
     }
     else {
-        & $CMAKE --build $BUILD_COV --target sad --config Debug 2>&1 | Select-Object -Last 8
+        & $CMAKE --build $BUILD_COV --target sad-run --config Debug 2>&1 | Select-Object -Last 8
     }
 
     if ($LASTEXITCODE -ne 0) {

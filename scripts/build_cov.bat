@@ -30,7 +30,7 @@ if errorlevel 1 (
 )
 
 echo [2/2] بناء هدف sad...
-cmake --build "%BUILD_COV%" --target sad
+cmake --build "%BUILD_COV%" --target sad-run
 
 if errorlevel 1 (
     echo [خطا] فشل البناء

@@ -32,7 +32,7 @@ QEMU              — qemu-system-x86_64 للاختبار
 ### أوامر البناء
 ```powershell
 # بناء sadc أولاً (إذا لزم تعديل المترجم)
-cmake --build build --config Release --target sadc
+cmake --build build --config Release --target sad-build
 
 # بناء نواة أفق (47 ملف .ص + kernel_aliases.ll → ELF)
 cd "c:\s_lang\s-programming-language\أفق"

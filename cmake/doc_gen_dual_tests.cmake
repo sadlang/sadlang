@@ -47,7 +47,7 @@ add_custom_target(doc_gen_tests_fast
     COMMAND ${_DOC_GEN_ENV} --skip-pdf
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "📄 اختبارات استخراج التوثيق (md/json/html فقط)"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
@@ -55,14 +55,14 @@ add_custom_target(doc_gen_tests_full
     COMMAND ${_DOC_GEN_ENV}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "📄 اختبارات استخراج التوثيق الشاملة (يشمل PDF)"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
 # (AR) إذا كان sadc هدفاً، نضيف اعتمادية
-if(TARGET sadc)
-    add_dependencies(doc_gen_tests_fast sadc)
-    add_dependencies(doc_gen_tests_full sadc)
+if(TARGET sad-build)
+    add_dependencies(doc_gen_tests_fast sad-build)
+    add_dependencies(doc_gen_tests_full sad-build)
 endif()
 
 # ──────────────────────────────────────────────────────────────────────

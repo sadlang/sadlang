@@ -152,7 +152,7 @@ add_comprehensive_test(test_regression_comprehensive test_regression_comprehensi
 
 # تمرير مسار sad.exe ومجلد الاختبارات / Pass interpreter and test directory paths
 target_compile_definitions(test_regression_comprehensive PRIVATE
-    SAD_EXE_PATH="$<TARGET_FILE:sad>"
+    SAD_EXE_PATH="$<TARGET_FILE:sad-run>"
     REGRESSION_DIR="${CMAKE_SOURCE_DIR}/tests/behavior/_regression"
 )
 
@@ -318,7 +318,7 @@ foreach(TEST_NAME IN LISTS REGRESSION_P0_TESTS REGRESSION_P1_TESTS REGRESSION_P2
     if(EXISTS "${TEST_FILE}")
         add_test(
             NAME "Regression_${TEST_NAME}"
-            COMMAND $<TARGET_FILE:sad> "${TEST_FILE}"
+            COMMAND $<TARGET_FILE:sad-run> "${TEST_FILE}"
         )
         set_tests_properties("Regression_${TEST_NAME}" PROPERTIES
             TIMEOUT 15
@@ -329,7 +329,7 @@ foreach(TEST_NAME IN LISTS REGRESSION_P0_TESTS REGRESSION_P1_TESTS REGRESSION_P2
 endforeach()
 
 # الحلقة اللانهائية تحتاج مهلة قصيرة / Infinite loop test needs shorter timeout
-if(TARGET sad)
+if(TARGET sad-run)
     set_tests_properties("Regression_test_p02_while_update" PROPERTIES TIMEOUT 5)
 endif()
 
@@ -338,7 +338,7 @@ message(STATUS "  ✅ test_regression_comprehensive (30 regression tests)")
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات ?. و ?? عبر ملفات .ص / Optional Chain & Null Coalesce .ص tests
 # ──────────────────────────────────────────────────────────────────────
-if(TARGET sad)
+if(TARGET sad-run)
     # (AR) TEST-005: نُقلت ملفات ?./?? إلى behavior/_regression (موطن .ص التي
     #      يشغّلها ctest) بعد أرشفة tests/ownership — راجع tests/_archive/README.md
     # (EN) TEST-005: optional-null .ص files moved to behavior/_regression after
@@ -347,7 +347,7 @@ if(TARGET sad)
     file(GLOB OPT_NULL_TESTS "${OPT_TEST_DIR}/test_optional_null*")
     foreach(OPT_FILE IN LISTS OPT_NULL_TESTS)
         get_filename_component(OPT_NAME "${OPT_FILE}" NAME_WE)
-        add_test(NAME "OptionalNull_${OPT_NAME}" COMMAND $<TARGET_FILE:sad> "${OPT_FILE}")
+        add_test(NAME "OptionalNull_${OPT_NAME}" COMMAND $<TARGET_FILE:sad-run> "${OPT_FILE}")
         set_tests_properties("OptionalNull_${OPT_NAME}" PROPERTIES TIMEOUT 15 LABELS "optional_null")
         message(STATUS "  [test] OptionalNull: ${OPT_NAME}")
     endforeach()
@@ -358,7 +358,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # تتطلب بناء sadc (LLVM مفعّل) — تشغل سكريبت PowerShell يتحقق من أنماط LLVM IR
 # Requires sadc target (LLVM enabled) — runs PowerShell script that verifies LLVM IR patterns
-if(TARGET sadc AND WIN32)
+if(TARGET sad-build AND WIN32)
     find_program(POWERSHELL_EXE powershell)
     if(POWERSHELL_EXE)
         add_test(
@@ -366,7 +366,7 @@ if(TARGET sadc AND WIN32)
             COMMAND ${POWERSHELL_EXE}
                 -ExecutionPolicy Bypass
                 -File "${CMAKE_SOURCE_DIR}/tests/compiler/run_freestanding_tests.ps1"
-                -SadcPath "$<TARGET_FILE:sadc>"
+                -SadcPath "$<TARGET_FILE:sad-build>"
                 -TestDir "${CMAKE_SOURCE_DIR}/tests/compiler"
         )
         set_tests_properties("Compiler_Freestanding_BugFixes" PROPERTIES

@@ -668,13 +668,13 @@ cmake --build build --config Debug --target sad_shared
 
 # بناء مسار الشجرة (الطبقة 2أ)
 cmake --build build --config Debug --target sad_interpreter
-cmake --build build --config Debug --target sad        # المنفذ النهائي
+cmake --build build --config Debug --target sad-run        # المنفذ النهائي
 
 # بناء مسار الآلة الافتراضية (الطبقة 2ب)
 cmake --build build --config Debug --target sad_vm
 
 # بناء المترجم الأصلي
-cmake --build build --config Debug --target sadc
+cmake --build build --config Debug --target sad-build
 
 # تشغيل ملف عبر المفسر الشجري
 .\build\bin\Debug\sad.exe examples\test_simple.ص

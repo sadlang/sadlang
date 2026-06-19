@@ -49,7 +49,7 @@ endif()
 # (AR) المكوّن runtime: المفسر sad-run + المكتبة القياسية
 # (EN) Component runtime: interpreter sad-run + standard library
 # ══════════════════════════════════════════════════════════════════════
-install(TARGETS sad
+install(TARGETS sad-run
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT runtime
 )
@@ -83,8 +83,8 @@ endif()
 # (AR) المكوّن compiler: المترجم الأصلي sad-build (LLVM)
 # (EN) Component compiler: native compiler sad-build (LLVM)
 # ══════════════════════════════════════════════════════════════════════
-if(TARGET sadc)
-    install(TARGETS sadc
+if(TARGET sad-build)
+    install(TARGETS sad-build
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT compiler
     )
@@ -198,7 +198,7 @@ endif()
 #      Built dynamically — only include components whose targets exist
 # ──────────────────────────────────────────────────────────────────────
 set(CPACK_COMPONENTS_ALL hub runtime fmt check tools-extra docs examples)
-if(TARGET sadc)
+if(TARGET sad-build)
     list(APPEND CPACK_COMPONENTS_ALL compiler)
 endif()
 # (AR) mobile فقط إذا تم بناء أحد أدواتها

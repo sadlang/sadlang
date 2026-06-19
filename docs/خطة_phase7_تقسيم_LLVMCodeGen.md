@@ -119,8 +119,8 @@ class LLVMCodeGen : public LLVMCodeGenContext {
 
 ## 6. خطة التحقق لكل خطوة
 
-1. `cmake --build build --config Release --target sadc` → 0 أخطاء
-2. `cmake --build build --config Debug --target sad` → 0 أخطاء
+1. `cmake --build build --config Release --target sad-build` → 0 أخطاء
+2. `cmake --build build --config Debug --target sad-run` → 0 أخطاء
 3. `python tests/dual_execution/runner.py` → ≥790/837 (baseline 793)
 4. `git commit` بصياغة `refactor(phase-7-step-N): فصل XCodeGen (~M methods, K ملفات)`
 5. `git push origin graphic`

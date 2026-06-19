@@ -153,8 +153,8 @@ TemplateBuilder (حوالي 14 method):
 **Commit:** `refactor(phase-6-step-1): استخراج SIRBuilderContext من SIRBuilder (inheritance مؤقت)`
 
 **معايير القبول:**
-- ✅ `cmake --build build --config Debug --target sad` ينجح
-- ✅ `cmake --build build --config Release --target sadc` ينجح
+- ✅ `cmake --build build --config Debug --target sad-run` ينجح
+- ✅ `cmake --build build --config Release --target sad-build` ينجح
 - ✅ `python tests/dual_execution/runner.py` = 793/837
 
 ---

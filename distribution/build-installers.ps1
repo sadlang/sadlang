@@ -161,7 +161,7 @@ function Build-WindowsInstaller {
 
     if (-not $hasInterpreter) {
         Write-Error2 "  المفسر sad.exe غير موجود!"
-        Write-Host "  شغّل أولاً: cmake --build build --config $Config --target sad" -ForegroundColor Yellow
+        Write-Host "  شغّل أولاً: cmake --build build --config $Config --target sad-run" -ForegroundColor Yellow
         return
     }
 
@@ -975,7 +975,7 @@ jobs:
       - name: "بناء sad.exe"
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target sad
+          cmake --build build --config Release --target sad-run
           cmake --build build --config Release --target sad-lsp  2>$null || true
           cmake --build build --config Release --target sad-pkg  2>$null || true
           cmake --build build --config Release --target sad-fmt  2>$null || true
@@ -1030,7 +1030,7 @@ jobs:
       - name: "بناء sad"
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --target sad
+          cmake --build build --config Release --target sad-run
           cmake --build build --config Release --target sad-lsp  || true
           cmake --build build --config Release --target sad-pkg  || true
           cmake --build build --config Release --target sad-fmt  || true
@@ -1073,7 +1073,7 @@ jobs:
             apt-get update -qq && apt-get install -y cmake g++ ninja-build dpkg-dev fakeroot wget
             cd /repo
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-            cmake --build build --config Release --target sad || true
+            cmake --build build --config Release --target sad-run || true
             chmod +x distribution/linux/build-linux.sh
             bash distribution/linux/build-linux.sh "$(echo $VERSION | sed 's/v//')" aarch64 build/bin/Release || true
 
@@ -1104,7 +1104,7 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
-          cmake --build build --config Release --target sad
+          cmake --build build --config Release --target sad-run
           cmake --build build --config Release --target sad-lsp  || true
           cmake --build build --config Release --target sad-pkg  || true
           cmake --build build --config Release --target sad-fmt  || true

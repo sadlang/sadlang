@@ -5,11 +5,18 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
-# المفسر الرئيسي / Main Interpreter (sad)
+# المفسر الرئيسي / Main Interpreter (sad-run)
+# (AR) اسم الهدف موحَّد مع اسم المخرج (sad-run.exe) — RFC «توحيد أسماء أهداف البناء».
+#      كان الهدف سابقاً اسمه `sad` بمخرج `sad-run`؛ هذا الانفصام أُزيل لمنع
+#      الثنائيات البائتة (stale) واضطراب أدوات الاختبار. الأمر:
+#      cmake --build build --config Debug --target sad-run
+# (EN) Target name unified with output name (sad-run.exe) — Build-Target-Naming RFC.
+#      Formerly named `sad` with output `sad-run`; the split is removed to prevent
+#      stale binaries and test-tooling confusion.
 # ──────────────────────────────────────────────────────────────────────
-add_executable(sad tools/compiler/main_simple.cpp)
+add_executable(sad-run tools/compiler/main_simple.cpp)
 
-target_link_libraries(sad PRIVATE
+target_link_libraries(sad-run PRIVATE
     sad_core
     sad_vm
     sad_type_system
@@ -24,15 +31,15 @@ target_link_libraries(sad PRIVATE
 
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
 if(TARGET sad_profiler_lib)
-    target_link_libraries(sad PRIVATE sad_profiler_lib)
+    target_link_libraries(sad-run PRIVATE sad_profiler_lib)
 endif()
 
 # (AR) ربط مكتبة وقت التشغيل إذا تم بناؤها / (EN) Link runtime if built
 if(TARGET sad_rt_runtime)
-    target_link_libraries(sad PRIVATE sad_rt_runtime)
+    target_link_libraries(sad-run PRIVATE sad_rt_runtime)
 endif()
 
-target_include_directories(sad PRIVATE
+target_include_directories(sad-run PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/shared/ownership/include
@@ -54,16 +61,12 @@ target_include_directories(sad PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/modules/include
 )
 
-set_target_properties(sad PROPERTIES
+set_target_properties(sad-run PROPERTIES
     OUTPUT_NAME "sad-run"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
-# (AR) هدف وهمي للاكتشاف: يسمح بـ `cmake --build build --target sad-run`
-# (EN) Discoverability alias: enables `cmake --build build --target sad-run`
-add_custom_target(sad-run DEPENDS sad)
-
-message(STATUS "✓ المفسر / Interpreter: sad-run (الهدف: sad)")
+message(STATUS "✓ المفسر / Interpreter: sad-run (الهدف: sad-run)")
 
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة المنسّق / Formatter Library
@@ -127,7 +130,14 @@ set_target_properties(sad_mobile PROPERTIES
 message(STATUS "✓ تطبيقات الهاتف / Mobile: Android + iOS")
 
 # ──────────────────────────────────────────────────────────────────────
-# المترجم sadc (يتطلب LLVM) / Compiler sadc (requires LLVM)
+# المترجم sad-build (يتطلب LLVM) / Compiler sad-build (requires LLVM)
+# (AR) اسم الهدف موحَّد مع اسم المخرج (sad-build.exe) — RFC «توحيد أسماء أهداف البناء».
+#      كان الهدف سابقاً اسمه `sadc` بمخرج `sad-build`؛ هذا الانفصام أوهَم أدوات
+#      الاختبار أنّ ثنائياً باسم `sadc.exe` موجود (ولا هدف يُنتجه)، فبقي بائتاً.
+#      الأمر بعد التوحيد: cmake --build build --config Debug --target sad-build
+# (EN) Target name unified with output name (sad-build.exe) — Build-Target-Naming RFC.
+#      Formerly named `sadc` with output `sad-build`; the split misled test tooling
+#      into expecting a non-existent `sadc.exe`, leaving it stale.
 # ──────────────────────────────────────────────────────────────────────
 if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
 
@@ -152,44 +162,43 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     # (EN) Custom target to ensure generation before build
     add_custom_target(generate_runtime_header DEPENDS "${SAD_RUNTIME_HEADER}")
 
-    # (AR) إذا توفر LLVM Debug + Release، يمكن بناء sadc في كلا الوضعين
-    #      وإلا يُستثنى من ALL_BUILD ويُبنى يدوياً في Release فقط
-    # (EN) If both Debug + Release LLVM available, sadc builds in both configs
-    #      Otherwise excluded from ALL_BUILD, build manually in Release only
+    # (AR) مصادر المترجم — مُعرَّفة مرّة واحدة لتفادي التكرار (CW-19 DRY)
+    # (EN) Compiler sources — defined once to avoid duplication (CW-19 DRY)
+    set(SAD_BUILD_SOURCES
+        tools/compiler/main.cpp
+        tools/compiler/compiler_driver_frontend.cpp
+        tools/compiler/compiler_driver_diagnostics.cpp
+        tools/compiler/compiler_driver_analysis.cpp
+        tools/compiler/compiler_driver_backend.cpp
+        tools/compiler/compiler_driver_cli.cpp
+        tools/compiler/compiler_driver_linker.cpp
+        tools/compiler/compiler_driver_lld.cpp
+        tools/compiler/compiler_driver_build_utils.cpp
+        tools/compiler/compiler_driver_ui.cpp
+        tools/compiler/compiler_driver_android.cpp
+        tools/compiler/compiler_driver_android_linker.cpp
+        tools/compiler/compiler_driver_pkg.cpp
+    )
+
+    # (AR) تهيئة بناء Debug: عند اكتشاف تثبيت LLVM Debug (SAD_LLVM_HAS_DEBUG، مثلاً
+    #      C:/llvm_dev/LLVM-Debug) لا يُستثنى sad-build من ALL_BUILD ويُتاح هدفه في
+    #      كلا الوضعين. تنبيه: ربط Debug ينجح فقط مع LLVM Debug مُطابق ABI تمامًا؛
+    #      وإلا تتسرّب مكتبات Release (LLVMPasses/Coroutines) عبر link_directories
+    #      فينشأ تعارض _ITERATOR_DEBUG_LEVEL/RuntimeLibrary — والمسار المدعوم عمليًّا
+    #      هو بناء sad-build في Release (وهو ما يقرأه runner.py وtests/config.yaml).
+    # (EN) Debug-build setup: when a Debug LLVM install is detected
+    #      (SAD_LLVM_HAS_DEBUG), sad-build is not excluded from ALL_BUILD and its
+    #      target is available in both configs. NOTE: Debug linking only succeeds
+    #      with a fully ABI-consistent Debug LLVM; otherwise Release libs
+    #      (LLVMPasses/Coroutines) leak via link_directories causing
+    #      _ITERATOR_DEBUG_LEVEL/RuntimeLibrary mismatch. The practically supported
+    #      path is building sad-build in Release (what runner.py/config.yaml read).
     if(SAD_LLVM_HAS_DEBUG)
-        add_executable(sadc
-            tools/compiler/main.cpp
-            tools/compiler/compiler_driver_frontend.cpp
-            tools/compiler/compiler_driver_diagnostics.cpp
-            tools/compiler/compiler_driver_analysis.cpp
-            tools/compiler/compiler_driver_backend.cpp
-            tools/compiler/compiler_driver_cli.cpp
-            tools/compiler/compiler_driver_linker.cpp
-            tools/compiler/compiler_driver_lld.cpp
-            tools/compiler/compiler_driver_build_utils.cpp
-            tools/compiler/compiler_driver_ui.cpp
-            tools/compiler/compiler_driver_android.cpp
-            tools/compiler/compiler_driver_android_linker.cpp
-            tools/compiler/compiler_driver_pkg.cpp
-        )
-        message(STATUS "   sadc: dual-config (Debug + Release)")
+        add_executable(sad-build ${SAD_BUILD_SOURCES})
+        message(STATUS "   sad-build: dual-config (Debug + Release)")
     else()
-        add_executable(sadc EXCLUDE_FROM_ALL
-            tools/compiler/main.cpp
-            tools/compiler/compiler_driver_frontend.cpp
-            tools/compiler/compiler_driver_diagnostics.cpp
-            tools/compiler/compiler_driver_analysis.cpp
-            tools/compiler/compiler_driver_backend.cpp
-            tools/compiler/compiler_driver_cli.cpp
-            tools/compiler/compiler_driver_linker.cpp
-            tools/compiler/compiler_driver_lld.cpp
-            tools/compiler/compiler_driver_build_utils.cpp
-            tools/compiler/compiler_driver_ui.cpp
-            tools/compiler/compiler_driver_android.cpp
-            tools/compiler/compiler_driver_android_linker.cpp
-            tools/compiler/compiler_driver_pkg.cpp
-        )
-        message(STATUS "   sadc: Release-only (EXCLUDE_FROM_ALL)")
+        add_executable(sad-build EXCLUDE_FROM_ALL ${SAD_BUILD_SOURCES})
+        message(STATUS "   sad-build: Release-only (EXCLUDE_FROM_ALL — no Debug LLVM)")
     endif()
 
     # (AR) استخدام SAD_LLVM_INCLUDES — يُعرّف في cmake/llvm.cmake مع generator expression
@@ -197,7 +206,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     # (EN) Use SAD_LLVM_INCLUDES — defined in cmake/llvm.cmake with generator expression
     #      to automatically select between Debug and Release paths.
 
-    target_include_directories(sadc PRIVATE
+    target_include_directories(sad-build PRIVATE
         ${CMAKE_SOURCE_DIR}/tools/compiler
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/shared/lexer/include
@@ -221,26 +230,74 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_BINARY_DIR}/generated
     )
 
-    # (AR) ضمان توليد الهيدر قبل بناء sadc
-    # (EN) Ensure runtime header is generated before building sadc
-    add_dependencies(sadc generate_runtime_header)
+    # (AR) ضمان توليد الهيدر قبل بناء sad-build
+    # (EN) Ensure runtime header is generated before building sad-build
+    add_dependencies(sad-build generate_runtime_header)
 
-    target_link_libraries(sadc PRIVATE
+    target_link_libraries(sad-build PRIVATE
         sad_shared sad_compiler sad_mobile ${LLVM_LIBS}
     )
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # (AR) إصلاح الربط الدائري لمكتبات LLVM الساكنة في وضع Debug (assertions)
+    # ───────────────────────────────────────────────────────────────────────────
+    # في تثبيت LLVM Debug، التوكيدات مفعّلة فتُشير مكتبات الخلفيات المعمارية
+    # (Hexagon/PowerPC/BPF/MSP430/VE…) إلى رموز التفريغ والتوسيع المعرَّفة في
+    # مكتبات أساسية: SDNode::dump/dumpr في LLVMSelectionDAG، و
+    # SCEVExpander::expandCodeFor في LLVMTransformUtils. رابط MSVC يعالج كل مكتبة
+    # ساكنة مرّة واحدة بترتيبها، فالرموز التي تُطلَب *بعد* معالجة مكتبتها تبقى غير
+    # محلولة (LNK2001/LNK2019). في Release لا تظهر لأن دوال dump مُستبعَدة بـNDEBUG.
+    #
+    # الحل المشروع (مكافئ ‎--start-group/--end-group‎ على GNU): إعادة سرد المكتبات
+    # المُعرِّفة في *نهاية* سطر الربط لتهيئة Debug فقط، فيمنح الرابطَ مرورًا ثانيًا
+    # يحلّ الإشارات العكسية. ليس ترقيعًا بل النمط القياسي لاعتمادات المكتبات الساكنة
+    # الدائرية على MSVC.
+    #
+    # (EN) Fix circular static-lib link order for LLVM Debug (assertions) build:
+    # re-list the defining libs at the END of the Debug link line so MSVC's linker
+    # gets a second pass to resolve the back-references (GNU --start-group equiv).
+    # ═══════════════════════════════════════════════════════════════════════════
+    if(SAD_LLVM_HAS_DEBUG AND MSVC)
+        # (AR) المكتبات الأساسية التي تُشير إليها خلفيات المعالجات (assertions on)
+        #      عبر إشارات عكسية: التفريغ/التوسيع/تحليل/تحويل/مُحلِّل MIR…
+        # (EN) Core libs referenced back by per-target backends in the assertions
+        #      build: dump/expand/analysis/transform/MIR-parser…
+        set(_sad_llvm_debug_relist
+            LLVMSelectionDAG LLVMTransformUtils LLVMCodeGen LLVMAnalysis
+            LLVMScalarOpts LLVMMIRParser LLVMAsmPrinter LLVMMC LLVMMCParser
+            LLVMTarget LLVMCore LLVMSupport LLVMBitReader LLVMipo LLVMInstCombine
+        )
+        foreach(_relib ${_sad_llvm_debug_relist})
+            # (AR) اسم مجرّد يُحَلّ عبر link_directories المُدرِك للتهيئة (Debug فقط)
+            # (EN) Bare name resolved via config-aware link dir (Debug only)
+            target_link_libraries(sad-build PRIVATE
+                "$<$<CONFIG:Debug>:${_relib}.lib>")
+        endforeach()
+
+        # (AR) مكتبات نظام Windows التي تعتمدها مكتبات LLVM (Winsock في
+        #      LLVMSupport: WSAStartup/socket/bind…، إضافةً لاعتمادات النظام
+        #      المعتادة). نسرد كل مكتبات Debug بالأسماء، فلا يأتي اعتماد النظام
+        #      تلقائيًا من إغلاق llvm_map — لذا نضيفه صراحةً.
+        # (EN) Windows system libs that LLVM depends on (Winsock in LLVMSupport:
+        #      WSAStartup/socket/bind…, plus the usual system deps). Since we list
+        #      Debug libs by bare name, the system deps no longer come transitively
+        #      from llvm_map's closure — so we add them explicitly.
+        target_link_libraries(sad-build PRIVATE
+            ws2_32 ntdll advapi32 shell32 ole32 uuid psapi)
+    endif()
+
     # ربط مكتبات LLD إذا كانت متوفرة / Link LLD libraries if available
     if(HAS_EMBEDDED_LLD)
-        target_link_libraries(sadc PRIVATE ${LLD_LIBS})
-        target_compile_definitions(sadc PRIVATE HAS_EMBEDDED_LLD)
-        message(STATUS "   sadc: LLD مدمج / embedded LLD enabled")
+        target_link_libraries(sad-build PRIVATE ${LLD_LIBS})
+        target_compile_definitions(sad-build PRIVATE HAS_EMBEDDED_LLD)
+        message(STATUS "   sad-build: LLD مدمج / embedded LLD enabled")
     endif()
 
     if(MSVC)
-        target_compile_options(sadc PRIVATE /wd4819 /FS)
+        target_compile_options(sad-build PRIVATE /wd4819 /FS)
     endif()
 
-    set_target_properties(sadc PROPERTIES
+    set_target_properties(sad-build PROPERTIES
         OUTPUT_NAME "sad-build"
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     )
@@ -248,14 +305,14 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     # (AR) زيادة حجم الـ stack إلى 128 ميغابايت لمعالجة الملفات الكبيرة
     # (EN) Increase stack size to 128MB for large source files
     if(MSVC)
-        target_link_options(sadc PRIVATE /STACK:134217728)
+        target_link_options(sad-build PRIVATE /STACK:134217728)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        target_link_options(sadc PRIVATE -Wl,-z,stacksize=134217728)
+        target_link_options(sad-build PRIVATE -Wl,-z,stacksize=134217728)
     endif()
 
     message(STATUS "✓ المترجم / Compiler: sad-build (LLVM ${LLVM_PACKAGE_VERSION})")
 else()
-    message(STATUS "⊘ المترجم sadc معطّل (LLVM غير متوفر) / sadc disabled")
+    message(STATUS "⊘ المترجم sad-build معطّل (LLVM غير متوفر) / sad-build disabled")
 endif()
 
 # ======================================================================

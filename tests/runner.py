@@ -5,7 +5,7 @@
 الوصف: مُشغّل اختبارات التنفيذ المزدوج — يُقارن مخرجات المفسر والمترجم
 المهمة: ADR-03 — تكافؤ 100% بين المفسر والمترجم
 
-(AR) يُشغّل كل ملف .ص عبر المفسر (sad-run.exe) والمترجم (sadc.exe) ويقارن المخرجات.
+(AR) يُشغّل كل ملف .ص عبر المفسر (sad-run.exe) والمترجم (sad-build.exe) ويقارن المخرجات.
      الاختبار ينجح فقط إذا أنتج كلاهما نفس المخرج بالضبط.
 
 (EN) Runs each .ص file through both interpreter and compiler, compares outputs.
@@ -228,7 +228,7 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
     (EN) Compile .ص file, then run the produced executable
     
     (AR) خطوتان:
-      1. sadc test.ص -o test.exe
+      1. sad-build test.ص -o test.exe
       2. ./test.exe
     """
     exe_name = test_file.stem + "_" + uuid.uuid4().hex[:8] + ".exe"
@@ -520,11 +520,16 @@ def load_config(config_path: Path) -> dict:
     """(AR) تحميل ملف config.yaml (بدون اعتمادية PyYAML — تحليل بسيط)
     (AR) ملاحظة: المفسر الافتراضي هو `sad-run.exe` (وليس `sad.exe`) لأن
          الأخير صار موزِّع أوامر بعد إعادة هيكلة الأدوات.
+    (AR) المترجم هو `sad-build.exe` (هدف CMake `sad-build` بعد توحيد الأسماء —
+         لم يَعُد اسم `sadc.exe` البائت مستعملاً). كلا المسارين من تهيئة Debug
+         نفسها: أُصلح بناء المترجم في Debug جذريًا (cmake/llvm.cmake) فزال تعارض
+         _ITERATOR_DEBUG_LEVEL — وبهذا تزول عثرتا «الثنائي البائت» و«مفسّر Debug +
+         مترجم Release» معًا.
     """
     config = {
         "paths": {
             "interpreter": "build/bin/Debug/sad-run.exe",
-            "compiler": "build/bin/Release/sadc.exe",
+            "compiler": "build/bin/Debug/sad-build.exe",
             "tests_dir": "tests/behavior",
         },
         "execution": {

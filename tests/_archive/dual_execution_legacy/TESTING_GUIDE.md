@@ -12,8 +12,8 @@
 
 | المتطلب | الأمر |
 |---------|-------|
-| بناء المفسر (Debug) | `cmake --build build --config Debug --target sad` |
-| بناء المترجم (Release) | `cmake --build build --config Release --target sadc` |
+| بناء المفسر (Debug) | `cmake --build build --config Debug --target sad-run` |
+| بناء المترجم (Release) | `cmake --build build --config Release --target sad-build` |
 | Python 3.8+ | مثبت في PATH |
 | PyYAML | `pip install pyyaml` (لقراءة config.yaml) |
 
@@ -25,8 +25,8 @@
 
 ```powershell
 # ① بناء
-cmake --build build --config Debug --target sad
-cmake --build build --config Release --target sadc
+cmake --build build --config Debug --target sad-run
+cmake --build build --config Release --target sad-build
 
 # ② تشغيل سريع (P0 — لكل commit — 5 اختبارات)
 python tests/dual_execution/runner.py --level P0
@@ -300,8 +300,8 @@ python runner.py --level P1 --check-baselines --baselines-threshold 1.5
 
 | المتطلب | الأمر |
 |---------|-------|
-| بناء المفسر (Debug) | `cmake --build build --config Debug --target sad` |
-| بناء المترجم (Release) | `cmake --build build --config Release --target sadc` |
+| بناء المفسر (Debug) | `cmake --build build --config Debug --target sad-run` |
+| بناء المترجم (Release) | `cmake --build build --config Release --target sad-build` |
 | Python 3.8+ | مثبت في PATH |
 
 > ⚠️ **ملاحظة مهمة:** المفسر يُبنى في نمط `Debug` بينما المترجم يُبنى في `Release` لأن LLVM مربوط بنمط Release.
@@ -312,8 +312,8 @@ python runner.py --level P1 --check-baselines --baselines-threshold 1.5
 
 ```powershell
 # ① بناء
-cmake --build build --config Debug --target sad
-cmake --build build --config Release --target sadc
+cmake --build build --config Debug --target sad-run
+cmake --build build --config Release --target sad-build
 
 # ② تشغيل سريع (P0 — لكل commit)
 cd tests/dual_execution

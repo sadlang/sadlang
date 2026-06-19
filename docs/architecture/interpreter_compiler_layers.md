@@ -603,10 +603,10 @@ sad_core (مكتبة شاملة)
 أوامر البناء:
 ```powershell
 # المُفسِّر فقط (Debug سريع)
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 
 # المُترجم (Release — يحتاج LLVM)
-cmake --build build --config Release --target sadc
+cmake --build build --config Release --target sad-build
 
 # كل شيء + اختبارات
 cmake -S . -B build -DBUILD_TESTS=ON

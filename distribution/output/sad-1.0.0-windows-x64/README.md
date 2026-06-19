@@ -76,10 +76,10 @@ brew install sad-lang/tap/sad
 cmake -S . -B build
 
 # Build interpreter
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 
 # Build compiler
-cmake --build build --config Debug --target sadc
+cmake --build build --config Debug --target sad-build
 
 # Run a Sad file
 .\build\bin\Debug\sad.exe examples\test_simple.ص

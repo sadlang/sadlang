@@ -326,7 +326,7 @@ LLVMCodeGen::LLVMCodeGen(...) {
 8. **أعد تشغيل cmake** لإلتقاط الملفات الجديدة (GLOB_RECURSE):
    ```powershell
    cmake -S . -B build
-   cmake --build build --config Release --target sadc
+   cmake --build build --config Release --target sad-build
    ```
 9. **شغّل الاختبارات**: `python tests/dual_execution/runner.py`
 10. **commit + push**

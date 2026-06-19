@@ -220,7 +220,7 @@ jobs:
         if: matrix.config == 'Release'
         shell: pwsh
         run: |
-          cmake --build build --config Release --target sadc --parallel 4
+          cmake --build build --config Release --target sad-build --parallel 4
           if ($LASTEXITCODE -ne 0) {
             Write-Host "⚠️ sadc build failed — check LLVM installation" -ForegroundColor Yellow
           } else {
@@ -332,7 +332,7 @@ jobs:
         shell: pwsh
         if: matrix.config == 'Release'
         run: |
-          $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (Test-Path $sadc) {
             if (Test-Path "tests/behavior/_regression/run_regression_tests.ps1") {
               & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sadc -Mode compiler
@@ -354,7 +354,7 @@ jobs:
         if: matrix.config == 'Release'
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
-          $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not ((Test-Path $sad) -and (Test-Path $sadc))) {
             Write-Host "⚠️ SKIP: sad-run.exe or sadc.exe not found" -ForegroundColor Yellow
             exit 0
@@ -383,7 +383,7 @@ jobs:
         if: matrix.config == 'Release' && github.event_name == 'pull_request'
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
-          $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not ((Test-Path $sad) -and (Test-Path $sadc))) { exit 0 }
           # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـ PR وتشغيلها 5× لاكتشاف الرفرفة (R6).
           git fetch origin $env:GITHUB_BASE_REF --depth=1 2>$null
@@ -456,7 +456,7 @@ jobs:
 
       - name: "🏗️ بناء المترجم sadc / Build sadc Compiler"
         run: |
-          cmake --build build --config ${{ matrix.config }} --target sadc --parallel $(nproc) || \
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc) || \
             echo "⚠️ sadc build failed (LLVM linking issue) — continuing"
 
       - name: "🧪 اختبارات النواة / Core Tests"
@@ -533,7 +533,7 @@ jobs:
         if: matrix.config == 'Release'
         run: |
           sad="build/bin/sad-run"
-          sadc="build/bin/sadc"
+          sadc="build/bin/sad-build"
           if [ -x "$sad" ] && [ -x "$sadc" ]; then
             echo "▶️ Running dual execution tests..."
             python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
@@ -590,7 +590,7 @@ jobs:
 
       - name: "🏗️ بناء المترجم sadc / Build sadc Compiler"
         run: |
-          cmake --build build --config ${{ matrix.config }} --target sadc --parallel $(sysctl -n hw.ncpu) || \
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(sysctl -n hw.ncpu) || \
             echo "⚠️ sadc build failed (LLVM linking issue) — continuing"
 
       - name: "🧪 اختبارات النواة / Core Tests"
@@ -653,7 +653,7 @@ jobs:
         if: matrix.config == 'Release'
         run: |
           sad="build/bin/sad-run"
-          sadc="build/bin/sadc"
+          sadc="build/bin/sad-build"
           if [ -x "$sad" ] && [ -x "$sadc" ]; then
             echo "▶️ Running dual execution tests..."
             python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \

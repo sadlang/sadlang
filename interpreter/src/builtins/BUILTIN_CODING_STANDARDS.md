@@ -677,7 +677,7 @@ Remove-Item build\sad_core.dir\Debug\builtin_module_*.obj
 python scripts/gen_suggest.py
 
 # بناء
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 
 # اختبار
 .\build\bin\Debug\sad.exe _t1.ص
@@ -813,7 +813,7 @@ python scripts/gen_suggest.py
 - [ ] متغيرات `static` محمية بـ `mutex`/`atomic`
 
 ### البناء والاختبار:
-- [ ] `cmake --build build --config Debug --target sad` نجح
+- [ ] `cmake --build build --config Debug --target sad-run` نجح
 - [ ] جميع `_t*.ص` نجحت (11/11)
 - [ ] `suggestModuleForFunction` محدّث
 

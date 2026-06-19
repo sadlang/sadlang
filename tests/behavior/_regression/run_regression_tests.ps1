@@ -9,7 +9,7 @@
     Run mode: interpreter or compiler
 .EXAMPLE
     .\run_regression_tests.ps1 -SadExe .\build\bin\Debug\sad.exe -Mode interpreter
-    .\run_regression_tests.ps1 -SadExe .\build\bin\Release\sadc.exe -Mode compiler
+    .\run_regression_tests.ps1 -SadExe .\build\bin\Release\sad-build.exe -Mode compiler
 #>
 
 param(

@@ -22,7 +22,7 @@
 #
 # الاستخدام:
 #   cmake -B build -DENABLE_LLVM_BACKEND=ON
-#   cmake --build build --config Release --target sadc
+#   cmake --build build --config Release --target sad-build
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -77,7 +77,7 @@ message(STATUS "   المسار / Directory: ${LLVM_DIR}")
 #
 # الحل المعتمد: نكتشف هذا التعارض مبكراً ونعرض رسالة واضحة مع الحلول.
 # المترجم sadc يجب أن يُبنى دائماً في Release على Windows:
-#   cmake --build build --config Release --target sadc
+#   cmake --build build --config Release --target sad-build
 #
 # Check Debug/Release compatibility between LLVM and project.
 # On Windows+MSVC, LLVM is typically built in Release mode. When the project
@@ -120,6 +120,12 @@ if(MSVC)
         if(EXISTS "${_debug_hint}/LLVMConfig.cmake")
             get_filename_component(_debug_lib_dir "${_debug_hint}/../../.." ABSOLUTE)
             set(SAD_LLVM_DEBUG_LIB_DIR "${_debug_lib_dir}/lib")
+            # (AR) مجلد cmake لـ LLVM Debug — لحساب إغلاق مكتبات Debug من LLVMConfig
+            #      الخاص به (رسم اعتماداته أغنى من Release بسبب كود التوكيدات).
+            # (EN) Debug LLVM cmake dir — to compute the Debug lib closure from its
+            #      own LLVMConfig (its dep graph is richer than Release due to
+            #      assertion code, e.g. LLParser→LLVMBinaryFormat).
+            set(SAD_LLVM_DEBUG_CMAKE_DIR "${_debug_hint}")
             # (AR) مسار include لـ LLVM Debug — يحتوي على abi-breaking.h بقيمة مختلفة
             # (EN) Include path for LLVM Debug — contains abi-breaking.h with different value
             set(SAD_LLVM_DEBUG_INCLUDE_DIR "${_debug_lib_dir}/include")
@@ -147,14 +153,44 @@ if(MSVC)
         message(WARNING "    2. Install to C:/llvm_dev/LLVM-Debug")
         message(WARNING "    3. Re-run cmake to auto-detect")
         message(WARNING "  Or build sadc in Release only:")
-        message(WARNING "    cmake --build build --config Release --target sadc")
+        message(WARNING "    cmake --build build --config Release --target sad-build")
         message(WARNING "")
     endif()
 endif()
 
 # (AR) إضافة تعريفات ومسارات LLVM / (EN) Add LLVM definitions and paths
 add_definitions(${LLVM_DEFINITIONS})
-link_directories(${LLVM_LIBRARY_DIRS})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) مسار بحث الرابط لمكتبات LLVM — مُدرِك للتهيئة (إصلاح بناء Debug)
+# ───────────────────────────────────────────────────────────────────────────────
+# السبب الجذري لفشل بناء sad-build في Debug: كان link_directories يضيف مجلد LLVM
+# Release كمسار بحث عام في *كل* التهيئات. فأيّ مكتبة LLVM تُحَلّ بالاسم (لا بالمسار
+# الكامل) أثناء الربط في Debug — مثل LLVMPasses/LLVMCoroutines المسحوبتين كاعتماد
+# عابر — تأتي من Release، فينشأ تعارض _ITERATOR_DEBUG_LEVEL/RuntimeLibrary/ABI.
+#
+# الحل: نجعل مسار البحث مُدرِكًا للتهيئة عبر generator expression — مجلد Debug في
+# تهيئة Debug، ومجلد Release فيما عداها. بهذا لا يتسرّب أيّ ملف Release إلى Debug،
+# ويتكامل مع قائمة المكتبات المزدوجة (debug/optimized) بالمسارات الكاملة أدناه.
+#
+# (EN) Config-aware LLVM library search path — the Debug-build fix.
+# Root cause of sad-build Debug link failure: link_directories added the LLVM
+# Release lib dir as a global search path in *all* configs, so any LLVM lib
+# resolved by name (e.g. transitively pulled LLVMPasses/LLVMCoroutines) came from
+# Release in Debug → _ITERATOR_DEBUG_LEVEL/RuntimeLibrary/ABI mismatch. We make
+# the search path config-aware: Debug dir in Debug, Release dir otherwise.
+# ═══════════════════════════════════════════════════════════════════════════════
+if(SAD_LLVM_HAS_DEBUG AND MSVC)
+    link_directories(
+        "$<$<CONFIG:Debug>:${SAD_LLVM_DEBUG_LIB_DIR}>"
+        "$<$<NOT:$<CONFIG:Debug>>:${LLVM_LIBRARY_DIRS}>"
+    )
+else()
+    # (AR) لا تثبيت Debug — مسار Release فقط (المترجم يُبنى في Release)
+    # (EN) No Debug install — Release path only (compiler builds in Release)
+    link_directories(${LLVM_LIBRARY_DIRS})
+endif()
+
 add_compile_definitions(ENABLE_LLVM_BACKEND)
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -209,43 +245,58 @@ else()
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# (AR) بناء قائمة المكتبات ثنائية الإعداد (Debug + Release)
+# (AR) قائمة مكتبات LLVM بالأسماء المجرّدة — مضادّة للتسرّب جذريًا
 # ───────────────────────────────────────────────────────────────────────────────
-# عند توفر تثبيت Debug و Release معاً، نستخدم كلمات CMake الخاصة
-# (debug/optimized) لربط المكتبة الصحيحة حسب إعداد البناء.
-# هذا يسمح لـ sadc بالبناء في كلا الوضعين Debug و Release.
+# بدل المسارات الكاملة المزدوجة (التي كانت تُسرّب نسخ Release من مستهلكين ساكنين
+# فتُنتج LNK2038/LNK1169)، نمرّر كل مكتبة باسمها المجرّد فقط (LLVMCore.lib…).
+# يبحث الرابط عنها في مسار البحث المُدرِك للتهيئة (link_directories أعلاه): مجلد
+# Debug في تهيئة Debug، ومجلد Release فيما عداها. بما أنّ لكل تهيئة *مجلد بحث واحد*،
+# يستحيل أن يُحَلّ الاسم إلا لنسخة تلك التهيئة — لا خلط ولا تسرّب ممكن بنيويًّا.
 #
-# (EN) Build dual-config library list (Debug + Release)
-# When both Debug and Release LLVM are available, use CMake's
-# debug/optimized keywords to link the right libs per config.
-# This allows sadc to build in both Debug and Release.
+# نحسب الأسماء من إغلاق Debug (الأشمل، فيه حواف التوكيدات مثل LLVMBinaryFormat)؛
+# وهذه الأسماء نفسها تُحَلّ في Release من مجلده (إغلاق Release مجموعة فرعية منه).
+#
+# (EN) Bare-name LLVM lib list — structurally leak-proof. Instead of dual full
+# paths (which leaked Release copies from static consumers → LNK2038/LNK1169), we
+# pass each lib by bare name (LLVMCore.lib…). The linker resolves it via the
+# config-aware link_directories: Debug dir in Debug, Release dir otherwise. Since
+# each config has exactly ONE search dir, a name can only resolve to that config's
+# copy — no mixing possible. Names come from the Debug closure (the superset,
+# including assertion-only edges); the same names resolve in Release from its dir.
 # ═══════════════════════════════════════════════════════════════════════════════
 if(SAD_LLVM_HAS_DEBUG AND MSVC)
-    set(LLVM_LIBS_DUAL "")
-    foreach(_lib ${LLVM_LIBS})
-        # (AR) استخراج اسم الملف فقط (بدون المسار) لبناء المسار الكامل
-        # (EN) Extract filename only to build full path for each config
-        get_filename_component(_lib_name "${_lib}" NAME)
-        if("${_lib_name}" STREQUAL "")
-            set(_lib_name "${_lib}")
+    # (AR) نسرد *كل* مكتبات LLVM الموجودة في مجلد Debug كأسماء مجرّدة. هذا أضمن من
+    #      الاعتماد على إغلاق llvm_map (الذي يُسقط حواف التوكيدات الخاصة بـ Debug
+    #      مثل LLVMBinaryFormat/LLVMTargetParser). مجلد Debug يحوي مكتبات LLVM
+    #      اللازمة فقط (لا clang)، فالقائمة كاملة بالبناء. الأسماء المجرّدة تُحَلّ عبر
+    #      link_directories المُدرِك للتهيئة (Debug في Debug، Release فيما عداها) —
+    #      مضادّ للتسرّب لأن لكل تهيئة مجلد بحث واحد. والمكتبات غير المُشار إليها لا
+    #      تُضيف رموزًا للرابط (يَسحب الكائنات المطلوبة فقط من كل أرشيف).
+    # (EN) List ALL LLVM libs present in the Debug dir as bare names. More robust
+    #      than relying on llvm_map's closure (which drops Debug assertion-only
+    #      edges like LLVMBinaryFormat/LLVMTargetParser). The Debug dir holds only
+    #      the needed LLVM libs (no clang), so the set is complete by construction.
+    #      Bare names resolve via the config-aware link dir — leak-proof (one dir
+    #      per config). Unreferenced archives contribute nothing to the link.
+    file(GLOB _llvm_debug_libs "${SAD_LLVM_DEBUG_LIB_DIR}/LLVM*.lib")
+    set(_llvm_names "")
+    foreach(_l ${_llvm_debug_libs})
+        get_filename_component(_n "${_l}" NAME)      # LLVMCore.lib
+        # (AR) استثناء مكتبة الاستيراد للـ DLL الديناميكي (LLVM-C.lib → LLVM-C.dll):
+        #      ربطها يجعل sad-build يعتمد على DLL وقت التشغيل (خطأ 0xC0000135). نحن
+        #      نربط مكتبات LLVM الساكنة فقط.
+        # (EN) Exclude the dynamic C-API import lib (LLVM-C.lib → LLVM-C.dll):
+        #      linking it makes sad-build depend on a runtime DLL (0xC0000135). We
+        #      link the static LLVM component libs only.
+        if(_n STREQUAL "LLVM-C.lib")
+            continue()
         endif()
-        # (AR) تطبيع الامتداد إلى .lib دائماً لأن بعض توزيعات LLVM
-        #      قد تُرجع أسماء بعناصر .obj في قائمة المكونات.
-        #      الربط النهائي في MSVC يحتاج ملفات مكتبة .lib.
-        # (EN) Normalize extension to .lib because some LLVM distributions
-        #      may expose component names with .obj suffixes.
-        #      MSVC final linking must use .lib archives.
-        get_filename_component(_lib_stem "${_lib_name}" NAME_WE)
-        set(_lib_name "${_lib_stem}.lib")
-        # (AR) إضافة debug lib من مسار Debug و optimized lib من مسار Release
-        list(APPEND LLVM_LIBS_DUAL
-            debug "${SAD_LLVM_DEBUG_LIB_DIR}/${_lib_name}"
-            optimized "${_lib}"
-        )
+        list(APPEND _llvm_names "${_n}")
     endforeach()
-    set(LLVM_LIBS ${LLVM_LIBS_DUAL})
-    message(STATUS "   LLVM dual-config: Debug + Release libs linked per configuration")
-    unset(LLVM_LIBS_DUAL)
+    list(REMOVE_DUPLICATES _llvm_names)
+    set(LLVM_LIBS ${_llvm_names})
+    list(LENGTH _llvm_names _n_count)
+    message(STATUS "   LLVM bare-name dual-config: ${_n_count} libs, per-config link dir")
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -311,24 +362,16 @@ endif()
 # (EN) Build dual-config LLD library list (Debug + Release)
 # ═══════════════════════════════════════════════════════════════════════════════
 if(SAD_LLVM_HAS_DEBUG AND MSVC AND HAS_EMBEDDED_LLD)
-    set(LLD_LIBS_DUAL "")
+    # (AR) نفس المبدأ المضاد للتسرّب: أسماء مجرّدة تُحَلّ عبر link_directories
+    #      المُدرِك للتهيئة (Debug في Debug، Release فيما عداها).
+    # (EN) Same leak-proof bare-name approach, resolved via config-aware link dir.
+    set(_lld_names "")
     foreach(_lib ${LLD_LIBS})
-        get_filename_component(_lib_name "${_lib}" NAME)
-        if("${_lib_name}" STREQUAL "")
-            set(_lib_name "${_lib}")
-        endif()
-        # (AR) نفس التطبيع هنا لضمان المسارات الثنائية Debug/Release
-        # (EN) Same normalization here to keep dual-config paths consistent
-        get_filename_component(_lib_stem "${_lib_name}" NAME_WE)
-        set(_lib_name "${_lib_stem}.lib")
-        list(APPEND LLD_LIBS_DUAL
-            debug "${SAD_LLVM_DEBUG_LIB_DIR}/${_lib_name}"
-            optimized "${_lib}"
-        )
+        get_filename_component(_lld_name "${_lib}" NAME)
+        list(APPEND _lld_names "${_lld_name}")
     endforeach()
-    set(LLD_LIBS ${LLD_LIBS_DUAL})
-    message(STATUS "   LLD dual-config: Debug + Release libs linked per configuration")
-    unset(LLD_LIBS_DUAL)
+    set(LLD_LIBS ${_lld_names})
+    message(STATUS "   LLD bare-name dual-config: per-config link dir")
 endif()
 
 unset(_lld_all_found)

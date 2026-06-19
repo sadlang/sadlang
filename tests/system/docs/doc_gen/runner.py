@@ -52,7 +52,7 @@ class C:
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[1]
 SAD = PROJECT_ROOT / "build" / "bin" / "Debug" / "sad.exe"
-SADC = PROJECT_ROOT / "build" / "bin" / "Release" / "sadc.exe"
+SADC = PROJECT_ROOT / "build" / "bin" / "Release" / "sad-build.exe"
 TMP = SCRIPT_DIR / "_tmp"
 
 # (AR) تسامح الفرق لـ PDF (timestamps في metadata قد تختلف ~1KB)

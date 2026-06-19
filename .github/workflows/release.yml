@@ -129,7 +129,7 @@ jobs:
 
       # ── بناء المفسر والأدوات ──
       - name: "بناء / Build"
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
 
       # ── بناء الأدوات المساعدة ──
       - name: "بناء الأدوات / Build Tools"
@@ -295,7 +295,7 @@ jobs:
         shell: bash
         run: |
           if [ -f "build/build.ninja" ] || [ -f "build/Makefile" ]; then
-            cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc || echo "⚠️ sadc target not available"
+            cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build || echo "⚠️ sadc target not available"
           else
             echo "⚠️ build files not found, skipping sadc"
           fi
@@ -309,7 +309,7 @@ jobs:
           $success = $false
 
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            if (!(Test-Path "build\sadc.vcxproj")) {
+            if (!(Test-Path "build\sad-build.vcxproj")) {
               Write-Host "⚠️ sadc target missing (attempt $attempt/$maxAttempts), reinstalling LLVM and reconfiguring"
               $llvmVersion = "18.1.8"
               $installer = Join-Path $env:TEMP "LLVM-$llvmVersion-win64.exe"
@@ -336,8 +336,8 @@ jobs:
               }
             }
 
-            if (Test-Path "build\sadc.vcxproj") {
-              cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+            if (Test-Path "build\sad-build.vcxproj") {
+              cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build
               if ($LASTEXITCODE -eq 0) {
                 $success = $true
                 break
@@ -355,7 +355,7 @@ jobs:
 
       # ── بناء المفسر أيضاً (للحزمة الكاملة) ──
       - name: "بناء المفسر / Build Interpreter"
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
 
       # ── تجميع حزمة المترجم فقط ──
       - name: "حزمة المترجم / Package Compiler (Unix)"

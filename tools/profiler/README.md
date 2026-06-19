@@ -157,7 +157,7 @@ cmake --build build --config Debug --target sad_profiler_lib
 cmake --build build --config Debug --target sad-profiler
 
 # بناء المفسر (يشمل المصحح)
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 ```
 
 ## سجل الإصدارات

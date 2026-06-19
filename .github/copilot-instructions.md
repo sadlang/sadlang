@@ -478,10 +478,10 @@
 cmake -S . -B build
 
 # بناء المفسر فقط (أسرع)
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 
 # بناء المترجم (sadc)
-cmake --build build --config Debug --target sadc
+cmake --build build --config Debug --target sad-build
 
 # بناء كل شيء
 cmake --build build --config Debug

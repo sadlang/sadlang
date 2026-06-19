@@ -7,10 +7,10 @@
 cmake -S . -B build
 
 # بناء المفسر فقط (أسرع)
-cmake --build build --config Debug --target sad
+cmake --build build --config Debug --target sad-run
 
 # بناء المترجم sadc (يتطلب Release لأن LLVM مبني بـ Release)
-cmake --build build --config Release --target sadc
+cmake --build build --config Release --target sad-build
 
 # بناء كل شيء
 cmake --build build --config Debug

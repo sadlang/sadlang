@@ -227,6 +227,20 @@ if(LLVM_FOUND)
  native
  )
 
+ # (AR) مصدر حقيقة واحد لمكتبات LLVM: حين يتوفّر تثبيت Debug (بناء مزدوج) نستعمل
+ #      قائمة ${LLVM_LIBS} الموحَّدة المُحتسَبة في cmake/llvm.cmake (إغلاق كامل لكل
+ #      تهيئة بصيغة debug/optimized) بدل القائمة المحلية الجزئية بمسارات Release —
+ #      التي كانت تُربَط PUBLIC فتتسرّب إلى بناء sad-build في Debug (LNK2005/ABI)
+ #      وتفتقر إلى حواف Debug (LNK2019). هذا يضمن الاتساق ويمنع التكرار (CW-19).
+ # (EN) Single source of truth for LLVM libs: when a Debug install exists
+ #      (dual build), use the unified ${LLVM_LIBS} computed in cmake/llvm.cmake
+ #      (full per-config closure with debug/optimized) instead of this local
+ #      Release-only subset, which leaked into the Debug sad-build (LNK2005/ABI)
+ #      and lacked Debug-only edges (LNK2019).
+ if(SAD_LLVM_HAS_DEBUG AND MSVC)
+   set(llvm_libs ${LLVM_LIBS})
+ endif()
+
  target_link_libraries(sad_llvm_backend
  PUBLIC
  ${llvm_libs}

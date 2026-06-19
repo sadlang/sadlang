@@ -26,7 +26,7 @@ if(NOT Python3_FOUND)
 endif()
 
 set(DUAL_RUNNER "${CMAKE_SOURCE_DIR}/tests/runner.py")
-set(DUAL_INTERP "$<TARGET_FILE:sad>")
+set(DUAL_INTERP "$<TARGET_FILE:sad-run>")
 
 # (AR) التحقق من وجود runner.py
 if(NOT EXISTS "${DUAL_RUNNER}")
@@ -51,7 +51,7 @@ set(_DUAL_COMMON_ARGS
 
 # (AR) معاملات خاصة بالاختبارات الحرجة: مفسر فقط
 #      هذه الاختبارات موسومة @skip_compiler وبالتالي لا تحتاج تمرير --compiler
-#      تجنب هذا يمنع سحب هدف sadc في Debug عندما يكون LLVM مربوطاً بنمط Release.
+#      تجنب هذا يمنع سحب هدف sad-build في Debug عندما يكون LLVM مربوطاً بنمط Release.
 set(_DUAL_CRITICAL_ARGS
     "${CMAKE_COMMAND}" -E env
     "PYTHONIOENCODING=utf-8"
@@ -63,8 +63,8 @@ set(_DUAL_CRITICAL_ARGS
 )
 
 # (AR) إذا كان المترجم مُفعّلاً، نضيف مساره
-if(TARGET sadc)
-    list(APPEND _DUAL_COMMON_ARGS --compiler "$<TARGET_FILE:sadc>")
+if(TARGET sad-build)
+    list(APPEND _DUAL_COMMON_ARGS --compiler "$<TARGET_FILE:sad-build>")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ add_custom_target(dual_tests_p0
     COMMAND ${_DUAL_COMMON_ARGS} --level P0
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "🔄 تشغيل اختبارات P0 (أساسية) — behavior/P0_smoke"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
@@ -85,7 +85,7 @@ add_custom_target(dual_tests_p1
     COMMAND ${_DUAL_COMMON_ARGS} --level P1
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "🔄 تشغيل اختبارات P1 (كاملة) — behavior (P1: أساسيات + أنواع)"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
@@ -96,7 +96,7 @@ add_custom_target(dual_tests_p2
     COMMAND ${_DUAL_COMMON_ARGS} --level P2
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "🔄 تشغيل اختبارات P2 (متقدمة) — behavior/sections/*"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
@@ -111,7 +111,7 @@ add_custom_target(dual_tests_critical
     COMMAND ${_DUAL_CRITICAL_ARGS} --file 037_compound_high_density.ص
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "🚨 تشغيل الاختبارات الحرجة: التزامن + الاستثناءات + السلبيات + التقاطع + المركب"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
@@ -123,7 +123,7 @@ add_custom_target(dual_tests_burnin
     COMMAND ${_DUAL_CRITICAL_ARGS} --file 035_exception_flow_control_suite.ص --repeat 50
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "🔥 Burn-in: 50 جولة للسويتين الحرجتين (اكتشاف flakiness)"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
@@ -134,7 +134,7 @@ add_custom_target(dual_tests
     COMMAND ${_DUAL_COMMON_ARGS}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "🔄 تشغيل جميع اختبارات التنفيذ المزدوج — behavior"
-    DEPENDS sad
+    DEPENDS sad-run
     USES_TERMINAL
 )
 
