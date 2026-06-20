@@ -1,0 +1,111 @@
+# ============================================================================
+# جسر العقد إلى دليل المطوّرين (sadlang/dev-guide)
+# يوصِل مسؤوليّة تحديث الدليل إلى مَن يغيّر اللغة فعلًا — هنا، لا في الدليل.
+#
+#   • على كل PR: إن لمستِ التغييراتُ مصدرًا مسجَّلًا في بيان الدليل
+#     (sync/sources.yaml)، يعلّق البوت تذكيرًا بالفصول المتأثّرة لمراجعتها.
+#   • عند نشر إصدار: يطلق فحص المزامنة في الدليل فورًا (repository_dispatch)
+#     ليقيس انجراف الدليل تجاه الوسم الجديد.
+#
+# لا يفشل البناء — تذكيرٌ إرشاديّ فقط. الإطلاق عبر الإصدار يتطلّب سرًّا
+# DEV_GUIDE_DISPATCH_TOKEN (PAT بصلاحيّة repo على dev-guide)؛ يُتخطّى إن غاب.
+# ============================================================================
+name: dev-guide-sync-reminder
+
+on:
+  pull_request:
+    branches: [dev]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  remind:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+
+      - name: جلب بيان الدليل وحساب الفصول المتأثّرة
+        id: scan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}   # يلزم gh دون checkout
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # بيان الربط من الدليل (المصدر الموحّد للتعيين)
+          curl -fsSL -o sources.yaml \
+            https://raw.githubusercontent.com/sadlang/dev-guide/main/sync/sources.yaml || {
+              echo "تعذّر جلب البيان — يُتخطّى"; echo "hit=0" >> "$GITHUB_OUTPUT"; exit 0; }
+          gh pr view "$PR" --json files --jq '.files[].path' > changed.txt
+          python - <<'PY'
+          import yaml, os
+          m = yaml.safe_load(open("sources.yaml", encoding="utf-8"))
+          changed = [l.strip() for l in open("changed.txt", encoding="utf-8") if l.strip()]
+          def paths(s): return s if isinstance(s, str) else s["path"]
+          hits = {}  # chapter -> set(sources)
+          for ch in m["chapters"]:
+              for s in ch["sources"]:
+                  p = paths(s)
+                  for f in changed:
+                      if f == p or f.startswith(p.rstrip("/") + "/"):
+                          hits.setdefault(ch["file"], set()).add(p)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"hit={1 if hits else 0}\n")
+          if hits:
+              lines = ["<!-- dev-guide-sync -->",
+                       "📚 **تذكير مزامنة دليل المطوّرين**",
+                       "",
+                       "هذا الـPR يلمس مصادر موثَّقة في "
+                       "[دليل المطوّرين](https://github.com/sadlang/dev-guide). "
+                       "راجع الفصول الآتية وحدّثها إن تغيّر سلوكها، ثم ثبّت البصمات "
+                       "هناك (`python scripts/check_sync.py --update`):", ""]
+              for ch in sorted(hits):
+                  srcs = "، ".join(sorted(hits[ch]))
+                  lines.append(f"- [`{ch}`](https://github.com/sadlang/dev-guide/blob/main/{ch}) "
+                               f"— بسبب: {srcs}")
+              lines += ["", "<sub>بندٌ في معيار الإنجاز. تذكيرٌ آليّ — لا يحجب الدمج.</sub>"]
+              open("comment.md", "w", encoding="utf-8").write("\n".join(lines))
+          PY
+
+      - name: نشر/تحديث تعليق التذكير
+        if: steps.scan.outputs.hit == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}   # يلزم gh دون checkout
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # حدّث تعليق التذكير السابق إن وُجد (بصمته HTML المخفيّة)، وإلا أنشئ جديدًا
+          HAS=$(gh pr view "$PR" --json comments \
+                --jq '[.comments[] | select(.body | startswith("<!-- dev-guide-sync -->"))] | length')
+          if [ "$HAS" -gt 0 ]; then
+            gh pr comment "$PR" --body-file comment.md --edit-last
+          else
+            gh pr comment "$PR" --body-file comment.md
+          fi
+
+  dispatch:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: إطلاق فحص المزامنة في الدليل (يحتاج DEV_GUIDE_DISPATCH_TOKEN)
+        env:
+          TOKEN: ${{ secrets.DEV_GUIDE_DISPATCH_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "ℹ️ لا يوجد DEV_GUIDE_DISPATCH_TOKEN — يُتخطّى الإطلاق عبر الإصدار."
+            exit 0
+          fi
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/sadlang/dev-guide/dispatches \
+            -d "{\"event_type\":\"language-release\",\"client_payload\":{\"tag\":\"$TAG\"}}"
+          echo "أُطلق فحص مزامنة الدليل تجاه $TAG."
