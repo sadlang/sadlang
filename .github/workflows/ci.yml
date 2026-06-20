@@ -20,13 +20,13 @@ name: "🔧 CI/CD - لغة ص / Sad Language"
 
 on:
   push:
-    branches: [ main, master, develop, dev, graphic, "feature/**", "fix/**", "release/**", "agent/**" ]
+    branches: [ main, master, develop, dev, sadlang, "feature/**", "fix/**", "release/**", "agent/**" ]
   pull_request:
-    # (AR) dev و graphic فرعا التكامل المحميّان — يجب أن يُجري CI فحوصه على أيّ PR
+    # (AR) dev و sadlang فرعا التكامل المحميّان — يجب أن يُجري CI فحوصه على أيّ PR
     #      إليهما (كان يستهدف develop فقط، فلم يُفحَص أيّ PR إلى dev).
-    # (EN) dev and graphic are the protected integration branches — CI must run
+    # (EN) dev and sadlang are the protected integration branches — CI must run
     #      on any PR targeting them (previously only `develop`, so dev PRs ran no CI).
-    branches: [ main, master, develop, dev, graphic ]
+    branches: [ main, master, develop, dev, sadlang ]
     types: [opened, synchronize, reopened]
   # (AR) تشغيل ليلي (Nightly) — يرفع مستوى اختبارات التنفيذ المزدوج إلى P2 (TEST-006).
   # (EN) Nightly schedule — raises dual-execution level to P2.

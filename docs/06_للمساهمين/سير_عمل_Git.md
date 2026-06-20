@@ -21,23 +21,23 @@
 
 ## 0. الخلاصة في سطر واحد
 
-الفرع الرئيسي (`graphic`) **مقفل**: لا دفع مباشر، لا تاريخ غير خطّي، لا commits غير موقَّعة.
+الفرع الرئيسي (`sadlang`) **مقفل**: لا دفع مباشر، لا تاريخ غير خطّي، لا commits غير موقَّعة.
 كل تغيير يدخل **عبر PR يُدمج بـ squash فقط**.
 
 ---
 
 ## 1. حماية الفرع الرئيسي (Main Branch Protection)
 
-الفرع الافتراضي `graphic` محميٌّ عبر **Repository Ruleset** اسمه
+الفرع الافتراضي `sadlang` محميٌّ عبر **Repository Ruleset** اسمه
 `PMF v1.9.2 - Main Branch Protection` (وضع: `active`، يُطبَّق على `~DEFAULT_BRANCH`).
 
 | القاعدة | المعنى العملي | ماذا يحدث لو خالفت |
 |---|---|---|
-| `pull_request` | كل تغيير يمرّ بـ PR (لا دفع مباشر) | `git push origin graphic` → **مرفوض** |
+| `pull_request` | كل تغيير يمرّ بـ PR (لا دفع مباشر) | `git push origin sadlang` → **مرفوض** |
 | `required_signatures` | كل commit يصل للفرع **موقَّع** | دفع commit غير موقَّع → **مرفوض** |
 | `required_linear_history` | تاريخ خطّي — **لا merge commits** (commit بأبوين) | دمج `merge` عبر API → **`405 Merge commits are not allowed`** |
 | `non_fast_forward` | منع force-push / إعادة الكتابة | `push --force` → **مرفوض** |
-| `deletion` | منع حذف الفرع | حذف `graphic` → **مرفوض** |
+| `deletion` | منع حذف الفرع | حذف `sadlang` → **مرفوض** |
 | `pull_request.approvals = 0` | **لا مراجعة إلزامية حاليّاً** (فريق مالك واحد) | الدمج يمضي دون موافقة ثانية |
 
 **ملاحظة دقيقة عن منع `merge`:** قاعدة `pull_request` في الـRuleset تُدرج
@@ -66,9 +66,9 @@
 ### 2.1 انطلق من فرع رئيسي محدَّث
 
 ```bash
-git checkout graphic
+git checkout sadlang
 git fetch origin
-git reset --hard origin/graphic   # طابِق الريموت تماماً قبل التفريع
+git reset --hard origin/sadlang   # طابِق الريموت تماماً قبل التفريع
 ```
 
 ### 2.2 أنشئ فرع ميزة بتسمية واضحة
@@ -76,7 +76,7 @@ git reset --hard origin/graphic   # طابِق الريموت تماماً قب�
 استخدم بادئة تصف النوع — `feat/`، `fix/`، `test/`، `refactor/`، `docs/`:
 
 ```bash
-git checkout -b feat/اسم-الميزة-المختصر graphic
+git checkout -b feat/اسم-الميزة-المختصر sadlang
 ```
 
 ### 2.3 اعمل والتزم بوحدات صغيرة
@@ -131,7 +131,7 @@ python -m pytest tests/system/builtin_errors/ scripts/codegen/test_gen_error_mes
 
 ```bash
 git push -u origin feat/اسم-الميزة-المختصر
-gh pr create --base graphic --head feat/اسم-الميزة-المختصر `
+gh pr create --base sadlang --head feat/اسم-الميزة-المختصر `
   --title "feat(scope): العنوان" --body "الوصف"
 ```
 
@@ -162,11 +162,11 @@ gh pr merge <رقم> --squash --admin
 
 ### 4.3 إن كان الـPR متعارضاً (CONFLICTING)
 
-عالج التعارض **في فرع الميزة** (لا في `graphic`) ثم ادفعه ليصبح الـPR قابلاً للدمج:
+عالج التعارض **في فرع الميزة** (لا في `sadlang`) ثم ادفعه ليصبح الـPR قابلاً للدمج:
 
 ```bash
 git checkout feat/اسم-الميزة-المختصر
-git merge origin/graphic        # أو: git rebase origin/graphic
+git merge origin/sadlang        # أو: git rebase origin/sadlang
 # حُلّ التعارضات في الملفات المعلَّمة، ثم:
 git add <الملفات>
 git commit                      # (للـmerge) أو: git rebase --continue
@@ -181,9 +181,9 @@ git push origin feat/اسم-الميزة-المختصر
 ### 4.4 بعد الدمج — نظّف وزامِن
 
 ```bash
-git checkout graphic
+git checkout sadlang
 git fetch origin
-git reset --hard origin/graphic
+git reset --hard origin/sadlang
 git branch -d feat/اسم-الميزة-المختصر       # محلّياً
 git push origin --delete feat/اسم-الميزة-المختصر  # الريموت (إن لم يُحذف تلقائياً)
 ```
@@ -194,7 +194,7 @@ git push origin --delete feat/اسم-الميزة-المختصر  # الريمو
 
 | العَرَض | السبب | الحل |
 |---|---|---|
-| `push declined due to repository rule violations` على `graphic` | دفع مباشر للفرع المحميّ | افتح PR بدلاً منه (§4.1) |
+| `push declined due to repository rule violations` على `sadlang` | دفع مباشر للفرع المحميّ | افتح PR بدلاً منه (§4.1) |
 | `405 Merge commits are not allowed` | `merge_method=merge` | استخدم `merge_method=squash` |
 | الدفع مرفوض بسبب توقيع | commit غير موقَّع على فرع يفرض التوقيع | الدمج عبر API (الخادم يوقّع)، أو فعّل GPG محلّياً |
 | `gh pr view` يقول `BLOCKED` | سياسة الفرع الافتراضي (وليس بالضرورة فحوص CI) | تجاوز المالك: REST API أو `gh pr merge --admin` |

@@ -250,7 +250,7 @@ TemplateBuilder (حوالي 14 method):
 **خطة الطوارئ:**
 1. إذا فشل البناء بعد commit → `git revert` للـcommit الأخير
 2. إذا تراجعت الاختبارات → تشخيص ملف بملف
-3. الـbranch `graphic` يبقى مستقراً — العمل في branches فرعية مقترحة:
+3. الـbranch `sadlang` يبقى مستقراً — العمل في branches فرعية مقترحة:
    - `phase-6/step-1-context`
    - `phase-6/step-2-method-calls`
    - ...

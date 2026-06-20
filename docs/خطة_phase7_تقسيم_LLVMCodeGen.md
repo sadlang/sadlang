@@ -123,7 +123,7 @@ class LLVMCodeGen : public LLVMCodeGenContext {
 2. `cmake --build build --config Debug --target sad-run` → 0 أخطاء
 3. `python tests/dual_execution/runner.py` → ≥790/837 (baseline 793)
 4. `git commit` بصياغة `refactor(phase-7-step-N): فصل XCodeGen (~M methods, K ملفات)`
-5. `git push origin graphic`
+5. `git push origin sadlang`
 6. تحديث `/memories/repo/compiler_fix_notes.md` بالدروس الجديدة
 
 ---

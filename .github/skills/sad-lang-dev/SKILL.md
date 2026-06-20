@@ -123,7 +123,7 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 - **مزدوج اللغة:** كل API عام موثّق بـ `@brief (AR)` و `@brief (EN)` (CW-08).
 - **التوافق الخلفي:** إضافة opcode/token/AST node مسموحة — تغيير معنى موجود ممنوع (CW-24).
 - **اختبار المفسر + المترجم:** لا تكتفِ بأحدهما (BF-08, BF-29).
-- **فرع `dev` عبر PR فقط:** العمل يتكامل في فرع **`dev`** (لا `graphic`). كلاهما محميّ على GitHub
+- **فرع `dev` عبر PR فقط:** العمل يتكامل في فرع **`dev`** (لا `sadlang`). كلاهما محميّ على GitHub
   (Rulesets، توقيع GPG + PR إلزاميّان). أنشئ فرع `agent/<مهمة>` من `dev` في **worktree** بمجلد
   `C:/s_lang/temp-brunch/`، أودِع بـcommits **موقّعة GPG**، وادمج في `dev` **عبر PR** — لا دفع مباشر.
   المستودع: `sadlang/s-programming-language`. التفصيل في [./references/workflow.md](./references/workflow.md) §5.

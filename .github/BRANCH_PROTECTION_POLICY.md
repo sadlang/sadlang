@@ -9,7 +9,7 @@
 ## ⚠️ تعديل مؤقت ساري (2026-06-10) — تخفيف شرط المراجعة
 
 > **القرار:** بطلب المالك (صالح) — **تخفيف شرط المراجعة** على Ruleset `16775713`
-> (الفرع الافتراضي `graphic`) ليكفي **المالك وحده** للدمج. **السبب: الفريق صغير جداً** (مالك واحد،
+> (الفرع الافتراضي `sadlang`) ليكفي **المالك وحده** للدمج. **السبب: الفريق صغير جداً** (مالك واحد،
 > لا مراجِع ثانٍ — تعذّر دمج PR لأن GitHub يمنع موافقة صاحب PR على نفسه).
 >
 > **مؤقت:** يُعاد تفعيل الوضع الآمن الكامل (مراجعة إلزامية + Code Owner) **عند كبر الفريق**.
@@ -90,11 +90,11 @@ gh api repos/:owner/:repo/branches/main/protection \
 
 ## حماية فرع `dev` (2026-06-17)
 
-فرع `dev` (فرع تكامل عمل الوكلاء) محميّ **بنفس قواعد `graphic`** عبر Ruleset
+فرع `dev` (فرع تكامل عمل الوكلاء) محميّ **بنفس قواعد `sadlang`** عبر Ruleset
 مستقلّ `17779574` ("PMF - Dev Branch Protection"، `enforcement: active`، يستهدف
 `refs/heads/dev`، `bypass_actors: []`). القواعد المتطابقة:
 `deletion` · `non_fast_forward` · `required_linear_history` · `required_signatures` (GPG)
-· `pull_request` (PR إلزاميّ، 0 مراجعات حاليًّا — فريق صغير، كتخفيف graphic).
+· `pull_request` (PR إلزاميّ، 0 مراجعات حاليًّا — فريق صغير، كتخفيف sadlang).
 
 - **التكوين المحفوظ:** [`ruleset-dev-protection.json`](./ruleset-dev-protection.json).
 - **سير عمل الوكلاء:** فروع `agent/*` في worktrees بمجلد `C:/s_lang/temp-brunch/`،

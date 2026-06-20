@@ -20,7 +20,7 @@ on:
       - "scripts/codegen/gen_keywords.py"
       - "shared/lexer/generated/**"
   pull_request:
-    branches: [ main, master, develop, graphic ]
+    branches: [ main, master, dev, sadlang ]
     paths:
       - "language-truth/keywords.yaml"
       - "language-truth/_schemas/keywords.schema.json"

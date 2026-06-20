@@ -21,7 +21,7 @@ on:
       - "_bmad-output/systems/*/status/implementation_status.md"
       - "scripts/governance/gen_governance_digest.py"
   pull_request:
-    branches: [ main, master, develop, dev, graphic ]
+    branches: [ main, master, develop, dev, sadlang ]
     paths:
       - ".github/copilot-instructions.md"
       - "docs/ENGINEERING_RULES.md"

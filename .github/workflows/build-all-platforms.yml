@@ -15,7 +15,7 @@ name: 🔨 Build All Platforms
 
 on:
   push:
-    branches: [ main, develop, dev, graphic ]
+    branches: [ main, develop, dev, sadlang ]
     paths:
       - '**.cpp'
       - '**.h'
