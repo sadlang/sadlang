@@ -116,6 +116,19 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
+                // (AR) طول / length — عدد محارف النص
+                // (EN) length — number of characters in the string
+                if (methodName == TM::String::LENGTH)
+                {
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_STRING_LENGTH);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    inst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Integer);
+                }
+
                 return std::nullopt;
             }
 

@@ -279,10 +279,27 @@ namespace Sad
             switch (result.action.strategy)
             {
             case Errors::RecoveryStrategyType::INSERT_TOKEN:
-                // (AR) الرمز "أُدرج" افتراضياً — لا يتقدم المحلل
-                //      نرجع صحيح ليتابع consume() دون رفع خطأ
-                // (EN) Token is "virtually inserted" — parser doesn't advance
-                //      Return true so consume() can continue without error
+                // (AR) الرمز "أُدرج" افتراضياً — لا يتقدم المحلل، ويتابع consume() التحليل.
+                //      لكنّ هذا خطأ نحويّ حقيقيّ (رمز مفقود): يجب تسجيله في ErrorManager
+                //      كي يعكسه hasErrors()، وإلّا يُبتلع الخطأ صامتاً ويُقبل كودٌ مُشوَّه
+                //      مثل "(1 + 2;" بلا أيّ تشخيص (BF-04: عالج السبب لا العرَض).
+                // (EN) The token is "virtually inserted" so parsing continues, but this is
+                //      a genuine syntax error (a missing token). We MUST record it in the
+                //      ErrorManager so hasErrors() reflects it; otherwise malformed input
+                //      like "(1 + 2;" is silently accepted with no diagnostic.
+                {
+                    Errors::SourceLocation insLoc(
+                        filename_.empty() ? "<source>" : filename_,
+                        current_.getPosition().line,
+                        current_.getPosition().column,
+                        current_.getPosition().offset,
+                        current_.getPosition().length);
+                    Errors::ErrorManager::getInstance().reportError(
+                        Errors::ErrorCode::SYN_UNCLOSED_BRACKET,
+                        insLoc,
+                        result.action.description,
+                        result.action.descriptionEn);
+                }
                 std::cerr << "\n\xF0\x9F\x94\xA7 " << result.action.description
                           << " | " << result.action.descriptionEn << "\n";
                 return true;

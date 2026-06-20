@@ -632,6 +632,18 @@ namespace Sad
             void checkMemberAccess(AST::Visibility visibility,
                                    const std::string &memberName,
                                    Data::ClassType *targetClass);
+
+            /**
+             * @brief (AR) يحلّ عضوًا على قيمة كائن مُقيَّمة مسبقًا (منطق مشترك بين «.» و«?.»).
+             *        (EN) Resolves a member on an already-evaluated object value
+             *             (shared by regular '.' and optional '?.' access).
+             * @param objectValue (AR) قيمة الكائن المُقيَّمة / (EN) the evaluated object value
+             * @param memberName  (AR) اسم العضو / (EN) member name
+             * @param positionIn  (AR) موقع المصدر للأخطاء / (EN) source position for errors
+             */
+            void resolveInstanceMember(const Data::Value &objectValue,
+                                       const std::string &memberName,
+                                       const Lexer::Position &positionIn);
         };
 
     } // namespace Interpreter

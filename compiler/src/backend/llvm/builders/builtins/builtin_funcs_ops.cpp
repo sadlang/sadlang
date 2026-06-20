@@ -319,7 +319,7 @@ namespace Sad
             auto *strdupTy = llvm::FunctionType::get(
                 llvm::PointerType::getUnqual(*cg_.context_),
                 {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-            auto strdupFn = cg_.module_->getOrInsertFunction("_strdup", strdupTy);
+            auto strdupFn = cg_.module_->getOrInsertFunction("strdup", strdupTy);
             llvm::Value *result = cg_.builder_->CreateCall(strdupFn, {bufPtr}, "readline.dup");
 
             if (inst && inst->result.has_value())

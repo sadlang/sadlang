@@ -45,11 +45,155 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>  /* SIZE_MAX — مطلوب صراحةً على clang/Linux (يتسرّب ضمنًا على MSVC) */
 #include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <pthread.h>
 #endif
+
+/* ============================================================================
+ * (AR) دوالّ تغليف التزامن — تجريد عابر للمنصّات للقفل والخيوط.
+ *      يستدعيها مولّد LLVM بدل واجهات Win32 الخام (CreateMutexA…) ليعمل
+ *      الكود المُولَّد على Linux/macOS عبر pthread أيضًا.
+ *      المقبض الرمزيّ (<= 1) ناتج التنفيذ المتزامن لـ go/lambda — يُعامَل no-op.
+ * (EN) Cross-platform concurrency wrappers. The LLVM backend calls these instead
+ *      of raw Win32 APIs so generated code links/runs on POSIX via pthread.
+ *      Symbolic handles (<= 1) come from synchronous go/lambda execution — no-op.
+ * ============================================================================ */
+
+void *sad_rt_mutex_create(void)
+{
+#ifdef _WIN32
+    return (void *)CreateMutexA(NULL, FALSE, NULL);
+#else
+    /* (AR) قفل تعاوديّ ليطابق دلالة Win32 (إعادة الاقتناص من نفس الخيط) —
+     *      وإلّا قد يحدث deadlock عند القفل المتداخل (سبب مهلة سويتة الضغط). */
+    pthread_mutex_t *m = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+    if (m)
+    {
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(m, &attr);
+        pthread_mutexattr_destroy(&attr);
+    }
+    return (void *)m;
+#endif
+}
+
+void sad_rt_mutex_lock(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return;
+#ifdef _WIN32
+    WaitForSingleObject((HANDLE)h, 0xFFFFFFFF);
+#else
+    pthread_mutex_lock((pthread_mutex_t *)h);
+#endif
+}
+
+void sad_rt_mutex_unlock(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return;
+#ifdef _WIN32
+    ReleaseMutex((HANDLE)h);
+#else
+    pthread_mutex_unlock((pthread_mutex_t *)h);
+#endif
+}
+
+/* (AR) يُرجع 0 عند نجاح الاقتناص (مطابق لـ WAIT_OBJECT_0 وpthread_mutex_trylock). */
+int sad_rt_mutex_trylock(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return 0;
+#ifdef _WIN32
+    return (int)WaitForSingleObject((HANDLE)h, 0);
+#else
+    return pthread_mutex_trylock((pthread_mutex_t *)h);
+#endif
+}
+
+void *sad_rt_thread_spawn(void *fn, void *arg)
+{
+#ifdef _WIN32
+    return (void *)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)fn, arg, 0, NULL);
+#else
+    pthread_t *t = (pthread_t *)malloc(sizeof(pthread_t));
+    if (t && pthread_create(t, NULL, (void *(*)(void *))fn, arg) == 0)
+        return (void *)t;
+    if (t)
+        free(t);
+    return (void *)0;
+#endif
+}
+
+void sad_rt_thread_join(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return; /* مقبض رمزيّ من التنفيذ المتزامن */
+#ifdef _WIN32
+    WaitForSingleObject((HANDLE)h, 0xFFFFFFFF);
+    CloseHandle((HANDLE)h);
+#else
+    pthread_join(*(pthread_t *)h, NULL);
+    free(h);
+#endif
+}
+
+/* (AR) النوم بالمللي ثانية — Win32 Sleep أو POSIX nanosleep. */
+void sad_rt_sleep_ms(unsigned int ms)
+{
+#ifdef _WIN32
+    Sleep(ms);
+#else
+    struct timespec ts;
+    ts.tv_sec = (time_t)(ms / 1000u);
+    ts.tv_nsec = (long)((ms % 1000u) * 1000000L);
+    nanosleep(&ts, NULL);
+#endif
+}
+
+/* (AR) أحداث المستقبل (future) — Win32 Event أو علامة بسيطة على POSIX.
+ *      النموذج متزامن: القيمة تُخزَّن قبل الانتظار، فالانتظار على POSIX no-op. */
+void *sad_rt_event_create(void)
+{
+#ifdef _WIN32
+    return (void *)CreateEventA(NULL, TRUE, FALSE, NULL);
+#else
+    long *e = (long *)malloc(sizeof(long));
+    if (e)
+        *e = 0;
+    return (void *)e;
+#endif
+}
+
+void sad_rt_event_set(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return;
+#ifdef _WIN32
+    SetEvent((HANDLE)h);
+#else
+    *(volatile long *)h = 1;
+#endif
+}
+
+void sad_rt_event_wait(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return;
+#ifdef _WIN32
+    WaitForSingleObject((HANDLE)h, 0xFFFFFFFF);
+#else
+    /* (AR) النموذج متزامن: القيمة محسومة سلفًا — لا حاجة لانتظار فعليّ. */
+    (void)h;
+#endif
+}
 
 /* ============================================================================
  * دوال الإدخال / Input Functions

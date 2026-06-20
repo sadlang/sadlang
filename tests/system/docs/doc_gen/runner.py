@@ -50,9 +50,32 @@ class C:
 
 # (AR) جذر المشروع
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[1]
-SAD = PROJECT_ROOT / "build" / "bin" / "Debug" / "sad.exe"
-SADC = PROJECT_ROOT / "build" / "bin" / "Release" / "sad-build.exe"
+PROJECT_ROOT = SCRIPT_DIR.parents[3]
+
+# (AR) حلّ مسار الثنائيّ عابرًا للمنصّات: على ويندوز تكون الثنائيّات في
+#      build/bin/Debug/x.exe (مولّد متعدّد التهيئات)؛ على Linux/macOS في
+#      build/bin/x بلا .exe وبلا مجلّد Debug (مولّد أحاديّ التهيئة).
+# (EN) Cross-platform binary resolution (multi-config Windows vs single-config Unix).
+def _resolve_binary(name: str) -> Path:
+    bindir = PROJECT_ROOT / "build" / "bin"
+    candidates = [
+        bindir / "Debug" / f"{name}.exe",
+        bindir / "Release" / f"{name}.exe",
+        bindir / f"{name}.exe",
+        bindir / name,
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return candidates[0]
+
+SAD = _resolve_binary("sad-run")
+SADC = _resolve_binary("sad-build")
+# (AR) المترجم اختياريّ: حين لا يُبنى (LLVM معطّل، مثل Windows CI) ننتقل إلى
+#      وضع المفسّر-فقط (نتحقّق أنّ توليد sad للتوثيق يعمل دون مقارنة sadc).
+# (EN) Compiler optional: when not built (LLVM off, e.g. Windows CI), fall back to
+#      interpreter-only (verify sad doc-gen works without the sadc comparison).
+SADC_AVAILABLE = SADC.exists()
 TMP = SCRIPT_DIR / "_tmp"
 
 # (AR) تسامح الفرق لـ PDF (timestamps في metadata قد تختلف ~1KB)
@@ -170,6 +193,13 @@ def run_case(case: TestCase) -> TestResult:
         return TestResult(case=case, passed=False,
                           error=f"sad failed: {err1}", sad_time_ms=t1)
 
+    # (AR) لا مترجم: نكتفي بنجاح توليد المفسّر (وضع مفسّر-فقط).
+    # (EN) No compiler: accept interpreter doc-gen success (interpreter-only mode).
+    if not SADC_AVAILABLE:
+        return TestResult(case=case, passed=True,
+                          error="SKIP sadc: المترجم غير مبنيّ — مفسّر فقط",
+                          sad_size=sad_out.stat().st_size, sad_time_ms=t1)
+
     ok2, err2, t2 = run_doc_gen(SADC, case, sadc_out)
     if not ok2:
         return TestResult(case=case, passed=False,
@@ -267,9 +297,11 @@ def main():
     if not SAD.exists():
         print(f"{C.RED}❌ sad.exe غير موجود: {SAD}{C.RESET}")
         return 2
-    if not SADC.exists():
-        print(f"{C.RED}❌ sadc.exe غير موجود: {SADC}{C.RESET}")
-        return 2
+    if not SADC_AVAILABLE:
+        # (AR) المترجم غير مبنيّ (LLVM معطّل، مثل Windows CI): وضع المفسّر-فقط —
+        #      نتحقّق فقط أنّ توليد sad للتوثيق يعمل (انظر run_case). لا نفشل.
+        # (EN) Compiler not built (LLVM off, e.g. Windows CI): interpreter-only mode.
+        print(f"{C.YELLOW}⚠️ sadc غير مبنيّ — وضع المفسّر-فقط (تحقّق توليد sad){C.RESET}")
 
     # (AR) تنظيف وتجهيز _tmp
     if TMP.exists():

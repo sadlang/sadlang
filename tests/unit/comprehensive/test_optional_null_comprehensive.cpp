@@ -278,17 +278,20 @@ int main() {
             "    " KW_THIS ".name = n\n"
             "  " KW_END "\n"
             KW_END "\n"
-            KW_VAR " p = " KW_NEW " Person(\"Ali\")\n"
+            KW_VAR " p = " " Person(\"Ali\")\n"
             KW_VAR " y = p?.name";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("Ali"));
     });
 
-    SAD_TEST("OC02: ?. على لاشيء يرجع void", {
+    SAD_TEST("OC02: ?. على لاشيء يرجع عدم (null)", {
+        // (AR) عقد S-TS-P1 (ADR-TYPESYSTEM-001): «?.» على عدم يُرجع «عدم» (null)
+        //      المتمايز عن «فراغ» (void) — لا isVoid. حُدِّث التوقّع ليطابق العقد.
+        // (EN) Per S-TS-P1: '?.' on null returns the distinct null (عدم), not void.
         auto v = runAndGetVar(
             KW_VAR " x = " KW_NULL "\n"
             KW_VAR " y = x?.name", "y");
-        SAD_ASSERT_TRUE(v.isVoid());
+        SAD_ASSERT_TRUE(v.isNull());
     });
 
     SAD_TEST("OC03: ?. + ?? على كائن موجود", {
@@ -298,7 +301,7 @@ int main() {
             "    " KW_THIS ".val = v\n"
             "  " KW_END "\n"
             KW_END "\n"
-            KW_VAR " c = " KW_NEW " C(99)\n"
+            KW_VAR " c = " " C(99)\n"
             KW_VAR " y = c?.val ?? 0";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), 99);
@@ -323,8 +326,8 @@ int main() {
             "    " KW_THIS ".inner = i\n"
             "  " KW_END "\n"
             KW_END "\n"
-            KW_VAR " i = " KW_NEW " Inner(42)\n"
-            KW_VAR " o = " KW_NEW " Outer(i)\n"
+            KW_VAR " i = " " Inner(42)\n"
+            KW_VAR " o = " " Outer(i)\n"
             KW_VAR " y = o?.inner?.val";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), 42);
@@ -342,7 +345,7 @@ int main() {
             "    " KW_THIS ".inner = i\n"
             "  " KW_END "\n"
             KW_END "\n"
-            KW_VAR " o = " KW_NEW " Outer(" KW_NULL ")\n"
+            KW_VAR " o = " " Outer(" KW_NULL ")\n"
             KW_VAR " y = o?.inner?.val ?? -1";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), -1);
@@ -366,7 +369,7 @@ int main() {
             "    " KW_THIS ".color = c\n"
             "  " KW_END "\n"
             KW_END "\n"
-            KW_VAR " c = " KW_NEW " Cat(\"Mimi\", \"white\")\n"
+            KW_VAR " c = " " Cat(\"Mimi\", \"white\")\n"
             KW_VAR " y = c?.name";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("Mimi"));
@@ -385,7 +388,7 @@ int main() {
             "    " KW_THIS ".color = c\n"
             "  " KW_END "\n"
             KW_END "\n"
-            KW_VAR " c = " KW_NEW " Cat(\"Mimi\", \"black\")\n"
+            KW_VAR " c = " " Cat(\"Mimi\", \"black\")\n"
             KW_VAR " y = c?.color";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("black"));

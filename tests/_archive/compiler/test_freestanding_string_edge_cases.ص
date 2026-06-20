@@ -3,7 +3,7 @@
 # Test: Edge cases for string+number concatenation (freestanding mode)
 # ═══════════════════════════════════════════════════════════════════════
 
-خارجي("debug_puts") دالة _اطبع(عنوان: رقم)
+خارجي("debug_puts") دالة _اطبع(عنوان: نص)
 خارجي("debug_putchar") دالة _حرف(ح: رقم)
 
 # ─── حالة 1: نص فارغ + رقم ───

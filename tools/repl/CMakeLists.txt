@@ -55,8 +55,16 @@ set_target_properties(sad-repl PROPERTIES
 )
 
 # Output directory
+# (AR) نستعمل ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} كبقيّة الأهداف ليقع sad-repl في
+#      نفس مجلّد sad-hub (الذي يكتشف الأدوات بمسح أشقّائه). الصيغة القديمة
+#      bin/${CMAKE_BUILD_TYPE} كانت تُنتج bin/Debug/Debug على MSVC (إلحاق تلقائيّ
+#      للتهيئة) وbin/Debug على Linux بينما الأشقّاء في bin/ — فيختفي repl من --list.
+# (EN) Use ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} like every other target so sad-repl
+#      lands next to sad-hub (which discovers tools by scanning siblings). The old
+#      bin/${CMAKE_BUILD_TYPE} produced bin/Debug/Debug on MSVC (auto config append)
+#      and bin/Debug on Linux while siblings sit in bin/ — hiding repl from --list.
 set_target_properties(sad-repl PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${CMAKE_BUILD_TYPE}
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
 # ========================================

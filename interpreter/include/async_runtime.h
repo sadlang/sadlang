@@ -150,23 +150,13 @@ namespace Sad
         class ThreadPool
         {
         public:
-            explicit ThreadPool(size_t numThreads = 4) : stop_(false)
+            explicit ThreadPool(size_t numThreads = 4) : stop_(false), busy_(0)
             {
-                for (size_t i = 0; i < numThreads; ++i)
+                size_t n = numThreads > 0 ? numThreads : 4;
+                std::unique_lock<std::mutex> lock(queueMutex_);
+                for (size_t i = 0; i < n; ++i)
                 {
-                    workers_.emplace_back([this]
-                                          {
-                while (true) {
-                    std::function<void()> task;
-                    {
-                        std::unique_lock<std::mutex> lock(queueMutex_);
-                        condition_.wait(lock, [this]{ return stop_ || !tasks_.empty(); });
-                        if (stop_ && tasks_.empty()) return;
-                        task = std::move(tasks_.front());
-                        tasks_.pop();
-                    }
-                    task();
-                } });
+                    addWorkerLocked();
                 }
             }
 
@@ -192,16 +182,54 @@ namespace Sad
                 {
                     std::unique_lock<std::mutex> lock(queueMutex_);
                     tasks_.push(std::move(task));
+                    // (AR) حوض مرن: الـgoroutines قد تحجب (channel/waitgroup/mutex).
+                    //      مع حوض ثابت الحجم، goroutine محجوبة تحتجز عاملاً بينما
+                    //      المهام التي تُحرّرها تبقى في الطابور بلا عامل ⇒ تجويع/تعلّق
+                    //      (يظهر على عدّاء قليل النوى مثل Linux CI، لا على ويندوز كثير النوى).
+                    //      نضمن وجود عامل لكلّ مهمة قابلة للتقدّم بإضافة عامل عند التشبّع.
+                    // (EN) Elastic pool: goroutines may block (channel/waitgroup/mutex).
+                    //      With a fixed pool, a blocked goroutine holds a worker while the
+                    //      tasks that would unblock it sit queued with no worker ⇒ pool
+                    //      starvation deadlock (surfaces on low-core runners like Linux CI,
+                    //      not on many-core Windows). Grow on saturation so no task starves.
+                    if (busy_.load() + tasks_.size() > workers_.size() &&
+                        workers_.size() < kMaxWorkers)
+                    {
+                        addWorkerLocked();
+                    }
                 }
                 condition_.notify_one();
             }
 
         private:
+            static constexpr size_t kMaxWorkers = 8192;
+
+            // (AR) يجب استدعاؤها مع حيازة queueMutex_ / (EN) Call with queueMutex_ held.
+            void addWorkerLocked()
+            {
+                workers_.emplace_back([this]
+                                      {
+                while (true) {
+                    std::function<void()> task;
+                    {
+                        std::unique_lock<std::mutex> lock(queueMutex_);
+                        condition_.wait(lock, [this]{ return stop_ || !tasks_.empty(); });
+                        if (stop_ && tasks_.empty()) return;
+                        task = std::move(tasks_.front());
+                        tasks_.pop();
+                    }
+                    busy_.fetch_add(1);
+                    task();
+                    busy_.fetch_sub(1);
+                } });
+            }
+
             std::vector<std::thread> workers_;
             std::queue<std::function<void()>> tasks_;
             std::mutex queueMutex_;
             std::condition_variable condition_;
             bool stop_;
+            std::atomic<size_t> busy_;
         };
 
         // =========================================================================

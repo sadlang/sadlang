@@ -682,45 +682,23 @@ namespace Sad
             // تقييم الكائن أولاً
             node.object->accept(*this);
 
-            // (AR) إذا كان عدم (null)، أرجع عدم — S-TS-P1 (isNull لا isVoid)
+            // (AR) قِصر الدائرة الوحيد للوصول الآمن: إذا كان الكائن عدمًا (null) نُرجع
+            //      عدمًا دون خطأ — S-TS-P1 (isNull لا isVoid). وما عدا ذلك يجب أن يتصرّف
+            //      «?.» تمامًا كـ«.» (وراثة، getters، حقول، خرائط) عبر المنطق المشترك.
+            // (EN) Optional access only short-circuits on a null object; otherwise it
+            //      must behave exactly like '.', so we delegate to the shared resolver.
             if (lastResult_.isNull())
             {
                 lastResult_ = Value::makeNull();
                 return;
             }
 
-            // إذا لم يكن كائناً، أرجع عدم أيضاً
-            if (!lastResult_.isObject())
-            {
-                lastResult_ = Value::makeNull();
-                return;
-            }
-
-            // الوصول للعضو بشكل عادي
-            auto obj = lastResult_.toObject();
-            if (!obj)
-            {
-                lastResult_ = Value::makeNull();
-                return;
-            }
-
-            // محاولة الحصول على العضو
-            if (obj->hasField(node.member))
-            {
-                Value *fieldPtr = obj->getField(node.member);
-                if (fieldPtr)
-                {
-                    lastResult_ = *fieldPtr; // dereference المؤشر
-                }
-                else
-                {
-                    lastResult_ = Value::makeNull();
-                }
-            }
-            else
-            {
-                lastResult_ = Value::makeNull();
-            }
+            // (AR) فوّض الحلّ إلى نفس مسار «.» — يصلح الخطأ السابق الذي كان يُرجع «لاشيء»
+            //      للحقول الموروثة/الـgetters لأنّه اكتفى بـ hasField الساذج.
+            // (EN) Delegate to the same path as '.', fixing the prior bug where
+            //      inherited/getter members wrongly returned null via naive hasField.
+            Value objectValue = lastResult_;
+            resolveInstanceMember(objectValue, node.member, node.position);
         }
 
         /**

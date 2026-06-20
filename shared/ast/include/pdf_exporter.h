@@ -117,13 +117,25 @@ namespace Sad
                         "<span class='totalPages'></span>"
                         "</div>";
 
-                    cmd = "\"\"" + eng.path + "\"" + " --headless --disable-gpu" + " --virtual-time-budget=10000" + " --run-all-compositor-stages-before-draw" + " --print-to-pdf-header-template=\"" + headerTpl + "\"" + " --print-to-pdf-footer-template=\"" + footerTpl + "\"" + " --print-to-pdf=\"" + absPdf.string() + "\"" + " \"" + uri + "\"\"";
+                    cmd = "\"" + eng.path + "\"" + " --headless --disable-gpu" + " --virtual-time-budget=10000" + " --run-all-compositor-stages-before-draw" + " --print-to-pdf-header-template=\"" + headerTpl + "\"" + " --print-to-pdf-footer-template=\"" + footerTpl + "\"" + " --print-to-pdf=\"" + absPdf.string() + "\"" + " \"" + uri + "\"";
                 }
                 else if (eng.kind == "wkhtmltopdf")
                 {
                     // (AR) wkhtmltopdf يدعم --footer-center مباشرة
-                    cmd = "\"\"" + eng.path + "\" --quiet" + " --footer-center \"[page] / [topage]\"" + " --footer-font-size 9" + " \"" + absHtml.string() + "\" \"" + absPdf.string() + "\"\"";
+                    cmd = "\"" + eng.path + "\" --quiet" + " --footer-center \"[page] / [topage]\"" + " --footer-font-size 9" + " \"" + absHtml.string() + "\" \"" + absPdf.string() + "\"";
                 }
+
+                // (AR) على ويندوز يستعمل system() صدفة cmd.exe التي تتطلّب تغليف
+                //      الأمر كلّه باقتباس خارجيّ إضافيّ حين يحوي مسار البرنامج اقتباسًا
+                //      (cmd /c ""prog" args"). على POSIX يستعمل /bin/sh الذي يكسر هذا
+                //      التغليف فتصير < > في قالب HTML إعادة توجيه (redirection unexpected).
+                // (EN) On Windows, system() uses cmd.exe needing an extra outer quote
+                //      wrap (cmd /c ""prog" args"). On POSIX, /bin/sh breaks on that wrap
+                //      turning < > in the HTML template into redirections — so wrap only
+                //      on Windows.
+#ifdef _WIN32
+                cmd = "\"" + cmd + "\"";
+#endif
 
                 int rc = std::system(cmd.c_str());
                 if (rc != 0)

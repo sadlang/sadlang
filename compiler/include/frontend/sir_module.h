@@ -501,6 +501,9 @@ namespace Sad
                 std::string sourceFile;                                                 ///< (AR) مسار الملف المصدري (لفحص الوراثة المحكمة) / (EN) Source file path (sealed inheritance check)
                 std::vector<std::string> implementedTraits;                             ///< (AR) السمات المُنفَّذة / (EN) Implemented traits
                 std::unordered_map<std::string, SadTypeKind> fields_;                   ///< (AR) الحقول / (EN) Fields
+                /// (AR) أسماء أصناف الحقول الكائنيّة (لتمكين الوصول المتسلسل: كائن.حقل_كائن.حقل)
+                /// (EN) Class names of object-typed fields (enables chained access: obj.objField.field)
+                std::unordered_map<std::string, std::string> fieldClassNames_;
                 std::vector<std::string> fieldOrder_;                                   ///< (AR) ترتيب الحقول / (EN) Field insertion order
                 std::unordered_map<std::string, std::shared_ptr<SIRFunction>> methods_; ///< (AR) الدوال / (EN) Methods
 

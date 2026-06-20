@@ -81,6 +81,11 @@ if(BUILD_TESTS)
     set_tests_properties(DocGenDual_Fast PROPERTIES
         LABELS "doc_gen;fast"
         TIMEOUT 120
+        # (AR) Fast وFull يتشاركان مجلّد _tmp بأسماء ملفّات متطابقة؛ القفل يمنع
+        #      تزامنهما تحت ctest -j (وإلّا سباق حذف/قراءة ⇒ FileNotFoundError).
+        # (EN) Fast & Full share _tmp with identical filenames; lock prevents
+        #      concurrent runs under ctest -j (else a delete/read race).
+        RESOURCE_LOCK "doc_gen_tmp"
     )
 
     # (AR) الاختبار الكامل (PDF) — وسم Nightly
@@ -95,5 +100,6 @@ if(BUILD_TESTS)
     set_tests_properties(DocGenDual_Full PROPERTIES
         LABELS "doc_gen;full;nightly;pdf"
         TIMEOUT 600
+        RESOURCE_LOCK "doc_gen_tmp"
     )
 endif()

@@ -93,11 +93,17 @@ namespace Sad
                     // (EN) First argument is the object itself (self)
                     args.push_back(SIROperand::Register(objReg, SadTypeKind::Integer));
 
+                    // (AR) أسماء أصناف الوسائط (لتتبّع أنواع الحقول الكائنيّة)
+                    // (EN) Argument class names (to track object-typed field classes)
+                    std::vector<std::string> argClassNames;
+                    argClassNames.push_back(""); // self
+
                     // (AR) ???? ?????????
                     // (EN) Rest of arguments
                     for (const auto &arg : newExpr->arguments)
                     {
                         auto argResult = buildExpression(arg.get());
+                        argClassNames.push_back(argResult.className);
                         if (argResult.isConstant && !argResult.constantValue.empty())
                         {
                             // ????? ?????? ??? ?????
@@ -151,9 +157,12 @@ namespace Sad
                         // (AR) ???? ?????: ???_??????? ? ???_??????
                         // (EN) Build map: paramName ? argType
                         std::unordered_map<std::string, SadTypeKind> paramTypes;
+                        std::unordered_map<std::string, std::string> paramClassNames;
                         for (size_t i = 1; i < params.size() && i < args.size(); i++)
                         {
                             paramTypes[params[i].name] = args[i].dataType;
+                            if (i < argClassNames.size() && !argClassNames[i].empty())
+                                paramClassNames[params[i].name] = argClassNames[i];
                         }
 
                         // (AR) ????? ???? ????? ??????
@@ -166,6 +175,13 @@ namespace Sad
                                 if (fieldIt != sirClass->paramToFieldMap_.end())
                                 {
                                     const std::string &fieldName = fieldIt->second;
+                                    // (AR) سجّل اسم صنف الحقل الكائنيّ إن وُجد (لتمكين الوصول المتسلسل)
+                                    // (EN) Record object field's class name if any (enables chained access)
+                                    auto pcnIt = paramClassNames.find(paramName);
+                                    if (pcnIt != paramClassNames.end())
+                                    {
+                                        sirClass->fieldClassNames_[fieldName] = pcnIt->second;
+                                    }
                                     auto currentType = sirClass->fields_.find(fieldName);
                                     if (currentType != sirClass->fields_.end() &&
                                         currentType->second == SadTypeKind::Pointer &&

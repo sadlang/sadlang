@@ -396,9 +396,9 @@ if(TARGET sad-build AND WIN32)
             NAME "Compiler_Freestanding_BugFixes"
             COMMAND ${POWERSHELL_EXE}
                 -ExecutionPolicy Bypass
-                -File "${CMAKE_SOURCE_DIR}/tests/compiler/run_freestanding_tests.ps1"
+                -File "${CMAKE_SOURCE_DIR}/tests/_archive/compiler/run_freestanding_tests.ps1"
                 -SadcPath "$<TARGET_FILE:sad-build>"
-                -TestDir "${CMAKE_SOURCE_DIR}/tests/compiler"
+                -TestDir "${CMAKE_SOURCE_DIR}/tests/_archive/compiler"
         )
         set_tests_properties("Compiler_Freestanding_BugFixes" PROPERTIES
             TIMEOUT 120

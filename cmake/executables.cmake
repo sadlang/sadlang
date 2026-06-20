@@ -193,12 +193,21 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     #      (LLVMPasses/Coroutines) leak via link_directories causing
     #      _ITERATOR_DEBUG_LEVEL/RuntimeLibrary mismatch. The practically supported
     #      path is building sad-build in Release (what runner.py/config.yaml read).
-    if(SAD_LLVM_HAS_DEBUG)
+    # (AR) قيد ربط Debug خاصّ بـMSVC وحده: تعارض _ITERATOR_DEBUG_LEVEL/RuntimeLibrary
+    #      ينشأ فقط حين تُربط مكتبات LLVM Release في تهيئة Debug على MSVC بلا LLVM
+    #      Debug مطابق. على Linux/GCC/Clang لا يوجد هذا الفصل ABI، فبناء sad-build في
+    #      Debug آمن — وهو لازم لتشغيل اختبارات DualExecution/DocGen في وظيفة Debug.
+    # (EN) The Debug-linking constraint is MSVC-only: the _ITERATOR_DEBUG_LEVEL/
+    #      RuntimeLibrary mismatch occurs solely when Release LLVM libs link into a
+    #      Debug config on MSVC without a matching Debug LLVM. On Linux/GCC/Clang
+    #      there is no such ABI split, so building sad-build in Debug is safe — and
+    #      it is required to run the DualExecution/DocGen tests in the Debug job.
+    if(SAD_LLVM_HAS_DEBUG OR NOT MSVC)
         add_executable(sad-build ${SAD_BUILD_SOURCES})
-        message(STATUS "   sad-build: dual-config (Debug + Release)")
+        message(STATUS "   sad-build: all-config (built in Debug + Release)")
     else()
         add_executable(sad-build EXCLUDE_FROM_ALL ${SAD_BUILD_SOURCES})
-        message(STATUS "   sad-build: Release-only (EXCLUDE_FROM_ALL — no Debug LLVM)")
+        message(STATUS "   sad-build: Release-only (EXCLUDE_FROM_ALL — MSVC, no Debug LLVM)")
     endif()
 
     # (AR) استخدام SAD_LLVM_INCLUDES — يُعرّف في cmake/llvm.cmake مع generator expression

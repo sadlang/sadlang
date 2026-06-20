@@ -59,6 +59,31 @@ namespace Sad
             warningCount_ = 0;
         }
 
+        // (AR) يقتطع التشخيصات إلى أوّل n ويُعيد حساب عدّادات الأخطاء/التحذيرات.
+        // (EN) Truncates diagnostics to the first n and recomputes counts.
+        void DiagnosticSink::truncateTo(size_t n)
+        {
+            if (n >= diagnostics_.size())
+            {
+                return; // (AR) لا شيء لإزالته / (EN) nothing to remove
+            }
+            diagnostics_.resize(n);
+            // (AR) إعادة حساب العدّادات من البقيّة / (EN) recompute counters from the remainder
+            errorCount_ = 0;
+            warningCount_ = 0;
+            for (const auto &diag : diagnostics_)
+            {
+                if (diag.getSeverity() == DiagnosticSeverity::ERROR)
+                {
+                    errorCount_++;
+                }
+                else if (diag.getSeverity() == DiagnosticSeverity::WARNING)
+                {
+                    warningCount_++;
+                }
+            }
+        }
+
         // ====================================================================
         // (AR) تطبيق ErrorManager / (EN) ErrorManager Implementation
         // ====================================================================
@@ -176,6 +201,22 @@ namespace Sad
         {
             std::lock_guard<std::mutex> lock(mutex_);
             return sink_.getAll();
+        }
+
+        // (AR) عدد كل التشخيصات — لأخذ لقطة قبل كتلة «حاول».
+        // (EN) Total diagnostics count — to snapshot before a 'try' block.
+        size_t ErrorManager::getDiagnosticCount() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return sink_.size();
+        }
+
+        // (AR) يتراجع عن التشخيصات إلى لقطة سابقة بعد التقاط استثناء بـ«امسك».
+        // (EN) Rolls diagnostics back to a prior snapshot after a 'catch'.
+        void ErrorManager::truncateDiagnosticsTo(size_t n)
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            sink_.truncateTo(n);
         }
 
         /**

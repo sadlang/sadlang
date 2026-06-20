@@ -284,9 +284,12 @@ public:
      * @brief Tests parsing of for-in loop
      */
     void testForLoop() {
-        // لكل (ي في مدى(3)) \n  اطبع(ي) \n نهاية
+        // (AR) الصيغة القانونية لـ«لكل» بلا أقواس (language-truth/grammar/10_statements.yaml):
+        //      ForStatement = 'لكل' Identifier ['،' Identifier] 'في' Expression Block
+        //      الصيغة السابقة «لكل (ي في مدى(3))» بأقواس غير موجودة في القواعد ويرفضها المحلل بحقّ.
+        // لكل ي في مدى(3) \n  اطبع(ي) \n نهاية
         const char* source =
-            "\xd9\x84\xd9\x83\xd9\x84 (\xd9\x8a \xd9\x81\xd9\x8a \xd9\x85\xd8\xaf\xd9\x89(3))\n"
+            "\xd9\x84\xd9\x83\xd9\x84 \xd9\x8a \xd9\x81\xd9\x8a \xd9\x85\xd8\xaf\xd9\x89(3)\n"
             "  \xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9(\xd9\x8a)\n"
             "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9\n";
         lexer = new Lexer::LexerCore(source);

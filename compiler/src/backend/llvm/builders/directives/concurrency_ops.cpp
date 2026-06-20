@@ -73,10 +73,10 @@ namespace Sad
             auto structPtr = cg_.builder_->CreateBitCast(rawPtr, i64PtrTy);
 
             // (AR) ״¥†״´״§״¡ ״§„‚„: CreateMutexA(NULL, FALSE, NULL)
-            auto createMutexTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i32Ty, i8PtrTy}, false);
-            auto createMutex = cg_.module_->getOrInsertFunction("CreateMutexA", createMutexTy);
-            auto nullPtr = llvm::ConstantPointerNull::get(i8PtrTy);
-            auto handle = cg_.builder_->CreateCall(createMutex, {nullPtr, llvm::ConstantInt::get(i32Ty, 0), nullPtr});
+            // (EN) Create mutex via cross-platform wrapper (Win32/pthread).
+            auto createMutexTy = llvm::FunctionType::get(i8PtrTy, {}, false);
+            auto createMutex = cg_.module_->getOrInsertFunction("sad_rt_mutex_create", createMutexTy);
+            auto handle = cg_.builder_->CreateCall(createMutex, {});
 
             // (AR) ״×״®״²† slot[0] = handle (ptr ג†’ i64)
             auto handleAsI64 = cg_.builder_->CreatePtrToInt(handle, i64Ty);
@@ -110,10 +110,10 @@ namespace Sad
             auto handleAsI64 = cg_.builder_->CreateLoad(i64Ty, structPtr);
             auto handle = cg_.builder_->CreateIntToPtr(handleAsI64, i8PtrTy);
 
-            // (AR) WaitForSingleObject(handle, INFINITE=0xFFFFFFFF)
-            auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-            auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", waitTy);
-            cg_.builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+            // (EN) Lock via cross-platform wrapper: sad_rt_mutex_lock(handle)
+            auto lockTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto lockFunc = cg_.module_->getOrInsertFunction("sad_rt_mutex_lock", lockTy);
+            cg_.builder_->CreateCall(lockFunc, {handle});
 
             // (AR) ״×״¹† slot[1] = 1 (…‚„)
             auto flagPtr = cg_.builder_->CreateGEP(i64Ty, structPtr, {llvm::ConstantInt::get(i64Ty, 1)});
@@ -146,8 +146,9 @@ namespace Sad
             auto handleAsI64 = cg_.builder_->CreateLoad(i64Ty, structPtr);
             auto handle = cg_.builder_->CreateIntToPtr(handleAsI64, i8PtrTy);
 
-            auto releaseTy = llvm::FunctionType::get(i32Ty, {i8PtrTy}, false);
-            auto releaseMutex = cg_.module_->getOrInsertFunction("ReleaseMutex", releaseTy);
+            // (EN) Unlock via cross-platform wrapper: sad_rt_mutex_unlock(handle)
+            auto releaseTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto releaseMutex = cg_.module_->getOrInsertFunction("sad_rt_mutex_unlock", releaseTy);
             cg_.builder_->CreateCall(releaseMutex, {handle});
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
@@ -187,9 +188,10 @@ namespace Sad
 
             cg_.builder_->SetInsertPoint(waitBB);
             // (AR) WaitForSingleObject(handle, 0) ג€” …״­״§ˆ„״© ״÷״± ״­״§״¬״¨״©
-            auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-            auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", waitTy);
-            auto waitRes = cg_.builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0)});
+            // (EN) Try-lock via cross-platform wrapper: returns 0 on acquire.
+            auto tryTy = llvm::FunctionType::get(i32Ty, {i8PtrTy}, false);
+            auto tryFunc = cg_.module_->getOrInsertFunction("sad_rt_mutex_trylock", tryTy);
+            auto waitRes = cg_.builder_->CreateCall(tryFunc, {handle});
 
             // (AR) WAIT_OBJECT_0 = 0 => †״¬״§״­ ״§„‚„
             auto acquired = cg_.builder_->CreateICmpEQ(waitRes, llvm::ConstantInt::get(i32Ty, 0));
@@ -250,15 +252,10 @@ namespace Sad
             llvm::Value *threadId = cg_.resolveOperand(inst->operands[0]);
             auto handle = cg_.builder_->CreateIntToPtr(threadId, i8PtrTy);
 
-            // Wait
-            auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-            auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", waitTy);
-            cg_.builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
-
-            // CloseHandle
-            auto closeTy = llvm::FunctionType::get(i32Ty, {i8PtrTy}, false);
-            auto closeFunc = cg_.module_->getOrInsertFunction("CloseHandle", closeTy);
-            cg_.builder_->CreateCall(closeFunc, {handle});
+            // (EN) Join via cross-platform wrapper (waits + frees; no-op on symbolic handle)
+            auto joinTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto joinFunc = cg_.module_->getOrInsertFunction("sad_rt_thread_join", joinTy);
+            cg_.builder_->CreateCall(joinFunc, {handle});
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
             if (inst->result.has_value())
@@ -373,9 +370,9 @@ namespace Sad
             {
                 llvm::Value *taskId = cg_.resolveOperand(op);
                 auto handle = cg_.builder_->CreateIntToPtr(taskId, i8PtrTy);
-                auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-                auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", waitTy);
-                cg_.builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+                auto joinTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+                auto joinFunc = cg_.module_->getOrInsertFunction("sad_rt_thread_join", joinTy);
+                cg_.builder_->CreateCall(joinFunc, {handle});
             }
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
@@ -406,9 +403,9 @@ namespace Sad
             // Simplified: just wait on first
             llvm::Value *firstId = cg_.resolveOperand(inst->operands[0]);
             auto handle = cg_.builder_->CreateIntToPtr(firstId, i8PtrTy);
-            auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-            auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", waitTy);
-            cg_.builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+            auto joinTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto joinFunc = cg_.module_->getOrInsertFunction("sad_rt_thread_join", joinTy);
+            cg_.builder_->CreateCall(joinFunc, {handle});
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
             if (inst->result.has_value())

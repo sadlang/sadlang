@@ -383,7 +383,9 @@ jobs:
         shell: pwsh
         run: |
           cd build
-          ctest --config ${{ matrix.config }} --output-on-failure --timeout 120 -j4
+          # (AR) ctest يستعمل -C/--build-config لاختيار التهيئة (وليس --config الخاصّ بـ cmake --build)
+          # (EN) ctest selects config via -C/--build-config, not --config (that's a cmake --build flag)
+          ctest -C ${{ matrix.config }} --output-on-failure --timeout 120 -j4
 
       - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests (مستوى هرمي + بوّابة)"
         shell: pwsh
@@ -571,7 +573,12 @@ jobs:
       - name: "🧪 CTest"
         run: |
           cd build
-          ctest --config ${{ matrix.config }} --output-on-failure --timeout 120 -j$(nproc)
+          # (AR) Linux يستخدم مولّدًا أحاديّ التهيئة (Make/Ninja) — نوع البناء مُثبَّت
+          #      وقت التهيئة عبر CMAKE_BUILD_TYPE، و ctest يرفض --config هنا
+          #      (CMake Error: Unknown argument: --config). نمرّره فقط على Windows
+          #      متعدّد التهيئة (MSVC). انظر السطر المقابل في وظيفة Windows أعلاه.
+          # (EN) Linux uses a single-config generator; ctest rejects --config here.
+          ctest --output-on-failure --timeout 120 -j$(nproc)
 
       - name: "� اختبارات التنفيذ المزدوج / Dual Execution Tests"
         if: matrix.config == 'Release'

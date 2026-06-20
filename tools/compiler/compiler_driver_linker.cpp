@@ -716,6 +716,14 @@ namespace sad
                 {
                     command += " " + lib;
                 }
+#else
+                // (AR) على POSIX (Linux/macOS) دوال الرياضيّات (pow, sqrt, ...) في libm
+                //      والخيوط في libpthread — وكلاهما ليس ضمن libc الافتراضيّة كما في
+                //      CRT ويندوز. بدونهما يفشل الربط بـundefined reference to 'pow'.
+                // (EN) On POSIX, math (pow, sqrt, …) lives in libm and threads in
+                //      libpthread — unlike the Windows CRT. Without them the link fails
+                //      with undefined reference to 'pow' etc.
+                command += " -lm -lpthread";
 #endif
 
                 // (AR) إضافة علم الربط الثابت إذا طُلب

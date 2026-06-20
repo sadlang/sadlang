@@ -87,6 +87,22 @@ namespace Sad
              *        (EN) Checks if errors exist
              */
             bool hasErrors() const { return errorCount_ > 0; }
+
+            /**
+             * @brief (AR) عدد كل التشخيصات المخزّنة (أخطاء + تحذيرات + ملاحظات).
+             *        (EN) Total number of stored diagnostics (errors + warnings + notes).
+             */
+            size_t size() const { return diagnostics_.size(); }
+
+            /**
+             * @brief (AR) يقتطع التشخيصات إلى أوّل n عنصر ويُعيد حساب العدّادات.
+             *        يُستعمل للتراجع عن أخطاء سُجِّلت داخل كتلة «حاول» ثمّ التُقطت بـ«امسك»
+             *        (الاستثناء المُعالَج يجب ألّا يُلوّث الحالة العامّة ولا رمز الخروج).
+             *        (EN) Truncates diagnostics to the first n and recomputes counts.
+             *        Used to roll back errors reported inside a 'try' that were then
+             *        caught — a handled exception must not pollute global state/exit code.
+             */
+            void truncateTo(size_t n);
         };
 
         /**
@@ -255,6 +271,20 @@ namespace Sad
              *        (EN) Returns all diagnostics
              */
             const std::vector<Diagnostic> &getAllDiagnostics() const;
+
+            /**
+             * @brief (AR) عدد كل التشخيصات المخزّنة (لأخذ لقطة قبل كتلة «حاول»).
+             *        (EN) Total stored diagnostics count (to snapshot before a 'try').
+             */
+            size_t getDiagnosticCount() const;
+
+            /**
+             * @brief (AR) يتراجع عن التشخيصات إلى لقطة سابقة (n) بعد التقاط استثناء.
+             *        الاستثناء المُعالَج بـ«امسك» يجب ألّا يُبقي خطأً في الحالة العامّة.
+             *        (EN) Rolls diagnostics back to a prior snapshot (n) after a catch.
+             *        A 'catch'-handled exception must not leave an error in global state.
+             */
+            void truncateDiagnosticsTo(size_t n);
 
             // ====================================================================
             // (AR) العرض والإخراج / (EN) Display and Output

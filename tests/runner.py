@@ -386,6 +386,14 @@ def run_single_test(
     timeout = meta.timeout or default_timeout
     rel_path = str(test_file)
 
+    # (AR) لا مترجم متاح (sadc_exe=None): وضع المفسّر-فقط — نفرض skip_compiler.
+    #      هذا هو المقصد المُصرَّح في dual_tests.cmake (يُمرَّر --compiler فقط حين
+    #      يوجد هدف sad-build؛ وإلا تُقارَن مخرجات المفسّر بـ@expected).
+    # (EN) No compiler available (sadc_exe=None): interpreter-only mode — force
+    #      skip_compiler. This matches the intent in dual_tests.cmake.
+    if sadc_exe is None:
+        meta.skip_compiler = True
+
     # (AR) التحقق من @skip
     if meta.skip_compiler and meta.skip_interpreter:
         return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
@@ -622,7 +630,11 @@ def print_result(result: TestResult, verbose: bool, use_colors: bool):
         line += ")"
     print(line)
 
-    if verbose and result.error_message:
+    # (AR) أخطاء الترجمة/التشغيل تُطبع دائمًا — نصّ الخطأ ضروريّ للتشخيص في CI.
+    # (EN) Always surface compile/runtime errors — the message is essential for CI triage.
+    if result.error_message and result.status in (Status.FAIL_COMPILE, Status.FAIL_RUNTIME):
+        print(f"         ↳ {result.error_message[:800]}")
+    elif verbose and result.error_message:
         print(f"         ↳ {result.error_message}")
     if verbose and result.status == Status.FAIL_OUTPUT:
         print(f"         مفسر:  {result.interp_output[:100]!r}")
@@ -973,6 +985,11 @@ def main():
 
     # (AR) المسارات
     sad_exe = Path(args.interp) if args.interp else project_root / config["paths"]["interpreter"]
+    # (AR) المترجم اختياريّ: إن مُرِّر صراحةً نلتزمه (ونتحقّق من وجوده لاحقًا)؛
+    #      وإلّا نستعمل الافتراضيّ فقط إن وُجد، وإلّا None ⇒ وضع المفسّر-فقط.
+    # (EN) Compiler is optional: honor an explicit --compiler; otherwise use the
+    #      default only if present, else None ⇒ interpreter-only mode.
+    compiler_explicit = bool(args.compiler)
     sadc_exe = Path(args.compiler) if args.compiler else project_root / config["paths"]["compiler"]
     # (AR) موقع المشغّل مفصول عن موقع المحتوى: مجلد الاختبارات يأتي من
     #      config["paths"]["tests_dir"] (نسبيّ لجذر المشروع) — اكتمل الترحيل إلى
@@ -1004,13 +1021,51 @@ def main():
     else:
         max_parallel = config["execution"]["max_parallel"]
 
-    # (AR) التحقق من الملفات التنفيذية
+    # (AR) حلّ مسار الثنائيّ عابرًا للمنصّات: مسارات config مكتوبة بصيغة ويندوز
+    #      (build/bin/Debug/x.exe). على المولّدات أحاديّة التهيئة (Linux/macOS)
+    #      تكون الثنائيّات في build/bin/x بلا لاحقة .exe وبلا مجلّد Debug/Release.
+    #      نجرّب البدائل بالترتيب حتّى نجد الموجود.
+    # (EN) Cross-platform binary resolution: config paths are Windows-style
+    #      (multi-config). On single-config generators (Linux/macOS) the binary
+    #      lives at build/bin/x with no .exe and no Debug/Release dir. Try fallbacks.
+    def _resolve_binary(p: Path) -> Path:
+        if p.exists():
+            return p
+        candidates = []
+        stem_variants = [p.name]
+        if p.suffix == ".exe":
+            stem_variants.append(p.stem)  # بلا .exe
+        for nm in stem_variants:
+            # المسار كما هو لكن باسم بديل
+            candidates.append(p.with_name(nm))
+            # إزالة مقطع Debug/Release من المسار
+            parts = [seg for seg in p.parent.parts if seg not in ("Debug", "Release")]
+            if parts:
+                candidates.append(Path(*parts) / nm)
+        for c in candidates:
+            if c.exists():
+                return c
+        return p
+
+    sad_exe = _resolve_binary(sad_exe)
+    sadc_exe = _resolve_binary(sadc_exe)
+
+    # (AR) التحقق من المفسر — إلزاميّ دائمًا
     if not sad_exe.exists():
         print(f"❌ المفسر غير موجود: {sad_exe}")
         sys.exit(1)
+    # (AR) المترجم: إن مُرِّر صراحةً (--compiler) فغيابه خطأ حقيقيّ ⇒ خروج.
+    #      وإلّا (لم يُطلَب صراحةً، أي LLVM/sad-build غير مبنيّ) ننتقل إلى وضع
+    #      المفسّر-فقط (sadc_exe=None) بدل الفشل — تشغيل بيئيّ لا عيب في الكود.
+    # (EN) Compiler: if passed explicitly, its absence is a real error → exit.
+    #      Otherwise (not requested — LLVM/sad-build not built) fall back to
+    #      interpreter-only mode (sadc_exe=None) instead of failing.
     if not sadc_exe.exists():
-        print(f"❌ المترجم غير موجود: {sadc_exe}")
-        sys.exit(1)
+        if compiler_explicit:
+            print(f"❌ المترجم غير موجود: {sadc_exe}")
+            sys.exit(1)
+        print(f"⚠️ المترجم غير مبنيّ — وضع المفسّر-فقط (تُقارَن المخرجات بـ@expected)")
+        sadc_exe = None
 
     # (AR) إنشاء مجلد مؤقت
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -1019,11 +1074,13 @@ def main():
     if args.file:
         test_file = tests_dir / args.file
         if not test_file.exists():
-            # (AR) محاولة البحث في المجلدات الفرعية
-            for d in tests_dir.iterdir():
-                if d.is_dir() and (d / args.file).exists():
-                    test_file = d / args.file
-                    break
+            # (AR) محاولة البحث التكراري في كل المجلدات الفرعية
+            #      يسمح بتمرير اسم الملف المجرّد فقط (كما في ctest) مهما كان عمقه
+            # (EN) Recursive search across all subdirectories
+            #      Allows passing the bare filename (as ctest does) regardless of depth
+            matches = list(tests_dir.rglob(args.file))
+            if matches:
+                test_file = matches[0]
         if not test_file.exists():
             print(f"❌ الملف غير موجود: {args.file}")
             sys.exit(1)
@@ -1102,7 +1159,7 @@ def main():
 
     print(f"\n{b}═══ اختبارات التنفيذ المزدوج ═══{r}")
     print(f"  مفسر:   {sad_exe.name}")
-    print(f"  مترجم: {sadc_exe.name}")
+    print(f"  مترجم: {sadc_exe.name if sadc_exe else '(غير متاح — مفسّر فقط)'}")
     print(f"  ملفات:  {len(test_files)}")
     print(f"  CPU:    {cpu_label}")
     if args.level:

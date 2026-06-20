@@ -122,7 +122,7 @@ namespace Sad
                     }
                     else
                     {
-                        lastResult_ = Value(); // لاشيء
+                        lastResult_ = Value::makeNull(); // لاشيء
                     }
                     return true;
                 }
@@ -198,7 +198,7 @@ namespace Sad
                     }
                     else
                     {
-                        lastResult_ = Value(); // لاشيء — انتهى الوقت
+                        lastResult_ = Value::makeNull(); // لاشيء — انتهى الوقت
                     }
                     return true;
                 }

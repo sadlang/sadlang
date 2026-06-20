@@ -183,7 +183,7 @@ namespace Sad
 
                 // (AR) تخزين المفتاح (نسخة strdup)
                 auto *strdupType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
-                auto strdupFunc = cg_.module_->getOrInsertFunction("_strdup", strdupType);
+                auto strdupFunc = cg_.module_->getOrInsertFunction("strdup", strdupType);
                 llvm::Value *keyCopy = cg_.builder_->CreateCall(strdupFunc, {key}, "mset.key.copy");
                 // (AR) إذا كان الخانة جديدة، استخدم النسخة — وإلا احتفظ بالمفتاح القديم
                 llvm::Value *finalKey = cg_.builder_->CreateSelect(isNull, keyCopy, existingKey, "mset.final.key");

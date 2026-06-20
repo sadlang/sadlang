@@ -72,7 +72,7 @@ Write-Host ">> Test 1: String + Number Concatenation" -ForegroundColor Yellow
 $src1 = Join-Path $TestDir ("test_freestanding_string_concat" + $SadExt)
 $ir1 = Compile-Source $src1
 
-Check-Pattern -TestName "T1.1" -IRContent $ir1 -Pattern "__sad_itoa" -Description "itoa calls for number-to-string" -ExpectedCount 3
+Check-Pattern -TestName "T1.1" -IRContent $ir1 -Pattern "@sprintf" -Description "sprintf calls for number-to-string" -ExpectedCount 3
 Check-Pattern -TestName "T1.2" -IRContent $ir1 -Pattern "call ptr @malloc" -Description "malloc for concat buffer" -ExpectedCount 3
 Check-Pattern -TestName "T1.3" -IRContent $ir1 -Pattern "call ptr @memcpy" -Description "memcpy for concat" -ExpectedCount 6
 Check-Pattern -TestName "T1.4" -IRContent $ir1 -Pattern "call i64 @strlen" -Description "strlen for length calc" -ExpectedCount 6
@@ -99,7 +99,7 @@ Write-Host ">> Test 3: String + Number Edge Cases" -ForegroundColor Yellow
 $src3 = Join-Path $TestDir ("test_freestanding_string_edge_cases" + $SadExt)
 $ir3 = Compile-Source $src3
 
-Check-Pattern -TestName "T3.1" -IRContent $ir3 -Pattern "__sad_itoa" -Description "itoa for edge case numbers" -ExpectedCount 8
+Check-Pattern -TestName "T3.1" -IRContent $ir3 -Pattern "@sprintf" -Description "sprintf for edge case numbers" -ExpectedCount 8
 Check-Pattern -TestName "T3.2" -IRContent $ir3 -Pattern "call ptr @malloc" -Description "malloc for edge case concat" -ExpectedCount 8
 Check-Pattern -TestName "T3.3" -IRContent $ir3 -Pattern "call ptr @memcpy" -Description "memcpy for edge case concat" -ExpectedCount 16
 Check-Pattern -TestName "T3.4" -IRContent $ir3 -Pattern "call i64 @strlen" -Description "strlen for edge cases" -ExpectedCount 16

@@ -85,6 +85,16 @@ namespace Sad
             // (EN) RAII guard to guarantee finally block always executes — even on re-throw
             std::exception_ptr pendingException = nullptr;
 
+            // (AR) لقطة لعدد التشخيصات قبل «حاول»: أيّ خطأ يُسجَّل في ErrorManager داخل
+            //      الكتلة (عبر throwRuntime) ثمّ يُلتقط بـ«امسك» يجب التراجع عنه، وإلّا
+            //      بقي ملوّثًا للحالة العامّة ورمز الخروج (RUN036/RUN007 لاختبارات الإدخال
+            //      غير الصالح كانت تفشل رغم التقاطها بنجاح).
+            // (EN) Snapshot diagnostic count before 'try': any error reported to the
+            //      ErrorManager inside the block (via throwRuntime) and then caught must
+            //      be rolled back, otherwise it pollutes global state and the exit code.
+            const size_t diagSnapshot =
+                Sad::Errors::ErrorManager::getInstance().getDiagnosticCount();
+
             try
             {
                 // (AR) تنفيذ كتلة المحاولة / (EN) Execute try block
@@ -153,6 +163,13 @@ namespace Sad
                         }
                     }
 
+                    // (AR) تراجع عن أيّ خطأ سُجِّل داخل «حاول» قبل تنفيذ جسم «امسك»،
+                    //      فالاستثناء عولِج. أخطاء جسم «امسك» نفسه تبقى (تُسجَّل بعد التراجع).
+                    // (EN) Roll back errors reported inside 'try' before running the catch
+                    //      body — the exception is handled. Errors from the catch body
+                    //      itself are preserved (reported after this rollback).
+                    Sad::Errors::ErrorManager::getInstance().truncateDiagnosticsTo(diagSnapshot);
+
                     catchClause.body->accept(*this);
                     variableManager_.exitScope();
 
@@ -186,6 +203,13 @@ namespace Sad
                         variableManager_.define(catchClause.exceptionVar,
                                                 Data::Value(std::string(e.what())));
                     }
+
+                    // (AR) تراجع عن أيّ خطأ سُجِّل داخل «حاول» قبل تنفيذ جسم «امسك»،
+                    //      فالاستثناء عولِج. أخطاء جسم «امسك» نفسه تبقى (تُسجَّل بعد التراجع).
+                    // (EN) Roll back errors reported inside 'try' before running the catch
+                    //      body — the exception is handled. Errors from the catch body
+                    //      itself are preserved (reported after this rollback).
+                    Sad::Errors::ErrorManager::getInstance().truncateDiagnosticsTo(diagSnapshot);
 
                     catchClause.body->accept(*this);
                     variableManager_.exitScope();
@@ -221,6 +245,13 @@ namespace Sad
                                                 Data::Value(std::string(e.what())));
                     }
 
+                    // (AR) تراجع عن أيّ خطأ سُجِّل داخل «حاول» قبل تنفيذ جسم «امسك»،
+                    //      فالاستثناء عولِج. أخطاء جسم «امسك» نفسه تبقى (تُسجَّل بعد التراجع).
+                    // (EN) Roll back errors reported inside 'try' before running the catch
+                    //      body — the exception is handled. Errors from the catch body
+                    //      itself are preserved (reported after this rollback).
+                    Sad::Errors::ErrorManager::getInstance().truncateDiagnosticsTo(diagSnapshot);
+
                     catchClause.body->accept(*this);
                     variableManager_.exitScope();
 
@@ -253,6 +284,13 @@ namespace Sad
                         variableManager_.define(catchClause.exceptionVar,
                                                 Data::Value("Unknown exception"));
                     }
+
+                    // (AR) تراجع عن أيّ خطأ سُجِّل داخل «حاول» قبل تنفيذ جسم «امسك»،
+                    //      فالاستثناء عولِج. أخطاء جسم «امسك» نفسه تبقى (تُسجَّل بعد التراجع).
+                    // (EN) Roll back errors reported inside 'try' before running the catch
+                    //      body — the exception is handled. Errors from the catch body
+                    //      itself are preserved (reported after this rollback).
+                    Sad::Errors::ErrorManager::getInstance().truncateDiagnosticsTo(diagSnapshot);
 
                     catchClause.body->accept(*this);
                     variableManager_.exitScope();

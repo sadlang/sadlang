@@ -64,7 +64,7 @@ namespace Sad
                 return nullptr;
             llvm::Value *ms32 = cg_.builder_->CreateIntCast(ms, llvm::Type::getInt32Ty(*cg_.context_), false);
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("Sleep", ft);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_rt_sleep_ms", ft);
             cg_.builder_->CreateCall(fn, {ms32});
             return nullptr;
         }
@@ -119,14 +119,12 @@ namespace Sad
                 }
             }
 
-            // Use CreateThread Windows API as fallback
-            // HANDLE CreateThread(NULL, 0, lpStartAddress, lpParameter, 0, NULL)
-            auto funcTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i64Ty, i8PtrTy, i8PtrTy, i32Ty, i8PtrTy}, false);
-            auto createThread = cg_.module_->getOrInsertFunction("CreateThread", funcTy);
+            // (EN) Spawn a real thread via cross-platform wrapper (Win32/pthread):
+            //      void* sad_rt_thread_spawn(void* fn, void* arg)
+            auto funcTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i8PtrTy}, false);
+            auto createThread = cg_.module_->getOrInsertFunction("sad_rt_thread_spawn", funcTy);
 
             auto nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0));
-            auto zero64 = llvm::ConstantInt::get(i64Ty, 0);
-            auto zero32 = llvm::ConstantInt::get(i32Ty, 0);
 
             llvm::Value *funcPtr = nullPtr;
             if (!inst->operands.empty())
@@ -153,7 +151,7 @@ namespace Sad
                 }
             }
 
-            auto handle = cg_.builder_->CreateCall(createThread, {nullPtr, zero64, funcPtr, nullPtr, zero32, nullPtr});
+            auto handle = cg_.builder_->CreateCall(createThread, {funcPtr, nullPtr});
             auto result = cg_.builder_->CreatePtrToInt(handle, i64Ty);
 
             if (inst->result.has_value())
@@ -170,15 +168,16 @@ namespace Sad
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
 
-            auto funcTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-            auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", funcTy);
+            // (EN) Await a task via cross-platform join wrapper (no-op on symbolic handle)
+            (void)i32Ty;
+            auto funcTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto waitFunc = cg_.module_->getOrInsertFunction("sad_rt_thread_join", funcTy);
 
             llvm::Value *taskId = cg_.resolveOperand(inst->operands[0]);
             auto handle = cg_.builder_->CreateIntToPtr(taskId, i8PtrTy);
-            auto infinite = llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF);
 
-            auto result32 = cg_.builder_->CreateCall(waitFunc, {handle, infinite});
-            auto result = cg_.builder_->CreateZExt(result32, i64Ty);
+            cg_.builder_->CreateCall(waitFunc, {handle});
+            auto result = llvm::ConstantInt::get(i64Ty, 0);
 
             if (inst->result.has_value())
             {
@@ -193,7 +192,7 @@ namespace Sad
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto funcTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i32Ty}, false);
-            auto sleepFunc = cg_.module_->getOrInsertFunction("Sleep", funcTy);
+            auto sleepFunc = cg_.module_->getOrInsertFunction("sad_rt_sleep_ms", funcTy);
             cg_.builder_->CreateCall(sleepFunc, {llvm::ConstantInt::get(i32Ty, 0)});
             auto result = llvm::ConstantInt::get(i64Ty, 0);
             if (inst->result.has_value())
@@ -209,7 +208,7 @@ namespace Sad
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto funcTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i32Ty}, false);
-            auto sleepFunc = cg_.module_->getOrInsertFunction("Sleep", funcTy);
+            auto sleepFunc = cg_.module_->getOrInsertFunction("sad_rt_sleep_ms", funcTy);
 
             llvm::Value *ms = cg_.resolveOperand(inst->operands[0]);
             ms = cg_.builder_->CreateTrunc(ms, i32Ty);
@@ -241,11 +240,10 @@ namespace Sad
             auto statePtr = cg_.builder_->CreateBitCast(futurePtr, i64PtrTy);
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), statePtr);
 
-            // CreateEventA(NULL, TRUE, FALSE, NULL) - manual reset event
-            auto eventFuncTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i32Ty, i32Ty, i8PtrTy}, false);
-            auto createEvent = cg_.module_->getOrInsertFunction("CreateEventA", eventFuncTy);
-            auto nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0));
-            auto eventHandle = cg_.builder_->CreateCall(createEvent, {nullPtr, llvm::ConstantInt::get(i32Ty, 1), llvm::ConstantInt::get(i32Ty, 0), nullPtr});
+            // (EN) Create event via cross-platform wrapper: sad_rt_event_create()
+            auto eventFuncTy = llvm::FunctionType::get(i8PtrTy, {}, false);
+            auto createEvent = cg_.module_->getOrInsertFunction("sad_rt_event_create", eventFuncTy);
+            auto eventHandle = cg_.builder_->CreateCall(createEvent, {});
 
             // Store event handle at offset 16
             auto eventSlot = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 16)});
@@ -280,9 +278,9 @@ namespace Sad
             auto statePtr = cg_.builder_->CreateBitCast(futurePtr, i64PtrTy);
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), statePtr);
 
-            // SetEvent(event_handle)
-            auto setEventTy = llvm::FunctionType::get(llvm::Type::getInt32Ty(*cg_.context_), {i8PtrTy}, false);
-            auto setEvent = cg_.module_->getOrInsertFunction("SetEvent", setEventTy);
+            // (EN) Signal via cross-platform wrapper: sad_rt_event_set(handle)
+            auto setEventTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto setEvent = cg_.module_->getOrInsertFunction("sad_rt_event_set", setEventTy);
             auto eventSlot = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 16)});
             auto eventSlotPtr = cg_.builder_->CreateBitCast(eventSlot, llvm::PointerType::get(i8PtrTy, 0));
             auto eventHandle = cg_.builder_->CreateLoad(i8PtrTy, eventSlotPtr);
@@ -312,10 +310,11 @@ namespace Sad
             auto eventSlotPtr = cg_.builder_->CreateBitCast(eventSlot, llvm::PointerType::get(i8PtrTy, 0));
             auto eventHandle = cg_.builder_->CreateLoad(i8PtrTy, eventSlotPtr);
 
-            // WaitForSingleObject(event, INFINITE)
-            auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
-            auto waitFunc = cg_.module_->getOrInsertFunction("WaitForSingleObject", waitTy);
-            cg_.builder_->CreateCall(waitFunc, {eventHandle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+            // (EN) Wait event via cross-platform wrapper: sad_rt_event_wait(handle)
+            (void)i32Ty;
+            auto waitTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+            auto waitFunc = cg_.module_->getOrInsertFunction("sad_rt_event_wait", waitTy);
+            cg_.builder_->CreateCall(waitFunc, {eventHandle});
 
             // Load value from offset 8
             auto valueSlot = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 8)});

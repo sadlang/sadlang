@@ -111,13 +111,33 @@ namespace Sad
                 }
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // (AR) وصول عادي للكائن: كائن.حقل
-            //      يدعم كلاً من نوع OBJECT الحقيقي ونوع MAP القديم
-            //
-            // (EN) Regular object access: object.field
-            //      Supports both real OBJECT type and legacy MAP type
-            // ═══════════════════════════════════════════════════════════════════
+            // (AR) فوّض حلّ العضو إلى الدالة المشتركة كي يرث الوصول الآمن «?.» نفس
+            //      دلالات الوراثة/الـgetters/الحقول الديناميكية (DRY — CW-19).
+            // (EN) Delegate member resolution to the shared helper so optional access
+            //      '?.' inherits the exact same inheritance/getter/field semantics.
+            resolveInstanceMember(objectValue, node.member, node.position);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // (AR) حلّ عضو على قيمة كائن مُقيَّمة مسبقًا — منطق مشترك بين «.» و«?.».
+        //      يضمن أن الوصول الآمن «?.» يستعمل نفس مسار «.» (الوراثة، الـgetters،
+        //      الحقول الديناميكية، الخرائط، الصفوف) بدل تكرار ناقص يُرجع «لاشيء» خطأً.
+        // (EN) Resolve a member on an already-evaluated object value — shared by
+        //      regular '.' and optional '?.'. Avoids the previous incomplete copy
+        //      that wrongly returned null for inherited/getter members.
+        // ═══════════════════════════════════════════════════════════════════
+        void ExpressionEvaluator::resolveInstanceMember(const Value &objectValue,
+                                                        const std::string &memberName,
+                                                        const Lexer::Position &positionIn)
+        {
+            auto *classManager = Data::ClassManager::getInstance();
+            // (AR) ظلّ محليّ صغير يحمل اسم العضو والموقع كي يبقى جسم المنطق المنقول
+            //      أدناه دون أيّ تغيير (يستعمل node.member و node.position فقط).
+            struct
+            {
+                std::string member;
+                Lexer::Position position;
+            } node{memberName, positionIn};
 
             std::string className;
             ClassType *classType = nullptr;

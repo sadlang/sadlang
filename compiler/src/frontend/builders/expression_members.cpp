@@ -133,6 +133,7 @@ namespace Sad
                 // (EN) Infer member type from module (registered classes)
                 SadTypeKind memberType = SadTypeKind::Integer;
                 std::string className = objResult.className;
+                std::string memberClassName; // (AR) صنف الحقل إن كان كائناً (للوصول المتسلسل)
                 if (className.empty() && dynamic_cast<Sad::AST::ThisExpr *>(memberExpr->object.get()))
                 {
                     className = b_.currentClassName_;
@@ -154,6 +155,13 @@ namespace Sad
                                 memberType = SadTypeKind::String;
                             }
                         }
+                        // (AR) حقل كائنيّ: انقل اسم صنفه لتمكين الوصول المتسلسل اللاحق
+                        // (EN) Object-typed field: carry its class name to enable chained access
+                        auto fcnIt = sirClass->fieldClassNames_.find(memberExpr->member);
+                        if (fcnIt != sirClass->fieldClassNames_.end())
+                        {
+                            memberClassName = fcnIt->second;
+                        }
                     }
                 }
 
@@ -173,6 +181,11 @@ namespace Sad
 
                 BuildResult memberResult(resultReg, memberType);
                 memberResult.isFieldAccess = true;
+                memberResult.className = memberClassName;
+                if (!memberClassName.empty())
+                {
+                    b_.classInstanceTypes_[resultReg] = memberClassName;
+                }
                 return memberResult;
             }
 
