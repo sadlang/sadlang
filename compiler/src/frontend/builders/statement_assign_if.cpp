@@ -120,6 +120,22 @@ namespace Sad
                         {
                             valueOp.intValue = 0;
                         }
+                        // (AR) [NS-06] لاشيء (Null): خزّن الحارس kSadNullSentinel (لا 0)
+                        //      ليتمايز عن الصفر العددي، فيعمل ?? وفحوص العدم بعد إعادة
+                        //      الإسناد (س = لاشيء). يطابق تمثيل buildLiteral للحرفيّ.
+                        // (EN) [NS-06] null: store kSadNullSentinel (not 0) so ?? and
+                        //      null-checks work after reassignment; matches buildLiteral.
+                        else if (valueResult.type == SadTypeKind::Null)
+                        {
+                            try
+                            {
+                                valueOp.intValue = std::stoll(valueResult.constantValue);
+                            }
+                            catch (const std::exception &)
+                            {
+                                valueOp.intValue = Sad::Compiler::kSadNullSentinel;
+                            }
+                        }
                     }
                     else
                     {
@@ -252,6 +268,21 @@ namespace Sad
                 // (EN) Convert type
                 SadTypeKind varType = b_.astTypeToSIRType(varDecl->type);
                 bool needsTypeInference = (varDecl->type == Types::SadTypeKind::Unknown);
+
+                // (AR) [NS-06 موجة 2] نوع اختياريّ `T؟`: استعمل النوع الداخليّ (T) للتخزين/
+                //      التحميل كي تحتفظ القيمة الحاضرة بنوعها الصحيح (نص لا i64)، فلا
+                //      يُحوَّل مؤشّر النصّ عدديًّا في `؟؟`. تمثيل العدم يبقى الحارس i64
+                //      (يُفحَص في `؟؟`/المقارنات) وهو متوافق مع كلّ الأنواع. النوع الداخليّ
+                //      مُسبَّك الآن عبر sadType = Optional<T> من المحلّل النحويّ.
+                // (EN) [NS-06 wave 2] Optional `T?`: use inner type T for storage/load so a
+                //      present value keeps its real type (string not i64); null stays the i64
+                //      sentinel. Inner type now plumbed via sadType = Optional<T> from parser.
+                if (varDecl->type == Types::SadTypeKind::Optional && varDecl->sadType)
+                {
+                    if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(varDecl->sadType.get()))
+                        if (opt->getInnerType())
+                            varType = b_.astTypeToSIRType(opt->getInnerType()->getKind());
+                }
 
                 // (AR) ״¥†״´״§״¡ …״¹„ˆ…״§״× ״§„…״×״÷״± (sir_builder.h:139 - VariableInfo)
                 // (EN) Create variable info

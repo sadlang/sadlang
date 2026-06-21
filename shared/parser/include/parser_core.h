@@ -1501,6 +1501,12 @@ namespace Sad
             Types::SadTypeKind parseType();
             // (AR) [S-TS-P4] النواة: تحلّل النوع الأساس دون لاحقة `؟` (يستدعيها parseType).
             Types::SadTypeKind parseTypeCore();
+            // (AR) [NS-06 موجة 2] النوع الأساس T لآخر `T؟` حلّله parseType (وإلا Unknown).
+            //      يُستعمل لبناء sadType غنيّ (SadOptionalType(T)) عند تصريح المتغيّر،
+            //      فيحفظ codegen المترجم النوع الداخليّ بدل i64. يُصفَّر مع كلّ parseType.
+            // (EN) [NS-06 wave 2] inner base T of the last `T?` parsed (else Unknown);
+            //      used to build a rich sadType = Optional<T> at var-decl construction.
+            Types::SadTypeKind lastOptionalInner_ = Types::SadTypeKind::Unknown;
 
             /**
              * @brief (AR) يحلل نوع بيانات ويُرجع SadTypePtr من النظام الموحد

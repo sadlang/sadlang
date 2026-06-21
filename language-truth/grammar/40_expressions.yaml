@@ -88,7 +88,7 @@ productions:
 
   - id: gr.expr.ternary
     lhs: { nonterminal: Ternary, name_ar: "شرطي ثلاثي", name_en: ternary }
-    ebnf: "Ternary = NullCoalesce [ '?' Expression ':' Ternary ] ;"
+    ebnf: "Ternary = NullCoalesce [ '؟' Expression ':' Ternary ] ;"
     alternatives:
       - symbols:
           - { kind: nonterminal, ref: gr.expr.null_coalesce }
@@ -111,13 +111,13 @@ productions:
 
   - id: gr.expr.null_coalesce
     lhs: { nonterminal: NullCoalesce, name_ar: "تجميع فارغ", name_en: null_coalesce }
-    ebnf: "NullCoalesce = LogicalOr { '??' LogicalOr } ;"
+    ebnf: "NullCoalesce = LogicalOr { '؟؟' LogicalOr } ;"
     alternatives:
       - symbols:
           - { kind: nonterminal, ref: gr.expr.logical_or }
           - kind: repeat
             children:
-              - { kind: terminal, ref: QUESTION_QUESTION, value: "??" }
+              - { kind: terminal, ref: QUESTION_QUESTION, value: "؟؟" }
               - { kind: nonterminal, ref: gr.expr.logical_or }
     references: { operators: ["op.null_coalesce"] }
     maps_to:
@@ -405,8 +405,8 @@ productions:
     ebnf: >
       Postfix = Primary { PostfixOp } ;
       PostfixOp = Identifier '!' '(' ArgList ')' | '(' ArgList ')' [ 'جديد' ]
-                | '.' Member [ '(' ArgList ')' ] | '?.' Member
-                | '[' IndexOrSlice ']' | ( '++' | '--' ) | '?' '[' Expression ']' ;
+                | '.' Member [ '(' ArgList ')' ] | '؟.' Member
+                | '[' IndexOrSlice ']' | ( '++' | '--' ) | '؟' '[' Expression ']' ;
     alternatives:
       - symbols:
           - { kind: nonterminal, ref: gr.expr.primary }
@@ -417,7 +417,7 @@ productions:
                   - { kind: group, children: [ { kind: terminal, ref: OP_NOT, value: "!" }, { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] }
                   - { kind: group, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" }, { kind: optional, children: [ { kind: terminal, ref: KEYWORD_NEW, value: "جديد" } ] } ] }
                   - { kind: group, children: [ { kind: terminal, ref: DOT, value: "." }, { kind: terminal, ref: IDENTIFIER }, { kind: optional, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] } ] }
-                  - { kind: group, children: [ { kind: terminal, ref: QUESTION_DOT, value: "?." }, { kind: terminal, ref: IDENTIFIER } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: QUESTION_DOT, value: "؟." }, { kind: terminal, ref: IDENTIFIER } ] }
                   - { kind: group, children: [ { kind: terminal, ref: BRACKET_LEFT, value: "[" }, { kind: nonterminal, ref: gr.expr.expression }, { kind: terminal, ref: BRACKET_RIGHT, value: "]" } ] }
                   - { kind: alt, children: [ { kind: terminal, ref: OP_INCREMENT, value: "++" }, { kind: terminal, ref: OP_DECREMENT, value: "--" } ] }
     references: { operators: ["op.call", "op.dot", "op.subscript", "op.optional_chain", "op.increment", "op.decrement"], keywords: ["KW-RES-008"] }

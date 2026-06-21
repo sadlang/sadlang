@@ -943,3 +943,19 @@ errors:
   detailed:
     ar: حاول الكود التكرار على قيمة لا تدعم التكرار ('{type}').
     en: The code tried to iterate a non-iterable value ('{type}').
+- code: RUN_NULL_ASSERTION
+  id: RUN056
+  category: runtime
+  title:
+    ar: فشل تأكيد عدم الفراغ
+    en: Null assertion failed
+  brief:
+    ar: 'عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم'
+    en: 'Assertion operator (مؤكَّد) applied to a null value'
+  placeholders: []
+  fix_hint:
+    ar: تحقّق من عدم الفراغ قبل التأكيد (إذا (س != لاشيء)) أو استعمل '؟؟' لقيمة بديلة. التأكيد يعني يقينك بعدم الفراغ — إن فشل فالخطأ منطقيّ.
+    en: Guard against null before asserting (إذا (س != لاشيء)) or use '؟؟' for a fallback. Asserting means you are certain it is non-null — a failure is a logic bug.
+  detailed:
+    ar: عامل التأكيد 'مؤكَّد' (T؟ → T) يطرح هذا الخطأ عندما تكون القيمة عدمًا وقت التشغيل، إذ يَعِد أنّ القيمة حاضرة.
+    en: The assertion operator 'مؤكَّد' (T? → T) raises this error when the value is null at runtime, since it promises the value is present.

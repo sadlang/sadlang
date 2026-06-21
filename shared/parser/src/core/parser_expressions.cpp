@@ -1081,6 +1081,22 @@ namespace Sad
                         std::move(expr),
                         op.getPosition());
                 }
+                // ─── عامل تأكيد عدم الفراغ: قيمة مؤكَّد / Null assertion: value مؤكَّد (NS-05) ───
+                // (AR) لاحقيّ سياقيّ (كلمة): T؟ → T؛ خطأ وقت تشغيل إذا كانت القيمة عدمًا.
+                //      سياقيّ كي تبقى «مؤكد»/«مؤكدة» صالحة كأسماء/أعضاء تعداد؛ تُميَّز هنا
+                //      فقط حين تَلي تعبيرًا لاحقيًّا (الوصول لعضو «.مؤكد» يُعالَج في فرع DOT أعلاه).
+                // (EN) Postfix contextual word: T? → T; runtime error if null. Contextual so
+                //      «مؤكد»/«مؤكدة» remain valid as identifiers/enum members; recognized here
+                //      only when following a postfix expression (member «.مؤكد» handled in DOT above).
+                else if (checkContextual(TT::OP_NULL_ASSERT))
+                {
+                    Token op = current_;
+                    advance(); // (AR) استهلاك «مؤكد»/«مؤكدة» / (EN) consume the word
+                    expr = std::make_unique<UnaryExpr>(
+                        TT::OP_NULL_ASSERT,
+                        std::move(expr),
+                        op.getPosition());
+                }
                 // ─── Optional index access: obj?[key] ───
                 // (AR) وصول آمن بالفهرس: كائن?[مفتاح] — يرجع لاشيء إذا كان الكائن null
                 // (EN) Optional index: obj?[key] — returns null if object is null

@@ -19,7 +19,7 @@ productions:
   - id: gr.adv.type
     lhs: { nonterminal: Type, name_ar: "نوع", name_en: type }
     ebnf: >
-      Type = TypeCore [ '?' ] ;
+      Type = TypeCore [ '؟' ] ;
       TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
                | ( 'مصفوفة' | 'خريطة' ) [ '<' Type [ ',' Type ] '>' ] | Identifier ;
     alternatives:

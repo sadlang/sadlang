@@ -97,11 +97,22 @@ namespace Sad
             // ================================================================
             llvm::Value *result = staticStr;
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
+            auto *i64Ty = cg_.getInt64Type();
+            // (AR) القيمة قد تكون i64 مباشرة، أو مؤشّرًا يحمل بِتّات الحارس (اختياريّ
+            //      ذو نوع داخليّ مرجعيّ مثل `نص؟` أُسنِد إليه `لاشيء` — NS-06 موجة 3).
+            //      في الحالتين نحوّلها إلى i64 ونقارنها بالحارس.
+            // (EN) The value may be a raw i64, or a pointer carrying the sentinel bit
+            //      pattern (optional with a reference inner type like `نص؟` set to `لاشيء`).
+            //      In both cases coerce to i64 and compare against the sentinel.
+            llvm::Value *asI64 = nullptr;
             if (val && val->getType()->isIntegerTy(64))
+                asI64 = val;
+            else if (val && val->getType()->isPointerTy())
+                asI64 = cg_.builder_->CreatePtrToInt(val, i64Ty, "typeof.p2i");
+            if (asI64)
             {
-                auto *i64Ty = cg_.getInt64Type();
                 llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
-                    val, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel), "typeof.isnull");
+                    asI64, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel), "typeof.isnull");
                 llvm::Value *nullStr = cg_.builder_->CreateGlobalStringPtr("عدم", "typeof_null");
                 result = cg_.builder_->CreateSelect(isNull, nullStr, staticStr, "typeof.sel");
             }

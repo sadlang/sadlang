@@ -453,6 +453,8 @@ namespace Sad
                 return "FAT_ARROW";
             case TokenType::QUESTION:
                 return "QUESTION";
+            case TokenType::OP_NULL_ASSERT:
+                return "OP_NULL_ASSERT";
             case TokenType::AT_SIGN:
                 return "AT_SIGN";
 

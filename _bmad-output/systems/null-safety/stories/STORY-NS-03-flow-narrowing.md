@@ -3,9 +3,9 @@ id: NS-03
 title: "تحليل التدفّق (Smart Narrowing) — تضييق النوع بعد فحص null"
 type: implementation-story
 milestone: NS-M2-Flow
-status: planned
+status: done
 estimate: L
-depends_on: [NS-01]
+depends_on: [NS-01, NS-02, NS-04]
 governed_by:
   - ../planning/ARCHITECTURE.md
   - ../../type-system/decisions/ADR-TYPESYSTEM-001-NULL-SAFETY.md
@@ -36,3 +36,16 @@ date: 2026-06-13
 
 ## تعريف "تم"
 `س.حقل` داخل `إذا (س != لاشيء)` دون `؟.`، يتراجع خارجها، الصرامة بالسياسة، اختبارات خضراء.
+
+## الإنجاز (2026-06-20 — مُتحقَّق GR-01)
+موجة أولى مُنفَّذة في `shared/null_safety/` فوق NS-04:
+- **AC1 (تضييق):** `إذا (م != لاشيء)` يضيّق م في then (مع تفكيك `&&`)؛ else بلا تضييق. ✅
+- **AC2 (عكسيّ، D4):** `إذا (م == لاشيء){ارجع}` يضيّق م بعد الجملة (خروج حتميّ: ارجع/ارمِ/اكسر/استمر). ✅
+- **AC3 (تراجع):** التضييق محصور بالفرع (حفظ/استرجاع `narrowed_`)؛ خارجه يعود `T؟`. ✅
+- **D2 (تحوّر):** الإسناد/walrus/إعادة التصريح يُبطل التضييق. ✅
+- **D1/D5:** محلّيّات فقط؛ متحفّظ (لا تضييق للحلقات ولا عند الشكّ — لا false-negative في prod). ✅
+- **التكافؤ:** المحرّكان يتّخذان قرار التضييق نفسه (سكربت `ns03_flow_narrowing_check.sh` 8/8).
+
+**اختبارات:** `056_ns03_flow_narrowing.ص` (`@skip_compiler`) + `ns03_flow_narrowing_check.sh`.
+**مؤجَّل للموجة الثانية/NS-06:** نقطة ثابتة للحلقات (D3)، تضييق الحقول الثابتة، codegen المترجم
+لوصول الأعضاء على الاختياريّ داخل الشروط (`No class mapping`).

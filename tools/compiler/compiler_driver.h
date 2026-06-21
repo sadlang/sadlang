@@ -18,6 +18,7 @@
 
 // Borrow Checker / فاحص الاستعارة
 #include "ownership/borrow_checker.h"
+#include "null_safety/null_safety_analyzer.h"
 
 // Type Checker / فاحص الأنواع
 #include "semantic/type_checker.h"
@@ -550,6 +551,12 @@ namespace sad
             bool run_borrow_check(const std::string &file);
 
             /**
+             * @brief (AR) تحليل أمان null على AST (NS-01: استدعاء الهيكل فقط)
+             * @brief (EN) Run null-safety analysis on AST (NS-01: scaffold call only)
+             */
+            bool run_null_safety(const std::string &file);
+
+            /**
              * @brief (AR) فحص الأنواع المتقدم على AST
              * @brief (EN) Run advanced type checking on AST
              */
@@ -719,6 +726,9 @@ namespace sad
 
             // نظام الملكية / Ownership System
             std::unique_ptr<Sad::Semantic::BorrowChecker> borrow_checker_;
+
+            // نظام أمان null المشترك / Shared Null-Safety System (NS-01)
+            std::unique_ptr<Sad::NullSafety::NullSafetyAnalyzer> null_safety_analyzer_;
 
             // نظام الأنواع المتقدم / Advanced Type System
             std::unique_ptr<Sad::Semantic::TypeChecker> type_checker_;

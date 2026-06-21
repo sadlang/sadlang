@@ -247,6 +247,24 @@ namespace Sad
                 break;
             }
 
+            case TokenType::OP_NULL_ASSERT:
+            { // قيمة مؤكَّد — تأكيد عدم الفراغ T؟ → T (NS-05)
+                // (AR) إذا كانت القيمة عدمًا فالوعد خُلِف ⇒ خطأ كتالوج؛ وإلّا أرجع القيمة كما هي
+                // (EN) If the value is null the promise is broken ⇒ catalog error; else pass it through
+                if (operand.isNull())
+                {
+                    Sad::Errors::RenderContext _rc;
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        ::Sad::Errors::ErrorCode::RUN_NULL_ASSERTION,
+                        Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                        _rc);
+                    lastResult_ = Value(); // (AR) عدم بعد الإبلاغ / (EN) null after reporting
+                    break;
+                }
+                lastResult_ = operand;
+                break;
+            }
+
             default:
                 {
                     Sad::Errors::RenderContext _rc;

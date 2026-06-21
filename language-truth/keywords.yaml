@@ -107,6 +107,14 @@ categories:
     description: "Lexer يُصدر IDENTIFIER؛ Parser يقرر سياقياً. صالحة كأسماء متغيرات."
     emittedByLexer: false
     keywords:
+      # ── أمان null ──
+      # (AR) عامل تأكيد عدم الفراغ (NS-05) — لاحقيّ كلمة، T؟ → T؛ صيغتان مترادفتان (مذكّر/مؤنّث).
+      #      سياقيّ عمدًا (لا محجوز): «مؤكد»/«مؤكدة» كلمتان عربيّتان شائعتان تبقيان صالحتين
+      #      كأسماء/أعضاء تعداد/ماكرو؛ المحلّل يميّزها لاحقيًّا عبر matchContextual في parsePostfix.
+      # (EN) Null-assertion (NS-05) — postfix word, T? → T; two gendered synonyms.
+      #      Deliberately contextual (not reserved): common Arabic words stay valid as
+      #      identifiers/enum-members/macros; parser disambiguates via matchContextual in parsePostfix.
+      - { id: "KW-CTX-040", subcategory: "null_safety", since: "1.0.0", word: "مؤكد", aliases: ["مؤكدة"], tokenType: OP_NULL_ASSERT, english: asserted }
       # ── البرمجة الكائنية ──
       - { id: "KW-CTX-001", subcategory: "oop", since: "1.0.0", word: "خاصية",   tokenType: KEYWORD_PROPERTY,   english: property,    roles: [block_opener] }
       - { id: "KW-CTX-002", subcategory: "oop", since: "1.0.0", word: "احصل",    tokenType: KEYWORD_GET,        english: get }

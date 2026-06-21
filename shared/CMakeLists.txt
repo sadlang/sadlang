@@ -162,6 +162,18 @@ add_subdirectory(semantic)
 add_subdirectory(ownership)
 
 # ============================================================================
+# (AR) المكتبة الفرعية: نظام أمان null الموحَّد (sad_null_safety)
+# (EN) Sub-library: unified null-safety system (sad_null_safety)
+# (AR) المكوّن المشترك NullSafetyAnalyzer يُستدعى من المحرّكين (المفسّر + sadc)
+#      ليكون تحليل أمان null مصدرَ حقيقة واحدًا — نظير sad_ownership.
+#      NS-01: هيكل + استدعاء فقط (بلا منطق تحليل بعد).
+# (EN) Shared NullSafetyAnalyzer invoked from both engines as a single source
+#      of truth — mirroring sad_ownership. NS-01: scaffold + call sites only.
+# @phase Null-Safety System: NS-01
+# ============================================================================
+add_subdirectory(null_safety)
+
+# ============================================================================
 # (AR) المكتبة الفرعية: الطبقة الأمنية المشتركة (sad_security_core)
 # (EN) Sub-library: shared security layer (sad_security_core)
 # (AR) نُقلت من compiler/src/security/ لتكون متاحة لكل المسارات (المترجم،

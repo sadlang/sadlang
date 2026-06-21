@@ -150,6 +150,7 @@ namespace Sad
                 FLOOR_DIV_I64, ///< قسمة صحيحة أرضية / Floor division (always integer)
                 MOD_I64,       ///< باقي القسمة / Modulo
                 NEG,           ///< السالب / Negation
+                NULL_ASSERT,   ///< تأكيد عدم الفراغ مؤكَّد T؟→T؛ يُجهِض عند الحارس / Null assertion (NS-05)
 
                 // ==========================================
                 // 2. العمليات الثنائية / Bitwise (8)

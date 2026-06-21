@@ -60,6 +60,13 @@ target_link_libraries(sad_core PUBLIC sad_shared)
 #      interpreter/src/managers/ownership_manager.cpp
 target_link_libraries(sad_core PUBLIC sad_ownership)
 
+# (AR) NS-01: نظام أمان null المشترك — sad_core يجمّع interpreter_core.cpp الذي
+#      يستدعي NullSafetyAnalyzer كنقطة حقيقة واحدة مشتركة مع المترجم sadc.
+# (EN) NS-01: shared null-safety — sad_core compiles interpreter_core.cpp which
+#      invokes NullSafetyAnalyzer (single source of truth shared with sadc).
+target_link_libraries(sad_core PUBLIC sad_null_safety)
+target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_safety/include)
+
 # (AR) الطبقة الأمنية المشتركة (BoundsChecker, SafeArithmetic, InputSanitizer,
 #      SafeAllocator, TaintTracker). sad_core يجمّع مصادر المفسر التي تستخدم
 #      assertSafeCast<int>(...) في أي تحويل size_t→int، فلا بد من الربط هنا

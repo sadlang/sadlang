@@ -41,6 +41,7 @@
 #include <iostream>
 #include <fstream>
 #include "builders/arithmetic/arithmetic_codegen.h" // (Phase 7 Step 1)
+#include "sir_constants.h"                            // (AR) kSadNullSentinel (NS-05)
 #include "llvm_codegen.h"
 
 // Source: llvm_codegen.h:103-108 - using declarations
@@ -434,6 +435,79 @@ namespace Sad
             }
 
             return result;
+        }
+
+        /**
+         * (AR) إصدار تعليمة تأكيد عدم الفراغ (NS-05): قيمة مؤكَّد — T؟ → T.
+         *      إن ساوت القيمةُ الحارسَ (kSadNullSentinel) ⇒ طباعة خطأ RUN056 ثم exit(1)
+         *      (نمط emitBoundsCheck)؛ وإلّا تُمرَّر القيمة كما هي.
+         * (EN) Emit null-assertion (NS-05): value مؤكَّد — T? → T. If the value equals the
+         *      sentinel (kSadNullSentinel) → print RUN056 then exit(1) (emitBoundsCheck pattern),
+         *      otherwise pass the value through.
+         */
+        llvm::Value *ArithmeticCodeGen::emitNullAssert(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "NullAssert"}});
+                return nullptr;
+            }
+
+            llvm::Value *operand = resolveOperand(inst->operands[0]);
+            if (!operand)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "NullAssert operand"}});
+                return nullptr;
+            }
+
+            // (AR) حوّل القيمة إلى i64 للمقارنة بالحارس (مؤشّر→ptrtoint، صحيح→تمديد/قصّ)
+            // (EN) Normalize value to i64 for sentinel compare (pointer→ptrtoint, int→ext/trunc)
+            auto i64Ty = cg_.getInt64Type();
+            llvm::Type *ot = operand->getType();
+            llvm::Value *asI64 = nullptr;
+            if (ot->isPointerTy())
+                asI64 = cg_.builder_->CreatePtrToInt(operand, i64Ty, "na.p2i");
+            else if (ot->isIntegerTy())
+                asI64 = (ot == i64Ty) ? operand : cg_.builder_->CreateSExtOrTrunc(operand, i64Ty, "na.ext");
+            // (AR) الأنواع العشرية لا تُمثَّل بالحارس ⇒ لا فحص / floats can't be the sentinel ⇒ no check
+
+            if (asI64)
+            {
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
+                    asI64,
+                    llvm::ConstantInt::get(i64Ty, static_cast<uint64_t>(Sad::Compiler::kSadNullSentinel)),
+                    "na.isnull");
+
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *failBB = llvm::BasicBlock::Create(*cg_.context_, "na.fail", curFunc);
+                llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg_.context_, "na.ok", curFunc);
+                cg_.builder_->CreateCondBr(isNull, failBB, contBB);
+
+                // (AR) كتلة الفشل: طباعة RUN056 ثم exit(1) / (EN) Fail: print RUN056 then exit(1)
+                cg_.builder_->SetInsertPoint(failBB);
+                auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *printfType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+                auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
+                    "خطأ [RUN056]: عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم\n", "na.fmt");
+                cg_.builder_->CreateCall(printfFunc, {msg});
+                auto *exitType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                cg_.builder_->CreateUnreachable();
+
+                // (AR) كتلة الاستمرار: القيمة حاضرة / (EN) Continue: value present
+                cg_.builder_->SetInsertPoint(contBB);
+            }
+
+            // (AR) تمرير القيمة الحاضرة كنتيجة / (EN) Pass present value through as result
+            if (inst->result.has_value())
+            {
+                cg_.context_info_.namedValues[inst->result->name] = operand;
+            }
+            return operand;
         }
 
         /**

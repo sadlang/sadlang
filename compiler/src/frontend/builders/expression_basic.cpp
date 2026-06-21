@@ -649,6 +649,32 @@ namespace Sad
 #endif
 
                 // ================================================================
+                // (AR) عامل تأكيد عدم الفراغ: قيمة مؤكَّد (NS-05) — T؟ → T
+                //      المعامل مُحمَّل بالنوع الداخليّ T (سباكة Optional<T>). نُصدر تعليمة
+                //      NULL_ASSERT تُجهِض البرنامج وقت التشغيل إن ساوت القيمةُ الحارسَ
+                //      (kSadNullSentinel)، وإلّا تمرّر القيمة. الخلفية تلوّنها كفحص+exit.
+                // (EN) Null-assertion operator: value مؤكَّد (NS-05) — T? → T
+                //      Operand is loaded with inner type T (Optional<T> plumbing). We emit a
+                //      NULL_ASSERT instruction that aborts at runtime if the value equals the
+                //      sentinel (kSadNullSentinel), else passes it through. Backend lowers it.
+                // ================================================================
+                if (unaryOp->op == Lexer::TokenType::OP_NULL_ASSERT)
+                {
+                    std::string assertReg = b_.newTempRegister();
+                    if (b_.currentBlock_)
+                    {
+                        SIRInstruction inst = SIRInstruction::Unary(
+                            SIROpcode::NULL_ASSERT,
+                            SIROperand::Register(assertReg, operandResult.type),
+                            SIROperand::Register(operandResult.registerName, operandResult.type));
+                        b_.currentBlock_->addInstruction(inst);
+                    }
+                    BuildResult res(assertReg, operandResult.type);
+                    res.className = operandResult.className;
+                    return res;
+                }
+
+                // ================================================================
                 // (AR) تحميل العوامل الأحادية الزائد: إذا كان المعامل كائن، نبحث عن عامل u-/!/u+ في الصنف
                 //      هذا يتوافق مع سلوك المفسر في expression_evaluator_calls.cpp:visitUnaryExpr
                 //      الأسماء المدعومة: u- → __op_neg__, ! → __op_not__, u+ → __op_pos__

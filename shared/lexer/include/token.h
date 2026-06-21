@@ -390,6 +390,7 @@ namespace Sad
             QUESTION,          ///< ? علامة استفهام / question mark
             QUESTION_DOT,      ///< ?. وصول آمن / optional chaining (null safety)
             QUESTION_QUESTION, ///< ?? تجميع فارغ / null coalescing operator
+            OP_NULL_ASSERT,    ///< مؤكَّد/مؤكَّدة تأكيد عدم الفراغ T؟→T / null assertion (NS-05)
             AT_SIGN,           ///< @ علامة آت / at sign (decorators)
             AMPERSAND,         ///< & علامة العطف / ampersand (borrow/reference)
 

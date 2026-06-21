@@ -1438,7 +1438,7 @@ namespace Sad
             result_ += "(";
             if (expr.object)
                 expr.object->accept(*this);
-            result_ += "?." + expr.member + ")";
+            result_ += "؟." + expr.member + ")"; // [ADR-NS-002] عربيّ حصرًا
         }
 
         void ASTPrinter::visitNullCoalesceExpr(NullCoalesceExpr &expr)

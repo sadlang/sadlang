@@ -64,10 +64,15 @@ namespace Sad
             // Check if next token is a type keyword or built-in type identifier (before function name)
             // (AR) التحقق إذا كان الرمز التالي هو نوع (قبل اسم الدالة)
             // BUT only if it's NOT followed by '(' — otherwise the type keyword IS the function name
+            // (AR) النوع الداخليّ لنوع إرجاع اختياريّ T؟ (NS-06)
+            // (EN) Inner type of an optional return type T? (NS-06)
+            Types::SadTypeKind returnInner = Types::SadTypeKind::Unknown;
             if (isTypeToken(current_.getType()) &&
                 nextToken_.getType() != TT::PAREN_LEFT)
             {
                 returnType = parseType();
+                if (returnType == Types::SadTypeKind::Optional)
+                    returnInner = lastOptionalInner_;
             }
 
             // ─────────────────────────────────────────────────────────────────────
@@ -405,6 +410,11 @@ namespace Sad
                 funcDecl->whereConstraints = std::move(whereConstraints);
                 funcDecl->docComment = std::move(docComment);
                 funcDecl->returnTypeName = returnTypeName; // (AR) [Phase 5e] حفظ اسم صنف الإرجاع
+                // (AR) نوع إرجاع اختياريّ T؟: احفظ النوع الموحَّد بالنوع الداخليّ (NS-06)
+                // (EN) Optional return type T?: store unified type with inner type (NS-06)
+                if (returnType == Types::SadTypeKind::Optional)
+                    funcDecl->sadReturnType = Types::SadTypeRegistry::instance().makeOptional(
+                        Types::SadType::fromValueType(returnInner));
                 return funcDecl;
             }
 
@@ -428,6 +438,11 @@ namespace Sad
             funcDecl->whereConstraints = std::move(whereConstraints);
             funcDecl->docComment = std::move(docComment);
             funcDecl->returnTypeName = returnTypeName; // (AR) [Phase 5e] حفظ اسم صنف الإرجاع
+            // (AR) نوع إرجاع اختياريّ T؟: احفظ النوع الموحَّد بالنوع الداخليّ (NS-06)
+            // (EN) Optional return type T?: store unified type with inner type (NS-06)
+            if (returnType == Types::SadTypeKind::Optional)
+                funcDecl->sadReturnType = Types::SadTypeRegistry::instance().makeOptional(
+                    Types::SadType::fromValueType(returnInner));
             return funcDecl;
         }
 
@@ -1267,6 +1282,9 @@ namespace Sad
             }
 
             Types::SadTypeKind varType = Types::SadTypeKind::Unknown;
+            // (AR) [NS-06 موجة 2] النوع الداخليّ T إن كان varType اختياريًّا `T؟`.
+            // (EN) [NS-06 wave 2] inner T when varType is optional `T?`.
+            Types::SadTypeKind varInnerKind = Types::SadTypeKind::Unknown;
             std::string className = "";     // For class-typed variables
             Token name(TT::IDENTIFIER, ""); // Initialize with default
 
@@ -1281,6 +1299,7 @@ namespace Sad
                 // (AR) الصيغة 2: نوع معرّف = قيمة;
                 // الرمز الحالي هو بالفعل رمز نوع
                 varType = parseType();
+                varInnerKind = lastOptionalInner_;
 
                 // Check if we have an identifier after the type
                 // (AR) تحقق مما إذا كان لدينا معرّف بعد النوع
@@ -1392,6 +1411,7 @@ namespace Sad
                         }
 
                         varType = annotatedType;
+                        varInnerKind = lastOptionalInner_;
                     }
                 }
             }
@@ -1411,6 +1431,7 @@ namespace Sad
                     if (annotatedType != Types::SadTypeKind::Unknown)
                     {
                         varType = annotatedType;
+                        varInnerKind = lastOptionalInner_;
                     }
                 }
             }
@@ -1524,6 +1545,18 @@ namespace Sad
                 firstPos);
             firstDecl->docComment = std::move(docComment);
 
+            // (AR) [NS-06 موجة 2] لنوع اختياريّ `T؟`: ابنِ sadType غنيًّا = Optional<T>
+            //      (المُنشئ يضع fromValueType(Optional) بلا T داخليّ). هذا يمكّن codegen
+            //      المترجم من حفظ النوع الداخليّ (نص لا i64) — انظر buildLocalVariable.
+            // (EN) [NS-06 wave 2] For optional `T?`: build a rich sadType = Optional<T>
+            //      so the compiler can keep the inner type at codegen.
+            if (varType == Types::SadTypeKind::Optional &&
+                varInnerKind != Types::SadTypeKind::Unknown)
+            {
+                firstDecl->sadType = Types::SadTypeRegistry::instance().makeOptional(
+                    Types::SadType::fromValueType(varInnerKind));
+            }
+
             // (AR) التحقق من وجود فاصلة (تعريف متغيرات متعددة)
             // (EN) Check for comma (multiple variable declarations)
             if (checkComma())
@@ -1561,9 +1594,14 @@ namespace Sad
 
                     // (AR) تصريح النوع الاختياري: اسم : نوع
                     // (EN) Optional type annotation: name : type
+                    // (AR) النوع الداخليّ T لنوع اختياريّ T؟ في هذا المتغيّر (NS-06)
+                    // (EN) Inner type T for an optional T? on this variable (NS-06)
+                    Types::SadTypeKind nextInnerKind = Types::SadTypeKind::Unknown;
                     if (match(TT::COLON))
                     {
                         nextType = parseType();
+                        if (nextType == Types::SadTypeKind::Optional)
+                            nextInnerKind = lastOptionalInner_;
                         if (nextType == Types::SadTypeKind::Unknown)
                         {
                             errorBilingual(
@@ -1586,12 +1624,21 @@ namespace Sad
                         }
                     }
 
-                    declarations.push_back(std::make_unique<VarDeclStmt>(
+                    auto nextDecl = std::make_unique<VarDeclStmt>(
                         nextName.getValue(),
                         nextType,
                         std::move(nextInit),
                         pendingConst_,
-                        nextName.getPosition()));
+                        nextName.getPosition());
+                    // (AR) [NS-06] سباكة Optional<T> للمتغيّر التالي كما في الأول
+                    // (EN) [NS-06] Plumb Optional<T> for the next variable like the first
+                    if (nextType == Types::SadTypeKind::Optional &&
+                        nextInnerKind != Types::SadTypeKind::Unknown)
+                    {
+                        nextDecl->sadType = Types::SadTypeRegistry::instance().makeOptional(
+                            Types::SadType::fromValueType(nextInnerKind));
+                    }
+                    declarations.push_back(std::move(nextDecl));
                 }
 
                 // (AR) فاصلة منقوطة اختيارية / (EN) Optional semicolon

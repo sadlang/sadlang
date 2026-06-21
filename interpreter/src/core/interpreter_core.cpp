@@ -26,6 +26,7 @@
 //      to become a semantic layer shared by interpreter and compiler.
 #ifndef __EMSCRIPTEN__
 #include "semantic/type_checker.h"
+#include "null_safety/null_safety_analyzer.h"
 #endif
 
 // (AR) المكتبة القياسية / (EN) Standard Library Manager
@@ -345,6 +346,57 @@ namespace Sad
                     if (options_.enableDebugMode)
                     {
                         std::cout << "(AR) ✓ فحص الأنواع تم / (EN) ✓ Type check completed" << std::endl;
+                    }
+                }
+#endif // !__EMSCRIPTEN__ && !SAD_PLATFORM_ANDROID
+
+                // ================================================================
+                // (AR) تحليل أمان null - المكوّن المشترك (NS-01: استدعاء الهيكل فقط)
+                //     نفس نقطة الحقيقة التي يستدعيها المترجم sadc — مصدر واحد.
+                //     NS-01: لا منطق بعد؛ الرصد في NS-04، التضييق في NS-03،
+                //     الصرامة عبر dispatch() في NS-02.
+                // (EN) Null-safety analysis - shared component (NS-01: scaffold call).
+                //     Same single source of truth the sadc compiler invokes.
+                // ================================================================
+#if !defined(__EMSCRIPTEN__) && !defined(SAD_PLATFORM_ANDROID)
+                {
+                    Sad::NullSafety::NullSafetyAnalyzer nullSafetyAnalyzer;
+                    nullSafetyAnalyzer.setArabicMessages(true);
+                    // (AR) NS-02 (D6): الصرامة المجرّدة تُشتقّ من سياسة الذاكرة عبر
+                    //      المابِع المشترك — نفس القاعدة في المترجم تمامًا.
+                    // (EN) NS-02 (D6): abstract strictness derived from memory policy
+                    //      via the shared mapper — identical rule in the compiler.
+                    nullSafetyAnalyzer.setStrictness(
+                        Sad::NullSafety::strictnessFromOwnershipMode(
+                            options_.memoryPolicy.ownershipMode));
+                    // (AR) واجهة غير مالكة — تُمرَّر القائمة الثابتة مباشرةً.
+                    // (EN) Non-owning interface — pass the const list directly.
+                    auto nsResult = nullSafetyAnalyzer.analyze(program);
+
+                    // (AR) NS-02: الإبلاغ من نقطة الحقيقة الواحدة (D8). نُبقي صيغة
+                    //      مخرجات P9 السابقة (cerr + reportWarning) لتطابق المخرجات.
+                    // (EN) NS-02: report from the single source of truth (D8), keeping
+                    //      the legacy P9 output shape for parity.
+                    for (const auto &diag : nsResult.diagnostics)
+                    {
+                        std::cerr << "[تحذير نوع] سطر " << diag.line
+                                  << ": " << diag.messageAr << std::endl;
+                        Sad::Errors::SourceLocation locN(
+                            "", diag.line, diag.column);
+                        Sad::Errors::ErrorManager::getInstance().reportWarning(
+                            Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH,
+                            locN, diag.messageAr, diag.messageEn);
+                    }
+                    // (AR) صرامة قاتلة (--prod): أيّ تشخيص يوقف التنفيذ قبل البدء.
+                    // (EN) Fatal strictness (--prod): any diagnostic stops execution.
+                    if (!nsResult.success)
+                    {
+                        std::cerr << "\n❌ فحص أمان null فشل مع "
+                                  << nsResult.errors.size() << " خطأ\n";
+                        std::cerr << "❌ Null-safety check failed with "
+                                  << nsResult.errors.size() << " error(s)\n";
+                        return ExecutionResult(false, Data::Value(),
+                                               "Null-safety check failed");
                     }
                 }
 #endif // !__EMSCRIPTEN__ && !SAD_PLATFORM_ANDROID

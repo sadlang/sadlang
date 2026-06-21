@@ -1759,32 +1759,30 @@ namespace Sad
                 }
                 else if (next == 0x9F)
                 {
-                    // (AR) [S-TS-P8 AC3] ؟ علامة الاستفهام العربية (U+061F) = مرادف `?`
-                    //      لاحقة اختياري `رقم؟`، ثلاثي `أ ؟ ب : ج`، واندماج `؟؟`/وصول آمن `؟.`.
-                    // (EN) [S-TS-P8 AC3] Arabic question mark as synonym of `?`.
+                    // (AR) [ADR-NS-002] ؟ علامة الاستفهام العربية (U+061F) هي الرمز
+                    //      القانونيّ الوحيد (إسقاط ASCII `?` — عربيّ حصرًا):
+                    //      لاحقة اختياري `رقم؟`، ثلاثي `أ ؟ ب : ج`، اندماج `؟؟`، وصول آمن `؟.`.
+                    //      اللفظ المُخزَّن عربيّ. لا يُقبل `?`/`?.`/`؟?` (ASCII أو مختلط).
+                    // (EN) [ADR-NS-002] Arabic question mark (U+061F) is the sole canonical
+                    //      token (ASCII `?` dropped — Arabic-only). Stored lexeme is Arabic.
                     advance(); // consume 0xD8
                     advance(); // consume 0x9F
                     // (AR) ؟. → QUESTION_DOT (وصول آمن)
                     if (peek() == '.')
                     {
                         advance();
-                        return Token(TokenType::QUESTION_DOT, "?.", start_position_);
+                        return Token(TokenType::QUESTION_DOT, "؟.", start_position_);
                     }
-                    // (AR) ؟؟ (عربي) أو ؟? (مختلط) → QUESTION_QUESTION (اندماج فارغ)
-                    if (peek() == '?')
-                    {
-                        advance();
-                        return Token(TokenType::QUESTION_QUESTION, "??", start_position_);
-                    }
+                    // (AR) ؟؟ (عربيّ حصرًا) → QUESTION_QUESTION (اندماج فارغ)
                     if (static_cast<unsigned char>(peek()) == 0xD8 &&
                         (current_ + 1) < source_.length() &&
                         static_cast<unsigned char>(source_[current_ + 1]) == 0x9F)
                     {
                         advance(); // 0xD8
                         advance(); // 0x9F
-                        return Token(TokenType::QUESTION_QUESTION, "??", start_position_);
+                        return Token(TokenType::QUESTION_QUESTION, "؟؟", start_position_);
                     }
-                    return Token(TokenType::QUESTION, "?", start_position_);
+                    return Token(TokenType::QUESTION, "؟", start_position_);
                 }
             }
 
@@ -1875,22 +1873,10 @@ namespace Sad
                 }
                 return Token(TokenType::COLON, ":", start_position_);
             }
-            case '?':
-                // (AR) فحص ?. (وصول آمن) و ?? (تجميع فارغ) / (EN) Check ?. (optional chain) and ?? (null coalesce)
-                if (current_ < source_.size())
-                {
-                    if (source_[current_] == '.')
-                    {
-                        advance();
-                        return Token(TokenType::QUESTION_DOT, "?.", start_position_);
-                    }
-                    if (source_[current_] == '?')
-                    {
-                        advance();
-                        return Token(TokenType::QUESTION_QUESTION, "??", start_position_);
-                    }
-                }
-                return Token(TokenType::QUESTION, "?", start_position_);
+            // (AR) [ADR-NS-002] ASCII `?` (والمركّبات `?.`/`??`) أُسقِطت — عربيّ حصرًا.
+            //      `?` يسقط الآن إلى رمز غير معروف (خطأ معجميّ) مقصودًا. استعمل `؟`.
+            // (EN) [ADR-NS-002] ASCII `?` (and `?.`/`??`) dropped — Arabic-only. A bare
+            //      ASCII `?` now falls through to an unknown token by design. Use `؟`.
             case '@':
                 return Token(TokenType::AT_SIGN, "@", start_position_); // (AR) للمُزخرِفات / (EN) for decorators
             }

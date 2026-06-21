@@ -213,6 +213,7 @@ namespace Sad
             RUN_NUMERIC_REQUIRED,          ///< RUN053: (AR) تتطلّب قيمة رقمية / (EN) Numeric required
             RUN_COMPREHENSION_NEEDS_ARRAY, ///< RUN054: (AR) الاستيعاب يتطلّب مصفوفة / (EN) Comprehension needs array
             RUN_NOT_ITERABLE,              ///< RUN055: (AR) نوع غير قابل للتكرار / (EN) Not iterable
+            RUN_NULL_ASSERTION,            ///< RUN056: (AR) فشل تأكيد عدم الفراغ (مؤكَّد) / (EN) Null assertion failed
 
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.

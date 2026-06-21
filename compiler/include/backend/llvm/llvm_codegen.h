@@ -606,6 +606,7 @@ namespace Sad
             llvm::Value *emitDiv(std::shared_ptr<SIRInstruction> inst) { return arith_->emitDiv(inst); }
             llvm::Value *emitMod(std::shared_ptr<SIRInstruction> inst) { return arith_->emitMod(inst); }
             llvm::Value *emitNeg(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNeg(inst); }
+            llvm::Value *emitNullAssert(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNullAssert(inst); }
 
             // ------------------------------------------------------------------------
             // Bitwise Instructions / التعليمات الثنائية (Phase 7 Step 1: delegate)

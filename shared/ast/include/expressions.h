@@ -1350,7 +1350,7 @@ namespace Sad
 
             std::string toString() const override
             {
-                return object->toString() + "?." + member;
+                return object->toString() + "؟." + member; // [ADR-NS-002] عربيّ حصرًا
             }
 
             Types::SadTypePtr getType() const override;

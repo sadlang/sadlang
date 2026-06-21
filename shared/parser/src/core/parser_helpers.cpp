@@ -1421,6 +1421,7 @@ namespace Sad
                         // Type-first syntax: "int x"
                         // (AR) صيغة النوع أولاً: "رقم س"
                         paramType = parseType();
+                        Types::SadTypeKind paramInnerTF = lastOptionalInner_;
                         // (AR) دعم استخدام الكلمات المفتاحية الناعمة كأسماء معاملات بعد النوع
                         // (EN) Support soft keywords as parameter names after type annotation
                         Token paramName(TT::IDENTIFIER, "", Lexer::Position());
@@ -1448,10 +1449,22 @@ namespace Sad
                             defaultValue = parseExpression();
                         }
 
+                        // (AR) سباكة النوع الداخليّ للمعامل الاختياريّ T؟ (NS-06 موجة 3)
+                        // (EN) Plumb inner type for optional parameter T? (NS-06 wave 3)
+                        Types::SadTypePtr paramSadTypeTF = nullptr;
+                        if (paramType == Types::SadTypeKind::Optional &&
+                            paramInnerTF != Types::SadTypeKind::Unknown)
+                        {
+                            paramSadTypeTF = Types::SadTypeRegistry::instance().makeOptional(
+                                Types::SadType::fromValueType(paramInnerTF));
+                        }
+
                         parameters.emplace_back(
                             paramName.getValue(),
                             paramType,
-                            std::move(defaultValue));
+                            std::move(defaultValue),
+                            "",
+                            std::move(paramSadTypeTF));
                     }
                     else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER)
                     {
@@ -1524,9 +1537,11 @@ namespace Sad
 
                         // Optional type annotation: name : type
                         // (AR) تصريح النوع الاختياري: اسم : نوع
+                        Types::SadTypeKind paramInnerNF = Types::SadTypeKind::Unknown;
                         if (match(TT::COLON))
                         {
                             paramType = parseType();
+                            paramInnerNF = lastOptionalInner_;
                         }
 
                         // Optional default value: name : type = value
@@ -1537,10 +1552,22 @@ namespace Sad
                             defaultValue = parseExpression();
                         }
 
+                        // (AR) سباكة النوع الداخليّ للمعامل الاختياريّ T؟ (NS-06 موجة 3)
+                        // (EN) Plumb inner type for optional parameter T? (NS-06 wave 3)
+                        Types::SadTypePtr paramSadTypeNF = nullptr;
+                        if (paramType == Types::SadTypeKind::Optional &&
+                            paramInnerNF != Types::SadTypeKind::Unknown)
+                        {
+                            paramSadTypeNF = Types::SadTypeRegistry::instance().makeOptional(
+                                Types::SadType::fromValueType(paramInnerNF));
+                        }
+
                         parameters.emplace_back(
                             paramName.getValue(),
                             paramType,
-                            std::move(defaultValue));
+                            std::move(defaultValue),
+                            "",
+                            std::move(paramSadTypeNF));
                     }
 
                 } while (matchComma()); // (AR) دعم الفاصلة العربية (،)
@@ -1632,10 +1659,14 @@ namespace Sad
         //      parseType is only called in type positions, so no ternary ambiguity.
         Types::SadTypeKind ParserCore::parseType()
         {
+            lastOptionalInner_ = Types::SadTypeKind::Unknown;
             Types::SadTypeKind base = parseTypeCore();
             if (check(TT::QUESTION))
             {
                 advance(); // consume '?'
+                // (AR) [NS-06 موجة 2] احفظ النوع الأساس T لبناء Optional<T> غنيّ لاحقًا.
+                // (EN) [NS-06 wave 2] remember base T to build a rich Optional<T> later.
+                lastOptionalInner_ = base;
                 return Types::SadTypeKind::Optional;
             }
             return base;
@@ -1958,10 +1989,12 @@ namespace Sad
                                    name == "مصفوفة" || name == "خريطة" || name == "أي");
                 if (isTypeName)
                 {
-                    // (AR) تحقق من أن الرمز التالي هو معرّف (اسم متغير/حقل)
-                    // (EN) Check that next token is an identifier (var/field name)
+                    // (AR) تحقق من أن الرمز التالي هو معرّف (اسم متغير/حقل) أو لاحقة
+                    //      الاختياريّ '؟' (نوع اختياريّ يليه الاسم: دالة نص؟ جد(...)) — NS-06.
+                    // (EN) Next token must be an identifier (var/field name) or the optional
+                    //      suffix '?' (optional type before the name: `function نص؟ f(...)`) — NS-06.
                     TokenType nextType = peekNext().getType();
-                    return nextType == TT::IDENTIFIER;
+                    return nextType == TT::IDENTIFIER || nextType == TT::QUESTION;
                 }
             }
 

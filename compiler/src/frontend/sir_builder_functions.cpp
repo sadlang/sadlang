@@ -113,6 +113,15 @@ namespace Sad
                     returnType = astTypeToSIRType(funcDecl->returnType);
                 }
 
+                // (AR) نوع إرجاع اختياريّ T؟: استعمل النوع الداخليّ T للإرجاع (NS-06)
+                // (EN) Optional return type T?: use inner type T for the return (NS-06)
+                if (funcDecl->returnType == Types::SadTypeKind::Optional && funcDecl->sadReturnType)
+                {
+                    if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(funcDecl->sadReturnType.get()))
+                        if (opt->getInnerType())
+                            returnType = astTypeToSIRType(opt->getInnerType()->getKind());
+                }
+
                 // (AR) إنشاء دالة SIR جديدة (sir_module.h:235 - SIRFunction constructor)
                 // (EN) Create new SIR function
                 auto sirFunction = std::make_shared<SIRFunction>(funcDecl->name, returnType);
@@ -173,6 +182,15 @@ namespace Sad
                     const auto &param = funcDecl->parameters[i];
                     SadTypeKind paramType = astTypeToSIRType(param.type);
 
+                    // (AR) معامل اختياريّ T؟: استعمل النوع الداخليّ T للتخزين (NS-06 موجة 3)
+                    // (EN) Optional parameter T?: use inner type T for storage (NS-06 wave 3)
+                    if (param.type == Types::SadTypeKind::Optional && param.sadType)
+                    {
+                        if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(param.sadType.get()))
+                            if (opt->getInnerType())
+                                paramType = astTypeToSIRType(opt->getInnerType()->getKind());
+                    }
+
                     // (AR) ״¥״°״§ ƒ״§† ״§„†ˆ״¹ I64 (…† UNKNOWN) ˆfunctionTable_ ״­״×ˆ †ˆ״¹״§‹ …״³״×†״×״¬״§‹ ״£״¶„
                     // (EN) If type is I64 (from UNKNOWN) and functionTable_ has a better inferred type
                     // (AR) إصلاح X04: لا تُبدِّل إلى Boolean (i1) لأن null/لاشيء يُمرَّر كـ i64 sentinel
@@ -223,6 +241,15 @@ namespace Sad
                 {
                     const auto &param = funcDecl->parameters[i];
                     SadTypeKind paramType = astTypeToSIRType(param.type);
+
+                    // (AR) معامل اختياريّ T؟: استعمل النوع الداخليّ T للتخزين (NS-06 موجة 3)
+                    // (EN) Optional parameter T?: use inner type T for storage (NS-06 wave 3)
+                    if (param.type == Types::SadTypeKind::Optional && param.sadType)
+                    {
+                        if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(param.sadType.get()))
+                            if (opt->getInnerType())
+                                paramType = astTypeToSIRType(opt->getInnerType()->getKind());
+                    }
 
                     // (AR) †״³ ״§„…†״·‚: ״§״³״×״®״¯״§… ״§„†ˆ״¹ ״§„…״³״×†״×״¬ ״¹†״¯…״§ ƒˆ† UNKNOWN
                     // (EN) Same logic: use inferred type when UNKNOWN

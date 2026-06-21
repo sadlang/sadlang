@@ -49,10 +49,11 @@ namespace Sad
             "**=",
             // 2 chars
             "==", "!=", ">=", "<=", "+=", "-=", "*=", "/=", "%=",
-            "&&", "||", "**", "->", "..", "?.", "??",
-            // 1 char
+            // (AR) [ADR-NS-002] عوامل أمان null عربيّة حصرًا: ؟. ؟؟ ؟ (أُسقِط ASCII ?)
+            "&&", "||", "**", "->", "..", "؟.", "؟؟",
+            // 1 char (الأحاديّ) — ملاحظة: ؟ متعدّد البايتات (UTF-8)
             "+", "-", "*", "/", "%", "^",
-            "=", ">", "<", "!", "?",
+            "=", ">", "<", "!", "؟",
             ":", ".", "&", "|", "~"};
 
         // ============================================================================
@@ -528,19 +529,19 @@ namespace Sad
                 advance((int)best.size());
                 emit(FmtTokenType::ARROW, best, sl, sc, so);
             }
-            else if (best == "?.")
+            else if (best == "؟.")
             {
-                // (AR) وصول اختياري ?. — يُعامل كنقطة (بدون مسافات)
-                // (EN) Optional chain ?. — treated like dot (no spaces)
-                advance(2);
-                emit(FmtTokenType::DOT, "?.", sl, sc, so);
+                // (AR) [ADR-NS-002] وصول آمن ؟. — يُعامل كنقطة (بدون مسافات). عربيّ حصرًا.
+                // (EN) [ADR-NS-002] Optional chain ؟. — treated like dot (no spaces).
+                advance((int)best.size());
+                emit(FmtTokenType::DOT, "؟.", sl, sc, so);
             }
-            else if (best == "??")
+            else if (best == "؟؟")
             {
-                // (AR) اندماج صفري ?? — عامل ثنائي (مع مسافات)
-                // (EN) Null coalesce ?? — binary operator (with spaces)
-                advance(2);
-                emit(FmtTokenType::OPERATOR, "??", sl, sc, so);
+                // (AR) [ADR-NS-002] اندماج فارغ ؟؟ — عامل ثنائي (مع مسافات). عربيّ حصرًا.
+                // (EN) [ADR-NS-002] Null coalesce ؟؟ — binary operator (with spaces).
+                advance((int)best.size());
+                emit(FmtTokenType::OPERATOR, "؟؟", sl, sc, so);
             }
             else if (best == ":")
             {

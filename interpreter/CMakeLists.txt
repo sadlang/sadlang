@@ -83,6 +83,9 @@ target_include_directories(sad_interpreter
         #      ownership_manager.h يضمّن "ownership/ownership_tracker.h" بمسار نسبي.
         # (EN) Ownership Unification: unified ownership system in shared/ownership/.
         ${CMAKE_SOURCE_DIR}/shared/ownership/include
+        # (AR) NS-01: رأس محلّل أمان null المشترك (null_safety/null_safety_analyzer.h)
+        # (EN) NS-01: shared null-safety analyzer header
+        ${CMAKE_SOURCE_DIR}/shared/null_safety/include
         # (AR) خطافات مصحح الأداء (profiler_hooks.h) المشتركة في shared/profiler/.
         # (EN) Shared profiler hooks (profiler_hooks.h) in shared/profiler/.
         ${CMAKE_SOURCE_DIR}/shared/profiler/include
@@ -99,6 +102,9 @@ target_link_libraries(sad_interpreter
         # (AR) Ownership Unification: نظام الملكية الموحَّد (OwnershipTracker, BorrowChecker, ...)
         # (EN) Ownership Unification: unified ownership system
         sad_ownership
+        # (AR) NS-01: نظام أمان null المشترك — interpreter_core.cpp يستدعي NullSafetyAnalyzer
+        # (EN) NS-01: shared null-safety — interpreter_core.cpp invokes NullSafetyAnalyzer
+        sad_null_safety
         # (AR) Memory Layer Unification (Phase A): سياسة أوضاع الذاكرة الموحَّدة
         #      مصدر الحقيقة لـ --dev/--prod/--learn، استراتيجيات GC، مستويات الملكية.
         # (EN) Memory Layer Unification (Phase A): unified memory mode policy

@@ -53,6 +53,8 @@ namespace Sad
                     return "mod.i64";
                 case SIROpcode::NEG:
                     return "neg";
+                case SIROpcode::NULL_ASSERT:
+                    return "null.assert";
 
                 // Bitwise
                 case SIROpcode::AND:
@@ -613,6 +615,7 @@ namespace Sad
 
                 // Unary operations (1 operand)
                 case SIROpcode::NEG:
+                case SIROpcode::NULL_ASSERT:
                 case SIROpcode::NOT:
                 case SIROpcode::RET:
                 case SIROpcode::BR:

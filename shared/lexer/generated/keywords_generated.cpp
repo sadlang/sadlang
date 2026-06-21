@@ -60,7 +60,8 @@ const std::vector<KeywordEntry>& allEntries() {
         { "و", TokenType::OP_AND, KeywordCategory::OPERATOR, true, {}, {}, "and" },
         { "أو", TokenType::OP_OR, KeywordCategory::OPERATOR, true, {}, {}, "or" },
         { "ليس", TokenType::OP_NOT, KeywordCategory::OPERATOR, true, {}, {}, "not" },
-        // ─── contextual (39) ───
+        // ─── contextual (40) ───
+        { "مؤكد", TokenType::OP_NULL_ASSERT, KeywordCategory::CONTEXTUAL, false, {"مؤكدة"}, {}, "asserted" },
         { "خاصية", TokenType::KEYWORD_PROPERTY, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "property" },
         { "احصل", TokenType::KEYWORD_GET, KeywordCategory::CONTEXTUAL, false, {}, {}, "get" },
         { "عيّن", TokenType::KEYWORD_SET, KeywordCategory::CONTEXTUAL, false, {"عين"}, {}, "set" },

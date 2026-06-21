@@ -125,17 +125,26 @@ namespace Sad
                 if (node.sadType && node.type != Types::SadTypeKind::Unknown)
                 {
                     // ═══════════════════════════════════════════════════════════
-                    // (AR) [S-TS-P9] أمان null: `لاشيء` (عدم) لا يُسنَد لنوع مُصرَّح غير
-                    //      اختياري. الحارس الخارجي (node.type != Unknown) يحفظ النمط
-                    //      السائد `متغير س = لاشيء` (مُستنتَج) من أي إنذار كاذب — لا انحدار.
-                    //      `رقم؟`(Optional)/`أي`(Any)/فراغ مستثناة. عدم يهرب من isAssignableTo
-                    //      لذا يلزم فحص isNull() صريح هنا.
-                    // (EN) [S-TS-P9] Null safety: `null` is not assignable to an explicitly
-                    //      non-optional type. The outer (node.type != Unknown) guard exempts
-                    //      inferred `var x = null`. Optional/Any/Void excluded. Null escapes
-                    //      isAssignableTo, hence the explicit isNull() check.
+                    // (AR) [S-TS-P9 / NS-02] أمان null — **حارس زمنيّ فقط** (D10):
+                    //      الحالة الحرفيّة `= لاشيء` انتقلت إلى المحلّل المشترك الساكن
+                    //      (NullSafetyAnalyzer، نقطة الحقيقة الواحدة D8). يبقى هنا الحارس
+                    //      الزمنيّ للتعابير **غير الحرفيّة** التي تُنتج عدمًا وقت التشغيل
+                    //      (`= دالة_ترجع_عدم()`) — لا يستطيع المحلّل الساكن إثباتها.
+                    //      شرط `!isNullLiteralInit` يمنع التحذير المزدوج للحالة الحرفيّة.
+                    // (EN) [S-TS-P9 / NS-02] Null safety — **runtime guard only** (D10):
+                    //      the literal `= null` case moved to the shared static analyzer
+                    //      (single source of truth, D8). This guard now covers only
+                    //      non-literal expressions that yield null at runtime; the
+                    //      `!isNullLiteralInit` test avoids double-reporting the literal.
                     // ═══════════════════════════════════════════════════════════
-                    if (value.isNull() &&
+                    bool isNullLiteralInit = false;
+                    if (auto *litInit =
+                            dynamic_cast<AST::LiteralExpr *>(node.initializer.get()))
+                    {
+                        isNullLiteralInit =
+                            litInit->token.getType() == Lexer::TokenType::LITERAL_NULL;
+                    }
+                    if (value.isNull() && !isNullLiteralInit &&
                         node.type != Types::SadTypeKind::Optional &&
                         node.type != Types::SadTypeKind::Any &&
                         node.type != Types::SadTypeKind::Null &&

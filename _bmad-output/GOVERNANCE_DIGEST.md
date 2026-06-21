@@ -1,7 +1,7 @@
 # 📋 GOVERNANCE_DIGEST — ملخّص الحوكمة (مولَّد آليًّا)
 
 <!-- ⚠️ ملف مولَّد آليًّا — لا تُحرّره يدويًّا. -->
-<!-- مولَّد-من: بصمة=1a3038f727009864 | المولّد=scripts/governance/gen_governance_digest.py -->
+<!-- مولَّد-من: بصمة=1378323475eb721e | المولّد=scripts/governance/gen_governance_digest.py -->
 <!-- إعادة التوليد: python scripts/governance/gen_governance_digest.py -->
 
 > هذا الـDigest بوابة الحوكمة المتدرّجة (ADR-GOV-001 / RFC sadlang/rfcs#5).
@@ -35,10 +35,10 @@
 |--------|--------|
 | `builtin-functions` | ACTIVE — المرحلة 1: توليد builtin_registry.h من YAML ✅ (100%) |
 | `error-messages` | ACTIVE — 1. القرارات (محسومة) |
-| `null-safety` | مُخطَّط (لم يبدأ التنفيذ) |
+| `null-safety` | قيد التنفيذ — NS-01 + NS-02 + NS-04 + NS-03 مُنجَزة ومُتحقَّقة بالبناء والاختبار |
 | `testing-system` | الإنجازات حسب القصة |
 | `type-system` | القصص المُنفَّذة |
 | `ui_system` | ACTIVE — 2. تفصيل الباطن لكل منصة |
 
 ---
-<!-- نهاية الـDigest — بصمة=1a3038f727009864 -->
+<!-- نهاية الـDigest — بصمة=1378323475eb721e -->

@@ -55,6 +55,8 @@ namespace Sad
                 return cg_.emitMod(inst);
             case SIROpcode::NEG:
                 return cg_.emitNeg(inst);
+            case SIROpcode::NULL_ASSERT:
+                return cg_.emitNullAssert(inst);
 
             // Bitwise - Source: sir_types.h:134-141
             case SIROpcode::AND:

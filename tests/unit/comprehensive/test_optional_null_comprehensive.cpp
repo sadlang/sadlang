@@ -1,6 +1,6 @@
 /**
  * @file test_optional_null_comprehensive.cpp
- * @brief (AR) اختبارات شاملة لعاملي ?. و ?? / (EN) Comprehensive tests for ?. and ??
+ * @brief (AR) اختبارات شاملة لعاملي ؟. و ؟؟ / (EN) Comprehensive tests for ؟. and ؟؟
  *
  * يغطي: المحلل المعجمي (Lexer)، المحلل النحوي (Parser)، المفسر (Interpreter)
  * ~40 اختبار تشمل: حالات حدية، أنواع مختلفة، تداخل، وراثة، تكامل
@@ -117,12 +117,12 @@ int main() {
     SAD_TEST_INIT();
 
     // ==================================================================
-    // المجموعة 1: المحلل المعجمي (Lexer) — رموز ?. و ??
+    // المجموعة 1: المحلل المعجمي (Lexer) — رموز ؟. و ؟؟
     // ==================================================================
     SAD_GROUP("Lexer.OptionalNull / المعجمي.الوصول_الآمن");
 
-    SAD_TEST("LEX01: الرمز ?. يُحلل كرمز واحد", {
-        Lexer::LexerCore lexer("x?.y");
+    SAD_TEST("LEX01: الرمز ؟. يُحلل كرمز واحد", {
+        Lexer::LexerCore lexer("x؟.y");
         auto tokens = lexer.tokenize();
         bool found = false;
         for (auto& t : tokens) {
@@ -134,8 +134,8 @@ int main() {
         SAD_ASSERT_TRUE(found);
     });
 
-    SAD_TEST("LEX02: الرمز ?? يُحلل كرمز واحد", {
-        Lexer::LexerCore lexer("x ?? y");
+    SAD_TEST("LEX02: الرمز ؟؟ يُحلل كرمز واحد", {
+        Lexer::LexerCore lexer("x ؟؟ y");
         auto tokens = lexer.tokenize();
         bool found = false;
         for (auto& t : tokens) {
@@ -147,8 +147,8 @@ int main() {
         SAD_ASSERT_TRUE(found);
     });
 
-    SAD_TEST("LEX03: ?. بدون مسافات", {
-        Lexer::LexerCore lexer("obj?.prop");
+    SAD_TEST("LEX03: ؟. بدون مسافات", {
+        Lexer::LexerCore lexer("obj؟.prop");
         auto tokens = lexer.tokenize();
         // يجب أن نجد: IDENTIFIER, QUESTION_DOT, IDENTIFIER
         int qd_count = 0;
@@ -158,8 +158,8 @@ int main() {
         SAD_ASSERT_EQ(qd_count, 1);
     });
 
-    SAD_TEST("LEX04: ?? مع مسافات", {
-        Lexer::LexerCore lexer("a   ??   b");
+    SAD_TEST("LEX04: ؟؟ مع مسافات", {
+        Lexer::LexerCore lexer("a   ؟؟   b");
         auto tokens = lexer.tokenize();
         int qq_count = 0;
         for (auto& t : tokens) {
@@ -168,8 +168,8 @@ int main() {
         SAD_ASSERT_EQ(qq_count, 1);
     });
 
-    SAD_TEST("LEX05: ?. و ?? في نفس التعبير", {
-        Lexer::LexerCore lexer("x?.y ?? z");
+    SAD_TEST("LEX05: ؟. و ؟؟ في نفس التعبير", {
+        Lexer::LexerCore lexer("x؟.y ؟؟ z");
         auto tokens = lexer.tokenize();
         int qd = 0, qq = 0;
         for (auto& t : tokens) {
@@ -185,93 +185,93 @@ int main() {
     // ==================================================================
     SAD_GROUP("Parser.OptionalNull / النحوي.الوصول_الآمن");
 
-    SAD_TEST("PARSE01: ?. ينتج عقدة OptionalChainExpr", {
-        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x?.z";
+    SAD_TEST("PARSE01: ؟. ينتج عقدة OptionalChainExpr", {
+        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x؟.z";
         SAD_ASSERT_TRUE(runsSuccessfully(code));
     });
 
-    SAD_TEST("PARSE02: ?? ينتج عقدة NullCoalesceExpr", {
-        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x ?? 42";
+    SAD_TEST("PARSE02: ؟؟ ينتج عقدة NullCoalesceExpr", {
+        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x ؟؟ 42";
         SAD_ASSERT_TRUE(runsSuccessfully(code));
     });
 
-    SAD_TEST("PARSE03: ?. + ?? معاً", {
-        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x?.z ?? 0";
+    SAD_TEST("PARSE03: ؟. + ؟؟ معاً", {
+        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x؟.z ؟؟ 0";
         SAD_ASSERT_TRUE(runsSuccessfully(code));
     });
 
-    SAD_TEST("PARSE04: ?. متسلسل", {
-        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x?.a?.b?.c ?? 0";
+    SAD_TEST("PARSE04: ؟. متسلسل", {
+        std::string code = KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x؟.a؟.b؟.c ؟؟ 0";
         SAD_ASSERT_TRUE(runsSuccessfully(code));
     });
 
     // ==================================================================
-    // المجموعة 3: المفسر — ?? مع أنواع مختلفة
+    // المجموعة 3: المفسر — ؟؟ مع أنواع مختلفة
     // ==================================================================
     SAD_GROUP("Interpreter.NullCoalesce / المفسر.الاندماج_الصفري");
 
-    SAD_TEST("NC01: ?? مع لاشيء يرجع البديل", {
-        auto v = runAndGetVar(KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x ?? 42", "y");
+    SAD_TEST("NC01: ؟؟ مع لاشيء يرجع البديل", {
+        auto v = runAndGetVar(KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x ؟؟ 42", "y");
         SAD_ASSERT_EQ(v.toInt(), 42);
     });
 
-    SAD_TEST("NC02: ?? مع قيمة موجودة يرجع الأصل", {
-        auto v = runAndGetVar(KW_VAR " x = 10\n" KW_VAR " y = x ?? 99", "y");
+    SAD_TEST("NC02: ؟؟ مع قيمة موجودة يرجع الأصل", {
+        auto v = runAndGetVar(KW_VAR " x = 10\n" KW_VAR " y = x ؟؟ 99", "y");
         SAD_ASSERT_EQ(v.toInt(), 10);
     });
 
-    SAD_TEST("NC03: ?? لا يستبدل صفر", {
-        auto v = runAndGetVar(KW_VAR " x = 0\n" KW_VAR " y = x ?? 99", "y");
+    SAD_TEST("NC03: ؟؟ لا يستبدل صفر", {
+        auto v = runAndGetVar(KW_VAR " x = 0\n" KW_VAR " y = x ؟؟ 99", "y");
         SAD_ASSERT_EQ(v.toInt(), 0);
     });
 
-    SAD_TEST("NC04: ?? لا يستبدل نص فارغ", {
-        auto v = runAndGetVar(KW_VAR " x = \"\"\n" KW_VAR " y = x ?? \"fallback\"", "y");
+    SAD_TEST("NC04: ؟؟ لا يستبدل نص فارغ", {
+        auto v = runAndGetVar(KW_VAR " x = \"\"\n" KW_VAR " y = x ؟؟ \"fallback\"", "y");
         SAD_ASSERT_EQ(v.toString(), std::string(""));
     });
 
-    SAD_TEST("NC05: ?? لا يستبدل خطأ", {
-        auto v = runAndGetVar(KW_VAR " x = " KW_FALSE "\n" KW_VAR " y = x ?? " KW_TRUE, "y");
+    SAD_TEST("NC05: ؟؟ لا يستبدل خطأ", {
+        auto v = runAndGetVar(KW_VAR " x = " KW_FALSE "\n" KW_VAR " y = x ؟؟ " KW_TRUE, "y");
         SAD_ASSERT_TRUE(v.isBoolean());
         SAD_ASSERT_FALSE(v.toBool());
     });
 
-    SAD_TEST("NC06: ?? مع نص", {
-        auto v = runAndGetVar(KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x ?? \"hello\"", "y");
+    SAD_TEST("NC06: ؟؟ مع نص", {
+        auto v = runAndGetVar(KW_VAR " x = " KW_NULL "\n" KW_VAR " y = x ؟؟ \"hello\"", "y");
         SAD_ASSERT_EQ(v.toString(), std::string("hello"));
     });
 
-    SAD_TEST("NC07: تسلسل ?? ثلاثي", {
+    SAD_TEST("NC07: تسلسل ؟؟ ثلاثي", {
         auto v = runAndGetVar(
             KW_VAR " a = " KW_NULL "\n"
             KW_VAR " b = " KW_NULL "\n"
             KW_VAR " c = 7\n"
-            KW_VAR " y = a ?? b ?? c", "y");
+            KW_VAR " y = a ؟؟ b ؟؟ c", "y");
         SAD_ASSERT_EQ(v.toInt(), 7);
     });
 
-    SAD_TEST("NC08: تسلسل ?? — الأول غير null", {
+    SAD_TEST("NC08: تسلسل ؟؟ — الأول غير null", {
         auto v = runAndGetVar(
             KW_VAR " a = 1\n"
             KW_VAR " b = 2\n"
             KW_VAR " c = 3\n"
-            KW_VAR " y = a ?? b ?? c", "y");
+            KW_VAR " y = a ؟؟ b ؟؟ c", "y");
         SAD_ASSERT_EQ(v.toInt(), 1);
     });
 
-    SAD_TEST("NC09: ?? في تعبير حسابي", {
+    SAD_TEST("NC09: ؟؟ في تعبير حسابي", {
         auto v = runAndGetVar(
             KW_VAR " x = " KW_NULL "\n"
-            KW_VAR " y = (x ?? 10) + 5", "y");
+            KW_VAR " y = (x ؟؟ 10) + 5", "y");
         SAD_ASSERT_EQ(v.toInt(), 15);
     });
 
     // ==================================================================
-    // المجموعة 4: المفسر — ?. الوصول الآمن
+    // المجموعة 4: المفسر — ؟. الوصول الآمن
     // ==================================================================
     SAD_GROUP("Interpreter.OptionalChain / المفسر.الوصول_الاختياري");
 
-    SAD_TEST("OC01: ?. على كائن موجود", {
+    SAD_TEST("OC01: ؟. على كائن موجود", {
         std::string code =
             KW_CLASS " Person\n"
             "  " KW_CTOR "(n)\n"
@@ -279,22 +279,22 @@ int main() {
             "  " KW_END "\n"
             KW_END "\n"
             KW_VAR " p = " " Person(\"Ali\")\n"
-            KW_VAR " y = p?.name";
+            KW_VAR " y = p؟.name";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("Ali"));
     });
 
-    SAD_TEST("OC02: ?. على لاشيء يرجع عدم (null)", {
-        // (AR) عقد S-TS-P1 (ADR-TYPESYSTEM-001): «?.» على عدم يُرجع «عدم» (null)
+    SAD_TEST("OC02: ؟. على لاشيء يرجع عدم (null)", {
+        // (AR) عقد S-TS-P1 (ADR-TYPESYSTEM-001): «؟.» على عدم يُرجع «عدم» (null)
         //      المتمايز عن «فراغ» (void) — لا isVoid. حُدِّث التوقّع ليطابق العقد.
-        // (EN) Per S-TS-P1: '?.' on null returns the distinct null (عدم), not void.
+        // (EN) Per S-TS-P1: '؟.' on null returns the distinct null (عدم), not void.
         auto v = runAndGetVar(
             KW_VAR " x = " KW_NULL "\n"
-            KW_VAR " y = x?.name", "y");
+            KW_VAR " y = x؟.name", "y");
         SAD_ASSERT_TRUE(v.isNull());
     });
 
-    SAD_TEST("OC03: ?. + ?? على كائن موجود", {
+    SAD_TEST("OC03: ؟. + ؟؟ على كائن موجود", {
         std::string code =
             KW_CLASS " C\n"
             "  " KW_CTOR "(v)\n"
@@ -302,19 +302,19 @@ int main() {
             "  " KW_END "\n"
             KW_END "\n"
             KW_VAR " c = " " C(99)\n"
-            KW_VAR " y = c?.val ?? 0";
+            KW_VAR " y = c؟.val ؟؟ 0";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), 99);
     });
 
-    SAD_TEST("OC04: ?. + ?? على لاشيء", {
+    SAD_TEST("OC04: ؟. + ؟؟ على لاشيء", {
         auto v = runAndGetVar(
             KW_VAR " x = " KW_NULL "\n"
-            KW_VAR " y = x?.val ?? 0", "y");
+            KW_VAR " y = x؟.val ؟؟ 0", "y");
         SAD_ASSERT_EQ(v.toInt(), 0);
     });
 
-    SAD_TEST("OC05: ?. متداخل على كائنات", {
+    SAD_TEST("OC05: ؟. متداخل على كائنات", {
         std::string code =
             KW_CLASS " Inner\n"
             "  " KW_CTOR "(v)\n"
@@ -328,12 +328,12 @@ int main() {
             KW_END "\n"
             KW_VAR " i = " " Inner(42)\n"
             KW_VAR " o = " " Outer(i)\n"
-            KW_VAR " y = o?.inner?.val";
+            KW_VAR " y = o؟.inner؟.val";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), 42);
     });
 
-    SAD_TEST("OC06: ?. متداخل — الداخلي null", {
+    SAD_TEST("OC06: ؟. متداخل — الداخلي null", {
         std::string code =
             KW_CLASS " Inner\n"
             "  " KW_CTOR "(v)\n"
@@ -346,17 +346,17 @@ int main() {
             "  " KW_END "\n"
             KW_END "\n"
             KW_VAR " o = " " Outer(" KW_NULL ")\n"
-            KW_VAR " y = o?.inner?.val ?? -1";
+            KW_VAR " y = o؟.inner؟.val ؟؟ -1";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), -1);
     });
 
     // ==================================================================
-    // المجموعة 5: وراثة + ?.
+    // المجموعة 5: وراثة + ؟.
     // ==================================================================
     SAD_GROUP("Interpreter.OptionalChain.Inheritance / وراثة_مع_الوصول_الآمن");
 
-    SAD_TEST("INH01: ?. على خاصية موروثة", {
+    SAD_TEST("INH01: ؟. على خاصية موروثة", {
         std::string code =
             KW_CLASS " Animal\n"
             "  " KW_CTOR "(n)\n"
@@ -370,12 +370,12 @@ int main() {
             "  " KW_END "\n"
             KW_END "\n"
             KW_VAR " c = " " Cat(\"Mimi\", \"white\")\n"
-            KW_VAR " y = c?.name";
+            KW_VAR " y = c؟.name";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("Mimi"));
     });
 
-    SAD_TEST("INH02: ?. على خاصية فرعية", {
+    SAD_TEST("INH02: ؟. على خاصية فرعية", {
         std::string code =
             KW_CLASS " Animal\n"
             "  " KW_CTOR "(n)\n"
@@ -389,7 +389,7 @@ int main() {
             "  " KW_END "\n"
             KW_END "\n"
             KW_VAR " c = " " Cat(\"Mimi\", \"black\")\n"
-            KW_VAR " y = c?.color";
+            KW_VAR " y = c؟.color";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("black"));
     });
@@ -399,7 +399,7 @@ int main() {
     // ==================================================================
     SAD_GROUP("Interpreter.Integration / تكامل");
 
-    SAD_TEST("INT01: ?? مع نتيجة دالة ترجع لاشيء", {
+    SAD_TEST("INT01: ؟؟ مع نتيجة دالة ترجع لاشيء", {
         std::string code =
             KW_FUNC " find(key)\n"
             "  " KW_IF " (key == \"ok\")\n"
@@ -407,12 +407,12 @@ int main() {
             "  " KW_END "\n"
             "  " KW_RETURN " " KW_NULL "\n"
             KW_END "\n"
-            KW_VAR " y = find(\"bad\") ?? -1";
+            KW_VAR " y = find(\"bad\") ؟؟ -1";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), -1);
     });
 
-    SAD_TEST("INT02: ?? مع نتيجة دالة ترجع قيمة", {
+    SAD_TEST("INT02: ؟؟ مع نتيجة دالة ترجع قيمة", {
         std::string code =
             KW_FUNC " find(key)\n"
             "  " KW_IF " (key == \"ok\")\n"
@@ -420,12 +420,12 @@ int main() {
             "  " KW_END "\n"
             "  " KW_RETURN " " KW_NULL "\n"
             KW_END "\n"
-            KW_VAR " y = find(\"ok\") ?? -1";
+            KW_VAR " y = find(\"ok\") ؟؟ -1";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toInt(), 42);
     });
 
-    SAD_TEST("INT03: ?. + ?? في إسناد شرطي", {
+    SAD_TEST("INT03: ؟. + ؟؟ في إسناد شرطي", {
         std::string code =
             KW_CLASS " Config\n"
             "  " KW_CTOR "(v)\n"
@@ -433,30 +433,30 @@ int main() {
             "  " KW_END "\n"
             KW_END "\n"
             KW_VAR " cfg = " KW_NULL "\n"
-            KW_VAR " y = cfg?.lang ?? \"ar\"";
+            KW_VAR " y = cfg؟.lang ؟؟ \"ar\"";
         auto v = runAndGetVar(code, "y");
         SAD_ASSERT_EQ(v.toString(), std::string("ar"));
     });
 
-    SAD_TEST("INT04: ?? مع نتيجة عملية حسابية", {
+    SAD_TEST("INT04: ؟؟ مع نتيجة عملية حسابية", {
         auto v = runAndGetVar(
             KW_VAR " x = " KW_NULL "\n"
-            KW_VAR " y = (x ?? 5) * 3", "y");
+            KW_VAR " y = (x ؟؟ 5) * 3", "y");
         SAD_ASSERT_EQ(v.toInt(), 15);
     });
 
-    SAD_TEST("INT05: ?? محافظ على الأنواع — نص", {
+    SAD_TEST("INT05: ؟؟ محافظ على الأنواع — نص", {
         auto v = runAndGetVar(
             KW_VAR " x = \"hello\"\n"
-            KW_VAR " y = x ?? \"world\"", "y");
+            KW_VAR " y = x ؟؟ \"world\"", "y");
         SAD_ASSERT_TRUE(v.isString());
         SAD_ASSERT_EQ(v.toString(), std::string("hello"));
     });
 
-    SAD_TEST("INT06: ?? محافظ على الأنواع — رقم عشري", {
+    SAD_TEST("INT06: ؟؟ محافظ على الأنواع — رقم عشري", {
         auto v = runAndGetVar(
             KW_VAR " x = 3.14\n"
-            KW_VAR " y = x ?? 0.0", "y");
+            KW_VAR " y = x ؟؟ 0.0", "y");
         SAD_ASSERT_FLOAT_EQ(v.toDouble(), 3.14, 0.001);
     });
 

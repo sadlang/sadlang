@@ -415,6 +415,15 @@ namespace sad
             }
 
             // ================================================================
+            // (AR) تحليل أمان null - مكوّن مشترك (NS-01: استدعاء الهيكل فقط)
+            // (EN) Null-safety analysis - shared component (NS-01: scaffold call)
+            // ================================================================
+            if (!run_null_safety(file))
+            {
+                return false;
+            }
+
+            // ================================================================
             // (AR) فحص الأنواع المتقدم - بعد فحص الاستعارة وقبل بناء SIR
             // (EN) Advanced type check - after borrow check, before SIR building
             // ================================================================
@@ -628,6 +637,45 @@ namespace sad
             }
 
             return true;
+        }
+
+        // ============================================================================
+        // (AR) تحليل أمان null / Null-Safety Analysis Phase (NS-01)
+        // (AR) NS-01: المكوّن المشترك يُنشأ ويُستدعى من المترجم — نقطة حقيقة واحدة
+        //      مشتركة مع المفسّر. لا منطق تحليل بعد (analyze يعيد نجاحًا فارغًا)؛
+        //      الرصد في NS-04، التضييق في NS-03، الصرامة عبر dispatch() في NS-02.
+        // (EN) NS-01: shared component is constructed and invoked from the compiler
+        //      — same call point the interpreter uses. No analysis logic yet.
+        // ============================================================================
+
+        bool CompilerDriver::run_null_safety(const std::string &file)
+        {
+            null_safety_analyzer_ = std::make_unique<Sad::NullSafety::NullSafetyAnalyzer>();
+            null_safety_analyzer_->setArabicMessages(options_.arabic_borrow_messages);
+            // (AR) NS-02 (D6): نفس مابِع الصرامة المشترك الذي يستعمله المفسّر — نقطة
+            //      حقيقة واحدة، فلا يتباعد المحرّكان في سياسة أمان null.
+            // (EN) NS-02 (D6): same shared strictness mapper the interpreter uses —
+            //      single source of truth, so the two engines never diverge.
+            null_safety_analyzer_->setStrictness(
+                Sad::NullSafety::strictnessFromOwnershipMode(
+                    options_.memory_policy.ownershipMode));
+
+            // (AR) واجهة غير مالكة — تُمرَّر قائمة الجُمل مباشرةً (لا نقل ملكية).
+            // (EN) Non-owning interface — pass the statement list directly (no move).
+            auto result = null_safety_analyzer_->analyze(current_ast_);
+
+            // (AR) NS-02: الإبلاغ الفعليّ. التحذيرات تظهر كتحذيرات؛ الأخطاء القاتلة
+            //      (--prod) تُفشِل البناء عبر success=false.
+            // (EN) NS-02: real reporting. Warnings reported; fatal errors (--prod)
+            //      fail the build via success=false.
+            for (const auto &diag : result.diagnostics)
+            {
+                if (diag.fatal)
+                    diagnostics_.report_error(diag.messageAr, file);
+                else
+                    diagnostics_.report_warning(diag.messageAr, file);
+            }
+            return result.success;
         }
 
         // ============================================================================

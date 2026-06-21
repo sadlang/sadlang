@@ -158,7 +158,7 @@ static void test_parseFilter()
 static void test_getAllProcessed()
 {
     auto all = getAllProcessed();
-    EXPECT_EQ(all.size(), static_cast<size_t>(91), "totalCount = 91");
+    EXPECT_EQ(all.size(), static_cast<size_t>(92), "totalCount = 92");
 
     // عد كل فئة
     std::map<std::string, int> catCount;
@@ -170,7 +170,7 @@ static void test_getAllProcessed()
     }
     EXPECT_EQ(catCount["reserved"], 40, "reserved = 40");
     EXPECT_EQ(catCount["operator"], 3, "operator = 3");
-    EXPECT_EQ(catCount["contextual"], 39, "contextual = 39");
+    EXPECT_EQ(catCount["contextual"], 40, "contextual = 40");
     EXPECT_EQ(catCount["builtin_type"], 9, "builtin_type = 9");
     EXPECT_EQ(deprecatedCount, 1, "exactly 1 deprecated");
 
@@ -201,13 +201,13 @@ static void test_applyFilters()
     // (AR) بدون فلاتر، استبعاد deprecated
     {
         auto out = applyFilters(all, {}, /*excludeDeprecated=*/true);
-        EXPECT_EQ(out.size(), static_cast<size_t>(90), "no filter, exclude deprecated → 90");
+        EXPECT_EQ(out.size(), static_cast<size_t>(91), "no filter, exclude deprecated → 91");
     }
 
     // (AR) بدون فلاتر، تضمين deprecated
     {
         auto out = applyFilters(all, {}, /*excludeDeprecated=*/false);
-        EXPECT_EQ(out.size(), static_cast<size_t>(91), "no filter, include deprecated → 91");
+        EXPECT_EQ(out.size(), static_cast<size_t>(92), "no filter, include deprecated → 92");
     }
 
     // (AR) فلتر category=reserved
@@ -221,14 +221,14 @@ static void test_applyFilters()
     {
         ParsedFilter f{"category", "contextual", true};
         auto out = applyFilters(all, {f}, true);
-        EXPECT_EQ(out.size(), static_cast<size_t>(38), "contextual w/o deprecated → 38");
+        EXPECT_EQ(out.size(), static_cast<size_t>(39), "contextual w/o deprecated → 39");
     }
 
     // (AR) فلتر category=contextual مع deprecated
     {
         ParsedFilter f{"category", "contextual", true};
         auto out = applyFilters(all, {f}, false);
-        EXPECT_EQ(out.size(), static_cast<size_t>(39), "contextual w/ deprecated → 39");
+        EXPECT_EQ(out.size(), static_cast<size_t>(40), "contextual w/ deprecated → 40");
     }
 
     // (AR) فلتر category=foo (لا تطابق)
@@ -282,12 +282,12 @@ static void test_groupByCategory()
     auto g   = groupByCategory(all);
     EXPECT_EQ(g.reserved.size(),    static_cast<size_t>(40), "grouped reserved=40");
     EXPECT_EQ(g.op.size(),          static_cast<size_t>(3),  "grouped operator=3");
-    EXPECT_EQ(g.contextual.size(),  static_cast<size_t>(39), "grouped contextual=39");
+    EXPECT_EQ(g.contextual.size(),  static_cast<size_t>(40), "grouped contextual=40");
     EXPECT_EQ(g.builtinType.size(), static_cast<size_t>(9),  "grouped builtin_type=9");
 
-    // (AR) المجموع = 91
+    // (AR) المجموع = 92
     EXPECT_EQ(g.reserved.size() + g.op.size() + g.contextual.size() + g.builtinType.size(),
-              static_cast<size_t>(91), "grouped total = 91");
+              static_cast<size_t>(92), "grouped total = 92");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

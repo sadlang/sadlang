@@ -106,6 +106,9 @@ categories:
     description: "Lexer يُصدر IDENTIFIER؛ Parser يقرر سياقياً. صالحة كأسماء متغيرات."
     emittedByLexer: false
     keywords:
+      # ── أمان null ──
+      # (AR) عامل تأكيد عدم الفراغ (NS-05) — سياقيّ، صيغتان مترادفتان مذكّر/مؤنّث.
+      - { word: "مؤكد", aliases: ["مؤكدة"], tokenType: OP_NULL_ASSERT, english: asserted }
       # ── البرمجة الكائنية ──
       - { word: "خاصية",   tokenType: KEYWORD_PROPERTY,   english: property,    roles: [block_opener] }
       - { word: "احصل",    tokenType: KEYWORD_GET,        english: get }
