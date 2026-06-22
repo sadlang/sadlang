@@ -28,20 +28,20 @@ namespace {
     // Convert Sad Value to JsonValue
     JsonValue value_to_json(const Value& value) {
         switch (value.get_type()) {
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 return JsonValue();
             
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return JsonValue(value.as_boolean());
             
-            case ValueType::DOUBLE:
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Float:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return JsonValue(value.as_double());
             
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 return JsonValue(value.as_string());
             
-            case ValueType::ARRAY: {
+            case ::Sad::Types::SadTypeKind::Array: {
                 JsonArray arr;
                 for (const auto& elem : value.as_array()) {
                     arr.push(value_to_json(elem));
@@ -49,7 +49,7 @@ namespace {
                 return JsonValue(arr);
             }
             
-            case ValueType::MAP: {
+            case ::Sad::Types::SadTypeKind::Map: {
                 JsonObject obj;
                 for (const auto& [key, val] : value.as_map()) {
                     obj.set(key, value_to_json(val));

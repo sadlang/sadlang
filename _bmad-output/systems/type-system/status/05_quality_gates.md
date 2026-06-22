@@ -12,10 +12,14 @@
 | `02_الأنواع/05_لاشيء_والفراغ/050_optional_type_suffix.ص` | سطح `رقم?` متغير+معامل + `??` | ✅ PASS | `@skip_compiler` |
 | `02_الأنواع/05_لاشيء_والفراغ/051_null_safety_enforcement.ص` | أمان null: اختياري/مُستنتَج + `??` | ✅ PASS | `@skip_compiler` |
 
-## اختبار وحدة C++ (`test_type_bridge`)
+## اختبار وحدة C++ (طبقة الجسر — مُزال)
 
-- الهدف: `tests/unit/types/test_type_bridge.cpp` (مفعَّل في `cmake/tests.cmake`، BUILD_TESTS=ON).
-- النتيجة الفعلية: **47/47 اختبارًا ✓** (يشمل: SadTypeKind↔ValueType، **Result<T,E>** بناء/مساواة/إسناد (P3)، **interning للمركّبات** (P7)، inferSadType، SadValue).
+- ⛔ **أُزيل** `tests/unit/types/test_type_bridge.cpp` ضمن توحيد نظام الأنواع
+  (RFC sadlang/rfcs#8، المسار أ): حُذفت سقالة ADR-01 المهجورة بالكامل
+  (`type_bridge.{h,cpp}` + `sad_value.h` + اختباره). كانت تلك الاختبارات (47/47)
+  تغطّي دوال جسرٍ بلا مستهلك إنتاجيّ.
+- التغطية الباقية الحيّة: `SadTypeKind` و`SadType::fromValueType` الساكنة
+  يغطّيها سلوك `نوع()` في اختبارات الانحدار أعلاه (المفسّر + المترجم).
 
 ## اختبار المولّد (P0.5)
 

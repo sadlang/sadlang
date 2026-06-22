@@ -61,7 +61,7 @@ void test_create_empty_array() {
     assert(!v.isMap());
     assert(v.size() == 0);
     assert(v.isEmpty());
-    assert(v.getType() == ValueType::ARRAY);
+    assert(v.getType() == ::Sad::Types::SadTypeKind::Array);
     
     TEST_PASS();
 }
@@ -260,7 +260,7 @@ void test_create_empty_map() {
     assert(!v.isArray());
     assert(v.size() == 0);
     assert(v.isEmpty());
-    assert(v.getType() == ValueType::MAP);
+    assert(v.getType() == ::Sad::Types::SadTypeKind::Map);
     
     TEST_PASS();
 }

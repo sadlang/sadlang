@@ -6,7 +6,7 @@ using namespace Sad::Data;
 int main() {
     Value v("مرحبا");
     std::cout << "Type: " << static_cast<int>(v.getType()) << std::endl;
-    std::cout << "Expected STRING (3): " << static_cast<int>(ValueType::STRING) << std::endl;
+    std::cout << "Expected STRING (3): " << static_cast<int>(::Sad::Types::SadTypeKind::String) << std::endl;
     std::cout << "isString: " << v.isString() << std::endl;
     std::cout << "isInteger: " << v.isInteger() << std::endl;
     std::cout << "isDouble: " << v.isDouble() << std::endl;

@@ -150,7 +150,7 @@ namespace Sad
         // Constructors / المُنشئات
         // ========================================
 
-        Value::Value() : sadType_(reg().getVoid()), type_(ValueType::VOID), data_(std::monostate{}) {}
+        Value::Value() : sadType_(reg().getVoid()), type_(::Sad::Types::SadTypeKind::Void), data_(std::monostate{}) {}
 
         // (AR) عدم (Null) — قيمة متمايزة عن فراغ (Void) — S-TS-P1
         // (EN) Null — a value distinct from void — S-TS-P1
@@ -162,34 +162,34 @@ namespace Sad
             return v;
         }
 
-        Value::Value(int val) : sadType_(reg().getInteger()), type_(ValueType::INTEGER), data_(static_cast<int64_t>(val)) {}
+        Value::Value(int val) : sadType_(reg().getInteger()), type_(::Sad::Types::SadTypeKind::Integer), data_(static_cast<int64_t>(val)) {}
 
-        Value::Value(int64_t val) : sadType_(reg().getInteger()), type_(ValueType::INTEGER), data_(val) {}
+        Value::Value(int64_t val) : sadType_(reg().getInteger()), type_(::Sad::Types::SadTypeKind::Integer), data_(val) {}
 
-        Value::Value(double val) : sadType_(reg().getFloat()), type_(ValueType::DOUBLE), data_(val) {}
+        Value::Value(double val) : sadType_(reg().getFloat()), type_(::Sad::Types::SadTypeKind::Float), data_(val) {}
 
-        Value::Value(const std::string &val) : sadType_(reg().getString()), type_(ValueType::STRING), data_(val) {}
+        Value::Value(const std::string &val) : sadType_(reg().getString()), type_(::Sad::Types::SadTypeKind::String), data_(val) {}
 
         // (AR) منشئ نقل النص — يتجنب نسخ النص عند النقل / (EN) String move constructor — avoids copy on move
-        Value::Value(std::string &&val) : sadType_(reg().getString()), type_(ValueType::STRING), data_(std::move(val)) {}
+        Value::Value(std::string &&val) : sadType_(reg().getString()), type_(::Sad::Types::SadTypeKind::String), data_(std::move(val)) {}
 
-        Value::Value(const char *val) : sadType_(reg().getString()), type_(ValueType::STRING), data_(std::string(val)) {}
+        Value::Value(const char *val) : sadType_(reg().getString()), type_(::Sad::Types::SadTypeKind::String), data_(std::string(val)) {}
 
-        Value::Value(bool val) : sadType_(reg().getBoolean()), type_(ValueType::BOOLEAN), data_(val) {}
+        Value::Value(bool val) : sadType_(reg().getBoolean()), type_(::Sad::Types::SadTypeKind::Boolean), data_(val) {}
 
         Value::Value(const ArrayType &val)
-            : sadType_(reg().makeArray()), type_(ValueType::ARRAY), data_(std::make_shared<ArrayType>(val)) {}
+            : sadType_(reg().makeArray()), type_(::Sad::Types::SadTypeKind::Array), data_(std::make_shared<ArrayType>(val)) {}
 
         // (AR) منشئ نقل المصفوفة — يتجنب نسخ العناصر / (EN) Array move constructor — avoids element copy
         Value::Value(ArrayType &&val)
-            : sadType_(reg().makeArray()), type_(ValueType::ARRAY), data_(std::make_shared<ArrayType>(std::move(val))) {}
+            : sadType_(reg().makeArray()), type_(::Sad::Types::SadTypeKind::Array), data_(std::make_shared<ArrayType>(std::move(val))) {}
 
         Value::Value(const MapType &val)
-            : sadType_(reg().makeMap()), type_(ValueType::MAP), data_(std::make_shared<MapType>(val)) {}
+            : sadType_(reg().makeMap()), type_(::Sad::Types::SadTypeKind::Map), data_(std::make_shared<MapType>(val)) {}
 
         // (AR) منشئ نقل القاموس — يتجنب نسخ العناصر / (EN) Map move constructor — avoids element copy
         Value::Value(MapType &&val)
-            : sadType_(reg().makeMap()), type_(ValueType::MAP), data_(std::make_shared<MapType>(std::move(val))) {}
+            : sadType_(reg().makeMap()), type_(::Sad::Types::SadTypeKind::Map), data_(std::make_shared<MapType>(std::move(val))) {}
 
         // ════════════════════════════════════════════════════════════════════════
         // (AR) منشئات الصف — يُنشئ قيمة من نوع TUPLE (مجموعة مرتبة غير قابلة للتغيير)
@@ -200,10 +200,10 @@ namespace Sad
         //      TupleTag disambiguates tuple constructor from array constructor
         // ════════════════════════════════════════════════════════════════════════
         Value::Value(TupleTag, const TupleType &val)
-            : sadType_(reg().makeTuple({})), type_(ValueType::TUPLE), data_(std::make_shared<TupleType>(val)) {}
+            : sadType_(reg().makeTuple({})), type_(::Sad::Types::SadTypeKind::Tuple), data_(std::make_shared<TupleType>(val)) {}
 
         Value::Value(TupleTag, TupleType &&val)
-            : sadType_(reg().makeTuple({})), type_(ValueType::TUPLE), data_(std::make_shared<TupleType>(std::move(val))) {}
+            : sadType_(reg().makeTuple({})), type_(::Sad::Types::SadTypeKind::Tuple), data_(std::make_shared<TupleType>(std::move(val))) {}
 
         // ════════════════════════════════════════════════════════════════════════
         // (AR) منشئ الكائن — يُنشئ قيمة من نوع OBJECT تحمل مؤشراً مشتركاً
@@ -227,7 +227,7 @@ namespace Sad
             //      interned (cached lookup, not re-alloc); an empty name (internal object
             //      without a class) still yields Class ⇒ «object».
             : sadType_(obj ? reg().getOrCreateClass(obj->getClassName()) : reg().getAny()),
-              type_(ValueType::OBJECT), data_(obj)
+              type_(::Sad::Types::SadTypeKind::Class), data_(obj)
         {
             // (AR) B-step5b: تأكّد أن الكائن مسجَّل في GC ومُجهَّز بـdestroyer + visitor.
             //      نتجنّب التسجيل المكرّر لأن الكائن قد يكون مُسجَّلاً مسبقاً (مثلاً في
@@ -263,10 +263,10 @@ namespace Sad
         //      a shared_ptr to FunctionRef struct. Enables first-class functions
         // ════════════════════════════════════════════════════════════════════════
         Value::Value(FunctionRefPtr funcRef)
-            : sadType_(reg().makeFunction({})), type_(ValueType::FUNCTION), data_(std::move(funcRef)) {}
+            : sadType_(reg().makeFunction({})), type_(::Sad::Types::SadTypeKind::Function), data_(std::move(funcRef)) {}
 
         Value::Value(const FunctionRef &funcRef)
-            : sadType_(reg().makeFunction({})), type_(ValueType::FUNCTION), data_(std::make_shared<FunctionRef>(funcRef)) {}
+            : sadType_(reg().makeFunction({})), type_(::Sad::Types::SadTypeKind::Function), data_(std::make_shared<FunctionRef>(funcRef)) {}
 
         // ========================================
         // Clone / النسخ العميق
@@ -276,23 +276,23 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
             {
                 const auto &arr = *std::get<std::shared_ptr<ArrayType>>(data_);
                 return Value(arr); // Creates new shared_ptr with copy
             }
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
             {
                 const auto &map = *std::get<std::shared_ptr<MapType>>(data_);
                 return Value(map); // Creates new shared_ptr with copy
             }
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
             {
                 // (AR) نسخ عميق للصف / (EN) Deep clone for tuple
                 const auto &tup = *std::get<std::shared_ptr<TupleType>>(data_);
                 return Value(TupleTag{}, tup);
             }
-            case ValueType::OBJECT:
+            case ::Sad::Types::SadTypeKind::Class:
             {
                 // (AR) نسخ عميق للكائن: نُنشئ ObjectInstance جديد بنفس الحقول.
                 //      B-step5b: إنشاء خام بـnew، ثم Value(ObjectPtr) سيسجّله
@@ -320,7 +320,7 @@ namespace Sad
                 }
                 return *this;
             }
-            case ValueType::FUNCTION:
+            case ::Sad::Types::SadTypeKind::Function:
             {
                 // (AR) نسخ ضحل لمرجع الدالة — نفس FunctionRef (مشترك)
                 // (EN) Shallow copy for function reference — same FunctionRef (shared)
@@ -346,16 +346,16 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return static_cast<int>(std::get<int64_t>(data_));
 
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
                 return static_cast<int>(std::get<double>(data_));
 
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return std::get<bool>(data_) ? 1 : 0;
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
             {
                 try
                 {
@@ -367,7 +367,7 @@ namespace Sad
                 }
             }
 
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 throwInvalidType("toInt - cannot convert void to integer");
             }
             return 0;
@@ -377,16 +377,16 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return std::get<int64_t>(data_);
 
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
                 return static_cast<int64_t>(std::get<double>(data_));
 
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return std::get<bool>(data_) ? 1LL : 0LL;
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
             {
                 try
                 {
@@ -398,7 +398,7 @@ namespace Sad
                 }
             }
 
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 throwInvalidType("toInt64 - cannot convert void to integer");
             }
             return 0;
@@ -408,16 +408,16 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return static_cast<double>(std::get<int64_t>(data_));
 
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
                 return std::get<double>(data_);
 
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return std::get<bool>(data_) ? 1.0 : 0.0;
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
             {
                 try
                 {
@@ -429,7 +429,7 @@ namespace Sad
                 }
             }
 
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 throwInvalidType("toDouble - cannot convert void to double");
             }
             return 0.0;
@@ -439,10 +439,10 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return std::to_string(std::get<int64_t>(data_));
 
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
             {
                 // (AR) إصلاح: استخدام fixed مع 6 خانات عشرية + حذف أصفار زائدة
                 //      لمطابقة سلوك valueToString() في io_functions.cpp
@@ -468,13 +468,13 @@ namespace Sad
                 return result;
             }
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 return std::get<std::string>(data_);
 
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return std::get<bool>(data_) ? "صحيح" : "خطأ";
 
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
             {
                 std::ostringstream oss;
                 oss << "[";
@@ -489,7 +489,7 @@ namespace Sad
                 return oss.str();
             }
 
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
             {
                 std::ostringstream oss;
                 oss << "{";
@@ -505,7 +505,7 @@ namespace Sad
                 return oss.str();
             }
 
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
             {
                 // (AR) تحويل الصف إلى نص بصيغة (قيمة1، قيمة2، ...)
                 // (EN) Convert tuple to string as (value1, value2, ...)
@@ -524,7 +524,7 @@ namespace Sad
                 return oss.str();
             }
 
-            case ValueType::OBJECT:
+            case ::Sad::Types::SadTypeKind::Class:
             {
                 // (AR) تحويل الكائن إلى نص — يستخدم دالة toString() من ObjectInstance
                 //      إذا كان المؤشر فارغاً، يُرجع "كائن_فارغ"
@@ -538,7 +538,7 @@ namespace Sad
                 return "كائن_فارغ"; // null object
             }
 
-            case ValueType::FUNCTION:
+            case ::Sad::Types::SadTypeKind::Function:
             {
                 // (AR) تحويل مرجع الدالة إلى نص — يستخدم toString() من FunctionRef
                 // (EN) Convert function reference to string — uses toString() from FunctionRef
@@ -550,7 +550,7 @@ namespace Sad
                 return "<دالة:مجهولة>"; // null function ref
             }
 
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 return "\u0644\u0627\u0634\u064a\u0621"; // لاشيء
             }
             return "";
@@ -560,28 +560,28 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return std::get<int64_t>(data_) != 0;
 
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
                 return std::get<double>(data_) != 0.0;
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 return !std::get<std::string>(data_).empty();
 
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return std::get<bool>(data_);
 
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
                 return !std::get<std::shared_ptr<ArrayType>>(data_)->empty();
 
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
                 return !std::get<std::shared_ptr<MapType>>(data_)->empty();
 
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
                 return !std::get<std::shared_ptr<TupleType>>(data_)->empty();
 
-            case ValueType::OBJECT:
+            case ::Sad::Types::SadTypeKind::Class:
             {
                 // (AR) الكائن صحيح إذا كان المؤشر غير فارغ
                 // (EN) Object is true if the pointer is not null
@@ -589,12 +589,12 @@ namespace Sad
                 return objPtr != nullptr;
             }
 
-            case ValueType::FUNCTION:
+            case ::Sad::Types::SadTypeKind::Function:
                 // (AR) مرجع الدالة دائماً صحيح (مثل Python — bool(func) = True)
                 // (EN) Function reference is always truthy (like Python — bool(func) = True)
                 return true;
 
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 return false;
             }
             return false;
@@ -602,7 +602,7 @@ namespace Sad
 
         Value::ArrayType Value::toArray() const
         {
-            if (type_ == ValueType::ARRAY)
+            if (type_ == ::Sad::Types::SadTypeKind::Array)
             {
                 return *std::get<std::shared_ptr<ArrayType>>(data_);
             }
@@ -612,13 +612,13 @@ namespace Sad
 
         Value::MapType Value::toMap() const
         {
-            if (type_ == ValueType::MAP)
+            if (type_ == ::Sad::Types::SadTypeKind::Map)
             {
                 return *std::get<std::shared_ptr<MapType>>(data_);
             }
             // (AR) إذا كان كائناً، نحوله لقاموس من الحقول للتوافق مع الكود القديم
             // (EN) If it's an object, convert to map of fields for backward compatibility
-            if (type_ == ValueType::OBJECT)
+            if (type_ == ::Sad::Types::SadTypeKind::Class)
             {
                 const auto &objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr)
@@ -635,7 +635,7 @@ namespace Sad
         // (AR) تحويل القيمة إلى صف / (EN) Convert value to tuple
         Value::TupleType Value::toTuple() const
         {
-            if (type_ == ValueType::TUPLE)
+            if (type_ == ::Sad::Types::SadTypeKind::Tuple)
             {
                 return *std::get<std::shared_ptr<TupleType>>(data_);
             }
@@ -650,7 +650,7 @@ namespace Sad
 
         const Value::ArrayType &Value::toArrayRef() const
         {
-            if (type_ == ValueType::ARRAY)
+            if (type_ == ::Sad::Types::SadTypeKind::Array)
             {
                 return *std::get<std::shared_ptr<ArrayType>>(data_);
             }
@@ -663,7 +663,7 @@ namespace Sad
 
         const Value::MapType &Value::toMapRef() const
         {
-            if (type_ == ValueType::MAP)
+            if (type_ == ::Sad::Types::SadTypeKind::Map)
             {
                 return *std::get<std::shared_ptr<MapType>>(data_);
             }
@@ -678,7 +678,7 @@ namespace Sad
         // (EN) toTupleRef — const reference to tuple without copying
         const Value::TupleType &Value::toTupleRef() const
         {
-            if (type_ == ValueType::TUPLE)
+            if (type_ == ::Sad::Types::SadTypeKind::Tuple)
             {
                 return *std::get<std::shared_ptr<TupleType>>(data_);
             }
@@ -689,7 +689,7 @@ namespace Sad
 
         const std::string &Value::toStringRef() const
         {
-            if (type_ == ValueType::STRING)
+            if (type_ == ::Sad::Types::SadTypeKind::String)
             {
                 return std::get<std::string>(data_);
             }
@@ -707,7 +707,7 @@ namespace Sad
 
         Value::ArrayType &Value::toArrayMut()
         {
-            if (type_ == ValueType::ARRAY)
+            if (type_ == ::Sad::Types::SadTypeKind::Array)
             {
                 return *std::get<std::shared_ptr<ArrayType>>(data_);
             }
@@ -719,7 +719,7 @@ namespace Sad
 
         Value::MapType &Value::toMapMut()
         {
-            if (type_ == ValueType::MAP)
+            if (type_ == ::Sad::Types::SadTypeKind::Map)
             {
                 return *std::get<std::shared_ptr<MapType>>(data_);
             }
@@ -738,7 +738,7 @@ namespace Sad
         // ════════════════════════════════════════════════════════════════════════
         Value::ObjectPtr Value::toObject() const
         {
-            if (type_ == ValueType::OBJECT)
+            if (type_ == ::Sad::Types::SadTypeKind::Class)
             {
                 return std::get<ObjectInstance *>(data_);
             }
@@ -768,7 +768,7 @@ namespace Sad
             }
             switch (type_)
             {
-            case ValueType::OBJECT:
+            case ::Sad::Types::SadTypeKind::Class:
             {
                 auto *objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr != nullptr)
@@ -777,7 +777,7 @@ namespace Sad
                 }
                 break;
             }
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
             {
                 // (AR) المصفوفة قد تحتوي قيماً من نوع OBJECT أو حاويات أخرى — نتعمّق.
                 const auto &arrPtr = std::get<std::shared_ptr<ArrayType>>(data_);
@@ -790,7 +790,7 @@ namespace Sad
                 }
                 break;
             }
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
             {
                 // (AR) الخريطة: المفاتيح نصية، القيم قد تكون كائنات أو حاويات.
                 const auto &mpPtr = std::get<std::shared_ptr<MapType>>(data_);
@@ -820,7 +820,7 @@ namespace Sad
         {
             // (AR) أولاً: التحقق من نوع OBJECT الحقيقي
             // (EN) First: check for real OBJECT type
-            if (type_ == ValueType::OBJECT)
+            if (type_ == ::Sad::Types::SadTypeKind::Class)
             {
                 const auto &objPtr = std::get<ObjectInstance *>(data_);
                 if (objPtr)
@@ -831,7 +831,7 @@ namespace Sad
             }
             // (AR) ثانياً: التوافق مع MAP القديم
             // (EN) Second: backward compatibility with legacy MAP
-            if (type_ == ValueType::MAP)
+            if (type_ == ::Sad::Types::SadTypeKind::Map)
             {
                 const auto &map = *std::get<std::shared_ptr<MapType>>(data_);
                 auto it = map.find("__class__");
@@ -856,9 +856,9 @@ namespace Sad
         // ════════════════════════════════════════════════════════════════════════
         bool Value::isObjectLike() const
         {
-            if (type_ == ValueType::OBJECT)
+            if (type_ == ::Sad::Types::SadTypeKind::Class)
                 return true;
-            if (type_ == ValueType::MAP)
+            if (type_ == ::Sad::Types::SadTypeKind::Map)
             {
                 const auto &map = *std::get<std::shared_ptr<MapType>>(data_);
                 return map.find("__class__") != map.end();
@@ -875,7 +875,7 @@ namespace Sad
         // ════════════════════════════════════════════════════════════════════════
         Value::FunctionRefPtr Value::toFunction() const
         {
-            if (type_ == ValueType::FUNCTION)
+            if (type_ == ::Sad::Types::SadTypeKind::Function)
             {
                 return std::get<std::shared_ptr<FunctionRef>>(data_);
             }
@@ -892,7 +892,7 @@ namespace Sad
         // ════════════════════════════════════════════════════════════════════════
         std::string Value::getFunctionName() const
         {
-            if (type_ == ValueType::FUNCTION)
+            if (type_ == ::Sad::Types::SadTypeKind::Function)
             {
                 const auto &funcPtr = std::get<std::shared_ptr<FunctionRef>>(data_);
                 if (funcPtr)
@@ -901,7 +901,7 @@ namespace Sad
                 }
                 return "";
             }
-            if (type_ == ValueType::STRING)
+            if (type_ == ::Sad::Types::SadTypeKind::String)
             {
                 return std::get<std::string>(data_);
             }
@@ -918,11 +918,11 @@ namespace Sad
         // ════════════════════════════════════════════════════════════════════════
         bool Value::isCallable() const
         {
-            if (type_ == ValueType::FUNCTION)
+            if (type_ == ::Sad::Types::SadTypeKind::Function)
                 return true;
-            if (type_ == ValueType::STRING)
+            if (type_ == ::Sad::Types::SadTypeKind::String)
                 return true; // (AR) للتوافق — قد يحمل اسم دالة
-            if (type_ == ValueType::OBJECT)
+            if (type_ == ::Sad::Types::SadTypeKind::Class)
                 return true; // (AR) قد يملك __call__
             return false;
         }
@@ -939,13 +939,13 @@ namespace Sad
             // (EN) Array concatenation: [1,2] + [3,4] → [1,2,3,4]
             //      Element append: [1,2] + 3 → [1,2,3]
             // ═══════════════════════════════════════════════════════════════════
-            if (type_ == ValueType::ARRAY)
+            if (type_ == ::Sad::Types::SadTypeKind::Array)
             {
                 // (AR) تحسين أداء: استخدام المرجع + reserve + move
                 // (EN) Performance: use ref + reserve + move
                 const auto &srcArr = toArrayRef();
                 ArrayType result;
-                if (other.type_ == ValueType::ARRAY)
+                if (other.type_ == ::Sad::Types::SadTypeKind::Array)
                 {
                     const auto &otherArr = other.toArrayRef();
                     result.reserve(srcArr.size() + otherArr.size());
@@ -960,7 +960,7 @@ namespace Sad
                 }
                 return Value(std::move(result));
             }
-            if (other.type_ == ValueType::ARRAY)
+            if (other.type_ == ::Sad::Types::SadTypeKind::Array)
             {
                 // (AR) إضافة عنصر في بداية المصفوفة: 0 + [1,2] → [0,1,2]
                 const auto &otherArr = other.toArrayRef();
@@ -972,7 +972,7 @@ namespace Sad
             }
 
             // (AR) جمع النصوص / (EN) String concatenation
-            if (type_ == ValueType::STRING || other.type_ == ValueType::STRING)
+            if (type_ == ::Sad::Types::SadTypeKind::String || other.type_ == ::Sad::Types::SadTypeKind::String)
             {
                 // (AR) تحسين أداء: استخدام reserve + append بدلاً من operator+
                 // (EN) Performance: use reserve + append instead of operator+
@@ -986,7 +986,7 @@ namespace Sad
             // (AR) جمع الأعداد مع حماية الطفحان / (EN) Numeric addition with overflow protection
             if (isNumeric() && other.isNumeric())
             {
-                if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE)
+                if (type_ == ::Sad::Types::SadTypeKind::Float || other.type_ == ::Sad::Types::SadTypeKind::Float)
                 {
                     return Value(toDouble() + other.toDouble());
                 }
@@ -1007,7 +1007,7 @@ namespace Sad
         {
             if (isNumeric() && other.isNumeric())
             {
-                if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE)
+                if (type_ == ::Sad::Types::SadTypeKind::Float || other.type_ == ::Sad::Types::SadTypeKind::Float)
                 {
                     return Value(toDouble() - other.toDouble());
                 }
@@ -1029,7 +1029,7 @@ namespace Sad
             // (AR) تكرار المصفوفات: [1,2] * 3 → [1,2,1,2,1,2]
             // (EN) Array repetition: [1,2] * 3 → [1,2,1,2,1,2]
             // ═══════════════════════════════════════════════════════════════════
-            if (type_ == ValueType::ARRAY && other.isNumeric())
+            if (type_ == ::Sad::Types::SadTypeKind::Array && other.isNumeric())
             {
                 ArrayType arr = toArray();
                 int count = other.toInt();
@@ -1045,7 +1045,7 @@ namespace Sad
                     result.insert(result.end(), arr.begin(), arr.end());
                 return Value(result);
             }
-            if (other.type_ == ValueType::ARRAY && isNumeric())
+            if (other.type_ == ::Sad::Types::SadTypeKind::Array && isNumeric())
             {
                 ArrayType arr = other.toArray();
                 int count = toInt();
@@ -1062,7 +1062,7 @@ namespace Sad
                 return Value(result);
             }
             // (AR) تكرار النصوص مع حماية الذاكرة
-            if (type_ == ValueType::STRING && other.isNumeric())
+            if (type_ == ::Sad::Types::SadTypeKind::String && other.isNumeric())
             {
                 std::string s = toString();
                 int count = other.toInt();
@@ -1078,7 +1078,7 @@ namespace Sad
                     result += s;
                 return Value(result);
             }
-            if (other.type_ == ValueType::STRING && isNumeric())
+            if (other.type_ == ::Sad::Types::SadTypeKind::String && isNumeric())
             {
                 std::string s = other.toString();
                 int count = toInt();
@@ -1097,7 +1097,7 @@ namespace Sad
 
             if (isNumeric() && other.isNumeric())
             {
-                if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE)
+                if (type_ == ::Sad::Types::SadTypeKind::Float || other.type_ == ::Sad::Types::SadTypeKind::Float)
                 {
                     return Value(toDouble() * other.toDouble());
                 }
@@ -1125,7 +1125,7 @@ namespace Sad
                         "(AR) خطأ: القسمة على صفر. (EN) Error: Division by zero.");
                 }
 
-                if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE)
+                if (type_ == ::Sad::Types::SadTypeKind::Float || other.type_ == ::Sad::Types::SadTypeKind::Float)
                 {
                     return Value(toDouble() / other.toDouble());
                 }
@@ -1203,19 +1203,19 @@ namespace Sad
 
             switch (type_)
             {
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return Value(std::get<int64_t>(data_) == std::get<int64_t>(other.data_));
 
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
                 return Value(std::abs(std::get<double>(data_) - std::get<double>(other.data_)) < 1e-10);
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 return Value(std::get<std::string>(data_) == std::get<std::string>(other.data_));
 
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return Value(std::get<bool>(data_) == std::get<bool>(other.data_));
 
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 return Value(true);
 
             // (AR) عدم == عدم ⇐ صحيح (قيمة وحيدة) — متمايزة عن فراغ لكن متساوية مع نفسها (S-TS-P1)
@@ -1223,7 +1223,7 @@ namespace Sad
             case Types::SadTypeKind::Null:
                 return Value(true);
 
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
             {
                 // (AR) مقارنة عنصرية للمصفوفات — [1,2] == [1,2] ترجع صحيح
                 // (EN) Element-wise array comparison — [1,2] == [1,2] returns true
@@ -1239,7 +1239,7 @@ namespace Sad
                 return Value(true);
             }
 
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
             {
                 // (AR) مقارنة عنصرية للقواميس
                 // (EN) Element-wise map comparison
@@ -1258,7 +1258,7 @@ namespace Sad
                 return Value(true);
             }
 
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
             {
                 // (AR) مقارنة عنصرية للصفوف — (1، 2) == (1، 2) ترجع صحيح
                 // (EN) Element-wise tuple comparison — (1, 2) == (1, 2) returns true
@@ -1274,7 +1274,7 @@ namespace Sad
                 return Value(true);
             }
 
-            case ValueType::OBJECT:
+            case ::Sad::Types::SadTypeKind::Class:
             {
                 // (AR) مقارنة الكائنات: نقارن بالمرجع (هل هما نفس الكائن؟)
                 // (EN) Object comparison: compare by reference (are they the same object?)
@@ -1283,7 +1283,7 @@ namespace Sad
                 return Value(obj1 == obj2);
             }
 
-            case ValueType::FUNCTION:
+            case ::Sad::Types::SadTypeKind::Function:
             {
                 // (AR) مقارنة مراجع الدوال: بالاسم المسجل ونوع الدالة
                 // (EN) Function reference comparison: by registered name and kind
@@ -1486,25 +1486,25 @@ namespace Sad
         {
             switch (type_)
             {
-            case ValueType::VOID:
+            case ::Sad::Types::SadTypeKind::Void:
                 return "VOID";
             case Types::SadTypeKind::Null:
                 return "NULL";
-            case ValueType::INTEGER:
+            case ::Sad::Types::SadTypeKind::Integer:
                 return "INTEGER";
-            case ValueType::DOUBLE:
+            case ::Sad::Types::SadTypeKind::Float:
                 return "DOUBLE";
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 return "STRING";
-            case ValueType::BOOLEAN:
+            case ::Sad::Types::SadTypeKind::Boolean:
                 return "BOOLEAN";
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
                 return "ARRAY";
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
                 return "MAP";
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
                 return "TUPLE";
-            case ValueType::OBJECT:
+            case ::Sad::Types::SadTypeKind::Class:
             {
                 // (AR) للكائنات: نُرجع "OBJECT:اسم_الصنف" للتوضيح
                 // (EN) For objects: return "OBJECT:ClassName" for clarity
@@ -1515,7 +1515,7 @@ namespace Sad
                 }
                 return "OBJECT";
             }
-            case ValueType::FUNCTION:
+            case ::Sad::Types::SadTypeKind::Function:
             {
                 // (AR) للدوال: نُرجع "FUNCTION:نوع_الدالة" للتوضيح
                 // (EN) For functions: return "FUNCTION:kind" for clarity
@@ -1541,7 +1541,7 @@ namespace Sad
         Value &Value::operator[](size_t index)
         {
             // (AR) الوصول للعنصر حسب الفهرس / (EN) Access element by index
-            if (type_ != ValueType::ARRAY)
+            if (type_ != ::Sad::Types::SadTypeKind::Array)
             {
                 throwInvalidType("array indexing [size_t]");
             }
@@ -1560,7 +1560,7 @@ namespace Sad
 
         const Value &Value::operator[](size_t index) const
         {
-            if (type_ != ValueType::ARRAY)
+            if (type_ != ::Sad::Types::SadTypeKind::Array)
             {
                 throwInvalidType("array indexing [size_t] const");
             }
@@ -1580,7 +1580,7 @@ namespace Sad
         Value &Value::operator[](const std::string &key)
         {
             // (AR) الوصول للعنصر حسب المفتاح / (EN) Access element by key
-            if (type_ != ValueType::MAP)
+            if (type_ != ::Sad::Types::SadTypeKind::Map)
             {
                 throwInvalidType("map indexing [string]");
             }
@@ -1591,7 +1591,7 @@ namespace Sad
 
         const Value &Value::operator[](const std::string &key) const
         {
-            if (type_ != ValueType::MAP)
+            if (type_ != ::Sad::Types::SadTypeKind::Map)
             {
                 throwInvalidType("map indexing [string] const");
             }
@@ -1614,16 +1614,16 @@ namespace Sad
             // (AR) حجم المصفوفة أو القاموس / (EN) Size of array or map
             switch (type_)
             {
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
                 return std::get<std::shared_ptr<ArrayType>>(data_)->size();
 
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
                 return std::get<std::shared_ptr<MapType>>(data_)->size();
 
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
                 return std::get<std::shared_ptr<TupleType>>(data_)->size();
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 // (AR) إرجاع عدد الأحرف وليس البايتات — مهم للنصوص العربية
                 // (EN) Return character count not byte count — important for Arabic text
                 return utf8CharCount(std::get<std::string>(data_));
@@ -1637,7 +1637,7 @@ namespace Sad
         bool Value::hasKey(const std::string &key) const
         {
             // (AR) التحقق من وجود مفتاح / (EN) Check key existence
-            if (type_ != ValueType::MAP)
+            if (type_ != ::Sad::Types::SadTypeKind::Map)
             {
                 throwInvalidType("hasKey()");
             }
@@ -1649,7 +1649,7 @@ namespace Sad
         void Value::push(const Value &val)
         {
             // (AR) إضافة عنصر لنهاية المصفوفة / (EN) Append to array
-            if (type_ != ValueType::ARRAY)
+            if (type_ != ::Sad::Types::SadTypeKind::Array)
             {
                 throwInvalidType("push()");
             }
@@ -1661,7 +1661,7 @@ namespace Sad
         Value Value::pop()
         {
             // (AR) حذف وإرجاع آخر عنصر / (EN) Remove and return last element
-            if (type_ != ValueType::ARRAY)
+            if (type_ != ::Sad::Types::SadTypeKind::Array)
             {
                 throwInvalidType("pop()");
             }
@@ -1683,7 +1683,7 @@ namespace Sad
         bool Value::remove(const std::string &key)
         {
             // (AR) حذف عنصر من القاموس / (EN) Remove element from map
-            if (type_ != ValueType::MAP)
+            if (type_ != ::Sad::Types::SadTypeKind::Map)
             {
                 throwInvalidType("remove()");
             }
@@ -1695,7 +1695,7 @@ namespace Sad
         void Value::remove(size_t index)
         {
             // (AR) حذف عنصر من المصفوفة بالفهرس / (EN) Remove element from array by index
-            if (type_ != ValueType::ARRAY)
+            if (type_ != ::Sad::Types::SadTypeKind::Array)
             {
                 throwInvalidType("remove()");
             }
@@ -1716,11 +1716,11 @@ namespace Sad
             // (AR) مسح جميع العناصر / (EN) Clear all elements
             switch (type_)
             {
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
                 std::get<std::shared_ptr<ArrayType>>(data_)->clear();
                 break;
 
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
                 std::get<std::shared_ptr<MapType>>(data_)->clear();
                 break;
 
@@ -1734,16 +1734,16 @@ namespace Sad
             // (AR) التحقق من الفراغ / (EN) Check if empty
             switch (type_)
             {
-            case ValueType::ARRAY:
+            case ::Sad::Types::SadTypeKind::Array:
                 return std::get<std::shared_ptr<ArrayType>>(data_)->empty();
 
-            case ValueType::MAP:
+            case ::Sad::Types::SadTypeKind::Map:
                 return std::get<std::shared_ptr<MapType>>(data_)->empty();
 
-            case ValueType::TUPLE:
+            case ::Sad::Types::SadTypeKind::Tuple:
                 return std::get<std::shared_ptr<TupleType>>(data_)->empty();
 
-            case ValueType::STRING:
+            case ::Sad::Types::SadTypeKind::String:
                 return std::get<std::string>(data_).empty();
 
             default:
@@ -1755,7 +1755,7 @@ namespace Sad
         std::vector<std::string> Value::keys() const
         {
             // (AR) الحصول على جميع المفاتيح / (EN) Get all keys
-            if (type_ != ValueType::MAP)
+            if (type_ != ::Sad::Types::SadTypeKind::Map)
             {
                 throwInvalidType("keys()");
             }
@@ -1775,7 +1775,7 @@ namespace Sad
         std::vector<Value> Value::values() const
         {
             // (AR) الحصول على جميع القيم / (EN) Get all values
-            if (type_ != ValueType::MAP)
+            if (type_ != ::Sad::Types::SadTypeKind::Map)
             {
                 throwInvalidType("values()");
             }
@@ -1842,46 +1842,46 @@ namespace Sad
             // (EN) Update type_ cache from sadType_
             if (!sadType_)
             {
-                type_ = ValueType::VOID;
+                type_ = ::Sad::Types::SadTypeKind::Void;
                 return;
             }
             switch (sadType_->getKind())
             {
             case SadTypeKind::Void:
-                type_ = ValueType::VOID;
+                type_ = ::Sad::Types::SadTypeKind::Void;
                 break;
             case SadTypeKind::Integer:
-                type_ = ValueType::INTEGER;
+                type_ = ::Sad::Types::SadTypeKind::Integer;
                 break;
             case SadTypeKind::Float:
-                type_ = ValueType::DOUBLE;
+                type_ = ::Sad::Types::SadTypeKind::Float;
                 break;
             case SadTypeKind::String:
-                type_ = ValueType::STRING;
+                type_ = ::Sad::Types::SadTypeKind::String;
                 break;
             case SadTypeKind::Boolean:
-                type_ = ValueType::BOOLEAN;
+                type_ = ::Sad::Types::SadTypeKind::Boolean;
                 break;
             case SadTypeKind::Array:
-                type_ = ValueType::ARRAY;
+                type_ = ::Sad::Types::SadTypeKind::Array;
                 break;
             case SadTypeKind::Map:
-                type_ = ValueType::MAP;
+                type_ = ::Sad::Types::SadTypeKind::Map;
                 break;
             case SadTypeKind::Tuple:
-                type_ = ValueType::TUPLE;
+                type_ = ::Sad::Types::SadTypeKind::Tuple;
                 break;
             case SadTypeKind::Class:
             case SadTypeKind::Struct:
-                type_ = ValueType::OBJECT;
+                type_ = ::Sad::Types::SadTypeKind::Class;
                 break;
             case SadTypeKind::Function:
             case SadTypeKind::Closure:
-                type_ = ValueType::FUNCTION;
+                type_ = ::Sad::Types::SadTypeKind::Function;
                 break;
             // (AR) [S-TS-P1] عدم: نحفظ تمايزه (لا نُسقطه إلى فراغ).
             case SadTypeKind::Null:
-                type_ = ValueType::Null;
+                type_ = ::Sad::Types::SadTypeKind::Null;
                 break;
             // (AR) [S-TS-P4] Future/Generator مُمثَّلان ككائن في الـruntime: نُبقي type_=OBJECT
             //      (ليعمل isObject() وفحص الطرق .احصل())، بينما sadType_ يحمل النوع الحقيقي
@@ -1891,10 +1891,10 @@ namespace Sad
             //      the real kind (getKind()=Future/Generator → نوع() reports it correctly).
             case SadTypeKind::Future:
             case SadTypeKind::Generator:
-                type_ = ValueType::OBJECT;
+                type_ = ::Sad::Types::SadTypeKind::Class;
                 break;
             default:
-                type_ = ValueType::VOID;
+                type_ = ::Sad::Types::SadTypeKind::Void;
                 break;
             }
         }

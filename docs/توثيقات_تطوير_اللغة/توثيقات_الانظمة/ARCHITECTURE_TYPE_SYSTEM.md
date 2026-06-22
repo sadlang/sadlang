@@ -123,15 +123,16 @@ SadType (الأساس)
 
 ---
 
-## 🌉 طبقة الجسر (Type Bridge)
+## 🌉 طبقة الجسر (Type Bridge) — **مُزالة**
 
-**الملف**: [shared/types/include/type_bridge.h](../../../../shared/types/include/type_bridge.h)
+> ⛔ **حُذفت بالكامل** (`type_bridge.{h,cpp}` + `sad_value.h` + اختبارها) في
+> RFC sadlang/rfcs#8 (المسار أ): كانت سقالة انتقالية (ADR-01) بلا مستهلك إنتاجيّ.
+> التوحيد اكتمل بمسار آخر — `Value` يعتمد `SadType/SadTypeKind` مباشرة. للتفصيل راجع
+> [مسار النوع وطبقات نظام الأنواع](./مسار_النوع_وطبقات_نظام_الأنواع.md).
+>
+> سابقًا (S-TS-P2.5b): أُزيلت دوال `DataType` و`data_types.h` كاملًا (`grep DataType` = 0).
 
-تحويلات `SadTypeKind ↔ ValueType` (+ runtime: `inferSadType`/`isValueCompatible`).
-
-> ✅ **تحديث (S-TS-P2.5b):** أُزيلت دوال `DataType` الأربع من الجسر و`data_types.h` كاملًا
-> (`grep DataType` في المشروع = 0). لم يعد ثمّة تحويل مُسقِط `Optional/Result → Void`؛
-> النظام الأفقر `DataType` (14 قيمة) أُزيل نهائيًّا، والمحور الوحيد `SadTypeKind`.
+جدول المطابقة أدناه يبقى صالحًا لثوابت `ValueType` التوافقية المعرّفة في `value.h`.
 
 ### جدول المطابقة (SadTypeKind ↔ ValueType — البدائيات)
 
@@ -211,8 +212,8 @@ graph LR
 | الملف | الوصف |
 |------|-------|
 | [shared/types/include/sad_type_system.h](../../../../shared/types/include/sad_type_system.h) | `SadTypeKind` (52 قيمة) + هرمية `SadType` (17 صنف) + `SadTypeRegistry` |
-| [shared/types/include/type_bridge.h](../../../../shared/types/include/type_bridge.h) | واجهات التحويل (مُسقِطة للمتقدّمة) |
-| [shared/types/include/value.h](../../../../shared/types/include/value.h) | `Value` يخزّن `SadTypePtr` + ثوابت `ValueType` التوافقية |
+| [مسار النوع وطبقات نظام الأنواع](./مسار_النوع_وطبقات_نظام_الأنواع.md) | مرجع: مسار النوع عبر الطبقات + الأنظمة الداخلية الأربعة + رسومات |
+| [shared/types/include/value.h](../../../../shared/types/include/value.h) | `Value` يخزّن `SadTypeKind` + `SadTypePtr` + ثوابت `ValueType` التوافقية |
 | [shared/semantic/src/semantic/type_checker.cpp](../../../../shared/semantic/src/semantic/type_checker.cpp) | المدقّق الدلالي — **لا يزال غالبًا على DataType** |
 
 ---

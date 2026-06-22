@@ -77,7 +77,7 @@ void testRandom() {
     // random() - returns non-negative number
     {
         Value result = random({});
-        TEST_ASSERT(result.getType() == ValueType::INTEGER, 
+        TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Integer, 
                    "random(): Returns integer");
         TEST_ASSERT(result.toInt() >= 0, 
                    "random(): Returns non-negative number");
@@ -169,7 +169,7 @@ void testSleep() {
     // sleep() returns void
     {
         Value result = sleep({makeInt(10)});
-        TEST_ASSERT(result.getType() == ValueType::VOID, 
+        TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Void, 
                    "sleep(): Returns void");
     }
     
@@ -248,7 +248,7 @@ void testAssert() {
             // Call assert() through namespace to avoid macro collision
             auto assertFunc = Sad::StdLib::Core::assert;
             Value result = assertFunc({makeBool(true)});
-            TEST_ASSERT(result.getType() == ValueType::VOID, 
+            TEST_ASSERT(result.getType() == ::Sad::Types::SadTypeKind::Void, 
                        "assert(true): Returns void");
         } catch (...) {
             TEST_ASSERT(false, "assert(true): Should not throw");

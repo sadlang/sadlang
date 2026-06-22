@@ -49,7 +49,7 @@ int tests_failed = 0;
 TEST(test_construct_void) {
     Value v;
     assert(v.isVoid());
-    assert(v.getType() == ValueType::VOID);
+    assert(v.getType() == ::Sad::Types::SadTypeKind::Void);
 }
 
 TEST(test_construct_integer) {

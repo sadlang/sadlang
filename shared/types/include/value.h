@@ -80,24 +80,10 @@ namespace Sad
 #undef VOID
 #endif
 
-        namespace ValueType
-        {
-            // (AR) ثوابت توافقية فقط: تُبقي الصيغة القديمة ValueType::X
-            //      لكن النوع الفعلي في النظام أصبح SadTypeKind مباشرة.
-            // (EN) Compatibility constants only: preserve legacy ValueType::X
-            //      syntax while the actual runtime type is now SadTypeKind.
-            static constexpr Types::SadTypeKind VOID = Types::SadTypeKind::Void;
-            static constexpr Types::SadTypeKind Null = Types::SadTypeKind::Null; // (AR) عدم — S-TS-P1
-            static constexpr Types::SadTypeKind INTEGER = Types::SadTypeKind::Integer;
-            static constexpr Types::SadTypeKind DOUBLE = Types::SadTypeKind::Float;
-            static constexpr Types::SadTypeKind STRING = Types::SadTypeKind::String;
-            static constexpr Types::SadTypeKind BOOLEAN = Types::SadTypeKind::Boolean;
-            static constexpr Types::SadTypeKind ARRAY = Types::SadTypeKind::Array;
-            static constexpr Types::SadTypeKind MAP = Types::SadTypeKind::Map;
-            static constexpr Types::SadTypeKind TUPLE = Types::SadTypeKind::Tuple;
-            static constexpr Types::SadTypeKind OBJECT = Types::SadTypeKind::Class;
-            static constexpr Types::SadTypeKind FUNCTION = Types::SadTypeKind::Function;
-        };
+        // (AR) أُزيل namespace ValueType التوافقيّ — المحور الوحيد Types::SadTypeKind
+        //      مباشرةً (RFC sadlang/rfcs#8). كان أسماءً مستعارة لا نظامًا.
+        // (EN) Compatibility namespace ValueType removed — the single axis is now
+        //      Types::SadTypeKind directly (RFC sadlang/rfcs#8). It was aliases, not a system.
 
         /**
          * @brief (AR) فئة تمثل قيمة في وقت التشغيل
@@ -258,14 +244,14 @@ namespace Sad
             // (AR) عدم (Null) نوع متمايز تمامًا عن فراغ (Void) — S-TS-P1.
             // (EN) Null is a fully distinct kind from Void — S-TS-P1.
             bool isNull() const { return type_ == Types::SadTypeKind::Null; }
-            bool isVoid() const { return type_ == ValueType::VOID; }
-            bool isInteger() const { return type_ == ValueType::INTEGER; }
-            bool isDouble() const { return type_ == ValueType::DOUBLE; }
-            bool isString() const { return type_ == ValueType::STRING; }
-            bool isBoolean() const { return type_ == ValueType::BOOLEAN; }
-            bool isArray() const { return type_ == ValueType::ARRAY; }
-            bool isTuple() const { return type_ == ValueType::TUPLE; }
-            bool isMap() const { return type_ == ValueType::MAP; }
+            bool isVoid() const { return type_ == ::Sad::Types::SadTypeKind::Void; }
+            bool isInteger() const { return type_ == ::Sad::Types::SadTypeKind::Integer; }
+            bool isDouble() const { return type_ == ::Sad::Types::SadTypeKind::Float; }
+            bool isString() const { return type_ == ::Sad::Types::SadTypeKind::String; }
+            bool isBoolean() const { return type_ == ::Sad::Types::SadTypeKind::Boolean; }
+            bool isArray() const { return type_ == ::Sad::Types::SadTypeKind::Array; }
+            bool isTuple() const { return type_ == ::Sad::Types::SadTypeKind::Tuple; }
+            bool isMap() const { return type_ == ::Sad::Types::SadTypeKind::Map; }
 
             /**
              * @brief (AR) هل القيمة كائن (نسخة من صنف)؟
@@ -276,7 +262,7 @@ namespace Sad
              * (EN) Returns true if the value is a real OBJECT type
              *      not just a MAP containing __class__
              */
-            bool isObject() const { return type_ == ValueType::OBJECT; }
+            bool isObject() const { return type_ == ::Sad::Types::SadTypeKind::Class; }
 
             /**
              * @brief (AR) هل القيمة مرجع دالة (دالة من الدرجة الأولى)؟
@@ -285,7 +271,7 @@ namespace Sad
              * (AR) تشمل: دوال المستخدم، الدوال المدمجة، اللامبدا، الطرق
              * (EN) Includes: user functions, built-in functions, lambdas, methods
              */
-            bool isFunction() const { return type_ == ValueType::FUNCTION; }
+            bool isFunction() const { return type_ == ::Sad::Types::SadTypeKind::Function; }
 
             /**
              * @brief (AR) هل القيمة قابلة للاستدعاء كدالة؟

@@ -19,7 +19,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-// Undefine Windows VOID macro to avoid conflict with ValueType::VOID
+// Undefine Windows VOID macro to avoid conflict with ::Sad::Types::SadTypeKind::Void
 #ifdef VOID
 #undef VOID
 #endif

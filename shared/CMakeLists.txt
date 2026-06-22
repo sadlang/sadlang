@@ -49,8 +49,7 @@ add_library(sad_shared STATIC
     types/src/object_instance.cpp
     types/src/value.cpp
     types/src/sad_type_system.cpp
-    types/src/type_bridge.cpp         # ADR-01 Phase 1: جسر SadType ↔ Value
-    
+
     # Errors
     errors/src/diagnostic.cpp
     errors/src/error_manager.cpp

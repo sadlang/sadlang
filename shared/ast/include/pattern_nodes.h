@@ -102,8 +102,8 @@ namespace Sad
                 //      Example: x = 1.0 (stored as DOUBLE) must match "when 1:"
                 auto vk = value.getType();
                 auto lk = literal.getType();
-                bool vIsNum = (vk == Data::ValueType::INTEGER || vk == Data::ValueType::DOUBLE);
-                bool lIsNum = (lk == Data::ValueType::INTEGER || lk == Data::ValueType::DOUBLE);
+                bool vIsNum = (vk == ::Sad::Types::SadTypeKind::Integer || vk == ::Sad::Types::SadTypeKind::Float);
+                bool lIsNum = (lk == ::Sad::Types::SadTypeKind::Integer || lk == ::Sad::Types::SadTypeKind::Float);
                 if (vIsNum && lIsNum)
                 {
                     return value.toDouble() == literal.toDouble();

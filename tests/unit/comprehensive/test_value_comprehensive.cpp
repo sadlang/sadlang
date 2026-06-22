@@ -23,7 +23,7 @@ int main() {
     SAD_TEST("VC01: قيمة فارغة VOID", {
         Value v;
         SAD_ASSERT_TRUE(v.isVoid());
-        SAD_ASSERT_EQ((int)v.getType(), (int)ValueType::VOID);
+        SAD_ASSERT_EQ((int)v.getType(), (int)::Sad::Types::SadTypeKind::Void);
     });
 
     SAD_TEST("VC02: رقم صحيح", {

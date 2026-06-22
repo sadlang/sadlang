@@ -20,7 +20,7 @@
 #ifdef _WIN32
 #include <windows.h>
 // (AR) إلغاء ماكرو VOID الخاص بويندوز لتجنب التعارض
-// (EN) Undef Windows VOID macro to avoid conflict with ValueType::VOID
+// (EN) Undef Windows VOID macro to avoid conflict with ::Sad::Types::SadTypeKind::Void
 #ifdef VOID
 #undef VOID
 #endif

@@ -26,7 +26,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
-// Windows.h defines VOID macro which conflicts with ValueType::VOID
+// Windows.h defines VOID macro which conflicts with ::Sad::Types::SadTypeKind::Void
 #ifdef VOID
 #undef VOID
 #endif

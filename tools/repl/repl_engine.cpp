@@ -21,7 +21,7 @@
 #include "memory/gc/policy_bridge.h"
 #include "memory/policy/gc_mode.h"
 
-// Windows VOID macro conflicts with ValueType::VOID
+// Windows VOID macro conflicts with ::Sad::Types::SadTypeKind::Void
 #ifdef _WIN32
 #include <windows.h>
 #include <conio.h>

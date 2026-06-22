@@ -14,7 +14,6 @@
 #endif
 
 #include "semantic/type_checker.h"
-#include "type_bridge.h" // (AR) Types::fromDataType — جسر AST(DataType)→SadTypeKind (S-TS-P2)
 #include "token.h"
 #include "class_nodes.h"
 #include "types/composite_type_classes.h"

@@ -304,23 +304,6 @@ else()
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
-# اختبارات طبقة الجسر — ADR-01 Phase 1 / Type Bridge Tests
-# ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/types/test_type_bridge.cpp")
-    add_executable(test_type_bridge tests/unit/types/test_type_bridge.cpp)
-    target_link_libraries(test_type_bridge PRIVATE sad_core)
-    target_include_directories(test_type_bridge PRIVATE
-        ${CMAKE_SOURCE_DIR}/shared/types/include
-        ${CMAKE_SOURCE_DIR}/shared/ast/include)
-    set_target_properties(test_type_bridge PROPERTIES
-        OUTPUT_NAME "test_type_bridge" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-    add_test(NAME TypeBridgeTests COMMAND test_type_bridge WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-    message(STATUS "✓ اختبارات طبقة الجسر / Type Bridge tests enabled (ADR-01)")
-else()
-    message(STATUS "⚠ اختبارات طبقة الجسر غير متاحة / Type Bridge tests not available")
-endif()
-
-# ──────────────────────────────────────────────────────────────────────
 # اختبارات المستوى المنخفض / Low-Level Tests
 # ──────────────────────────────────────────────────────────────────────
 message(STATUS "⊘ اختبارات نظام المؤشرات معطلة مؤقتاً / Pointer system tests disabled (WIP)")

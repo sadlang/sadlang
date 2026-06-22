@@ -8,7 +8,6 @@
  */
 
 #include "statement_executor.h"
-#include "type_bridge.h" // (S-TS-P2.5a) Types::fromDataType — مقارنات الحقول تتمحور على SadTypeKind
 #include "declarations.h"
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
