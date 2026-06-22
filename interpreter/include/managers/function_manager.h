@@ -80,6 +80,7 @@
 #include <unordered_map>
 #include <functional>
 #include <stdexcept>
+#include <mutex>
 
 #include "value.h"
 // (AR) EM-CPP: سياق استدعاء الدوال المضمنة. ملاحظة طبقية: FunctionDefinition في
@@ -565,6 +566,19 @@ namespace Sad
             // (AR) خريطة الدوال: الاسم -> قائمة من الدوال (للدعم Overloading)
             // (EN) Function map: name -> list of functions (for overloading support)
             std::unordered_map<std::string, std::vector<std::shared_ptr<FunctionDefinition>>> functions_;
+
+            // (AR) قفل تزامن: مدير الدوال يُشارَك بالمرجع بين كل الـ goroutines
+            //      (انظر StatementExecutor::visitGoStmt). الكتابة (تعريف دالة متداخلة
+            //      داخل «أطلق») تتسابق مع القراءة/الكتابة من خيوط أخرى على
+            //      functions_ ⇒ إفساد unordered_map (فقدان مفاتيح ⇒ SEM004) أو انهيار.
+            //      recursive_mutex لأن بعض الدوال العامّة تتنادى (hasFunction→getFunction،
+            //      registerBuiltinFunction→removeFunction/hasFunction).
+            // (EN) Synchronization lock: the manager is shared by reference across all
+            //      goroutines (see visitGoStmt). Writes (nested function definitions inside
+            //      «أطلق») race with reads/writes from other threads on functions_, corrupting
+            //      the unordered_map (lost keys ⇒ SEM004) or crashing. recursive_mutex because
+            //      some public methods call each other.
+            mutable std::recursive_mutex mutex_;
 
             // (AR) متغيرات تتبع التسجيل — تُستخدم بواسطة loadModule لمعرفة
             //      الدوال التي سجّلها المسجّل فعلاً (حتى لو كانت موجودة مسبقاً)

@@ -210,6 +210,7 @@ namespace Sad
                                              const std::vector<FunctionParameter> &params,
                                              std::shared_ptr<AST::ASTNode> body)
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) تعريف دالة معرفة من المستخدم
             // (EN) Define user-defined function
 
@@ -252,6 +253,7 @@ namespace Sad
                                              std::shared_ptr<AST::ASTNode> body,
                                              std::shared_ptr<AST::ASTNode> decl)
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) تعريف دالة معرفة من المستخدم مع FunctionDecl
             // (EN) Define user-defined function with FunctionDecl
 
@@ -297,6 +299,7 @@ namespace Sad
                                                const std::vector<FunctionParameter> &params,
                                                std::shared_ptr<AST::ASTNode> body)
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) إعادة تعريف دالة موجودة — يُستخدم للمزخرفات
             // (EN) Redefine existing function — used for decorators
             size_t paramCount = params.size();
@@ -327,6 +330,7 @@ namespace Sad
                                                     const std::vector<FunctionParameter> &params,
                                                     std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> impl)
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             if (name.empty())
             {
                 ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::INT_INTERP_NAMELESS_DEFINITION,
@@ -338,6 +342,7 @@ namespace Sad
 
         size_t FunctionManager::removeFunction(const std::string &name, int paramCount)
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) حذف دالة أو مجموعة دوال
             // (EN) Remove function or group of functions
 
@@ -385,6 +390,7 @@ namespace Sad
         std::shared_ptr<FunctionDefinition> FunctionManager::getFunction(
             const std::string &name, size_t argCount) const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) البحث عن دالة بالاسم وعدد المعاملات
             // (EN) Find function by name and argument count
 
@@ -410,6 +416,7 @@ namespace Sad
 
         bool FunctionManager::hasFunction(const std::string &name, int argCount) const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) التحقق من وجود دالة
             // (EN) Check function existence
 
@@ -436,6 +443,7 @@ namespace Sad
         std::vector<std::shared_ptr<FunctionDefinition>> FunctionManager::getFunctionOverloads(
             const std::string &name) const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) الحصول على جميع الدوال بنفس الاسم
             // (EN) Get all functions with same name
 
@@ -450,6 +458,7 @@ namespace Sad
 
         std::vector<std::string> FunctionManager::getFunctionNames() const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) الحصول على قائمة بأسماء جميع الدوال
             // (EN) Get list of all function names
 
@@ -470,6 +479,7 @@ namespace Sad
 
         size_t FunctionManager::getFunctionCount() const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) حساب عدد جميع الدوال (بما فيها Overloads)
             // (EN) Count all functions (including overloads)
 
@@ -483,6 +493,7 @@ namespace Sad
 
         void FunctionManager::clear()
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) مسح جميع الدوال
             // (EN) Clear all functions
             functions_.clear();
@@ -490,6 +501,7 @@ namespace Sad
 
         void FunctionManager::printAllFunctions() const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) طباعة جميع الدوال (للتصحيح)
             // (EN) Print all functions (for debugging)
 
@@ -524,6 +536,7 @@ namespace Sad
         std::string FunctionManager::getFunctionInfo(const std::string &name,
                                                      size_t argCount) const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) الحصول على معلومات عن دالة
             // (EN) Get information about function
 
@@ -543,6 +556,7 @@ namespace Sad
 
         std::string FunctionManager::debugString() const
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             // (AR) نص تصحيح شامل
             // (EN) Comprehensive debug string
 
@@ -582,6 +596,7 @@ namespace Sad
             const std::string &name,
             const std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> &func)
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             removeFunction(name);
 
             std::vector<FunctionParameter> params;
@@ -614,12 +629,14 @@ namespace Sad
 
         void FunctionManager::startRegistrationTracking()
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             trackingRegistrations_ = true;
             trackedRegistrations_.clear();
         }
 
         std::vector<std::string> FunctionManager::stopRegistrationTracking()
         {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
             trackingRegistrations_ = false;
 
             // (AR) إزالة التكرارات مع الحفاظ على الترتيب
