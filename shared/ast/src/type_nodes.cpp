@@ -66,8 +66,6 @@ bool SimpleTypeNode::isCompatibleWith(const TypeNode& other) const {
 
 std::string SimpleTypeNode::kindToString(Types::SadTypeKind type) {
     // تحويل Types::SadTypeKind إلى نص / Convert Types::SadTypeKind to string
-    // المصدر: include/data/types/data_types.h
-    // Source: include/data/types/data_types.h
     switch (type) {
         case Types::SadTypeKind::Void:      return "فراغ";     // void/none
         case Types::SadTypeKind::Integer:   return "رقم";      // number (int)

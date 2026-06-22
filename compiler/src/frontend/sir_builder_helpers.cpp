@@ -117,10 +117,6 @@ namespace Sad
             //
             // SadTypeKind Values (sir_types.h:57):
             // - VOID, I64, F64, BOOL, PTR, ARRAY, STRING, STRUCT, FUNCTION
-            //
-            // DataType Values (data_types.h:20):
-            // - UNKNOWN, INTEGER, FLOAT, STRING, BOOLEAN, NONE, ARRAY, MAP, TUPLE,
-            //   FUNCTION, OBJECT, ENUM, BYTE, ERROR
             // ============================================================================
             SadTypeKind SIRBuilder::astTypeToSIRType(const Sad::Types::SadTypeKind &type)
             {
