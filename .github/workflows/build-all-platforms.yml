@@ -154,14 +154,16 @@ jobs:
     
     - name: ✅ Test
       run: |
-        chmod +x build/bin/sad
-        ./build/bin/sad examples/test_simple.ص
-    
+        sad="build/bin/sad-run"
+        if [ ! -x "$sad" ]; then echo "❌ MISSING: sad-run not built"; exit 1; fi
+        chmod +x "$sad"
+        "$sad" examples/01_مرحبا.ص
+
     - name: 📤 Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: sad-linux
-        path: build/bin/sad
+        path: build/bin/sad-run
 
   # ─────────────────────────────────────────────────────────────────────
   # (AR) أُزيلت وظيفة بناء macOS — المشروع لا يُبنى لـmacOS (لا هدف إصدار).
