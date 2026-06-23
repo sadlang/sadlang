@@ -1,0 +1,7 @@
+# @rule: gr.adv.type
+# @description: نوع — معامل دالة بنوع «رقم»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+دالة د(رقم س) ارجع س + 1 نهاية
+اطبع_سطر(د(4))

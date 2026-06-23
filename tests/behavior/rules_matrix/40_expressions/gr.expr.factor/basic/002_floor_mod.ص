@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor
+# @description: قسمة صحيحة «//» وباقٍ «%»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3\n1
+اطبع_سطر(7 // 2)
+اطبع_سطر(7 % 3)

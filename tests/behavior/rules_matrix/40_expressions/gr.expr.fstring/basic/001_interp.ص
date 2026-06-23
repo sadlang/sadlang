@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring
+# @description: نص منسَّق «م"...{تعبير}..."»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ق=3
+متغير ا = 3
+اطبع_سطر(م"ق={ا}")

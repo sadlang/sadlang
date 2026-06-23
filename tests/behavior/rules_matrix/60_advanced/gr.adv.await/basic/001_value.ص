@@ -1,0 +1,7 @@
+# @rule: gr.adv.await
+# @description: انتظر — تعبير انتظار (المفسّر يُرجع القيمة؛ المترجم لا يدعمها بعد)
+# @priority: P2
+# @skip_compiler
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(انتظر 5)

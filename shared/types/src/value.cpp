@@ -1609,6 +1609,24 @@ namespace Sad
             return it->second;
         }
 
+        // (AR) قراءة حقل كائن باسمه دون رمي (إصلاح ISSUE-034).
+        //      operator[] يخدم الخرائط فقط ويرمي على الكائنات؛ هذه الدالة تصل
+        //      إلى ObjectInstance مباشرةً (متاح هنا، بخلاف رأس AST).
+        // (EN) Non-throwing object field lookup; reaches ObjectInstance directly.
+        const Value *Value::tryGetField(const std::string &fieldName) const
+        {
+            if (!isObject())
+            {
+                return nullptr;
+            }
+            ObjectPtr obj = toObject();
+            if (obj == nullptr || !obj->hasField(fieldName))
+            {
+                return nullptr;
+            }
+            return obj->getField(fieldName);
+        }
+
         size_t Value::size() const
         {
             // (AR) حجم المصفوفة أو القاموس / (EN) Size of array or map

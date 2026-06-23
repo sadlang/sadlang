@@ -1,0 +1,6 @@
+# @rule: gr.expr.null_coalesce
+# @description: تجميع فارغ «؟؟» يُرجع الأيمن حين الأيسر لاشيء
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+اطبع_سطر(لاشيء ؟؟ 7)

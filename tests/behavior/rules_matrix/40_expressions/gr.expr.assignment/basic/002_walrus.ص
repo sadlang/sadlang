@@ -1,0 +1,7 @@
+# @rule: gr.expr.assignment
+# @description: إسناد :=  (walrus) داخل تعبير يُسنِد ويُرجع القيمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+متغير ن = (ك := 5)
+اطبع_سطر(ك)

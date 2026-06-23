@@ -805,14 +805,17 @@ namespace Sad
                 }
             }
 
-            // Check for OR pattern: a | b | c (using OP_OR)
-            // (AR) التحقق من نمط OR: a | b | c
-            if (check(TT::OP_OR))
+            // Check for OR pattern: a | b | c
+            // (AR) التحقق من نمط البدائل: a | b | c
+            // (AR) القاعدة gr.pattern.or في language-truth تستخدم '|' المفردة (OP_BITWISE_OR)؛
+            //      نقبل أيضًا '||' (OP_OR) تساهلًا. إصلاح ISSUE-033 (انجراف SoT↔مُحلِّل):
+            //      كان الفحص يقتصر على OP_OR ('||') فيرفض الصياغة المعيارية '|'.
+            if (check(TT::OP_OR) || check(TT::OP_BITWISE_OR))
             {
                 std::vector<std::unique_ptr<AST::Pattern>> alternatives;
                 alternatives.push_back(std::move(primary));
 
-                while (match(TT::OP_OR))
+                while (match(TT::OP_OR) || match(TT::OP_BITWISE_OR))
                 {
                     auto alt = parsePrimaryPattern();
                     if (alt)

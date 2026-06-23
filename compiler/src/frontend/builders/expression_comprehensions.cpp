@@ -21,12 +21,15 @@ namespace Sad
                 std::cout << "[DEBUG] buildExpression: found ListComprehensionExpr" << std::endl;
 #endif
 
-                // (AR) تخصيص مصفوفة النتيجة
-                // (EN) Allocate result array
+                // (AR) تخصيص مصفوفة النتيجة عبر ARRAY_NEW (لا ALLOC) لتتوافق مع ARRAY_APPEND
+                //      وبقيّة عمليّات المصفوفة المُلوَّنة في الخلفية (ISSUE-016).
+                // (EN) Allocate result array via ARRAY_NEW (not ALLOC) so it is compatible with
+                //      ARRAY_APPEND and the rest of the backend-lowered array ops (ISSUE-016).
                 std::string resultArrReg = b_.newTempRegister();
                 SIRInstruction allocInst;
-                allocInst.opcode = SIROpcode::ALLOC;
+                allocInst.opcode = SIROpcode::ARRAY_NEW;
                 allocInst.result = SIROperand::Register(resultArrReg, SadTypeKind::Array);
+                allocInst.operands.push_back(SIROperand::ConstantI64(0));
                 allocInst.operands.push_back(SIROperand::ConstantI64(0));
                 allocInst.comment = "list comprehension result";
 
@@ -87,13 +90,11 @@ namespace Sad
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(loadIdx);
 
-                // (AR) للتبسيط: نستخدم استدعاء طول runtime
-                // (EN) Simplified: use runtime length call
+                // (AR) طول القابل للتكرار عبر ARRAY_LEN المُلوَّن في الخلفية (بدل CALL لرمز runtime)
+                // (EN) Iterable length via backend-lowered ARRAY_LEN (instead of a runtime-symbol CALL)
                 std::string lenReg = b_.newTempRegister();
-                SIRInstruction callLen;
-                callLen.opcode = SIROpcode::CALL;
+                SIRInstruction callLen(SIROpcode::ARRAY_LEN);
                 callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
                 callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(callLen);
@@ -123,8 +124,7 @@ namespace Sad
                 // (AR) تحميل العنصر الحالي وتسجيل متغير الحلقة
                 // (EN) Load current element and register loop variable
                 std::string elemReg = b_.newTempRegister();
-                SIRInstruction loadElem;
-                loadElem.opcode = SIROpcode::LOAD;
+                SIRInstruction loadElem(SIROpcode::ARRAY_GET);
                 loadElem.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
                 loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
@@ -170,9 +170,11 @@ namespace Sad
                 // (EN) Build element expression and append to array
                 auto elemExprResult = buildExpression(listCompExpr->element.get());
 
-                SIRInstruction appendInst;
-                appendInst.opcode = SIROpcode::CALL;
-                appendInst.operands.push_back(SIROperand::ConstantString("__sad_array_push"));
+                // (AR) إضافة العنصر عبر ARRAY_APPEND المُلوَّن في الخلفية (لا `CALL __sad_array_push`
+                //      غير المعرَّف الذي كان يُفشِل الربط — ISSUE-016). الترتيب: [المصفوفة، القيمة].
+                // (EN) Append via backend-lowered ARRAY_APPEND (not the undefined `CALL __sad_array_push`
+                //      that broke linking — ISSUE-016). Operand order: [array, value].
+                SIRInstruction appendInst(SIROpcode::ARRAY_APPEND);
                 appendInst.operands.push_back(SIROperand::Register(resultArrReg, SadTypeKind::Array));
                 appendInst.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
                 if (b_.currentBlock_)
@@ -231,12 +233,14 @@ namespace Sad
                 std::cout << "[DEBUG] buildExpression: found DictComprehensionExpr" << std::endl;
 #endif
 
-                // (AR) تخصيص خريطة النتيجة
-                // (EN) Allocate result map
+                // (AR) إنشاء خريطة النتيجة عبر `__sad_map_create` (نفس مسار الخريطة الحرفيّة العامل)
+                //      بدل `ALLOC` + `CALL __sad_dict_set` غير المعرَّف الذي كان يُفشِل الربط (ISSUE-017).
+                // (EN) Create the result map via `__sad_map_create` (same path as the working map literal)
+                //      instead of `ALLOC` + the undefined `CALL __sad_dict_set` that broke linking (ISSUE-017).
                 std::string resultMapReg = b_.newTempRegister();
-                SIRInstruction allocInst;
-                allocInst.opcode = SIROpcode::ALLOC;
-                allocInst.result = SIROperand::Register(resultMapReg, SadTypeKind::Struct);
+                SIRInstruction allocInst(SIROpcode::CALL);
+                allocInst.result = SIROperand::Register(resultMapReg, SadTypeKind::Map);
+                allocInst.operands.push_back(SIROperand::ConstantString("__sad_map_create"));
                 allocInst.operands.push_back(SIROperand::ConstantI64(0));
                 allocInst.comment = "dict comprehension result";
                 if (b_.currentBlock_)
@@ -293,10 +297,8 @@ namespace Sad
                     b_.currentBlock_->addInstruction(loadIdx);
 
                 std::string lenReg = b_.newTempRegister();
-                SIRInstruction callLen;
-                callLen.opcode = SIROpcode::CALL;
+                SIRInstruction callLen(SIROpcode::ARRAY_LEN);
                 callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
                 callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(callLen);
@@ -326,8 +328,7 @@ namespace Sad
                 // (AR) تحميل العنصر وتسجيل متغير الحلقة
                 // (EN) Load element and register loop variable
                 std::string elemReg = b_.newTempRegister();
-                SIRInstruction loadElem;
-                loadElem.opcode = SIROpcode::LOAD;
+                SIRInstruction loadElem(SIROpcode::ARRAY_GET);
                 loadElem.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
                 loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
@@ -374,12 +375,87 @@ namespace Sad
                 auto keyResult = buildExpression(dictCompExpr->key.get());
                 auto valResult = buildExpression(dictCompExpr->value.get());
 
-                SIRInstruction setInst;
-                setInst.opcode = SIROpcode::CALL;
-                setInst.operands.push_back(SIROperand::ConstantString("__sad_dict_set"));
-                setInst.operands.push_back(SIROperand::Register(resultMapReg, SadTypeKind::Struct));
-                setInst.operands.push_back(SIROperand::Register(keyResult.registerName, keyResult.type));
-                setInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+                // (AR) تجسيد الثوابت إلى سجلات (نظير الخريطة الحرفيّة)
+                // (EN) Materialize constants to registers (mirrors the map literal)
+                auto materialize = [&](BuildResult &res) -> SIROperand
+                {
+                    if (res.isConstant && b_.currentBlock_)
+                    {
+                        std::string reg = b_.newTempRegister();
+                        SIRInstruction moveInst(SIROpcode::MOVE);
+                        moveInst.result = SIROperand::Register(reg, res.type);
+                        if (res.type == SadTypeKind::String)
+                            moveInst.operands.push_back(SIROperand::ConstantString(res.constantValue));
+                        else if (res.type == SadTypeKind::Float)
+                            moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(res.constantValue)));
+                        else if (res.type == SadTypeKind::Boolean)
+                            moveInst.operands.push_back(SIROperand::ConstantBool(res.constantValue == "true" || res.constantValue == "1"));
+                        else
+                        {
+                            try { moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(res.constantValue))); }
+                            catch (const std::exception &) { moveInst.operands.push_back(SIROperand::ConstantI64(0)); }
+                        }
+                        b_.currentBlock_->addInstruction(moveInst);
+                        res.registerName = reg;
+                        res.isConstant = false;
+                    }
+                    return SIROperand::Register(res.registerName, res.type);
+                };
+                SIROperand keyOp = materialize(keyResult);
+                SIROperand valOp = materialize(valResult);
+
+                // (AR) المفتاح يُخزَّن كنصّ — حوّل العدديّ/العشريّ/المنطقيّ إلى نص (ISSUE-044)
+                // (EN) Keys are stored as strings — convert int/float/bool key to a string (ISSUE-044)
+                if (keyResult.type == SadTypeKind::Integer ||
+                    keyResult.type == SadTypeKind::Float ||
+                    keyResult.type == SadTypeKind::Boolean)
+                {
+                    std::string keyStrReg = b_.newTempRegister();
+                    SIROpcode kc = (keyResult.type == SadTypeKind::Float)     ? SIROpcode::F64_TO_STRING
+                                   : (keyResult.type == SadTypeKind::Boolean) ? SIROpcode::BOOL_TO_STRING
+                                                                              : SIROpcode::I64_TO_STRING;
+                    SIRInstruction keyConv(kc);
+                    keyConv.result = SIROperand::Register(keyStrReg, SadTypeKind::String);
+                    keyConv.operands.push_back(keyOp);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(keyConv);
+                    keyOp = SIROperand::Register(keyStrReg, SadTypeKind::String);
+                }
+
+                // (AR) إدراج الزوج عبر `__sad_map_set_typed` (نفس الخريطة الحرفيّة): القيمة كـi64 + وسم نوع.
+                // (EN) Insert pair via `__sad_map_set_typed` (same as map literal): value as i64 + type tag.
+                SIRInstruction setInst(SIROpcode::CALL);
+                setInst.operands.push_back(SIROperand::ConstantString("__sad_map_set_typed"));
+                setInst.operands.push_back(SIROperand::Register(resultMapReg, SadTypeKind::Map));
+                setInst.operands.push_back(keyOp);
+                int typeTag = 0; // SVAL_STRING=0, SVAL_INT=1, SVAL_FLOAT=2, SVAL_BOOL=3
+                if (valResult.type == SadTypeKind::Integer)
+                {
+                    setInst.operands.push_back(valOp);
+                    typeTag = 1;
+                }
+                else if (valResult.type == SadTypeKind::Float)
+                {
+                    std::string strReg = b_.newTempRegister();
+                    SIRInstruction toStrInst(SIROpcode::F64_TO_STRING);
+                    toStrInst.result = SIROperand::Register(strReg, SadTypeKind::String);
+                    toStrInst.operands.push_back(valOp);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(toStrInst);
+                    setInst.operands.push_back(SIROperand::Register(strReg, SadTypeKind::String));
+                    typeTag = 0;
+                }
+                else if (valResult.type == SadTypeKind::Boolean)
+                {
+                    setInst.operands.push_back(valOp);
+                    typeTag = 3;
+                }
+                else
+                {
+                    setInst.operands.push_back(valOp);
+                    typeTag = 0;
+                }
+                setInst.operands.push_back(SIROperand::ConstantI64(typeTag));
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(setInst);
 
@@ -422,7 +498,7 @@ namespace Sad
                     b_.currentFunction_->addBasicBlock(exitBlock);
                 b_.currentBlock_ = exitBlock;
 
-                return BuildResult(resultMapReg, SadTypeKind::Struct);
+                return BuildResult(resultMapReg, SadTypeKind::Map);
             }
 
             // ============================================================================

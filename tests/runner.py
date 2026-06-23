@@ -478,6 +478,25 @@ def run_single_test(
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                           metadata=meta, error_message=compiler_err)
 
+    # (AR) إذا تم تخطي المفسّر (@skip_interpreter): نقارن مخرج المترجم بـ@expected فقط.
+    #      ميزات خاصّة بالمترجم (قوالب/جنيسات، @تجميع، عناصر واجهة) لا يدعمها المفسّر بعد.
+    # (EN) Interpreter skipped (@skip_interpreter): compare compiler output to @expected only.
+    #      Compiler-only features (templates/generics, inline asm, UI widgets) the interpreter
+    #      does not support yet.
+    if meta.skip_interpreter:
+        if meta.expected_output:
+            expected = "\n".join(meta.expected_output)
+            if compare_outputs(compiler_out, expected, meta):
+                return TestResult(file=rel_path, status=Status.PASS,
+                                  compiler_output=compiler_out, compiler_time_ms=compiler_time,
+                                  metadata=meta)
+            else:
+                return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
+                                  compiler_output=compiler_out, compiler_time_ms=compiler_time,
+                                  metadata=meta, error_message="المترجم ≠ المتوقع")
+        return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                          error_message="تخطي: skip_interpreter بدون @expected")
+
     # (AR) مقارنة المخرجات — عبر وضع التطبيع (ADR-004: فرز @unordered + تساهل عائم)
     if compare_outputs(interp_out, compiler_out, meta):
         # (AR) تحقق إضافي من @expected إن وُجد

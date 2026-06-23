@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: استيعاب قائمة — «[تعبير لكل س في مجموعة]» (ISSUE-016 مُصلَح: ARRAY_NEW/GET/APPEND)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+متغير ز = [س * 2 لكل س في [1، 2، 3]]
+اطبع_سطر(ز[2])

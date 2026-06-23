@@ -1,0 +1,7 @@
+# @rule: gr.expr.pipeline
+# @description: أنبوب |> — تمرير مصفوفة لدالة طول
+# @priority: P1
+# @requires: اطبع_سطر، طول
+# @expected: 3
+متغير ن = [1، 2، 3] |> طول
+اطبع_سطر(ن)

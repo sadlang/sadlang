@@ -1,0 +1,8 @@
+# @rule: gr.adv.ui_event
+# @description: معالج حدث — «.عند_النقر => ...» على عنصر واجهة (المترجم)
+# @priority: P2
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: ok
+اعرض زر("اضغط").عند_النقر => اطبع_سطر("نُقر")
+اطبع_سطر("ok")

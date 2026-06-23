@@ -78,12 +78,85 @@ namespace Sad
                     b_.currentBlock_->addInstruction(allocInst);
                 }
 
+                // ???????????????????????????????????????????????????????????????
+                // (AR) تهيئة حقول البنية بقيمها الافتراضية قبل أيّ باني (ISSUE-036)
+                //      المفسّر يطبّق الافتراضيّات دائماً؛ نطابقه هنا في codegen.
+                //      أيّ باني لاحق يكتب فوقها (الافتراضيّ ثم التعيين الصريح).
+                // (EN) Initialize struct fields with their defaults before any ctor (ISSUE-036)
+                //      The interpreter always applies defaults; we match that in codegen.
+                //      Any later constructor overwrites them (default first, then assignment).
+                // ???????????????????????????????????????????????????????????????
+                auto defaultsIt = b_.structFieldDefaults_.find(newExpr->className);
+                if (defaultsIt != b_.structFieldDefaults_.end() && b_.currentBlock_)
+                {
+                    for (const auto &fieldDefault : defaultsIt->second)
+                    {
+                        const std::string &fieldName = fieldDefault.first;
+                        Sad::AST::Expression *defaultExpr = fieldDefault.second;
+                        if (!defaultExpr)
+                            continue;
+
+                        auto valResult = buildExpression(defaultExpr);
+                        std::string valReg = valResult.registerName;
+                        SadTypeKind valType = valResult.type;
+
+                        // (AR) تجسيد القيمة الثابتة في سجلّ عبر MOVE (STORE يتطلّب سجلّاً)
+                        // (EN) Materialize constant into a register via MOVE (STORE needs a register)
+                        if (valResult.isConstant)
+                        {
+                            valReg = b_.newTempRegister();
+                            SIRInstruction moveInst(SIROpcode::MOVE);
+                            moveInst.result = SIROperand::Register(valReg, valType);
+                            if (valType == SadTypeKind::String)
+                            {
+                                moveInst.operands.push_back(SIROperand::ConstantString(valResult.constantValue));
+                            }
+                            else if (valType == SadTypeKind::Float)
+                            {
+                                moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(valResult.constantValue)));
+                            }
+                            else if (valType == SadTypeKind::Boolean)
+                            {
+                                moveInst.operands.push_back(SIROperand::ConstantBool(
+                                    valResult.constantValue == "true" || valResult.constantValue == "1"));
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(valResult.constantValue)));
+                                }
+                                catch (const std::exception &)
+                                {
+                                    moveInst.operands.push_back(SIROperand::ConstantI64(0));
+                                }
+                            }
+                            b_.currentBlock_->addInstruction(moveInst);
+                        }
+
+                        // (AR) STORE(القيمة، الكائن، اسم الحقل) — نفس مسار إسناد العضو
+                        // (EN) STORE(value, object, fieldName) — same path as member assignment
+                        SIRInstruction storeInst;
+                        storeInst.opcode = SIROpcode::STORE;
+                        storeInst.operands.push_back(SIROperand::Register(valReg, valType));
+                        storeInst.operands.push_back(SIROperand::Register(objReg, SadTypeKind::Integer));
+                        storeInst.operands.push_back(SIROperand::ConstantString(fieldName));
+                        storeInst.comment = "struct field default: " + fieldName;
+                        b_.currentBlock_->addInstruction(storeInst);
+                    }
+                }
+
                 // (AR) ?????? 3: ??????? ???? ?????? (constructor) ?? ????
                 // (EN) Step 3: Call constructor if exists
                 std::string constructorName = newExpr->className + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // ????
                 auto constructor = sirClass->getMethod(constructorName);
 
-                if (constructor || !newExpr->arguments.empty())
+                // (AR) لا نُصدر CALL إلا حين يوجد باني فعليّ. تمرير وسائط موضعيّة لبنية بلا باني
+                //      يتجاهلها المفسّر (يستعمل الافتراضيّات)؛ فلا نُصدر CALL لرمز غير معرَّف.
+                // (EN) Only emit CALL when a real constructor exists. Passing positional args to a
+                //      struct with no constructor is ignored by the interpreter (uses defaults);
+                //      so we avoid emitting a CALL to an undefined symbol.
+                if (constructor)
                 {
                     // (AR) ???? ??????? ??????
                     // (EN) Build constructor arguments
@@ -512,11 +585,17 @@ namespace Sad
                         auto fieldIt = sirClass->fields_.find(memberExpr->memberName);
                         if (fieldIt != sirClass->fields_.end())
                         {
-                            // (AR) ??? ARRAY ????? ????? � ???? ??????? ???? I64
-                            // (EN) Only ARRAY needs change � other types stay I64
-                            if (fieldIt->second == SadTypeKind::Array)
+                            // (AR) حمّل الحقل بنوعه الفعليّ للأنواع القيميّة وإلا بُتر/أُسيء تفسيره
+                            //      (Float كان يُبتر إلى صحيح — ISSUE-037). الأنواع الكائنيّة/المؤشّرة تبقى I64.
+                            // (EN) Load field with its actual type for value types, else it gets
+                            //      truncated/misread (Float was truncated to int — ISSUE-037).
+                            //      Object/pointer types stay I64.
+                            if (fieldIt->second == SadTypeKind::Array ||
+                                fieldIt->second == SadTypeKind::String ||
+                                fieldIt->second == SadTypeKind::Float ||
+                                fieldIt->second == SadTypeKind::Boolean)
                             {
-                                memberType = SadTypeKind::Array;
+                                memberType = fieldIt->second;
                             }
                         }
                     }

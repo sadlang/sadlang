@@ -449,6 +449,21 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
 # ⑤ نقطة الدخول
 # ═══════════════════════════════════════════════════════════════════════════════════
 
+def check_pairwise_coverage():
+    """(AR) البوّابة ④: تغطية مصفوفة التداخل الثنائية. تُفوّض كامل حساب الأزواج «القابلة
+    للتركيب نحويًا» إلى gen_rules_matrix (مصدر واحد لرسم التركيب — يحمّل حقل refs).
+    (EN) Gate ④: pairwise interaction coverage. Fully delegates to gen_rules_matrix,
+    which loads the `refs` field needed for the composability graph."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import gen_rules_matrix as grm
+    prods = grm.load_productions()
+    recs = grm.scan_tests()
+    required, _containment, _conest = grm.build_required_pairs(prods)
+    _counts, covered = grm.measure_coverage(prods, recs)
+    missing = sorted(required - covered, key=lambda p: sorted(p))
+    return missing, required, (covered & required)
+
+
 def main() -> int:
     _utf8_console()
     ap = argparse.ArgumentParser(description="الفاحص الشامل لمطابقة قواعد لغة ص")
@@ -457,6 +472,8 @@ def main() -> int:
     ap.add_argument("--compiler", help="مسار مترجم مخصص")
     ap.add_argument("--report-md", dest="report_md",
                     help="مسار كتابة تقرير Markdown مقروء (مقارنة المفسر/المترجم + التباعدات)")
+    ap.add_argument("--pairs-gate", action="store_true",
+                    help="اجعل نقص تغطية أزواج التداخل يُفشِل البوّابة (افتراضيًا: تحذير فقط)")
     args = ap.parse_args()
 
     productions = load_productions()
@@ -475,7 +492,20 @@ def main() -> int:
     print("\n② التماسك (الوسوم تطابق المجلدات وتشير لقواعد موجودة):")
     print("  ✅ كل الوسوم سليمة" if not link_err else "\n".join(link_err))
 
+    # ── البوّابة ④: تغطية مصفوفة التداخل الثنائية (الأزواج القابلة للتركيب نحويًا) ──
+    missing_pairs, required_pairs, covered_pairs = check_pairwise_coverage()
+    print(f"\n④ تغطية الأزواج (تداخل قاعدتين قابلتين للتركيب نحويًا):")
+    print(f"  مُغطّى {len(covered_pairs)}/{len(required_pairs)} — ناقص {len(missing_pairs)}"
+          + ("" if not missing_pairs else "  (أوّل 10:)"))
+    for pair in missing_pairs[:10]:
+        a, b = sorted(pair)
+        print(f"    ✗ {a} × {b}")
+    if missing_pairs and not args.pairs_gate:
+        print("  ⚠️ تحذير فقط (مرّر --pairs-gate لجعلها تُفشِل البناء)")
+
     gates_ok = not cov_err and not link_err
+    if args.pairs_gate and missing_pairs:
+        gates_ok = False
 
     if args.run:
         print("\n③ التنفيذ المزدوج (مفسر ≡ مترجم):")

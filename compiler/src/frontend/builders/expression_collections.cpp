@@ -308,6 +308,26 @@ namespace Sad
                     SIROperand keyOp = materializeResult(keyResult);
                     SIROperand valOp = materializeResult(valResult);
 
+                    // (AR) المفتاح يُخزَّن كنصّ (الخريطة تستعمل strdup ومقارنة نصّيّة). حوّل المفاتيح
+                    //      العدديّة/العشريّة/المنطقيّة إلى نص حتى يطابقها الوصول `خ[ك]` (ISSUE-044).
+                    // (EN) Keys are stored as strings (map uses strdup + string compare). Convert
+                    //      integer/float/boolean keys to a string so `خ[k]` lookup matches (ISSUE-044).
+                    if (keyResult.type == SadTypeKind::Integer ||
+                        keyResult.type == SadTypeKind::Float ||
+                        keyResult.type == SadTypeKind::Boolean)
+                    {
+                        std::string keyStrReg = b_.newTempRegister();
+                        SIROpcode kc = (keyResult.type == SadTypeKind::Float)     ? SIROpcode::F64_TO_STRING
+                                       : (keyResult.type == SadTypeKind::Boolean) ? SIROpcode::BOOL_TO_STRING
+                                                                                  : SIROpcode::I64_TO_STRING;
+                        SIRInstruction keyConv(kc);
+                        keyConv.result = SIROperand::Register(keyStrReg, SadTypeKind::String);
+                        keyConv.operands.push_back(keyOp);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(keyConv);
+                        keyOp = SIROperand::Register(keyStrReg, SadTypeKind::String);
+                    }
+
                     // (AR) تتبع أنواع القيم — إذا تنوعت نعيّن Void (مختلط)
                     // (EN) Track value types — if mixed, set Void (heterogeneous)
                     if (i == 0 || !mapExpr->pairs[0].isSpread())

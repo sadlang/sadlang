@@ -1,0 +1,7 @@
+# @rule: gr.expr.term
+# @description: إزاحة بتّيّة «<<» و«>>» في مستوى الحد الجمعيّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8\n4
+اطبع_سطر(1 << 3)
+اطبع_سطر(16 >> 2)

@@ -64,6 +64,21 @@ namespace Sad
             node.object->accept(*this);
             Value objectValue = lastResult_;
 
+            // (AR) استدعاء طريقة الأساس «الأساس.طريقة()» (ISSUE-019): تقييم «الأساس» يُعيد اسم الصنف
+            //      الأب نصًّا فيُحسَب استدعاءً ثابتًا ويُرفض (RUN050). نكتشف أنّ معامل الاستدعاء هو
+            //      «الأساس» فنستبدل القيمة بالكائن الحاليّ «هذا» (استدعاء نسخة لا ثابت)، ثم نُعيد توجيه
+            //      البحث لاحقًا إلى الصنف الأب لتفادي تكرار الطريقة المتجاوَزة.
+            // (EN) Super method call «الأساس.method()» (ISSUE-019): evaluating «الأساس» yields the parent
+            //      class name as a string, which is taken as a static call and rejected (RUN050). We
+            //      detect that the call's receiver is «الأساس», replace the value with the current «هذا»
+            //      (instance call, not static), then redirect method lookup to the base class below to
+            //      avoid recursing into the overriding method.
+            bool isSuperCall = (dynamic_cast<SuperExpr *>(node.object.get()) != nullptr);
+            if (isSuperCall && variableManager_.exists("هذا"))
+            {
+                objectValue = variableManager_.get("هذا");
+            }
+
             auto *classManager = Data::ClassManager::getInstance();
             std::string className;
             ClassType *classType = nullptr;
@@ -419,6 +434,17 @@ namespace Sad
                     ::Sad::Errors::ErrorCode::RUN_CLASS_NOT_FOUND,
                     node.position,
                     {{"class", className}});
+            }
+
+            // (AR) استدعاء أساس: أعد توجيه البحث للصنف الأب لتُستدعى طريقته (لا المتجاوَزة) — ISSUE-019.
+            //      «هذا» يبقى الكائن الحاليّ فتُربَط الحقول صحيحةً، لكن الطريقة تُؤخَذ من الأب.
+            // (EN) Super call: redirect lookup to the base class so its (non-overridden) method runs —
+            //      ISSUE-019. «هذا» stays the current instance (fields bind correctly), but the method
+            //      is taken from the parent.
+            if (isSuperCall && classType && classType->getBaseClass())
+            {
+                classType = classType->getBaseClass();
+                className = classType->name;
             }
 
             // البحث عن الطريقة (في السلسلة الهرمية)

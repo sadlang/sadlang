@@ -1,0 +1,8 @@
+# @rule: gr.adv.list_comprehension
+# @description: استيعاب قائمة بشرط «إذا» يرشّح العناصر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3\n4
+متغير ز = [س لكل س في [1، 2، 3، 4] إذا س > 2]
+اطبع_سطر(ز[0])
+اطبع_سطر(ز[1])

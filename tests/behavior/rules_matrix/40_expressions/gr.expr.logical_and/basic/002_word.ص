@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_and
+# @description: و منطقيّ بالكلمة «و»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: خطأ
+اطبع_سطر(صحيح و خطأ)

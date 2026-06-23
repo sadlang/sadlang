@@ -397,6 +397,29 @@ namespace Sad
                     //      which checks type tag and auto-converts integers to strings
                     SadTypeKind mapElemType = objResult.elementType;
 
+                    // (AR) المفاتيح تُخزَّن كنصوص؛ حوّل المفتاح العدديّ/العشريّ/المنطقيّ إلى نص قبل
+                    //      القراءة ليطابق ما خزّنه `__sad_map_set_typed` (ISSUE-044). نعدّل idxResult
+                    //      ليحمل المفتاح النصّيّ فتستعمله كلّ فروع القراءة أدناه.
+                    // (EN) Keys are stored as strings; convert integer/float/boolean key to a string
+                    //      before lookup so it matches what `__sad_map_set_typed` stored (ISSUE-044).
+                    //      Mutate idxResult to hold the string key so all get-branches below use it.
+                    if ((idxResult.type == SadTypeKind::Integer ||
+                         idxResult.type == SadTypeKind::Float ||
+                         idxResult.type == SadTypeKind::Boolean) &&
+                        b_.currentBlock_)
+                    {
+                        std::string keyStrReg = b_.newTempRegister();
+                        SIROpcode kc = (idxResult.type == SadTypeKind::Float)     ? SIROpcode::F64_TO_STRING
+                                       : (idxResult.type == SadTypeKind::Boolean) ? SIROpcode::BOOL_TO_STRING
+                                                                                  : SIROpcode::I64_TO_STRING;
+                        SIRInstruction keyConv(kc);
+                        keyConv.result = SIROperand::Register(keyStrReg, SadTypeKind::String);
+                        keyConv.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
+                        b_.currentBlock_->addInstruction(keyConv);
+                        idxResult.registerName = keyStrReg;
+                        idxResult.type = SadTypeKind::String;
+                    }
+
                     if (mapElemType == SadTypeKind::Integer || mapElemType == SadTypeKind::Boolean)
                     {
                         // (AR) القيم رقمية/منطقية — نستدعي __sad_map_get_i64 ونُرجع i64

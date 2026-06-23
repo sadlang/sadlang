@@ -1,0 +1,6 @@
+# @rule: gr.expr.directive
+# @description: تعبير توجيه «@حجم(نوع)»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+اطبع_سطر(@حجم(رقم))

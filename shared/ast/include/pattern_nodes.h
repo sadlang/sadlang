@@ -406,27 +406,23 @@ namespace Sad
                     // TODO: التحقق من اسم صنف الكائن
                 }
 
-                // (AR) مطابقة كل حقل / (EN) Match each field
+                // (AR) مطابقة كل حقل عبر الوصول الكائنيّ (إصلاح ISSUE-034)
+                // (EN) Match each field via object-aware field access (ISSUE-034 fix)
+                //      tryGetField يقرأ حقل ObjectInstance دون رمي؛ بخلاف operator[]
+                //      الذي يخدم الخرائط فقط وكان يرمي دائمًا على الكائنات.
                 for (const auto &fieldPair : fields)
                 {
                     const std::string &fieldName = fieldPair.first;
                     const auto &fieldPattern = fieldPair.second;
 
-                    // (AR) الكائنات لا تدعم الوصول المباشر للحقول في هذا السياق
-                    // (EN) Objects don't support direct field access in this context
-                    // TODO: تنفيذ الوصول للحقول عبر ObjectInstance
-                    // للآن، نفترض أن Value يدعم operator[] للخرائط
-                    try
-                    {
-                        const Data::Value &fieldValue = value[fieldName];
-                        if (!fieldPattern->matches(fieldValue, bindings))
-                        {
-                            return false;
-                        }
-                    }
-                    catch (...)
+                    const Data::Value *fieldValue = value.tryGetField(fieldName);
+                    if (fieldValue == nullptr)
                     {
                         return false; // (AR) الحقل غير موجود / (EN) Field not found
+                    }
+                    if (!fieldPattern->matches(*fieldValue, bindings))
+                    {
+                        return false;
                     }
                 }
 

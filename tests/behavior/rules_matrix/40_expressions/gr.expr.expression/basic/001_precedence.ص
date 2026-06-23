@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression
+# @description: تعبير — أسبقية الضرب على الجمع
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+اطبع_سطر(1 + 2 * 3)

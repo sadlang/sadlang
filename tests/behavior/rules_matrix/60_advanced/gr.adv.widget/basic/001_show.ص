@@ -1,0 +1,8 @@
+# @rule: gr.adv.widget
+# @description: تعبير عنصر واجهة — «اعرض نص(...)» (المترجم؛ المفسّر يحتاج زمن تشغيل عرض)
+# @priority: P2
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: ok
+اعرض نص("مرحبا")
+اطبع_سطر("ok")

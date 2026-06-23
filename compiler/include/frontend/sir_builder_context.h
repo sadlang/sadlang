@@ -187,6 +187,16 @@ namespace Sad
                 // (AR) جدول الأصناف / (EN) Class table
                 std::unordered_map<std::string, std::shared_ptr<SIRClass>> classTable_;
 
+                // (AR) القيم الافتراضية لحقول البنى: "اسم البنية" → [(اسم الحقل، تعبير القيمة الافتراضية)]
+                //      تُملأ عند معالجة StructDecl وتُستهلَك في buildNewObject لتهيئة الحقول (ISSUE-036).
+                //      المؤشّر خام لأن AST::Expression مملوكة عبر unique_ptr في شجرة AST الحيّة طوال البناء.
+                // (EN) Struct field default values: structName → [(fieldName, defaultExpr)]
+                //      Filled when processing StructDecl, consumed in buildNewObject to init fields (ISSUE-036).
+                //      Raw pointer because AST::Expression is owned via unique_ptr in the live AST during build.
+                std::unordered_map<std::string,
+                                   std::vector<std::pair<std::string, Sad::AST::Expression *>>>
+                    structFieldDefaults_;
+
                 // (AR) الحقول الساكنة: "صنف.حقل" → نوع
                 // (EN) Static fields: "class.field" → type
                 std::unordered_map<std::string, SadTypeKind> staticFields_;

@@ -675,6 +675,86 @@ namespace Sad
                 }
 
                 // ================================================================
+                // (AR) الزيادة/الإنقاص ++/-- : يزيد/يُنقص المتغيّر بـ1، يخزّنه، ويُرجع القيمة الجديدة.
+                //      الـAST لا يميّز البادئ من اللاحق (UnaryExpr بلا علم اتّجاه)، فكلاهما يُرجع
+                //      القيمة الجديدة — مطابقةً لسلوك المفسّر (ISSUE-038). قبل هذا الإصلاح كانا
+                //      يسقطان في default ⇒ «عملية غير مدعومة» وتُعاد القيمة دون تعديل (عمليّة فارغة).
+                // (EN) Increment/decrement ++/--: add/sub 1, store back, return the NEW value.
+                //      AST has no prefix/postfix flag, so both return the new value — matching the
+                //      interpreter (ISSUE-038). Before this fix they hit default ⇒ "unsupported" and
+                //      the value was returned unmodified (a no-op).
+                // ================================================================
+                if (unaryOp->op == Lexer::TokenType::OP_INCREMENT ||
+                    unaryOp->op == Lexer::TokenType::OP_DECREMENT)
+                {
+                    bool isInc = (unaryOp->op == Lexer::TokenType::OP_INCREMENT);
+                    SadTypeKind t = (operandResult.type == SadTypeKind::Float)
+                                        ? SadTypeKind::Float
+                                        : SadTypeKind::Integer;
+
+                    // (AR) القيمة القديمة في معامل (جسّد الثابت إن لزم)
+                    // (EN) Old value as an operand (materialize constant if needed)
+                    SIROperand oldOp;
+                    if (operandResult.isConstant)
+                    {
+                        oldOp = (t == SadTypeKind::Float)
+                                    ? SIROperand::ConstantF64(std::stod(operandResult.constantValue))
+                                    : SIROperand::ConstantI64(std::stoll(operandResult.constantValue));
+                    }
+                    else
+                    {
+                        oldOp = SIROperand::Register(operandResult.registerName, t);
+                    }
+
+                    // (AR) القيمة الجديدة = القديمة ± 1
+                    // (EN) New value = old ± 1
+                    std::string newReg = b_.newTempRegister();
+                    SIROpcode addOpc = isInc
+                                           ? (t == SadTypeKind::Float ? SIROpcode::ADD_F64 : SIROpcode::ADD_I64)
+                                           : (t == SadTypeKind::Float ? SIROpcode::SUB_F64 : SIROpcode::SUB_I64);
+                    SIRInstruction addInst(addOpc);
+                    addInst.result = SIROperand::Register(newReg, t);
+                    addInst.operands.push_back(oldOp);
+                    addInst.operands.push_back(t == SadTypeKind::Float
+                                                   ? SIROperand::ConstantF64(1.0)
+                                                   : SIROperand::ConstantI64(1));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(addInst);
+
+                    // (AR) خزّن القيمة الجديدة في المتغيّر (إن كان المعامل متغيّرًا قابلًا للتعديل)
+                    // (EN) Store the new value back to the variable (if a mutable variable operand)
+                    if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(unaryOp->operand.get()))
+                    {
+                        VariableInfo *varInfo = b_.lookupVariable(varExpr->name);
+                        if (varInfo && varInfo->isMutable && b_.currentBlock_)
+                        {
+                            SIRInstruction storeInst(SIROpcode::STORE);
+                            storeInst.operands.push_back(SIROperand::Register(newReg, t));
+                            SIROperand ptrOp;
+                            ptrOp.type = SIROperandType::REGISTER;
+                            ptrOp.name = varInfo->registerName;
+                            ptrOp.dataType = varInfo->type;
+                            storeInst.operands.push_back(ptrOp);
+                            storeInst.comment = "++/-- store: " + varExpr->name;
+                            b_.currentBlock_->addInstruction(storeInst);
+
+                            // (AR) متغيّر مُلتقَط في إغلاق: حدّث env أيضًا (نظير buildAssignment)
+                            // (EN) Captured-in-closure variable: also update env (mirrors buildAssignment)
+                            if (varInfo->isCaptured && varInfo->captureIndex >= 0)
+                            {
+                                SIRInstruction envStoreInst(SIROpcode::ENV_STORE);
+                                envStoreInst.operands.push_back(SIROperand::Register(newReg, t));
+                                envStoreInst.operands.push_back(SIROperand::Register(varInfo->envRegister, SadTypeKind::Integer));
+                                envStoreInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(varInfo->captureIndex)));
+                                b_.currentBlock_->addInstruction(envStoreInst);
+                            }
+                        }
+                    }
+
+                    return BuildResult(newReg, t);
+                }
+
+                // ================================================================
                 // (AR) تحميل العوامل الأحادية الزائد: إذا كان المعامل كائن، نبحث عن عامل u-/!/u+ في الصنف
                 //      هذا يتوافق مع سلوك المفسر في expression_evaluator_calls.cpp:visitUnaryExpr
                 //      الأسماء المدعومة: u- → __op_neg__, ! → __op_not__, u+ → __op_pos__

@@ -165,6 +165,22 @@ namespace Sad
                     className = b_.currentClassName_;
                 }
 
+                // (AR) «الأساس.طريقة()» — استدعاء طريقة الأب (ISSUE-019): الكائن هو self (buildExpression
+                //      لـSuperExpr يُرجع self)، لكن نوجّه اسم الصنف إلى أب currentClassName_ فتُستدعى
+                //      طريقة الأب لا المتجاوَزة. يطابق سلوك المفسّر بعد إصلاحه.
+                // (EN) «الأساس.method()» — super method call (ISSUE-019): object is self (buildExpression
+                //      of SuperExpr returns self), but redirect the class name to the parent of
+                //      currentClassName_ so the parent's (non-overridden) method runs. Mirrors the
+                //      fixed interpreter behavior.
+                if (dynamic_cast<Sad::AST::SuperExpr *>(methodCallExpr->object.get()))
+                {
+                    auto curCls = b_.module_ ? b_.module_->getClass(b_.currentClassName_) : nullptr;
+                    if (curCls && !curCls->parentClass.empty())
+                    {
+                        className = curCls->parentClass;
+                    }
+                }
+
                 // ================================================================
                 // (AR) ?????? ????: ??? ??????? ????? ??????
                 //      ??? ??? ?????? ???? (__channel__)? ????? ????????? ??????
@@ -642,6 +658,18 @@ namespace Sad
                 if (classNameWasInferred && methodClassCount > 1)
                 {
                     isObjectCall = true;
+                }
+
+                // (AR) استدعاء الأساس «الأساس.طريقة()» غير افتراضيّ عمدًا (ISSUE-019): يجب نداءٌ مباشرٌ
+                //      لتطبيق الأب، لا توزيع vtable الذي يعود لطريقة الابن المتجاوَزة (الكائن self من نوع
+                //      الابن) ⇒ تكرار لانهائيّ وانهيار. نُجبر النداء المباشر لـ«اسم_الأب.الطريقة».
+                // (EN) Super call «الأساس.method()» is intentionally non-virtual (ISSUE-019): it must be a
+                //      direct call to the parent's implementation, not vtable dispatch which would resolve
+                //      back to the child's override (self is the child type) ⇒ infinite recursion + crash.
+                //      Force a direct CALL to «parentClass.method».
+                if (dynamic_cast<Sad::AST::SuperExpr *>(methodCallExpr->object.get()))
+                {
+                    isObjectCall = false;
                 }
 
                 if (b_.currentBlock_)

@@ -1,0 +1,9 @@
+# @rule: gr.adv.template_params
+# @description: معاملات قالب — «<نوع ت>» (المترجم؛ المفسّر لا يدعمها بعد)
+# @priority: P1
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: 9
+قالب <نوع ت>
+دالة مرّر(ت س) ارجع س نهاية
+اطبع_سطر(مرّر(9))

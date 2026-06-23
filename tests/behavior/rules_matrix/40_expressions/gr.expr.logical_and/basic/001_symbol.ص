@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_and
+# @description: و منطقيّ «&&»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(صحيح && صحيح)

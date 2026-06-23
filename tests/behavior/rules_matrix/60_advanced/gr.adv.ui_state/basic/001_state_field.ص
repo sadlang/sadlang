@@ -1,0 +1,9 @@
+# @rule: gr.adv.ui_state
+# @description: تصريح حالة واجهة — «@حالة اسم = قيمة» داخل واجهة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ok
+واجهة لوحة
+    @حالة العدد = 0
+نهاية
+اطبع_سطر("ok")

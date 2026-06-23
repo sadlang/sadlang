@@ -408,6 +408,16 @@ namespace Sad
             const Value &operator[](const std::string &key) const;
 
             /**
+             * @brief (AR) قراءة حقل من كائن باسمه دون رمي — يُرجع nullptr إن لم تكن
+             *        القيمة كائنًا أو لم يوجد الحقل. (مطلوب لمطابقة نمط البنية على
+             *        الكائنات — إصلاح ISSUE-034؛ operator[] يخدم الخرائط فقط.)
+             * @brief (EN) Non-throwing object field lookup by name; nullptr if the
+             *        value is not an object or the field is absent. Needed for
+             *        struct-pattern matching over objects (ISSUE-034).
+             */
+            const Value *tryGetField(const std::string &fieldName) const;
+
+            /**
              * @brief (AR) الحصول على طول المصفوفة أو القاموس
              * @brief (EN) Get length of array or map
              */

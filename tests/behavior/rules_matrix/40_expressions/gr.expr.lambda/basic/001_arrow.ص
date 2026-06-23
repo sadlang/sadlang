@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: لامدا بجسم تعبير «=>»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 42
+متغير ضعف = لامدا(س) => س * 2
+اطبع_سطر(ضعف(21))

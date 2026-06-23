@@ -1,0 +1,9 @@
+# @rule: gr.adv.with
+# @description: باستخدام — مدير سياق باسم مستعار «كـ» (المفسّر؛ المترجم لا يدعمها بعد)
+# @priority: P2
+# @skip_compiler
+# @requires: اطبع_سطر
+# @expected: 5
+باستخدام 5 كـ م
+    اطبع_سطر(م)
+نهاية

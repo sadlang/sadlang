@@ -1,0 +1,7 @@
+# @rule: gr.expr.unary
+# @description: أحاديّات بادئة — سالب «-» ونفي «!»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -5\nخطأ
+اطبع_سطر(-5)
+اطبع_سطر(!صحيح)

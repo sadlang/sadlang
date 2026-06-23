@@ -1,0 +1,8 @@
+# @rule: gr.adv.inline_asm
+# @description: تجميع مضمَّن — «@تجميع("...")» خاص بالمترجم sadc
+# @priority: P2
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: ok
+@تجميع("nop")
+اطبع_سطر("ok")

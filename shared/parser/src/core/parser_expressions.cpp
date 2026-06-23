@@ -1072,10 +1072,18 @@ namespace Sad
                         }
                     }
                 }
-                else if (match(TT::OP_INCREMENT) || match(TT::OP_DECREMENT))
+                // (AR) عامل بعدي «x++»/«x--» — يُربَط فقط إن كان على سطر معاملِه نفسِه. اللغة غير
+                //      حسّاسة للأسطر عمومًا، لكن التقاط «++» في بداية سطرٍ تالٍ كلاحقٍ للجملة السابقة
+                //      كان يُفسِد بادئ «++س» ويُحدِث تباعدًا بين المحرّكين (ISSUE-043). فحص السطر يفضّ الالتباس.
+                // (EN) Postfix «x++»/«x--» — bind only if on the same line as its operand. The language is
+                //      newline-insensitive generally, but grabbing a «++» at the start of the next line as a
+                //      postfix of the previous statement broke prefix «++س» and diverged the engines
+                //      (ISSUE-043). The line check disambiguates.
+                else if ((check(TT::OP_INCREMENT) || check(TT::OP_DECREMENT)) &&
+                         peek().getPosition().line == previous().getPosition().line)
                 {
-                    // (AR) عامل بعدي: x++ أو x--
-                    Token op = previous();
+                    Token op = peek();
+                    advance();
                     expr = std::make_unique<UnaryExpr>(
                         op.getType(),
                         std::move(expr),
@@ -1366,11 +1374,16 @@ namespace Sad
                         "خطأ: توقع '|' لإغلاق تعبير القيمة المطلقة.",
                         "Error: expected closing '|' for absolute value expression.");
                 }
-                // (AR) تحويل |x| إلى استدعاء abs(x)
+                // (AR) تحويل |x| إلى استدعاء «مطلق(x)» — الدالة المضمَّنة العربيّة العاملة في
+                //      المحرّكين (ISSUE-039). الاسم اللاتينيّ «abs» غير مُسجَّل في المفسّر ومكسور
+                //      في المترجم (يُرجع 0)، بينما «مطلق» يُرجع القيمة الصحيحة في الاثنين.
+                // (EN) Lower |x| to a call to «مطلق(x)» — the working Arabic builtin in both engines
+                //      (ISSUE-039). The Latin name «abs» is unregistered in the interpreter and broken
+                //      in the compiler (returns 0), whereas «مطلق» returns the correct value in both.
                 std::vector<ExprPtr> args;
                 args.push_back(std::move(innerExpr));
                 return std::make_unique<CallExpr>(
-                    std::make_unique<VariableExpr>("abs", absPos),
+                    std::make_unique<VariableExpr>("\xD9\x85\xD8\xB7\xD9\x84\xD9\x82", absPos),
                     std::move(args));
             }
 

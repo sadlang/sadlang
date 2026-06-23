@@ -1,0 +1,9 @@
+# @rule: gr.pattern.primary
+# @description: نمط متغيّر — يربط القيمة المطابَقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+طابق (7)
+    عندما س:
+        اطبع_سطر(س)
+نهاية

@@ -1,0 +1,9 @@
+# @rule: gr.pattern.pattern
+# @description: نمط شامل «_» يطابق أيّ قيمة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أيّ
+طابق (5)
+    عندما _:
+        اطبع_سطر("أيّ")
+نهاية

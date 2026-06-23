@@ -1,0 +1,11 @@
+# @rule: gr.adv.where_clause
+# @description: جملة حيث — قيد قالب «حيث ت: قيد» (المترجم)
+# @priority: P2
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: 5
+قالب <نوع ت>
+دالة د(ت س) حيث ت: مقارن
+    ارجع س
+نهاية
+اطبع_سطر(د(5))

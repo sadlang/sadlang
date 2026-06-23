@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_xor
+# @description: XOR بتّي «^»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+اطبع_سطر(5 ^ 1)

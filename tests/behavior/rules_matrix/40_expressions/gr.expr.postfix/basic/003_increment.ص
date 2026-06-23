@@ -1,0 +1,8 @@
+# @rule: gr.expr.postfix
+# @description: لاحقيّ — الزيادة «س++» تزيد المتغيّر بـ1 (ISSUE-038 مُصلَح)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+متغير س = 5
+س++
+اطبع_سطر(س)

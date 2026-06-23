@@ -513,19 +513,24 @@ namespace Sad
                         const std::string &fieldName = fieldPair.first;
                         const auto &fieldPattern = fieldPair.second;
 
-                        // (AR) استخراج قيمة الحقل من الكائن
-                        // (EN) Extract field value from object
+                        // (AR) استخراج قيمة الحقل من الكائن — إصلاح ISSUE-035
+                        //      نُصدر LOAD(كائن، اسم الحقل) تمامًا كما يفعل buildMemberAccess
+                        //      للوصول «كائن.حقل»؛ الخلفية تُترجمها إلى وصول حقل البنية
+                        //      الساكنة وقت الترجمة. كان السابق CALL __sad_get_field غير
+                        //      معرَّفة في زمن التشغيل (المترجم لا يملك جدول حقول وقت تشغيل).
+                        // (EN) ISSUE-035 fix: emit LOAD(object, fieldName) like member
+                        //      access; backend lowers it to static struct field access.
+                        //      Previously a CALL to undefined runtime __sad_get_field.
                         std::string fieldReg = newTempRegister();
                         {
-                            SIRInstruction getFieldInst;
-                            getFieldInst.opcode = SIROpcode::CALL;
-                            getFieldInst.result = SIROperand::Register(fieldReg, SadTypeKind::Pointer);
-                            getFieldInst.operands.push_back(SIROperand::Function("__sad_get_field"));
-                            getFieldInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
-                            getFieldInst.operands.push_back(SIROperand::ConstantString(fieldName));
-                            getFieldInst.comment = "struct pattern: get field '" + fieldName + "'";
+                            SIRInstruction loadFieldInst;
+                            loadFieldInst.opcode = SIROpcode::LOAD;
+                            loadFieldInst.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                            loadFieldInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
+                            loadFieldInst.operands.push_back(SIROperand::ConstantString(fieldName));
+                            loadFieldInst.comment = "struct pattern: load field '" + fieldName + "'";
                             if (currentBlock_)
-                                currentBlock_->addInstruction(getFieldInst);
+                                currentBlock_->addInstruction(loadFieldInst);
                         }
 
                         if (auto *fldLit = dynamic_cast<const Sad::AST::LiteralPattern *>(fieldPattern.get()))
@@ -562,7 +567,7 @@ namespace Sad
                             SIRInstruction cmpFld = SIRInstruction::Binary(
                                 SIROpcode::EQ,
                                 SIROperand::Register(fldCmpReg, SadTypeKind::Boolean),
-                                SIROperand::Register(fieldReg, SadTypeKind::Pointer),
+                                SIROperand::Register(fieldReg, SadTypeKind::Integer),
                                 SIROperand::Register(fldLitReg, SadTypeKind::Integer));
                             if (currentBlock_)
                                 currentBlock_->addInstruction(cmpFld);
@@ -583,7 +588,7 @@ namespace Sad
                             // (EN) Bind field to variable — always succeeds
                             VariableInfo fldVarInfo;
                             fldVarInfo.name = fldVar->name;
-                            fldVarInfo.type = SadTypeKind::Pointer;
+                            fldVarInfo.type = SadTypeKind::Integer;
                             fldVarInfo.registerName = fieldReg;
                             fldVarInfo.isGlobal = false;
                             fldVarInfo.isMutable = false;

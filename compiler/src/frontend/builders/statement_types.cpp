@@ -360,6 +360,14 @@ namespace Sad
                             break;
                         }
                         sirClass->addField(field.name, fieldType);
+
+                        // (AR) سجّل القيمة الافتراضية للحقل (إن وُجدت) لتُهيَّأ وقت الإنشاء (ISSUE-036)
+                        // (EN) Record the field's default value (if any) to init at construction (ISSUE-036)
+                        if (field.defaultValue)
+                        {
+                            b_.structFieldDefaults_[structDecl->name].emplace_back(
+                                field.name, field.defaultValue.get());
+                        }
                     }
 
                     // (AR) إضافة الدوال المنفذة (إن وجدت)

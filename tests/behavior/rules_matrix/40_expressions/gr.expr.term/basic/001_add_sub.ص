@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: حد جمعيّ — جمع وطرح
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+اطبع_سطر(10 - 5 + 2)

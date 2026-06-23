@@ -1,0 +1,6 @@
+# @rule: gr.expr.comparison
+# @description: عضويّة «في» في مصفوفة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(2 في [1، 2، 3])

@@ -1,0 +1,9 @@
+# @rule: gr.adv.lifetime_params
+# @description: معاملات عمر — «بنية مرجع<'أ>»
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+بنية مرجع<'أ>
+    رقم ق = 0
+نهاية
+اطبع_سطر(مرجع().ق)

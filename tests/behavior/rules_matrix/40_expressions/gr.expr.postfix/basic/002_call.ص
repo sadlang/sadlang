@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: لاحقيّ — استدعاء دالة «()»
+# @priority: P1
+# @requires: اطبع_سطر، طول
+# @expected: 2
+اطبع_سطر(طول([5، 6]))

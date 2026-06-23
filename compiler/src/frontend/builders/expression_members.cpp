@@ -154,6 +154,18 @@ namespace Sad
                             {
                                 memberType = SadTypeKind::String;
                             }
+                            // (AR) حقل عشريّ: يجب تحميله بنوع Float وإلا بُتر إلى صحيح (ISSUE-037)
+                            // (EN) Float field: must load as Float or it gets truncated to int (ISSUE-037)
+                            else if (fieldIt->second == SadTypeKind::Float)
+                            {
+                                memberType = SadTypeKind::Float;
+                            }
+                            // (AR) حقل منطقيّ: حمّله بنوعه الصحيح للطباعة الصحيحة
+                            // (EN) Boolean field: load with correct type for correct printing
+                            else if (fieldIt->second == SadTypeKind::Boolean)
+                            {
+                                memberType = SadTypeKind::Boolean;
+                            }
                         }
                         // (AR) حقل كائنيّ: انقل اسم صنفه لتمكين الوصول المتسلسل اللاحق
                         // (EN) Object-typed field: carry its class name to enable chained access

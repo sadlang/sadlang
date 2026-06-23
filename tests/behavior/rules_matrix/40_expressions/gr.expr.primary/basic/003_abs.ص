@@ -1,0 +1,7 @@
+# @rule: gr.expr.primary
+# @description: أوّليّ — القيمة المطلقة «|تعبير|» (ISSUE-039 مُصلَح: تُحوَّل لـ«مطلق»)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5\n8
+اطبع_سطر(|-5|)
+اطبع_سطر(|0 - 8|)
