@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: رقم هنديّ-عربيّ داخل المُعرّف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير ع٢د = 9
+اطبع_سطر(ع٢د)

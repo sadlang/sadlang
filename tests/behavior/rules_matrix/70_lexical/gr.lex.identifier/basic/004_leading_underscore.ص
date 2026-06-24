@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف يبدأ بشرطة سفليّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+متغير _مؤقت = 7
+اطبع_سطر(_مؤقت)

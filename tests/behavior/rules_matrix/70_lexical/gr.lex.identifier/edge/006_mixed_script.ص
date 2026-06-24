@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: خلط حروف عربيّة ولاتينيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير سعرx = 5
+اطبع_سطر(سعرx)

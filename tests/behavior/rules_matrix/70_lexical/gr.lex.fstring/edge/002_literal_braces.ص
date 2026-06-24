@@ -1,0 +1,7 @@
+# @rule: gr.lex.fstring
+# @description: أقواس حرفيّة مهروبة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: {ليس تعبيرا}
+
+اطبع_سطر(f"{{ليس تعبيرا}}")

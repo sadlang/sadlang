@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: هروب سطر جديد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: سطر1\nسطر2
+
+اطبع_سطر("سطر1\nسطر2")

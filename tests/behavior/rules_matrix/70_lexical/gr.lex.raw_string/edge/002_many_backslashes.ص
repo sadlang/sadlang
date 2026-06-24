@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: شرطات خلفيّة متعدّدة حرفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: \\\\
+
+اطبع_سطر(r"\\\\")

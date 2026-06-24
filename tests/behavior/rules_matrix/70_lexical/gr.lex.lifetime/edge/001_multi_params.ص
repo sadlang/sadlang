@@ -1,0 +1,10 @@
+# @rule: gr.lex.lifetime
+# @description: معاملات عمر متعدّدة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+
+بنية زوج<'أ، 'ب>
+    رقم س = 0
+نهاية
+اطبع_سطر(زوج().س)

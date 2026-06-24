@@ -1,0 +1,7 @@
+# @rule: gr.lex.lifetime
+# @description: عمر باسم رقميّ غير صالح
+# @priority: P2
+# @expect_error
+
+متغير ع = 1
+متغير ر = &'123 ع

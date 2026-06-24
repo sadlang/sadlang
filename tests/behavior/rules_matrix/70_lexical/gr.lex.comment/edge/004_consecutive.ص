@@ -1,0 +1,10 @@
+# @rule: gr.lex.comment
+# @description: تعليقات متتالية
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+# أول
+# ثانٍ
+# ثالث
+اطبع_سطر(10)

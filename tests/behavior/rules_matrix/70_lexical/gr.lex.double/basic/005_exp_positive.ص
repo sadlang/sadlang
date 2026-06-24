@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: أُسّ موجب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 100.0
+
+اطبع_سطر(1.0e+2)

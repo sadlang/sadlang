@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: تعليق سطر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+# هذا تعليق سطر
+اطبع_سطر(1)

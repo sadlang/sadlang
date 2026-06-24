@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف يبدأ بنصّ كلمة مفتاحيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 11
+
+متغير متغيرات = 11
+اطبع_سطر(متغيرات)

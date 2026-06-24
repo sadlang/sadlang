@@ -1,0 +1,10 @@
+# @rule: gr.lex.comment
+# @description: كتلة متعدّدة الأسطر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+#* سطر١
+سطر٢
+سطر٣ *#
+اطبع_سطر(7)

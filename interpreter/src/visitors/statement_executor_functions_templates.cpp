@@ -312,11 +312,55 @@ namespace Sad
                 static_cast<AST::ASTNode *>(&node),
                 [](AST::ASTNode *) {});
 
+            // (AR) محو نوع المعاملات الجنيسة قبل التسجيل (للمسارين: التخصيص
+            //      الصريح `هوية<رقم>(7)` والاستدعاء العاديّ `هوية(7)`). المعامل
+            //      المكتوب بمعامِل-نوعيّ (مثل «ت») يقبل أيّ وسيط وقت التشغيل،
+            //      فنُفرّغ اسم الصنف كي لا يُطلَق فحص الصنف الصارم
+            //      RUN_TYPE_CHECK_FAILED على وسيط بدائيّ — جوهر محو النوع في
+            //      مفسّر ديناميكيّ (يطابق حَوْصلة المترجم).
+            // (EN) Erase generic parameter type names before registration (for
+            //      both paths: explicit `هوية<رقم>(7)` and plain `هوية(7)`). A
+            //      param typed by a type-parameter (e.g. «ت») accepts any runtime
+            //      argument, so we clear its class name to avoid the strict
+            //      RUN_TYPE_CHECK_FAILED check on a primitive — the essence of
+            //      type erasure in a dynamic interpreter (matches the compiler's
+            //      monomorphization).
+            for (auto &p : params)
+            {
+                for (const auto &tp : node.typeParameters)
+                {
+                    if (p.typeName == tp.name)
+                    {
+                        p.typeName.clear();
+                        break;
+                    }
+                }
+            }
+
             functionManager_.defineFunction(templateKey, params, bodyNode, declNode);
 
             // (AR) حفظ نوع الإرجاع
             // (EN) Save return type
             functionReturnTypes_[templateKey] = node.returnType;
+
+            // ================================================================
+            // (AR) تسجيل إضافيّ تحت الاسم الصريح لتمكين الاستدعاء العاديّ بمحو
+            //      النوع (type erasure): المفسّر ديناميكيّ الأنواع، فجسم القالب
+            //      يُنفَّذ كدالة عاديّة عند `هوية(7)` بلا وسائط نوع صريحة —
+            //      مطابقةً للمترجم الذي يُحَوْصِل القالب (monomorphize). لا نطمس
+            //      دالة غير-قالبيّة تحمل الاسم نفسه إن وُجدت.
+            // (EN) Also register under the plain name so a normal call like
+            //      `هوية(7)` (no explicit type args) runs via type erasure. The
+            //      interpreter is dynamically typed, so a generic body executes
+            //      as an ordinary function — matching the compiler which
+            //      monomorphizes templates. Do not shadow an existing
+            //      non-template function with the same name.
+            // ================================================================
+            if (!functionManager_.hasFunction(node.name, static_cast<int>(params.size())))
+            {
+                functionManager_.defineFunction(node.name, params, bodyNode, declNode);
+                functionReturnTypes_[node.name] = node.returnType;
+            }
         }
 
         /**

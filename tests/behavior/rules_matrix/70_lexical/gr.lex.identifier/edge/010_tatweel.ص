@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: تطويل (كشيدة) داخل المُعرّف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير اســـم = 3
+اطبع_سطر(اســـم)

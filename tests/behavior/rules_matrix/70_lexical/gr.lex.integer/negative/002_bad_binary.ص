@@ -1,0 +1,7 @@
+# @rule: gr.lex.integer
+# @description: رقم ثنائيّ غير صالح
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(0b12)

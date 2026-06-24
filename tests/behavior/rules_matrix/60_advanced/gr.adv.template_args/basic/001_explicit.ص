@@ -1,7 +1,6 @@
 # @rule: gr.adv.template_args
-# @description: وسائط قالب — تخصيص صريح «هوية<رقم>(...)» (المترجم)
+# @description: وسائط قالب — تخصيص صريح «هوية<رقم>(...)» (مزدوج: محو النوع في المفسّر)
 # @priority: P1
-# @skip_interpreter
 # @requires: اطبع_سطر
 # @expected: 7
 قالب <نوع ت>

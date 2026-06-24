@@ -1,0 +1,10 @@
+# @rule: gr.lex.lifetime
+# @description: معامل عمر في بنية
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+
+بنية مرجع<'أ>
+    رقم ق = 0
+نهاية
+اطبع_سطر(مرجع().ق)

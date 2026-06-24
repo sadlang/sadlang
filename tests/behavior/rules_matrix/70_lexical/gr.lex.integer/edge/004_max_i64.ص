@@ -1,0 +1,7 @@
+# @rule: gr.lex.integer
+# @description: أقصى عدد صحيح 64
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9223372036854775807
+
+اطبع_سطر(9223372036854775807)

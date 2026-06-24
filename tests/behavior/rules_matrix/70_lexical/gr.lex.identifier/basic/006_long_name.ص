@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف وصفيّ طويل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+متغير مجموع_الأرقام_الكلي = 42
+اطبع_سطر(مجموع_الأرقام_الكلي)

@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: رمز تعبيريّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: نجمة ⭐
+
+اطبع_سطر("نجمة ⭐")

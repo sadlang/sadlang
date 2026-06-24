@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: كتلة تعليق غير منتهية
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+#* تعليق بلا إغلاق
+اطبع_سطر(1)

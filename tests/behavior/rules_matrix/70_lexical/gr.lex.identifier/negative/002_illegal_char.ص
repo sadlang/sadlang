@@ -1,0 +1,6 @@
+# @rule: gr.lex.identifier
+# @description: رمز غير صالح في المُعرّف
+# @priority: P2
+# @expect_error
+
+متغير س@ب = 1

@@ -1,0 +1,10 @@
+# @rule: gr.lex.lifetime
+# @description: عمر بحرف لاتينيّ واحد في بنية
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+بنية ك<'x>
+    رقم ق = 5
+نهاية
+اطبع_سطر(ك().ق)

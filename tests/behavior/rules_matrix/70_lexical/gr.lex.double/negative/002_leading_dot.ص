@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: نقطة بلا خانة قبلها
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(.5)

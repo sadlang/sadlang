@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: أقواس بلا تنسيق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: {س} ليس تنسيقا
+
+اطبع_سطر(r"{س} ليس تنسيقا")

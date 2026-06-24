@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف بحرف واحد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير ك = 5
+اطبع_سطر(ك)

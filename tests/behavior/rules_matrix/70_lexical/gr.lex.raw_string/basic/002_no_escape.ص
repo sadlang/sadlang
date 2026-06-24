@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: لا تُعالَج تسلسلات الهروب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مسار\tملف
+
+اطبع_سطر(r"مسار\tملف")

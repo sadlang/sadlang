@@ -1,0 +1,9 @@
+# @rule: gr.lex.string
+# @description: نص فارغ بين مُعلِّمَين
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أ\n\nب
+
+اطبع_سطر("أ")
+اطبع_سطر("")
+اطبع_سطر("ب")

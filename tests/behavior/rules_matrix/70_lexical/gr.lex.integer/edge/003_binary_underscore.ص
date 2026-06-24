@@ -1,0 +1,7 @@
+# @rule: gr.lex.integer
+# @description: ثنائيّ بفاصل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 170
+
+اطبع_سطر(0b1010_1010)

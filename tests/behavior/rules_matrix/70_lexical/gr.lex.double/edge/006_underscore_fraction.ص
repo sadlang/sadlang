@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: فاصل قراءة في كسر العشريّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0.0005
+
+اطبع_سطر(0.000_5)

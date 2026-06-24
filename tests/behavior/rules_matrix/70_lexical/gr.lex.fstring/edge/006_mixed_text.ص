@@ -1,0 +1,9 @@
+# @rule: gr.lex.fstring
+# @description: نصّ حرفيّ بين عدّة إقحامات
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2+3=5
+
+متغير أ = 2
+متغير ب = 3
+اطبع_سطر(f"{أ}+{ب}={أ+ب}")

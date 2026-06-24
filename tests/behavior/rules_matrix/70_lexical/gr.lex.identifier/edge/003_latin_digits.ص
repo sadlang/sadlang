@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: لاتينيّ بأرقام داخليّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير a1b2 = 6
+اطبع_سطر(a1b2)

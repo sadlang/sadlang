@@ -1,0 +1,9 @@
+# @rule: gr.lex.comment
+# @description: شيفرة معلَّقة لا تُنفَّذ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+#* متغير س = 5
+اطبع_سطر(999) *#
+اطبع_سطر(9)

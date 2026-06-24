@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف بأرقام لاحقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير ق2 = 9
+اطبع_سطر(ق2)

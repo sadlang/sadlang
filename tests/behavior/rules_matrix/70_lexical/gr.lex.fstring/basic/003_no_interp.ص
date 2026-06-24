@@ -1,0 +1,7 @@
+# @rule: gr.lex.fstring
+# @description: بلا إقحام
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: نص ثابت بلا تعابير
+
+اطبع_سطر(f"نص ثابت بلا تعابير")

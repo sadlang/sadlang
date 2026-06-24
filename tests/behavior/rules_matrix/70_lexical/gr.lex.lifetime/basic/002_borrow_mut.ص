@@ -1,0 +1,9 @@
+# @rule: gr.lex.lifetime
+# @description: استعارة قابلة للتعديل بعمر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير ع = 10
+متغير ر = &'أ متغير ع
+اطبع_سطر(ع)

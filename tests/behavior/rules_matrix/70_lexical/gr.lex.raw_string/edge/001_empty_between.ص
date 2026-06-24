@@ -1,0 +1,9 @@
+# @rule: gr.lex.raw_string
+# @description: نص خام فارغ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أ\n\nب
+
+اطبع_سطر(r"أ")
+اطبع_سطر(r"")
+اطبع_سطر(r"ب")

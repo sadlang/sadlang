@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: شرطة خلفيّة مهروبة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: c:\مسار
+
+اطبع_سطر("c:\\مسار")

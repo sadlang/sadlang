@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: عشريّ بسيط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3.14
+
+اطبع_سطر(3.14)

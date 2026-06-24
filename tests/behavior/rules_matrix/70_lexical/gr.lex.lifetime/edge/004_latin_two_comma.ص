@@ -1,0 +1,10 @@
+# @rule: gr.lex.lifetime
+# @description: عمران لاتينيّان بفاصلة لاتينيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+
+بنية ث<'a, 'b>
+    رقم س = 0
+نهاية
+اطبع_سطر(ث().س)

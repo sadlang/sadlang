@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: أُسّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1500.0
+
+اطبع_سطر(1.5e3)

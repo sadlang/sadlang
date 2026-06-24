@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: أُسّ بلا نقطة عشريّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10000000000.0
+
+اطبع_سطر(1e10)

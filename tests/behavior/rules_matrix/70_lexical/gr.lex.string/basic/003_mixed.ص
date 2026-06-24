@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: نص مختلط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ص1 abc 3
+
+اطبع_سطر("ص1 abc 3")

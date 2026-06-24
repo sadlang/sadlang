@@ -1,0 +1,9 @@
+# @rule: gr.lex.comment
+# @description: تعليق توثيق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+## تعليق توثيق
+متغير د = 3
+اطبع_سطر(د)

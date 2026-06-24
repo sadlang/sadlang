@@ -1,0 +1,7 @@
+# @rule: gr.lex.integer
+# @description: صفر ست عشريّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+
+اطبع_سطر(0x0)

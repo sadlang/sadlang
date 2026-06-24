@@ -1,0 +1,10 @@
+# @rule: gr.lex.lifetime
+# @description: اسم عمر متعدّد الأحرف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+بنية حاوية<'العمر>
+    رقم ق = 5
+نهاية
+اطبع_سطر(حاوية().ق)

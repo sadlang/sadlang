@@ -1,0 +1,7 @@
+# @rule: gr.lex.integer
+# @description: فاصل قراءة _
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1000000
+
+اطبع_سطر(1_000_000)

@@ -1,0 +1,8 @@
+# @rule: gr.lex.fstring
+# @description: حساب داخل الإقحام
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: المربع 16
+
+متغير أ = 4
+اطبع_سطر(f"المربع {أ * أ}")

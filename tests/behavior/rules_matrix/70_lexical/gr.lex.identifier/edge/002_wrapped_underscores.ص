@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: شرطات سفليّة محيطة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+متغير __ب__ = 8
+اطبع_سطر(__ب__)

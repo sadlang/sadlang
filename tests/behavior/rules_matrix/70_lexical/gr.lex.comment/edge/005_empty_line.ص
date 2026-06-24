@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: تعليق سطر فارغ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+#
+اطبع_سطر(2)

@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: فاصل قراءة في صدر العشريّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1000.5
+
+اطبع_سطر(1_000.5)

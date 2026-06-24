@@ -1,0 +1,9 @@
+# @rule: gr.lex.lifetime
+# @description: اسم عمر لاتينيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير ع = 10
+متغير ر = &'a متغير ع
+اطبع_سطر(ع)

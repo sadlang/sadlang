@@ -1,0 +1,9 @@
+# @rule: gr.lex.lifetime
+# @description: استعارة ثابتة بعمر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+متغير ع = 7
+متغير ر = &'أ ع
+اطبع_سطر(ع)

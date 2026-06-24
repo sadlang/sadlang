@@ -1,0 +1,8 @@
+# @rule: gr.lex.fstring
+# @description: إقحام متغيّر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا أحمد
+
+متغير الاسم = "أحمد"
+اطبع_سطر(f"مرحبا {الاسم}")

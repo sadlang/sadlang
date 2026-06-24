@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: نص خام غير منتهٍ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(r"بلا نهاية

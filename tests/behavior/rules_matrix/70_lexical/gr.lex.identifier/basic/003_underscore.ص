@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف بشرطة سفليّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير عدد_العناصر = 3
+اطبع_سطر(عدد_العناصر)

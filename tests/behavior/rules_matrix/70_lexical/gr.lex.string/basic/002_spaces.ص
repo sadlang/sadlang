@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: نص بمسافات
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا بالعالم
+
+اطبع_سطر("مرحبا بالعالم")

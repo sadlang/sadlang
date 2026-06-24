@@ -1,0 +1,6 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف يبدأ برقم
+# @priority: P2
+# @expect_error
+
+متغير 2س = 1

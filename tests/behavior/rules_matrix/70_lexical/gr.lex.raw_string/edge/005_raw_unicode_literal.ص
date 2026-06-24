@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: تسلسل يونيكود يبقى حرفيًّا في الخام
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: \u0041
+
+اطبع_سطر(r"\u0041")

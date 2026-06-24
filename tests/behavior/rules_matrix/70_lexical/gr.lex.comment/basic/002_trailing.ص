@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: تعليق نهاية سطر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س = 5 # تعليق في نهاية السطر
+اطبع_سطر(س)

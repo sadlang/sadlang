@@ -1,0 +1,7 @@
+# @rule: gr.lex.fstring
+# @description: إقحام تعبير منطقيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر(f"{5 > 3}")

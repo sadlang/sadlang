@@ -77,6 +77,27 @@ namespace Sad
                 return result;
             }
 
+            // ================================================================
+            // (AR) مدير السياق «باستخدام»: __دخول__ / __خروج__
+            //      للقيم غير الكائنيّة لا عمل (مطابِق لسلوك المفسّر الذي يتخطّى
+            //      enter/exit ما لم يكن المورد كائنًا يملك الطريقتين). توزيع
+            //      __دخول__/__خروج__ على الكائنات غير مدعوم بعد في المترجم
+            //      (يُتخطّى بأمان لا يُكسَر الربط) — راجع ISSUE في تغطية القواعد.
+            // (EN) Context manager enter/exit — no-op for non-object resources,
+            //      matching the interpreter which only dispatches __enter__/__exit__
+            //      on objects that define them. Object dispatch is not yet emitted
+            //      by the compiler; treated as a safe no-op (avoids undefined symbol).
+            // ================================================================
+            if (funcName == "__sad_context_enter" || funcName == "__sad_context_exit")
+            {
+                llvm::Value *dummy = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                if (inst->result.has_value())
+                {
+                    cg_.context_info_.namedValues[inst->result->name] = dummy;
+                }
+                return dummy;
+            }
+
             if (funcName == "__sad_push_handler")
             {
                 // (AR) دفع jmpbuf إلى مكدس المعالجات — نأخذ المؤشر مباشرة بدون تحميل

@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: نص بسيط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: سلام
+
+اطبع_سطر("سلام")

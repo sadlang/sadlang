@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: مسار عربيّ بشرطة خلفيّة خام
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مسار\جديد
+
+اطبع_سطر(r"مسار\جديد")

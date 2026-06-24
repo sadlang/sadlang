@@ -1,0 +1,7 @@
+# @rule: gr.lex.integer
+# @description: أرقام هنديّة-عربيّة كعدد صحيح
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+اطبع_سطر(٤٢)

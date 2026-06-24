@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: مسار ويندوز بشرطات خلفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: c:\مجلد\ملف
+
+اطبع_سطر(r"c:\مجلد\ملف")

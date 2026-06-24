@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: هروب يونيكود بأربع خانات
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أ
+
+اطبع_سطر("\u0623")

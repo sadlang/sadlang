@@ -1,7 +1,6 @@
 # @rule: gr.adv.where_clause
-# @description: جملة حيث — قيد قالب «حيث ت: قيد» (المترجم)
+# @description: جملة حيث — قيد قالب «حيث ت: قيد» (مزدوج: القيد يُتجاهَل بمحو النوع)
 # @priority: P2
-# @skip_interpreter
 # @requires: اطبع_سطر
 # @expected: 5
 قالب <نوع ت>

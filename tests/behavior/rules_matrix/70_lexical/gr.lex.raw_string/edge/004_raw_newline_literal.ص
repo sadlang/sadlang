@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: شرطة-n حرفيّة في الخام لا سطرٌ جديد
+# @priority: P2
+# @requires: اطبع_سطر, طول
+# @expected: 2
+
+اطبع_سطر(طول(r"\n"))

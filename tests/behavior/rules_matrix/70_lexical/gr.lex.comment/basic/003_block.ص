@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: تعليق كتلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+#* تعليق كتلة *#
+اطبع_سطر(2)

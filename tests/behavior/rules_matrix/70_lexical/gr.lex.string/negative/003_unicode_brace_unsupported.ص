@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: صيغة يونيكود بأقواس \u{..} غير مدعومة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر("\u{41}")

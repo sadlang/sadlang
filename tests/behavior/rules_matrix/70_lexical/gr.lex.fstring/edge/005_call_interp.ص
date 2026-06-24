@@ -1,0 +1,8 @@
+# @rule: gr.lex.fstring
+# @description: إقحام نداء دالة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+دالة مربع(س) ارجع س * س نهاية
+اطبع_سطر(f"{مربع(5)}")

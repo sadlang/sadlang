@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: نص برموز
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: سعر: 100$
+
+اطبع_سطر("سعر: 100$")

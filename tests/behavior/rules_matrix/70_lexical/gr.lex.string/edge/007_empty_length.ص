@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: طول نصّ فارغ
+# @priority: P2
+# @requires: اطبع_سطر, طول
+# @expected: 0
+
+اطبع_سطر(طول(""))

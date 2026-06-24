@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: هروب إرجاع المؤشّر يُحسَب محرفًا
+# @priority: P2
+# @requires: اطبع_سطر, طول
+# @expected: 3
+
+اطبع_سطر(طول("أ\rب"))

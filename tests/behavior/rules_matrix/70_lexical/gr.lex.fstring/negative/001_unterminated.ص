@@ -1,0 +1,7 @@
+# @rule: gr.lex.fstring
+# @description: نص منسَّق غير منتهٍ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(f"مرحبا {الاسم}

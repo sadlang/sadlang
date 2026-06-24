@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: أُسّ سالب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0.02
+
+اطبع_سطر(2.0e-2)

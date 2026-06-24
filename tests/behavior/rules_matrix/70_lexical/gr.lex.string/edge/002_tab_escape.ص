@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: هروب جدولة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أ	ب
+
+اطبع_سطر("أ\tب")

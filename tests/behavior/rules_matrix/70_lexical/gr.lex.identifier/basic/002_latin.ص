@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف لاتينيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير count = 5
+اطبع_سطر(count)

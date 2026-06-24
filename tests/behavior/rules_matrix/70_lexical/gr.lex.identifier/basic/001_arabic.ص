@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: مُعرّف عربيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أحمد
+
+متغير الاسم = "أحمد"
+اطبع_سطر(الاسم)

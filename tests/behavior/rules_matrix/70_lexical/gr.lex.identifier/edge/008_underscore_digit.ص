@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: شرطة سفليّة متبوعة برقم
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+متغير _2 = 8
+اطبع_سطر(_2)

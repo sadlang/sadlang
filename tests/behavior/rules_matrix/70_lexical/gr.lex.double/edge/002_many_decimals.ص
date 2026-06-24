@@ -1,0 +1,7 @@
+# @rule: gr.lex.double
+# @description: خانات كثيرة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3.14159
+
+اطبع_سطر(3.14159)

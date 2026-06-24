@@ -1,7 +1,6 @@
 # @rule: gr.adv.template_decl
-# @description: تصريح قالب — «قالب <نوع ت> دالة ...» (المترجم؛ المفسّر لا يدعم الجنيسات بعد)
+# @description: تصريح قالب — «قالب <نوع ت> دالة ...» (مزدوج: محو النوع في المفسّر)
 # @priority: P1
-# @skip_interpreter
 # @requires: اطبع_سطر
 # @expected: 7
 قالب <نوع ت>

@@ -1,0 +1,9 @@
+# @rule: gr.lex.fstring
+# @description: إقحامات متعدّدة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2 و 3
+
+متغير أ = 2
+متغير ب = 3
+اطبع_سطر(f"{أ} و {ب}")

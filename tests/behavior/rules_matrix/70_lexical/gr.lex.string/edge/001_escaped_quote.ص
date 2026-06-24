@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: اقتباس مهروب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: قال "مرحبا"
+
+اطبع_سطر("قال \"مرحبا\"")

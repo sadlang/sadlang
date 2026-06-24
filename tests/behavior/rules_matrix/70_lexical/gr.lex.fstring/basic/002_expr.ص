@@ -1,0 +1,7 @@
+# @rule: gr.lex.fstring
+# @description: إقحام تعبير
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: الناتج 5
+
+اطبع_سطر(f"الناتج {2 + 3}")

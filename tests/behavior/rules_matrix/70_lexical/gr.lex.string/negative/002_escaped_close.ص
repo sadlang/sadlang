@@ -1,0 +1,7 @@
+# @rule: gr.lex.string
+# @description: هروب يبتلع اقتباس الإغلاق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر("هروب يبتلع الإغلاق \")

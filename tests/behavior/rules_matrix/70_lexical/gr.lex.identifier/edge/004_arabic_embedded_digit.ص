@@ -1,0 +1,8 @@
+# @rule: gr.lex.identifier
+# @description: عربيّ برقم داخليّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+متغير ع3د = 4
+اطبع_سطر(ع3د)

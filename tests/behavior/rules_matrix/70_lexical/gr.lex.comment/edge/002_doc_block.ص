@@ -1,0 +1,9 @@
+# @rule: gr.lex.comment
+# @description: كتلة توثيق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+#** توثيق
+كتلة **#
+اطبع_سطر(8)

@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: رمز تعبيريّ داخل التعليق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+# تعليق 😀 مرح
+اطبع_سطر(3)

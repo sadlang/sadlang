@@ -1,0 +1,8 @@
+# @rule: gr.lex.comment
+# @description: تعليق كتلة بين رمزين في السطر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س = #* وسط *# 5
+اطبع_سطر(س)

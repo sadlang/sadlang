@@ -1,0 +1,7 @@
+# @rule: gr.lex.raw_string
+# @description: نص خام بسيط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: نص خام
+
+اطبع_سطر(r"نص خام")

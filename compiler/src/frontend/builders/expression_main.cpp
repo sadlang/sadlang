@@ -384,6 +384,40 @@ namespace Sad
                     // (EN) Build inner expression (async function call → returns coroutine handle)
                     auto innerResult = buildExpression(awaitExpr->expression.get());
 
+                    // ====================================================================
+                    // (AR) انتظار قيمة بدائيّة غير-Future: تمريرٌ مطابق للمفسّر الذي يُرجع
+                    //      القيمة كما هي ما لم تكن Future (خريطة __future__ أو كائن Future).
+                    //      إصدار CORO_SUSPEND على قيمة عدديّة يُسقط backend بـ
+                    //      «Do not know how to promote this operator!» في legalization.
+                    //      مسار الكوروتين يبقى للأنواع الكائنيّة/المؤشّرات (المقابض).
+                    // (EN) Awaiting a non-Future primitive: identity pass-through, matching
+                    //      the interpreter which returns the value unchanged unless it is a
+                    //      Future. Emitting CORO_SUSPEND on a scalar crashes LLVM
+                    //      legalization; the coroutine path stays for object/pointer handles.
+                    // ====================================================================
+                    switch (innerResult.type)
+                    {
+                        case SadTypeKind::Integer:
+                        case SadTypeKind::Float:
+                        case SadTypeKind::Float32:
+                        case SadTypeKind::Float64:
+                        case SadTypeKind::Boolean:
+                        case SadTypeKind::String:
+                        case SadTypeKind::Byte:
+                        case SadTypeKind::Char:
+                        case SadTypeKind::Int8:
+                        case SadTypeKind::Int16:
+                        case SadTypeKind::Int32:
+                        case SadTypeKind::Int64:
+                        case SadTypeKind::UInt8:
+                        case SadTypeKind::UInt16:
+                        case SadTypeKind::UInt32:
+                        case SadTypeKind::UInt64:
+                            return innerResult;
+                        default:
+                            break;
+                    }
+
                     // (AR) إصدار تعليمة CORO_SUSPEND: انتظر الكوروتين الداخلي
                     // (EN) Emit CORO_SUSPEND: await the inner coroutine
                     std::string resultReg = b_.newTempRegister();

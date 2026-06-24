@@ -1,0 +1,8 @@
+# @rule: gr.lex.double
+# @description: نقطة بلا خانة بعدها
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير د = 3.
+اطبع_سطر(د)
