@@ -11,6 +11,8 @@
      5. TYPE_METHOD_BUILTINS[] — طرق الأنواع
      6. static_assert للتحقق من الأعداد
      7. دوال البحث (findBuiltinByName، isAvailableWithoutImport)
+     8. ALL_BUILTINS — سجل شامل (BuiltinMeta) لكل المدمجات للأدوات (LSP/sadinfo)
+        + دالّتا البحث الشامل findBuiltinMeta و isKnownBuiltin
 
 (EN) Reads builtins/*.yaml and produces a C++ header with the same structure
      as the hand-written builtin_registry.h — drop-in replacement.
@@ -429,6 +431,93 @@ def emit_type_method_array(type_methods: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _cpp_str(s: Any) -> str:
+    """
+    @brief (AR) تهريب نصّ ليكون سلسلة C++ صالحة (يحمي من " و\\ والأسطر).
+    @brief (EN) Escape a string for safe embedding in a C++ string literal.
+    """
+    s = "" if s is None else str(s)
+    s = s.replace("\\", "\\\\").replace('"', '\\"')
+    s = s.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    return s
+
+
+def emit_all_builtins(functions: list[dict]) -> str:
+    """
+    @brief (AR) يُولِّد سجلاً شاملاً (BuiltinMeta + ALL_BUILTINS) لكل المدمجات
+                للأدوات (LSP/sadinfo): اسم + فضاء + تصنيف + وحدة + وصف + معاملات.
+                نوع الإرجاع فارغ حتى يُضاف حقل `returns` في YAML.
+    @brief (EN) Emit a comprehensive BuiltinMeta + ALL_BUILTINS registry covering
+                EVERY builtin (not just the 72 in BuiltinEntry) for tooling.
+    """
+    lines: list[str] = []
+    lines.append("        // ════════════════════════════════════════════════════════════════════")
+    lines.append("        // (AR) سجل شامل لكل المدمجات للأدوات (LSP/sadinfo) — اسم + بيانات وصفية.")
+    lines.append("        //      يغطّي كل الدوال، لا الـ72 القابلة للاستعلام في BuiltinEntry فقط.")
+    lines.append("        //      returnType فارغ حتى يُضاف حقل `returns` في language-truth/builtins/*.yaml.")
+    lines.append("        // (EN) Comprehensive registry of ALL builtins for tooling (LSP/sadinfo).")
+    lines.append("        // ════════════════════════════════════════════════════════════════════")
+    lines.append("        struct BuiltinMeta")
+    lines.append("        {")
+    lines.append("            std::string_view canonicalName;  /// (AR) الاسم الأساسي / (EN) Canonical name")
+    lines.append("            std::string_view namespaceName;  /// (AR) الفضاء / (EN) Namespace")
+    lines.append("            std::string_view category;       /// (AR) التصنيف / (EN) Category")
+    lines.append("            std::string_view requiredModule; /// (AR) مفتاح الوحدة الخام / (EN) Raw module key")
+    lines.append("            bool             requireImport;  /// (AR) هل يلزم استيراد؟ / (EN) Requires import?")
+    lines.append("            std::string_view descriptionAr;  /// (AR) وصف عربي (تحويم) / (EN) Arabic description")
+    lines.append("            std::string_view paramsCsv;      /// (AR) معاملات مفصولة بـ«، » / (EN) Params, '، '-separated")
+    lines.append("            std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)")
+    lines.append("        };")
+    lines.append("")
+    lines.append(f"        inline constexpr std::array<BuiltinMeta, {len(functions)}> ALL_BUILTINS = {{{{")
+
+    by_ns: dict[str, list[dict]] = defaultdict(list)
+    for fn in functions:
+        by_ns[fn.get("namespace", "Unknown")].append(fn)
+
+    for ns, fns in by_ns.items():
+        lines.append(f"            // ─── {ns} ({len(fns)}) ───")
+        for fn in fns:
+            cpp_id     = fn["cpp_id"]
+            ns_esc     = _cpp_str(ns)
+            cat        = _cpp_str(fn.get("category", ""))
+            module     = _cpp_str(fn.get("module", "NONE"))
+            req_imp    = "true" if fn.get("require_import", False) else "false"
+            desc       = _cpp_str(fn.get("description_ar", ""))
+            params     = fn.get("params") or []
+            params_csv = _cpp_str("، ".join(str(p) for p in params))
+            ret        = _cpp_str(fn.get("returns", ""))
+            lines.append(
+                f'            {{Names::{ns}::{cpp_id}, "{ns_esc}", "{cat}", '
+                f'"{module}", {req_imp}, "{desc}", "{params_csv}", "{ret}"}},'
+            )
+
+    lines.append("        }};")
+    lines.append("")
+    lines.append(f'        static_assert(ALL_BUILTINS.size() == {len(functions)}, "ALL_BUILTINS count mismatch");')
+    lines.append("")
+    lines.append("        // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───")
+    lines.append("        // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة")
+    lines.append("        //      (مثل «أرسل» في HttpClient وAsyncAdvanced). يعيد هذا البحث")
+    lines.append("        //      أوّل تطابق بترتيب language-truth/builtins/_index.yaml؛ لتعداد")
+    lines.append("        //      كل التطابقات كرِّر على ALL_BUILTINS مباشرة (المرحلة اللاحقة).")
+    lines.append("        // (EN) Note: a few canonical names are shared across namespaces.")
+    lines.append("        //      This returns the FIRST match in _index.yaml order; iterate")
+    lines.append("        //      ALL_BUILTINS directly to enumerate every match.")
+    lines.append("        inline const BuiltinMeta* findBuiltinMeta(std::string_view name)")
+    lines.append("        {")
+    lines.append("            for (const auto& b : ALL_BUILTINS)")
+    lines.append("                if (b.canonicalName == name) return &b;")
+    lines.append("            return nullptr;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        inline bool isKnownBuiltin(std::string_view name)")
+    lines.append("        {")
+    lines.append("            return findBuiltinMeta(name) != nullptr;")
+    lines.append("        }")
+    return "\n".join(lines)
+
+
 HEADER_TEMPLATE = """\
 // ============================================================================
 // AUTO-GENERATED from language-truth/builtins/*.yaml — DO NOT EDIT MANUALLY
@@ -552,6 +641,8 @@ namespace Sad
             return getCanonicalModuleName(entry->requiredModule);
         }}
 
+{all_builtins_section}
+
     }} // namespace Builtins
 }} // namespace Sad
 """
@@ -601,12 +692,14 @@ def run(argv: list[str] | None = None) -> int:
         arrays_section      = emit_builtin_arrays(functions)
         type_method_section = emit_type_method_array(lookup_type_methods)
         static_asserts      = emit_static_asserts(functions)
+        all_builtins_section = emit_all_builtins(functions)
 
         content = HEADER_TEMPLATE.format(
             names_section=names_section,
             arrays_section=arrays_section,
             type_method_section=type_method_section,
             static_asserts=static_asserts,
+            all_builtins_section=all_builtins_section,
         )
 
         write_if_changed(args.out_h, content, args.quiet)
