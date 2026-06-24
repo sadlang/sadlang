@@ -37,7 +37,9 @@
 #include <TargetConditionals.h>
 #if TARGET_OS_IOS
 #include "sad_ui/ios/ios_renderer.h"
-#else
+#elif defined(SAD_UI_ENABLE_MACOS_NATIVE)
+// (AR) خلفية macOS الأصلية غير مكتملة (macos_renderer.mm يخالف ترويسته) — معطّلة
+//      افتراضياً؛ يُستخدم عارض SDL2 لسطح المكتب بدلاً منها.
 #include "sad_ui/macos/macos_renderer.h"
 #endif
 #endif
@@ -1915,7 +1917,7 @@ namespace sad
 #if TARGET_OS_IOS
             return TargetPlatform::iOS;
 #else
-            return TargetPlatform::macOS;
+            return TargetPlatform::MacOS;
 #endif
 #else
             return TargetPlatform::Desktop;
@@ -1939,8 +1941,8 @@ namespace sad
             case TargetPlatform::iOS:
                 return std::make_unique<ios::IOSWindow>();
 #endif
-#if defined(__APPLE__) && !TARGET_OS_IOS
-            case TargetPlatform::macOS:
+#if defined(__APPLE__) && !TARGET_OS_IOS && defined(SAD_UI_ENABLE_MACOS_NATIVE)
+            case TargetPlatform::MacOS:
                 return std::make_unique<macos::MacOSWindow>();
 #endif
             default:
@@ -1965,8 +1967,8 @@ namespace sad
             case TargetPlatform::iOS:
                 return std::make_unique<ios::IOSRenderer>();
 #endif
-#if defined(__APPLE__) && !TARGET_OS_IOS
-            case TargetPlatform::macOS:
+#if defined(__APPLE__) && !TARGET_OS_IOS && defined(SAD_UI_ENABLE_MACOS_NATIVE)
+            case TargetPlatform::MacOS:
                 return std::make_unique<macos::MacOSRenderer>();
 #endif
             default:

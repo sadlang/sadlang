@@ -86,6 +86,18 @@ if(BUILD_TESTS)
         # (EN) Fast & Full share _tmp with identical filenames; lock prevents
         #      concurrent runs under ctest -j (else a delete/read race).
         RESOURCE_LOCK "doc_gen_tmp"
+        # (AR) RUN_SERIAL: RESOURCE_LOCK يمنع فقط تزامن Fast/Full مع بعضهما،
+        #      لا تزامنهما مع أي اختبار آخر يضغط على I/O/CPU؛ شوهد عملياً
+        #      DocGenDual_Full يفشل بـFileNotFoundError عرضياً تحت ctest -j4
+        #      (محرك PDF خارجي — Edge/Chrome headless — حساس لضغط النظام عند
+        #      flush الكتابة النهائية)، بينما نجح بثقة 100% عند العزل الكامل.
+        # (EN) RUN_SERIAL: RESOURCE_LOCK only prevents Fast/Full overlap, not
+        #      contention with unrelated I/O/CPU-heavy tests; DocGenDual_Full
+        #      was observed failing with FileNotFoundError occasionally under
+        #      ctest -j4 (external PDF engine — Edge/Chrome headless — is
+        #      sensitive to system load during final write flush), while
+        #      passing reliably when run in isolation.
+        RUN_SERIAL TRUE
     )
 
     # (AR) الاختبار الكامل (PDF) — وسم Nightly
@@ -101,5 +113,6 @@ if(BUILD_TESTS)
         LABELS "doc_gen;full;nightly;pdf"
         TIMEOUT 600
         RESOURCE_LOCK "doc_gen_tmp"
+        RUN_SERIAL TRUE
     )
 endif()

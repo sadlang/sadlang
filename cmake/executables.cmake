@@ -318,6 +318,10 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     # (EN) Increase stack size to 128MB for large source files
     if(MSVC)
         target_link_options(sad-build PRIVATE /STACK:134217728)
+    elseif(APPLE)
+        # (AR) رابط macOS (ld64) يستخدم -stack_size لا -z stacksize (خاص بـ GNU ld).
+        # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
+        target_link_options(sad-build PRIVATE -Wl,-stack_size,0x8000000)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_link_options(sad-build PRIVATE -Wl,-z,stacksize=134217728)
     endif()

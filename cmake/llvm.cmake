@@ -244,6 +244,17 @@ else()
     message(STATUS "   LLVM libs count: ${LLVM_LIBS}")
 endif()
 
+# (AR) بعض توزيعات LLVM (مثل Homebrew) تبني PassBuilder بدمج Polly، فيُشار إلى
+#      getPollyPluginInfo() دون توفّر تعريفه ما لم نربط Polly. نضيفها إن وُجدت.
+# (EN) Some LLVM distributions (e.g. Homebrew) link Polly into the PassBuilder,
+#      leaving getPollyPluginInfo() undefined unless Polly is linked. Add if present.
+if(EXISTS "${LLVM_LIBRARY_DIRS}/libPolly.a")
+    list(APPEND LLVM_LIBS
+        "${LLVM_LIBRARY_DIRS}/libPolly.a"
+        "${LLVM_LIBRARY_DIRS}/libPollyISL.a")
+    message(STATUS "   ✓ Polly مدمج / linked: ${LLVM_LIBRARY_DIRS}/libPolly.a")
+endif()
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # (AR) قائمة مكتبات LLVM بالأسماء المجرّدة — مضادّة للتسرّب جذريًا
 # ───────────────────────────────────────────────────────────────────────────────

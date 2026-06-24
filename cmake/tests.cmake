@@ -438,7 +438,15 @@ if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate
                 --interp "$<TARGET_FILE:sad-run>"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     )
-    set_tests_properties(NFR_Gate PROPERTIES TIMEOUT 180 LABELS "System;nfr")
+    # (AR) RUN_SERIAL: يقيس أزمنة تنفيذ بالمللي ثانية على برامج صغيرة جداً
+    #      (overhead بدء العملية يُشكِّل أغلب الزمن المقيس) — حساس جداً لمنافسة
+    #      CPU مع أي اختبار آخر يعمل بالتوازي (ctest -j)؛ شوهد عملياً يفشل
+    #      بفارق ~8% فقط تحت تزامن -j4 بينما ينجح بسهولة عند العزل.
+    # (EN) RUN_SERIAL: measures millisecond-scale timings of tiny programs
+    #      (process-startup overhead dominates) — highly sensitive to CPU
+    #      contention from any test running concurrently (ctest -j); observed
+    #      failing by only ~8% under -j4 contention while passing easily isolated.
+    set_tests_properties(NFR_Gate PROPERTIES TIMEOUT 180 LABELS "System;nfr" RUN_SERIAL TRUE)
     message(STATUS "✓ بوّابة NFR / NFR gate enabled (tests/system/benchmark)")
 endif()
 

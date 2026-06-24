@@ -50,7 +50,18 @@
 struct SDL_Window;
 struct SDL_Renderer;
 #ifdef SAD_UI_HAS_SDL_TTF
-typedef struct _TTF_Font TTF_Font;
+// (AR) اسم البنية الداخلي لـ TTF_Font غير موحَّد بين إصدارات SDL_ttf: النسخ
+//      الأقدم (مثل apt على Ubuntu) تستخدم «struct _TTF_Font»، والنسخ ≥ 2.24
+//      (مثل Homebrew على macOS) تستخدم «struct TTF_Font». تخمين الاسم هنا
+//      عبر typedef يدوي يتعارض مع تعريف SDL_ttf.h الحقيقي على أحد النظامين،
+//      فنُضمّن الرأس الحقيقي مباشرة ليُحدِّد هو التعريف الصحيح لكل حالة.
+// (EN) TTF_Font's internal struct tag isn't consistent across SDL_ttf
+//      versions: older builds (e.g. apt on Ubuntu) use "struct _TTF_Font",
+//      while ≥ 2.24 builds (e.g. Homebrew on macOS) use "struct TTF_Font".
+//      Guessing the tag via a manual typedef conflicts with SDL_ttf.h's real
+//      definition on one platform or the other, so include the real header
+//      instead and let it define the correct type.
+#include <SDL_ttf.h>
 #else
 typedef void TTF_Font; // placeholder عند عدم توفر SDL_ttf
 #endif

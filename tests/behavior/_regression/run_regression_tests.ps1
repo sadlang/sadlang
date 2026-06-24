@@ -211,8 +211,5 @@ if ($failedTests -eq 0) {
 } else {
     $rate = [math]::Round(($passedTests / $totalTests) * 100, 1)
     Write-Host "  [!!] Pass rate: ${rate}%"
-    # Don't fail CI -- tests expect known bugs to fail
-    # To fail CI: uncomment next line
-    # exit 1
-    exit 0
+    exit 1
 }

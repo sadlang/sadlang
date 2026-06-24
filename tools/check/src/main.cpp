@@ -46,7 +46,8 @@
 //      in this TU (include chain vs strict -std=c++17). This global declaration
 //      matches the POSIX/libc signature and resolves at link time. extern "C"
 //      must be at namespace scope, not inside a function.
-extern "C" int isatty(int) noexcept;
+// (AR) بدون noexcept: <unistd.h> على macOS يُصرّح isatty بلا noexcept فيتعارض.
+extern "C" int isatty(int);
 #endif
 
 namespace fs = std::filesystem;

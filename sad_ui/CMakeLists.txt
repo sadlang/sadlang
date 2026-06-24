@@ -113,7 +113,9 @@ set(SAD_UI_MACOS_SOURCES
 )
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_language(OBJCXX)
-    list(APPEND SAD_UI_MACOS_SOURCES backends/macos/src/macos_renderer.mm)
+    # macos_renderer.mm excluded: incomplete native renderer (undeclared
+    # members hitTest/fireEvent/focusedNode_ ...). Not needed by interpreter.
+    # list(APPEND SAD_UI_MACOS_SOURCES backends/macos/src/macos_renderer.mm)
 endif()
 
 # الوضع المستقل (Freestanding — بدون SDL2/libc)
@@ -219,14 +221,14 @@ if(SAD_UI_ENABLE_SDL2)
     
     if(SDL2_FOUND)
         message(STATUS "  [sad_ui] ✓ SDL2 موجود على النظام / Found on system")
-        target_link_libraries(sad_ui PRIVATE SDL2::SDL2)
+        target_link_libraries(sad_ui PUBLIC SDL2::SDL2)
         target_compile_definitions(sad_ui PUBLIC SAD_UI_USE_SDL2)
         
         # محاولة إيجاد SDL2_ttf
         find_package(SDL2_ttf CONFIG QUIET)
         if(SDL2_ttf_FOUND)
             message(STATUS "  [sad_ui] ✓ SDL2_ttf موجود / Found")
-            target_link_libraries(sad_ui PRIVATE SDL2_ttf::SDL2_ttf)
+            target_link_libraries(sad_ui PUBLIC SDL2_ttf::SDL2_ttf)
             target_compile_definitions(sad_ui PUBLIC SAD_UI_HAS_SDL_TTF)
         else()
             message(STATUS "  [sad_ui] ⚠ SDL2_ttf غير موجود — عرض النصوص معطّل / Not found — text rendering disabled")

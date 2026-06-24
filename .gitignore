@@ -4,6 +4,7 @@
 
 # ── مجلدات البناء / Build directories ──
 build/
+build-debug/
 build_new/
 build_cov/
 out/

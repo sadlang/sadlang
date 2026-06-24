@@ -74,6 +74,17 @@ endif()
 # ─── إنشاء المكتبة ───
 add_library(sadnet STATIC ${SADNET_SOURCES})
 
+# (AR) AES-NI: Clang لا يفعّل ميزات الهدف عبر `#pragma GCC target`، فنمرّر
+#      الأعلام صراحةً لوحدة aes_gcm على x86. الإرسال وقت التشغيل يحمي ARM/الأقدم.
+# (EN) Clang ignores `#pragma GCC target`; pass AES-NI flags explicitly to the
+#      aes_gcm TU on x86. Runtime dispatch guards non-AES-NI CPUs.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i386|i686")
+    set_source_files_properties(
+        network/sadnet/src/crypto/aes_gcm.cpp
+        PROPERTIES COMPILE_OPTIONS "-maes;-mpclmul;-msse4.1;-mssse3"
+    )
+endif()
+
 target_include_directories(sadnet PUBLIC
     ${SADNET_INCLUDE_DIR}
 )

@@ -601,16 +601,232 @@ jobs:
           retention-days: 7
 
   # ======================================================================
-  # (AR) ملاحظة: أُزيلت وظيفة macOS — المشروع لا يُبنى لـmacOS (لا هدف إصدار).
-  #      كانت تفشل على خطأ casing سابق في sad_ui (TargetPlatform::macOS).
-  # (EN) Note: macOS job removed — the project is not built for macOS (no release
-  #      target). It was failing on a pre-existing sad_ui casing error.
+  # 4. البناء والاختبار — macOS / Build & Test — macOS
+  # ======================================================================
+  macos:
+    name: "🍎 macOS (${{ matrix.config }})"
+    # (AR) مثبَّت على macos-14 (Apple Silicon/arm64) لضمان لقطة ثابتة، بنفس
+    #      منطق تثبيت windows-2022 أعلاه (تفادي انجراف صورة "latest").
+    # (EN) Pinned to macos-14 (Apple Silicon/arm64) for a stable image, mirroring
+    #      the windows-2022 pin above (avoid "latest" image drift).
+    runs-on: macos-14
+    needs: code-quality
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "📦 تثبيت المتطلبات / Install Dependencies"
+        run: |
+          brew install sdl2 sdl2_ttf llvm@18
+          python3 -m pip install --user --break-system-packages pyyaml jsonschema \
+            || python3 -m pip install --user pyyaml jsonschema
+
+      - name: "⚙️ إعداد متغيرات LLVM / Setup LLVM Env"
+        run: |
+          echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
+
+      - name: "📦 Cache CMake Build"
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: macos-llvm-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: macos-llvm-${{ matrix.config }}-
+
+      - name: "🔨 تكوين + بناء / Configure + Build"
+        run: |
+          cmake -B build \
+            -DBUILD_TESTS=ON \
+            -DENABLE_LLVM_BACKEND=ON \
+            -DLLVM_DIR=$LLVM_DIR \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+          cmake --build build --config ${{ matrix.config }} --parallel 4
+
+      - name: "🏗️ بناء المترجم sadc / Build sadc Compiler"
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4 || \
+            echo "⚠️ sadc build failed (LLVM linking issue) — continuing"
+
+      - name: "🧪 اختبارات النواة / Core Tests"
+        run: |
+          failed=0
+          for test in test_lexer_comprehensive test_parser_comprehensive \
+                      test_value_comprehensive test_errors_comprehensive \
+                      test_utils_modules_comprehensive; do
+            exe="build/bin/$test"
+            if [ -x "$exe" ]; then
+              echo "▶️ Running $test..."
+              # (AR) لا "if ! "$exe"" (يستهلك "!" رمز الخروج فيصبح "$?" 0/1 فقط
+              #      لا الرمز الحقيقي)، ولا استدعاء عارٍ لـ"$exe" بلا "&&/||"
+              #      (خطوات GitHub Actions تُنفَّذ بـ"bash -eo pipefail"، فأي أمر
+              #      top-level يفشل يُسقط الخطوة بأكملها فوراً بنفس رمز الخروج،
+              #      قبل الوصول لـ"rc=$?" — هذا ما حدث فعلاً: الخطوة انتهت بـ
+              #      "exit code 133" دون تنفيذ أي شيء بعد "$exe"). الحل: نمط
+              #      "cmd && rc=0 || rc=$?" يُبقي السطر ناجحاً من منظور errexit
+              #      بغض النظر عن نتيجة "$exe" الداخلية، فيستمر السكربت.
+              # (EN) Neither "if ! "$exe"" (the "!" negation consumes the real
+              #      exit code, so "$?" afterwards is just 0/1) nor a bare
+              #      "$exe" call without "&&/||" (GitHub Actions steps run
+              #      under "bash -eo pipefail", so any failing top-level
+              #      command aborts the whole step immediately with that exit
+              #      code, before "rc=$?" is ever reached — exactly what
+              #      happened: the step ended with "exit code 133" and nothing
+              #      after "$exe" ran). Fix: the "cmd && rc=0 || rc=$?" idiom
+              #      keeps the line itself successful from errexit's point of
+              #      view regardless of "$exe"'s outcome, so the script continues.
+              "$exe" && rc=0 || rc=$?
+              if [ $rc -ne 0 ]; then
+                failed=$((failed + 1))
+                # (AR) رمز خروج > 128 يعني انهيار بسبب signal (segfault/trap) لا
+                #      فشل فحص عادي — نُعيد التشغيل تحت lldb لإظهار backtrace دقيق.
+                # (EN) Exit code > 128 means the process died from a signal
+                #      (segfault/trap), not a normal assertion failure — rerun
+                #      under lldb to print an exact backtrace.
+                if [ $rc -gt 128 ]; then
+                  echo "💥 $test crashed (signal $((rc - 128))) — backtrace:"
+                  # (AR) "bt all" بمفردها لا تكفي هنا: التوقف الفعلي يحدث داخل
+                  #      libunwind نفسها (_Unwind_GetIP) — أي أن آلية unwinding
+                  #      المُستخدَمة لبناء "bt" هي بالضبط ما تعطّل، فقد تفشل
+                  #      "bt"/"bt all" بصمت. نقرأ السجلات الخام (pc/lr/fp/sp)
+                  #      مباشرة (لا تحتاج unwind info على الإطلاق)، ثم نترجمها
+                  #      لأسماء دوال عبر "image lookup"، لمعرفة العنوان الذي
+                  #      استدعى _Unwind_GetIP فعلاً حتى لو فشل "bt" تماماً.
+                  # (EN) "bt all" alone isn't enough here: the actual stop is
+                  #      inside libunwind itself (_Unwind_GetIP) — i.e. the
+                  #      very unwinding machinery "bt" relies on is what's
+                  #      broken, so "bt"/"bt all" may silently fail. Read the
+                  #      raw registers (pc/lr/fp/sp) directly (no unwind info
+                  #      needed), then resolve them to symbols via
+                  #      "image lookup", to find what actually called
+                  #      _Unwind_GetIP even if "bt" produces nothing.
+                  # (AR) حاسم: "-o" العادية لا تُنفَّذ هنا على الإطلاق بعد
+                  #      "run" — في "batch mode" (-b)، إذا توقفت العملية لسبب
+                  #      غير متوقع (crash/signal لا breakpoint مقصود)، يطبع
+                  #      lldb معلومات التوقف تلقائياً ثم يُنهي الجلسة فوراً،
+                  #      متجاوزاً كل أوامر "-o" المتبقية تماماً (هذا ما فسّر
+                  #      غياب أي ناتج لـ"bt all"/"register read"/"image lookup"
+                  #      في تشغيل سابق رغم نجاح إصلاح errexit). الحل: استخدام
+                  #      "-k"/"--one-line-on-crash" بدلاً من "-o" — هذه الأوامر
+                  #      مصمَّمة خصيصاً للتنفيذ "عند" حدوث crash، فتُنفَّذ هي
+                  #      بدلاً من الإنهاء التلقائي.
+                  # (EN) Critical: plain "-o" commands never run here at all
+                  #      after "run" — in batch mode (-b), if the process
+                  #      stops for an unexpected reason (crash/signal, not a
+                  #      deliberate breakpoint), lldb prints the stop info
+                  #      automatically and then quits immediately, skipping
+                  #      every remaining "-o" command entirely (this is what
+                  #      explained the total absence of "bt all"/"register
+                  #      read"/"image lookup" output in the previous run,
+                  #      despite the errexit fix succeeding). Fix: use
+                  #      "-k"/"--one-line-on-crash" instead of "-o" — these
+                  #      commands are specifically designed to run "on" a
+                  #      crash, so they execute instead of the automatic quit.
+                  lldb -b \
+                    -o run \
+                    -k "bt all" \
+                    -k "register read pc lr fp sp" \
+                    -k "image lookup -a \$lr -v" \
+                    -k "image lookup -a \$pc -v" \
+                    -k "memory read --size 8 --count 16 -f x \$sp" \
+                    -o quit \
+                    -- "$exe" 2>&1 | tail -150
+                fi
+              fi
+            else
+              echo "❌ MISSING: $exe"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ $failed -gt 0 ]; then
+            echo "::error::$failed core test suite(s) failed or missing"
+            exit 1
+          fi
+
+      - name: "🧪 اختبارات المفسر / Interpreter & StdLib Tests"
+        run: |
+          failed=0
+          for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
+            exe="build/bin/$test"
+            if [ -x "$exe" ]; then
+              echo "▶️ Running $test..."
+              "$exe" || failed=$((failed + 1))
+            else
+              echo "❌ MISSING: $exe"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ $failed -gt 0 ]; then
+            echo "::error::$failed interpreter test(s) failed"
+            exit 1
+          fi
+
+      - name: "🧪 اختبارات المترجم / Compiler & VM Tests"
+        run: |
+          for test in test_vm_compiler_comprehensive test_compiler_comprehensive; do
+            exe="build/bin/$test"
+            if [ -x "$exe" ]; then
+              echo "▶️ Running $test..."
+              "$exe" || true
+            else
+              echo "⚠️ SKIP: $test not built"
+            fi
+          done
+
+      - name: "🧪 اختبارات Regression / Regression Tests"
+        run: |
+          sad="build/bin/sad-run"
+          if [ -x "$sad" ]; then
+            if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
+              chmod +x tests/behavior/_regression/run_regression_tests.sh
+              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
+            else
+              echo "⚠️ SKIP: Regression test runner not found"
+            fi
+          else
+            echo "❌ MISSING: sad-run not built"
+            exit 1
+          fi
+
+      - name: "🧪 CTest"
+        run: |
+          cd build
+          # (AR) macOS كلينكس: مولّد أحاديّ التهيئة، لا يقبل ctest --config هنا.
+          # (EN) Single-config generator like Linux; ctest rejects --config here.
+          ctest --output-on-failure --timeout 120 -j4
+
+      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+        if: matrix.config == 'Release'
+        run: |
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ -x "$sad" ] && [ -x "$sadc" ]; then
+            echo "▶️ Running dual execution tests..."
+            python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
+              echo "⚠️ Dual execution tests had failures"
+          else
+            echo "⚠️ SKIP: sad or sadc not found"
+          fi
+
+      - name: "💾 حفظ الملفات / Upload Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sad-macos-${{ matrix.config }}
+          path: build/bin/
+          retention-days: 7
+
+  # ======================================================================
   # 5. تقرير الاختبارات / Test Report
   # ======================================================================
   test-report:
     name: "📊 تقرير الاختبارات / Test Report"
     runs-on: ubuntu-latest
-    needs: [windows, linux]
+    needs: [windows, linux, macos]
     if: always()
 
     steps:
@@ -623,10 +839,12 @@ jobs:
           echo "╠════════════════════════════════════════════════════╣"
           echo "║  🪟 Windows: ${{ needs.windows.result }}"
           echo "║  🐧 Linux:   ${{ needs.linux.result }}"
+          echo "║  🍎 macOS:   ${{ needs.macos.result }}"
           echo "╚════════════════════════════════════════════════════╝"
 
           if [ "${{ needs.windows.result }}" = "failure" ] || \
-             [ "${{ needs.linux.result }}" = "failure" ]; then
+             [ "${{ needs.linux.result }}" = "failure" ] || \
+             [ "${{ needs.macos.result }}" = "failure" ]; then
             echo ""
             echo "::error::❌ فشلت الاختبارات على منصة واحدة أو أكثر!"
           fi
@@ -637,7 +855,7 @@ jobs:
   all-tests-pass:
     name: "✅ جميع الاختبارات / All Tests Pass"
     runs-on: ubuntu-latest
-    needs: [windows, linux]
+    needs: [windows, linux, macos]
     if: always()
 
     steps:
@@ -645,14 +863,16 @@ jobs:
         run: |
           echo "Windows: ${{ needs.windows.result }}"
           echo "Linux:   ${{ needs.linux.result }}"
+          echo "macOS:   ${{ needs.macos.result }}"
           echo ""
 
           if [ "${{ needs.windows.result }}" != "success" ] || \
-             [ "${{ needs.linux.result }}" != "success" ]; then
+             [ "${{ needs.linux.result }}" != "success" ] || \
+             [ "${{ needs.macos.result }}" != "success" ]; then
             echo "❌ فشلت بعض الاختبارات! لا يمكن دمج الكود."
             echo "❌ Some tests failed! Code cannot be merged."
             exit 1
           fi
 
-          echo "✅ جميع الاختبارات نجحت على المنصّتين (Windows + Linux)!"
-          echo "✅ All tests passed on both platforms (Windows + Linux)!"
+          echo "✅ جميع الاختبارات نجحت على الثلاث منصّات (Windows + Linux + macOS)!"
+          echo "✅ All tests passed on all three platforms (Windows + Linux + macOS)!"

@@ -17,10 +17,12 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace Sad
@@ -53,6 +55,18 @@ namespace Sad
                     {"chrome", R"(C:\Program Files\Google\Chrome\Application\chrome.exe)"},
                     {"chrome", R"(C:\Program Files (x86)\Google\Chrome\Application\chrome.exe)"},
                     {"wkhtmltopdf", R"(C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe)"},
+                };
+#elif defined(__APPLE__)
+                // (AR) على macOS التطبيقات حزم .app — المسار التنفيذي الفعلي تحت
+                //      Contents/MacOS/، وليس /usr/bin/ كما في لينكس.
+                // (EN) On macOS apps are .app bundles — the real executable lives
+                //      under Contents/MacOS/, unlike Linux's /usr/bin/.
+                std::vector<std::pair<std::string, std::string>> candidates = {
+                    {"chrome", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},
+                    {"edge", "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"},
+                    {"chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium"},
+                    {"wkhtmltopdf", "/opt/homebrew/bin/wkhtmltopdf"},
+                    {"wkhtmltopdf", "/usr/local/bin/wkhtmltopdf"},
                 };
 #else
                 std::vector<std::pair<std::string, std::string>> candidates = {
@@ -149,6 +163,31 @@ namespace Sad
                 {
                     errorMsg = "(AR) لم يُنشأ ملف PDF رغم نجاح الأمر.";
                     return false;
+                }
+
+                // (AR) Chrome/Edge headless تُعيد رمز الخروج فور انتهاء العملية
+                //      الأساسية، لكن قد تُكمل بعض إصداراتها تدفّق الكتابة
+                //      النهائية لملف PDF من عملية/خيط داخلي تابع للحظات قصيرة
+                //      بعد ذلك — خاصة تحت ضغط I/O/CPU (اختبارات متوازية).
+                //      فحص استقرار الحجم (يتطابق مرتين متتاليتين بفاصل قصير)
+                //      يضمن اكتمال الكتابة فعلياً قبل أن يستخدمه المستدعي.
+                // (EN) Chrome/Edge headless return as soon as the main process
+                //      exits, but some versions finish flushing the PDF's
+                //      final write from a short-lived child/thread a moment
+                //      later — especially under I/O/CPU pressure (parallel
+                //      tests). Polling for a stable size (matches twice in a
+                //      row) ensures the write is truly complete before the
+                //      caller reads it.
+                auto stableSize = std::filesystem::file_size(absPdf, ec);
+                for (int attempt = 0; !ec && attempt < 20; ++attempt)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    auto nextSize = std::filesystem::file_size(absPdf, ec);
+                    if (ec)
+                        break;
+                    if (nextSize == stableSize && nextSize > 0)
+                        break;
+                    stableSize = nextSize;
                 }
                 return true;
             }

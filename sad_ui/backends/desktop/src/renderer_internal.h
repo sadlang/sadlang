@@ -17,9 +17,7 @@
 
 #ifdef SAD_UI_USE_SDL2
 #include <SDL.h>
-#ifdef SAD_UI_HAS_SDL_TTF
-#include <SDL_ttf.h>
-#endif
+// SDL_ttf.h يأتي من renderer.h (يُحدِّد فيه TTF_Font الحقيقي)
 #endif
 
 #include <cmath>

@@ -165,5 +165,5 @@ if [ $failed -eq 0 ]; then
 else
     rate=$(echo "scale=1; $passed * 100 / $total" | bc 2>/dev/null || echo "?")
     echo -e "${RED}${BOLD}  ❌ نسبة النجاح: ${rate}%${RESET}"
-    exit 0
+    exit 1
 fi

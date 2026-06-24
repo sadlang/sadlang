@@ -173,18 +173,54 @@ namespace sad
         {
             TargetTriple result;
 
+            // (AR) كشف المعمارية الفعلية للمضيف بدل افتراض x86_64 دائماً —
+            //      كان هذا hardcoded سابقاً لكل من Linux/macOS/Windows، فيُنتج
+            //      "x86_64-apple-macos" حتى على Apple Silicon (arm64) فعلياً.
+            //      هذا يُمرَّر مباشرة إلى LLVMCodeGen::initialize() (انظر
+            //      compiler_driver_backend.cpp) فيُولِّد ملف .o بصيغة x86_64
+            //      على جهاز arm64، فيفشل الربط لاحقاً بخطأ "_main" غير موجود
+            //      (الـlinker على arm64 يرفض رموز .o بمعمارية مختلفة تماماً).
+            //      لم يظهر هذا الخلل سابقاً لأن كل بيئات CI/التطوير كانت
+            //      x86_64 بالفعل، فالقيمة الثابتة الخاطئة تطابقت صدفةً مع
+            //      الواقع — أول تشغيل فعلي على macOS arm64 (Apple Silicon
+            //      CI runner) كشف الخلل.
+            // (EN) Detect the host's actual architecture instead of always
+            //      assuming x86_64 — this was hardcoded for Linux/macOS/
+            //      Windows alike, producing "x86_64-apple-macos" even on
+            //      Apple Silicon (arm64) hosts. This string is passed
+            //      directly into LLVMCodeGen::initialize() (see
+            //      compiler_driver_backend.cpp), generating an x86_64-shaped
+            //      .o file on an arm64 machine, which then fails to link
+            //      with an "_main not found" error (the arm64 linker
+            //      rejects .o symbols built for a different architecture).
+            //      This went unnoticed because every CI/dev environment so
+            //      far was actually x86_64, so the wrong constant happened
+            //      to match reality — the first real run on macOS arm64
+            //      (an Apple Silicon CI runner) exposed the bug.
 #if defined(_WIN32) || defined(_WIN64)
+#if defined(_M_ARM64) || defined(_M_ARM64EC)
+            result.architecture = "aarch64";
+#else
             result.architecture = "x86_64";
+#endif
             result.vendor = "pc";
             result.os = "windows";
             result.environment = "msvc";
 #elif defined(__linux__)
+#if defined(__aarch64__)
+            result.architecture = "aarch64";
+#else
             result.architecture = "x86_64";
+#endif
             result.vendor = "pc";
             result.os = "linux";
             result.environment = "gnu";
 #elif defined(__APPLE__)
+#if defined(__aarch64__) || defined(__arm64__)
+            result.architecture = "arm64";
+#else
             result.architecture = "x86_64";
+#endif
             result.vendor = "apple";
             result.os = "macos";
             result.environment = "";

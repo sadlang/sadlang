@@ -296,9 +296,29 @@ namespace Sad
                                                             {llvm::ConstantInt::get(i64Ty, 32)}, "mget.sprintf.buf");
 
                     // (AR) استدعاء sprintf لتحويل الرقم لنص
+                    //      توقيع sprintf الحقيقي له معاملان ثابتان فقط (str, format) — كل
+                    //      ما بعدهما vararg. إضافة i64Ty كمعامل "ثابت" ثالث هنا كانت تجعل
+                    //      LLVM يُمرِّر valI64 على أنه fixed argument بدل أول vararg حقيقي.
+                    //      هذا غير ضار على System V AMD64 (x86_64) لأن fixed/vararg الأولى
+                    //      تُمرَّر بنفس الطريقة عبر registers — لكنه خاطئ على ABI الصارم
+                    //      لـApple AArch64 الذي يتطلب تمرير كل معاملات vararg الحقيقية عبر
+                    //      stack فقط، فيقرأ sprintf الحقيقي (المُصرَّف بتوقيعه الصحيح ثنائي
+                    //      المعامل) قيمة عشوائية من stack بدل valI64 من السجل x2 — وهذا
+                    //      السبب الجذري لفشل تحويل الأرقام داخل الخرائط على macOS/arm64.
+                    // (EN) sprintf's real signature has only 2 fixed params (str, format)
+                    //      — everything else is vararg. Declaring i64Ty as a third "fixed"
+                    //      param made LLVM pass valI64 as a fixed argument instead of the
+                    //      first real vararg. Harmless on System V AMD64 (x86_64), since
+                    //      fixed and early vararg args are passed identically via
+                    //      registers — but wrong on Apple's strict AArch64 ABI, which
+                    //      requires all real vararg arguments to go through the stack:
+                    //      the real sprintf (compiled against its true 2-param signature)
+                    //      then reads garbage off the stack instead of valI64 from x2 —
+                    //      the root cause of corrupted integer-to-string map values on
+                    //      macOS/arm64.
                     auto *sprintfType = llvm::FunctionType::get(
                         llvm::Type::getInt32Ty(*cg_.context_),
-                        {ptrTy, ptrTy, i64Ty}, true);
+                        {ptrTy, ptrTy}, true);
                     auto sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfType);
                     llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr("%lld", "mget.fmt.lld");
                     cg_.builder_->CreateCall(sprintfFn, {buf, fmtStr, valI64});

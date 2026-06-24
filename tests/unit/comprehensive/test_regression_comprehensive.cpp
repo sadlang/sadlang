@@ -28,18 +28,18 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include <array>
 #include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <chrono>
 
 #ifdef _WIN32
-#define popen _popen
-#define pclose _pclose
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
 #endif
 
 // ══════════════════════════════════════════════════════════════════════
@@ -141,7 +141,7 @@ static const std::vector<RegressionTest> REGRESSION_TESTS = {
  * @brief (AR) تشغيل أمر خارجي والتقاط المخرجات — يدعم UTF-8/Unicode بالكامل
  * @brief (EN) Execute an external command and capture stdout — full Unicode support via CreateProcessW
  */
-static std::pair<std::string, int> executeCommand(const std::string &cmd, int timeout_seconds)
+static std::pair<std::string, int> executeCommand(const std::string &exe_path, const std::string &arg, int timeout_seconds)
 {
     std::string output;
 
@@ -158,8 +158,10 @@ static std::pair<std::string, int> executeCommand(const std::string &cmd, int ti
     }
     SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
 
-    // ── بناء سطر الأمر بـ UTF-16 ──
-    std::wstring wcmd = utf8_to_wide("cmd /c \"" + cmd + " 2>&1\"");
+    // ── بناء سطر الأمر بـ UTF-16 — تنفيذ exe_path مباشرة بدون أي قشرة
+    //    وسيطة (لا "cmd /c") لمطابقة فلسفة CTest's add_test(COMMAND ...)
+    //    الذي ينفّذ sad-run مباشرة عبر execve بدون أي تفسير shell للنص.
+    std::wstring wcmd = utf8_to_wide("\"" + exe_path + "\" \"" + arg + "\"");
 
     STARTUPINFOW si{};
     si.cb = sizeof(si);
@@ -218,32 +220,126 @@ static std::pair<std::string, int> executeCommand(const std::string &cmd, int ti
     return {output, static_cast<int>(exitCode)};
 
 #else
-    // على Linux/macOS نستخدم timeout + popen
-    std::string full_cmd = "timeout " + std::to_string(timeout_seconds) + " " + cmd + " 2>&1";
+    // (AR) fork+exec مباشر (بدون أي قشرة shell وسيطة) + مهلة حقيقية مُطبَّقة
+    //      هنا يدوياً. كانت popen() تبني الأمر كـ"timeout N <cmd> 2>&1" ثم
+    //      تُنفّذه عبر "/bin/sh -c" — وهذا فشل بالكامل (32/32) على CI
+    //      macOS (arm64) فقط، بينما نجح محلياً (x86_64) بنفس الكود بالضبط،
+    //      ونجحت نفس برامج .ص حين سجّلها CMake كاختبارات CTest مستقلة
+    //      (Regression_test_p01_... إلخ) تُنفَّذ sad-run مباشرة بلا أي
+    //      قشرة وسيطة (انظر cmake/tests_comprehensive.cmake). بما أن
+    //      "تجاوز مهلة" كان 0 دائماً (لا 32) في تقرير الفشل، فالسبب لم
+    //      يكن "timeout" تحديداً، بل القشرة الوسيطة (/bin/sh -c) نفسها —
+    //      على الأقل على Darwin/arm64. الحل الجذري الكامل: إزالة أي قشرة
+    //      وسيطة بالكامل (لا sh، لا timeout) وتنفيذ exe_path مباشرة عبر
+    //      execl، مطابقاً تماماً فلسفة add_test(COMMAND ...) الناجحة في
+    //      CMake، مع تطبيق المهلة والقتل يدوياً (kill+waitpid) كما يفعل
+    //      فرع Windows أعلاه عبر CreateProcessW+TerminateProcess.
+    // (EN) Direct fork+exec (no intermediary shell at all) + a manually
+    //      implemented real timeout. popen() used to build
+    //      "timeout N <cmd> 2>&1" and run it via "/bin/sh -c" — this failed
+    //      completely (32/32) on macOS CI (arm64) only, while the exact
+    //      same code succeeded locally (x86_64), and the same .ص programs
+    //      succeeded when CMake registered them as standalone CTest tests
+    //      (Regression_test_p01_... etc.) that exec sad-run directly with
+    //      no intermediary shell (see cmake/tests_comprehensive.cmake).
+    //      Since "timed out" was always 0 (not 32) in the failure report,
+    //      the cause wasn't "timeout" specifically, but the intermediary
+    //      shell (/bin/sh -c) itself — at least on Darwin/arm64. Full
+    //      root-cause fix: remove every intermediary shell entirely (no
+    //      sh, no timeout) and exec exe_path directly, exactly mirroring
+    //      the successful add_test(COMMAND ...) philosophy in CMake, with
+    //      the timeout/kill implemented manually (kill+waitpid) just like
+    //      the Windows branch above does via CreateProcessW+TerminateProcess.
+    int pipefd[2];
+    if (pipe(pipefd) != 0)
+    {
+        return {"ERROR: pipe() failed", -1};
+    }
+
+    pid_t child = fork();
+    if (child < 0)
+    {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return {"ERROR: fork() failed", -1};
+    }
+
+    if (child == 0)
+    {
+        // ── العملية الفرعية: وجّه stdout/stderr للأنبوب ثم نفّذ exe_path
+        //    مباشرة (execl بلا /bin/sh) ──
+        // setpgid(0,0) يضع هذه العملية في مجموعة عمليات جديدة خاصة بها
+        // (معرّفها = PID الخاص بها) — لازم لقتل المهلة أدناه عبر معرّف
+        // مجموعة سالب (kill(-child,...)) ليشمل أي عملية فرعية حقيقية قد
+        // يُنشئها sad-run نفسه، لا فقط sad-run وحدها.
+        close(pipefd[0]);
+        setpgid(0, 0);
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(pipefd[1], STDERR_FILENO);
+        close(pipefd[1]);
+        execl(exe_path.c_str(), exe_path.c_str(), arg.c_str(), nullptr);
+        _exit(127); // execl فشل (exe_path غير موجود أو غير قابل للتنفيذ)
+    }
+
+    // ── العملية الأم ──
+    close(pipefd[1]);
+    fcntl(pipefd[0], F_SETFL, fcntl(pipefd[0], F_GETFL, 0) | O_NONBLOCK);
 
     auto start = std::chrono::steady_clock::now();
-    FILE *pipe = popen(full_cmd.c_str(), "r");
-    if (!pipe)
-    {
-        return {"ERROR: Failed to open pipe", -1};
-    }
+    bool timed_out = false;
+    int status = 0;
+    char buffer[4096];
 
-    std::array<char, 4096> buffer;
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr)
+    while (true)
     {
-        output += buffer.data();
-
+        // تحقق من المهلة أولاً في كل تكرار (بغض النظر عن معدّل الإخراج) —
+        // مطابق لترتيب فرع Windows أعلاه
         auto elapsed = std::chrono::steady_clock::now() - start;
-        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
-        if (seconds > timeout_seconds)
+        if (std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() > timeout_seconds)
         {
-            pclose(pipe);
-            return {"TIMEOUT: exceeded " + std::to_string(timeout_seconds) + "s", 124};
+            timed_out = true;
+            kill(-child, SIGKILL); // قتل مجموعة العمليات كاملة (انظر setpgid أعلاه)
+            waitpid(child, &status, 0);
+            break;
         }
+
+        ssize_t n = read(pipefd[0], buffer, sizeof(buffer));
+        if (n > 0)
+        {
+            output.append(buffer, static_cast<size_t>(n));
+            continue; // أعد المحاولة فوراً — قد توجد بيانات أكثر بانتظار
+        }
+        if (n == 0)
+        {
+            // EOF: العملية الفرعية أغلقت طرف الكتابة — هذا قد يسبق لحظة
+            // تصبح فيها حالتها قابلة للجمع عبر waitpid (zombie) بفسحة سباق
+            // صغيرة، فالاستدعاء هنا يجب أن يكون محظوراً (لا WNOHANG) لضمان
+            // الحصول على status الحقيقي بدل تركه = 0 الابتدائية خطأً
+            waitpid(child, &status, 0);
+            break;
+        }
+
+        // n < 0: لا بيانات جاهزة الآن (EAGAIN) أو خطأ — تحقق من انتهاء
+        // العملية، ثم انتظر قليلاً قبل إعادة المحاولة
+        pid_t r = waitpid(child, &status, WNOHANG);
+        if (r == child)
+        {
+            while ((n = read(pipefd[0], buffer, sizeof(buffer))) > 0)
+                output.append(buffer, static_cast<size_t>(n));
+            break;
+        }
+
+        usleep(10000); // 10ms — تجنّب لفّ الحلقة بصورة محمومة أثناء الانتظار
     }
 
-    int status = pclose(pipe);
-    int exit_code = WEXITSTATUS(status);
+    close(pipefd[0]);
+
+    if (timed_out)
+    {
+        return {output + "\nTIMEOUT: exceeded " + std::to_string(timeout_seconds) + "s", 124};
+    }
+
+    int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : (128 + WTERMSIG(status));
     return {output, exit_code};
 #endif
 }
@@ -408,9 +504,7 @@ int main()
 
         SAD_TEST(test_name.c_str(), {
             std::string filepath = regression_dir + "/" + test.filename;
-            std::string cmd = "\"" + sad_exe + "\" \"" + filepath + "\"";
-
-            auto [output, exit_code] = executeCommand(cmd, test.timeout_seconds);
+            auto [output, exit_code] = executeCommand(sad_exe, filepath, test.timeout_seconds);
             auto [passes, fails] = countPassFail(output);
 
             if (exit_code == 124)
@@ -425,7 +519,10 @@ int main()
                 }
                 else
                 {
-                    SAD_ASSERT_TRUE(false); // تجاوز غير متوقع
+                    std::string msg = "تجاوز مهلة غير متوقع: " + test.filename +
+                                      " (exit_code=" + std::to_string(exit_code) + ")" +
+                                      "\nOutput:\n" + output.substr(0, 500);
+                    throw std::runtime_error(msg);
                 }
             }
             else if (fails > 0 || exit_code != 0)
@@ -440,10 +537,11 @@ int main()
                 {
                     total_unexpected_fail++;
                     std::string msg = "فشل غير متوقع: " + test.filename +
+                                      " (exit_code=" + std::to_string(exit_code) + ")" +
                                       "\nPASS=" + std::to_string(passes) +
                                       " FAIL=" + std::to_string(fails) +
                                       "\nOutput:\n" + output.substr(0, 500);
-                    SAD_ASSERT_TRUE(false);
+                    throw std::runtime_error(msg);
                 }
             }
             else
@@ -474,9 +572,7 @@ int main()
 
         SAD_TEST(test_name.c_str(), {
             std::string filepath = regression_dir + "/" + test.filename;
-            std::string cmd = "\"" + sad_exe + "\" \"" + filepath + "\"";
-
-            auto [output, exit_code] = executeCommand(cmd, test.timeout_seconds);
+            auto [output, exit_code] = executeCommand(sad_exe, filepath, test.timeout_seconds);
             auto [passes, fails] = countPassFail(output);
 
             if (exit_code == 124)
@@ -488,7 +584,10 @@ int main()
                 }
                 else
                 {
-                    SAD_ASSERT_TRUE(false);
+                    std::string msg = "تجاوز مهلة غير متوقع: " + test.filename +
+                                      " (exit_code=" + std::to_string(exit_code) + ")" +
+                                      "\nOutput:\n" + output.substr(0, 500);
+                    throw std::runtime_error(msg);
                 }
             }
             else if (fails > 0 || exit_code != 0)
@@ -500,7 +599,12 @@ int main()
                 else
                 {
                     total_unexpected_fail++;
-                    SAD_ASSERT_TRUE(false);
+                    std::string msg = "فشل غير متوقع: " + test.filename +
+                                      " (exit_code=" + std::to_string(exit_code) + ")" +
+                                      "\nPASS=" + std::to_string(passes) +
+                                      " FAIL=" + std::to_string(fails) +
+                                      "\nOutput:\n" + output.substr(0, 500);
+                    throw std::runtime_error(msg);
                 }
             }
             else
@@ -527,9 +631,7 @@ int main()
 
         SAD_TEST(test_name.c_str(), {
             std::string filepath = regression_dir + "/" + test.filename;
-            std::string cmd = "\"" + sad_exe + "\" \"" + filepath + "\"";
-
-            auto [output, exit_code] = executeCommand(cmd, test.timeout_seconds);
+            auto [output, exit_code] = executeCommand(sad_exe, filepath, test.timeout_seconds);
             auto [passes, fails] = countPassFail(output);
 
             if (exit_code == 124)
@@ -541,7 +643,10 @@ int main()
                 }
                 else
                 {
-                    SAD_ASSERT_TRUE(false);
+                    std::string msg = "تجاوز مهلة غير متوقع: " + test.filename +
+                                      " (exit_code=" + std::to_string(exit_code) + ")" +
+                                      "\nOutput:\n" + output.substr(0, 500);
+                    throw std::runtime_error(msg);
                 }
             }
             else if (fails > 0 || exit_code != 0)
@@ -553,7 +658,12 @@ int main()
                 else
                 {
                     total_unexpected_fail++;
-                    SAD_ASSERT_TRUE(false);
+                    std::string msg = "فشل غير متوقع: " + test.filename +
+                                      " (exit_code=" + std::to_string(exit_code) + ")" +
+                                      "\nPASS=" + std::to_string(passes) +
+                                      " FAIL=" + std::to_string(fails) +
+                                      "\nOutput:\n" + output.substr(0, 500);
+                    throw std::runtime_error(msg);
                 }
             }
             else

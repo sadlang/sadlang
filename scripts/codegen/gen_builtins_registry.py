@@ -571,6 +571,10 @@ HEADER_TEMPLATE = """\
 #ifdef RELATIVE
 #undef RELATIVE
 #endif
+// (EN) macOS/BSD <sys/wait.h> defines WAIT_ANY as a macro (-1).
+#ifdef WAIT_ANY
+#undef WAIT_ANY
+#endif
 
 namespace Sad
 {{
