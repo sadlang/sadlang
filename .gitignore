@@ -9,6 +9,10 @@ build_new/
 build_cov/
 out/
 cmake-build-*/
+# (AR) مخرجات منسّق البناء x.py (المرحلة 0 — sadlang-rfcs#10)
+# (EN) x.py build-orchestrator outputs (Phase 0 — sadlang-rfcs#10)
+dist/
+_xpy_build.log
 
 # ── ملفات مُجمَّعة / Compiled files ──
 *.exe

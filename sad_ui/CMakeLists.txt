@@ -262,8 +262,14 @@ if(SAD_UI_ENABLE_SDL2)
             target_compile_definitions(sad_ui PUBLIC SAD_UI_USE_SDL2)
             
             # نسخ SDL2.dll إلى مجلد الإخراج تلقائياً
+            # (AR) ننشئ مجلد الإخراج أولاً: عند بناء sad_ui (مكتبة) منفردًا قبل
+            #      ربط أيّ تنفيذيّ، لا يكون bin/$<CONFIG>/ موجودًا بعد فيفشل النسخ.
+            # (EN) Create the output dir first: when sad_ui (a lib) is built before
+            #      any executable links, bin/$<CONFIG>/ may not exist yet and the copy fails.
             if(EXISTS "${SDL2_BUNDLED_DLL}")
                 add_custom_command(TARGET sad_ui POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/"
                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${SDL2_BUNDLED_DLL}"
                     "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/"
@@ -288,9 +294,11 @@ if(SAD_UI_ENABLE_SDL2)
                 target_link_libraries(sad_ui PUBLIC ${SDL2_TTF_BUNDLED_LIB})
                 target_compile_definitions(sad_ui PUBLIC SAD_UI_HAS_SDL_TTF)
                 
-                # نسخ SDL2_ttf.dll
+                # نسخ SDL2_ttf.dll (ننشئ مجلد الإخراج أولاً — انظر ملاحظة SDL2.dll أعلاه)
                 if(EXISTS "${SDL2_TTF_BUNDLED_DLL}")
                     add_custom_command(TARGET sad_ui POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E make_directory
+                        "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/"
                         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                         "${SDL2_TTF_BUNDLED_DLL}"
                         "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/"
