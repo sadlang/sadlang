@@ -20,6 +20,8 @@
 # الاستخدام / Usage:
 #   python x.py build --config Debug,Release   # بناء الهدفين معًا لكل تهيئة
 #   python x.py verify --config Debug          # تحقّق من تطابق dist والبصمات
+#   python x.py gen                            # توليد المصدر من language-truth/ (YAML)
+#   python x.py gen --check                    # حارس انجراف: يفشل إن انحرف المولَّد (CI)
 #   python x.py test --config Debug -- --level P0   # بناء (إن لزم) ثم runner
 #   python x.py conformance                    # فاحص مطابقة القواعد القائم
 #   python x.py clean                          # حذف build/ و dist/
@@ -30,10 +32,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -62,6 +66,80 @@ ENGINES = {
 EXE = ".exe" if platform.system() == "Windows" else ""
 VALID_CONFIGS = ("Debug", "Release", "RelWithDebInfo", "MinSizeRel")
 
+# ──────────────────────────────────────────────────────────────────────
+# (AR) نطاقات التوليد من مصدر الحقيقة — المرحلة 1 من sadlang-rfcs#10
+#      language-truth/*.yaml هو **مصدر الحقيقة الوحيد**؛ الملفّات المولَّدة
+#      أدناه مشتقّات خالصة تبقى متعقَّبة في git (نمط Go `go generate`)، و
+#      `x.py gen --check` حارس انجراف يفشل إن لم تَعُد مطابقةً لِما يولّده YAML.
+#
+#      تعريف واحد يطابق نطاقات هدف CMake `sad_all_codegen` (cmake/codegen.cmake):
+#      types / keywords / builtins / error_messages. النطاقات الأربعة **مستقلّة**
+#      (أشقّاء بلا اعتماد متبادل) فيُستدعى مولّد كلٍّ مباشرةً — لا حاجة إلى
+#      تهيئة CMake الثقيلة لبوّابة فحصٍ يجب أن تكون خفيفة. السلوك (write_if_changed)
+#      يفرض أسطر LF فالمقارنة بالبايت آمنة عبر المنصّات.
+# (EN) Source-of-truth codegen domains — Phase 1 of sadlang-rfcs#10. The YAML in
+#      language-truth/ is the SINGLE source of truth; the generated files stay
+#      tracked in git (Go `go generate` pattern) and `x.py gen --check` is the
+#      drift guard. ONE definition mirroring CMake's `sad_all_codegen` aggregate.
+#      The 4 domains are independent siblings, so each generator is invoked
+#      directly — no heavy CMake configure for a check that must stay light.
+#
+# (AR) كلّ نطاق: مولّده، مجلّد الإخراج في الشجرة، ملفّاته المولَّدة، ودالة تبني
+#      وسائط CLI بدلالة مجلّد الإخراج (شجرة المصدر لـ`gen`، مجلّد مؤقّت لـ`--check`).
+CODEGEN_DOMAINS = (
+    {
+        "name": "types",
+        "script": "gen_types.py",
+        "out_dir": "shared/types/generated",
+        "outputs": ("sad_type_kind_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/types.yaml",
+            "--schema", "language-truth/_schemas/type.schema.json",
+            "--header", f"{d}/sad_type_kind_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        "name": "keywords",
+        "script": "gen_keywords.py",
+        "out_dir": "shared/lexer/generated",
+        "outputs": ("keywords_generated.h", "keywords_generated.cpp"),
+        "args": lambda d: [
+            "--yaml", "language-truth/keywords.yaml",
+            "--schema", "language-truth/_schemas/keywords.schema.json",
+            "--header", f"{d}/keywords_generated.h",
+            "--source", f"{d}/keywords_generated.cpp",
+            "--quiet",
+        ],
+    },
+    {
+        "name": "builtins",
+        "script": "gen_builtins_registry.py",
+        "out_dir": "shared/builtins/generated",
+        "outputs": ("builtin_registry_generated.h",),
+        "args": lambda d: [
+            "--yaml-dir", "language-truth/builtins",
+            "--index", "language-truth/builtins/_index.yaml",
+            "--out-h", f"{d}/builtin_registry_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        "name": "error_messages",
+        "script": "gen_error_messages.py",
+        "out_dir": "shared/errors/generated",
+        "outputs": ("error_messages_generated.h", "error_messages_generated.cpp"),
+        "args": lambda d: [
+            "--yaml-dir", "language-truth/errors",
+            "--schema", "language-truth/_schemas/error.schema.json",
+            "--enum-header", "shared/errors/include/error_codes.h",
+            "--header", f"{d}/error_messages_generated.h",
+            "--source", f"{d}/error_messages_generated.cpp",
+            "--quiet",
+        ],
+    },
+)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # أدوات مساعدة / Helpers
@@ -81,6 +159,15 @@ def _run(cmd: list[str]) -> None:
     result = subprocess.run(cmd, cwd=ROOT)
     if result.returncode != 0:
         _fail(f"الأمر فشل برمز {result.returncode}: {' '.join(map(str, cmd))}")
+
+
+def _norm(b: bytes) -> bytes:
+    """(AR) يطبّع نهايات الأسطر للمقارنة: git يعامل الملفّات المولَّدة text eol=lf
+        فيُطبّعها على القرص، وحارس الانجراف يقارن **المحتوى** لا سياسة الأسطر — كي
+        لا يُسبّب مولّدٌ يكتب CRLF على ويندوز انحرافًا كاذبًا.
+    (EN) Normalize EOLs for comparison: the drift guard compares content, not EOL
+        policy (git treats the generated files as text eol=lf)."""
+    return b.replace(b"\r\n", b"\n")
 
 
 def _sha256(path: Path) -> str:
@@ -289,6 +376,76 @@ def cmd_conformance(args: argparse.Namespace) -> None:
     sys.exit(result.returncode)
 
 
+def _run_generator(domain: dict, out_dir: Path) -> None:
+    """(AR) يستدعي مولّد النطاق كاتبًا مخرجاته إلى out_dir.
+    (EN) Invoke a domain's generator, writing its outputs into out_dir."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    script = ROOT / "scripts" / "codegen" / domain["script"]
+    if not script.exists():
+        _fail(f"مولِّد مفقود / generator missing: {script}")
+    cmd = [sys.executable, str(script), *domain["args"](out_dir.as_posix())]
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    _log("» " + " ".join(cmd))
+    result = subprocess.run(cmd, cwd=ROOT, env=env)
+    if result.returncode != 0:
+        _fail(f"فشل توليد النطاق / codegen failed for domain: {domain['name']}")
+
+
+def _gen_check() -> None:
+    """(AR) حارس الانجراف (G-codegen): يعيد التوليد إلى مجلّد مؤقّت ويقارنه
+        بالملفّات المتعقَّبة دون لمس الشجرة. يفشل عند أيّ انحراف أو ملفّ مفقود.
+    (EN) Drift guard: regenerate into a temp dir and compare against the tracked
+        files WITHOUT mutating the tree. Fails on any drift or missing file."""
+    drift: list[tuple[str, str]] = []
+    with tempfile.TemporaryDirectory(prefix="sad_gen_check_") as tmp:
+        tmp_root = Path(tmp)
+        for domain in CODEGEN_DOMAINS:
+            tmp_dir = tmp_root / domain["name"]
+            _run_generator(domain, tmp_dir)
+            for fname in domain["outputs"]:
+                rel = f"{domain['out_dir']}/{fname}"
+                fresh = tmp_dir / fname
+                tracked = ROOT / domain["out_dir"] / fname
+                if not fresh.exists():
+                    _fail(f"المولِّد لم يُنتج / generator did not produce: {rel}")
+                if not tracked.exists():
+                    drift.append((rel, "مفقود في المستودع / missing in repo"))
+                elif _norm(tracked.read_bytes()) != _norm(fresh.read_bytes()):
+                    drift.append((rel, "منحرف عن YAML / drifted from YAML"))
+
+    if drift:
+        print("", file=sys.stderr)
+        print("❌ المصدر المولَّد منحرف عن language-truth/ (مصدر الحقيقة):",
+              file=sys.stderr)
+        print("❌ Generated sources drifted from language-truth/ (source of truth):",
+              file=sys.stderr)
+        for rel, why in drift:
+            print(f"     • {rel}  — {why}", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("   الإصلاح / fix:  python x.py gen   ثم التزِم الناتج / then commit the result.",
+              file=sys.stderr)
+        _fail("انحراف المصدر المولَّد / generated-source drift detected.")
+
+    _log("✓ المصدر المولَّد متزامن تمامًا مع language-truth/ "
+         "/ generated sources are in sync with the YAML SoT.")
+
+
+def cmd_gen(args: argparse.Namespace) -> None:
+    """(AR) يولّد المصدر من language-truth/ (YAML مصدر الحقيقة). مع --check
+        يتحوّل إلى حارس انجراف لا يكتب شيئًا (لبوّابة CI).
+    (EN) Regenerate sources from the language-truth/ YAML SoT. With --check it
+        becomes a non-mutating drift guard (for the CI gate)."""
+    if args.check:
+        _gen_check()
+        return
+    for domain in CODEGEN_DOMAINS:
+        _run_generator(domain, ROOT / domain["out_dir"])
+        for fname in domain["outputs"]:
+            _log(f"    ✓ {domain['out_dir']}/{fname}")
+    _log("✓ اكتمل التوليد من language-truth/ / codegen from the YAML SoT complete.")
+
+
 def cmd_clean(args: argparse.Namespace) -> None:
     for d in (BUILD_DIR, DIST_DIR):
         if d.exists():
@@ -323,6 +480,13 @@ def build_parser() -> argparse.ArgumentParser:
     pt.add_argument("runner_args", nargs=argparse.REMAINDER,
                     help="وسائط تُمرَّر للـrunner بعد -- / args passed to runner after --")
     pt.set_defaults(func=cmd_test)
+
+    pg = sub.add_parser("gen", help="توليد المصدر من language-truth/ (YAML مصدر الحقيقة) "
+                                    "/ regenerate sources from the YAML SoT")
+    pg.add_argument("--check", action="store_true",
+                    help="حارس انجراف: يفشل إن انحرف المولَّد، دون كتابة (لبوّابة CI) "
+                         "/ drift guard: fail on drift without writing (CI gate)")
+    pg.set_defaults(func=cmd_gen)
 
     pc = sub.add_parser("configure", help="تهيئة CMake / configure CMake")
     pc.set_defaults(func=cmd_configure)

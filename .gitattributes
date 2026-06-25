@@ -10,8 +10,12 @@
 # ─── (EN) Auto-generated code — committed but:
 #         - excluded from GitHub Linguist stats
 #         - merges resolved with "ours" (will be regenerated from YAML)
-shared/lexer/generated/keywords_generated.h    linguist-generated=true merge=ours
-shared/lexer/generated/keywords_generated.cpp  linguist-generated=true merge=ours
+shared/lexer/generated/keywords_generated.h        linguist-generated=true merge=ours
+shared/lexer/generated/keywords_generated.cpp      linguist-generated=true merge=ours
+shared/types/generated/sad_type_kind_generated.h   linguist-generated=true merge=ours
+shared/builtins/generated/builtin_registry_generated.h linguist-generated=true merge=ours
+shared/errors/generated/error_messages_generated.h linguist-generated=true merge=ours
+shared/errors/generated/error_messages_generated.cpp linguist-generated=true merge=ours
 
 # ─── (AR) ضمان أسطر LF لملفات المصدر ───
 *.cpp text eol=lf

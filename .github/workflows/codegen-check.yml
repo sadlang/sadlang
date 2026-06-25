@@ -1,31 +1,47 @@
 # ======================================================================
 # (AR) ملف: .github/workflows/codegen-check.yml
-# (AR) الوصف: يتحقق أن الملفات المولَّدة من YAML متزامنة مع keywords.yaml
-#             يمنع دمج أي PR يحوي الملفات المولَّدة غير محدَّثة
-# (EN) Description: Verifies that generated files are in sync with keywords.yaml
-#                   Blocks PR merges if generated files are stale
+# (AR) الوصف: حارس انجراف المصدر المولَّد — المرحلة 1 من sadlang-rfcs#10.
+#             language-truth/*.yaml هو مصدر الحقيقة الوحيد؛ الملفّات المولَّدة
+#             تبقى متعقَّبة لكنّها مشتقّات خالصة. تفشل البوّابة إن لم تَعُد أيّ
+#             منها مطابقةً لِما يولّده YAML الحاليّ (النطاقات الأربعة، 6 ملفّات).
+#             نقطة الدخول الموحَّدة: `python x.py gen --check`.
+# (EN) Description: Generated-source drift guard — Phase 1 of sadlang-rfcs#10.
+#             language-truth/*.yaml is the SINGLE source of truth; generated
+#             files stay tracked but are pure derivations. The gate fails if any
+#             of them no longer matches what the current YAML generates (all 4
+#             domains, 6 files). Single entry point: `python x.py gen --check`.
 # ======================================================================
-# (AR) يُشغَّل عند:
-#   - أي push يغيّر keywords.yaml أو المُولِّد أو الملفات المولَّدة
-#   - أي PR يستهدف main/master
+# (AR) يُشغَّل عند تغيّر أيّ مدخَل توليد (YAML/مخطّط/مولّد/x.py) أو أيّ مخرَج مولَّد.
+# (EN) Runs when any codegen input (YAML/schema/generator/x.py) or any generated
+#      output changes.
 # ======================================================================
 
-name: "🔑 Codegen Sync — Keywords YAML SoT"
+name: "🔑 Codegen Sync — language-truth YAML SoT"
 
 on:
   push:
     paths:
-      - "language-truth/keywords.yaml"
-      - "language-truth/_schemas/keywords.schema.json"
-      - "scripts/codegen/gen_keywords.py"
+      - "language-truth/**"
+      - "scripts/codegen/**"
       - "shared/lexer/generated/**"
+      - "shared/types/generated/**"
+      - "shared/builtins/generated/**"
+      - "shared/errors/generated/**"
+      - "shared/errors/include/error_codes.h"
+      - "x.py"
+      - ".github/workflows/codegen-check.yml"
   pull_request:
     branches: [ main, master, dev, sadlang ]
     paths:
-      - "language-truth/keywords.yaml"
-      - "language-truth/_schemas/keywords.schema.json"
-      - "scripts/codegen/gen_keywords.py"
+      - "language-truth/**"
+      - "scripts/codegen/**"
       - "shared/lexer/generated/**"
+      - "shared/types/generated/**"
+      - "shared/builtins/generated/**"
+      - "shared/errors/generated/**"
+      - "shared/errors/include/error_codes.h"
+      - "x.py"
+      - ".github/workflows/codegen-check.yml"
 
 # (AR) منع التشغيل المتزامن لنفس الفرع
 concurrency:
@@ -34,8 +50,8 @@ concurrency:
 
 jobs:
   # ======================================================================
-  # (AR) فحص التزامن: YAML → generated/{h,cpp} لا انجراف
-  # (EN) Sync check: YAML → generated files — no drift allowed
+  # (AR) فحص التزامن: language-truth/*.yaml → 6 ملفّات مولَّدة، لا انجراف.
+  # (EN) Sync check: language-truth/*.yaml → 6 generated files — no drift.
   # ======================================================================
   codegen-sync:
     name: "🔑 فحص توليد الكود / Codegen Sync Check"
@@ -45,51 +61,25 @@ jobs:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
 
-      # ── (AR) تثبيت بيئة Python مع تبعيات المُولِّد
-      - name: "🐍 تثبيت Python + pyyaml + jsonschema"
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml jsonschema
+      - name: "🐍 إعداد Python / Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
-      # ── (AR) تشغيل المُولِّد لإعادة توليد الملفات
-      - name: "⚙️ توليد keywords_generated.{h,cpp}"
+      # ── (AR) تثبيت تبعيات المُولِّدات + pytest لاختبار عقد الحارس
+      - name: "📦 تثبيت pyyaml + jsonschema + pytest"
         run: |
-          python3 scripts/codegen/gen_keywords.py \
-            --yaml   language-truth/keywords.yaml \
-            --schema language-truth/_schemas/keywords.schema.json \
-            --header shared/lexer/generated/keywords_generated.h \
-            --source shared/lexer/generated/keywords_generated.cpp
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml jsonschema pytest
 
-      # ── (AR) يفشل إذا كانت الملفات المولَّدة في المستودع لا تطابق ما يُولِّده YAML الحالي
-      - name: "🔍 التحقق: لا انجراف يدوي في الملفات المولَّدة"
-        run: |
-          if ! git diff --exit-code shared/lexer/generated/; then
-            echo ""
-            echo "❌ (AR) الملفات المولَّدة غير متزامنة مع keywords.yaml!"
-            echo "   قم بتشغيل: python3 scripts/codegen/gen_keywords.py ... ثم commit الناتج."
-            echo ""
-            echo "❌ (EN) Generated files are out of sync with keywords.yaml!"
-            echo "   Run: python3 scripts/codegen/gen_keywords.py ... and commit the output."
-            echo ""
-            git diff shared/lexer/generated/
-            exit 1
-          fi
-          echo "✅ (AR) الملفات المولَّدة متزامنة تماماً مع keywords.yaml"
-          echo "✅ (EN) Generated files are in sync with keywords.yaml"
+      # ── (AR) اختبار عقد الحارس (جدول النطاقات + التطبيع + تمرير الشجرة النظيفة).
+      # (EN) Guard-contract test (domain table + EOL normalization + clean-tree pass).
+      - name: "🧪 اختبار عقد الحارس / Guard contract test"
+        run: python -m pytest scripts/codegen/test_xpy_codegen_guard.py -q
 
-      # ── (AR) فحص إضافي: عدد الإدخالات يطابق kEntryCount في الهيدر
-      - name: "📊 التحقق من kEntryCount في الهيدر"
-        run: |
-          YAML_COUNT=$(python3 -c "
-          import yaml, sys
-          data = yaml.safe_load(open('data/language/keywords.yaml', encoding='utf-8'))
-          total = sum(len(v.get('keywords', [])) for v in data.get('categories', {}).values())
-          print(total)
-          ")
-          HEADER_COUNT=$(grep -oP 'kEntryCount\s*=\s*\K[0-9]+' shared/lexer/generated/keywords_generated.h || echo "NOT_FOUND")
-          echo "(AR) عدد YAML: $YAML_COUNT — kEntryCount في الهيدر: $HEADER_COUNT"
-          if [ "$YAML_COUNT" != "$HEADER_COUNT" ]; then
-            echo "❌ (AR) عدد الإدخالات غير متطابق!"
-            exit 1
-          fi
-          echo "✅ (EN) Entry count matches: $YAML_COUNT"
+      # ── (AR) البوّابة الواحدة: يعيد التوليد إلى مجلّد مؤقّت ويقارن بالمتعقَّب.
+      #         يفشل إن انحرف أيّ من النطاقات الأربعة (types/keywords/builtins/errors).
+      # (EN) The single gate: regenerates into a temp dir and compares against the
+      #      tracked files; fails if any of the 4 domains drifted.
+      - name: "🔍 حارس الانجراف / Drift guard — python x.py gen --check"
+        run: python x.py gen --check

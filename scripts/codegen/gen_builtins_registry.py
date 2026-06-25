@@ -665,7 +665,11 @@ def write_if_changed(path: Path, content: str, quiet: bool) -> None:
             return
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    # (AR) newline="\n": فرض LF عبر المنصّات (يطابق عقد _lib/emit.write_if_changed)
+    #      وإلّا كتب Python على ويندوز CRLF فظهر انحرافٌ كاذب أمام حارس x.py gen --check.
+    # (EN) newline="\n": force LF cross-platform (matches _lib/emit.write_if_changed);
+    #      otherwise Python writes CRLF on Windows, a false positive for the drift guard.
+    path.write_text(content, encoding="utf-8", newline="\n")
     if not quiet:
         print(f"[gen_builtins_registry] Written: {path}")
 
