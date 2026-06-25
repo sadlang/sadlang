@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for, gr.expr.range, gr.expr.factor, gr.expr.term, gr.decl.variable
+# @description: إسناد مركّب في حلقة (ضرب تراكميّ)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 720
+
+متغير ج = 1
+لكل ع في 1..6
+    ج = ج * ع
+نهاية
+اطبع_سطر(ج)

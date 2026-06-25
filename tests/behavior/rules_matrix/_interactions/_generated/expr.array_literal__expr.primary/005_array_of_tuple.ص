@@ -1,0 +1,8 @@
+# @rule: gr.expr.array_literal, gr.expr.primary
+# @description: مصفوفة تحوي صفًّا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير م = [(1، 2)]
+اطبع_سطر(م[0][1])

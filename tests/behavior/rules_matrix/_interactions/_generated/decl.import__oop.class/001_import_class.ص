@@ -1,0 +1,11 @@
+# @rule: gr.decl.import, gr.oop.class
+# @description: استيراد مع صنف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+استورد رياضيات
+صنف ك
+    متغير عام ق = 5
+نهاية
+اطبع_سطر(ك().ق)

@@ -1,0 +1,9 @@
+# @rule: gr.expr.map_literal, gr.expr.postfix, gr.decl.variable, gr.expr.term
+# @description: خريطة: قراءة عدّة مفاتيح وجمعها
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير أسعار = {"تفاح": 3، "موز": 2، "تمر": 5}
+متغير الإجمالي = أسعار["تفاح"] + أسعار["موز"] + أسعار["تمر"]
+اطبع_سطر(الإجمالي)

@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring, gr.expr.primary
+# @description: إقحام عنصر مفهرس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أوّل 5
+
+اطبع_سطر(f"أوّل {[5، 6][0]}")

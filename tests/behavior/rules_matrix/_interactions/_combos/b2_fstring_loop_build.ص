@@ -1,0 +1,11 @@
+# @rule: gr.expr.fstring, gr.stmt.for, gr.expr.array_literal, gr.expr.term
+# @description: بناء نصّ منسَّق في حلقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: [1][2][3]
+
+متغير ن = ""
+لكل ع في [1، 2، 3]
+    ن = ن + f"[{ع}]"
+نهاية
+اطبع_سطر(ن)

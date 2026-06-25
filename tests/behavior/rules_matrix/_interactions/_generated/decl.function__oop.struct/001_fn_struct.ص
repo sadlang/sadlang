@@ -1,0 +1,11 @@
+# @rule: gr.decl.function, gr.oop.struct
+# @description: دالة حرّة مع بنية
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة م() ارجع 1 نهاية
+بنية ن
+    رقم ق = 4
+نهاية
+اطبع_سطر(م() + ن().ق)

@@ -1,0 +1,16 @@
+# @rule: gr.decl.function, gr.stmt.if, gr.stmt.return, gr.expr.logical_or, gr.expr.comparison
+# @description: دالة بحُرّاس (early return) ومنطق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: عاديّ
+
+دالة صنّف(ع)
+    إذا (ع < 0 || ع == 0)
+        ارجع "غير موجب"
+    نهاية
+    إذا (ع > 100)
+        ارجع "كبير"
+    نهاية
+    ارجع "عاديّ"
+نهاية
+اطبع_سطر(صنّف(50))

@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable, gr.decl.type_ref, gr.expr.term, gr.expr.factor
+# @description: متغيّرات منوَّعة في حساب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 37
+
+متغير رقم أ = 10
+متغير رقم ب = 3
+اطبع_سطر(أ * ب + أ - ب)

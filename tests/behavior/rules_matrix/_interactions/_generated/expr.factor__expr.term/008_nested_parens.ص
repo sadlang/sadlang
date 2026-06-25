@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: أقواس متداخلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 21
+
+اطبع_سطر(((1 + 2) * (3 + 4)))

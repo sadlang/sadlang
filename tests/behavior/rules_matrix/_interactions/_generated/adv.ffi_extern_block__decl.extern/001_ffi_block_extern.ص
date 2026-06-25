@@ -1,0 +1,10 @@
+# @rule: gr.adv.ffi_extern_block, gr.decl.extern
+# @description: كتلة خارجيّة مع تصريح خارجيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ok
+
+خارجي "C"
+    دالة طبع(نص)
+نهاية
+اطبع_سطر("ok")

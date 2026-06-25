@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.return, gr.expr.term, gr.expr.factor
+# @description: دالة معرَّفة داخل دالة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+دالة خارج(ن)
+    دالة داخل(م)
+        ارجع م * م
+    نهاية
+    ارجع داخل(ن) + داخل(ن + 1)
+نهاية
+اطبع_سطر(خارج(3))

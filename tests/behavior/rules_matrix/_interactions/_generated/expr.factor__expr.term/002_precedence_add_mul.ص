@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: الجمع ثمّ الضرب بترتيب الكتابة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 14
+
+اطبع_سطر(3 * 4 + 2)

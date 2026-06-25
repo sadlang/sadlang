@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring, gr.expr.primary
+# @description: إقحامان
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1 ثمّ 2
+
+اطبع_سطر(f"{1} ثمّ {2}")

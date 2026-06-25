@@ -1,0 +1,9 @@
+# @rule: gr.adv.template_args, gr.expr.primary
+# @description: تخصيص قالب صريح بقيمة أوّليّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+قالب <نوع ت>
+دالة هوية(ت س) ارجع س نهاية
+اطبع_سطر(هوية<رقم>(7))

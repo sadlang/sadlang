@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_and, gr.expr.equality
+# @description: مساواة نتيجة و-بتّي
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((4 & 4) == 4)

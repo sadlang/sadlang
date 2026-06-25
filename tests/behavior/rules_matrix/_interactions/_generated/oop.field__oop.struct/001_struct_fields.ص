@@ -1,0 +1,12 @@
+# @rule: gr.oop.field, gr.oop.struct
+# @description: حقول بنية
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+بنية ن
+    رقم س = 4
+    رقم ص = 6
+نهاية
+متغير ب = ن()
+اطبع_سطر(ب.س + ب.ص)

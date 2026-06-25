@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.unary
+# @description: نفي مزدوج مع ضرب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+اطبع_سطر(- -2 * 3)

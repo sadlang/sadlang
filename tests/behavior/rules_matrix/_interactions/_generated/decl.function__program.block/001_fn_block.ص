@@ -1,0 +1,12 @@
+# @rule: gr.decl.function, gr.program.block
+# @description: دالة بكتلة متعدّدة الجمل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+دالة م()
+    متغير س = 1
+    س = س + 1
+    ارجع س
+نهاية
+اطبع_سطر(م())

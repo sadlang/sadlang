@@ -1,0 +1,14 @@
+# @rule: gr.decl.function, gr.stmt.return, gr.expr.term
+# @description: أجّل: ترتيب التنفيذ المؤجَّل قبل الإرجاع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أبج
+
+متغير سجل = ""
+دالة د()
+    أجّل سجل = سجل + "ج"
+    سجل = سجل + "أ"
+    سجل = سجل + "ب"
+نهاية
+د()
+اطبع_سطر(سجل)

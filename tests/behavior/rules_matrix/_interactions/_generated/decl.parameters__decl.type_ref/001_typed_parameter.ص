@@ -1,0 +1,8 @@
+# @rule: gr.decl.parameters, gr.decl.type_ref
+# @description: معامل بنوع صريح
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة د(رقم ا) ارجع ا نهاية
+اطبع_سطر(د(5))

@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_and, gr.expr.bitwise_or, gr.expr.bitwise_xor, gr.expr.comparison
+# @description: عمليّات بتّيّة مركّبة مع مقارنة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر(((6 & 3) | (5 ^ 1)) > 4)

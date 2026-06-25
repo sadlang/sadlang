@@ -1,0 +1,13 @@
+# @rule: gr.stmt.for, gr.stmt.if, gr.expr.range, gr.expr.equality, gr.expr.term
+# @description: مجموع الأزواج في مدى عبر لكل+إذا+مدى+باقٍ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 30
+
+متغير مج = 0
+لكل ع في 1..10
+    إذا (ع % 2 == 0)
+        مج = مج + ع
+    نهاية
+نهاية
+اطبع_سطر(مج)

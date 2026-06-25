@@ -1,0 +1,10 @@
+# @rule: gr.adv.lifetime_params, gr.oop.struct
+# @description: بنية بمعامل عمر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+بنية مرجع<'أ>
+    رقم ق = 5
+نهاية
+اطبع_سطر(مرجع().ق)

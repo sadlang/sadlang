@@ -1,0 +1,11 @@
+# @rule: gr.expr.range, gr.expr.term
+# @description: مجموع المدى مع طرح بعدها
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير مج = 0
+لكل ع في 1..4
+    مج = مج + ع
+نهاية
+اطبع_سطر(مج - 1)

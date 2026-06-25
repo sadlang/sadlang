@@ -1,0 +1,12 @@
+# @rule: gr.oop.destructor, gr.oop.member
+# @description: هادم مع طريقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف مورد
+    باني() نهاية
+    هدم() نهاية
+    دالة عام قيمة() ارجع 5 نهاية
+نهاية
+اطبع_سطر(مورد().قيمة())

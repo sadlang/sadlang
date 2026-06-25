@@ -1,0 +1,7 @@
+# @rule: gr.expr.postfix, gr.expr.primary
+# @description: نداء طول على نصّ حرفيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+اطبع_سطر(طول("مرحبا"))

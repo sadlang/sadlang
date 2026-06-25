@@ -1,0 +1,12 @@
+# @rule: gr.oop.destructor, gr.oop.modifiers
+# @description: هادم مع حقل خاص
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+صنف م
+    متغير خاص _ق = 3
+    هدم() نهاية
+    دالة عام اقرأ() ارجع هذا._ق نهاية
+نهاية
+اطبع_سطر(م().اقرأ())

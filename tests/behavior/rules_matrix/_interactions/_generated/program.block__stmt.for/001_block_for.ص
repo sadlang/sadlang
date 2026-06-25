@@ -1,0 +1,14 @@
+# @rule: gr.program.block, gr.stmt.for
+# @description: كتلة دالة تحوي لكل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+دالة مج()
+    متغير س = 0
+    لكل ع في [1، 2، 3]
+        س = س + ع
+    نهاية
+    ارجع س
+نهاية
+اطبع_سطر(مج())

@@ -1,0 +1,11 @@
+# @rule: gr.program.block, gr.stmt.expression
+# @description: كتلة دالة تحوي جملة تعبير
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: داخل\n1
+
+دالة د()
+    اطبع_سطر("داخل")
+    ارجع 1
+نهاية
+اطبع_سطر(د())

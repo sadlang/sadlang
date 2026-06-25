@@ -1,0 +1,8 @@
+# @rule: gr.decl.extern, gr.decl.parameters
+# @description: خارجيّ بمعامل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: تم
+
+خارجي دالة طبع(نص)
+اطبع_سطر("تم")

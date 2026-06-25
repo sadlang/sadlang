@@ -1,0 +1,7 @@
+# @rule: gr.expr.comparison, gr.expr.equality
+# @description: مساواة نصوص ضمن شرط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر(("أ" == "أ") == (1 <= 1))

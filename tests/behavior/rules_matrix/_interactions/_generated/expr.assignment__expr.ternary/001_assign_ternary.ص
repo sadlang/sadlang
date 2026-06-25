@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment, gr.expr.ternary
+# @description: إسناد نتيجة شرطيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير س = (5 > 3) ؟ 10 : 20
+اطبع_سطر(س)

@@ -1,0 +1,14 @@
+# @rule: gr.decl.function, gr.stmt.for, gr.expr.range, gr.expr.postfix, gr.stmt.return
+# @description: عكس نصّ عبر حلقة وفهرسة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: abc
+
+دالة اعكس(ن)
+    متغير ر = ""
+    لكل ع في 0..(طول(ن) - 1)
+        ر = ن[طول(ن) - 1 - ع] + ر
+    نهاية
+    ارجع ر
+نهاية
+اطبع_سطر(اعكس("abc"))

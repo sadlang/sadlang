@@ -1,0 +1,8 @@
+# @rule: gr.expr.map_literal, gr.expr.primary
+# @description: خريطة متداخلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير خ = {"خارج": {"داخل": 9}}
+اطبع_سطر(خ["خارج"]["داخل"])

@@ -1,0 +1,8 @@
+# @rule: gr.expr.factor, gr.expr.unary
+# @description: متغيّر بسالب وضرب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: -14
+
+متغير ن = 7
+اطبع_سطر(-ن * 2)

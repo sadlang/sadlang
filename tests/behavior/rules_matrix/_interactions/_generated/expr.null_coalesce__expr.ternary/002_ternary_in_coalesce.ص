@@ -1,0 +1,7 @@
+# @rule: gr.expr.null_coalesce, gr.expr.ternary
+# @description: شرطيّ كأيسر التجميع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+اطبع_سطر(((1 > 0) ؟ لاشيء : 9) ؟؟ 7)

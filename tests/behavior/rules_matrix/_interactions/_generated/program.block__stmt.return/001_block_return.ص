@@ -1,0 +1,10 @@
+# @rule: gr.program.block, gr.stmt.return
+# @description: كتلة دالة تحوي ارجع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+دالة د()
+    ارجع 42
+نهاية
+اطبع_سطر(د())

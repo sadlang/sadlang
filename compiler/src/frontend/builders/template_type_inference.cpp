@@ -246,7 +246,42 @@ namespace Sad
                 //      → converts function to closure → capture by value → breaks semantics.
                 //      MethodCallExpr and other expressions are detected from their own sites.
                 // ================================================================
-                // AssignExpr — intentionally not handled (see above)
+                // (AR) [ISSUE-053] تحديث: نلتقط المتغيّر المُسنَد إليه أيضًا. الإغلاق الذي يُعيد
+                //      لامدا تُعدّل متغيّرًا محلّيًّا (مصنع عدّاد) كان يفقد حالته بين النداءات لأنّ ق
+                //      لم يُكتشف متغيّرًا حرًّا (env=0، التقاط مفقود). بالتقاطه تُخزَّن قيمته في env
+                //      عند CLOSURE_CREATE، وتُكتب تعديلاتُه عبر ENV_STORE إلى env الكومة الدائم في
+                //      كائن الإغلاق ⇒ تدوم الحالة. (نلتقط الاسم المُسنَد إليه + نمسح الجانب الأيمن.)
+                // (EN) [ISSUE-053] Update: also capture the assigned-to variable. A closure that
+                //      returns a lambda mutating an outer local (counter factory) lost its state
+                //      across calls because the LHS var was never detected as free (env=0). Capturing
+                //      it stores its value in env at CLOSURE_CREATE and writes mutations back via
+                //      ENV_STORE into the closure object's persistent heap env ⇒ state survives.
+                if (auto *asg = dynamic_cast<Sad::AST::AssignExpr *>(expr))
+                {
+                    // (AR) مسار defer (الراية مخفوضة): لا نزور تعبير الإسناد إطلاقًا — هذا هو
+                    //      السلوك الأصليّ. defer يُعدّل المتغيّر الخارجيّ عبر المكدّس المشترك لا
+                    //      بالالتقاط بالقيمة؛ لو زرنا الجانب الأيمن (سجل + "ج") لالتُقط سجل بالقيمة
+                    //      وكُسر defer (انهيار/ناتج خاطئ).
+                    // (EN) defer path (flag down): do NOT visit the assignment at all — this is the
+                    //      original behavior. defer mutates the outer var via the shared scope stack,
+                    //      not by value; visiting the RHS (سجل + "ج") would capture سجل by value and
+                    //      break defer (crash / wrong output).
+                    if (!b_.captureAssignTargetsInClosure_)
+                        return;
+
+                    // (AR) مسار اللامدا (الراية مرفوعة): نلتقط هدف الإسناد + نزور الجانب الأيمن،
+                    //      كي تدوم حالة الإغلاق المُعيد للامدا تُعدّل متغيّرًا محلّيًّا (مصنع عدّاد).
+                    // (EN) lambda path (flag up): capture the assignment target + visit the RHS, so a
+                    //      closure returning a lambda mutating a local (counter factory) keeps state.
+                    if (boundNames.find(asg->name) == boundNames.end())
+                    {
+                        auto *varOpt = b_.lookupVariable(asg->name);
+                        if (varOpt)
+                            freeVars.insert(asg->name);
+                    }
+                    collectFreeVarsExpr(asg->value.get(), boundNames, freeVars);
+                    return;
+                }
             }
 
             // ============================================================================

@@ -1,0 +1,8 @@
+# @rule: gr.expr.lambda, gr.expr.primary
+# @description: جسم بأقواس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير د = لامدا(س) => (س + 1) * 2
+اطبع_سطر(د(4))

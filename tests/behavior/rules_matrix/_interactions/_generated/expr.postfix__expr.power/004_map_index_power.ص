@@ -1,0 +1,8 @@
+# @rule: gr.expr.postfix, gr.expr.power
+# @description: قيمة من خريطة لأس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+متغير خ = {"ع": 5}
+اطبع_سطر(خ["ع"] ** 2)

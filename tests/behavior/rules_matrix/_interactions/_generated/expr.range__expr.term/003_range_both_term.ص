@@ -1,0 +1,11 @@
+# @rule: gr.expr.range, gr.expr.term
+# @description: حدّان بحساب جمعيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير عد = 0
+لكل ع في (1 + 1)..(2 + 4)
+    عد = عد + 1
+نهاية
+اطبع_سطر(عد)

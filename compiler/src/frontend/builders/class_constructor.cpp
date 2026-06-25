@@ -145,11 +145,17 @@ namespace Sad
                                     if (!varExpr && !literal)
                                     {
                                         SadTypeKind exprType = SadTypeKind::Pointer;
+                                        // (AR) هل استُنتج نوعٌ مؤكَّد؟ [ISSUE-050] لا نطمس نوع حقل
+                                        //      مُصرَّح سلفًا بـPointer الافتراضيّ حين يتعذّر الاستنتاج.
+                                        // (EN) Did we infer a CONCRETE type? [ISSUE-050] never clobber a
+                                        //      previously-declared field type with the Pointer default.
+                                        bool inferred = false;
                                         // (AR) هذا.حقل = [عناصر] → مصفوفة
                                         // (EN) this.field = [elements] → array
                                         if (dynamic_cast<Sad::AST::ArrayExpr *>(memberAssign->value.get()))
                                         {
                                             exprType = SadTypeKind::Array;
+                                            inferred = true;
                                         }
                                         // (AR) هذا.حقل = تعبير_ثنائي (عملية حسابية/منطقية) → استنتاج النوع
                                         //      مثال: هذا.المساحة = العرض * الطول → I64
@@ -162,6 +168,7 @@ namespace Sad
                                                 dataType != Types::SadTypeKind::Class)
                                             {
                                                 exprType = b_.astTypeToSIRType(dataType);
+                                                inferred = true;
                                             }
                                         }
                                         // (AR) هذا.حقل = تعبير_أحادي → استنتاج النوع
@@ -173,15 +180,95 @@ namespace Sad
                                                 dataType != Types::SadTypeKind::Class)
                                             {
                                                 exprType = b_.astTypeToSIRType(dataType);
+                                                inferred = true;
                                             }
                                         }
-                                        if (sirClass->fields_.find(fieldName) == sirClass->fields_.end())
+                                        // (AR) [ISSUE-050] هذا.حقل = تعداد.عضو (وصول عضو ثابت): نأخذ نوع
+                                        //      العضو من staticFields_ (التعدادات البسيطة = Integer). هذا
+                                        //      يصحّح حقلًا جديدًا يُعرَّف في الباني من قيمة تعداد، فلا يبقى
+                                        //      Pointer ⇒ %s. (الوصول قد يكون MemberExpr أو MemberAccessExpr.)
+                                        // (EN) [ISSUE-050] this.field = Enum.member (static member access):
+                                        //      take the member's type from staticFields_ (simple enums =
+                                        //      Integer). This fixes a new ctor-defined field set from an enum
+                                        //      value so it isn't left Pointer ⇒ %s. (Node may be MemberExpr
+                                        //      or MemberAccessExpr.)
+                                        else
+                                        {
+                                            std::string objName, memName;
+                                            if (auto *me = dynamic_cast<Sad::AST::MemberExpr *>(memberAssign->value.get()))
+                                            {
+                                                if (auto *ve = dynamic_cast<Sad::AST::VariableExpr *>(me->object.get()))
+                                                    objName = ve->name;
+                                                memName = me->member;
+                                            }
+                                            else if (auto *mae = dynamic_cast<Sad::AST::MemberAccessExpr *>(memberAssign->value.get()))
+                                            {
+                                                if (auto *ve = dynamic_cast<Sad::AST::VariableExpr *>(mae->object.get()))
+                                                    objName = ve->name;
+                                                memName = mae->memberName;
+                                            }
+                                            if (!objName.empty() && !memName.empty())
+                                            {
+                                                std::string fullName = objName + "." + memName;
+                                                // (AR) التعدادات البسيطة تُسجَّل كمتغيّرات عامّة (lookupVariable)
+                                                //      والحقول الساكنة في staticFields_ — نفحص الاثنين.
+                                                // (EN) Simple enums register as global variables (lookupVariable);
+                                                //      static class fields live in staticFields_ — check both.
+                                                if (auto *vi = b_.lookupVariable(fullName))
+                                                {
+                                                    if (vi->type != SadTypeKind::Unknown &&
+                                                        vi->type != SadTypeKind::Class)
+                                                    {
+                                                        exprType = vi->type;
+                                                        inferred = true;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    auto sfIt = b_.staticFields_.find(fullName);
+                                                    if (sfIt != b_.staticFields_.end())
+                                                    {
+                                                        exprType = sfIt->second;
+                                                        inferred = true;
+                                                    }
+                                                }
+
+                                                // (AR) [ISSUE-050b] ليس تعدادًا/حقلًا ساكنًا ⇒ غالبًا «هذا.حقل =
+                                                //      معامِل.عضو» حيث المعامل غير مُنوَّع الآن. نُسجّل الربط
+                                                //      ليحلّه Phase 2B متعدّيًا من نوع وسيط النداء (بنية/صنف).
+                                                // (EN) [ISSUE-050b] Not an enum/static member ⇒ likely
+                                                //      `this.field = param.member` with an untyped param. Record
+                                                //      the link so Phase 2B resolves it transitively from the
+                                                //      call-site argument's (struct/class) member type.
+                                                if (!inferred)
+                                                {
+                                                    sirClass->fieldFromParamMember_[fieldName] =
+                                                        std::make_pair(objName, memName);
+                                                }
+                                            }
+                                        }
+
+                                        // (AR) [ISSUE-050] الجذر: «هذا.ق = تعداد.عضو» طرفُه الأيمن لا
+                                        //      يُطابق أيًّا مما سبق فيبقى exprType=Pointer، وكان السطر
+                                        //      التالي يطمس نوع الحقل المُعلَن (Integer من «= 0») إلى
+                                        //      Pointer ⇒ تُكتب القيمة i64 صحيحًا في الباني لكنّ القراءة
+                                        //      اللاحقة `كائن.ق` تُحمَّل ptr وتُطبَع %s ⇒ فراغ. الحلّ: لا
+                                        //      نُحدّث حقلًا موجودًا إلا بنوعٍ مُستنتَجٍ مؤكَّد؛ والحقل الجديد
+                                        //      يأخذ أفضل تخمين (Pointer) كما كان.
+                                        // (EN) [ISSUE-050] Root cause: `this.x = Enum.member` RHS matches
+                                        //      none of the above, so exprType stays Pointer, and the next
+                                        //      line USED TO clobber the declared field type (Integer from
+                                        //      «= 0») to Pointer ⇒ the ctor stores i64 correctly but the
+                                        //      later read `obj.x` loads ptr and prints %s ⇒ empty. Fix:
+                                        //      only update an EXISTING field with a CONCRETE inferred type;
+                                        //      a brand-new field keeps the best-effort guess as before.
+                                        bool fieldExists = sirClass->fields_.find(fieldName) != sirClass->fields_.end();
+                                        if (!fieldExists)
                                         {
                                             sirClass->addField(fieldName, exprType);
                                         }
-                                        else
+                                        else if (inferred)
                                         {
-                                            // (AR) تحديث نوع الحقل إذا كان موجوداً
                                             sirClass->fields_[fieldName] = exprType;
                                         }
                                         // (AR) تسجيل حقل المصفوفة لتهيئة SadArray في emitAlloca

@@ -1,0 +1,10 @@
+# @rule: gr.adv.ffi_extern_block, gr.adv.ffi_linkage
+# @description: كتلة ربط أجنبيّ بلغة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ok
+
+خارجي "C"
+    دالة طبع(نص)
+نهاية
+اطبع_سطر("ok")

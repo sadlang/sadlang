@@ -1,0 +1,14 @@
+# @rule: gr.expr.array_literal, gr.stmt.for, gr.expr.postfix, gr.expr.range, gr.expr.term
+# @description: مصفوفة ثنائية الأبعاد + حلقتان متداخلتان
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 21
+
+متغير م = [[1، 2، 3]، [4، 5، 6]]
+متغير مج = 0
+لكل ص في 0..1
+    لكل ع في 0..2
+        مج = مج + م[ص][ع]
+    نهاية
+نهاية
+اطبع_سطر(مج)

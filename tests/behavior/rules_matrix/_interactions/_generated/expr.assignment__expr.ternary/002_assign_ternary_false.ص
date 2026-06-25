@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment, gr.expr.ternary
+# @description: الفرع الخطأ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 20
+
+متغير س = (1 > 3) ؟ 10 : 20
+اطبع_سطر(س)

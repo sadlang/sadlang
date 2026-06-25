@@ -1,0 +1,20 @@
+# @rule: gr.stmt.while, gr.stmt.if, gr.stmt.match, gr.expr.comparison
+# @description: بينما يحوي إذا يحوي طابق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 104
+
+متغير ع = 0
+متغير ن = 0
+بينما (ع < 6)
+    إذا (ع > 0)
+        طابق (ع % 3)
+            عندما 0:
+                ن = ن + 100
+            افتراضي:
+                ن = ن + 1
+        نهاية
+    نهاية
+    ع = ع + 1
+نهاية
+اطبع_سطر(ن)

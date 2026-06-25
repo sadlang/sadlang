@@ -1,0 +1,8 @@
+# @rule: gr.expr.map_literal, gr.expr.primary
+# @description: مفتاح عدديّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 100
+
+متغير خ = {1: 100}
+اطبع_سطر(خ[1])

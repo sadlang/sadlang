@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_and, gr.expr.equality
+# @description: و-بتّي ثمّ مساواة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((6 & 3) == 2)

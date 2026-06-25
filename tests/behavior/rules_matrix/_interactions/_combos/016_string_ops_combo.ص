@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.if, gr.expr.comparison
+# @description: دالة طول نصّ مع شرط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: طويل
+
+دالة وصف(ن)
+    إذا (طول(ن) > 3)
+        ارجع "طويل"
+    نهاية
+    ارجع "قصير"
+نهاية
+اطبع_سطر(وصف("مرحبا"))

@@ -1,0 +1,9 @@
+# @rule: gr.adv.widget, gr.decl.arg_list
+# @description: عنصر عرض بوسيطة
+# @priority: P2
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: ok
+
+اعرض نص("مرحبا")
+اطبع_سطر("ok")

@@ -1,0 +1,11 @@
+# @rule: gr.adv.type, gr.adv.ui_state
+# @description: نوع معامل مع حالة واجهة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+واجهة لوحة
+    @حالة العدد = 0
+نهاية
+دالة د(رقم س) ارجع س نهاية
+اطبع_سطر(د(5))

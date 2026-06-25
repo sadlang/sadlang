@@ -1,0 +1,19 @@
+# @rule: gr.stmt.while, gr.stmt.if, gr.expr.comparison, gr.expr.term
+# @description: بينما + توقّف + استمرّ مع تجميع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+متغير ع = 0
+متغير مج = 0
+بينما (صحيح)
+    ع = ع + 1
+    إذا (ع > 10)
+        توقف
+    نهاية
+    إذا (ع % 2 == 0)
+        استمر
+    نهاية
+    مج = مج + ع
+نهاية
+اطبع_سطر(مج)

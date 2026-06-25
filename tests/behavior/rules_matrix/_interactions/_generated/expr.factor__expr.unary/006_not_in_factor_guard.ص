@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.unary
+# @description: نفي منطقيّ ثمّ ضرب عبر شرط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 12
+
+اطبع_سطر((!خطأ) ؟ 6 * 2 : 0)

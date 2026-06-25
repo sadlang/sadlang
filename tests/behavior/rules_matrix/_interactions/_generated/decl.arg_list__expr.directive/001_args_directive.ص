@@ -1,0 +1,7 @@
+# @rule: gr.decl.arg_list, gr.expr.directive
+# @description: توجيه @حجم بوسيطة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+اطبع_سطر(@حجم(رقم))

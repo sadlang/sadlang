@@ -1,0 +1,17 @@
+# @rule: gr.expr.bitwise_or, gr.expr.bitwise_and, gr.stmt.if, gr.expr.equality
+# @description: أعلام بتّيّة + فحص قناع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير قراءة = 1
+متغير كتابة = 2
+متغير أذون = قراءة | كتابة
+متغير ن = 0
+إذا ((أذون & كتابة) == كتابة)
+    ن = ن + 10
+نهاية
+إذا ((أذون & 4) == 4)
+    ن = ن + 100
+نهاية
+اطبع_سطر(ن)

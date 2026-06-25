@@ -1,0 +1,12 @@
+# @rule: gr.oop.class, gr.oop.member
+# @description: صنف بأعضاء متعدّدة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+صنف ح
+    متغير عام أ = 1
+    دالة عام ب() ارجع 2 نهاية
+نهاية
+متغير ك = ح()
+اطبع_سطر(ك.أ + ك.ب())

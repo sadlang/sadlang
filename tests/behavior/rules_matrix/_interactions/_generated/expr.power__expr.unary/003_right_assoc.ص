@@ -1,0 +1,7 @@
+# @rule: gr.expr.power, gr.expr.unary
+# @description: يمينيّة الأس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 256
+
+اطبع_سطر(2 ** 2 ** 3)

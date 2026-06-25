@@ -1,0 +1,11 @@
+# @rule: gr.decl.import, gr.oop.enum
+# @description: استيراد مع تعداد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+استورد رياضيات
+تعداد ل
+    أ، ب
+نهاية
+اطبع_سطر(ل.ب)

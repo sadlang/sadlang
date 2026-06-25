@@ -1,0 +1,11 @@
+# @rule: gr.oop.field, gr.oop.modifiers
+# @description: حقل خاص
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+صنف ع
+    متغير خاص _ق = 8
+    دالة عام اقرأ() ارجع هذا._ق نهاية
+نهاية
+اطبع_سطر(ع().اقرأ())

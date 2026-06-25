@@ -1,0 +1,7 @@
+# @rule: gr.expr.power, gr.expr.unary
+# @description: أساس سالب بأقواس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+اطبع_سطر((-2) ** 2)

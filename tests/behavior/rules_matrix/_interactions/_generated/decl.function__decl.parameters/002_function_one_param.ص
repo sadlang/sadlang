@@ -1,0 +1,8 @@
+# @rule: gr.decl.function, gr.decl.parameters
+# @description: دالة بمعامل واحد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+دالة هوية(س) ارجع س نهاية
+اطبع_سطر(هوية(9))

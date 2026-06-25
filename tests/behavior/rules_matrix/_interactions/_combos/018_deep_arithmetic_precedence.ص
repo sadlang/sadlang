@@ -1,0 +1,7 @@
+# @rule: gr.expr.term, gr.expr.factor, gr.expr.power, gr.expr.unary
+# @description: أسبقيّة حسابيّة عميقة: أس+ضرب+جمع+سالب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+اطبع_سطر(-2 ** 2 + 3 * 4 - 10 / 2)

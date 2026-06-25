@@ -1,0 +1,11 @@
+# @rule: gr.decl.function, gr.oop.enum
+# @description: دالة حرّة مع تعداد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+دالة م() ارجع 1 نهاية
+تعداد ل
+    أ، ب
+نهاية
+اطبع_سطر(م() + ل.ب)

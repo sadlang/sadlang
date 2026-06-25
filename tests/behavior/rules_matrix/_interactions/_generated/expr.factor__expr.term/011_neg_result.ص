@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: ناتج سالب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: -5
+
+اطبع_سطر(3 - 4 * 2)

@@ -1,0 +1,19 @@
+# @rule: gr.decl.function, gr.stmt.if, gr.stmt.match, gr.stmt.return, gr.expr.logical_or
+# @description: حُرّاس + طابق + إرجاع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرتفع
+
+دالة صنّف(ع)
+    إذا (ع < 0 || ع > 100)
+        ارجع "خارج"
+    نهاية
+    طابق (ع / 50)
+        عندما 0:
+            ارجع "منخفض"
+        عندما 1:
+            ارجع "متوسط"
+    نهاية
+    ارجع "مرتفع"
+نهاية
+اطبع_سطر(صنّف(75))

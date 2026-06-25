@@ -61,6 +61,17 @@ namespace Sad
 
             private:
                 SIRBuilder &b_;
+
+                // (AR) مُساعد مشترك: يبني وسائط الاستدعاء ويُصدر CLOSURE_CALL على مؤشّر
+                //      إغلاق سبق بناؤه (callee غير مباشر: IndexExpr/LambdaExpr). يُعيد سجلّ
+                //      النتيجة بنوع Integer، أو BuildResult فارغة إن كان مؤشّر الإغلاق فارغًا.
+                // (EN) Shared helper: builds call arguments and emits CLOSURE_CALL on an
+                //      already-built closure pointer (indirect callee: IndexExpr/LambdaExpr).
+                //      Returns the Integer-typed result register, or an empty BuildResult
+                //      if the closure pointer is empty.
+                BuildResult emitClosureCallFromCallee(const BuildResult &closureResult,
+                                                      Sad::AST::CallExpr *call,
+                                                      const std::string &comment);
             };
 
         } // namespace SIR

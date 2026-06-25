@@ -1,0 +1,14 @@
+# @rule: gr.expr.lambda, gr.decl.function, gr.stmt.return, gr.expr.term
+# @description: إغلاق يلتقط حالة قابلة للتعديل (مصنع عدّاد) — تدوم الحالة بين النداءات (ISSUE-053 مُصلَح)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة عدّاد()
+    متغير ق = 0
+    ارجع لامدا() => ق = ق + 1
+نهاية
+متغير ع = عدّاد()
+ع()
+ع()
+اطبع_سطر(ع())

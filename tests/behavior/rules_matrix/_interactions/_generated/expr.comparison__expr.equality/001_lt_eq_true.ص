@@ -1,0 +1,7 @@
+# @rule: gr.expr.comparison, gr.expr.equality
+# @description: أقل ثمّ مساواة النتيجة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((2 < 3) == صحيح)

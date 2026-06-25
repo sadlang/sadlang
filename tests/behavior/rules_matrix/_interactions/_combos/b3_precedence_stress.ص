@@ -1,0 +1,14 @@
+# @rule: gr.expr.term, gr.expr.factor, gr.expr.comparison, gr.expr.logical_and, gr.expr.logical_or
+# @description: ضغط أسبقيّة: حساب+مقارنة+منطق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 
+
+متغير أ = 2 + 3 * 4 - 1
+متغير ب = (أ > 10) && (أ < 20)
+متغير ج = (أ % 2 == 0) || (أ > 100)
+إذا (ب && ج)
+    اطبع_سطر(أ * 2)
+خلافا
+    اطبع_سطر(0)
+نهاية

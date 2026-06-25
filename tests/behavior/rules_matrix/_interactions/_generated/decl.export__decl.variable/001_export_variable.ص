@@ -1,0 +1,8 @@
+# @rule: gr.decl.export, gr.decl.variable
+# @description: تصدير متغيّر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+صدّر متغير س = 7
+اطبع_سطر(س)

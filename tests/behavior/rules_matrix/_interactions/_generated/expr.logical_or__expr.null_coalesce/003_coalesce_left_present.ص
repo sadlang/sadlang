@@ -1,0 +1,7 @@
+# @rule: gr.expr.logical_or, gr.expr.null_coalesce
+# @description: الأيسر موجود
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((صحيح ؟؟ خطأ) || خطأ)

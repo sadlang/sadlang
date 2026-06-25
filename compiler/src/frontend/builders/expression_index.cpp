@@ -485,6 +485,35 @@ namespace Sad
 
                         return BuildResult(resultReg, SadTypeKind::String);
                     }
+                    else if (mapElemType == SadTypeKind::Map ||
+                             mapElemType == SadTypeKind::Array ||
+                             mapElemType == SadTypeKind::Struct)
+                    {
+                        // (AR) [ISSUE-047] قيمة مركّبة متداخلة (خريطة/مصفوفة/بنية): القيمة
+                        //      مخزَّنة typeTag=0 فيُرجِعها `__sad_map_get` مؤشّرًا سليمًا
+                        //      (inttoptr بلا نسخ). نُعيدها بنوعها المركّب — لا كنصّ — كي تعمل
+                        //      الفهرسة التالية «خ["أ"]["ب"]». نوع عنصر المتداخل مجهول وقت
+                        //      الترجمة ⇒ Void فيستعمل الوصولُ التالي `__sad_map_get` الذكيّ.
+                        // (EN) [ISSUE-047] Nested composite value (map/array/struct): stored with
+                        //      typeTag=0 so `__sad_map_get` returns the intact pointer (inttoptr,
+                        //      no copy). Return it with its composite type — not String — so a
+                        //      following index `m["a"]["b"]` works. Inner element type is unknown
+                        //      at compile time ⇒ Void so the next access uses the smart get.
+                        std::string resultReg = b_.newTempRegister();
+                        SIRInstruction getInst;
+                        getInst.opcode = SIROpcode::CALL;
+                        getInst.result = SIROperand::Register(resultReg, mapElemType);
+                        getInst.operands.push_back(SIROperand::ConstantString("__sad_map_get"));
+                        getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+                        getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
+                        getInst.comment = "map get composite (map/array/struct) by key";
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(getInst);
+
+                        BuildResult res(resultReg, mapElemType);
+                        res.elementType = SadTypeKind::Void;
+                        return res;
+                    }
                     else
                     {
                         // (AR) نصوص — نستدعي __sad_map_get (يُرجع نصاً)

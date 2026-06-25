@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: قسمة ثمّ طرح
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+اطبع_سطر(20 / 4 - 1)

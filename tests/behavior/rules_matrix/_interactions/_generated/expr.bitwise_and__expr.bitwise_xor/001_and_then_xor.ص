@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_and, gr.expr.bitwise_xor
+# @description: و-بتّي ثمّ XOR
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+اطبع_سطر(6 & 3 ^ 1)

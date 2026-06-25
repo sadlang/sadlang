@@ -1,0 +1,12 @@
+# @rule: gr.expr.lambda, gr.decl.function, gr.stmt.return, gr.expr.term
+# @description: إغلاق يلتقط متغيّرًا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 11
+
+دالة عدّاد(بداية)
+    متغير ع = بداية
+    ارجع لامدا() => ع + 1
+نهاية
+متغير ت = عدّاد(10)
+اطبع_سطر(ت())

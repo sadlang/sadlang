@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_or, gr.expr.logical_and
+# @description: أو صفر مع خطأ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: خطأ
+
+اطبع_سطر((0 | 0) == 0 && خطأ)

@@ -1,0 +1,8 @@
+# @rule: gr.expr.power, gr.expr.unary
+# @description: متغيّر بسالب وأس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: -9
+
+متغير ق = 3
+اطبع_سطر(-ق ** 2)

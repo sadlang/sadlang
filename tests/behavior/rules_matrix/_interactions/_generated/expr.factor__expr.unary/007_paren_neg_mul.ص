@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.unary
+# @description: أقواس حول السالب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: -10
+
+اطبع_سطر((-5) * 2)

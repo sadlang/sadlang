@@ -1,0 +1,8 @@
+# @rule: gr.expr.bitwise_and, gr.expr.equality
+# @description: قناع بتّي للتحقّق
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+متغير ر = 5
+اطبع_سطر((ر & 1) == 1)

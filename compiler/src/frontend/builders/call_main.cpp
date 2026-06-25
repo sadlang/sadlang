@@ -42,6 +42,52 @@ namespace Sad
         {
 
             // ============================================================================
+            // emitClosureCallFromCallee - إصدار CLOSURE_CALL على مؤشّر إغلاق مبنيّ مسبقًا
+            //                             Emit CLOSURE_CALL on an already-built closure ptr
+            // ============================================================================
+            // (AR) مُستخرَج من مساري IndexExpr وLambdaExpr (IIFE) في buildFunctionCall لإزالة
+            //      التكرار: كلاهما يبني مؤشّر الإغلاق أوّلًا ثم يبني الوسائط ويُصدر CLOSURE_CALL
+            //      بنوع نتيجة Integer. السلوك مطابق للنسختين السابقتين حرفًا بحرف.
+            // (EN) Factored out of the IndexExpr and LambdaExpr (IIFE) paths in buildFunctionCall
+            //      to remove duplication: both build the closure pointer first, then build
+            //      arguments and emit CLOSURE_CALL with an Integer result type. Behavior is
+            //      byte-for-byte identical to the two prior inline copies.
+            BuildResult CallBuilder::emitClosureCallFromCallee(const BuildResult &closureResult,
+                                                               Sad::AST::CallExpr *call,
+                                                               const std::string &comment)
+            {
+                if (closureResult.registerName.empty())
+                    return BuildResult();
+
+                // (AR) بناء الوسائط
+                // (EN) Build arguments
+                std::vector<SIROperand> argOps;
+                for (auto &arg : call->arguments)
+                {
+                    BuildResult argRes = b_.buildExpression(arg.get());
+                    if (!argRes.registerName.empty())
+                        argOps.push_back(SIROperand::Register(argRes.registerName, argRes.type));
+                }
+
+                // (AR) إصدار CLOSURE_CALL
+                // (EN) Emit CLOSURE_CALL
+                std::string resultReg = b_.newTempRegister();
+                SIRInstruction closureCallInst;
+                closureCallInst.opcode = SIROpcode::CLOSURE_CALL;
+                closureCallInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                closureCallInst.operands.push_back(SIROperand::Register(closureResult.registerName, SadTypeKind::Function));
+                for (const auto &argOp : argOps)
+                {
+                    closureCallInst.operands.push_back(argOp);
+                }
+                closureCallInst.comment = comment;
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(closureCallInst);
+
+                return BuildResult(resultReg, SadTypeKind::Integer);
+            }
+
+            // ============================================================================
             // buildFunctionCall - بناء استدعاء دالة
             // ============================================================================
             // مصدر التعريف / Source: sir_builder.h:464
@@ -157,33 +203,24 @@ namespace Sad
                     //      Build IndexExpr first → returns closure pointer
                     //      Then build arguments and emit CLOSURE_CALL
                     BuildResult closureResult = b_.buildExprIndex(indexExpr);
-                    if (closureResult.registerName.empty())
-                        return BuildResult();
-
-                    // (AR) بناء الوسائط
-                    std::vector<SIROperand> argOps;
-                    for (auto &arg : call->arguments)
-                    {
-                        BuildResult argRes = b_.buildExpression(arg.get());
-                        if (!argRes.registerName.empty())
-                            argOps.push_back(SIROperand::Register(argRes.registerName, argRes.type));
-                    }
-
-                    // (AR) إصدار CLOSURE_CALL
-                    std::string resultReg = b_.newTempRegister();
-                    SIRInstruction closureCallInst;
-                    closureCallInst.opcode = SIROpcode::CLOSURE_CALL;
-                    closureCallInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
-                    closureCallInst.operands.push_back(SIROperand::Register(closureResult.registerName, SadTypeKind::Function));
-                    for (const auto &argOp : argOps)
-                    {
-                        closureCallInst.operands.push_back(argOp);
-                    }
-                    closureCallInst.comment = "indexed closure call";
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->addInstruction(closureCallInst);
-
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    // (AR) منطق بناء الوسائط وإصدار CLOSURE_CALL مشترك مع مسار LambdaExpr
+                    // (EN) Argument-building + CLOSURE_CALL emission shared with LambdaExpr path
+                    return emitClosureCallFromCallee(closureResult, call, "indexed closure call");
+                }
+                else if (auto lambdaExpr = dynamic_cast<Sad::AST::LambdaExpr *>(call->callee.get()))
+                {
+                    // (AR) [ISSUE-048] استدعاء لامدا فوريّ (IIFE): «(لامدا(س) => …)(5)».
+                    //      نبني اللامدا أوّلاً (CLOSURE_CREATE يُرجِع مؤشّر إغلاق) ثم نُصدر
+                    //      CLOSURE_CALL — نظير مسار IndexExpr أعلاه. كان callee غير المباشر
+                    //      يسقط في «else» فيُرفَض ⇒ خرج فارغ في المترجم.
+                    // (EN) [ISSUE-048] Immediately-invoked lambda (IIFE): build the lambda
+                    //      (CLOSURE_CREATE → closure pointer) then emit CLOSURE_CALL, mirroring
+                    //      the IndexExpr path. Previously a lambda callee fell into the
+                    //      unsupported `else` branch → empty output in the compiler.
+                    BuildResult closureResult = b_.buildExprLambda(lambdaExpr);
+                    // (AR) نفس منطق إصدار CLOSURE_CALL في مسار IndexExpr — مُستخرَج للمُساعد
+                    // (EN) Same CLOSURE_CALL emission as the IndexExpr path — factored to helper
+                    return emitClosureCallFromCallee(closureResult, call, "IIFE lambda call");
                 }
                 else
                 {

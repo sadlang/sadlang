@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_or, gr.expr.bitwise_xor
+# @description: أو-بتّي و XOR
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+اطبع_سطر(4 | 1 ^ 2)

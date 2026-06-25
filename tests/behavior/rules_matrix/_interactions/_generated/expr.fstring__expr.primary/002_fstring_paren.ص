@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring, gr.expr.primary
+# @description: إقحام أقواس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: الناتج 5
+
+اطبع_سطر(f"الناتج {(2 + 3)}")

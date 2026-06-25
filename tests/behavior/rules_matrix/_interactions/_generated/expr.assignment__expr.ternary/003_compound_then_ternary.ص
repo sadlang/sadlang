@@ -1,0 +1,9 @@
+# @rule: gr.expr.assignment, gr.expr.ternary
+# @description: إسناد مركّب ثمّ شرطيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ثمانية
+
+متغير س = 5
+س += 3
+اطبع_سطر((س == 8) ؟ "ثمانية" : "غير")

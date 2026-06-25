@@ -1,0 +1,12 @@
+# @rule: gr.expr.range, gr.expr.term
+# @description: حدّ المدى الأعلى جمع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+متغير مج = 0
+متغير ح = 2
+لكل ع في 1..(ح + 2)
+    مج = مج + ع
+نهاية
+اطبع_سطر(مج)

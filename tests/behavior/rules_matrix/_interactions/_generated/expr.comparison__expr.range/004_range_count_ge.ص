@@ -1,0 +1,13 @@
+# @rule: gr.expr.comparison, gr.expr.range
+# @description: عدّ بأكبر-أو-يساوي
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ن = 0
+لكل ع في 1..6
+    إذا (ع >= 4)
+        ن = ن + 1
+    نهاية
+نهاية
+اطبع_سطر(ن)

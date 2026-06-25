@@ -1,0 +1,14 @@
+# @rule: gr.program.block, gr.stmt.if
+# @description: كتلة تحوي إذا/وإلا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: موجب
+
+دالة د(ع)
+    إذا (ع > 0)
+        ارجع "موجب"
+    وإلا
+        ارجع "غير"
+    نهاية
+نهاية
+اطبع_سطر(د(3))

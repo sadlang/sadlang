@@ -1,0 +1,10 @@
+# @rule: gr.expr.primary, gr.decl.function, gr.expr.postfix, gr.expr.term
+# @description: صفّ يُجمَع في المستوى الأعلى ويُمرَّر لدالة (مفسّر فقط — ISSUE-052 معماريّ: وسم MSB يصطدم بإشارة العدد)
+# @priority: P2
+# @skip_compiler
+# @requires: اطبع_سطر
+# @expected: 120
+
+دالة ضعف(ن) ارجع ن * 2 نهاية
+متغير ص = (10، 20، 30)
+اطبع_سطر(ضعف(ص[0] + ص[1] + ص[2]))

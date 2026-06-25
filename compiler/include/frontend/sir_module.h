@@ -512,6 +512,16 @@ namespace Sad
                 /// e.g., if constructor has هذا.الاسم = اسم, then: "اسم" → "الاسم"
                 std::unordered_map<std::string, std::string> paramToFieldMap_;
 
+                /// (AR) ربط الحقل بـ«معامِل.عضو» للاستنتاج المتعدّي [ISSUE-050b]
+                ///      مثال: باني(ب) هذا.ق = ب.ق  ⇒  "ق" → {"ب", "ق"}
+                ///      حين يكون المعامل بنية/صنفًا معروفًا من موقع النداء (Phase 2B) نشتقّ
+                ///      نوع الحقل من نوع عضو ذلك الصنف (المعامل غير مُنوَّع وقت بناء الباني).
+                /// (EN) field → (paramName, memberName) for transitive inference [ISSUE-050b]
+                ///      e.g. ctor(p) this.f = p.m  ⇒  "f" → {"p","m"}. When the param is a
+                ///      known struct/class at the call site (Phase 2B), derive the field type
+                ///      from that class's member (the param is untyped at ctor-build time).
+                std::unordered_map<std::string, std::pair<std::string, std::string>> fieldFromParamMember_;
+
                 /// (AR) ربط وسائط الأساس بمعاملات الباني (لتتبع أنواع حقول الأب)
                 /// (EN) Super arg → child param mapping (for parent field type propagation)
                 /// Maps parent ctor param index (0-based, excl self) → child ctor param name

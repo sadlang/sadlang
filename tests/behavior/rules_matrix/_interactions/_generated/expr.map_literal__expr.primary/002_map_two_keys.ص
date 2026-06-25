@@ -1,0 +1,8 @@
+# @rule: gr.expr.map_literal, gr.expr.primary
+# @description: مفتاحان
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير خ = {"أ": 1، "ب": 2}
+اطبع_سطر(خ["ب"])

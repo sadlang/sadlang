@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.if, gr.stmt.return, gr.expr.comparison, gr.expr.term
+# @description: فيبوناتشي تعاوديّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 55
+
+دالة فب(ن)
+    إذا (ن < 2)
+        ارجع ن
+    نهاية
+    ارجع فب(ن - 1) + فب(ن - 2)
+نهاية
+اطبع_سطر(فب(10))

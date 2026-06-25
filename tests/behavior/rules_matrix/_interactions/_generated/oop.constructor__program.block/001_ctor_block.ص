@@ -1,0 +1,14 @@
+# @rule: gr.oop.constructor, gr.program.block
+# @description: باني بكتلة متعدّدة الجمل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+صنف ك
+    متغير عام ق = 0
+    باني(ع)
+        متغير ت = ع * 2
+        هذا.ق = ت
+    نهاية
+نهاية
+اطبع_سطر(ك(3).ق)

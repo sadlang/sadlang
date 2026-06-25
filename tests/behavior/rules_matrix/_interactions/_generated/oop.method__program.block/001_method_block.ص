@@ -1,0 +1,13 @@
+# @rule: gr.oop.method, gr.program.block
+# @description: طريقة بكتلة متعدّدة الجمل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+صنف ك
+    دالة عام م()
+        متغير س = 3
+        ارجع س
+    نهاية
+نهاية
+اطبع_سطر(ك().م())

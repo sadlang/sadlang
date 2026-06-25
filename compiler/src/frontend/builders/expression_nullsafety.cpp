@@ -118,6 +118,19 @@ namespace Sad
                 // (EN) Build left expression
                 auto leftResult = buildExpression(nullCoalExpr->left.get());
 
+                // (AR) [ISSUE-046] القيمة المنطقيّة لا تكون «لاشيء» أبدًا. ومقارنة سجلّ
+                //      منطقيّ (i1) بحارس العدم (i64 = 0x8000…0001) تبتر الحارس إلى بِتّه
+                //      الأدنى (=1) فيُحسَب «صحيح» مساويًا للحارس خطأً ⇒ يُعاد الأيمن.
+                //      الحلّ: نُرجِع الأيسر مباشرةً لأيّ معامل منطقيّ (غير قابل للعدم).
+                // (EN) A boolean is never null. Comparing an i1 register to the i64 null
+                //      sentinel (0x8000…0001) truncates the sentinel to its low bit (=1),
+                //      so `true` is wrongly seen as the sentinel and the right operand is
+                //      returned. Short-circuit to the left value for any boolean operand.
+                if (leftResult.type == SadTypeKind::Boolean)
+                {
+                    return leftResult;
+                }
+
                 // (AR) إنشاء الكتل: فحص null → يسار / يمين
                 // (EN) Create blocks: null check → left / right
                 std::string leftLabel = b_.newLabel("nc_left");
@@ -148,8 +161,6 @@ namespace Sad
                         SIROperand::Label(leftLabel),
                         SIROperand::Label(rightLabel)));
                 }
-
-                // (AR) فرع اليسار: القيمة موجودة
 
                 // (AR) فرع اليسار: القيمة موجودة
                 // (EN) Left branch: value exists
@@ -204,7 +215,14 @@ namespace Sad
                 b_.currentBlock_ = rightBlock;
                 auto rightResult = buildExpression(nullCoalExpr->right.get());
                 SadTypeKind resultType = leftResult.type;
-                if (resultType == SadTypeKind::Void || resultType == SadTypeKind::Unknown)
+                // (AR) [ISSUE-046] حين يكون الأيسر «لاشيء» حرفيًّا (Null) فالنتيجة تأتي
+                //      من الأيمن دائمًا؛ نعتمد نوع الأيمن كي لا يُعامَل بديلٌ منطقيّ/عشريّ
+                //      كـi64 فيُفسَد عند MOVE (مثلاً «true» تفشل stoll ⇒ 0).
+                // (EN) When the left is the literal null, the result always comes from the
+                //      right, so adopt the right's type — otherwise a boolean/float fallback
+                //      is mis-typed as i64 and corrupted at MOVE (e.g. "true" fails stoll→0).
+                if (resultType == SadTypeKind::Void || resultType == SadTypeKind::Unknown ||
+                    resultType == SadTypeKind::Null)
                 {
                     resultType = rightResult.type;
                 }
@@ -256,6 +274,12 @@ namespace Sad
                         break;
                     case SadTypeKind::Float:
                         moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(rightResult.constantValue)));
+                        break;
+                    case SadTypeKind::Boolean:
+                        // (AR) [ISSUE-046] بديل منطقيّ: نُصدر ConstantBool لا I64 (stoll تفشل على «true»)
+                        // (EN) [ISSUE-046] boolean fallback: emit ConstantBool, not I64 (stoll fails on "true")
+                        moveInst.operands.push_back(SIROperand::ConstantBool(
+                            rightResult.constantValue == "true" || rightResult.constantValue == "1"));
                         break;
                     default:
                         try

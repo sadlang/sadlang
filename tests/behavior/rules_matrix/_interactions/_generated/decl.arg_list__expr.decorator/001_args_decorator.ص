@@ -1,0 +1,9 @@
+# @rule: gr.decl.arg_list, gr.expr.decorator
+# @description: مزخرف على دالة تُستدعى بوسيطة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+@تذكير
+دالة حيّ(أ) ارجع أ نهاية
+اطبع_سطر(حيّ(5))

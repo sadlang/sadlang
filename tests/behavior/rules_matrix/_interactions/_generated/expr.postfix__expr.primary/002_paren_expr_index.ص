@@ -1,0 +1,7 @@
+# @rule: gr.expr.postfix, gr.expr.primary
+# @description: فهرسة نتيجة أقواس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+اطبع_سطر(([5، 6، 7])[0])

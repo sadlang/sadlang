@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.if, gr.stmt.return, gr.expr.comparison, gr.expr.term
+# @description: تعاودية بمراكم (مجموع حتى ن)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5050
+
+دالة مج(ن، ر)
+    إذا (ن == 0)
+        ارجع ر
+    نهاية
+    ارجع مج(ن - 1, ر + ن)
+نهاية
+اطبع_سطر(مج(100, 0))

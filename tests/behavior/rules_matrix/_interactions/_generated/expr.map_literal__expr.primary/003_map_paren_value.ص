@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal, gr.expr.primary
+# @description: قيمة من أقواس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+اطبع_سطر({"ك": (3 + 4)}["ك"])

@@ -1,0 +1,12 @@
+# @rule: gr.expr.array_literal, gr.expr.postfix, gr.stmt.for, gr.expr.range
+# @description: فهرسة سالبة + حلقة مدى
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 80
+
+متغير م = [5، 10، 15، 20]
+متغير مج = 0
+لكل ع في 0..2
+    مج = مج + م[-1]
+نهاية
+اطبع_سطر(مج + م[-1])

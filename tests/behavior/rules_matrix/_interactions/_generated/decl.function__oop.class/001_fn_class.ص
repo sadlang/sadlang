@@ -1,0 +1,11 @@
+# @rule: gr.decl.function, gr.oop.class
+# @description: دالة حرّة مع صنف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة م() ارجع 1 نهاية
+صنف ك
+    متغير عام ق = 2
+نهاية
+اطبع_سطر(م() + ك().ق)

@@ -1,0 +1,17 @@
+# @rule: gr.stmt.for, gr.stmt.match, gr.expr.array_literal, gr.stmt.return
+# @description: لكل + طابق لتصنيف وتجميع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 32
+
+متغير زوج = 0
+متغير فرد = 0
+لكل ع في [1، 2، 3، 4، 5]
+    طابق (ع % 2)
+        عندما 0:
+            زوج = زوج + 1
+        عندما 1:
+            فرد = فرد + 1
+    نهاية
+نهاية
+اطبع_سطر(فرد * 10 + زوج)

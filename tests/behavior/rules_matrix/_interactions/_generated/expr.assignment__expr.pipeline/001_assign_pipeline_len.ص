@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment, gr.expr.pipeline
+# @description: إسناد ناتج أنبوب طول
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ن = [1، 2، 3] |> طول
+اطبع_سطر(ن)

@@ -1,0 +1,7 @@
+# @rule: gr.expr.null_coalesce, gr.expr.ternary
+# @description: تجميع داخل شرطيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+اطبع_سطر(صحيح ؟ (لاشيء ؟؟ 5) : 0)

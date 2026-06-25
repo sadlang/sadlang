@@ -1,0 +1,13 @@
+# @rule: gr.decl.export, gr.oop.enum, gr.oop.class, gr.oop.method
+# @description: تعداد مُصدَّر يُستعمل داخل تابع صنف (تغطية إصلاح ISSUE-051 المبكر)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+
+صدّر تعداد ل
+    أ، ب
+نهاية
+صنف ك
+    دالة عام جلب() ارجع ل.ب نهاية
+نهاية
+اطبع_سطر(ك().جلب())

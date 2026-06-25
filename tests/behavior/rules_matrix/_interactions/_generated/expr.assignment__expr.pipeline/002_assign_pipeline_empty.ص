@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment, gr.expr.pipeline
+# @description: أنبوب على مصفوفة فارغة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+
+متغير ن = [] |> طول
+اطبع_سطر(ن)

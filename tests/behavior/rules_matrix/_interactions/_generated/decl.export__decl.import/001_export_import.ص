@@ -1,0 +1,9 @@
+# @rule: gr.decl.export, gr.decl.import
+# @description: استيراد ثمّ تصدير دالة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+استورد رياضيات
+صدّر دالة د() ارجع 1 نهاية
+اطبع_سطر(د())

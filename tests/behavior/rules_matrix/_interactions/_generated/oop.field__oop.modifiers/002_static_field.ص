@@ -1,0 +1,10 @@
+# @rule: gr.oop.field, gr.oop.modifiers
+# @description: حقل ساكن
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 50
+
+صنف ع
+    متغير ساكن س = 50
+نهاية
+اطبع_سطر(ع.س)

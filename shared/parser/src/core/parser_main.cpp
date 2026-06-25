@@ -508,6 +508,47 @@ namespace Sad
                             "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
                             "(EN) Syntax error: expected ')' after link name.");
                 }
+                // (AR) [ISSUE-041] كتلة ربط أجنبيّ بلغة بلا أقواس: خارجي "C" <تصاريح> نهاية
+                //      نُحوّلها لكتلة من تصاريح دوال خارجيّة (كلٌّ بلغة الربط نفسها). كان
+                //      المُحلّل يتوقّع 'دالة' مباشرةً فيرفض صيغة الكتلة (gr.adv.ffi_extern_block).
+                // (EN) [ISSUE-041] Foreign linkage block (string linkage, no parens):
+                //      `extern "C" <decls> end`. Lower to a block of extern function decls
+                //      (all sharing the linkage). The parser used to expect 'function'
+                //      immediately and reject the block form (gr.adv.ffi_extern_block).
+                else if (check(TT::STRING_LITERAL))
+                {
+                    // (AR) موقع نصّ الربط — يُستخدم كموقع عقدة الكتلة في التشخيصات.
+                    // (EN) Linkage-string position — used as the block node's position in diagnostics.
+                    auto blockPos = current_.getPosition();
+                    ffiLinkName = current_.getValue();
+                    advance(); // (AR) استهلاك "C" / (EN) consume linkage string
+                    StmtList externBody;
+                    while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                    {
+                        // (AR) كل دورة تستهلك 'دالة' عبر match قبل استدعاء parseExternFunctionDecl،
+                        //      فالتقدّم مضمون حتى لو أعاد المُحلّل nullptr — لا حلقة لا نهائية.
+                        // (EN) Each iteration consumes 'function' via match before calling
+                        //      parseExternFunctionDecl, so progress is guaranteed even if the
+                        //      parser returns nullptr — no infinite loop is possible.
+                        if (!match(TT::KEYWORD_FUNCTION))
+                        {
+                            // (AR) رمز دخيل غير 'دالة' داخل الكتلة — نُبلِغ ونُرجِع فورًا (كنظير
+                            //      الصيغة المفردة أدناه) تجنّبًا لتعاقب خطأ ثانٍ من consume('نهاية').
+                            // (EN) Stray non-'function' token inside the block — report and return
+                            //      immediately (mirroring the single-decl path below) to avoid a
+                            //      cascading second error from the consume('end') call.
+                            error("(AR) خطأ نحوي: توقع 'دالة' داخل كتلة 'خارجي'. (EN) Syntax error: expected 'function' inside extern block.");
+                            return nullptr;
+                        }
+                        auto externFn = parseExternFunctionDecl(ffiLinkName);
+                        if (externFn)
+                            externBody.push_back(std::move(externFn));
+                    }
+                    consume(TT::KEYWORD_END,
+                            "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة 'خارجي'.\n"
+                            "(EN) Syntax error: expected 'نهاية' to close extern block.");
+                    return std::make_unique<BlockStmt>(std::move(externBody), blockPos);
+                }
                 // (AR) توقع 'دالة' بعد 'خارجي' أو بعد 'خارجي("...")'
                 // (EN) Expect 'function' after 'extern' or after 'extern("...")'
                 if (!match(TT::KEYWORD_FUNCTION))

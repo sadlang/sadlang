@@ -379,6 +379,17 @@ namespace Sad
                         std::string flagName = inst->result->name + ".__is_ptr";
                         cg_.context_info_.namedValues[flagName] = isPtr;
                     }
+                    // (AR) [ISSUE-052] لا يُفكّ وسم العنصر العدديّ هنا: المخطّط يحجز bit63 للنوع،
+                    //      وهو يصطدم ببت إشارة العدد السالب (لا يمكن التمييز قراءةً بين «موجب موسوم»
+                    //      و«سالب خام» — كلاهما bit63=1). فكُّ bit63 يُصلح الموجب لكنه يفسد السالب.
+                    //      الإصلاح الصحيح يتطلّب إعادة تصميم الوسم (نوع + قيمة 62-بتًّا بمدّ إشارة)
+                    //      عبر الكتابة والقراءة معًا — معماريّ مؤجَّل (انظر DISCOVERED_ISSUES 052/045).
+                    // (EN) [ISSUE-052] Do NOT untag integer elements here: the scheme reuses bit63
+                    //      for the type tag, colliding with the sign bit of negative integers (a
+                    //      "tagged positive" and a "raw negative" are read-indistinguishable — both
+                    //      have bit63=1). Clearing bit63 fixes positives but corrupts negatives. A
+                    //      correct fix needs a tagging redesign (type + 62-bit sign-extended value)
+                    //      across write & read — deferred as architectural (see DISCOVERED_ISSUES).
                 }
             }
 

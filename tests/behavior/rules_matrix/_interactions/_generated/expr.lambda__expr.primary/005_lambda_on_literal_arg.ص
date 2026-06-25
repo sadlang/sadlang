@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda, gr.expr.primary
+# @description: تمرير حرفيّ مباشرة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+اطبع_سطر((لامدا(س) => س * س)(5))

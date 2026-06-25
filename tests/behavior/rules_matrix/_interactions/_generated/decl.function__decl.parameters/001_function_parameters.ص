@@ -1,0 +1,8 @@
+# @rule: gr.decl.function, gr.decl.parameters
+# @description: دالة بمعاملين
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة جمع(أ، ب) ارجع أ + ب نهاية
+اطبع_سطر(جمع(3، 4))

@@ -1,0 +1,7 @@
+# @rule: gr.expr.power, gr.expr.unary
+# @description: واحد لأس كبير
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+اطبع_سطر(1 ** 100)

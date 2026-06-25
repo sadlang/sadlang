@@ -1,0 +1,10 @@
+# @rule: gr.decl.export, gr.oop.enum
+# @description: تصدير تعداد مباشرةً (مزدوج بعد إصلاح ISSUE-051)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+صدّر تعداد ل
+    أ، ب
+نهاية
+اطبع_سطر(ل.ب)

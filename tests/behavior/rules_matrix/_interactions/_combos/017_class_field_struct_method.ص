@@ -1,0 +1,17 @@
+# @rule: gr.oop.class, gr.oop.struct, gr.oop.method, gr.oop.field, gr.oop.constructor
+# @description: صنف يحوي بنية مُمرَّرة + طريقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+بنية حجم
+    رقم ع = 0
+نهاية
+صنف صندوق
+    متغير عام ح = 0
+    باني(ب) هذا.ح = ب.ع نهاية
+    دالة عام احصل() ارجع هذا.ح نهاية
+نهاية
+متغير ق = حجم()
+ق.ع = 9
+اطبع_سطر(صندوق(ق).احصل())

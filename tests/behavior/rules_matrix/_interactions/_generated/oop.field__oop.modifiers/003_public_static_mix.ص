@@ -1,0 +1,12 @@
+# @rule: gr.oop.field, gr.oop.modifiers
+# @description: حقل عام وآخر ساكن
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1\n9
+
+صنف ح
+    متغير عام أ = 1
+    متغير ساكن ب = 9
+نهاية
+اطبع_سطر(ح().أ)
+اطبع_سطر(ح.ب)

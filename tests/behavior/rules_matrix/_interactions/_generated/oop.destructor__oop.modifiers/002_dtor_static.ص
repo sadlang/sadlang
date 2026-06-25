@@ -1,0 +1,11 @@
+# @rule: gr.oop.destructor, gr.oop.modifiers
+# @description: هادم مع حقل ساكن
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+صنف م
+    متغير ساكن س = 42
+    هدم() نهاية
+نهاية
+اطبع_سطر(م.س)

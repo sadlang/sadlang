@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.unary
+# @description: سالب في سالب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 12
+
+اطبع_سطر(-3 * -4)

@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.unary
+# @description: سالب مقسوم
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: -3
+
+اطبع_سطر(-12 / 4)

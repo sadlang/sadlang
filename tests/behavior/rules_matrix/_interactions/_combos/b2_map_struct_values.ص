@@ -1,0 +1,13 @@
+# @rule: gr.expr.map_literal, gr.oop.struct, gr.expr.postfix, gr.decl.variable
+# @description: خريطة + بنية + فهرسة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 50
+
+بنية معلومة
+    رقم رمز = 0
+نهاية
+متغير م = معلومة()
+م.رمز = 42
+متغير خ = {"س": م.رمز، "ص": 8}
+اطبع_سطر(خ["س"] + خ["ص"])

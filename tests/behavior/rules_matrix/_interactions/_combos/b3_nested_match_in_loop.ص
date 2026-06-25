@@ -1,0 +1,18 @@
+# @rule: gr.stmt.for, gr.stmt.match, gr.expr.range, gr.stmt.if, gr.expr.term
+# @description: طابق متداخل داخل حلقة مدى مع افتراضي
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 222
+
+متغير ن = 0
+لكل ع في 0..5
+    طابق (ع % 3)
+        عندما 0:
+            ن = ن + 100
+        عندما 1:
+            ن = ن + 10
+        افتراضي:
+            ن = ن + 1
+    نهاية
+نهاية
+اطبع_سطر(ن)

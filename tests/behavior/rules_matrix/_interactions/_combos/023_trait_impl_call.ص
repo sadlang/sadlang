@@ -1,0 +1,15 @@
+# @rule: gr.oop.trait, gr.oop.impl, gr.oop.class, gr.oop.method
+# @description: سمة + تنفيذ مستقلّ + نداء
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ووف
+
+سمة ناطق
+    دالة صوت()
+نهاية
+صنف كلب
+نهاية
+نفّذ ناطق لـ كلب
+    دالة صوت() ارجع "ووف" نهاية
+نهاية
+اطبع_سطر(كلب().صوت())

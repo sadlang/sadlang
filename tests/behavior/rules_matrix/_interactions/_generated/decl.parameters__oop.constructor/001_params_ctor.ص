@@ -1,0 +1,11 @@
+# @rule: gr.decl.parameters, gr.oop.constructor
+# @description: معاملات باني
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+صنف ك
+    متغير عام ق = 0
+    باني(أ، ب) هذا.ق = أ + ب نهاية
+نهاية
+اطبع_سطر(ك(3، 4).ق)

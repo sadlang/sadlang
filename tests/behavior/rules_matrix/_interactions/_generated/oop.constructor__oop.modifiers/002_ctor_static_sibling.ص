@@ -1,0 +1,13 @@
+# @rule: gr.oop.constructor, gr.oop.modifiers
+# @description: باني مع حقل ساكن
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3\n100
+
+صنف د
+    متغير ساكن عدّاد = 100
+    متغير عام ق = 0
+    باني(ق) هذا.ق = ق نهاية
+نهاية
+اطبع_سطر(د(3).ق)
+اطبع_سطر(د.عدّاد)

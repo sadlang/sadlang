@@ -1,0 +1,7 @@
+# @rule: gr.expr.null_coalesce, gr.expr.ternary
+# @description: تركيب الاثنين
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: نعم
+
+اطبع_سطر((لاشيء ؟؟ 3) > 2 ؟ "نعم" : "لا")

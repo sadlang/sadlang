@@ -1,0 +1,8 @@
+# @rule: gr.expr.postfix, gr.expr.primary
+# @description: فهرسة صف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ص = (1، 2، 3)
+اطبع_سطر(ص[2])

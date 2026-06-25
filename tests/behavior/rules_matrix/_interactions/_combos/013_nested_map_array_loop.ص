@@ -1,0 +1,12 @@
+# @rule: gr.expr.map_literal, gr.expr.array_literal, gr.stmt.for, gr.expr.postfix
+# @description: خريطة قيمها مصفوفات + حلقة + فهرسة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير خ = {"أ": [1، 2، 3]}
+متغير مج = 0
+لكل ع في خ["أ"]
+    مج = مج + ع
+نهاية
+اطبع_سطر(مج)

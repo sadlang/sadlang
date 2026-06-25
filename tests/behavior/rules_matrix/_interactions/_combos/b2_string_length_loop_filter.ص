@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.for, gr.stmt.if, gr.expr.comparison, gr.expr.array_literal
+# @description: عدّ النصوص الطويلة في مصفوفة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير عد = 0
+لكل ن في ["أ"، "مرحبا"، "ب"، "أهلاً"]
+    إذا (طول(ن) > 1)
+        عد = عد + 1
+    نهاية
+نهاية
+اطبع_سطر(عد)

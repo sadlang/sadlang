@@ -232,6 +232,16 @@ namespace Sad
                 // (EN) Closure captures
                 std::unordered_map<std::string, std::vector<CaptureInfo>> closureCaptures_;
 
+                // (AR) [ISSUE-053] راية: عند تحليل المتغيّرات الحرّة للامدا (لا لـdefer)
+                //      نلتقط أيضًا المتغيّر المُسنَد إليه (هدف الإسناد) كمتغيّر حرّ، كي تدوم حالة
+                //      الإغلاق المُعيد للامدا تُعدّل محلّيًّا (مصنع عدّاد). يجب أن تبقى false لـdefer
+                //      لأنّ defer يُعدّل المتغيّر الخارجيّ عبر المكدّس المشترك لا بالالتقاط بالقيمة.
+                // (EN) [ISSUE-053] Flag: while analyzing a lambda's free vars (NOT defer) we also
+                //      capture the assignment target var as free, so a closure returning a lambda
+                //      that mutates a local (counter factory) keeps its state. Must stay false for
+                //      defer, which mutates the outer var via the shared scope stack, not by value.
+                bool captureAssignTargetsInClosure_ = false;
+
                 // (AR) مكدس نطاقات الأنواع العامة
                 // (EN) Generic scopes stack
                 std::vector<GenericScope> genericScopeStack_;

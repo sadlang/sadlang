@@ -1,0 +1,11 @@
+# @rule: gr.expr.lambda, gr.decl.function, gr.stmt.return, gr.expr.factor
+# @description: دالة تُرجع لامدا (مصنع مضاعِفات)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 21
+
+دالة مضاعِف(ن)
+    ارجع لامدا(س) => س * ن
+نهاية
+متغير ثلاثي = مضاعِف(3)
+اطبع_سطر(ثلاثي(7))

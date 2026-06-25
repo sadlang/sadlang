@@ -1,0 +1,7 @@
+# @rule: gr.expr.array_literal, gr.expr.primary
+# @description: مصفوفة من نتائج أقواس
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+اطبع_سطر([(1 + 1)، (2 * 2)][1])

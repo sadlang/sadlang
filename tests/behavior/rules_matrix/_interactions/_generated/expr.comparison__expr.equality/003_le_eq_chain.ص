@@ -1,0 +1,7 @@
+# @rule: gr.expr.comparison, gr.expr.equality
+# @description: أصغر-أو-يساوي ومساواة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((2 <= 2) == (3 >= 3))

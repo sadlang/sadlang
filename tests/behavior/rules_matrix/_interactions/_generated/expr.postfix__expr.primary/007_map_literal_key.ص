@@ -1,0 +1,7 @@
+# @rule: gr.expr.postfix, gr.expr.primary
+# @description: مفتاح خريطة حرفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+اطبع_سطر({"ك": 8}["ك"])

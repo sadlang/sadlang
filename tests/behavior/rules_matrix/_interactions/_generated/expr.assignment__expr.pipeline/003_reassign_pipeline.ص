@@ -1,0 +1,9 @@
+# @rule: gr.expr.assignment, gr.expr.pipeline
+# @description: إعادة إسناد عبر أنبوب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير م = [5، 6]
+متغير ط = م |> طول
+اطبع_سطر(ط)

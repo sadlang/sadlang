@@ -1,0 +1,7 @@
+# @rule: gr.expr.comparison, gr.expr.equality
+# @description: مساواة مقارنتين مختلفتين
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: خطأ
+
+اطبع_سطر((1 < 2) == (2 < 1))

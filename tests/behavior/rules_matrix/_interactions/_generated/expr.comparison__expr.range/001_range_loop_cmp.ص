@@ -1,0 +1,13 @@
+# @rule: gr.expr.comparison, gr.expr.range
+# @description: مدى في حلقة مع مقارنة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ك = 0
+لكل ع في 1..5
+    إذا (ع > 2)
+        ك = ك + 1
+    نهاية
+نهاية
+اطبع_سطر(ك)

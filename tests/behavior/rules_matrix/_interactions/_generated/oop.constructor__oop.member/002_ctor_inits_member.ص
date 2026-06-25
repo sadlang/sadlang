@@ -1,0 +1,11 @@
+# @rule: gr.oop.constructor, gr.oop.member
+# @description: باني يُهيّئ عضوًا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 11
+
+صنف ح
+    متغير عام س = 0
+    باني() هذا.س = 11 نهاية
+نهاية
+اطبع_سطر(ح().س)

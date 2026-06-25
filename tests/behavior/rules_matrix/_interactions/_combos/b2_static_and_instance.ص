@@ -1,0 +1,13 @@
+# @rule: gr.oop.class, gr.oop.modifiers, gr.oop.method, gr.oop.field, gr.expr.term
+# @description: ساكن + نسخة معًا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 30
+
+صنف رياضة
+    متغير ساكن باي = 3
+    متغير عام نق = 0
+    باني(نق) هذا.نق = نق نهاية
+    دالة عام محيط() ارجع 2 * رياضة.باي * هذا.نق نهاية
+نهاية
+اطبع_سطر(رياضة(5).محيط())

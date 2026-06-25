@@ -1,0 +1,8 @@
+# @rule: gr.expr.lambda, gr.expr.primary
+# @description: لامدا تُرجع ثابتًا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 99
+
+متغير ث = لامدا() => 99
+اطبع_سطر(ث())

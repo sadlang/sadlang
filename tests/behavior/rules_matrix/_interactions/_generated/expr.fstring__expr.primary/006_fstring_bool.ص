@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring, gr.expr.primary
+# @description: إقحام منطقيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: القيمة صحيح
+
+اطبع_سطر(f"القيمة {صحيح}")

@@ -1,0 +1,9 @@
+# @rule: gr.expr.pipeline, gr.decl.function, gr.expr.array_literal, gr.stmt.return
+# @description: سلسلة أنابيب عبر دوال
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة زائد1(ن) ارجع ن + 1 نهاية
+متغير ر = [1، 2، 3، 4] |> طول |> زائد1
+اطبع_سطر(ر)

@@ -1,0 +1,9 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: متغيّرات في حدود مختلطة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 13
+
+متغير أ = 5
+متغير ب = 2
+اطبع_سطر(أ * ب + أ - ب)

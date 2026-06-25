@@ -1,0 +1,8 @@
+# @rule: gr.decl.type_ref, gr.decl.variable
+# @description: متغيّر بنوع نص
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ص
+
+متغير نص اسم = "ص"
+اطبع_سطر(اسم)

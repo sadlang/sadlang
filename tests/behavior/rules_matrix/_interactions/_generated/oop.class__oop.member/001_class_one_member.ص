@@ -1,0 +1,10 @@
+# @rule: gr.oop.class, gr.oop.member
+# @description: صنف بعضو واحد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+صنف ع
+    متغير عام ق = 4
+نهاية
+اطبع_سطر(ع().ق)

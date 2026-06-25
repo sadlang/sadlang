@@ -1,0 +1,12 @@
+# @rule: gr.oop.member, gr.oop.method
+# @description: طريقتان
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 12
+
+صنف ع
+    دالة عام أ() ارجع 3 نهاية
+    دالة عام ب() ارجع 4 نهاية
+نهاية
+متغير ك = ع()
+اطبع_سطر(ك.أ() * ك.ب())

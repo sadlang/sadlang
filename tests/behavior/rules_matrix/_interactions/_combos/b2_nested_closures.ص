@@ -1,0 +1,11 @@
+# @rule: gr.expr.lambda, gr.decl.function, gr.stmt.return, gr.expr.term
+# @description: إغلاقات متداخلة تلتقط نطاقين
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 123
+
+دالة خارجي(أ)
+    ارجع لامدا(ب) => أ + ب
+نهاية
+متغير ز = خارجي(100)
+اطبع_سطر(ز(23))

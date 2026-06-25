@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: صفر في الضرب والجمع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+اطبع_سطر(0 * 5 + 7)

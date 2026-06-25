@@ -1,0 +1,20 @@
+# @rule: gr.stmt.try, gr.stmt.while, gr.stmt.if, gr.expr.comparison
+# @description: حاول/ارمي/امسك داخل حلقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 107
+
+متغير ن = 0
+متغير ع = 0
+بينما (ع < 5)
+    حاول
+        إذا (ع == 3)
+            ارمي "خطأ"
+        نهاية
+        ن = ن + ع
+    امسك خ
+        ن = ن + 100
+    نهاية
+    ع = ع + 1
+نهاية
+اطبع_سطر(ن)

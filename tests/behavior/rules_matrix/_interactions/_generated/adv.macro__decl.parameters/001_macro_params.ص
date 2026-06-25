@@ -1,0 +1,10 @@
+# @rule: gr.adv.macro, gr.decl.parameters
+# @description: ماكرو بمعامل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+ماكرو ضعف(س)
+    ارجع س * 2
+نهاية
+اطبع_سطر(ضعف!(21))

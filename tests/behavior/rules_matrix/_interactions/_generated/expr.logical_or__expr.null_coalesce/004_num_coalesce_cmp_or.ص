@@ -1,0 +1,7 @@
+# @rule: gr.expr.logical_or, gr.expr.null_coalesce
+# @description: تجميع عدد ثمّ مقارنة وأو
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((لاشيء ؟؟ 0) == 0 || خطأ)

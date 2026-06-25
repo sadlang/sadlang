@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: أقواس تعكس الأسبقيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 20
+
+اطبع_سطر((2 + 3) * 4)

@@ -1,0 +1,8 @@
+# @rule: gr.decl.export, gr.decl.function
+# @description: تصدير دالة واستعمالها
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صدّر دالة ج() ارجع 5 نهاية
+اطبع_سطر(ج())

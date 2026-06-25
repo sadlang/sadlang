@@ -1,0 +1,10 @@
+# @rule: gr.decl.export, gr.oop.class
+# @description: تصدير صنف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صدّر صنف ك
+    متغير عام ق = 5
+نهاية
+اطبع_سطر(ك().ق)

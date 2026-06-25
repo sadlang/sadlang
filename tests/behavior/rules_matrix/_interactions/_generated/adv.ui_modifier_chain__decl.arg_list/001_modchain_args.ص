@@ -1,0 +1,9 @@
+# @rule: gr.adv.ui_modifier_chain, gr.decl.arg_list
+# @description: معدّل بوسيطة على عنصر عرض
+# @priority: P2
+# @skip_interpreter
+# @requires: اطبع_سطر
+# @expected: ok
+
+اعرض نص("مرحبا").حجم(32)
+اطبع_سطر("ok")

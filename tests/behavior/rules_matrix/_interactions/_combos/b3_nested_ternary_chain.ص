@@ -1,0 +1,10 @@
+# @rule: gr.expr.ternary, gr.decl.function, gr.stmt.return, gr.expr.comparison
+# @description: شرطيّات ثلاثيّة متسلسلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ب
+
+دالة رتبة(د)
+    ارجع (د >= 90) ؟ "أ" : (د >= 80) ؟ "ب" : (د >= 70) ؟ "ج" : "د"
+نهاية
+اطبع_سطر(رتبة(85))

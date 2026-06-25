@@ -1,0 +1,15 @@
+# @rule: gr.program.block, gr.stmt.continue
+# @description: كتلة دالة تحوي استمر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+دالة د()
+    متغير س = 0
+    لكل ن في [1، 2، 3، 4]
+        إذا (ن == 2) استمر نهاية
+        س = س + ن
+    نهاية
+    ارجع س
+نهاية
+اطبع_سطر(د())

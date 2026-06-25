@@ -1,0 +1,15 @@
+# @rule: gr.stmt.while, gr.stmt.if, gr.stmt.break, gr.stmt.continue, gr.expr.comparison
+# @description: بينما مع توقف واستمر وشرط
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 37
+
+متغير س = 0
+متغير مج = 0
+بينما (صحيح)
+    س = س + 1
+    إذا (س > 10) توقف نهاية
+    إذا (س % 3 == 0) استمر نهاية
+    مج = مج + س
+نهاية
+اطبع_سطر(مج)

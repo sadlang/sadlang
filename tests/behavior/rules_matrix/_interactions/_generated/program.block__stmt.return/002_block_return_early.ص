@@ -1,0 +1,13 @@
+# @rule: gr.program.block, gr.stmt.return
+# @description: إرجاع مبكر داخل الكتلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صفر
+
+دالة د(ع)
+    إذا (ع == 0)
+        ارجع "صفر"
+    نهاية
+    ارجع "غير صفر"
+نهاية
+اطبع_سطر(د(0))

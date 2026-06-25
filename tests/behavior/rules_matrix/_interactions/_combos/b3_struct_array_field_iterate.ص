@@ -1,0 +1,16 @@
+# @rule: gr.oop.struct, gr.expr.array_literal, gr.stmt.for, gr.expr.postfix, gr.expr.term
+# @description: بنية تحوي حقل مصفوفة + تكرار
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 15
+
+بنية فريق
+    قائمة نقاط = []
+نهاية
+متغير ف = فريق()
+ف.نقاط = [3، 5، 7]
+متغير مج = 0
+لكل ن في ف.نقاط
+    مج = مج + ن
+نهاية
+اطبع_سطر(مج)

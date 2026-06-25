@@ -1,0 +1,7 @@
+# @rule: gr.expr.array_literal, gr.expr.primary
+# @description: مصفوفة قيم حرفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+اطبع_سطر([7، 8، 9][2])

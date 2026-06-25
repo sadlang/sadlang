@@ -1,0 +1,10 @@
+# @rule: gr.oop.constructor, gr.oop.struct
+# @description: بنية بلا باني تستعمل الافتراضيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+بنية ن
+    رقم س = 6
+نهاية
+اطبع_سطر(ن().س)

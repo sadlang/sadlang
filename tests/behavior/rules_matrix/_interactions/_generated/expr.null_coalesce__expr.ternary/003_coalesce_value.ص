@@ -1,0 +1,7 @@
+# @rule: gr.expr.null_coalesce, gr.expr.ternary
+# @description: تجميع يُرجع الأيسر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+اطبع_سطر((5 ؟؟ 9) ؟ 1 : 2)

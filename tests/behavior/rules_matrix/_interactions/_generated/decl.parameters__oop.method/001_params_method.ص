@@ -1,0 +1,10 @@
+# @rule: gr.decl.parameters, gr.oop.method
+# @description: معاملات طريقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+صنف ك
+    دالة عام جمع(أ، ب) ارجع أ + ب نهاية
+نهاية
+اطبع_سطر(ك().جمع(3، 4))

@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: أعداد عشريّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3.5
+
+اطبع_سطر(1.5 * 2 + 0.5)

@@ -1,0 +1,15 @@
+# @rule: gr.oop.destructor, gr.program.block
+# @description: هادم مع كتلة طريقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف ك
+    باني() نهاية
+    هدم() نهاية
+    دالة عام ق()
+        متغير س = 5
+        ارجع س
+    نهاية
+نهاية
+اطبع_سطر(ك().ق())

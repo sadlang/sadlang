@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring, gr.expr.primary
+# @description: إقحام قيمة حرفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: العدد 42
+
+اطبع_سطر(f"العدد {42}")

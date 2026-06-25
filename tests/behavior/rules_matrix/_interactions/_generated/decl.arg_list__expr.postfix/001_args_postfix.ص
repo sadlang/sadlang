@@ -1,0 +1,8 @@
+# @rule: gr.decl.arg_list, gr.expr.postfix
+# @description: نداء بوسائط مع فهرسة لاحقيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+دالة أوّل(م) ارجع م[0] نهاية
+اطبع_سطر(أوّل([10، 20، 30]))

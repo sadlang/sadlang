@@ -1,0 +1,7 @@
+# @rule: gr.expr.factor, gr.expr.term
+# @description: قسمة دقيقة ثمّ جمع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+اطبع_سطر(9 / 3 + 9 / 3)

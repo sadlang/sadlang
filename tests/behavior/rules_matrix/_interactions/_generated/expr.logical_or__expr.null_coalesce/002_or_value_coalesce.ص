@@ -1,0 +1,7 @@
+# @rule: gr.expr.logical_or, gr.expr.null_coalesce
+# @description: قيمة من تجميع في أو
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر(خطأ || (لاشيء ؟؟ صحيح))

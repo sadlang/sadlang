@@ -1,0 +1,13 @@
+# @rule: gr.stmt.for, gr.expr.range, gr.expr.factor, gr.expr.term
+# @description: حلقتان متداخلتان (جدول ضرب جزئيّ)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 36
+
+متغير مج = 0
+لكل ص في 1..3
+    لكل ع في 1..3
+        مج = مج + ص * ع
+    نهاية
+نهاية
+اطبع_سطر(مج)

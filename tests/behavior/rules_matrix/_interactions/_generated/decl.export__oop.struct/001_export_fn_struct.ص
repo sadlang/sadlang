@@ -1,0 +1,10 @@
+# @rule: gr.decl.export, gr.oop.struct
+# @description: تصدير بنية مباشرةً (مزدوج بعد إصلاح ISSUE-051)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+صدّر بنية ن
+    رقم ق = 4
+نهاية
+اطبع_سطر(ن().ق)

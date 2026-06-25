@@ -1,0 +1,13 @@
+# @rule: gr.decl.function, gr.stmt.if, gr.stmt.return, gr.expr.comparison, gr.expr.factor
+# @description: عاملي تعاوديّ: دالة+إذا+ارجع+مقارنة+ضرب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 120
+
+دالة عاملي(ن)
+    إذا (ن <= 1)
+        ارجع 1
+    نهاية
+    ارجع ن * عاملي(ن - 1)
+نهاية
+اطبع_سطر(عاملي(5))

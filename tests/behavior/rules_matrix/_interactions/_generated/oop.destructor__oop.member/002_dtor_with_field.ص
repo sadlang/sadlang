@@ -1,0 +1,11 @@
+# @rule: gr.oop.destructor, gr.oop.member
+# @description: هادم مع حقل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+صنف م
+    متغير عام ق = 9
+    هدم() نهاية
+نهاية
+اطبع_سطر(م().ق)

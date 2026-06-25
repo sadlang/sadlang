@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_and, gr.expr.bitwise_xor
+# @description: سلسلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 12
+
+اطبع_سطر(12 & 10 ^ 6 & 4)

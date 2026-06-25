@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_or, gr.expr.logical_and
+# @description: أو-بتّي داخل و-منطقيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر((6 | 1) == 7 && صحيح)

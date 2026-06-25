@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_or, gr.expr.bitwise_xor
+# @description: سلسلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 15
+
+اطبع_سطر(8 | 4 ^ 2 | 1)

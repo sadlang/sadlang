@@ -1,0 +1,10 @@
+# @rule: gr.adv.type, gr.oop.method
+# @description: طريقة بمعامل منوَّع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف ك
+    دالة عام د(رقم س) ارجع س + 1 نهاية
+نهاية
+اطبع_سطر(ك().د(4))

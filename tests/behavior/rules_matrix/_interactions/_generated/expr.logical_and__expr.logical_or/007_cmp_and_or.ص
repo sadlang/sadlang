@@ -1,0 +1,7 @@
+# @rule: gr.expr.logical_and, gr.expr.logical_or
+# @description: مقارنات مع و/أو
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: صحيح
+
+اطبع_سطر(1 < 2 && 3 > 5 || 4 == 4)

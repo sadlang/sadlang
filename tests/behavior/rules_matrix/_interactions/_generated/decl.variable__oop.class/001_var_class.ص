@@ -1,0 +1,11 @@
+# @rule: gr.decl.variable, gr.oop.class
+# @description: متغيّر مع صنف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير س = 1
+صنف ك
+    متغير عام ق = 2
+نهاية
+اطبع_سطر(س + ك().ق)

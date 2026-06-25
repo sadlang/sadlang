@@ -1,0 +1,13 @@
+# @rule: gr.expr.comparison, gr.expr.range
+# @description: ترشيح بأصغر داخل المدى
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير مج = 0
+لكل ع في 0..10
+    إذا (ع < 4)
+        مج = مج + ع
+    نهاية
+نهاية
+اطبع_سطر(مج)

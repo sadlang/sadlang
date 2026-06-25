@@ -40,6 +40,12 @@ namespace Sad
 
                 // (AR) تحليل المتغيرات الحرة (الملتقطة من النطاق الخارجي)
                 // (EN) Analyze free variables (captured from outer scope)
+                // (AR) [ISSUE-053] نرفع الراية كي يُلتقَط هدف الإسناد (متغيّر مُعدَّل) كمتغيّر حرّ
+                //      في مسار اللامدا فقط؛ نحفظ القيمة السابقة ونستعيدها لأمان التداخل.
+                // (EN) [ISSUE-053] Raise the flag so an assignment target (mutated var) is captured
+                //      as free on the lambda path only; save/restore prior value for nesting safety.
+                bool prevCaptureAssign = b_.captureAssignTargetsInClosure_;
+                b_.captureAssignTargetsInClosure_ = true;
                 std::set<std::string> freeVars;
                 if (lambdaExpr->body)
                 {
@@ -50,6 +56,7 @@ namespace Sad
                     std::set<std::string> boundCopy = paramNames;
                     b_.collectFreeVarsStmt(lambdaExpr->blockBody.get(), boundCopy, freeVars);
                 }
+                b_.captureAssignTargetsInClosure_ = prevCaptureAssign;
 
                 // (AR) البحث عن المتغيرات الملتقطة في النطاق الحالي
                 // (EN) Look up captured variables in current scope

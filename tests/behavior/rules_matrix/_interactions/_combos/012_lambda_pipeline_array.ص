@@ -1,0 +1,9 @@
+# @rule: gr.expr.lambda, gr.expr.pipeline, gr.expr.array_literal, gr.expr.postfix
+# @description: لامدا + أنبوب + مصفوفة + فهرسة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 26
+
+متغير ض = لامدا(س) => س * 2
+متغير ن = [1، 2، 3] |> طول
+اطبع_سطر(ض(ن) + [10، 20][1])

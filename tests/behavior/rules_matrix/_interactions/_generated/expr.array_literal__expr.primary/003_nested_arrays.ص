@@ -1,0 +1,7 @@
+# @rule: gr.expr.array_literal, gr.expr.primary
+# @description: مصفوفات متداخلة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+اطبع_سطر([[1]، [2]][0][0])

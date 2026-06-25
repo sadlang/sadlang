@@ -1,0 +1,12 @@
+# @rule: gr.adv.template_decl, gr.oop.class
+# @description: قالب مع صنف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+قالب <نوع ت>
+دالة هوية(ت س) ارجع س نهاية
+صنف ك
+    متغير عام ق = 2
+نهاية
+اطبع_سطر(هوية(5) + ك().ق)

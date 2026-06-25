@@ -1,0 +1,8 @@
+# @rule: gr.decl.type_ref, gr.decl.variable
+# @description: متغيّر بنوع صريح رقم
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير رقم م = 3
+اطبع_سطر(م)

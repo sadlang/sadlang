@@ -1,0 +1,10 @@
+# @rule: gr.oop.method, gr.oop.modifiers
+# @description: طريقة ساكنة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 36
+
+صنف ر
+    دالة ساكن مربّع(س) ارجع س * س نهاية
+نهاية
+اطبع_سطر(ر.مربّع(6))

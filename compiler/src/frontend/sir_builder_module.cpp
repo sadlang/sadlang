@@ -718,6 +718,26 @@ namespace Sad
                         {
                             scanExprForNewExpr(assign->value.get());
                         }
+                        // (AR) [ISSUE-050b] التعمّق في نداء الطريقة/الوصول للعضو كي نبلغ
+                        //      بناءً متداخلًا مثل «م(د()).ق()» (كان المسح لا يدخلها فلا
+                        //      يُحلَّل تركيب «م» إطلاقًا).
+                        // (EN) [ISSUE-050b] Recurse into method-call/member access so a nested
+                        //      construction like `م(د()).ق()` is reached (the scan previously
+                        //      skipped these, so `م`'s construction was never analyzed).
+                        else if (auto *mc = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
+                        {
+                            scanExprForNewExpr(mc->object.get());
+                            for (const auto &arg : mc->arguments)
+                                scanExprForNewExpr(arg.get());
+                        }
+                        else if (auto *me = dynamic_cast<const Sad::AST::MemberExpr *>(expr))
+                        {
+                            scanExprForNewExpr(me->object.get());
+                        }
+                        else if (auto *mae = dynamic_cast<const Sad::AST::MemberAccessExpr *>(expr))
+                        {
+                            scanExprForNewExpr(mae->object.get());
+                        }
                     };
 
                     scanStmtForNewExpr = [&](const Sad::AST::Statement *stmt)
@@ -779,6 +799,48 @@ namespace Sad
                 //      This ensures field info and constructors are available
                 //      before building functions that may need inferReturnTypeFromBody
                 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════════
+                // (AR) [ISSUE-049] المرحلة 2A-0: سجّل البُنى (struct) قبل بناء أجسام طرق
+                //      الأصناف. وإلا فإنّ بناء بنية داخل طريقة صنف «ن()» لا يجد نوعها
+                //      (getClass=null أثناء بناء الطريقة في Phase 2A) فيُصدَر نداء دالة غير
+                //      معرَّف @"ن" ⇒ فشل ربط. (البناء في دالة حرّة/المستوى الأعلى كان يعمل
+                //      لأنه يجري بعد تسجيل البنية في Phase 2 لاحقًا.) نبنيها هنا مرّة واحدة،
+                //      ونتخطّاها في حلقة Phase 2 اللاحقة لتفادي التسجيل المزدوج.
+                // (EN) [ISSUE-049] Phase 2A-0: register structs BEFORE building class method
+                //      bodies. Otherwise constructing a struct inside a method (ن()) can't
+                //      resolve its type (getClass=null during Phase 2A method build) and an
+                //      undefined function call @"ن" is emitted ⇒ link failure. (Free-function
+                //      and top-level construction worked because they run after the struct is
+                //      registered in the later Phase 2.) Build once here, skip in Phase 2.
+                // ═══════════════════════════════════════════════════════════════════════
+                for (const auto &stmt : *program)
+                {
+                    if (!stmt)
+                        continue;
+                    Sad::AST::StructDecl *structDecl = dynamic_cast<Sad::AST::StructDecl *>(stmt.get());
+                    // (AR) [ISSUE-051] بنية مُصدَّرة «صدّر بنية ن»: فُكّ ExportDecl/ExportStmt لتُسجَّل
+                    //      هنا (مبكرًا) أيضًا، وإلّا تُسجَّل متأخّرًا فيعود عرض 049 (نداء @"ن" غير معرَّف
+                    //      عند بنائها داخل تابع صنف ⇒ فشل ربط).
+                    // (EN) [ISSUE-051] Exported struct «export struct ن»: unwrap ExportDecl/ExportStmt
+                    //      so it is pre-registered here too; otherwise it registers late and ISSUE-049
+                    //      reappears (undefined @"ن" when constructed inside a class method ⇒ link fail).
+                    if (!structDecl)
+                    {
+                        if (auto ed = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
+                            structDecl = ed->declaration ? dynamic_cast<Sad::AST::StructDecl *>(ed->declaration.get()) : nullptr;
+                        else if (auto es = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
+                            structDecl = es->declaration ? dynamic_cast<Sad::AST::StructDecl *>(es->declaration.get()) : nullptr;
+                    }
+                    if (structDecl)
+                    {
+                        buildStatement(structDecl);
+#ifdef SIR_BUILDER_DEBUG
+                        std::cerr << "[SIR-DBG] Phase2A-0: pre-registered struct '"
+                                  << structDecl->name << "' before class method bodies" << std::endl;
+#endif
+                    }
+                }
+
                 for (const auto &stmt : *program)
                 {
                     if (!stmt)
@@ -806,6 +868,27 @@ namespace Sad
                     {
                         buildImpl(implDecl);
                         continue;
+                    }
+
+                    // (AR) [ISSUE-051] تعداد مُصدَّر «صدّر تعداد ل»: فُكّ ExportDecl/ExportStmt وابنِه
+                    //      مبكرًا كنظيره العاريّ (تسجيل ثوابت التعداد قبل أجسام التوابع)؛ يُتخطّى لاحقًا.
+                    // (EN) [ISSUE-051] Exported enum «export enum ل»: unwrap ExportDecl/ExportStmt and
+                    //      build it early like its bare counterpart (register enum constants before
+                    //      method bodies); skipped later in Phase 2C.
+                    {
+                        Sad::AST::Statement *inner = nullptr;
+                        if (auto ed = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
+                            inner = ed->declaration.get();
+                        else if (auto es = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
+                            inner = es->declaration.get();
+                        if (inner)
+                        {
+                            if (auto enumDecl = dynamic_cast<Sad::AST::EnumDecl *>(inner))
+                            {
+                                buildStatement(enumDecl);
+                                continue;
+                            }
+                        }
                     }
                 }
 
@@ -892,7 +975,8 @@ namespace Sad
                             if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                             {
                                 auto callSirClass = module_->getClass(varExpr->name);
-                                if (callSirClass && !callSirClass->paramToFieldMap_.empty())
+                                if (callSirClass && (!callSirClass->paramToFieldMap_.empty() ||
+                                                     !callSirClass->fieldFromParamMember_.empty()))
                                 {
                                     std::string ctorCallName = varExpr->name + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
                                     // (AR) نبحث في functionTable_ (مسجّل في Phase 1.35) بدلاً من module_
@@ -903,6 +987,51 @@ namespace Sad
                                     if (ctorIt != functionTable_.end())
                                     {
                                         const auto &ctorParams = ctorIt->second.parameters;
+
+                                        // (AR) [ISSUE-050b] حلّ «هذا.حقل = معامِل.عضو» متعدّيًا: إن كان وسيط
+                                        //      الموضع بنية/صنفًا معروفًا، نأخذ نوع الحقل من نوع عضو ذلك الصنف
+                                        //      (المعامل كان غير مُنوَّع وقت بناء الباني فبقي الحقل Pointer⇒%s).
+                                        // (EN) [ISSUE-050b] Resolve `this.field = param.member` transitively: if
+                                        //      the positional arg is a known struct/class, take the field type
+                                        //      from that class's member type (the param was untyped at ctor-build
+                                        //      time, so the field stayed Pointer ⇒ %s on read).
+                                        for (const auto &fpm : callSirClass->fieldFromParamMember_)
+                                        {
+                                            const std::string &fName = fpm.first;
+                                            const std::string &pName = fpm.second.first;
+                                            const std::string &mName = fpm.second.second;
+                                            auto fTypeIt = callSirClass->fields_.find(fName);
+                                            if (fTypeIt == callSirClass->fields_.end() ||
+                                                fTypeIt->second != SadTypeKind::Pointer)
+                                                continue;
+                                            for (size_t ci = 1; ci < ctorParams.size() && (ci - 1) < call->arguments.size(); ci++)
+                                            {
+                                                if (ctorParams[ci].name != pName)
+                                                    continue;
+                                                const auto &cArg = call->arguments[ci - 1];
+                                                std::string argClassName;
+                                                if (auto *ne = dynamic_cast<const Sad::AST::NewExpr *>(cArg.get()))
+                                                    argClassName = ne->className;
+                                                else if (auto *ce = dynamic_cast<const Sad::AST::CallExpr *>(cArg.get()))
+                                                {
+                                                    if (auto *ve = dynamic_cast<const Sad::AST::VariableExpr *>(ce->callee.get()))
+                                                        argClassName = ve->name;
+                                                }
+                                                if (argClassName.empty())
+                                                    continue;
+                                                auto argClass = module_->getClass(argClassName);
+                                                if (!argClass)
+                                                    continue;
+                                                auto mIt = argClass->fields_.find(mName);
+                                                if (mIt != argClass->fields_.end() &&
+                                                    mIt->second != SadTypeKind::Pointer &&
+                                                    mIt->second != SadTypeKind::Void)
+                                                {
+                                                    callSirClass->fields_[fName] = mIt->second;
+                                                }
+                                            }
+                                        }
+
                                         for (size_t ci = 1; ci < ctorParams.size() && (ci - 1) < call->arguments.size(); ci++)
                                         {
                                             const std::string &cpName = ctorParams[ci].name;
@@ -960,6 +1089,26 @@ namespace Sad
                         else if (auto *assign = dynamic_cast<const Sad::AST::AssignExpr *>(expr))
                         {
                             scanExprForNewExpr(assign->value.get());
+                        }
+                        // (AR) [ISSUE-050b] التعمّق في نداء الطريقة/الوصول للعضو كي نبلغ
+                        //      بناءً متداخلًا مثل «م(د()).ق()» (كان المسح لا يدخلها فلا
+                        //      يُحلَّل تركيب «م» إطلاقًا).
+                        // (EN) [ISSUE-050b] Recurse into method-call/member access so a nested
+                        //      construction like `م(د()).ق()` is reached (the scan previously
+                        //      skipped these, so `م`'s construction was never analyzed).
+                        else if (auto *mc = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
+                        {
+                            scanExprForNewExpr(mc->object.get());
+                            for (const auto &arg : mc->arguments)
+                                scanExprForNewExpr(arg.get());
+                        }
+                        else if (auto *me = dynamic_cast<const Sad::AST::MemberExpr *>(expr))
+                        {
+                            scanExprForNewExpr(me->object.get());
+                        }
+                        else if (auto *mae = dynamic_cast<const Sad::AST::MemberAccessExpr *>(expr))
+                        {
+                            scanExprForNewExpr(mae->object.get());
                         }
                     };
 
@@ -1156,6 +1305,22 @@ namespace Sad
                             {
                                 buildClass(innerClass);
                             }
+                            // (AR) [ISSUE-051] بنية/تعداد مُصدَّران: سُجِّلا مبكرًا كنوعَين (البنية في
+                            //      المرحلة 2A-0، التعداد في 2A) بفكّ ExportDecl/ExportStmt. نتخطّاهما
+                            //      هنا (لا buildStatement ولا دفع إلى else) تفاديًا للتسجيل المزدوج.
+                            //      كانا قبل الإصلاح يسقطان في else فيُدفعان كجملة تنفيذ بلا تسجيل نوع
+                            //      ⇒ `ن().ق` يفشل و`ل.ب`=0.
+                            // (EN) [ISSUE-051] Exported struct/enum were registered early as TYPES
+                            //      (struct in Phase 2A-0, enum in 2A) by unwrapping ExportDecl/
+                            //      ExportStmt. Skip them here (no buildStatement, no push to else) to
+                            //      avoid double registration. Before the fix they fell into else and
+                            //      were pushed as runtime statements without type registration ⇒
+                            //      `ن().ق` failed and `ل.ب`=0.
+                            else if (dynamic_cast<Sad::AST::StructDecl *>(innerStmt) ||
+                                     dynamic_cast<Sad::AST::EnumDecl *>(innerStmt))
+                            {
+                                // (AR) لا شيء — سُجِّلا مبكرًا / (EN) nothing — registered early
+                            }
                             else
                             {
                                 // (AR) ״£ ״×״µ״¯״± ״¢״®״± (…״×״÷״±״ ״¥„״®) ג†’ ״¬…„״© ״×†״°״©
@@ -1187,6 +1352,22 @@ namespace Sad
                             else if (auto innerClass = dynamic_cast<Sad::AST::ClassDecl *>(innerStmt))
                             {
                                 buildClass(innerClass);
+                            }
+                            // (AR) [ISSUE-051] بنية/تعداد مُصدَّران: سُجِّلا مبكرًا كنوعَين (البنية في
+                            //      المرحلة 2A-0، التعداد في 2A) بفكّ ExportDecl/ExportStmt. نتخطّاهما
+                            //      هنا (لا buildStatement ولا دفع إلى else) تفاديًا للتسجيل المزدوج.
+                            //      كانا قبل الإصلاح يسقطان في else فيُدفعان كجملة تنفيذ بلا تسجيل نوع
+                            //      ⇒ `ن().ق` يفشل و`ل.ب`=0.
+                            // (EN) [ISSUE-051] Exported struct/enum were registered early as TYPES
+                            //      (struct in Phase 2A-0, enum in 2A) by unwrapping ExportDecl/
+                            //      ExportStmt. Skip them here (no buildStatement, no push to else) to
+                            //      avoid double registration. Before the fix they fell into else and
+                            //      were pushed as runtime statements without type registration ⇒
+                            //      `ن().ق` failed and `ل.ب`=0.
+                            else if (dynamic_cast<Sad::AST::StructDecl *>(innerStmt) ||
+                                     dynamic_cast<Sad::AST::EnumDecl *>(innerStmt))
+                            {
+                                // (AR) لا شيء — سُجِّلا مبكرًا / (EN) nothing — registered early
                             }
                             else
                             {
@@ -1244,9 +1425,12 @@ namespace Sad
                     //      ״¹״§„״¬  ״§„…״±״­„״© 2 …״«„ ״§„״£״µ†״§
                     // (EN) Struct: struct name ... end
                     //      Processed in Phase 2 like classes
-                    if (auto structDecl = dynamic_cast<Sad::AST::StructDecl *>(stmt.get()))
+                    if (dynamic_cast<Sad::AST::StructDecl *>(stmt.get()))
                     {
-                        buildStatement(structDecl);
+                        // (AR) [ISSUE-049] البنية بُنِيت سلفًا في المرحلة 2A-0؛ نتخطّاها هنا
+                        //      تفاديًا للتسجيل المزدوج (addClass مرّتين).
+                        // (EN) [ISSUE-049] Struct already built in Phase 2A-0; skip here to
+                        //      avoid double registration (addClass twice).
                         continue;
                     }
 

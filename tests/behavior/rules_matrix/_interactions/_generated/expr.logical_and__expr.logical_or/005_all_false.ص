@@ -1,0 +1,7 @@
+# @rule: gr.expr.logical_and, gr.expr.logical_or
+# @description: كلّها خطأ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: خطأ
+
+اطبع_سطر(خطأ && خطأ || خطأ)

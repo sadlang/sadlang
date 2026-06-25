@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal, gr.expr.primary
+# @description: قيمة من خريطة حرفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 11
+
+اطبع_سطر({"س": 11}["س"])

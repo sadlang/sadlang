@@ -1,0 +1,8 @@
+# @rule: gr.adv.list_comprehension, gr.expr.array_literal, gr.expr.postfix, gr.expr.factor
+# @description: استيعاب قائمة متداخل القيم
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+متغير ز = [[س، س * س] لكل س في [2، 3، 4]]
+اطبع_سطر(ز[1][1])

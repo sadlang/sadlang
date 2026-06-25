@@ -1,0 +1,13 @@
+# @rule: gr.program.block, gr.stmt.if
+# @description: كتلة دالة تحوي إذا
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+دالة د()
+    إذا (1 > 0)
+        ارجع 5
+    نهاية
+    ارجع 0
+نهاية
+اطبع_سطر(د())

@@ -1,0 +1,7 @@
+# @rule: gr.expr.bitwise_and, gr.expr.bitwise_xor
+# @description: كلّ البتّات
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 15
+
+اطبع_سطر(15 & 9 ^ 6)

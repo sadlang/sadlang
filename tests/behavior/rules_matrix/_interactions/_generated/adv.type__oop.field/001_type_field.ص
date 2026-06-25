@@ -1,0 +1,10 @@
+# @rule: gr.adv.type, gr.oop.field
+# @description: حقل بنية بنوع صريح
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+بنية ن
+    رقم ق = 5
+نهاية
+اطبع_سطر(ن().ق)

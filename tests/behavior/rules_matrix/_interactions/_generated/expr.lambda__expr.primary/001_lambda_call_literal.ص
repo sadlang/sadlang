@@ -1,0 +1,8 @@
+# @rule: gr.expr.lambda, gr.expr.primary
+# @description: نداء لامدا بقيمة حرفيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+متغير ض = لامدا(س) => س * 2
+اطبع_سطر(ض(21))

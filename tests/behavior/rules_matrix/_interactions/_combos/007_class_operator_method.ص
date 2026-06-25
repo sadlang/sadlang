@@ -1,0 +1,14 @@
+# @rule: gr.oop.class, gr.oop.constructor, gr.oop.operator, gr.oop.method, gr.expr.term
+# @description: صنف بعامل محمّل وطريقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+صنف متجه
+    متغير عام ق = 0
+    باني(ق) هذا.ق = ق نهاية
+    عامل +(آخر) ارجع متجه(هذا.ق + آخر.ق) نهاية
+    دالة عام قيمة() ارجع هذا.ق نهاية
+نهاية
+متغير ن = متجه(3) + متجه(4)
+اطبع_سطر(ن.قيمة())

@@ -1,0 +1,9 @@
+# @rule: gr.expr.assignment, gr.expr.ternary
+# @description: شرطيّ متداخل في إسناد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ب
+
+متغير ع = 2
+متغير ر = (ع == 1) ؟ "أ" : (ع == 2) ؟ "ب" : "ج"
+اطبع_سطر(ر)

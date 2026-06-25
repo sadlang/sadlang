@@ -1,0 +1,7 @@
+# @rule: gr.expr.postfix, gr.expr.power
+# @description: أس لقيمة مفهرسة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+اطبع_سطر(2 ** [1، 2، 3][2])

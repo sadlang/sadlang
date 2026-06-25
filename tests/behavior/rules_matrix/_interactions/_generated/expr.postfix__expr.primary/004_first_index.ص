@@ -1,0 +1,7 @@
+# @rule: gr.expr.postfix, gr.expr.primary
+# @description: أوّل عنصر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 99
+
+اطبع_سطر([99][0])

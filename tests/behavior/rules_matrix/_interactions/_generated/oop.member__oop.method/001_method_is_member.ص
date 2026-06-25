@@ -1,0 +1,10 @@
+# @rule: gr.oop.member, gr.oop.method
+# @description: طريقة كعضو
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+صنف ح
+    دالة عام اجمع(أ، ب) ارجع أ + ب نهاية
+نهاية
+اطبع_سطر(ح().اجمع(4، 6))

@@ -1,0 +1,8 @@
+# @rule: gr.expr.fstring, gr.expr.primary
+# @description: إقحام متغيّر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: لغة ص
+
+متغير اسم = "ص"
+اطبع_سطر(f"لغة {اسم}")
