@@ -13,12 +13,18 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/runtime/CMakeLists.txt")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
-# مكتبة النواة / Core Library (sad_core)
+# مكتبة المفسّر / Interpreter Library (sad_interp ؛ sad_core = alias توافق)
 # ──────────────────────────────────────────────────────────────────────
 # (AR) تمّ حذف فرع ENABLE_FREESTANDING (لم يُعرّف أبداً ومصادره أُرشفت)
 # (EN) ENABLE_FREESTANDING branch removed (never defined; sources archived)
 
-add_library(sad_core STATIC ${ALL_SOURCES})
+add_library(sad_interp STATIC ${ALL_SOURCES})
+# (AR) تصحيح اسم (RFC sadlang-rfcs#10): الهدف الحقيقيّ صار sad_interp (= المفسّر الشجريّ،
+#      لا نواة اللغة؛ النواة هي sad_shared). نُبقي sad_core كاسم بديل (alias) للتوافق
+#      مع المستهلكين القائمين (التنفيذيّات/الأدوات/الاختبارات) ريثما يُهاجَرون تباعًا.
+# (EN) Name correction: the real target is now sad_interp (the tree-walking interpreter,
+#      NOT the language core — that is sad_shared). sad_core kept as a compat ALIAS.
+add_library(sad_core ALIAS sad_interp)
 
 # ----------------------------------------------------------------------
 # (AR) م2-ج (sadlang-rfcs#10): مكتبة المدمجات النقيّة sad_builtins.
@@ -32,7 +38,7 @@ target_link_libraries(sad_builtins PUBLIC sad_shared)
 if(MSVC)
     target_compile_options(sad_builtins PRIVATE /FS /utf-8 /Z7)
 endif()
-target_link_libraries(sad_core PUBLIC sad_builtins)
+target_link_libraries(sad_interp PUBLIC sad_builtins)
 
 # ----------------------------------------------------------------------
 # (AR) م2-ج شريحة2 (sadlang-rfcs#10): مكتبة مدمجات النواة/العتاد sad_lowlevel.
@@ -48,7 +54,7 @@ target_link_libraries(sad_lowlevel PUBLIC sad_security_core)
 if(MSVC)
     target_compile_options(sad_lowlevel PRIVATE /FS /utf-8 /Z7)
 endif()
-target_link_libraries(sad_core PUBLIC sad_lowlevel)
+target_link_libraries(sad_interp PUBLIC sad_lowlevel)
 
 
 
@@ -75,21 +81,21 @@ add_dependencies(sad_shared sad_all_codegen)
 #      forward includes and avoid build duplication (lexer/parser/ast/types/errors/
 #      modules/utils + class_manager). Each of 49 shared files used to compile twice
 #      before this fix.
-target_link_libraries(sad_core PUBLIC sad_shared)
+target_link_libraries(sad_interp PUBLIC sad_shared)
 
 # (AR) Ownership Unification: sad_core يربط sad_ownership ليستهلك المفسّر
 #      نظام الملكية الموحَّد عبر wrapper في interpreter/src/managers/ownership_manager.cpp
 # (EN) Ownership Unification: sad_core links sad_ownership so the interpreter
 #      consumes the unified ownership system via the wrapper in
 #      interpreter/src/managers/ownership_manager.cpp
-target_link_libraries(sad_core PUBLIC sad_ownership)
+target_link_libraries(sad_interp PUBLIC sad_ownership)
 
 # (AR) NS-01: نظام أمان null المشترك — sad_core يجمّع interpreter_core.cpp الذي
 #      يستدعي NullSafetyAnalyzer كنقطة حقيقة واحدة مشتركة مع المترجم sadc.
 # (EN) NS-01: shared null-safety — sad_core compiles interpreter_core.cpp which
 #      invokes NullSafetyAnalyzer (single source of truth shared with sadc).
-target_link_libraries(sad_core PUBLIC sad_null_safety)
-target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_safety/include)
+target_link_libraries(sad_interp PUBLIC sad_null_safety)
+target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_safety/include)
 
 # (AR) الطبقة الأمنية المشتركة (BoundsChecker, SafeArithmetic, InputSanitizer,
 #      SafeAllocator, TaintTracker). sad_core يجمّع مصادر المفسر التي تستخدم
@@ -98,22 +104,22 @@ target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_safe
 # (EN) Shared security primitives. sad_core compiles interpreter sources that
 #      call assertSafeCast<int>(...), so it must link sad_security_core too,
 #      mirroring the sad_interpreter linkage.
-target_link_libraries(sad_core PUBLIC sad_security_core)
+target_link_libraries(sad_interp PUBLIC sad_security_core)
 
 # (AR) Phase A2: سياسة الذاكرة الموحَّدة — sad_core يجمّع interpreter sources
 #      التي تتضمن ownership_manager.h المعتمد على memory/policy/gc_mode.h
 # (EN) Phase A2: unified memory policy — sad_core compiles interpreter sources
 #      that include ownership_manager.h which now depends on memory/policy/gc_mode.h
-target_link_libraries(sad_core PUBLIC sad_memory_policy)
+target_link_libraries(sad_interp PUBLIC sad_memory_policy)
 
 # (AR) Phase B-step3: محرك GC الموحَّد — interpreter_core.cpp يضمّن الآن
 #      memory/gc/engine/garbage_collector.h ليُفعِّل/يُعلِّق المحرك حسب gcStrategy.
 # (EN) Phase B-step3: unified GC engine — interpreter_core.cpp now includes the
 #      engine header to toggle the engine per gcStrategy.
-target_link_libraries(sad_core PUBLIC sad_memory_gc)
+target_link_libraries(sad_interp PUBLIC sad_memory_gc)
 
 if(MSVC)
-    target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
+    target_compile_options(sad_interp PRIVATE /FS /utf-8 /Z7)
 endif()
 
 # (AR) تفعيل المسار الحقيقي لوحدة HTTP داخل sad_core وربط مكتبات الشبكة
@@ -131,15 +137,15 @@ endif()
 # (EN) sad_rt_runtime is defined in runtime/CMakeLists.txt as an INTERFACE library
 #      aggregating abi + ffi + ui
 if(TARGET sad_rt_runtime)
-    target_link_libraries(sad_core PRIVATE sad_rt_runtime)
-    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/runtime/include)
+    target_link_libraries(sad_interp PRIVATE sad_rt_runtime)
+    target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/runtime/include)
     message(STATUS "✓ ربط runtime بالمفسر / Linked runtime to interpreter")
 endif()
 
 # ربط صNet — مكتبة الشبكات اللامركزية / Link SadNet
 if(TARGET sadnet)
-    target_link_libraries(sad_core PRIVATE sadnet)
-    target_compile_definitions(sad_core PRIVATE HAS_SADNET)
+    target_link_libraries(sad_interp PRIVATE sadnet)
+    target_compile_definitions(sad_interp PRIVATE HAS_SADNET)
     message(STATUS "✓ ربط صNet بالمفسر / Linked SadNet to interpreter")
 endif()
 
@@ -172,8 +178,8 @@ else()
     message(STATUS "⚠ OpenSSL: غير موجود / Not found")
 endif()
 
-set_target_properties(sad_core PROPERTIES
-    OUTPUT_NAME "sad_core"
+set_target_properties(sad_interp PROPERTIES
+    OUTPUT_NAME "sad_interp"
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 )
 
@@ -208,7 +214,7 @@ if(TARGET sad_ui)
     #      include dirs (hot_reload/semantic/null_safety/runtime/…) via the target
     #      property, plus the sad_ui paths. Interpreter paths are global at the root.
     target_include_directories(sad_ui_bridge PRIVATE
-        $<TARGET_PROPERTY:sad_core,INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:sad_interp,INCLUDE_DIRECTORIES>
         ${CMAKE_SOURCE_DIR}/sad_ui/core/include
         ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
     )
@@ -238,20 +244,20 @@ endif()
 
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
 if(TARGET sad_profiler_lib)
-    target_link_libraries(sad_core PRIVATE sad_profiler_lib)
-    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/profiler/include)
+    target_link_libraries(sad_interp PRIVATE sad_profiler_lib)
+    target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/profiler/include)
     message(STATUS "✓ ربط مصحح الأداء بالمفسر / Linked profiler to interpreter")
 endif()
 
 # (AR) إضافة مسارات إعادة التحميل الساخن / (EN) Add hot reload include paths
-target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/hot_reload/include)
+target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/hot_reload/include)
 message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
 
 # (AR) Phase 3 (F-01): مسار فاحص الأنواع المشترك بعد نقله من compiler/.
 #      المفسر يضم "semantic/type_checker.h" مباشرة دون مسار نسبي.
 # (EN) Phase 3 (F-01): shared type checker include path after move from compiler/.
 #      Interpreter includes "semantic/type_checker.h" directly without relative path.
-target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/semantic/include)
+target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/semantic/include)
 
 # ──────────────────────────────────────────────────────────────────────
 # المكونات المشتركة والمترجم / Shared & Compiler (if not already added)

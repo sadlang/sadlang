@@ -1,0 +1,49 @@
+# ======================================================================
+# (AR) ملف: .github/workflows/interpreter-boundary.yml
+# (AR) الوصف: حارس حدّ المفسّر — تصليب الحدود الداخليّة من sadlang-rfcs#10.
+#             نظام المترجم (sad-build) يجب ألّا يعتمد على ترويسات المفسّر
+#             (interpreter/) رغم أنّ sad_shared يُصدّرها PUBLIC «للتوافق».
+#             التسريب اليوم كامن لا محقَّق؛ هذا الحارس وقائيّ يثبّت الوضع السليم.
+#             المرجع: docs/architecture/cmake-target-boundaries.md §5.
+# (EN) Interpreter-boundary guard. The compiler subsystem must not include
+#      interpreter/ headers (leaked PUBLIC via sad_shared). Preventive: the leak
+#      is currently unrealized. See docs/architecture/cmake-target-boundaries.md.
+# ======================================================================
+name: "🚧 حدّ المفسّر / Interpreter Boundary"
+
+on:
+  push:
+    paths:
+      - "compiler/**"
+      - "interpreter/include/**"
+      - "shared/CMakeLists.txt"
+      - "scripts/codegen/check_interpreter_boundary.py"
+      - ".github/workflows/interpreter-boundary.yml"
+  pull_request:
+    branches: [ main, master, dev, sadlang ]
+    paths:
+      - "compiler/**"
+      - "interpreter/include/**"
+      - "shared/CMakeLists.txt"
+      - "scripts/codegen/check_interpreter_boundary.py"
+      - ".github/workflows/interpreter-boundary.yml"
+
+concurrency:
+  group: interpreter-boundary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  boundary-guard:
+    name: "🚧 فحص حدّ المفسّر / Boundary check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🐍 إعداد Python / Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: "🚧 حارس حدّ المفسّر / Interpreter-boundary guard"
+        run: python scripts/codegen/check_interpreter_boundary.py

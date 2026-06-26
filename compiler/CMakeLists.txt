@@ -709,6 +709,11 @@ if(LLVM_FOUND)
  )
  if(MSVC)
  target_compile_options(test_backend PRIVATE /utf-8 /wd4819)
+ # (AR) إصلاح ربط: LLVMSupport.lib (raw_socket_stream في LLVM الأحدث) يستدعي
+ #      دوال Winsock (accept/bind/connect/listen/socket/WSA*) ⇒ يجب ربط ws2_32.
+ #      عطل سابق يظهر فقط حين تتوفّر LLVM Debug (test_backend ضمن ALL لا EXCLUDE).
+ # (EN) Link fix: LLVMSupport (raw_socket_stream) pulls Winsock symbols; link ws2_32.
+ target_link_libraries(test_backend PRIVATE ws2_32)
  endif()
 endif()
 
