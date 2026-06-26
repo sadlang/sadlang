@@ -16,7 +16,8 @@
 | 4 | [architecture-stdlib-breakdown.md](architecture-stdlib-breakdown.md) | كل وحدة في stdlib/ + خارطة المسارات | ✅ |
 | 5 | [architecture-shared-breakdown.md](architecture-shared-breakdown.md) | كل مكون في shared/ + اكتشافات الازدواج | ✅ |
 | 6 | [architecture-interpreter-vm-breakdown.md](architecture-interpreter-vm-breakdown.md) | المسار 1 + 2 + المقارنة | ✅ |
-| 7 | **هذه الوثيقة** | الملخص الموحَّد + الديون التقنية + التوصيات | ✅ |
+| 7 | [architecture/cmake-target-boundaries.md](architecture/cmake-target-boundaries.md) | **حدود أهداف CMake** — المشترك مقابل الخاصّ بكلّ محرّك + تسريب التضمين (RFC #10) | ✅ |
+| 8 | **هذه الوثيقة** | الملخص الموحَّد + الديون التقنية + التوصيات | ✅ |
 
 ---
 

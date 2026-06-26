@@ -566,6 +566,8 @@
 
 ## 7. مكتبات البناء (CMake)
 
+> ⚠️ **تصحيح (2026-06-26):** الرسم أدناه قديم — يصوّر `sad_core` مظلّةً تحوي lexer/parser/ast/frontend/compiler، ويزعم أنّ `sad-build` يربط `sad_core`. **الواقع:** `sad_core` هو **المفسّر فقط**؛ أساس اللغة هو `sad_shared`؛ و`sad-build` (المترجم) يربط `sad_shared` لا `sad_core`. الخريطة الدقيقة المستخرَجة من CMake في الوثيقة المرجعيّة: [cmake-target-boundaries.md](cmake-target-boundaries.md).
+
 ```
 sad_core (مكتبة شاملة)
     │
@@ -596,7 +598,7 @@ sad_core (مكتبة شاملة)
 
 التنفيذيات:
     sad-run.exe   (Debug + Release)  ← يربط: sad_core + interpreter
-    sad-build.exe (Release فقط)      ← يربط: sad_core + compiler + LLVM 18
+    sad-build.exe (Debug + Release)  ← يربط: sad_shared + sad_compiler + LLVM 18  (لا يربط sad_core)
     sadc          (alias لـ sad-build)
 ```
 
