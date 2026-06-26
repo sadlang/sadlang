@@ -44,6 +44,11 @@ target_include_directories(sad-repl PRIVATE
 
 # Link libraries
 target_link_libraries(sad-repl PRIVATE
+    # (AR) م2-أ: جسر الواجهات — REPL ينفّذ كود مستخدم تفاعليًّا فيدعم الرسومات
+    #      (repl_engine.cpp يستدعي installSadUIBridge). يربط sad_core + sad_ui عبوريًّا.
+    # (EN) Phase 2-A: UI bridge — the REPL executes user code interactively, so it
+    #      supports UI (repl_engine.cpp installs it). Pulls sad_core + sad_ui.
+    $<$<TARGET_EXISTS:sad_ui_bridge>:sad_ui_bridge>
     sad_core
     sad_semantic
 )

@@ -16,6 +16,7 @@
 #include "pdf_exporter.h"
 #include "../../interpreter/include/user_thrown.h"
 #include "../../interpreter/include/debug/debug_server.h"
+#include "ui/sad_ui_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (واجهة عامّة) / (EN) install UI bridge (public API)
 
 // الآلة الافتراضية / Bytecode VM
 #include "sad_vm_compiler.h"
@@ -134,6 +135,14 @@ int main(int argc, char *argv[])
 #else
     std::setlocale(LC_ALL, "");
 #endif
+
+    // (AR) م2-أ (sadlang-rfcs#10): تثبيت جسر الواجهات قبل إنشاء أيّ مفسّر — يسجّل
+    //      بذرة تقييم الواجهات ومزوّد وحدات الرسومات في القلب. القلب نفسه لا يعرف
+    //      sad_ui؛ هذا الثنائيّ (sad-run) وحده يربط الجسر.
+    // (EN) Phase 2-A: install the UI bridge before constructing any interpreter —
+    //      registers the widget-eval seam + graphics module provider into the core.
+    //      Only sad-run links the bridge; the core itself does not know sad_ui.
+    Sad::Interpreter::installSadUIBridge();
 
     // Check arguments
     if (argc < 2)

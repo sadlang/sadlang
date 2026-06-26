@@ -26,11 +26,11 @@
 #include "async_runtime.h"                  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "channel.h"                        // (AR) قنوات الاتصال بين المهام / (EN) Channel communication
 #include "profiler_hooks.h"                 // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
-#include "../include/ui/ui_state_manager.h" // (AR) مدير الحالة التفاعلية / (EN) Reactive state manager
-#if __has_include("sad_ui/ir.h")
-#include "../ui/widget_builder.h" // (AR) دعم سلسلة المعدّلات / (EN) Modifier chain support
-#define HAS_WIDGET_BUILDER 1
-#endif
+// (AR) م2-أ (sadlang-rfcs#10): بذرة عكس الاعتماد — لا ضمّ لـ sad_ui في القلب.
+//      منطق WidgetBuilder نُقِل إلى sad_ui_bridge خلف IUIEvalBridge::tryWidgetMethodCall.
+// (EN) Phase 2-A: inversion seam — no sad_ui include in the core; WidgetBuilder logic
+//      moved to sad_ui_bridge behind IUIEvalBridge::tryWidgetMethodCall.
+#include "ui/ui_eval_bridge.h" // (AR) بادئة ui/ كي تَحلّ في sad_core وsad_interpreter معًا
 #include <atomic>
 #include <cmath>
 #include <climits>
@@ -149,230 +149,19 @@ namespace Sad
                 //      .حجم(24).لون("red").هامش(10) — each method sets a property
                 //      on IRNode and returns same WidgetBuilder for chaining
                 // ═══════════════════════════════════════════════════════════════════
-#ifdef HAS_WIDGET_BUILDER
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) م2-أ: سلسلة معدّلات WidgetBuilder عبر بذرة الجسر (إن حُمِّلت الرسومات).
+                //      المنطق في sad_ui_bridge؛ القلب لا يعرف WidgetBuilder.
+                // (EN) Phase 2-A: WidgetBuilder modifier chain via the bridge seam.
+                // ═══════════════════════════════════════════════════════════════════
                 if (objectValue.isObject())
                 {
-                    auto *objPtr = objectValue.toObject();
-                    if (objPtr && isWidgetBuilder(objPtr))
+                    if (IUIEvalBridge *uiBridge = uiEvalBridge())
                     {
-                        auto *wb = static_cast<Sad::Interpreter::WidgetBuilder *>(objPtr);
-                        const std::string &m = node.methodName;
-
-                        // (AR) تقييم المعاملات
-                        std::vector<Value> args;
-                        for (auto &arg : node.arguments)
-                        {
-                            arg->accept(*this);
-                            args.push_back(lastResult_);
-                        }
-
-                        // (AR) طريقة ابن/أبناء — لإضافة عناصر فرعية
-                        if (m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child")
-                        {
-                            // ابن
-                            if (!args.empty() && args[0].isObject())
-                            {
-                                auto childObj = args[0].toObject();
-                                if (childObj && isWidgetBuilder(childObj))
-                                {
-                                    auto *childWB = static_cast<WidgetBuilder *>(childObj);
-                                    wb->addChild(childWB->getIRNode());
-                                }
-                            }
-                            lastResult_ = objectValue;
+                        if (uiBridge->tryWidgetMethodCall(*this, objectValue, node))
                             return;
-                        }
-                        if (m == "\xd8\xa3\xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1" || m == "children")
-                        {
-                            // أبناء
-                            for (auto &a : args)
-                            {
-                                if (a.isObject())
-                                {
-                                    auto childObj = a.toObject();
-                                    if (childObj && isWidgetBuilder(childObj))
-                                    {
-                                        auto *childWB = static_cast<WidgetBuilder *>(childObj);
-                                        wb->addChild(childWB->getIRNode());
-                                    }
-                                }
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // (AR) طريقة عند_* — تسجيل حدث
-                        if (m.find("\xd8\xb9\xd9\x86\xd8\xaf_") == 0 || m.find("on_") == 0)
-                        {
-                            // عند_النقر، عند_التغيير...
-                            if (!args.empty())
-                            {
-                                // (AR) نحفظ المعالج كحقل على WidgetBuilder
-                                //      ونضيف حدث بمعرّف مؤقت — UIBridge يسجّله لاحقاً
-                                std::string eventKey = "__event_" + m;
-                                wb->fields[eventKey] = args[0];
-                                wb->addIREvent(m, eventKey);
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // ═══════════════════════════════════════════════════════
-                        // (AR) معدّلات التحريك — .حرّك("نوع").مدة(ثوان).منحنى("اسم")
-                        //      تُنشئ IRAnimation على IRNode عبر WidgetBuilder
-                        // (EN) Animation modifiers — .حرّك("type").مدة(sec).منحنى("name")
-                        //      Supports compound: .حرّك("ظهور,دوران") or .حرّك("ظهور", "دوران")
-                        // ═══════════════════════════════════════════════════════
-                        // حرّك / animate — بدء تسلسل تحريك جديد (أو مركّب بفاصلة)
-                        if (m == "\xd8\xad\xd8\xb1\xd9\x91\xd9\x83" || m == "animate" ||
-                            m == "\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83" || m == "\xd8\xad\xd8\xb1\xd9\x83")
-                        {
-                            // (AR) جمع كل أسماء الأنواع من الوسائط
-                            std::vector<std::string> types;
-
-                            // (AR) معالجة كل وسيط — قد يحتوي فاصلة داخلية
-                            for (size_t ai = 0; ai < args.size(); ++ai)
-                            {
-                                std::string raw = args[ai].toString();
-
-                                // (AR) تقسيم بالفاصلة (ASCII ',' فقط — الفاصلة العربية ،
-                                //      تُحوَّل تلقائياً بواسطة المحلل المعجمي)
-                                size_t start = 0;
-                                for (size_t i = 0; i <= raw.size(); ++i)
-                                {
-                                    if (i == raw.size() || raw[i] == ',')
-                                    {
-                                        // (AR) استخراج الجزء وتنظيفه من المسافات
-                                        std::string part;
-                                        for (size_t j = start; j < i; ++j)
-                                            if (raw[j] != ' ' && raw[j] != '\t')
-                                                part += raw[j];
-                                        if (!part.empty())
-                                            types.push_back(part);
-                                        start = i + 1;
-                                    }
-                                }
-                            }
-
-                            // (AR) احتياطي — إذا لم تنتج أي أنواع
-                            if (types.empty())
-                                types.push_back("fadeIn");
-
-                            // (AR) وضع المجموعة المركبة إذا كان هناك أكثر من نوع
-                            bool isCompound = types.size() > 1;
-                            if (isCompound)
-                                wb->beginCompoundBatch();
-
-                            for (const auto &t : types)
-                                wb->startAnimationChain(t);
-
-                            if (isCompound)
-                                wb->endCompoundBatch();
-
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // مدة / duration — تعيين مدة التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd9\x85\xd8\xaf\xd8\xa9" || m == "duration")
-                        {
-                            if (wb->isInAnimationChain() && !args.empty())
-                            {
-                                float dur = static_cast<float>(args[0].toDouble());
-                                wb->applyToActiveAnimations([dur](sad::ui::IRAnimation &a)
-                                                            { a.duration = dur; });
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // منحنى / easing — تعيين منحنى التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd9\x89" || m == "easing" || m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd8\xa7")
-                        {
-                            if (wb->isInAnimationChain() && !args.empty())
-                            {
-                                auto curve = sad::ui::stringToEasingCurve(args[0].toString());
-                                wb->applyToActiveAnimations([curve](sad::ui::IRAnimation &a)
-                                                            { a.easing = curve; });
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // تأخير / delay — تعيين التأخير قبل التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd8\xaa\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1" || m == "delay")
-                        {
-                            if (wb->isInAnimationChain() && !args.empty())
-                            {
-                                float d = static_cast<float>(args[0].toDouble());
-                                wb->applyToActiveAnimations([d](sad::ui::IRAnimation &a)
-                                                            { a.delay = d; });
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // تكرار / repeat — عدد تكرارات التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd8\xaa\xd9\x83\xd8\xb1\xd8\xa7\xd8\xb1" || m == "repeat")
-                        {
-                            if (wb->isInAnimationChain() && !args.empty())
-                            {
-                                int r = static_cast<int>(args[0].toInt());
-                                wb->applyToActiveAnimations([r](sad::ui::IRAnimation &a)
-                                                            { a.repeatCount = r; });
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // عكس_تلقائي / autoReverse — عكس الحركة تلقائياً (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xaa\xd9\x84\xd9\x82\xd8\xa7\xd8\xa6\xd9\x8a" || m == "autoReverse" || m == "auto_reverse")
-                        {
-                            if (wb->isInAnimationChain())
-                            {
-                                bool rev = args.empty() ? true : args[0].toBool();
-                                wb->applyToActiveAnimations([rev](sad::ui::IRAnimation &a)
-                                                            { a.autoReverse = rev; });
-                            }
-                            lastResult_ = objectValue;
-                            return;
-                        }
-
-                        // (AR) إذا كان في تسلسل تحريك ووصلنا لمعدّل غير تحريكي — نُنهي التحريك أولاً
-                        if (wb->isInAnimationChain())
-                        {
-                            wb->commitAnimation();
-                        }
-
-                        // (AR) أي طريقة أخرى → معدّل خاصية بصرية
-                        //      الوسيط الوحيد → خاصية بقيمة
-                        //      بدون وسائط → خاصية منطقية true
-                        //      عدة وسائط → قيم مفصولة بفواصل
-                        if (args.empty())
-                        {
-                            wb->setIRProperty(m, true);
-                        }
-                        else if (args.size() == 1)
-                        {
-                            wb->setIRPropertyFromValue(m, args[0]);
-                        }
-                        else
-                        {
-                            std::string combined;
-                            for (size_t i = 0; i < args.size(); i++)
-                            {
-                                if (i > 0)
-                                    combined += ",";
-                                combined += args[i].toString();
-                            }
-                            wb->setIRProperty(m, combined);
-                        }
-
-                        lastResult_ = objectValue;
-                        return;
                     }
                 }
-#endif // HAS_WIDGET_BUILDER
 
                 // (AR) طرق التزامن — مُستخرجة إلى ملف expression_evaluator_oop_concurrency.cpp
                 // (EN) Concurrency methods — extracted to expression_evaluator_oop_concurrency.cpp

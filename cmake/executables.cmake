@@ -25,6 +25,7 @@ target_link_libraries(sad-run PRIVATE
     sad_http
     sad_websocket
     sad_mobile
+    sad_ui_bridge       # (AR) م2-أ: طبقة جسر الواجهات (قبل sad_ui لترتيب الرابط) / (EN) UI bridge before sad_ui
     sad_ui
     sad_memory_policy   # (AR) Phase A2: سياسة الذاكرة الموحَّدة / (EN) Phase A2: unified memory policy
     sad_null_safety     # (AR) NS-01: نظام أمان null المشترك / (EN) NS-01: shared null-safety

@@ -154,3 +154,6 @@ build/_*.sir
 build/_*.txt
 build/_*.log
 build/_*.json
+
+# (AR) أثر تشغيل REPL (تاريخ الأوامر) — لا يُتعقَّب
+.sad_history

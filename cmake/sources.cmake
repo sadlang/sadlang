@@ -92,25 +92,15 @@ set(INTERPRETER_SOURCES
     interpreter/src/builtins/builtin_module_http.cpp
     interpreter/src/builtins/builtin_module_sadnet.cpp
     interpreter/src/builtins/builtin_module_websocket.cpp
-    # UI Bridge (يربط المفسر بنظام واجهات sad_ui)
-    interpreter/src/ui/ui_bridge.cpp
-    interpreter/src/ui/ui_bridge_events.cpp
-    interpreter/src/ui/ui_bridge_platform.cpp
-    interpreter/src/ui/ui_builtins.cpp
-    interpreter/src/ui/ui_core_builtins.cpp
-    interpreter/src/ui/ui_state_builtins.cpp
-    interpreter/src/ui/ui_timer_builtins.cpp
-    interpreter/src/ui/ui_storage_builtins.cpp
-    interpreter/src/ui/ui_dialog_builtins.cpp
-    interpreter/src/ui/ui_audio_builtins.cpp
-    interpreter/src/ui/ui_io_builtins.cpp
-    interpreter/src/ui/ui_device_builtins.cpp
-    interpreter/src/ui/ui_network_builtins.cpp
-    interpreter/src/ui/ui_crypto_builtins.cpp
-    interpreter/src/ui/ui_platform_builtins.cpp
-    interpreter/src/ui/ui_state_manager.cpp
-    interpreter/src/ui/widget_builder.cpp
-    interpreter/src/ui/widget_builtins.cpp
+    # (AR) م2-أ (sadlang-rfcs#10): ملفّات الواجهات المعتمِدة على sad_ui انتُقِلت إلى
+    #      هدف sad_ui_bridge (INTERPRETER_UI_BRIDGE_SOURCES أدناه) كي لا يعتمد sad_core
+    #      على sad_ui. يبقى في القلب فقط ما لا يعتمد sad_ui:
+    # (EN) Phase 2-A: sad_ui-dependent UI files moved to the sad_ui_bridge target
+    #      (INTERPRETER_UI_BRIDGE_SOURCES below) so sad_core no longer depends on sad_ui.
+    #      Only the sad_ui-free pieces remain here in the core:
+    interpreter/src/ui/ui_state_manager.cpp          # (AR) بلا sad_ui؛ يحتاجه oop_new (UIStateManager)
+    interpreter/src/visitors/ui_eval_bridge_core.cpp   # (AR) بذرة القلب (المؤشّر الذرّيّ + المزوّدون)
+    interpreter/src/visitors/ui_widget_expr_dispatch.cpp # (AR) visitUIWidgetExpr الرفيع (TU مستقلّ ليُشبِعه الـstub في الاختبارات)
     interpreter/src/visitors/expression_evaluator_core.cpp
     interpreter/src/visitors/expression_evaluator_binary_ops.cpp
     interpreter/src/visitors/expression_evaluator_binary_logic.cpp
@@ -128,7 +118,7 @@ set(INTERPRETER_SOURCES
     interpreter/src/visitors/expression_evaluator_members.cpp
     interpreter/src/visitors/expression_evaluator_members_assign.cpp
     interpreter/src/visitors/expression_evaluator_members_advanced.cpp
-    interpreter/src/visitors/expression_evaluator_ui.cpp
+    # (AR) م2-أ: expression_evaluator_ui.cpp (تطبيق seam 2) انتقل إلى INTERPRETER_UI_BRIDGE_SOURCES
     interpreter/src/visitors/statement_executor.cpp
     interpreter/src/visitors/statement_executor_control.cpp
     interpreter/src/visitors/statement_executor_control_exceptions.cpp
@@ -333,6 +323,39 @@ set(ALL_SOURCES
     ${LOW_LEVEL_SOURCES}
     ${COMPILER_FRONTEND_SOURCES}
     ${HOT_RELOAD_SOURCES}
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) م2-أ (sadlang-rfcs#10): مصادر طبقة جسر الواجهات sad_ui_bridge.
+#      هذه الملفّات تعتمد sad_ui (sad_ui/ir.h …) وتُجمَّع في هدف منفصل يربط
+#      sad_core (PUBLIC) + sad_ui (PRIVATE)، فيُعكَس اعتماد القلب على الواجهات:
+#      القلب لم يعد يربط sad_ui؛ الجسر يثبّت نفسه عبر installSadUIBridge().
+#      المكتبة تُعرَّف في cmake/libraries.cmake وتُربَط في sad-run/profiler/wasm.
+# (EN) Phase 2-A: sources of the UI bridge layer (sad_ui_bridge). These depend on
+#      sad_ui and compile into a separate target linking sad_core PUBLIC + sad_ui
+#      PRIVATE, inverting the core→ui dependency. Defined in cmake/libraries.cmake.
+# ═══════════════════════════════════════════════════════════════════════════════
+set(INTERPRETER_UI_BRIDGE_SOURCES
+    interpreter/src/ui/ui_bridge.cpp
+    interpreter/src/ui/ui_bridge_events.cpp
+    interpreter/src/ui/ui_bridge_platform.cpp
+    interpreter/src/ui/ui_builtins.cpp
+    interpreter/src/ui/ui_core_builtins.cpp
+    interpreter/src/ui/ui_state_builtins.cpp
+    interpreter/src/ui/ui_timer_builtins.cpp
+    interpreter/src/ui/ui_storage_builtins.cpp
+    interpreter/src/ui/ui_dialog_builtins.cpp
+    interpreter/src/ui/ui_audio_builtins.cpp
+    interpreter/src/ui/ui_io_builtins.cpp
+    interpreter/src/ui/ui_device_builtins.cpp
+    interpreter/src/ui/ui_network_builtins.cpp
+    interpreter/src/ui/ui_crypto_builtins.cpp
+    interpreter/src/ui/ui_platform_builtins.cpp
+    interpreter/src/ui/widget_builder.cpp
+    interpreter/src/ui/widget_builtins.cpp
+    interpreter/src/ui/ui_widget_method_call.cpp
+    interpreter/src/ui/ui_module_registration.cpp
+    interpreter/src/visitors/expression_evaluator_ui.cpp
 )
 
 

@@ -153,24 +153,63 @@ set_target_properties(sad_core PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 )
 
-# ربط نظام واجهات sad_ui / Link SadUI system
+# ──────────────────────────────────────────────────────────────────────
+# (AR) م2-أ (sadlang-rfcs#10): طبقة جسر الواجهات sad_ui_bridge — عكس الاعتماد.
+#      sad_core لم يعد يربط sad_ui. بدلًا من ذلك تُجمَّع ملفّات الواجهات المعتمِدة
+#      على sad_ui (INTERPRETER_UI_BRIDGE_SOURCES) في هذا الهدف المنفصل الذي يربط
+#      sad_core (PUBLIC) + sad_ui (PRIVATE). يثبّت نفسه وقت التشغيل عبر
+#      installSadUIBridge() (الترويسة العامّة interpreter/include/ui/sad_ui_bridge.h)،
+#      فلا يعرف القلب شيئًا عن sad_ui. المستهلكون (sad-run/profiler/wasm) يربطون
+#      sad_ui_bridge ويستدعون التثبيت قبل إنشاء المفسّر.
+# (EN) Phase 2-A: UI bridge layer — dependency inversion. sad_core no longer links
+#      sad_ui; the sad_ui-dependent UI files compile into this separate target which
+#      links sad_core PUBLIC + sad_ui PRIVATE and self-installs at runtime via
+#      installSadUIBridge(). Consumers (sad-run/profiler/wasm) link sad_ui_bridge.
+# ──────────────────────────────────────────────────────────────────────
 if(TARGET sad_ui)
-    target_link_libraries(sad_core PRIVATE sad_ui)
-    target_include_directories(sad_core PRIVATE 
+    add_library(sad_ui_bridge STATIC ${INTERPRETER_UI_BRIDGE_SOURCES})
+
+    # (AR) PUBLIC sad_core: الجسر يستهلك Value/ExpressionEvaluator/UIStateManager/
+    #      BuiltinModuleRegistry ويُمرّر هذا الاعتماد لمن يربطه. PRIVATE sad_ui:
+    #      نوع الواجهات لا يظهر في واجهة الجسر العامّة (الترويسة العامّة مجرّدة).
+    # (EN) PUBLIC sad_core (consumes core types, propagates to linkers); PRIVATE sad_ui
+    #      (UI types never leak through the bridge's public surface).
+    target_link_libraries(sad_ui_bridge PUBLIC sad_core)
+    target_link_libraries(sad_ui_bridge PRIVATE sad_ui)
+
+    # (AR) هذه الملفّات كانت تُجمَّع داخل sad_core، فترث كلَّ مسارات تضمينه الخاصّة
+    #      (hot_reload/semantic/null_safety/runtime/sqlite/openssl…) عبر خاصّية الهدف،
+    #      بالإضافة إلى مسارات sad_ui. مسارات المفسّر عامّة عبر include_directories الجذر.
+    # (EN) These files used to compile inside sad_core, so inherit all of its PRIVATE
+    #      include dirs (hot_reload/semantic/null_safety/runtime/…) via the target
+    #      property, plus the sad_ui paths. Interpreter paths are global at the root.
+    target_include_directories(sad_ui_bridge PRIVATE
+        $<TARGET_PROPERTY:sad_core,INCLUDE_DIRECTORIES>
         ${CMAKE_SOURCE_DIR}/sad_ui/core/include
         ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
     )
-    # (AR) على Linux، SDL2 include يحتاج مسار صريح / (EN) On Linux, SDL2 needs explicit include path
+
+    if(MSVC)
+        # (AR) /utf-8 ضروريّ لحرفيّات النصّ العربيّة في ملفّات الواجهات.
+        target_compile_options(sad_ui_bridge PRIVATE /FS /utf-8 /Z7)
+    endif()
+
+    # (AR) على Linux، SDL2 include يحتاج مسارًا صريحًا / (EN) On Linux, SDL2 needs explicit include path
     if(UNIX)
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_check_modules(SDL2_PC QUIET sdl2)
             if(SDL2_PC_FOUND)
-                target_include_directories(sad_core PRIVATE ${SDL2_PC_INCLUDE_DIRS})
+                target_include_directories(sad_ui_bridge PRIVATE ${SDL2_PC_INCLUDE_DIRS})
             endif()
         endif()
     endif()
-    message(STATUS "✓ ربط sad_ui بالمفسر / Linked sad_ui to interpreter")
+
+    set_target_properties(sad_ui_bridge PROPERTIES
+        OUTPUT_NAME "sad_ui_bridge"
+        ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    )
+    message(STATUS "✓ طبقة جسر الواجهات sad_ui_bridge (sad_core لم يعد يعتمد sad_ui) / UI bridge decoupled")
 endif()
 
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library

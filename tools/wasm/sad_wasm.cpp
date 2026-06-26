@@ -22,6 +22,10 @@
 #include "shared/lexer/include/lexer_core.h"
 #include "shared/parser/include/parser_core.h"
 #include "interpreter/include/core/interpreter_core.h"
+// (AR) م2-أ: لا يُثبَّت جسر الواجهات في wasm — بناء wasm لا يضمّ مصادر sad_ui،
+//      والمسار البديل (uiEvalBridge()==nullptr) يجعل الرسومات بلا أثر بلا انهيار.
+// (EN) Phase 2-A: no UI bridge in wasm — the wasm build excludes sad_ui sources; the
+//      headless fallback (null bridge) makes UI a no-op without crashing.
 
 // ================================================
 // (AR) إعادة توجيه cout إلى بفر داخلي

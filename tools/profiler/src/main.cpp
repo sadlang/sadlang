@@ -54,6 +54,7 @@
 #include "interpreter_core.h"
 #include "error_manager.h"
 #include "value.h"
+#include "ui/sad_ui_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات
 // (AR) ExitException نُقلت إلى user_thrown.h (الرأس القديم exception.h حُذف).
 //      interpreter/include ضمن مسارات التضمين، فنستعمل اسمًا بسيطًا قابلًا للنقل.
 // (EN) ExitException moved to user_thrown.h (old exception.h was removed);
@@ -392,7 +393,10 @@ int main(int argc, char* argv[]) {
         interpOptions.enableDebugMode = false;
         interpOptions.printResults = false;
         interpOptions.currentFilePath = filename;
-        
+
+        // (AR) م2-أ: تثبيت جسر الواجهات قبل المفسّر (عديم التكرار) كي تُسجَّل وحدات
+        //      الرسومات عند تنميق برنامج يستورد رسومات.
+        Sad::Interpreter::installSadUIBridge();
         Sad::Interpreter::Interpreter interpreter(interpOptions);
         
         // ═══════════════════════════════════════════════════════════════

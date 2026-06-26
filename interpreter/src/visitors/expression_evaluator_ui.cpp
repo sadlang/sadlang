@@ -22,6 +22,7 @@
 #include "class_manager.h"
 #include "ui_bridge.h"
 #include "widget_builder.h"
+#include "ui_eval_bridge_impl.h" // (AR) بذرة عكس الاعتماد (م2-أ) / (EN) inversion seam
 #include <atomic>
 #include <iostream>
 
@@ -50,7 +51,11 @@ namespace Sad
         //      Modifiers applied directly to IRNode (setProperty / addEvent)
         //      Children added as IRNode (addChild)
         // =====================================================================
-        void ExpressionEvaluator::visitUIWidgetExpr(UIWidgetExprNode &node)
+        // (AR) م2-أ: نُقِل من ExpressionEvaluator::visitUIWidgetExpr إلى تطبيق الجسر.
+        //      يصل لأعضاء ev الخاصّة عبر الصداقة (UIEvalBridgeImpl صديق المُقيِّم).
+        // (EN) Phase 2-A: moved out of the core visitor into the bridge impl;
+        //      accesses ev's private members via friendship.
+        void UIEvalBridgeImpl::evalWidgetExpr(ExpressionEvaluator &ev, UIWidgetExprNode &node)
         {
             // ─────────────────────────────────────────────────────────────────
             // (AR) تحويل اسم العنصر إلى UINodeType ثم إنشاء WidgetBuilder
@@ -78,8 +83,8 @@ namespace Sad
             {
                 for (size_t i = 0; i < node.arguments.size(); i++)
                 {
-                    node.arguments[i]->accept(*this);
-                    Value argVal = lastResult_;
+                    node.arguments[i]->accept(ev);
+                    Value argVal = ev.lastResult_;
 
                     if (i == 0)
                     {
@@ -117,12 +122,12 @@ namespace Sad
             // (EN) Process named arguments — set as named properties on IRNode
             for (auto &[name, expr] : node.namedArgs)
             {
-                expr->accept(*this);
+                expr->accept(ev);
                 // (AR) إذا كانت القيمة WidgetBuilder → إضافة كابن مسمّى
                 // (EN) If value is WidgetBuilder → add as named child
-                if (lastResult_.isObject())
+                if (ev.lastResult_.isObject())
                 {
-                    auto *obj = lastResult_.toObject();
+                    auto *obj = ev.lastResult_.toObject();
                     if (obj && isWidgetBuilder(obj))
                     {
                         auto childBuilder = static_cast<WidgetBuilder *>(obj);
@@ -132,7 +137,7 @@ namespace Sad
                         continue;
                     }
                 }
-                builder->setIRPropertyFromValue(name, lastResult_);
+                builder->setIRPropertyFromValue(name, ev.lastResult_);
             }
 
             // ─────────────────────────────────────────────────────────────────
@@ -149,7 +154,7 @@ namespace Sad
             Data::ObjectInstance *ownerObj = nullptr;
             try
             {
-                auto thisVal = variableManager_.get("\xd9\x87\xd8\xb0\xd8\xa7"); // هذا
+                auto thisVal = ev.variableManager_.get("\xd9\x87\xd8\xb0\xd8\xa7"); // هذا
                 if (thisVal.isObject())
                 {
                     ownerObj = thisVal.toObject();
@@ -198,22 +203,22 @@ namespace Sad
                                     [](AST::ASTNode *) {});
 
                                 std::vector<Data::FunctionParameter> params;
-                                functionManager_.defineFunction(arrowName, params, bodyNode);
+                                ev.functionManager_.defineFunction(arrowName, params, bodyNode);
 
                                 // (AR) التقاط المتغيرات من النطاق الحالي (closure)
                                 {
-                                    auto func = functionManager_.getFunction(arrowName, 0);
+                                    auto func = ev.functionManager_.getFunction(arrowName, 0);
                                     if (func)
                                     {
                                         std::unordered_map<std::string, Data::Value> captures;
-                                        auto varNames = variableManager_.getVariableNames();
+                                        auto varNames = ev.variableManager_.getVariableNames();
                                         for (const auto &vname : varNames)
                                         {
                                             if (vname != arrowName)
                                             {
                                                 try
                                                 {
-                                                    captures[vname] = variableManager_.get(vname);
+                                                    captures[vname] = ev.variableManager_.get(vname);
                                                 }
                                                 catch (...)
                                                 {
@@ -244,21 +249,21 @@ namespace Sad
                                     [](AST::ASTNode *) {});
 
                                 std::vector<Data::FunctionParameter> params;
-                                functionManager_.defineFunction(blockName, params, bodyNode);
+                                ev.functionManager_.defineFunction(blockName, params, bodyNode);
 
                                 {
-                                    auto func = functionManager_.getFunction(blockName, 0);
+                                    auto func = ev.functionManager_.getFunction(blockName, 0);
                                     if (func)
                                     {
                                         std::unordered_map<std::string, Data::Value> captures;
-                                        auto varNames = variableManager_.getVariableNames();
+                                        auto varNames = ev.variableManager_.getVariableNames();
                                         for (const auto &vname : varNames)
                                         {
                                             if (vname != blockName)
                                             {
                                                 try
                                                 {
-                                                    captures[vname] = variableManager_.get(vname);
+                                                    captures[vname] = ev.variableManager_.get(vname);
                                                 }
                                                 catch (...)
                                                 {
@@ -281,8 +286,8 @@ namespace Sad
                             // (AR) لامدا صريحة: .عند_التغيير(لامدا(ق) ...)
                             if (handler.lambdaExpr)
                             {
-                                handler.lambdaExpr->accept(*this);
-                                handlerId = bridge->registerHandler(lastResult_, ownerObj);
+                                handler.lambdaExpr->accept(ev);
+                                handlerId = bridge->registerHandler(ev.lastResult_, ownerObj);
                             }
                             break;
                         }
@@ -303,8 +308,8 @@ namespace Sad
                     // (EN) Evaluate modifier arguments and set directly on IRNode
                     if (modifier->arguments.size() == 1)
                     {
-                        modifier->arguments[0]->accept(*this);
-                        Value modVal = lastResult_;
+                        modifier->arguments[0]->accept(ev);
+                        Value modVal = ev.lastResult_;
 
                         // (AR) إذا كانت القيمة WidgetBuilder → إضافة كابن
                         // (EN) If value is WidgetBuilder → add as child
@@ -331,10 +336,10 @@ namespace Sad
                         std::string combinedValue;
                         for (size_t mi = 0; mi < modifier->arguments.size(); mi++)
                         {
-                            modifier->arguments[mi]->accept(*this);
+                            modifier->arguments[mi]->accept(ev);
                             if (mi > 0)
                                 combinedValue += ",";
-                            combinedValue += lastResult_.toString();
+                            combinedValue += ev.lastResult_.toString();
                         }
                         builder->setIRProperty(modifier->name, combinedValue);
                     }
@@ -359,8 +364,8 @@ namespace Sad
             {
                 for (auto &child : node.children)
                 {
-                    child->accept(*this);
-                    Value childVal = lastResult_;
+                    child->accept(ev);
+                    Value childVal = ev.lastResult_;
 
                     if (childVal.isObject())
                     {
@@ -399,7 +404,7 @@ namespace Sad
             // (AR) إرجاع WidgetBuilder كنتيجة (Value::OBJECT)
             // (EN) Return WidgetBuilder as result (Value::OBJECT)
             // ─────────────────────────────────────────────────────────────────
-            lastResult_ = Value(static_cast<Data::ObjectInstance *>(builder));
+            ev.lastResult_ = Value(static_cast<Data::ObjectInstance *>(builder));
         }
 
     } // namespace Interpreter
