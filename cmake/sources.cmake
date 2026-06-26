@@ -311,14 +311,41 @@ set(HOT_RELOAD_SOURCES
 #       OOP_TYPES_SOURCES, OOP_AST_SOURCES, ERROR_SOURCES, MODULES_SOURCES,
 #       plus shared/types files from DATA_SOURCES and class_manager.
 #       sad_core links sad_shared PUBLIC in cmake/libraries.cmake.
+# ===============================================================================
+# (AR) م2-ج (sadlang-rfcs#10): مصادر مكتبة sad_builtins — المدمجات النقيّة التي
+#      تعمل على Sad::Data::Value فقط (لا تعتمد FunctionManager/Interpreter). تُستخرَج
+#      من sad_core إلى هدف مستقلّ يعتمد sad_shared وحده، فيكسر دورة:
+#        sad_core → sad_builtins (اتّجاه واحد؛ stdlib_manager اللِحام يبقى في القلب).
+# (EN) Phase 2-C: sad_builtins sources — pure Data::Value builtins (no FunctionManager
+#      dependency). Extracted from sad_core into a standalone target depending only on
+#      sad_shared, breaking the sad_core<->builtins cycle (stdlib_manager glue stays).
+# ===============================================================================
+set(SAD_BUILTINS_LIB_SOURCES
+    shared/builtins/src/runtime/builtins.cpp
+    shared/builtins/src/runtime/type_functions.cpp
+    shared/builtins/src/runtime/array_functions.cpp
+    shared/builtins/src/runtime/other_functions.cpp
+    stdlib/string/string_functions.cpp
+    stdlib/math/math_functions.cpp
+    stdlib/math/advanced_math.cpp
+    stdlib/io/io_functions.cpp
+    stdlib/filesystem/filesystem_module.cpp
+    stdlib/database/database_module.cpp
+    stdlib/json/json_module.cpp
+    stdlib/xml/xml_module.cpp
+    stdlib/crypto/crypto_module.cpp
+    stdlib/system/system_functions.cpp
+)
+
 set(ALL_SOURCES
     ${INTERPRETER_SOURCES}
     ${DATA_SOURCES}
     ${OOP_MANAGERS_SOURCES}
     ${OOP_PARSER_SOURCES}
     ${OOP_INTERPRETER_SOURCES}
-    ${STDLIB_SOURCES}
-    ${BUILTINS_SOURCES}
+    # (AR) م2-ج: المدمجات النقيّة خرجت إلى sad_builtins؛ يبقى لِحام التسجيل فقط.
+    # (EN) Phase 2-C: pure builtins moved to sad_builtins; only glue stays here.
+    shared/builtins/src/runtime/stdlib_manager.cpp
     ${OPTIMIZER_SOURCES}
     ${LOW_LEVEL_SOURCES}
     ${COMPILER_FRONTEND_SOURCES}

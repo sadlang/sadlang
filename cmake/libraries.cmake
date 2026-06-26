@@ -20,6 +20,21 @@ endif()
 
 add_library(sad_core STATIC ${ALL_SOURCES})
 
+# ----------------------------------------------------------------------
+# (AR) م2-ج (sadlang-rfcs#10): مكتبة المدمجات النقيّة sad_builtins.
+#      تعتمد sad_shared فقط (Value/Types/Errors)؛ لا FunctionManager. sad_core
+#      يربطها PUBLIC فتتوفّر لكل المستهلكين، فتُكسَر دورة sad_core<->builtins.
+# (EN) Phase 2-C: pure builtins library. Depends only on sad_shared; no
+#      FunctionManager. sad_core links it PUBLIC. Breaks the core<->builtins cycle.
+# ----------------------------------------------------------------------
+add_library(sad_builtins STATIC ${SAD_BUILTINS_LIB_SOURCES})
+target_link_libraries(sad_builtins PUBLIC sad_shared)
+if(MSVC)
+    target_compile_options(sad_builtins PRIVATE /FS /utf-8 /Z7)
+endif()
+target_link_libraries(sad_core PUBLIC sad_builtins)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # (AR) Codegen v4.1: ضمان توليد keywords_generated.{h,cpp} قبل الترجمة
 #      sad_shared هو من يحوي lexer_keywords.cpp و keywords_generated.cpp،
@@ -114,15 +129,15 @@ endif()
 # SQLite3 (اختياري) / SQLite3 (optional)
 find_package(unofficial-sqlite3 CONFIG QUIET)
 if(unofficial-sqlite3_FOUND)
-    target_link_libraries(sad_core PRIVATE unofficial::sqlite3::sqlite3)
-    target_compile_definitions(sad_core PRIVATE HAS_SQLITE3)
+    target_link_libraries(sad_builtins PRIVATE unofficial::sqlite3::sqlite3)
+    target_compile_definitions(sad_builtins PRIVATE HAS_SQLITE3)
     message(STATUS "✓ SQLite3: مفعّل / Enabled")
 else()
     find_package(SQLite3 QUIET)
     if(SQLite3_FOUND)
-        target_link_libraries(sad_core PRIVATE ${SQLite3_LIBRARIES})
-        target_include_directories(sad_core PRIVATE ${SQLite3_INCLUDE_DIRS})
-        target_compile_definitions(sad_core PRIVATE HAS_SQLITE3)
+        target_link_libraries(sad_builtins PRIVATE ${SQLite3_LIBRARIES})
+        target_include_directories(sad_builtins PRIVATE ${SQLite3_INCLUDE_DIRS})
+        target_compile_definitions(sad_builtins PRIVATE HAS_SQLITE3)
         message(STATUS "✓ SQLite3: مفعّل / Enabled")
     else()
         message(STATUS "⚠ SQLite3: غير موجود / Not found")
@@ -132,9 +147,9 @@ endif()
 # OpenSSL (اختياري) / OpenSSL (optional)
 find_package(OpenSSL QUIET)
 if(OPENSSL_FOUND)
-    target_link_libraries(sad_core PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-    target_include_directories(sad_core PRIVATE ${OPENSSL_INCLUDE_DIR})
-    target_compile_definitions(sad_core PRIVATE HAS_OPENSSL)
+    target_link_libraries(sad_builtins PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_include_directories(sad_builtins PRIVATE ${OPENSSL_INCLUDE_DIR})
+    target_compile_definitions(sad_builtins PRIVATE HAS_OPENSSL)
     message(STATUS "✓ OpenSSL: مفعّل / Enabled")
 else()
     message(STATUS "⚠ OpenSSL: غير موجود / Not found")
