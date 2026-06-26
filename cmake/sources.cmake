@@ -347,7 +347,10 @@ set(ALL_SOURCES
     # (EN) Phase 2-C: pure builtins moved to sad_builtins; only glue stays here.
     shared/builtins/src/runtime/stdlib_manager.cpp
     ${OPTIMIZER_SOURCES}
-    ${LOW_LEVEL_SOURCES}
+    # (AR) م2-ج شريحة2: مدمجات النواة/العتاد النقيّة خرجت إلى هدف sad_lowlevel
+    #      (لا تلمس Data::Value)؛ لِحامها builtin_kernel_*.cpp يبقى في القلب.
+    # (EN) Phase 2-C slice2: pure kernel/low-level builtins moved to sad_lowlevel;
+    #      their glue (builtin_kernel_*.cpp) stays in the core.
     ${COMPILER_FRONTEND_SOURCES}
     ${HOT_RELOAD_SOURCES}
 )

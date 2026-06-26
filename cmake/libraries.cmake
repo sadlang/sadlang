@@ -34,6 +34,23 @@ if(MSVC)
 endif()
 target_link_libraries(sad_core PUBLIC sad_builtins)
 
+# ----------------------------------------------------------------------
+# (AR) م2-ج شريحة2 (sadlang-rfcs#10): مكتبة مدمجات النواة/العتاد sad_lowlevel.
+#      26 ملفًّا من stdlib/low_level/src — كود عتاد/نواة بحت لا يلمس Data::Value.
+#      يعتمد sad_security_core فقط (safe_arithmetic.h)؛ sad_core يربطه PUBLIC.
+#      اللِحام (interpreter/src/builtins/builtin_kernel_*.cpp) يبقى في القلب.
+# (EN) Phase 2-C slice2: pure kernel/low-level builtins library. 26 files from
+#      stdlib/low_level/src; no Data::Value. Depends only on sad_security_core
+#      (safe_arithmetic.h). sad_core links it PUBLIC; the glue stays in the core.
+# ----------------------------------------------------------------------
+add_library(sad_lowlevel STATIC ${LOW_LEVEL_SOURCES})
+target_link_libraries(sad_lowlevel PUBLIC sad_security_core)
+if(MSVC)
+    target_compile_options(sad_lowlevel PRIVATE /FS /utf-8 /Z7)
+endif()
+target_link_libraries(sad_core PUBLIC sad_lowlevel)
+
+
 
 # ──────────────────────────────────────────────────────────────────────
 # (AR) Codegen v4.1: ضمان توليد keywords_generated.{h,cpp} قبل الترجمة
