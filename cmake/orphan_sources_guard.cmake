@@ -25,7 +25,6 @@
 set(SAD_GUARDED_DIRS
     "compiler/src"
     "interpreter/src"
-    "vm/src"
 )
 
 # (AR) أنماط استثناء — ملفات معروفة أنها قوالب/توليد/أرشفة

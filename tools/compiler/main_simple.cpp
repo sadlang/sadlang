@@ -18,11 +18,6 @@
 #include "../../interpreter/include/debug/debug_server.h"
 #include "ui/sad_ui_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (واجهة عامّة) / (EN) install UI bridge (public API)
 
-// الآلة الافتراضية / Bytecode VM
-#include "sad_vm_compiler.h"
-#include "sad_vm_executor.h"
-#include "sad_vm_debug.h"
-
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
 
@@ -31,8 +26,6 @@
 #include "profiler_hooks.h"                 // (AR) خطافات المصحح / (EN) Profiler hooks
 #include "hot_reload_engine.h"              // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
 #include "memory/policy/memory_mode_flag.h" // (AR) Phase A2: محلل أعلام سياسة الذاكرة / (EN) Phase A2: memory policy flag parser
-#include "memory/gc/policy_bridge.h"        // (AR) DEF-002: جسر تطبيق سياسة الذاكرة على المحرك العام (للـ VM)
-                                            // (EN) DEF-002: unified memory-policy bridge (for VM launcher)
 
 #include <iostream>
 #include <fstream>
@@ -70,9 +63,6 @@ void print_help(const char *program_name)
               << "  --gc=<strategy>          استراتيجية GC: tracing|refcount|none / GC strategy\n"
               << "  --ملكية=<level>          مستوى الملكية: disabled|warnings|strict|ultra\n"
               << "  --no-std, --نواة         وضع بلا مكتبة قياسية / No-std / freestanding mode\n"
-              << "  --vm, --آلة    تنفيذ عبر الآلة الافتراضية / Execute via Bytecode VM\n"
-              << "  --vm-trace    تتبع تعليمات الآلة / Trace VM instructions\n"
-              << "  --vm-disasm   فك البايت كود / Disassemble bytecode\n"
               << "  --debug-server خادم التصحيح (DAP) / Debug server mode (DAP)\n"
               << "  --profile     تنميط الأداء / Profile performance\n"
               << "  --تنميط       تنميط الأداء (عربي) / Profile performance (Arabic)\n"
@@ -255,9 +245,6 @@ int main(int argc, char *argv[])
         bool strictSecurity = false;
         bool enableDebug = false;
         bool showOptStats = false;
-        bool useVM = false;
-        bool vmTrace = false;
-        bool vmDisasm = false;
         bool useDebugServer = false;
         bool enableProfile = false;
         bool enableHotReload = false;
@@ -323,20 +310,6 @@ int main(int argc, char *argv[])
             else if (a == "--debug")
             {
                 enableDebug = true;
-            }
-            else if (a == "--vm" || a == "--\xD8\xA2\xD9\x84\xD8\xA9")
-            {
-                useVM = true;
-            }
-            else if (a == "--vm-trace" || a == "--\xD8\xAA\xD8\xAA\xD8\xA8\xD8\xB9-\xD8\xA2\xD9\x84\xD8\xA9")
-            {
-                useVM = true;
-                vmTrace = true;
-            }
-            else if (a == "--vm-disasm" || a == "--\xD9\x81\xD9\x83-\xD8\xA8\xD8\xA7\xD9\x8A\xD8\xAA\xD9\x83\xD9\x88\xD8\xAF")
-            {
-                useVM = true;
-                vmDisasm = true;
             }
             else if (a == "--opt-stats" || a == "-v")
             {
@@ -687,77 +660,6 @@ int main(int argc, char *argv[])
                 }
                 std::cout << md;
             }
-            return 0;
-        }
-
-        // ===================================================================
-        // وضع الآلة الافتراضية: ترجمة AST إلى بايت كود وتنفيذه
-        // VM Mode: Compile AST to bytecode and execute
-        // ===================================================================
-        if (useVM)
-        {
-            // الترجمة / Compile
-            sad::vm::مُترجم_بايت_كود compiler;
-            auto chunk = compiler.ترجم(program, filename);
-
-            if (compiler.يوجد_أخطاء())
-            {
-                std::cerr << "أخطاء ترجمة البايت كود / Bytecode compilation errors:" << std::endl;
-                for (const auto &err : compiler.الأخطاء())
-                {
-                    std::cerr << "  " << err << std::endl;
-                }
-                return 1;
-            }
-
-            // فك التجميع (اختياري) / Disassemble (optional)
-            if (vmDisasm)
-            {
-                sad::vm::مفكك_البايت_كود disasm;
-                disasm.فكّك_وحدة(chunk);
-                std::cout << "\n═══ بدء التنفيذ / Starting execution ═══\n"
-                          << std::endl;
-            }
-
-            // التنفيذ / Execute
-            sad::vm::آلة_افتراضية vm;
-            if (vmTrace)
-                vm.عيّن_وضع_التتبع(true);
-
-            // ============================================================
-            // (AR) DEF-002 — تطبيق سياسة الذاكرة العامة قبل تشغيل البايت كود.
-            //      الـ VM له نظام قيم مستقل (`قيمة_بايت_كود`) ولا يستخدم
-            //      ObjectInstance مباشرة، لكن:
-            //        1. أي استدعاء مدمج من البايت كود إلى stdlib قد ينشئ
-            //           ObjectInstance — السياسة يجب أن تنطبق عليه.
-            //        2. تماثل تشغيلي مع المفسّر (نفس سطر [memory] التشخيصي
-            //           يُطبَع في كلا المسارين بنفس الشكل).
-            //        3. توحيد نقطة التطبيق (CW-19, BF-11) — المفسّر و VM
-            //           و REPL تستهلك الآن نفس الدالة.
-            // (EN) DEF-002 — apply global memory policy before running the
-            //      bytecode. VM has its own value system but stdlib calls
-            //      may create ObjectInstance, and operational symmetry with
-            //      the interpreter requires the same diagnostic line.
-            // ============================================================
-            ::Sad::Memory::GC::applyMemoryPolicyGlobal(
-                g_memoryPolicy,
-                g_memoryPolicySet,
-                enableDebug);
-
-            auto result = vm.نفّذ(chunk);
-
-            if (result.الحالة != sad::vm::حالة_التنفيذ::نجاح)
-            {
-                std::cerr << result.رسالة_الخطأ << std::endl;
-                return 1;
-            }
-
-            if (enableDebug)
-            {
-                std::cout << "\n[آلة افتراضية] عدد التعليمات: " << result.عدد_التعليمات
-                          << " | الزمن: " << result.زمن_التنفيذ_مللي << " مللي" << std::endl;
-            }
-
             return 0;
         }
 

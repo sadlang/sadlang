@@ -18,7 +18,6 @@ add_executable(sad-run tools/compiler/main_simple.cpp)
 
 target_link_libraries(sad-run PRIVATE
     sad_core
-    sad_vm
     sad_type_system
     sad_semantic
     sad_network

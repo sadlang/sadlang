@@ -105,22 +105,6 @@ add_comprehensive_test(test_ast_clone test_ast_clone.cpp)
 # 6.6. مستخرج التوثيق / Documentation Extractor Tests (28 tests)
 add_comprehensive_test(test_docs_extractor_comprehensive test_docs_extractor_comprehensive.cpp)
 
-# 7. الآلة الافتراضية والمترجم / VM & Compiler Tests (77 tests)
-add_comprehensive_test(test_vm_compiler_comprehensive test_vm_compiler_comprehensive.cpp)
-target_link_libraries(test_vm_compiler_comprehensive PRIVATE sad_vm sad_core sad_frontend)
-target_include_directories(test_vm_compiler_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/vm/include
-    ${CMAKE_SOURCE_DIR}/compiler/include
-    ${CMAKE_SOURCE_DIR}/compiler/include/frontend
-    ${CMAKE_SOURCE_DIR}/interpreter/include
-    ${CMAKE_SOURCE_DIR}/interpreter/include/managers)
-
-# 7.5. اختبارات محرك JIT / JIT Engine Tests (74 tests)
-add_comprehensive_test(test_jit_comprehensive test_jit_comprehensive.cpp)
-target_link_libraries(test_jit_comprehensive PRIVATE sad_vm)
-target_include_directories(test_jit_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/vm/include)
-
 # 8. اختبارات التكامل / End-to-End Tests (47 tests)
 add_comprehensive_test(test_e2e_comprehensive test_e2e_comprehensive.cpp)
 
@@ -426,8 +410,6 @@ add_custom_target(comprehensive_tests
         test_errors_comprehensive
         test_ast_clone
         test_docs_extractor_comprehensive
-        test_vm_compiler_comprehensive
-        test_jit_comprehensive
         test_e2e_comprehensive
         test_utils_modules_comprehensive
         test_compiler_comprehensive
