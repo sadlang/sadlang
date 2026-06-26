@@ -299,6 +299,41 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
                 pass
 
 
+def run_vm(sad_exe: Path, test_file: Path, timeout: int,
+           stdin_data: str = "") -> tuple[str, float, str]:
+    """
+    (AR) تشغيل ملف .ص عبر الآلة الافتراضية للبايت كود (المسار الثالث، م2-ب RFC#10).
+         المحرّك الثالث مدمَج في ثنائيّ `sad-run` نفسه (يربط sad_vm)، ويُستدعى عبر
+         `sad-run --vm <ملف>`: يُحوَّل AST إلى بايت كود ثمّ تنفّذه `آلة_افتراضية`
+         مباشرةً داخل العمليّة (لا ملف تنفيذيّ). فالمضيف هو المفسّر لا المترجم.
+    (EN) Run .ص via the bytecode VM (third lane, م2-ب RFC#10). The VM lives in the
+         SAME `sad-run` binary (it links sad_vm) and is invoked via `sad-run --vm
+         <file>`: AST→bytecode then executed in-process. Host is the interpreter
+         binary, NOT the compiler. Returns (output, time_ms, error_msg).
+    """
+    start = time.perf_counter()
+    try:
+        result = subprocess.run(
+            [str(sad_exe), str(test_file), "--vm"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding="utf-8",
+            errors="replace",
+            input=stdin_data if stdin_data else None,
+        )
+        elapsed = (time.perf_counter() - start) * 1000
+        output = result.stdout.rstrip("\n")
+        error = result.stderr.strip() if result.returncode != 0 else ""
+        return output, elapsed, error
+    except subprocess.TimeoutExpired:
+        elapsed = (time.perf_counter() - start) * 1000
+        return "", elapsed, "TIMEOUT"
+    except Exception as e:
+        elapsed = (time.perf_counter() - start) * 1000
+        return "", elapsed, str(e)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════════
 # الجزء ③ب: وضع التطبيع والمقارنة (ADR-004 / TEST-007)
 # Part ③b: Output normalization & comparison
@@ -372,6 +407,100 @@ def classify_flakiness(sad_exe: Path, test_files: list, n: int, timeout: int) ->
             outs.add(out)
         (flaky if len(outs) > 1 else deterministic).append(str(tf))
     return {"runs": n, "flaky": flaky, "deterministic": deterministic}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# الجزء ③ج: مِشدّ المطابقة الثلاثيّ التشخيصيّ (م2-ب، RFC sadlang-rfcs#10)
+# Part ③c: Triple-equivalence diagnostic harness
+# ═══════════════════════════════════════════════════════════════════════════════════
+#
+# (AR) المحرّك الثالث (الآلة الافتراضية للبايت كود) يُقارَن بالمفسّر الشجريّ كعَرّاف
+#      (oracle). هذا الوضع **تشخيصيّ غير حاجب**: يرسم خريطة الانحراف فقط ولا يغيّر
+#      بوّابة المفسّر/المترجم القائمة (RFC: «المِشدّ على مرحلتين تشخيصيّ ← مفروض بعد 2-ب»).
+#      التصنيفات: VM_MATCH (مطابق) / VM_DIFF (انحراف حقيقيّ) / VM_ERROR (لا تنفّذه الآلة
+#      الافتراضية بعد) / VM_SKIP (لا عَرّاف: المفسّر فشل أو @skip_interpreter/@expect_error).
+# (EN) Diagnostic, NON-gating: maps VM↔interpreter drift without touching the existing
+#      interp/compiler gate.
+
+VM_MATCH, VM_DIFF, VM_ERROR, VM_SKIP = "VM_MATCH", "VM_DIFF", "VM_ERROR", "VM_SKIP"
+
+
+def _vm_conformance_one(sad_exe: Path, test_file: Path,
+                        default_timeout: int) -> dict:
+    """(AR) يقارن مخرَج الآلة الافتراضية (sad-run --vm) بمخرَج المفسّر (العَرّاف).
+    المضيفان ثنائيّ واحد (sad-run): الافتراضيّ مفسّر، و--vm يحوّل التنفيذ للبايت كود."""
+    meta = parse_metadata(test_file)
+    timeout = meta.timeout or default_timeout
+    rel = str(test_file)
+
+    # (AR) لا عَرّاف موثوق: نتخطّى الاختبارات السلبية والتي يُتخطّى فيها المفسّر.
+    if meta.skip_interpreter or meta.expect_error:
+        return {"file": rel, "category": VM_SKIP, "reason": "لا عَرّاف (سلبيّ/تخطّي مفسّر)"}
+
+    interp_out, _t, interp_err = run_interpreter(sad_exe, test_file, timeout,
+                                                 stdin_data=meta.stdin_data)
+    if interp_err:
+        # (AR) العَرّاف نفسه فشل — ليس ذنب الآلة الافتراضية.
+        return {"file": rel, "category": VM_SKIP, "reason": f"عَرّاف فاشل: {interp_err[:80]}"}
+
+    # (AR) عَرّاف غير موثوق: إن وُجد @expected وخالفه مخرَجُ المفسّر، فالمفسّر نفسه
+    #      منحرف عن الحقيقة المصرَّحة (البوّابة القائمة تقارنه بـ@expected لا بذاته).
+    #      مقارنة الآلة بمخرَج مفسّر خاطئ تُنتج VM_DIFF/VM_MATCH كاذبًا ⇒ نتخطّى.
+    # (EN) Unreliable oracle: if @expected exists and the interpreter output diverges
+    #      from it, the interpreter itself is off the declared truth; comparing the VM
+    #      against a wrong oracle yields false drift ⇒ skip. Matches run_single_test intent.
+    if meta.expected_output and not compare_outputs(
+            interp_out, "\n".join(meta.expected_output), meta):
+        return {"file": rel, "category": VM_SKIP,
+                "reason": "عَرّاف غير موثوق: مفسّر ≠ @expected"}
+
+    vm_out, _vt, vm_err = run_vm(sad_exe, test_file, timeout, stdin_data=meta.stdin_data)
+    if vm_err:
+        return {"file": rel, "category": VM_ERROR, "reason": vm_err[:200],
+                "interp_out": interp_out[:400]}
+
+    if compare_outputs(interp_out, vm_out, meta):
+        return {"file": rel, "category": VM_MATCH}
+    return {"file": rel, "category": VM_DIFF,
+            "interp_out": interp_out[:400], "vm_out": vm_out[:400]}
+
+
+def vm_conformance(sad_exe: Path, test_files: list,
+                   default_timeout: int, max_parallel: int) -> dict:
+    """(AR) شغّل المسار الثلاثيّ على كامل المجموعة وأرجِع تقرير الانحراف.
+    المضيف ثنائيّ المفسّر (sad-run) نفسه عبر --vm — لا يحتاج المترجم."""
+    # (AR) أيّ استثناء غير متوقَّع يُصنَّف VM_ERROR بدل أن يُسقِط المِشدّ — يصون
+    #      ضمان «الخروج بـ0 دائمًا» (تشخيصيّ غير حاجب) ويُبقي تقرير JSON ثابتًا.
+    # (EN) Any unexpected exception is classified VM_ERROR instead of crashing the
+    #      harness — preserves the always-exit-0 (non-gating) guarantee.
+    def _safe_one(tf: Path) -> dict:
+        try:
+            return _vm_conformance_one(sad_exe, tf, default_timeout)
+        except Exception as e:  # noqa: BLE001 — تشخيصيّ: لا نسمح بأيّ تسرّب
+            return {"file": str(tf), "category": VM_ERROR, "reason": f"عامل فاشل: {e}"[:200]}
+
+    rows: list[dict] = []
+    if max_parallel > 1 and len(test_files) > 1:
+        with ThreadPoolExecutor(max_workers=max_parallel) as ex:
+            futs = {ex.submit(_safe_one, tf): tf for tf in test_files}
+            for fut in as_completed(futs):
+                rows.append(fut.result())
+    else:
+        for tf in test_files:
+            rows.append(_safe_one(tf))
+    rows.sort(key=lambda d: d["file"])
+    buckets = {VM_MATCH: [], VM_DIFF: [], VM_ERROR: [], VM_SKIP: []}
+    for row in rows:
+        buckets[row["category"]].append(row)
+    return {
+        "total": len(rows),
+        "match": len(buckets[VM_MATCH]),
+        "diff": len(buckets[VM_DIFF]),
+        "error": len(buckets[VM_ERROR]),
+        "skip": len(buckets[VM_SKIP]),
+        "rows": rows,
+        "buckets": buckets,
+    }
 
 
 def run_single_test(
@@ -965,6 +1094,10 @@ def main():
                         help="مصنّف الرفرفة (ADR-004/TEST-007): يشغّل كل اختبار N مرة "
                              "بالمفسر (الافتراضي 5)، ويميّز: لاحتمي (مرشّح @nondeterministic) "
                              "مقابل حتمي-فاشل (خطأ حقيقي يُصلَح لا يُقنَّع). لا يقارن المترجم.")
+    parser.add_argument("--vm-conformance", action="store_true",
+                        help="مِشدّ المطابقة الثلاثيّ التشخيصيّ (م2-ب، RFC#10): يقارن "
+                             "الآلة الافتراضية للبايت كود (sad-run --vm) بالمفسّر كعَرّاف، "
+                             "ويرسم خريطة الانحراف. غير حاجب — لا يغيّر بوّابة المفسّر/المترجم.")
     parser.add_argument("--gate", action="store_true",
                         help="بوّابة قرار (ADR-004): يُصدر PASS/CONCERNS/FAIL. "
                              "FAIL إذا فشل دخان P0 أو هبطت النسبة تحت --gate-floor.")
@@ -1162,6 +1295,43 @@ def main():
                 json.dump(res, fh, ensure_ascii=False, indent=2)
             print(f"\n📄 التقرير: {out_path}")
         sys.exit(0)
+
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) وضع المطابقة الثلاثيّة --vm-conformance (م2-ب، RFC sadlang-rfcs#10)
+    #      تشخيصيّ غير حاجب: يخرج 0 دائمًا. المضيف ثنائيّ المفسّر (sad-run) عبر --vm — لا يحتاج المترجم.
+    # ═══════════════════════════════════════════════════════════════
+    if args.vm_conformance:
+        b = _BOLD if use_colors else ""
+        r = _RESET if use_colors else ""
+        g = _GREEN if use_colors else ""
+        y = _YELLOW if use_colors else ""
+        rd = _RED if use_colors else ""
+        print(f"\n{b}═══ مِشدّ المطابقة الثلاثيّ (تشخيصيّ، غير حاجب) ═══{r}")
+        print(f"  مفسّر (عَرّاف): {sad_exe.name}")
+        print(f"  آلة افتراضية:  {sad_exe.name} --vm")
+        print(f"  ملفات:         {len(test_files)}\n")
+        res = vm_conformance(sad_exe, test_files, timeout, max_parallel)
+        comparable = res["match"] + res["diff"]
+        rate = (100.0 * res["match"] / comparable) if comparable else 0.0
+        print(f"{g}✓ مطابق   (VM_MATCH): {res['match']}{r}")
+        print(f"{rd}✗ انحراف  (VM_DIFF):  {res['diff']}{r}")
+        print(f"{y}⚠ لا ينفّذ (VM_ERROR): {res['error']}{r}")
+        print(f"  ⊘ متخطّى  (VM_SKIP):  {res['skip']}")
+        print(f"\n{b}نسبة المطابقة على السطح المنفَّذ: {rate:.1f}% "
+              f"({res['match']}/{comparable}){r}")
+        if res["diff"]:
+            print(f"\n{rd}── انحرافات حقيقيّة (الآلة الافتراضية تنفّذ لكن ≠ المفسّر) ──{r}")
+            for row in res["buckets"][VM_DIFF]:
+                print(f"  ✗ {Path(row['file']).name}")
+                print(f"      مفسّر: {row.get('interp_out','')!r}")
+                print(f"      آلة:   {row.get('vm_out','')!r}")
+        if args.report:
+            out_path = project_root / "build" / "_vm_conformance_report.json"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_path, "w", encoding="utf-8") as fh:
+                json.dump(res, fh, ensure_ascii=False, indent=2)
+            print(f"\n📄 التقرير: {out_path}")
+        sys.exit(0)  # (AR) دائمًا 0 — تشخيصيّ لا حاجب
 
     # (AR) الطباعة الأولية
     b = _BOLD if use_colors else ""
