@@ -21,7 +21,15 @@
 #include "lsp_engine.h"
 #include "arabic_utils.h"
 #include "lexer_keywords.h"
+// (AR) CW-06: تضمين صريح لمعجم الكلمات المُولَّد — نستعمل
+//      Sad::Lexer::Generated::allEntries() مباشرةً لاشتقاق block_openers،
+//      فلا نعتمد على وصوله ضمنيًّا عبر lexer_keywords.h.
+// (EN) CW-06: explicit include of the generated lexicon; allEntries() is used directly.
+#include "../generated/keywords_generated.h"
 #include <algorithm>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace sad {
 namespace lsp {
@@ -179,9 +187,8 @@ static const std::vector<KeywordSnippet>& get_keyword_snippets() {
             "\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xb1 \"${1:\xd8\xa7\xd8\xb3\xd9\x85_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb1}\"\n\t${0}\n\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9",
             true, CompletionItemKind::Keyword
         },
-        // ──── ذري (atomic) ────
-        {"\xd8\xb0\xd8\xb1\xd9\x8a", "\xd8\xb0\xd8\xb1\xd9\x8a", "تعريف متغير ذري آمن للخيوط (atomic)",
-         "\xd8\xb0\xd8\xb1\xd9\x8a ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85}: ${2:\xd8\xa7\xd9\x84\xd9\x86\xd9\x88\xd8\xb9} = ${0}", true, CompletionItemKind::Keyword},
+        // (AR) أُزيلت قصاصة «ذري» (atomic): ليست كلمة في المعجم (مصدر الحقيقة) —
+        //      كانت كلمة وهمية تُقترح للمستخدم رغم عدم وجودها في اللغة.
         // ──── صدّر (export) ────
         {"\xd8\xb5\xd8\xaf\xd9\x91\xd8\xb1", "\xd8\xb5\xd8\xaf\xd9\x91\xd8\xb1 (تصدير)", "تصدير رمز للاستخدام في ملفات أخرى",
          "\xd8\xb5\xd8\xaf\xd9\x91\xd8\xb1 ${0}", true, CompletionItemKind::Keyword},
@@ -250,19 +257,23 @@ static bool is_inside_class_body(const std::string& content, int current_line) {
     auto lines = arabic::split_lines(content);
     std::string kw_class = "\xd8\xb5\xd9\x86\xd9\x81"; // صنف
     std::string kw_end = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // نهاية
-    // كلمات فتح الكتل التي تنتهي بنهاية
-    static const std::vector<std::string> block_openers = {
-        "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9", // دالة
-        "\xd8\xb5\xd9\x86\xd9\x81",         // صنف
-        "\xd8\xa5\xd8\xb0\xd8\xa7",         // إذا
-        "\xd8\xa8\xd9\x8a\xd9\x86\xd9\x85\xd8\xa7", // بينما
-        "\xd9\x84\xd9\x83\xd9\x84",         // لكل
-        "\xd8\xad\xd8\xa7\xd9\x88\xd9\x84", // حاول
-        "\xd8\xb7\xd8\xa7\xd8\xa8\xd9\x82", // طابق
-        "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf", // تعداد
-        "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9", // بنية
-        "\xd8\xb3\xd9\x85\xd8\xa9",         // سمة
-    };
+    // (AR) كلمات فتح الكتل (تُغلق بـ«نهاية») — مشتقّة من مصدر الحقيقة عبر دور
+    //      «block_opener» في المعجم المُولَّد، بدل تهريد قائمة تتباعد عنه (كانت
+    //      10 فقط مقابل 24 في المعجم: نقصت اختبر/اختر/امتداد/باني/خاصية/رئيسية...).
+    // (EN) Block-opening keywords derived from the SoT lexicon (role=block_opener),
+    //      replacing a hand-maintained list that drifted (10 vs 24).
+    static const std::vector<std::string> block_openers = [] {
+        std::vector<std::string> openers;
+        for (const auto& entry : Sad::Lexer::Generated::allEntries()) {
+            for (const auto& role : entry.roles) {
+                if (role == "block_opener") {
+                    openers.push_back(entry.primaryWord);
+                    break;
+                }
+            }
+        }
+        return openers;
+    }();
 
     // نمسح من السطر الحالي للأعلى ونتتبع عمق الكتل
     int block_depth = 0;
@@ -493,7 +504,14 @@ CompletionList LspEngine::completion(const DocumentUri& uri, const Position& pos
     // ──── ٥. إكمال من الفهرس (دوال، متغيرات، أصناف) ────
     if (!current_word.empty()) {
         auto matches = index_->fuzzy_search(current_word, uri, 30);
+        // (AR) إزالة تكرار العناصر بنفس العنوان: قد يتطابق الاسم نفسه من مصدرين
+        //      (مدمجة من مصدر الحقيقة + رمز محلّيّ يحجبها، أو مدمجة مكرّرة عبر
+        //      فضاءات). fuzzy_search مرتّب بالنتيجة فالأعلى أولويّةً يَرِد أوّلًا،
+        //      فنُبقي أوّل ظهور لكلّ عنوان. (CW-19: لا تكرار في واجهة الإكمال.)
+        std::unordered_set<std::string> seen_labels;
         for (const auto& sym : matches) {
+            if (!seen_labels.insert(sym.name).second)
+                continue; // عنوان مكرّر — أُدرج مسبقًا
             CompletionItem item;
             item.label = sym.name;
 

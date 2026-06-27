@@ -67,9 +67,14 @@ static std::string extract_directory_from_uri(const DocumentUri& uri) {
         decoded += path[i];
     }
     // الحصول على المجلد الأب
-    std::filesystem::path fs_path(decoded);
+    // (AR) نستعمل u8path لتفسير السلسلة كـUTF-8 صراحةً؛ خلافه يحاول std::filesystem
+    //      تحويلها عبر صفحة ترميز ANSI فيرمي "No mapping for Unicode" على المسارات
+    //      العربية حين تكون صفحة الترميز النشطة ليست UTF-8.
+    // (EN) Use u8path so the UTF-8 bytes are not run through the ANSI code page,
+    //      which throws on Arabic paths when the active code page isn't UTF-8.
+    std::filesystem::path fs_path = std::filesystem::u8path(decoded);
     if (fs_path.has_parent_path()) {
-        return fs_path.parent_path().string();
+        return fs_path.parent_path().u8string();
     }
     return ".";
 }
@@ -89,27 +94,36 @@ std::vector<TextEdit> LspEngine::format_document(
     // تحويل خيارات LSP إلى خيارات المنسّق
     auto fmt_opts = lsp_to_formatter_options(options);
 
-    // إنشاء المنسّق وتحميل إعدادات المشروع إن وجدت
-    Sad::Format::SadFormatter formatter(fmt_opts);
-    std::string dir = extract_directory_from_uri(uri);
-    formatter.loadConfigFromDirectory(dir);
+    // (AR) معالِج طلب LSP يجب ألّا يرمي أبدًا على حالة مسار/ترميز حدّية؛ أيّ فشل
+    //      في تحميل الإعدادات أو التنسيق يتدهور بأمان إلى "لا تعديلات".
+    // (EN) An LSP request handler must never throw on a path/encoding edge case;
+    //      any config-load or format failure degrades gracefully to no edits.
+    try {
+        // إنشاء المنسّق وتحميل إعدادات المشروع إن وجدت
+        Sad::Format::SadFormatter formatter(fmt_opts);
+        std::string dir = extract_directory_from_uri(uri);
+        formatter.loadConfigFromDirectory(dir);
 
-    // تنسيق الكود
-    auto result = formatter.format(doc->content);
+        // تنسيق الكود
+        auto result = formatter.format(doc->content);
 
-    if (!result.success()) {
-        // فشل التنسيق — نعيد قائمة فارغة
+        if (!result.success()) {
+            // فشل التنسيق — نعيد قائمة فارغة
+            return edits;
+        }
+
+        if (result.changed) {
+            // إنشاء تعديل واحد يغطي المستند بالكامل
+            auto lines = arabic::split_lines(doc->content);
+            TextEdit edit;
+            edit.range.start = {0, 0};
+            edit.range.end = {static_cast<int>(lines.size()), 0};
+            edit.new_text = result.output;
+            edits.push_back(edit);
+        }
+    } catch (const std::exception&) {
+        // تدهور بأمان: لا تعديلات بدل إسقاط الطلب
         return edits;
-    }
-
-    if (result.changed) {
-        // إنشاء تعديل واحد يغطي المستند بالكامل
-        auto lines = arabic::split_lines(doc->content);
-        TextEdit edit;
-        edit.range.start = {0, 0};
-        edit.range.end = {static_cast<int>(lines.size()), 0};
-        edit.new_text = result.output;
-        edits.push_back(edit);
     }
 
     return edits;
@@ -136,21 +150,38 @@ std::vector<TextEdit> LspEngine::format_range(
     // ──── تنسيق المستند الكامل ثم استخراج النطاق المطلوب ────
     // هذا يضمن أن المسافة البادئة والسياق صحيحان
     auto fmt_opts = lsp_to_formatter_options(options);
-    Sad::Format::SadFormatter formatter(fmt_opts);
-    std::string dir = extract_directory_from_uri(uri);
-    formatter.loadConfigFromDirectory(dir);
 
-    auto result = formatter.format(doc->content);
-    if (!result.success() || !result.changed) {
-        return edits;
+    // (AR) كما في format_document: المعالِج لا يرمي على حالة مسار/ترميز حدّية.
+    // (EN) As in format_document: the handler must not throw on path/encoding edges.
+    std::string formatted_output;
+    try {
+        Sad::Format::SadFormatter formatter(fmt_opts);
+        std::string dir = extract_directory_from_uri(uri);
+        formatter.loadConfigFromDirectory(dir);
+
+        auto result = formatter.format(doc->content);
+        if (!result.success() || !result.changed) {
+            return edits;
+        }
+        formatted_output = result.output;
+    } catch (const std::exception&) {
+        return edits; // تدهور بأمان
     }
 
     // تقسيم النتيجة المنسقة إلى أسطر
-    auto formatted_lines = arabic::split_lines(result.output);
+    auto formatted_lines = arabic::split_lines(formatted_output);
 
-    // استخراج الأسطر المقابلة للنطاق المطلوب
-    // ملاحظة: التنسيق قد يغير عدد الأسطر، لذا نكتفي بتطبيق
-    // تعديل على النطاق الأصلي إذا تغيّر
+    // (AR) حارس مطابقة الأسطر: نستخرج الأسطر [start_line, end_line] من المخرَج
+    //      المنسَّق بنفس الفهارس. هذا صحيح فقط إن لم يُغيّر التنسيق عددَ الأسطر
+    //      الكلّيّ؛ إن أُدرج/حُذف سطرٌ فوق النطاق انزاحت الفهارس وأنتجنا تعديلًا
+    //      فاسدًا. الحلّ الجذريّ: إن اختلف العدد الكلّيّ نتدهور إلى «لا تعديلات»
+    //      (المحرّر يبقى متّسقًا) بدل قصّ شريحةٍ خاطئة.
+    // (EN) Line-slice extraction by identical indices is only valid when the
+    //      formatter preserves the total line count; otherwise indices shift and
+    //      the slice is wrong. On a count change, degrade to no edits.
+    if (formatted_lines.size() != lines.size())
+        return edits;
+
     std::string original_range;
     for (int i = start_line; i <= end_line; i++) {
         if (i > start_line) original_range += "\n";

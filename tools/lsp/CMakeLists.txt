@@ -70,31 +70,13 @@ add_library(sad_lsp_engine STATIC
     src/providers/on_type_formatting_provider.cpp
 
     # ══════════════════════════════════════════════════════════════════════════
-    # المزودات الثورية المتقدمة - تحسينات متقدمة لـ LSP
+    # كاشف المشاكل المعروفة (موصول بخطّ التحليل، جزء من القلب المجّانيّ)
+    # يحذر المبرمجين من الأنماط التي تسبب مشاكل موثقة في لغة ص
     # ══════════════════════════════════════════════════════════════════════════
-    
-    # نظام المساعد الذكي بالذكاء الاصطناعي
-    # يوفر اقتراحات كود ذكية وإكمال سياقي متقدم
-    src/providers/ai_copilot_provider.cpp
-    
-    # محلل الأداء الفوري
-    # يكتشف مشاكل الأداء ويقترح تحسينات
-    src/providers/performance_analyzer_provider.cpp
-    
-    # محلل الأمان
-    # يفحص الكود بحثاً عن ثغرات أمنية
-    src/providers/security_analyzer_provider.cpp
-    
-    # مدقق أنماط الكود والممارسات الأفضل
-    # يتحقق من اتباع معايير الكتابة الجيدة
-    src/providers/style_checker_provider.cpp
-    
-    # مساعد إعادة الهيكلة الذكي
-    # يوفر عمليات إعادة هيكلة آمنة وذكية
-    src/providers/refactoring_provider.cpp
-    
-    # كاشف المشاكل المعروفة
-    # يحذر المبرمجين من الأنماط التي تسبب مشاكل موثقة
+    #
+    # ملاحظة: حُذفت المزوّدات «المتقدّمة» الخمسة (AI/أمان/أداء/أسلوب/إعادة هيكلة)
+    # لأنها كانت تُبنى دون أن يستدعيها المحرّك أو طبقة النقل (معزولة)، وهي مادة
+    # منتجات مدفوعة منفصلة لا جزء من خادم LSP المجّانيّ المفتوح.
     src/providers/known_issues_detector.cpp
 
     # أدوات مساعدة عربية
@@ -110,6 +92,8 @@ target_include_directories(sad_lsp_engine PUBLIC
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/utils/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/shared/builtins/include
+    ${CMAKE_SOURCE_DIR}/shared/builtins/generated
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/include
 )

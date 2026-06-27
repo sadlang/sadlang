@@ -15,7 +15,9 @@
 
 #include "lsp_engine.h"
 #include "arabic_utils.h"
+#include "builtin_registry.h"   // (AR) كتالوج المدمجات المُولَّد من مصدر الحقيقة
 #include <algorithm>
+#include <unordered_set>
 
 namespace sad {
 namespace lsp {
@@ -64,14 +66,14 @@ std::optional<AnalyzedSymbol> SymbolIndex::find_definition(
 
     std::string normalized = arabic::normalize_arabic(name);
 
-    // أولاً: بحث في الرموز المدمجة
-    for (const auto& sym : builtins_) {
-        if (sym.normalized_name == normalized || sym.name == name) {
-            return sym;
-        }
-    }
+    // (AR) ترتيب الحجب (shadowing): التعريف المحلّيّ يحجب المدمجة التي تحمل
+    //      الاسم نفسه. لذا نبحث المستندَ الحاليّ ثم بقيّة المستندات ثمّ المدمجات
+    //      أخيرًا. (مهمّ بعد توسيع المدمجات إلى 1036 اسمًا من مصدر الحقيقة: لو
+    //      عرّف المستخدم «دالة طول()» فالقفز للتعريف يجب أن يصل تعريفه لا المدمجة.)
+    // (EN) Locals shadow builtins: search current doc, then other docs, then the
+    //      1036 source-of-truth builtins last — so a user-defined name wins.
 
-    // ثانياً: بحث في المستند الحالي (الأولوية الأعلى)
+    // أولاً: بحث في المستند الحالي (الأولوية الأعلى)
     auto it = doc_symbols_.find(context_uri);
     if (it != doc_symbols_.end()) {
         for (const auto& sym : it->second) {
@@ -81,7 +83,7 @@ std::optional<AnalyzedSymbol> SymbolIndex::find_definition(
         }
     }
 
-    // ثالثاً: بحث في كل المستندات الأخرى
+    // ثانياً: بحث في كل المستندات الأخرى (المصدّرة فقط)
     for (const auto& [uri, symbols] : doc_symbols_) {
         if (uri == context_uri) continue;
         for (const auto& sym : symbols) {
@@ -89,6 +91,13 @@ std::optional<AnalyzedSymbol> SymbolIndex::find_definition(
                 sym.is_exported) {
                 return sym;
             }
+        }
+    }
+
+    // ثالثاً (أخيرًا): بحث في الرموز المدمجة — تُحجَب بأيّ تعريف محلّيّ أعلاه
+    for (const auto& sym : builtins_) {
+        if (sym.normalized_name == normalized || sym.name == name) {
+            return sym;
         }
     }
 
@@ -260,175 +269,81 @@ std::vector<AnalyzedSymbol> SymbolIndex::get_workspace_symbols(
 // ══════════════════════════════════════════════════════════════════════════════
 
 void SymbolIndex::register_builtins() {
-    // ────────────────────────────────────────────────────
-    // تسجيل كل الدوال المدمجة في لغة ص
-    // هذه الدوال متاحة في كل مكان بدون استيراد
-    // ────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
+    // (AR) مصدر الحقيقة الوحيد للمدمجات: المصفوفة المُولَّدة Sad::Builtins::ALL_BUILTINS
+    //      (من language-truth/builtins/*.yaml عبر gen_builtins_registry.py).
+    //      لا تهريد يدويّ بعد اليوم — تعديل المدمجات يكون في YAML ثم إعادة البناء.
+    // (EN) Single source of truth for builtins: the generated ALL_BUILTINS array
+    //      (from language-truth/builtins/*.yaml via gen_builtins_registry.py).
+    //      No hand-maintained list — edit the YAML, then rebuild.
+    // ──────────────────────────────────────────────────────────────────────
 
-    auto make_builtin = [](const std::string& name,
-                           const std::string& doc,
-                           const std::vector<std::pair<std::string, std::string>>& params,
-                           const std::string& ret_type) -> AnalyzedSymbol {
-        AnalyzedSymbol sym;
-        sym.name = name;
-        sym.normalized_name = arabic::normalize_arabic(name);
-        sym.kind = AnalyzedSymbolKind::Function;
-        sym.is_builtin = true;
-        sym.documentation = doc;
-        sym.type.name = ret_type;
-
-        AnalyzedSymbol::FunctionInfo fi;
-        fi.return_type.name = ret_type;
-        for (const auto& [pname, ptype] : params) {
-            fi.parameters.push_back({pname, TypeInfo{ptype}});
+    // (AR) تقسيم سلسلة المعاملات إلى أسماء. الفاصل في المصدر هو الفاصلة العربية
+    //      «،» (U+060C)، وقد يتبعها فراغ («، ») حسب توثيق BuiltinMeta.paramsCsv؛
+    //      التقليم اللاحق يستوعب الحالتين. علامة الاختياريّة «؟» تبقى ضمن الاسم
+    //      عمدًا لأنها إشارة عرض مفيدة في التلميح (مثل «رسالة؟»).
+    //
+    //      ⚠ النوع: مصدر الحقيقة لا يحمل أنواع المعاملات بعد، فنترك حقل النوع
+    //      فارغًا — لا نختلق «أيّ». مزوّدات العرض (تحويم/إكمال/توقيع) تُسقط النوع
+    //      الفارغ، فيظهر «اطبع(قيمة)» لا «اطبع(قيمة: أيّ)» المختلَق.
+    auto split_params = [](std::string_view csv)
+        -> std::vector<std::pair<std::string, std::string>> {
+        std::vector<std::pair<std::string, std::string>> out;
+        const std::string sep = "\xd8\x8c"; // ،
+        std::string s(csv);
+        size_t pos = 0;
+        auto push = [&](std::string t) {
+            size_t b = t.find_first_not_of(" \t");
+            size_t e = t.find_last_not_of(" \t");
+            if (b == std::string::npos) return;
+            std::string name = t.substr(b, e - b + 1);
+            if (!name.empty()) out.push_back({name, std::string{}}); // النوع غير معروف ⇒ فارغ
+        };
+        while ((pos = s.find(sep)) != std::string::npos) {
+            push(s.substr(0, pos));
+            s.erase(0, pos + sep.size());
         }
-        sym.func_info = fi;
-        return sym;
+        push(s);
+        return out;
     };
 
-    // ──── دوال الإدخال/الإخراج ────
-    builtins_.push_back(make_builtin(
-        "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9", // اطبع
-        "طباعة قيمة أو أكثر على الشاشة.\n"
-        "مثال: اطبع(\"مرحباً بالعالم\")\n"
-        "يمكن طباعة أي نوع: أرقام، نصوص، مصفوفات.",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}}, // قيمة
-        "\xd8\xb9\xd8\xaf\xd9\x85" // عدم
-    ));
+    // (AR) إزالة التكرار: ALL_BUILTINS يحوي 1073 مدخلًا منها ~37 اسمًا مكرّرًا عبر
+    //      فضاءات مختلفة (مثل «أرسل»، «استبدل»). دونه يظهر الرمز نفسه عدّة مرّات في
+    //      الإكمال. نُبقي أوّل ظهور (بترتيب _index.yaml كما يفعل findBuiltinMeta).
+    std::unordered_set<std::string_view> seen;
+    seen.reserve(Sad::Builtins::ALL_BUILTINS.size());
+    builtins_.reserve(Sad::Builtins::ALL_BUILTINS.size());
+    for (const auto& b : Sad::Builtins::ALL_BUILTINS) {
+        if (!seen.insert(b.canonicalName).second)
+            continue; // اسم مكرّر — تخطّاه
+        AnalyzedSymbol sym;
+        sym.name = std::string(b.canonicalName);
+        sym.normalized_name = arabic::normalize_arabic(sym.name);
+        sym.kind = AnalyzedSymbolKind::Function;
+        sym.is_builtin = true;
 
-    builtins_.push_back(make_builtin(
-        "\xd8\xa7\xd8\xaf\xd8\xae\xd9\x84", // ادخل
-        "قراءة سطر من المستخدم.\n"
-        "مثال: متغير الاسم = ادخل(\"ما اسمك؟ \")\n"
-        "ترجع دائماً نصاً.",
-        {{"\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9", "نص"}}, // رسالة
-        "\xd9\x86\xd8\xb5" // نص
-    ));
+        // التوثيق: الوصف العربيّ + تلميح الوحدة المطلوبة إن لزِم استيراد.
+        std::string doc(b.descriptionAr);
+        if (b.requireImport && !b.requiredModule.empty() &&
+            b.requiredModule != "NONE") {
+            if (!doc.empty()) doc += "\n";
+            doc += "\xd9\x8a\xd8\xaa\xd8\xb7\xd9\x84\xd8\xa8 \xd8\xa7\xd8\xb3\xd8\xaa\xd9\x8a\xd8\xb1\xd8\xa7\xd8\xaf: "; // يتطلب استيراد:
+            doc += std::string(b.requiredModule);
+        }
+        sym.documentation = doc;
 
-    // ──── دوال النوع ────
-    builtins_.push_back(make_builtin(
-        "\xd9\x86\xd9\x88\xd8\xb9", // نوع
-        "إرجاع نوع القيمة كنص.\n"
-        "مثال: نوع(42) ← \"رقم\"",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}},
-        "\xd9\x86\xd8\xb5"
-    ));
+        std::string ret(b.returnType);
+        sym.type.name = ret;
 
-    // ──── دوال التحويل ────
-    builtins_.push_back(make_builtin(
-        "\xd8\xb1\xd9\x82\xd9\x85", // رقم
-        "تحويل قيمة إلى رقم صحيح.\n"
-        "مثال: رقم(\"42\") ← 42",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}},
-        "\xd8\xb1\xd9\x82\xd9\x85"
-    ));
+        AnalyzedSymbol::FunctionInfo fi;
+        fi.return_type.name = ret;
+        for (auto& p : split_params(b.paramsCsv)) {
+            fi.parameters.push_back({p.first, TypeInfo{p.second}});
+        }
+        sym.func_info = fi;
 
-    builtins_.push_back(make_builtin(
-        "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a", // عشري
-        "تحويل قيمة إلى عدد عشري.\n"
-        "مثال: عشري(\"3.14\") ← 3.14",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}},
-        "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd9\x86\xd8\xb5", // نص
-        "تحويل قيمة إلى نص.\n"
-        "مثال: نص(42) ← \"42\"",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}},
-        "\xd9\x86\xd8\xb5"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a", // منطقي
-        "تحويل قيمة إلى منطقي (صحيح/خطأ).\n"
-        "مثال: منطقي(1) ← صحيح",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}},
-        "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a"
-    ));
-
-    // ──── دوال المصفوفات ────
-    builtins_.push_back(make_builtin(
-        "\xd8\xb7\xd9\x88\xd9\x84", // طول
-        "إرجاع طول مصفوفة أو نص.\n"
-        "مثال: طول([1, 2, 3]) ← 3\n"
-        "مثال: طول(\"مرحباً\") ← 6",
-        {{"\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", "أي"}},
-        "\xd8\xb1\xd9\x82\xd9\x85"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd8\xa3\xd8\xb6\xd9\x81", // أضف
-        "إضافة عنصر إلى نهاية مصفوفة.\n"
-        "مثال: أضف(قائمة، 42)",
-        {{"\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9", "مصفوفة"},
-         {"\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1", "أي"}},
-        "\xd8\xb9\xd8\xaf\xd9\x85"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd8\xa7\xd8\xad\xd8\xb0\xd9\x81", // احذف
-        "حذف عنصر من مصفوفة.\n"
-        "مثال: احذف(قائمة، 0) // يحذف العنصر الأول",
-        {{"\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9", "مصفوفة"},
-         {"\xd9\x81\xd9\x87\xd8\xb1\xd8\xb3", "رقم"}},
-        "\xd8\xb9\xd8\xaf\xd9\x85"
-    ));
-
-    // ──── دوال الرياضيات ────
-    builtins_.push_back(make_builtin(
-        "\xd8\xac\xd8\xb0\xd8\xb1", // جذر
-        "حساب الجذر التربيعي.\n"
-        "مثال: جذر(16) ← 4.0",
-        {{"\xd8\xb1\xd9\x82\xd9\x85", "عشري"}},
-        "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_\xd9\x85\xd8\xb7\xd9\x84\xd9\x82\xd8\xa9", // قيمة_مطلقة
-        "حساب القيمة المطلقة.\n"
-        "مثال: قيمة_مطلقة(-5) ← 5",
-        {{"\xd8\xb1\xd9\x82\xd9\x85", "عشري"}},
-        "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89", // أقصى
-        "إرجاع أكبر قيمة.\n"
-        "مثال: أقصى(3, 7) ← 7",
-        {{"\xd8\xa3", "أي"}, {"\xd8\xa8", "أي"}},
-        "\xd8\xa3\xd9\x8a"
-    ));
-
-    builtins_.push_back(make_builtin(
-        "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89", // أدنى
-        "إرجاع أصغر قيمة.\n"
-        "مثال: أدنى(3, 7) ← 3",
-        {{"\xd8\xa3", "أي"}, {"\xd8\xa8", "أي"}},
-        "\xd8\xa3\xd9\x8a"
-    ));
-
-    // ──── دوال النصوص ────
-    builtins_.push_back(make_builtin(
-        "\xd9\x82\xd8\xb5", // قص
-        "قص جزء من نص.\n"
-        "مثال: قص(\"مرحباً\", 0, 3) ← \"مرح\"",
-        {{"\xd9\x86\xd8\xb5", "نص"},
-         {"\xd8\xa8\xd8\xaf\xd8\xa7\xd9\x8a\xd8\xa9", "رقم"},
-         {"\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9", "رقم"}},
-        "\xd9\x86\xd8\xb5"
-    ));
-
-    // ──── دوال عامة ────
-    builtins_.push_back(make_builtin(
-        "\xd9\x86\xd8\xb7\xd8\xa7\xd9\x82", // نطاق
-        "إنشاء مصفوفة أرقام متسلسلة.\n"
-        "مثال: نطاق(5) ← [0, 1, 2, 3, 4]\n"
-        "مثال: نطاق(1, 10) ← [1, 2, ..., 9]",
-        {{"\xd8\xa8\xd8\xaf\xd8\xa7\xd9\x8a\xd8\xa9", "رقم"},
-         {"\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9", "رقم"}},
-        "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9"
-    ));
+        builtins_.push_back(std::move(sym));
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

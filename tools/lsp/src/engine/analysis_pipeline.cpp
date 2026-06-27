@@ -68,6 +68,7 @@
 
 #include "lsp_engine.h"            // تعريفات المحرك الأساسي وكل الأنواع
 #include "arabic_utils.h"          // أدوات النص العربي (تطبيع، بحث ضبابي، تقسيم أسطر)
+#include "builtin_registry.h"      // سجلّ المدمجات المُولَّد من مصدر الحقيقة (isKnownBuiltin)
 #include "known_issues_detector.h" // كاشف المشاكل المعروفة الموثقة
 
 // ── مكونات المحلل الحقيقية للغة ص ──
@@ -2396,30 +2397,28 @@ namespace sad
                     }
                 }
 
-                // أسماء مدمجة لا نحذّر عنها
-                static const std::unordered_set<std::string> builtins = {
-                    "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9",                                          // اطبع
-                    "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9_\xd8\xb3\xd8\xb7\xd8\xb1",                 // اطبع_سطر
-                    "\xd8\xa7\xd8\xaf\xd8\xae\xd9\x84",                                          // ادخل
-                    "\xd9\x86\xd9\x88\xd8\xb9",                                                  // نوع
-                    "\xd8\xb7\xd9\x88\xd9\x84",                                                  // طول
-                    "\xd8\xb1\xd9\x82\xd9\x85",                                                  // رقم
-                    "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a",                                          // عشري
-                    "\xd9\x86\xd8\xb5",                                                          // نص
-                    "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a",                                  // منطقي
-                    "\xd8\xac\xd8\xb0\xd8\xb1",                                                  // جذر
-                    "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_\xd9\x85\xd8\xb7\xd9\x84\xd9\x82\xd8\xa9", // قيمة_مطلقة
-                    "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89",                                          // أقصى
-                    "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89",                                          // أدنى
-                    "\xd9\x82\xd8\xb5",                                                          // قص
-                    "\xd9\x86\xd8\xb7\xd8\xa7\xd9\x82",                                          // نطاق
-                    "\xd8\xa3\xd8\xb6\xd9\x81",                                                  // أضف
-                    "\xd8\xa7\xd8\xad\xd8\xb0\xd9\x81",                                          // احذف
-                    "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad",                                          // صحيح
-                    "\xd8\xae\xd8\xb7\xd8\xa3",                                                  // خطأ
-                    "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1",                                  // لاشيء
-                    "\xd9\x87\xd8\xb0\xd8\xa7",                                                  // هذا
+                // (AR) ثوابت/كلمات لغوية ليست دوالًا مدمجة (لا يغطّيها سجلّ المدمجات).
+                static const std::unordered_set<std::string> literals = {
+                    "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad",         // صحيح
+                    "\xd8\xae\xd8\xb7\xd8\xa3",                 // خطأ
+                    "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", // لاشيء
+                    "\xd9\x87\xd8\xb0\xd8\xa7",                 // هذا
                 };
+
+                // (AR) فهرس مُجزّأ لأسماء المدمجات يُبنى مرّة واحدة (CW-26): استشارة
+                //      Sad::Builtins::isKnownBuiltin مباشرةً مسحٌ خطّيّ O(1073) لكلّ
+                //      مرجع غير معرّف ⇒ O(refs×1073) لكلّ مستند. نُسطِّحها إلى O(1)
+                //      لكلّ مرجع ببناء set من ALL_BUILTINS مرّة (تكلفة لمرّة واحدة).
+                // (EN) Build the builtin-name set once (CW-26): isKnownBuiltin is an
+                //      O(1073) linear scan per undefined ref ⇒ O(refs×1073)/document.
+                //      A static hashed set flattens each membership test to O(1).
+                static const std::unordered_set<std::string_view> builtin_names = [] {
+                    std::unordered_set<std::string_view> s;
+                    s.reserve(Sad::Builtins::ALL_BUILTINS.size());
+                    for (const auto &b : Sad::Builtins::ALL_BUILTINS)
+                        s.insert(b.canonicalName);
+                    return s;
+                }();
 
                 // نفحص المراجع: هل كل مرجع له تعريف؟
                 for (const auto &ref : result.references)
@@ -2428,7 +2427,11 @@ namespace sad
                         continue;
                     if (defined_names.count(ref.name))
                         continue;
-                    if (builtins.count(ref.name))
+                    // (AR) المدمجات من مصدر الحقيقة (ALL_BUILTINS) لا نحذّر عنها.
+                    //      فحص O(1) عبر الفهرس المُجزّأ أعلاه بدل المسح الخطّيّ.
+                    if (builtin_names.count(ref.name))
+                        continue;
+                    if (literals.count(ref.name))
                         continue;
                     // نتخطى إذا كان اسم نوع مدمج
                     if (ref.name.empty())

@@ -189,6 +189,35 @@ else()
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
+# اختبارات محرّك LSP الشاملة + اختبارات السلوك / LSP Engine & Behavior Tests
+# تختبر صنف LspEngine مباشرةً (القلب المجّانيّ بعد إزالة المزوّدات المتقدّمة).
+# تربط sad_lsp_engine (المحرّك) + sad_core، وتستعمل إطار sad_test.h.
+# ──────────────────────────────────────────────────────────────────────
+foreach(_lsp_test
+        test_lsp_engine_comprehensive:LspEngineComprehensiveTests:lsp_engine_comprehensive_tests
+        test_lsp_navigation_comprehensive:LspNavigationComprehensiveTests:lsp_navigation_comprehensive_tests
+        test_lsp_behavior:LspBehaviorTests:lsp_behavior_tests)
+    string(REPLACE ":" ";" _parts "${_lsp_test}")
+    list(GET _parts 0 _src)
+    list(GET _parts 1 _ctest_name)
+    list(GET _parts 2 _target)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/lsp/${_src}.cpp")
+        add_executable(${_target} tests/system/lsp/${_src}.cpp)
+        target_link_libraries(${_target} PRIVATE sad_lsp_engine sad_core)
+        target_include_directories(${_target} PRIVATE
+            ${CMAKE_SOURCE_DIR}/tools/lsp/include
+            ${CMAKE_SOURCE_DIR}/tests/framework)
+        set_target_properties(${_target} PROPERTIES
+            OUTPUT_NAME "${_target}" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+        add_test(NAME ${_ctest_name} COMMAND ${_target} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        set_tests_properties(${_ctest_name} PROPERTIES TIMEOUT 120 LABELS "System")
+        message(STATUS "✓ ${_ctest_name} مفعّلة / enabled")
+    else()
+        message(STATUS "⚠ ${_src} غير متاح / not available")
+    endif()
+endforeach()
+
+# ──────────────────────────────────────────────────────────────────────
 # اختبارات محسّن اللغة العربية / Arabic Optimizer Tests
 # ──────────────────────────────────────────────────────────────────────
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/test_arabic_optimizer.cpp")
