@@ -1,0 +1,74 @@
+# خطّة استخراج `sad_runtime` وإغلاق تسرّب ترويسات المفسّر
+
+> **الغرض:** توثيق الخريطة الدقيقة والخطوات متعدّدة الـPR لاستخراج طبقة `sad_runtime`
+> (خدمات وقت التشغيل المشتركة) من `interpreter/`، وإغلاق تسرّب تصدير `interpreter/include`
+> من `sad_shared` (المرحلة 3 من [RFC sadlang-rfcs#10](https://github.com/sadlang/sadlang-rfcs/blob/main/text/0010-unified-core-with-internal-boundaries.md)).
+>
+> **عدسة هذه الوثيقة:** خريطة *تنفيذيّة* مستخرَجة من الكود (`ملف:سطر`)، مكمّلة لـ
+> [cmake-target-boundaries.md](cmake-target-boundaries.md). هذه الشريحة **متعدّدة الخطوات** لأنّها
+> تمسّ حدًّا حسّاسًا سلوكيًّا (المحلّل النحويّ مشترك بين المفسّر والمترجم).
+
+---
+
+## 1. الخريطة الدقيقة (مستخرَجة من الكود، 2026-06-27)
+
+### أين يُجمَّع كلّ مدير؟ (مفاجأة تحلّ اللغز)
+
+| المدير | الترويسة | الـ`.cpp` يُجمَّع في | الطبقة المنطقيّة |
+|---|---|---|---|
+| **`ClassManager`** | `interpreter/include/managers/class_manager.h` | **`sad_shared`** ([shared/CMakeLists.txt:44](../../shared/CMakeLists.txt#L44)) | **أساس** — المحلّل يحتاجه |
+| `FunctionManager` | `interpreter/include/managers/function_manager.h` | `sad_core` ([sources.cmake:143](../../cmake/sources.cmake#L143)) | **مرشّح `sad_runtime`** |
+| `ObjectManager` | `.../object_manager.h` | `sad_core` ([sources.cmake:158](../../cmake/sources.cmake#L158)) | **مرشّح `sad_runtime`** |
+| `OwnershipManager` | `.../ownership_manager.h` | `sad_core` ([sources.cmake:145](../../cmake/sources.cmake#L145)) | **مرشّح `sad_runtime`** |
+| `ScopeManager` | `.../scope_manager.h` | `sad_core` ([sources.cmake:144](../../cmake/sources.cmake#L144)) | يبقى في `sad_interp` (شجريّ) |
+| `VariableManager` | `.../variable_manager.h` | `sad_core` ([sources.cmake:142](../../cmake/sources.cmake#L142)) | يبقى في `sad_interp` (شجريّ) |
+
+**الاكتشاف الجوهريّ:** `ClassManager` **ليس مديرًا خاصًّا بالمفسّر** — `.cpp`ه مُجمَّع داخل `sad_shared`،
+لأنّ **المحلّل النحويّ** (في `sad_shared`) يستعمله. موقع ترويسته تحت `interpreter/include/managers/`
+هو **سبب التسرّب**، لا حاجةٌ بنيويّة. (يفسّر هذا كيف يحلّ المترجم `sad-build` — الذي يربط `sad_shared`
+لا `sad_core` — نداءَ `ClassManager::getInstance()` من المحلّل: التعريف في `sad_shared`.)
+
+### التسرّب
+
+[shared/CMakeLists.txt:116,130-131](../../shared/CMakeLists.txt#L116) يُصدّر `interpreter/include`
+و`interpreter/include/managers` كـ`PUBLIC` ⇒ كلّ هدف يربط `sad_shared` (ومنه نظام المترجم) يرى ترويسات المفسّر.
+حارس [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py) (PR #100) يضمن **عدم استغلال** المترجم لهذا الباب.
+
+### اقتران المحلّل ↔ `ClassManager` (العائق)
+
+المحلّل يستعمل `Data::ClassManager::getInstance()` في **موضعين حقيقيّين فقط** وقت التحليل:
+- [parser_helpers.cpp:2172](../../shared/parser/src/core/parser_helpers.cpp#L2172) — `isClassName()` ⟵ `hasClass(name)`.
+- [parser_declarations.cpp:1192](../../shared/parser/src/declarations/parser_declarations.cpp#L1192) — تسجيل صنف مبكر (`hasClass` + `registerClass`) ليُسمح بمتغيّرات من نوعه لاحقًا في نفس الملفّ.
+
+وكان يضمّ `class_manager.h` في **6 ملفّات**، **4 منها ميتة** (بلا استعمال أيّ رمز) — **أُزيلت في هذا الـPR** ⇒ بقي ملفّان حقيقيّان.
+
+> **خلاصة العائق:** بما أنّ `ClassManager.cpp` **أصلًا في `sad_shared`**، فاستعمال المحلّل له **ليس دورة** —
+> ما دام التعريف في الطبقة نفسها. العائق الحقيقيّ هو **موقع الترويسة** تحت `interpreter/`، لا الاقتران ذاته.
+
+### `sad_builtins` لا يحتاج المدراء
+
+`sad_builtins` (14 ملفًّا، PR #97) **نقيّ: لا `FunctionManager`** ([libraries.cmake:34](../../cmake/libraries.cmake#L34)).
+الملفّ الوحيد الذي يلمس `FunctionManager` هو لِحام التسجيل [stdlib_manager.cpp](../../shared/builtins/src/runtime/stdlib_manager.cpp) — يبقى في `sad_core`.
+
+---
+
+## 2. الخطوات متعدّدة الـPR
+
+| # | الخطوة | الأثر | المخاطرة |
+|:--:|---|---|:--:|
+| **1** | **تقليم تضمينات المحلّل الميتة** (هذا الـPR) — إزالة `#include "class_manager.h"` من 4 ملفّات لا تستعمله ⇒ سطح الاقتران 6→2 ملفّات. | تنظيف آمن، يضيّق التشابك الظاهر. | منخفضة |
+| **2** | **نقل ترويسة `ClassManager` إلى شجرة `sad_shared`** (مثلًا `shared/oop/include/` أو `shared/types/include/oop/`) — لتوافق موقعها مع موقع `.cpp`ها. تصحيح التضمينات. المحلّل يبقى يستعملها مباشرةً (لا دورة، الطبقة نفسها). | يجعل `ClassManager` مواطنًا كامل العضويّة في `sad_shared`، ويزيل **سبب** تصدير `interpreter/include/managers`. | متوسطة |
+| **3** | **إغلاق التسرّب** — إزالة `interpreter/include` + `interpreter/include/managers` من تصدير `sad_shared` العامّ، بعد التحقّق أنّ لا مستهلكَ عامًّا آخر يحتاجها (يلزم فحص `shared/hot_reload` الذي يضمّ مدراء كذلك). الحارس الحاليّ يثبّت السلامة. | يُغلق الباب نهائيًّا (تصحيحيّ لا وقائيّ). | متوسطة-عالية |
+| **4** | **استخراج `sad_runtime`** — مكتبة ساكنة جديدة = `function_manager.cpp` + `object_manager.cpp` + `ownership_manager.cpp` + `sad_builtins`؛ تُنقل مصادرها من `sad_core` إليها؛ `sad_interp` يربط `sad_runtime`. `Scope`/`Variable` يبقيان في `sad_interp` (شجريّان). | طبقة خدمات وقت التشغيل المشتركة — موضع شقيق الآلة الافتراضية عند عودتها (§ط-10). | عالية |
+
+> **مبدأ:** كلّ خطوة PR مستقلّ خاضع للبناء الكامل (Debug+Release، `BUILD_TESTS=ON`) والبوّابة المزدوجة (≥86%).
+> الخطوات 2–4 سلوكيّة الحساسيّة ⇒ تحقّق صارم قبل الدمج.
+
+---
+
+## 3. المراجع
+
+- خريطة الحدود: [cmake-target-boundaries.md](cmake-target-boundaries.md)
+- حارس التضمين: [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py)
+- حارس الطبقات (G4): [check_layering.py](../../scripts/codegen/check_layering.py)
+- RFC الحاكم: [sadlang-rfcs#10](https://github.com/sadlang/sadlang-rfcs/blob/main/text/0010-unified-core-with-internal-boundaries.md) (ملحق §ط-10)

@@ -17,7 +17,6 @@
 #include <string>
 #include "parser_core.h"
 #include "advanced_expr_nodes.h"
-#include "class_manager.h"
 #include <iostream>
 #include <sstream>
 
