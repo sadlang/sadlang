@@ -131,6 +131,7 @@ ${CMAKE_SOURCE_DIR}/interpreter/include/managers
 | 2 | **تصحيح الاسم `sad_core` ← `sad_interp`** — الهدف الحقيقيّ صار `sad_interp`؛ `sad_core` alias توافق ([cmake/libraries.cmake](../../cmake/libraries.cmake)) | ✅ مطبَّق |
 | 3 | **حارس تسريب التضمين** — [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py) + [workflow](../../.github/workflows/interpreter-boundary.yml) يفشلان إن ضمّن نظام المترجم ترويسات `interpreter/`. تقليم تصدير `sad_shared` التوافقيّ = خطوة تالية. | ✅ مطبَّق (الحارس) |
 | 4 | **حارس طبقات الربط (G4)** — [check_layering.py](../../scripts/codegen/check_layering.py) + [workflow](../../.github/workflows/layering-lint.yml) يحلّلان رسمَ الربط في CMake ويفشلان إن ربط هدفٌ من أحد المحرّكَين هدفًا من المحرّك الآخر (أو ربط الأساس `sad_shared` محرّكًا). شقيق الحارس السابق لكن على مستوى **رسم الربط** لا التضمين. وقائيّ: الحدّ نظيفٌ اليوم (77 حافّة، صفر اختراق). | ✅ مطبَّق (المرحلة 3) |
+| 5 | **تنفيذيّان رفيعان في `apps/`** — نُقلت نقاط دخول `sad-run`/`sad-build` من `cmake/executables.cmake` إلى [apps/CMakeLists.txt](../../apps/CMakeLists.txt) (ومصادر `main` إلى `apps/sad-run/` و`apps/sad-build/`)، فصار حدّ الطبقة L2 (التنفيذيّات تستهلك المكتبات ولا تُستهلَك) صريحًا. أُسقط مسار `vm/include` الميّت (حُذفت الآلة في #96). | ✅ مطبَّق (المرحلة 3) |
 
 ---
 

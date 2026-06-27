@@ -182,8 +182,14 @@ include(${CMAKE_SOURCE_DIR}/cmake/network.cmake)
 # 6.5. صNet — مكتبة الشبكات اللامركزية / SadNet Decentralized Networking
 include(${CMAKE_SOURCE_DIR}/cmake/sadnet.cmake)
 
-# 7. البرامج التنفيذية / Executables (sad, sadc)
+# 7. مكتبات الدعم التنفيذيّة / Executable-support libs (sad_mobile, flush_smoke)
 include(${CMAKE_SOURCE_DIR}/cmake/executables.cmake)
+
+# 7-ب. التطبيقات التنفيذيّة الرفيعة / Lightweight apps (sad-run, sad-build)
+# (AR) م3 RFC sadlang-rfcs#10: نقاط الدخول التنفيذيّة في apps/ — بعد executables.cmake
+#      لأنّ sad-build يربط sad_mobile المُعرَّف هناك. / (EN) After executables.cmake
+#      because sad-build links sad_mobile defined there.
+add_subdirectory(apps)
 
 # 8. أدوات التطوير / Development Tools (LSP, Formatter, pkg, REPL)
 include(${CMAKE_SOURCE_DIR}/cmake/tools.cmake)

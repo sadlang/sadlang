@@ -14,8 +14,12 @@
 // (EN) AST-based documentation extractor — built-in feature of sad
 #include "docs_extractor.h"
 #include "pdf_exporter.h"
-#include "../../interpreter/include/user_thrown.h"
-#include "../../interpreter/include/debug/debug_server.h"
+// (AR) م3 شريحة2: بعد نقل main إلى apps/ صار المسار النسبيّ القديم لاغيًا؛
+//      ترويستا المفسّر تُحَلّان عبر مسار التضمين interpreter/include المضاف للهدف.
+// (EN) Phase-3 apps/ move: the old relative path is invalid here; these interpreter
+//      headers resolve via the interpreter/include dir added to this target.
+#include "user_thrown.h"
+#include "debug/debug_server.h"
 #include "ui/sad_ui_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (واجهة عامّة) / (EN) install UI bridge (public API)
 
 // CLI Commands for mobile etc.
