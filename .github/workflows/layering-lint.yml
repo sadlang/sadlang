@@ -1,0 +1,48 @@
+# ======================================================================
+# (AR) ملف: .github/workflows/layering-lint.yml
+# (AR) الوصف: حارس طبقات أهداف البناء — المرحلة 3 من sadlang-rfcs#10 (بوّابة G4).
+#             يفحص رسمَ الربط في CMake ويفشل إن ربط هدفٌ من نظام المفسّر هدفًا
+#             من نظام المترجم (أو العكس)، أو إن ربط الأساس sad_shared محرّكًا.
+#             الحدّ نظيفٌ اليوم؛ الحارس وقائيّ يثبّت الوضع السليم ويمنع انحداره.
+#             شقيقه على مستوى التضمين: interpreter-boundary.yml.
+#             المرجع: docs/architecture/cmake-target-boundaries.md §3-§6.
+# (EN) CMake target-layering guard. Fails if an interpreter-subsystem target links
+#      a compiler-subsystem target (or vice versa), or if the shared foundation
+#      links into an engine. Preventive: holds today. Sibling: interpreter-boundary.
+# ======================================================================
+name: "🧱 طبقات الأهداف / Target Layering"
+
+on:
+  push:
+    paths:
+      - "cmake/**"
+      - "**/CMakeLists.txt"
+      - "scripts/codegen/check_layering.py"
+      - ".github/workflows/layering-lint.yml"
+  pull_request:
+    branches: [ main, master, dev, sadlang ]
+    paths:
+      - "cmake/**"
+      - "**/CMakeLists.txt"
+      - "scripts/codegen/check_layering.py"
+      - ".github/workflows/layering-lint.yml"
+
+concurrency:
+  group: layering-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  layering-guard:
+    name: "🧱 فحص طبقات الأهداف / Layering check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🐍 إعداد Python / Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: "🧱 حارس طبقات الأهداف / Target-layering guard"
+        run: python scripts/codegen/check_layering.py
