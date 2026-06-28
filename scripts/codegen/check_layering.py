@@ -6,7 +6,7 @@
     الخلفية: monorepo لغة ص يقسّم أهداف CMake إلى ثلاث طبقات (انظر
     docs/architecture/cmake-target-boundaries.md):
         ① الأساس المشترك    : sad_shared (نواة اللغة الحقيقيّة).
-        ½ الحزام المشترك     : sad_type_system / sad_semantic / sad_memory_* /
+        Ⓑ الحزام المشترك     : sad_type_system / sad_semantic / sad_memory_* /
                               sad_security_core / sad_null_safety / sad_mobile.
         ② نظام المفسّر فقط   : sad_interp(=sad_core) / sad_runtime / sad_builtins /
                               sad_lowlevel / sad_ui_bridge / sad_ui / sad_network /
@@ -75,9 +75,11 @@ EXE_INTERP = {"sad-run"}
 EXE_COMPILER = {"sad-build"}
 
 # (AR) الكلمات المفتاحيّة في target_link_libraries — ليست تبعيّات.
+# (EN) target_link_libraries scope keywords — not dependencies.
 KEYWORDS = {"PUBLIC", "PRIVATE", "INTERFACE", "LINK_PUBLIC", "LINK_PRIVATE"}
 
 # (AR) جذور تُستثنى من المسح (مخرجات بناء/تاريخيّ/توزيع/طرف ثالث).
+# (EN) Roots excluded from the scan (build outputs / archived / dist / third-party).
 SKIP_DIRS = {
     "build", "build-debug", "build-release", "out", "dist", ".git",
     "archived", "distribution", "_scratch", "third_party", "vcpkg",
@@ -175,6 +177,7 @@ def parse_links(path):
 
 
 # (AR) قواعد العبور الممنوعة: (طبقة الهدف) → (طبقة التبعيّة) مع سبب.
+# (EN) Forbidden crossing rules: (source layer) → (dependency layer) with reason.
 def violation_reason(src_layer, dst_layer):
     if src_layer in ("interp", "exe-interp") and dst_layer == "compiler":
         return "هدف/تنفيذيّ المفسّر يربط هدفًا من نظام المترجم"

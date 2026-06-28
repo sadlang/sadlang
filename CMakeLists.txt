@@ -18,9 +18,9 @@
 #   cmake/llvm.cmake              - إعدادات LLVM الاختيارية
 #   cmake/platform.cmake          - خيارات المنصة والمترجم
 #   cmake/sources.cmake           - تعريفات ملفات المصدر
-#   cmake/libraries.cmake         - المكتبات (sad_core, graphics, VM)
+#   cmake/libraries.cmake         - المكتبات (sad_interp, sad_runtime, graphics)
 #   cmake/network.cmake           - مكتبات الشبكات (TCP/UDP, HTTP, WebSocket)
-#   cmake/executables.cmake       - البرامج التنفيذية (sad, sadc)
+#   cmake/executables.cmake       - مكتبات الدعم التنفيذيّة (sad_mobile)؛ التنفيذيّان في apps/
 #   cmake/tools.cmake             - أدوات التطوير (LSP, Formatter, pkg, REPL)
 #   cmake/tests.cmake             - الاختبارات
 #   cmake/tests_comprehensive.cmake - الاختبارات الشاملة (900+ اختبار)
@@ -126,7 +126,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/stdlib/network
     ${CMAKE_SOURCE_DIR}/stdlib
-    ${CMAKE_SOURCE_DIR}/stdlib/network
     # (AR) Phase F-XX: أعيدت هيكلة shared/builtins/ إلى include/runtime + src/runtime
     # (EN) Phase F-XX: shared/builtins/ restructured to include/runtime + src/runtime
     ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
@@ -174,7 +173,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/codegen.cmake)
 # 4. تعريفات ملفات المصدر / Source File Definitions
 include(${CMAKE_SOURCE_DIR}/cmake/sources.cmake)
 
-# 5. المكتبات الأساسية / Core Libraries (sad_core, graphics, VM)
+# 5. المكتبات الأساسية / Core Libraries (sad_interp, sad_runtime, graphics)
 include(${CMAKE_SOURCE_DIR}/cmake/libraries.cmake)
 
 # 6. مكتبات الشبكات / Networking Libraries (TCP/UDP, HTTP, WebSocket)

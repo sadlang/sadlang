@@ -128,7 +128,7 @@ target_include_directories(sad_shared
 #      source needs interpreter headers, so the core must not propagate them to its
 #      linkers (notably the compiler subsystem). Interpreter targets still get their
 #      paths from the root include_directories.
-# للتوافق مع الكود القديم
+# (AR) للتوافق مع الكود القديم / (EN) Legacy include paths for backward compatibility
 target_include_directories(sad_shared
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include

@@ -77,7 +77,7 @@ flowchart TB
 | `sad_frontend` · `sad_optimizer` · `sad_llvm_backend` | STATIC | ❌ | ✅ | مترجم فقط |
 | `sad_tools` · `sad_ui_ir` · `sad_abstraction` · `sad_security` | STATIC | ❌ | ✅ | مترجم فقط |
 
-**المصادر:** روابط التنفيذيّين في [cmake/executables.cmake](../../cmake/executables.cmake#L19) (sad-run) و[cmake/executables.cmake](../../cmake/executables.cmake#L249) (sad-build)؛ روابط `sad_core` في [cmake/libraries.cmake](../../cmake/libraries.cmake)؛ مظلّة `sad_compiler` في [compiler/CMakeLists.txt](../../compiler/CMakeLists.txt#L610).
+**المصادر:** روابط التنفيذيّين في [apps/CMakeLists.txt](../../apps/CMakeLists.txt#L27) (sad-run) و[apps/CMakeLists.txt](../../apps/CMakeLists.txt#L145) (sad-build) — نُقلا من `cmake/executables.cmake` في المرحلة 3؛ روابط `sad_core` في [cmake/libraries.cmake](../../cmake/libraries.cmake)؛ مظلّة `sad_compiler` في [compiler/CMakeLists.txt](../../compiler/CMakeLists.txt#L610).
 
 > **تصحيح سوء فهم شائع:** `sad-build` (المترجم) **لا يربط `sad_core`** — يربط `sad_shared` مباشرةً. المترجم لا يعرف المفسّر إطلاقًا. (الوثيقة الأقدم [interpreter_compiler_layers.md §7](interpreter_compiler_layers.md) تصوّر `sad_core` مظلّةً تحوي كلّ شيء — هذا متجاوَز؛ هذه الوثيقة هي المرجع.)
 
@@ -95,7 +95,7 @@ flowchart TB
 هذا **ليس ازدواجًا يجب حذفه** — بل تطبيقان لازمان لبيئتين. ما يضمن أنّهما يعطيان **نفس السلوك** ليس تشارُك التنفيذ، بل:
 
 1. **مصدر حقيقة واحد (SoT):** كلاهما يشتقّ من `language-truth/*.yaml` عبر مولّدات `x.py gen` تنتج ملفّات مولَّدة في `sad_shared` (`builtin_registry.h` لأسماء/تواقيع المدمجات، `sadTypeKindArabicName` لأسماء الأنواع العربيّة: رقم/عشري/نص/منطقي/مصفوفة/خريطة/كائن/عدم/فراغ).
-2. **بوّابة التكافؤ المزدوجة:** [tests/runner.py](../../tests/runner.py) يشغّل كلّ اختبار `.ص` بالمحرّكَين ويقارن المخرجات بِتًّا. الحدّ ≥86%؛ الحاليّ **92.8%**.
+2. **بوّابة التكافؤ المزدوجة:** [tests/runner.py](../../tests/runner.py) يشغّل كلّ اختبار `.ص` بالمحرّكَين ويقارن المخرجات بِتًّا. الحدّ ≥86%؛ الحاليّ **95.4% (1988/2084، CONCERNS)**.
 
 > أي تعديل سلوكيّ يجب أن يبدأ في `language-truth/` ثمّ يُعاد التوليد — لا تُحرّر الملفّات المولَّدة يدويًّا. حارس الانجراف `x.py gen --check` (بوّابة CI) يمنع تحرير المولَّد يدويًّا.
 

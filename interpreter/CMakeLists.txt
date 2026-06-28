@@ -1,6 +1,14 @@
 # ============================================================================
 # Interpreter - المفسر
 # ============================================================================
+# (AR) ⚠️ هدف sad_interpreter هنا **ميّت لا يُبنى** — لا add_subdirectory(interpreter)
+#      في الجذر. المكتبة الحيّة الفعليّة هي sad_interp (= sad_core) المُعرَّفة في
+#      cmake/libraries.cmake عبر ALL_SOURCES (التجميعة الكاملة). انظر تحذير
+#      TEST-004 أدناه (القائمة جزئيّة عمدًا فلا تُربَط مباشرةً).
+# (EN) ⚠️ The sad_interpreter target here is DEAD (not built) — there is no
+#      add_subdirectory(interpreter) at the root. The live library is sad_interp
+#      (= sad_core) in cmake/libraries.cmake. See the TEST-004 warning below.
+# ============================================================================
 
 cmake_minimum_required(VERSION 3.15)
 
@@ -67,7 +75,7 @@ target_include_directories(sad_interpreter
         ${CMAKE_SOURCE_DIR}/stdlib
 )
 
-# للتوافق مع الكود القديم
+# (AR) للتوافق مع الكود القديم / (EN) Legacy include paths for backward compatibility
 target_include_directories(sad_interpreter
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include

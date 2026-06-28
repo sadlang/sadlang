@@ -9,7 +9,7 @@
 #   - 9 ملفات اختبار شاملة (700+ اختبار فردي)
 #   - 22 اختبار regression لكل مشكلة موثقة
 #   - يغطي: Lexer, Parser, Value, Interpreter, StdLib, Errors,
-#           VM/Compiler, E2E, Utils/Modules, Regression
+#           Compiler, E2E, Utils/Modules, Regression
 #   - يختبر المفسر (sad-run.exe) والمترجم (sad-build.exe) بالتوازي
 #   - لا يُقبل أي PR بدون نجاح 100% من الاختبارات
 # ══════════════════════════════════════════════════════════════════════
@@ -517,10 +517,10 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           cmake --build build --config ${{ matrix.config }} --parallel $(nproc)
 
-      - name: "🏗️ بناء المترجم sadc / Build sadc Compiler"
+      - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler"
         run: |
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc) || \
-            echo "⚠️ sadc build failed (LLVM linking issue) — continuing"
+            echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
 
       - name: "🧪 اختبارات النواة / Core Tests"
         run: |
@@ -597,7 +597,7 @@ jobs:
           # (EN) Linux uses a single-config generator; ctest rejects --config here.
           ctest --output-on-failure --timeout 120 -j$(nproc)
 
-      - name: "� اختبارات التنفيذ المزدوج / Dual Execution Tests"
+      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
         if: matrix.config == 'Release'
         run: |
           sad="build/bin/sad-run"
@@ -607,10 +607,10 @@ jobs:
             python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
               echo "⚠️ Dual execution tests had failures"
           else
-            echo "⚠️ SKIP: sad or sadc not found"
+            echo "⚠️ SKIP: sad-run or sad-build not found"
           fi
 
-      - name: "�💾 حفظ الملفات / Upload Artifacts"
+      - name: "💾 حفظ الملفات / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: sad-linux-${{ matrix.config }}
@@ -665,10 +665,10 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.config }}
           cmake --build build --config ${{ matrix.config }} --parallel 4
 
-      - name: "🏗️ بناء المترجم sadc / Build sadc Compiler"
+      - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler"
         run: |
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4 || \
-            echo "⚠️ sadc build failed (LLVM linking issue) — continuing"
+            echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
 
       - name: "🧪 اختبارات النواة / Core Tests"
         run: |
@@ -827,7 +827,7 @@ jobs:
             python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
               echo "⚠️ Dual execution tests had failures"
           else
-            echo "⚠️ SKIP: sad or sadc not found"
+            echo "⚠️ SKIP: sad-run or sad-build not found"
           fi
 
       - name: "💾 حفظ الملفات / Upload Artifacts"

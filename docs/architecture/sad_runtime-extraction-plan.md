@@ -20,7 +20,7 @@
 
 | المدير | الترويسة | الـ`.cpp` يُجمَّع في | الطبقة المنطقيّة |
 |---|---|---|---|
-| **`ClassManager`** | `interpreter/include/managers/class_manager.h` | **`sad_shared`** ([shared/CMakeLists.txt:44](../../shared/CMakeLists.txt#L44)) | **أساس** — المحلّل يحتاجه |
+| **`ClassManager`** | `interpreter/include/managers/class_manager.h` | **`sad_shared`** ([shared/CMakeLists.txt:49](../../shared/CMakeLists.txt#L49)) | **أساس** — المحلّل يحتاجه |
 | `FunctionManager` | `interpreter/include/managers/function_manager.h` | `sad_core` ([sources.cmake:143](../../cmake/sources.cmake#L143)) | **مرشّح `sad_runtime`** |
 | `ObjectManager` | `.../object_manager.h` | `sad_core` ([sources.cmake:158](../../cmake/sources.cmake#L158)) | **مرشّح `sad_runtime`** |
 | `OwnershipManager` | `.../ownership_manager.h` | `sad_core` ([sources.cmake:145](../../cmake/sources.cmake#L145)) | **مرشّح `sad_runtime`** |
@@ -65,7 +65,7 @@
 | **3** | **إغلاق التسرّب** — أُزيل تصدير `interpreter/include` + `interpreter/include/managers` من `sad_shared` العامّ. بعد خطوة 2 لم يَعُد أيُّ مصدرٍ في `sad_shared` يحتاج ترويسات المفسّر (المحلّل ↔ `class_manager.h` فقط، وهي الآن في `types/`). `hot_reload` يُجمَّع داخل `sad_interp` لا كمستهلكٍ عامّ. الحارس يثبّت السلامة. | يجعل رسم التبعيّات أمينًا: النواة لا تُصدّر ترويسات المفسّر لمن يربطها. (الكتلة العامّة `include_directories` تبقى — سطح أوسع يحرسه `check_interpreter_boundary.py`.) | متوسطة | ✅ منجزة |
 | **4** | **استخراج `sad_runtime`** — مكتبة ساكنة جديدة = `function_manager.cpp` + `object_manager.cpp` + `ownership_manager.cpp`؛ نُقلت مصادرها من `sad_core` إليها؛ `sad_interp` يربط `sad_runtime` PUBLIC (اتّجاه أحاديّ). `Scope`/`Variable` يبقيان في `sad_interp` (شجريّان). **تحقّق الفصل:** `function_manager` يستعمل `BuiltinContext` كنوعٍ في توقيعات `std::function` فقط (لا دورة رموز)، و`object/ownership` بلا اعتماد على دواخل المفسّر ⇒ `sad-run.exe` رُبط نظيفًا بلا `LNK`. | طبقة خدمات وقت التشغيل المشتركة — موضع شقيق الآلة الافتراضية عند عودتها (§ط-10). صُنّف في نظام المفسّر بحارس الطبقات (يُرقَّى إلى الحزام عند ظهور مستهلكٍ ثانٍ). | عالية | ✅ منجزة |
 
-> **مبدأ:** خطوات 2–4 سلوكيّة الحساسيّة ⇒ تحقّق صارم قبل الدمج. **نُفّذت دفعةً واحدةً** (قرار المستخدم) وخضعت لبناء `BUILD_TESTS=ON` (Debug+Release) والبوّابة المزدوجة (95.5% ≥ 86%، CONCERNS بلا تراجع حرج).
+> **مبدأ:** خطوات 2–4 سلوكيّة الحساسيّة ⇒ تحقّق صارم قبل الدمج. **نُفّذت دفعةً واحدةً** (قرار المستخدم) وخضعت لبناء `BUILD_TESTS=ON` (Debug+Release) والبوّابة المزدوجة (95.4% (1988/2084) ≥ 86%، CONCERNS بلا تراجع حرج).
 
 ### خطوة 5 (إضافيّة، بطلب المستخدم «عالج الديون المؤجَّلة») — إغلاق الكتلة العامّة
 

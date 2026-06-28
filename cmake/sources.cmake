@@ -109,8 +109,8 @@ set(INTERPRETER_SOURCES
     interpreter/src/visitors/expression_evaluator_calls_invoke.cpp
     interpreter/src/visitors/expression_evaluator_calls_macro.cpp
     interpreter/src/visitors/expression_evaluator_calls_user_func.cpp
-    interpreter/src/visitors/expression_evaluator_calls_macro.cpp
-    interpreter/src/visitors/expression_evaluator_calls_user_func.cpp    interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp    interpreter/src/visitors/expression_evaluator_oop.cpp
+    interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp
+    interpreter/src/visitors/expression_evaluator_oop.cpp
     interpreter/src/visitors/expression_evaluator_oop_new.cpp
     interpreter/src/visitors/expression_evaluator_oop_array_methods.cpp
     interpreter/src/visitors/expression_evaluator_oop_string_map_methods.cpp
@@ -267,7 +267,7 @@ set(COMPILER_FRONTEND_SOURCES
 )
 
 # ──────────────────────────────────────────────────────────────────────
-# 15. دعم وضع Freestanding / Freestanding Mode Support
+# 14. دعم وضع Freestanding / Freestanding Mode Support
 # ──────────────────────────────────────────────────────────────────────
 # (AR) دعم شامل لتوليد كود وضع بلا_مكتبة_قياسية (bare-metal)
 # (EN) Comprehensive support for no_std / freestanding code generation
@@ -280,7 +280,7 @@ set(COMPILER_FRONTEND_SOURCES
 set(FREESTANDING_SOURCES "")
 
 # ──────────────────────────────────────────────────────────────────────
-# 14. نظام الوحدات / Module System
+# 15. نظام الوحدات / Module System
 # ──────────────────────────────────────────────────────────────────────
 set(MODULES_SOURCES
     shared/modules/src/module.cpp
@@ -345,6 +345,10 @@ set(SAD_RUNTIME_SOURCES
     interpreter/src/managers/ownership_manager.cpp
 )
 
+# (AR) مصادر مكتبة sad_builtins النقيّة (تعمل على Data::Value فقط). تطابق
+#      محتوى STDLIB_SOURCES باستثناء stdlib_manager.cpp (اللِحام يبقى في القلب).
+# (EN) Pure sad_builtins library sources (operate on Data::Value only). Mirrors
+#      STDLIB_SOURCES minus stdlib_manager.cpp (the glue stays in the core).
 set(SAD_BUILTINS_LIB_SOURCES
     shared/builtins/src/runtime/builtins.cpp
     shared/builtins/src/runtime/type_functions.cpp

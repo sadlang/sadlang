@@ -31,7 +31,7 @@ QEMU              — qemu-system-x86_64 للاختبار
 
 ### أوامر البناء
 ```powershell
-# بناء sadc أولاً (إذا لزم تعديل المترجم)
+# بناء sad-build أولاً (إذا لزم تعديل المترجم)
 cmake --build build --config Release --target sad-build
 
 # بناء نواة أفق (47 ملف .ص + kernel_aliases.ll → ELF)
@@ -47,7 +47,7 @@ $QEMU = "C:\qemu\qemu-system-x86_64.exe"
         -no-reboot
 ```
 
-### أعلام المترجم sadc للنواة
+### أعلام المترجم sad-build للنواة
 ```
 --freestanding    — وضع مستقل (بدون مكتبة قياسية)
 --emit-llvm       — إخراج LLVM IR (.ll)
@@ -60,17 +60,17 @@ $QEMU = "C:\qemu\qemu-system-x86_64.exe"
 
 نقطة الدخول تُترجم **بدون** `--module`:
 ```powershell
-sadc نقطة_الدخول.ص --freestanding --emit-llvm -T x86_64-unknown-none-elf -O1 -o entry.ll
+sad-build نقطة_الدخول.ص --freestanding --emit-llvm -T x86_64-unknown-none-elf -O1 -o entry.ll
 ```
 
 كل ملف آخر يُترجم **مع** `--module`:
 ```powershell
-sadc الذاكرة.ص --freestanding --emit-llvm --module -T x86_64-unknown-none-elf -O1 -o mem.ll
+sad-build الذاكرة.ص --freestanding --emit-llvm --module -T x86_64-unknown-none-elf -O1 -o mem.ll
 ```
 
 ### خط أنابيب البناء الكامل
 ```
-.ص files → sadc → .ll → llvm-as → .bc → llvm-link → merged.bc → llc → merged.o
+.ص files → sad-build → .ll → llvm-as → .bc → llvm-link → merged.bc → llc → merged.o
                                                                         ↓
 boot32.asm → NASM → boot32.o → ld → boot32.elf (32→64 trampoline)
                                                                         ↓
