@@ -8,6 +8,12 @@
 // English Description:
 //   Implementation of all ClassManager functions defined in class_manager.h
 //   Manages registration and tracking of all classes in program
+//
+// ملاحظة / Note:
+//   (RFC sadlang-rfcs#10 م3 خطوة 2) نُقل من interpreter/src/managers/ إلى
+//   shared/types/ ليُبنى داخل sad_shared (المحلّل النحويّ يستعمل ClassManager).
+//   Relocated from interpreter/src/managers/ to shared/types/ so it builds inside
+//   sad_shared (the parser uses ClassManager).
 // ======================================================================
 
 #include "class_manager.h"

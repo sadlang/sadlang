@@ -20,14 +20,14 @@ add_library(sad_interpreter STATIC
     src/core/interpreter_core.cpp
     
     # Visitors
-    # ⚠️ (AR) تحذير معماري (TEST-004): هذه القائمة جزئية عمداً (7 من 27 ملف زائر) —
+    # ⚠️ (AR) تحذير معماري (TEST-004): هذه القائمة جزئية عمداً (7 من 29 ملف زائر) —
     #      تقسيمات المقيِّم/المنفِّذ اللاحقة (binary_ops/calls_*/control/...) ليست هنا،
     #      وملف expression_evaluator_ui.cpp يسحب سلسلة sad_ui/SDL كاملة.
     #      لذلك vtable الزائرَين غير مكتمل في هذه المكتبة، و**يُمنع ربطها مباشرة** —
     #      أي مستهلك يحتاج المفسر يربط sad_core (التجميعة الكاملة عبر ALL_SOURCES).
     #      مستهلكو الاختبارات الأربعة حُوِّلوا إلى sad_core في tests_comprehensive.cmake.
     # ⚠️ (EN) Architectural warning (TEST-004): this list is intentionally partial
-    #      (7 of 27 visitor files) — later evaluator/executor splits are absent and
+    #      (7 of 29 visitor files) — later evaluator/executor splits are absent and
     #      expression_evaluator_ui.cpp would drag the whole sad_ui/SDL chain.
     #      The visitor vtables are therefore incomplete in this library and it
     #      MUST NOT be linked directly — consumers needing the interpreter link
@@ -56,9 +56,12 @@ add_library(sad_interpreter STATIC
     # Debug
     src/debug/debug_server.cpp
     
-    # NOTE: builtin_registry.cpp is NOT included here because it references
-    # 34 part files that are compiled in sad_core (cmake/sources.cmake).
-    # The sad_interpreter library provides the interpreter core only.
+    # (AR) ملاحظة: builtin_registry.cpp غير مُدرَج هنا لأنّه يشير إلى ملفّات جزئيّة
+    #      تُجمَّع في sad_interp (=sad_core) عبر cmake/sources.cmake. هذه المكتبة توفّر
+    #      نواة المفسّر فقط (وهي جزئيّة لا تُربَط مباشرةً — انظر تحذير TEST-004 أعلاه).
+    # (EN) NOTE: builtin_registry.cpp is NOT included here because it references part
+    #      files compiled in sad_interp (=sad_core) via cmake/sources.cmake. This
+    #      library provides the interpreter core only (partial — never linked directly).
 )
 
 target_include_directories(sad_interpreter
@@ -136,5 +139,5 @@ if(MSVC)
     target_compile_options(sad_interpreter PRIVATE /utf-8)
 endif()
 
-# رسالة تأكيد
-message(STATUS "Configured sad_interpreter library")
+# رسالة تأكيد / Confirmation message
+message(STATUS "✓ تهيئة مكتبة sad_interpreter (هدف ميّت — انظر التحذير أعلاه) / Configured sad_interpreter library (dead target — see warning above)")

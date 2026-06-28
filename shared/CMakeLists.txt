@@ -148,8 +148,8 @@ if(MSVC)
     target_compile_options(sad_shared PRIVATE /FS /utf-8)
 endif()
 
-# رسالة تأكيد
-message(STATUS "Configured sad_shared library")
+# رسالة تأكيد / Confirmation message
+message(STATUS "✓ تهيئة مكتبة sad_shared / Configured sad_shared library")
 
 # ============================================================================
 # (AR) المكتبة الفرعية: فاحص الأنواع المشترك (sad_semantic_shared)
@@ -173,7 +173,7 @@ add_subdirectory(ownership)
 # ============================================================================
 # (AR) المكتبة الفرعية: نظام أمان null الموحَّد (sad_null_safety)
 # (EN) Sub-library: unified null-safety system (sad_null_safety)
-# (AR) المكوّن المشترك NullSafetyAnalyzer يُستدعى من المحرّكين (المفسّر + sadc)
+# (AR) المكوّن المشترك NullSafetyAnalyzer يُستدعى من المحرّكين (المفسّر + sad-build)
 #      ليكون تحليل أمان null مصدرَ حقيقة واحدًا — نظير sad_ownership.
 #      NS-01: هيكل + استدعاء فقط (بلا منطق تحليل بعد).
 # (EN) Shared NullSafetyAnalyzer invoked from both engines as a single source
@@ -236,11 +236,11 @@ target_link_libraries(sad_shared PUBLIC sad_memory_gc)
 # (AR) مكتبة متتبع الملكية في وقت التشغيل — shared/ownership_runtime/
 #      نُقلت من compiler/{include/ffi/ffi_wrapper.h, src/backend/ffi_wrapper.cpp}
 #      في إطار DEF-001. توفر OwnershipTracker (singleton آمن للخيوط) إضافةً إلى
-#      طبقة C-ABI (sad_ownership_*) ليتمكن مخرج sadc من تفعيل --prod بدون
+#      طبقة C-ABI (sad_ownership_*) ليتمكن مخرج sad-build من تفعيل --prod بدون
 #      الاعتماد على رموز C++ من المترجم.
 # (EN) Runtime pointer ownership tracker — moved from compiler/ffi_wrapper.*
 #      as part of DEF-001. Provides a thread-safe singleton plus a C-ABI
-#      surface so sadc-compiled output can enable --prod without linking any
+#      surface so sad-build-compiled output can enable --prod without linking any
 #      compiler C++ symbols.
 # @phase Architecture Refactor: Memory Layer Unification — Phase B / DEF-001
 # ============================================================================

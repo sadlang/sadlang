@@ -18,6 +18,10 @@
 //     Used by Interpreter when creating objects
 //   - توثيق ثنائي اللغة (عربي/إنجليزي)
 //     Bilingual documentation (Arabic/English)
+//   - (RFC sadlang-rfcs#10 م3 خطوة 2) نُقل من interpreter/include/managers/ إلى
+//     shared/types/ — مواطن أساس في sad_shared (المحلّل النحويّ يحتاجه).
+//     Relocated from interpreter/include/managers/ to shared/types/ — a foundation
+//     citizen in sad_shared (the parser needs it).
 // ======================================================================
 
 #pragma once
@@ -118,8 +122,8 @@ struct TraitDefinition {
  * - EN: Uses Singleton pattern to ensure single manager
  * - AR: يدير الذاكرة تلقائياً عبر unique_ptr
  * - EN: Manages memory automatically via unique_ptr
- * - AR: آمن للاستخدام من أجزاء مختلفة من المترجم
- * - EN: Safe to use from different parts of interpreter
+ * - AR: آمن للاستخدام من أجزاء مختلفة من سلسلة الأدوات (المحلّل/المفسّر/المترجم)
+ * - EN: Safe to use from different parts of the toolchain (parser/interpreter/compiler)
  */
 class ClassManager {
 public:

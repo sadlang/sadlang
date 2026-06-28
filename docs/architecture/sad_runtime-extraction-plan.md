@@ -32,11 +32,14 @@
 هو **سبب التسرّب**، لا حاجةٌ بنيويّة. (يفسّر هذا كيف يحلّ المترجم `sad-build` — الذي يربط `sad_shared`
 لا `sad_core` — نداءَ `ClassManager::getInstance()` من المحلّل: التعريف في `sad_shared`.)
 
-### التسرّب
+### التسرّب (لقطة ما-قبل — أُغلق في خطوة 3)
 
-[shared/CMakeLists.txt:116,130-131](../../shared/CMakeLists.txt#L116) يُصدّر `interpreter/include`
-و`interpreter/include/managers` كـ`PUBLIC` ⇒ كلّ هدف يربط `sad_shared` (ومنه نظام المترجم) يرى ترويسات المفسّر.
-حارس [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py) (PR #100) يضمن **عدم استغلال** المترجم لهذا الباب.
+> ⚠️ أرقام الأسطر أدناه تخصّ حالة *ما-قبل* خطوة 3؛ التصدير أُزيل الآن من
+> [shared/CMakeLists.txt](../../shared/CMakeLists.txt) (انظر التعليق حول السطر 120 فما بعد).
+
+كان `sad_shared` يُصدّر `interpreter/include` و`interpreter/include/managers` كـ`PUBLIC`
+⇒ كلّ هدف يربط `sad_shared` (ومنه نظام المترجم) كان يرى ترويسات المفسّر.
+بعد الإغلاق، يبقى حارس [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py) (PR #100) **وقائيًّا** يمنع إعادة فتح الباب.
 
 ### اقتران المحلّل ↔ `ClassManager` (العائق)
 
@@ -51,7 +54,7 @@
 
 ### `sad_builtins` لا يحتاج المدراء
 
-`sad_builtins` (14 ملفًّا، PR #97) **نقيّ: لا `FunctionManager`** ([libraries.cmake:34](../../cmake/libraries.cmake#L34)).
+`sad_builtins` (14 ملفًّا، PR #97) **نقيّ: لا `FunctionManager`** ([libraries.cmake:36](../../cmake/libraries.cmake#L36)).
 الملفّ الوحيد الذي يلمس `FunctionManager` هو لِحام التسجيل [stdlib_manager.cpp](../../shared/builtins/src/runtime/stdlib_manager.cpp) — يبقى في `sad_core`.
 
 ---

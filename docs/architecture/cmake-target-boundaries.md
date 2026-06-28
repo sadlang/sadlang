@@ -77,7 +77,7 @@ flowchart TB
 | `sad_frontend` · `sad_optimizer` · `sad_llvm_backend` | STATIC | ❌ | ✅ | مترجم فقط |
 | `sad_tools` · `sad_ui_ir` · `sad_abstraction` · `sad_security` | STATIC | ❌ | ✅ | مترجم فقط |
 
-**المصادر:** روابط التنفيذيّين في [apps/CMakeLists.txt](../../apps/CMakeLists.txt#L27) (sad-run) و[apps/CMakeLists.txt](../../apps/CMakeLists.txt#L145) (sad-build) — نُقلا من `cmake/executables.cmake` في المرحلة 3؛ روابط `sad_core` في [cmake/libraries.cmake](../../cmake/libraries.cmake)؛ مظلّة `sad_compiler` في [compiler/CMakeLists.txt](../../compiler/CMakeLists.txt#L610).
+**المصادر:** روابط التنفيذيّين في [apps/CMakeLists.txt](../../apps/CMakeLists.txt#L27) (sad-run) و[apps/CMakeLists.txt](../../apps/CMakeLists.txt#L145) (sad-build) — نُقلا من `cmake/executables.cmake` في المرحلة 3؛ روابط `sad_core` في [cmake/libraries.cmake](../../cmake/libraries.cmake)؛ مظلّة `sad_compiler` في [compiler/CMakeLists.txt](../../compiler/CMakeLists.txt#L607).
 
 > **تصحيح سوء فهم شائع:** `sad-build` (المترجم) **لا يربط `sad_core`** — يربط `sad_shared` مباشرةً. المترجم لا يعرف المفسّر إطلاقًا. (الوثيقة الأقدم [interpreter_compiler_layers.md §7](interpreter_compiler_layers.md) تصوّر `sad_core` مظلّةً تحوي كلّ شيء — هذا متجاوَز؛ هذه الوثيقة هي المرجع.)
 

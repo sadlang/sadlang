@@ -61,10 +61,10 @@ target_link_libraries(sad_interp PUBLIC sad_lowlevel)
 # ──────────────────────────────────────────────────────────────────────
 # (AR) Codegen v4.1: ضمان توليد keywords_generated.{h,cpp} قبل الترجمة
 #      sad_shared هو من يحوي lexer_keywords.cpp و keywords_generated.cpp،
-#      لذلك يربط الاعتماد عليه؛ sad_core يربط sad_shared فيرث الاعتماد.
+#      لذلك يربط الاعتماد عليه؛ sad_interp يربط sad_shared فيرث الاعتماد.
 # (EN) Codegen v4.1: ensure keywords_generated.{h,cpp} is built first.
 #      sad_shared owns lexer_keywords.cpp + keywords_generated.cpp,
-#      so the dependency lives there; sad_core links sad_shared.
+#      so the dependency lives there; sad_interp links sad_shared.
 # ──────────────────────────────────────────────────────────────────────
 add_dependencies(sad_shared sad_keywords_codegen)
 
@@ -74,41 +74,41 @@ add_dependencies(sad_shared sad_keywords_codegen)
 # (EN) Wire all language-truth domains into the build so any YAML edit auto-regenerates.
 add_dependencies(sad_shared sad_all_codegen)
 
-# (AR) Phase: dedup sad_shared/sad_core — sad_core يربط sad_shared كـ PUBLIC
+# (AR) Phase: dedup sad_shared/sad_interp — sad_interp يربط sad_shared كـ PUBLIC
 #      ليُمرّر includes ويتجنب ازدواج بناء (lexer/parser/ast/types/errors/modules/utils
 #      + class_manager). كان كل ملف من 49 ملفاً مشتركاً يُترجَم مرتين قبل هذا الإصلاح.
-# (EN) Phase: dedup sad_shared/sad_core — sad_core links sad_shared PUBLIC to
+# (EN) Phase: dedup sad_shared/sad_interp — sad_interp links sad_shared PUBLIC to
 #      forward includes and avoid build duplication (lexer/parser/ast/types/errors/
 #      modules/utils + class_manager). Each of 49 shared files used to compile twice
 #      before this fix.
 target_link_libraries(sad_interp PUBLIC sad_shared)
 
-# (AR) Ownership Unification: sad_core يربط sad_ownership ليستهلك المفسّر
+# (AR) Ownership Unification: sad_interp يربط sad_ownership ليستهلك المفسّر
 #      نظام الملكية الموحَّد عبر wrapper في interpreter/src/managers/ownership_manager.cpp
-# (EN) Ownership Unification: sad_core links sad_ownership so the interpreter
+# (EN) Ownership Unification: sad_interp links sad_ownership so the interpreter
 #      consumes the unified ownership system via the wrapper in
 #      interpreter/src/managers/ownership_manager.cpp
 target_link_libraries(sad_interp PUBLIC sad_ownership)
 
-# (AR) NS-01: نظام أمان null المشترك — sad_core يجمّع interpreter_core.cpp الذي
-#      يستدعي NullSafetyAnalyzer كنقطة حقيقة واحدة مشتركة مع المترجم sadc.
-# (EN) NS-01: shared null-safety — sad_core compiles interpreter_core.cpp which
-#      invokes NullSafetyAnalyzer (single source of truth shared with sadc).
+# (AR) NS-01: نظام أمان null المشترك — sad_interp يجمّع interpreter_core.cpp الذي
+#      يستدعي NullSafetyAnalyzer كنقطة حقيقة واحدة مشتركة مع المترجم sad-build.
+# (EN) NS-01: shared null-safety — sad_interp compiles interpreter_core.cpp which
+#      invokes NullSafetyAnalyzer (single source of truth shared with sad-build).
 target_link_libraries(sad_interp PUBLIC sad_null_safety)
 target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_safety/include)
 
 # (AR) الطبقة الأمنية المشتركة (BoundsChecker, SafeArithmetic, InputSanitizer,
-#      SafeAllocator, TaintTracker). sad_core يجمّع مصادر المفسر التي تستخدم
+#      SafeAllocator, TaintTracker). sad_interp يجمّع مصادر المفسر التي تستخدم
 #      assertSafeCast<int>(...) في أي تحويل size_t→int، فلا بد من الربط هنا
 #      أيضاً (موازٍ لربط sad_interpreter PUBLIC sad_security_core).
-# (EN) Shared security primitives. sad_core compiles interpreter sources that
+# (EN) Shared security primitives. sad_interp compiles interpreter sources that
 #      call assertSafeCast<int>(...), so it must link sad_security_core too,
 #      mirroring the sad_interpreter linkage.
 target_link_libraries(sad_interp PUBLIC sad_security_core)
 
-# (AR) Phase A2: سياسة الذاكرة الموحَّدة — sad_core يجمّع interpreter sources
+# (AR) Phase A2: سياسة الذاكرة الموحَّدة — sad_interp يجمّع interpreter sources
 #      التي تتضمن ownership_manager.h المعتمد على memory/policy/gc_mode.h
-# (EN) Phase A2: unified memory policy — sad_core compiles interpreter sources
+# (EN) Phase A2: unified memory policy — sad_interp compiles interpreter sources
 #      that include ownership_manager.h which now depends on memory/policy/gc_mode.h
 target_link_libraries(sad_interp PUBLIC sad_memory_policy)
 
@@ -164,10 +164,10 @@ if(MSVC)
     target_compile_options(sad_interp PRIVATE /FS /utf-8 /Z7)
 endif()
 
-# (AR) تفعيل المسار الحقيقي لوحدة HTTP داخل sad_core وربط مكتبات الشبكة
-#      حتى تتوفر دوال stdlib/network للمفسر ولكل المستهلكين لـ sad_core.
-# (EN) Enable the real HTTP path inside sad_core and link network libraries
-#      so stdlib/network builtins are available to the interpreter and all sad_core consumers.
+# (AR) تفعيل المسار الحقيقي لوحدة HTTP داخل sad_interp وربط مكتبات الشبكة
+#      حتى تتوفر دوال stdlib/network للمفسر ولكل المستهلكين لـ sad_interp.
+# (EN) Enable the real HTTP path inside sad_interp and link network libraries
+#      so stdlib/network builtins are available to the interpreter and all sad_interp consumers.
 # ملاحظة (AR): الربط الفعلي يتم في cmake/network.cmake لأن أهداف sad_network/
 #              sad_http/sad_websocket تُعرَّف هناك بعد تحميل هذا الملف.
 # Note (EN): Actual linking happens in cmake/network.cmake because the
@@ -249,12 +249,12 @@ if(TARGET sad_ui)
     target_link_libraries(sad_ui_bridge PUBLIC sad_core)
     target_link_libraries(sad_ui_bridge PRIVATE sad_ui)
 
-    # (AR) هذه الملفّات كانت تُجمَّع داخل sad_core، فترث كلَّ مسارات تضمينه الخاصّة
-    #      (hot_reload/semantic/null_safety/runtime/sqlite/openssl…) عبر خاصّية الهدف،
-    #      بالإضافة إلى مسارات sad_ui. مسارات المفسّر عامّة عبر include_directories الجذر.
-    # (EN) These files used to compile inside sad_core, so inherit all of its PRIVATE
-    #      include dirs (hot_reload/semantic/null_safety/runtime/…) via the target
-    #      property, plus the sad_ui paths. Interpreter paths are global at the root.
+    # (AR) هذه الملفّات كانت تُجمَّع داخل القلب (sad_interp)، فترث كلَّ مسارات تضمينه
+    #      الخاصّة (hot_reload/semantic/null_safety/runtime/sqlite/openssl…) عبر خاصّية
+    #      الهدف $<TARGET_PROPERTY:sad_interp,…>، بالإضافة إلى مسارات sad_ui.
+    # (EN) These files used to compile inside the core (sad_interp), so they inherit all
+    #      of its PRIVATE include dirs (hot_reload/semantic/null_safety/runtime/…) via the
+    #      $<TARGET_PROPERTY:sad_interp,…> expression, plus the sad_ui paths.
     target_include_directories(sad_ui_bridge PRIVATE
         $<TARGET_PROPERTY:sad_interp,INCLUDE_DIRECTORIES>
         ${CMAKE_SOURCE_DIR}/sad_ui/core/include

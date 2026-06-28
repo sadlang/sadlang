@@ -3,17 +3,19 @@
 """
 (AR) حارس حدود المفسّر — RFC sadlang-rfcs#10 (تصليب الحدود الداخليّة).
 
-    الخلفية: `sad_shared` يُصدّر `interpreter/include` و`interpreter/include/managers`
-    كمسارات تضمين PUBLIC «للتوافق مع الكود القديم» (shared/CMakeLists.txt). يربط نظام
-    المترجم `sad_shared` مباشرةً ⇒ الباب مفتوح ليُضمِّن كودُ المترجم ترويساتِ المفسّر.
-    اليوم التسريب «كامن لا محقَّق» (لا ملفّ مترجم يستغلّه). هذا الحارس **وقائيّ**:
-    يثبّت الوضع السليم ويفشل إن تسلّل اقترانٌ عَرَضيّ من نظام المترجم إلى ترويسات المفسّر.
+    الخلفية: في المرحلة 3 أُغلق بابا تسريب ترويسات المفسّر إلى نظام المترجم — تصدير
+    `sad_shared` لمسارات `interpreter/include*` (أُزيل بعد نقل `class_manager.h` إلى
+    `shared/types/`)، والكتلة العامّة `include_directories` في الجذر (نُقلت إلى
+    `sad_interp PUBLIC`). الحدّ نظيفٌ **بنيويًّا** اليوم. هذا الحارس **وقائيّ**: يثبّت
+    الوضع السليم ويفشل إن تسلّل اقترانٌ عَرَضيّ من نظام المترجم إلى ترويسات المفسّر
+    (عبر مسار `interpreter/...` صريح، أو اسمٍ مكشوفٍ لو أُعيد فتحُ أيِّ بابٍ مستقبلًا).
 
     المرجع: docs/architecture/cmake-target-boundaries.md §5.
 
 (EN) Interpreter-boundary guard. Fails if any compiler-subsystem source includes an
-     interpreter-only header (directly via an `interpreter/...` path, or bare via the
-     leaked PUBLIC include dirs). Preventive: the leak is currently unrealized.
+     interpreter-only header (directly via an `interpreter/...` path, or by a bare name
+     that would resolve through a leaked PUBLIC include dir if one were reopened).
+     Both leak doors were closed in phase 3; preventive guard against regression.
 """
 import os, re, sys, io
 

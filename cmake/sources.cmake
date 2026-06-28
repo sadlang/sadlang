@@ -93,10 +93,10 @@ set(INTERPRETER_SOURCES
     interpreter/src/builtins/builtin_module_sadnet.cpp
     interpreter/src/builtins/builtin_module_websocket.cpp
     # (AR) م2-أ (sadlang-rfcs#10): ملفّات الواجهات المعتمِدة على sad_ui انتُقِلت إلى
-    #      هدف sad_ui_bridge (INTERPRETER_UI_BRIDGE_SOURCES أدناه) كي لا يعتمد sad_core
+    #      هدف sad_ui_bridge (INTERPRETER_UI_BRIDGE_SOURCES أدناه) كي لا يعتمد sad_interp
     #      على sad_ui. يبقى في القلب فقط ما لا يعتمد sad_ui:
     # (EN) Phase 2-A: sad_ui-dependent UI files moved to the sad_ui_bridge target
-    #      (INTERPRETER_UI_BRIDGE_SOURCES below) so sad_core no longer depends on sad_ui.
+    #      (INTERPRETER_UI_BRIDGE_SOURCES below) so sad_interp no longer depends on sad_ui.
     #      Only the sad_ui-free pieces remain here in the core:
     interpreter/src/ui/ui_state_manager.cpp          # (AR) بلا sad_ui؛ يحتاجه oop_new (UIStateManager)
     interpreter/src/visitors/ui_eval_bridge_core.cpp   # (AR) بذرة القلب (المؤشّر الذرّيّ + المزوّدون)
@@ -151,9 +151,9 @@ set(DATA_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 # 7. البرمجة الكائنية / OOP (Object-Oriented Programming)
 # (AR) OOP_TYPES_SOURCES و OOP_AST_SOURCES و class_manager نُقلت إلى sad_shared
-#      للقضاء على ازدواج البناء (Phase: dedup sad_shared/sad_core).
+#      للقضاء على ازدواج البناء (Phase: dedup sad_shared/sad_interp).
 # (EN) OOP_TYPES_SOURCES, OOP_AST_SOURCES, and class_manager moved to sad_shared
-#      to eliminate build duplication (Phase: dedup sad_shared/sad_core).
+#      to eliminate build duplication (Phase: dedup sad_shared/sad_interp).
 # ──────────────────────────────────────────────────────────────────────
 set(OOP_TYPES_SOURCES)
 
@@ -203,7 +203,7 @@ set(STDLIB_SOURCES
     stdlib/json/json_module.cpp
     stdlib/xml/xml_module.cpp
     stdlib/crypto/crypto_module.cpp
-    # stdlib/crypto/crypto_builtins.cpp  # (AR) معطّل — يستخدم نظام include مختلف عن sad_core
+    # stdlib/crypto/crypto_builtins.cpp  # (AR) معطّل — يستخدم نظام include مختلف عن sad_interp
     stdlib/system/system_functions.cpp
 )
 
@@ -308,20 +308,20 @@ set(HOT_RELOAD_SOURCES
 #       UTILS_SOURCES, LEXER_SOURCES, PARSER_SOURCES, AST_SOURCES,
 #       OOP_TYPES_SOURCES, OOP_AST_SOURCES, ERROR_SOURCES, MODULES_SOURCES،
 #       بالإضافة إلى ملفات shared/types من DATA_SOURCES و class_manager.
-#       sad_core يربط sad_shared كـ PUBLIC في cmake/libraries.cmake.
+#       sad_interp يربط sad_shared كـ PUBLIC في cmake/libraries.cmake.
 # (EN) The following groups were removed because sad_shared already builds them:
 #       UTILS_SOURCES, LEXER_SOURCES, PARSER_SOURCES, AST_SOURCES,
 #       OOP_TYPES_SOURCES, OOP_AST_SOURCES, ERROR_SOURCES, MODULES_SOURCES,
 #       plus shared/types files from DATA_SOURCES and class_manager.
-#       sad_core links sad_shared PUBLIC in cmake/libraries.cmake.
+#       sad_interp links sad_shared PUBLIC in cmake/libraries.cmake.
 # ===============================================================================
 # (AR) م2-ج (sadlang-rfcs#10): مصادر مكتبة sad_builtins — المدمجات النقيّة التي
 #      تعمل على Sad::Data::Value فقط (لا تعتمد FunctionManager/Interpreter). تُستخرَج
-#      من sad_core إلى هدف مستقلّ يعتمد sad_shared وحده، فيكسر دورة:
-#        sad_core → sad_builtins (اتّجاه واحد؛ stdlib_manager اللِحام يبقى في القلب).
+#      من sad_interp إلى هدف مستقلّ يعتمد sad_shared وحده، فيكسر دورة:
+#        sad_interp → sad_builtins (اتّجاه واحد؛ stdlib_manager اللِحام يبقى في القلب).
 # (EN) Phase 2-C: sad_builtins sources — pure Data::Value builtins (no FunctionManager
-#      dependency). Extracted from sad_core into a standalone target depending only on
-#      sad_shared, breaking the sad_core<->builtins cycle (stdlib_manager glue stays).
+#      dependency). Extracted from sad_interp into a standalone target depending only on
+#      sad_shared, breaking the sad_interp<->builtins cycle (stdlib_manager glue stays).
 # ===============================================================================
 # ===============================================================================
 # (AR) م3 خطوة 4 (RFC sadlang-rfcs#10): مصادر مكتبة sad_runtime — طبقة خدمات وقت
@@ -387,12 +387,13 @@ set(ALL_SOURCES
 # ═══════════════════════════════════════════════════════════════════════════════
 # (AR) م2-أ (sadlang-rfcs#10): مصادر طبقة جسر الواجهات sad_ui_bridge.
 #      هذه الملفّات تعتمد sad_ui (sad_ui/ir.h …) وتُجمَّع في هدف منفصل يربط
-#      sad_core (PUBLIC) + sad_ui (PRIVATE)، فيُعكَس اعتماد القلب على الواجهات:
-#      القلب لم يعد يربط sad_ui؛ الجسر يثبّت نفسه عبر installSadUIBridge().
+#      sad_core (PUBLIC، alias لـ sad_interp) + sad_ui (PRIVATE)، فيُعكَس اعتماد القلب
+#      على الواجهات: القلب لم يعد يربط sad_ui؛ الجسر يثبّت نفسه عبر installSadUIBridge().
 #      المكتبة تُعرَّف في cmake/libraries.cmake وتُربَط في sad-run/profiler/wasm.
 # (EN) Phase 2-A: sources of the UI bridge layer (sad_ui_bridge). These depend on
-#      sad_ui and compile into a separate target linking sad_core PUBLIC + sad_ui
-#      PRIVATE, inverting the core→ui dependency. Defined in cmake/libraries.cmake.
+#      sad_ui and compile into a separate target linking sad_core PUBLIC (alias of
+#      sad_interp) + sad_ui PRIVATE, inverting the core→ui dependency. Defined in
+#      cmake/libraries.cmake.
 # ═══════════════════════════════════════════════════════════════════════════════
 set(INTERPRETER_UI_BRIDGE_SOURCES
     interpreter/src/ui/ui_bridge.cpp

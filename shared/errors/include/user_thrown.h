@@ -20,6 +20,13 @@
  *        reported to ErrorManager + Sad::Errors::RuntimeAbort thrown
  *      • User-thrown values (ارمي s) →
  *        UserThrownException thrown carrying the value
+ *
+ * (AR) RFC sadlang-rfcs#10 (م3 خطوة 5): نُقل من interpreter/include/ إلى
+ *      shared/errors/include/ — نوع استثناء مشترك يحتاجه sad_builtins، فموضعه الصحيح
+ *      في الطبقة المشتركة لا داخل ترويسات المفسّر الخاصّة. (النطاق Sad::Interpreter يبقى.)
+ * (EN) RFC #10 (phase-3 step-5): relocated from interpreter/include/ to
+ *      shared/errors/include/ — a shared exception type needed by sad_builtins, so it
+ *      belongs in the shared layer, not the interpreter-private headers. (Namespace kept.)
  */
 
 #pragma once
