@@ -56,6 +56,23 @@ target_include_directories(sad_mobile PUBLIC
     ${CMAKE_SOURCE_DIR}/compiler/include/backend
 )
 
+# (AR) م3 (RFC sadlang-rfcs#10): run_command/test_command (أمرا «شغّل»/«اختبر») يضمّان
+#      interpreter_core.h الذي يسحب ترويسات المفسّر متعدّيًا. بعد نقل الكتلة العامّة،
+#      يأخذها sad_mobile صراحةً **PRIVATE** (لا PUBLIC) كي لا تتسرّب إلى sad-build الذي
+#      يربط sad_mobile PUBLIC — فيبقى نظامُ المترجم نظيفًا من ترويسات المفسّر.
+# (EN) Phase-3: run_command/test_command include interpreter_core.h (pulls interpreter
+#      headers transitively). After the global-block move, sad_mobile takes them
+#      PRIVATE so they don't leak to sad-build (which links sad_mobile PUBLIC).
+target_include_directories(sad_mobile PRIVATE
+    ${CMAKE_SOURCE_DIR}/interpreter/include
+    ${CMAKE_SOURCE_DIR}/interpreter/include/core
+    ${CMAKE_SOURCE_DIR}/interpreter/include/visitors
+    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
+    ${CMAKE_SOURCE_DIR}/interpreter/include/builtins
+    ${CMAKE_SOURCE_DIR}/interpreter/include/debug
+    ${CMAKE_SOURCE_DIR}/interpreter/include/ui
+)
+
 target_compile_features(sad_mobile PUBLIC cxx_std_17)
 
 # (AR) Ownership Unification: sad_mobile يستهلك ownership_manager.h ضمن sad_core

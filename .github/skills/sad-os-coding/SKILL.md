@@ -22,7 +22,7 @@ description: 'كتابة نواة نظام تشغيل ومكونات منخفض�
 
 ### المتطلبات
 ```
-sadc.exe          — مترجم لغة ص (في build/bin/Release/)
+sad-build.exe     — مترجم لغة ص (هدف sad-build، في build/bin/Release/؛ sadc.exe متقاعد)
 LLVM 18 tools     — llvm-as, llvm-link, llc, llvm-nm (في C:\llvm_dev\LLVM\bin\)
 NASM              — لملف boot32.asm
 GNU ld            — لربط ELF النهائي

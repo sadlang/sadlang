@@ -9,14 +9,14 @@ cmake -S . -B build
 # بناء المفسر فقط (أسرع)
 cmake --build build --config Debug --target sad-run
 
-# بناء المترجم sadc (يتطلب Release لأن LLVM مبني بـ Release)
+# بناء المترجم sad-build (Release، أو Debug عند توفّر LLVM Debug)
 cmake --build build --config Release --target sad-build
 
 # بناء كل شيء
 cmake --build build --config Debug
 ```
 
-- **LLVM 18** اختياري — للمترجم `sadc` فقط (`ENABLE_LLVM_BACKEND=ON`، `#ifdef HAS_LLVM`).
+- **LLVM 18** اختياري — للمترجم `sad-build` فقط (`ENABLE_LLVM_BACKEND=ON`، `#ifdef HAS_LLVM`).
 - الاختبارات معطّلة افتراضياً — فعّلها بـ `-DBUILD_TESTS=ON` عند التهيئة.
 
 ## 2. إعادة التوليد من YAML
@@ -50,8 +50,8 @@ python scripts/validate_schemas.py            # يقبل --strict / --verbose ف
 
 ```powershell
 .\build\bin\Debug\sad-run.exe examples\test_simple.ص       # المفسر (الفعلي)
-.\build\bin\Release\sadc.exe ملف.ص -o ملف.exe              # المترجم
-.\build\bin\Release\sadc.exe ملف.ص --emit-llvm -o ملف.ll   # فحص LLVM IR (BF-07)
+.\build\bin\Debug\sad-build.exe ملف.ص -o ملف.exe           # المترجم (هدف sad-build؛ Release أيضًا صالح)
+.\build\bin\Debug\sad-build.exe ملف.ص --emit-llvm -o ملف.ll # فحص LLVM IR (BF-07)
 ```
 
 ## 4. الاختبارات — مُشغّل التنفيذ المزدوج (الأساسي)
@@ -76,7 +76,8 @@ python tests/runner.py --level full --report --html # تقرير شامل
 ```
 
 دليل كامل: `tests/behavior/README.md`. المسارات في `tests/config.yaml`
-(`interpreter: build/bin/Debug/sad-run.exe`, `compiler: build/bin/Release/sadc.exe`).
+(`interpreter: build/bin/Debug/sad-run.exe`, `compiler: build/bin/Debug/sad-build.exe`).
+الاسم البائت `sadc.exe` متقاعد — لا يُنتجه أيّ هدف؛ المترجم الآن هدف `sad-build`.
 
 ### 4.1 صيغة ملف اختبار `.ص` (توجيهات التعليق)
 
@@ -85,7 +86,7 @@ python tests/runner.py --level full --report --html # تقرير شامل
 # @expected: الناتج المتوقع حرفياً (سطر بسطر)
 # @priority: P0
 # @requires: اطبع_سطر
-# @skip_compiler: السبب     ← (اختياري) إن كانت الميزة غير مدعومة في sadc بعد
+# @skip_compiler: السبب     ← (اختياري) إن كانت الميزة غير مدعومة في المترجم (sad-build) بعد
 
 اطبع_سطر("مرحبا بالعالم")
 ```
@@ -112,17 +113,17 @@ python scripts/codegen/check_docs_coverage.py
 ## 5. منهجية الاختبار عند إصلاح خطأ (BF-01, BF-08, BF-29)
 
 1. **أعِد إنتاج الخطأ** في أصغر ملف `.ص` ممكن.
-2. **قارن المفسر والمترجم:** إن عمل في `sad` وفشل في `sadc` → المشكلة في SIR builder أو
+2. **قارن المفسر والمترجم:** إن عمل في `sad-run` وفشل في `sad-build` → المشكلة في SIR builder أو
    LLVM codegen. ولّد IR بـ `--emit-llvm` وافحص: entry block، اتساق الأنواع، ترتيب
    التعليمات، فهارس `getelementptr`.
 3. **أصلِح في الطبقة الصحيحة** (BF-10) — لا ترقيع في مكان الاستعمال.
 4. **اختبار التراجع الشامل** قبل الاعتبار منتهياً:
    - الحزمة الشاملة تمر
-   - `sadc` يبني بلا أخطاء
-   - `sad` يعمل بلا تراجع
+   - `sad-build` يبني بلا أخطاء
+   - `sad-run` يعمل بلا تراجع
 
-## 6. ملاحظات المترجم sadc
+## 6. ملاحظات المترجم sad-build
 
-- يجب بناؤه **Release** (LLVM مبني Release).
+- يُبنى **Debug** (أُصلح بناء المترجم في Debug جذريًّا في cmake/llvm.cmake) أو **Release**.
 - أهداف مدعومة: x86_64, ARM64, WebAssembly, Arduino, ESP32.
 - مستويات تحسين: `-O0`..`-O3`, `-Os`. يدعم bare-metal/freestanding لأنظمة التشغيل.

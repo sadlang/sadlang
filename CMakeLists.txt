@@ -145,14 +145,15 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/shared/memory_policy/include
     ${CMAKE_SOURCE_DIR}/shared/modules/include
     ${CMAKE_SOURCE_DIR}/shared/builtins/include
-    ${CMAKE_SOURCE_DIR}/interpreter/include
-    ${CMAKE_SOURCE_DIR}/interpreter/include/core
-    ${CMAKE_SOURCE_DIR}/interpreter/include/visitors
-    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
-    ${CMAKE_SOURCE_DIR}/interpreter/include/builtins
-    ${CMAKE_SOURCE_DIR}/interpreter/include/debug
-    ${CMAKE_SOURCE_DIR}/interpreter/include/ui
-    ${CMAKE_SOURCE_DIR}/interpreter/src/ui
+    # (AR) م3 (RFC sadlang-rfcs#10): أُزيلت مسارات interpreter/include* العامّة من هنا
+    #      ونُقلت إلى sad_interp PUBLIC (+ sad_runtime PRIVATE) في cmake/libraries.cmake.
+    #      الهدف: ألّا تَرى أهدافُ نظام المترجم (التي تربط sad_shared فقط) ترويسات
+    #      المفسّر. user_thrown.h (نوع استثناء مشترك) نُقل إلى shared/errors/include.
+    #      يثبّت السلامةَ حارسُ check_interpreter_boundary.py.
+    # (EN) Phase-3: removed the global interpreter/include* paths from here; moved to
+    #      sad_interp PUBLIC (+ sad_runtime PRIVATE). The compiler subsystem (links
+    #      sad_shared only) no longer sees interpreter headers. user_thrown.h (a shared
+    #      exception type) relocated to shared/errors/include.
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/compiler/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler/include/backend

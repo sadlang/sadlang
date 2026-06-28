@@ -10,7 +10,7 @@
 #   - 22 اختبار regression لكل مشكلة موثقة
 #   - يغطي: Lexer, Parser, Value, Interpreter, StdLib, Errors,
 #           VM/Compiler, E2E, Utils/Modules, Regression
-#   - يختبر المفسر (sad.exe) والمترجم (sadc.exe) بالتوازي
+#   - يختبر المفسر (sad-run.exe) والمترجم (sad-build.exe) بالتوازي
 #   - لا يُقبل أي PR بدون نجاح 100% من الاختبارات
 # ══════════════════════════════════════════════════════════════════════
 # المسؤول: سعيد — مهندس المترجم (Sprint 1)
@@ -243,7 +243,7 @@ jobs:
       - name: "🏗️ بناء المشروع / Build Project"
         run: cmake --build build --config ${{ matrix.config }} --parallel 4
 
-      - name: "🏗️ بناء المترجم sadc / Build sadc Compiler (Release only)"
+      - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler (Release only)"
         if: matrix.config == 'Release'
         shell: pwsh
         run: |
@@ -376,7 +376,7 @@ jobs:
               Write-Host "⚠️ SKIP: Regression test runner not found" -ForegroundColor Yellow
             }
           } else {
-            Write-Host "⚠️ SKIP: sadc.exe not built (LLVM required)" -ForegroundColor Yellow
+            Write-Host "⚠️ SKIP: sad-build.exe not built (LLVM required)" -ForegroundColor Yellow
           }
 
       - name: "🧪 CTest / Run CTest"
@@ -393,9 +393,11 @@ jobs:
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) {
-            Write-Host "⚠️ SKIP: sad-run.exe or sadc.exe not found" -ForegroundColor Yellow
-            exit 0
+          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيّ لا يُتخطّى.
+          # (EN) The interpreter is mandatory — its absence is a real failure, never skipped.
+          if (-not (Test-Path $sad)) {
+            Write-Error "❌ MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+            exit 1
           }
           # (AR) اختيار المستوى حسب حدث CI (ADR-002 / TEST-006):
           #      push → P0 (دخان، 100% مطلوب) · pull_request → P1 · schedule → P2.
@@ -404,12 +406,27 @@ jobs:
           if ($ev -eq 'pull_request') { $level = 'P1'; $floor = '86.0' }
           elseif ($ev -eq 'schedule') { $level = 'P2'; $floor = '86.0' }
           else { $level = 'P0'; $floor = $null }
-          Write-Host "▶️ المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
+          # (AR) أهداف المحرّكات: المفسّر دائمًا؛ المترجم إن بُني على هذا الrunner.
+          #      حين يغيب المترجم (مثلاً ويندوز بلا مكتبات LLVM-dev) **لا نتخطّى** بل
+          #      نشغّل وضع المفسّر-فقط (يقارن runner.py مخرجَ المفسّر بـ@expected)،
+          #      فتعمل الاختبارات فعلًا بدل العلامة الخضراء المخادعة.
+          # (EN) Engine targets: interpreter always; compiler if built on this runner.
+          #      When the compiler is absent (e.g. Windows without LLVM-dev) we DON'T
+          #      skip — we run interpreter-only mode (runner.py compares interpreter
+          #      output to @expected), so the tests actually run instead of a misleading
+          #      green skip.
+          $engineArgs = @('--interp', $sad)
+          if (Test-Path $sadc) {
+            $engineArgs += @('--compiler', $sadc)
+            Write-Host "▶️ تنفيذ مزدوج كامل (مفسّر + مترجم) — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
+          } else {
+            Write-Host "▶️ وضع المفسّر-فقط (المترجم غير مبنيّ على هذا الrunner) — المستوى: $level (حدث: $ev)" -ForegroundColor Yellow
+          }
           # (AR) --gate يُصدر PASS/CONCERNS/FAIL؛ --gate-floor يمنع التراجع تحت الأساس (86%).
           #      P0 بلا أرضية: أي فشل دخان = FAIL.
           $gateArgs = @('--gate')
           if ($floor) { $gateArgs += @('--gate-floor', $floor) }
-          python tests/runner.py --level $level --timeout 30 --interp $sad --compiler $sadc --report @gateArgs
+          python tests/runner.py --level $level --timeout 30 @engineArgs --report @gateArgs
           if ($LASTEXITCODE -ne 0) {
             Write-Host "❌ بوّابة القرار: FAIL — تراجع تحت الأساس أو فشل دخان" -ForegroundColor Red
             exit 1

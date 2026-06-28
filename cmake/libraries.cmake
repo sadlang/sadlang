@@ -139,6 +139,17 @@ target_link_libraries(sad_runtime PUBLIC
     sad_memory_gc
     sad_security_core
 )
+# (AR) م3 (RFC sadlang-rfcs#10): sad_runtime لا يربط sad_interp (الاتّجاه أحاديّ)،
+#      فيأخذ مسارات ترويسات المفسّر التي تحتاجها مصادرُه (managers/builtins/core…)
+#      PRIVATE صراحةً، بعد إزالة الكتلة العامّة من الجذر.
+# (EN) sad_runtime doesn't link sad_interp (one-directional), so it takes the
+#      interpreter header paths its sources need explicitly as PRIVATE.
+target_include_directories(sad_runtime PRIVATE
+    ${CMAKE_SOURCE_DIR}/interpreter/include
+    ${CMAKE_SOURCE_DIR}/interpreter/include/core
+    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
+    ${CMAKE_SOURCE_DIR}/interpreter/include/builtins
+)
 if(MSVC)
     target_compile_options(sad_runtime PRIVATE /FS /utf-8 /Z7)
 endif()
@@ -289,6 +300,29 @@ message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
 # (EN) Phase 3 (F-01): shared type checker include path after move from compiler/.
 #      Interpreter includes "semantic/type_checker.h" directly without relative path.
 target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/semantic/include)
+
+# ──────────────────────────────────────────────────────────────────────
+# (AR) م3 (RFC sadlang-rfcs#10): ترويسات المفسّر الخاصّة كـPUBLIC على sad_interp
+#      بدل الكتلة العامّة include_directories في الجذر. هذا يقصر رؤية ترويسات
+#      المفسّر على من يربط sad_interp (المفسّر + أدواته + اختباراته + جسر الواجهات
+#      عبر $<TARGET_PROPERTY>)، فلا يراها نظامُ المترجم الذي يربط sad_shared فقط.
+#      (sad_runtime لا يربط sad_interp ⇒ يأخذ المسارات PRIVATE أدناه؛ sad-run/sad-build
+#       لهما مساراتهما الصريحة في apps/.)
+# (EN) Phase-3: interpreter-private headers as PUBLIC on sad_interp instead of the
+#      root global include_directories block. Scopes interpreter header visibility to
+#      sad_interp linkers only (interp + tools + tests + ui_bridge via TARGET_PROPERTY),
+#      so the compiler subsystem (links sad_shared only) never sees them.
+# ──────────────────────────────────────────────────────────────────────
+target_include_directories(sad_interp PUBLIC
+    ${CMAKE_SOURCE_DIR}/interpreter/include
+    ${CMAKE_SOURCE_DIR}/interpreter/include/core
+    ${CMAKE_SOURCE_DIR}/interpreter/include/visitors
+    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
+    ${CMAKE_SOURCE_DIR}/interpreter/include/builtins
+    ${CMAKE_SOURCE_DIR}/interpreter/include/debug
+    ${CMAKE_SOURCE_DIR}/interpreter/include/ui
+    ${CMAKE_SOURCE_DIR}/interpreter/src/ui
+)
 
 # ──────────────────────────────────────────────────────────────────────
 # المكونات المشتركة والمترجم / Shared & Compiler (if not already added)
