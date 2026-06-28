@@ -487,6 +487,53 @@ namespace Sad
                     auto mapResult = b_.buildMapBuiltinMethodCall(objResult, methodName, args);
                     if (mapResult)
                         return *mapResult;
+
+                    // ════════════════════════════════════════════════════════════════
+                    // (AR) م.أ-3 (RFC sadlang-rfcs#10 / إغلاق P0-3): معدّل واجهة انسيابيّ.
+                    //      نداء طريقة على مقبض عنصر واجهة (Pointer) تعذّر استنتاج صنفٍ له
+                    //      وليس طريقة مصفوفة/نص/خريطة ⇒ يُعامَل بدلالة WidgetBuilder في
+                    //      المفسّر (ui_widget_method_call.cpp): يُطبَّق المعدّل كأثر جانبيّ
+                    //      ويُعاد العنصرُ نفسه ليتسلسل ويبقى «كائنًا».
+                    //
+                    //      حاسم: قبل هذا كان المسار يسقط إلى نداءٍ بإرجاع VOID لرمزٍ غير
+                    //      موجود، فإذا أُسنِد ناتج السلسلة إلى متغيّر استدعت الخلفية
+                    //      getNullValue(void) ⇒ انهيار LLVM (UNREACHABLE). إعادةُ مقبض
+                    //      العنصر (Pointer) تُزيل الانهيار وتجعل نوع(السلسلة)=«كائن».
+                    //
+                    //      الحارس className.empty() يقصُر هذا على المقابض الواجهيّة (التي
+                    //      لا صنفَ مستخدمٍ لها)؛ مثيلاتُ الأصناف يُستنتَج صنفُها فلا تمرّ هنا.
+                    //
+                    //      ⚠ نطاق هذه الشريحة: التسلسل الانسيابيّ ومطابقة المسار بلا رأس
+                    //      (headless) فقط. تطبيقُ أثر المعدّل في مخرَج المترجم المرسوم
+                    //      (الخصائص العامّة بالاسم + ربطُ الأحداث عند_*) يحتاج ABI زمن
+                    //      تشغيلٍ عامًّا جديدًا (نظير setIRProperty/addIREvent) وهو الشريحة
+                    //      التالية؛ لذا لا نُصدِر setter غير مطابقٍ للقالب هنا تفاديًا
+                    //      لتوليدٍ غير مُتحقَّقٍ منه.
+                    // (EN) Phase A-3: fluent UI modifier. A method on a widget handle
+                    //      (Pointer) with no resolvable user class, and not an
+                    //      array/string/map method, follows interpreter WidgetBuilder
+                    //      semantics: apply the modifier and RETURN THE WIDGET so it
+                    //      chains and stays an object. Returning the handle removes the
+                    //      getNullValue(void) crash that the prior VOID assumption caused
+                    //      on assignment. Scope of this slice: fluent chaining + headless
+                    //      parity only; applying the modifier effect in the compiled
+                    //      rendered path (generic named props + عند_* event binding) needs
+                    //      a new generic runtime ABI — the next slice.
+                    // ════════════════════════════════════════════════════════════════
+                    if (className.empty() && objResult.type == SadTypeKind::Pointer)
+                    {
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildMethodCall: fluent UI modifier '"
+                                  << methodName << "' on widget handle '"
+                                  << objResult.registerName << "' (args=" << args.size()
+                                  << ") → returning widget (P0-3/أ-3)" << std::endl;
+#endif
+                        // (AR) نُعيد المقبض نفسه (Pointer، بلا صنف) ليبقى «كائنًا»
+                        //      ويتسلسل: النداء التالي في السلسلة يدخل هذا الفرع ذاته.
+                        // (EN) Return the same handle (Pointer, classless) so it stays
+                        //      an object and chains: the next call re-enters this branch.
+                        return BuildResult(objResult.registerName, SadTypeKind::Pointer);
+                    }
                 } // (AR) نهاية if (!isRegisteredClassMethod)
 
                 // (AR) ?????? 4: ??? ??? ???? ?????? ???? ADT

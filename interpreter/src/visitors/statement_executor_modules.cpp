@@ -761,6 +761,19 @@ void StatementExecutor::visitExportStmt(AST::ExportStmt& node) {
 // =========================================================================
 
 void StatementExecutor::visitReExportStmt(AST::ReExportStmt& node) {
+    // (AR) صدّر * مجرّد (مسار فارغ) = «صدّر كل رموز الوحدة الحاليّة». لا وحدة
+    //      مصدرٍ خارجيّة تُحمَّل؛ الرموز معرَّفة في هذه الوحدة أصلًا فلا عمل هنا.
+    //      (عمليًّا لا يصل المفسّر لهذه الحالة عبر «استورد رسومات» لأنّ «رسومات»
+    //      وحدة مدمجة تُسجَّل أصلًا في C++ ولا تُحلَّل من مصدر .ص؛ لكن نحرسها
+    //      للاتّساق مع المحلّل المشترك ولأيّ مصدر .ص يستعمل «صدّر *» — RFC 0001، P0-3.)
+    // (EN) Bare export * (empty path) = export all current-module symbols.
+    //      No external module to load → no-op (parity with the shared parser).
+    //      In practice unreached via «استورد رسومات» (built-in module, never
+    //      parsed from .ص source), but guarded for any .ص source using «صدّر *».
+    if (node.modulePath.empty()) {
+        return;
+    }
+
     // (AR) نحتاج محلل الوحدات
     if (!moduleResolver_) {
         throw ExecutionError(

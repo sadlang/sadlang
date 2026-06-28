@@ -1,7 +1,8 @@
 // ============================================================================
-// sir_builder_builtins_ui.cpp
-// (AR) UI Widget Factory builtins: column, row, text, button, app
-// (EN) Unified UI Widget Factory Functions
+// builtins_ui.cpp
+// (AR) مصانع عناصر الواجهة المضمّنة: عمود، صف، نص_عنصر، زر، تطبيق، ...
+// (EN) UI Widget Factory builtins: column, row, text-widget, button, app, ...
+// (EN) Unified UI Widget Factory Functions (SIR builder layer)
 // ============================================================================
 
 #include "sir_builder.h"
@@ -84,8 +85,19 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
-                // ─── نص_عرض(نص) / sad_text(text) ───
-                if (funcName == Bn::CompilerUi::UI_4)
+                // ─── نص_عنصر(نص) / نص_عرض(نص) / sad_text(text) ───
+                // (AR) الاسم المعياريّ للعنصر النصّيّ في مصدر الحقيقة هو «نص_عنصر»
+                //      (UIWidgets::TEXT_WIDGET) وهو ما تستعمله البرامج والمفسّر؛
+                //      «نص_عرض» (CompilerUi::UI_4) اسم تاريخيّ مرادف. كان المترجم
+                //      يطابق المرادف فقط فيسقط «نص_عنصر» إلى VOID (تباعد صامت
+                //      مفسّر↔مترجم — RFC 0001، P0-3). نوحّد المطابقة على الاسمين
+                //      مع تقديم الاسم المعياريّ في الفحص (المسار الأكثر شيوعًا).
+                // (EN) Canonical text-widget name is «نص_عنصر» (TEXT_WIDGET), used
+                //      by programs and the interpreter; «نص_عرض» (UI_4) is a legacy
+                //      alias. Match both to fix the silent interp↔compiler divergence;
+                //      the canonical name is tested first (the common path).
+                if (funcName == Bn::UIWidgets::TEXT_WIDGET ||
+                    funcName == Bn::CompilerUi::UI_4)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT);

@@ -494,12 +494,20 @@ public:
  *
  * (EN) Represents re-exporting symbols from another module.
  *      Supported patterns:
+ *      - export *                     — bare wildcard (empty modulePath): export
+ *                                       all current-module symbols (no source module)
  *      - export * from math           — re-export everything
  *      - export sqrt, pow from math   — re-export specific items
+ *
+ * (AR) ملاحظة: مسار وحدة فارغ (modulePath.empty()) مع isWildcard=true يعني
+ *      «صدّر * مجرّد» — لا وحدة مصدرٍ خارجيّة؛ يُعامله الزوّار كلا-عمليّة لإعادة
+ *      التصدير. (RFC 0001 — P0-3.)
+ * (EN) Note: an empty modulePath with isWildcard=true means bare «export *» —
+ *      no external source module; visitors treat it as a re-export no-op.
  */
 class ReExportStmt : public Statement {
 public:
-    std::vector<std::string> modulePath;   ///< (AR) مسار الوحدة / (EN) Module path
+    std::vector<std::string> modulePath;   ///< (AR) مسار الوحدة (فارغ = صدّر * مجرّد) / (EN) Module path (empty = bare export *)
     std::vector<ImportItem> items;          ///< (AR) العناصر المحددة / (EN) Specific items (empty if wildcard)
     bool isWildcard;                        ///< (AR) إعادة تصدير شاملة / (EN) Wildcard re-export
 
@@ -525,10 +533,14 @@ public:
                 }
             }
         }
-        result += " من ";
-        for (size_t i = 0; i < modulePath.size(); ++i) {
-            if (i > 0) result += ".";
-            result += modulePath[i];
+        // (AR) المسار الفارغ = صدّر * مجرّد (كل رموز الوحدة الحاليّة) — بلا 'من'
+        // (EN) Empty path = bare export * (all current-module symbols) — no 'from'
+        if (!modulePath.empty()) {
+            result += " من ";
+            for (size_t i = 0; i < modulePath.size(); ++i) {
+                if (i > 0) result += ".";
+                result += modulePath[i];
+            }
         }
         return result;
     }

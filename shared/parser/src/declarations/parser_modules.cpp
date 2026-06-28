@@ -411,7 +411,9 @@ StmtPtr ParserCore::parseFromImportStmt() {
  *   صدّر صنف اسم { ... }
  *   صدّر ثابت PI = 3.14
  *   صدّر رقم س = 10
- * 
+ *   صدّر *                  // (AR) تصدير شامل مجرّد / (EN) bare wildcard export
+ *   صدّر * من وحدة          // (AR) إعادة تصدير شاملة / (EN) wildcard re-export
+ *
  * Grammar / القواعد:
  *   ExportDecl := 'صدّر' Declaration
  *   Declaration := FunctionDecl | ClassDecl | VarDecl
@@ -420,14 +422,33 @@ StmtPtr ParserCore::parseExportDecl() {
     Position startPos = previous_.getPosition();
     
     // ═══════════════════════════════════════════════════════════════
-    // (AR) الحالة 1: إعادة تصدير شاملة — صدّر * من وحدة
-    // (EN) Case 1: Wildcard re-export — export * from module
+    // (AR) الحالة 1: إعادة تصدير شاملة — صدّر * من وحدة، أو تصدير شامل
+    //      مجرّد — صدّر * (بلا 'من'، انظر الحالة 1-أ أدناه).
+    // (EN) Case 1: Wildcard re-export — export * from module, or bare
+    //      wildcard export — export * (no 'from', see Case 1a below).
     // ═══════════════════════════════════════════════════════════════
     if (match(TT::OP_MULTIPLY)) {
-        if (!match(TT::KEYWORD_FROM)) {
-            error("(AR) متوقع 'من' بعد 'صدّر *'.\n(EN) Expected 'من' (from) after 'صدّر *'.");
-            return nullptr;
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) الحالة 1-أ: تصدير شامل مجرّد — صدّر * (بلا 'من')
+        //      دلالته: «صدّر كل رموز الوحدة الحاليّة العلنيّة». يُمثَّل بـ
+        //      ReExportStmt بمسار وحدة فارغ + isWildcard=true (لا وحدة مصدرٍ
+        //      خارجيّة). تتعامل معه زوّار SIR/المفسّر كلا-عمليّة لإعادة التصدير
+        //      (لا تحميل وحدة)، إذ تبقى رموز الوحدة في نطاقها. تستعمله وحدات
+        //      stdlib التوثيقيّة (مثل رسومات.ص)، وكان رفضه يحجب المترجم عن أيّ
+        //      برنامج فيه «استورد رسومات» (RFC 0001 — الجذر الفعليّ لـP0-3).
+        // (EN) Case 1a: Bare wildcard export — export * (without 'from')
+        //      Means "export all public symbols of the current module".
+        //      Represented as ReExportStmt with empty modulePath + isWildcard=true
+        //      (no source module); SIR/interpreter visitors treat it as a
+        //      re-export no-op since the symbols already live in this module.
+        // ═══════════════════════════════════════════════════════════════
+        if (!check(TT::KEYWORD_FROM)) {
+            return std::make_unique<AST::ReExportStmt>(
+                std::vector<std::string>{}, std::vector<AST::ImportItem>{}, true, startPos);
         }
+        // (AR) أُكِّد وجود 'من' بـcheck أعلاه؛ نستهلكه هنا (match يُرجِع true حتمًا).
+        // (EN) 'من' was confirmed by the check above; consume it here (match is sure to succeed).
+        advance(); // (AR) استهلاك 'من' / (EN) consume 'من'
         std::vector<std::string> modulePath;
         if (!parseModulePath(modulePath)) {
             error("(AR) متوقع مسار الوحدة بعد 'من'.\n(EN) Expected module path after 'من'.");

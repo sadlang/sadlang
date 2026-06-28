@@ -1,7 +1,9 @@
 // ============================================================================
 // compiler_driver_build_utils.cpp
-// (AR) Build utilities: cleanup, sysroot, C compilation
-// (EN) Build utilities: temp file cleanup, Android sysroot, C-to-obj compile
+// (AR) أدوات البناء: تنظيف الملفّات المؤقّتة، sysroot أندرويد، ترجمة C،
+//      وكشف/إلحاق مكتبات وقت التشغيل المُورَّدة (الشبكة + الواجهات SadUI).
+// (EN) Build utilities: temp file cleanup, Android sysroot, C-to-obj compile,
+//      and detection/append of bundled runtime libs (network + SadUI).
 // ============================================================================
 
 #include "compiler_driver.h"
@@ -51,6 +53,59 @@ namespace sad
                        std::filesystem::exists(directory / (library_name + ".a")) ||
                        std::filesystem::exists(directory / ("lib" + library_name + ".a"));
             }
+
+            // (AR) يبحث تنازليًّا تحت «base» عن مجلّد x64 يحوي «<lib>.lib»، ويُعيد مجلّده.
+            //      يُستعمل لإيجاد المكتبات المُورَّدة (SDL2/SDL2_ttf) دون تثبيت رقم
+            //      الإصدار في المسار (graphics/third_party/SDL2/SDL2-<ver>/lib/x64).
+            // (EN) Recursively find an x64 dir under «base» containing «<lib>.lib» and
+            //      return that dir. Locates vendored libs (SDL2/SDL2_ttf) without
+            //      hardcoding the version segment in the path.
+            std::filesystem::path find_vendored_x64_lib_dir(const std::filesystem::path &base,
+                                                            const std::string &library_name)
+            {
+                std::error_code ec;
+                if (!std::filesystem::exists(base, ec))
+                {
+                    return {};
+                }
+                const std::string target = library_name + ".lib";
+                // (AR) حدّ عمقٍ احتياطيّ: التخطيط الفعليّ هو
+                //      <base>/SDL2/SDL2-<ver>/lib/x64 (عمق ~4)؛ الحدّ يمنع مسحًا
+                //      غير محدود لو احتوى الشجرة على ارتباطات/أعشاش عميقة.
+                // (EN) Defensive depth cap: real layout is
+                //      <base>/SDL2/SDL2-<ver>/lib/x64 (depth ~4); the cap prevents
+                //      an unbounded scan if the tree has deep nests/links.
+                constexpr int kMaxSearchDepth = 8;
+                for (auto it = std::filesystem::recursive_directory_iterator(
+                         base, std::filesystem::directory_options::skip_permission_denied, ec);
+                     it != std::filesystem::recursive_directory_iterator();
+                     it.increment(ec))
+                {
+                    if (ec)
+                    {
+                        break;
+                    }
+                    if (it.depth() >= kMaxSearchDepth)
+                    {
+                        it.disable_recursion_pending();
+                    }
+                    if (it->is_regular_file(ec) && it->path().filename() == target)
+                    {
+                        // (AR) نفحص مجلّد الملفّ (لا المسار الكامل) بحثًا عن «x64» لتمييزه
+                        //      عن نظيره x86 (كلاهما موجود: lib/x64 وlib/x86)، وتفاديًا
+                        //      لمطابقة كاذبة لو احتوى اسم الملفّ نفسه «x64».
+                        // (EN) Inspect the file's directory (not the whole path) for «x64»
+                        //      to distinguish it from the sibling x86 dir (both exist:
+                        //      lib/x64, lib/x86) and avoid a false match on the filename.
+                        const std::string dir = it->path().parent_path().string();
+                        if (dir.find("x64") != std::string::npos || dir.find("X64") != std::string::npos)
+                        {
+                            return it->path().parent_path();
+                        }
+                    }
+                }
+                return {};
+            }
         }
 
         void CompilerDriver::cleanup_temp_files()
@@ -86,6 +141,13 @@ namespace sad
             bool found_http = false;
             bool found_network = false;
             bool found_websocket = false;
+            // (AR) مكتبة وقت تشغيل الواجهات: sad_rt_ui (الجسر C) تعتمد على sad_ui (IR/تخطيط).
+            //      بدونها تبقى رموز sad_button/sad_text/sad_column غير معرّفة عند ربط
+            //      برامج SadUI المترجمة (إغلاق P0-3/أ-4).
+            // (EN) UI runtime: sad_rt_ui (C bridge) depends on sad_ui (IR/layout).
+            //      Without them, compiled SadUI programs fail linking with undefined
+            //      sad_button/sad_text/sad_column (P0-3/A-4 closure).
+            bool found_ui = false;
 
             for (const auto &candidate : candidates)
             {
@@ -93,8 +155,11 @@ namespace sad
                 const bool has_http = has_library_file_in_dir(normalized, "sad_http");
                 const bool has_network = has_library_file_in_dir(normalized, "sad_network");
                 const bool has_websocket = has_library_file_in_dir(normalized, "sad_websocket");
+                // (AR) نكشف sad_rt_ui؛ sad_ui مُجمَّعة معها في نفس مجلّد المكتبات.
+                // (EN) Detect sad_rt_ui; sad_ui is co-located in the same lib dir.
+                const bool has_ui = has_library_file_in_dir(normalized, "sad_rt_ui");
 
-                if (!has_http && !has_network && !has_websocket)
+                if (!has_http && !has_network && !has_websocket && !has_ui)
                 {
                     continue;
                 }
@@ -103,6 +168,7 @@ namespace sad
                 found_http = found_http || has_http;
                 found_network = found_network || has_network;
                 found_websocket = found_websocket || has_websocket;
+                found_ui = found_ui || has_ui;
             }
 
             if (found_http)
@@ -118,6 +184,58 @@ namespace sad
             if (found_websocket)
             {
                 append_unique_value(libraries, "sad_websocket");
+            }
+
+            // (AR) مكتبات الواجهات: الترتيب مهمّ — sad_rt_ui قبل sad_ui (تعتمد عليها).
+            //      الرابط يُسقِط الأعضاء غير المُشار إليها، فلا ضرر على البرامج غير الرسوميّة.
+            // (EN) UI libs: order matters — sad_rt_ui before sad_ui (its dependency).
+            //      The linker drops unreferenced members, so non-UI programs are unaffected.
+            if (found_ui)
+            {
+                append_unique_value(libraries, "sad_rt_ui");
+                append_unique_value(libraries, "sad_ui");
+
+#ifdef _WIN32
+                // (AR) sad_ui مُصرَّفة مع SDL2 (SAD_UI_USE_SDL2)، ووحدة ترجمة الجسر
+                //      sad_ui_runtime.cpp تشير للراسم فتُدخِل رموز SDL_*/TTF_* عبوريًّا
+                //      حتى في المسار بلا رأس. نربط SDL2 وSDL2_ttf المُورَّدتين.
+                // (EN) sad_ui is built with SDL2, and the bridge TU references the
+                //      renderer, so SDL_*/TTF_* are pulled transitively even headless.
+                //      Link the vendored SDL2 + SDL2_ttf import libs.
+                const auto repo_root =
+                    std::filesystem::absolute(get_executable_dir() / ".." / ".." / "..")
+                        .lexically_normal();
+                const auto third_party = repo_root / "graphics" / "third_party";
+
+                const auto sdl2_dir = find_vendored_x64_lib_dir(third_party, "SDL2");
+                if (!sdl2_dir.empty())
+                {
+                    append_unique_value(library_paths, sdl2_dir.string());
+                    append_unique_value(libraries, "SDL2");
+                }
+                else if (options_.verbose)
+                {
+                    // (AR) لم نجد SDL2.lib المُورَّدة؛ قد يفشل الربط بـSDL_* غير معرّفة.
+                    // (EN) Vendored SDL2.lib not found; link may fail with undefined SDL_*.
+                    std::cerr << "  تحذير: لم يُعثر على SDL2.lib (x64) تحت " << third_party.string() << "\n";
+                    std::cerr << "  Warning: SDL2.lib (x64) not found under " << third_party.string() << "\n";
+                }
+                const auto sdl2_ttf_dir = find_vendored_x64_lib_dir(third_party, "SDL2_ttf");
+                if (!sdl2_ttf_dir.empty())
+                {
+                    append_unique_value(library_paths, sdl2_ttf_dir.string());
+                    append_unique_value(libraries, "SDL2_ttf");
+                }
+                else if (options_.verbose)
+                {
+                    // (AR) لم نجد SDL2_ttf.lib المُورَّدة؛ قد يفشل الربط بـTTF_* غير معرّفة
+                    //      إن استعمل البرنامج النصوص المنسّقة.
+                    // (EN) Vendored SDL2_ttf.lib not found; link may fail with undefined
+                    //      TTF_* if the program uses styled text.
+                    std::cerr << "  تحذير: لم يُعثر على SDL2_ttf.lib (x64) تحت " << third_party.string() << "\n";
+                    std::cerr << "  Warning: SDL2_ttf.lib (x64) not found under " << third_party.string() << "\n";
+                }
+#endif
             }
 
 #ifdef _WIN32

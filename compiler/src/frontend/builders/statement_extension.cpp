@@ -299,6 +299,20 @@ namespace Sad
                 // ========================================================================
                 if (auto reExportStmt = dynamic_cast<Sad::AST::ReExportStmt *>(stmt))
                 {
+                    // (AR) صدّر * مجرّد (مسار فارغ) = «صدّر كل رموز الوحدة الحاليّة».
+                    //      لا وحدة مصدرٍ خارجيّة تُحمَّل؛ الرموز معرَّفة في هذه الوحدة
+                    //      أصلًا، فلا عمل لإعادة التصدير هنا. (RFC 0001 — P0-3.)
+                    // (EN) Bare export * (empty path) = export all current-module
+                    //      symbols. No external module to load → no-op here.
+                    if (reExportStmt->modulePath.empty())
+                    {
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] ReExportStmt: bare 'صدّر *' (empty path) "
+                                     "→ no-op (current-module symbols) [P0-3]" << std::endl;
+#endif
+                        return true;
+                    }
+
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Found ReExportStmt from module: ";
                     for (auto &seg : reExportStmt->modulePath)
