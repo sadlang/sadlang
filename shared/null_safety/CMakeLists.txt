@@ -4,7 +4,7 @@
 #
 # (AR) المكوّن الموحَّد لتحليل أمان null عبر كل المسارات (مصدر حقيقة واحد):
 #      - sad-run (المفسّر)  — يستدعي analyze() قبل التنفيذ
-#      - sadc.exe (المترجم) — يستدعي analyze() في مرحلة التحليل قبل SIR
+#      - sad-build (المترجم) — يستدعي analyze() في مرحلة التحليل قبل SIR
 #      كنمط فاحص الاستعارة (shared/ownership) تمامًا.
 #
 # (EN) Unified null-safety analysis component for all execution paths

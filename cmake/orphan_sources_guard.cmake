@@ -30,6 +30,8 @@ set(SAD_GUARDED_DIRS
 # (AR) أنماط استثناء — ملفات معروفة أنها قوالب/توليد/أرشفة
 # (EN) Exclusion patterns — known templates/generated/archived files
 set(SAD_ORPHAN_EXCLUDE_PATTERNS
+    # (AR) /archived/ حُذف فعليًّا في م5 (RFC sadlang-rfcs#10)؛ يبقى النمط دفاعيًّا لأيّ أرشفة مستقبليّة
+    # (EN) /archived/ was deleted in phase 5 (RFC #10); pattern kept defensively for any future archiving
     "/archived/"
     "/_archive/"
     "/templates/"
@@ -175,7 +177,7 @@ function(sad_check_orphan_sources)
         message(STATUS "كل ملف أعلاه إما:")
         message(STATUS "  • يجب إضافته إلى مكتبة/تنفيذي عبر add_library/add_executable")
         message(STATUS "  • أو حذفه إن كان كوداً ميتاً")
-        message(STATUS "  • أو نقله إلى archived/ مع توثيق السبب")
+        message(STATUS "  • أو أرشفته/حذفه مع توثيق السبب (مجلّد archived/ أُزيل في م5، RFC sadlang-rfcs#10)")
         message(STATUS "")
 
         if(SAD_ORPHAN_GUARD_MODE STREQUAL "FATAL")

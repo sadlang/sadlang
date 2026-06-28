@@ -7,10 +7,10 @@
 #
 # نظرة عامة:
 #   هذا الملف يدير اكتشاف وربط مكتبات LLVM 18 بمشروع لغة ص (Sad Language).
-#   LLVM يُستخدم حصرياً بواسطة المترجم sadc لتحويل شجرة AST إلى كود أصلي
+#   LLVM يُستخدم حصرياً بواسطة المترجم sad-build لتحويل شجرة AST إلى كود أصلي
 #   عبر سلسلة: AST → SIR → LLVM IR → ملف تنفيذي.
 #
-#   المفسر sad.exe لا يحتاج LLVM ويعمل بشكل مستقل تماماً.
+#   المفسر sad-run لا يحتاج LLVM ويعمل بشكل مستقل تماماً.
 #
 # المعماريات المدعومة:
 #   x86_64, AArch64 (ARM64), WebAssembly, RISC-V, ARM, PowerPC,
@@ -76,7 +76,7 @@ message(STATUS "   المسار / Directory: ${LLVM_DIR}")
 # المُزخرفة (decorated names) تختلف بين الوضعين.
 #
 # الحل المعتمد: نكتشف هذا التعارض مبكراً ونعرض رسالة واضحة مع الحلول.
-# المترجم sadc يجب أن يُبنى دائماً في Release على Windows:
+# المترجم sad-build يجب أن يُبنى دائماً في Release على Windows:
 #   cmake --build build --config Release --target sad-build
 #
 # Check Debug/Release compatibility between LLVM and project.
@@ -147,12 +147,12 @@ if(MSVC)
         message(WARNING "")
         message(WARNING "=== LLVM Debug/Release ===")
         message(WARNING "  LLVM Release found but no Debug installation detected.")
-        message(WARNING "  sadc can only be built in Release mode.")
+        message(WARNING "  sad-build can only be built in Release mode.")
         message(WARNING "  To enable Debug builds:")
         message(WARNING "    1. Build LLVM Debug from source")
         message(WARNING "    2. Install to C:/llvm_dev/LLVM-Debug")
         message(WARNING "    3. Re-run cmake to auto-detect")
-        message(WARNING "  Or build sadc in Release only:")
+        message(WARNING "  Or build sad-build in Release only:")
         message(WARNING "    cmake --build build --config Release --target sad-build")
         message(WARNING "")
     endif()
@@ -313,12 +313,12 @@ endif()
 # ═══════════════════════════════════════════════════════════════════════════════
 # اكتشاف مكتبات LLD للرابط المدمج / LLD Library Discovery for Embedded Linker
 # ═══════════════════════════════════════════════════════════════════════════════
-# LLD هو رابط LLVM الذي يدعم صيغ COFF (Windows)، ELF (Linux)، Mach-O (macOS)، 
+# LLD هو رابط LLVM الذي يدعم صيغ COFF (Windows)، ELF (Linux)، Mach-O (macOS)،
 # MinGW، و WebAssembly. عند تضمينه في sadc، يصبح المترجم مكتفياً ذاتياً
 # بدون الحاجة لرابط خارجي (clang أو link.exe).
 #
 # LLD is the LLVM linker supporting COFF, ELF, Mach-O, MinGW, and WebAssembly.
-# When embedded in sadc, the compiler becomes self-contained without needing
+# When embedded in sad-build, the compiler becomes self-contained without needing
 # an external linker (clang or link.exe).
 # ═══════════════════════════════════════════════════════════════════════════════
 set(LLD_LIBS "")

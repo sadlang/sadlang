@@ -15,8 +15,8 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة المفسّر / Interpreter Library (sad_interp ؛ sad_core = alias توافق)
 # ──────────────────────────────────────────────────────────────────────
-# (AR) تمّ حذف فرع ENABLE_FREESTANDING (لم يُعرّف أبداً ومصادره أُرشفت)
-# (EN) ENABLE_FREESTANDING branch removed (never defined; sources archived)
+# (AR) تمّ حذف فرع ENABLE_FREESTANDING (لم يُعرّف أبداً ومصادره حُذفت في م5)
+# (EN) ENABLE_FREESTANDING branch removed (never defined; sources deleted in phase 5)
 
 add_library(sad_interp STATIC ${ALL_SOURCES})
 # (AR) تصحيح اسم (RFC sadlang-rfcs#10): الهدف الحقيقيّ صار sad_interp (= المفسّر الشجريّ،

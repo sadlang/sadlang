@@ -134,7 +134,7 @@ target_sources(test_optional_null_comprehensive PRIVATE
 # 12. اختبارات الانحدار / Regression Tests (22 tests - bugs from مشاكل.md)
 add_comprehensive_test(test_regression_comprehensive test_regression_comprehensive.cpp)
 
-# تمرير مسار sad.exe ومجلد الاختبارات / Pass interpreter and test directory paths
+# تمرير مسار sad-run ومجلد الاختبارات / Pass interpreter and test directory paths
 target_compile_definitions(test_regression_comprehensive PRIVATE
     SAD_EXE_PATH="$<TARGET_FILE:sad-run>"
     REGRESSION_DIR="${CMAKE_SOURCE_DIR}/tests/behavior/_regression"
@@ -351,7 +351,7 @@ endif()
 message(STATUS "  ✅ test_regression_comprehensive (30 regression tests)")
 
 # ──────────────────────────────────────────────────────────────────────
-# اختبارات ?. و ?? عبر ملفات .ص / Optional Chain & Null Coalesce .ص tests
+# اختبارات السلسلة الاختياريّة ?. ودمج العدم ?? عبر ملفات .ص / Optional Chain & Null Coalesce .ص tests
 # ──────────────────────────────────────────────────────────────────────
 if(TARGET sad-run)
     # (AR) TEST-005: نُقلت ملفات ?./?? إلى behavior/_regression (موطن .ص التي
@@ -369,10 +369,10 @@ if(TARGET sad-run)
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
-# اختبارات المترجم freestanding عبر sadc / Freestanding Compiler Tests (sadc)
+# اختبارات المترجم freestanding عبر sad-build / Freestanding Compiler Tests (sad-build)
 # ──────────────────────────────────────────────────────────────────────
-# تتطلب بناء sadc (LLVM مفعّل) — تشغل سكريبت PowerShell يتحقق من أنماط LLVM IR
-# Requires sadc target (LLVM enabled) — runs PowerShell script that verifies LLVM IR patterns
+# تتطلب بناء sad-build (LLVM مفعّل) — تشغل سكريبت PowerShell يتحقق من أنماط LLVM IR
+# Requires sad-build target (LLVM enabled) — runs PowerShell script that verifies LLVM IR patterns
 if(TARGET sad-build AND WIN32)
     find_program(POWERSHELL_EXE powershell)
     if(POWERSHELL_EXE)
@@ -388,7 +388,7 @@ if(TARGET sad-build AND WIN32)
             TIMEOUT 120
             LABELS "compiler;freestanding"
         )
-        message(STATUS "  [test] Compiler_Freestanding_BugFixes (sadc IR verification)")
+        message(STATUS "  [test] Compiler_Freestanding_BugFixes (sad-build IR verification)")
     else()
         message(STATUS "  [skip] Compiler_Freestanding_BugFixes: PowerShell not found")
     endif()

@@ -70,7 +70,7 @@ function(setup_sdl2_for_platform target_name)
         # SDL2 كمكتبة مشتركة
         find_library(SDL2_LIB SDL2)
         find_library(SDL2_TTF_LIB SDL2_ttf)
-        
+
         if(SDL2_LIB)
             target_link_libraries(${target_name} PRIVATE ${SDL2_LIB})
             target_compile_definitions(${target_name} PUBLIC
@@ -95,7 +95,7 @@ function(setup_sdl2_for_platform target_name)
         # SDL2.framework
         find_library(SDL2_FRAMEWORK SDL2)
         find_library(SDL2_TTF_FRAMEWORK SDL2_ttf)
-        
+
         if(SDL2_FRAMEWORK)
             target_link_libraries(${target_name} PRIVATE
                 ${SDL2_FRAMEWORK}
@@ -131,7 +131,7 @@ function(setup_sdl2_for_platform target_name)
                 SAD_UI_USE_SDL2
                 SAD_PLATFORM_MACOS
             )
-            
+
             find_package(SDL2_ttf CONFIG QUIET)
             if(SDL2_ttf_FOUND)
                 target_link_libraries(${target_name} PRIVATE SDL2_ttf::SDL2_ttf)

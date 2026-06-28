@@ -44,12 +44,12 @@ if(BUILD_TESTS)
     add_executable(sad_test_framework_selftest
         selftest.cpp
     )
-    
+
     target_link_libraries(sad_test_framework_selftest PRIVATE sad_test_framework)
-    
+
     # تسجيل في CTest
     add_test(NAME FrameworkSelfTest COMMAND sad_test_framework_selftest)
-    
+
     message(STATUS "✓ اختبار الإطار الذاتي مُضاف / Framework self-test added")
 endif()
 
@@ -60,9 +60,9 @@ if(BUILD_TESTS)
     add_executable(sad_benchmark_example
         benchmark_example.cpp
     )
-    
+
     target_link_libraries(sad_benchmark_example PRIVATE sad_benchmark_framework)
-    
+
     message(STATUS "✓ مثال قياس الأداء مُضاف / Benchmark example added")
 endif()
 

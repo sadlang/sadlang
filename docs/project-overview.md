@@ -431,7 +431,7 @@ target_link_libraries(sadc PRIVATE
 | 🔴 عالية | `sad_core` اسم مُضلِّل (هو مكتبة المفسر فعلياً) | إعادة تسميتها إلى `sad_interpreter` لتوضيح المسار |
 | 🟠 متوسطة | `tools/lsp` يربط بالمفسر بلا حاجة | تغيير `sad_core` → `sad_shared` فقط (LSP لا يحتاج تنفيذ) |
 | 🟠 متوسطة | `tools/analizer` يربط بالمفسر بلا حاجة | تغيير `sad_core` → `sad_shared` فقط |
-| 🟡 منخفضة | `tools/compiler/main_simple.cpp` ميت (يستورد interpreter+vm) | حذف أو نقل إلى `archived/` |
+| 🟡 منخفضة | `tools/compiler/main_simple.cpp` ميت (يستورد interpreter+vm) | حذف (مجلّد `archived/` أُزيل في م5، RFC sadlang-rfcs#10) |
 | 🟡 منخفضة | `tools/compiler/src/{run,test}_command.cpp` غير مُضمَّنين في `sadc` | إما تفعيلهما (يجعل sadc يعتمد على المفسر — يكسر العزل!) أو حذفهما |
 
 ---

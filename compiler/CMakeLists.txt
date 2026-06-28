@@ -1,5 +1,5 @@
 # ============================================================================
-# Compiler � ???????
+# Compiler — المترجم
 # ============================================================================
 
 cmake_minimum_required(VERSION 3.15)
@@ -21,15 +21,15 @@ endif()
 
 # Find LLVM (use the same path from main CMakeLists.txt)
 if(NOT LLVM_FOUND)
- # (AR) ?? ?????? LLVM_DIR ??? � ???? ?? cmake/llvm.cmake ?? ?? ??? ???????
+ # (AR) ?? ?????? LLVM_DIR ??? — ???? ?? cmake/llvm.cmake ?? ?? ??? ???????
  find_package(LLVM QUIET CONFIG)
 endif()
 
 if(LLVM_FOUND)
  message(STATUS "compiler_new: Found LLVM ${LLVM_PACKAGE_VERSION}")
- # (AR) ??????: ?? ?????? include_directories ??? � ?????? SAD_LLVM_INCLUDES
+ # (AR) ??????: ?? ?????? include_directories ??? — ?????? SAD_LLVM_INCLUDES
  # ?? ?? ??? ?????? LLVM headers ???? Debug/Release ????? ???????.
- # (EN) Note: Don't use include_directories here � use SAD_LLVM_INCLUDES
+ # (EN) Note: Don't use include_directories here — use SAD_LLVM_INCLUDES
  # in each target that uses LLVM headers for dual Debug/Release support.
  add_definitions(${LLVM_DEFINITIONS})
 else()
@@ -40,8 +40,8 @@ endif()
 # Frontend Library (SIR)
 # ============================================================================
 file(GLOB FRONTEND_SOURCES "src/frontend/*.cpp")
-# (AR) Phase 6 � Step 2: ?? ????? builders/ ???????? (MethodCallBuilder ??????)
-# (EN) Phase 6 � Step 2: include separated builders/ files (MethodCallBuilder etc.)
+# (AR) Phase 6 — Step 2: ?? ????? builders/ ???????? (MethodCallBuilder ??????)
+# (EN) Phase 6 — Step 2: include separated builders/ files (MethodCallBuilder etc.)
 file(GLOB FRONTEND_BUILDERS_SOURCES "src/frontend/builders/*.cpp")
 list(APPEND FRONTEND_SOURCES ${FRONTEND_BUILDERS_SOURCES})
 file(GLOB FRONTEND_HEADERS "include/frontend/*.h")
@@ -125,13 +125,13 @@ endif()
 if(LLVM_FOUND)
  file(GLOB LLVM_BACKEND_SOURCES "src/backend/llvm/*.cpp")
  file(GLOB LLVM_BACKEND_HEADERS "include/backend/llvm/*.h")
- # (AR) Phase 7 � Step 1: ?? ????? backend/llvm/builders/ (sub-codegens)
- # (EN) Phase 7 � Step 1: include backend/llvm/builders/ files (sub-codegens)
+ # (AR) Phase 7 — Step 1: ?? ????? backend/llvm/builders/ (sub-codegens)
+ # (EN) Phase 7 — Step 1: include backend/llvm/builders/ files (sub-codegens)
  file(GLOB_RECURSE LLVM_BACKEND_BUILDERS_SOURCES "src/backend/llvm/builders/*.cpp")
  list(APPEND LLVM_BACKEND_SOURCES ${LLVM_BACKEND_BUILDERS_SOURCES})
  file(GLOB_RECURSE LLVM_BACKEND_BUILDERS_HEADERS "include/backend/llvm/builders/*.h")
  list(APPEND LLVM_BACKEND_HEADERS ${LLVM_BACKEND_BUILDERS_HEADERS})
- 
+
  # - 01: backend -LLVM
  # :
  # - interrupt_handlers.cpp: Windows (BREAKPOINT/OVERFLOW)
@@ -141,7 +141,7 @@ if(LLVM_FOUND)
  # :
  # - async_codegen.cpp:
  # - ffi_wrapper.cpp: c_abi.h c_types.h headers
- # - inline_asm.cpp: ����� في IRBuilder template
+ # - inline_asm.cpp: IRBuilder template
  # - llvm_compiler_pipeline.cpp: include
  set(BACKEND_COMMON_SOURCES
  src/backend/linker_script.cpp
@@ -155,27 +155,25 @@ if(LLVM_FOUND)
  src/backend/ffi_wrapper.cpp
  src/backend/arm64_codegen.cpp
  src/backend/compose_emitter.cpp
- # (AR) evm_codegen.cpp ?????? ?? archived/experimental_types/ � ?????? ?? ????? ?? AST nodes
- # (EN) evm_codegen.cpp archived in archived/experimental_types/ � isolated, never linked to AST nodes
+ # (AR) evm_codegen.cpp حُذف في م5 (RFC sadlang-rfcs#10) — كان معزولًا، لم يُربط بعقد AST مطلقًا
+ # (EN) evm_codegen.cpp deleted in phase 5 (RFC #10) — was isolated, never linked to AST nodes
  src/backend/extension_codegen.cpp
  src/backend/html_emitter.cpp
  src/backend/pipeline_chain.cpp
  src/backend/pipeline_chain_ops.cpp
  src/backend/pipeline_chain_fusion.cpp
  src/backend/pipeline_codegen.cpp
- # (AR) ???? ?????? WASM ?????? ?? archived/wasm_dead_paths/
- # (EN) All WASM paths archived in archived/wasm_dead_paths/
- # ?????? ???? ?????? ?????? ??? ? ?? ???????: cmake/wasm.cmake (Emscripten ? sad_wasm)
+ # (AR) كلّ مسارات WASM حُذفت في م5 (RFC sadlang-rfcs#10) — المسار الحيّ: cmake/wasm.cmake (Emscripten → sad_wasm)
+ # (EN) All WASM paths deleted in phase 5 (RFC #10) — live path: cmake/wasm.cmake (Emscripten → sad_wasm)
  )
 
  # - 02: pipeline
- # (AR) ?????? compiler/src/pipeline/ ?????? ????? ??? archived/compiler_pipeline_legacy/
- #      ?????: ?? ????? (LLVMCompilerPipeline, NoStdModeManager, ...) ???? ???? ?? ??? ???????
- #      (0 ??????? ???? ??????). ???? archived/compiler_pipeline_legacy/README.md
- # (EN) compiler/src/pipeline/ archived to archived/compiler_pipeline_legacy/ (all symbols
- #      were dead at runtime � 0 external callers). See archive README for details.
+ # (AR) مصادر compiler/src/pipeline/ حُذفت في م5 (RFC sadlang-rfcs#10) — كانت كلّ رموزها
+ #      (LLVMCompilerPipeline, NoStdModeManager, ...) ميتة وقت التشغيل (0 مستدعٍ خارجيّ).
+ # (EN) compiler/src/pipeline/ sources deleted in phase 5 (RFC #10) — all symbols
+ #      (LLVMCompilerPipeline, NoStdModeManager, ...) were dead at runtime (0 external callers).
 
- add_library(sad_llvm_backend STATIC 
+ add_library(sad_llvm_backend STATIC
  ${LLVM_BACKEND_SOURCES}
  ${BACKEND_COMMON_SOURCES}
  )
@@ -207,23 +205,23 @@ if(LLVM_FOUND)
  ExecutionEngine
  OrcJIT
  MCJIT
- # X86 � ??????
+ # X86 — ??????
  X86CodeGen
  X86AsmParser
  X86Desc
  X86Info
- # AArch64 � ??????? ARM64 + macOS Apple Silicon
+ # AArch64 — ??????? ARM64 + macOS Apple Silicon
  AArch64CodeGen
  AArch64AsmParser
  AArch64Desc
  AArch64Info
- # ARM � ??????? 32-bit
+ # ARM — ??????? 32-bit
  ARMCodeGen
  ARMAsmParser
  ARMDesc
  ARMInfo
- # (AR) WebAssembly LLVM components ?????? � ???? archived/wasm_dead_paths/
- # (EN) WebAssembly LLVM components archived � see archived/wasm_dead_paths/
+ # (AR) مكوّنات WebAssembly في LLVM حُذفت في م5 (RFC sadlang-rfcs#10) — المسار الحيّ: cmake/wasm.cmake
+ # (EN) WebAssembly LLVM components deleted in phase 5 (RFC #10) — live path: cmake/wasm.cmake
  native
  )
 
@@ -249,7 +247,7 @@ if(LLVM_FOUND)
  sad_memory_gc  # (AR) Phase B-step2: ???? GC ???????? ???????? llvm_runtime*.cpp
  sad_ownership_runtime  # (AR) ffi_wrapper.h ??? ownership/runtime/ownership_tracker.h
  )
- 
+
  # - 01: Unicode
  if(MSVC)
  target_compile_options(sad_llvm_backend PRIVATE /utf-8 /wd4819 /FS)
@@ -257,32 +255,28 @@ if(LLVM_FOUND)
 endif()
 
 # ============================================================================
-# JIT Library � ???????? ?? archived/jit_compiler_unused/
+# JIT Library — حُذفت في م5 (RFC sadlang-rfcs#10)
 # ============================================================================
-# (AR) ???? ????? sad_jit (9034 ???) ????? ??? ?? ??????? ?????:
-# - ?? ??????? ?? ?????? ??? ??????? ??? ?? ??????
-# - lexer/parser/visitor � ?? ??? ??????
-# - ???????? ?????? forward declarations ?? LLVM ORC ("until LLVM installation completes")
-# - ??????? ???????? ?? vm/sad_jit (???? ???? ????? ?? VM bytecode)
+# (AR) مكتبة sad_jit (9034 سطرًا) كانت تُبنى ولا تُستعمل قطّ:
+# - لا يستدعيها المفسّر ولا المترجم ولا أيّ اختبار
+# - تعريفات أماميّة فقط لـ LLVM ORC ("until LLVM installation completes")
+# - مكرَّرة معماريًّا مع vm/sad_jit (الذي يعمل فعلًا على VM bytecode)
 # (EN) sad_jit library (9034 lines) was built but never used:
 # - Not called by interpreter, compiler, or any test
 # - Forward decls only for LLVM ORC ("until LLVM installation completes")
 # - Architecturally duplicated with vm/sad_jit (which actually works on VM bytecode)
-# ???? archived/jit_compiler_unused/README.md ???????? ??????? ???? ???????.
 
 # ============================================================================
-# Bytecode Library ( )
+# Bytecode Library — حُذفت في م5 (RFC sadlang-rfcs#10)
 # ============================================================================
-# (AR) ??????? ???????? (format): decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
+# (AR) ملفّات الصيغة المستقلّة (format): decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
 # (EN) Standalone format files: decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
-# (AR) ????? SIR ???????? (emitter.cpp, bytecode.cpp) ????? � ????? ????? SIR API
-# (EN) SIR-dependent files (emitter.cpp, bytecode.cpp) deferred - need SIR API update
-# (AR) ??????: ???? archived/bytecode_format/README.md
-# (EN) Archived: see archived/bytecode_format/README.md
-# ????? ????? .sadbc ?? ??????? 0 ????????? ??????? ????? ????.
+# (AR) الملفّات المعتمدة على SIR (emitter.cpp, bytecode.cpp) كانت مؤجَّلة — تحتاج تحديث SIR API
+# (EN) SIR-dependent files (emitter.cpp, bytecode.cpp) were deferred - needed SIR API update
+# (AR) صيغة ملفّ .sadbc لم تُدمَج في pipeline: 0 مستهلكين خارجيّين.
 
 # ============================================================================
-# Semantic Analysis Library � ????? ??? shared/ownership/ (Ownership Unification)
+# Semantic Analysis Library — ????? ??? shared/ownership/ (Ownership Unification)
 # ============================================================================
 # (AR) ????? ????? ???????: ????? ????? ??????? ?????? ???????? ??????????
 #      (borrow_checker, lifetime_analyzer, move_analyzer, ownership_tracker,
@@ -342,13 +336,13 @@ if(SECURITY_ALL_SOURCES)
 endif()
 
 # ============================================================================
-# (AR) ????? sad_memory ?????? ?? ??????? B-step1 � ?????? ????????? ??? shared/:
+# (AR) ????? sad_memory ?????? ?? ??????? B-step1 — ?????? ????????? ??? shared/:
 #        - gc_mode.* ? memory_mode_flag.* ? shared/memory_policy/  (??????? A1)
 #        - cycle_detector*                  ? shared/memory_gc/    (??????? B-step1)
 #        - gc_fallback_mode.cpp            ? ???? (???? ???? ??????)
 #      ???????? ??????? (?????/?????/VM) ???? ???? sad_memory_policy ? sad_memory_gc
 #      ?????? ?? shared/.
-# (EN) sad_memory library removed in Phase B-step1 � contents migrated to shared/.
+# (EN) sad_memory library removed in Phase B-step1 — contents migrated to shared/.
 #      Interpreter, compiler, and VM now link sad_memory_policy and sad_memory_gc
 #      from shared/ directly.
 # ============================================================================
@@ -356,7 +350,7 @@ endif()
 # ============================================================================
 # Type System Library
 # ============================================================================
-# (AR) ????? ????? ?????? ???? ??????? � ?? ????? 19 ??? ??? ?? ???
+# (AR) ????? ????? ?????? ???? ??????? — ?? ????? 19 ??? ??? ?? ???
 #      ?????? ?? ?? ???? ???? compiler/src/types (???? ????? ????? ?????).
 #      ??????? ???????? ??????? ?? shared/semantic/include/semantic/type_checker.h
 #      ?????? (10 ?????) ?? ????? ??? type_inferencer/constraint_solver (5 ?????).
@@ -418,14 +412,14 @@ endif()
 # ============================================================================
 # Tools Library ( : )
 # Merged tools: formatter, docs emitter, build system
-# (AR) ?????? ????? security_scanner*/taint_tracker.cpp � ?????? ???
+# (AR) ?????? ????? security_scanner*/taint_tracker.cpp — ?????? ???
 #      tools/security-scanner/ (sad_security_scanner_lib + sad-guard).
-# (EN) Removed security_scanner*/taint_tracker.cpp � moved to
+# (EN) Removed security_scanner*/taint_tracker.cpp — moved to
 #      tools/security-scanner/ (sad_security_scanner_lib + sad-guard).
-# (AR) ?????? ????? format/sad_formatter*.cpp � ?????? ???
+# (AR) ?????? ????? format/sad_formatter*.cpp — ?????? ???
 #      tools/formatter/ (sad_formatter_lib) ?????? ??? tools/shared
 #      (sad_tools_shared) ???? ???? KeywordTable ?? shared/lexer ???????.
-# (EN) Removed format/sad_formatter*.cpp � moved to tools/formatter/
+# (EN) Removed format/sad_formatter*.cpp — moved to tools/formatter/
 #      (sad_formatter_lib) which depends on tools/shared (sad_tools_shared)
 #      that reads KeywordTable from shared/lexer directly.
 # ============================================================================
@@ -469,12 +463,18 @@ if(TOOLS_VERIFIED_SOURCES)
  endif()
  message(STATUS "Configured sad_tools library (formatter, docs, build)")
 else()
- message(STATUS " [tools] No verified source files �� sad_tools skipped")
+ message(STATUS " [tools] No verified source files — sad_tools skipped")
 endif()
 
 # ============================================================================
-# SadUI IR Library ( )
+# SadUI IR Library — مكتبة التمثيل الوسيط لواجهات SadUI
 # ============================================================================
+# (AR) ملاحظة: مصادر src/ui/sad_ui_ir*.cpp غير موجودة على القرص حاليًّا، فتُصفَّى
+#      عبر UI_IR_VERIFIED_SOURCES أدناه وتُتخطّى المكتبة بأمان (لا فشل بناء).
+#      الكتلة محفوظة للتفعيل المستقبليّ عند توفّر المصادر؛ لا تُحذف.
+# (EN) Note: src/ui/sad_ui_ir*.cpp are absent on disk right now, so they are
+#      filtered by UI_IR_VERIFIED_SOURCES below and the library is safely skipped
+#      (no build failure). Block kept for future activation; do not delete.
 set(UI_IR_SOURCES
  src/ui/sad_ui_ir.cpp
  src/ui/sad_ui_ir_builder.cpp
@@ -485,12 +485,12 @@ set(UI_IR_SOURCES
  src/ui/ios_swiftui_codegen.cpp
  src/ui/web_html_codegen.cpp
  src/ui/sad_ui_pipeline.cpp
- # (AR) UIParser sad_ui_pipeline.cpp
+ # (AR) تنفيذ UIParser المطلوب من sad_ui_pipeline.cpp
  # (EN) UIParser implementation required by sad_ui_pipeline.cpp
  ${SAD_SHARED_DIR}/shared/parser/src/specs/ui/parser_ui_maps.cpp
 )
 
-#
+# (AR) تصفية المصادر الموجودة فعلًا على القرص فقط / (EN) keep only sources present on disk
 set(UI_IR_VERIFIED_SOURCES "")
 foreach(src ${UI_IR_SOURCES})
  if(IS_ABSOLUTE "${src}")
@@ -526,11 +526,11 @@ if(UI_IR_VERIFIED_SOURCES)
  endif()
  message(STATUS "Configured sad_ui_ir library (SadUI IR: builder, validator, optimizer, codegen)")
 else()
- message(STATUS " [ui_ir] No source files found �� sad_ui_ir skipped")
+ message(STATUS " [ui_ir] No source files found — sad_ui_ir skipped")
 endif()
 
 # ============================================================================
-# Borrow Checker / Lifetime Library � REMOVED
+# Borrow Checker / Lifetime Library — REMOVED
 # ============================================================================
 # (AR) ???? compiler/src/borrow/ ???????: ????? Phase 20 (T204-T206) ?? ???????
 #      ?? (0 ???????). ????? ?????? ??????? ????lifetimes ?? shared/ownership/.
@@ -539,7 +539,7 @@ endif()
 # ============================================================================
 
 # ============================================================================
-# Cross-Compilation Targets Library � REMOVED
+# Cross-Compilation Targets Library — REMOVED
 # ============================================================================
 # (AR) ???? compiler/src/targets/ ???????: ????? Phase 24 (T235/T236/T241) ?? ????? ???????.
 #      ??????: tools/compiler/compiler_driver.h::TargetTriple +
@@ -564,24 +564,24 @@ endif()
 # (EN) sad_advanced_optimizer library fully removed (CW-19 + BF-09).
 #      It contained 3 duplicate AST-level pass implementations with no live
 #      consumers (live path is SIR-only via sad_optimizer in compiler/src/sir_optimizer/).
-#      Only arabic_passes.cpp survived � relocated to compiler/src/backend/llvm/
+#      Only arabic_passes.cpp survived — relocated to compiler/src/backend/llvm/
 #      and registered in the LLVM PassBuilder.
 #      See: compiler/docs/optimization_layers.md
 # ============================================================================
 
 # ============================================================================
-# (AR) ?????? ????? sad_ffi � ???? ???? c_api_bridge.cpp ? ownership_annotations.cpp
+# (AR) ?????? ????? sad_ffi — ???? ???? c_api_bridge.cpp ? ownership_annotations.cpp
 #      ??????? ??? ??? ??????? (?? ?????? ????? ????????). ?????? ????
 #      ??? FFI (c_abi.h, ffi_wrapper.h) ?? ???? ?? compiler/include/ffi/
 #      ???????? ??? sad_llvm_backend.
-# (EN) sad_ffi library removed � c_api_bridge.cpp and ownership_annotations.cpp
+# (EN) sad_ffi library removed — c_api_bridge.cpp and ownership_annotations.cpp
 #      were dead code (no external consumers). The live FFI core (c_abi.h,
 #      ffi_wrapper.h) remains under compiler/include/ffi/ and is compiled
 #      via sad_llvm_backend.
 # ============================================================================
 
 # ============================================================================
-# LLVM Abstraction Library (��ق� ���ي� LLVM)
+# LLVM Abstraction Library — طبقة تجريد LLVM
 # Phase 91: T1030
 # ============================================================================
 if(LLVM_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/abstraction/llvm_wrapper.cpp")
@@ -687,7 +687,7 @@ if(LLVM_FOUND)
  message(STATUS "Configured test_backend executable (dual-config: Debug + Release)")
  else()
  add_executable(test_backend EXCLUDE_FROM_ALL tools/test_backend.cpp)
- message(STATUS "Configured test_backend executable (EXCLUDE_FROM_ALL �� Release only)")
+ message(STATUS "Configured test_backend executable (EXCLUDE_FROM_ALL — Release only)")
  endif()
  target_include_directories(test_backend PRIVATE
  ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -804,5 +804,5 @@ endif()
 # ============================================================================
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/runtime/CMakeLists.txt")
  add_subdirectory(runtime)
- message(STATUS "� �م �ف�ي� م�ٯ runtime �ٱ��م��")
+ message(STATUS "تمّ تضمين مجلّد runtime الفرعيّ / Added runtime subdirectory")
 endif()

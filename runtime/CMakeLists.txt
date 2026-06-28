@@ -1,14 +1,14 @@
 # ============================================================================
 # Runtime - وقت التشغيل (مُقَلَّص بعد أرشفة المكونات الميتة)
-# (AR) في 2025 تم تشخيص ~6 مكتبات runtime بأنها dead code يحذفها linker تماماً
-#      من sad.exe و sadc.exe. تم نقلها إلى archived/runtime_experiments/.
+# (AR) في 2025 شُخِّصت ~6 مكتبات runtime بأنها dead code يحذفها linker تماماً
+#      من sad-run و sad-build. أُرشفت ثمّ حُذفت في م5 (RFC sadlang-rfcs#10).
 #      يحتفظ هذا الملف بالمكتبات النشطة فعلياً فقط:
 #        - sad_rt_abi  : C ABI marshalling (نشط)
 #        - sad_rt_ffi  : FFI bindings + firewall + sandbox (نشط، يستخدم abi)
 #        - sad_rt_ui   : UI runtime (نشط، يربطه llvm_codegen_ui)
 #        - sad_rt_freestanding : للـ OS / UEFI development (اختياري)
 # (EN) ~6 runtime libs were diagnosed as dead code (panic, sandbox, vm, memory,
-#      thread, exception). They were archived under archived/runtime_experiments/.
+#      thread, exception). Archived, then deleted in phase 5 (RFC #10).
 #      Only actively-linked libs remain here.
 # ============================================================================
 

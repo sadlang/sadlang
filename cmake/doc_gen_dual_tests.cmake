@@ -1,11 +1,11 @@
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
 # ملف: cmake/doc_gen_dual_tests.cmake
-# الوصف: اختبارات استخراج التوثيق المزدوج — مقارنة sad ↔ sadc
+# الوصف: اختبارات استخراج التوثيق المزدوج — مقارنة sad-run ↔ sad-build
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # (AR) يُعرّف أهدافاً وcmake-tests لتشغيل runner.py الخاص بـ doc_gen_dual_execution.
-#      يتطلب Python 3 + sad.exe + sadc.exe (والأخير مطلوب لاختبارات PDF).
+#      يتطلب Python 3 + sad-run + sad-build (والأخير مطلوب لاختبارات PDF).
 #
 #      الأهداف:
 #        doc_gen_tests_fast — كل الصيغ ما عدا PDF (~2 ثانية)
@@ -59,7 +59,7 @@ add_custom_target(doc_gen_tests_full
     USES_TERMINAL
 )
 
-# (AR) إذا كان sadc هدفاً، نضيف اعتمادية
+# (AR) إذا كان sad-build هدفاً، نضيف اعتمادية / (EN) add dependency if sad-build target exists
 if(TARGET sad-build)
     add_dependencies(doc_gen_tests_fast sad-build)
     add_dependencies(doc_gen_tests_full sad-build)

@@ -3,9 +3,8 @@
 # (EN) Shared Ownership Library - sad_ownership
 #
 # (AR) هذه المكتبة تحتوي على نظام فحص الملكية والاستعارة الموحَّد لكل المسارات:
-#      - sad.exe (المفسّر)        — يستهلك عبر wrapper في interpreter
-#      - sad --vm (الآلة الافتراضية) — يستهلك عبر نفس wrapper
-#      - sadc.exe (المترجم)        — يستهلك مباشرة
+#      - sad-run (المفسّر)         — يستهلك عبر wrapper في interpreter
+#      - sad-build (المترجم)       — يستهلك مباشرة
 #      - sad.wasm                  — يستهلك مباشرة (مستقبلاً)
 #      - sad-check (أداة مستقلة)   — يستهلك مباشرة (مستقبلاً)
 #

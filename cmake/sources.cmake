@@ -272,11 +272,14 @@ set(COMPILER_FRONTEND_SOURCES
 # (AR) دعم شامل لتوليد كود وضع بلا_مكتبة_قياسية (bare-metal)
 # (EN) Comprehensive support for no_std / freestanding code generation
 # ──────────────────────────────────────────────────────────────────────
-# (AR) أُرشف FREESTANDING_SOURCES إلى archived/compiler_pipeline_legacy/
-#      السبب: ENABLE_FREESTANDING لم يُعرَّف أبداً عبر option() فكان الفرع ميتاً،
-#      ومصادر compiler/src/pipeline/* لها 0 مستدعون خارجيون.
-# (EN) FREESTANDING_SOURCES archived: ENABLE_FREESTANDING was never defined
-#      and compiler/src/pipeline/* had 0 external callers.
+# (AR) حُذف FREESTANDING_SOURCES في م5 (RFC sadlang-rfcs#10) — كان مؤرشفًا في
+#      archived/compiler_pipeline_legacy/ ثمّ أُخلي مجلّد archived/ كلّه (كود ميّت
+#      بلا بناء ولا تضمين). السبب الأصليّ: ENABLE_FREESTANDING لم يُعرَّف أبداً عبر
+#      option() فكان الفرع ميتاً، ومصادر compiler/src/pipeline/* لها 0 مستدعون خارجيون.
+# (EN) FREESTANDING_SOURCES deleted in phase 5 (RFC #10) — was archived under
+#      archived/compiler_pipeline_legacy/, then the whole archived/ tree was removed
+#      (dead code, no build/include). ENABLE_FREESTANDING was never defined;
+#      compiler/src/pipeline/* had 0 external callers.
 set(FREESTANDING_SOURCES "")
 
 # ──────────────────────────────────────────────────────────────────────

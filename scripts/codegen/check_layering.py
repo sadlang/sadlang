@@ -78,8 +78,10 @@ EXE_COMPILER = {"sad-build"}
 # (EN) target_link_libraries scope keywords — not dependencies.
 KEYWORDS = {"PUBLIC", "PRIVATE", "INTERFACE", "LINK_PUBLIC", "LINK_PRIVATE"}
 
-# (AR) جذور تُستثنى من المسح (مخرجات بناء/تاريخيّ/توزيع/طرف ثالث).
-# (EN) Roots excluded from the scan (build outputs / archived / dist / third-party).
+# (AR) جذور تُستثنى من المسح (مخرجات بناء/توزيع/طرف ثالث). يبقى "archived" دفاعيًّا
+#      رغم حذف المجلّد في م5 (RFC sadlang-rfcs#10) — استثناء لمسارٍ غير موجود حميد.
+# (EN) Roots excluded from the scan (build outputs / dist / third-party). "archived" is
+#      kept defensively though the dir was deleted in phase 5 (RFC #10) — a no-op exclusion.
 SKIP_DIRS = {
     "build", "build-debug", "build-release", "out", "dist", ".git",
     "archived", "distribution", "_scratch", "third_party", "vcpkg",
