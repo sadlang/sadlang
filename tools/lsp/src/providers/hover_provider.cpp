@@ -23,10 +23,13 @@
 // (EN) The single unified entry point for the type system; it transitively
 //      includes the generated header (no extra include needed by design).
 #include "sad_type_system.h"
-// (AR) معجم اللغة المولَّد — مصدر أوصاف الكلمات المفتاحية (keywordDescriptionAr)
-//      المشتقّة من language-truth/keywords.yaml بدل تهريدها (CW-19/CW-10).
-// (EN) Generated lexicon — source of keyword descriptions derived from the SoT.
-#include "keywords_generated.h"
+// (AR) أوصاف hover للكلمات المفتاحية — نظام داخليّ مملوك لأداة LSP، يُولَّد من
+//      tools/lsp/data/keyword_docs.yaml ويُتحقَّق منه ضدّ المعجم (language-truth)
+//      وقت التوليد. الأداة تستهلك مصدر الحقيقة ولا توسّعه (CW-19/CW-10).
+// (EN) Keyword hover descriptions — an LSP-owned internal system, generated from
+//      tools/lsp/data/keyword_docs.yaml and validated against the lexicon at
+//      build time. The tool consumes the SoT, it does not expand it.
+#include "keyword_docs_generated.h"
 #include <unordered_map>
 
 namespace sad {
@@ -389,17 +392,17 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
             content += keyword_hover_title(word);
             content += "**التصنيف:** " + it->second.category + "\n\n";
             content += "---\n\n";
-            // (AR) أولويّة الوصف من مصدر الحقيقة: نوع سطحيّ (types.yaml) ثمّ كلمة
-            //      المعجم (keywords.yaml) ثمّ الوصف المحرَّر احتياطًا. صار المعجم
-            //      يحمل description_ar فلم تعد أوصاف الكلمات مهرَّدة (CW-19/CW-10).
-            // (EN) Description priority from the SoT: surface type (types.yaml), then
-            //      lexicon word (keywords.yaml), then the authored fallback. The lexicon
-            //      now carries description_ar, so keyword descriptions are no longer magic.
+            // (AR) أولويّة الوصف: نوع سطحيّ من مصدر الحقيقة (types.yaml) ثمّ وصف
+            //      الأداة المولَّد (keyword_docs.yaml، مُتحقَّق ضدّ المعجم) ثمّ الوصف
+            //      المحرَّر احتياطًا. الأداة تستهلك SoT ولا توسّعه (CW-19/CW-10).
+            // (EN) Description priority: surface type from the SoT (types.yaml), then
+            //      the tool's generated doc (keyword_docs.yaml, validated against the
+            //      lexicon), then the authored fallback. The tool consumes the SoT.
             const std::string sot_type_desc = resolve_surface_type_desc(word);
-            const std::string& sot_kw_desc =
-                Sad::Lexer::Generated::keywordDescriptionAr(word);
+            const std::string& tool_kw_desc =
+                sad::lsp::docs::keywordDocDescriptionAr(word);
             content += (!sot_type_desc.empty()    ? sot_type_desc
-                        : !sot_kw_desc.empty()    ? sot_kw_desc
+                        : !tool_kw_desc.empty()   ? tool_kw_desc
                                                   : it->second.description) + "\n\n";
             content += "**مثال:**\n```sad\n" + it->second.example + "\n```\n";
 
@@ -426,24 +429,23 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
         }
     }
 
-    // ──── ١-ج. كلمة في المعجم بلا توثيق محرَّر (ليس/أطلق/سمة/عقد…) ────
+    // ──── ١-ج. كلمة معجمية بلا توثيق محرَّر (ليس/أطلق/سمة/عقد…) ────
     // (AR) كثير من كلمات المعجم ليست في get_keyword_docs (مثل العامل «ليس»)، فكانت
-    //      بلا تلميح إطلاقًا. صار المعجم يحمل description_ar فنعرضه مباشرة — تغطية
-    //      كاملة لا جزئية (BF-22). لا «التصنيف» هنا لأنّ get_keyword_docs (مصدره)
-    //      غائب؛ نكتفي بالوصف من المعجم.
-    // (EN) Many lexicon words (e.g. the operator «ليس») are absent from
-    //      get_keyword_docs and had NO hover. The lexicon now carries description_ar,
-    //      so we show it — full, not partial (BF-22). No category line: its source
-    //      (get_keyword_docs) is absent, so the lexicon description stands alone.
+    //      بلا تلميح إطلاقًا. نظام أوصاف الأداة (keyword_docs.yaml) يغطّيها فنعرضه
+    //      مباشرة — تغطية كاملة لا جزئية (BF-22). لا «التصنيف» هنا لأنّ get_keyword_docs
+    //      (مصدره) غائب؛ نكتفي بوصف الأداة المُتحقَّق ضدّ المعجم.
+    // (EN) Many lexicon words (e.g. «ليس») are absent from get_keyword_docs and had
+    //      NO hover. The tool's docs system (keyword_docs.yaml) covers them, so we
+    //      show it — full, not partial (BF-22). No category line here.
     {
-        const std::string& sot_kw_desc =
-            Sad::Lexer::Generated::keywordDescriptionAr(word);
-        if (!sot_kw_desc.empty()) {
+        const std::string& tool_kw_desc =
+            sad::lsp::docs::keywordDocDescriptionAr(word);
+        if (!tool_kw_desc.empty()) {
             Hover hover_result;
             std::string content;
             content += keyword_hover_title(word);
             content += "---\n\n";
-            content += sot_kw_desc + "\n\n";
+            content += tool_kw_desc + "\n\n";
             hover_result.contents = {"markdown", content};
             hover_result.range = compute_word_range();
             return hover_result;

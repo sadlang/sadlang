@@ -25,6 +25,41 @@
 
 cmake_minimum_required(VERSION 3.15)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) توليد أوصاف hover للكلمات المفتاحية — نظام داخليّ خاصّ بأداة LSP
+#      يستهلك مصدر الحقيقة (language-truth/keywords.yaml) للتحقّق فقط ولا يعدّله؛
+#      البيانات نفسها (الأوصاف) مملوكة للأداة في tools/lsp/data/keyword_docs.yaml.
+#      تُولَّد الترويسة في مجلّد البناء (غير متتبَّعة) فلا تُلوِّث المصدر ولا تحتاج
+#      فحص تزامن codegen. (يحقّق: الأدوات تستهلك SoT ولا توسّعه.)
+# (EN) Generate keyword hover descriptions — an LSP-internal system. It CONSUMES
+#      the SoT (language-truth/keywords.yaml) for validation only, never edits it;
+#      the descriptions live in the tool-owned tools/lsp/data/keyword_docs.yaml.
+#      The header is generated into the build tree (untracked).
+# ══════════════════════════════════════════════════════════════════════════════
+if(NOT Python3_FOUND)
+    find_package(Python3 3.9 COMPONENTS Interpreter REQUIRED)
+endif()
+
+set(LSP_KW_DOCS_YAML   "${CMAKE_CURRENT_SOURCE_DIR}/data/keyword_docs.yaml")
+set(LSP_KW_DOCS_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_keyword_docs.py")
+set(LSP_KW_DOCS_SOT    "${CMAKE_SOURCE_DIR}/language-truth/keywords.yaml")
+set(LSP_KW_DOCS_GENDIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(LSP_KW_DOCS_HEADER "${LSP_KW_DOCS_GENDIR}/keyword_docs_generated.h")
+
+add_custom_command(
+    OUTPUT  "${LSP_KW_DOCS_HEADER}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${LSP_KW_DOCS_GENDIR}"
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8
+            ${Python3_EXECUTABLE} "${LSP_KW_DOCS_SCRIPT}"
+            --docs "${LSP_KW_DOCS_YAML}"
+            --sot  "${LSP_KW_DOCS_SOT}"
+            --out  "${LSP_KW_DOCS_HEADER}"
+    DEPENDS "${LSP_KW_DOCS_YAML}" "${LSP_KW_DOCS_SCRIPT}" "${LSP_KW_DOCS_SOT}"
+    COMMENT "(sad-lsp) Generating keyword hover docs (consumes SoT, tool-owned data)"
+    VERBATIM
+)
+add_custom_target(sad_lsp_keyword_docs_codegen DEPENDS "${LSP_KW_DOCS_HEADER}")
+
 # ──────────────────────────────────────────────────
 # (AR) مكتبة محرك LSP الأساسية — تحتوي على كل منطق التحليل والإكمال والتشخيصات
 # (EN) LSP engine core library — all analysis, completion and diagnostics logic
@@ -105,6 +140,11 @@ target_include_directories(sad_lsp_engine PUBLIC
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/include
 )
+
+# (AR) ترويسة أوصاف hover المولَّدة (نظام الأداة الداخليّ) — خاصّة بالمحرّك.
+# (EN) Generated keyword-docs header (tool-internal) — private to the engine.
+target_include_directories(sad_lsp_engine PRIVATE "${LSP_KW_DOCS_GENDIR}")
+add_dependencies(sad_lsp_engine sad_lsp_keyword_docs_codegen)
 
 # (AR) م4 (RFC sadlang-rfcs#10): إعادة توصيل الأدوات إلى sad_shared الحقيقيّ.
 #      خادم LSP تحليلٌ ساكن (معجم/محلّل/AST/أنواع) — لا يستعمل أيّ رمز Sad::Interpreter::

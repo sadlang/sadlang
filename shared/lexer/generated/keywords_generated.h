@@ -38,7 +38,6 @@ struct KeywordEntry {
     std::vector<std::string>   aliases;         ///< (AR) أسماء بديلة (بدون تشكيل/همزة)
     std::vector<std::string>   roles;           ///< (AR) أدوار دلالية (block_opener, ...)
     std::string                english;         ///< (AR) المرادف الإنجليزي (للتوثيق)
-    std::string                descriptionAr;   ///< (AR) وصف عربيّ موجز (مصدر hover) — فارغ لأنواع builtin (وصفها في types.yaml)
 };
 
 /**
@@ -46,14 +45,6 @@ struct KeywordEntry {
  * @brief (EN) Full lexicon entries
  */
 const std::vector<KeywordEntry>& allEntries();
-
-/**
- * @brief (AR) الوصف العربيّ الموجز لكلمة (رئيسية أو بديلة) — مصدر hover في LSP.
- *        يُرجِع "" إن لم تُعرَف الكلمة أو كانت بلا وصف (مثل أنواع builtin، وصفها في types.yaml).
- * @brief (EN) Short Arabic description for a word (primary or alias) — LSP hover source.
- *        Returns "" if unknown or has no description (e.g. builtin types, see types.yaml).
- */
-const std::string& keywordDescriptionAr(const std::string& word);
 
 /**
  * @brief (AR) عدد الإدخالات الإجمالي (compile-time)

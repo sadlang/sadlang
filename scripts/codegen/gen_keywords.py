@@ -126,35 +126,6 @@ def validate_data(data: dict[str, Any], schema: dict[str, Any]) -> None:
                 )
             seen_types[tt] = cat_name
 
-    # (AR) فحص دلاليّ: جودة description_ar — حارس انحدار يمنع تسرّب أوصاف رديئة
-    #      من مصدر الحقيقة إلى hover في LSP (BF-27: آلية وقائية بعد توحيد الأوصاف):
-    #        • لا فراغ بادئ/لاحق (يفسد عرض hover ويهدّد حتميّة المولِّد)
-    #        • لا أسطر متعددة (وصف hover سطرٌ واحد موجز)
-    #        • تنتهي بعلامة نهاية جملة (. ؟ ؛) توحيدًا للأسلوب
-    # (EN) Semantic check: description_ar quality — prevents poor hover text leaking
-    #      from the SoT into the LSP (no surrounding whitespace, single line, ends
-    #      with a sentence terminator).
-    SENTENCE_TERMINATORS = (".", "؟", "؛")  # . ؟ ؛
-    for cat_name, cat in data["categories"].items():
-        for entry in cat["keywords"]:
-            desc = entry.get("description_ar")
-            if desc is None:
-                continue
-            word = entry["word"]
-            if desc != desc.strip():
-                raise ValueError(
-                    f"description_ar for '{word}' has leading/trailing whitespace."
-                )
-            if "\n" in desc:
-                raise ValueError(
-                    f"description_ar for '{word}' must be a single line (no newline)."
-                )
-            if not desc.endswith(SENTENCE_TERMINATORS):
-                raise ValueError(
-                    f"description_ar for '{word}' must end with a sentence "
-                    f"terminator (. ؟ ؛); got: {desc!r}"
-                )
-
 
 # =====================================================================
 # (AR) توليد الـ header
@@ -200,7 +171,6 @@ struct KeywordEntry {{
     std::vector<std::string>   aliases;         ///< (AR) أسماء بديلة (بدون تشكيل/همزة)
     std::vector<std::string>   roles;           ///< (AR) أدوار دلالية (block_opener, ...)
     std::string                english;         ///< (AR) المرادف الإنجليزي (للتوثيق)
-    std::string                descriptionAr;   ///< (AR) وصف عربيّ موجز (مصدر hover) — فارغ لأنواع builtin (وصفها في types.yaml)
 }};
 
 /**
@@ -208,14 +178,6 @@ struct KeywordEntry {{
  * @brief (EN) Full lexicon entries
  */
 const std::vector<KeywordEntry>& allEntries();
-
-/**
- * @brief (AR) الوصف العربيّ الموجز لكلمة (رئيسية أو بديلة) — مصدر hover في LSP.
- *        يُرجِع "" إن لم تُعرَف الكلمة أو كانت بلا وصف (مثل أنواع builtin، وصفها في types.yaml).
- * @brief (EN) Short Arabic description for a word (primary or alias) — LSP hover source.
- *        Returns "" if unknown or has no description (e.g. builtin types, see types.yaml).
- */
-const std::string& keywordDescriptionAr(const std::string& word);
 
 /**
  * @brief (AR) عدد الإدخالات الإجمالي (compile-time)
@@ -249,8 +211,6 @@ SOURCE_TEMPLATE = '''// ========================================================
 
 #include "keywords_generated.h"
 
-#include <unordered_map>
-
 namespace Sad {{
 namespace Lexer {{
 namespace Generated {{
@@ -260,23 +220,6 @@ const std::vector<KeywordEntry>& allEntries() {{
 {rows}
     }};
     return entries;
-}}
-
-const std::string& keywordDescriptionAr(const std::string& word) {{
-    static const std::string kEmpty;
-    // (AR) فهرس كلمة→وصف يُبنى مرّة واحدة من allEntries()، يشمل الأسماء البديلة.
-    // (EN) Word→description map built once from allEntries(), aliases included.
-    static const std::unordered_map<std::string, const std::string*> index = []() {{
-        std::unordered_map<std::string, const std::string*> m;
-        for (const auto& e : allEntries()) {{
-            if (e.descriptionAr.empty()) continue;
-            m.emplace(e.primaryWord, &e.descriptionAr);
-            for (const auto& a : e.aliases) m.emplace(a, &e.descriptionAr);
-        }}
-        return m;
-    }}();
-    auto it = index.find(word);
-    return it != index.end() ? *(it->second) : kEmpty;
 }}
 
 }} // namespace Generated
@@ -306,10 +249,9 @@ def emit_source(data: dict[str, Any]) -> str:
             aliases   = vector_literal(entry.get("aliases", []))
             roles     = vector_literal(entry.get("roles", []))
             english   = cpp_string_literal(entry.get("english", ""))
-            desc_ar   = cpp_string_literal(entry.get("description_ar", ""))
             rows.append(
                 f"        {{ {word_lit}, {tt}, {cat_lit}, {emitted}, "
-                f"{aliases}, {roles}, {english}, {desc_ar} }},"
+                f"{aliases}, {roles}, {english} }},"
             )
     return SOURCE_TEMPLATE.format(version=data["version"], rows="\n".join(rows))
 
