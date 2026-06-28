@@ -43,6 +43,12 @@
         "word":        { "type": "string", "minLength": 1 },
         "tokenType":   { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
         "english":     { "type": "string" },
+        "description_ar": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "(AR) وصف عربيّ موجز للكلمة — مصدر hover في LSP. حقل اختياريّ؛ يُترك لأنواع builtin_types (وصفها في types.yaml). سطر واحد ينتهي بعلامة نهاية جملة (يفرضه المولِّد)."
+        },
         "id":          {
           "type": "string",
           "pattern": "^KW-[A-Z]+-\\d{3}$",

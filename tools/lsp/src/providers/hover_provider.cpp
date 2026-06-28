@@ -23,6 +23,10 @@
 // (EN) The single unified entry point for the type system; it transitively
 //      includes the generated header (no extra include needed by design).
 #include "sad_type_system.h"
+// (AR) معجم اللغة المولَّد — مصدر أوصاف الكلمات المفتاحية (keywordDescriptionAr)
+//      المشتقّة من language-truth/keywords.yaml بدل تهريدها (CW-19/CW-10).
+// (EN) Generated lexicon — source of keyword descriptions derived from the SoT.
+#include "keywords_generated.h"
 #include <unordered_map>
 
 namespace sad {
@@ -331,6 +335,15 @@ static std::string resolve_surface_type_desc(const std::string& word) {
     return "";
 }
 
+/// (AR) سطر عنوان تلميح الكلمة المفتاحية «### 🔑 كلمة مفتاحية: `word`» — مشترك بين
+///      مسارات التلميح الثلاثة (المعجم/النوع السطحيّ/المعجم بلا توثيق محرَّر) إزالةً
+///      للتكرار (CW-19: DRY). نقطةُ تغييرٍ واحدة لو تغيّر التنسيق مستقبلًا.
+/// (EN) Keyword-hover title line, shared by all three hover paths (DRY, single point
+///      of change for the format).
+static std::string keyword_hover_title(const std::string& word) {
+    return "### 🔑 كلمة مفتاحية: `" + word + "`\n\n";
+}
+
 /// (AR) يبني تلميح نوع سطحيّ (وصفه من المصدر) لكلمةٍ ليست في معجم الكلمات المفتاحية،
 ///      كي لا يبقى النوع السطحيّ (مصفوفة/خريطة/أي/فراغ) بلا تلميح أصلًا.
 /// (EN) Builds a surface-type hover (SoT-sourced) for a word absent from the keyword
@@ -338,7 +351,7 @@ static std::string resolve_surface_type_desc(const std::string& word) {
 static std::string build_surface_type_hover_body(const std::string& word,
                                                  const std::string& sot_desc) {
     std::string content;
-    content += "### 🔑 \xd9\x83\xd9\x84\xd9\x85\xd8\xa9 \xd9\x85\xd9\x81\xd8\xaa\xd8\xa7\xd8\xad\xd9\x8a\xd8\xa9: `" + word + "`\n\n"; // كلمة مفتاحية
+    content += keyword_hover_title(word);
     content += "**\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb5\xd9\x86\xd9\x8a\xd9\x81:** " + SURFACE_TYPE_CATEGORY + "\n\n"; // التصنيف
     content += "---\n\n";
     content += sot_desc + "\n\n";
@@ -373,17 +386,21 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
             Hover hover_result;
             std::string content;
 
-            content += "### 🔑 كلمة مفتاحية: `" + word + "`\n\n";
+            content += keyword_hover_title(word);
             content += "**التصنيف:** " + it->second.category + "\n\n";
             content += "---\n\n";
-            // (AR) أوصاف الأنواع السطحية تُشتقّ من مصدر الحقيقة (types.yaml ⇒
-            //      resolve_surface_type_desc) فلا تنحرف عن الوصف الرسميّ؛ أمّا
-            //      الكلمات المفتاحية فأوصافها محرَّرة (المعجم لا يحمل وصفًا بعد).
-            // (EN) Surface-type descriptions come from the SoT (types.yaml); keyword
-            //      descriptions stay authored (the lexicon has no description field yet).
+            // (AR) أولويّة الوصف من مصدر الحقيقة: نوع سطحيّ (types.yaml) ثمّ كلمة
+            //      المعجم (keywords.yaml) ثمّ الوصف المحرَّر احتياطًا. صار المعجم
+            //      يحمل description_ar فلم تعد أوصاف الكلمات مهرَّدة (CW-19/CW-10).
+            // (EN) Description priority from the SoT: surface type (types.yaml), then
+            //      lexicon word (keywords.yaml), then the authored fallback. The lexicon
+            //      now carries description_ar, so keyword descriptions are no longer magic.
             const std::string sot_type_desc = resolve_surface_type_desc(word);
-            content += (!sot_type_desc.empty() ? sot_type_desc
-                                               : it->second.description) + "\n\n";
+            const std::string& sot_kw_desc =
+                Sad::Lexer::Generated::keywordDescriptionAr(word);
+            content += (!sot_type_desc.empty()    ? sot_type_desc
+                        : !sot_kw_desc.empty()    ? sot_kw_desc
+                                                  : it->second.description) + "\n\n";
             content += "**مثال:**\n```sad\n" + it->second.example + "\n```\n";
 
             hover_result.contents = {"markdown", content};
@@ -404,6 +421,30 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
             Hover hover_result;
             hover_result.contents =
                 {"markdown", build_surface_type_hover_body(word, sot_type_desc)};
+            hover_result.range = compute_word_range();
+            return hover_result;
+        }
+    }
+
+    // ──── ١-ج. كلمة في المعجم بلا توثيق محرَّر (ليس/أطلق/سمة/عقد…) ────
+    // (AR) كثير من كلمات المعجم ليست في get_keyword_docs (مثل العامل «ليس»)، فكانت
+    //      بلا تلميح إطلاقًا. صار المعجم يحمل description_ar فنعرضه مباشرة — تغطية
+    //      كاملة لا جزئية (BF-22). لا «التصنيف» هنا لأنّ get_keyword_docs (مصدره)
+    //      غائب؛ نكتفي بالوصف من المعجم.
+    // (EN) Many lexicon words (e.g. the operator «ليس») are absent from
+    //      get_keyword_docs and had NO hover. The lexicon now carries description_ar,
+    //      so we show it — full, not partial (BF-22). No category line: its source
+    //      (get_keyword_docs) is absent, so the lexicon description stands alone.
+    {
+        const std::string& sot_kw_desc =
+            Sad::Lexer::Generated::keywordDescriptionAr(word);
+        if (!sot_kw_desc.empty()) {
+            Hover hover_result;
+            std::string content;
+            content += keyword_hover_title(word);
+            content += "---\n\n";
+            content += sot_kw_desc + "\n\n";
+            hover_result.contents = {"markdown", content};
             hover_result.range = compute_word_range();
             return hover_result;
         }

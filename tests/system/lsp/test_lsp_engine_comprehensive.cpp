@@ -344,6 +344,68 @@ TEST(LspHover, مثال_الكلمة_المفتاحية_دالة_باقٍ) {
     ASSERT_TRUE(h->contents.value.find(u8"**مثال:**") != std::string::npos);
 }
 
+// أولويّة المصدر: «صحيح» موجودة في get_keyword_docs (المسار ١)، لكنّ الوصف صار
+// يُشتقّ من المعجم لا من النصّ المحرَّر — حارس انحدار يثبت فوز description_ar.
+TEST(LspHover, تلميح_كلمة_المعجم_من_مصدر_الحقيقة) {
+    EngineFixture fx;
+    fx.open(u8"صحيح\n");  // في get_keyword_docs، لكن وصفها يُشتقّ من المعجم الآن
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"كلمة مفتاحية") != std::string::npos);
+    // وصف keywords.yaml لـ«صحيح»: «القيمة المنطقية الحقيقية (true).».
+    ASSERT_TRUE(h->contents.value.find(u8"القيمة المنطقية الحقيقية") != std::string::npos);
+}
+
+// عامل منطقيّ كلمة (ليس) — غائب فعلًا عن get_keyword_docs؛ يسلك المسار ١-ج ويأخذ
+// وصفه من المعجم. هذا هو المسار الجديد كلّيًّا (لم يكن له تلميح إطلاقًا قبل التغيير).
+TEST(LspHover, تلميح_العامل_المنطقيّ_من_المعجم) {
+    EngineFixture fx;
+    fx.open(u8"ليس\n");
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"ينفي القيمة المنطقية") != std::string::npos);
+}
+
+// المسار ١-ج لا يُضيف سطر «التصنيف» (مصدره get_keyword_docs الغائب)؛ نثبت غيابه
+// كي لا ينحرف التنسيق ويُحقن تصنيف فارغ. «ليس» نموذج كلمة معجم بلا توثيق محرَّر.
+TEST(LspHover, مسار_المعجم_بلا_سطر_تصنيف) {
+    EngineFixture fx;
+    fx.open(u8"ليس\n");
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"**التصنيف:**") == std::string::npos);
+}
+
+// الأسماء البديلة تُفهرَس أيضًا في keywordDescriptionAr: «اذا» (بلا همزة) بديلٌ
+// لـ«إذا»، فيجب أن يأخذ وصفها نفسه — حارس لشمول الأسماء البديلة في الفهرس.
+TEST(LspHover, تلميح_الاسم_البديل_يطابق_الرئيسيّ) {
+    EngineFixture fx;
+    fx.open(u8"اذا\n");
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"تُنفَّذ كتلتها إن صَحّ الشرط") != std::string::npos);
+}
+
+// حالة سلبية: معرِّف غير معروف (ليس كلمة معجم ولا نوعًا سطحيًّا ولا في الفهرس)
+// لا ينتج تلميحًا — حارس أنّ المسار ١-ج لا يُلمِّح ما ليس في المعجم (BF-22/BF-06).
+TEST(LspHover, كلمة_غير_معروفة_لا_تُلمَّح) {
+    EngineFixture fx;
+    fx.open(u8"سندباد_مجهول\n");
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_FALSE(h.has_value());
+}
+
+// حارس انحدار: الكلمة المحرَّرة (إذا) صار وصفها يُشتقّ من المعجم لا من النصّ المهرَّد؛
+// نُثبت ظهور صياغة المصدر الجديدة كي لا يعود الوصف ليُهرَّد في الكود.
+TEST(LspHover, وصف_الكلمة_المحرَّرة_يُشتقّ_من_المعجم) {
+    EngineFixture fx;
+    fx.open(u8"إذا\n");
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_TRUE(h.has_value());
+    // صياغة keywords.yaml: «جملة شرطية — تُنفَّذ كتلتها إن صَحّ الشرط.».
+    ASSERT_TRUE(h->contents.value.find(u8"تُنفَّذ كتلتها إن صَحّ الشرط") != std::string::npos);
+}
+
 TEST(LspDefinitionReferences, لا_تنهار_وتعيد_بنية_صحيحة) {
     EngineFixture fx;
     fx.open(SAMPLE);
