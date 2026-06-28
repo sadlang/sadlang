@@ -8,9 +8,12 @@
         ① الأساس المشترك    : sad_shared (نواة اللغة الحقيقيّة).
         ½ الحزام المشترك     : sad_type_system / sad_semantic / sad_memory_* /
                               sad_security_core / sad_null_safety / sad_mobile.
-        ② نظام المفسّر فقط   : sad_interp(=sad_core) / sad_builtins / sad_lowlevel /
-                              sad_ui_bridge / sad_ui / sad_network / sad_http /
-                              sad_websocket / sadnet / sad_rt_runtime / sad_profiler_lib.
+        ② نظام المفسّر فقط   : sad_interp(=sad_core) / sad_runtime / sad_builtins /
+                              sad_lowlevel / sad_ui_bridge / sad_ui / sad_network /
+                              sad_http / sad_websocket / sadnet / sad_rt_runtime /
+                              sad_profiler_lib.
+                              (sad_runtime = خدمات وقت التشغيل المشتركة؛ يُرقَّى إلى
+                               الحزام عند عودة الآلة الافتراضية كمستهلكٍ ثانٍ.)
         ③ نظام المترجم فقط   : sad_compiler / sad_frontend / sad_optimizer /
                               sad_llvm_backend / sad_tools / sad_ui_ir /
                               sad_abstraction / sad_security.
@@ -60,9 +63,9 @@ BAND = {
     "sad_security_core", "sad_null_safety", "sad_mobile",
 }
 INTERP = {
-    "sad_interp", "sad_builtins", "sad_lowlevel", "sad_ui_bridge", "sad_ui",
-    "sad_network", "sad_http", "sad_websocket", "sadnet", "sad_rt_runtime",
-    "sad_profiler_lib",
+    "sad_interp", "sad_runtime", "sad_builtins", "sad_lowlevel", "sad_ui_bridge",
+    "sad_ui", "sad_network", "sad_http", "sad_websocket", "sadnet",
+    "sad_rt_runtime", "sad_profiler_lib",
 }
 COMPILER = {
     "sad_compiler", "sad_frontend", "sad_optimizer", "sad_llvm_backend",

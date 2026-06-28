@@ -34,7 +34,11 @@ add_library(sad_interpreter STATIC
     src/visitors/statement_executor_modules.cpp
     
     # Managers
-    src/managers/class_manager.cpp
+    # (AR) class_manager.cpp نُقل إلى shared/types/ (RFC sadlang-rfcs#10 م3 خطوة 2)
+    #      — مواطن أساس في sad_shared؛ يُجمَّع هنا أيضًا (مكتبة جزئيّة لا تُربَط مباشرةً).
+    # (EN) class_manager.cpp relocated to shared/types/ (phase-3 step-2). Still compiled
+    #      here too (this partial lib is never linked directly — see header note).
+    ${CMAKE_SOURCE_DIR}/shared/types/src/class_manager.cpp
     src/managers/function_manager.cpp
     src/managers/object_manager.cpp
     src/managers/variable_manager.cpp

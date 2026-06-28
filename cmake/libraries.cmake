@@ -118,6 +118,37 @@ target_link_libraries(sad_interp PUBLIC sad_memory_policy)
 #      engine header to toggle the engine per gcStrategy.
 target_link_libraries(sad_interp PUBLIC sad_memory_gc)
 
+# ----------------------------------------------------------------------
+# (AR) م3 خطوة 4 (RFC sadlang-rfcs#10): مكتبة خدمات وقت التشغيل المشتركة sad_runtime.
+#      تُستخرَج المدراء الثلاثة (function/object/ownership) من قلب المفسّر إلى هدفٍ
+#      ساكنٍ منفصل، فيصير لها موضعٌ طبقيٌّ مستقلٌّ عن المشي على الشجرة — وهو موضع
+#      شقيق الآلة الافتراضية عند عودتها (تشترك المحرّكات في هذه الخدمات لا في الـwalker).
+#      الاتّجاه أحاديّ: sad_interp → sad_runtime. sad_runtime يربط فقط طبقات الأساس/
+#      المشترك التي تحتاجها المدراء (sad_shared/ownership/memory/security)، ولا يربط
+#      sad_interp ⇒ لا دورة. مساراتُ التضمين (interpreter/include …) عامّةٌ من الجذر.
+# (EN) Phase-3 step-4: shared runtime-services library sad_runtime. The three managers
+#      (function/object/ownership) extracted from the interpreter core into a separate
+#      static target — a layer position independent of tree walking, the future sibling
+#      slot for the VM. One-directional: sad_interp → sad_runtime (no cycle).
+# ----------------------------------------------------------------------
+add_library(sad_runtime STATIC ${SAD_RUNTIME_SOURCES})
+target_link_libraries(sad_runtime PUBLIC
+    sad_shared
+    sad_ownership
+    sad_memory_policy
+    sad_memory_gc
+    sad_security_core
+)
+if(MSVC)
+    target_compile_options(sad_runtime PRIVATE /FS /utf-8 /Z7)
+endif()
+set_target_properties(sad_runtime PROPERTIES
+    OUTPUT_NAME "sad_runtime"
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+)
+target_link_libraries(sad_interp PUBLIC sad_runtime)
+message(STATUS "✓ طبقة خدمات وقت التشغيل sad_runtime (function/object/ownership managers) / runtime-services layer")
+
 if(MSVC)
     target_compile_options(sad_interp PRIVATE /FS /utf-8 /Z7)
 endif()

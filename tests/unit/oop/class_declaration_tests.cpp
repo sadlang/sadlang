@@ -18,7 +18,9 @@
 // Include OOP headers
 #include "../../include/data/types/class_type.h"
 #include "../../include/data/types/object_instance.h"
-#include "../../include/data/managers/class_manager.h"
+// class_manager.h نُقل إلى shared/types/include (RFC sadlang-rfcs#10 م3 خطوة 2)
+// — يُحَلّ عبر مسار الهدف (هذا الاختبار معطَّل حاليًّا في cmake/tests.cmake).
+#include "class_manager.h"
 #include "../../include/data/managers/object_manager.h"
 #include "../../include/parser/ast/class_nodes.h"
 

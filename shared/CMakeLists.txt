@@ -40,11 +40,13 @@ add_library(sad_shared STATIC
     ast/src/class_nodes.cpp          # OOP AST nodes (ThisExpr, SuperExpr, NewExpr, etc.)
     ast/src/ast_clone.cpp            # Deep clone for AST nodes (templates, macros, traits)
     
-    # OOP Managers (مطلوبة للمترجم sadc)
-    ${CMAKE_SOURCE_DIR}/interpreter/src/managers/class_manager.cpp
-    
     # Types
     types/src/class_type.cpp
+    # (AR) ClassManager مواطن أساس (المحلّل يحتاجه) — نُقل من interpreter/ إلى types/
+    #      (RFC sadlang-rfcs#10 م3 خطوة 2) ليوافق موقعُه طبقتَه ويزيل سبب تصدير interpreter/include.
+    # (EN) ClassManager is a foundation citizen (parser needs it) — relocated from
+    #      interpreter/ to types/ (RFC #10 phase-3 step-2), removing the reason for the leak.
+    types/src/class_manager.cpp
     types/src/generator.cpp
     types/src/object_instance.cpp
     types/src/value.cpp
@@ -113,9 +115,19 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
         ${CMAKE_CURRENT_SOURCE_DIR}/builtins/include           # السجل المركزي الموحّد (ADR-003)
         ${CMAKE_CURRENT_SOURCE_DIR}/memory_gc/include          # B-step5b: pin.h يحتاج garbage_collector.h
-        ${CMAKE_SOURCE_DIR}/interpreter/include/managers   # ClassManager header
 )
 
+# (AR) م3 خطوة 3 (RFC sadlang-rfcs#10): أُزيل تصدير interpreter/include +
+#      interpreter/include/managers من sad_shared. بعد نقل class_manager.h إلى
+#      types/include (خطوة 2) لم يَعُد أيُّ مصدرٍ في sad_shared يحتاج ترويسات المفسّر،
+#      فلا يصحّ أن تُصدّرها النواةُ لمن يربطها (نظام المترجم خاصّةً). يثبّت حارسُ
+#      check_interpreter_boundary.py السلامةَ، وأهدافُ المفسّر تأخذ مساراتها من
+#      include_directories الجذر مباشرةً.
+# (EN) Phase-3 step-3: removed the interpreter/include exports from sad_shared.
+#      After relocating class_manager.h to types/include (step 2), no sad_shared
+#      source needs interpreter headers, so the core must not propagate them to its
+#      linkers (notably the compiler subsystem). Interpreter targets still get their
+#      paths from the root include_directories.
 # للتوافق مع الكود القديم
 target_include_directories(sad_shared
     PUBLIC
@@ -127,8 +139,6 @@ target_include_directories(sad_shared
         ${CMAKE_SOURCE_DIR}/include/errors
         ${CMAKE_SOURCE_DIR}/include/modules
         ${CMAKE_SOURCE_DIR}/include/utils
-        ${CMAKE_SOURCE_DIR}/interpreter/include
-        ${CMAKE_SOURCE_DIR}/interpreter/include/managers
 )
 
 target_compile_features(sad_shared PUBLIC cxx_std_17)

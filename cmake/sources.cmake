@@ -138,11 +138,14 @@ set(INTERPRETER_SOURCES
 # (AR) ملفات shared/types/* أصبحت تأتي عبر sad_shared (إزالة الازدواج)
 # (EN) shared/types/* now come via sad_shared (de-duplicated)
 # ──────────────────────────────────────────────────────────────────────
+# (AR) م3 خطوة 4 (RFC sadlang-rfcs#10): function_manager + ownership_manager خرجا إلى
+#      مكتبة sad_runtime (خدمات وقت التشغيل المشتركة، انظر SAD_RUNTIME_SOURCES أدناه).
+#      Scope/Variable يبقيان هنا (شجريّان خاصّان بالمفسّر الشجريّ).
+# (EN) Phase-3 step-4: function_manager + ownership_manager extracted to the sad_runtime
+#      library (shared runtime services). Scope/Variable stay here (tree-walk only).
 set(DATA_SOURCES
     interpreter/src/managers/variable_manager.cpp
-    interpreter/src/managers/function_manager.cpp
     interpreter/src/managers/scope_manager.cpp
-    interpreter/src/managers/ownership_manager.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -154,9 +157,9 @@ set(DATA_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 set(OOP_TYPES_SOURCES)
 
-set(OOP_MANAGERS_SOURCES
-    interpreter/src/managers/object_manager.cpp
-)
+# (AR) م3 خطوة 4: object_manager خرج إلى مكتبة sad_runtime (SAD_RUNTIME_SOURCES).
+# (EN) Phase-3 step-4: object_manager extracted to the sad_runtime library.
+set(OOP_MANAGERS_SOURCES)
 
 set(OOP_AST_SOURCES)
 
@@ -320,6 +323,28 @@ set(HOT_RELOAD_SOURCES
 #      dependency). Extracted from sad_core into a standalone target depending only on
 #      sad_shared, breaking the sad_core<->builtins cycle (stdlib_manager glue stays).
 # ===============================================================================
+# ===============================================================================
+# (AR) م3 خطوة 4 (RFC sadlang-rfcs#10): مصادر مكتبة sad_runtime — طبقة خدمات وقت
+#      التشغيل المشتركة المستخرَجة من قلب المفسّر. تضمّ المدراء الثلاثة الأقلّ اقترانًا
+#      بالمشي على الشجرة:
+#        • function_manager  — سجلّ الدوال (يستعمل BuiltinContext كنوعٍ في توقيعات
+#          std::function فقط، لا يستدعي مناهجه ⇒ بلا دورة رموز مع sad_interp).
+#        • object_manager    — دورة حياة الكائنات (0 اعتماد على دواخل المفسّر).
+#        • ownership_manager — غلاف نظام الملكية الموحَّد sad_ownership (0 اعتماد).
+#      Scope/Variable يبقيان في sad_interp (شجريّان). sad_interp يربط sad_runtime
+#      PUBLIC؛ الاتّجاه أحاديّ (sad_interp → sad_runtime). هذا هو موضع شقيق الآلة
+#      الافتراضية عند عودتها (تشترك المحرّكات في خدمات وقت التشغيل، لا في المشي).
+# (EN) Phase-3 step-4: sad_runtime library sources — shared runtime-services layer
+#      extracted from the interpreter core. The three managers least coupled to tree
+#      walking. One-directional (sad_interp → sad_runtime). Future home of the VM's
+#      shared runtime services (engines share runtime services, not the walker).
+# ===============================================================================
+set(SAD_RUNTIME_SOURCES
+    interpreter/src/managers/function_manager.cpp
+    interpreter/src/managers/object_manager.cpp
+    interpreter/src/managers/ownership_manager.cpp
+)
+
 set(SAD_BUILTINS_LIB_SOURCES
     shared/builtins/src/runtime/builtins.cpp
     shared/builtins/src/runtime/type_functions.cpp

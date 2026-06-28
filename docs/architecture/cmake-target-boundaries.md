@@ -68,6 +68,7 @@ flowchart TB
 | `sad_null_safety` | STATIC | ✅ (مباشر) | ✅ (مباشر) | مشترك — خدمات |
 | `sad_mobile` | STATIC | ✅ (مباشر) | ✅ (مباشر) | مشترك — منصّات |
 | **`sad_core`** *(= المفسّر)* | STATIC | ✅ | ❌ | **مفسّر فقط** |
+| `sad_runtime` *(خدمات وقت التشغيل)* | STATIC | ✅ (عبر `sad_core`) | ❌ | مفسّر فقط — يُرقَّى للحزام عند عودة الآلة الافتراضية |
 | `sad_builtins` | STATIC | ✅ (عبر `sad_core`) | ❌ | مفسّر فقط |
 | `sad_lowlevel` | STATIC | ✅ (عبر `sad_core`) | ❌ | مفسّر فقط |
 | `sad_ui_bridge` · `sad_ui` | STATIC | ✅ | ❌ | مفسّر فقط |
@@ -100,26 +101,15 @@ flowchart TB
 
 ---
 
-## 5. التسريب: نظيفٌ بالربط، مسرَّبٌ بالتضمين
+## 5. التسريب: أُغلق تصدير `sad_shared` (المرحلة 3) — ويبقى سطح الجذر محروسًا
 
-الحدود **نظيفة على مستوى الربط** (الجدول أعلاه دقيق)، لكنّها **مسرَّبة على مستوى مسارات التضمين**:
+كان `sad_shared` يُصدّر ترويسات المفسّر كـ`PUBLIC` (تصدير `interpreter/include` و`interpreter/include/managers`)، فأيُّ هدف يربط `sad_shared` — ومنه نظام المترجم — يستطيع `#include` ترويسات المفسّر.
 
-[shared/CMakeLists.txt](../../shared/CMakeLists.txt#L116) يُصدّر ترويسات المفسّر كـ`PUBLIC` من `sad_shared`:
+**أُغلق هذا التصدير في المرحلة 3** ([خطّة الاستخراج، خطوتا 2–3](sad_runtime-extraction-plan.md)): نُقلت ترويسة `ClassManager` (المواطن الأساس الوحيد الذي كان يبرّر التصدير) إلى `shared/types/`، فلم يَعُد أيُّ مصدرٍ في `sad_shared` يحتاج ترويسات المفسّر، وأُزيلت السطور الثلاثة من [shared/CMakeLists.txt](../../shared/CMakeLists.txt). رسم تبعيّات `sad_shared` صار أمينًا: النواة لا تُصدّر ترويسات المفسّر لمن يربطها.
 
-```cmake
-# السطر 116 (في الكتلة «النظيفة»):
-${CMAKE_SOURCE_DIR}/interpreter/include/managers   # ClassManager header
+**ما يبقى مفتوحًا (سطح أوسع، محروس):** الكتلة العامّة `include_directories(... interpreter/include ...)` في `CMakeLists.txt` الجذر ما زالت تُظهِر ترويسات المفسّر لكلّ هدف. نقلُها إلى `sad_interp PUBLIC` يمسّ رسمَ البناء كاملًا ⇒ يُؤجَّل إلى PR مكرَّس.
 
-# السطور 119-131 تحت تعليق «للتوافق مع الكود القديم»:
-${CMAKE_SOURCE_DIR}/interpreter/include
-${CMAKE_SOURCE_DIR}/interpreter/include/managers
-```
-
-**الأثر:** أيُّ هدف يربط `sad_shared` — **ومنه نظام المترجم بأكمله** (`sad-build` يربط `sad_shared` مباشرةً) — يستطيع `#include` ترويسات المفسّر. الباب مفتوح.
-
-**لكنّه تسريب كامن لا محقَّق:** فحص `compiler/src` و`compiler/include` أظهر أنّ **لا ملفّ مترجم يستغلّ هذا الباب فعلًا** (صفر `#include "interpreter/..."`). فالحدّ سليم اليوم بالممارسة، والخطر **مستقبليّ**: اقترانٌ عَرَضيّ قد يتسلّل بصمت.
-
-لذلك فالحارس (§6، **مطبَّق الآن**) **وقائيّ لا تصحيحيّ**: يثبّت الوضع السليم الحاليّ ويمنع انحداره.
+**والتسريب كامن لا محقَّق:** فحص `compiler/src`+`compiler/include` يُظهر **صفر** `#include "interpreter/..."`. فالحدّ سليم اليوم، والحارس (§6) **وقائيّ لا تصحيحيّ**: يثبّت الوضع السليم ويمنع انحداره.
 
 ---
 
@@ -129,9 +119,10 @@ ${CMAKE_SOURCE_DIR}/interpreter/include/managers
 |---|---|---|
 | 1 | **هذه الوثيقة** — خريطة الحدود | ✅ هنا |
 | 2 | **تصحيح الاسم `sad_core` ← `sad_interp`** — الهدف الحقيقيّ صار `sad_interp`؛ `sad_core` alias توافق ([cmake/libraries.cmake](../../cmake/libraries.cmake)) | ✅ مطبَّق |
-| 3 | **حارس تسريب التضمين** — [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py) + [workflow](../../.github/workflows/interpreter-boundary.yml) يفشلان إن ضمّن نظام المترجم ترويسات `interpreter/`. تقليم تصدير `sad_shared` التوافقيّ = خطوة تالية. | ✅ مطبَّق (الحارس) |
-| 4 | **حارس طبقات الربط (G4)** — [check_layering.py](../../scripts/codegen/check_layering.py) + [workflow](../../.github/workflows/layering-lint.yml) يحلّلان رسمَ الربط في CMake ويفشلان إن ربط هدفٌ من أحد المحرّكَين هدفًا من المحرّك الآخر (أو ربط الأساس `sad_shared` محرّكًا). شقيق الحارس السابق لكن على مستوى **رسم الربط** لا التضمين. وقائيّ: الحدّ نظيفٌ اليوم (77 حافّة، صفر اختراق). | ✅ مطبَّق (المرحلة 3) |
+| 3 | **حارس تسريب التضمين** — [check_interpreter_boundary.py](../../scripts/codegen/check_interpreter_boundary.py) + [workflow](../../.github/workflows/interpreter-boundary.yml) يفشلان إن ضمّن نظام المترجم ترويسات `interpreter/`. **تقليم تصدير `sad_shared` التوافقيّ: أُنجز في المرحلة 3** (§5؛ نُقلت `ClassManager` إلى `shared/types/` وأُزيل التصدير). | ✅ مطبَّق (الحارس + التقليم) |
+| 4 | **حارس طبقات الربط (G4)** — [check_layering.py](../../scripts/codegen/check_layering.py) + [workflow](../../.github/workflows/layering-lint.yml) يحلّلان رسمَ الربط في CMake ويفشلان إن ربط هدفٌ من أحد المحرّكَين هدفًا من المحرّك الآخر (أو ربط الأساس `sad_shared` محرّكًا). شقيق الحارس السابق لكن على مستوى **رسم الربط** لا التضمين. وقائيّ: الحدّ نظيفٌ اليوم (83 حافّة، صفر اختراق). | ✅ مطبَّق (المرحلة 3) |
 | 5 | **تنفيذيّان رفيعان في `apps/`** — نُقلت نقاط دخول `sad-run`/`sad-build` من `cmake/executables.cmake` إلى [apps/CMakeLists.txt](../../apps/CMakeLists.txt) (ومصادر `main` إلى `apps/sad-run/` و`apps/sad-build/`)، فصار حدّ الطبقة L2 (التنفيذيّات تستهلك المكتبات ولا تُستهلَك) صريحًا. أُسقط مسار `vm/include` الميّت (حُذفت الآلة في #96). | ✅ مطبَّق (المرحلة 3) |
+| 6 | **استخراج `sad_runtime`** — مكتبة ساكنة جديدة (`function_manager`+`object_manager`+`ownership_manager`) نُقلت مصادرها من `sad_core`؛ `sad_interp` يربطها PUBLIC (اتّجاه أحاديّ). موضع شقيق الآلة الافتراضية عند عودتها. انظر [خطّة الاستخراج](sad_runtime-extraction-plan.md). | ✅ مطبَّق (المرحلة 3) |
 
 ---
 
