@@ -26,13 +26,41 @@
 //      فلا نعتمد على وصوله ضمنيًّا عبر lexer_keywords.h.
 // (EN) CW-06: explicit include of the generated lexicon; allEntries() is used directly.
 #include "../generated/keywords_generated.h"
+// (AR) CW-06: سجلّ طرق الأنواع المُولَّد من مصدر الحقيقة (ALL_TYPE_METHODS)
+//      لإكمال أعضاء الأنواع المدمجة بعد النقطة.
+// (EN) CW-06: generated type-method registry (ALL_TYPE_METHODS) for member completion.
+#include "builtin_registry.h"
 #include <algorithm>
+#include <cstddef>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 namespace sad {
 namespace lsp {
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ثوابت الإكمال (CW-10: لا أرقام/حروف سحرية)
+// ══════════════════════════════════════════════════════════════════════════════
+namespace {
+
+/// (AR) بادئة فرز تُقدّم طرق النوع وقصاصات postfix على بقية المقترحات.
+/// (EN) Sort prefix that ranks type methods / postfix snippets above the rest.
+constexpr const char* kHighPrioritySortPrefix = "0_";
+
+/// (AR) قصاصة معاملات الطريقة: تضع المؤشّر بين القوسين بعد الإدراج.
+/// (EN) Method-parameters snippet: places the caret inside the parentheses.
+constexpr const char* kMethodCallSnippetSuffix = "(${1})";
+
+/// (AR) العنصر النائب OBJ في قوالب postfix يُستبدل باسم الكائن الحقيقيّ.
+/// (EN) The OBJ placeholder in postfix templates, replaced by the real object name.
+constexpr const char* kPostfixObjectPlaceholder = "OBJ";
+
+/// (AR) الفاصل '[' في النوع المُعمَّم «مصفوفة[رقم]» — ما قبله هو النوع الأساس.
+/// (EN) The '[' separator in a parameterized type ("array[number]"); prefix is the base type.
+constexpr char kTypeParameterOpenBracket = '[';
+
+} // namespace
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  الكلمات المفتاحية مع قصاصات الكود
@@ -333,7 +361,12 @@ CompletionList LspEngine::completion(const DocumentUri& uri, const Position& pos
     std::string object_name;
     if (!current_line.empty()) {
         // نبحث عن نقطة أو ?. قبل الموضع الحالي
-        int col = pos.character;
+        // (AR) إصلاح جذريّ: موضع LSP بوحدات UTF-16، لكن الفحص أدناه يفهرس البايتات.
+        //      نحوّل العمود إلى إزاحة بايت أولًا — وإلّا فشل كشف النقطة لأسماء
+        //      الكائنات العربية (الحرف العربيّ بايتان) فلا يُقترح أعضاؤها إطلاقًا.
+        // (EN) Root fix: LSP positions are UTF-16 units but the scan indexes bytes;
+        //      convert first, else member access never triggers for Arabic objects.
+        int col = arabic::utf16_column_to_utf8_offset(current_line, pos.character);
         int dot_pos = -1;
         for (int i = col - 1; i >= 0; i--) {
             if (i < static_cast<int>(current_line.size()) && current_line[i] == '.') {
@@ -395,6 +428,59 @@ CompletionList LspEngine::completion(const DocumentUri& uri, const Position& pos
         }
 
         // ══════════════════════════════════════════════════════════════
+        //  إكمال طرق الأنواع المدمجة (من مصدر الحقيقة: ALL_TYPE_METHODS)
+        //  مثال: قائمة.  ⟵ تُقترح أضف/أزل/رتب/عكس… إن استُنتج نوعها «مصفوفة».
+        //  يُشتقّ من language-truth/type_methods.yaml عبر المولّد — لا تهريد.
+        // ══════════════════════════════════════════════════════════════
+        // (AR) استنتاج نوع الكائن: نبحث في رموز المستند عن أفضل تطابق بنوع غير
+        //      فارغ، لأنّه قد يوجد رمزان بالاسم نفسه (تصريح + استعمال) أحدهما بلا
+        //      نوع، وقد يعيد find_definition الفارغ. نختار صاحب النوع.
+        // (EN) Resolve object type by scanning doc symbols for the best (non-empty
+        //      type) match — duplicates may exist and find_definition may return one
+        //      without a type.
+        std::string obj_type;
+        {
+            std::string norm_obj = arabic::normalize_arabic(object_name);
+            for (const auto& sym : index_->get_document_symbols(uri)) {
+                if ((sym.name == object_name || sym.normalized_name == norm_obj) &&
+                    !sym.type.name.empty()) {
+                    obj_type = sym.type.name;
+                    break;
+                }
+            }
+        }
+        if (!obj_type.empty()) {
+            // (AR) النوع المستنتَج قد يكون «مصفوفة[رقم]» ⇒ نأخذ الجزء قبل '['.
+            // (EN) Inferred type may be parameterized ("array[number]"); take the base before '['.
+            std::string base_type = obj_type;
+            auto bracket = base_type.find(kTypeParameterOpenBracket);
+            if (bracket != std::string::npos) base_type = base_type.substr(0, bracket);
+
+            // (AR) منع التكرار: مصدر الحقيقة قد يحوي زوجَين (هدف، اسم) متطابقَين
+            //      بمرادف إنجليزيّ مختلف (مثل «عد» count/count_alt للمصفوفة،
+            //      «عين» set للخريطة)، فلا يجوز إظهار العنوان نفسه مرّتين للمستخدم.
+            // (EN) Dedup: the SoT may carry duplicate (target, method) pairs that differ
+            //      only by English alias (e.g. array "عد" count/count_alt) — never show
+            //      the same label twice in completion.
+            std::unordered_set<std::string> seen_methods;
+            for (const auto& tm : Sad::Builtins::ALL_TYPE_METHODS) {
+                if (base_type != std::string(tm.target)) continue;
+                std::string method_name(tm.methodName);
+                if (!seen_methods.insert(method_name).second) continue;
+                CompletionItem item;
+                item.label = method_name;
+                item.kind = CompletionItemKind::Method;
+                item.detail = std::string(tm.methodEn);
+                if (!tm.descriptionAr.empty())
+                    item.documentation = {"markdown", std::string(tm.descriptionAr)};
+                item.insert_text = method_name + kMethodCallSnippetSuffix;
+                item.insert_text_format = InsertTextFormat::Snippet;
+                item.sort_text = std::string(kHighPrioritySortPrefix) + method_name; // طرق النوع تتصدّر
+                list.items.push_back(item);
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
         //  Postfix completions: تحويلات ذكية بعد النقطة
         //  مثال: قائمة.اطبع → اطبع(قائمة)
         //  مثال: قائمة.طول → طول(قائمة)
@@ -443,26 +529,43 @@ CompletionList LspEngine::completion(const DocumentUri& uri, const Position& pos
                 if (arabic::fuzzy_match_arabic(norm_prefix,
                         arabic::normalize_arabic(tmpl.keyword))) {
                     CompletionItem item;
-                    // استبدال OBJ باسم الكائن الحقيقي
+                    // (AR) استبدال العنصر النائب OBJ باسم الكائن الحقيقيّ.
+                    // (EN) Replace the OBJ placeholder with the real object name.
+                    const std::size_t placeholder_len =
+                        std::string(kPostfixObjectPlaceholder).size();
                     std::string result_text = tmpl.transform;
                     size_t obj_pos;
-                    while ((obj_pos = result_text.find("OBJ")) != std::string::npos) {
-                        result_text.replace(obj_pos, 3, object_name);
+                    while ((obj_pos = result_text.find(kPostfixObjectPlaceholder)) !=
+                           std::string::npos) {
+                        result_text.replace(obj_pos, placeholder_len, object_name);
                     }
                     std::string label_text = tmpl.label;
-                    while ((obj_pos = label_text.find("OBJ")) != std::string::npos) {
-                        label_text.replace(obj_pos, 3, object_name);
+                    while ((obj_pos = label_text.find(kPostfixObjectPlaceholder)) !=
+                           std::string::npos) {
+                        label_text.replace(obj_pos, placeholder_len, object_name);
                     }
                     item.label = label_text;
                     item.kind = CompletionItemKind::Snippet;
                     item.detail = tmpl.detail;
                     TextEdit te;
-                    te.range.start = {pos.line, static_cast<int>(current_line.find(object_name))};
+                    // (AR) إصلاح جذريّ: range أعمدته بوحدات UTF-16 (بروتوكول LSP)،
+                    //      لكن find() يُرجع إزاحة بايت. نحوّلها إلى عمود UTF-16 وإلّا
+                    //      انزاح النطاق لأسماء الكائنات العربية (الحرف بايتان) فأُتلِف
+                    //      نصّ المستخدم عند تطبيق القصاصة. النهاية pos.character صحيحة
+                    //      (UTF-16 أصلًا). نفس فئة خلل كشف النقطة المُصلَح أعلاه.
+                    // (EN) Root fix: TextEdit columns are UTF-16 units (LSP), but find()
+                    //      returns a byte offset; convert to a UTF-16 column or the range
+                    //      shifts for Arabic object names. Same bug class as the dot scan.
+                    int object_byte_offset =
+                        static_cast<int>(current_line.find(object_name));
+                    int object_utf16_column = arabic::utf8_offset_to_utf16_column(
+                        current_line, object_byte_offset);
+                    te.range.start = {pos.line, object_utf16_column};
                     te.range.end = {pos.line, pos.character};
                     te.new_text = result_text;
                     item.text_edit = te;
                     item.insert_text_format = InsertTextFormat::Snippet;
-                    item.sort_text = "0_postfix";
+                    item.sort_text = std::string(kHighPrioritySortPrefix) + "postfix";
                     list.items.push_back(item);
                 }
             }

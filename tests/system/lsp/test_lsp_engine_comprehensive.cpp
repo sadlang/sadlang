@@ -366,6 +366,119 @@ TEST(LspInlayHints, لا_تنهار_على_نطاق_المستند) {
     });
 }
 
+// حارس انحدار: أسماء الأنواع المستنتَجة مشتقّة من مصدر الحقيقة (types.yaml عبر
+// sadTypeKindArabicName)، لا من تهريد منحرف. الخريطة {..} كانت تُعرض «قاموس»
+// خطأً بينما اللغة تسمّيها «خريطة». التلميح المضمَّن لمتغيّر مستنتَج = «: <النوع>».
+//
+// اعتماد مقصود وموثَّق: التلميحات تظهر للمتغيّرات على **المستوى الأعلى** فقط
+// (متغيّرات جسم الدالة لا تُفهرَس رموزًا مستقلّة، فلا تلميح لها). لذلك تُكتب
+// المتغيّرات هنا في المستوى الأعلى عمدًا — وهذا ثابت سلوكيّ يفرضه inlay_hints.
+TEST(LspInlayHints, نوع_الخريطة_من_مصدر_الحقيقة_لا_قاموس) {
+    EngineFixture fx;
+    // ثلاثة متغيّرات على المستوى الأعلى بأنواع مستنتَجة من حرفيّاتها.
+    fx.open(u8"متغير خ = {\"أ\": 1}\n"   // خريطة (كان يُعرض «قاموس» المنحرف)
+            u8"متغير ر = 5\n"            // رقم
+            u8"متغير ن = \"مرحبا\"\n");  // نص
+    Range r{Position{0, 0}, Position{4, 0}};
+    auto hints = fx.engine.inlay_hints(fx.uri, r);
+
+    bool saw_map = false;    // إثبات: «خريطة» تظهر
+    bool saw_number = false; // إثبات تغطية إضافيّ: «رقم» تظهر
+    bool saw_string = false; // إثبات تغطية إضافيّ: «نص» تظهر
+    for (const auto& h : hints) {
+        if (h.label.find(u8"خريطة") != std::string::npos) saw_map = true;
+        if (h.label.find(u8"رقم") != std::string::npos) saw_number = true;
+        if (h.label.find(u8"نص") != std::string::npos) saw_string = true;
+        // نفي: الاسم المهرَّد المنحرف «قاموس» يجب ألّا يظهر إطلاقًا (مصدر الحقيقة).
+        ASSERT_TRUE(h.label.find(u8"قاموس") == std::string::npos);
+    }
+    ASSERT_TRUE(saw_map);
+    ASSERT_TRUE(saw_number);
+    ASSERT_TRUE(saw_string);
+}
+
+// حارس انحدار (Fix 1): حرفيّة «لاشيء» نوعها الساكن Null (متمايز عن Void)، فيجب
+// أن يُستنتَج تلميحها «عدم» من مصدر الحقيقة، لا «فراغ» (Void) ولا «غير_محدد».
+// قبل إضافة Null إلى المُحوِّل كانت تسقط إلى «غير_محدد» فلا يظهر تلميح أصلًا.
+TEST(LspInlayHints, حرفيّة_العدم_تُستنتَج_عدم_لا_فراغ) {
+    EngineFixture fx;
+    fx.open(u8"متغير ل = لاشيء\n"); // حرفيّة null ⇒ النوع الساكن Null ⇒ «عدم»
+    Range r{Position{0, 0}, Position{2, 0}};
+    auto hints = fx.engine.inlay_hints(fx.uri, r);
+
+    bool saw_null = false;
+    for (const auto& h : hints) {
+        if (h.label.find(u8"عدم") != std::string::npos) saw_null = true;
+        // «فراغ» (Void) لا يصحّ لحرفيّة null — نوعان متمايزان في types.yaml.
+        ASSERT_TRUE(h.label.find(u8"فراغ") == std::string::npos);
+    }
+    ASSERT_TRUE(saw_null);
+}
+
+// حارس انحدار (Fix 2): دالة إرجاعها «فراغ» (Void) يجب ألّا تعرض تلميح نوع إرجاع.
+// قبل توحيد الأسماء كان الحارس يقارن بـ«عدم» المهرَّد؛ بعد التوحيد صار Void اسمه
+// «فراغ» فتوقّفت المقارنة عن المطابقة وظهر تلميح « ← فراغ» طفيليّ. الإصلاح يقارن
+// باسم Void من المصدر فيُخفي التلميح كما كان القصد.
+TEST(LspInlayHints, إرجاع_فراغ_لا_يُظهر_تلميح_نوع) {
+    EngineFixture fx;
+    fx.open(u8"دالة فراغ سجل(ر) {\n" // نوع الإرجاع يسبق الاسم: دالة <نوع> <اسم>(..)
+            u8"  أرجع\n"
+            u8"}\n");
+    Range r{Position{0, 0}, Position{3, 0}};
+    auto hints = fx.engine.inlay_hints(fx.uri, r);
+
+    for (const auto& h : hints) {
+        // لا يجوز ظهور «فراغ» في أيّ تلميح نوع إرجاع (Void = لا قيمة تُؤشَّر).
+        ASSERT_TRUE(h.label.find(u8"فراغ") == std::string::npos);
+    }
+}
+
+// حارس انحدار: إكمال الأعضاء بعد النقطة يقترح طرق الأنواع المدمجة المشتقّة من
+// مصدر الحقيقة (type_methods.yaml ⇒ ALL_TYPE_METHODS المُولَّد). متغيّر مستنتَج
+// «مصفوفة» ⇒ «قائمة.» تقترح «أضف» (push) وغيرها.
+TEST(LspCompletion, إكمال_طرق_الأنواع_المدمجة_من_المصدر) {
+    EngineFixture fx;
+    fx.open(u8"متغير قائمة = [1، 2، 3]\n"
+            u8"قائمة.\n");
+    // المؤشّر بعد «قائمة.» (5 أحرف + نقطة = العمود 6).
+    CompletionList list = fx.engine.completion(fx.uri, Position{1, 6});
+
+    bool saw_add = false;        // «أضف» طريقة مصفوفة من المصدر
+    bool saw_string_only = false; // «تحويل_كبير» نصّ-حصرًا: يجب ألّا تتسرّب لمصفوفة
+    int  count_add = 0;           // حارس إزالة التكرار: «أضف» مرّة واحدة فقط
+    int  count_dup = 0;           // «عد» مكرّرة في المصدر (count/count_alt) ⇒ مرّة واحدة
+    for (const auto& item : list.items) {
+        if (item.label == u8"أضف") { saw_add = true; ++count_add; }
+        if (item.label == u8"تحويل_كبير") saw_string_only = true;
+        if (item.label == u8"عد") ++count_dup;
+    }
+    ASSERT_TRUE(saw_add);
+    ASSERT_FALSE(saw_string_only); // الترشيح حسب النوع المستنتَج «مصفوفة»
+    // (AR) منع التكرار: مصدر الحقيقة يحوي صفّين «(مصفوفة، عد)» يختلفان بالمرادف
+    //      الإنجليزيّ فقط (count/count_alt)؛ يجب ألّا يظهر العنوان مرّتين.
+    ASSERT_EQ(count_add, 1);
+    ASSERT_EQ(count_dup, 1);
+}
+
+// حارس انحدار: الترشيح حسب النوع يعمل لنوع «نص» أيضًا (لا «مصفوفة» فقط). متغيّر
+// مستنتَج «نص» ⇒ «تحية.» تقترح «تحويل_كبير» (نصّ-حصرًا) ولا تتسرّب «أضف» (مصفوفة).
+TEST(LspCompletion, إكمال_طرق_النوع_نص_من_المصدر) {
+    EngineFixture fx;
+    fx.open(u8"متغير تحية = \"مرحبا\"\n"
+            u8"تحية.\n");
+    // المؤشّر بعد «تحية.» (4 أحرف + نقطة = العمود 5، بوحدات UTF-16).
+    CompletionList list = fx.engine.completion(fx.uri, Position{1, 5});
+
+    bool saw_upper = false;     // «تحويل_كبير» طريقة نصّ من المصدر
+    bool saw_array_only = false; // «أضف» مصفوفة-حصرًا: يجب ألّا تتسرّب لنصّ
+    for (const auto& item : list.items) {
+        if (item.label == u8"تحويل_كبير") saw_upper = true;
+        if (item.label == u8"أضف") saw_array_only = true;
+    }
+    ASSERT_TRUE(saw_upper);
+    ASSERT_FALSE(saw_array_only); // الترشيح حسب النوع المستنتَج «نص»
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  نقطة الدخول
 // ══════════════════════════════════════════════════════════════════════════════

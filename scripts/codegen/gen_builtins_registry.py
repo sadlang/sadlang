@@ -518,6 +518,62 @@ def emit_all_builtins(functions: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def emit_all_type_methods(all_methods: list[dict]) -> str:
+    """
+    @brief (AR) يُولِّد سجلاً شاملاً لطرق الأنواع المدمجة (ALL_TYPE_METHODS) للأدوات
+                (LSP): الهدف العربيّ + اسم الطريقة + الإنجليزيّة + الوصف. يغطّي كل
+                الطرق الـ115 (لا الـ32 في TYPE_METHOD_BUILTINS فقط) ليُستهلَك في
+                إكمال الأعضاء بعد النقطة. الترتيب مستقرّ (يتبع ترتيب ظهور الأهداف ثم
+                الطرق في مصدر الحقيقة عبر defaultdict الحافظ للإدراج). الأمانة لمصدر
+                الحقيقة مطلقة: إن وُجد زوجان (هدف، اسم) متطابقان يختلفان بالمرادف
+                الإنجليزيّ فقط فهما صفّان مستقلّان هنا — إزالة التكرار مسؤولية
+                المستهلِك (LSP) لا المولّد (BF-10: الإصلاح في الطبقة الصحيحة).
+    @brief (EN) Comprehensive registry of ALL built-in type methods (115) for
+                tooling (LSP member completion): Arabic target + method + en + desc.
+                Order is stable (target-first then source order, via insertion-
+                preserving defaultdict). Faithful to the SoT: duplicate (target,
+                method) pairs differing only by English alias remain distinct rows;
+                de-duplication is the consumer's responsibility (BF-10).
+    """
+    if not all_methods:
+        return ""
+
+    lines: list[str] = []
+    lines.append("")
+    lines.append("        // ════════════════════════════════════════════════════════════════════")
+    lines.append("        // (AR) سجل شامل لطرق الأنواع المدمجة للأدوات (LSP): الهدف + الاسم + الوصف.")
+    lines.append("        //      يغطّي كل الطرق لا الـ32 القابلة للاستعلام في TYPE_METHOD_BUILTINS.")
+    lines.append("        // (EN) Comprehensive registry of ALL type methods for tooling (LSP).")
+    lines.append("        // ════════════════════════════════════════════════════════════════════")
+    lines.append("        struct TypeMethodMeta")
+    lines.append("        {")
+    lines.append("            std::string_view target;        /// (AR) اسم النوع العربيّ (مصفوفة/نص/خريطة/...)")
+    lines.append("            std::string_view methodName;    /// (AR) اسم الطريقة / (EN) Method name")
+    lines.append("            std::string_view methodEn;      /// (AR) المرادف الإنجليزيّ / (EN) English name")
+    lines.append("            std::string_view descriptionAr; /// (AR) وصف عربيّ (تحويم/إكمال)")
+    lines.append("        };")
+    lines.append("")
+    lines.append(f"        inline constexpr std::array<TypeMethodMeta, {len(all_methods)}> ALL_TYPE_METHODS = {{{{")
+
+    by_target: dict[str, list[dict]] = defaultdict(list)
+    for m in all_methods:
+        by_target[m.get("target", "")].append(m)
+
+    for target, methods in by_target.items():
+        lines.append(f"            // ─── {target} ({len(methods)}) ───")
+        for m in methods:
+            tgt = _cpp_str(m.get("target", ""))
+            name = _cpp_str(m.get("method", ""))
+            en = _cpp_str(m.get("method_en", ""))
+            desc = _cpp_str(m.get("description_ar", m.get("method", "")))
+            lines.append(f'            {{"{tgt}", "{name}", "{en}", "{desc}"}},')
+
+    lines.append("        }};")
+    lines.append("")
+    lines.append(f'        static_assert(ALL_TYPE_METHODS.size() == {len(all_methods)}, "ALL_TYPE_METHODS count mismatch");')
+    return "\n".join(lines)
+
+
 HEADER_TEMPLATE = """\
 // ============================================================================
 // AUTO-GENERATED from language-truth/builtins/*.yaml — DO NOT EDIT MANUALLY
@@ -700,7 +756,13 @@ def run(argv: list[str] | None = None) -> int:
         arrays_section      = emit_builtin_arrays(functions)
         type_method_section = emit_type_method_array(lookup_type_methods)
         static_asserts      = emit_static_asserts(functions)
-        all_builtins_section = emit_all_builtins(functions)
+        # (AR) سجلّ ALL_BUILTINS الشامل + سجلّ ALL_TYPE_METHODS الشامل (115) معًا
+        #      داخل namespace Builtins (كلاهما يُحقَن في {all_builtins_section}).
+        all_builtins_section = (
+            emit_all_builtins(functions)
+            + "\n\n"
+            + emit_all_type_methods(all_type_methods)
+        )
 
         content = HEADER_TEMPLATE.format(
             names_section=names_section,

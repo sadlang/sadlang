@@ -17,9 +17,22 @@
 
 #include "lsp_engine.h"
 #include "arabic_utils.h"
+#include "sad_type_system.h" // (CW-06) أسماء الأنواع من مصدر الحقيقة (sadTypeKindArabicName)
 
 namespace sad {
 namespace lsp {
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  أسماء أنواع لا تُعرض في توقيع الإرجاع — من مصدر الحقيقة لا مهرَّدة
+//  (AR) «فراغ» (Void) = لا قيمة، و«غير_محدد» = استنتاج عاجز؛ كلاهما يُخفى من
+//        سهم الإرجاع. نشتقّ «فراغ» من sadTypeKindArabicName(Void) (CW-19/CW-10)
+//        كي لا ينحرف الحارس بعد توحيد الأسماء (كان «عدم» المهرَّد فلم يعد يطابق).
+//  (EN) Names hidden from the return arrow, sourced from the SoT (no magic).
+// ══════════════════════════════════════════════════════════════════════════════
+static const std::string SIG_RET_VOID =
+    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Void); // فراغ
+static const std::string SIG_RET_UNRESOLVED =
+    "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"; // غير_محدد
 
 SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& pos) {
     SignatureHelp help;
@@ -189,8 +202,8 @@ SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& 
 
     // نوع الإرجاع
     if (!def.func_info->return_type.name.empty() &&
-        def.func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85" && // عدم
-        def.func_info->return_type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") { // غير_محدد
+        def.func_info->return_type.name != SIG_RET_VOID &&       // فراغ (Void: لا قيمة)
+        def.func_info->return_type.name != SIG_RET_UNRESOLVED) { // غير_محدد
         label += " \xe2\x86\x90 " + def.func_info->return_type.name; // ←
     }
 

@@ -50,7 +50,7 @@
 // ║      • ExportStmt (تصدير)                                                                   ║
 // ║    ✦ استنتاج أنواع المتغيرات من القيم المسندة:                                              ║
 // ║      • "نص" → نص، 42 → رقم، 3.14 → عشري، صحيح/خطأ → منطقي                                ║
-// ║      • [...] → مصفوفة، {...} → قاموس                                                       ║
+// ║      • [...] → مصفوفة، {...} → خريطة                                                       ║
 // ║    ✦ تتبع المراجع مع التمييز بين القراءة والكتابة والتعريف                                  ║
 // ║    ✦ كشف متقدم: متغيرات غير مستخدمة، تعريفات مكررة، أنماط إنجليزية                         ║
 // ║    ✦ كشف أقواس غير متوازنة، مسافات مختلطة، أسطر طويلة                                      ║
@@ -124,54 +124,45 @@ namespace sad
         ///
         /// كل نوع بيانات في لغة ص له اسم عربي يُعرض في LSP:
         ///   INTEGER → "رقم"    | FLOAT → "عشري"   | STRING → "نص"
-        ///   BOOLEAN → "منطقي"  | NONE → "عدم"     | ARRAY → "مصفوفة"
-        ///   MAP → "قاموس"      | TUPLE → "صف"     | FUNCTION → "دالة"
-        ///   OBJECT → "كائن"    | ENUM → "تعداد"   | BYTE → "بايت"
-        ///   ERROR → "خطأ"      | غير معروف → "غير_محدد" (مستنتج)
+        ///   BOOLEAN → "منطقي"  | VOID → "فراغ"    | NULL → "عدم"
+        ///   ARRAY → "مصفوفة"   | MAP → "خريطة"    | TUPLE → "صف"
+        ///   FUNCTION → "دالة"  | OBJECT → "كائن"  | ENUM → "تعداد"
+        ///   BYTE → "بايت"      | ERROR → "خطأ"    | غير معروف → "غير_محدد" (مستنتج)
+        /// ملاحظة: «فراغ» (Void) و«عدم» (Null) نوعان متمايزان في types.yaml.
         /// ──────────────────────────────────────────────────────────────────────────────
         static TypeInfo data_type_to_type_info(Sad::Types::SadTypeKind dt)
         {
             TypeInfo ti;
+            // (AR) الاسم العربيّ للنوع مشتقّ من مصدر الحقيقة (types.yaml ⇒
+            //      sadTypeKindArabicName المُولَّد) بدل تهريد يدويّ كان يتباعد عنه
+            //      (مثل «قاموس» بدل «خريطة» للخريطة، و«عدم» بدل «فراغ» للـVoid).
+            //      «فراغ»=Void و«عدم»=Null متمايزان. الأنواع غير المعالَجة تبقى
+            //      «غير_محدد» (مستنتَجة) كما كان.
+            // (EN) Type display name sourced from the SoT (types.yaml ⇒ generated
+            //      sadTypeKindArabicName) instead of a hand list that drifted.
             switch (dt)
             {
             case Sad::Types::SadTypeKind::Integer:
-                ti.name = "رقم";
-                break;
             case Sad::Types::SadTypeKind::Float:
-                ti.name = "عشري";
-                break;
             case Sad::Types::SadTypeKind::String:
-                ti.name = "نص";
-                break;
             case Sad::Types::SadTypeKind::Boolean:
-                ti.name = "منطقي";
-                break;
             case Sad::Types::SadTypeKind::Void:
-                ti.name = "عدم";
-                break;
             case Sad::Types::SadTypeKind::Array:
-                ti.name = "مصفوفة";
-                break;
             case Sad::Types::SadTypeKind::Map:
-                ti.name = "قاموس";
-                break;
             case Sad::Types::SadTypeKind::Tuple:
-                ti.name = "صف";
-                break;
             case Sad::Types::SadTypeKind::Function:
-                ti.name = "دالة";
-                break;
             case Sad::Types::SadTypeKind::Class:
-                ti.name = "كائن";
-                break;
             case Sad::Types::SadTypeKind::Enum:
-                ti.name = "تعداد";
-                break;
             case Sad::Types::SadTypeKind::Byte:
-                ti.name = "بايت";
-                break;
             case Sad::Types::SadTypeKind::Error:
-                ti.name = "خطأ";
+            case Sad::Types::SadTypeKind::Null:
+                // (AR) «عدم» (Null) نوع سطحيّ متمايز عن «فراغ» (Void): حرفيّة `لاشيء`
+                //      نوعها الساكن Null (LiteralExpr::getType ⇒ getNull)، فنعرضه «عدم»
+                //      من مصدر الحقيقة بدل السقوط إلى «غير_محدد».
+                // (EN) Null is a surface type distinct from Void: a `null` literal's
+                //      static type is Null, so render «عدم» from the SoT instead of
+                //      falling through to «غير_محدد».
+                ti.name = Sad::Types::sadTypeKindArabicName(dt);
                 break;
             default:
                 // نوع غير معروف - سيُحاول استنتاجه لاحقاً من السياق
@@ -430,7 +421,7 @@ namespace sad
         //    • LiteralExpr("نص") → TypeInfo{name="نص"}
         //    • LiteralExpr(42) → TypeInfo{name="رقم"}
         //    • ArrayLiteralExpr → TypeInfo{name="مصفوفة"}
-        //    • MapLiteralExpr → TypeInfo{name="قاموس"}
+        //    • MapLiteralExpr → TypeInfo{name="خريطة"}
         //    • FunctionCallExpr(اسم_دالة) → نوع إرجاع الدالة (إذا معروف)
         //
         // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -443,7 +434,7 @@ namespace sad
         /// الأنواع المدعومة للاستنتاج:
         ///   • القيم الحرفية: "نص"→نص، 42→رقم، 3.14→عشري، صحيح/خطأ→منطقي، عدم→عدم
         ///   • المصفوفات: [1,2,3] → مصفوفة
-        ///   • القواميس: {"مفتاح": "قيمة"} → قاموس
+        ///   • الخرائط: {"مفتاح": "قيمة"} → خريطة
         ///   • الدوال المجهولة: دالة(أ) { ... } → دالة
         ///   • باقي التعبيرات: يُعاد نوع "غير_محدد" مع is_inferred = true
         static TypeInfo infer_type_from_expression(const Sad::AST::Expression *expr)
@@ -463,29 +454,14 @@ namespace sad
             auto *literal = dynamic_cast<const Sad::AST::LiteralExpr *>(expr);
             if (literal)
             {
-                Sad::Types::SadTypeKind literalType = literal->getTypeKind();
-                switch (literalType)
-                {
-                case Sad::Types::SadTypeKind::String:
-                    ti.name = "نص";
-                    break;
-                case Sad::Types::SadTypeKind::Integer:
-                    ti.name = "رقم";
-                    break;
-                case Sad::Types::SadTypeKind::Float:
-                    ti.name = "عشري";
-                    break;
-                case Sad::Types::SadTypeKind::Boolean:
-                    ti.name = "منطقي";
-                    break;
-                case Sad::Types::SadTypeKind::Void:
-                    ti.name = "عدم";
-                    break;
-                default:
-                    ti.name = "غير_محدد";
-                    break;
-                }
-                return ti;
+                // (AR) نوع الحرفيّة من مصدر الحقيقة عبر المُحوِّل الموحَّد (CW-19:
+                //      لا تكرار لخريطة النوع→الاسم؛ مصدر واحد = sadTypeKindArabicName).
+                //      نبقي is_inferred=true لأنّ نوع الحرفيّة مُستنتَج لا مُصرَّح.
+                // (EN) Literal type via the unified SoT-driven mapper (no duplicate map);
+                //      keep is_inferred=true since a literal's type is inferred.
+                TypeInfo lit = data_type_to_type_info(literal->getTypeKind());
+                lit.is_inferred = true;
+                return lit;
             }
 
             // ──── مصفوفة حرفية [1, 2, 3] ────
@@ -508,12 +484,13 @@ namespace sad
                 return ti;
             }
 
-            // ──── قاموس حرفي {"مفتاح": "قيمة"} ────
+            // ──── خريطة حرفية {"مفتاح": "قيمة"} ────
             // ملاحظة: MapExpr وليس MapLiteralExpr
+            // (AR) الاسم من مصدر الحقيقة (types.yaml: خريطة) لا «قاموس» المهرَّد.
             auto *map = dynamic_cast<const Sad::AST::MapExpr *>(expr);
             if (map)
             {
-                ti.name = "قاموس";
+                ti.name = Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Map);
                 return ti;
             }
 
@@ -1539,7 +1516,7 @@ namespace sad
                         //  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                         //  صنف معمم مع معاملات أنواع:
                         //    قالب<نوع ت> صنف صندوق { ... }
-                        //    قالب<نوع ك، نوع ق> صنف قاموس { ... }
+                        //    قالب<نوع ك، نوع ق> صنف زوج { ... }
                         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                         auto *tmplClass = dynamic_cast<Sad::AST::TemplateClassDecl *>(stmt.get());
                         if (tmplClass)

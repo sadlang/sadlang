@@ -17,9 +17,23 @@
 
 #include "lsp_engine.h"
 #include "arabic_utils.h"
+#include "sad_type_system.h" // (CW-06) أسماء الأنواع من مصدر الحقيقة (sadTypeKindArabicName)
 
 namespace sad {
 namespace lsp {
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  أسماء أنواع لا تستحقّ تلميحًا — مشتقّة من مصدر الحقيقة لا مهرَّدة
+//  (AR) «فراغ» (Void) = نوع إرجاع فارغ، و«غير_محدد» = استنتاج عاجز؛ كلاهما يُخفى.
+//        نشتقّ «فراغ» من sadTypeKindArabicName(Void) (CW-19/CW-10: لا نصّ سحريّ)
+//        كي يتتبّع أيّ تغيير في المعجم تلقائيًّا (كان مهرَّدًا «عدم» فانحرف).
+//  (EN) Names not worth a hint, sourced from the SoT (no magic literal): Void
+//        («فراغ») = empty return, and «غير_محدد» = failed inference.
+// ══════════════════════════════════════════════════════════════════════════════
+static const std::string TYPE_NAME_VOID =
+    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Void); // فراغ
+static const std::string TYPE_NAME_UNRESOLVED =
+    "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"; // غير_محدد
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  ثوابت الكلمات المفتاحية (UTF-8)
@@ -67,7 +81,7 @@ std::vector<InlayHint> LspEngine::inlay_hints(
              sym.kind == AnalyzedSymbolKind::Constant ||
              sym.kind == AnalyzedSymbolKind::Property) &&
             !sym.type.name.empty() &&
-            sym.type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf" && // "غير_محدد"
+            sym.type.name != TYPE_NAME_UNRESOLVED && // غير_محدد (استنتاج عاجز)
             sym.type.is_inferred) {
 
             InlayHint hint;
@@ -84,8 +98,12 @@ std::vector<InlayHint> LspEngine::inlay_hints(
              sym.kind == AnalyzedSymbolKind::Method) &&
             sym.func_info &&
             !sym.func_info->return_type.name.empty() &&
-            sym.func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85" &&
-            sym.func_info->return_type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") {
+            // (AR) لا تلميح لإرجاع «فراغ» (Void) — بعد توحيد الأسماء صار «فراغ» لا
+            //      «عدم»؛ المقارنة من المصدر (CW-19) كي لا ينحرف الحارس ثانيةً.
+            // (EN) Skip Void («فراغ») returns; compare against the SoT name (was the
+            //      drifted magic «عدم», which silently stopped matching after rename).
+            sym.func_info->return_type.name != TYPE_NAME_VOID &&
+            sym.func_info->return_type.name != TYPE_NAME_UNRESOLVED) {
 
             std::string line = doc_store_->get_line(uri, sym.definition_range.start.line);
             auto paren_pos = line.rfind(')');

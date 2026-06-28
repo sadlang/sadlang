@@ -17,10 +17,23 @@
 
 #include "lsp_engine.h"
 #include "arabic_utils.h"
+#include "sad_type_system.h" // (CW-06) أسماء الأنواع من مصدر الحقيقة (sadTypeKindArabicName)
 #include <unordered_map>
 
 namespace sad {
 namespace lsp {
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  أسماء أنواع لا تُعرض في سهم/سطر الإرجاع — من مصدر الحقيقة لا مهرَّدة
+//  (AR) «فراغ» (Void) = لا قيمة، و«غير_محدد» = استنتاج عاجز. نشتقّ «فراغ» من
+//        sadTypeKindArabicName(Void) (CW-19/CW-10) كي لا ينحرف الحارس بعد توحيد
+//        الأسماء (كان «عدم» المهرَّد فلم يعد يطابق Void بعد صيرورته «فراغ»).
+//  (EN) Return-type names hidden in hover, sourced from the SoT (no magic literal).
+// ══════════════════════════════════════════════════════════════════════════════
+static const std::string HOVER_RET_VOID =
+    Sad::Types::sadTypeKindArabicName(Sad::Types::SadTypeKind::Void); // فراغ
+static const std::string HOVER_RET_UNRESOLVED =
+    "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"; // غير_محدد
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  توثيق الكلمات المفتاحية العربية
@@ -263,7 +276,7 @@ static std::string build_function_signature(const AnalyzedSymbol& sym) {
     sig += ")";
 
     if (!sym.func_info->return_type.name.empty() &&
-        sym.func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85") {
+        sym.func_info->return_type.name != HOVER_RET_VOID) { // فراغ (Void: لا قيمة)
         sig += " -> " + sym.func_info->return_type.name;
     }
 
@@ -356,8 +369,8 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
 
         // نوع الإرجاع
         if (!def->func_info->return_type.name.empty() &&
-            def->func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85" &&
-            def->func_info->return_type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") {
+            def->func_info->return_type.name != HOVER_RET_VOID &&       // فراغ (Void)
+            def->func_info->return_type.name != HOVER_RET_UNRESOLVED) { // غير_محدد
             content += "**الإرجاع:** `" + def->func_info->return_type.name + "`\n\n";
         }
     } else {
