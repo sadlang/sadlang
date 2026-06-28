@@ -93,6 +93,9 @@ def emit_header(types: list[dict[str, Any]]) -> str:
     lines.append("")
     lines.append("#pragma once")
     lines.append("")
+    lines.append("#include <array>")
+    lines.append("#include <string_view>")
+    lines.append("")
     lines.append("namespace Sad")
     lines.append("{")
     lines.append("    namespace Types")
@@ -153,6 +156,50 @@ def emit_header(types: list[dict[str, Any]]) -> str:
         lines.append(f'            case SadTypeKind::{t["kind"]}: return "{hex_escape(name)}"; // {name}')
     lines.append(f'            default: return "{unknown}"; // مجهول')
     lines.append("            }")
+    lines.append("        }")
+    lines.append("")
+
+    # ========================================================================
+    # (AR) أسماء الأنواع السطحية (surface:true) — المرئيّة في كود المستخدم.
+    #      للأدوات (LSP: تلوينها كأنواع، الإكمال). مشتقّة من types.yaml لا تهريد.
+    # (EN) Surface type names (surface:true) — user-visible in source. For tooling
+    #      (LSP type coloring/completion). Derived from types.yaml, not hardcoded.
+    # ========================================================================
+    surface = [t for t in types if t.get("surface") is True]
+    lines.append("        // ─── أسماء الأنواع السطحية / Surface type names ───")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) أسماء الأنواع السطحية (surface:true) — مُولَّدة من types.yaml")
+    lines.append("         * @brief (EN) Surface type names (surface:true) — generated from types.yaml")
+    lines.append("         *")
+    lines.append(f"         * (AR) العدد: {len(surface)} — يستهلكها مزوّد الرموز الدلاليّة لتلوينها أنواعًا.")
+    lines.append(f"         * (EN) {len(surface)} names — consumed by the semantic-tokens provider.")
+    lines.append("         */")
+    lines.append(f"        inline constexpr std::array<std::string_view, {len(surface)}> SURFACE_TYPE_NAMES = {{{{")
+    for t in surface:
+        name = t.get("word") or "?"
+        lines.append(f'            "{hex_escape(name)}", // {name}')
+    lines.append("        }};")
+    lines.append("")
+
+    # ========================================================================
+    # (AR) وصف النوع السطحيّ بالعربية (description_ar) بحسب الكلمة — للأدوات
+    #      (LSP: تلميح hover). يُرجِع الوصف من types.yaml أو "" إن لم يكن سطحيًّا.
+    #      بهذا يكون وصف الأنواع في التلميح مشتقًّا من مصدر الحقيقة لا مهرَّدًا.
+    # (EN) Arabic description of a surface type by word (from description_ar) — for
+    #      tooling (LSP hover). Returns "" for non-surface words. Keeps hover type
+    #      descriptions sourced from the SoT instead of hand-edited.
+    # ========================================================================
+    lines.append("        /**")
+    lines.append("         * @brief (AR) وصف النوع السطحيّ بالعربية بحسب كلمته — مُولَّد من types.yaml")
+    lines.append("         * @brief (EN) Arabic description of a surface type by its word — generated")
+    lines.append("         */")
+    lines.append("        inline const char *surfaceTypeDescriptionAr(std::string_view word)")
+    lines.append("        {")
+    for t in surface:
+        name = t.get("word") or "?"
+        desc = t.get("description_ar", "")
+        lines.append(f'            if (word == "{hex_escape(name)}") return "{hex_escape(desc)}"; // {name}')
+    lines.append('            return "";')
     lines.append("        }")
     lines.append("")
     lines.append("    } // namespace Types")

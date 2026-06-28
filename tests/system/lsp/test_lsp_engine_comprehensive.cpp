@@ -295,6 +295,55 @@ TEST(LspHover, لا_ينهار_على_موضع_رمز) {
     });
 }
 
+// حارس انحدار: وصف تلميح النوع السطحيّ مشتقّ من مصدر الحقيقة (types.yaml ⇒
+// surfaceTypeDescriptionAr) لا مهرَّد. «رقم» وصفه في المصدر «عدد صحيح (i64)».
+TEST(LspHover, وصف_النوع_السطحيّ_من_مصدر_الحقيقة) {
+    EngineFixture fx;
+    fx.open(u8"متغير س: رقم = 5\n");
+    // المؤشّر على «رقم». تخطيط الأعمدة (UTF-16، كلّ محرف وحدة واحدة):
+    //   م0 ت1 غ2 ي3 ر4 [مسافة]5 س6 :7 [مسافة]8 ر9 ... ⇒ «رقم» يبدأ عند العمود 9.
+    auto h = fx.engine.hover(fx.uri, Position{0, 9});
+    ASSERT_TRUE(h.has_value());
+    // الوصف الرسميّ من types.yaml يجب أن يظهر في التلميح، لا النصّ المهرَّد القديم.
+    ASSERT_TRUE(h->contents.value.find(u8"عدد صحيح (i64)") != std::string::npos);
+    // (BF-22) الحالة السلبية: النصّ المهرَّد القديم لم يعد يظهر.
+    ASSERT_TRUE(h->contents.value.find(u8"نوع عدد صحيح (integer)") == std::string::npos);
+}
+
+// تغطية نوع سطحيّ ثانٍ موجود في المعجم (منطقي) — وصفه من المصدر «قيمة منطقية…».
+TEST(LspHover, وصف_النوع_السطحيّ_منطقي_من_المصدر) {
+    EngineFixture fx;
+    fx.open(u8"متغير ن: منطقي = صحيح\n");
+    // «منطقي» يبدأ عند العمود 9 (م0…ر4 [مسافة]5 ن6 :7 [مسافة]8 م9).
+    auto h = fx.engine.hover(fx.uri, Position{0, 9});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"قيمة منطقية (صحيح/خطأ)") != std::string::npos);
+}
+
+// الإصلاح الجوهريّ: نوع سطحيّ غير مُسجَّل في معجم الكلمات المفتاحية (خريطة) كان
+// بلا تلميح إطلاقًا؛ الآن يأخذ وصفه من مصدر الحقيقة (اكتمال الاشتقاق للتسعة).
+TEST(LspHover, نوع_سطحيّ_غير_معجميّ_يأخذ_وصف_المصدر) {
+    EngineFixture fx;
+    fx.open(u8"متغير خ: خريطة = ٠\n");
+    // «خريطة» يبدأ عند العمود 9 (م0…ر4 [مسافة]5 خ6 :7 [مسافة]8 خ9).
+    auto h = fx.engine.hover(fx.uri, Position{0, 9});
+    ASSERT_TRUE(h.has_value());
+    // وصف types.yaml لـ«خريطة»: «خريطة<K,V>».
+    ASSERT_TRUE(h->contents.value.find(u8"خريطة<K,V>") != std::string::npos);
+}
+
+// حارس عدم انحدار: مثال الكلمة المفتاحية (دالة) ما زال يظهر — لم يتأثّر بتوحيد الأوصاف.
+TEST(LspHover, مثال_الكلمة_المفتاحية_دالة_باقٍ) {
+    EngineFixture fx;
+    fx.open(u8"دالة مجموع(أ، ب) { ارجع أ + ب }\n");
+    // «دالة» يبدأ عند العمود 0.
+    auto h = fx.engine.hover(fx.uri, Position{0, 1});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"كلمة مفتاحية") != std::string::npos);
+    // المثال المحرَّر للكلمة المفتاحية ما زال حاضرًا.
+    ASSERT_TRUE(h->contents.value.find(u8"**مثال:**") != std::string::npos);
+}
+
 TEST(LspDefinitionReferences, لا_تنهار_وتعيد_بنية_صحيحة) {
     EngineFixture fx;
     fx.open(SAMPLE);
@@ -325,6 +374,178 @@ TEST(LspSemanticTokens, البيانات_من_مضاعفات_الخمسة) {
     SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
     // ترميز LSP: كلّ رمز = 5 أعداد [Δسطر, Δعمود, طول, نوع, معدّلات]
     ASSERT_EQ(tok.data.size() % 5u, 0u);
+}
+
+// حارس انحدار: تلوين الكلمات السياقية مشتقّ من المعجم (allEntries، تصنيف
+// CONTEXTUAL) لا من قائمة مهرَّدة ناقصة. «ماكرو» سياقية كانت غائبة عن القائمة
+// القديمة (20) ⇒ يجب أن تُلوَّن الآن كلمةً مفتاحية (النوع 15).
+TEST(LspSemanticTokens, الكلمة_السياقية_من_المعجم_تُلوَّن) {
+    EngineFixture fx;
+    fx.open(u8"ماكرو\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), 5u);
+    // أوّل رمز: data[3] = نوع الرمز الدلاليّ.
+    ASSERT_EQ(tok.data[3], static_cast<uint32_t>(SemanticTokenType::Keyword));
+}
+
+// حارس انحدار: أسماء الأنواع السطحية مشتقّة من types.yaml (SURFACE_TYPE_NAMES).
+// «خريطة» نوع سطحيّ ⇒ يُلوَّن نوعًا (النوع 1).
+TEST(LspSemanticTokens, النوع_السطحيّ_من_المصدر_يُلوَّن) {
+    EngineFixture fx;
+    fx.open(u8"خريطة\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), 5u);
+    ASSERT_EQ(tok.data[3], static_cast<uint32_t>(SemanticTokenType::Type));
+}
+
+// (AR) ثوابت ترميز LSP للرموز الدلاليّة: كلّ رمز = 5 أعداد بالترتيب التالي. تُستعمل
+//      بدل الأرقام السحرية في توكيدات الفهارس أدناه (CW-10).
+// (EN) LSP semantic-token encoding constants (5 ints/token) — avoid magic indices.
+namespace {
+constexpr size_t kFieldsPerToken = 5;   // [Δسطر, Δعمود, طول, نوع, معدّلات]
+constexpr size_t kIdxDeltaLine   = 0;
+constexpr size_t kIdxDeltaStart  = 1;
+constexpr size_t kIdxLength      = 2;
+constexpr size_t kIdxType        = 3;
+// عدد أحرف «خريطة» = 5 نقاط ترميز = 5 وحدات UTF-16 (لكن 10 بايتات UTF-8).
+constexpr uint32_t kKharitaUtf16Len = 5;
+}  // namespace
+
+// حارس انحدار: طول الرمز الدلاليّ بوحدات UTF-16 لا بالبايتات. «خريطة» = 5 أحرف
+// (5 وحدات UTF-16) لكن 10 بايتات؛ يجب أن يكون الطول 5 لا 10 (وإلّا انزاح التلوين).
+TEST(LspSemanticTokens, طول_الرمز_بوحدات_UTF16_لا_بايتات) {
+    EngineFixture fx;
+    fx.open(u8"خريطة\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), kFieldsPerToken);
+    ASSERT_EQ(tok.data[kIdxLength], kKharitaUtf16Len);
+}
+
+// حارس انحدار (بداية التعليق UTF-16): تعليق عربيّ بعد كود عربيّ على السطر نفسه.
+// المصدر: «متغير س = ٥ # ملاحظة». البادئة قبل '#' بوحدات UTF-16:
+//   م0 ت1 غ2 ي3 ر4 [مسافة]5 س6 [مسافة]7 =8 [مسافة]9 ٥10 [مسافة]11 #12
+// فبداية رمز التعليق يجب أن تكون 12 (وحدات UTF-16) لا إزاحة البايت (التي تتضخّم
+// لأنّ كلّ حرف عربيّ بايتان). نفكّ ترميز delta لنحصل على العمود المطلق للتعليق.
+TEST(LspSemanticTokens, بداية_التعليق_العربيّ_بوحدات_UTF16) {
+    EngineFixture fx;
+    fx.open(u8"متغير س = ٥ # ملاحظة\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_EQ(tok.data.size() % kFieldsPerToken, 0u);
+    ASSERT_GE(tok.data.size(), kFieldsPerToken);
+
+    // نفكّ ترميز delta ونلتقط العمود المطلق لرمز التعليق (النوع = Comment).
+    bool found_comment = false;
+    int abs_line = 0, abs_start = 0;
+    for (size_t i = 0; i + (kFieldsPerToken - 1) < tok.data.size(); i += kFieldsPerToken) {
+        int delta_line = static_cast<int>(tok.data[i + kIdxDeltaLine]);
+        int delta_start = static_cast<int>(tok.data[i + kIdxDeltaStart]);
+        abs_line += delta_line;
+        abs_start = (delta_line == 0) ? (abs_start + delta_start) : delta_start;
+        if (tok.data[i + kIdxType] == static_cast<uint32_t>(SemanticTokenType::Comment)) {
+            found_comment = true;
+            ASSERT_EQ(abs_line, 0);
+            // '#' عند العمود 12 بوحدات UTF-16 (لا 20+ لو حُسبت بايتات).
+            ASSERT_EQ(abs_start, 12);
+            break;
+        }
+    }
+    ASSERT_TRUE(found_comment);
+}
+
+// حارس انحدار (الإزاحات التراكميّة): عدّة رموز على سطر فيه عربيّ. نتحقّق أنّ
+// الأعمدة المطلقة المُفكَّكة من delta تتزايد رتيبًا وأنّ كلّ بداية بوحدات UTF-16
+// (لا بايتات) — إثبات أنّ تراكم delta لا يَرِث تضخّم البايت.
+TEST(LspSemanticTokens, الإزاحات_التراكمية_بوحدات_UTF16) {
+    EngineFixture fx;
+    fx.open(u8"متغير عدد = ٤٢\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_EQ(tok.data.size() % kFieldsPerToken, 0u);
+    ASSERT_GE(tok.data.size(), 2u * kFieldsPerToken);  // رمزان على الأقلّ
+
+    int abs_line = 0, abs_start = 0, prev_abs_start = -1;
+    for (size_t i = 0; i + (kFieldsPerToken - 1) < tok.data.size(); i += kFieldsPerToken) {
+        int delta_line = static_cast<int>(tok.data[i + kIdxDeltaLine]);
+        int delta_start = static_cast<int>(tok.data[i + kIdxDeltaStart]);
+        abs_line += delta_line;
+        abs_start = (delta_line == 0) ? (abs_start + delta_start) : delta_start;
+        // كلّ الرموز على السطر 0، والعمود المطلق لا يتراجع (ترتيب صحيح).
+        ASSERT_EQ(abs_line, 0);
+        ASSERT_GT(abs_start, prev_abs_start);
+        // العمود المطلق لا يتجاوز طول السطر بوحدات UTF-16 (= 13)؛ لو حُسب بايتات
+        // لتجاوزه (السطر 13 وحدة UTF-16 لكن 22 بايتًا).
+        ASSERT_LE(abs_start, 13);
+        prev_abs_start = abs_start;
+    }
+}
+
+// حارس سلبيّ: معرّف عاديّ ليس نوعًا ولا كلمة سياقية ⇒ لا يُلوَّن نوعًا/مفتاحية
+// (المجموعتان المشتقّتان ليستا واسعتين فتبتلعان معرّفات المستخدم).
+TEST(LspSemanticTokens, معرّف_عاديّ_لا_يُلوَّن_نوعًا_أو_مفتاحية) {
+    EngineFixture fx;
+    fx.open(u8"سيارة\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), 5u);
+    ASSERT_TRUE(tok.data[3] != static_cast<uint32_t>(SemanticTokenType::Type));
+    ASSERT_TRUE(tok.data[3] != static_cast<uint32_t>(SemanticTokenType::Keyword));
+}
+
+// (AR) رمز مفرد على سطر واحد ⇒ بالضبط خمسة أعداد (رمز واحد). توكيد متين على
+//      data[3] لا يعتمد على وجود رموز تابعة. «خريطة» = نوع سطحيّ ⇒ data.size()==5.
+// (EN) A single token on one line ⇒ exactly five integers (one token). Asserts
+//      on data[3] without depending on trailing tokens. «خريطة» surface type.
+TEST(LspSemanticTokens, الرمز_المفرد_خمسة_أعداد_بالضبط) {
+    EngineFixture fx;
+    fx.open(u8"خريطة\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_EQ(tok.data.size(), 5u);
+    ASSERT_EQ(tok.data[3], static_cast<uint32_t>(SemanticTokenType::Type));
+}
+
+// (AR) تغطية سياقية ثانية مفقودة سابقًا: «عقد» (KEYWORD_CONTRACT، سياقيّة) كانت
+//      غائبة عن القائمة المهرَّدة القديمة (20) ⇒ تُلوَّن الآن كلمةً مفتاحية عبر
+//      الاشتقاق من المعجم. «حيث» (KEYWORD_WHERE) مثلها.
+// (EN) A second contextual coverage that was missing: «عقد» (KEYWORD_CONTRACT)
+//      and «حيث» (KEYWORD_WHERE), absent from the old 20-item list, now colored
+//      as keywords via lexicon derivation.
+TEST(LspSemanticTokens, كلمة_سياقية_ثانية_عقد_وحيث_تُلوَّن_مفتاحية) {
+    EngineFixture fx;
+    fx.open(u8"عقد\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), 5u);
+    ASSERT_EQ(tok.data[3], static_cast<uint32_t>(SemanticTokenType::Keyword));
+
+    EngineFixture fx2;
+    fx2.open(u8"حيث\n");
+    SemanticTokensData tok2 = fx2.engine.semantic_tokens_full(fx2.uri);
+    ASSERT_GE(tok2.data.size(), 5u);
+    ASSERT_EQ(tok2.data[3], static_cast<uint32_t>(SemanticTokenType::Keyword));
+}
+
+// (AR) حارس سلبيّ للعيب المُصلَح: «مؤكد» عاملُ تأكيد عدم الفراغ (OP_NULL_ASSERT)
+//      مصنَّف CONTEXTUAL في المعجم، لكنه عامل لا كلمة ⇒ يجب ألّا يُلوَّن مفتاحية.
+//      قبل الإصلاح كان الاشتقاق من CONTEXTUAL يبتلعه ويلوّنه Keyword خطأً.
+// (EN) Negative guard for the fixed defect: «مؤكد» is the null-assertion OPERATOR
+//      (OP_NULL_ASSERT) categorized CONTEXTUAL, but it is an operator, not a
+//      keyword ⇒ must NOT be colored as a keyword.
+TEST(LspSemanticTokens, عامل_التأكيد_السياقيّ_لا_يُلوَّن_مفتاحية) {
+    EngineFixture fx;
+    fx.open(u8"مؤكد\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), 5u);
+    ASSERT_TRUE(tok.data[3] != static_cast<uint32_t>(SemanticTokenType::Keyword));
+}
+
+// (AR) كلمة محجوزة «دالة» (KEYWORD_FUNCTION) تُلوَّن مفتاحية عبر مسار المحلّل
+//      (token_to_semantic_type) لا عبر مجموعة الكلمات السياقية — مسار مختلف عن
+//      الاختبارات أعلاه، فيغطّي الفرع الآخر من التلوين.
+// (EN) Reserved keyword «دالة» (KEYWORD_FUNCTION) colored via the lexer path
+//      (token_to_semantic_type), not the contextual set — covers the other branch.
+TEST(LspSemanticTokens, كلمة_محجوزة_دالة_تُلوَّن_مفتاحية_عبر_المحلّل) {
+    EngineFixture fx;
+    fx.open(u8"دالة\n");
+    SemanticTokensData tok = fx.engine.semantic_tokens_full(fx.uri);
+    ASSERT_GE(tok.data.size(), 5u);
+    ASSERT_EQ(tok.data[3], static_cast<uint32_t>(SemanticTokenType::Keyword));
 }
 
 TEST(LspFolding, يطوي_جسم_الدالة_متعدّد_الأسطر) {

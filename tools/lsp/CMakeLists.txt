@@ -90,6 +90,8 @@ target_include_directories(sad_lsp_engine PUBLIC
     ${CMAKE_SOURCE_DIR}/shared/parser/include
     ${CMAKE_SOURCE_DIR}/shared/ast/include
     ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/types/generated
+    ${CMAKE_SOURCE_DIR}/shared/lexer/generated
     ${CMAKE_SOURCE_DIR}/shared/utils/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
     ${CMAKE_SOURCE_DIR}/shared/builtins/include

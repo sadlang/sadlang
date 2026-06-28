@@ -17,7 +17,12 @@
 
 #include "lsp_engine.h"
 #include "arabic_utils.h"
-#include "sad_type_system.h" // (CW-06) أسماء الأنواع من مصدر الحقيقة (sadTypeKindArabicName)
+// (AR) المدخل الموحَّد الوحيد لنظام الأنواع — يضمّن الترويسة المولَّدة ضمنًا
+//      (sadTypeKindArabicName + SURFACE_TYPE_NAMES + surfaceTypeDescriptionAr).
+//      الترويسة نفسها توثّق: «include هذا فقط — لا حاجة لغيره» (CW-04/CW-06).
+// (EN) The single unified entry point for the type system; it transitively
+//      includes the generated header (no extra include needed by design).
+#include "sad_type_system.h"
 #include <unordered_map>
 
 namespace sad {
@@ -134,8 +139,12 @@ static const std::unordered_map<std::string, KeywordDoc>& get_keyword_docs() {
             "\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1 \xd9\x85\xd9\x86\xd8\xaa\xd9\x87\xd9\x8a = \xd8\xae\xd8\xb7\xd8\xa3",
             "قيم"
         }},
-        {"\xd8\xb9\xd8\xaf\xd9\x85", { // عدم
-            "القيمة الفارغة (null/none). تمثل غياب قيمة.",
+        {"\xd8\xb9\xd8\xaf\xd9\x85", { // عدم (نوع/قيمة سطحيّ: الوصف من المصدر — انظر أدناه)
+            // (AR) «عدم» سطحيّ (surface:true)، فوصفه يأتي من مصدر الحقيقة كبقيّة
+            //      الأنواع السطحية ⇒ يُترك فارغًا هنا (لا نصّ ميّت). المثال يبقى.
+            // (EN) «عدم» is surface:true; its description comes from the SoT like the
+            //      other surface types, so it's left empty here (no dead text).
+            "",
             "\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1 \xd9\x86\xd8\xaa\xd9\x8a\xd8\xac\xd8\xa9 = \xd8\xb9\xd8\xaf\xd9\x85",
             "قيم"
         }},
@@ -194,23 +203,29 @@ static const std::unordered_map<std::string, KeywordDoc>& get_keyword_docs() {
             "بنى التحكم"
         }},
         // ──── أنواع البيانات ────
+        // (AR) الأنواع السطحية: الوصف يأتي حصرًا من مصدر الحقيقة (types.yaml ⇒
+        //      resolve_surface_type_desc)، فحقل description هنا يُترك فارغًا عمدًا
+        //      تجنّبًا لنصّ ميّت/مكرَّر (CW-10/CW-19/DRY). يبقى المثال والتصنيف.
+        // (EN) Surface types: the description is sourced solely from the SoT, so the
+        //      description field is intentionally empty (no dead/duplicated text).
+        //      The example and category remain (the SoT carries no example yet).
         {"\xd8\xb1\xd9\x82\xd9\x85", { // رقم
-            "نوع عدد صحيح (integer). يمثل الأعداد الصحيحة بدون فاصلة عشرية.",
+            "",
             "\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1 \xd8\xb9\xd9\x85\xd8\xb1: \xd8\xb1\xd9\x82\xd9\x85 = 25",
             "أنواع البيانات"
         }},
         {"\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a", { // عشري
-            "نوع عدد عشري (float/double). يمثل الأعداد ذات الفاصلة العشرية.",
+            "",
             "\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1 \xd8\xb3\xd8\xb9\xd8\xb1: \xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a = 19.99",
             "أنواع البيانات"
         }},
         {"\xd9\x86\xd8\xb5", { // نص
-            "نوع نصي (string). يمثل سلسلة من الحروف.",
+            "",
             "\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1 \xd8\xa7\xd8\xb3\xd9\x85: \xd9\x86\xd8\xb5 = \"\xd8\xa3\xd8\xad\xd9\x85\xd8\xaf\"",
             "أنواع البيانات"
         }},
         {"\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a", { // منطقي
-            "نوع منطقي (boolean). يقبل فقط: صحيح أو خطأ.",
+            "",
             "\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1 \xd9\x86\xd8\xb4\xd8\xb7: \xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a = \xd8\xb5\xd8\xad\xd9\x8a\xd8\xad",
             "أنواع البيانات"
         }},
@@ -284,6 +299,53 @@ static std::string build_function_signature(const AnalyzedSymbol& sym) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  الأنواع السطحية — اشتقاق من مصدر الحقيقة (types.yaml ⇒ الترويسة المولَّدة)
+// ──────────────────────────────────────────────────────────────────────────────
+//  (AR) تصنيف التلميح للأنواع السطحية. ثابت لا رقم/نصّ سحريّ (CW-09/CW-10).
+//  (EN) Hover category label for surface types. A named constant (no magic text).
+// ══════════════════════════════════════════════════════════════════════════════
+static const std::string SURFACE_TYPE_CATEGORY =
+    "\xd8\xa3\xd9\x86\xd9\x88\xd8\xa7\xd8\xb9 \xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa"; // أنواع البيانات
+
+/// (AR) وصف النوع السطحيّ من مصدر الحقيقة، مع تطبيع عربيّ احتياطيّ (همزة/ألف/ياء/تاء).
+///      يجرّب المطابقة الحرفيّة أولًا (الأسرع)، ثمّ يطابق صورة المستخدم المُطبَّعة
+///      على أسماء الأنواع السطحية المُطبَّعة (كي يطابق «اي» ما يكتبه المستخدم لـ«أي»).
+///      يُرجِع "" إن لم تكن الكلمة نوعًا سطحيًّا.
+/// (EN) Surface-type description from the SoT, with Arabic-normalization fallback
+///      (hamza/alef/yaa/taa). Tries the literal match first, then matches the user's
+///      normalized form against normalized surface names. Returns "" if not a surface type.
+static std::string resolve_surface_type_desc(const std::string& word) {
+    // (AR) ١) مطابقة حرفيّة مباشرة من المصدر / (EN) 1) direct literal SoT match
+    const char* direct = Sad::Types::surfaceTypeDescriptionAr(word);
+    if (direct[0] != '\0') return direct;
+
+    // (AR) ٢) مطابقة مُطبَّعة (تتسامح مع همزة «أي»←«اي»، إلخ) / (EN) 2) normalized match
+    const std::string norm = arabic::normalize_arabic(word);
+    for (const auto& surface_name : Sad::Types::SURFACE_TYPE_NAMES) {
+        const std::string name_str{surface_name};
+        if (arabic::normalize_arabic(name_str) == norm) {
+            const char* desc = Sad::Types::surfaceTypeDescriptionAr(name_str);
+            if (desc[0] != '\0') return desc;
+        }
+    }
+    return "";
+}
+
+/// (AR) يبني تلميح نوع سطحيّ (وصفه من المصدر) لكلمةٍ ليست في معجم الكلمات المفتاحية،
+///      كي لا يبقى النوع السطحيّ (مصفوفة/خريطة/أي/فراغ) بلا تلميح أصلًا.
+/// (EN) Builds a surface-type hover (SoT-sourced) for a word absent from the keyword
+///      lexicon, so surface types (array/map/any/void) are never left without a hover.
+static std::string build_surface_type_hover_body(const std::string& word,
+                                                 const std::string& sot_desc) {
+    std::string content;
+    content += "### 🔑 \xd9\x83\xd9\x84\xd9\x85\xd8\xa9 \xd9\x85\xd9\x81\xd8\xaa\xd8\xa7\xd8\xad\xd9\x8a\xd8\xa9: `" + word + "`\n\n"; // كلمة مفتاحية
+    content += "**\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb5\xd9\x86\xd9\x8a\xd9\x81:** " + SURFACE_TYPE_CATEGORY + "\n\n"; // التصنيف
+    content += "---\n\n";
+    content += sot_desc + "\n\n";
+    return content;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  تنفيذ التلميحات الثورية
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -294,6 +356,14 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
     // الحصول على الكلمة تحت المؤشر
     std::string word = doc_store_->get_word_at(uri, pos);
     if (word.empty()) return std::nullopt;
+
+    // (AR) حساب نطاق الكلمة — مشترك لكلّ مسارات التلميح أدناه (DRY، CW-19).
+    // (EN) Word range — shared by every hover path below (DRY).
+    auto compute_word_range = [&]() -> Range {
+        std::string line = doc_store_->get_line(uri, pos.line);
+        auto id_range = arabic::get_identifier_range(line, pos.character);
+        return Range{{pos.line, id_range.first}, {pos.line, id_range.second}};
+    };
 
     // ──── ١. فحص الكلمات المفتاحية أولاً ────
     {
@@ -306,18 +376,35 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
             content += "### 🔑 كلمة مفتاحية: `" + word + "`\n\n";
             content += "**التصنيف:** " + it->second.category + "\n\n";
             content += "---\n\n";
-            content += it->second.description + "\n\n";
+            // (AR) أوصاف الأنواع السطحية تُشتقّ من مصدر الحقيقة (types.yaml ⇒
+            //      resolve_surface_type_desc) فلا تنحرف عن الوصف الرسميّ؛ أمّا
+            //      الكلمات المفتاحية فأوصافها محرَّرة (المعجم لا يحمل وصفًا بعد).
+            // (EN) Surface-type descriptions come from the SoT (types.yaml); keyword
+            //      descriptions stay authored (the lexicon has no description field yet).
+            const std::string sot_type_desc = resolve_surface_type_desc(word);
+            content += (!sot_type_desc.empty() ? sot_type_desc
+                                               : it->second.description) + "\n\n";
             content += "**مثال:**\n```sad\n" + it->second.example + "\n```\n";
 
             hover_result.contents = {"markdown", content};
+            hover_result.range = compute_word_range();
+            return hover_result;
+        }
+    }
 
-            // حساب نطاق الكلمة
-            std::string line = doc_store_->get_line(uri, pos.line);
-            auto id_range = arabic::get_identifier_range(line, pos.character);
-            hover_result.range = Range{
-                {pos.line, id_range.first},
-                {pos.line, id_range.second}
-            };
+    // ──── ١-ب. نوع سطحيّ غير مُسجَّل في المعجم (مصفوفة/خريطة/أي/فراغ) ────
+    // (AR) بعض الأنواع السطحية ليست كلماتٍ مفتاحية في المعجم، فكانت بلا تلميح
+    //      إطلاقًا. نعرض وصفها من مصدر الحقيقة كي يكون الاشتقاق مكتمِلًا لكلّ
+    //      الأنواع السطحية التسعة لا أربعةٍ منها فقط (BF-22: لا ثغرة تغطية).
+    // (EN) Some surface types aren't keywords in the lexicon, so they had NO hover.
+    //      Show their SoT description so derivation covers ALL nine surface types.
+    {
+        const std::string sot_type_desc = resolve_surface_type_desc(word);
+        if (!sot_type_desc.empty()) {
+            Hover hover_result;
+            hover_result.contents =
+                {"markdown", build_surface_type_hover_body(word, sot_type_desc)};
+            hover_result.range = compute_word_range();
             return hover_result;
         }
     }
@@ -410,14 +497,7 @@ std::optional<Hover> LspEngine::hover(const DocumentUri& uri, const Position& po
     }
 
     hover_result.contents = {"markdown", content};
-
-    // حساب نطاق الكلمة
-    std::string line = doc_store_->get_line(uri, pos.line);
-    auto id_range = arabic::get_identifier_range(line, pos.character);
-    hover_result.range = Range{
-        {pos.line, id_range.first},
-        {pos.line, id_range.second}
-    };
+    hover_result.range = compute_word_range();
 
     return hover_result;
 }

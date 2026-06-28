@@ -23,13 +23,81 @@
 #include "arabic_utils.h"
 #include "lexer_core.h"
 #include "lexer_keywords.h"
+// (AR) CW-06/CW-19: مصدر الحقيقة للأنواع السطحية والكلمات السياقية بدل تهريد
+//      قوائم تتباعد عن المعجم (types.yaml ⇒ SURFACE_TYPE_NAMES، keywords.yaml ⇒
+//      allEntries بتصنيف CONTEXTUAL).
+// (EN) CW-06/CW-19: SoT for surface types + contextual keywords (generated).
+#include "sad_type_kind_generated.h"
+// (AR) keywords_generated.h في shared/lexer/generated؛ يُضمَّن بتضمين نظيف بلا
+//      مسار نسبيّ هشّ (CW-04/CW-06): مساره مُضاف صراحةً لمسارات تضمين
+//      sad_lsp_engine في tools/lsp/CMakeLists.txt (وموروث عبر sad_core).
+// (EN) keywords_generated.h lives in shared/lexer/generated; included cleanly
+//      (no fragile relative path — CW-04/CW-06). Its dir is added explicitly to
+//      sad_lsp_engine include paths (and inherited via sad_core).
+#include "keywords_generated.h"
 #include <iostream>
 #include "token.h"
 #include <algorithm>
+#include <string>
 #include <unordered_set>
 
 namespace sad {
 namespace lsp {
+
+namespace {
+
+/// (AR) أسماء الأنواع السطحية من مصدر الحقيقة (types.yaml ⇒ SURFACE_TYPE_NAMES).
+///      تُبنى مرّة. تُلوَّن هذه المعرّفات كأنواع (لم تعد محجوزة في المعجم).
+/// (EN) Surface type names from the SoT; built once. Colored as types.
+const std::unordered_set<std::string>& surface_type_names() {
+    static const std::unordered_set<std::string> s = [] {
+        std::unordered_set<std::string> out;
+        for (const auto& n : Sad::Types::SURFACE_TYPE_NAMES) out.emplace(n);
+        return out;
+    }();
+    return s;
+}
+
+/// (AR) هل رمز هذا الإدخال السياقيّ كلمة مفتاحية فعلًا (لا عاملًا)؟
+///      فئة CONTEXTUAL في المعجم تخلط الكلمات (KEYWORD_*) مع عوامل سياقية
+///      (مثل «مؤكد/مؤكدة» = OP_NULL_ASSERT، عامل تأكيد عدم الفراغ NS-05).
+///      العوامل يجب ألّا تُلوَّن ككلمات مفتاحية. كل رموز الكلمات المفتاحية
+///      متجاورة في token.h ضمن النطاق [KEYWORD_FUNCTION .. KEYWORD_TO]
+///      (يليها TYPE_*/LITERAL_*/IDENTIFIER ثم عائلة OP_*)؛ فالفحص النطاقيّ
+///      يستبعد كل العوامل لا «مؤكد» وحدها (لا تخصيص حالة — BF-09).
+/// (EN) Is this contextual entry's token an actual keyword (not an operator)?
+///      The CONTEXTUAL category mixes keywords (KEYWORD_*) with contextual
+///      operators (e.g. «مؤكد/مؤكدة» = OP_NULL_ASSERT, the NS-05 null-assertion).
+///      Operators must NOT be colored as keywords. All KEYWORD_* tokens are
+///      contiguous in token.h within [KEYWORD_FUNCTION .. KEYWORD_TO], so a
+///      range check excludes every operator (not just «مؤكد» — no special-casing).
+inline bool contextual_entry_is_keyword(Sad::Lexer::TokenType type) {
+    using TT = Sad::Lexer::TokenType;
+    return type >= TT::KEYWORD_FUNCTION && type <= TT::KEYWORD_TO;
+}
+
+/// (AR) الكلمات السياقية من المعجم (تصنيف CONTEXTUAL + بدائلها) — العوامل
+///      المختلطة في الفئة (مثل OP_NULL_ASSERT) مُستبعَدة، فلا تُلوَّن ككلمات.
+///      كانت القائمة المهرَّدة ناقصة (20 مقابل ~40)؛ الاشتقاق يضمن التزامن.
+/// (EN) Contextual keywords from the lexicon (CONTEXTUAL category + aliases),
+///      excluding mixed-in operators (e.g. OP_NULL_ASSERT) so they aren't
+///      colored as keywords.
+const std::unordered_set<std::string>& contextual_keyword_names() {
+    static const std::unordered_set<std::string> s = [] {
+        std::unordered_set<std::string> out;
+        for (const auto& e : Sad::Lexer::Generated::allEntries()) {
+            if (e.category == Sad::Lexer::Generated::KeywordCategory::CONTEXTUAL &&
+                contextual_entry_is_keyword(e.type)) {
+                out.insert(e.primaryWord);
+                for (const auto& a : e.aliases) out.insert(a);
+            }
+        }
+        return out;
+    }();
+    return s;
+}
+
+} // namespace
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  تحويل TokenType إلى SemanticTokenType
@@ -109,6 +177,13 @@ static int token_to_semantic_type(Sad::Lexer::TokenType type) {
 //  إنشاء الرموز الدلالية
 // ══════════════════════════════════════════════════════════════════════════════
 
+// (AR/CW-01) دَين موثَّق: هذه الدالة تتجاوز حدّ الـ50 سطرًا لأنّها تنفّذ خط أنابيب
+//      متماسكًا (كشف تعليقات يدويّة ⇐ تلوين رموز المحلل ⇐ دمج ⇐ ترتيب ⇐ ترميز delta).
+//      التقسيم الآمن = استخراج كلّ مرحلة إلى دالّة (collect_manual_comments،
+//      classify_lexer_tokens، encode_delta) دون كسر السلوك؛ مؤجَّل لتفادي تراجع في
+//      مراجعة مركَّزة على UTF-16. لا أرقام سحرية ولا تكرار داخلها.
+// (EN/CW-01) Documented debt: exceeds the 50-line limit (cohesive pipeline). Safe split
+//      = extract each stage into a helper; deferred to avoid regression in this scoped review.
 SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
     SemanticTokensData data;
 
@@ -141,7 +216,13 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
 
         for (int i = 0; i < static_cast<int>(lines.size()); i++) {
             const auto& line = lines[i];
-            // نبحث عن # خارج النصوص
+            // (AR) نبحث عن '#' (تعليق) خارج النصوص. الفهرسة بالبايت مقصودة وآمنة:
+            //      المحدّدات '"' و'\'' و'#' و'\\' كلّها ASCII أحاديّة البايت، وبايتات
+            //      استمرار UTF-8 (‏0x80–0xBF) لا تساوي أيّ محرف ASCII، فلا يقع تطابق
+            //      كاذب حتى وإن سبق المحدّدَ نصٌّ عربيّ. فحص الهروب line[j-1] != '\\'
+            //      يصحّ لأنّ الهروب نفسه ASCII (j-1 قد يكون بايت استمرار لكنه ≠ '\\').
+            // (EN) Byte-indexed scan is intentional & safe: '"' '\'' '#' '\\' are ASCII;
+            //      UTF-8 continuation bytes never equal an ASCII char, so no false match.
             bool in_string = false;
             char string_char = 0;
             for (int j = 0; j < static_cast<int>(line.size()); j++) {
@@ -152,9 +233,17 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
                     in_string = false;
                 } else if (!in_string && line[j] == '#') {
                     // وجدنا تعليق
-                    int comment_len = static_cast<int>(line.size()) - j;
+                    // (AR) j إزاحة بايت؛ بروتوكول LSP يتطلّب البداية والطول بوحدات
+                    //      UTF-16. البداية = تحويل j. الطول = (طول السطر UTF-16) ناقص
+                    //      البداية — يحسب باقي السطر بلا تخصيص substr (CW-25) ويتجنّب
+                    //      تكرار حلقة الفكّ (CW-19/DRY). يصحّ مع عربيّ قبل '#' أو داخله.
+                    // (EN) j is a byte offset; LSP needs UTF-16 start/length. Length =
+                    //      (line UTF-16 length) - start, avoiding a substr alloc (CW-25)
+                    //      and a duplicate decode loop (CW-19/DRY).
+                    int start_col = arabic::utf8_offset_to_utf16_column(line, j);
+                    int comment_len = arabic::utf16_length(line) - start_col;
                     manual_tokens.push_back({
-                        i, j, comment_len,
+                        i, start_col, comment_len,
                         static_cast<int>(SemanticTokenType::Comment),
                         0
                     });
@@ -188,22 +277,16 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
             if (token.getType() == Sad::Lexer::TokenType::IDENTIFIER) {
                 const std::string& val = token.getValue();
                 
-                // (AR) تلوين أسماء الأنواع المدمجة كأنواع (لم تعد محجوزة)
-                // (EN) Color built-in type names as types (no longer reserved)
-                if (val == "رقم" || val == "عشري" || val == "نص" ||
-                    val == "منطقي" || val == "فراغ" || val == "عدم" ||
-                    val == "مصفوفة" || val == "خريطة" || val == "أي") {
+                // (AR) تلوين أسماء الأنواع السطحية كأنواع (لم تعد محجوزة) —
+                //      مشتقّة من types.yaml (SURFACE_TYPE_NAMES) لا تهريد.
+                // (EN) Color surface type names as types — from the SoT.
+                if (surface_type_names().count(val)) {
                     semantic_type = static_cast<int>(SemanticTokenType::Type);
                 }
-                // (AR) تلوين الكلمات السياقية ككلمات مفتاحية
-                // (EN) Color contextual keywords as keywords
-                else if (val == "خاصية" || val == "هدم" || val == "عامل" ||
-                         val == "احصل" || val == "عيّن" || val == "غير_متزامن" ||
-                         val == "انتظر" || val == "لامدا" || val == "مولد" ||
-                         val == "قالب" || val == "فضاء" || val == "سمة" ||
-                         val == "واجهة" || val == "نفّذ" || val == "نفذ" ||
-                         val == "اختبر" || val == "حالة" || val == "أنتج" ||
-                         val == "باستخدام" || val == "رئيسية") {
+                // (AR) تلوين الكلمات السياقية ككلمات مفتاحية — مشتقّة من المعجم
+                //      (allEntries بتصنيف CONTEXTUAL) فتشمل كلّها لا 20 مهرَّدة.
+                // (EN) Color contextual keywords (CONTEXTUAL category from the lexicon).
+                else if (contextual_keyword_names().count(val)) {
                     semantic_type = static_cast<int>(SemanticTokenType::Keyword);
                 }
                 
@@ -245,21 +328,45 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
                     if (sym.is_builtin) {
                         token_modifiers |= static_cast<int>(SemanticTokenModifier::DefaultLibrary);
                     }
-                    if (sym.is_exported) {
-                        // يمكن إضافة معدّل التصدير
-                    }
+                    // (AR) معدّل التصدير غير مدعوم في legend الحاليّ (لا قيمة Exported
+                    //      في SemanticTokenModifier)؛ إضافته تتطلّب توسيع الـlegend
+                    //      والتفاوض مع العميل. تُرك كدَين موثَّق لا ككتلة فارغة صامتة.
+                    // (EN) Export modifier not in the current legend; deferred (debt) —
+                    //      adding it requires extending the legend + client negotiation.
+                    (void)sym.is_exported;
                 }
             }
 
             int line = static_cast<int>(token.getPosition().line) - 1;
+            // (AR) عمود المحلل المعجميّ مُحتسَب بنقاط الترميز (advance يزيده عند بايت
+            //      بداية UTF-8 فقط لا عند بايت الاستمرار)، فيطابق وحدات UTF-16 لأحرف
+            //      المستوى الأساسيّ (BMP) ومنها العربيّة كلّها. أمّا الطول فكان بالبايتات
+            //      ⇒ مضاعَف للعربيّة فيُلوَّن خطأً؛ نحسبه بوحدات UTF-16.
+            // (AR) حدّ معروف: لمحارف خارج BMP (إيموجي = نقطة ترميز واحدة لكنها وحدتا
+            //      UTF-16) ينحرف `start` بمقدار وحدة لكلّ محرف غير BMP سابق على السطر،
+            //      لأنّ عمود المحلل يَعُدّ كلّ نقطة ترميز واحدةً. غير قابل للعلاج هنا دون
+            //      تمرير نصّ السطر وإعادة تحويل العمود (دَين موثَّق)؛ النصوص العربية
+            //      البحتة (الحالة السائدة) غير متأثّرة. الطول نفسه يُحسب صحيحًا لغير BMP.
+            // (EN) Lexer column counts code points (advance() skips UTF-8 continuation
+            //      bytes), matching UTF-16 units for BMP (all Arabic). Length was bytes
+            //      (doubled for Arabic ⇒ mis-coloring); computed in UTF-16 units now.
+            //      KNOWN LIMIT: for non-BMP chars (emoji = 1 code point but 2 UTF-16
+            //      units) `start` drifts by one unit per preceding non-BMP char on the
+            //      line; pure-Arabic text is unaffected. Length is correct for non-BMP.
             int start = static_cast<int>(token.getPosition().column) - 1;
-            int length = static_cast<int>(token.getValue().size());
+            int length = arabic::utf16_length(token.getValue());
             if (length <= 0) length = 1;
 
             all_tokens.push_back({line, start, length, semantic_type, token_modifiers});
         }
 
         // إضافة التعليقات اليدوية
+        // (AR/CW-12) التعقيد هنا O(manual × all) لأنّ كلّ تعليق يدويّ يَمسح كلّ الرموز
+        //      بحثًا عن تعليق توثيق (##) على السطر نفسه لتفادي ازدواج التلوين. مقبول:
+        //      manual_tokens محدودة بسطر واحد لكلّ سطر مصدر، والكسر المبكّر يوقف المسح
+        //      عند أوّل تطابق؛ لا داعي لخريطة سطر→مجموعة لهذه الأحجام (CW-28).
+        // (EN/CW-12) O(manual × all): each manual comment scans tokens for a same-line
+        //      doc-comment to avoid double coloring. Bounded; early-break — no index needed.
         for (const auto& mt : manual_tokens) {
             // نتأكد أنها لا تتداخل مع رمز DOC_COMMENT من Lexer
             bool overlaps = false;
@@ -302,7 +409,10 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
         // إذا فشل التحليل المعجمي، نرجع بيانات فارغة مع تسجيل الخطأ
         std::cerr << "[LSP] semantic_tokens failed: " << e.what() << std::endl;
     } catch (...) {
-        // خطأ غير معروف أثناء التحليل المعجمي
+        // (AR/CW-22) خطأ غير معروف أثناء التحليل المعجميّ: نُسجّله أيضًا (لا نبتلعه
+        //      صامتًا) توحيدًا مع فرع std::exception أعلاه، ثمّ نُرجع بيانات فارغة.
+        // (EN/CW-22) Unknown error: log too (no silent swallow), then return empty.
+        std::cerr << "[LSP] semantic_tokens failed: unknown exception" << std::endl;
     }
 
     return data;
@@ -333,7 +443,13 @@ SemanticTokensData LspEngine::semantic_tokens_range(const DocumentUri& uri, cons
         abs_line += delta_line;
         abs_start = (delta_line == 0) ? (abs_start + delta_start) : delta_start;
 
-        // تصفية: هل الرمز داخل النطاق المطلوب؟
+        // (AR) تصفية بدقّة السطر: نُبقي كلّ رمز يقع سطره داخل [start.line, end.line].
+        //      `abs_start` و`range.*.character` كلاهما بوحدات UTF-16 (متجانسان)، لكنّنا
+        //      عمدًا لا نقصّ على حدود العمود: بروتوكول LSP يجيز إرجاع رموز الأسطر
+        //      المتداخلة كاملةً، والقصّ على العمود قد يبتر رمزًا ممتدًّا عبر الحدّ.
+        //      هذا سلوك مقصود لا عيب (تجنّب تراجع — BF-13).
+        // (EN) Line-granular filter (intentional): LSP permits returning full tokens of
+        //      overlapping lines; column-clipping could split a boundary-spanning token.
         if (abs_line >= range.start.line && abs_line <= range.end.line) {
             // حساب delta من آخر رمز مُضاف
             int new_delta_line = abs_line - prev_line;
