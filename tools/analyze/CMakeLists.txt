@@ -1,7 +1,8 @@
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
-# ملف: tools/analyze/CMakeLists.txt
-# الوصف: بناء أداة ومكتبة المحلل المتقدم للغة ص
+# ملف / File: tools/analyze/CMakeLists.txt
+# (AR) الوصف: بناء أداة ومكتبة المحلل المتقدم للغة ص
+# (EN) Build the Sad advanced analyzer library + CLI (sad-analyze)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 cmake_minimum_required(VERSION 3.15)
@@ -17,6 +18,8 @@ set(SAD_ANALYZE_HEADERS
     include/ast_analysis_visitor.h
 )
 
+# (AR) المكتبة الساكنة: محرّك التحليل (يستهلكها sad-analyze والاختبارات)
+# (EN) Static library: analyzer engine (consumed by sad-analyze and tests)
 add_library(sad_analyze_engine STATIC
     ${SAD_ANALYZE_SOURCES}
     ${SAD_ANALYZE_HEADERS}
@@ -33,8 +36,13 @@ target_include_directories(sad_analyze_engine PUBLIC
     ${CMAKE_SOURCE_DIR}/include
 )
 
+# (AR) م4 (RFC sadlang-rfcs#10): أداة التحليل الساكن لا تستعمل رموز المفسّر ⇒ تربط
+#      sad_shared + sad_type_system بدل sad_core (المفسّر الكامل).
+# (EN) Phase-4: static-analysis tool uses no interpreter symbols ⇒ links sad_shared
+#      + sad_type_system instead of sad_core.
 target_link_libraries(sad_analyze_engine PUBLIC
-    sad_core
+    sad_shared
+    sad_type_system
 )
 
 target_compile_features(sad_analyze_engine PUBLIC cxx_std_17)
@@ -45,6 +53,8 @@ else()
     target_compile_options(sad_analyze_engine PRIVATE -Wall -Wextra -pedantic)
 endif()
 
+# (AR) التنفيذي: واجهة سطر الأوامر sad-analyze
+# (EN) Executable: the sad-analyze CLI
 add_executable(sad-analyze
     src/main.cpp
 )
@@ -55,7 +65,9 @@ target_include_directories(sad-analyze PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_compile_features(sad-analyze PUBLIC cxx_std_17)
+# (AR) PRIVATE: لا أحد يربط التنفيذيّ، فلا داعي لنشر الميزة عامًّا
+# (EN) PRIVATE: nothing links the executable, so no need to propagate the feature
+target_compile_features(sad-analyze PRIVATE cxx_std_17)
 
 if(MSVC)
     target_compile_options(sad-analyze PRIVATE /utf-8 /W4)

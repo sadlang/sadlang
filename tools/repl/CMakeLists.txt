@@ -7,10 +7,10 @@ cmake_minimum_required(VERSION 3.15)
 # REPL Target / هدف REPL
 # ========================================
 
-# Note: Implementation files (.cpp) will be created in Phase 1.5.1
-# Currently we only have headers
+# (AR) ملاحظة: ملفّات التنفيذ (.cpp) موجودة الآن (main/repl_engine/history_manager/repl_commands)
+# (EN) Note: implementation files (.cpp) now exist — listed in REPL_SOURCES below
 
-# Collect sources
+# (AR) جمع المصادر / (EN) Collect sources
 set(REPL_SOURCES
     main.cpp
     repl_engine.cpp
@@ -24,10 +24,10 @@ set(REPL_HEADERS
     repl_commands.h
 )
 
-# Create sad-repl executable
+# (AR) إنشاء التنفيذي sad-repl / (EN) Create sad-repl executable
 add_executable(sad-repl ${REPL_SOURCES} ${REPL_HEADERS})
 
-# Include directories
+# (AR) مسارات التضمين / (EN) Include directories
 target_include_directories(sad-repl PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/compiler/include
@@ -42,7 +42,7 @@ target_include_directories(sad-repl PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/utils/include
 )
 
-# Link libraries
+# (AR) ربط المكتبات / (EN) Link libraries
 target_link_libraries(sad-repl PRIVATE
     # (AR) م2-أ: جسر الواجهات — REPL ينفّذ كود مستخدم تفاعليًّا فيدعم الرسومات
     #      (repl_engine.cpp يستدعي installSadUIBridge). يربط sad_core + sad_ui عبوريًّا.
@@ -53,13 +53,13 @@ target_link_libraries(sad-repl PRIVATE
     sad_semantic
 )
 
-# C++ Standard
+# (AR) معيار C++ / (EN) C++ Standard
 set_target_properties(sad-repl PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
 )
 
-# Output directory
+# (AR) مجلّد الإخراج / (EN) Output directory
 # (AR) نستعمل ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} كبقيّة الأهداف ليقع sad-repl في
 #      نفس مجلّد sad-hub (الذي يكتشف الأدوات بمسح أشقّائه). الصيغة القديمة
 #      bin/${CMAKE_BUILD_TYPE} كانت تُنتج bin/Debug/Debug على MSVC (إلحاق تلقائيّ
@@ -73,11 +73,11 @@ set_target_properties(sad-repl PROPERTIES
 )
 
 # ========================================
-# Platform-specific settings
+# إعدادات خاصّة بالمنصّة / Platform-specific settings
 # ========================================
 
 if(WIN32)
-    # Windows: Enable UTF-8
+    # (AR) ويندوز: تفعيل UTF-8 / (EN) Windows: enable UTF-8
     target_compile_options(sad-repl PRIVATE /utf-8)
 endif()
 
@@ -90,10 +90,10 @@ install(TARGETS sad-repl
     COMPONENT repl
 )
 
-# Install README
+# (AR) تثبيت README / (EN) Install README
 install(FILES README.md
     DESTINATION share/doc/sad-repl
     COMPONENT repl
 )
 
-message(STATUS "sad-repl target configured")
+message(STATUS "✓ بيئة التطوير التفاعلية / REPL: sad-repl")

@@ -1,7 +1,8 @@
 # بسم الله الرحمن الرحيم
 # ============================================================================
-# tools/shared/CMakeLists.txt — مكتبة مشتركة بين أدوات لغة ص
-# Shared library for Sad language tooling (formatter, LSP, ...)
+# ملف / File: tools/shared/CMakeLists.txt
+# (AR) مكتبة مشتركة بين أدوات لغة ص (المنسّق، LSP، ...)
+# (EN) Shared library for Sad language tooling (formatter, LSP, ...)
 # ============================================================================
 #
 # (AR) هذه الطبقة المشتركة لأدوات اللغة (ليست للغة نفسها). توفر تصنيفاً

@@ -1,12 +1,7 @@
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
-# ملف: cmake/tools.cmake
-# الوصف: أدوات التطوير / Development Tools (LSP, Formatter, REPL, Package Manager)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# ملف: cmake/tools.cmake
-# الوصف: أدوات التطوير / Development Tools (LSP, Formatter, REPL, Package Manager)
+# ملف / File: cmake/tools.cmake
+# الوصف / Desc: أدوات التطوير / Development Tools (LSP, Formatter, REPL, Package Manager)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
@@ -139,6 +134,7 @@ if(BUILD_APK_BUILDER AND EXISTS "${CMAKE_SOURCE_DIR}/tools/apk_builder/CMakeList
     add_subdirectory(tools/apk_builder)
     message(STATUS "✓ أداة بناء APK / APK Builder: sad-apk")
 endif()
+
 # ──────────────────────────────────────────────────────────────────────
 # أداة بناء Android / Android Builder Tool
 # ──────────────────────────────────────────────────────────────────────
@@ -151,6 +147,6 @@ endif()
 
 # ──────────────────────────────────────────────────────────────────────
 # مصحح الأداء / Performance Profiler
-# (AR) ملاحظة: add_subdirectory يتم في CMakeLists.txt الرئيسي قبل sad_core
-# (EN) Note: add_subdirectory is done in root CMakeLists.txt before sad_core
+# (AR) ملاحظة: add_subdirectory يتم في CMakeLists.txt الرئيسي قبل sad_interp (= sad_core)
+# (EN) Note: add_subdirectory is done in root CMakeLists.txt before sad_interp (= sad_core)
 # ──────────────────────────────────────────────────────────────────────

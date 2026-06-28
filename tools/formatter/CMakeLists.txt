@@ -1,8 +1,8 @@
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
 # ملف: tools/formatter/CMakeLists.txt
-# الوصف: مكتبة منسّق كود لغة ص (sad_formatter_lib) + الأداة (sad-fmt)
-# Build: SadFormatter library + sad-fmt CLI
+# (AR) الوصف: مكتبة منسّق كود لغة ص (sad_formatter_lib) + الأداة (sad-fmt)
+# (EN) Build: SadFormatter library + sad-fmt CLI
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # (AR) المنسق ليس جزءاً من المترجم/المفسر — هو أداة تحرير. لذلك يعيش هنا
@@ -39,11 +39,12 @@ target_include_directories(sad_formatter_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/include/format
 )
 
-# ربط بطبقة الأدوات المشتركة (التي توفر تصنيف الكلمات)
+# (AR) ربط بطبقة الأدوات المشتركة (التي توفر تصنيف الكلمات)
+# (EN) Link to the tools-shared layer (which provides keyword classification)
 if(TARGET sad_tools_shared)
     target_link_libraries(sad_formatter_lib PUBLIC sad_tools_shared)
 else()
-    message(FATAL_ERROR "sad_formatter_lib يتطلب sad_tools_shared. تأكد من تسجيل tools/shared قبل tools/formatter في cmake/tools.cmake")
+    message(FATAL_ERROR "sad_formatter_lib يتطلب sad_tools_shared — تأكد من تسجيل tools/shared قبل tools/formatter في cmake/tools.cmake / sad_formatter_lib requires sad_tools_shared; register tools/shared before tools/formatter in cmake/tools.cmake")
 endif()
 
 if(MSVC)

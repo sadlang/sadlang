@@ -179,7 +179,11 @@ add_test(NAME IOFunctionsTests COMMAND io_functions_tests WORKING_DIRECTORY ${CM
 # ──────────────────────────────────────────────────────────────────────
 if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/lsp/test_lsp_code_actions.cpp")
     add_executable(lsp_code_actions_tests tests/system/lsp/test_lsp_code_actions.cpp)
-    target_link_libraries(lsp_code_actions_tests PRIVATE sad_core)
+    # (AR) م4: اختبار LSP تحليلٌ ساكن ⇒ يربط sad_lsp_engine (يوفّر sad_shared+type_system
+    #      عامًّا) بدل sad_core (المفسّر الكامل). لا رموز Sad::Interpreter:: في اختبارات LSP.
+    # (EN) Phase-4: LSP test is static analysis ⇒ links sad_lsp_engine (PUBLIC sad_shared
+    #      + sad_type_system) instead of sad_core (the whole interpreter). No Sad::Interpreter:: symbols.
+    target_link_libraries(lsp_code_actions_tests PRIVATE sad_lsp_engine)
     set_target_properties(lsp_code_actions_tests PROPERTIES
         OUTPUT_NAME "lsp_code_actions_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     add_test(NAME LspCodeActionsTests COMMAND lsp_code_actions_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -190,8 +194,10 @@ endif()
 
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات محرّك LSP الشاملة + اختبارات السلوك / LSP Engine & Behavior Tests
-# تختبر صنف LspEngine مباشرةً (القلب المجّانيّ بعد إزالة المزوّدات المتقدّمة).
-# تربط sad_lsp_engine (المحرّك) + sad_core، وتستعمل إطار sad_test.h.
+# (AR) تختبر صنف LspEngine مباشرةً (القلب المجّانيّ بعد إزالة المزوّدات المتقدّمة).
+#      تربط sad_lsp_engine (المحرّك، يوفّر sad_shared عامًّا — م4)، وتستعمل إطار sad_test.h.
+# (EN) Test the LspEngine class directly (free core after removing advanced providers).
+#      Link sad_lsp_engine (engine, PUBLIC sad_shared — Phase-4); use the sad_test.h harness.
 # ──────────────────────────────────────────────────────────────────────
 foreach(_lsp_test
         test_lsp_engine_comprehensive:LspEngineComprehensiveTests:lsp_engine_comprehensive_tests
@@ -203,7 +209,9 @@ foreach(_lsp_test
     list(GET _parts 2 _target)
     if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/lsp/${_src}.cpp")
         add_executable(${_target} tests/system/lsp/${_src}.cpp)
-        target_link_libraries(${_target} PRIVATE sad_lsp_engine sad_core)
+        # (AR) م4: sad_core أُسقط (sad_lsp_engine يوفّر sad_shared عامًّا)
+        # (EN) Phase-4: sad_core dropped (sad_lsp_engine provides sad_shared PUBLICly)
+        target_link_libraries(${_target} PRIVATE sad_lsp_engine)
         target_include_directories(${_target} PRIVATE
             ${CMAKE_SOURCE_DIR}/tools/lsp/include
             ${CMAKE_SOURCE_DIR}/tests/framework)

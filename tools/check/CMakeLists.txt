@@ -1,8 +1,10 @@
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
 # tools/check/CMakeLists.txt
-# (AR) sad-check: فاحص الملكية والأنواع الثابت — يستخدم shared/ownership فقط
-# (EN) sad-check: static ownership/type checker — uses only shared/ownership
+# (AR) sad-check: فاحص الملكية والأنواع الساكن — يربط sad_ownership + sad_shared
+#      (معجم/محلّل/AST) + sad_semantic_shared (فاحص الأنواع المشترك)؛ لا مفسّر/مترجم.
+# (EN) sad-check: static ownership/type checker — links sad_ownership + sad_shared
+#      (lexer/parser/AST) + sad_semantic_shared (shared type checker); no interpreter/compiler.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 add_executable(sad_check src/main.cpp)

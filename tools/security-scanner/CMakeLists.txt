@@ -1,5 +1,6 @@
+# بسم الله الرحمن الرحيم
 # ============================================================================
-# tools/security-scanner/CMakeLists.txt
+# ملف / File: tools/security-scanner/CMakeLists.txt
 # (AR) أداة sad-guard: ماسح أمني ساكن للغة ص.
 # (EN) sad-guard: Sad's static security scanner.
 # ============================================================================
@@ -71,6 +72,7 @@ if(BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_security_scann
     if(MSVC)
         target_compile_options(test_security_scanner PRIVATE /utf-8 /FS /wd4819)
     endif()
+    message(STATUS "✓ اختبار الماسح الأمني / Security scanner test: test_security_scanner")
 endif()
 
-message(STATUS "Configured sad-guard (security scanner)")
+message(STATUS "✓ الماسح الأمني / Security Scanner: sad-guard")
