@@ -18,7 +18,8 @@
 # الكامل (sad_core)؛ راجع تعليق target_link_libraries أدناه.
 #
 # الأهداف / Targets:
-#   sad_lsp_engine    - مكتبة ثابتة تحتوي على جميع مزودات الميزات / static lib with all feature providers
+#   sad_lsp_engine    - مكتبة ثابتة: النواة (core) + مزوّدات الميزات المصنّفة (features)
+#                       static lib: the core + the grouped feature providers
 #   sad-lsp-server    - الملف التنفيذي للخادم / the server executable
 #
 # ══════════════════════════════════════════════════════════════════════════════
@@ -65,64 +66,55 @@ add_custom_target(sad_lsp_keyword_docs_codegen DEPENDS "${LSP_KW_DOCS_HEADER}")
 # (EN) LSP engine core library — all analysis, completion and diagnostics logic
 # ──────────────────────────────────────────────────
 add_library(sad_lsp_engine STATIC
-    # المحرك الأساسي - التحليل وإدارة المستندات وفهرسة الرموز
-    src/engine/document_store.cpp
-    src/engine/analysis_pipeline.cpp
-    src/engine/symbol_index.cpp
-    src/engine/scope_tracker.cpp
-    src/engine/lsp_engine_core.cpp
-
-    # المزودات - كل ميزة LSP في ملف مستقل
-    src/providers/completion_provider.cpp
-    src/providers/diagnostics_provider.cpp
-    src/providers/hover_provider.cpp
-    src/providers/definition_provider.cpp
-    src/providers/references_provider.cpp
-    src/providers/symbols_provider.cpp
-    src/providers/document_symbols_provider.cpp
-    src/providers/formatting_provider.cpp
-    src/providers/semantic_tokens_provider.cpp
-    src/providers/signature_help_provider.cpp
-    src/providers/rename_provider.cpp
-    src/providers/code_actions_provider.cpp
-    src/providers/inlay_hints_provider.cpp
-    src/providers/folding_provider.cpp
+    # ══════════════════════════════════════════════════════════════════════════
+    # النواة (core) — التحليل وإدارة المستندات وفهرسة الرموز والأدوات المساعدة
+    # The core — analysis, document store, symbol index, and helper utilities
+    # ══════════════════════════════════════════════════════════════════════════
+    src/core/lsp_engine_core.cpp
+    src/core/document_store.cpp
+    src/core/analysis_pipeline.cpp
+    src/core/symbol_index.cpp
+    src/core/scope_tracker.cpp
+    src/core/arabic_utils.cpp
+    src/core/uri_utils.cpp
 
     # ══════════════════════════════════════════════════════════════════════════
-    # الميزات الثورية الجديدة - المرحلة 3 / Revolutionary features - Phase 3
+    # المميّزات (features) — كل ميزة LSP في ملف مستقل، مصنّفة حسب الغرض
+    # Features — each LSP capability in its own file, grouped by purpose
     # ══════════════════════════════════════════════════════════════════════════
 
-    # عدسات الكود - عرض معلومات تفاعلية فوق الدوال والأصناف
-    src/providers/code_lens_provider.cpp
+    # تحرير (editing): إكمال، تواقيع، تنسيق، تنسيق أثناء الكتابة
+    src/features/editing/completion_provider.cpp
+    src/features/editing/signature_help_provider.cpp
+    src/features/editing/formatting_provider.cpp
+    src/features/editing/on_type_formatting_provider.cpp
 
-    # نطاق التحديد الذكي - توسيع التحديد بذكاء
-    src/providers/selection_range_provider.cpp
+    # فهم (comprehension): تحويم، تلوين دلاليّ، تلميحات داخليّة، عدسات الكود
+    src/features/comprehension/hover_provider.cpp
+    src/features/comprehension/semantic_tokens_provider.cpp
+    src/features/comprehension/inlay_hints_provider.cpp
+    src/features/comprehension/code_lens_provider.cpp
 
-    # شجرة الاستدعاءات - من يستدعي من
-    src/providers/call_hierarchy_provider.cpp
+    # تنقّل (navigation): تعريف، مراجع، رموز، رموز المستند، روابط المستند
+    src/features/navigation/definition_provider.cpp
+    src/features/navigation/references_provider.cpp
+    src/features/navigation/symbols_provider.cpp
+    src/features/navigation/document_symbols_provider.cpp
+    src/features/navigation/document_links_provider.cpp
 
-    # شجرة الأنواع - الوراثة (الآباء والأبناء)
-    src/providers/type_hierarchy_provider.cpp
+    # بنية (structure): شجرة الاستدعاءات، شجرة الأنواع، نطاق التحديد، الطيّ
+    src/features/structure/call_hierarchy_provider.cpp
+    src/features/structure/type_hierarchy_provider.cpp
+    src/features/structure/selection_range_provider.cpp
+    src/features/structure/folding_provider.cpp
 
-    # روابط المستند - مسارات الاستيراد القابلة للنقر
-    src/providers/document_links_provider.cpp
-
-    # التنسيق أثناء الكتابة - تنسيق تلقائي فوري
-    src/providers/on_type_formatting_provider.cpp
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # كاشف المشاكل المعروفة (موصول بخطّ التحليل، جزء من القلب المجّانيّ)
-    # يحذر المبرمجين من الأنماط التي تسبب مشاكل موثقة في لغة ص
-    # ══════════════════════════════════════════════════════════════════════════
-    #
-    # ملاحظة: حُذفت المزوّدات «المتقدّمة» الخمسة (AI/أمان/أداء/أسلوب/إعادة هيكلة)
-    # لأنها كانت تُبنى دون أن يستدعيها المحرّك أو طبقة النقل (معزولة)، وهي مادة
-    # منتجات مدفوعة منفصلة لا جزء من خادم LSP المجّانيّ المفتوح.
-    src/providers/known_issues_detector.cpp
-
-    # أدوات مساعدة عربية / Arabic helper utilities
-    src/utils/arabic_utils.cpp
-    src/utils/uri_utils.cpp
+    # جودة (quality): تشخيصات، كاشف المشاكل المعروفة، إعادة تسمية، إجراءات الكود
+    # ملاحظة: أيّ ميزات معزولة لا يستدعيها المحرّك ولا طبقة النقل ليست جزءًا من
+    #         القلب المفتوح وتُعالَج خارج نطاق هذه المكتبة.
+    src/features/quality/diagnostics_provider.cpp
+    src/features/quality/known_issues_detector.cpp
+    src/features/quality/rename_provider.cpp
+    src/features/quality/code_actions_provider.cpp
 )
 
 target_include_directories(sad_lsp_engine PUBLIC

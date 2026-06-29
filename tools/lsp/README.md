@@ -12,7 +12,7 @@
 | الاسم التنفيذيّ | `sad-lsp` |
 | المكتبة | `sad_lsp_engine` (ساكنة) |
 | اللغة | C++17 |
-| الاعتماد | `sad_core` (← `sad_shared`) + `sad_formatter` |
+| الاعتماد | `sad_shared` + `sad_type_system` + `sad_formatter` |
 | البروتوكول | LSP عبر JSON-RPC (stdin/stdout) |
 | الترميز | UTF-8 عربيّ/إنجليزيّ؛ مواضع UTF-16 |
 
@@ -35,27 +35,23 @@
 └───────────────────────────────┬──────────────────────────────────────┘
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  ② طبقة المحرّك  (src/engine/)                                        │
+│  ② النواة  (src/core/)                                               │
 │     lsp_engine_core · document_store · symbol_index ·                │
-│     scope_tracker · analysis_pipeline                                │
-│     يحفظ المستندات، يفهرس الرموز، ينسّق التحليل والنشر                  │
+│     scope_tracker · analysis_pipeline · arabic_utils · uri_utils     │
+│     يحفظ المستندات، يفهرس الرموز، ينسّق التحليل والنشر، أدوات عربيّة    │
 └───────────────────────────────┬──────────────────────────────────────┘
                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  ③ طبقة المزوّدات  (src/providers/)  — ميزة لكلّ ملفّ                  │
-│     completion · hover · definition · references · diagnostics ·     │
-│     semantic_tokens · rename · code_actions · inlay_hints ·          │
-│     folding · formatting · signature_help · code_lens ·             │
-│     call_hierarchy · type_hierarchy · document_links · …             │
+│  ③ المميّزات  (src/features/)  — ميزة لكلّ ملفّ، مصنّفة حسب الغرض      │
+│     editing/        إكمال · تواقيع · تنسيق · أثناء-الكتابة            │
+│     comprehension/  تحويم · تلوين دلاليّ · inlay · عدسات              │
+│     navigation/     تعريف · مراجع · رموز · رموز-المستند · روابط        │
+│     structure/      شجرة-استدعاء · شجرة-أنواع · نطاق · طيّ            │
+│     quality/        تشخيصات · مشاكل-معروفة · تسمية · إجراءات          │
 └───────────────────────────────┬──────────────────────────────────────┘
-                                 ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  ④ طبقة الأدوات  (src/utils/)                                         │
-│     arabic_utils (تطبيع/بحث ضبابيّ) · uri_utils                       │
-└──────────────────────────────────────────────────────────────────────┘
                                  │  يرتكز على
                                  ▼
-        sad_core / sad_shared  (LexerCore · ParserCore · AST · KeywordTable)
+     sad_shared (+ sad_type_system)  (LexerCore · ParserCore · AST · KeywordTable)
 ```
 
 ---
@@ -92,7 +88,7 @@ language-truth/keywords.yaml ─┐
 language-truth/builtins/*.yaml├─► gen_*.py (وقت البناء) ─► *_generated.h
 language-truth/types.yaml ────┘        (cmake/codegen.cmake)        │
                                                                     ▼
-              sad_shared يُترجم المُولَّد ──► sad_core ──► sad_lsp_engine
+              sad_shared يُترجم المُولَّد ─────────────► sad_lsp_engine
                                                                     │
                   يستهلكه الخادم وقت التشغيل:                        ▼
    • register_builtins()      ← Sad::Builtins::ALL_BUILTINS   (1073 مدمجة)
@@ -167,11 +163,20 @@ tools/lsp/
 │   ├── lsp_protocol_types.h    #   أنواع بروتوكول LSP
 │   ├── known_issues_detector.h
 │   └── arabic_utils.h
+├── data/                       # نظام الأداة الداخليّ: أوصاف تحويم (يستهلك المعجم)
+│   └── keyword_docs.yaml
+├── scripts/                    # مولّد أوصاف الأداة + اختباره
+│   ├── gen_keyword_docs.py
+│   └── test_gen_keyword_docs.py
 └── src/
     ├── transport/              # ① النقل: JSON-RPC + نقطة الدخول
-    ├── engine/                 # ② المحرّك: المستندات + الفهرس + خطّ التحليل
-    ├── providers/              # ③ المزوّدات: ميزة لكلّ ملفّ
-    └── utils/                  # ④ الأدوات: العربية + URI
+    ├── core/                   # ② النواة: المستندات + الفهرس + خطّ التحليل + أدوات
+    └── features/               # ③ المميّزات: ميزة لكلّ ملفّ، مصنّفة حسب الغرض
+        ├── editing/            #     إكمال · تواقيع · تنسيق · أثناء-الكتابة
+        ├── comprehension/      #     تحويم · تلوين · inlay · عدسات
+        ├── navigation/         #     تعريف · مراجع · رموز · رموز-المستند · روابط
+        ├── structure/          #     شجرة-استدعاء · شجرة-أنواع · نطاق · طيّ
+        └── quality/            #     تشخيصات · مشاكل-معروفة · تسمية · إجراءات
 ```
 
 ---

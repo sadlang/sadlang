@@ -25,7 +25,9 @@
 //      Sad::Lexer::Generated::allEntries() مباشرةً لاشتقاق block_openers،
 //      فلا نعتمد على وصوله ضمنيًّا عبر lexer_keywords.h.
 // (EN) CW-06: explicit include of the generated lexicon; allEntries() is used directly.
-#include "../generated/keywords_generated.h"
+//      (AR) keywords_generated.h في shared/lexer/generated؛ يُضمَّن نظيفًا عبر
+//           مسار التضمين لا بمسار نسبيّ هشّ (مطابق لـsemantic_tokens_provider).
+#include "keywords_generated.h"
 // (AR) CW-06: سجلّ طرق الأنواع المُولَّد من مصدر الحقيقة (ALL_TYPE_METHODS)
 //      لإكمال أعضاء الأنواع المدمجة بعد النقطة.
 // (EN) CW-06: generated type-method registry (ALL_TYPE_METHODS) for member completion.
