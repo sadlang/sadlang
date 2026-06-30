@@ -103,6 +103,39 @@ SadWidget sad_dialog(const char* title, const char* message);
 /** صورة(مصدر) */
 SadWidget sad_image(const char* source);
 
+/* ─── مصانع إضافيّة (م-مصانع) — تطابق تسجيل المفسّر (widget_builtins.cpp) ───
+ * Extra factories closing the compiler↔interpreter gap. */
+/** أيقونة(اسم) */
+SadWidget sad_icon(const char* name);
+/** زر_نصي(عنوان) */
+SadWidget sad_text_button(const char* label);
+/** شريط_إشعار(رسالة) */
+SadWidget sad_snackbar(const char* message);
+/** تلميح(نص) */
+SadWidget sad_tooltip(const char* text);
+/** منطقة_نص(تلميح) */
+SadWidget sad_text_area(const char* hint);
+/** شريط_تقدم(قيمة) */
+SadWidget sad_progress(float value);
+/** مقاس(عرض, ارتفاع) */
+SadWidget sad_sized_box(float width, float height);
+/** شبكة() */         SadWidget sad_grid(void);
+/** وسط() */          SadWidget sad_center(void);
+/** حشوة() */         SadWidget sad_padding(void);
+/** محاذاة() */       SadWidget sad_align(void);
+/** موسع() */         SadWidget sad_expanded(void);
+/** مرن() */          SadWidget sad_flexible(void);
+/** التفاف() */       SadWidget sad_wrap(void);
+/** صندوق() */        SadWidget sad_box(void);
+/** عرض_تمرير() */    SadWidget sad_scroll_view(void);
+/** تنقل_سفلي() */    SadWidget sad_bottom_nav(void);
+/** عمود_كسول() */    SadWidget sad_lazy_column(void);
+/** صف_كسول() */      SadWidget sad_lazy_row(void);
+/** قائمة() */        SadWidget sad_list_view(void);
+/** درج() */          SadWidget sad_drawer(void);
+/** منطقة_آمنة() */   SadWidget sad_safe_area(void);
+/** سطح() */          SadWidget sad_surface(void);
+
 /* ═══════════════════════════════════════════════════════════════════
  * 2. إدارة الشجرة / Tree Management
  * ═══════════════════════════════════════════════════════════════════ */

@@ -341,7 +341,7 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_PRINT:
                 case SIR::SIROpcode::BUILTIN_READ:
 
-                // Unified UI (all have side effects � allocate or mutate widgets)
+                // Unified UI (all have side effects — allocate or mutate widgets)
                 case SIR::SIROpcode::BUILTIN_UI_COLUMN:
                 case SIR::SIROpcode::BUILTIN_UI_ROW:
                 case SIR::SIROpcode::BUILTIN_UI_STACK:
@@ -362,6 +362,31 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_SPACER:
                 case SIR::SIROpcode::BUILTIN_UI_DIVIDER:
                 case SIR::SIROpcode::BUILTIN_UI_DIALOG:
+                // مصانع إضافيّة (م-مصانع) — تُخصّص عناصر، فلها أثر جانبيّ (لا CSE)
+                case SIR::SIROpcode::BUILTIN_UI_IMAGE:
+                case SIR::SIROpcode::BUILTIN_UI_ICON:
+                case SIR::SIROpcode::BUILTIN_UI_TEXT_BUTTON:
+                case SIR::SIROpcode::BUILTIN_UI_GRID:
+                case SIR::SIROpcode::BUILTIN_UI_CENTER:
+                case SIR::SIROpcode::BUILTIN_UI_PADDING:
+                case SIR::SIROpcode::BUILTIN_UI_ALIGN:
+                case SIR::SIROpcode::BUILTIN_UI_EXPANDED:
+                case SIR::SIROpcode::BUILTIN_UI_FLEXIBLE:
+                case SIR::SIROpcode::BUILTIN_UI_SIZED_BOX:
+                case SIR::SIROpcode::BUILTIN_UI_WRAP:
+                case SIR::SIROpcode::BUILTIN_UI_BOX:
+                case SIR::SIROpcode::BUILTIN_UI_SCROLL_VIEW:
+                case SIR::SIROpcode::BUILTIN_UI_BOTTOM_NAV:
+                case SIR::SIROpcode::BUILTIN_UI_SNACKBAR:
+                case SIR::SIROpcode::BUILTIN_UI_TOOLTIP:
+                case SIR::SIROpcode::BUILTIN_UI_PROGRESS:
+                case SIR::SIROpcode::BUILTIN_UI_LAZY_COLUMN:
+                case SIR::SIROpcode::BUILTIN_UI_LAZY_ROW:
+                case SIR::SIROpcode::BUILTIN_UI_LIST_VIEW:
+                case SIR::SIROpcode::BUILTIN_UI_TEXT_AREA:
+                case SIR::SIROpcode::BUILTIN_UI_DRAWER:
+                case SIR::SIROpcode::BUILTIN_UI_SAFE_AREA:
+                case SIR::SIROpcode::BUILTIN_UI_SURFACE:
                 case SIR::SIROpcode::BUILTIN_UI_ADD_CHILD:
                 case SIR::SIROpcode::BUILTIN_UI_REMOVE_CHILD:
                 case SIR::SIROpcode::BUILTIN_UI_CLEAR_CHILDREN:

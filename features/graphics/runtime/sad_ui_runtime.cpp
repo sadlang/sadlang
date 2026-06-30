@@ -315,6 +315,82 @@ SadWidget sad_image(const char* source) {
     return w;
 }
 
+/* ─── مصانع إضافيّة (م-مصانع) — تطابق تسجيل المفسّر في widget_builtins.cpp ───
+ * (AR) كانت هذه العناصر مدعومة في المفسّر فقط؛ نضيف نظيرها في وقت تشغيل المترجم.
+ * (EN) Interpreter-only widgets; we add their compiler-runtime counterparts. */
+
+SadWidget sad_icon(const char* name) {
+    auto* w = createWidget(UINodeType::Icon);
+    if (name) {
+        setStringProperty(w, "\xd8\xa7\xd8\xb3\xd9\x85", name);  // اسم
+    }
+    return w;
+}
+
+SadWidget sad_text_button(const char* label) {
+    auto* w = createWidget(UINodeType::Button);
+    if (label) {
+        setStringProperty(w, "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86", label);  // عنوان
+        setStringProperty(w, "\xd9\x86\xd8\xb5", label);  // نص
+        setStringProperty(w, "text", label);
+    }
+    return w;
+}
+
+SadWidget sad_snackbar(const char* message) {
+    auto* w = createWidget(UINodeType::SnackBar);
+    if (message) {
+        setStringProperty(w, "\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9", message);  // رسالة
+    }
+    return w;
+}
+
+SadWidget sad_tooltip(const char* text) {
+    auto* w = createWidget(UINodeType::Tooltip);
+    if (text) {
+        setStringProperty(w, "\xd9\x86\xd8\xb5", text);  // نص
+    }
+    return w;
+}
+
+SadWidget sad_text_area(const char* hint) {
+    auto* w = createWidget(UINodeType::TextArea);
+    if (hint) {
+        setStringProperty(w, "\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad", hint);  // تلميح
+    }
+    return w;
+}
+
+SadWidget sad_progress(float value) {
+    auto* w = createWidget(UINodeType::ProgressBar);
+    setFloatProperty(w, "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", value);  // قيمة
+    return w;
+}
+
+SadWidget sad_sized_box(float width, float height) {
+    auto* w = createWidget(UINodeType::SizedBox);
+    setFloatProperty(w, "\xd8\xb9\xd8\xb1\xd8\xb6", width);                   // عرض
+    setFloatProperty(w, "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", height); // ارتفاع
+    return w;
+}
+
+SadWidget sad_grid(void)        { return createWidget(UINodeType::Grid); }
+SadWidget sad_center(void)      { return createWidget(UINodeType::Center); }
+SadWidget sad_padding(void)     { return createWidget(UINodeType::Padding); }
+SadWidget sad_align(void)       { return createWidget(UINodeType::Align); }
+SadWidget sad_expanded(void)    { return createWidget(UINodeType::Expanded); }
+SadWidget sad_flexible(void)    { return createWidget(UINodeType::Flexible); }
+SadWidget sad_wrap(void)        { return createWidget(UINodeType::Wrap); }
+SadWidget sad_box(void)         { return createWidget(UINodeType::Box); }
+SadWidget sad_scroll_view(void) { return createWidget(UINodeType::ScrollView); }
+SadWidget sad_bottom_nav(void)  { return createWidget(UINodeType::BottomNav); }
+SadWidget sad_lazy_column(void) { return createWidget(UINodeType::LazyColumn); }
+SadWidget sad_lazy_row(void)    { return createWidget(UINodeType::LazyRow); }
+SadWidget sad_list_view(void)   { return createWidget(UINodeType::List); }
+SadWidget sad_drawer(void)      { return createWidget(UINodeType::Drawer); }
+SadWidget sad_safe_area(void)   { return createWidget(UINodeType::SafeArea); }
+SadWidget sad_surface(void)     { return createWidget(UINodeType::Surface); }
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * 2. إدارة الشجرة / Tree Management
  * ═══════════════════════════════════════════════════════════════════════════ */

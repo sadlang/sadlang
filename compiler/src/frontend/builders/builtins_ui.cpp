@@ -63,8 +63,14 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
-                // ─── مكدس() / sad_stack() ───
-                if (funcName == Bn::CompilerUi::UI_2)
+                // ─── رصة() / sad_stack() ───
+                // (AR) نطابق الاسم المعياريّ «رصة» (UIWidgets::STACK) فقط، مطابقةً
+                //      للمفسّر الذي يسجّل المعياريّ حصرًا؛ المرادف التاريخيّ «مكدس»
+                //      (CompilerUi::UI_2) مرفوض في المحرّكين معًا (تكافؤ تامّ، بلا
+                //      تباعد باتجاهين). اللغة لم تُنشَر فلا حاجة لتوافق legacy.
+                // (EN) Match canonical «رصة» (STACK) only, mirroring the interpreter;
+                //      the legacy alias «مكدس» (UI_2) is rejected by both engines.
+                if (funcName == Bn::UIWidgets::STACK)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_STACK);
@@ -148,8 +154,13 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
-                // ─── زر_ايقونة(ايقونة,دالة,بيانات) / sad_icon_button(icon,cb,data) ───
-                if (funcName == Bn::CompilerUi::UI_8)
+                // ─── زر_أيقونة() / sad_icon_button(icon,cb,data) ───
+                // (AR) نطابق الاسم المعياريّ «زر_أيقونة» (UIWidgets::ICON_BUTTON،
+                //      بهمزة) فقط، مطابقةً للمفسّر؛ المرادف التاريخيّ «زر_ايقونة»
+                //      (CompilerUi::UI_8، يختلف ببايت الهمزة) مرفوض في المحرّكين معًا.
+                // (EN) Match canonical «زر_أيقونة» (ICON_BUTTON, hamza) only;
+                //      the legacy alias «زر_ايقونة» (UI_8) is rejected by both engines.
+                if (funcName == Bn::UIWidgets::ICON_BUTTON)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ICON_BUTTON);
@@ -187,8 +198,13 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
-                // ─── مربع_تحقق(دالة,بيانات) / sad_checkbox(cb,data) ───
-                if (funcName == Bn::CompilerUi::UI_11)
+                // ─── خانة_اختيار() / sad_checkbox(cb,data) ───
+                // (AR) نطابق الاسم المعياريّ «خانة_اختيار» (UIWidgets::CHECKBOX) فقط،
+                //      مطابقةً للمفسّر؛ المرادف التاريخيّ «مربع_تحقق» (CompilerUi::UI_11)
+                //      مرفوض في المحرّكين معًا.
+                // (EN) Match canonical «خانة_اختيار» (CHECKBOX) only; the legacy
+                //      alias «مربع_تحقق» (UI_11) is rejected by both engines.
+                if (funcName == Bn::UIWidgets::CHECKBOX)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CHECKBOX);
@@ -200,8 +216,13 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
-                // ─── مبدل(دالة,بيانات) / sad_switch_toggle(cb,data) ───
-                if (funcName == Bn::CompilerUi::UI_12)
+                // ─── مفتاح() / sad_switch_toggle(cb,data) ───
+                // (AR) نطابق الاسم المعياريّ «مفتاح» (UIWidgets::TOGGLE) فقط، مطابقةً
+                //      للمفسّر؛ المرادف التاريخيّ «مبدل» (CompilerUi::UI_12) مرفوض في
+                //      المحرّكين معًا (وخادم LSP يقترح «مفتاح» بديلًا لـ«مبدل»).
+                // (EN) Match canonical «مفتاح» (TOGGLE) only; the legacy alias
+                //      «مبدل» (UI_12) is rejected by both engines (LSP suggests مفتاح).
+                if (funcName == Bn::UIWidgets::TOGGLE)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SWITCH);
@@ -272,8 +293,13 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
-                // ─── خط_فاصل() / sad_divider() ───
-                if (funcName == Bn::CompilerUi::UI_18)
+                // ─── فاصل_خط() / sad_divider() ───
+                // (AR) نطابق الاسم المعياريّ «فاصل_خط» (UIWidgets::DIVIDER) فقط،
+                //      مطابقةً للمفسّر؛ المرادف التاريخيّ «خط_فاصل» (CompilerUi::UI_18)
+                //      مرفوض في المحرّكين معًا.
+                // (EN) Match canonical «فاصل_خط» (DIVIDER) only; the legacy alias
+                //      «خط_فاصل» (UI_18) is rejected by both engines.
+                if (funcName == Bn::UIWidgets::DIVIDER)
                 {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_DIVIDER);
@@ -290,6 +316,297 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_DIALOG);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // =====================================================================
+                // (AR) مصانع إضافيّة (م-مصانع) — سدّ فجوة المترجم: 24 عنصرًا يدعمها
+                //      المفسّر (widget_builtins.cpp) ولم يكن المترجم يلوّنها بالاسم.
+                //      نطابق الاسم المعياريّ (UIWidgets::*) فقط، مطابقةً للمفسّر.
+                //      العناصر البسيطة: لا معاملات (الأبناء يُضافون عبر الشجرة).
+                //      عناصر بخاصّيّة: معامل أوّل اختياريّ (نظير نص_عنصر/صورة).
+                // (EN) Extra factories closing the compiler gap vs the interpreter.
+                //      Canonical-name match only. Simple widgets: no operands;
+                //      prop widgets: optional first operand.
+                // =====================================================================
+
+                // ─── صورة(مصدر) / sad_image(source) ───
+                if (funcName == Bn::UIWidgets::IMAGE)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_IMAGE);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── أيقونة(اسم) / sad_icon(name) ───
+                if (funcName == Bn::UIWidgets::ICON)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_ICON);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── زر_نصي(عنوان) / sad_text_button(label) ───
+                if (funcName == Bn::UIWidgets::TEXT_BUTTON)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_BUTTON);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── شبكة() / sad_grid() ───
+                if (funcName == Bn::UIWidgets::GRID)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_GRID);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── وسط() / sad_center() ───
+                if (funcName == Bn::UIWidgets::CENTER)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_CENTER);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── حشوة() / sad_padding() ───
+                if (funcName == Bn::UIWidgets::PADDING)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_PADDING);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── محاذاة() / sad_align() ───
+                if (funcName == Bn::UIWidgets::ALIGN)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_ALIGN);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── موسع() / sad_expanded() ───
+                if (funcName == Bn::UIWidgets::EXPANDED)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_EXPANDED);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── مرن() / sad_flexible() ───
+                if (funcName == Bn::UIWidgets::FLEXIBLE)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_FLEXIBLE);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── مقاس(عرض,ارتفاع) / sad_sized_box(w,h) ───
+                if (funcName == Bn::UIWidgets::SIZED_BOX)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SIZED_BOX);
+                    for (auto &a : argOperands)
+                        inst.operands.push_back(a);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── التفاف() / sad_wrap() ───
+                if (funcName == Bn::UIWidgets::WRAP)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_WRAP);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── صندوق() / sad_box() ───
+                if (funcName == Bn::UIWidgets::BOX)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_BOX);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── عرض_تمرير() / sad_scroll_view() ───
+                if (funcName == Bn::UIWidgets::SCROLL_VIEW)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SCROLL_VIEW);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── تنقل_سفلي() / sad_bottom_nav() ───
+                if (funcName == Bn::UIWidgets::BOTTOM_NAV)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_BOTTOM_NAV);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── شريط_إشعار(رسالة) / sad_snackbar(msg) ───
+                if (funcName == Bn::UIWidgets::SNACKBAR)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SNACKBAR);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── تلميح(نص) / sad_tooltip(text) ───
+                if (funcName == Bn::UIWidgets::TOOLTIP)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TOOLTIP);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── شريط_تقدم(قيمة) / sad_progress(value) ───
+                if (funcName == Bn::UIWidgets::PROGRESS)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_PROGRESS);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── عمود_كسول() / sad_lazy_column() ───
+                if (funcName == Bn::UIWidgets::LAZY_COLUMN)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_LAZY_COLUMN);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── صف_كسول() / sad_lazy_row() ───
+                if (funcName == Bn::UIWidgets::LAZY_ROW)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_LAZY_ROW);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── قائمة() / sad_list_view() ───
+                if (funcName == Bn::UIWidgets::LIST_VIEW)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_LIST_VIEW);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── منطقة_نص(تلميح) / sad_text_area(hint) ───
+                if (funcName == Bn::UIWidgets::TEXT_AREA)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_AREA);
+                    if (!argOperands.empty())
+                        inst.operands.push_back(argOperands[0]);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── درج() / sad_drawer() ───
+                if (funcName == Bn::UIWidgets::DRAWER)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_DRAWER);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── منطقة_آمنة() / sad_safe_area() ───
+                if (funcName == Bn::UIWidgets::SAFE_AREA)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SAFE_AREA);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ─── سطح() / sad_surface() ───
+                if (funcName == Bn::UIWidgets::SURFACE)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SURFACE);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);

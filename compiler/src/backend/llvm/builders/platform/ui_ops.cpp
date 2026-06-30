@@ -64,6 +64,12 @@ static llvm::Value* emitUIRuntimeCall(
     return builder->CreateCall(fn, argValues, funcName + "_result");
 }
 
+// (AR) تصريح مُسبَق: حوّل معاملًا عدديًّا إلى float بأمان (التعريف أدناه). يُستعمَل
+//      في مصانع/ضوابط عدديّة فوق سطر تعريفه، فيلزم التصريح المُسبَق.
+// (EN) Forward declaration of the safe numeric→f32 cast (defined below);
+//      used by numeric factories/setters above its definition.
+static llvm::Value* castNumericToF32(LLVMCodeGen& cg, llvm::Value* v);
+
 // =====================================================================
 // 21. †״¸״§… ״§„ˆ״§״¬‡״© ״§„…ˆ״­״¯ / Unified UI System (sad_ui.h)
 // =====================================================================
@@ -117,11 +123,11 @@ llvm::Value* UICodeGen::emitUiTextStyled(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     // sad_text_styled(text, fontSize, r, g, b, a)
     llvm::Value* text = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* fontSize = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* r = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
-    llvm::Value* g = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[3]), f32Ty);
-    llvm::Value* b = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[4]), f32Ty);
-    llvm::Value* a = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[5]), f32Ty);
+    llvm::Value* fontSize = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
+    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
+    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
+    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[5]));
     auto* result = emitUIRuntimeCall(cg_, "sad_text_styled", ptrTy,
         {ptrTy, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty}, {text, fontSize, r, g, b, a});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -151,10 +157,10 @@ llvm::Value* UICodeGen::emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst
     // sad_button_variant(label, variant, r, g, b, a, onTap, userData)
     llvm::Value* label = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* variant = cg_.builder_->CreateIntCast(cg_.resolveOperand(inst->operands[1]), i32Ty, false);
-    llvm::Value* r = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
-    llvm::Value* g = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[3]), f32Ty);
-    llvm::Value* b = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[4]), f32Ty);
-    llvm::Value* a = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[5]), f32Ty);
+    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
+    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
+    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
+    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[5]));
     llvm::Value* cb = inst->operands.size() > 6 ?
         cg_.resolveOperand(inst->operands[6]) :
         llvm::ConstantPointerNull::get(ptrTy);
@@ -185,10 +191,10 @@ llvm::Value* UICodeGen::emitUiFab(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     llvm::Value* icon = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* r = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* g = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
-    llvm::Value* b = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[3]), f32Ty);
-    llvm::Value* a = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[4]), f32Ty);
+    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
+    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
+    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
     llvm::Value* cb = inst->operands.size() > 5 ?
         cg_.resolveOperand(inst->operands[5]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* data = inst->operands.size() > 6 ?
@@ -240,8 +246,8 @@ llvm::Value* UICodeGen::emitUiSwitch(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiSlider(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
-    llvm::Value* minVal = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[0]), f32Ty);
-    llvm::Value* maxVal = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
+    llvm::Value* minVal = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[0]));
+    llvm::Value* maxVal = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
     llvm::Value* cb = inst->operands.size() > 2 ?
         cg_.resolveOperand(inst->operands[2]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* data = inst->operands.size() > 3 ?
@@ -342,8 +348,8 @@ llvm::Value* UICodeGen::emitUiSetSize(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* w = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* h = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
+    llvm::Value* w = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* h = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
     return emitUIRuntimeCall(cg_, "sad_set_size", voidTy, {ptrTy, f32Ty, f32Ty}, {widget, w, h});
 }
 
@@ -352,7 +358,7 @@ llvm::Value* UICodeGen::emitUiSetFlex(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* flex = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
+    llvm::Value* flex = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
     return emitUIRuntimeCall(cg_, "sad_set_flex", voidTy, {ptrTy, f32Ty}, {widget, flex});
 }
 
@@ -361,10 +367,10 @@ llvm::Value* UICodeGen::emitUiSetBackground(std::shared_ptr<SIRInstruction> inst
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* r = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* g = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
-    llvm::Value* b = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[3]), f32Ty);
-    llvm::Value* a = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[4]), f32Ty);
+    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
+    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
+    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
     return emitUIRuntimeCall(cg_, "sad_set_background", voidTy,
         {ptrTy, f32Ty, f32Ty, f32Ty, f32Ty}, {widget, r, g, b, a});
 }
@@ -374,10 +380,10 @@ llvm::Value* UICodeGen::emitUiSetForeground(std::shared_ptr<SIRInstruction> inst
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* r = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* g = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
-    llvm::Value* b = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[3]), f32Ty);
-    llvm::Value* a = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[4]), f32Ty);
+    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
+    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
+    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
     return emitUIRuntimeCall(cg_, "sad_set_foreground", voidTy,
         {ptrTy, f32Ty, f32Ty, f32Ty, f32Ty}, {widget, r, g, b, a});
 }
@@ -387,7 +393,7 @@ llvm::Value* UICodeGen::emitUiSetSpacing(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* spacing = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
+    llvm::Value* spacing = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
     return emitUIRuntimeCall(cg_, "sad_set_spacing", voidTy, {ptrTy, f32Ty}, {widget, spacing});
 }
 
@@ -396,10 +402,10 @@ llvm::Value* UICodeGen::emitUiSetPadding(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* top = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* right = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
-    llvm::Value* bottom = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[3]), f32Ty);
-    llvm::Value* left = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[4]), f32Ty);
+    llvm::Value* top = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* right = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
+    llvm::Value* bottom = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
+    llvm::Value* left = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
     return emitUIRuntimeCall(cg_, "sad_set_padding", voidTy,
         {ptrTy, f32Ty, f32Ty, f32Ty, f32Ty}, {widget, top, right, bottom, left});
 }
@@ -420,7 +426,7 @@ llvm::Value* UICodeGen::emitUiSetBorder(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* width = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
+    llvm::Value* width = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
     // sad_set_border(widget, width) ג€” optional color via separate call
     return emitUIRuntimeCall(cg_, "sad_set_border", voidTy, {ptrTy, f32Ty}, {widget, width});
 }
@@ -430,7 +436,7 @@ llvm::Value* UICodeGen::emitUiSetElevation(std::shared_ptr<SIRInstruction> inst)
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* elev = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
+    llvm::Value* elev = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
     return emitUIRuntimeCall(cg_, "sad_set_elevation", voidTy, {ptrTy, f32Ty}, {widget, elev});
 }
 
@@ -439,7 +445,7 @@ llvm::Value* UICodeGen::emitUiSetOpacity(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* opacity = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
+    llvm::Value* opacity = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
     return emitUIRuntimeCall(cg_, "sad_set_opacity", voidTy, {ptrTy, f32Ty}, {widget, opacity});
 }
 
@@ -474,8 +480,8 @@ llvm::Value* UICodeGen::emitUiAppLayout(std::shared_ptr<SIRInstruction> inst) {
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* app = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* w = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[1]), f32Ty);
-    llvm::Value* h = cg_.builder_->CreateFPCast(cg_.resolveOperand(inst->operands[2]), f32Ty);
+    llvm::Value* w = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    llvm::Value* h = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
     return emitUIRuntimeCall(cg_, "sad_app_layout", voidTy, {ptrTy, f32Ty, f32Ty}, {app, w, h});
 }
 
@@ -498,6 +504,169 @@ llvm::Value* UICodeGen::emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
     return emitUIRuntimeCall(cg_, "sad_widget_destroy", voidTy, {ptrTy}, {widget});
+}
+
+// ─── 21e. مصانع إضافيّة (م-مصانع) / Extra factories ───
+// (AR) تُكمل تغطية المترجم لتطابق المفسّر؛ كلٌّ يُصدِر نداء runtime يُنشئ العقدة.
+// (EN) Complete compiler coverage to match the interpreter; each emits a runtime
+//      call that creates the corresponding IR node.
+
+// (AR) مساعد: حوّل معاملًا عدديًّا (صحيحًا أو عشريًّا) إلى float بأمان.
+//      المعاملات الصحيحة (مثل مقاس(100,50)) تحتاج SIToFP لا FPCast (الأخير
+//      يُولّد fptrunc على i64 = IR غير صالح ⇒ فشل اختيار التعليمات).
+// (EN) Safely cast a numeric operand (int or float) to f32. Integer literals
+//      (e.g. مقاس(100,50)) need SIToFP, not FPCast (which emits an illegal
+//      fptrunc on i64 → instruction-selection failure).
+static llvm::Value* castNumericToF32(LLVMCodeGen& cg, llvm::Value* v) {
+    auto* f32Ty = llvm::Type::getFloatTy(*cg.getContext());
+    if (v->getType()->isIntegerTy())
+        return cg.getBuilder()->CreateSIToFP(v, f32Ty);
+    return cg.getBuilder()->CreateFPCast(v, f32Ty);
+}
+
+// (AR) مساعد محلّيّ عضو: مصنع بسيط بلا معاملات يُعيد SadWidget*.
+// (EN) Member helper: a no-arg factory returning SadWidget*.
+llvm::Value* UICodeGen::emitSimpleUiFactory(
+    std::shared_ptr<SIRInstruction> inst, const char* runtimeName)
+{
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* result = emitUIRuntimeCall(cg_, runtimeName, ptrTy, {}, {});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiImage(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* arg = inst->operands.empty() ?
+        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        cg_.resolveOperand(inst->operands[0]);
+    auto* result = emitUIRuntimeCall(cg_, "sad_image", ptrTy, {ptrTy}, {arg});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiIcon(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* arg = inst->operands.empty() ?
+        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        cg_.resolveOperand(inst->operands[0]);
+    auto* result = emitUIRuntimeCall(cg_, "sad_icon", ptrTy, {ptrTy}, {arg});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiTextButton(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* arg = inst->operands.empty() ?
+        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        cg_.resolveOperand(inst->operands[0]);
+    auto* result = emitUIRuntimeCall(cg_, "sad_text_button", ptrTy, {ptrTy}, {arg});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiSnackbar(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* arg = inst->operands.empty() ?
+        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        cg_.resolveOperand(inst->operands[0]);
+    auto* result = emitUIRuntimeCall(cg_, "sad_snackbar", ptrTy, {ptrTy}, {arg});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiTooltip(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* arg = inst->operands.empty() ?
+        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        cg_.resolveOperand(inst->operands[0]);
+    auto* result = emitUIRuntimeCall(cg_, "sad_tooltip", ptrTy, {ptrTy}, {arg});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiTextArea(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* arg = inst->operands.empty() ?
+        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        cg_.resolveOperand(inst->operands[0]);
+    auto* result = emitUIRuntimeCall(cg_, "sad_text_area", ptrTy, {ptrTy}, {arg});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiProgress(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
+    llvm::Value* value = inst->operands.empty() ?
+        llvm::ConstantFP::get(f32Ty, 0.0) :
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[0]));
+    auto* result = emitUIRuntimeCall(cg_, "sad_progress", ptrTy, {f32Ty}, {value});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiSizedBox(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
+    llvm::Value* w = !inst->operands.empty() ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[0])) :
+        llvm::ConstantFP::get(f32Ty, 0.0);
+    llvm::Value* h = inst->operands.size() > 1 ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1])) :
+        llvm::ConstantFP::get(f32Ty, 0.0);
+    auto* result = emitUIRuntimeCall(cg_, "sad_sized_box", ptrTy, {f32Ty, f32Ty}, {w, h});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+llvm::Value* UICodeGen::emitUiGrid(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_grid");
+}
+llvm::Value* UICodeGen::emitUiCenter(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_center");
+}
+llvm::Value* UICodeGen::emitUiPadding(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_padding");
+}
+llvm::Value* UICodeGen::emitUiAlign(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_align");
+}
+llvm::Value* UICodeGen::emitUiExpanded(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_expanded");
+}
+llvm::Value* UICodeGen::emitUiFlexible(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_flexible");
+}
+llvm::Value* UICodeGen::emitUiWrap(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_wrap");
+}
+llvm::Value* UICodeGen::emitUiBox(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_box");
+}
+llvm::Value* UICodeGen::emitUiScrollView(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_scroll_view");
+}
+llvm::Value* UICodeGen::emitUiBottomNav(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_bottom_nav");
+}
+llvm::Value* UICodeGen::emitUiLazyColumn(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_lazy_column");
+}
+llvm::Value* UICodeGen::emitUiLazyRow(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_lazy_row");
+}
+llvm::Value* UICodeGen::emitUiListView(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_list_view");
+}
+llvm::Value* UICodeGen::emitUiDrawer(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_drawer");
+}
+llvm::Value* UICodeGen::emitUiSafeArea(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_safe_area");
+}
+llvm::Value* UICodeGen::emitUiSurface(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_surface");
 }
 
 } // namespace LLVM

@@ -459,6 +459,55 @@ namespace Sad
                     return "ui.divider";
                 case SIROpcode::BUILTIN_UI_DIALOG:
                     return "ui.dialog";
+                // مصانع إضافيّة (م-مصانع) / Extra factories
+                case SIROpcode::BUILTIN_UI_IMAGE:
+                    return "ui.image";
+                case SIROpcode::BUILTIN_UI_ICON:
+                    return "ui.icon";
+                case SIROpcode::BUILTIN_UI_TEXT_BUTTON:
+                    return "ui.text_button";
+                case SIROpcode::BUILTIN_UI_GRID:
+                    return "ui.grid";
+                case SIROpcode::BUILTIN_UI_CENTER:
+                    return "ui.center";
+                case SIROpcode::BUILTIN_UI_PADDING:
+                    return "ui.padding";
+                case SIROpcode::BUILTIN_UI_ALIGN:
+                    return "ui.align";
+                case SIROpcode::BUILTIN_UI_EXPANDED:
+                    return "ui.expanded";
+                case SIROpcode::BUILTIN_UI_FLEXIBLE:
+                    return "ui.flexible";
+                case SIROpcode::BUILTIN_UI_SIZED_BOX:
+                    return "ui.sized_box";
+                case SIROpcode::BUILTIN_UI_WRAP:
+                    return "ui.wrap";
+                case SIROpcode::BUILTIN_UI_BOX:
+                    return "ui.box";
+                case SIROpcode::BUILTIN_UI_SCROLL_VIEW:
+                    return "ui.scroll_view";
+                case SIROpcode::BUILTIN_UI_BOTTOM_NAV:
+                    return "ui.bottom_nav";
+                case SIROpcode::BUILTIN_UI_SNACKBAR:
+                    return "ui.snackbar";
+                case SIROpcode::BUILTIN_UI_TOOLTIP:
+                    return "ui.tooltip";
+                case SIROpcode::BUILTIN_UI_PROGRESS:
+                    return "ui.progress";
+                case SIROpcode::BUILTIN_UI_LAZY_COLUMN:
+                    return "ui.lazy_column";
+                case SIROpcode::BUILTIN_UI_LAZY_ROW:
+                    return "ui.lazy_row";
+                case SIROpcode::BUILTIN_UI_LIST_VIEW:
+                    return "ui.list_view";
+                case SIROpcode::BUILTIN_UI_TEXT_AREA:
+                    return "ui.text_area";
+                case SIROpcode::BUILTIN_UI_DRAWER:
+                    return "ui.drawer";
+                case SIROpcode::BUILTIN_UI_SAFE_AREA:
+                    return "ui.safe_area";
+                case SIROpcode::BUILTIN_UI_SURFACE:
+                    return "ui.surface";
                 case SIROpcode::BUILTIN_UI_ADD_CHILD:
                     return "ui.add_child";
                 case SIROpcode::BUILTIN_UI_REMOVE_CHILD:

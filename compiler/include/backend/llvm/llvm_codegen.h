@@ -1722,6 +1722,31 @@ namespace Sad
             llvm::Value *emitUiSpacer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSpacer(inst); }
             llvm::Value *emitUiDivider(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDivider(inst); }
             llvm::Value *emitUiDialog(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDialog(inst); }
+            // 21a-إضافي. مصانع إضافيّة (م-مصانع) — موجِّهات إلى UICodeGen
+            llvm::Value *emitUiImage(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiImage(inst); }
+            llvm::Value *emitUiIcon(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiIcon(inst); }
+            llvm::Value *emitUiTextButton(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTextButton(inst); }
+            llvm::Value *emitUiGrid(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiGrid(inst); }
+            llvm::Value *emitUiCenter(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCenter(inst); }
+            llvm::Value *emitUiPadding(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPadding(inst); }
+            llvm::Value *emitUiAlign(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAlign(inst); }
+            llvm::Value *emitUiExpanded(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiExpanded(inst); }
+            llvm::Value *emitUiFlexible(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiFlexible(inst); }
+            llvm::Value *emitUiSizedBox(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSizedBox(inst); }
+            llvm::Value *emitUiWrap(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWrap(inst); }
+            llvm::Value *emitUiBox(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiBox(inst); }
+            llvm::Value *emitUiScrollView(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiScrollView(inst); }
+            llvm::Value *emitUiBottomNav(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiBottomNav(inst); }
+            llvm::Value *emitUiSnackbar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSnackbar(inst); }
+            llvm::Value *emitUiTooltip(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTooltip(inst); }
+            llvm::Value *emitUiProgress(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiProgress(inst); }
+            llvm::Value *emitUiLazyColumn(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiLazyColumn(inst); }
+            llvm::Value *emitUiLazyRow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiLazyRow(inst); }
+            llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiListView(inst); }
+            llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTextArea(inst); }
+            llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDrawer(inst); }
+            llvm::Value *emitUiSafeArea(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSafeArea(inst); }
+            llvm::Value *emitUiSurface(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSurface(inst); }
             // 21b. إدارة الشجرة / Tree Management
             llvm::Value *emitUiAddChild(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAddChild(inst); }
             llvm::Value *emitUiRemoveChild(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiRemoveChild(inst); }

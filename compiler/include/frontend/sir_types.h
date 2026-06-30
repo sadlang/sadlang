@@ -883,6 +883,34 @@ namespace Sad
                 BUILTIN_UI_DIVIDER,        ///< خط_فاصل() / sad_divider()
                 BUILTIN_UI_DIALOG,         ///< حوار(عنوان,رسالة) / sad_dialog(title,msg)
 
+                // --- 20a-ب. مصانع إضافيّة (م-مصانع، RFC sadlang-rfcs#1) — سدّ فجوة
+                //          المترجم: 24 عنصرًا كان المفسّر يدعمها والمترجم لا. تُطابق
+                //          تسجيل المفسّر في widget_builtins.cpp عنصرًا بعنصر. ---
+                BUILTIN_UI_IMAGE,          ///< صورة(مصدر) / sad_image(source)
+                BUILTIN_UI_ICON,           ///< أيقونة(اسم) / sad_icon(name)
+                BUILTIN_UI_TEXT_BUTTON,    ///< زر_نصي(عنوان) / sad_text_button(label,cb,data)
+                BUILTIN_UI_GRID,           ///< شبكة() / sad_grid()
+                BUILTIN_UI_CENTER,         ///< وسط() / sad_center()
+                BUILTIN_UI_PADDING,        ///< حشوة() / sad_padding()
+                BUILTIN_UI_ALIGN,          ///< محاذاة() / sad_align()
+                BUILTIN_UI_EXPANDED,       ///< موسع() / sad_expanded()
+                BUILTIN_UI_FLEXIBLE,       ///< مرن() / sad_flexible()
+                BUILTIN_UI_SIZED_BOX,      ///< مقاس(عرض,ارتفاع) / sad_sized_box(w,h)
+                BUILTIN_UI_WRAP,           ///< التفاف() / sad_wrap()
+                BUILTIN_UI_BOX,            ///< صندوق() / sad_box()
+                BUILTIN_UI_SCROLL_VIEW,    ///< عرض_تمرير() / sad_scroll_view()
+                BUILTIN_UI_BOTTOM_NAV,     ///< تنقل_سفلي() / sad_bottom_nav()
+                BUILTIN_UI_SNACKBAR,       ///< شريط_إشعار(رسالة) / sad_snackbar(msg)
+                BUILTIN_UI_TOOLTIP,        ///< تلميح(نص) / sad_tooltip(text)
+                BUILTIN_UI_PROGRESS,       ///< شريط_تقدم(قيمة) / sad_progress(value)
+                BUILTIN_UI_LAZY_COLUMN,    ///< عمود_كسول() / sad_lazy_column()
+                BUILTIN_UI_LAZY_ROW,       ///< صف_كسول() / sad_lazy_row()
+                BUILTIN_UI_LIST_VIEW,      ///< قائمة() / sad_list_view()
+                BUILTIN_UI_TEXT_AREA,      ///< منطقة_نص(تلميح) / sad_text_area(hint)
+                BUILTIN_UI_DRAWER,         ///< درج() / sad_drawer()
+                BUILTIN_UI_SAFE_AREA,      ///< منطقة_آمنة() / sad_safe_area()
+                BUILTIN_UI_SURFACE,        ///< سطح() / sad_surface()
+
                 // --- 20b. إدارة الشجرة / Tree Management (3) ---
                 BUILTIN_UI_ADD_CHILD,      ///< أضف_ابن(أب,ابن) / sad_add_child(parent,child)
                 BUILTIN_UI_REMOVE_CHILD,   ///< أزل_ابن(أب,ابن) / sad_remove_child(parent,child)

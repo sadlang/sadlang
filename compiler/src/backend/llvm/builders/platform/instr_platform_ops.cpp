@@ -182,6 +182,55 @@ namespace Sad
                 return cg_.emitUiDivider(inst);
             case SIROpcode::BUILTIN_UI_DIALOG:
                 return cg_.emitUiDialog(inst);
+            // مصانع إضافيّة (م-مصانع) / Extra factories
+            case SIROpcode::BUILTIN_UI_IMAGE:
+                return cg_.emitUiImage(inst);
+            case SIROpcode::BUILTIN_UI_ICON:
+                return cg_.emitUiIcon(inst);
+            case SIROpcode::BUILTIN_UI_TEXT_BUTTON:
+                return cg_.emitUiTextButton(inst);
+            case SIROpcode::BUILTIN_UI_GRID:
+                return cg_.emitUiGrid(inst);
+            case SIROpcode::BUILTIN_UI_CENTER:
+                return cg_.emitUiCenter(inst);
+            case SIROpcode::BUILTIN_UI_PADDING:
+                return cg_.emitUiPadding(inst);
+            case SIROpcode::BUILTIN_UI_ALIGN:
+                return cg_.emitUiAlign(inst);
+            case SIROpcode::BUILTIN_UI_EXPANDED:
+                return cg_.emitUiExpanded(inst);
+            case SIROpcode::BUILTIN_UI_FLEXIBLE:
+                return cg_.emitUiFlexible(inst);
+            case SIROpcode::BUILTIN_UI_SIZED_BOX:
+                return cg_.emitUiSizedBox(inst);
+            case SIROpcode::BUILTIN_UI_WRAP:
+                return cg_.emitUiWrap(inst);
+            case SIROpcode::BUILTIN_UI_BOX:
+                return cg_.emitUiBox(inst);
+            case SIROpcode::BUILTIN_UI_SCROLL_VIEW:
+                return cg_.emitUiScrollView(inst);
+            case SIROpcode::BUILTIN_UI_BOTTOM_NAV:
+                return cg_.emitUiBottomNav(inst);
+            case SIROpcode::BUILTIN_UI_SNACKBAR:
+                return cg_.emitUiSnackbar(inst);
+            case SIROpcode::BUILTIN_UI_TOOLTIP:
+                return cg_.emitUiTooltip(inst);
+            case SIROpcode::BUILTIN_UI_PROGRESS:
+                return cg_.emitUiProgress(inst);
+            case SIROpcode::BUILTIN_UI_LAZY_COLUMN:
+                return cg_.emitUiLazyColumn(inst);
+            case SIROpcode::BUILTIN_UI_LAZY_ROW:
+                return cg_.emitUiLazyRow(inst);
+            case SIROpcode::BUILTIN_UI_LIST_VIEW:
+                return cg_.emitUiListView(inst);
+            case SIROpcode::BUILTIN_UI_TEXT_AREA:
+                return cg_.emitUiTextArea(inst);
+            case SIROpcode::BUILTIN_UI_DRAWER:
+                return cg_.emitUiDrawer(inst);
+            case SIROpcode::BUILTIN_UI_SAFE_AREA:
+                return cg_.emitUiSafeArea(inst);
+            case SIROpcode::BUILTIN_UI_SURFACE:
+                return cg_.emitUiSurface(inst);
             case SIROpcode::BUILTIN_UI_ADD_CHILD:
                 return cg_.emitUiAddChild(inst);
             case SIROpcode::BUILTIN_UI_REMOVE_CHILD:

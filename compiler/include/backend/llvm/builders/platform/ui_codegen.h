@@ -65,6 +65,36 @@ public:
     llvm::Value *emitUiTextField(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiTextStyled(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst);
+
+    // (AR) مصانع إضافيّة (م-مصانع) — مطابقة فجوة المترجم بالمفسّر (24 عنصرًا).
+    // (EN) Extra factories (م-مصانع) closing the compiler↔interpreter gap.
+    // (AR) مساعد للمصانع البسيطة بلا معاملات (نظير عمود/صف).
+    // (EN) Helper for no-arg simple factories (like column/row).
+    llvm::Value *emitSimpleUiFactory(std::shared_ptr<SIRInstruction> inst, const char *runtimeName);
+    llvm::Value *emitUiImage(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiIcon(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiTextButton(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiGrid(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiCenter(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiPadding(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAlign(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiExpanded(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiFlexible(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSizedBox(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiWrap(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiBox(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiScrollView(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiBottomNav(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSnackbar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiTooltip(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiProgress(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiLazyColumn(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiLazyRow(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSafeArea(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSurface(std::shared_ptr<SIRInstruction> inst);
 };
 
 }} // namespace Sad::LLVM
