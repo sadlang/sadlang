@@ -122,6 +122,13 @@ if [ -d "$SRC_STDLIB" ]; then
     cp -r "$SRC_STDLIB"/* "$BUILD_DIR/usr/share/sad-lang/stdlib/" 2>/dev/null || true
     echo "    ✓ stdlib"
 fi
+# (AR) وحدات stdlib الخاصّة بالميزات (RFC #19): تُدمَج في نفس مجلّد stdlib المُوزَّع
+# (EN) Per-feature stdlib modules (RFC #19): merged into the same shipped stdlib dir
+FEAT_STDLIB="$(dirname "$SRC_STDLIB")/features/graphics/stdlib"
+if [ -d "$FEAT_STDLIB" ]; then
+    cp -r "$FEAT_STDLIB"/* "$BUILD_DIR/usr/share/sad-lang/stdlib/" 2>/dev/null || true
+    echo "    ✓ features/graphics/stdlib (رسومات)"
+fi
 
 # ── نسخ التوثيق ──
 if [ -f "../../README.md" ]; then

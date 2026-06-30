@@ -43,7 +43,7 @@
 
 ```powershell
 # بناء يشمل الرسوميات (يتطلب SDL2)
-cmake --build build --config Debug --target sad_ui sad_graphics
+cmake --build build --config Debug --target sad_graphics
 
 # اختبار محلي
 .\build\bin\Debug\sad.exe examples\gui_test.ص

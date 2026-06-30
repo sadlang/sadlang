@@ -761,9 +761,9 @@ namespace Sad
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) م2-أ (sadlang-rfcs#10): وحدات الواجهات (رسومات/_صوت/...) لم تَعُد
-            //      مُسجَّلة هنا؛ يسجّلها sad_ui_bridge عبر مزوّد خارجيّ. القلب لا يعرف
+            //      مُسجَّلة هنا؛ يسجّلها sad_graphics_bridge عبر مزوّد خارجيّ. القلب لا يعرف
             //      sad_ui. يثبّت sad-run المزوّد قبل إنشاء المفسّر.
-            // (EN) Phase 2-A: UI modules are no longer registered here; sad_ui_bridge
+            // (EN) Phase 2-A: UI modules are no longer registered here; sad_graphics_bridge
             //      registers them via an external provider. The core does not know sad_ui.
             // ═══════════════════════════════════════════════════════════════
             for (auto &provider : externalModuleProviders())

@@ -20,7 +20,7 @@
 //      headers resolve via the interpreter/include dir added to this target.
 #include "user_thrown.h"
 #include "debug/debug_server.h"
-#include "ui/sad_ui_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (واجهة عامّة) / (EN) install UI bridge (public API)
+#include "ui/sad_graphics_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (واجهة عامّة) / (EN) install UI bridge (public API)
 
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
     // (EN) Phase 2-A: install the UI bridge before constructing any interpreter —
     //      registers the widget-eval seam + graphics module provider into the core.
     //      Only sad-run links the bridge; the core itself does not know sad_ui.
-    Sad::Interpreter::installSadUIBridge();
+    Sad::Interpreter::installSadGraphicsBridge();
 
     // Check arguments
     if (argc < 2)

@@ -5,10 +5,10 @@
  *
  * (AR) seam 1 + التثبيت (م2-أ، sadlang-rfcs#10): تسجيل وحدات الواجهات
  *      (رسومات/_محرك_واجهات/_صوت/...) في BuiltinModuleRegistry، ونقطة التثبيت
- *      installSadUIBridge() التي يستدعيها sad-run. نُقِلت كتل التسجيل حرفيًّا من
+ *      installSadGraphicsBridge() التي يستدعيها sad-run. نُقِلت كتل التسجيل حرفيًّا من
  *      builtin_registry.cpp في القلب إلى هنا (مكتبة الجسر).
  * (EN) seam 1 + install (Phase 2-A): registers the UI modules into the
- *      BuiltinModuleRegistry and exposes installSadUIBridge() called by sad-run.
+ *      BuiltinModuleRegistry and exposes installSadGraphicsBridge() called by sad-run.
  *      The registration blocks were moved verbatim out of the core's
  *      builtin_registry.cpp into the bridge library.
  * ════════════════════════════════════════════════════════════════
@@ -105,7 +105,7 @@ namespace Sad
         //      creating the interpreter: sad-run, wasm, profiler...). Idempotent:
         //      a second call neither re-registers modules nor double-pushes the
         //      provider, preventing duplicate registerModule entries.
-        void installSadUIBridge()
+        void installSadGraphicsBridge()
         {
             static bool installed = false;
             if (installed)

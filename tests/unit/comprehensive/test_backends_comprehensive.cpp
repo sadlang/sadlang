@@ -16,11 +16,11 @@
 #include "sad_test_framework.h"
 
 // ג”€ג”€ ״±״₪ˆ״³ sad_ui ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-#include "../../sad_ui/core/include/sad_ui/types.h"
-#include "../../sad_ui/core/include/sad_ui/node.h"
-#include "../../sad_ui/core/include/sad_ui/ir.h"
-#include "../../sad_ui/core/include/sad_ui/ir_builder.h"
-#include "../../sad_ui/pipeline/include/sad_ui/pipeline.h"
+#include "sad_ui/types.h"
+#include "sad_ui/node.h"
+#include "sad_ui/ir.h"
+#include "sad_ui/ir_builder.h"
+#include "sad_ui/pipeline.h"
 
 #include <string>
 #include <vector>

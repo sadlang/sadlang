@@ -128,6 +128,55 @@ namespace Sad
                 // (EN) Executable path discovery failed — silently ignore
             }
 
+            // (AR) 2-ب. مجلدات stdlib الخاصّة بالميزات: features/<feature>/stdlib (RFC #19).
+            //      كل ميزة قد تشحن وحدات stdlib بلغة ص (مثل «رسومات» في
+            //      features/graphics/stdlib)، فنضيف كل features/*/stdlib موجود كمسار بحث.
+            // (EN) 2-b. Per-feature stdlib dirs: features/<feature>/stdlib (RFC #19). A
+            //      feature may ship .ص stdlib modules (e.g. رسومات in features/graphics/
+            //      stdlib); add every existing features/*/stdlib as a search path.
+            {
+                std::vector<std::filesystem::path> featureRoots;
+                featureRoots.push_back(std::filesystem::current_path());
+                try
+                {
+                    auto exeDir = sad::utf8::get_executable_dir();
+                    auto r = exeDir;
+                    for (int i = 0; i < 5 && !r.empty(); ++i)
+                    {
+                        featureRoots.push_back(r);
+                        r = r.parent_path();
+                    }
+                }
+                catch (...)
+                {
+                }
+                std::error_code ec;
+                for (const auto &root : featureRoots)
+                {
+                    if (root.empty())
+                        continue;
+                    auto featuresDir = root / "features";
+                    if (!std::filesystem::exists(featuresDir, ec) ||
+                        !std::filesystem::is_directory(featuresDir, ec))
+                        continue;
+                    for (const auto &entry :
+                         std::filesystem::directory_iterator(featuresDir, ec))
+                    {
+                        if (!entry.is_directory(ec))
+                            continue;
+                        auto featStdlib = entry.path() / "stdlib";
+                        if (std::filesystem::exists(featStdlib, ec))
+                        {
+                            auto normalized =
+                                std::filesystem::absolute(featStdlib).lexically_normal();
+                            if (std::find(searchPaths_.begin(), searchPaths_.end(),
+                                          normalized) == searchPaths_.end())
+                                searchPaths_.push_back(normalized);
+                        }
+                    }
+                }
+            }
+
             // (AR) 3. متغير البيئة SAD_PATH / (EN) 3. SAD_PATH environment variable
             const char *sadPath = std::getenv("SAD_PATH");
             if (sadPath)

@@ -265,6 +265,7 @@ done
 
 # المكتبة القياسية
 [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$APP_DIR/usr/lib/sad/stdlib/"
+[ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$APP_DIR/usr/lib/sad/stdlib/"
 
 # ملف .desktop
 cat > "$APP_DIR/usr/share/applications/sad-lang.desktop" << EOF
@@ -392,6 +393,7 @@ for bin in sad sadc sad-lsp sad-fmt sad-pkg sad-repl; do
     [ -f "$BIN_DIR/$bin" ] && cp "$BIN_DIR/$bin" "$DEB_PKG/usr/bin/" && chmod +x "$DEB_PKG/usr/bin/$bin"
 done
 [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$DEB_PKG/usr/lib/sad/stdlib/"
+[ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$DEB_PKG/usr/lib/sad/stdlib/"
 cp "$APP_DIR/usr/share/applications/sad-lang.desktop" "$DEB_PKG/usr/share/applications/"
 [ -f "$APP_DIR/usr/share/icons/hicolor/256x256/apps/sad-lang.png" ] && \
     cp "$APP_DIR/usr/share/icons/hicolor/256x256/apps/sad-lang.png" \
@@ -456,6 +458,7 @@ if command -v rpmbuild &>/dev/null; then
         [ -f "$BIN_DIR/$bin" ] && cp "$BIN_DIR/$bin" "$TAR_DIR/bin/"
     done
     [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$TAR_DIR/stdlib/"
+    [ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$TAR_DIR/stdlib/"
     tar czf "$OUTPUT_DIR/rpm/SOURCES/sad-lang-$VERSION.tar.gz" -C "$RPM_ROOT" "sad-lang-$VERSION"
 
     RPM_ARCH=$([ "$ARCH" = "x86_64" ] && echo "x86_64" || echo "aarch64")
@@ -488,6 +491,7 @@ for bin in bin/*; do
     install -m 755 \$bin %{buildroot}/usr/bin/
 done
 cp -r stdlib/* %{buildroot}/usr/lib/sad/stdlib/
+cp -r features/graphics/stdlib/* %{buildroot}/usr/lib/sad/stdlib/
 
 %post
 echo "تم تثبيت لغة ص $VERSION بنجاح"
@@ -595,6 +599,7 @@ fi
 
 # المكتبة القياسية
 [ -d "$REPO_ROOT/stdlib" ] && cp -r "$REPO_ROOT/stdlib/"* "$PKG_ROOT/usr/local/lib/sad/stdlib/"
+[ -d "$REPO_ROOT/features/graphics/stdlib" ] && cp -r "$REPO_ROOT/features/graphics/stdlib/"* "$PKG_ROOT/usr/local/lib/sad/stdlib/"
 
 # man page
 cat > "$PKG_ROOT/usr/local/share/man/man1/sad.1" << 'EOF'

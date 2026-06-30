@@ -41,6 +41,7 @@ class Sad &lt; Formula
     
     # Install standard library
     (lib/"sad/stdlib").install Dir["stdlib/*"]
+    (lib/"sad/stdlib").install Dir["features/graphics/stdlib/*"]
     
     # Install documentation
     doc.install "docs/SAD_LANGUAGE_COMPLETE_REFERENCE.md"

@@ -581,7 +581,7 @@ sad_core (مكتبة شاملة)
     ├─ sad_interpreter            (interpreter/src/)
     │     ├─ managers, visitors, builtins
     │     ├─ debug_server
-    │     └─ UI bridge (sad_rt_ui)
+    │     └─ UI bridge (sad_graphics_runtime)
     │
     ├─ sad_frontend               (compiler/src/frontend/)
     ├─ sad_optimizer              (compiler/src/sir_optimizer/)
@@ -591,7 +591,7 @@ sad_core (مكتبة شاملة)
     │
     ├─ sad_rt_abi                 (runtime ABI)
     ├─ sad_rt_ffi                 (runtime FFI)
-    ├─ sad_rt_ui                  (runtime UI)
+    ├─ sad_graphics_runtime                  (runtime UI)
     ├─ sad_security_core          (أمان)
     ├─ sad_websocket              (شبكة)
     └─ sad_profiler               (قياس أداء)

@@ -150,6 +150,12 @@ if (-not $DryRun) {
     if (Test-Path $StdlibSrc) {
         Copy-Item $StdlibSrc $StdlibDst -Recurse -Force
     }
+    # (AR) وحدات stdlib الخاصّة بالميزات (RFC #19): تُدمَج في نفس مجلّد stdlib (رسومات)
+    # (EN) Per-feature stdlib modules (RFC #19): merged into the same stdlib dir (رسومات)
+    $FeatStdlibSrc = Join-Path $RepoRoot "features\graphics\stdlib"
+    if ((Test-Path $FeatStdlibSrc) -and (Test-Path $StdlibDst)) {
+        Copy-Item (Join-Path $FeatStdlibSrc "*") $StdlibDst -Recurse -Force
+    }
     
     # نسخ الأمثلة
     $ExamplesSrc = Join-Path $RepoRoot "examples"

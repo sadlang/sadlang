@@ -9,8 +9,9 @@
         Ⓑ الحزام المشترك     : sad_type_system / sad_semantic / sad_memory_* /
                               sad_security_core / sad_null_safety / sad_mobile.
         ② نظام المفسّر فقط   : sad_interp(=sad_core) / sad_runtime / sad_builtins /
-                              sad_lowlevel / sad_ui_bridge / sad_ui / sad_network /
-                              sad_http / sad_websocket / sadnet / sad_rt_runtime /
+                              sad_lowlevel / sad_graphics_bridge / sad_graphics /
+                              sad_graphics_runtime / sad_network / sad_http /
+                              sad_websocket / sadnet / sad_rt_runtime /
                               sad_profiler_lib.
                               (sad_runtime = خدمات وقت التشغيل المشتركة؛ يُرقَّى إلى
                                الحزام عند عودة الآلة الافتراضية كمستهلكٍ ثانٍ.)
@@ -63,8 +64,9 @@ BAND = {
     "sad_security_core", "sad_null_safety", "sad_mobile",
 }
 INTERP = {
-    "sad_interp", "sad_runtime", "sad_builtins", "sad_lowlevel", "sad_ui_bridge",
-    "sad_ui", "sad_network", "sad_http", "sad_websocket", "sadnet",
+    "sad_interp", "sad_runtime", "sad_builtins", "sad_lowlevel",
+    "sad_graphics_bridge", "sad_graphics", "sad_graphics_runtime",
+    "sad_network", "sad_http", "sad_websocket", "sadnet",
     "sad_rt_runtime", "sad_profiler_lib",
 }
 COMPILER = {

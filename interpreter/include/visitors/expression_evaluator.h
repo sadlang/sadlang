@@ -103,9 +103,9 @@ namespace Sad
         class ExpressionEvaluator : public AST::BaseASTVisitor
         {
             // (AR) بذرة عكس الاعتماد (sadlang-rfcs#10، م2-أ): تطبيق جسر الواجهات في
-            //      sad_ui_bridge يصل لأعضاء التقييم الخاصّة (lastResult_ ومديرَي
+            //      sad_graphics_bridge يصل لأعضاء التقييم الخاصّة (lastResult_ ومديرَي
             //      المتغيرات/الدوال) لتنفيذ منطق الواجهات خارج القلب.
-            // (EN) Dependency-inversion seam: the UI bridge impl in sad_ui_bridge needs
+            // (EN) Dependency-inversion seam: the UI bridge impl in sad_graphics_bridge needs
             //      private access to run widget logic outside the core.
             friend class UIEvalBridgeImpl;
 

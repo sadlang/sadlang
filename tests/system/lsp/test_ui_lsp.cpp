@@ -316,7 +316,7 @@ void test_goto_definition_ui_widgets() {
     GotoDefinitionProvider provider;
     
     // اختبار: الانتقال لتعريف عنصر في ملف المكتبة
-    runner.runTest("الانتقال لتعريف 'زر' يشير إلى stdlib/رسومات/", [&]() {
+    runner.runTest("الانتقال لتعريف 'زر' يشير إلى features/graphics/stdlib/", [&]() {
         auto doc = make_doc("file:///test.ص", 
             "استورد \"رسومات.واجهات\"\nمتغير ع = جديد زر(\"اضغط\")");
         Position pos{1, 19};
@@ -326,7 +326,7 @@ void test_goto_definition_ui_widgets() {
         auto result = provider.get_definition(doc, pos, all_docs);
         
         if (result.has_value()) {
-            // يجب أن يشير إلى ملف في stdlib/رسومات/
+            // يجب أن يشير إلى ملف في features/graphics/stdlib/
             bool points_to_stdlib = result->uri.find("stdlib") != std::string::npos ||
                                      result->uri.find("رسومات") != std::string::npos;
         }

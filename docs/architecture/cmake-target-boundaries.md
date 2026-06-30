@@ -28,7 +28,7 @@ flowchart TB
         CORE["sad_interp <i>(= المفسّر؛ sad_core = alias توافق)</i>"]
         BLT["sad_builtins<br/>(14 ملفّ مدمجة نقيّة Data::Value)"]
         LOW["sad_lowlevel<br/>(26 ملفّ عتاد/نواة)"]
-        UIB["sad_ui_bridge · sad_ui"]
+        UIB["sad_graphics_bridge · sad_graphics"]
         NET["sad_network · sad_http · sad_websocket"]
     end
 
@@ -71,7 +71,7 @@ flowchart TB
 | `sad_runtime` *(خدمات وقت التشغيل)* | STATIC | ✅ (عبر `sad_core`) | ❌ | مفسّر فقط — يُرقَّى للحزام عند عودة الآلة الافتراضية |
 | `sad_builtins` | STATIC | ✅ (عبر `sad_core`) | ❌ | مفسّر فقط |
 | `sad_lowlevel` | STATIC | ✅ (عبر `sad_core`) | ❌ | مفسّر فقط |
-| `sad_ui_bridge` · `sad_ui` | STATIC | ✅ | ❌ | مفسّر فقط |
+| `sad_graphics_bridge` · `sad_graphics` | STATIC | ✅ | ❌ | مفسّر فقط |
 | `sad_network` · `sad_http` · `sad_websocket` | STATIC | ✅ | ❌ | مفسّر فقط |
 | **`sad_compiler`** | INTERFACE | ❌ | ✅ | **مترجم فقط** |
 | `sad_frontend` · `sad_optimizer` · `sad_llvm_backend` | STATIC | ❌ | ✅ | مترجم فقط |
@@ -107,7 +107,7 @@ flowchart TB
 
 **الباب (أ) — تصدير `sad_shared`** ([خطّة الاستخراج، خطوتا 2–3](sad_runtime-extraction-plan.md)): نُقلت ترويسة `ClassManager` (المواطن الأساس الوحيد الذي كان يبرّر التصدير) إلى `shared/types/`، فلم يَعُد أيُّ مصدرٍ في `sad_shared` يحتاج ترويسات المفسّر، وأُزيلت السطور الثلاثة من [shared/CMakeLists.txt](../../shared/CMakeLists.txt).
 
-**الباب (ب) — الكتلة العامّة**: نُقلت مسارات `interpreter/include*` (الثمانية) من `include_directories` الجذر إلى **`sad_interp PUBLIC`** ([cmake/libraries.cmake](../../cmake/libraries.cmake))، فلا يراها إلا من يربط `sad_interp` (المفسّر + أدواته + اختباراته + `sad_ui_bridge` عبر `$<TARGET_PROPERTY>`). و`sad_runtime` (لا يربط `sad_interp`) يأخذها `PRIVATE`. ونوع الاستثناء المشترك `user_thrown.h` — الذي كان يُحتجَز في `interpreter/include` ويحتاجه `sad_builtins` — نُقل إلى `shared/errors/include` (موضعه الصحيح).
+**الباب (ب) — الكتلة العامّة**: نُقلت مسارات `interpreter/include*` (الثمانية) من `include_directories` الجذر إلى **`sad_interp PUBLIC`** ([cmake/libraries.cmake](../../cmake/libraries.cmake))، فلا يراها إلا من يربط `sad_interp` (المفسّر + أدواته + اختباراته + `sad_graphics_bridge` عبر `$<TARGET_PROPERTY>`). و`sad_runtime` (لا يربط `sad_interp`) يأخذها `PRIVATE`. ونوع الاستثناء المشترك `user_thrown.h` — الذي كان يُحتجَز في `interpreter/include` ويحتاجه `sad_builtins` — نُقل إلى `shared/errors/include` (موضعه الصحيح).
 
 **النتيجة:** نظام المترجم (يربط `sad_shared` فقط، ولا `sad_interp`) لم يَعُد يَرى ترويسات المفسّر **لا بالتصدير ولا بالكتلة العامّة**. الحدّ نظيفٌ بنيويًّا الآن لا بالممارسة فقط. الحارس (§6) يبقى **وقائيًّا** يمنع أيّ انحدار مستقبليّ.
 

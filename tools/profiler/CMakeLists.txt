@@ -60,11 +60,11 @@ target_include_directories(sad-profiler PRIVATE
 
 target_link_libraries(sad-profiler PRIVATE
     sad_profiler_lib
-    # (AR) م2-أ: طبقة جسر الواجهات — يستدعي main.cpp installSadUIBridge() قبل المفسّر
-    #      كي تُسجَّل وحدات الرسومات عند تنميق برنامج يستوردها (يربط sad_core+sad_ui).
+    # (AR) م2-أ: طبقة جسر الواجهات — يستدعي main.cpp installSadGraphicsBridge() قبل المفسّر
+    #      كي تُسجَّل وحدات الرسومات عند تنميق برنامج يستوردها (يربط sad_core+sad_graphics).
     # (EN) Phase 2-A: UI bridge — main.cpp installs it so UI modules register when
-    #      profiling programs that import رسومات. Links sad_core + sad_ui transitively.
-    $<$<TARGET_EXISTS:sad_ui_bridge>:sad_ui_bridge>
+    #      profiling programs that import رسومات. Links sad_core + sad_graphics transitively.
+    $<$<TARGET_EXISTS:sad_graphics_bridge>:sad_graphics_bridge>
     sad_core
     sad_semantic
 )

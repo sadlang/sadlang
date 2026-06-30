@@ -204,11 +204,11 @@ target_include_directories(test_image_comprehensive PRIVATE
 #      UI opcode enum values (Opcode::UICreateWidget… undefined). It tests removed
 #      functionality, so it is disabled until UI SIR opcodes are reintroduced.
 # add_comprehensive_test(test_ui_comprehensive test_ui_comprehensive.cpp)
-# target_link_libraries(test_ui_comprehensive PRIVATE sad_ui)
+# target_link_libraries(test_ui_comprehensive PRIVATE sad_graphics)
 # target_include_directories(test_ui_comprehensive PRIVATE
 #     ${CMAKE_SOURCE_DIR}/compiler/src/sir
 #     ${CMAKE_SOURCE_DIR}/compiler/src
-#     ${CMAKE_SOURCE_DIR}/sad_ui/core/include)
+#     ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
 
 # 14a. اختبارات قبول المرحلة 0: Parser UI (إذا/وإلا + لكل + knownWidgets)
 # Phase 0 Acceptance Tests: UI Parser (conditional rendering + loops + widget registry)
@@ -217,10 +217,10 @@ add_comprehensive_test(test_ui_phase0 test_ui_phase0.cpp)
 # 14c. اختبارات قبول المرحلة 1: النظام التفاعلي (BindingCompiler)
 # Phase 1 Acceptance Tests: Reactive System (BindingCompiler)
 add_comprehensive_test(test_ui_phase1 test_ui_phase1.cpp)
-target_link_libraries(test_ui_phase1 PRIVATE sad_ui)
+target_link_libraries(test_ui_phase1 PRIVATE sad_graphics)
 target_include_directories(test_ui_phase1 PRIVATE
-    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/reactive
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/reactive
     ${CMAKE_SOURCE_DIR}/shared/ast/include
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
@@ -250,30 +250,30 @@ target_include_directories(test_ui_sir_lowering PRIVATE
 
 # 14b. اختبارات منصات الرسومات الشاملة / Comprehensive Backend Tests (IR + Pipeline + Codegen)
 add_comprehensive_test(test_backends_comprehensive test_backends_comprehensive.cpp)
-target_link_libraries(test_backends_comprehensive PRIVATE sad_ui)
+target_link_libraries(test_backends_comprehensive PRIVATE sad_graphics)
 target_include_directories(test_backends_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/pipeline/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/widgets/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/backends/android/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/backends/ios/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/backends/web/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/backends/macos/include)
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/pipeline/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/widgets/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/desktop/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/android/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/ios/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/web/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/macos/include)
 
 # 14c. اختبارات نظام الأحداث الموحد / Unified Event System Tests (IREventType)
 add_comprehensive_test(test_event_system_comprehensive test_event_system_comprehensive.cpp)
-target_link_libraries(test_event_system_comprehensive PRIVATE sad_ui)
+target_link_libraries(test_event_system_comprehensive PRIVATE sad_graphics)
 target_include_directories(test_event_system_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/pipeline/include)
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/pipeline/include)
 
 # 14d. اختبارات أداء Reconciler ونظام الأحداث المستقرة / Reconciler Performance Tests
 add_comprehensive_test(test_reconciler_performance test_reconciler_performance.cpp)
-target_link_libraries(test_reconciler_performance PRIVATE sad_ui)
+target_link_libraries(test_reconciler_performance PRIVATE sad_graphics)
 target_include_directories(test_reconciler_performance PRIVATE
-    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
-    ${CMAKE_SOURCE_DIR}/sad_ui/pipeline/include)
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/pipeline/include)
 
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries

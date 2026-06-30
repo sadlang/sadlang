@@ -65,7 +65,7 @@
 | النظام | المجلد | الدور |
 |--------|--------|------|
 | المكتبة القياسية | `stdlib/` | `core/io/math/string/network/crypto/json/xml/database/...` + مجالات عربية (`نص/ويب/إضافات`) |
-| الرسوميات/الواجهات | `graphics/`, `sad_ui/` | SDL2/OpenGL + واجهات المستخدم |
+| الرسوميات/الواجهات | `graphics/`, `features/graphics/` | SDL2/OpenGL + واجهات المستخدم |
 | الشبكة | `network/` | طبقة الشبكة |
 | المنصّة | `platform/` | كشف/تجريد المنصّة |
 | الأنظمة المنخفضة | `stdlib/low_level/`, `stdlib/freestanding/`, `stdlib/embedded/` | kernel/OS/bare-metal (راجع مهارة `sad-os-coding`) |

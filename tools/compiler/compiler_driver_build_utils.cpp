@@ -56,7 +56,7 @@ namespace sad
 
             // (AR) يبحث تنازليًّا تحت «base» عن مجلّد x64 يحوي «<lib>.lib»، ويُعيد مجلّده.
             //      يُستعمل لإيجاد المكتبات المُورَّدة (SDL2/SDL2_ttf) دون تثبيت رقم
-            //      الإصدار في المسار (graphics/third_party/SDL2/SDL2-<ver>/lib/x64).
+            //      الإصدار في المسار (features/graphics/third_party/SDL2/SDL2-<ver>/lib/x64).
             // (EN) Recursively find an x64 dir under «base» containing «<lib>.lib» and
             //      return that dir. Locates vendored libs (SDL2/SDL2_ttf) without
             //      hardcoding the version segment in the path.
@@ -141,10 +141,10 @@ namespace sad
             bool found_http = false;
             bool found_network = false;
             bool found_websocket = false;
-            // (AR) مكتبة وقت تشغيل الواجهات: sad_rt_ui (الجسر C) تعتمد على sad_ui (IR/تخطيط).
+            // (AR) مكتبة وقت تشغيل الواجهات: sad_graphics_runtime (الجسر C) تعتمد على sad_graphics (IR/تخطيط).
             //      بدونها تبقى رموز sad_button/sad_text/sad_column غير معرّفة عند ربط
             //      برامج SadUI المترجمة (إغلاق P0-3/أ-4).
-            // (EN) UI runtime: sad_rt_ui (C bridge) depends on sad_ui (IR/layout).
+            // (EN) UI runtime: sad_graphics_runtime (C bridge) depends on sad_graphics (IR/layout).
             //      Without them, compiled SadUI programs fail linking with undefined
             //      sad_button/sad_text/sad_column (P0-3/A-4 closure).
             bool found_ui = false;
@@ -155,9 +155,9 @@ namespace sad
                 const bool has_http = has_library_file_in_dir(normalized, "sad_http");
                 const bool has_network = has_library_file_in_dir(normalized, "sad_network");
                 const bool has_websocket = has_library_file_in_dir(normalized, "sad_websocket");
-                // (AR) نكشف sad_rt_ui؛ sad_ui مُجمَّعة معها في نفس مجلّد المكتبات.
-                // (EN) Detect sad_rt_ui; sad_ui is co-located in the same lib dir.
-                const bool has_ui = has_library_file_in_dir(normalized, "sad_rt_ui");
+                // (AR) نكشف sad_graphics_runtime؛ sad_graphics مُجمَّعة معها في نفس مجلّد المكتبات.
+                // (EN) Detect sad_graphics_runtime; sad_graphics is co-located in the same lib dir.
+                const bool has_ui = has_library_file_in_dir(normalized, "sad_graphics_runtime");
 
                 if (!has_http && !has_network && !has_websocket && !has_ui)
                 {
@@ -186,26 +186,26 @@ namespace sad
                 append_unique_value(libraries, "sad_websocket");
             }
 
-            // (AR) مكتبات الواجهات: الترتيب مهمّ — sad_rt_ui قبل sad_ui (تعتمد عليها).
+            // (AR) مكتبات الواجهات: الترتيب مهمّ — sad_graphics_runtime قبل sad_graphics (تعتمد عليها).
             //      الرابط يُسقِط الأعضاء غير المُشار إليها، فلا ضرر على البرامج غير الرسوميّة.
-            // (EN) UI libs: order matters — sad_rt_ui before sad_ui (its dependency).
+            // (EN) UI libs: order matters — sad_graphics_runtime before sad_graphics (its dependency).
             //      The linker drops unreferenced members, so non-UI programs are unaffected.
             if (found_ui)
             {
-                append_unique_value(libraries, "sad_rt_ui");
-                append_unique_value(libraries, "sad_ui");
+                append_unique_value(libraries, "sad_graphics_runtime");
+                append_unique_value(libraries, "sad_graphics");
 
 #ifdef _WIN32
-                // (AR) sad_ui مُصرَّفة مع SDL2 (SAD_UI_USE_SDL2)، ووحدة ترجمة الجسر
+                // (AR) sad_graphics مُصرَّفة مع SDL2 (SAD_UI_USE_SDL2)، ووحدة ترجمة الجسر
                 //      sad_ui_runtime.cpp تشير للراسم فتُدخِل رموز SDL_*/TTF_* عبوريًّا
                 //      حتى في المسار بلا رأس. نربط SDL2 وSDL2_ttf المُورَّدتين.
-                // (EN) sad_ui is built with SDL2, and the bridge TU references the
+                // (EN) sad_graphics is built with SDL2, and the bridge TU references the
                 //      renderer, so SDL_*/TTF_* are pulled transitively even headless.
                 //      Link the vendored SDL2 + SDL2_ttf import libs.
                 const auto repo_root =
                     std::filesystem::absolute(get_executable_dir() / ".." / ".." / "..")
                         .lexically_normal();
-                const auto third_party = repo_root / "graphics" / "third_party";
+                const auto third_party = repo_root / "features" / "graphics" / "third_party";
 
                 const auto sdl2_dir = find_vendored_x64_lib_dir(third_party, "SDL2");
                 if (!sdl2_dir.empty())

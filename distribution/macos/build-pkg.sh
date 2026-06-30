@@ -57,6 +57,7 @@ cp "$BUILD_DIR/cmake-build/bin/sad" "$PKG_ROOT$INSTALL_PREFIX/bin/" 2>/dev/null 
 mkdir -p "$PKG_ROOT$INSTALL_PREFIX/lib/sad/stdlib"
 if [ -d "$PROJECT_ROOT/stdlib" ]; then
     cp -r "$PROJECT_ROOT/stdlib/"* "$PKG_ROOT$INSTALL_PREFIX/lib/sad/stdlib/" 2>/dev/null || true
+    cp -r "$PROJECT_ROOT/features/graphics/stdlib/"* "$PKG_ROOT$INSTALL_PREFIX/lib/sad/stdlib/" 2>/dev/null || true
 fi
 
 # man page

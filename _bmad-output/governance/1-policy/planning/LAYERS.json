@@ -54,8 +54,8 @@
             "role_ar": "شبكة sadnet (P2P, crypto, DHT)"
         },
         {
-            "name": "sad_ui",
-            "path": "sad_ui/",
+            "name": "sad_graphics",
+            "path": "features/graphics/",
             "role_ar": "واجهات المستخدم متعددة المنصات"
         },
         {

@@ -139,17 +139,17 @@ set(SAD_ERROR_SOURCES
 
 # --- SadUI Core (واجهات — HTML codegen فقط على أندرويد) ---
 set(SAD_UI_SOURCES
-    ${SAD_ROOT_DIR}/sad_ui/core/src/types.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/ir.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/ir_builder.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/node.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/style.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/layout.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/state.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/animation.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/hybrid_routing.cpp
-    ${SAD_ROOT_DIR}/sad_ui/core/src/reconciler.cpp
-    ${SAD_ROOT_DIR}/sad_ui/backends/web/src/html_codegen.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/types.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/ir.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/ir_builder.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/node.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/style.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/layout.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/state.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/animation.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/hybrid_routing.cpp
+    ${SAD_ROOT_DIR}/features/graphics/core/src/reconciler.cpp
+    ${SAD_ROOT_DIR}/features/graphics/backends/web/src/html_codegen.cpp
     ${SAD_ROOT_DIR}/interpreter/src/ui/ui_bridge.cpp
     ${SAD_ROOT_DIR}/interpreter/src/ui/ui_bridge_events.cpp
     ${SAD_ROOT_DIR}/interpreter/src/ui/ui_bridge_platform.cpp
@@ -270,10 +270,10 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/compiler/include
     ${SAD_ROOT_DIR}/compiler/include/semantic
     # (AR) compiler/src/optimizer حُذف بعد توحيد passes في middle/
-    ${SAD_ROOT_DIR}/sad_ui/core/include
-    ${SAD_ROOT_DIR}/sad_ui/pipeline/include
-    ${SAD_ROOT_DIR}/sad_ui/widgets/include
-    ${SAD_ROOT_DIR}/sad_ui/backends/web/include
+    ${SAD_ROOT_DIR}/features/graphics/core/include
+    ${SAD_ROOT_DIR}/features/graphics/pipeline/include
+    ${SAD_ROOT_DIR}/features/graphics/widgets/include
+    ${SAD_ROOT_DIR}/features/graphics/backends/web/include
     ${SAD_ROOT_DIR}/interpreter/src/ui
 )
 

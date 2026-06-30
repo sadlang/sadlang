@@ -19,9 +19,9 @@
 #include "sad_test_framework.h"
 
 // رؤوس sad_ui
-#include "../../sad_ui/core/include/sad_ui/types.h"
-#include "../../sad_ui/core/include/sad_ui/ir.h"
-#include "../../sad_ui/core/include/sad_ui/reconciler.h"
+#include "sad_ui/types.h"
+#include "sad_ui/ir.h"
+#include "sad_ui/reconciler.h"
 
 #include <string>
 #include <vector>

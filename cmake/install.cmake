@@ -67,10 +67,23 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/stdlib/
     PATTERN ".git" EXCLUDE
 )
 
+# (AR) وحدات stdlib الخاصّة بالميزات (RFC #19): تُجمَّع في نفس مجلّد stdlib المُثبَّت
+#      كي يجدها محلّل الوحدات (الذي يصعد المجلدات بحثاً عن stdlib/) في التوزيعة.
+#      مثال: features/graphics/stdlib/رسومات.ص ⇐ <datadir>/sad-lang/stdlib/رسومات.ص.
+# (EN) Per-feature stdlib modules (RFC #19): staged into the SAME installed stdlib dir
+#      so the module resolver (which climbs to find stdlib/) locates them in the
+#      distribution. e.g. features/graphics/stdlib/رسومات.ص ⇒ <datadir>/sad-lang/stdlib/.
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/features/graphics/stdlib/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/sad-lang/stdlib
+    COMPONENT runtime
+    FILES_MATCHING
+        PATTERN "*.ص"
+)
+
 # (AR) SDL2 DLL مطلوبة للمفسر على ويندوز
 # (EN) SDL2 DLL required for interpreter on Windows
 if(WIN32)
-    set(_SDL2_DLL "${CMAKE_SOURCE_DIR}/graphics/third_party/SDL2/SDL2-2.28.5/lib/x64/SDL2.dll")
+    set(_SDL2_DLL "${CMAKE_SOURCE_DIR}/features/graphics/third_party/SDL2/SDL2-2.28.5/lib/x64/SDL2.dll")
     if(EXISTS "${_SDL2_DLL}")
         install(FILES "${_SDL2_DLL}"
             DESTINATION ${CMAKE_INSTALL_BINDIR}

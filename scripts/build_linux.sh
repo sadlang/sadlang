@@ -184,6 +184,7 @@ install_system() {
     # نسخ المكتبة القياسية
     sudo mkdir -p "$LIB_DIR"
     sudo cp -r stdlib/* "$LIB_DIR/"
+    sudo cp -r features/graphics/stdlib/* "$LIB_DIR/"
     
     print_success "تم التثبيت بنجاح!"
     echo ""

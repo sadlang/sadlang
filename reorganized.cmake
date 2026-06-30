@@ -24,8 +24,8 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/CMakeLists.txt")
 endif()
 
 # نظام واجهات المستخدم / UI System
-if(EXISTS "${CMAKE_SOURCE_DIR}/sad_ui/CMakeLists.txt")
-    add_subdirectory(${CMAKE_SOURCE_DIR}/sad_ui ${CMAKE_BINARY_DIR}/sad_ui)
+if(EXISTS "${CMAKE_SOURCE_DIR}/features/graphics/CMakeLists.txt")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/features/graphics ${CMAKE_BINARY_DIR}/features/graphics)
 endif()
 
 # مصحح الأداء / Performance Profiler (يجب أن يُبنى قبل sad_core)

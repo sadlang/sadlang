@@ -20,7 +20,7 @@
 //      we invoke with policySet=false (no-op) — placeholder for future wiring.
 #include "memory/gc/policy_bridge.h"
 #include "memory/policy/gc_mode.h"
-#include "ui/sad_ui_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (REPL مضيف مفسّر تفاعليّ)
+#include "ui/sad_graphics_bridge.h" // (AR) م2-أ: تثبيت جسر الواجهات (REPL مضيف مفسّر تفاعليّ)
 
 // Windows VOID macro conflicts with ::Sad::Types::SadTypeKind::Void
 #ifdef _WIN32
@@ -100,7 +100,7 @@ namespace Sad
             //      إعادة التعيين لأنّ التثبيت حالة عالميّة) كي يدعم REPL الرسومات.
             // (EN) Phase 2-A: install the UI bridge before the interpreter (idempotent,
             //      global — also covers the reset interpreter) so the REPL supports UI.
-            Sad::Interpreter::installSadUIBridge();
+            Sad::Interpreter::installSadGraphicsBridge();
 
             Interpreter::InterpreterOptions interpOpts;
             interpOpts.enableDebugMode = false;

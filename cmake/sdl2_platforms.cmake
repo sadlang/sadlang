@@ -36,7 +36,7 @@ else()
     set(SAD_PLATFORM "unknown")
 endif()
 
-message(STATUS "  [sad_ui] المنصة المكتشفة / Detected platform: ${SAD_PLATFORM}")
+message(STATUS "  [sad_graphics] المنصة المكتشفة / Detected platform: ${SAD_PLATFORM}")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # دالة: إعداد SDL2 للمنصة الحالية

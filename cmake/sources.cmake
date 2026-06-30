@@ -92,13 +92,13 @@ set(INTERPRETER_SOURCES
     interpreter/src/builtins/builtin_module_http.cpp
     interpreter/src/builtins/builtin_module_sadnet.cpp
     interpreter/src/builtins/builtin_module_websocket.cpp
-    # (AR) م2-أ (sadlang-rfcs#10): ملفّات الواجهات المعتمِدة على sad_ui انتُقِلت إلى
-    #      هدف sad_ui_bridge (INTERPRETER_UI_BRIDGE_SOURCES أدناه) كي لا يعتمد sad_interp
-    #      على sad_ui. يبقى في القلب فقط ما لا يعتمد sad_ui:
-    # (EN) Phase 2-A: sad_ui-dependent UI files moved to the sad_ui_bridge target
-    #      (INTERPRETER_UI_BRIDGE_SOURCES below) so sad_interp no longer depends on sad_ui.
-    #      Only the sad_ui-free pieces remain here in the core:
-    interpreter/src/ui/ui_state_manager.cpp          # (AR) بلا sad_ui؛ يحتاجه oop_new (UIStateManager)
+    # (AR) م2-أ (sadlang-rfcs#10): ملفّات الواجهات المعتمِدة على sad_graphics انتُقِلت إلى
+    #      هدف sad_graphics_bridge (INTERPRETER_UI_BRIDGE_SOURCES أدناه) كي لا يعتمد sad_interp
+    #      على sad_graphics. يبقى في القلب فقط ما لا يعتمد sad_graphics:
+    # (EN) Phase 2-A: sad_graphics-dependent UI files moved to the sad_graphics_bridge target
+    #      (INTERPRETER_UI_BRIDGE_SOURCES below) so sad_interp no longer depends on sad_graphics.
+    #      Only the sad_graphics-free pieces remain here in the core:
+    interpreter/src/ui/ui_state_manager.cpp          # (AR) بلا sad_graphics؛ يحتاجه oop_new (UIStateManager)
     interpreter/src/visitors/ui_eval_bridge_core.cpp   # (AR) بذرة القلب (المؤشّر الذرّيّ + المزوّدون)
     interpreter/src/visitors/ui_widget_expr_dispatch.cpp # (AR) visitUIWidgetExpr الرفيع (TU مستقلّ ليُشبِعه الـstub في الاختبارات)
     interpreter/src/visitors/expression_evaluator_core.cpp
@@ -388,14 +388,14 @@ set(ALL_SOURCES
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# (AR) م2-أ (sadlang-rfcs#10): مصادر طبقة جسر الواجهات sad_ui_bridge.
-#      هذه الملفّات تعتمد sad_ui (sad_ui/ir.h …) وتُجمَّع في هدف منفصل يربط
-#      sad_core (PUBLIC، alias لـ sad_interp) + sad_ui (PRIVATE)، فيُعكَس اعتماد القلب
-#      على الواجهات: القلب لم يعد يربط sad_ui؛ الجسر يثبّت نفسه عبر installSadUIBridge().
+# (AR) م2-أ (sadlang-rfcs#10): مصادر طبقة جسر الواجهات sad_graphics_bridge.
+#      هذه الملفّات تعتمد sad_graphics (sad_ui/ir.h …) وتُجمَّع في هدف منفصل يربط
+#      sad_core (PUBLIC، alias لـ sad_interp) + sad_graphics (PRIVATE)، فيُعكَس اعتماد القلب
+#      على الواجهات: القلب لم يعد يربط sad_graphics؛ الجسر يثبّت نفسه عبر installSadGraphicsBridge().
 #      المكتبة تُعرَّف في cmake/libraries.cmake وتُربَط في sad-run/profiler/wasm.
-# (EN) Phase 2-A: sources of the UI bridge layer (sad_ui_bridge). These depend on
-#      sad_ui and compile into a separate target linking sad_core PUBLIC (alias of
-#      sad_interp) + sad_ui PRIVATE, inverting the core→ui dependency. Defined in
+# (EN) Phase 2-A: sources of the UI bridge layer (sad_graphics_bridge). These depend on
+#      sad_graphics and compile into a separate target linking sad_core PUBLIC (alias of
+#      sad_interp) + sad_graphics PRIVATE, inverting the core→ui dependency. Defined in
 #      cmake/libraries.cmake.
 # ═══════════════════════════════════════════════════════════════════════════════
 set(INTERPRETER_UI_BRIDGE_SOURCES

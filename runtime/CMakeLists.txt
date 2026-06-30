@@ -5,7 +5,7 @@
 #      يحتفظ هذا الملف بالمكتبات النشطة فعلياً فقط:
 #        - sad_rt_abi  : C ABI marshalling (نشط)
 #        - sad_rt_ffi  : FFI bindings + firewall + sandbox (نشط، يستخدم abi)
-#        - sad_rt_ui   : UI runtime (نشط، يربطه llvm_codegen_ui)
+#        - sad_graphics_runtime   : UI runtime (نشط، يربطه llvm_codegen_ui)
 #        - sad_rt_freestanding : للـ OS / UEFI development (اختياري)
 # (EN) ~6 runtime libs were diagnosed as dead code (panic, sandbox, vm, memory,
 #      thread, exception). Archived, then deleted in phase 5 (RFC #10).
@@ -71,27 +71,27 @@ message(STATUS "Configured sad_rt_runtime (abi + ffi)")
 # ============================================================================
 # UI Runtime Library — مكتبة وقت التشغيل للواجهات
 # (AR) تنفيذ دوال C التي يستدعيها الكود المُترجم بـ LLVM لعناصر الواجهة
-#      يربط بين llvm_codegen_ui.cpp ومكتبة sad_ui
+#      يربط بين llvm_codegen_ui.cpp ومكتبة sad_graphics
 # (EN) C API implementation called by LLVM-compiled code for UI widgets
-#      Bridges llvm_codegen_ui.cpp to the sad_ui library
+#      Bridges llvm_codegen_ui.cpp to the sad_graphics library
 # ============================================================================
-if(TARGET sad_ui)
-    add_library(sad_rt_ui STATIC sad_ui_runtime.cpp)
-    target_include_directories(sad_rt_ui
+if(TARGET sad_graphics)
+    add_library(sad_graphics_runtime STATIC ${CMAKE_SOURCE_DIR}/features/graphics/runtime/sad_ui_runtime.cpp)
+    target_include_directories(sad_graphics_runtime
         PUBLIC
-            ${CMAKE_CURRENT_SOURCE_DIR}
-            ${CMAKE_SOURCE_DIR}/sad_ui/core/include
-            ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
-            ${CMAKE_SOURCE_DIR}/graphics/third_party
+            ${CMAKE_SOURCE_DIR}/features/graphics/runtime
+            ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+            ${CMAKE_SOURCE_DIR}/features/graphics/backends/desktop/include
+            ${CMAKE_SOURCE_DIR}/features/graphics/third_party
     )
-    target_link_libraries(sad_rt_ui PUBLIC sad_ui)
+    target_link_libraries(sad_graphics_runtime PUBLIC sad_graphics)
     if(MSVC)
-        target_compile_options(sad_rt_ui PRIVATE /utf-8 /wd4819 /FS)
+        target_compile_options(sad_graphics_runtime PRIVATE /utf-8 /wd4819 /FS)
     endif()
-    target_link_libraries(sad_rt_runtime INTERFACE sad_rt_ui)
-    message(STATUS "  [sad_rt_ui] ✓ مكتبة وقت التشغيل للواجهات مفعّلة / UI runtime enabled")
+    target_link_libraries(sad_rt_runtime INTERFACE sad_graphics_runtime)
+    message(STATUS "  [sad_graphics_runtime] ✓ مكتبة وقت التشغيل للواجهات مفعّلة / UI runtime enabled")
 else()
-    message(STATUS "  [sad_rt_ui] ⚠ sad_ui غير موجود — مكتبة الواجهات معطّلة / sad_ui not found — UI runtime disabled")
+    message(STATUS "  [sad_graphics_runtime] ⚠ sad_graphics غير موجود — مكتبة الواجهات معطّلة / sad_graphics not found — UI runtime disabled")
 endif()
 
 # ============================================================================

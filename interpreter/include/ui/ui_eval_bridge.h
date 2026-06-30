@@ -3,7 +3,7 @@
  * ملف: interpreter/include/ui/ui_eval_bridge.h
  * ═══════════════════════════════════════════════════════════════════════════════
  *
- * (AR) بذرة عكس الاعتماد بين القلب (sad_core) وطبقة جسر الواجهات (sad_ui_bridge).
+ * (AR) بذرة عكس الاعتماد بين القلب (sad_core) وطبقة جسر الواجهات (sad_graphics_bridge).
  *      المرحلة 2-أ من RFC «قلب موحَّد بحدود داخلية» (sadlang-rfcs#10).
  *
  *      الهدف: ألّا يعتمد `sad_core` على `sad_ui` إطلاقًا. بدل أن يستدعي القلبُ
@@ -12,7 +12,7 @@
  *      المؤشّر فارغًا والقلب يعمل بلا رسومات.
  *
  * (EN) Dependency-inversion seam between the core (sad_core) and the UI bridge
- *      layer (sad_ui_bridge). Phase 2-A of RFC sadlang-rfcs#10. The core no longer
+ *      layer (sad_graphics_bridge). Phase 2-A of RFC sadlang-rfcs#10. The core no longer
  *      calls into sad_ui; it exposes this abstract interface and the bridge installs
  *      its implementation at runtime (wired by sad-run).
  * ═══════════════════════════════════════════════════════════════════════════════
@@ -41,8 +41,8 @@ namespace Sad
         class ExpressionEvaluator;
 
         // ═══════════════════════════════════════════════════════════════════
-        // (AR) بذرة الزائر — يملؤها sad_ui_bridge (seams 2 و3)
-        // (EN) Evaluator seam — implemented by sad_ui_bridge (seams 2 and 3)
+        // (AR) بذرة الزائر — يملؤها sad_graphics_bridge (seams 2 و3)
+        // (EN) Evaluator seam — implemented by sad_graphics_bridge (seams 2 and 3)
         // ═══════════════════════════════════════════════════════════════════
         struct IUIEvalBridge
         {
@@ -63,11 +63,11 @@ namespace Sad
         };
 
         // (AR) يُثبَّت قبل إنشاء المفسّر من كلّ ثنائيّ ينفّذ كود واجهات (sad-run،
-        //      wasm، profiler) عبر installSadUIBridge()؛ القلب يقرؤه في المسار
+        //      wasm، profiler) عبر installSadGraphicsBridge()؛ القلب يقرؤه في المسار
         //      الساخن عبر uiEvalBridge(). العقد: التثبيت يحدث مرّة على الخيط الرئيسيّ
         //      قبل تنفيذ أيّ كود مستخدم.
         // (EN) Installed before interpreter creation by every binary that runs UI code
-        //      (sad-run, wasm, profiler) via installSadUIBridge(); read on the hot path
+        //      (sad-run, wasm, profiler) via installSadGraphicsBridge(); read on the hot path
         //      via uiEvalBridge(). Contract: install once, on the main thread, before
         //      any user code executes.
         void setUIEvalBridge(IUIEvalBridge *bridge);

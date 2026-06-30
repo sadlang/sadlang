@@ -27,9 +27,9 @@
 #include "channel.h"                        // (AR) قنوات الاتصال بين المهام / (EN) Channel communication
 #include "profiler_hooks.h"                 // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 // (AR) م2-أ (sadlang-rfcs#10): بذرة عكس الاعتماد — لا ضمّ لـ sad_ui في القلب.
-//      منطق WidgetBuilder نُقِل إلى sad_ui_bridge خلف IUIEvalBridge::tryWidgetMethodCall.
+//      منطق WidgetBuilder نُقِل إلى sad_graphics_bridge خلف IUIEvalBridge::tryWidgetMethodCall.
 // (EN) Phase 2-A: inversion seam — no sad_ui include in the core; WidgetBuilder logic
-//      moved to sad_ui_bridge behind IUIEvalBridge::tryWidgetMethodCall.
+//      moved to sad_graphics_bridge behind IUIEvalBridge::tryWidgetMethodCall.
 #include "ui/ui_eval_bridge.h" // (AR) بادئة ui/ كي تَحلّ في sad_core وsad_interpreter معًا
 #include <atomic>
 #include <cmath>
@@ -151,7 +151,7 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════════════
                 // ═══════════════════════════════════════════════════════════════════
                 // (AR) م2-أ: سلسلة معدّلات WidgetBuilder عبر بذرة الجسر (إن حُمِّلت الرسومات).
-                //      المنطق في sad_ui_bridge؛ القلب لا يعرف WidgetBuilder.
+                //      المنطق في sad_graphics_bridge؛ القلب لا يعرف WidgetBuilder.
                 // (EN) Phase 2-A: WidgetBuilder modifier chain via the bridge seam.
                 // ═══════════════════════════════════════════════════════════════════
                 if (objectValue.isObject())

@@ -65,7 +65,7 @@ THE SOFTWARE.
 
 ## 3. SDL2
 
-- **الإصدار / Version:** مُدمَجة في `graphics/third_party/SDL2/`
+- **الإصدار / Version:** مُدمَجة في `features/graphics/third_party/SDL2/`
 - **الترخيص / License:** Zlib
 - **المصدر / Source:** https://www.libsdl.org/
 - **يُربَط بـ / Linked into:** نظام الرسوميات `graphics/` عند البناء معه.
