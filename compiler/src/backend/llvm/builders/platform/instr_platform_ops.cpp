@@ -231,6 +231,36 @@ namespace Sad
                 return cg_.emitUiSafeArea(inst);
             case SIROpcode::BUILTIN_UI_SURFACE:
                 return cg_.emitUiSurface(inst);
+            // أثر المعدّلات (م-أ3ر، L1): خاصّيّة عامّة بالاسم
+            case SIROpcode::BUILTIN_UI_SET_PROP_STR:
+                return cg_.emitUiSetPropStr(inst);
+            case SIROpcode::BUILTIN_UI_SET_PROP_INT:
+                return cg_.emitUiSetPropInt(inst);
+            case SIROpcode::BUILTIN_UI_SET_PROP_NUM:
+                return cg_.emitUiSetPropNum(inst);
+            case SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
+                return cg_.emitUiSetPropBool(inst);
+            // أثر المعدّلات (م-أ3ر، L2): ربط حدث عند_* بالعقدة
+            case SIROpcode::BUILTIN_UI_ADD_EVENT:
+                return cg_.emitUiAddEvent(inst);
+            // أثر المعدّلات (م-أ3ر، L3): سلسلة التحريك
+            case SIROpcode::BUILTIN_UI_ANIM_BEGIN:
+                return cg_.emitUiAnimBegin(inst);
+            case SIROpcode::BUILTIN_UI_ANIM_DURATION:
+                return cg_.emitUiAnimDuration(inst);
+            case SIROpcode::BUILTIN_UI_ANIM_EASING:
+                return cg_.emitUiAnimEasing(inst);
+            case SIROpcode::BUILTIN_UI_ANIM_DELAY:
+                return cg_.emitUiAnimDelay(inst);
+            case SIROpcode::BUILTIN_UI_ANIM_REPEAT:
+                return cg_.emitUiAnimRepeat(inst);
+            case SIROpcode::BUILTIN_UI_ANIM_AUTO_REVERSE:
+                return cg_.emitUiAnimAutoReverse(inst);
+            // أثر المعدّلات (م-أ3ر): خاصّيّة متعدّدة الوسائط (دمج بفواصل)
+            case SIROpcode::BUILTIN_UI_PROP_JOIN_ADD:
+                return cg_.emitUiPropJoinAdd(inst);
+            case SIROpcode::BUILTIN_UI_PROP_JOIN_COMMIT:
+                return cg_.emitUiPropJoinCommit(inst);
             case SIROpcode::BUILTIN_UI_ADD_CHILD:
                 return cg_.emitUiAddChild(inst);
             case SIROpcode::BUILTIN_UI_REMOVE_CHILD:
@@ -269,6 +299,10 @@ namespace Sad
                 return cg_.emitUiAppLayout(inst);
             case SIROpcode::BUILTIN_UI_APP_RENDER:
                 return cg_.emitUiAppRender(inst);
+            case SIROpcode::BUILTIN_UI_APP_RUN:
+                return cg_.emitUiAppRun(inst);
+            case SIROpcode::BUILTIN_UI_PRINT_TREE:
+                return cg_.emitUiPrintTree(inst);
             case SIROpcode::BUILTIN_UI_APP_DESTROY:
                 return cg_.emitUiAppDestroy(inst);
             case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:

@@ -1,9 +1,11 @@
 ﻿// ============================================================================
-// sir_builder_helpers_infer.cpp - inferReturnType and collectFreeVars helpers
+// template_infer_return.cpp - inferReturnType and collectFreeVars helpers
 // ============================================================================
 #include <string>
+#include <string_view> // (AR) std::string_view في builtinReturnsToSIRKind
 #include "sir_builder.h"
 #include "builders/template_builder.h"
+#include "builtin_registry.h" // (AR) §9: نوع إرجاع المدمجات من السجلّ المشترك (returns)
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -24,6 +26,20 @@ namespace Sad
     {
         namespace SIR
         {
+            // (AR) تحويل نوع إرجاع المدمجة من مصدر الحقيقة (حقل `returns` في
+            //      language-truth/builtins/*.yaml، يظهر في BuiltinMeta::returnType) إلى
+            //      SadTypeKind للمترجم. مركزيٌّ وقابل للتوسّع: هنا فقط تعيش أسماء أنواع
+            //      SoT النصّيّة، فإذا أُضيف `returns: عدد/نص/…` لمدمجاتٍ أخرى يُضاف تعيينُه
+            //      هنا وحده. اسمٌ فارغ/غير معروف ⇒ Unknown (يُترَك للاستنتاج، لا ينهار).
+            //      ملاحظة: لا تزال المطابقة نصّيّة لأنّ SoT نصّيّ (yaml)؛ لكنّها ممركزة
+            //      وموثَّقة بدل نثرها. الحلّ الأمتن (مخطَّط SoT يفرض أسماء الأنواع) شريحة أكبر.
+            static SadTypeKind builtinReturnsToSIRKind(std::string_view soTReturns)
+            {
+                if (soTReturns == "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86") // كائن ⇒ مقبض عنصر
+                    return SadTypeKind::Pointer;
+                return SadTypeKind::Unknown;
+            }
+
             SadTypeKind TemplateBuilder::inferReturnTypeFromBody(const Sad::AST::Statement *body,
                                                             const Sad::AST::FunctionDecl *funcDecl)
             {
@@ -157,6 +173,22 @@ namespace Sad
                     //      مع دعم استدعاءات الأعضاء (obj.method()) حتى داخل اللامدا.
                     // (EN) Function call: infer return type from b_.functionTable_,
                     //      with support for member calls (obj.method()) even inside lambdas.
+                    // (AR) §9: نداء طريقة (MethodCallExpr) — معدّل واجهة انسيابيّ على عنصرٍ
+                    //      يُستنتَج Pointer (مثل عمود().ابن(x) أو س.لون("أحمر")) يُعيد المقبض
+                    //      نفسه ⇒ Pointer (نظير call_method_dispatch.cpp "RETURN THE WIDGET").
+                    //      شرطُ «الكائن==Pointer» هو نظير حارس className.empty() في الخافض:
+                    //      المقبض الواجهيّ لا صنفَ مستخدمٍ له فيُعامَل كمعدّل.
+                    //      ⚠ قيدٌ معروف (نادر): مثيلُ صنفٍ مستخدمٍ يُستنتَج كائنُه Pointer
+                    //        وله طريقةٌ مسجَّلة بنوع إرجاعٍ آخر (س.مساحة()⇒Float) قد يُستنتَج
+                    //        هنا Pointer خطأً؛ الإصلاح الكامل يحتاج اشتقاق className للكائن
+                    //        والبحثَ في جدول الطرق (غير متاحٍ في هذا المسار). مقبولٌ لأنّ
+                    //        دوال UI العائدة بمقابض هي الغالب الساحق في هذا الاستنتاج.
+                    if (auto mcall = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
+                    {
+                        if (inferExprType(mcall->object.get()) == SadTypeKind::Pointer)
+                            return SadTypeKind::Pointer;
+                    }
+
                     if (auto call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                     {
                         if (auto varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
@@ -165,6 +197,16 @@ namespace Sad
                             if (it != b_.functionTable_.end())
                             {
                                 return it->second.returnType;
+                            }
+                            // (AR) §9 الجذر2: مدمجة معروفة (ليست دالة مستخدم) ⇒ نوع إرجاعها
+                            //      من السجلّ المشترك (حقل returns في language-truth). «كائن»
+                            //      = مقبض عنصر واجهة ⇒ Pointer (نظير نوع()=«كائن»). هكذا
+                            //      دالةٌ تُرجِع عمود()/زر() تُستنتَج Pointer لا Integer.
+                            if (const auto *meta = Sad::Builtins::findBuiltinMeta(varExpr->name))
+                            {
+                                SadTypeKind k = builtinReturnsToSIRKind(meta->returnType);
+                                if (k != SadTypeKind::Unknown)
+                                    return k;
                             }
                         }
 
@@ -208,6 +250,18 @@ namespace Sad
                                     }
                                     searchClass = sirClass->parentClass;
                                 }
+                            }
+
+                            // (AR) §9 (احتياط): سلاسل المعدّلات الفعليّة تُبنى MethodCallExpr
+                            //      (يعالجها الفرع أعلاه)، لا CallExpr بـcallee=MemberExpr. هذا
+                            //      الفرع يغطّي مسار CallExpr+MemberExpr النادر إن وُجد: معدّل
+                            //      واجهة على عنصرٍ (كائنُه Pointer) يُعيد المقبض ⇒ Pointer،
+                            //      مطابقةً لشرط التوليد (call_method_dispatch.cpp:523 "RETURN
+                            //      THE WIDGET"). يبقى متّسقًا مع التوليد إن التُقط يومًا.
+                            if (className.empty() &&
+                                inferExprType(memberCallee->object.get()) == SadTypeKind::Pointer)
+                            {
+                                return SadTypeKind::Pointer;
                             }
 
                             // (AR) احتياط: إذا كان نوع الكائن غير معروف، نبحث عن أي دالة باسم "*.member"

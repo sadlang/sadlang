@@ -1747,6 +1747,20 @@ namespace Sad
             llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDrawer(inst); }
             llvm::Value *emitUiSafeArea(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSafeArea(inst); }
             llvm::Value *emitUiSurface(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSurface(inst); }
+            // 21e. أثر المعدّلات (م-أ3ر) — موجِّهات: خاصّيّة عامّة (L1) + حدث عند_* (L2) + تحريك (L3) + دمج متعدّد الوسائط
+            llvm::Value *emitUiSetPropStr(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropStr(inst); }
+            llvm::Value *emitUiSetPropInt(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropInt(inst); }
+            llvm::Value *emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropNum(inst); }
+            llvm::Value *emitUiSetPropBool(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropBool(inst); }
+            llvm::Value *emitUiAddEvent(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAddEvent(inst); }
+            llvm::Value *emitUiAnimBegin(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimBegin(inst); }
+            llvm::Value *emitUiAnimDuration(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimDuration(inst); }
+            llvm::Value *emitUiAnimEasing(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimEasing(inst); }
+            llvm::Value *emitUiAnimDelay(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimDelay(inst); }
+            llvm::Value *emitUiAnimRepeat(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimRepeat(inst); }
+            llvm::Value *emitUiAnimAutoReverse(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimAutoReverse(inst); }
+            llvm::Value *emitUiPropJoinAdd(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPropJoinAdd(inst); }
+            llvm::Value *emitUiPropJoinCommit(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPropJoinCommit(inst); }
             // 21b. إدارة الشجرة / Tree Management
             llvm::Value *emitUiAddChild(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAddChild(inst); }
             llvm::Value *emitUiRemoveChild(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiRemoveChild(inst); }
@@ -1769,6 +1783,8 @@ namespace Sad
             llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppSetRoot(inst); }
             llvm::Value *emitUiAppLayout(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppLayout(inst); }
             llvm::Value *emitUiAppRender(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppRender(inst); }
+            llvm::Value *emitUiAppRun(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppRun(inst); }
+            llvm::Value *emitUiPrintTree(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPrintTree(inst); }
             llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppDestroy(inst); }
             llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWidgetDestroy(inst); }
 

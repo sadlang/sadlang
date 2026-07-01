@@ -30,6 +30,8 @@ public:
     llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAppLayout(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAppRender(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAppRun(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiPrintTree(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButton(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst);
@@ -95,6 +97,24 @@ public:
     llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSafeArea(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSurface(std::shared_ptr<SIRInstruction> inst);
+
+    // (AR) أثر المعدّلات (م-أ3ر، L1): خاصّيّة عامّة بالاسم.
+    llvm::Value *emitUiSetPropStr(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetPropInt(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetPropBool(std::shared_ptr<SIRInstruction> inst);
+    // (AR) أثر المعدّلات (م-أ3ر، L2): ربط حدث عند_* بالعقدة.
+    llvm::Value *emitUiAddEvent(std::shared_ptr<SIRInstruction> inst);
+    // (AR) أثر المعدّلات (م-أ3ر، L3): سلسلة التحريك.
+    llvm::Value *emitUiAnimBegin(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAnimDuration(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAnimEasing(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAnimDelay(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAnimRepeat(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAnimAutoReverse(std::shared_ptr<SIRInstruction> inst);
+    // (AR) أثر المعدّلات (م-أ3ر): خاصّيّة متعدّدة الوسائط (دمج بفواصل).
+    llvm::Value *emitUiPropJoinAdd(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiPropJoinCommit(std::shared_ptr<SIRInstruction> inst);
 };
 
 }} // namespace Sad::LLVM

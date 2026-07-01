@@ -508,6 +508,32 @@ namespace Sad
                     return "ui.safe_area";
                 case SIROpcode::BUILTIN_UI_SURFACE:
                     return "ui.surface";
+                case SIROpcode::BUILTIN_UI_SET_PROP_STR:
+                    return "ui.set_prop_str";
+                case SIROpcode::BUILTIN_UI_SET_PROP_INT:
+                    return "ui.set_prop_int";
+                case SIROpcode::BUILTIN_UI_SET_PROP_NUM:
+                    return "ui.set_prop_num";
+                case SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
+                    return "ui.set_prop_bool";
+                case SIROpcode::BUILTIN_UI_ADD_EVENT:
+                    return "ui.add_event";
+                case SIROpcode::BUILTIN_UI_ANIM_BEGIN:
+                    return "ui.anim_begin";
+                case SIROpcode::BUILTIN_UI_ANIM_DURATION:
+                    return "ui.anim_duration";
+                case SIROpcode::BUILTIN_UI_ANIM_EASING:
+                    return "ui.anim_easing";
+                case SIROpcode::BUILTIN_UI_ANIM_DELAY:
+                    return "ui.anim_delay";
+                case SIROpcode::BUILTIN_UI_ANIM_REPEAT:
+                    return "ui.anim_repeat";
+                case SIROpcode::BUILTIN_UI_ANIM_AUTO_REVERSE:
+                    return "ui.anim_auto_reverse";
+                case SIROpcode::BUILTIN_UI_PROP_JOIN_ADD:
+                    return "ui.prop_join_add";
+                case SIROpcode::BUILTIN_UI_PROP_JOIN_COMMIT:
+                    return "ui.prop_join_commit";
                 case SIROpcode::BUILTIN_UI_ADD_CHILD:
                     return "ui.add_child";
                 case SIROpcode::BUILTIN_UI_REMOVE_CHILD:
@@ -546,6 +572,10 @@ namespace Sad
                     return "ui.app_layout";
                 case SIROpcode::BUILTIN_UI_APP_RENDER:
                     return "ui.app_render";
+                case SIROpcode::BUILTIN_UI_APP_RUN:
+                    return "ui.app_run";
+                case SIROpcode::BUILTIN_UI_PRINT_TREE:
+                    return "ui.print_tree";
                 case SIROpcode::BUILTIN_UI_APP_DESTROY:
                     return "ui.app_destroy";
                 case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:

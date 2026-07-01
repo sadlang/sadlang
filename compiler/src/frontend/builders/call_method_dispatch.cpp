@@ -503,35 +503,256 @@ namespace Sad
                     //      الحارس className.empty() يقصُر هذا على المقابض الواجهيّة (التي
                     //      لا صنفَ مستخدمٍ لها)؛ مثيلاتُ الأصناف يُستنتَج صنفُها فلا تمرّ هنا.
                     //
-                    //      ⚠ نطاق هذه الشريحة: التسلسل الانسيابيّ ومطابقة المسار بلا رأس
-                    //      (headless) فقط. تطبيقُ أثر المعدّل في مخرَج المترجم المرسوم
-                    //      (الخصائص العامّة بالاسم + ربطُ الأحداث عند_*) يحتاج ABI زمن
-                    //      تشغيلٍ عامًّا جديدًا (نظير setIRProperty/addIREvent) وهو الشريحة
-                    //      التالية؛ لذا لا نُصدِر setter غير مطابقٍ للقالب هنا تفاديًا
-                    //      لتوليدٍ غير مُتحقَّقٍ منه.
+                    //      أثرُ المعدّل مُطبَّقٌ فعليًّا في المخرَج المرسوم عبر ABI زمن تشغيلٍ
+                    //      عامّ (SET_PROP_*/ADD_EVENT/ANIM_*/PROP_JOIN_*/ADD_CHILD) يحاكي
+                    //      setIRProperty/addIREvent/addChild في المفسّر — انظر الفروع أدناه.
                     // (EN) Phase A-3: fluent UI modifier. A method on a widget handle
                     //      (Pointer) with no resolvable user class, and not an
                     //      array/string/map method, follows interpreter WidgetBuilder
                     //      semantics: apply the modifier and RETURN THE WIDGET so it
                     //      chains and stays an object. Returning the handle removes the
                     //      getNullValue(void) crash that the prior VOID assumption caused
-                    //      on assignment. Scope of this slice: fluent chaining + headless
-                    //      parity only; applying the modifier effect in the compiled
-                    //      rendered path (generic named props + عند_* event binding) needs
-                    //      a new generic runtime ABI — the next slice.
+                    //      on assignment. The modifier effect IS emitted into the compiled
+                    //      rendered path via a generic runtime ABI (SET_PROP_*/ADD_EVENT/
+                    //      ANIM_*/PROP_JOIN_*/ADD_CHILD) mirroring the interpreter — see below.
                     // ════════════════════════════════════════════════════════════════
                     if (className.empty() && objResult.type == SadTypeKind::Pointer)
                     {
-#ifndef NDEBUG
-                        std::cout << "[DEBUG] buildMethodCall: fluent UI modifier '"
-                                  << methodName << "' on widget handle '"
-                                  << objResult.registerName << "' (args=" << args.size()
-                                  << ") → returning widget (P0-3/أ-3)" << std::endl;
-#endif
-                        // (AR) نُعيد المقبض نفسه (Pointer، بلا صنف) ليبقى «كائنًا»
-                        //      ويتسلسل: النداء التالي في السلسلة يدخل هذا الفرع ذاته.
-                        // (EN) Return the same handle (Pointer, classless) so it stays
-                        //      an object and chains: the next call re-enters this branch.
+                        // ════════════════════════════════════════════════════════════
+                        // (AR) م-أ3ر: أثر المعدّل الانسيابيّ في المخرَج المرسوم.
+                        //      L1: خاصّيّة عامّة بالاسم (نظير setIRProperty في المفسّر):
+                        //          اسم الطريقة = اسم الخاصيّة، والوسيط = القيمة.
+                        //      L2: عند_*/on_* = حدث ⇒ تسجيلُ IREvent على العقدة المشتركة
+                        //          (نظير addIREvent) وربطُ ردّ النداء (المُغلِّف) للإرسال.
+                        //      L3: سلاسل التحريك (حرّك/مدة/…) عبر آلة حالة على IRNode.
+                        //      الأبناء (ابن/أبناء) ⇒ ADD_CHILD على العقدة المشتركة؛ ومتعدّد
+                        //      وسائط الخصائص (>1) ⇒ مُجمِّع وقت تشغيل (PROP_JOIN).
+                        // (EN) Phase A-3: apply the fluent modifier in the rendered output.
+                        //      L1: generic named property (mirrors setIRProperty).
+                        //      L2: عند_*/on_* events register an IREvent on the shared node
+                        //          (mirrors addIREvent) and bind the closure for dispatch.
+                        //      L3: animation chains (حرّك/مدة/…) via a state machine on IRNode.
+                        //      Children (ابن/أبناء) ⇒ ADD_CHILD on the shared node; >1-arg
+                        //      properties ⇒ a runtime accumulator (PROP_JOIN).
+                        // ════════════════════════════════════════════════════════════
+                        const std::string &m = methodName;
+                        SIROperand handleOp =
+                            SIROperand::Register(objResult.registerName, SadTypeKind::Pointer);
+                        const size_t numModifierArgs = args.empty() ? 0 : args.size() - 1; // args[0]=العنصر
+
+                        // (AR) عند_*/on_* = حدث (L2): يُسجَّل على العقدة ويُربَط ردّ النداء.
+                        const bool isEvent =
+                            (m.rfind("\xd8\xb9\xd9\x86\xd8\xaf_", 0) == 0) || // عند_
+                            (m.rfind("on_", 0) == 0);
+                        // (AR) معدّلات التحريك (L3): سلسلة حالة فوق IRNode تحاكي
+                        //      WidgetBuilder. كلٌّ يُصدِر رمزًا مخصّصًا (begin/مدة/منحنى/…).
+                        const bool isAnimBegin =
+                            m == "\xd8\xad\xd8\xb1\xd9\x91\xd9\x83" || m == "animate" ||
+                            m == "\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83" || m == "\xd8\xad\xd8\xb1\xd9\x83";
+                        const bool isAnimDuration = m == "\xd9\x85\xd8\xaf\xd8\xa9" || m == "duration";
+                        const bool isAnimEasing =
+                            m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd9\x89" || m == "easing" || m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd8\xa7";
+                        const bool isAnimDelay = m == "\xd8\xaa\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1" || m == "delay";
+                        const bool isAnimRepeat = m == "\xd8\xaa\xd9\x83\xd8\xb1\xd8\xa7\xd8\xb1" || m == "repeat";
+                        const bool isAnimAutoReverse =
+                            m == "\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xaa\xd9\x84\xd9\x82\xd8\xa7\xd8\xa6\xd9\x8a" || m == "autoReverse" || m == "auto_reverse";
+                        const bool isAnim = isAnimBegin || isAnimDuration || isAnimEasing ||
+                                            isAnimDelay || isAnimRepeat || isAnimAutoReverse;
+                        // (AR) ابن/أبناء ⇒ إضافةُ أطفالٍ للعقدة المشتركة (ADD_CHILD أدناه).
+                        const bool isChild =
+                            m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child" ||
+                            m == "\xd8\xa3\xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1" || m == "children";
+
+                        if (isEvent)
+                        {
+                            // (AR) L2: نُسجِّل الحدث على العقدة المشتركة (نظير addIREvent:
+                            //      اسم الطريقة ⇒ IREventType عبر stringToIREventType في
+                            //      القلب، فالتطابق دقيق) ونحفظ ردّ النداء (المُغلِّف) +
+                            //      بياناته لإرسالٍ مستقبليّ (لا مُرسِل في وقت التشغيل بعد).
+                            //      حاسم للتكافؤ: لا نُسجّل حدثًا بلا معالِج — نظير المفسّر
+                            //      (ui_widget_method_call.cpp:88: if (!args.empty()))؛
+                            //      وإلّا اختلف getEvents() بين المحرّكين. args[0]=العنصر،
+                            //      args[1]=ردّ النداء، args[2]=بيانات اختياريّة.
+                            // (EN) L2: register the event on the shared node (method name →
+                            //      IREventType via core stringToIREventType ⇒ exact parity)
+                            //      and store the closure + data for FUTURE dispatch (no
+                            //      runtime dispatcher yet). Parity-critical: register NO
+                            //      event when there is no handler — mirrors the interpreter
+                            //      (line 88), else getEvents() diverges between engines.
+                            if (args.size() > 1)
+                            {
+                                SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_EVENT);
+                                inst.operands.push_back(handleOp);
+                                inst.operands.push_back(SIROperand::ConstantString(m)); // اسم الحدث
+                                inst.operands.push_back(args[1]);      // ردّ النداء (مُغلِّف)
+                                if (args.size() > 2)
+                                    inst.operands.push_back(args[2]);  // بيانات المستخدم (اختياريّة)
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->instructions.push_back(inst);
+                            }
+                        }
+                        else if (isAnim)
+                        {
+                            // ════════════════════════════════════════════════════════
+                            // (AR) L3: سلسلة تحريك انسيابيّة. نحاكي آلة حالة WidgetBuilder
+                            //      في المفسّر عبر دوال وقت تشغيلٍ تعمل على نفس IRNode:
+                            //        حرّك(أنواع) ⇒ sad_anim_begin (يبدأ مجموعة؛ يدعم
+                            //          المركّب بالفاصلة كالمفسّر)؛
+                            //        مدة/تأخير ⇒ عشريّ، تكرار ⇒ صحيح، منحنى ⇒ نصّ،
+                            //        عكس_تلقائي ⇒ منطقيّ (بلا وسيط ⇒ true)،
+                            //      وكلّها تُطبَّق على المجموعة النشطة (نظير
+                            //      applyToActiveAnimations). الحالة محفوظة على العنصر بين
+                            //      النداءات؛ ومعدّلٌ غير تحريكيّ يُنهي السلسلة (في setter).
+                            // (EN) L3: fluent animation chain mirroring the interpreter's
+                            //      WidgetBuilder state machine over the same IRNode.
+                            // ════════════════════════════════════════════════════════
+                            if (isAnimBegin)
+                            {
+                                // (AR) نجمع أسماء الأنواع من الوسائط النصّيّة الثابتة في سلسلة
+                                //      مفصولة بفواصل (يفكّها وقت التشغيل ويبدأ مجموعة مركّبة
+                                //      عند تعدّدها) — نظير جمع المفسّر للوسائط وتقسيمها.
+                                // ⚠ قيدٌ موثَّق (تباعد عن المفسّر): نقتصر على الوسائط الثابتة
+                                //   النصّيّة؛ وسيطُ نوعٍ متغيّر (سجلّ) يُسقَط هنا فيقع وقت
+                                //   التشغيل على الاحتياطيّ "fadeIn"، بينما المفسّر يقيّمه بـ
+                                //   toString. أسماء التحريك ثوابت حرفيّة في العمليّ؛ دعمُ
+                                //   السجلّات يحتاج مُجمِّع وقت تشغيل (كمسار الخصائص متعدّدة
+                                //   الوسائط) وهو شريحة لاحقة.
+                                std::string typesCsv;
+                                for (size_t i = 1; i < args.size(); ++i)
+                                {
+                                    if (args[i].type == SIROperandType::CONSTANT &&
+                                        args[i].dataType == SadTypeKind::String)
+                                    {
+                                        if (!typesCsv.empty()) typesCsv += ",";
+                                        typesCsv += args[i].name;
+                                    }
+                                }
+                                SIRInstruction inst(SIROpcode::BUILTIN_UI_ANIM_BEGIN);
+                                inst.operands.push_back(handleOp);
+                                inst.operands.push_back(SIROperand::ConstantString(typesCsv));
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->instructions.push_back(inst);
+                            }
+                            else if (numModifierArgs >= 1 || isAnimAutoReverse)
+                            {
+                                // (AR) معدّل ضبطٍ على المجموعة النشطة. يحتاج وسيطًا، عدا
+                                //      عكس_تلقائي الذي يفترض true بلا وسيط (نظير المفسّر).
+                                //      مدة/منحنى/… بلا وسيط: لا نُصدِر شيئًا (المفسّر يتجاهلها).
+                                SIROpcode op = isAnimDuration ? SIROpcode::BUILTIN_UI_ANIM_DURATION
+                                             : isAnimEasing   ? SIROpcode::BUILTIN_UI_ANIM_EASING
+                                             : isAnimDelay    ? SIROpcode::BUILTIN_UI_ANIM_DELAY
+                                             : isAnimRepeat   ? SIROpcode::BUILTIN_UI_ANIM_REPEAT
+                                                              : SIROpcode::BUILTIN_UI_ANIM_AUTO_REVERSE;
+                                SIRInstruction inst(op);
+                                inst.operands.push_back(handleOp);
+                                if (numModifierArgs >= 1)
+                                    inst.operands.push_back(args[1]);
+                                else
+                                    inst.operands.push_back(SIROperand::ConstantI64(1)); // عكس_تلقائي() ⇒ true
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->instructions.push_back(inst);
+                            }
+                        }
+                        else if (isChild)
+                        {
+                            // ════════════════════════════════════════════════════════
+                            // (AR) ابن/أبناء الانسيابيّة ⇒ ADD_CHILD على العقدة المشتركة
+                            //      (نظير WidgetBuilder::addChild في المفسّر). «ابن» يضيف
+                            //      الأوّل فقط؛ «أبناء» يضيف الكلّ — مطابقةً لـ
+                            //      ui_widget_method_call.cpp:50-82. args[0]=الأب، args[1..]=الأبناء.
+                            //      يعيد المقبض نفسه (أدناه) فتتسلسل السلسلة كالمفسّر.
+                            // (EN) Fluent ابن/أبناء → ADD_CHILD on the shared node (mirrors
+                            //      WidgetBuilder::addChild). «ابن» adds only the first;
+                            //      «أبناء» adds all — matching the interpreter.
+                            // ════════════════════════════════════════════════════════
+                            // (AR) ملاحظة تكافؤ: المفسّر يحرس نوع كلّ طفل
+                            //      (isWidgetBuilder) ويتخطّى غير العناصر صمتًا؛ هنا نعتمد
+                            //      على أنّ نظام الأنواع لا يُنتج مقبض Pointer لغير عنصرٍ في
+                            //      هذا المسار (الوسائط مقابضُ عناصر)، وsad_add_child يحرس
+                            //      nullptr. تباعدٌ نظريّ حدّيّ فقط لو مُرِّر مقبضٌ غير عنصر.
+                            const bool isSingleChild =
+                                (m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child");
+                            const size_t lim =
+                                isSingleChild ? std::min<size_t>(args.size(), 2) : args.size();
+                            for (size_t i = 1; i < lim; ++i)
+                            {
+                                SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
+                                inst.operands.push_back(handleOp);  // الأب
+                                inst.operands.push_back(args[i]);   // الطفل
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->instructions.push_back(inst);
+                            }
+                        }
+                        else if (numModifierArgs <= 1)
+                        {
+                            // (AR) .م() بلا وسيط ⇒ منطقيّ true. نستعمل ConstantI64(1)
+                            //      (لا ConstantBool) لصراحة النوع: يُنتِج ثابتًا صحيحًا
+                            //      يقبله مسار emit الدفاعيّ مباشرةً بلا التباس. (ConstantBool
+                            //      سيعمل أيضًا لأنّ SIROperand اتّحادٌ يشارك boolValue تخزينَ
+                            //      intValue، لكنّ I64 أوضح دلالةً وأضمن للنوع.)
+                            SIROpcode op = SIROpcode::BUILTIN_UI_SET_PROP_BOOL;
+                            SIROperand valueOp = SIROperand::ConstantI64(1);
+                            if (numModifierArgs == 1)
+                            {
+                                // (AR) args[1] مبنيّ مسبقًا كثابت/سجلّ (الأسطر ~394–415)؛
+                                //      نُمرّره كما هو ونختار الرمز بحسب نوعه الفعليّ (dataType).
+                                //      نُفرِد الصحيح عن العشريّ ليُخزَّن int64_t كما في المفسّر
+                                //      (widget_builder.cpp: toInt64 ⇒ متغاير int64_t لا double).
+                                const SIROperand &val = args[1];
+                                switch (val.dataType)
+                                {
+                                case SadTypeKind::String:
+                                    op = SIROpcode::BUILTIN_UI_SET_PROP_STR;  break;
+                                case SadTypeKind::Boolean:
+                                    op = SIROpcode::BUILTIN_UI_SET_PROP_BOOL; break;
+                                case SadTypeKind::Integer:
+                                    op = SIROpcode::BUILTIN_UI_SET_PROP_INT;  break;
+                                case SadTypeKind::Float:
+                                    op = SIROpcode::BUILTIN_UI_SET_PROP_NUM;  break;
+                                default:
+                                    op = SIROpcode::BUILTIN_UI_SET_PROP_STR;  break;
+                                }
+                                valueOp = val;
+                            }
+                            SIRInstruction inst(op);
+                            inst.operands.push_back(handleOp);
+                            inst.operands.push_back(SIROperand::ConstantString(m)); // اسم الخاصيّة
+                            inst.operands.push_back(valueOp);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(inst);
+                        }
+                        else // numModifierArgs > 1 (isChild محسوم أعلاه)
+                        {
+                            // ════════════════════════════════════════════════════════
+                            // (AR) خاصّيّة متعدّدة الوسائط ⇒ قيمٌ مفصولة بفواصل (نظير
+                            //      المفسّر ui_widget_method_call.cpp:239-249: يجمع
+                            //      args[i].toString() بفواصل ويضبطها خاصّيّةً نصّيّة).
+                            //      نمرّ عبر مُجمِّعٍ في وقت التشغيل (مصدر تنسيقٍ واحد يطابق
+                            //      Value::toString) فيصحّ حتى مع وسائط السجلّات لا الثوابت:
+                            //        لكلّ وسيط: PROP_JOIN_ADD (يُنسَّق ويُضاف للمجمِّع)؛
+                            //        ثمّ PROP_JOIN_COMMIT (يدمج بفواصل ⇒ setProperty نصّيّ).
+                            // (EN) Multi-arg property → comma-joined string (mirrors the
+                            //      interpreter). Routed through a runtime accumulator (one
+                            //      formatting source matching Value::toString) so it is
+                            //      faithful even for register args, not just constants.
+                            // ════════════════════════════════════════════════════════
+                            for (size_t i = 1; i < args.size(); ++i)
+                            {
+                                SIRInstruction add(SIROpcode::BUILTIN_UI_PROP_JOIN_ADD);
+                                add.operands.push_back(handleOp);
+                                add.operands.push_back(args[i]);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->instructions.push_back(add);
+                            }
+                            SIRInstruction commit(SIROpcode::BUILTIN_UI_PROP_JOIN_COMMIT);
+                            commit.operands.push_back(handleOp);
+                            commit.operands.push_back(SIROperand::ConstantString(m)); // اسم الخاصيّة
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(commit);
+                        }
+
+                        // (AR) نُعيد المقبض نفسه (Pointer، بلا صنف) ليبقى «كائنًا» ويتسلسل.
+                        // (EN) Return the same handle so the chain continues and stays an object.
                         return BuildResult(objResult.registerName, SadTypeKind::Pointer);
                     }
                 } // (AR) نهاية if (!isRegisteredClassMethod)

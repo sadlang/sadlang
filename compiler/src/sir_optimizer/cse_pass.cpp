@@ -387,6 +387,20 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_DRAWER:
                 case SIR::SIROpcode::BUILTIN_UI_SAFE_AREA:
                 case SIR::SIROpcode::BUILTIN_UI_SURFACE:
+                // أثر المعدّلات (م-أ3ر): ضبط خاصّيّة = أثر جانبيّ (لا CSE)
+                case SIR::SIROpcode::BUILTIN_UI_SET_PROP_STR:
+                case SIR::SIROpcode::BUILTIN_UI_SET_PROP_INT:
+                case SIR::SIROpcode::BUILTIN_UI_SET_PROP_NUM:
+                case SIR::SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
+                case SIR::SIROpcode::BUILTIN_UI_ADD_EVENT:
+                case SIR::SIROpcode::BUILTIN_UI_ANIM_BEGIN:
+                case SIR::SIROpcode::BUILTIN_UI_ANIM_DURATION:
+                case SIR::SIROpcode::BUILTIN_UI_ANIM_EASING:
+                case SIR::SIROpcode::BUILTIN_UI_ANIM_DELAY:
+                case SIR::SIROpcode::BUILTIN_UI_ANIM_REPEAT:
+                case SIR::SIROpcode::BUILTIN_UI_ANIM_AUTO_REVERSE:
+                case SIR::SIROpcode::BUILTIN_UI_PROP_JOIN_ADD:
+                case SIR::SIROpcode::BUILTIN_UI_PROP_JOIN_COMMIT:
                 case SIR::SIROpcode::BUILTIN_UI_ADD_CHILD:
                 case SIR::SIROpcode::BUILTIN_UI_REMOVE_CHILD:
                 case SIR::SIROpcode::BUILTIN_UI_CLEAR_CHILDREN:
@@ -406,6 +420,8 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_APP_SET_ROOT:
                 case SIR::SIROpcode::BUILTIN_UI_APP_LAYOUT:
                 case SIR::SIROpcode::BUILTIN_UI_APP_RENDER:
+                case SIR::SIROpcode::BUILTIN_UI_APP_RUN:
+                case SIR::SIROpcode::BUILTIN_UI_PRINT_TREE:
                 case SIR::SIROpcode::BUILTIN_UI_APP_DESTROY:
                 case SIR::SIROpcode::BUILTIN_UI_WIDGET_DESTROY:
                     return true;

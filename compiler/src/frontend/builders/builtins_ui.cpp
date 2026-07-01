@@ -20,6 +20,9 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (مصدر الحقيقة)
+#include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
+#include "error_codes.h"   // (AR) ErrorCode::SEM_WRONG_ARG_COUNT
 namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
@@ -29,12 +32,58 @@ namespace Sad
         namespace SIR
         {
 
+            // (AR) يُبلّغ عن «عدد معاملات خاطئ» (SEM005): الرسالة تُبنى من كتالوج
+            //      language-truth/errors (مصدر الحقيقة الوحيد — لا نصوصَ يدويّة) عبر
+            //      buildBilingualMessage، ثمّ تُطبَع فورًا. هذا **نفس نمط الواجهة
+            //      الخلفيّة** (llvm_codegen_context.cpp:47: reportError(
+            //      buildBilingualMessage(code, ctx)) الذي يطبع على stderr). لا نستعمل
+            //      reportFromCatalog (الـbatch) لأنّ المترجم لا يفرّغه (لا printAll).
+            //      name=اسم المُدمَجة، expected=العدد المطلوب، found=المُمرَّر فعلًا.
+            static void reportUiWrongArgCount(const std::string &name, int expected, size_t found)
+            {
+                Sad::Errors::RenderContext ctx;
+                ctx.placeholders = {
+                    {"name", name},
+                    {"expected", std::to_string(expected)},
+                    {"found", std::to_string(found)}};
+                std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                 Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx)
+                          << std::endl;
+            }
+
             std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_UI(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
                 std::vector<SIROperand> &argOperands)
             {
+                // (AR) مصنع «قيمة واحدة» (منزلق/خانة_اختيار/مفتاح): المفسّر يضبط مفتاح
+                //      «قيمة» بنوع الوسيط (MAKE_WIDGET_WITH_PROP_FN(...,"قيمة") ⇒
+                //      setIRPropertyFromValue). نحاكيه: نُصدر عقدة المصنع فارغةً (بلا
+                //      operands) ثمّ SET_PROP(«قيمة») بحسب نوع الوسيط (int/num/bool/str)
+                //      ⇒ طباعة_شجرة تطابق المفسّر تمامًا. يعيد مقبض العنصر.
+                auto lowerValueWidget = [&](SIROpcode factoryOp) -> BuildResult {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(factoryOp); // بلا operands ⇒ عقدة فارغة
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    if (!argResults.empty())
+                    {
+                        SIROpcode op =
+                            argResults[0].type == SadTypeKind::Integer ? SIROpcode::BUILTIN_UI_SET_PROP_INT
+                          : argResults[0].type == SadTypeKind::Float   ? SIROpcode::BUILTIN_UI_SET_PROP_NUM
+                          : argResults[0].type == SadTypeKind::Boolean ? SIROpcode::BUILTIN_UI_SET_PROP_BOOL
+                                                                       : SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                        SIRInstruction sp(op);
+                        sp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer)); // العنصر
+                        sp.operands.push_back(SIROperand::ConstantString("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9")); // قيمة
+                        sp.operands.push_back(argOperands[0]);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(sp);
+                    }
+                    return BuildResult(r, SadTypeKind::Pointer);
+                };
 
                 // =====================================================================
                 // (AR) نظام الواجهة الموحد — مصانع العناصر / Unified UI Widget Factories
@@ -204,17 +253,10 @@ namespace Sad
                 //      مرفوض في المحرّكين معًا.
                 // (EN) Match canonical «خانة_اختيار» (CHECKBOX) only; the legacy
                 //      alias «مربع_تحقق» (UI_11) is rejected by both engines.
+                // (AR) خانة_اختيار(قيمة): مفتاح «قيمة» بنوعه (نظير منزلق) — لا يُعامَل
+                //      الوسيط كردّ نداء (widget_builtins.cpp:151).
                 if (funcName == Bn::UIWidgets::CHECKBOX)
-                {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_CHECKBOX);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                    return lowerValueWidget(SIROpcode::BUILTIN_UI_CHECKBOX);
 
                 // ─── مفتاح() / sad_switch_toggle(cb,data) ───
                 // (AR) نطابق الاسم المعياريّ «مفتاح» (UIWidgets::TOGGLE) فقط، مطابقةً
@@ -222,30 +264,18 @@ namespace Sad
                 //      المحرّكين معًا (وخادم LSP يقترح «مفتاح» بديلًا لـ«مبدل»).
                 // (EN) Match canonical «مفتاح» (TOGGLE) only; the legacy alias
                 //      «مبدل» (UI_12) is rejected by both engines (LSP suggests مفتاح).
+                // (AR) مفتاح(قيمة): مفتاح «قيمة» بنوعه (نظير منزلق) — لا يُعامَل الوسيط
+                //      كردّ نداء (widget_builtins.cpp:147).
                 if (funcName == Bn::UIWidgets::TOGGLE)
-                {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SWITCH);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                    return lowerValueWidget(SIROpcode::BUILTIN_UI_SWITCH);
 
-                // ─── منزلق(حد_أدنى,حد_أقصى,دالة,بيانات) / sad_slider(min,max,cb,data) ───
+                // ─── منزلق(قيمة) / sad_slider ───
+                // (AR) مواءمةٌ مع المفسّر: «منزلق(قيمة)» يضبط مفتاح «قيمة» بنوع الوسيط
+                //      (widget_builtins.cpp:155 setIRPropertyFromValue)، لا (أدنى,أقصى).
+                //      ننشئ عقدة Slider فارغة (SLIDER بلا operands) ثمّ نضبط «قيمة» عبر
+                //      SET_PROP بحسب النوع (int/num/str) — طباعة_شجرة تطابق المفسّر تمامًا.
                 if (funcName == Bn::UIWidgets::SLIDER)
-                {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SLIDER);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                    return lowerValueWidget(SIROpcode::BUILTIN_UI_SLIDER);
 
                 // ─── بطاقة() / sad_card() ───
                 if (funcName == Bn::UIWidgets::CARD)
@@ -622,7 +652,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] أضف_ابن تتطلب معاملين: الأب والابن" << std::endl;
+                        reportUiWrongArgCount("أضف_ابن", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
@@ -638,7 +668,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] أزل_ابن تتطلب معاملين" << std::endl;
+                        reportUiWrongArgCount("أزل_ابن", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_REMOVE_CHILD);
@@ -654,7 +684,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] امسح_الأبناء تتطلب معامل واحد" << std::endl;
+                        reportUiWrongArgCount("امسح_الأبناء", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CLEAR_CHILDREN);
@@ -673,7 +703,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_النص تتطلب معاملين: العنصر والنص" << std::endl;
+                        reportUiWrongArgCount("عين_النص", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TEXT);
@@ -689,7 +719,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] عين_الحجم تتطلب 3 معاملات" << std::endl;
+                        reportUiWrongArgCount("عين_الحجم", 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SIZE);
@@ -705,7 +735,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_المرونة تتطلب معاملين" << std::endl;
+                        reportUiWrongArgCount("عين_المرونة", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FLEX);
@@ -721,7 +751,7 @@ namespace Sad
                 {
                     if (argResults.size() < 5)
                     {
-                        std::cerr << "[خطأ] عين_الخلفية تتطلب 5 معاملات: العنصر + 4 ألوان" << std::endl;
+                        reportUiWrongArgCount("عين_الخلفية", 5, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BACKGROUND);
@@ -737,7 +767,7 @@ namespace Sad
                 {
                     if (argResults.size() < 5)
                     {
-                        std::cerr << "[خطأ] عين_اللون تتطلب 5 معاملات" << std::endl;
+                        reportUiWrongArgCount("عين_اللون", 5, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FOREGROUND);
@@ -753,7 +783,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_التباعد تتطلب معاملين" << std::endl;
+                        reportUiWrongArgCount("عين_التباعد", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SPACING);
@@ -769,7 +799,7 @@ namespace Sad
                 {
                     if (argResults.size() < 5)
                     {
-                        std::cerr << "[خطأ] عين_الحشوة تتطلب 5 معاملات" << std::endl;
+                        reportUiWrongArgCount("عين_الحشوة", 5, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_PADDING);
@@ -785,7 +815,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] عين_المحاذاة تتطلب 3 معاملات" << std::endl;
+                        reportUiWrongArgCount("عين_المحاذاة", 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ALIGNMENT);
@@ -801,7 +831,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_الحدود تتطلب معاملين على الأقل" << std::endl;
+                        reportUiWrongArgCount("عين_الحدود", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BORDER);
@@ -817,7 +847,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_الارتفاع تتطلب معاملين" << std::endl;
+                        reportUiWrongArgCount("عين_الارتفاع", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ELEVATION);
@@ -833,7 +863,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_الشفافية تتطلب معاملين" << std::endl;
+                        reportUiWrongArgCount("عين_الشفافية", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_OPACITY);
@@ -849,7 +879,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_الظهور تتطلب معاملين" << std::endl;
+                        reportUiWrongArgCount("عين_الظهور", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_VISIBILITY);
@@ -880,7 +910,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] عين_الجذر تتطلب معاملين: التطبيق والعنصر الجذر" << std::endl;
+                        reportUiWrongArgCount("عين_الجذر", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_SET_ROOT);
@@ -896,7 +926,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] خطط تتطلب 3 معاملات" << std::endl;
+                        reportUiWrongArgCount("خطط", 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_LAYOUT);
@@ -912,10 +942,42 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] ارسم تتطلب معامل واحد: التطبيق" << std::endl;
+                        reportUiWrongArgCount("ارسم", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RENDER);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+
+                // ─── تشغيل_تطبيق(عنصر) / sad_app_run(root) ───
+                // (AR) نقطة الدخول العامّة (نظير runApp): جسرٌ يُشغّل حلقة سطح المكتب في
+                //      المكتبة (DesktopWindow) ويُرسِل الأحداث إلى ردود النداء المُترجَمة.
+                if (funcName == Bn::UICore::RUN_APP)
+                {
+                    if (argResults.empty())
+                    {
+                        reportUiWrongArgCount("تشغيل_تطبيق", 1, argResults.size());
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RUN);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+
+                // ─── طباعة_شجرة(عنصر) / sad_print_tree(root) — تصحيح ───
+                if (funcName == Bn::UICore::PRINT_TREE)
+                {
+                    if (argResults.empty())
+                    {
+                        reportUiWrongArgCount("طباعة_شجرة", 1, argResults.size());
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_PRINT_TREE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
@@ -927,7 +989,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] دمر_تطبيق تتطلب معامل واحد" << std::endl;
+                        reportUiWrongArgCount("دمر_تطبيق", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_DESTROY);
@@ -942,7 +1004,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] دمر_عنصر تتطلب معامل واحد" << std::endl;
+                        reportUiWrongArgCount("دمر_عنصر", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_WIDGET_DESTROY);

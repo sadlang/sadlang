@@ -462,10 +462,13 @@ namespace sad
                     drawRoundedRect(rect.x, rect.y, rect.width, rect.height, btnColor, radius);
                 }
 
-                // نص الزر
+                // نص الزر: احتياطيّ text ← نص ← عنوان (مصنع الزرّ يخزّن «عنوان»
+                // في كلا المحرّكين ⇒ لا بدّ من قراءته هنا كي يُرسَم النصّ).
                 const auto *textProp = node.findProperty("text");
                 if (!textProp)
                     textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (!textProp)
+                    textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))

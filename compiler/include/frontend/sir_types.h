@@ -930,13 +930,33 @@ namespace Sad
                 BUILTIN_UI_SET_OPACITY,    ///< عين_الشفافية(عنصر,شفافية) / sad_set_opacity(w,opacity)
                 BUILTIN_UI_SET_VISIBILITY, ///< عين_الظهور(عنصر,مرئي) / sad_set_visibility(w,visible)
 
-                // --- 20d. إدارة التطبيق / App Management (5) ---
+                // --- 20d. إدارة التطبيق / App Management (7) ---
                 BUILTIN_UI_APP_CREATE,     ///< انشئ_تطبيق() / sad_app_create()
                 BUILTIN_UI_APP_SET_ROOT,   ///< عين_الجذر(تطبيق,عنصر) / sad_app_set_root(app,widget)
                 BUILTIN_UI_APP_LAYOUT,     ///< خطط(تطبيق,عرض,ارتفاع) / sad_app_layout(app,w,h)
                 BUILTIN_UI_APP_RENDER,     ///< ارسم(تطبيق) / sad_app_render(app)
+                BUILTIN_UI_APP_RUN,        ///< تشغيل_تطبيق(عنصر) / sad_app_run(root) — حلقة + إرسال
+                BUILTIN_UI_PRINT_TREE,     ///< طباعة_شجرة(عنصر) / sad_print_tree(root) — تصحيح
                 BUILTIN_UI_APP_DESTROY,    ///< دمر_تطبيق(تطبيق) / sad_app_destroy(app)
                 BUILTIN_UI_WIDGET_DESTROY, ///< دمر_عنصر(عنصر) / sad_widget_destroy(widget)
+
+                // --- 20e. أثر المعدّلات الانسيابيّة (م-أ3ر) — خاصّيّة عامّة بالاسم
+                //          نظير setIRProperty في المفسّر. اسم الطريقة = اسم الخاصيّة. ---
+                BUILTIN_UI_SET_PROP_STR,   ///< .م(نص) → sad_set_prop_str(w,name,val)
+                BUILTIN_UI_SET_PROP_INT,   ///< .م(صحيح) → sad_set_prop_int(w,name,val) — int64_t كالمفسّر
+                BUILTIN_UI_SET_PROP_NUM,   ///< .م(عشري) → sad_set_prop_num(w,name,val)
+                BUILTIN_UI_SET_PROP_BOOL,  ///< .م() / .م(منطقي) → sad_set_prop_bool(w,name,val)
+                BUILTIN_UI_ADD_EVENT,      ///< .عند_*(دالة) → sad_add_event(w,name,cb,data) — نظير addIREvent
+                // --- 20f. سلسلة التحريك (م-أ3ر، L3) — آلة حالة فوق IRNode ---
+                BUILTIN_UI_ANIM_BEGIN,        ///< .حرّك(أنواع) → sad_anim_begin(w,csv) — يبدأ مجموعة (مركّب بالفاصلة)
+                BUILTIN_UI_ANIM_DURATION,     ///< .مدة(ث) → sad_anim_duration(w,sec)
+                BUILTIN_UI_ANIM_EASING,       ///< .منحنى(اسم) → sad_anim_easing(w,name)
+                BUILTIN_UI_ANIM_DELAY,        ///< .تأخير(ث) → sad_anim_delay(w,sec)
+                BUILTIN_UI_ANIM_REPEAT,       ///< .تكرار(ن) → sad_anim_repeat(w,count)
+                BUILTIN_UI_ANIM_AUTO_REVERSE, ///< .عكس_تلقائي([منطقي]) → sad_anim_auto_reverse(w,bool)
+                // --- 20g. خاصّيّة متعدّدة الوسائط (م-أ3ر) — قيمٌ مفصولة بفواصل ---
+                BUILTIN_UI_PROP_JOIN_ADD,     ///< وسيطٌ يُنسَّق ويُضاف لمجمِّع العنصر (sad_prop_join_add_*)
+                BUILTIN_UI_PROP_JOIN_COMMIT,  ///< يدمج المجمِّع بفواصل ⇒ خاصّيّة نصّيّة (sad_prop_join_commit)
 
                 // ==========================================
                 // التوجيهات / Directives (@حجم, @ذري, etc.)

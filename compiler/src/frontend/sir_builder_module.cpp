@@ -257,7 +257,20 @@ namespace Sad
                         // (EN) Register function signature in function table
                         FunctionInfo funcInfo;
                         funcInfo.name = funcDecl->name;
-                        funcInfo.returnType = astTypeToSIRType(funcDecl->returnType);
+                        // (AR) §9 الجذر1: استنتج نوع الإرجاع من الجسم عند غياب نوعٍ صريح —
+                        //      نظير الدوال المتداخلة (statement_main.cpp:159-167) كي لا تبقى
+                        //      دوالُّ المستوى الأعلى Void فتُهمَل قيمتها عند تمريرها وسيطًا.
+                        if ((funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                             funcDecl->returnType == Types::SadTypeKind::Void) &&
+                            funcDecl->body)
+                        {
+                            funcInfo.returnType =
+                                inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                        }
+                        else
+                        {
+                            funcInfo.returnType = astTypeToSIRType(funcDecl->returnType);
+                        }
                         for (const auto &param : funcDecl->parameters)
                         {
                             SadTypeKind paramType = astTypeToSIRType(param.type);

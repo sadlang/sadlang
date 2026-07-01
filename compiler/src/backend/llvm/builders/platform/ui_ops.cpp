@@ -111,7 +111,7 @@ llvm::Value* UICodeGen::emitUiContainer(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiText(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* text = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_text", ptrTy, {ptrTy}, {text});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -121,13 +121,16 @@ llvm::Value* UICodeGen::emitUiText(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiTextStyled(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
-    // sad_text_styled(text, fontSize, r, g, b, a)
-    llvm::Value* text = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* fontSize = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
-    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
-    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
-    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
-    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[5]));
+    // sad_text_styled(text, fontSize, r, g, b, a) — حراسٌ ضدّ نقص الوسائط (منع انهيار)
+    auto opF32 = [&](size_t i){ return inst->operands.size() > i ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[i])) : llvm::ConstantFP::get(f32Ty, 0.0f); };
+    llvm::Value* text = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* fontSize = opF32(1);
+    llvm::Value* r = opF32(2);
+    llvm::Value* g = opF32(3);
+    llvm::Value* b = opF32(4);
+    llvm::Value* a = opF32(5);
     auto* result = emitUIRuntimeCall(cg_, "sad_text_styled", ptrTy,
         {ptrTy, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty}, {text, fontSize, r, g, b, a});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -136,8 +139,10 @@ llvm::Value* UICodeGen::emitUiTextStyled(std::shared_ptr<SIRInstruction> inst) {
 
 llvm::Value* UICodeGen::emitUiButton(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-    // sad_button(label, onTap, userData) ג€” onTap and userData can be null
-    llvm::Value* label = cg_.resolveOperand(inst->operands[0]);
+    // sad_button(label, onTap, userData) — onTap and userData can be null
+    // (AR) حارس: زر() بلا وسائط ⇒ operands فارغة (null ⇒ لا «عنوان»، يطابق المفسّر).
+    llvm::Value* label = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* cb = inst->operands.size() > 1 ?
         cg_.resolveOperand(inst->operands[1]) :
         llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_));
@@ -154,13 +159,26 @@ llvm::Value* UICodeGen::emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
-    // sad_button_variant(label, variant, r, g, b, a, onTap, userData)
-    llvm::Value* label = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* variant = cg_.builder_->CreateIntCast(cg_.resolveOperand(inst->operands[1]), i32Ty, false);
-    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
-    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
-    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
-    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[5]));
+    // sad_button_variant(label, variant, r, g, b, a, onTap, userData) — حراسٌ ضدّ النقص
+    auto opF32v = [&](size_t i){ return inst->operands.size() > i ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[i])) : llvm::ConstantFP::get(f32Ty, 0.0f); };
+    llvm::Value* label = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
+    // (AR) variant: تصليبٌ دفاعيّ (نظير emitUiSetPropInt) — CreateIntCast يفترض
+    //      مصدرًا صحيحًا فينهار على عشريّ؛ نعالج الصحيح/العشريّ/غيرهما بأمان.
+    llvm::Value* variant;
+    if (inst->operands.size() > 1) {
+        llvm::Value* rawV = cg_.resolveOperand(inst->operands[1]);
+        variant = rawV->getType()->isIntegerTy()      ? cg_.builder_->CreateIntCast(rawV, i32Ty, false)
+                : rawV->getType()->isFloatingPointTy() ? cg_.builder_->CreateFPToSI(rawV, i32Ty)
+                                                       : llvm::ConstantInt::get(i32Ty, 0);
+    } else {
+        variant = llvm::ConstantInt::get(i32Ty, 0);
+    }
+    llvm::Value* r = opF32v(2);
+    llvm::Value* g = opF32v(3);
+    llvm::Value* b = opF32v(4);
+    llvm::Value* a = opF32v(5);
     llvm::Value* cb = inst->operands.size() > 6 ?
         cg_.resolveOperand(inst->operands[6]) :
         llvm::ConstantPointerNull::get(ptrTy);
@@ -176,7 +194,9 @@ llvm::Value* UICodeGen::emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst
 
 llvm::Value* UICodeGen::emitUiIconButton(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-    llvm::Value* icon = cg_.resolveOperand(inst->operands[0]);
+    // (AR) حارس: زر_أيقونة() بلا وسائط ⇒ operands فارغة (منع انهيار).
+    llvm::Value* icon = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* cb = inst->operands.size() > 1 ?
         cg_.resolveOperand(inst->operands[1]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* data = inst->operands.size() > 2 ?
@@ -190,11 +210,16 @@ llvm::Value* UICodeGen::emitUiIconButton(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiFab(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
-    llvm::Value* icon = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* r = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
-    llvm::Value* g = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]));
-    llvm::Value* b = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]));
-    llvm::Value* a = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[4]));
+    // (AR) حارس: زر_عائم() / زر_عائم("x") (وسائط أقلّ من 5) ⇒ منع انهيار (كان
+    //      يقرأ operands[1..4] للألوان). null/0 عند النقص.
+    auto opF32f = [&](size_t i){ return inst->operands.size() > i ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[i])) : llvm::ConstantFP::get(f32Ty, 0.0f); };
+    llvm::Value* icon = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* r = opF32f(1);
+    llvm::Value* g = opF32f(2);
+    llvm::Value* b = opF32f(3);
+    llvm::Value* a = opF32f(4);
     llvm::Value* cb = inst->operands.size() > 5 ?
         cg_.resolveOperand(inst->operands[5]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* data = inst->operands.size() > 6 ?
@@ -208,7 +233,10 @@ llvm::Value* UICodeGen::emitUiFab(std::shared_ptr<SIRInstruction> inst) {
 
 llvm::Value* UICodeGen::emitUiTextField(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-    llvm::Value* hint = cg_.resolveOperand(inst->operands[0]);
+    // (AR) حارس: حقل_نص() بلا وسائط ⇒ operands فارغة؛ نمرّر null (runtime لا يضبط
+    //      «تلميح» عند null ⇒ يطابق المفسّر). بلا الحارس يقع وصولٌ خارج الحدود ⇒ انهيار.
+    llvm::Value* hint = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* cb = inst->operands.size() > 1 ?
         cg_.resolveOperand(inst->operands[1]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* data = inst->operands.size() > 2 ?
@@ -246,8 +274,13 @@ llvm::Value* UICodeGen::emitUiSwitch(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiSlider(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
-    llvm::Value* minVal = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[0]));
-    llvm::Value* maxVal = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
+    // (AR) بعد مواءمة منزلق: الخافض يُصدر SLIDER **بلا operands** (عقدة فارغة) ثمّ
+    //      SET_PROP(«قيمة») منفصلًا، فـminVal/maxVal هنا يقعان دائمًا على الافتراضيّ 0
+    //      و sad_slider يُهملهما. الحارس يبقى دفاعيًّا (منع أيّ وصولٍ خارج الحدود).
+    llvm::Value* minVal = !inst->operands.empty() ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[0])) : llvm::ConstantFP::get(f32Ty, 0.0f);
+    llvm::Value* maxVal = inst->operands.size() > 1 ?
+        castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1])) : llvm::ConstantFP::get(f32Ty, 0.0f);
     llvm::Value* cb = inst->operands.size() > 2 ?
         cg_.resolveOperand(inst->operands[2]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* data = inst->operands.size() > 3 ?
@@ -274,8 +307,10 @@ llvm::Value* UICodeGen::emitUiScaffold(std::shared_ptr<SIRInstruction> inst) {
 
 llvm::Value* UICodeGen::emitUiAppBar(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    // (AR) null (لا "") عند الغياب ⇒ sad_app_bar (if(title)) لا يضبط «عنوان»
+    //      الفارغ ⇒ يطابق المفسّر (شريط_تطبيق() ⇒ بلا خصائص).
     llvm::Value* title = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_title") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_app_bar", ptrTy, {ptrTy}, {title});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -298,10 +333,13 @@ llvm::Value* UICodeGen::emitUiDivider(std::shared_ptr<SIRInstruction> inst) {
 
 llvm::Value* UICodeGen::emitUiDialog(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-    llvm::Value* title = cg_.resolveOperand(inst->operands[0]);
+    // (AR) حارس: حوار() بلا وسائط ⇒ منع انهيار. null (لا "") فيحرسه sad_dialog
+    //      (if(title)) ⇒ لا يضبط «عنوان» ⇒ يطابق المفسّر (حوار() ⇒ بلا خصائص).
+    llvm::Value* title = !inst->operands.empty() ?
+        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
     llvm::Value* msg = inst->operands.size() > 1 ?
         cg_.resolveOperand(inst->operands[1]) :
-        cg_.builder_->CreateGlobalStringPtr("", "empty_msg");
+        llvm::ConstantPointerNull::get(ptrTy);
     auto* result = emitUIRuntimeCall(cg_, "sad_dialog", ptrTy,
         {ptrTy, ptrTy}, {title, msg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -492,6 +530,24 @@ llvm::Value* UICodeGen::emitUiAppRender(std::shared_ptr<SIRInstruction> inst) {
     return emitUIRuntimeCall(cg_, "sad_app_render", voidTy, {ptrTy}, {app});
 }
 
+// (AR) تشغيل_تطبيق(عنصر) ⇒ sad_app_run(root): حلقة سطح المكتب + الإرسال (جسر المكتبة).
+//      نداءٌ void: لا يُخزَّن نتيجةٌ في namedValues (بخلاف مصانع العناصر التي تعيد مقبضًا).
+llvm::Value* UICodeGen::emitUiAppRun(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* root = cg_.resolveOperand(inst->operands[0]);
+    return emitUIRuntimeCall(cg_, "sad_app_run", voidTy, {ptrTy}, {root});
+}
+
+// (AR) طباعة_شجرة(عنصر) ⇒ sad_print_tree(root): تصحيح (جسر فوق منطق المكتبة المشترك).
+//      نداءٌ void: لا نتيجةٌ تُخزَّن في namedValues (كـemitUiAppRun).
+llvm::Value* UICodeGen::emitUiPrintTree(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* root = cg_.resolveOperand(inst->operands[0]);
+    return emitUIRuntimeCall(cg_, "sad_print_tree", voidTy, {ptrTy}, {root});
+}
+
 llvm::Value* UICodeGen::emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
@@ -538,7 +594,7 @@ llvm::Value* UICodeGen::emitSimpleUiFactory(
 llvm::Value* UICodeGen::emitUiImage(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* arg = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_image", ptrTy, {ptrTy}, {arg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -548,7 +604,7 @@ llvm::Value* UICodeGen::emitUiImage(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiIcon(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* arg = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_icon", ptrTy, {ptrTy}, {arg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -558,7 +614,7 @@ llvm::Value* UICodeGen::emitUiIcon(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiTextButton(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* arg = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_text_button", ptrTy, {ptrTy}, {arg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -568,7 +624,7 @@ llvm::Value* UICodeGen::emitUiTextButton(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiSnackbar(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* arg = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_snackbar", ptrTy, {ptrTy}, {arg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -578,7 +634,7 @@ llvm::Value* UICodeGen::emitUiSnackbar(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiTooltip(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* arg = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_tooltip", ptrTy, {ptrTy}, {arg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -588,7 +644,7 @@ llvm::Value* UICodeGen::emitUiTooltip(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiTextArea(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* arg = inst->operands.empty() ?
-        cg_.builder_->CreateGlobalStringPtr("", "empty_str") :
+        llvm::ConstantPointerNull::get(ptrTy) :
         cg_.resolveOperand(inst->operands[0]);
     auto* result = emitUIRuntimeCall(cg_, "sad_text_area", ptrTy, {ptrTy}, {arg});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
@@ -667,6 +723,234 @@ llvm::Value* UICodeGen::emitUiSafeArea(std::shared_ptr<SIRInstruction> inst) {
 }
 llvm::Value* UICodeGen::emitUiSurface(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_surface");
+}
+
+// ─── 21f. أثر المعدّلات (م-أ3ر، L1): خاصّيّة عامّة بالاسم / Generic named property ───
+// operands: [0]=widget, [1]=اسم الخاصيّة (نصّ), [2]=القيمة.
+
+llvm::Value* UICodeGen::emitUiSetPropStr(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* value = cg_.resolveOperand(inst->operands[2]);
+    // (AR) دفاعيّ: المسار الافتراضيّ في الخفض قد يوجّه نوعًا غير نصّيّ (مقبض/كائن)
+    //      إلى هنا؛ إن لم تكن القيمة مؤشّرًا نمرّر مؤشّرًا فارغًا بدل توليد نداء
+    //      غير صالح يُسقِط مُتحقِّق LLVM. (emitUIRuntimeCall لا يُكيّف الأنواع.)
+    if (!value->getType()->isPointerTy())
+        value = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_set_prop_str", voidTy,
+        {ptrTy, ptrTy, ptrTy}, {widget, name, value});
+}
+
+llvm::Value* UICodeGen::emitUiSetPropInt(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    // (AR) قيمة صحيحة ⇒ i64 (تُخزَّن int64_t كما في المفسّر، لا double).
+    //      حارس: إن وصل سجلٌّ عشريّ عبر مسارٍ غير معتاد، نحوّله بـFPToSI لا IntCast
+    //      (IntCast يفترض مصدرًا صحيحًا فينهار).
+    llvm::Value* rawI = cg_.resolveOperand(inst->operands[2]);
+    llvm::Value* value = rawI->getType()->isIntegerTy()
+        ? cg_.builder_->CreateIntCast(rawI, i64Ty, true)
+        : cg_.builder_->CreateFPToSI(rawI, i64Ty);
+    return emitUIRuntimeCall(cg_, "sad_set_prop_int", voidTy,
+        {ptrTy, ptrTy, i64Ty}, {widget, name, value});
+}
+
+llvm::Value* UICodeGen::emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f64Ty = llvm::Type::getDoubleTy(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* raw = cg_.resolveOperand(inst->operands[2]);
+    // (AR) القيمة قد تكون صحيحة (i64) أو عشريّة ⇒ تحويل آمن إلى double.
+    llvm::Value* value = raw->getType()->isIntegerTy()
+        ? cg_.builder_->CreateSIToFP(raw, f64Ty)
+        : cg_.builder_->CreateFPCast(raw, f64Ty);
+    return emitUIRuntimeCall(cg_, "sad_set_prop_num", voidTy,
+        {ptrTy, ptrTy, f64Ty}, {widget, name, value});
+}
+
+// (AR) L2: ربط حدث عند_* — sad_add_event(widget, name, cb, data).
+//      ردّ النداء وبياناته اختياريّان (يُستبدلان بمؤشّر فارغ عند الغياب)،
+//      مثل onTap في مصنع الزرّ.
+llvm::Value* UICodeGen::emitUiAddEvent(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* cb = inst->operands.size() > 2
+        ? cg_.resolveOperand(inst->operands[2])
+        : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* data = inst->operands.size() > 3
+        ? cg_.resolveOperand(inst->operands[3])
+        : llvm::ConstantPointerNull::get(ptrTy);
+    // (AR) دفاعيّ: ردّ النداء/البيانات يجب أن يكونا مؤشّرين (emitUIRuntimeCall لا يُكيّف).
+    if (!cb->getType()->isPointerTy())   cb = llvm::ConstantPointerNull::get(ptrTy);
+    if (!data->getType()->isPointerTy()) data = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_add_event", voidTy,
+        {ptrTy, ptrTy, ptrTy, ptrTy}, {widget, name, cb, data});
+}
+
+// ─── سلسلة التحريك (م-أ3ر، L3) ───
+// (AR) كلٌّ يعمل على المجموعة النشطة من تحريكات IRNode عبر حالة محفوظة على العنصر.
+llvm::Value* UICodeGen::emitUiAnimBegin(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* csv = cg_.resolveOperand(inst->operands[1]);
+    if (!csv->getType()->isPointerTy()) csv = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_anim_begin", voidTy,
+        {ptrTy, ptrTy}, {widget, csv});
+}
+llvm::Value* UICodeGen::emitUiAnimDuration(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f64Ty = llvm::Type::getDoubleTy(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* raw = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* sec = raw->getType()->isIntegerTy()
+        ? cg_.builder_->CreateSIToFP(raw, f64Ty)
+        : cg_.builder_->CreateFPCast(raw, f64Ty);
+    return emitUIRuntimeCall(cg_, "sad_anim_duration", voidTy,
+        {ptrTy, f64Ty}, {widget, sec});
+}
+llvm::Value* UICodeGen::emitUiAnimEasing(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    if (!name->getType()->isPointerTy()) name = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_anim_easing", voidTy,
+        {ptrTy, ptrTy}, {widget, name});
+}
+llvm::Value* UICodeGen::emitUiAnimDelay(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f64Ty = llvm::Type::getDoubleTy(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* raw = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* sec = raw->getType()->isIntegerTy()
+        ? cg_.builder_->CreateSIToFP(raw, f64Ty)
+        : cg_.builder_->CreateFPCast(raw, f64Ty);
+    return emitUIRuntimeCall(cg_, "sad_anim_delay", voidTy,
+        {ptrTy, f64Ty}, {widget, sec});
+}
+llvm::Value* UICodeGen::emitUiAnimRepeat(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    // (AR) قد يصل وسيطٌ عشريّ (.تكرار(2.5)) — IntCast يفترض مصدرًا صحيحًا فينهار؛
+    //      نحوّل العشريّ بـFPToSI كما يتسامح المفسّر (toInt).
+    llvm::Value* rawN = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* count = rawN->getType()->isIntegerTy()
+        ? cg_.builder_->CreateIntCast(rawN, i32Ty, true)
+        : cg_.builder_->CreateFPToSI(rawN, i32Ty);
+    return emitUIRuntimeCall(cg_, "sad_anim_repeat", voidTy,
+        {ptrTy, i32Ty}, {widget, count});
+}
+llvm::Value* UICodeGen::emitUiAnimAutoReverse(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* rawR = cg_.resolveOperand(inst->operands[1]);
+    // (AR) دلالةٌ منطقيّة تُطابق Value::toBool في المفسّر (value.cpp:559):
+    //      صحيح ⇒ x!=0، عشريّ ⇒ x!=0.0 (فـ.عكس_تلقائي(0.4) ⇒ true كالمفسّر،
+    //      لا FPToSI الذي يبتر 0.4→0 ⇒ false). مؤشّر/غيره ⇒ false دفاعيًّا.
+    auto* rt = rawR->getType();
+    llvm::Value* revBit =
+        rt->isIntegerTy()       ? cg_.builder_->CreateICmpNE(rawR, llvm::ConstantInt::get(rt, 0))
+      : rt->isFloatingPointTy() ? cg_.builder_->CreateFCmpONE(rawR, llvm::ConstantFP::get(rt, 0.0))
+                                : static_cast<llvm::Value*>(llvm::ConstantInt::getFalse(*cg_.context_));
+    llvm::Value* rev = cg_.builder_->CreateZExt(revBit, i32Ty);
+    return emitUIRuntimeCall(cg_, "sad_anim_auto_reverse", voidTy,
+        {ptrTy, i32Ty}, {widget, rev});
+}
+
+// ─── خاصّيّة متعدّدة الوسائط (م-أ3ر): دمج بفواصل عبر مُجمِّع وقت التشغيل ───
+// (AR) يختار دالة الإضافة بحسب نوع الوسيط الفعليّ (نظير اختيار الرمز في L1)
+//      فيُنسَّق كلٌّ كما في Value::toString داخل وقت التشغيل (مصدر واحد).
+llvm::Value* UICodeGen::emitUiPropJoinAdd(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+    auto* f64Ty = llvm::Type::getDoubleTy(*cg_.context_);
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    const SIROperand& valOp = inst->operands[1];
+    llvm::Value* raw = cg_.resolveOperand(valOp);
+    switch (valOp.dataType) {
+    case SadTypeKind::String: {
+        if (!raw->getType()->isPointerTy()) raw = llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_prop_join_add_str", voidTy, {ptrTy, ptrTy}, {widget, raw});
+    }
+    case SadTypeKind::Boolean: {
+        llvm::Value* b = raw->getType()->isIntegerTy()
+            ? cg_.builder_->CreateIntCast(raw, i32Ty, false)
+            : cg_.builder_->CreateFPToSI(raw, i32Ty);
+        return emitUIRuntimeCall(cg_, "sad_prop_join_add_bool", voidTy, {ptrTy, i32Ty}, {widget, b});
+    }
+    case SadTypeKind::Float: {
+        llvm::Value* d = raw->getType()->isIntegerTy()
+            ? cg_.builder_->CreateSIToFP(raw, f64Ty)
+            : cg_.builder_->CreateFPCast(raw, f64Ty);
+        return emitUIRuntimeCall(cg_, "sad_prop_join_add_num", voidTy, {ptrTy, f64Ty}, {widget, d});
+    }
+    case SadTypeKind::Integer: {
+        // (AR) صحيح؛ عشريّ السجلّ ⇒ FPToSI. لو وصل مؤشّر (استنتاج خاطئ) نُمرّره نصًّا
+        //      آمنًا بدل FPToSI على مؤشّر (تعليمة غير صالحة تُسقِط المُتحقِّق).
+        if (raw->getType()->isIntegerTy()) {
+            llvm::Value* n = cg_.builder_->CreateIntCast(raw, i64Ty, true);
+            return emitUIRuntimeCall(cg_, "sad_prop_join_add_int", voidTy, {ptrTy, i64Ty}, {widget, n});
+        }
+        if (raw->getType()->isFloatingPointTy()) {
+            llvm::Value* n = cg_.builder_->CreateFPToSI(raw, i64Ty);
+            return emitUIRuntimeCall(cg_, "sad_prop_join_add_int", voidTy, {ptrTy, i64Ty}, {widget, n});
+        }
+        // (AR) لم يكن صحيحًا ولا عشريًّا (مؤشّر/كائن باستنتاجٍ خاطئ) ⇒ سقوطٌ **مقصود**
+        //      إلى default (المسار النصّيّ الآمن) بدل FPToSI على غير عدديّ.
+    }
+    [[fallthrough]];
+    default: {
+        // (AR) نوعٌ غير متوقَّع (مؤشّر/كائن/مصفوفة) ⇒ مسارٌ نصّيٌّ آمن بحارس مؤشّر
+        //      (نظير toString، يتدهور بأمان) بدل FPToSI على غير عدديّ.
+        llvm::Value* s = raw->getType()->isPointerTy()
+            ? raw : llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_prop_join_add_str", voidTy, {ptrTy, ptrTy}, {widget, s});
+    }
+    }
+}
+llvm::Value* UICodeGen::emitUiPropJoinCommit(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    if (!name->getType()->isPointerTy()) name = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_prop_join_commit", voidTy, {ptrTy, ptrTy}, {widget, name});
+}
+
+llvm::Value* UICodeGen::emitUiSetPropBool(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    // (AR) حارس دفاعيّ (اتّساقًا مع emitUiSetPropInt): المسار يُصدِر هنا صحيحًا/i1
+    //      دائمًا، لكن نحمي من نوع LLVM غير متوقّع لأنّ emitUIRuntimeCall لا يُكيّف
+    //      الأنواع (يمرّرها مباشرة لـCreateCall) فأيّ عدم تطابقٍ يُفشِل مُتحقِّق LLVM.
+    llvm::Value* rawV = cg_.resolveOperand(inst->operands[2]);
+    llvm::Value* value =
+        rawV->getType()->isIntegerTy()       ? cg_.builder_->CreateIntCast(rawV, i32Ty, false)
+      : rawV->getType()->isFloatingPointTy() ? cg_.builder_->CreateFPToSI(rawV, i32Ty)
+                                             : static_cast<llvm::Value*>(llvm::ConstantInt::get(i32Ty, 0));
+    return emitUIRuntimeCall(cg_, "sad_set_prop_bool", voidTy,
+        {ptrTy, ptrTy, i32Ty}, {widget, name, value});
 }
 
 } // namespace LLVM

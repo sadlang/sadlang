@@ -14,12 +14,15 @@
 #include "sad_ui/node.h"
 #include "sad_ui/ir.h"
 #include "sad_ui/types.h"
+#include "sad_ui/print_tree.h" // (AR) مصدر الحقيقة الوحيد لطباعة شجرة IR (مشترك)
 #include "sad_ui/web/html_codegen.h"
 #include <memory>
 #include <string>
 #include <vector>
 #include <iostream>
 #include "builtins/builtin_context.h"
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء
+#include "error_catalog.h" // (AR) RenderContext
 
 namespace Sad
 {
@@ -30,105 +33,18 @@ namespace Sad
         {
 
             /**
-             * @brief (AR) طباعة شجرة العناصر التعريحية بشكل هرمي (للتصحيح والتحقق)
-             * @brief (EN) Print declarative widget tree hierarchically (for debug/verification)
-             */
-            /**
-             * @brief (AR) طباعة شجرة IRNode من WidgetBuilder بشكل هرمي
-             * @brief (EN) Print IRNode tree from WidgetBuilder hierarchically
+             * @brief (AR) طباعة شجرة IRNode بشكل هرمي (للتصحيح والتحقّق) — تفويضٌ
+             *        لمصدر الحقيقة الوحيد في المكتبة (features/graphics/…/print_tree.h)
+             *        فلا يُكرَّر التنسيق في المحرّك ⇒ **تطابقُ مخرَجٍ بالبناء** مع
+             *        المترجم (sad_print_tree يستدعي الدالة المكتبيّة نفسها). أيّ تغييرٍ
+             *        للتنسيق يُجرى في المكتبة مرّةً واحدة فيسري على المحرّكين معًا.
+             * @brief (EN) Hierarchical IRNode tree print — delegates to the single
+             *        source of truth in the library so the format is not duplicated in
+             *        the engine ⇒ byte-identical output by construction with the compiler.
              */
             void printIRNodeTree(const std::shared_ptr<sad::ui::IRNode> &node, int depth, int maxDepth)
             {
-                if (!node || depth > maxDepth)
-                    return;
-
-                std::string indent(depth * 2, ' ');
-
-                // (AR) طباعة نوع العنصر
-                std::cout << indent << sad::ui::nodeTypeToArabicName(node->getType());
-
-                // (AR) طباعة الخصائص
-                const auto &props = node->getProperties();
-                if (!props.empty())
-                {
-                    std::cout << "(";
-                    bool first = true;
-                    for (const auto &prop : props)
-                    {
-                        if (!first)
-                            std::cout << ", ";
-                        first = false;
-                        std::cout << prop.key << ": ";
-                        std::visit([](const auto &v)
-                                   {
-                using T = std::decay_t<decltype(v)>;
-                if constexpr (std::is_same_v<T, std::string>) {
-                    std::string s = v;
-                    if (s.size() > 40) s = s.substr(0, 40) + "...";
-                    std::cout << "\"" << s << "\"";
-                } else if constexpr (std::is_same_v<T, bool>) {
-                    std::cout << (v ? "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad" : "\xd8\xae\xd8\xb7\xd8\xa3"); // صحيح/خطأ
-                } else {
-                    std::cout << v;
-                } }, prop.value);
-                    }
-                    std::cout << ")";
-                }
-
-                // (AR) طباعة الأحداث
-                const auto &events = node->getEvents();
-                if (!events.empty())
-                {
-                    std::cout << " [";
-                    bool first = true;
-                    for (const auto &event : events)
-                    {
-                        if (!first)
-                            std::cout << ", ";
-                        first = false;
-                        std::cout << event.getEventName();
-                    }
-                    std::cout << "]";
-                }
-
-                // (AR) طباعة التحريكات
-                const auto &anims = node->getAnimations();
-                if (!anims.empty())
-                {
-                    std::cout << " {";
-                    bool first = true;
-                    for (const auto &anim : anims)
-                    {
-                        if (!first)
-                            std::cout << ", ";
-                        first = false;
-                        std::cout << "\xd8\xad\xd8\xb1\xd9\x83\xd8\xa9:" // حركة:
-                                  << sad::ui::animationTypeToString(anim.type)
-                                  << "/" << anim.duration << "\xd8\xab"; // ث (ثانية)
-                        if (anim.easing != sad::ui::EasingCurve::EaseInOut)
-                        {
-                            std::cout << "/" << sad::ui::easingCurveToString(anim.easing);
-                        }
-                        if (anim.delay > 0.0f)
-                        {
-                            std::cout << " \xd8\xaa\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1:" << anim.delay << "\xd8\xab"; // تأخير:Xث
-                        }
-                        if (anim.repeatCount != 1)
-                        {
-                            std::cout << " \xd8\xaa\xd9\x83\xd8\xb1\xd8\xa7\xd8\xb1:"                                 // تكرار:
-                                      << (anim.repeatCount == 0 ? "\xe2\x88\x9e" : std::to_string(anim.repeatCount)); // ∞
-                        }
-                    }
-                    std::cout << "}";
-                }
-
-                std::cout << std::endl;
-
-                // (AR) طباعة الأبناء تكرارياً
-                for (size_t i = 0; i < node->childCount(); i++)
-                {
-                    printIRNodeTree(node->getChildren()[i], depth + 1, maxDepth);
-                }
+                sad::ui::printIRNodeTree(node, depth, std::cout, maxDepth);
             }
 
             void printWidgetTree(const Data::Value &widget, int depth, int maxDepth = 50)
@@ -193,7 +109,11 @@ namespace Sad
                     bool success = bridge.run(rootWidget, const_cast<Interpreter *>(&interpreter));
                     if (!success)
                     {
-                        std::cerr << "[\xd8\xaa\xd8\xad\xd8\xb0\xd9\x8a\xd8\xb1] \xd9\x81\xd8\xb4\xd9\x84 \xd8\xaa\xd8\xb4\xd8\xba\xd9\x8a\xd9\x84 \xd8\xa7\xd9\x84\xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9 \xd8\xa7\xd9\x84\xd8\xb1\xd8\xb3\xd9\x88\xd9\x85\xd9\x8a\xd8\xa9" << std::endl;
+                        // (AR) من الكتالوج (RUN_UI_LAUNCH_FAILED) لا نصًّا يدويًّا — نفس
+                        //      حدث فشل bridge.run المُرحَّل في تشغيل_تطبيق؛ نُبقي التدفّق.
+                        std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                         Sad::Errors::ErrorCode::RUN_UI_LAUNCH_FAILED, {})
+                                  << std::endl;
                     }
                     return std::make_shared<Data::Value>();
                 }
@@ -229,10 +149,11 @@ namespace Sad
                 bool success = bridge.run(rootWidget, const_cast<Interpreter *>(&interpreter));
                 if (!success)
                 {
-                    std::cerr << "[\xd8\xae\xd8\xb7\xd8\xa3] \xd9\x81\xd8\xb4\xd9\x84 "
-                              << "\xd8\xaa\xd8\xb4\xd8\xba\xd9\x8a\xd9\x84 \xd8\xa7\xd9\x84\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82"
+                    // (AR) رسالة من الكتالوج (RUN_UI_LAUNCH_FAILED) لا نصًّا يدويًّا؛
+                    //      نُبقي cerr + الاستمرار (لا ctx.error الذي يرمي) حفظًا للتدفّق.
+                    std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                     Sad::Errors::ErrorCode::RUN_UI_LAUNCH_FAILED, {})
                               << std::endl;
-                    // "[خطأ] فشل تشغيل التطبيق"
                 }
                 return std::make_shared<Data::Value>();
             };
@@ -481,9 +402,13 @@ namespace Sad
                     }
                     catch (const std::exception &e)
                     {
-                        std::cerr << "[\xd8\xae\xd8\xb7\xd8\xa3] \xd8\xb9\xd9\x8a\xd9\x91\xd9\x86_\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9: "
-                                  << e.what() << std::endl;
-                        // "[خطأ] عيّن_الحالة: ..."
+                        // (AR) رسالة من الكتالوج (RUN_UI_STATE_ERROR) مع تفصيل الاستثناء
+                        //      كـplaceholder؛ نُبقي cerr + الاستمرار حفظًا للتدفّق.
+                        Sad::Errors::RenderContext sctx;
+                        sctx.placeholders = {{"detail", e.what()}};
+                        std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                         Sad::Errors::ErrorCode::RUN_UI_STATE_ERROR, sctx)
+                                  << std::endl;
                     }
                 }
                 // إعادة بناء الواجهة

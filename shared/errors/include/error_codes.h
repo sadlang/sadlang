@@ -214,6 +214,8 @@ namespace Sad
             RUN_COMPREHENSION_NEEDS_ARRAY, ///< RUN054: (AR) الاستيعاب يتطلّب مصفوفة / (EN) Comprehension needs array
             RUN_NOT_ITERABLE,              ///< RUN055: (AR) نوع غير قابل للتكرار / (EN) Not iterable
             RUN_NULL_ASSERTION,            ///< RUN056: (AR) فشل تأكيد عدم الفراغ (مؤكَّد) / (EN) Null assertion failed
+            RUN_UI_LAUNCH_FAILED,          ///< RUN057: (AR) فشل تشغيل تطبيق الواجهة / (EN) UI application launch failed
+            RUN_UI_STATE_ERROR,            ///< RUN058: (AR) خطأ في عمليّة الحالة / (EN) State operation error
 
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.

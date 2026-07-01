@@ -5,6 +5,7 @@ description_en: ui_widgets module (62 functions)
 functions:
 - cpp_id: TEXT_WIDGET
   canonical: نص_عنصر
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -18,6 +19,7 @@ functions:
   lookup_table: name_only
 - cpp_id: IMAGE
   canonical: صورة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -31,6 +33,7 @@ functions:
   lookup_table: name_only
 - cpp_id: ICON
   canonical: أيقونة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -44,6 +47,7 @@ functions:
   lookup_table: name_only
 - cpp_id: BUTTON
   canonical: زر
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -57,6 +61,7 @@ functions:
   lookup_table: name_only
 - cpp_id: FAB
   canonical: زر_عائم
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -70,6 +75,7 @@ functions:
   lookup_table: name_only
 - cpp_id: TEXT_BUTTON
   canonical: زر_نصي
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -83,6 +89,7 @@ functions:
   lookup_table: name_only
 - cpp_id: ICON_BUTTON
   canonical: زر_أيقونة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -96,6 +103,7 @@ functions:
   lookup_table: name_only
 - cpp_id: TEXT_FIELD
   canonical: حقل_نص
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -109,6 +117,7 @@ functions:
   lookup_table: name_only
 - cpp_id: TOGGLE
   canonical: مفتاح
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -122,6 +131,7 @@ functions:
   lookup_table: name_only
 - cpp_id: CHECKBOX
   canonical: خانة_اختيار
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -135,6 +145,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SLIDER
   canonical: منزلق
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -148,6 +159,7 @@ functions:
   lookup_table: name_only
 - cpp_id: COLUMN
   canonical: عمود
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -161,6 +173,7 @@ functions:
   lookup_table: name_only
 - cpp_id: ROW
   canonical: صف
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -174,6 +187,7 @@ functions:
   lookup_table: name_only
 - cpp_id: STACK
   canonical: رصة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -187,6 +201,7 @@ functions:
   lookup_table: name_only
 - cpp_id: GRID
   canonical: شبكة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -200,6 +215,7 @@ functions:
   lookup_table: name_only
 - cpp_id: CENTER
   canonical: وسط
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -213,6 +229,7 @@ functions:
   lookup_table: name_only
 - cpp_id: PADDING
   canonical: حشوة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -226,6 +243,7 @@ functions:
   lookup_table: name_only
 - cpp_id: ALIGN
   canonical: محاذاة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -239,6 +257,7 @@ functions:
   lookup_table: name_only
 - cpp_id: EXPANDED
   canonical: موسع
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -252,6 +271,7 @@ functions:
   lookup_table: name_only
 - cpp_id: FLEXIBLE
   canonical: مرن
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -265,6 +285,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SIZED_BOX
   canonical: مقاس
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -278,6 +299,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SPACER
   canonical: فاصل
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -291,6 +313,7 @@ functions:
   lookup_table: name_only
 - cpp_id: DIVIDER
   canonical: فاصل_خط
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -304,6 +327,7 @@ functions:
   lookup_table: name_only
 - cpp_id: WRAP
   canonical: التفاف
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -317,6 +341,7 @@ functions:
   lookup_table: name_only
 - cpp_id: CONTAINER
   canonical: حاوية
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -330,6 +355,7 @@ functions:
   lookup_table: name_only
 - cpp_id: CARD
   canonical: بطاقة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -343,6 +369,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SCAFFOLD
   canonical: هيكل
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -356,6 +383,7 @@ functions:
   lookup_table: name_only
 - cpp_id: BOX
   canonical: صندوق
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -369,6 +397,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SCROLL_VIEW
   canonical: عرض_تمرير
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -382,6 +411,7 @@ functions:
   lookup_table: name_only
 - cpp_id: APP_BAR
   canonical: شريط_تطبيق
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -395,6 +425,7 @@ functions:
   lookup_table: name_only
 - cpp_id: BOTTOM_NAV
   canonical: تنقل_سفلي
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -408,6 +439,7 @@ functions:
   lookup_table: name_only
 - cpp_id: DIALOG
   canonical: حوار
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -421,6 +453,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SNACKBAR
   canonical: شريط_إشعار
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -434,6 +467,7 @@ functions:
   lookup_table: name_only
 - cpp_id: TOOLTIP
   canonical: تلميح
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -447,6 +481,7 @@ functions:
   lookup_table: name_only
 - cpp_id: PROGRESS
   canonical: شريط_تقدم
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -460,6 +495,7 @@ functions:
   lookup_table: name_only
 - cpp_id: LAZY_COLUMN
   canonical: عمود_كسول
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -473,6 +509,7 @@ functions:
   lookup_table: name_only
 - cpp_id: LAZY_ROW
   canonical: صف_كسول
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -486,6 +523,7 @@ functions:
   lookup_table: name_only
 - cpp_id: LIST_VIEW
   canonical: قائمة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -499,6 +537,7 @@ functions:
   lookup_table: name_only
 - cpp_id: TEXT_AREA
   canonical: منطقة_نص
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -512,6 +551,7 @@ functions:
   lookup_table: name_only
 - cpp_id: DRAWER
   canonical: درج
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -525,6 +565,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SAFE_AREA
   canonical: منطقة_آمنة
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true
@@ -538,6 +579,7 @@ functions:
   lookup_table: name_only
 - cpp_id: SURFACE
   canonical: سطح
+  returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
   require_import: true

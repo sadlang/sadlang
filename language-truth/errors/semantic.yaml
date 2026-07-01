@@ -80,15 +80,15 @@ errors:
     ar: عدد معاملات خاطئ
     en: Wrong argument count
   brief:
-    ar: الدالة '{name}' تتوقّع {expected} معاملاً، لكن مُرِّر {found}
-    en: Function '{name}' expects {expected} arguments but got {found}
+    ar: الدالة '{name}' تتوقّع {expected} من المعاملات، لكن مُرِّر {found}
+    en: Function '{name}' expects {expected} argument(s) but got {found}
   placeholders:
   - name
   - expected
   - found
   fix_hint:
-    ar: مرّر بالضبط {expected} معاملاً. راجع توقيع الدالة '{name}' لمعرفة المعاملات المطلوبة وترتيبها.
-    en: Pass exactly {expected} arguments. Check the signature of '{name}' for required parameters and order.
+    ar: مرّر بالضبط {expected} من المعاملات. راجع توقيع الدالة '{name}' لمعرفة المعاملات المطلوبة وترتيبها.
+    en: Pass exactly {expected} argument(s). Check the signature of '{name}' for required parameters and order.
   detailed:
     ar: لغة ص تفحص عدد المعاملات بصرامة عند الاستدعاء. مرّرت {found} لكن الدالة تتوقّع {expected}. لجعل دالة تقبل عدداً متغيّراً، استخدم بناء '...اسم' في تعريفها.
     en: Sad strictly checks argument count at call site. You passed {found} but the function expects {expected}. To accept variadic args, use '...name' in the function definition.

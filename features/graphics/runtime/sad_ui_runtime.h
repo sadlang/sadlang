@@ -136,6 +136,29 @@ SadWidget sad_sized_box(float width, float height);
 /** منطقة_آمنة() */   SadWidget sad_safe_area(void);
 /** سطح() */          SadWidget sad_surface(void);
 
+/* ─── أثر المعدّلات الانسيابيّة (م-أ3ر، L1): خاصّيّة عامّة بالاسم ───
+ * Generic named-property setters (mirror interpreter setIRProperty). */
+/** .م(نص) → خاصّيّة نصّيّة */     void sad_set_prop_str(SadWidget w, const char* name, const char* value);
+/** .م(صحيح) → خاصّيّة int64 */    void sad_set_prop_int(SadWidget w, const char* name, int64_t value);
+/** .م(عشري) → خاصّيّة عدديّة */   void sad_set_prop_num(SadWidget w, const char* name, double value);
+/** .م()/.م(منطقي) → منطقيّة */   void sad_set_prop_bool(SadWidget w, const char* name, int32_t value);
+/** .عند_*(دالة) → ربط حدث */     void sad_add_event(SadWidget w, const char* name, SadCallback cb, void* data);
+
+/* ─── سلسلة التحريك الانسيابيّة (م-أ3ر، L3) — نظائر WidgetBuilder ─── */
+/** .حرّك(أنواع) — يبدأ سلسلة (مركّب بالفاصلة) */ void sad_anim_begin(SadWidget w, const char* typesCsv);
+/** .مدة(ث) */                    void sad_anim_duration(SadWidget w, double seconds);
+/** .منحنى(اسم) */                void sad_anim_easing(SadWidget w, const char* name);
+/** .تأخير(ث) */                  void sad_anim_delay(SadWidget w, double seconds);
+/** .تكرار(ن) */                  void sad_anim_repeat(SadWidget w, int32_t count);
+/** .عكس_تلقائي([منطقي]) */       void sad_anim_auto_reverse(SadWidget w, int32_t reverse);
+
+/* ─── خاصّيّة متعدّدة الوسائط (م-أ3ر): دمج بفواصل ─── */
+void sad_prop_join_add_str(SadWidget w, const char* value);
+void sad_prop_join_add_int(SadWidget w, int64_t value);
+void sad_prop_join_add_num(SadWidget w, double value);
+void sad_prop_join_add_bool(SadWidget w, int32_t value);
+void sad_prop_join_commit(SadWidget w, const char* name);
+
 /* ═══════════════════════════════════════════════════════════════════
  * 2. إدارة الشجرة / Tree Management
  * ═══════════════════════════════════════════════════════════════════ */
@@ -181,6 +204,12 @@ void sad_app_layout(SadApp app, float width, float height);
 
 /** ارسم(تطبيق) */
 void sad_app_render(SadApp app);
+
+/** تشغيل_تطبيق(عنصر) — حلقة سطح المكتب: نافذة + رسم + إرسال الأحداث (جسر فوق DesktopWindow) */
+void sad_app_run(SadWidget root);
+
+/** طباعة_شجرة(عنصر) — طباعة شجرة العناصر للتصحيح (منطق المكتبة المشترك) */
+void sad_print_tree(SadWidget root);
 
 /** دمّر_تطبيق(تطبيق) */
 void sad_app_destroy(SadApp app);

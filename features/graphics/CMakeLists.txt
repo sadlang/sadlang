@@ -61,6 +61,7 @@ set(SAD_UI_CORE_SOURCES
     core/src/command_queue.cpp
     core/src/ui_event_loop.cpp
     core/src/property_binding.cpp
+    core/src/print_tree.cpp
 )
 
 # النظام التفاعلي (reactive — المرحلة 1)
