@@ -6,7 +6,7 @@
 // ============================================================================
 // (AR) توليد كود LLVM IR لدوال وحدة الشبكة المضمنة.
 //      كل SIROpcode من القسم 21 (BUILTIN_NET_*) يُترجم إلى استدعاء
-//      دالة C API مقابلة من مكتبة stdlib/network (sad_tcp_*, sad_http_*, ...).
+//      دالة C API مقابلة من مكتبة features/network/core (sad_tcp_*, sad_http_*, ...).
 //      النمط المتبع: getOrInsertFunction للحصول على/إنشاء تعريف الدالة الخارجية،
 //      ثم CreateCall لإصدار استدعاء LLVM IR.
 //      المقابض (handles) تُمرر كـ i64 (مؤشرات مخزنة كأعداد صحيحة).
@@ -15,7 +15,7 @@
 //
 // (EN) Generates LLVM IR for network module builtin functions.
 //      Each Section 21 SIROpcode (BUILTIN_NET_*) is translated to a call
-//      to the corresponding C API function from stdlib/network (sad_tcp_*, sad_http_*, ...).
+//      to the corresponding C API function from features/network/core (sad_tcp_*, sad_http_*, ...).
 //      Pattern: getOrInsertFunction to get/create the extern function declaration,
 //      then CreateCall to emit the LLVM IR call.
 //      Handles are passed as i64 (pointers stored as integers).

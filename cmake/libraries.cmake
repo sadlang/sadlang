@@ -165,9 +165,9 @@ if(MSVC)
 endif()
 
 # (AR) تفعيل المسار الحقيقي لوحدة HTTP داخل sad_interp وربط مكتبات الشبكة
-#      حتى تتوفر دوال stdlib/network للمفسر ولكل المستهلكين لـ sad_interp.
+#      حتى تتوفر دوال features/network/core للمفسر ولكل المستهلكين لـ sad_interp.
 # (EN) Enable the real HTTP path inside sad_interp and link network libraries
-#      so stdlib/network builtins are available to the interpreter and all sad_interp consumers.
+#      so features/network/core builtins are available to the interpreter and all sad_interp consumers.
 # ملاحظة (AR): الربط الفعلي يتم في cmake/network.cmake لأن أهداف sad_network/
 #              sad_http/sad_websocket تُعرَّف هناك بعد تحميل هذا الملف.
 # Note (EN): Actual linking happens in cmake/network.cmake because the

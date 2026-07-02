@@ -150,20 +150,20 @@ set_tests_properties("Comprehensive_test_regression_comprehensive" PROPERTIES TI
 # 13a. الشبكات / Network Module Tests
 add_comprehensive_test(test_network_comprehensive test_network_comprehensive.cpp)
 target_include_directories(test_network_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/stdlib/network
-    ${CMAKE_SOURCE_DIR}/stdlib/network/include
-    ${CMAKE_SOURCE_DIR}/stdlib/network/include/network
-    ${CMAKE_SOURCE_DIR}/stdlib/network/include/socket
-    ${CMAKE_SOURCE_DIR}/stdlib/network/include/http
-    ${CMAKE_SOURCE_DIR}/stdlib/network/include/websocket)
+    ${CMAKE_SOURCE_DIR}/features/network/core
+    ${CMAKE_SOURCE_DIR}/features/network/core/include
+    ${CMAKE_SOURCE_DIR}/features/network/core/include/network
+    ${CMAKE_SOURCE_DIR}/features/network/core/include/socket
+    ${CMAKE_SOURCE_DIR}/features/network/core/include/http
+    ${CMAKE_SOURCE_DIR}/features/network/core/include/websocket)
 target_sources(test_network_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/network/network_error.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/socket/socket_address.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_base.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_request.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_response.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_cookie.cpp
-    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_url.cpp)
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/network/network_error.cpp
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/socket/socket_address.cpp
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/http/http_base.cpp
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/http/http_request.cpp
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/http/http_response.cpp
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/http/http_cookie.cpp
+    ${CMAKE_SOURCE_DIR}/features/network/core/src/http/http_url.cpp)
 if(WIN32)
     target_link_libraries(test_network_comprehensive PRIVATE ws2_32)
     target_compile_definitions(test_network_comprehensive PRIVATE WIN32_LEAN_AND_MEAN)

@@ -764,9 +764,9 @@ namespace Sad
             llvm::Value *emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst) { return ip_->emitInstructionPlatform(inst); }
 
             // (AR) الطبقة الرابعة: دوال الشبكة (TCP/UDP، HTTP، عناوين)
-            //      تُصدر استدعاءات لدوال C API من stdlib/network
+            //      تُصدر استدعاءات لدوال C API من features/network/core
             // (EN) Tier 4: Network functions (TCP/UDP, HTTP, addresses)
-            //      Emits calls to C API functions from stdlib/network
+            //      Emits calls to C API functions from features/network/core
             llvm::Value *emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst) { return nb_->emitNetworkBuiltin(inst); }
 
             // (AR) الطبقة الخامسة: تعليمات SIMD المتجهات (Phase 3)

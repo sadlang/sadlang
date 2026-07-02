@@ -14,10 +14,10 @@
  *   2. HTTP Server: receiving and handling requests
  *   3. Utilities: network init, addresses, errors
  *
- * @note الدوال تعتمد على واجهة C في stdlib/network
+ * @note الدوال تعتمد على واجهة C في features/network/core
  * @see builtin_registry.h — ثوابت الأسماء (HttpClient, HttpServer, NetworkUtils)
- * @see stdlib/network/include/http_bindings.h — واجهة C للـ HTTP
- * @see stdlib/network/include/network/network_bindings.h — واجهة C للشبكة
+ * @see features/network/core/include/http_bindings.h — واجهة C للـ HTTP
+ * @see features/network/core/include/network/network_bindings.h — واجهة C للشبكة
  */
 
 #include "interpreter_core.h"

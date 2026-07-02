@@ -64,7 +64,7 @@ jobs:
               echo "❌ Non-UTF-8: $f"
               errors=$((errors + 1))
             fi
-          done < <(find shared/ interpreter/ stdlib/ compiler/ -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -print0 2>/dev/null)
+          done < <(find shared/ interpreter/ stdlib/ compiler/ features/network/ -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -print0 2>/dev/null)
           if [ $errors -gt 0 ]; then
             echo "::error::Found $errors files with non-UTF-8 encoding"
             exit 1
@@ -74,7 +74,7 @@ jobs:
       - name: "📏 فحص حجم الملفات / Check File Sizes"
         shell: bash
         run: |
-          large=$(find shared/ interpreter/ stdlib/ compiler/ \
+          large=$(find shared/ interpreter/ stdlib/ compiler/ features/network/ \
             \( -name '*.cpp' -o -name '*.h' \) -size +512k 2>/dev/null)
           if [ -n "$large" ]; then
             echo "::warning::Large files found: $large"
@@ -146,7 +146,7 @@ jobs:
             -I shared/errors/include \
             -I interpreter/include \
             -I compiler/include \
-            shared/ interpreter/ compiler/ stdlib/ 2>&1 | head -100
+            shared/ interpreter/ compiler/ stdlib/ features/network/ 2>&1 | head -100
           echo "✅ cppcheck اكتمل / cppcheck completed"
 
       - name: "🔍 clang-tidy (ملفات مُعدَّلة فقط) / Run clang-tidy (changed files only)"

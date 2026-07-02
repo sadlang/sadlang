@@ -80,6 +80,20 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/features/graphics/stdlib/
         PATTERN "*.ص"
 )
 
+# (AR) الشبكة الكلاسيكيّة انتقلت: stdlib/network ⟵ features/network/core (RFC sadlang-rfcs#10 §أ)؛
+#      تُثبَّت في نفس موضعها القديم داخل التوزيعة حفظًا لتكافؤ المحتوى.
+# (EN) Classic network moved: stdlib/network ⟶ features/network/core (RFC sadlang-rfcs#10 §أ);
+#      staged at its old distribution path to keep content parity.
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/features/network/core/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/sad-lang/stdlib/network
+    COMPONENT runtime
+    FILES_MATCHING
+        PATTERN "*.ص"
+        PATTERN "*.h"
+        PATTERN "*.cpp"
+        PATTERN "*.md"
+)
+
 # (AR) SDL2 DLL مطلوبة للمفسر على ويندوز
 # (EN) SDL2 DLL required for interpreter on Windows
 if(WIN32)

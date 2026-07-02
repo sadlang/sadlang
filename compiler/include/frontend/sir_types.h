@@ -1,4 +1,4 @@
-﻿// ======================================================================
+// ======================================================================
 // sir_types.h - أنواع التمثيل الوسيط البسيط (SIR)
 //              Simple Intermediate Representation Types
 // ======================================================================
@@ -1036,10 +1036,10 @@ namespace Sad
                 // Section 21: Network Module — TCP/UDP sockets and HTTP client/server
                 // ========================================================================
                 // (AR) هذا القسم يدعم مكتبة الشبكة الكاملة في المترجم (sadc).
-                //      كل opcode يُترجم إلى استدعاء دالة C API من stdlib/network.
+                //      كل opcode يُترجم إلى استدعاء دالة C API من features/network/core.
                 //      الأسماء العربية مُعرّفة في shared/builtins/include/builtin_registry.h
                 // (EN) This section supports the full network library in the compiler (sadc).
-                //      Each opcode maps to a C API call from stdlib/network.
+                //      Each opcode maps to a C API call from features/network/core.
                 //      Arabic names are defined in shared/builtins/include/builtin_registry.h
 
                 // --- 21a. مقابس TCP / TCP Sockets (10) ---

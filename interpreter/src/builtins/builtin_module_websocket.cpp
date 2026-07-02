@@ -12,7 +12,7 @@
  *   1. WebSocket Client: connect, send, receive, close
  *   2. WebSocket Server: start, broadcast, room management, close
  *
- * @see stdlib/network/include/websocket/websocket_bindings.h
+ * @see features/network/core/include/websocket/websocket_bindings.h
  */
 
 #include "interpreter_core.h"

@@ -7,7 +7,7 @@
 // (AR) بناء تعليمات SIR للدوال المضمنة الخاصة بوحدة الشبكة.
 //      يشمل: مقابس TCP/UDP، عميل HTTP، خادم HTTP، أدوات الشبكة، العناوين.
 //      كل دالة عربية تُربط بـ SIROpcode مقابل (BUILTIN_NET_*) الذي يُترجم
-//      لاحقاً في LLVM codegen إلى استدعاء دالة C API من stdlib/network.
+//      لاحقاً في LLVM codegen إلى استدعاء دالة C API من features/network/core.
 //      الأسماء العربية مأخوذة من shared/builtins/include/builtin_registry.h
 //      (فضاء Sad::Builtins::Names — أقسام Sockets, HttpClient, HttpServer, NetworkUtils).
 //      النمط المتبع مطابق لـ sir_builder_builtins_core.cpp و sir_builder_builtins_system.cpp:
@@ -19,7 +19,7 @@
 // (EN) Builds SIR instructions for network module builtin functions.
 //      Covers: TCP/UDP sockets, HTTP client, HTTP server, network utilities, addresses.
 //      Each Arabic function name maps to a BUILTIN_NET_* SIROpcode which is later
-//      translated in LLVM codegen to a C API call from stdlib/network.
+//      translated in LLVM codegen to a C API call from features/network/core.
 //      Arabic names come from shared/builtins/include/builtin_registry.h
 //      (Sad::Builtins::Names — Sockets, HttpClient, HttpServer, NetworkUtils sections).
 //      Pattern follows sir_builder_builtins_core.cpp and sir_builder_builtins_system.cpp:

@@ -124,7 +124,7 @@ include(${CMAKE_SOURCE_DIR}/reorganized.cmake)
 # 3. مجلدات التضمين / Include Directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/stdlib/network
+    ${CMAKE_SOURCE_DIR}/features/network/core
     ${CMAKE_SOURCE_DIR}/stdlib
     # (AR) Phase F-XX: أعيدت هيكلة shared/builtins/ إلى include/runtime + src/runtime
     # (EN) Phase F-XX: shared/builtins/ restructured to include/runtime + src/runtime

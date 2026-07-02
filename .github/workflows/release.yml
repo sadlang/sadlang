@@ -147,6 +147,8 @@ jobs:
           # نسخ المكتبة القياسية
           cp -r stdlib/* "$PKG_DIR/stdlib/" 2>/dev/null || true
           cp -r features/graphics/stdlib/* "$PKG_DIR/stdlib/" 2>/dev/null || true
+          # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
+          mkdir -p "$PKG_DIR/stdlib/network" && cp -r features/network/core/* "$PKG_DIR/stdlib/network/" 2>/dev/null || true
 
           # نسخ الملفات المرافقة
           cp README.md "$PKG_DIR/" 2>/dev/null || true
@@ -175,6 +177,9 @@ jobs:
           # المكتبة القياسية
           Copy-Item -Path "stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           Copy-Item -Path "features\graphics\stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
+          # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
+          New-Item -ItemType Directory -Path "$PKG_DIR\stdlib\network" -Force | Out-Null
+          Copy-Item -Path "features\network\core\*" -Destination "$PKG_DIR\stdlib\network\" -Recurse -ErrorAction SilentlyContinue
 
           # ملفات مرافقة
           Copy-Item "README.md" "$PKG_DIR\" -ErrorAction SilentlyContinue
@@ -370,6 +375,8 @@ jobs:
           cp build/bin/sad-fmt "$FULL_DIR/bin/" 2>/dev/null || true
           cp -r stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
           cp -r features/graphics/stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
+          # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
+          mkdir -p "$FULL_DIR/stdlib/network" && cp -r features/network/core/* "$FULL_DIR/stdlib/network/" 2>/dev/null || true
           cp README.md "$FULL_DIR/" 2>/dev/null || true
           tar -czf "${FULL_DIR}.tar.gz" "$FULL_DIR"
 
@@ -401,6 +408,9 @@ jobs:
           Copy-Item "$BIN\SDL2.dll" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
           Copy-Item -Path "stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           Copy-Item -Path "features\graphics\stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
+          # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
+          New-Item -ItemType Directory -Path "$FULL_DIR\stdlib\network" -Force | Out-Null
+          Copy-Item -Path "features\network\core\*" -Destination "$FULL_DIR\stdlib\network\" -Recurse -ErrorAction SilentlyContinue
           Copy-Item "README.md" "$FULL_DIR\" -ErrorAction SilentlyContinue
           Compress-Archive -Path "$FULL_DIR" -DestinationPath "${FULL_DIR}.zip"
 
