@@ -1,0 +1,47 @@
+# ======================================================================
+# (AR) حارس انجراف نحو TextMate: editors/grammars/sad.tmLanguage.json
+#      يجب أن يبقى مطابقًا لما يولّده language-truth — يمنع التحرير اليدويّ.
+# (EN) TextMate grammar drift guard: the committed grammar must match what
+#      language-truth generates — blocks hand edits / drift.
+# ======================================================================
+name: "🎨 TextMate Grammar — language-truth SoT"
+
+on:
+  push:
+    paths:
+      - "language-truth/keywords.yaml"
+      - "language-truth/types.yaml"
+      - "language-truth/operators.yaml"
+      - "language-truth/directives.yaml"
+      - "scripts/codegen/gen_tmgrammar.py"
+      - "editors/grammars/**"
+  pull_request:
+    branches: [ main, master, develop, dev, sadlang ]
+    paths:
+      - "language-truth/keywords.yaml"
+      - "language-truth/types.yaml"
+      - "language-truth/operators.yaml"
+      - "language-truth/directives.yaml"
+      - "scripts/codegen/gen_tmgrammar.py"
+      - "editors/grammars/**"
+
+concurrency:
+  group: tmgrammar-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tmgrammar-sync:
+    name: "🎨 فحص انجراف نحو TextMate / Grammar Drift Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v7
+
+      - name: "🐍 تثبيت Python + pyyaml"
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: "🔍 التحقّق: النحو المُلتزَم مطابق لما يولّده language-truth"
+        run: |
+          python3 scripts/codegen/gen_tmgrammar.py --check
