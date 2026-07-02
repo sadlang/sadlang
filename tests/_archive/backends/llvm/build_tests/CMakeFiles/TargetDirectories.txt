@@ -1,8 +1,0 @@
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/intrinsics_gen.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/omp_gen.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/acc_gen.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/RISCVTargetParserTableGen.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/llvm_backend_tests.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/RUN_TESTS.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/ALL_BUILD.dir
-C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/ZERO_CHECK.dir

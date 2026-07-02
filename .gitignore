@@ -3,7 +3,9 @@
 # ════════════════════════════════════════════════════════════════
 
 # ── مجلدات البناء / Build directories ──
-build/
+# (AR) مُرسًى بالجذر عمدًا: النمط غير المُرسى كان يتجاهل ملفّات جديدة تحت tools/build/ (مصادر حيّة) صامتًا
+# (EN) Anchored to root on purpose: the unanchored pattern silently ignored new files under tools/build/ (live sources)
+/build/
 build-debug/
 build_new/
 build_cov/
