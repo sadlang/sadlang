@@ -1,7 +1,7 @@
 # 📋 GOVERNANCE_DIGEST — ملخّص الحوكمة (مولَّد آليًّا)
 
 <!-- ⚠️ ملف مولَّد آليًّا — لا تُحرّره يدويًّا. -->
-<!-- مولَّد-من: بصمة=1378323475eb721e | المولّد=scripts/governance/gen_governance_digest.py -->
+<!-- مولَّد-من: بصمة=0dbe44a0f2ffa77e | المولّد=scripts/governance/gen_governance_digest.py -->
 <!-- إعادة التوليد: python scripts/governance/gen_governance_digest.py -->
 
 > هذا الـDigest بوابة الحوكمة المتدرّجة (ADR-GOV-001 / RFC sadlang/rfcs#5).
@@ -41,4 +41,4 @@
 | `ui_system` | ACTIVE — 2. تفصيل الباطن لكل منصة |
 
 ---
-<!-- نهاية الـDigest — بصمة=1378323475eb721e -->
+<!-- نهاية الـDigest — بصمة=0dbe44a0f2ffa77e -->
