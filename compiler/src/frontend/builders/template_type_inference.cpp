@@ -11,6 +11,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "builtin_registry.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -595,6 +596,22 @@ namespace Sad
                 if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                     return SadTypeKind::Struct;
 
+                // ================================================================
+                // (AR) نداء طريقة (معدّل انسيابيّ) على عنصر ⇒ يُرجع العنصر نفسه
+                //      (Pointer) للتسلسل. بدون هذا: متغيّر عامّ يُخزَّن كنتيجة
+                //      `عرض = نص_عنصر(..).حجم(..)` لا يُتتبَّع كـPointer عبر الدوال.
+                //      ⚠ قيدٌ معروف: مثيلُ صنفِ مستخدمٍ كائنُه Pointer وله طريقةٌ ذات
+                //        إرجاعٍ غير Pointer يُستنتَج Pointer خطأً هنا؛ نادر ومقبول
+                //        (المعدّلات الانسيابيّة على العناصر هي الحالة السائدة).
+                // (EN) Method call (fluent modifier) on a widget returns the widget
+                //      itself (Pointer) for chaining — keeps global widget vars typed.
+                //      ⚠ Known limit: a user-class instance (Pointer) with a non-Pointer
+                //        returning method is mis-inferred as Pointer here; rare, accepted.
+                // ================================================================
+                if (auto *mcall = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
+                    if (inferExprType(mcall->object.get()) == SadTypeKind::Pointer)
+                        return SadTypeKind::Pointer;
+
                 // (AR) ??????? ???? — ???? ?? ??? ??????? ?? b_.functionTable_
                 // (EN) Function call — look up return type in b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
@@ -619,11 +636,31 @@ namespace Sad
                         if (fname == "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9" || fname == "array")
                             return SadTypeKind::Array;
 
+                        // (AR) دالّة المستخدم أوّلًا: إن ظلَّل المستخدم اسمَ مصنع عنصر
+                        //      بدالّةٍ خاصّة كسبت الأسبقيّة — مطابقةً لترتيب مسار استنتاج
+                        //      نوع الإرجاع من الجسم (template_infer_return.cpp) فلا يتباعد
+                        //      المساران على الاسم نفسه.
+                        // (EN) User function first: a user-defined function shadowing a
+                        //      widget-factory name wins — mirrors the return-body path's
+                        //      order so both inference paths agree on the same name.
                         auto it = b_.functionTable_.find(fname);
                         if (it != b_.functionTable_.end())
                         {
                             return it->second.returnType;
                         }
+
+                        // ================================================================
+                        // (AR) مصانع عناصر الواجهة (UIWidgets) تُرجع «كائن» ⇒ مقبض عنصر
+                        //      (Pointer). نشتقّ ذلك من سجلّ المُدمَجات (returnType) لا من
+                        //      قائمة أسماء مثبّتة، فيمرّ المتغيّر العامّ عبر مسار SET_PROP
+                        //      الانسيابيّ (.محتوى/.لون…) بدل نداء دالّة غير معرَّفة.
+                        // (EN) UI widget factories return «كائن» ⇒ widget handle (Pointer).
+                        //      Derived from the builtin registry's returnType so a global
+                        //      widget var is tracked as Pointer across function boundaries.
+                        // ================================================================
+                        if (const auto *meta = Sad::Builtins::findBuiltinMeta(fname))
+                            if (TemplateBuilder::builtinReturnsToSIRKind(meta->returnType) == SadTypeKind::Pointer)
+                                return SadTypeKind::Pointer;
                     }
                     return SadTypeKind::Integer;
                 }

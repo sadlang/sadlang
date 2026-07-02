@@ -19,6 +19,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -82,6 +83,13 @@ namespace Sad
                 void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars);
 
                 SadTypeKind inferExprType(const Sad::AST::Expression *expr);
+
+                // (AR) تحويل نوع إرجاع مدمجة من مصدر الحقيقة (BuiltinMeta::returnType)
+                //      إلى SadTypeKind — مركزيّ يستهلكه مساراً الاستنتاج (الجسم + التعبير)
+                //      كي يبقيا مفتاحيْن على الحقل نفسه (returnType) لا على حقلين مختلفين.
+                // (EN) Central SoT-returnType → SadTypeKind mapping shared by both
+                //      inference paths (return-body & expr) so they key on one field.
+                static SadTypeKind builtinReturnsToSIRKind(std::string_view soTReturns);
 
                 std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments);
 

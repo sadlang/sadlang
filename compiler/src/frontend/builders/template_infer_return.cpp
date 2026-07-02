@@ -33,9 +33,19 @@ namespace Sad
             //      هنا وحده. اسمٌ فارغ/غير معروف ⇒ Unknown (يُترَك للاستنتاج، لا ينهار).
             //      ملاحظة: لا تزال المطابقة نصّيّة لأنّ SoT نصّيّ (yaml)؛ لكنّها ممركزة
             //      وموثَّقة بدل نثرها. الحلّ الأمتن (مخطَّط SoT يفرض أسماء الأنواع) شريحة أكبر.
-            static SadTypeKind builtinReturnsToSIRKind(std::string_view soTReturns)
+            namespace
             {
-                if (soTReturns == "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86") // كائن ⇒ مقبض عنصر
+                // (AR) الرابط النصّيّ الوحيد لقيمة `returns: كائن` من مصدر الحقيقة —
+                //      ثابت مسمّى مملوك للمترجم (لا يوسّع SoT اللغة). أيّ استهلاك آخر
+                //      يشير إليه بدل تكرار السلسلة. «كائن» = UTF-8: D9 83 D8 A7 D8 A6 D9 86.
+                // (EN) The single named binding for the SoT `returns: كائن` value —
+                //      compiler-owned constant (does not expand the language SoT).
+                constexpr std::string_view SOT_RETURNS_WIDGET_HANDLE = "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86";
+            } // namespace
+
+            SadTypeKind TemplateBuilder::builtinReturnsToSIRKind(std::string_view soTReturns)
+            {
+                if (soTReturns == SOT_RETURNS_WIDGET_HANDLE) // كائن ⇒ مقبض عنصر
                     return SadTypeKind::Pointer;
                 return SadTypeKind::Unknown;
             }
