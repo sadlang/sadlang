@@ -24,12 +24,12 @@ namespace Sad
     {
         namespace SIR
         {
-            // ????????????????????????????????????????????????????????????
-            // (AR) ????? ????? ????? — for lambda param type inference
-            //      ??????? ??? ????? namespace ????? ????? MSVC ?? static locals ?? lambdas
+            // ────────────────────────────────────────────────────────────
+            // (AR) جداول أسماء الطرق — لاستنتاج أنواع معاملات اللامدا
+            //      معرَّفة على مستوى namespace لتجنب مشاكل MSVC مع static locals في lambdas
             // (EN) Method name tables — for lambda param type inference
             //      Defined at namespace level to avoid MSVC issues with static locals in lambdas
-            // ????????????????????????????????????????????????????????????
+            // ────────────────────────────────────────────────────────────
             static const std::set<std::string> kStringMethodNames = {
                 "\xD8\xB7\xD9\x88\xD9\x84",                                                  // طول
                 "\xD9\x8A\xD8\xAD\xD8\xAA\xD9\x88\xD9\x8A",                                  // يحتوي
@@ -58,7 +58,7 @@ namespace Sad
                 "\xD8\xB4\xD8\xB1\xD9\x8A\xD8\xAD\xD8\xA9",                          // شريحة
             };
 
-            // (AR) ??? ????????? ????? ?? ????? (??????? ???????? ?????????)
+            // (AR) جمع المتغيرات الحرة في تعبير (لاكتشاف التقاط الإغلاقات)
             // (EN) Collect free variables in an expression (for closure capture detection)
             // ============================================================================
             void TemplateBuilder::collectFreeVarsExpr(Sad::AST::Expression *expr,
@@ -68,13 +68,13 @@ namespace Sad
                 if (!expr)
                     return;
 
-                // (AR) ????? - ??? ?? ??? ????????? ??? ???
+                // (AR) متغير - إذا لم يكن مربوطاً فهو حر
                 // (EN) Variable - if not bound, it's free
                 if (auto *var = dynamic_cast<Sad::AST::VariableExpr *>(expr))
                 {
                     if (boundNames.find(var->name) == boundNames.end())
                     {
-                        // (AR) ???? ?? ????? ?? ?????? ???????
+                        // (AR) تحقق من وجوده في النطاق الخارجي
                         // (EN) Check if it exists in the outer scope
                         auto *varOpt = b_.lookupVariable(var->name);
                         if (varOpt)
@@ -85,7 +85,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ??????
+                // (AR) عملية ثنائية
                 // (EN) Binary operation
                 if (auto *bin = dynamic_cast<Sad::AST::BinaryExpr *>(expr))
                 {
@@ -94,7 +94,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ??????
+                // (AR) عملية أحادية
                 // (EN) Unary operation
                 if (auto *un = dynamic_cast<Sad::AST::UnaryExpr *>(expr))
                 {
@@ -102,7 +102,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ??????? ????
+                // (AR) استدعاء دالة
                 // (EN) Function call
                 if (auto *call = dynamic_cast<Sad::AST::CallExpr *>(expr))
                 {
@@ -114,7 +114,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? ???
+                // (AR) وصول عضو
                 // (EN) Member access
                 if (auto *mem = dynamic_cast<Sad::AST::MemberAccessExpr *>(expr))
                 {
@@ -122,7 +122,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? ????
+                // (AR) وصول فهرس
                 // (EN) Index access
                 if (auto *idx = dynamic_cast<Sad::AST::IndexExpr *>(expr))
                 {
@@ -131,7 +131,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ???? ?????
+                // (AR) تعبير شرطي ثلاثي
                 // (EN) Ternary conditional
                 if (auto *tern = dynamic_cast<Sad::AST::TernaryExpr *>(expr))
                 {
@@ -141,7 +141,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ??????
+                // (AR) مصفوفة
                 // (EN) Array literal
                 if (auto *arr = dynamic_cast<Sad::AST::ArrayExpr *>(expr))
                 {
@@ -209,7 +209,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ??????? (?????? ????? ??????) - ???? ??????? ???
+                // (AR) القيم الحرفية (أعداد، نصوص، منطقية) - ليست متغيرات حرة
                 // (EN) Literals (numbers, strings, booleans) - not free variables
                 // No action needed for NumberLiteral, StringLiteral, BoolLiteral, NullLiteral
 
@@ -286,7 +286,7 @@ namespace Sad
             }
 
             // ============================================================================
-            // (AR) ??? ????????? ????? ?? ???? (??????)
+            // (AR) جمع المتغيرات الحرة في جملة (تعاودي)
             // (EN) Collect free variables in a statement (recursive)
             // ============================================================================
             void TemplateBuilder::collectFreeVarsStmt(Sad::AST::Statement *stmt,
@@ -296,7 +296,7 @@ namespace Sad
                 if (!stmt)
                     return;
 
-                // (AR) ???? ???
+                // (AR) جملة كتلة
                 // (EN) Block statement
                 if (auto *block = dynamic_cast<Sad::AST::BlockStmt *>(stmt))
                 {
@@ -307,7 +307,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ?????
+                // (AR) جملة تعبيرية
                 // (EN) Expression statement
                 if (auto *exprStmt = dynamic_cast<Sad::AST::ExprStmt *>(stmt))
                 {
@@ -318,7 +318,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ?????
+                // (AR) تصريح متغير
                 // (EN) Variable declaration
                 if (auto *varDecl = dynamic_cast<Sad::AST::VarDeclStmt *>(stmt))
                 {
@@ -330,7 +330,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ?????
+                // (AR) إرجاع
                 // (EN) Return
                 if (auto *ret = dynamic_cast<Sad::AST::ReturnStmt *>(stmt))
                 {
@@ -341,7 +341,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???
+                // (AR) شرط
                 // (EN) If statement
                 if (auto *ifStmt = dynamic_cast<Sad::AST::IfStmt *>(stmt))
                 {
@@ -357,7 +357,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? while
+                // (AR) حلقة while
                 // (EN) While loop
                 if (auto *whileStmt = dynamic_cast<Sad::AST::WhileStmt *>(stmt))
                 {
@@ -369,7 +369,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? for-each
+                // (AR) حلقة for-each
                 // (EN) For-each loop
                 if (auto *forStmt = dynamic_cast<Sad::AST::ForRangeStmt *>(stmt))
                 {
@@ -470,10 +470,10 @@ namespace Sad
             }
 
             // ============================================================================
-            // inferExprType - ??????? ??? SIR ?? ????? AST ???? ???? SIR
+            // inferExprType - استنتاج نوع SIR من تعبير AST داخل باني SIR
             // ============================================================================
-            // (AR) ??????? ?? ????? ??????? ??????? (??????? 1.7) ??????
-            //      ????? ??????? ?? ????? ?????????
+            // (AR) تُستخدم في مرحلة استدلال الأنواع (المرحلة 1.7) لتحديد
+            //      أنواع الوسائط في مواقع الاستدعاء
             // (EN) Used in type inference phase (Phase 1.7) to determine
             //      argument types at call sites
             // ============================================================================
@@ -482,7 +482,7 @@ namespace Sad
                 if (!expr)
                     return SadTypeKind::Integer;
 
-                // (AR) ???? — ?????? ????? ?? ??? ?????
+                // (AR) قيمة حرفية — استنتاج النوع من نوع الرمز
                 // (EN) Literal — infer type from token type
                 if (auto *lit = dynamic_cast<const Sad::AST::LiteralExpr *>(expr))
                 {
@@ -501,11 +501,11 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
-                // (AR) ????? — ???? ?? ???????? ??????? (?? ?????)
+                // (AR) متغير — ابحث في النطاقات الحالية (إن وُجدت)
                 // (EN) Variable — look up in current scopes (if available)
                 if (auto *var = dynamic_cast<const Sad::AST::VariableExpr *>(expr))
                 {
-                    // (AR) ??? ?? ???????? ???????
+                    // (AR) ابحث في النطاقات الحالية
                     // (EN) Look up in current scopes
                     for (auto scopeIt = b_.scopeStack_.rbegin(); scopeIt != b_.scopeStack_.rend(); ++scopeIt)
                     {
@@ -515,7 +515,7 @@ namespace Sad
                             return it->second.type;
                         }
                     }
-                    // (AR) ??? ?? ??????? ?????? ??????? ????? ??? ????? ????????? (Phase 1.7)
+                    // (AR) ابحث في معاملات الدالة الجاري مسحها ضمن مرحلة الاستدلال (Phase 1.7)
                     // (EN) Look up in current scanning function's parameters (Phase 1.7)
                     if (!b_.currentScanFuncName_.empty())
                     {
@@ -531,7 +531,7 @@ namespace Sad
                             }
                         }
                     }
-                    // (AR) ??? ?? ????????? ?????? (???????)
+                    // (AR) ابحث في المتغيرات العامة (الثوابت)
                     // (EN) Look up in global variables (constants)
                     if (b_.module_)
                     {
@@ -541,7 +541,7 @@ namespace Sad
                             return gv->type;
                         }
                     }
-                    // (AR) ??? DataType ?? AST
+                    // (AR) افحص DataType من AST
                     // (EN) Check AST DataType
                     auto dtype = var->getTypeKind();
                     if (dtype == Sad::Types::SadTypeKind::String)
@@ -553,13 +553,13 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
-                // (AR) ????? ????? — ??? ??? ??? ??????? ????? ??????? ?? (??? ????)
+                // (AR) تعبير ثنائي — إذا كان أحد الطرفين نصاً فالنتيجة نص (دمج نصي)
                 // (EN) Binary expr — if either side is string, result is string (concatenation)
                 if (auto *bin = dynamic_cast<const Sad::AST::BinaryExpr *>(expr))
                 {
                     SadTypeKind leftType = inferExprType(bin->left.get());
                     SadTypeKind rightType = inferExprType(bin->right.get());
-                    // (AR) ?????? `/` ????? ???? ?????? (??? ??????? ?????)
+                    // (AR) القسمة `/` تنتج عدداً عشرياً دائماً (حسب مواصفة اللغة)
                     // (EN) Division `/` always produces float (per language spec)
                     if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
                         return SadTypeKind::Float;
@@ -567,7 +567,7 @@ namespace Sad
                         return SadTypeKind::String;
                     if (leftType == SadTypeKind::Float || rightType == SadTypeKind::Float)
                         return SadTypeKind::Float;
-                    // (AR) ?????? ???????? ????? BOOL
+                    // (AR) عمليات المقارنة تُرجع BOOL
                     // (EN) Comparison ops return BOOL
                     switch (bin->op)
                     {
@@ -586,12 +586,12 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
-                // (AR) ?????? ?????
+                // (AR) مصفوفة حرفية
                 // (EN) Array literal
                 if (dynamic_cast<const Sad::AST::ArrayExpr *>(expr))
                     return SadTypeKind::Array;
 
-                // (AR) ????? ???? ????
+                // (AR) كائن جديد
                 // (EN) New object
                 if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                     return SadTypeKind::Struct;
@@ -612,7 +612,7 @@ namespace Sad
                     if (inferExprType(mcall->object.get()) == SadTypeKind::Pointer)
                         return SadTypeKind::Pointer;
 
-                // (AR) ??????? ???? — ???? ?? ??? ??????? ?? b_.functionTable_
+                // (AR) استدعاء دالة — ابحث عن نوع الإرجاع في b_.functionTable_
                 // (EN) Function call — look up return type in b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                 {
@@ -665,7 +665,7 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
-                // (AR) ????? ?????
+                // (AR) تعبير ثلاثي
                 // (EN) Ternary expression
                 if (auto *tern = dynamic_cast<const Sad::AST::TernaryExpr *>(expr))
                 {
@@ -678,14 +678,14 @@ namespace Sad
                     return trueType;
                 }
 
-                // (AR) ????? — ??? ?????? ????????
+                // (AR) إسناد — نوع القيمة المسندة
                 // (EN) Assignment — type of assigned value
                 if (auto *assign = dynamic_cast<const Sad::AST::AssignExpr *>(expr))
                 {
                     return inferExprType(assign->value.get());
                 }
 
-                // (AR) ????? ?????
+                // (AR) تعبير أحادي
                 // (EN) Unary expression
                 if (auto *unary = dynamic_cast<const Sad::AST::UnaryExpr *>(expr))
                 {
@@ -694,7 +694,7 @@ namespace Sad
                     return inferExprType(unary->operand.get());
                 }
 
-                // (AR) ??? DataType ?? ???????
+                // (AR) افحص DataType من التعبير
                 // (EN) Check DataType from expression
                 auto dtype = expr->getTypeKind();
                 if (dtype == Sad::Types::SadTypeKind::String)
@@ -708,13 +708,13 @@ namespace Sad
                 if (dtype == Sad::Types::SadTypeKind::Map)
                     return SadTypeKind::Map;
 
-                // (AR) ??????? — I64
+                // (AR) الافتراضي — I64
                 // (EN) Default — I64
                 return SadTypeKind::Integer;
             }
 
             // ============================================================================
-            // scanCallSitesInExpr - ??? ?????? ????????? ????? ?? ????????? ??????
+            // scanCallSitesInExpr - مسح مواقع الاستدعاء داخل التعبيرات لاستدلال أنواع الوسائط
             // ============================================================================
 
         } // namespace SIR

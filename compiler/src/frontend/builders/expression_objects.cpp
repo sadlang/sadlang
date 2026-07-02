@@ -1,15 +1,15 @@
 // ============================================================================
-// sir_builder_calls_objects.cpp - ???? ?????? ???????? (?????? ????? ??????? ?????)
+// sir_builder_calls_objects.cpp - بناء تعابير الكائنات (إنشاء الكائنات والوصول للأعضاء)
 // ============================================================================
-// ?????? / Author: Sad Compiler Team
-// ????? / Description:
-//   ??? ????? ????? ?????? ???? SIR ???????? ?????????:
-//   - buildNewObject: ????? ???? ???? (???? ???_?????(...))
-//   - buildMemberAccess: ?????? ????? ?????? (????.???)
-//   - b_.buildMethodCall: ??????? ????? ??? ???? (????.?????(...))
+// المؤلف / Author: Sad Compiler Team
+// الوصف / Description:
+//   هذا الملف يحتوي دوال بناء تعليمات SIR الخاصة بالكائنات والأصناف:
+//   - buildNewObject: إنشاء كائن جديد (جديد اسم_الصنف(...))
+//   - buildMemberAccess: الوصول لأعضاء الكائن (كائن.عضو)
+//   - b_.buildMethodCall: استدعاء طريقة على كائن (كائن.طريقة(...)) — نُقلت لاحقاً إلى call_method_dispatch.cpp (CW-05)
 //
-//   ?? ??? ??? ?????? ?? sir_builder_calls.cpp ???? ????? ??:
-//   - b_.buildFunctionCall: ??????? ???? ????? ?????? ??????
+//   تم فصل هذه الدوال عن sir_builder_calls.cpp الذي يحتوي على:
+//   - b_.buildFunctionCall: استدعاء الدوال العادية والدوال المدمجة
 // ============================================================================
 
 #include <string>
@@ -35,12 +35,12 @@ namespace Sad
         namespace SIR
         {
             // ============================================================================
-            // buildNewObject - ???? ????? ????? ???? ????
+            // buildNewObject - بناء تعليمات إنشاء كائن جديد
             // ============================================================================
-            // ???? ??????? / Source: class_nodes.h:164
-            // ??????? / Signature: BuildResult buildNewObject(AST::NewExpr* newExpr);
+            // مصدر التعريف / Source: class_nodes.h:164
+            // التوقيع / Signature: BuildResult buildNewObject(AST::NewExpr* newExpr);
             //
-            // ????????? / Parameters:
+            // المعاملات / Parameters:
             // - newExpr: AST::NewExpr* (class_nodes.h:164)
             //
             // NewExpr Members:
@@ -54,7 +54,7 @@ namespace Sad
                     return BuildResult();
                 }
 
-                // (AR) ?????? 1: ????? ?? ????? ?? ??????
+                // (AR) الخطوة 1: البحث عن الصنف في الوحدة
                 // (EN) Step 1: Find class in module
                 auto sirClass = b_.module_->getClass(newExpr->className);
                 if (!sirClass)
@@ -63,7 +63,7 @@ namespace Sad
                     return BuildResult();
                 }
 
-                // (AR) ?????? 2: ????? ????? ??????
+                // (AR) الخطوة 2: حجز ذاكرة للكائن
                 // (EN) Step 2: Allocate memory for object
                 std::string objReg = b_.newTempRegister();
 
@@ -72,20 +72,20 @@ namespace Sad
                     SIRInstruction allocInst;
                     allocInst.opcode = SIROpcode::ALLOC;
                     allocInst.result = SIROperand::Register(objReg, SadTypeKind::Integer);
-                    // (AR) ????? ??? ????? ?? metadata
+                    // (AR) إضافة اسم الصنف في metadata
                     // (EN) Add class name as metadata
                     allocInst.operands.push_back(SIROperand::ConstantString(newExpr->className));
                     b_.currentBlock_->addInstruction(allocInst);
                 }
 
-                // ???????????????????????????????????????????????????????????????
+                // ───────────────────────────────────────────────────────────────
                 // (AR) تهيئة حقول البنية بقيمها الافتراضية قبل أيّ باني (ISSUE-036)
                 //      المفسّر يطبّق الافتراضيّات دائماً؛ نطابقه هنا في codegen.
                 //      أيّ باني لاحق يكتب فوقها (الافتراضيّ ثم التعيين الصريح).
                 // (EN) Initialize struct fields with their defaults before any ctor (ISSUE-036)
                 //      The interpreter always applies defaults; we match that in codegen.
                 //      Any later constructor overwrites them (default first, then assignment).
-                // ???????????????????????????????????????????????????????????????
+                // ───────────────────────────────────────────────────────────────
                 auto defaultsIt = b_.structFieldDefaults_.find(newExpr->className);
                 if (defaultsIt != b_.structFieldDefaults_.end() && b_.currentBlock_)
                 {
@@ -158,11 +158,11 @@ namespace Sad
                 //      so we avoid emitting a CALL to an undefined symbol.
                 if (constructor)
                 {
-                    // (AR) ???? ??????? ??????
+                    // (AR) بناء وسائط الباني
                     // (EN) Build constructor arguments
                     std::vector<SIROperand> args;
 
-                    // (AR) ??????? ????? ?? ?????? ???? (self)
+                    // (AR) الوسيط الأول هو الكائن نفسه (self)
                     // (EN) First argument is the object itself (self)
                     args.push_back(SIROperand::Register(objReg, SadTypeKind::Integer));
 
@@ -171,7 +171,7 @@ namespace Sad
                     std::vector<std::string> argClassNames;
                     argClassNames.push_back(""); // self
 
-                    // (AR) ???? ?????????
+                    // (AR) بقية الوسائط
                     // (EN) Rest of arguments
                     for (const auto &arg : newExpr->arguments)
                     {
@@ -179,7 +179,7 @@ namespace Sad
                         argClassNames.push_back(argResult.className);
                         if (argResult.isConstant && !argResult.constantValue.empty())
                         {
-                            // ????? ?????? ??? ?????
+                            // تمرير الثوابت بحسب نوعها
                             switch (argResult.type)
                             {
                             case SadTypeKind::Integer:
@@ -202,7 +202,7 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ????? ?????? ??????? ??????
+                    // (AR) إنشاء تعليمة استدعاء الباني
                     // (EN) Create constructor call instruction
                     if (b_.currentBlock_)
                     {
@@ -217,18 +217,18 @@ namespace Sad
                         b_.currentBlock_->addInstruction(callInst);
                     }
 
-                    // ???????????????????????????????????????????????????????????????
-                    // (AR) ??????? ????? ?????? ?? ????? ??????? ???????
+                    // ───────────────────────────────────────────────────────────────
+                    // (AR) استنتاج أنواع الحقول من أنواع الوسائط الفعلية في موضع الاستدعاء
                     // (EN) Infer field types from actual argument types at call site
-                    // ???????????????????????????????????????????????????????????????
+                    // ───────────────────────────────────────────────────────────────
                     if (constructor)
                     {
                         const auto &params = constructor->getParameters();
                         // params[0] = self, params[1..N] = user params
                         // args[0] = self, args[1..N] = user args
 
-                        // (AR) ???? ?????: ???_??????? ? ???_??????
-                        // (EN) Build map: paramName ? argType
+                        // (AR) بناء خريطة: اسم_المعامل ← نوع_الوسيط
+                        // (EN) Build map: paramName → argType
                         std::unordered_map<std::string, SadTypeKind> paramTypes;
                         std::unordered_map<std::string, std::string> paramClassNames;
                         for (size_t i = 1; i < params.size() && i < args.size(); i++)
@@ -238,7 +238,7 @@ namespace Sad
                                 paramClassNames[params[i].name] = argClassNames[i];
                         }
 
-                        // (AR) ????? ???? ????? ??????
+                        // (AR) تحديث حقول الصنف الحالي
                         // (EN) Update current class fields
                         if (!sirClass->paramToFieldMap_.empty())
                         {
@@ -271,10 +271,10 @@ namespace Sad
                             }
                         }
 
-                        // ???????????????????????????????????????????????????????????????
-                        // (AR) ??? ????? ??????? ??? ????? ??????? (super constructor chain)
+                        // ───────────────────────────────────────────────────────────────
+                        // (AR) نشر أنواع الوسائط عبر سلسلة الوراثة (super constructor chain)
                         // (EN) Propagate arg types through inheritance chain (super ctor chain)
-                        // ???????????????????????????????????????????????????????????????
+                        // ───────────────────────────────────────────────────────────────
                         auto currentClass = sirClass;
                         auto currentParamTypes = paramTypes;
 
@@ -294,7 +294,7 @@ namespace Sad
 
                             const auto &parentParams = parentCtor->getParameters();
 
-                            // (AR) ???? ????? ????? ??????? ???? ?? superParamMapping
+                            // (AR) بناء أنواع معاملات باني الأب من superParamMapping
                             // (EN) Build parent param types from superParamMapping
                             std::unordered_map<std::string, SadTypeKind> parentParamTypes;
                             for (auto &[superIdx, childParamName] : currentClass->superParamMapping_)
@@ -310,7 +310,7 @@ namespace Sad
                                 }
                             }
 
-                            // (AR) ????? ???? ???? ???????? paramToFieldMap
+                            // (AR) تحديث حقول الأب باستخدام paramToFieldMap
                             // (EN) Update parent fields using paramToFieldMap
                             for (auto &[parentParamName, inferredType] : parentParamTypes)
                             {
@@ -324,7 +324,7 @@ namespace Sad
                                         inferredType != SadTypeKind::Pointer && inferredType != SadTypeKind::Void)
                                     {
                                         parentSirClass->fields_[fieldName] = inferredType;
-                                        // (AR) ????? ????? ?? ??????? (?????? ????????)
+                                        // (AR) التحديث أيضاً في الأبناء (الحقول الموروثة)
                                         // (EN) Also update in children (inherited fields)
                                         if (sirClass->fields_.count(fieldName))
                                         {
@@ -355,11 +355,11 @@ namespace Sad
                 std::cout << "[DEBUG] buildNewObject: object created in register '" << objReg << "'" << std::endl;
 #endif
 
-                // (AR) ???? ??? ?????? ???? ????? ????????? ??????
+                // (AR) تتبّع نوع الكائن لدعم إعادة تعريف العوامل
                 // (EN) Track object type for operator overloading support
                 b_.classInstanceTypes_[objReg] = newExpr->className;
 
-                // (AR) ????? ???? ?????? ?? ??? ????? — ??? STRUCT ???? I64
+                // (AR) إرجاع مؤشر للكائن مع اسم الصنف — النوع STRUCT وليس I64
                 // (EN) Return pointer to object with class name — STRUCT type not I64
                 BuildResult result(objReg, SadTypeKind::Struct);
                 result.className = newExpr->className;
@@ -367,12 +367,12 @@ namespace Sad
             }
 
             // ============================================================================
-            // buildMemberAccess - ???? ????? ?????? ???? ?? ????
+            // buildMemberAccess - بناء الوصول لعضو داخل كائن
             // ============================================================================
-            // ???? ??????? / Source: class_nodes.h:206
-            // ??????? / Signature: BuildResult buildMemberAccess(AST::MemberAccessExpr* memberExpr);
+            // مصدر التعريف / Source: class_nodes.h:206
+            // التوقيع / Signature: BuildResult buildMemberAccess(AST::MemberAccessExpr* memberExpr);
             //
-            // ????????? / Parameters:
+            // المعاملات / Parameters:
             // - memberExpr: AST::MemberAccessExpr* (class_nodes.h:206)
             //
             // MemberAccessExpr Members:
@@ -392,9 +392,9 @@ namespace Sad
 #endif
 
                 // ================================================================
-                // (AR) ??? ????: ?????? ???? ???? ??? ??? ?????
-                //      ????: ????.?????? — "????" ??? ??? ???? ?????
-                //      ???? ?? b_.staticFields_ ?? "????.??????" ?????? ???
+                // (AR) فحص مبكر: الوصول لحقل ساكن عبر اسم الصنف
+                //      مثال: عداد.القيمة — "عداد" اسم صنف وليس متغيراً
+                //      نبحث في b_.staticFields_ عن "عداد.القيمة" كمتغير عام
                 // (EN) Early check: static field access via class name
                 //      Example: Counter.value — "Counter" is class name, not variable
                 //      Look up "Counter.value" in b_.staticFields_ as global variable
@@ -445,7 +445,7 @@ namespace Sad
                     auto sfIt = b_.staticFields_.find(staticFieldName);
                     if (sfIt != b_.staticFields_.end())
                     {
-                        // (AR) ??? ???? — ????? ?? ????? ???
+                        // (AR) حقل ساكن — التحميل من متغير عام
                         // (EN) Static field — load from global variable
                         std::string loadReg = b_.newTempRegister();
                         if (b_.currentBlock_)
@@ -461,26 +461,26 @@ namespace Sad
                     }
                 }
 
-                // (AR) ?????? 1: ???? ????? ??????
+                // (AR) الخطوة 1: بناء تعبير الكائن
                 // (EN) Step 1: Build object expression
                 auto objResult = buildExpression(memberExpr->object.get());
 
                 // ================================================================
-                // (AR) ?????? 1.25: ??? ??? ??? ?????? ????? ?????? (Unit variant)
-                //      ?? ????? ????. ????? ??????? ???.???? (???? ?????):
-                //      - "???" ??? ??????? ??????? — ?? ??? ???????
-                //      - buildExpression("???") ????? ????? ????? ?? ??? ?????
-                //      - ??? ???? ?? ????? ?????? "???.????" ?????? ??? ?????
-                //      ???? ???: ????? ? = ???.???? ?????? 0 ????? ?? ??????? ??????
+                // (AR) الخطوة 1.25: فحص إن كان الوصول لمتغاير وحدة (Unit variant)
+                //      من تعداد ADT. عند استخدام شكل.نقطة (بدون أقواس):
+                //      - "شكل" ليس متغيراً حقيقياً — بل اسم نوع التعداد
+                //      - buildExpression("شكل") تُرجع نتيجة فارغة/غير صالحة
+                //      - لذا نبحث عن الاسم الكامل "شكل.نقطة" كمتغير عام مباشر
+                //      بدون هذا: متغير س = شكل.نقطة يخزن 0 بدلاً من الوسم الصحيح
                 // (EN) Step 1.25: Check if access is to a Unit variant of an ADT enum.
-                //      When ???.???? (without parens) is used:
-                //      - "???" isn't a real variable — it's the enum type name
-                //      - buildExpression("???") returns empty/invalid result
-                //      - So look up the full name "???.????" as a direct global variable
+                //      When شكل.نقطة (without parens) is used:
+                //      - "شكل" isn't a real variable — it's the enum type name
+                //      - buildExpression("شكل") returns empty/invalid result
+                //      - So look up the full name "شكل.نقطة" as a direct global variable
                 //      Without this: var s = Shape.Point stores 0 instead of correct tag
                 // ================================================================
                 {
-                    // (AR) ??????? ??? ?????? ?? VariableExpr
+                    // (AR) استخراج اسم الكائن من VariableExpr
                     // (EN) Extract object name from VariableExpr
                     std::string objName;
                     if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(memberExpr->object.get()))
@@ -492,13 +492,13 @@ namespace Sad
                     {
                         std::string fullName = objName + "." + memberExpr->memberName;
 
-                        // (AR) ?????: ??? ??? ??? ????? ?????? ??????? ?????? (Unit variant ???)
+                        // (AR) أولاً: فحص إن كان الاسم الكامل متغيراً مسجلاً (Unit variant عام)
                         // (EN) First: check if full name is a registered variable (global unit variant)
                         auto *varInfo = b_.lookupVariable(fullName);
                         if (varInfo)
                         {
-                            // (AR) ????? ??????? ?????? — ????? ?????
-                            //      ????: ???.???? ????? ?? global constant i64 2
+                            // (AR) وُجد المتغير مباشرة — نحمّل قيمته
+                            //      مثال: شكل.نقطة مسجل كـ global constant i64 2
                             // (EN) Found variable directly — load its value
                             //      Example: Shape.Point registered as global constant i64 2
                             if (varInfo->isGlobal && b_.currentBlock_)
@@ -517,10 +517,10 @@ namespace Sad
                     }
                 }
 
-                // (AR) ?????? 1.5: ??? ??? ??? ?????? ???? ????? ???? (ADT)
-                //      ??? ??? ?????? ?????? ?? objectClassMap_ ???? ADT
-                //      ?????? ENUM_GET_PAYLOAD ????? ?? LOAD ??????
-                //      ????: ?.???_????? ??? ? = ???.?????(5)
+                // (AR) الخطوة 1.5: فحص إن كان الكائن قيمة تعداد جبري (ADT)
+                //      إذا كان الكائن مسجلاً في objectClassMap_ كنوع ADT
+                //      نستخدم ENUM_GET_PAYLOAD بدلاً من LOAD العادي
+                //      مثال: س.نصف_القطر حيث س = شكل.دائرة(5)
                 // (EN) Step 1.5: Check if object is an ADT enum value
                 //      If object is registered in objectClassMap_ as ADT type
                 //      use ENUM_GET_PAYLOAD instead of regular LOAD
@@ -530,14 +530,14 @@ namespace Sad
                     auto adtIt = b_.adtEnumTable_.find(objResult.className);
                     if (adtIt != b_.adtEnumTable_.end())
                     {
-                        // (AR) ??? ???? ADT — ???? ?? ????? ??????
+                        // (AR) هذا كائن ADT — نبحث عن الحقل بالاسم
                         // (EN) This is an ADT object — look up field by name
                         const ADTEnumInfo &adtInfo = adtIt->second;
                         int fieldIdx = adtInfo.findFieldIndex(memberExpr->memberName);
 
                         if (fieldIdx >= 0)
                         {
-                            // (AR) ????? ????? — ??????? ??? ENUM_GET_PAYLOAD
+                            // (AR) وُجد الحقل — الاستخراج عبر ENUM_GET_PAYLOAD
                             // (EN) Found the field — extract via ENUM_GET_PAYLOAD
                             std::string resultReg = b_.newTempRegister();
 
@@ -565,18 +565,18 @@ namespace Sad
                             result.isFieldAccess = true;
                             return result;
                         }
-                        // (AR) ????? ??? ????? ?? ADT — ????? ?? ?????? ??????
+                        // (AR) الحقل غير موجود في ADT — نسقط إلى المسار العادي
                         // (EN) Field not found in ADT — fall through to regular path
                     }
                 }
 
-                // (AR) ?????? 2: ????? ?????? ?????? ????? (?????? ?????? ???????)
+                // (AR) الخطوة 2: إنشاء تعليمة الوصول للعضو (المسار العادي للأصناف)
                 // (EN) Step 2: Create member access instruction (regular path for classes)
                 std::string resultReg = b_.newTempRegister();
 
-                // (AR) ?????? ??????? ??? ????? ?? module
+                // (AR) محاولة استنتاج نوع العضو من module
                 // (EN) Try to infer member type from module
-                SadTypeKind memberType = SadTypeKind::Integer; // (AR) ???????
+                SadTypeKind memberType = SadTypeKind::Integer; // (AR) افتراضي
                 if (!objResult.className.empty() && b_.module_)
                 {
                     auto sirClass = b_.module_->getClass(objResult.className);
@@ -611,7 +611,7 @@ namespace Sad
                     // (EN) First operand: object
                     loadInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
 
-                    // (AR) ??????? ??????: ??? ????? (?? offset ?? ???)
+                    // (AR) المعامل الثاني: اسم العضو (كـ offset أو اسم)
                     // (EN) Second operand: member name (as offset or name)
                     loadInst.operands.push_back(SIROperand::ConstantString(memberExpr->memberName));
 

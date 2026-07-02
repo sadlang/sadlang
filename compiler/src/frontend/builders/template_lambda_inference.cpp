@@ -59,11 +59,11 @@ namespace Sad
                 if (!expr)
                     return;
 
-                // (AR) ??????? ???? � ?????? ????? ??????? ?????? b_.functionTable_
-                // (EN) Function call � infer arg types and update b_.functionTable_
+                // (AR) استدعاء دالة — استنتاج أنواع الوسائط وتحديث b_.functionTable_
+                // (EN) Function call — infer arg types and update b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                 {
-                    // (AR) ??????? ??? ??????
+                    // (AR) استخراج اسم الدالة
                     // (EN) Extract function name
                     std::string funcName;
                     if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
@@ -112,7 +112,7 @@ namespace Sad
                                 SadTypeKind argType = inferExprType(call->arguments[i].get());
                                 SadTypeKind &paramType = funcInfo.parameters[i + paramOffset].type;
 
-                                // (AR) ??? ??? ??????? I64 (??????? ?? UNKNOWN) ??????? ??? ???? ???????
+                                // (AR) إذا كان المعامل I64 (افتراضي من UNKNOWN) والوسيط ذو نوع أكثر تحديداً
                                 // (EN) If param is I64 (default from UNKNOWN) and arg is a more specific type
                                 if (paramType == SadTypeKind::Integer && argType == SadTypeKind::String)
                                 {
@@ -163,8 +163,8 @@ namespace Sad
                                 //      in sir_builder_calls.cpp via BOOL_TO_STRING/I64_TO_STRING
                                 else if (paramType == SadTypeKind::String && argType != SadTypeKind::String)
                                 {
-                                    // (AR) STRING ???? � ??????? ??? ??? ?????????
-                                    // (EN) STRING stays � conversion happens at call site
+                                    // (AR) STRING يبقى — التحويل يحدث عند موقع الاستدعاء
+                                    // (EN) STRING stays — conversion happens at call site
 #ifdef SIR_BUILDER_DEBUG
                                     std::cerr << "[TYPE-INFER] " << funcName << " param[" << i
                                               << "] '" << funcInfo.parameters[i + paramOffset].name
@@ -174,8 +174,8 @@ namespace Sad
                                 }
                                 else if (paramType != SadTypeKind::Integer && argType == SadTypeKind::String)
                                 {
-                                    // (AR) ????? ??? STRING � ???? ?? ????? ?????? ????????
-                                    // (EN) Promote to STRING � string is the widest comparable type
+                                    // (AR) ترقية إلى STRING — النص هو أوسع الأنواع القابلة للمقارنة
+                                    // (EN) Promote to STRING — string is the widest comparable type
                                     paramType = SadTypeKind::String;
 #ifdef SIR_BUILDER_DEBUG
                                     std::cerr << "[TYPE-INFER] " << funcName << " param[" << i
@@ -187,10 +187,10 @@ namespace Sad
                             }
 
                             // ================================================================
-                            // (AR) ??????? 1.75: ??????? ????? ??????? ?????????
-                            //      ????? ????? ???? (???? ?? b_.classInstanceTypes_) ?????
-                            //      ?????? ??? ????? ?? b_.paramClassTypes_ ????????? ??????
-                            //      ?? b_.buildFunction ??? ???? ??? ?????? + inferReturnTypeFromBody
+                            // (AR) المرحلة 1.75: استنتاج أسماء الأصناف لمعاملات الدوال
+                            //      عند تمرير كائن (متتبَّع في b_.classInstanceTypes_) كوسيط
+                            //      نسجّل اسم الصنف في b_.paramClassTypes_ للاستخدام اللاحق
+                            //      في b_.buildFunction عند بناء الجسم + inferReturnTypeFromBody
                             // (EN) Phase 1.75: Infer class names for function parameters
                             //      When an object (tracked in b_.classInstanceTypes_) is passed as arg
                             //      register class name in b_.paramClassTypes_ for later use
@@ -213,7 +213,7 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ??? ??????? ????? (?? ????? ??? ????????? ???????)
+                    // (AR) مسح الوسائط أيضاً (قد تحوي استدعاءات متداخلة)
                     // (EN) Scan arguments too (may contain nested calls)
                     for (const auto &arg : call->arguments)
                     {
@@ -223,14 +223,14 @@ namespace Sad
                 }
 
                 // ================================================================
-                // (AR) ????? ???? (NewExpr) � ??????? ????? ????? ??????
-                //      ??? CallExpr ??? ????? ?? "???.????" ???????? ????? ?? self
-                // (EN) New expression (NewExpr) � infer constructor arg types
-                //      Like CallExpr but name is "class.????" and first param is self
+                // (AR) تعبير الإنشاء (NewExpr) — استنتاج أنواع وسائط الباني
+                //      مثل CallExpr لكن الاسم "صنف.بناء" والمعامل الأول هو self
+                // (EN) New expression (NewExpr) — infer constructor arg types
+                //      Like CallExpr but name is "class.بناء" and first param is self
                 // ================================================================
                 if (auto *newExpr = dynamic_cast<const Sad::AST::NewExpr *>(expr))
                 {
-                    std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .????
+                    std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .بناء
                     auto it = b_.functionTable_.find(ctorName);
                     if (it != b_.functionTable_.end())
                     {
@@ -238,7 +238,7 @@ namespace Sad
                         // params[0] = self, params[1..N] = user params
                         for (size_t i = 0; i < newExpr->arguments.size(); i++)
                         {
-                            size_t paramIdx = i + 1; // +1 ????? self
+                            size_t paramIdx = i + 1; // +1 لتخطي self
                             if (paramIdx >= funcInfo.parameters.size())
                                 break;
 
@@ -256,17 +256,17 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ??? ????? NewExpr ?????
+                    // (AR) مسح وسائط NewExpr أيضاً
                     for (const auto &arg : newExpr->arguments)
                         scanCallSitesInExpr(arg.get());
                     return;
                 }
 
                 // ================================================================
-                // (AR) ??????? ????? � MethodCallExpr
-                //      ???????? ????? ??????? ?????? ??????? ???: ???.????("???")
-                //      ????? ?? b_.functionTable_ ???? "???.?????"
-                // (EN) Method call � MethodCallExpr
+                // (AR) استدعاء طريقة — MethodCallExpr
+                //      استنتاج أنواع المعاملات للطرق الساكنة مثل: صنف.طريقة("نص")
+                //      الاسم في b_.functionTable_ يكون "صنف.طريقة"
+                // (EN) Method call — MethodCallExpr
                 //      Infer param types for static methods like: Class.method("arg")
                 //      Name in b_.functionTable_ is "Class.method"
                 // ================================================================
@@ -305,7 +305,7 @@ namespace Sad
                                     paramType = SadTypeKind::Boolean;
                                 else if (paramType == SadTypeKind::String && argType != SadTypeKind::String)
                                 {
-                                    // (AR) STRING ???? � ??????? ??? ??? ?????????
+                                    // (AR) STRING يبقى — التحويل يحدث عند موقع الاستدعاء
                                 }
                                 else if (paramType != SadTypeKind::Integer && argType == SadTypeKind::String)
                                 {
@@ -315,22 +315,22 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ??? ??????? ??????? (?? ????? ??? ????????? ???????)
+                    // (AR) مسح وسائط الطريقة (قد تحوي استدعاءات متداخلة)
                     for (const auto &arg : methodCall->arguments)
                         scanCallSitesInExpr(arg.get());
                     scanCallSitesInExpr(methodCall->object.get());
                     return;
                 }
 
-                // (AR) ????? ???? ??? � ???? ?????? ????????
-                // (EN) Member access � scan object recursively
+                // (AR) وصول إلى عضو — نمسح الكائن تعاودياً
+                // (EN) Member access — scan object recursively
                 if (auto *memberAccess = dynamic_cast<const Sad::AST::MemberAccessExpr *>(expr))
                 {
                     scanCallSitesInExpr(memberAccess->object.get());
                     return;
                 }
 
-                // (AR) ????? ?????
+                // (AR) تعبير ثنائي
                 // (EN) Binary expression
                 if (auto *bin = dynamic_cast<const Sad::AST::BinaryExpr *>(expr))
                 {
@@ -339,7 +339,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ?????
+                // (AR) تعبير أحادي
                 // (EN) Unary expression
                 if (auto *unary = dynamic_cast<const Sad::AST::UnaryExpr *>(expr))
                 {
@@ -349,14 +349,14 @@ namespace Sad
             }
 
             // ============================================================================
-            // scanCallSitesInStmt - ??? ?????? ????? ????? ?? ????????? ??????
+            // scanCallSitesInStmt - مسح الجمل بحثاً عن مواقع الاستدعاء تعاودياً
             // ============================================================================
             void TemplateBuilder::scanCallSitesInStmt(const Sad::AST::Statement *stmt)
             {
                 if (!stmt)
                     return;
 
-                // (AR) ???? ???
+                // (AR) جملة كتلة
                 // (EN) Block statement
                 if (auto *block = dynamic_cast<const Sad::AST::BlockStmt *>(stmt))
                 {
@@ -367,7 +367,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? ????? (???? ????????? ?????? ????????)
+                // (AR) جملة تعبير (تشمل استدعاءات الدوال المستقلة)
                 // (EN) Expression statement (includes standalone function calls)
                 if (auto *exprStmt = dynamic_cast<const Sad::AST::ExprStmt *>(stmt))
                 {
@@ -375,7 +375,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ????? ?? ???????
+                // (AR) إعلان متغير مع مُهيِّئ
                 // (EN) Variable declaration with initializer
                 if (auto *varDecl = dynamic_cast<const Sad::AST::VarDeclStmt *>(stmt))
                 {
@@ -386,7 +386,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? ?????
+                // (AR) جملة شرطية
                 // (EN) If statement
                 if (auto *ifStmt = dynamic_cast<const Sad::AST::IfStmt *>(stmt))
                 {
@@ -397,7 +397,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? while
+                // (AR) حلقة while
                 // (EN) While loop
                 if (auto *whileStmt = dynamic_cast<const Sad::AST::WhileStmt *>(stmt))
                 {
@@ -406,7 +406,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? for-range
+                // (AR) حلقة for-range
                 // (EN) For-range loop
                 if (auto *forStmt = dynamic_cast<const Sad::AST::ForRangeStmt *>(stmt))
                 {
@@ -520,7 +520,7 @@ namespace Sad
             // ============================================================================
 
             // ============================================================================
-            // inferLambdaParamFromExpr � ????? ????? ???????? ????? ??????? ???????
+            // inferLambdaParamFromExpr — استنتاج أنواع معاملات اللامبدا من التعبيرات
             // ============================================================================
             void TemplateBuilder::inferLambdaParamFromExpr(
                 const ::Sad::AST::Expression *expr,
@@ -530,18 +530,18 @@ namespace Sad
                 if (!expr)
                     return;
 
-                // ????????????????????????????????????????????????????
-                // (AR) ????? ????? � ?????? ?????? ??????
-                //      ????: "????? " + ??? ? ??? ?? String
-                //      ????: ? + 3.14 ? ? ?? Float
-                // (EN) Binary expression � most common case
-                // ????????????????????????????????????????????????????
+                // ────────────────────────────────────────────────────
+                // (AR) تعبير ثنائي — الحالة الأكثر شيوعاً
+                //      مثال: "مرحباً " + اسم → اسم يصبح String
+                //      مثال: س + 3.14 → س يصبح Float
+                // (EN) Binary expression — most common case
+                // ────────────────────────────────────────────────────
                 if (auto *bin = dynamic_cast<const ::Sad::AST::BinaryExpr *>(expr))
                 {
                     inferLambdaParamFromExpr(bin->left.get(), paramNames, result);
                     inferLambdaParamFromExpr(bin->right.get(), paramNames, result);
 
-                    // (AR) فحص الطرفين: إذا كان أحد الطرفين معامل لامدا والآخر له نوع معروف
+                    // (AR) فحص الطرفين: إذا كان أحد الطرفين معامل لامبدا والآخر له نوع معروف
                     //      نستنتج نوع المعامل من السياق
                     //      مثال: "مرحباً " + اسم → اسم يصبح String
                     //      مثال: س + 3.14 → س يصبح Float
@@ -591,7 +591,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ??????? ????
+                // (AR) استدعاء دالة
                 if (auto *call = dynamic_cast<const ::Sad::AST::CallExpr *>(expr))
                 {
                     for (const auto &arg : call->arguments)
@@ -625,7 +625,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ??????? ????? � ???? ??? ??????
+                // (AR) استدعاء طريقة — نمسح كل الأجزاء
                 if (auto *methodCall = dynamic_cast<const ::Sad::AST::MethodCallExpr *>(expr))
                 {
                     inferLambdaParamFromExpr(methodCall->object.get(), paramNames, result);
@@ -643,13 +643,13 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ?????
+                // (AR) تعبير أحادي
                 if (auto *unary = dynamic_cast<const ::Sad::AST::UnaryExpr *>(expr))
                 {
                     inferLambdaParamFromExpr(unary->operand.get(), paramNames, result);
                     return;
                 }
-                // (AR) ????? ???? ?????
+                // (AR) تعبير شرطي ثلاثي
                 if (auto *tern = dynamic_cast<const ::Sad::AST::TernaryExpr *>(expr))
                 {
                     inferLambdaParamFromExpr(tern->condition.get(), paramNames, result);
@@ -657,31 +657,31 @@ namespace Sad
                     inferLambdaParamFromExpr(tern->falseExpr.get(), paramNames, result);
                     return;
                 }
-                // (AR) ???? ????
+                // (AR) وصول فهرس
                 if (auto *idx = dynamic_cast<const ::Sad::AST::IndexExpr *>(expr))
                 {
                     inferLambdaParamFromExpr(idx->object.get(), paramNames, result);
                     inferLambdaParamFromExpr(idx->index.get(), paramNames, result);
                     return;
                 }
-                // (AR) ???? ???
+                // (AR) وصول عضو
                 if (auto *mem = dynamic_cast<const ::Sad::AST::MemberAccessExpr *>(expr))
                 {
                     inferLambdaParamFromExpr(mem->object.get(), paramNames, result);
                     return;
                 }
-                // (AR) ?????? ?????
+                // (AR) مصفوفة حرفية
                 if (auto *arrLit = dynamic_cast<const ::Sad::AST::ArrayExpr *>(expr))
                 {
                     for (const auto &el : arrLit->elements)
                         inferLambdaParamFromExpr(el.get(), paramNames, result);
                     return;
                 }
-                // (AR) ????? ??????? � ??? ?????? ?????? ?? ????
+                // (AR) قيمة حرفية — لا تحوي معاملات، لا شيء يُستنتج
             }
 
             // ============================================================================
-            // inferLambdaParamFromStmt � ????? ???? ???????? ????? ??????? ???????
+            // inferLambdaParamFromStmt — استنتاج أنواع معاملات اللامبدا من الجمل
             // ============================================================================
             void TemplateBuilder::inferLambdaParamFromStmt(
                 const ::Sad::AST::Statement *stmt,
@@ -738,7 +738,7 @@ namespace Sad
             }
 
             // ============================================================================
-            // b_.inferLambdaParamTypes � ??????? ????? ??????? ??????? ?? ?????
+            // b_.inferLambdaParamTypes — استنتاج أنواع معاملات اللامبدا من الجسم
             // ============================================================================
             std::unordered_map<std::string, SadTypeKind> SIRBuilder::inferLambdaParamTypes(
                 ::Sad::AST::LambdaExpr *lambdaExpr,
@@ -746,7 +746,7 @@ namespace Sad
             {
                 std::unordered_map<std::string, SadTypeKind> result;
 
-                // (AR) ?????? 1: ??? ????? AST ???????
+                // (AR) الخطوة 1: أخذ أنواع AST الصريحة
                 for (const auto &param : lambdaExpr->parameters)
                 {
                     if (param.type != Types::SadTypeKind::Unknown)
@@ -755,7 +755,7 @@ namespace Sad
                 if (result.size() == lambdaExpr->parameters.size())
                     return result;
 
-                // (AR) ?????? 2: ????? ??? ???????
+                // (AR) الخطوة 2: تحليل جسم اللامبدا
                 if (lambdaExpr->body)
                     inferLambdaParamFromExpr(lambdaExpr->body.get(), paramNames, result);
                 if (lambdaExpr->blockBody)
@@ -773,11 +773,11 @@ namespace Sad
             }
 
             // ============================================================================
-            // inferParamTypesFromCallSites - ??????? 1.7: ??????? ????? ?????????
+            // inferParamTypesFromCallSites - المرحلة 1.7: استنتاج أنواع المعاملات
             // ============================================================================
-            // (AR) ???? ???????? ?????? ????? ?? ????? ????????? ??????
-            //      ????? ????????? ?? b_.functionTable_ ????? ???? ????? I64
-            //      (?? Unknown) ??????? ?????? ???? ???????
+            // (AR) يمسح البرنامج بأكمله بحثاً عن مواقع الاستدعاء ويحدّث
+            //      أنواع المعاملات في b_.functionTable_ عندما يكون النوع I64
+            //      (من Unknown) والوسيط الفعلي أكثر تحديداً
             // (EN) Scans the entire program for call sites and updates parameter
             //      types in b_.functionTable_ when type is I64 (from Unknown)
             //      and actual argument is more specific
@@ -787,8 +787,8 @@ namespace Sad
                 if (!program)
                     return;
 
-                // (AR) ??? ?? ????? ?? ???????? � ??? ???? ???????? ???? ??????
-                // (EN) Scan all statements � multiple passes for transitive inference
+                // (AR) مسح كل الجمل في البرنامج — عدة تمريرات للاستنتاج المتعدي
+                // (EN) Scan all statements — multiple passes for transitive inference
                 for (int pass = 0; pass < 3; pass++)
                 {
                     for (const auto &stmt : *program)
@@ -796,7 +796,7 @@ namespace Sad
                         if (!stmt)
                             continue;
 
-                        // (AR) ??? ????? ??????
+                        // (AR) مسح أجسام الدوال
                         // (EN) Scan function bodies
                         AST::FunctionDecl *funcDecl = nullptr;
                         if (auto fd = dynamic_cast<Sad::AST::FunctionDecl *>(stmt.get()))
@@ -825,7 +825,7 @@ namespace Sad
                             b_.currentScanFuncName_.clear();
                         }
 
-                        // (AR) ??? ????? ????????? ?? ??????? ??????
+                        // (AR) مسح الجمل التنفيذية في المستوى الأعلى
                         // (EN) Scan top-level executable statements
                         scanCallSitesInStmt(stmt.get());
                     }

@@ -38,10 +38,10 @@ namespace Sad
         namespace SIR
         {
             // ============================================================================
-            // buildMethodCall - ???? ??????? ????? ??? ????
+            // buildMethodCall - بناء استدعاء طريقة على كائن
             // ============================================================================
-            // ???? ??????? / Source: class_nodes.h:245
-            // ??????? / Signature: BuildResult buildMethodCall(AST::MethodCallExpr* methodCallExpr);
+            // مصدر التعريف / Source: class_nodes.h:245
+            // التوقيع / Signature: BuildResult buildMethodCall(AST::MethodCallExpr* methodCallExpr);
             //
             // MethodCallExpr Members:
             // - object: std::unique_ptr<Expr> (line 247)
@@ -60,9 +60,9 @@ namespace Sad
 #endif
 
                 // ================================================================
-                // (AR) ?????? ????: ??????? ???? ????? ??? ??? ?????
-                //      ????: ????.??() — "????" ??? ??? ???? ?????
-                //      ????? ??? ??? b_.staticMethods_ ??????? ???? self
+                // (AR) اعتراض مبكر: استدعاء طريقة ساكنة عبر اسم الصنف
+                //      مثال: عداد.زد() — "عداد" اسم صنف وليس متغيراً
+                //      نكشفها عبر b_.staticMethods_ ونستدعي بدون self
                 // (EN) Early intercept: static method call via class name
                 //      Example: Counter.increment() — "Counter" is class, not variable
                 //      Detect via b_.staticMethods_ and call without self
@@ -72,11 +72,11 @@ namespace Sad
                     std::string staticMethodKey = varExpr->name + "." + methodCallExpr->methodName;
                     if (b_.staticMethods_.count(staticMethodKey) > 0)
                     {
-                        // (AR) ???? ????? — ??????? ???? self
+                        // (AR) طريقة ساكنة — استدعاء بدون self
                         // (EN) Static method — call without self
                         std::string fullName = varExpr->name + "." + methodCallExpr->methodName;
 
-                        // (AR) ???? ??????? (???? self)
+                        // (AR) بناء الوسائط (بدون self)
                         // (EN) Build arguments (no self)
                         std::vector<SIROperand> args;
                         for (const auto &arg : methodCallExpr->arguments)
@@ -106,7 +106,7 @@ namespace Sad
                             }
                         }
 
-                        // (AR) ????? ??? ???????
+                        // (AR) تحديد نوع الإرجاع
                         // (EN) Determine return type
                         SadTypeKind returnType = SadTypeKind::Integer;
                         auto ftIt = b_.functionTable_.find(staticMethodKey);
@@ -130,19 +130,19 @@ namespace Sad
                     }
                 }
 
-                // (AR) ?????? 1: ???? ????? ??????
+                // (AR) الخطوة 1: بناء تعبير الكائن
                 // (EN) Step 1: Build object expression
                 auto objResult = b_.buildExpression(methodCallExpr->object.get());
 
-                // (AR) ?????? 2: ????? ??? ????? ?? ???????
+                // (AR) الخطوة 2: تحديد اسم الصنف من المتغير
                 // (EN) Step 2: Determine class name from variable
                 std::string className;
 
-                // (AR) ????? ????? ??? ????? ?? VariableExpr
+                // (AR) محاولة إيجاد اسم الصنف من VariableExpr
                 // (EN) Try to find class name from VariableExpr
                 if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
                 {
-                    // (AR) ????? ?? ??????? ??????? ?? b_.classInstanceTypes_
+                    // (AR) البحث عن معلومات المتغير في b_.classInstanceTypes_
                     // (EN) Look up variable info in b_.classInstanceTypes_
                     if (b_.classInstanceTypes_.find(varExpr->name) != b_.classInstanceTypes_.end())
                     {
@@ -158,7 +158,7 @@ namespace Sad
                     }
                 }
 
-                // (AR) ??? '???' (this), ?????? b_.currentClassName_
+                // (AR) إذا كان 'هذا' (this)، نستخدم b_.currentClassName_
                 // (EN) If 'this', use b_.currentClassName_
                 if (auto thisExpr = dynamic_cast<Sad::AST::ThisExpr *>(methodCallExpr->object.get()))
                 {
@@ -182,10 +182,10 @@ namespace Sad
                 }
 
                 // ================================================================
-                // (AR) ?????? ????: ??? ??????? ????? ??????
-                //      ??? ??? ?????? ???? (__channel__)? ????? ????????? ??????
-                //      ??? ?????? SIR ???? ?????? ?????? ????? ?? ???? ??????
-                //      ??? ?? ???? ??? ???? ????? ????? ????? ???? className
+                // (AR) اعتراض مبكر: طرق القنوات بصيغة النقطة
+                //      إذا كان الكائن قناة (__channel__)، نحوّل الاستدعاء مباشرة
+                //      إلى تعليمات SIR دون المرور بمسار استدعاء الطرق العادي
+                //      يجب أن يسبق كتلة البحث الذكي التي قد تمسح className
                 // (EN) Early intercept: channel dot-syntax methods
                 //      If object is a channel (__channel__), convert directly to SIR
                 //      Must be before smart lookup block which would clear className
@@ -288,11 +288,11 @@ namespace Sad
                         std::string candidate = className + "." + methodToFind;
                         if (b_.functionTable_.find(candidate) == b_.functionTable_.end())
                         {
-                            // (AR) ????? ?????? ?? ????? ??? ??? ??????? — ???? ?? ????? ???????
-                            //      ????: ???? ?? ???? ???() ? ???? ?? ??? (????) ? ???.???()
-                            //      ???: ?? ?????? b_.classInstanceTypes_ ??? ?????? ?? ???? ?? ??? ?????
+                            // (AR) الصنف الحالي لا يملك هذه الطريقة — نبحث في سلسلة الوراثة
+                            //      مثال: كلب لا يملك تنفس() ← نبحث في حيوان (الأب) ← حيوان.تنفس()
+                            //      مهم: لا نغيّر b_.classInstanceTypes_ — الكائن ما زال من نوع الابن
                             // (EN) Current class doesn't have this method — search inheritance chain
-                            //      e.g.: ???? doesn't have ???() ? search ??? (parent) ? ???.???()
+                            //      e.g.: كلب doesn't have تنفس() → search حيوان (parent) → حيوان.تنفس()
                             //      Important: don't change b_.classInstanceTypes_ — object is still child type
                             std::string searchClass = className;
                             bool foundInParent = false;
@@ -304,7 +304,7 @@ namespace Sad
                                 std::string parentCandidate = classInfo->parentClass + "." + methodToFind;
                                 if (b_.functionTable_.find(parentCandidate) != b_.functionTable_.end())
                                 {
-                                    // (AR) ???? ??????? ?? ???? — ???????? ???? ????? ??? ??????
+                                    // (AR) وجدنا الطريقة في الأب — نستخدمها دون تغيير نوع الكائن
                                     // (EN) Found method in parent — use it without changing object type
                                     className = classInfo->parentClass;
                                     foundInParent = true;
@@ -314,7 +314,7 @@ namespace Sad
                             }
                             if (!foundInParent)
                             {
-                                // (AR) ?? ????? ?? ????? ??????? — ???? ?? ????? ???? (???? ????)
+                                // (AR) لم توجد في سلسلة الوراثة — نبحث في أصناف أخرى (السلوك القديم)
                                 // (EN) Not found in inheritance chain — search other classes (legacy behavior)
                                 className.clear();
                             }
@@ -367,14 +367,14 @@ namespace Sad
                 // (EN) Step 3: Build arguments
                 std::vector<SIROperand> args;
 
-                // (AR) ??????? ?????: self (???? ??????)
+                // (AR) الوسيط الأول: self (مؤشر الكائن)
                 // (EN) First argument: self (object pointer)
                 args.push_back(SIROperand::Register(objResult.registerName, objResult.type));
 
-                // (AR) ???? ?????????
+                // (AR) بقية الوسائط
                 // (EN) Rest of arguments
-                // (AR) ???? ??? ??????? ???????? ???????? ???? ???????
-                //      ????? ???? ????????? ????? ??????? (?????/???/?????/???)
+                // (AR) تتبّع اسم دالة الإغلاق (اللامدا) ونوع إرجاعها
+                //      لازمة لطرق المصفوفات عالية الرتبة (خريطة/رشح/اختزل/لكل)
                 // (EN) Track closure lambda name and return type
                 //      Needed for higher-order array methods (map/filter/reduce/forEach)
                 std::string firstClosureLambdaName;
@@ -382,7 +382,7 @@ namespace Sad
                 for (const auto &arg : methodCallExpr->arguments)
                 {
                     auto argResult = b_.buildExpression(arg.get());
-                    // (AR) ???? ??? ????? (?????) ?????
+                    // (AR) تتبّع أول إغلاق (لامدا) مبني
                     // (EN) Track first closure (lambda) built
                     if (!argResult.closureLambdaName.empty() && firstClosureLambdaName.empty())
                     {
@@ -416,16 +416,16 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ?????? 3.5: ??? ????? ??????? ?????????
-                //      ? ?? ???? ????? ??????? ??? ??? ?????? ????? ????? ????? ???? ?????
-                //      ????: ??? ????? ????? ???? ???() — ??? ??????? ????? ????? ?? ARRAY_APPEND
+                // (AR) الخطوة 3.5: فحص طرق المصفوفات المدمجة
+                //      ⚠ نتخطى فحوص المدمجات إذا كان الكائن نسخة صنف يملك طريقة مطابقة
+                //      مثال: صنف مكدس يملك طريقة اضف() — يجب استدعاء طريقة الصنف لا ARRAY_APPEND
                 // (EN) Step 3.5: Check for builtin array methods
-                //      ? Skip builtin checks if the object is a class instance with a matching method
-                //      e.g.: class ????? has ???() method — should CALL class method, not ARRAY_APPEND
+                //      ⚠ Skip builtin checks if the object is a class instance with a matching method
+                //      e.g.: class مكدس has اضف() method — should CALL class method, not ARRAY_APPEND
                 // ========================================================================
                 std::string methodName = methodCallExpr->methodName;
 
-                // (AR) ???: ?? ??? ????? ??? ??????? ??? ??? ????? ??? ????? ???????
+                // (AR) فحص: هل هذه طريقة صنف مسجلة؟ إن كانت كذلك نتخطى فحوص المدمجات
                 // (EN) Check: is this a registered class method? If so, skip builtin checks
                 bool isRegisteredClassMethod = (!className.empty() &&
                                                 b_.functionTable_.find(fullMethodName) != b_.functionTable_.end());
@@ -757,11 +757,11 @@ namespace Sad
                     }
                 } // (AR) نهاية if (!isRegisteredClassMethod)
 
-                // (AR) ?????? 4: ??? ??? ???? ?????? ???? ADT
-                //      ??? ???? ?????? ????? ?????? ???.????? ??? ????? ?????? __adt_ctor_???_?????
-                //      ?????? ????? ??????? ????? self ?? ?????????
+                // (AR) الخطوة 4: فحص إن كانت الدالة باني تعداد ADT
+                //      إذا سُجلت باسم شكل.دائرة بينما اسمها الفعلي __adt_ctor_شكل_دائرة
+                //      نستخدم الاسم الحقيقي ونحذف self من الوسائط
                 // (EN) Step 4: Check if function is an ADT constructor
-                //      If registered as ???.????? but actual name is __adt_ctor_???_?????
+                //      If registered as شكل.دائرة but actual name is __adt_ctor_شكل_دائرة
                 //      use the real name and remove self from arguments
                 std::string callTargetName = fullMethodName;
                 bool isADTCtor = false;
@@ -769,7 +769,7 @@ namespace Sad
                 if (ftIt != b_.functionTable_.end())
                 {
                     const auto &fInfo = ftIt->second;
-                    // (AR) ??? ????? ??????? ???? ?? __adt_ctor_ ??? ???? ADT
+                    // (AR) إذا كان الاسم الحقيقي يبدأ بـ __adt_ctor_ فهو باني ADT
                     // (EN) If real name starts with __adt_ctor_ it's an ADT constructor
                     if (fInfo.name.find("__adt_ctor_") == 0)
                     {
@@ -778,18 +778,18 @@ namespace Sad
                     }
                 }
 
-                // (AR) ?????? 5: ????? ?????? CALL
+                // (AR) الخطوة 5: إنشاء تعليمة CALL
                 // (EN) Step 5: Create CALL instruction
                 std::string resultReg = b_.newTempRegister();
 
-                // (AR) ???: ?? ????????? ??? «???» ? ??? ??????? OBJECT_CALL ??????? ?????????
-                //      ??? ??????? ??????? ?? ???? ????? ??? ??????? (???? ???????)
-                //      ????: ???? ???.???() ? ???.???() ??? ?? ??? ??? vtable
-                //             ???? ??? ?????? ?????2 ? ???????? ?????2.???() ?? ???.???()
-                // (EN) Check: is call on `this`? ? use OBJECT_CALL for virtual dispatch
+                // (AR) فحص: هل الاستدعاء على «هذا»؟ ← نستخدم OBJECT_CALL للتوزيع الافتراضي
+                //      الأصناف الابنة قد تعيد تعريف هذه الطريقة (تعدد الأشكال)
+                //      مثال: داخل شكل.ارسم() ← هذا.ارسم() يجب أن يمر عبر vtable
+                //             فإذا كان الكائن دائرة2 ← يُستدعى دائرة2.ارسم() لا شكل.ارسم()
+                // (EN) Check: is call on `this`? → use OBJECT_CALL for virtual dispatch
                 //      Subclasses may override this method (polymorphism)
-                //      e.g.: inside ???.???() ? ???.???() should go through vtable
-                //             if object is ?????2 ? calls ?????2.???() not ???.???()
+                //      e.g.: inside شكل.ارسم() → هذا.ارسم() should go through vtable
+                //             if object is دائرة2 → calls دائرة2.ارسم() not شكل.ارسم()
                 bool isThisCall = dynamic_cast<Sad::AST::ThisExpr *>(methodCallExpr->object.get()) != nullptr;
 
                 // (AR) نستخدم OBJECT_CALL عند الحاجة الفعلية لتعدد الأشكال:
@@ -944,16 +944,16 @@ namespace Sad
                 {
                     if ((isThisCall || isObjectCall) && !isADTCtor)
                     {
-                        // (AR) ??????? ????????? ??? vtable — OBJECT_CALL
+                        // (AR) التوزيع الافتراضي عبر vtable — OBJECT_CALL
                         // (EN) Virtual dispatch through vtable — OBJECT_CALL
                         SIRInstruction callInst;
                         callInst.opcode = SIROpcode::OBJECT_CALL;
                         callInst.result = SIROperand::Register(resultReg, returnType);
-                        // operand[0]: self (???? ??????)
+                        // operand[0]: self (مؤشر الكائن)
                         callInst.operands.push_back(args[0]);
-                        // operand[1]: ??? ??????? (???? ???? ????? ?????)
+                        // operand[1]: اسم الطريقة (كنص يُحلّ وقت التشغيل)
                         callInst.operands.push_back(SIROperand::ConstantString(methodCallExpr->methodName));
-                        // operand[2+]: ????????? ????????
+                        // operand[2+]: المعاملات الإضافية
                         for (size_t i = 1; i < args.size(); ++i)
                         {
                             callInst.operands.push_back(args[i]);
@@ -969,7 +969,7 @@ namespace Sad
                         callInst.result = SIROperand::Register(resultReg, returnType);
                         callInst.operands.push_back(SIROperand::Function(callTargetName));
 
-                        // (AR) ?????? ADT ?? ???? self ?????? ??? — ????? args[0] (??? self)
+                        // (AR) بواني ADT لا تأخذ self كوسيط أول — نتخطى args[0] (وهو self)
                         // (EN) ADT constructors don't take self as first arg — skip args[0] (which is self)
                         size_t startIdx = isADTCtor ? 1 : 0;
                         for (size_t i = startIdx; i < args.size(); ++i)
@@ -985,15 +985,15 @@ namespace Sad
 #endif
 
                 // ================================================================
-                // (AR) ??? ??? ????? ??????? (returnClassName) ??? BuildResult
-                //      ??? ????? ??? ???? ??????? ??? ?????? ??????? ?? ????????? ???????.
-                //      ???? ???: ?????? ????? ???? ????? ?? method call ????
-                //      ????: ????? ? = ???.?????(5) ? ?.???_????? ????? ????? ?? ? ?? ??? "???"
-                //      ???? ?? ADT constructors ?????? ??????? ???????
+                // (AR) نشر اسم صنف القيمة المعادة (returnClassName) إلى BuildResult
+                //      ضروري ليعرف المترجم نوع صنف الكائن المعاد من الاستدعاء.
+                //      بدون هذا: يفشل الوصول لحقول كائنات معادة من method call
+                //      مثال: متغير س = شكل.دائرة(5) ← س.نصف_القطر يحتاج معرفة أن س من النوع "شكل"
+                //      يعمل مع بواني ADT وطرق الأصناف العادية
                 // (EN) Propagate returnClassName to BuildResult
                 //      Necessary so compiler knows the returned object's class type.
                 //      Without this: field access on objects from method calls fails
-                //      Example: var s = Shape.Circle(5) ? s.radius needs to know s is type "Shape"
+                //      Example: var s = Shape.Circle(5) → s.radius needs to know s is type "Shape"
                 //      Works for ADT constructors and regular class methods
                 // ================================================================
                 BuildResult methodResult(resultReg, returnType);

@@ -39,8 +39,8 @@ namespace Sad
                     return result;
                 }
 
-                // (AR) ?????? / replace � ??????? ?? ????
-                // (EN) replace � replace substring
+                // (AR) استبدل / replace — استبدال نص فرعي
+                // (EN) replace — replace substring
                 if (methodName == TM::String::REPLACE)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -48,16 +48,16 @@ namespace Sad
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
                     if (args.size() > 1)
-                        inst.operands.push_back(args[1]); // (AR) ???? ??????
+                        inst.operands.push_back(args[1]); // (AR) النص القديم
                     if (args.size() > 2)
-                        inst.operands.push_back(args[2]); // (AR) ???? ??????
+                        inst.operands.push_back(args[2]); // (AR) النص الجديد
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-                // (AR) ????_?? / starts_with � ??? ????? ????
-                // (EN) starts_with � check if string starts with prefix
+                // (AR) يبدأ_بـ / starts_with — فحص بادئة النص
+                // (EN) starts_with — check if string starts with prefix
                 if (methodName == TM::String::STARTS_WITH)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -71,8 +71,8 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
-                // (AR) ?????_?? / ends_with � ??? ????? ????
-                // (EN) ends_with � check if string ends with suffix
+                // (AR) ينتهي_بـ / ends_with — فحص خاتمة النص
+                // (EN) ends_with — check if string ends with suffix
                 if (methodName == TM::String::ENDS_WITH)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -86,8 +86,8 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
-                // (AR) ?? / trim � ????? ???????? ?? ???????
-                // (EN) trim � remove whitespace from both ends
+                // (AR) قص / trim — إزالة الفراغات من الطرفين
+                // (EN) trim — remove whitespace from both ends
                 if (methodName == TM::String::TRIM)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -99,8 +99,8 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-                // (AR) ??? / substring � ??????? ??? ?? ????
-                // (EN) substring � extract part of string
+                // (AR) جزء / substring — استخراج جزء من النص
+                // (EN) substring — extract part of string
                 if (methodName == TM::String::SUBSTRING)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -108,9 +108,9 @@ namespace Sad
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
                     if (args.size() > 1)
-                        inst.operands.push_back(args[1]); // (AR) ???? ???????
+                        inst.operands.push_back(args[1]); // (AR) فهرس البداية
                     if (args.size() > 2)
-                        inst.operands.push_back(args[2]); // (AR) ????? (???????)
+                        inst.operands.push_back(args[2]); // (AR) الطول (اختياري)
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::String);
@@ -239,8 +239,8 @@ namespace Sad
                     return res;
                 }
 
-                // (AR) ??? / values � ????? ?????? ??? ???????
-                // (EN) values � return array of map values
+                // (AR) قيم / values — إرجاع مصفوفة قيم الخريطة
+                // (EN) values — return array of map values
                 if (methodName == TM::Map::VALUES)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -257,8 +257,8 @@ namespace Sad
                     return res;
                 }
 
-                // (AR) ??? / size � ??? ????? ???????
-                // (EN) size � number of map entries
+                // (AR) حجم / size — عدد عناصر الخريطة
+                // (EN) size — number of map entries
                 if (methodName == TM::Map::SIZE)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -273,11 +273,11 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ????? / empty � ?? ??????? ?????
-                // (EN) empty � is map empty
+                // (AR) فارغة / empty — هل الخريطة فارغة
+                // (EN) empty — is map empty
                 if (methodName == TM::Map::IS_EMPTY)
                 {
-                    // (AR) ??? ? ?? ?????? == 0 ??? SIR EQ
+                    // (AR) حجم → ثم مقارنة == 0 عبر SIR EQ
                     std::string sizeReg = b_.newTempRegister();
                     SIRInstruction sizeInst;
                     sizeInst.opcode = SIROpcode::CALL;
@@ -298,8 +298,8 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
-                // (AR) ????? / contains / has � ??? ???? ?????
-                // (EN) contains / has � check if key exists
+                // (AR) يحتوي / contains / has — فحص وجود مفتاح
+                // (EN) contains / has — check if key exists
                 if (methodName == TM::Map::CONTAINS)
                 {
                     std::string resultReg = b_.newTempRegister();

@@ -29,7 +29,7 @@ namespace Sad
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
-                    // (AR) ??????? ?????: ????????? ??????: ?????? ???????
+                    // (AR) المعامل الأول: المصفوفة، الثاني: العنصر المُضاف
                     // (EN) First operand: array, Second: element to add
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (args.size() > 1)
@@ -43,14 +43,14 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Void);
                 }
 
-                // (AR) ??? / size - ?????? ??? ??? ???????? ?? ??? ????
+                // (AR) الطول / size - إرجاع حجم المصفوفة أو طول النص
                 // (EN) size / length - get array size or string length
-                // (AR) ? ????? ??? ???????? ?????: ??? ??? ?????? ???? ? BUILTIN_STRING_LENGTH
-                // (EN) ? Disambiguate: if object is string ? BUILTIN_STRING_LENGTH
+                // (AR) — تمييز حسب نوع الكائن: إذا كان الكائن نصاً → BUILTIN_STRING_LENGTH
+                // (EN) — Disambiguate: if object is string → BUILTIN_STRING_LENGTH
                 if (methodName == TM::Array::LENGTH)
                 {
-                    // (AR) ??????: ?? ?????? ??? ? ?????? BUILTIN_STRING_LENGTH
-                    // (EN) Check: is object a string? ? use BUILTIN_STRING_LENGTH
+                    // (AR) التحقق: هل الكائن نص؟ → استخدم BUILTIN_STRING_LENGTH
+                    // (EN) Check: is object a string? → use BUILTIN_STRING_LENGTH
                     if (objResult.type == SadTypeKind::String)
                     {
                         std::string resultReg = b_.newTempRegister();
@@ -61,8 +61,8 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(inst);
                         return BuildResult(resultReg, SadTypeKind::Integer);
                     }
-                    // (AR) ???? ???: ?????? ? ARRAY_LEN
-                    // (EN) Otherwise: array ? ARRAY_LEN
+                    // (AR) خلاف ذلك: مصفوفة → ARRAY_LEN
+                    // (EN) Otherwise: array → ARRAY_LEN
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ARRAY_LEN);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -72,26 +72,26 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ??? / pop - ????? ??? ????
+                // (AR) أزل / pop - إزالة آخر عنصر
                 // (EN) pop / remove - remove last element
                 if (methodName == TM::Array::REMOVE)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer); // (AR) ?????? ???????
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer); // (AR) العنصر المحذوف
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ????? / empty - ?????? ??? ???? ???????? ?????
+                // (AR) فارغة / empty - التحقق إن كانت المصفوفة فارغة
                 // (EN) empty / is_empty - check if array is empty
-                // (AR) ?????? ARRAY_LEN ?????? ?? 0
+                // (AR) نستخدم ARRAY_LEN ونقارن مع 0
                 // (EN) Use ARRAY_LEN and compare with 0
                 if (methodName == TM::Array::IS_EMPTY)
                 {
-                    // (AR) ?????? 1: ?????? ??? ?????
+                    // (AR) الخطوة 1: الحصول على الحجم
                     // (EN) Step 1: Get size
                     std::string sizeReg = b_.newTempRegister();
                     SIRInstruction sizeInst(SIROpcode::ARRAY_LEN);
@@ -100,7 +100,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(sizeInst);
 
-                    // (AR) ?????? 2: ?????? size == 0
+                    // (AR) الخطوة 2: مقارنة size == 0
                     // (EN) Step 2: Compare size == 0
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction cmpInst(SIROpcode::EQ);
@@ -114,23 +114,23 @@ namespace Sad
                 }
 
                 // ================================================================
-                // (AR) Fix #48: ??? ????????? ??????? ????????
-                //      ??? ????? ???? ?????? ?? LLVM codegen (??? opcodes) ???
-                //      ?? ??? ?????? ?? SIR builder — ??? ???? crash ??? ?????????
-                //      ??? ????????? ???? ??? CALL ????? ???? ???? runtime ??????
+                // (AR) Fix #48: طرق المصفوفات المدمجة الإضافية
+                //      هذه الطرق كانت مدعومة في LLVM codegen (لها opcodes) لكن
+                //      لم تكن موصولة في SIR builder — مما سبّب crash عند استدعائها
+                //      طرق الخرائط تولّد الآن CALL لدوال جسر الـ runtime مباشرة
                 // (EN) Fix #48: Additional builtin array methods
                 //      These methods had opcodes & LLVM codegen support but were not
                 //      wired in SIR builder — causing ACCESS_VIOLATION crashes
                 // ================================================================
 
-                // (AR) ????? / contains — ??? ???? ???? ?? ???????? ?? ?? ???? ?? ????
+                // (AR) يحتوي / contains — فحص وجود عنصر في المصفوفة أو نص فرعي في نص
                 // (EN) contains — check if element exists in array or substring in string
                 // (AR) — تمييز: إذا كان الكائن نصاً → BUILTIN_STRING_CONTAINS
                 // (EN) — Disambiguate: if object is string → BUILTIN_STRING_CONTAINS
                 if (methodName == TM::Array::CONTAINS)
                 {
-                    // (AR) ??????: ?? ?????? ??? ? ?????? BUILTIN_STRING_CONTAINS
-                    // (EN) Check: is object a string? ? use BUILTIN_STRING_CONTAINS
+                    // (AR) التحقق: هل الكائن نص؟ → استخدم BUILTIN_STRING_CONTAINS
+                    // (EN) Check: is object a string? → use BUILTIN_STRING_CONTAINS
                     if (objResult.type == SadTypeKind::String)
                     {
                         std::string resultReg = b_.newTempRegister();
@@ -143,8 +143,8 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(inst);
                         return BuildResult(resultReg, SadTypeKind::Boolean);
                     }
-                    // (AR) ?? ?????? ?????? ? ?????? __sad_map_has
-                    // (EN) Is object a map? ? use __sad_map_has
+                    // (AR) هل الكائن خريطة؟ → استخدم __sad_map_has
+                    // (EN) Is object a map? → use __sad_map_has
                     if (objResult.type == SadTypeKind::Map)
                     {
                         std::string resultReg = b_.newTempRegister();
@@ -160,8 +160,8 @@ namespace Sad
                             b_.currentBlock_->addInstruction(inst);
                         return BuildResult(resultReg, SadTypeKind::Boolean);
                     }
-                    // (AR) ???? ???: ?????? ? BUILTIN_ARRAY_CONTAINS
-                    // (EN) Otherwise: array ? BUILTIN_ARRAY_CONTAINS
+                    // (AR) خلاف ذلك: مصفوفة → BUILTIN_ARRAY_CONTAINS
+                    // (EN) Otherwise: array → BUILTIN_ARRAY_CONTAINS
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_CONTAINS);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -204,7 +204,7 @@ namespace Sad
                     return result;
                 }
 
-                // (AR) ??? / ???? / ??? / reverse — ??? ????? ????? ????????
+                // (AR) عكس / reverse — عكس ترتيب عناصر المصفوفة في مكانها
                 // (EN) reverse — reverse array elements in-place
                 if (methodName == TM::Array::REVERSE)
                 {
@@ -217,7 +217,7 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
 
-                // (AR) ???? / indexOf — ????? ???? ??? ???? ?????
+                // (AR) فهرس / indexOf — إيجاد فهرس أول ظهور للعنصر
                 // (EN) indexOf — find index of first occurrence (-1 if not found)
                 if (methodName == TM::Array::INDEX_OF)
                 {
@@ -234,7 +234,7 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ??? / first — ?????? ??? ??? ???? ?? ????????
+                // (AR) أول / first — الحصول على أول عنصر من المصفوفة
                 // (EN) first — get first element of the array
                 if (methodName == TM::Array::FIRST)
                 {
@@ -247,7 +247,7 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ??? / last — ?????? ??? ??? ???? ?? ????????
+                // (AR) آخر / last — الحصول على آخر عنصر من المصفوفة
                 // (EN) last — get last element of the array
                 if (methodName == TM::Array::LAST)
                 {
@@ -260,7 +260,7 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ????? / slice — ??????? ??? ?? ????????
+                // (AR) شريحة / slice — استخراج جزء من المصفوفة
                 // (EN) slice — extract a sub-array from start to end
                 if (methodName == TM::Array::SLICE)
                 {
@@ -268,7 +268,7 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SLICE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    // (AR) ??????? ??????: ????? ???????? ??????: ????? ???????
+                    // (AR) الوسيط الثاني: فهرس البداية، الثالث: فهرس النهاية
                     // (EN) Second arg: start index, Third: end index
                     if (args.size() > 1)
                         inst.operands.push_back(args[1]);
@@ -279,8 +279,8 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
 
-                // (AR) ????_???? / pop — ????? ??? ???? (????? ?? ???)
-                // (EN) pop — remove and return last element (alias for ???)
+                // (AR) احذف_اخير / pop — إزالة آخر عنصر (مرادف لـ أزل)
+                // (EN) pop — remove and return last element (alias for أزل)
                 if (methodName == TM::Array::POP)
                 {
                     std::string resultReg = b_.newTempRegister();
@@ -292,7 +292,7 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ????? / ????? — ????? ????? (???? ????? ?? ??? ???????)
+                // (AR) الطول / الحجم — خاصية الطول (تصل أحياناً عبر اسم مرادف)
                 // (EN) length property (aliased)
                 if (methodName == TM::Array::LENGTH)
                 {

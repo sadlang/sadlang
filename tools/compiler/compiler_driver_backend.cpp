@@ -1,12 +1,12 @@
 // بسم الله الرحمن الرحيم
 // ============================================================================
 // Compiler Driver — Backend (Middle-end + Code Generation)
-// ?????? — ??????? ??????? (??????? ?????? + ????? ?????)
+// مشغّل المترجم — الواجهة الخلفية (المرحلة الوسطى + توليد الكود)
 // ============================================================================
-// ??? ????? ????? ???:
-//   - run_middleend()         : ????? SIR ?????? (O0-O3)
-//   - run_backend()           : ????? LLVM IR/BC/OBJ/ASM/EXE + ???????
-//   - print_ir_if_requested() : ????? SIR ??? ????
+// هذا الملف يحتوي على:
+//   - run_middleend()         : تحسين SIR الوسيط (O0-O3)
+//   - run_backend()           : توليد LLVM IR/BC/OBJ/ASM/EXE + الربط
+//   - print_ir_if_requested() : طباعة SIR عند الطلب
 // ============================================================================
 
 #include "compiler_driver.h"
@@ -55,24 +55,24 @@ namespace sad
         {
             if (options_.verbose)
             {
-                std::cout << "  [5/5] Optimizing... / ???????...\n";
+                std::cout << "  [5/5] Optimizing... / التحسين...\n";
             }
 
             // ========================================================================
-            // (AR) ????? ??????? ?????? — SIR Optimizer
-            //      ??? ??????? ?????? ??????? ??????? ??? ????? SIR ?????? ???
-            //      ?????? ??? LLVM IR. ????????? ???????? ??? ????? ???????:
+            // (AR) مرحلة التحسين الوسيطة — SIR Optimizer
+            //      هذه المرحلة تطبّق ممرات التحسين على تمثيل SIR الوسيط قبل
+            //      التحويل إلى LLVM IR. الممرات المدعومة حسب مستوى التحسين:
             //
-            //      O0: ???? ????? — ??????? ??????? (??????? ????????)
-            //      O1: ?? ??????? + ????? ????? ?????
-            //           - ?? ???????: ???? ???????? ???????? ??? ??????? ??? ???????
-            //             ????: 2 + 3 ? 5 ????? ?? ????? ?????? ADD
-            //           - ????? ????? ?????: ???? ????????? ???? ?? ??????? ???????
-            //      O2: O1 + ??? ????? + ??? ???????? ??????? ???????? (CSE)
-            //           - ??? ?????: ?????? %b = %a ?????????? ??????? ?? %a
-            //           - CSE: ????? ???????? ??????? ????? ??????? ??????? ???????
-            //      O3: O2 + ??? ???????
-            //           - ??? ???????: ???? ??? ??????? ?????????? ?????????
+            //      O0: بلا تحسين — تُتخطى بالكامل (للتطوير والتنقيح)
+            //      O1: طي الثوابت + إزالة الكود الميت
+            //           - طي الثوابت: حساب التعبيرات الثابتة أثناء الترجمة بدل التنفيذ
+            //             مثال: 2 + 3 → 5 مباشرة في وقت الترجمة بدل تعليمة ADD
+            //           - إزالة الكود الميت: حذف التعليمات التي لا تُستخدم نتائجها
+            //      O2: O1 + نشر النسخ + حذف التعبيرات الجزئية المشتركة (CSE)
+            //           - نشر النسخ: تعقّب %b = %a واستبدال الاستخدامات مباشرة بـ %a
+            //           - CSE: اكتشاف التعبيرات المتكررة وحساب قيمتها مرة واحدة فقط
+            //      O3: O2 + دمج السجلات
+            //           - دمج السجلات: تقليل عدد السجلات الافتراضية المستخدمة
             //
             // (EN) Middle-end optimization phase — SIR Optimizer
             //      Applies optimization passes on SIR intermediate representation before
@@ -84,30 +84,30 @@ namespace sad
             //      O3: O2 + Register coalescing
             // ========================================================================
 
-            // (AR) ????? ??????? ?? ??????? O0
+            // (AR) تخطي التحسين في المستوى O0
             // (EN) Skip optimization at O0 level
             if (options_.opt_level == OptimizationLevel::O0)
             {
                 if (options_.verbose)
                 {
-                    std::cout << "  ? Optimization skipped (O0) / ?? ???? ??????? (O0)\n";
+                    std::cout << "  ✓ Optimization skipped (O0) / تمّ تخطي التحسين (O0)\n";
                 }
                 return true;
             }
 
-            // (AR) ?????? ?? ???? ???? SIR ?????
+            // (AR) التحقق من وجود وحدة SIR صالحة
             // (EN) Verify valid SIR module exists
             if (!sir_module_)
             {
                 if (options_.verbose)
                 {
-                    std::cout << "  ? No SIR module to optimize / ?? ???? ???? SIR ???????\n";
+                    std::cout << "  ⚠ No SIR module to optimize / لا توجد وحدة SIR للتحسين\n";
                 }
                 return true;
             }
 
-            // (AR) ????? ????? ??????? ?? ???? ??????? ??? ???? ???????
-            //      Os ? Oz ???????? ?? O2 (??????? ????? ?? ????? ??? ????? ?? LLVM ??????)
+            // (AR) تحويل مستوى التحسين من صيغة المشغّل إلى صيغة المحسِّن
+            //      Os و Oz تُعامَلان كـ O2 (تحسينات قياسية، والتركيز على الحجم يتم في مستوى LLVM لاحقاً)
             // (EN) Convert optimization level from driver format to optimizer format
             //      Os and Oz are treated as O2 (standard optimizations, size focus at LLVM level later)
             Sad::Compiler::Optimizer::OptimizationLevel optLevel;
@@ -127,7 +127,7 @@ namespace sad
                 break;
             }
 
-            // (AR) ????? ??????? ??????? ??? ???? SIR
+            // (AR) إنشاء المحسِّن وتشغيله على وحدة SIR
             // (EN) Create optimizer and run on SIR module
             try
             {
@@ -145,24 +145,24 @@ namespace sad
                     optimizer->printStats();
                     if (changed)
                     {
-                        std::cout << "  ? Optimization applied / ?? ????? ?????????\n";
+                        std::cout << "  ✓ Optimization applied / تمّ تطبيق التحسينات\n";
                     }
                     else
                     {
-                        std::cout << "  ? No optimizations needed / ?? ???? ????????\n";
+                        std::cout << "  ✓ No optimizations needed / لا توجد تحسينات لازمة\n";
                     }
                 }
             }
             catch (const std::exception &e)
             {
-                // (AR) ??? ?? ??????? — ????? ???? ????? ????? ?? ????? ??????
-                //      ??? ???? ?? ????? ????? ??????? ???????
+                // (AR) خطأ في التحسين — نتابع بدون تحسين بدلاً من الفشل الكامل
+                //      هذا أفضل من إيقاف عملية الترجمة بأكملها
                 // (EN) Optimization error — continue without optimization instead of full failure
                 //      This is better than stopping the entire compilation process
                 if (options_.verbose)
                 {
                     std::cerr << "  ? Optimization error (continuing): " << e.what() << "\n";
-                    std::cerr << "  ? ??? ?? ??????? (??????): " << e.what() << "\n";
+                    std::cerr << "  ⚠ خطأ في التحسين (متابعة): " << e.what() << "\n";
                 }
             }
 
@@ -172,16 +172,16 @@ namespace sad
         bool CompilerDriver::run_backend()
         {
             // ============================================================================
-            // (AR) ????? ??????? ??????? - ????? SIR ??? ??????? ???????
+            // (AR) تشغيل الواجهة الخلفية - تحويل SIR إلى صيغة الإخراج المطلوبة
             // ============================================================================
-            // ??? ?????? ?? ??? ???????: ???? ???? SIR (??????? ??????)
-            // ??????? ??? ????? ??????? ???????:
-            //   - LLVM IR  (.ll)  : ????? LLVM ????? - ???? ?????? ????????
-            //   - LLVM BC  (.bc)  : ????? LLVM ??????? - ???? ???????
-            //   - Object   (.obj) : ??? ???? - ??? ??? ???? ???
-            //   - Assembly (.asm)  : ??? ????? - ????? ??????
-            //   - Executable(.exe) : ??? ?????? - ????? ???????
-            //   - ????? ??????/????? : ????????
+            // هذه الدالة هي قلب المترجم: تأخذ وحدة SIR (التمثيل الوسيط)
+            // وتحوّلها إلى الشكل النهائي المطلوب:
+            //   - LLVM IR  (.ll)  : تمثيل LLVM نصي - قابل للقراءة البشرية
+            //   - LLVM BC  (.bc)  : تمثيل LLVM ثنائي - أسرع تحميلاً
+            //   - Object   (.obj) : ملف كائني - كود آلة غير مربوط
+            //   - Assembly (.asm)  : ملف تجميع - تعليمات المعالج
+            //   - Executable(.exe) : ملف تنفيذي - جاهز للتشغيل
+            //   - مكتبة مشتركة/ساكنة : (.dll / .so / .lib / .a)
             // ============================================================================
             // (EN) Run backend - convert SIR to requested output format
             // This function is the heart of the compiler: takes a SIR module
@@ -190,26 +190,26 @@ namespace sad
 
             if (!sir_module_)
             {
-                diagnostics_.report_fatal("?? ???? ???? SIR ????? ??????? ??????? / No SIR module available for backend");
+                diagnostics_.report_fatal("لا توجد وحدة SIR متاحة للواجهة الخلفية / No SIR module available for backend");
                 return false;
             }
 
             // ============================================================================
-            // (AR) ?????? ??????? ??????? ????? ??? ??? ??????? ???????
+            // (AR) اختيار الواجهة الخلفية المناسبة حسب نوع الإخراج المطلوب
             // (EN) Select backend based on requested output type
             // ============================================================================
             switch (options_.output_type)
             {
             case OutputType::BYTECODE:
             {
-                // (AR) ????? Bytecode ??? ????? ??? - ???? ??? ?? ????? ????????
+                // (AR) خلفية Bytecode غير منفَّذة بعد - مخطط لها في مرحلة قادمة
                 // (EN) Bytecode backend not implemented yet - planned for future phase
-                diagnostics_.report_fatal("????? Bytecode ??? ????? ??? / Bytecode backend not implemented yet");
+                diagnostics_.report_fatal("خلفية Bytecode غير منفَّذة بعد / Bytecode backend not implemented yet");
                 return false;
             }
 
             // ============================================================================
-            // (AR) ???? ????? ??????? ???????? ??? LLVM
+            // (AR) جميع أنواع الإخراج المبنية على LLVM
             // (EN) All LLVM-based output types
             // ============================================================================
             case OutputType::LLVM_IR:
@@ -222,27 +222,27 @@ namespace sad
             {
 
                 // ================================================================
-                // (AR) ?????? 1: ????? ???? LLVM ???????
+                // (AR) الخطوة 1: إنشاء مولّد LLVM وتهيئته
                 // ================================================================
-                // ???? ?????? ???? LLVMCodeGen ???? ????? ???:
-                //   - ???? LLVM (LLVMContext) : ?????? ??????
-                //   - ???? ????????? (IRBuilder) : ????? ??????? LLVM IR
-                //   - ??? ????? (TargetMachine) : ??????? ??????? ????????
+                // ننشئ كائن المولّد LLVMCodeGen الذي يضم كلاً من:
+                //   - سياق LLVM (LLVMContext) : الحاوية الرئيسية
+                //   - باني التعليمات (IRBuilder) : لتوليد تعليمات LLVM IR
+                //   - آلة الهدف (TargetMachine) : لمعمارية المنصة المستهدفة
                 // ================================================================
                 // (EN) Step 1: Create and initialize LLVM code generator
                 // ================================================================
                 llvm_codegen_ = std::make_unique<Sad::LLVM::LLVMCodeGen>();
 
-                // (AR) ????? ??? ?????? ????? main wrapper
+                // (AR) تمرير وضع الوحدة لتخطي غلاف main
                 // (EN) Pass module mode to skip main wrapper
                 llvm_codegen_->setModuleMode(options_.module_mode);
 
-                // (AR) ????? ??? ????? ?????? ??? ????? ????
+                // (AR) تمرير الوضع المستقل لإصدار وقت تشغيل مدمج
                 // (EN) Pass freestanding mode to emit built-in runtime
                 llvm_codegen_->setFreestanding(options_.freestanding);
 
-                // (AR) ?????? ??? ????? ???? ?????? ?? module name
-                //      ????? ???? LLVM COFF writer ?? ?????? ??????? ?? ??????
+                // (AR) استخدام اسم الملف المجرّد فقط كـ module name
+                //      لتجنب انهيار LLVM COFF writer مع المحارف العربية في المسار
                 // (EN) Use just the filename stem as module name to avoid
                 //      LLVM COFF writer crash with Arabic chars in path
                 std::string module_name = options_.input_files.empty()
@@ -250,11 +250,11 @@ namespace sad
                                               : sad::utf8::get_stem(options_.input_files[0]);
                 if (!(*llvm_codegen_).initialize(module_name, options_.target.to_string()))
                 {
-                    diagnostics_.report_fatal("??? ????? ??????? ??????? LLVM / Failed to initialize LLVM backend");
+                    diagnostics_.report_fatal("فشل تهيئة الواجهة الخلفية LLVM / Failed to initialize LLVM backend");
                     return false;
                 }
 
-                // (AR) ????? ??? LTO ??? ?????? ??? ???????
+                // (AR) تطبيق وضع LTO من خيارات سطر الأوامر
                 // (EN) Apply LTO mode from CLI options
                 llvm_codegen_->setLTOMode(options_.enable_lto_full, options_.enable_lto_thin);
                 if (options_.verbose && (options_.enable_lto_full || options_.enable_lto_thin))
@@ -264,14 +264,14 @@ namespace sad
                 }
 
                 // ================================================================
-                // (AR) ?????? 2: ????? LLVM IR ?? SIR
+                // (AR) الخطوة 2: توليد LLVM IR من SIR
                 // ================================================================
-                // ????? ??????? ?????? (SIR) ??? ????? LLVM IR
-                // ??? ??????? ????:
-                //   - ????? ?? ?????? SIR ??? ??????? LLVM ??????
-                //   - ????? ?????? ?????????? ??????
-                //   - ?????? ?? ??? ?????? ????????
-                // ??????: generate() ???? ????? ?????? - ??? ??? ????? ????
+                // تحويل التمثيل الوسيط (SIR) إلى تمثيل LLVM IR
+                // هذه العملية تشمل:
+                //   - تحويل كل تعليمة SIR إلى تعليمات LLVM مكافئة
+                //   - توليد الدوال والمتغيرات العامة
+                //   - التحقق من صحة الوحدة المولّدة
+                // ملاحظة: generate() تنقل ملكية الوحدة - لكن آلة الهدف تبقى
                 // ================================================================
                 // (EN) Step 2: Generate LLVM IR from SIR
                 // Note: generate() moves module ownership but targetMachine_ persists
@@ -280,17 +280,17 @@ namespace sad
                 auto llvm_module = (*llvm_codegen_).generate(sir_module_);
                 if (!llvm_module)
                 {
-                    diagnostics_.report_fatal("??? ????? LLVM IR / Failed to generate LLVM IR");
+                    diagnostics_.report_fatal("فشل توليد LLVM IR / Failed to generate LLVM IR");
                     return false;
                 }
                 // ================================================================
-                // (AR) ?????? 2.5: ????? ??????? ??????
+                // (AR) الخطوة 2.5: تشغيل المحسِّن العربي
                 // ================================================================
-                // ??????? ????? ?????? ??????? ??????? Unicode:
-                //   - ??? ?????? ??????? ???????? (String pooling)
-                //   - ????? UTF-8 encoding/decoding
-                //   - ????? string concatenation
-                //   - ????? pattern matching
+                // تحسينات مخصصة للنصوص العربية ومعالجة Unicode:
+                //   - دمج السلاسل النصية المكررة (String pooling)
+                //   - تحسين UTF-8 encoding/decoding
+                //   - تحسين string concatenation
+                //   - تحسين pattern matching
                 // ================================================================
                 // (EN) Step 2.5: Run Arabic optimizer
                 // ================================================================
@@ -305,7 +305,7 @@ namespace sad
                     }
                 }
                 // ================================================================
-                // (AR) ?????? 2.6: ????? ??????? ????????? (???? ???_??????/?????)
+                // (AR) الخطوة 2.6: تشغيل ممرات الكوروتين (لدعم غير_متزامن/انتظر)
                 // ================================================================
                 // (EN) Step 2.6: Run coroutine passes (for async/await support)
                 // This transforms coroutine intrinsics into state machine code
@@ -362,7 +362,7 @@ namespace sad
                 }
 
                 // ================================================================
-                // (AR) ?????? 3: ????? ??????? ??? ????? ???????
+                // (AR) الخطوة 3: إصدار الإخراج حسب النوع المطلوب
                 // ================================================================
                 // (EN) Step 3: Emit output based on requested type
                 // ================================================================
@@ -370,10 +370,10 @@ namespace sad
                 if (options_.output_type == OutputType::LLVM_IR)
                 {
                     // ==============================================================
-                    // (AR) ????? LLVM IR ??? (.ll)
+                    // (AR) إخراج LLVM IR نصي (.ll)
                     // ==============================================================
-                    // ??? ???? ????? ???????: ???? ???? ?????? ?????
-                    // ???? ???? ?????? ???????? - ????? ????? ????? ??? ???? ????
+                    // هذا أبسط أنواع الإخراج: مجرد طباعة الوحدة نصياً
+                    // قابل للقراءة البشرية - مفيد للتنقيح والفحص دون أدوات خاصة
                     // ==============================================================
                     // (EN) LLVM IR text output (.ll)
                     // Simplest output type - human-readable LLVM IR
@@ -383,7 +383,7 @@ namespace sad
 
                     if (EC)
                     {
-                        diagnostics_.report_fatal("??? ??? ??? ???????: " + EC.message() +
+                        diagnostics_.report_fatal("فشل فتح ملف الإخراج: " + EC.message() +
                                                   " / Failed to open output file: " + EC.message());
                         return false;
                     }
@@ -394,11 +394,11 @@ namespace sad
                 else if (options_.output_type == OutputType::LLVM_BC)
                 {
                     // ==============================================================
-                    // (AR) ????? LLVM Bitcode ????? (.bc)
+                    // (AR) إخراج LLVM Bitcode ثنائي (.bc)
                     // ==============================================================
-                    // ????? ????? ?? LLVM IR - ???? ??????? ????????? ?? ????
-                    // ???? ?????? ?????? ??? object file ?? executable
-                    // ???? llvm-dis ????? ??? ???? ??? ?? ?????
+                    // تمثيل ثنائي لـ LLVM IR - أسرع تحميلاً ومعالجة من النص
+                    // يمكن تحويله لاحقاً إلى object file أو executable
+                    // أداة llvm-dis تحوّله إلى نص مقروء عند الحاجة
                     // ==============================================================
                     // (EN) LLVM Bitcode binary output (.bc)
                     // Binary representation of LLVM IR - faster to load than text
@@ -408,7 +408,7 @@ namespace sad
 
                     if (EC)
                     {
-                        diagnostics_.report_fatal("??? ??? ??? ???????: " + EC.message() +
+                        diagnostics_.report_fatal("فشل فتح ملف الإخراج: " + EC.message() +
                                                   " / Failed to open output file: " + EC.message());
                         return false;
                     }
@@ -419,60 +419,60 @@ namespace sad
                 else if (options_.output_type == OutputType::OBJECT_FILE)
                 {
                     // ==============================================================
-                    // (AR) ????? ??? ???? (.obj / .o)
+                    // (AR) إخراج ملف كائني (.obj / .o)
                     // ==============================================================
                     if (!(*llvm_codegen_).emitObjectFile(options_.output_file, llvm_module.get()))
                     {
-                        diagnostics_.report_fatal("??? ????? ??? ?????? / Failed to emit object file");
+                        diagnostics_.report_fatal("فشل إصدار ملف الكائن / Failed to emit object file");
                         return false;
                     }
                 }
                 else if (options_.output_type == OutputType::ASSEMBLY)
                 {
                     // ==============================================================
-                    // (AR) ????? ??? ????? (.asm / .s)
+                    // (AR) إخراج ملف تجميع (.asm / .s)
                     // ==============================================================
-                    // ??? ??????? ?? ????? ??? ????? ???????? ???????
-                    // ???? ???? ?? ????? ??????? ??? ????? ?????
-                    // ????: mov rax, 42  /  push rbp  /  call printf
+                    // كود التجميع هو تمثيل نصي مقروء لتعليمات المعالج
+                    // مفيد لفهم ما يولّده المترجم على المستوى الأدنى
+                    // مثال: mov rax, 42  /  push rbp  /  call printf
                     // ==============================================================
                     // (EN) Assembly file output (.asm / .s)
                     // Human-readable processor instructions
                     // ==============================================================
                     if (!(*llvm_codegen_).emitAssembly(options_.output_file, llvm_module.get()))
                     {
-                        diagnostics_.report_fatal("??? ????? ??? ??????? / Failed to emit assembly file");
+                        diagnostics_.report_fatal("فشل إصدار ملف التجميع / Failed to emit assembly file");
                         return false;
                     }
                 }
                 else if (options_.output_type == OutputType::EXECUTABLE)
                 {
                     // ==============================================================
-                    // (AR) ????? ??? ?????? (.exe ??? ??????)
+                    // (AR) إخراج ملف تنفيذي (.exe على ويندوز)
                     // ==============================================================
-                    // ??? ?? ????? ??????? ??????: ????? ?????? ???? ???????!
-                    // ??????? ??? ??? ???????:
-                    //   ??????? 1: ????? LLVM IR ? ??? ???? ???? (.obj)
-                    //   ??????? 2: ??? ??? ?????? ?? ???????? ? ??? ?????? (.exe)
+                    // هذا هو أكثر أنواع الإخراج اكتمالاً: برنامج جاهز يعمل مباشرة!
+                    // العملية تتم على مرحلتين:
+                    //   المرحلة 1: تحويل LLVM IR → ملف كائني مؤقت (.obj)
+                    //   المرحلة 2: ربط ملف الكائن مع المكتبات → ملف تنفيذي (.exe)
                     //
-                    // ????? ????? ???:
-                    //   - ????? ??? ??????? (runtime) ???? ????? ???:
+                    // عملية الربط تشمل:
+                    //   - مكتبة وقت التشغيل (runtime) التي توفّر مثلاً:
                     //     * sad_llvm_print_int, sad_llvm_print_string, ...
                     //     * sad_llvm_input, sad_llvm_input_int, ...
-                    //   - ????? C ???????? (printf, scanf, malloc, ...)
+                    //   - مكتبة C القياسية (printf, scanf, malloc, ...)
                     //
-                    // ??? ?????? ?????? clang ????? ????? ????:
-                    //   - ???? ??? ???? ?????? ??????
-                    //   - ?????? ?? MSVC ? MinGW ????????
-                    //   - ???? ?? ??????? link.exe ??????
+                    // نستخدم هنا الرابط عبر clang لعدة أسباب مهمة:
+                    //   - يعمل على جميع الأنظمة الأساسية
+                    //   - متوافق مع MSVC و MinGW تلقائياً
+                    //   - أسهل من استدعاء link.exe مباشرة
                     // ==============================================================
                     // (EN) Executable output (.exe on Windows)
                     // Two-phase process:
-                    //   Phase 1: LLVM IR ? temporary object file (.obj)
-                    //   Phase 2: Link object file with runtime ? executable (.exe)
+                    //   Phase 1: LLVM IR → temporary object file (.obj)
+                    //   Phase 2: Link object file with runtime → executable (.exe)
                     // ==============================================================
 
-                    // ------- ??????? 1: ????? ??? ???? ???? -------
+                    // ------- المرحلة 1: توليد ملف كائني مؤقت -------
                     // (EN) Phase 1: Generate temporary object file
                     auto temp_obj = get_temp_file(".obj");
                     temp_files_.push_back(temp_obj);
@@ -481,21 +481,21 @@ namespace sad
 
                     if (options_.verbose)
                     {
-                        std::cerr << "  [?????? ?] ????? ??? ???? ????: " << obj_path << "\n";
+                        std::cerr << "  [الخطوة أ] توليد ملف كائن مؤقّت: " << obj_path << "\n";
                         std::cerr << "  [Step A] Generating temp object file: " << obj_path << "\n";
                     }
 
                     if (!(*llvm_codegen_).emitObjectFile(obj_path, llvm_module.get()))
                     {
-                        diagnostics_.report_fatal("??? ????? ??? ?????? ?????? / Failed to emit temporary object file");
+                        diagnostics_.report_fatal("فشل إصدار ملف الكائن المؤقّت / Failed to emit temporary object file");
                         return false;
                     }
 
-                    // ------- ??????? 2: ??? ??? ?????? ?????? ??? ?????? -------
+                    // ------- المرحلة 2: ربط ملف الكائن لإنتاج الملف التنفيذي -------
                     // (EN) Phase 2: Link object file to produce executable
                     if (options_.verbose)
                     {
-                        std::cerr << "  [?????? ?] ??? ??????? ??????: " << options_.output_file << "\n";
+                        std::cerr << "  [الخطوة ب] الربط لإنتاج المخرَج: " << options_.output_file << "\n";
                         std::cerr << "  [Step B] Linking to produce: " << options_.output_file << "\n";
                     }
                     if (!link_object_to_executable(obj_path, options_.output_file, llvm_module.get()))
@@ -506,10 +506,10 @@ namespace sad
                 else if (options_.output_type == OutputType::SHARED_LIBRARY)
                 {
                     // ==============================================================
-                    // (AR) ????? ????? ?????? (.dll ??? ?????? / .so ??? ?????)
+                    // (AR) إخراج مكتبة مشتركة (.dll على ويندوز / .so على لينكس)
                     // ==============================================================
-                    // ????? ?????? ???? ??????? ?? ??? ???????
-                    // ?????? ??? ???? ????? ???????? ?? ????? -shared
+                    // مكتبة ديناميكية تُحمَّل أثناء وقت التشغيل
+                    // تُربط عبر نفس مسار الملف التنفيذي مع خيار -shared
                     // ==============================================================
                     // (EN) Shared library output (.dll / .so)
                     // ==============================================================
@@ -520,26 +520,26 @@ namespace sad
 
                     if (!(*llvm_codegen_).emitObjectFile(obj_path, llvm_module.get()))
                     {
-                        diagnostics_.report_fatal("??? ????? ??? ?????? ?????? / Failed to emit temporary object file");
+                        diagnostics_.report_fatal("فشل إصدار ملف الكائن المؤقّت / Failed to emit temporary object file");
                         return false;
                     }
 
-                    // (AR) ??? ?????? ??????
+                    // (AR) الربط كمكتبة مشتركة
                     // (EN) Link as shared library
                     std::vector<std::string> objects = {obj_path};
                     if (!invoke_linker(objects, options_.output_file))
                     {
-                        diagnostics_.report_fatal("??? ??? ??????? ???????? / Failed to link shared library");
+                        diagnostics_.report_fatal("فشل ربط المكتبة المشتركة / Failed to link shared library");
                         return false;
                     }
                 }
                 else if (options_.output_type == OutputType::STATIC_LIBRARY)
                 {
                     // ==============================================================
-                    // (AR) ????? ????? ????? (.lib ??? ?????? / .a ??? ?????)
+                    // (AR) إخراج مكتبة ساكنة (.lib على ويندوز / .a على لينكس)
                     // ==============================================================
-                    // ????? ????? ?? ?????? ?? ????? ?????? ??????? ????
-                    // ??? ????? ?? ????? ???????? ??? ???????
+                    // أرشيف مكوَّن من ملفات كائنية يُدمج في البرنامج وقت الربط
+                    // فلا حاجة إلى ملفات إضافية عند التشغيل
                     // ==============================================================
                     // (EN) Static library output (.lib / .a)
                     // ==============================================================
@@ -550,11 +550,11 @@ namespace sad
 
                     if (!(*llvm_codegen_).emitObjectFile(obj_path, llvm_module.get()))
                     {
-                        diagnostics_.report_fatal("??? ????? ??? ?????? ?????? / Failed to emit temporary object file");
+                        diagnostics_.report_fatal("فشل إصدار ملف الكائن المؤقّت / Failed to emit temporary object file");
                         return false;
                     }
 
-                    // (AR) ????? ????? ????? ???????? ???? lib ?? ar
+                    // (AR) إنشاء مكتبة ساكنة باستخدام أداة lib أو ar
                     // (EN) Create static library using lib or ar tool
                     std::string ar_command;
 #ifdef _WIN32
@@ -565,12 +565,12 @@ namespace sad
 
                     if (options_.verbose)
                     {
-                        std::cerr << "  ?????: " << ar_command << "\n";
+                        std::cerr << "  الأمر: " << ar_command << "\n";
                     }
 
                     if (std::system(ar_command.c_str()) != 0)
                     {
-                        diagnostics_.report_fatal("??? ????? ??????? ??????? / Failed to create static library");
+                        diagnostics_.report_fatal("فشل إنشاء المكتبة الساكنة / Failed to create static library");
                         return false;
                     }
                 }
@@ -579,7 +579,7 @@ namespace sad
             }
 
             default:
-                diagnostics_.report_fatal("??? ????? ??? ????? / unsupported output type");
+                diagnostics_.report_fatal("نوع إخراج غير مدعوم / unsupported output type");
                 return false;
             }
 

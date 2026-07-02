@@ -182,7 +182,7 @@ namespace Sad
             explicit NewExpr(const std::string &cls) : className(cls) {}
 
             /**
-             * @brief (AR) ?????? ??? ??? ???????? ???????
+             * @brief (AR) الحصول على نوع بيانات التعبير
              * @brief (EN) Get expression data type
              */
             Types::SadTypePtr getType() const override { return Types::SadTypeRegistry::instance().getAny(); }
