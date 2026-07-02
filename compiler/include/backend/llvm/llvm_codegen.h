@@ -1797,6 +1797,13 @@ namespace Sad
             llvm::Value *emitUiCurrentPage(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCurrentPage(inst); }
             llvm::Value *emitUiNavigateTransition(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavigateTransition(inst); }
             llvm::Value *emitUiBackTransition(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiBackTransition(inst); }
+            // (إكمال corui) الانتقال الكامل + الحالة + النافذة + توليد الويب
+            llvm::Value *emitUiNavigateExitTransition(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavigateExitTransition(inst); }
+            llvm::Value *emitUiUpdateState(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiUpdateState(inst); }
+            llvm::Value *emitUiSetState(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetState(inst); }
+            llvm::Value *emitUiSetTitle(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetTitle(inst); }
+            llvm::Value *emitUiCloseWindow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCloseWindow(inst); }
+            llvm::Value *emitUiGenWeb(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiGenWeb(inst); }
             llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppDestroy(inst); }
             llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWidgetDestroy(inst); }
 

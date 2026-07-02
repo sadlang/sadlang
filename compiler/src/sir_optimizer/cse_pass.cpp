@@ -442,6 +442,15 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_CURRENT_PAGE:
                 case SIR::SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION:
                 case SIR::SIROpcode::BUILTIN_UI_BACK_TRANSITION:
+                // (إكمال corui) الانتقال الكامل يغيّر المكدّس؛ الحالة/النافذة/توليد الويب
+                //   ذات آثار جانبيّة (إعادة رسم/عنوان/إغلاق/تخصيص نصّ + نداء دالّة تحديث)
+                //   ⇒ لا يجوز دمج/حذف أيّ منها.
+                case SIR::SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION:
+                case SIR::SIROpcode::BUILTIN_UI_UPDATE_STATE:
+                case SIR::SIROpcode::BUILTIN_UI_SET_STATE:
+                case SIR::SIROpcode::BUILTIN_UI_SET_TITLE:
+                case SIR::SIROpcode::BUILTIN_UI_CLOSE_WINDOW:
+                case SIR::SIROpcode::BUILTIN_UI_GEN_WEB:
                     return true;
 
                 default:

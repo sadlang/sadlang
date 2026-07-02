@@ -44,6 +44,13 @@ public:
     llvm::Value *emitUiCurrentPage(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiNavigateTransition(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiBackTransition(std::shared_ptr<SIRInstruction> inst);
+    // (إكمال corui) الانتقال الكامل + الحالة + النافذة + توليد الويب
+    llvm::Value *emitUiNavigateExitTransition(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiUpdateState(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetState(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetTitle(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiCloseWindow(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiGenWeb(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButton(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst);

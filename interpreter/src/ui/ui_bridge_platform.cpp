@@ -14,6 +14,7 @@
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
 #include "sad_ui/nav.h" // (HIGH-1) استُخدم مباشرةً في تصفير مكدّس التنقّل عند Hot Restart
+#include "sad_ui/window_control.h" // (Amelia H1/L3) تصفير المتحكّم المشترك عند Hot Restart
 
 #ifdef SAD_UI_USE_SDL2
 #include <SDL.h>
@@ -1593,7 +1594,8 @@ namespace Sad
             //   وإلّا استدعى بانٍ قديمٌ callUserFunction على مفسّرٍ مُصفَّر. البرنامج المُعاد
             //   تنفيذه يعيد بذر الجذر عبر run()→navSeedRoot.
             hotReloadEngine_->setStateResetCallback([]()
-                                                    { sad::ui::nav().reset(); });
+                                                    { sad::ui::nav().reset();
+                                                      sad::ui::windowController().reset(); }); // (Amelia H1/L3) صفّر المتحكّم أيضًا
 
             // (AR) ׳´ֲ¨׳´ֲ¯׳´ֲ¡ ׳´ֲ§ן¢ג€ן¢ג€¦׳´ֲ±׳´ֲ§ן¢ג€׳´ֲ¨׳´ֲ© ׳’ג‚¬ג€ poll mode (ן¢ֲן¢ֲן¢ֲ׳´ֲ­׳´ֲµ ן¢ג€¦ן¢ג€  ׳´ֲ­ן¢ג€ן¢ג€׳´ֲ© ׳´ֲ§ן¢ג€׳´ֲ£׳´ֲ­׳´ֲ¯׳´ֲ§׳´ֲ«)
             // (EN) Start watching ׳’ג‚¬ג€ poll mode (checked from event loop)

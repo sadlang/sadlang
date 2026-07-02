@@ -25,6 +25,7 @@
 #include "sad_ui/ir_builder.h"
 #include "sad_ui/layout.h"
 #include "sad_ui/state.h"
+#include "sad_ui/window_control.h" // (Amelia H1) تصفير المتحكّم بعد التشغيل (تناظر مع sad_app_run)
 
 #ifdef SAD_UI_USE_SDL2
 #include "sad_ui/desktop/window.h"
@@ -243,6 +244,10 @@ namespace Sad
             activeWindow_ = nullptr;
             activeInstance_ = nullptr;
             window.destroy();
+            // (Amelia H1) صفّر المتحكّم المشترك بعد التشغيل (تناظرًا مع sad_app_run في
+            //   وقت تشغيل المترجم) لئلّا يتسرّب طلب عنوان/إغلاق مُعلَّق إلى تشغيلٍ لاحق في
+            //   العمليّة نفسها (مصدر حقيقة واحد ⇒ سلوك تصفيرٍ واحد للمحرّكين).
+            sad::ui::windowController().reset();
 
             return true;
 #else

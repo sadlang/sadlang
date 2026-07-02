@@ -28,6 +28,8 @@
 #include <sad_ui/platform_renderer.h>
 #include <sad_ui/node.h>
 #include <sad_ui/nav.h> // (AR) م-تحكّم: مكدّس التنقّل المشترك (مصدر الحقيقة)
+#include <sad_ui/window_control.h> // (م-تحكّم) عنوان/إغلاق النافذة عبر المتحكّم المشترك
+#include <sad_ui/web/html_codegen.h> // (م-تحكّم) توليد_ويب عبر مولّد HTML المكتبيّ
 #include <sad_ui/types.h>
 
 #ifdef SAD_UI_USE_SDL2
@@ -39,6 +41,7 @@
 #include <vector>
 #include <memory>
 #include <cstring>
+#include <cstdlib> // (م-تحكّم) malloc لنسخة نصّ توليد_ويب المملوكة للمستدعي
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -964,6 +967,67 @@ SadWidget sad_current_page(void) {
     //      المبنيّة فعلًا (لا مؤشّر الإغلاق)، فيتطابق طباعة_شجرة headless مع الرسم الحيّ.
     return sad::ui::nav().buildCurrent();
 }
+/* (انتقل_بتحريك_كامل) تنقّل (لقطة) + انتقال دخول مُعلَّق. انتقال الخروج على الصفحة القديمة
+ * تحسينٌ حيّ لا تستهلكه حلقة النافذة بعدُ (نظير sad_navigate_transition، انتقال الدخول وحده).
+ * أثر المكدّس (العمق/الصفحة الحاليّة) مطابقٌ للمفسّر بالبناء. */
+void sad_navigate_exit_transition(SadWidget page, const char* entryType,
+                                  const char* exitType, float durationSec) {
+    (void)exitType; // (AR) انتقال الخروج على الصفحة القديمة — تحسينٌ حيّ لاحق (غير مُستهلَك)
+    auto& navStack = sad::ui::nav();
+    sad::ui::NavEntry e; e.page = page;
+    navStack.navigate(e);
+    navStack.setPendingTransition(entryType ? entryType : "", durationSec);
+}
+/* (انتقل_بتحريك_كامل، نموذج البانِي) بانٍ (تفاعليّة) + انتقال دخول مُعلَّق. */
+void sad_navigate_exit_transition_builder(SadPageBuilder build, void* data, SadReleaseFn release,
+                                          const char* entryType, const char* exitType,
+                                          float durationSec) {
+    (void)exitType;
+    auto& navStack = sad::ui::nav();
+    sad::ui::NavEntry e; e.build = reinterpret_cast<sad::ui::PageBuilder>(build);
+    e.data = data; e.release = reinterpret_cast<sad::ui::NavRelease>(release);
+    navStack.navigate(e);
+    navStack.setPendingTransition(entryType ? entryType : "", durationSec);
+}
+
+/* ─── م-تحكّم UICore: الحالة والنافذة — جسرٌ رفيع فوق حالة المكتبة المشتركة ───
+ * (AR) المنطق والحالة في المكتبة (nav.markDirty + windowController)، والمحرّكان
+ *      يجسران إلى الدوال/المتحكّم نفسها ⇒ مصدرُ حقيقةٍ واحد لا تكرار. headless:
+ *      تُكتب العمليّات ولا تُستهلَك (لا حلقة نافذة) ⇒ لا أثر على التكافؤ. */
+void sad_update_state(void) { sad::ui::nav().markDirty(); }
+void sad_set_window_title(const char* title) {
+    sad::ui::windowController().setTitle(title ? title : "");
+}
+void sad_close_window(void) { sad::ui::windowController().requestClose(); }
+
+/* (توليد_ويب) يولّد HTML من شجرة العنصر عبر HtmlCodegen المكتبيّ (المنطق كلّه في المكتبة).
+ * يعتمد المخرَج على شجرة IR + خيارات (اتّجاه/لغة/عنوان)؛ الخيارات الافتراضيّة في
+ * HtmlCodegenOptions (rtl/ar/عنوان افتراضيّ) تطابق ما يضبطه المفسّر ⇒ مخرَجٌ بايتيٌّ مطابق.
+ * (module.name لا يظهر في المخرَج فلا يؤثّر على التكافؤ.) النصّ المُعاد مخصّصٌ في الكومة
+ * يملكه المستدعي (نظير sad_readline؛ لا مُحرِّر بعدُ في وقت تشغيل المترجم). */
+char* sad_generate_web(SadWidget root, const char* title) {
+    auto* impl = toWidget(root);
+    std::string html;
+    // ⚠ حدٌّ موثَّق (Amelia M1، تباعد ضيّق مقبول = سوء استخدام): على جذرٍ فارغ
+    //   (root=null، أو بانٍ يُرجع لاشيء) يُرجع المترجم نصًّا فارغًا بصمت، بينما المفسّر
+    //   يُطلق خطأ الكتالوج (RUN_BUILTIN_REQUIRES_ARG). الاستعمال الصحيح (عنصر أو بانٍ
+    //   يُرجع عنصرًا) مطابقٌ بايتيًّا. لا نُدخِل بنية أخطاء في runtime المترجم لحالة
+    //   المدخل الباطل هذه (نظير حدّ بانِي التنقّل الذي يُرجع لاشيء).
+    if (impl && impl->irNode) {
+        sad::ui::IRModule module;
+        module.root = impl->irNode;
+        sad::ui::web::HtmlCodegenOptions opts; // افتراضات المكتبة: rtl/ar/عنوان افتراضيّ (كالمفسّر)
+        if (title && *title)
+            opts.title = title; // تجاوز العنوان إن مُرِّر نصٌّ غير فارغ (نظير المفسّر: args[1])
+        sad::ui::web::HtmlCodegen codegen(opts);
+        html = codegen.generate(module);
+    }
+    // (AR) نسخةٌ في الكومة مملوكة للمستدعي (نظير strdup في sad_readline).
+    char* out = static_cast<char*>(std::malloc(html.size() + 1));
+    if (out)
+        std::memcpy(out, html.c_str(), html.size() + 1);
+    return out;
+}
 
 /* ─── تشغيل_تطبيق(عنصر) — حلقة سطح المكتب (م-أ3ر/الإرسال) ───
  * (AR) جسرٌ رفيع فوق DesktopWindow في المكتبة: النافذة تملك الحلقة والتخطيط والرسم
@@ -1021,8 +1085,10 @@ void sad_app_run(SadWidget root) {
     });
     window.run();
     window.destroy();
-    // (AR) بعد إغلاق النافذة: صفّر مكدّس التنقّل (المقابض تشير لعناصر هذا التطبيق).
+    // (AR) بعد إغلاق النافذة: صفّر مكدّس التنقّل (المقابض تشير لعناصر هذا التطبيق)
+    //      والمتحكّم (لئلّا تتسرّب عمليّة عنوان/إغلاق مُعلَّقة إلى تشغيلٍ لاحق في العمليّة نفسها).
     sad::ui::nav().reset();
+    sad::ui::windowController().reset();
 #else
     (void)root;
 #endif

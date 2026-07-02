@@ -958,6 +958,13 @@ namespace Sad
                 // --- 20j. م2: التنقّل بتحريك بصريّ ---
                 BUILTIN_UI_NAVIGATE_TRANSITION, ///< انتقل_بتحريك(صفحة,نوع,مدة) / sad_navigate_transition
                 BUILTIN_UI_BACK_TRANSITION,      ///< عودة_بتحريك(نوع,مدة) / sad_navigate_back_transition
+                // --- 20k. إكمال corui: انتقال كامل + الحالة + النافذة + توليد ويب ---
+                BUILTIN_UI_NAVIGATE_EXIT_TRANSITION, ///< انتقل_بتحريك_كامل(صفحة,دخول,خروج,مدة) / sad_navigate_exit_transition
+                BUILTIN_UI_UPDATE_STATE,             ///< تحديث_حالة() / sad_update_state — يعلّم إعادة رسم
+                BUILTIN_UI_SET_STATE,                ///< عين_الحالة(دالّة) / نداء إغلاق + sad_update_state
+                BUILTIN_UI_SET_TITLE,                ///< عنوان_النافذة(نص) / sad_set_window_title
+                BUILTIN_UI_CLOSE_WINDOW,             ///< أغلق_النافذة() / sad_close_window
+                BUILTIN_UI_GEN_WEB,                  ///< توليد_ويب(عنصر,عنوان؟) / sad_generate_web → String
 
                 // --- 20e. أثر المعدّلات الانسيابيّة (م-أ3ر) — خاصّيّة عامّة بالاسم
                 //          نظير setIRProperty في المفسّر. اسم الطريقة = اسم الخاصيّة. ---

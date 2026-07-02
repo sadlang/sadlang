@@ -605,6 +605,19 @@ namespace Sad
                     return "ui.navigate_transition";
                 case SIROpcode::BUILTIN_UI_BACK_TRANSITION:
                     return "ui.back_transition";
+                // (AR) إكمال corui: انتقال كامل + الحالة + النافذة + توليد ويب
+                case SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION:
+                    return "ui.navigate_exit_transition";
+                case SIROpcode::BUILTIN_UI_UPDATE_STATE:
+                    return "ui.update_state";
+                case SIROpcode::BUILTIN_UI_SET_STATE:
+                    return "ui.set_state";
+                case SIROpcode::BUILTIN_UI_SET_TITLE:
+                    return "ui.set_title";
+                case SIROpcode::BUILTIN_UI_CLOSE_WINDOW:
+                    return "ui.close_window";
+                case SIROpcode::BUILTIN_UI_GEN_WEB:
+                    return "ui.gen_web";
 
                 // Module System
                 case SIROpcode::MODULE_LOAD:

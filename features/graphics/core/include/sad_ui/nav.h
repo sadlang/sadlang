@@ -142,6 +142,16 @@ namespace sad
                 return wasDirty;
             }
 
+            /// (AR) علّم إعادة رسمٍ مطلوبة دون تغيير المكدّس (تحديث_حالة/عين_الحالة):
+            ///      حلقة النافذة تستهلكه (takeDirty) فتعيد بناء الصفحة الحاليّة عبر
+            ///      buildCurrent ⇒ يلتقط تغيّر الحالة المُلتقَطة في بانِي الصفحة. headless:
+            ///      يُضبَط ولا يُستهلَك (لا حلقة) ⇒ لا أثر على تكافؤ الحالة. نظير المفسّر
+            ///      (UIBridge::rebuildUI) الذي تستدعيه تحديث_حالة/عين_الحالة.
+            /// (EN) Mark a redraw as needed without changing the stack (setState): the
+            ///      window loop consumes it (takeDirty) and rebuilds the current page via
+            ///      buildCurrent. Headless: set but not consumed ⇒ no parity effect.
+            void markDirty() { dirty_ = true; }
+
             /// (م2) اضبط انتقالًا بصريًّا مُعلَّقًا للتبديل التالي (نوع + مدة بالثواني).
             ///      تستهلكه حلقة النافذة (setContentWithTransition). لا أثر headless.
             void setPendingTransition(const std::string &type, float durationSec)

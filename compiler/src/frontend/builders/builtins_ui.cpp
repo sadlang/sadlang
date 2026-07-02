@@ -71,6 +71,25 @@ namespace Sad
                 return false;
             }
 
+            // (AR) حارس نوع عنوان النافذة (إصلاح Amelia M2، تكافؤ مع المفسّر الذي يرفض
+            //      !isString): نرفض الأنواع العدديّة/المنطقيّة القطعيّة **فقط** (النصّ لا
+            //      يُستنتَج أبدًا عددًا/منطقيًّا ⇒ لا رفضٌ زائف على نصّ صحيح)؛ ما عداها
+            //      (نص/مؤشّر/غير محدَّد) يُقبَل. المتوقَّع مشتقٌّ من sirTypeToString(String)
+            //      لا نصًّا حرفيًّا. يُرجع true إن كان الوسيط مقبولًا.
+            [[nodiscard]] static bool checkUiTitleArgType(const std::string &name, SadTypeKind t)
+            {
+                if (t != SadTypeKind::Integer && t != SadTypeKind::Float && t != SadTypeKind::Boolean)
+                    return true;
+                Sad::Errors::RenderContext ctx;
+                ctx.placeholders = {
+                    {"expected", name + ": " + std::string(Sad::Compiler::SIR::sirTypeToString(SadTypeKind::String))},
+                    {"found", std::string(Sad::Compiler::SIR::sirTypeToString(t))}};
+                std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                 Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ctx)
+                          << std::endl;
+                return false;
+            }
+
             std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_UI(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
@@ -1117,6 +1136,112 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
+                }
+
+                // ═════════════════════════════════════════════════════════════════
+                // (AR) إكمال corui — الانتقال الكامل + الحالة + النافذة + توليد الويب.
+                //      المنطق كلّه في المكتبة (nav/windowController/HtmlCodegen)؛ هذه
+                //      تُصدر نداءً فقط (جسرٌ رفيع، نظير المفسّر). أسماء الرسائل مشتقّة من
+                //      ثوابت مصدر الحقيقة (Bn::UICore::*) لا نصوصًا حرفيّة.
+                // ═════════════════════════════════════════════════════════════════
+
+                // (إكمال) انتقل_بتحريك_كامل(صفحة, دخول, خروج, مدة؟) — تنقّل + دخول/خروج.
+                if (funcName == Bn::UICore::NAVIGATE_EXIT_TRANSITION)
+                {
+                    if (argResults.size() < 3)
+                    {
+                        reportUiWrongArgCount(std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), 3, argResults.size());
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    // (HIGH-2) حارس نوع: الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
+                    if (!checkUiNavArgType(std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), argResults[0].type))
+                        return BuildResult("", SadTypeKind::Void);
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION);
+                    inst.operands.push_back(argOperands[0]); // الصفحة (عنصر أو بانٍ)
+                    inst.operands.push_back(argOperands[1]); // نوع الدخول
+                    inst.operands.push_back(argOperands[2]); // نوع الخروج
+                    if (argResults.size() > 3)
+                        inst.operands.push_back(argOperands[3]); // مدة (اختياريّة)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (إكمال) تحديث_حالة() — يطلب إعادة رسم (بلا وسائط).
+                if (funcName == Bn::UICore::UPDATE_STATE)
+                {
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_UPDATE_STATE); // بلا operands
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (إكمال) عين_الحالة(دالّة_تحديث؟) — نداء دالّة التحديث تزامنيًّا ثمّ إعادة رسم.
+                //   نمرّر المُعامل فقط إن كان **دالّة** (Function): الخافض يستدعي ثانك الإغلاق
+                //   `void(i64 __env)` تزامنيًّا ثمّ sad_update_state. غير الدالّة يُتجاهَل
+                //   والفعل يقتصر على إعادة الرسم.
+                //   ⚠ حدٌّ موثَّق (Amelia M3، تباعد ضيّق مقبول): **كائنٌ قابل للاستدعاء**
+                //     (مثيل صنف بـ()، isCallable في المفسّر) ليس Function فلا يُستدعى هنا —
+                //     المفسّر يستدعيه. لا نوسّع الحارس إلى Object لأنّ ثانك الإغلاق يفترض
+                //     تخطيط إغلاق {fn@0,env@1}؛ استدعاؤه على كائنٍ مختلف التخطيط = انهيار
+                //     (أسوأ من تجاهلٍ صامت). دعمُه الصحيح يحتاج مسار buildCallableObjectInvoke
+                //     (شريحة لاحقة). الاستعمال الشائع (دالّة/لامدا) مدعومٌ ومُختبَر.
+                if (funcName == Bn::UICore::SET_STATE)
+                {
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_STATE);
+                    if (!argResults.empty() && argResults[0].type == SadTypeKind::Function)
+                        inst.operands.push_back(argOperands[0]); // دالّة التحديث (إغلاق)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (إكمال) عنوان_النافذة(نص) — يطلب تغيير عنوان النافذة عبر المتحكّم المشترك.
+                if (funcName == Bn::UICore::SET_TITLE)
+                {
+                    if (argResults.empty())
+                    {
+                        reportUiWrongArgCount(std::string(Bn::UICore::SET_TITLE), 1, argResults.size());
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    // (Amelia M2) حارس نوع نصّ (تكافؤ مع المفسّر !isString): يرفض العنوان
+                    //   العدديّ/المنطقيّ (وإلّا مرّ non-pointer فتحوّل إلى null صامتًا).
+                    if (!checkUiTitleArgType(std::string(Bn::UICore::SET_TITLE), argResults[0].type))
+                        return BuildResult("", SadTypeKind::Void);
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TITLE);
+                    inst.operands.push_back(argOperands[0]); // العنوان (نص)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (إكمال) أغلق_النافذة() — يطلب إغلاق النافذة (بلا وسائط).
+                if (funcName == Bn::UICore::CLOSE_WINDOW)
+                {
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_CLOSE_WINDOW); // بلا operands
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (إكمال) توليد_ويب(عنصر, عنوان؟) — يولّد HTML؛ يُرجع نصًّا (String).
+                if (funcName == Bn::UICore::GEN_WEB)
+                {
+                    if (argResults.empty())
+                    {
+                        reportUiWrongArgCount(std::string(Bn::UICore::GEN_WEB), 1, argResults.size());
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    // (Amelia مراجعة2، MEDIUM) حارس نوع الوسيط: عنصر (Pointer) أو دالّة بناء
+                    //   (Function) فقط. بدونه يُصنّف bridgeUiPageBuilder أيّ i64 (عدد) بانيًا
+                    //   ⇒ inttoptr لقيمةٍ عدديّة ثمّ قراءة {fn,env} من عنوانٍ باطل ⇒ انهيار
+                    //   (بينما المفسّر يرفضه بأمان). نظير حرّاس انتقل/انتقل_بتحريك.
+                    if (!checkUiNavArgType(std::string(Bn::UICore::GEN_WEB), argResults[0].type))
+                        return BuildResult("", SadTypeKind::Void);
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_GEN_WEB);
+                    inst.operands.push_back(argOperands[0]); // العنصر (أو بانٍ)
+                    if (argResults.size() > 1)
+                        inst.operands.push_back(argOperands[1]); // العنوان (اختياريّ)
+                    inst.result = SIROperand::Register(r, SadTypeKind::String);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::String);
                 }
 
                 // ─── دمر_تطبيق(تطبيق) / sad_app_destroy(app) ───

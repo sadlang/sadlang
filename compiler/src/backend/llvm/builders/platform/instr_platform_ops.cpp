@@ -332,6 +332,19 @@ namespace Sad
                 return cg_.emitUiNavigateTransition(inst);
             case SIROpcode::BUILTIN_UI_BACK_TRANSITION:
                 return cg_.emitUiBackTransition(inst);
+            // (إكمال corui) الانتقال الكامل + الحالة + النافذة + توليد الويب
+            case SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION:
+                return cg_.emitUiNavigateExitTransition(inst);
+            case SIROpcode::BUILTIN_UI_UPDATE_STATE:
+                return cg_.emitUiUpdateState(inst);
+            case SIROpcode::BUILTIN_UI_SET_STATE:
+                return cg_.emitUiSetState(inst);
+            case SIROpcode::BUILTIN_UI_SET_TITLE:
+                return cg_.emitUiSetTitle(inst);
+            case SIROpcode::BUILTIN_UI_CLOSE_WINDOW:
+                return cg_.emitUiCloseWindow(inst);
+            case SIROpcode::BUILTIN_UI_GEN_WEB:
+                return cg_.emitUiGenWeb(inst);
 
             // ====================================================================
             // ״§„‚״³… 21: ״§„״×ˆ״¬‡״§״× / Directives (@״­״¬…, @״°״±)

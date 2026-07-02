@@ -791,6 +791,93 @@ llvm::Value* UICodeGen::emitUiBackTransition(std::shared_ptr<SIRInstruction> ins
     return emitUIRuntimeCall(cg_, "sad_navigate_back_transition", i1Ty, {ptrTy, f32Ty}, {trans, dur});
 }
 
+// ─── إكمال corui: الانتقال الكامل + الحالة + النافذة + توليد الويب ──────────────
+// (إكمال) انتقل_بتحريك_كامل ⇒ sad_navigate_exit_transition(page, entry, exit, dur).
+//   نظير emitUiNavigateTransition لكن بنوعَي انتقال (دخول+خروج). بانٍ/إغلاق ⇒ صيغة البانِي.
+llvm::Value* UICodeGen::emitUiNavigateExitTransition(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* page = inst->operands.empty() ? llvm::ConstantPointerNull::get(ptrTy)
+                                               : cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* entry = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1])
+                                                   : llvm::ConstantPointerNull::get(ptrTy);
+    if (!entry->getType()->isPointerTy()) entry = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* exit = inst->operands.size() > 2 ? cg_.resolveOperand(inst->operands[2])
+                                                  : llvm::ConstantPointerNull::get(ptrTy);
+    if (!exit->getType()->isPointerTy()) exit = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* dur = inst->operands.size() > 3 ? castNumericToF32(cg_, cg_.resolveOperand(inst->operands[3]))
+                                                 : llvm::ConstantFP::get(f32Ty, kUiDefaultTransitionSec);
+    // (م1-ج، HIGH-1) دالّة/إغلاق ⇒ بانٍ تفاعليّ؛ عنصر ⇒ لقطة (بلا هذا التفريع يُمرَّر
+    //   إغلاق i64 لمُعامل ptr ⇒ فشل تحقّق LLVM؛ نظير emitUiNavigateTransition).
+    auto tri = bridgeUiPageBuilder(cg_, page);
+    if (tri.isBuilder) {
+        auto* nullRel = llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_navigate_exit_transition_builder", voidTy,
+            {ptrTy, ptrTy, ptrTy, ptrTy, ptrTy, f32Ty}, {tri.build, tri.data, nullRel, entry, exit, dur});
+    }
+    return emitUIRuntimeCall(cg_, "sad_navigate_exit_transition", voidTy,
+        {ptrTy, ptrTy, ptrTy, f32Ty}, {page, entry, exit, dur});
+}
+
+// (إكمال) تحديث_حالة() ⇒ sad_update_state(): يعلّم مكدّس التنقّل dirty (إعادة رسم). بلا وسائط.
+llvm::Value* UICodeGen::emitUiUpdateState(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_update_state", voidTy, {}, {});
+}
+
+// (إكمال) عين_الحالة(دالّة؟) ⇒ نداء دالّة التحديث تزامنيًّا عبر ثانك الإغلاق ثمّ sad_update_state.
+//   نظير المفسّر (يستدعي الدالّة أوّلًا ثمّ rebuildUI). المُعامل موجودٌ فقط إن كان دالّة (حرسه
+//   الخافض)؛ غيابه ⇒ إعادة رسمٍ فقط. الثانك void(void* data) ينفّذ دالّة التحديث فورًا.
+llvm::Value* UICodeGen::emitUiSetState(std::shared_ptr<SIRInstruction> inst) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    if (!inst->operands.empty()) {
+        llvm::Value* fn = cg_.resolveOperand(inst->operands[0]);
+        auto pair = bridgeUiCallback(cg_, fn); // {cb=ثانك الإغلاق (Function*)، data=مؤشّر الإغلاق}
+        if (auto* thunk = llvm::dyn_cast_or_null<llvm::Function>(pair.cb))
+            cg_.builder_->CreateCall(thunk, {pair.data}); // نداءٌ تزامنيّ لدالّة التحديث
+    }
+    return emitUIRuntimeCall(cg_, "sad_update_state", voidTy, {}, {});
+}
+
+// (إكمال) عنوان_النافذة(نص) ⇒ sad_set_window_title(title): جسرٌ فوق المتحكّم المشترك.
+llvm::Value* UICodeGen::emitUiSetTitle(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* title = inst->operands.empty() ? llvm::ConstantPointerNull::get(ptrTy)
+                                                : cg_.resolveOperand(inst->operands[0]);
+    if (!title->getType()->isPointerTy()) title = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_set_window_title", voidTy, {ptrTy}, {title});
+}
+
+// (إكمال) أغلق_النافذة() ⇒ sad_close_window(): جسرٌ فوق المتحكّم المشترك. بلا وسائط.
+llvm::Value* UICodeGen::emitUiCloseWindow(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_close_window", voidTy, {}, {});
+}
+
+// (إكمال) توليد_ويب(عنصر, عنوان؟) ⇒ sad_generate_web(root, title) → char* (String).
+//   بانٍ (دالّة تُرجع عنصرًا) ⇒ نبنيه أوّلًا لعنصرٍ عبر ثانك البانِي (نظير buildCurrent)
+//   ثمّ نولّد؛ عنصر (لقطة) ⇒ يُمرَّر مباشرة ⇒ يقبل توليد_ويب(دالّة) كالمفسّر. النتيجة نصّ.
+llvm::Value* UICodeGen::emitUiGenWeb(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    llvm::Value* root = inst->operands.empty() ? llvm::ConstantPointerNull::get(ptrTy)
+                                               : cg_.resolveOperand(inst->operands[0]);
+    auto tri = bridgeUiPageBuilder(cg_, root);
+    if (tri.isBuilder) {
+        // (AR) استدعِ ثانك البانِي ⇒ SadWidget ptr (يعيد مؤشّرًا فارغًا آمنًا إن أرجع البانِي لاشيء).
+        auto* builderFn = llvm::cast<llvm::Function>(tri.build);
+        root = cg_.builder_->CreateCall(builderFn, {tri.data}, "genweb.page");
+    }
+    if (!root->getType()->isPointerTy()) root = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* title = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1])
+                                                   : llvm::ConstantPointerNull::get(ptrTy);
+    if (!title->getType()->isPointerTy()) title = llvm::ConstantPointerNull::get(ptrTy);
+    auto* result = emitUIRuntimeCall(cg_, "sad_generate_web", ptrTy, {ptrTy, ptrTy}, {root, title});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
 llvm::Value* UICodeGen::emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);

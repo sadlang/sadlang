@@ -250,6 +250,29 @@ void sad_navigate_transition_builder(SadPageBuilder build, void* data, SadReleas
 long long sad_page_count(void);
 /** الصفحة_الحالية() — الصفحة الحالية (SadWidget) من مكدّس التنقّل (حارس بنيويّ) */
 SadWidget sad_current_page(void);
+/** انتقل_بتحريك_كامل(صفحة, دخول, خروج, مدة) — تنقّل (لقطة) + انتقال دخول على الصفحة الجديدة.
+ *  (انتقال الخروج على الصفحة القديمة تحسينٌ بصريٌّ حيّ لا تستهلكه حلقة نافذة المترجم بعدُ،
+ *   نظير sad_navigate_transition؛ أثر المكدّس — العمق/الصفحة الحاليّة — مطابقٌ بالبناء.) */
+void sad_navigate_exit_transition(SadWidget page, const char* entryType,
+                                  const char* exitType, float durationSec);
+/** انتقل_بتحريك_كامل(دالّة_بناء, دخول, خروج, مدة) — نموذج البانِي (م1-ج) + انتقال دخول */
+void sad_navigate_exit_transition_builder(SadPageBuilder build, void* data, SadReleaseFn release,
+                                          const char* entryType, const char* exitType,
+                                          float durationSec);
+
+/* ─── م-تحكّم UICore: الحالة والنافذة (شريحة إكمال corui) ─── */
+/** تحديث_حالة() / عين_الحالة(دالّة) — يطلب إعادة رسمٍ (يعلّم مكدّس التنقّل dirty). عين_الحالة
+ *  في المترجم = استدعاء ثانك الإغلاق تزامنيًّا (دالّة التحديث) ثمّ sad_update_state، فلا دالّة
+ *  runtime مستقلّة لها. نظير المفسّر (rebuildUI). */
+void sad_update_state(void);
+/** عنوان_النافذة(نص) — يطلب تغيير عنوان النافذة عبر المتحكّم المشترك (window_control) */
+void sad_set_window_title(const char* title);
+/** أغلق_النافذة() — يطلب إغلاق النافذة عبر المتحكّم المشترك (window_control) */
+void sad_close_window(void);
+/** توليد_ويب(عنصر, عنوان؟) — يولّد HTML من شجرة العنصر عبر HtmlCodegen المكتبيّ. يُرجع نصًّا
+ *  مخصّصًا في الكومة يملكه المستدعي (نظير sad_readline). عنوانٌ فارغ/null ⇒ العنوان الافتراضيّ
+ *  من HtmlCodegenOptions (مطابقٌ للمفسّر). */
+char* sad_generate_web(SadWidget root, const char* title);
 
 /** دمّر_تطبيق(تطبيق) */
 void sad_app_destroy(SadApp app);

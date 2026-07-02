@@ -23,6 +23,7 @@
  */
 
 #include "sad_ui/desktop/window.h"
+#include "sad_ui/window_control.h" // (م-تحكّم) استهلاك عمليّات النافذة المُعلَّقة (عنوان/إغلاق)
 
 #ifdef SAD_UI_USE_SDL2
 #include <SDL.h>
@@ -916,6 +917,18 @@ namespace sad
 
                     // 1. معالجة أحداث SDL2
                     processEvents();
+
+                    // 1.3. (م-تحكّم) استهلاك عمليّات النافذة المُعلَّقة من المتحكّم المشترك:
+                    //      كلا المحرّكين يكتبان إلى windowController()، وهذه الحلقة (المكتبة)
+                    //      تستهلكها فتطبّقها على النافذة الفعليّة ⇒ سلوكٌ موحَّد بلا تفريعٍ
+                    //      لكلّ محرّك. الإغلاق يُطبَّق بعد العنوان (لو طُلِبا معًا يُغلَق).
+                    {
+                        std::string pendingTitle;
+                        if (windowController().takePendingTitle(pendingTitle))
+                            setTitle(pendingTitle);
+                        if (windowController().takeCloseRequest())
+                            close();
+                    }
 
                     // 1.5. تحديث المؤقتات
                     if (onTimerUpdateCallback_)

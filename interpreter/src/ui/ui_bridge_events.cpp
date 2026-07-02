@@ -16,6 +16,7 @@
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
 #include "sad_ui/nav.h" // (م1-د) مكدّس التنقّل المشترك — لا تدُس الصفحة المُنتقَل إليها
+#include "sad_ui/window_control.h" // (م-تحكّم) عنوان/إغلاق النافذة عبر المتحكّم المشترك (SoT موحَّد)
 
 #include <iostream>
 #include <algorithm>
@@ -646,20 +647,17 @@ namespace Sad
 
         void UIBridge::closeWindow()
         {
-            // (AR) إغلاق النافذة عبر الواجهة المجردة — كل منصة تتعامل معها بطريقتها
-            if (activeWindow_)
-            {
-                activeWindow_->close();
-            }
+            // (م-تحكّم، SoT موحَّد) نطلب الإغلاق عبر المتحكّم المشترك في المكتبة بدل
+            //   لمس النافذة مباشرةً؛ حلقة النافذة نفسها (DesktopWindow::run) تستهلك الطلب
+            //   وتُغلق. فيصير مصدرُ الحقيقة واحدًا للمحرّكين (المترجم يكتب للمتحكّم أيضًا).
+            sad::ui::windowController().requestClose();
         }
 
         void UIBridge::setWindowTitle(const std::string &title)
         {
-            // (AR) تعيين عنوان النافذة عبر الواجهة المجردة
-            if (activeWindow_)
-            {
-                activeWindow_->setTitle(title);
-            }
+            // (م-تحكّم، SoT موحَّد) نطلب تغيير العنوان عبر المتحكّم المشترك؛ حلقة النافذة
+            //   تستهلكه فتطبّقه (setTitle). نظير المترجم تمامًا (sad_set_window_title).
+            sad::ui::windowController().setTitle(title);
         }
 
         // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
