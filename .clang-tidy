@@ -53,5 +53,5 @@ CheckOptions:
   - key: readability-identifier-naming.NamespaceCase
     value: CamelCase
 
-HeaderFilterRegex: '(shared|interpreter_new|compiler_new|stdlib|network/sadnet)/.*\.(h|hpp)$'
+HeaderFilterRegex: '(shared|interpreter_new|compiler_new|stdlib|features/network)/.*\.(h|hpp)$'
 FormatStyle: none

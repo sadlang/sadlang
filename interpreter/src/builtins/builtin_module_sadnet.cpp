@@ -24,7 +24,7 @@
  *   # أو
  *   من شبكة_لامركزية استورد عقدة_جديدة
  *
- * @note يتطلب بناء صNet (network/sadnet/)
+ * @note يتطلب بناء صNet (features/network/sadnet/)
  * @see builtin_registry.cpp — التسجيل المركزي
  */
 
