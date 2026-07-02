@@ -580,6 +580,31 @@ namespace Sad
                     return "ui.app_destroy";
                 case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:
                     return "ui.widget_destroy";
+                // (AR) دوال الثيم — ترتيب الحالات مطابق لترتيب التعداد في sir_types.h
+                case SIROpcode::BUILTIN_UI_TOGGLE_THEME:
+                    return "ui.toggle_theme";
+                case SIROpcode::BUILTIN_UI_DARK_MODE:
+                    return "ui.dark_mode";
+                case SIROpcode::BUILTIN_UI_LIGHT_MODE:
+                    return "ui.light_mode";
+                case SIROpcode::BUILTIN_UI_IS_DARK:
+                    return "ui.is_dark";
+                case SIROpcode::BUILTIN_UI_NAVIGATE:
+                    return "ui.navigate";
+                case SIROpcode::BUILTIN_UI_NAV_BACK:
+                    return "ui.nav_back";
+                case SIROpcode::BUILTIN_UI_NAV_ROOT:
+                    return "ui.nav_root";
+                case SIROpcode::BUILTIN_UI_REPLACE_PAGE:
+                    return "ui.replace_page";
+                case SIROpcode::BUILTIN_UI_PAGE_COUNT:
+                    return "ui.page_count";
+                case SIROpcode::BUILTIN_UI_CURRENT_PAGE:
+                    return "ui.current_page";
+                case SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION:
+                    return "ui.navigate_transition";
+                case SIROpcode::BUILTIN_UI_BACK_TRANSITION:
+                    return "ui.back_transition";
 
                 // Module System
                 case SIROpcode::MODULE_LOAD:

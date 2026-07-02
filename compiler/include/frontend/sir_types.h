@@ -940,6 +940,25 @@ namespace Sad
                 BUILTIN_UI_APP_DESTROY,    ///< دمر_تطبيق(تطبيق) / sad_app_destroy(app)
                 BUILTIN_UI_WIDGET_DESTROY, ///< دمر_عنصر(عنصر) / sad_widget_destroy(widget)
 
+                // --- 20h. م-تحكّم UICore: الثيم — جسرٌ فوق حالة الثيم المكتبيّة
+                //          المشتركة (sad::ui::*)، نظير دوال المفسّر ذاتها. ---
+                BUILTIN_UI_TOGGLE_THEME,   ///< تبديل_الثيم() / sad_toggle_theme()
+                BUILTIN_UI_DARK_MODE,      ///< وضع_داكن() / sad_set_dark()
+                BUILTIN_UI_LIGHT_MODE,     ///< وضع_فاتح() / sad_set_light()
+                BUILTIN_UI_IS_DARK,        ///< هل_داكن() / sad_is_dark() → bool
+
+                // --- 20i. م-تحكّم UICore: التنقّل — جسرٌ فوق مكدّس التنقّل المكتبيّ
+                //          المشترك (sad::ui::nav). عمق-فقط في هذه الشريحة. ---
+                BUILTIN_UI_NAVIGATE,       ///< انتقل(صفحة) / sad_navigate(page)
+                BUILTIN_UI_NAV_BACK,       ///< عودة() / sad_navigate_back()
+                BUILTIN_UI_NAV_ROOT,       ///< عودة_للبداية() / sad_navigate_root()
+                BUILTIN_UI_REPLACE_PAGE,   ///< استبدل(صفحة) / sad_replace_page(page)
+                BUILTIN_UI_PAGE_COUNT,     ///< عدد_الصفحات() / sad_page_count() → i64
+                BUILTIN_UI_CURRENT_PAGE,   ///< الصفحة_الحالية() / sad_current_page() → SadWidget
+                // --- 20j. م2: التنقّل بتحريك بصريّ ---
+                BUILTIN_UI_NAVIGATE_TRANSITION, ///< انتقل_بتحريك(صفحة,نوع,مدة) / sad_navigate_transition
+                BUILTIN_UI_BACK_TRANSITION,      ///< عودة_بتحريك(نوع,مدة) / sad_navigate_back_transition
+
                 // --- 20e. أثر المعدّلات الانسيابيّة (م-أ3ر) — خاصّيّة عامّة بالاسم
                 //          نظير setIRProperty في المفسّر. اسم الطريقة = اسم الخاصيّة. ---
                 BUILTIN_UI_SET_PROP_STR,   ///< .م(نص) → sad_set_prop_str(w,name,val)

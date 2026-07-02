@@ -27,6 +27,7 @@
 #include <sad_ui/layout.h>
 #include <sad_ui/platform_renderer.h>
 #include <sad_ui/node.h>
+#include <sad_ui/nav.h> // (AR) م-تحكّم: مكدّس التنقّل المشترك (مصدر الحقيقة)
 #include <sad_ui/types.h>
 
 #ifdef SAD_UI_USE_SDL2
@@ -883,6 +884,87 @@ void sad_print_tree(SadWidget w) {
         sad::ui::printIRNodeTree(impl->irNode, 0);
 }
 
+/* ─── دوال الثيم (م-تحكّم) — جسرٌ رفيع فوق حالة الثيم المكتبيّة المشتركة ───
+ * (AR) المنطق والحالة يعيشان في المكتبة (sad::ui::* — features/graphics/core)،
+ *      والمفسّر يستدعي الدوال نفسها (ui_core_builtins.cpp: toggleTheme/setTheme/
+ *      isDarkMode) ⇒ مصدرُ حقيقةٍ واحد لا تكرار. المترجم يجسر إلى الدوال ذاتها.
+ * (EN) Theme state/logic live in the library; both engines bridge to the same
+ *      sad::ui:: functions ⇒ single source of truth, no divergence.
+ *
+ * (AR) إعادة الرسم: لا نستدعي rebuildUI هنا (بخلاف المفسّر) عمدًا — الثيم يغيّر
+ *      الألوانَ لا بنيةَ الشجرة، وحلقة النافذة (sad_app_run ⇒ DesktopWindow::run)
+ *      تقرأ ألوان الثيم وقتَ الرسم فتلتقط التبديلَ في الإطار التالي تلقائيًّا.
+ *      التكافؤ المُختبَر (هل_داكن، headless) يؤكّد تطابق قلب الحالة بين المحرّكين.
+ * (EN) We intentionally do NOT rebuild here: theme flips colors (read at paint
+ *      time by the window loop), not tree structure — so the next repaint picks
+ *      it up. Headless parity (isDark) verifies the state flip matches. */
+void sad_toggle_theme(void) { sad::ui::toggleTheme(); }
+void sad_set_dark(void)     { sad::ui::setTheme(sad::ui::ThemeMode::Dark); }
+void sad_set_light(void)    { sad::ui::setTheme(sad::ui::ThemeMode::Light); }
+bool sad_is_dark(void)      { return sad::ui::isDarkMode(); }
+
+/* ─── دوال التنقّل (م-تحكّم) — جسرٌ رفيع فوق مكدّس التنقّل المكتبيّ sad::ui::nav ───
+ * (AR) المنطق والحالة في المكتبة (nav.h/nav.cpp، مصدر الحقيقة المشترك)؛ المفسّر
+ *      يجسر إلى المكدّس نفسه ⇒ تكافؤ عمق (عدد_الصفحات) بين المحرّكين حتى headless.
+ *      رمز الصفحة معتم (SadWidget هنا). ونموذج البانِي (م1-ج) مُفعَّل: sad_navigate_builder
+ *      وأخواته يخزّنون بانيًا يُستدعى عند كلّ رسم (تفاعليّة كاملة داخل الصفحة، لا لقطة). */
+void sad_navigate(SadWidget page) {
+    sad::ui::NavEntry e; e.page = page;
+    sad::ui::nav().navigate(e);
+}
+bool sad_navigate_back(void) { return sad::ui::nav().back(); }
+void sad_navigate_root(void) { sad::ui::nav().root(); }
+/* (م2) انتقل_بتحريك: تنقّل + انتقال بصريّ مُعلَّق (تستهلكه حلقة النافذة). */
+void sad_navigate_transition(SadWidget page, const char* transType, float durationSec) {
+    /* (AR) مرجعٌ واحد للمُلاح بدل استدعاء nav() مرّتين (المفرد نفسه في الحالتين). */
+    auto& navStack = sad::ui::nav();
+    sad::ui::NavEntry e; e.page = page;
+    navStack.navigate(e);
+    navStack.setPendingTransition(transType ? transType : "", durationSec);
+}
+/* (م1-ج + م2) انتقل_بتحريك(دالّة): بانٍ (تفاعليّة) + انتقال بصريّ مُعلَّق. */
+void sad_navigate_transition_builder(SadPageBuilder build, void* data, SadReleaseFn release,
+                                     const char* transType, float durationSec) {
+    auto& navStack = sad::ui::nav();
+    sad::ui::NavEntry e; e.build = reinterpret_cast<sad::ui::PageBuilder>(build);
+    e.data = data; e.release = reinterpret_cast<sad::ui::NavRelease>(release);
+    navStack.navigate(e);
+    navStack.setPendingTransition(transType ? transType : "", durationSec);
+}
+/* (م2) عودة_بتحريك: عودة + انتقال بصريّ مُعلَّق. يُرجع 1 إن نجحت العودة، 0 إن لا صفحة. */
+int sad_navigate_back_transition(const char* transType, float durationSec) {
+    auto& navStack = sad::ui::nav();
+    const bool ok = navStack.back();
+    if (ok) navStack.setPendingTransition(transType ? transType : "", durationSec);
+    return ok ? 1 : 0;
+}
+void sad_replace_page(SadWidget page) {
+    sad::ui::NavEntry e; e.page = page;
+    sad::ui::nav().replace(e);
+}
+/* (م1-ج، توقيع البانِي) انتقل(دالّة): يخزّن بانيًا (build) لا لقطةً؛ حلقة النافذة
+ * تستدعيه عند كلّ إعادة رسم (buildCurrent) ⇒ صفحةٌ طازجةٌ تفاعليّة. الملكيّة مُدارة:
+ * `data` (بيئة الإغلاق) يملكها المكدّس ويحرّرها بـ`release` عند الإسقاط (Q5). */
+void sad_navigate_builder(SadPageBuilder build, void* data, SadReleaseFn release) {
+    sad::ui::NavEntry e; e.build = reinterpret_cast<sad::ui::PageBuilder>(build);
+    e.data = data; e.release = reinterpret_cast<sad::ui::NavRelease>(release);
+    sad::ui::nav().navigate(e);
+}
+void sad_replace_page_builder(SadPageBuilder build, void* data, SadReleaseFn release) {
+    sad::ui::NavEntry e; e.build = reinterpret_cast<sad::ui::PageBuilder>(build);
+    e.data = data; e.release = reinterpret_cast<sad::ui::NavRelease>(release);
+    sad::ui::nav().replace(e);
+}
+long long sad_page_count(void) {
+    return static_cast<long long>(sad::ui::nav().depth());
+}
+SadWidget sad_current_page(void) {
+    // (AR) الصفحة الحالية (رمزها المعتم = SadWidget). حارسٌ بنيويّ headless (§Q3).
+    //      (م1-ج) عبر buildCurrent: إن كان الإدخال بانيًا استدعاه ⇒ يكشف الشجرة
+    //      المبنيّة فعلًا (لا مؤشّر الإغلاق)، فيتطابق طباعة_شجرة headless مع الرسم الحيّ.
+    return sad::ui::nav().buildCurrent();
+}
+
 /* ─── تشغيل_تطبيق(عنصر) — حلقة سطح المكتب (م-أ3ر/الإرسال) ───
  * (AR) جسرٌ رفيع فوق DesktopWindow في المكتبة: النافذة تملك الحلقة والتخطيط والرسم
  *      وhit-test وإرسال الأحداث؛ نوصّل callback يُرسِل إلى ردود النداء المُترجَمة.
@@ -908,13 +990,39 @@ void sad_app_run(SadWidget root) {
     }
     if (!window.create(options)) return;
     window.setContent(impl->irNode);
+    // (م1-ب) سجّل الجذر كصفحة ابتدائيّة في مكدّس التنقّل (نظير UIBridge::run الذي
+    //        يضبط rootWidget_)، فتعمل عودة_للبداية وتتّسق حالة nav مع المرسوم. نستهلك
+    //        dirty الابتدائيّ لأنّ المحتوى مضبوطٌ سلفًا بـsetContent أعلاه.
+    { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root; navStack.replace(e); navStack.takeDirty(); }
     window.setOnEventCallback(
         [](IREventType type, const std::string& /*elementId*/,
            const IRNode* node, const EventData& /*data*/) {
             dispatchCompiledEvent(node, type);
         });
+    // (م1-ب) إعادة الرسم عند تبديل الصفحة: كلّ إطار نفحص إن تغيّرت الصفحة الحاليّة
+    //        (انتقل/عودة/… من ردّ نداء) فنعيد ضبط محتوى النافذة من الجذر الجديد.
+    //        هذا يجعل التنقّل الحيّ يبدّل المرسوم فعلًا (كان sad_app_run يعرض جذرًا ثابتًا).
+    window.setTimerUpdateCallback([&window]() {
+        auto& navStack = sad::ui::nav();
+        if (navStack.takeDirty()) {
+            // (م1-ج) ابنِ الصفحة الحاليّة عبر buildCurrent: إن كان الإدخال بانيًا
+            //        (انتقل(دالّة)) استُدعي البانِي ⇒ شجرةٌ طازجةٌ تفاعليّة كلّ رسم؛
+            //        وإن كان لقطةً أُعيدت كما هي (توافق خلفيّ). مصدر رسمٍ واحد.
+            auto* pimpl = toWidget(navStack.buildCurrent());
+            if (pimpl && pimpl->irNode) {
+                // (م2) إن كان ثمّة انتقال بصريّ مُعلَّق (انتقل_بتحريك) نبدّل بتحريك؛ وإلّا فورًا.
+                std::string transType; float dur = sad::ui::kDefaultTransitionSec;
+                if (navStack.takePendingTransition(transType, dur))
+                    window.setContentWithTransition(pimpl->irNode, transType, dur);
+                else
+                    window.setContent(pimpl->irNode);
+            }
+        }
+    });
     window.run();
     window.destroy();
+    // (AR) بعد إغلاق النافذة: صفّر مكدّس التنقّل (المقابض تشير لعناصر هذا التطبيق).
+    sad::ui::nav().reset();
 #else
     (void)root;
 #endif

@@ -19,6 +19,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/platform/ui_codegen.h"
+#include "sir_constants.h" // (م1-ج) kSadNullSentinel — حارس بانِي يُرجع لاشيء/void
 #include <llvm/IR/DerivedTypes.h>
 
 namespace Sad {
@@ -69,6 +70,139 @@ static llvm::Value* emitUIRuntimeCall(
 // (EN) Forward declaration of the safe numeric→f32 cast (defined below);
 //      used by numeric factories/setters above its definition.
 static llvm::Value* castNumericToF32(LLVMCodeGen& cg, llvm::Value* v);
+
+// ─── مخطّط بنية الإغلاق المشترك بين الثانكين ───
+// (AR) بنية الإغلاق على الكومة {fn_ptr@0, env_ptr@1} (كلاهما i64) — نظير emitClosureCall.
+//      نُسمّي الفهرسين تفاديًا للأرقام السحريّة المكرّرة في closure/page-builder thunks.
+static constexpr uint64_t kClosureFnSlot = 0;  // مؤشّر الدالّة (fn_ptr)
+static constexpr uint64_t kClosureEnvSlot = 1; // مؤشّر بيئة الالتقاط (env_ptr)
+
+// ─── جسر ردّ نداء الواجهة (thunk الإغلاق) — إصلاح الالتقاط المكسور ───────────────
+// (AR) في ص، أيّ دالّة/لامدا كقيمة = بنية إغلاق {fn_ptr:i64, env_ptr:i64} على الكومة،
+//      يُمرَّر مؤشّرها كـi64. لكنّ runtime الواجهة يتوقّع `cb` = void(*)(void*) ويستدعي
+//      cb(data). تمرير مؤشّر البنية كـcb (السلوك القديم) = قفزةٌ لبيانات لا كود ⇒ التقاطٌ
+//      مكسور. الحلّ: cb = thunk عامّ، data = مؤشّر الإغلاق؛ الـthunk يعيد بناء fn(env).
+//      المعالِج بلا وسائط صريحة توقيعه void(i64 __env) (expression_functional.cpp:138).
+//
+// ⚠ قيد ABI حرِج: الـthunk يفترض توقيعًا حصريًّا void(i64 __env) — أي معالِجًا بلا
+//   وسائط صريحة (النمط الوحيد المعنيّ في مسار المترجم؛ runtime الواجهة يستدعي cb(data)
+//   بوسيطٍ واحد لا خريطة حدث — sad_ui_runtime.cpp:867/872). لو كتب مبرمج معالِجًا
+//   بوسيطٍ صريح «لامدا(س) => …» فتوقيع اللامدا الفعليّ (i64 س, i64 __env) والـthunk
+//   يمرّر __env في خانة «س» تاركًا __env قمامةً ⇒ سلوكٌ غير معرَّف عند قراءة الملتقَطات.
+//   (تباعدٌ صامت عن المفسّر الذي يمرّر خريطة الحدث؛ قيدٌ معروف — لا حارس نحويّ هنا.)
+// ⚠ قيد عمر: data = مؤشّر الإغلاق (كومة malloc) يعيش في binding العنصر ويُستدعى عند
+//   النقر لاحقًا؛ لا مُحرِّر (العناصر تعيش طوال التطبيق) ⇒ لا تعليقٌ فعليّ في هذا المسار.
+[[nodiscard]] static llvm::Function* getOrCreateUiClosureThunk(LLVMCodeGen& cg) {
+    llvm::Module* m = cg.getModule();
+    if (auto* existing = m->getFunction("__sad_ui_closure_thunk")) return existing;
+    auto& ctx = *cg.context_;
+    auto* voidTy = llvm::Type::getVoidTy(ctx);
+    auto* i64Ty = llvm::Type::getInt64Ty(ctx);
+    auto* ptrTy = llvm::PointerType::getUnqual(ctx);
+    auto* ft = llvm::FunctionType::get(voidTy, {ptrTy}, false); // void thunk(void* data)
+    auto* fn = llvm::Function::Create(ft, llvm::Function::InternalLinkage, "__sad_ui_closure_thunk", m);
+    fn->addFnAttr(llvm::Attribute::NoUnwind);
+    llvm::IRBuilder<>& b = *cg.builder_;
+    auto savedBB = b.GetInsertBlock();
+    auto savedIP = savedBB ? b.GetInsertPoint() : llvm::BasicBlock::iterator();
+    auto* entry = llvm::BasicBlock::Create(ctx, "entry", fn);
+    b.SetInsertPoint(entry);
+    llvm::Value* data = fn->getArg(0); // = مؤشّر بنية الإغلاق
+    // fn_ptr = closure[kClosureFnSlot]، env_ptr = closure[kClosureEnvSlot] — نظير emitClosureCall.
+    llvm::Value* fnSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureFnSlot), "fn.slot");
+    llvm::Value* fnI64 = b.CreateLoad(i64Ty, fnSlot, "fn.i64");
+    llvm::Value* envSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureEnvSlot), "env.slot");
+    llvm::Value* envI64 = b.CreateLoad(i64Ty, envSlot, "env.i64");
+    llvm::Value* handlerFn = b.CreateIntToPtr(fnI64, ptrTy, "handler.fn");
+    auto* handlerFt = llvm::FunctionType::get(voidTy, {i64Ty}, false); // void(i64 __env)
+    b.CreateCall(handlerFt, handlerFn, {envI64});
+    b.CreateRetVoid();
+    if (savedBB) b.SetInsertPoint(savedBB, savedIP);
+    return fn;
+}
+
+// (AR) يحوّل قيمة إغلاق (i64/ptr) إلى زوج (cb=thunk, data=مؤشّر الإغلاق). null ⇒ (null,null).
+struct UiCallbackPair { llvm::Value* cb = nullptr; llvm::Value* data = nullptr; };
+[[nodiscard]] static UiCallbackPair bridgeUiCallback(LLVMCodeGen& cg, llvm::Value* closureVal) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg.context_);
+    auto* nullp = llvm::ConstantPointerNull::get(ptrTy);
+    if (!closureVal) return { nullp, nullp };
+    llvm::Value* dataPtr;
+    if (closureVal->getType()->isPointerTy())
+        dataPtr = closureVal;
+    else if (closureVal->getType()->isIntegerTy())
+        dataPtr = cg.builder_->CreateIntToPtr(closureVal, ptrTy, "cb.closure");
+    else
+        return { nullp, nullp }; // نوع غير متوقّع ⇒ لا ردّ نداء (كالحارس الدفاعيّ السابق)
+    return { getOrCreateUiClosureThunk(cg), dataPtr };
+}
+
+// =====================================================================
+// (م1-ج، توقيع البانِي) جسر ثانك باني الصفحة: يحوّل إغلاق ص (دالّة تُرجع عنصرًا)
+//   إلى SadPageBuilder المكتبيّ `SadWidget(*)(void* data)`. نظير closure_thunk لكن
+//   **يُرجع عنصرًا** بدل void. الثانك عامّ (thunk واحد لكلّ وحدة) يعمل لأيّ بانٍ:
+//   يحمّل fn@0/env@1 (نظير emitClosureCall)، يستدعي البانِي ببروتوكول الإغلاق
+//   `i64 fn(i64 __env)` ثمّ inttoptr للنتيجة ⇒ SadWidget.
+// ⚠ توافق ABI الإرجاع: بانِي ص المُغلَّف قد يُرجع ptr (func-ref wrapper) أو i64
+//   (lambda-conv wrapper، closure_ops.cpp:314-317)؛ كلاهما يعود في سجلّ النتيجة
+//   نفسه على x64/ARM64، فقراءتُه i64 ثمّ inttoptr صحيحةٌ للحالتين (نظير بروتوكول
+//   CLOSURE_CALL الذي يفترض i64). الثانك يطابق هذا البروتوكول لا توقيع البانِي.
+// ⚠ عمر data (بيئة الإغلاق): يملكه مكدّس التنقّل ويحرّره بـrelease عند الإسقاط (Q5)؛
+//   نمرّر release=null هنا (بيئة الإغلاق مُدارة كومةً تعيش مع البرنامج — لا مُحرِّر
+//   بعدُ في المترجم، نظير قيد عمر ردّ نداء الحدث). لا تعليقٌ فعليّ في هذا المسار.
+[[nodiscard]] static llvm::Function* getOrCreateUiPageBuilderThunk(LLVMCodeGen& cg) {
+    llvm::Module* m = cg.getModule();
+    if (auto* existing = m->getFunction("__sad_ui_page_builder_thunk")) return existing;
+    auto& ctx = *cg.context_;
+    auto* i64Ty = llvm::Type::getInt64Ty(ctx);
+    auto* ptrTy = llvm::PointerType::getUnqual(ctx);
+    auto* ft = llvm::FunctionType::get(ptrTy, {ptrTy}, false); // ptr thunk(void* data)
+    auto* fn = llvm::Function::Create(ft, llvm::Function::InternalLinkage, "__sad_ui_page_builder_thunk", m);
+    fn->addFnAttr(llvm::Attribute::NoUnwind);
+    llvm::IRBuilder<>& b = *cg.builder_;
+    auto savedBB = b.GetInsertBlock();
+    auto savedIP = savedBB ? b.GetInsertPoint() : llvm::BasicBlock::iterator();
+    auto* entry = llvm::BasicBlock::Create(ctx, "entry", fn);
+    b.SetInsertPoint(entry);
+    llvm::Value* data = fn->getArg(0); // = مؤشّر بنية الإغلاق {fn_ptr@0, env_ptr@1}
+    llvm::Value* fnSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureFnSlot), "fn.slot");
+    llvm::Value* fnI64 = b.CreateLoad(i64Ty, fnSlot, "fn.i64");
+    llvm::Value* envSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureEnvSlot), "env.slot");
+    llvm::Value* envI64 = b.CreateLoad(i64Ty, envSlot, "env.i64");
+    llvm::Value* builderFn = b.CreateIntToPtr(fnI64, ptrTy, "builder.fn");
+    // (AR) بروتوكول الإغلاق: i64 fn(i64 __env) — نظير emitClosureCall (env آخر وسيط).
+    auto* builderFt = llvm::FunctionType::get(i64Ty, {i64Ty}, false);
+    llvm::Value* widgetI64 = b.CreateCall(builderFt, builderFn, {envI64}, "page.i64");
+    // (AR) حارس بانٍ يُرجع «لاشيء» (kSadNullSentinel) أو 0: أعِد مؤشّرًا فارغًا حقيقيًّا
+    //      بدل inttoptr للحارس (= مؤشّر قمامةٍ غير-فارغ يجتاز حارس impl في sad_print_tree
+    //      ⇒ انهيار). هكذا تُعرَض صفحةٌ فارغة (لا شيء) مطابقةً للمفسّر (طباعة صامتة على
+    //      صفحةٍ فارغة) بدل الانهيار. (⚠ بانٍ يُرجع void حقيقيًّا — لا ارجع أصلًا — يترك
+    //      سجلّ النتيجة غير معرَّف فقد يفلت من الحارس؛ ذاك سوء استخدامٍ: البانِي يجب أن
+    //      يُرجع عنصرًا أو لاشيء.)
+    auto* sentinel = llvm::ConstantInt::get(i64Ty, static_cast<uint64_t>(Sad::Compiler::kSadNullSentinel), /*isSigned=*/true);
+    auto* zero = llvm::ConstantInt::get(i64Ty, 0);
+    llvm::Value* isSent = b.CreateICmpEQ(widgetI64, sentinel, "page.is_null_sentinel");
+    llvm::Value* isZero = b.CreateICmpEQ(widgetI64, zero, "page.is_zero");
+    llvm::Value* isNull = b.CreateOr(isSent, isZero, "page.is_null");
+    llvm::Value* asPtr = b.CreateIntToPtr(widgetI64, ptrTy, "page.widget");
+    llvm::Value* nullp = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* widgetPtr = b.CreateSelect(isNull, nullp, asPtr, "page.safe");
+    b.CreateRet(widgetPtr);
+    if (savedBB) b.SetInsertPoint(savedBB, savedIP);
+    return fn;
+}
+
+// (AR) هل الوسيط بانٍ (إغلاق/دالّة ص، يُحلّ إلى i64) لا لقطة عنصر (ptr)؟ تمييزٌ نظير
+//      bridgeUiCallback: العنصر المبنيّ ptr، والإغلاق i64 (ptrtoint closure.alloc).
+struct UiBuilderTriple { bool isBuilder = false; llvm::Value* build = nullptr; llvm::Value* data = nullptr; };
+[[nodiscard]] static UiBuilderTriple bridgeUiPageBuilder(LLVMCodeGen& cg, llvm::Value* arg) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg.context_);
+    if (arg && arg->getType()->isIntegerTy()) {
+        llvm::Value* dataPtr = cg.builder_->CreateIntToPtr(arg, ptrTy, "nav.closure");
+        return { true, getOrCreateUiPageBuilderThunk(cg), dataPtr };
+    }
+    return { false, nullptr, nullptr };
+}
 
 // =====================================================================
 // 21. †״¸״§… ״§„ˆ״§״¬‡״© ״§„…ˆ״­״¯ / Unified UI System (sad_ui.h)
@@ -143,14 +277,11 @@ llvm::Value* UICodeGen::emitUiButton(std::shared_ptr<SIRInstruction> inst) {
     // (AR) حارس: زر() بلا وسائط ⇒ operands فارغة (null ⇒ لا «عنوان»، يطابق المفسّر).
     llvm::Value* label = !inst->operands.empty() ?
         cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* cb = inst->operands.size() > 1 ?
-        cg_.resolveOperand(inst->operands[1]) :
-        llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_));
-    llvm::Value* data = inst->operands.size() > 2 ?
-        cg_.resolveOperand(inst->operands[2]) :
-        llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_));
+    // (AR) ردّ النداء = إغلاق (operands[1]) ⇒ جسر thunk (cb=thunk, data=مؤشّر الإغلاق).
+    llvm::Value* closureVal = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal);
     auto* result = emitUIRuntimeCall(cg_, "sad_button", ptrTy,
-        {ptrTy, ptrTy, ptrTy}, {label, cb, data});
+        {ptrTy, ptrTy, ptrTy}, {label, cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
@@ -179,15 +310,11 @@ llvm::Value* UICodeGen::emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst
     llvm::Value* g = opF32v(3);
     llvm::Value* b = opF32v(4);
     llvm::Value* a = opF32v(5);
-    llvm::Value* cb = inst->operands.size() > 6 ?
-        cg_.resolveOperand(inst->operands[6]) :
-        llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 7 ?
-        cg_.resolveOperand(inst->operands[7]) :
-        llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = inst->operands.size() > 6 ? cg_.resolveOperand(inst->operands[6]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق (إصلاح الالتقاط)
     auto* result = emitUIRuntimeCall(cg_, "sad_button_variant", ptrTy,
         {ptrTy, i32Ty, f32Ty, f32Ty, f32Ty, f32Ty, ptrTy, ptrTy},
-        {label, variant, r, g, b, a, cb, data});
+        {label, variant, r, g, b, a, cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
@@ -197,12 +324,10 @@ llvm::Value* UICodeGen::emitUiIconButton(std::shared_ptr<SIRInstruction> inst) {
     // (AR) حارس: زر_أيقونة() بلا وسائط ⇒ operands فارغة (منع انهيار).
     llvm::Value* icon = !inst->operands.empty() ?
         cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* cb = inst->operands.size() > 1 ?
-        cg_.resolveOperand(inst->operands[1]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 2 ?
-        cg_.resolveOperand(inst->operands[2]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق
     auto* result = emitUIRuntimeCall(cg_, "sad_icon_button", ptrTy,
-        {ptrTy, ptrTy, ptrTy}, {icon, cb, data});
+        {ptrTy, ptrTy, ptrTy}, {icon, cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
@@ -220,13 +345,11 @@ llvm::Value* UICodeGen::emitUiFab(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* g = opF32f(2);
     llvm::Value* b = opF32f(3);
     llvm::Value* a = opF32f(4);
-    llvm::Value* cb = inst->operands.size() > 5 ?
-        cg_.resolveOperand(inst->operands[5]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 6 ?
-        cg_.resolveOperand(inst->operands[6]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = inst->operands.size() > 5 ? cg_.resolveOperand(inst->operands[5]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق
     auto* result = emitUIRuntimeCall(cg_, "sad_fab", ptrTy,
         {ptrTy, f32Ty, f32Ty, f32Ty, f32Ty, ptrTy, ptrTy},
-        {icon, r, g, b, a, cb, data});
+        {icon, r, g, b, a, cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
@@ -237,36 +360,30 @@ llvm::Value* UICodeGen::emitUiTextField(std::shared_ptr<SIRInstruction> inst) {
     //      «تلميح» عند null ⇒ يطابق المفسّر). بلا الحارس يقع وصولٌ خارج الحدود ⇒ انهيار.
     llvm::Value* hint = !inst->operands.empty() ?
         cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* cb = inst->operands.size() > 1 ?
-        cg_.resolveOperand(inst->operands[1]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 2 ?
-        cg_.resolveOperand(inst->operands[2]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق
     auto* result = emitUIRuntimeCall(cg_, "sad_text_field", ptrTy,
-        {ptrTy, ptrTy, ptrTy}, {hint, cb, data});
+        {ptrTy, ptrTy, ptrTy}, {hint, cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
 
 llvm::Value* UICodeGen::emitUiCheckbox(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-    llvm::Value* cb = !inst->operands.empty() ?
-        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 1 ?
-        cg_.resolveOperand(inst->operands[1]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = !inst->operands.empty() ? cg_.resolveOperand(inst->operands[0]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق
     auto* result = emitUIRuntimeCall(cg_, "sad_checkbox", ptrTy,
-        {ptrTy, ptrTy}, {cb, data});
+        {ptrTy, ptrTy}, {cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
 
 llvm::Value* UICodeGen::emitUiSwitch(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-    llvm::Value* cb = !inst->operands.empty() ?
-        cg_.resolveOperand(inst->operands[0]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 1 ?
-        cg_.resolveOperand(inst->operands[1]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = !inst->operands.empty() ? cg_.resolveOperand(inst->operands[0]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق
     auto* result = emitUIRuntimeCall(cg_, "sad_switch_toggle", ptrTy,
-        {ptrTy, ptrTy}, {cb, data});
+        {ptrTy, ptrTy}, {cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
@@ -281,12 +398,10 @@ llvm::Value* UICodeGen::emitUiSlider(std::shared_ptr<SIRInstruction> inst) {
         castNumericToF32(cg_, cg_.resolveOperand(inst->operands[0])) : llvm::ConstantFP::get(f32Ty, 0.0f);
     llvm::Value* maxVal = inst->operands.size() > 1 ?
         castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1])) : llvm::ConstantFP::get(f32Ty, 0.0f);
-    llvm::Value* cb = inst->operands.size() > 2 ?
-        cg_.resolveOperand(inst->operands[2]) : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 3 ?
-        cg_.resolveOperand(inst->operands[3]) : llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* closureVal = inst->operands.size() > 2 ? cg_.resolveOperand(inst->operands[2]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal); // جسر thunk الإغلاق
     auto* result = emitUIRuntimeCall(cg_, "sad_slider", ptrTy,
-        {f32Ty, f32Ty, ptrTy, ptrTy}, {minVal, maxVal, cb, data});
+        {f32Ty, f32Ty, ptrTy, ptrTy}, {minVal, maxVal, cbPair.cb, cbPair.data});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }
@@ -548,6 +663,134 @@ llvm::Value* UICodeGen::emitUiPrintTree(std::shared_ptr<SIRInstruction> inst) {
     return emitUIRuntimeCall(cg_, "sad_print_tree", voidTy, {ptrTy}, {root});
 }
 
+// (AR) م-تحكّم: دوال الثيم ⇒ جسرٌ فوق حالة الثيم المكتبيّة (sad::ui::*)، نظير المفسّر.
+//      تبديل/داكن/فاتح نداءات void بلا وسائط؛ هل_داكن يُرجع i1 (bool) ويُخزَّن في namedValues.
+llvm::Value* UICodeGen::emitUiToggleTheme(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_toggle_theme", voidTy, {}, {});
+}
+
+llvm::Value* UICodeGen::emitUiDarkMode(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_set_dark", voidTy, {}, {});
+}
+
+llvm::Value* UICodeGen::emitUiLightMode(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_set_light", voidTy, {}, {});
+}
+
+llvm::Value* UICodeGen::emitUiIsDark(std::shared_ptr<SIRInstruction> inst) {
+    auto* i1Ty = llvm::Type::getInt1Ty(*cg_.context_);
+    auto* result = emitUIRuntimeCall(cg_, "sad_is_dark", i1Ty, {}, {});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+// (AR) مدّة الانتقال البصريّ الافتراضيّة عند حذف الوسيط (م2). ⚠ يجب أن تطابق
+//      sad::ui::kDefaultTransitionSec في المكتبة (nav.h) وحلقة النافذة (sad_ui_runtime.cpp)
+//      ضمانًا لتماثل السلوك بين المُدخَل من الوسيط والمُستهلَك من المكدّس.
+static constexpr float kUiDefaultTransitionSec = 0.3f;
+
+// (AR) م-تحكّم: التنقّل ⇒ جسرٌ فوق مكدّس التنقّل المكتبيّ (sad::ui::nav).
+//      انتقل/استبدل يمرّران مقبض الصفحة (ptr) أو بانيًا (دالّة، م1-ج)؛ عودة/عودة_للبداية
+//      بلا وسائط؛ عدد_الصفحات يُرجع i64 ويُخزَّن.
+llvm::Value* UICodeGen::emitUiNavigate(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* page = inst->operands.empty()
+        ? llvm::ConstantPointerNull::get(ptrTy)
+        : cg_.resolveOperand(inst->operands[0]);
+    // (م1-ج) دالّة/إغلاق ⇒ نموذج البانِي (تفاعليّة عبر buildCurrent)؛ عنصر ⇒ لقطة.
+    auto tri = bridgeUiPageBuilder(cg_, page);
+    if (tri.isBuilder) {
+        auto* nullRel = llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_navigate_builder", voidTy,
+            {ptrTy, ptrTy, ptrTy}, {tri.build, tri.data, nullRel});
+    }
+    return emitUIRuntimeCall(cg_, "sad_navigate", voidTy, {ptrTy}, {page});
+}
+
+llvm::Value* UICodeGen::emitUiNavBack(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* i1Ty = llvm::Type::getInt1Ty(*cg_.context_);
+    // (AR) النتيجة المنطقيّة تُهمَل (عودة void في ص، كالمفسّر).
+    return emitUIRuntimeCall(cg_, "sad_navigate_back", i1Ty, {}, {});
+}
+
+llvm::Value* UICodeGen::emitUiNavRoot(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_navigate_root", voidTy, {}, {});
+}
+
+llvm::Value* UICodeGen::emitUiReplacePage(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* page = inst->operands.empty()
+        ? llvm::ConstantPointerNull::get(ptrTy)
+        : cg_.resolveOperand(inst->operands[0]);
+    // (م1-ج) دالّة/إغلاق ⇒ بدّل ببانٍ (تفاعليّة)؛ عنصر ⇒ لقطة.
+    auto tri = bridgeUiPageBuilder(cg_, page);
+    if (tri.isBuilder) {
+        auto* nullRel = llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_replace_page_builder", voidTy,
+            {ptrTy, ptrTy, ptrTy}, {tri.build, tri.data, nullRel});
+    }
+    return emitUIRuntimeCall(cg_, "sad_replace_page", voidTy, {ptrTy}, {page});
+}
+
+llvm::Value* UICodeGen::emitUiPageCount(std::shared_ptr<SIRInstruction> inst) {
+    auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+    auto* result = emitUIRuntimeCall(cg_, "sad_page_count", i64Ty, {}, {});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+// (AR) الصفحة_الحالية() ⇒ sad_current_page(): يُرجع SadWidget (ptr) ويُخزَّن — حارس
+//      بنيويّ (طباعة_شجرة(الصفحة_الحالية()) تكشف الجذر المرسوم).
+llvm::Value* UICodeGen::emitUiCurrentPage(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* result = emitUIRuntimeCall(cg_, "sad_current_page", ptrTy, {}, {});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+// (م2) انتقل_بتحريك ⇒ sad_navigate_transition(page, transType, duration).
+llvm::Value* UICodeGen::emitUiNavigateTransition(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* page = inst->operands.empty() ? llvm::ConstantPointerNull::get(ptrTy)
+                                               : cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* trans = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1])
+                                                   : llvm::ConstantPointerNull::get(ptrTy);
+    if (!trans->getType()->isPointerTy()) trans = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* dur = inst->operands.size() > 2 ? castNumericToF32(cg_, cg_.resolveOperand(inst->operands[2]))
+                                                 : llvm::ConstantFP::get(f32Ty, kUiDefaultTransitionSec);
+    // (م1-ج) دالّة/إغلاق ⇒ بانٍ تفاعليّ + انتقال؛ عنصر ⇒ لقطة + انتقال. بلا هذا التفريع
+    //        يُمرَّر إغلاق i64 إلى مُعامل ptr ⇒ فشل تحقّق LLVM (تباعد صامت عن المفسّر الذي
+    //        يقبل الدالّة عبر interpNavEntryFor). — إصلاح مراجعة Amelia (HIGH-1).
+    auto tri = bridgeUiPageBuilder(cg_, page);
+    if (tri.isBuilder) {
+        auto* nullRel = llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_navigate_transition_builder", voidTy,
+            {ptrTy, ptrTy, ptrTy, ptrTy, f32Ty}, {tri.build, tri.data, nullRel, trans, dur});
+    }
+    return emitUIRuntimeCall(cg_, "sad_navigate_transition", voidTy, {ptrTy, ptrTy, f32Ty}, {page, trans, dur});
+}
+
+// (م2) عودة_بتحريك ⇒ sad_navigate_back_transition(transType, duration). النتيجة تُهمَل.
+llvm::Value* UICodeGen::emitUiBackTransition(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* f32Ty = llvm::Type::getFloatTy(*cg_.context_);
+    auto* i1Ty = llvm::Type::getInt1Ty(*cg_.context_);
+    llvm::Value* trans = !inst->operands.empty() ? cg_.resolveOperand(inst->operands[0])
+                                                 : llvm::ConstantPointerNull::get(ptrTy);
+    if (!trans->getType()->isPointerTy()) trans = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* dur = inst->operands.size() > 1 ? castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]))
+                                                 : llvm::ConstantFP::get(f32Ty, kUiDefaultTransitionSec);
+    return emitUIRuntimeCall(cg_, "sad_navigate_back_transition", i1Ty, {ptrTy, f32Ty}, {trans, dur});
+}
+
 llvm::Value* UICodeGen::emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
@@ -783,17 +1026,12 @@ llvm::Value* UICodeGen::emitUiAddEvent(std::shared_ptr<SIRInstruction> inst) {
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
-    llvm::Value* cb = inst->operands.size() > 2
-        ? cg_.resolveOperand(inst->operands[2])
-        : llvm::ConstantPointerNull::get(ptrTy);
-    llvm::Value* data = inst->operands.size() > 3
-        ? cg_.resolveOperand(inst->operands[3])
-        : llvm::ConstantPointerNull::get(ptrTy);
-    // (AR) دفاعيّ: ردّ النداء/البيانات يجب أن يكونا مؤشّرين (emitUIRuntimeCall لا يُكيّف).
-    if (!cb->getType()->isPointerTy())   cb = llvm::ConstantPointerNull::get(ptrTy);
-    if (!data->getType()->isPointerTy()) data = llvm::ConstantPointerNull::get(ptrTy);
+    // (AR) ردّ النداء = إغلاق (operands[2]) ⇒ جسر thunk (cb=thunk, data=مؤشّر الإغلاق).
+    //      يُصلح الالتقاط المكسور؛ operands[3] القديم (userData) لم يعد يُستعمَل (data من الإغلاق).
+    llvm::Value* closureVal = inst->operands.size() > 2 ? cg_.resolveOperand(inst->operands[2]) : nullptr;
+    auto cbPair = bridgeUiCallback(cg_, closureVal);
     return emitUIRuntimeCall(cg_, "sad_add_event", voidTy,
-        {ptrTy, ptrTy, ptrTy, ptrTy}, {widget, name, cb, data});
+        {ptrTy, ptrTy, ptrTy, ptrTy}, {widget, name, cbPair.cb, cbPair.data});
 }
 
 // ─── سلسلة التحريك (م-أ3ر، L3) ───

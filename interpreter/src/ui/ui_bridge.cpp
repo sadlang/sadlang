@@ -101,19 +101,18 @@ namespace Sad
 
             // (AR) ״¯״¹… ״¯״§„״© ״§„״¨†‘״§״¡: ״¥״°״§ ƒ״§† ״§„״¬״°״± ״¯״§„״© (ˆ„״³ ƒ״§״¦† ˆ״§״¬‡״©)״ †״­״¸‡״§ ƒ״¨†‘״§״¡
             //      ˆ†״³״×״¯״¹‡״§ „„״­״µˆ„ ״¹„‰ ״§„״´״¬״±״© ״§„״£ˆ„״©
-            // (EN) Builder function support: if root is a function (not widget object), save as builder
+            // (EN) Builder function support: if root is a function, call it once for the initial tree;
             Data::Value actualWidget;
             if (rootWidget.isFunction())
             {
-                builderFunc_ = rootWidget;
-                // ״§״³״×״¯״¹״§״¡ ״¯״§„״© ״§„״¨†‘״§״¡ „„״­״µˆ„ ״¹„‰ ״§„״´״¬״±״©
+                // (Amelia LOW-2) أُزيل builderFunc_ (لا قارئ بعد التوحيد؛ الرسم من nav).
                 try
                 {
                     auto funcRef = rootWidget.toFunction();
                     if (funcRef)
                     {
-                        auto result = interpreter_->callUserFunction(funcRef->registeredName, {});
-                        actualWidget = result;
+                        // (AR) استدعِ باني الجذر مرّةً للحصول على شجرة العرض الأوّليّة.
+                        actualWidget = interpreter_->callUserFunction(funcRef->registeredName, {});
                     }
                 }
                 catch (const std::exception &e)
@@ -127,7 +126,11 @@ namespace Sad
                 actualWidget = rootWidget;
             }
 
-            rootWidget_ = actualWidget; // ״­״¸ ״§„€ widget ״§„״¬״°״± „״¥״¹״§״¯״© ״§„״¨†״§״¡
+            // (توحيد كامل، LOW-1) ابذر الجذر الأصليّ (rootWidget، دالّةً كان أو عنصرًا)
+            //   في مكدّس nav ⇒ يصير مصدرَ الرسم الحيّ. نمرّر rootWidget لا actualWidget
+            //   كي يُخزَّن البانِي نفسه (تفاعليّة الجذر) لا لقطته الأولى.
+            navSeedRoot(rootWidget, interpreter);
+            rootWidget_ = actualWidget; // (AR) لقطةُ الجذر: محتوى العرض الأوّل + احتياطُ rebuildUI الآمن
 
             // ״×״­…„ ״§„״×״®״²† ״§„…״­„ …† ״§„‚״±״µ
             loadStorageFromDisk();

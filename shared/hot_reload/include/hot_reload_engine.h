@@ -145,6 +145,18 @@ public:
     void setReloadCallback(ReloadCallback callback);
 
     /**
+     * @brief (AR) تعيين دالة تصفير حالة الواجهة عند إعادة التنفيذ الكاملة (Hot Restart).
+     *        تُستدعى بعد interpreter->reset() مباشرةً لتصفير حالةٍ حيّة تشير إلى المفسّر
+     *        المُعاد تصفيره (مثل مكدّس تنقّل sad::ui::nav المُسرَّب الذي يحمل إدخالات بانٍ
+     *        تلتقط المفسّر). الحفاظ على شفافية المحرّك تجاه الرسومات: القلب يستدعي دالّةً
+     *        معتمة تزوّدها طبقة الواجهة (UIBridge). — إصلاح مراجعة Amelia (HIGH-1).
+     * @brief (EN) Set UI-state reset callback invoked after interpreter->reset() on hot
+     *        restart, to clear live state referencing the reset interpreter (e.g. the
+     *        leaked sad::ui::nav stack whose builder entries capture the interpreter).
+     */
+    void setStateResetCallback(RebuildUICallback callback);
+
+    /**
      * @brief (AR) بدء المراقبة (في خيط منفصل)
      * @brief (EN) Start watching (in background thread)
      */
@@ -200,6 +212,7 @@ private:
     std::unique_ptr<FileWatcher> fileWatcher_;
     ReloadCallback reloadCallback_;
     RebuildUICallback rebuildUICallback_;
+    RebuildUICallback stateResetCallback_; ///< (HIGH-1) تصفير حالة الواجهة عند Hot Restart
     
     std::atomic<bool> active_{false};
     std::atomic<bool> pendingReload_{false};

@@ -90,6 +90,10 @@ void HotReloadEngine::setReloadCallback(ReloadCallback callback) {
     reloadCallback_ = std::move(callback);
 }
 
+void HotReloadEngine::setStateResetCallback(RebuildUICallback callback) {
+    stateResetCallback_ = std::move(callback);
+}
+
 void HotReloadEngine::start() {
     if (active_.load()) return;
     active_.store(true);
@@ -206,6 +210,11 @@ ReloadResult HotReloadEngine::performReload(const std::string& filePath) {
         } else {
             // (AR) إعادة تنفيذ كاملة (Hot Restart)
             interpreter_->reset();
+            // (HIGH-1) صفّر حالة الواجهة الحيّة التي تلتقط المفسّر المُعاد تصفيره (مكدّس
+            //   sad::ui::nav المُسرَّب: إدخالات بانٍ تحمل مؤشّر المفسّر) قبل أيّ إعادة رسم،
+            //   وإلّا استدعى بانٍ قديمٌ callUserFunction على مفسّرٍ مُصفَّر. طبقة الواجهة
+            //   تزوّد الدالّة (تصفير nav) فيبقى المحرّك شفافًا تجاه الرسومات.
+            if (stateResetCallback_) stateResetCallback_();
             auto execResult = interpreter_->execute(newProgram);
             if (!execResult.success) {
                 result.status = ReloadStatus::RuntimeError;

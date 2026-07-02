@@ -59,6 +59,7 @@ namespace sad
                         if constexpr (std::is_same_v<T, std::string>) {
                             std::string s = v;
                             constexpr size_t kMaxStrBytes = 40; // حدّ الاقتطاع بالبايتات (مشترك بين المحرّكين)
+                            bool truncated = false;
                             if (s.size() > kMaxStrBytes) {
                                 // (AR) لا تقطع منتصف محرف UTF-8: تراجع عن بايتات المتابعة (0x80–0xBF)
                                 //      إلى بداية المحرف. cut ∈ [0,kMaxStrBytes] ⊂ [0,size) — size>kMaxStrBytes
@@ -70,9 +71,29 @@ namespace sad
                                 //      نعود للقطع الخام تفاديًا لفقدان المحتوى بالكامل.
                                 if (cut == 0)
                                     cut = kMaxStrBytes;
-                                s = s.substr(0, cut) + "...";
+                                s.resize(cut);
+                                truncated = true;
                             }
-                            os << "\"" << s << "\"";
+                            // (AR) تهريب المحارف الخاصّة كي لا يلتبس المخرَج أو يُكسَر
+                            //      (شرطة خلفيّة/اقتباس/سطر/إرجاع/جدولة). يُطبَّق بعد الاقتطاع
+                            //      فلا يُقصُّ تسلسلَ هروبٍ في منتصفه.
+                            // (EN) Escape special chars so the output stays unambiguous and
+                            //      unbreakable (backslash/quote/newline/CR/tab). Applied after
+                            //      truncation so no escape sequence is cut mid-way.
+                            os << '"';
+                            for (char c : s) {
+                                switch (c) {
+                                case '\\': os << "\\\\"; break;
+                                case '"':  os << "\\\""; break;
+                                case '\n': os << "\\n"; break;
+                                case '\r': os << "\\r"; break;
+                                case '\t': os << "\\t"; break;
+                                default:   os << c; break;
+                                }
+                            }
+                            if (truncated)
+                                os << "...";
+                            os << '"';
                         } else if constexpr (std::is_same_v<T, bool>) {
                             os << (v ? "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad" : "\xd8\xae\xd8\xb7\xd8\xa3"); // صحيح/خطأ
                         } else {
@@ -127,9 +148,12 @@ namespace sad
 
             os << "\n";
 
-            // (AR) الأبناء تكراريًّا
-            for (size_t i = 0; i < node->childCount(); i++)
-                printIRNodeTree(node->getChildren()[i], depth + 1, os, maxDepth);
+            // (AR) الأبناء تكراريًّا (نلتقط المتّجه بمرجعٍ ثابت مرّةً بدل getChildren()/
+            //      childCount() لكلّ تكرار؛ نفس الترتيب ⇒ مخرَجٌ متطابق بالبناء).
+            // (EN) Recurse into children (cache vector by const-ref; identical order/output).
+            const auto &children = node->getChildren();
+            for (const auto &child : children)
+                printIRNodeTree(child, depth + 1, os, maxDepth);
         }
 
     } // namespace ui

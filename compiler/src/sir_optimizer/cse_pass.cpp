@@ -424,6 +424,24 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_PRINT_TREE:
                 case SIR::SIROpcode::BUILTIN_UI_APP_DESTROY:
                 case SIR::SIROpcode::BUILTIN_UI_WIDGET_DESTROY:
+                // (AR) دوال الثيم (ترتيب مطابق لتعداد sir_types.h): تبديل/داكن/فاتح
+                //      تُغيّر حالة عامّة؛ هل_داكن يقرؤها (نتيجته تتغيّر بعد تبديل)
+                //      ⇒ لا يجوز دمج/حذف أيّ منها.
+                case SIR::SIROpcode::BUILTIN_UI_TOGGLE_THEME:
+                case SIR::SIROpcode::BUILTIN_UI_DARK_MODE:
+                case SIR::SIROpcode::BUILTIN_UI_LIGHT_MODE:
+                case SIR::SIROpcode::BUILTIN_UI_IS_DARK:
+                // (AR) التنقّل: انتقل/عودة/عودة_للبداية/استبدل تُغيّر مكدّس التنقّل؛
+                //      عدد_الصفحات يقرؤه (نتيجته تتغيّر بعد تنقّل) ⇒ لا دمج/حذف.
+                case SIR::SIROpcode::BUILTIN_UI_NAVIGATE:
+                case SIR::SIROpcode::BUILTIN_UI_NAV_BACK:
+                case SIR::SIROpcode::BUILTIN_UI_NAV_ROOT:
+                case SIR::SIROpcode::BUILTIN_UI_REPLACE_PAGE:
+                case SIR::SIROpcode::BUILTIN_UI_PAGE_COUNT:
+                // (AR) الصفحة_الحاليّة تقرأ الحاليّة (تتغيّر بعد تنقّل) ⇒ لا دمج/حذف.
+                case SIR::SIROpcode::BUILTIN_UI_CURRENT_PAGE:
+                case SIR::SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION:
+                case SIR::SIROpcode::BUILTIN_UI_BACK_TRANSITION:
                     return true;
 
                 default:

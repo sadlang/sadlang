@@ -1785,6 +1785,18 @@ namespace Sad
             llvm::Value *emitUiAppRender(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppRender(inst); }
             llvm::Value *emitUiAppRun(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppRun(inst); }
             llvm::Value *emitUiPrintTree(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPrintTree(inst); }
+            llvm::Value *emitUiToggleTheme(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiToggleTheme(inst); }
+            llvm::Value *emitUiDarkMode(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDarkMode(inst); }
+            llvm::Value *emitUiLightMode(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiLightMode(inst); }
+            llvm::Value *emitUiIsDark(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiIsDark(inst); }
+            llvm::Value *emitUiNavigate(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavigate(inst); }
+            llvm::Value *emitUiNavBack(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavBack(inst); }
+            llvm::Value *emitUiNavRoot(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavRoot(inst); }
+            llvm::Value *emitUiReplacePage(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiReplacePage(inst); }
+            llvm::Value *emitUiPageCount(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPageCount(inst); }
+            llvm::Value *emitUiCurrentPage(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCurrentPage(inst); }
+            llvm::Value *emitUiNavigateTransition(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavigateTransition(inst); }
+            llvm::Value *emitUiBackTransition(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiBackTransition(inst); }
             llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppDestroy(inst); }
             llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWidgetDestroy(inst); }
 

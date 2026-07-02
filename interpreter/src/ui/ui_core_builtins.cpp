@@ -15,11 +15,14 @@
 #include "sad_ui/ir.h"
 #include "sad_ui/types.h"
 #include "sad_ui/print_tree.h" // (AR) مصدر الحقيقة الوحيد لطباعة شجرة IR (مشترك)
+#include "sad_ui/nav.h"        // (AR) مكدّس التنقّل المشترك (مصدر الحقيقة: عمق + بنية + رسم حيّ)
 #include "sad_ui/web/html_codegen.h"
 #include <memory>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <unordered_map>
+#include <cstdint>
 #include "builtins/builtin_context.h"
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء
 #include "error_catalog.h" // (AR) RenderContext
@@ -31,6 +34,163 @@ namespace Sad
 
         namespace
         {
+
+            // ─── جدول صفحات المفسّر لمكدّس التنقّل المشترك ───────────────────────────
+            // (AR) القلب (sad::ui::nav) يخزّن «مقبضًا معتمًا» (void*) فيبقى محايدًا
+            //      لأنواع المحرّك. المفسّر يربط المقبض بصفحته Data::Value هنا، فيُجذّرها
+            //      (shared_ptr) طوال وجودها في المكدّس، ويُحرّرها القلبُ عند الإسقاط عبر
+            //      release ⇒ لا تسريب (نظير المترجم الذي يخزّن SadWidget مباشرةً).
+            std::unordered_map<std::uintptr_t, std::shared_ptr<Data::Value>> &interpPageTable()
+            {
+                // (AR) مُسرَّبٌ عمدًا (never-destroyed): مُدمِّر nav() الـstatic في المكتبة
+                //      قد يستدعي interpPageRelease عند خروج البرنامج، وترتيب إتلاف statics
+                //      عبر الوحدتين غير محدَّد. الإسراب يضمن بقاء الجدول صالحًا عند أيّ
+                //      استدعاء (تشغيلًا وعند الخروج) ⇒ لا UB. الذاكرة تُستردّ بإنهاء العمليّة.
+                static auto *t = new std::unordered_map<std::uintptr_t, std::shared_ptr<Data::Value>>();
+                return *t;
+            }
+            void interpPageRelease(void *handle)
+            {
+                interpPageTable().erase(reinterpret_cast<std::uintptr_t>(handle));
+            }
+            /// (AR) يبني NavEntry يحمل مقبض الصفحة + مُحرِّرها (ملكيّة مُدارة Q5).
+            [[nodiscard]] sad::ui::NavEntry interpPageEntry(const std::shared_ptr<Data::Value> &page)
+            {
+                static std::uintptr_t counter = 0;
+                const std::uintptr_t h = ++counter;
+                interpPageTable()[h] = page;
+                sad::ui::NavEntry e;
+                e.page = reinterpret_cast<void *>(h);
+                e.data = reinterpret_cast<void *>(h);
+                e.release = &interpPageRelease;
+                return e;
+            }
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) نموذج البانِي (م1-ج، توقيع البانِي): `انتقل(دالّة)` يخزّن **دالّة ص**
+            //      تُنتج الصفحة عند كلّ رسم (تفاعليّة داخل الصفحة، نظير Flutter routes)،
+            //      لا لقطةً ميّتة. المكتبة تخزّن مؤشّر بانٍ C معتم (PageBuilder = void*(*)
+            //      (void*))؛ لكن دالّة ص تحتاج المفسّر لاستدعائها. لذا نحفظ {الدالّة،
+            //      المفسّر} في جدولٍ جانبيّ مُفهرَس بمقبض، ونمرّر للمكتبة بانيًا static
+            //      (interpBuilderInvoke) يقرأ الجدول، يستدعي الدالّة عبر المفسّر، ويسجّل
+            //      الصفحة المبنيّة في interpPageTable مُعيدًا مقبضها ⇒ buildCurrent موحّد.
+            // (EN) Builder model: انتقل(function) stores a ص function producing the page
+            //      on each render (in-page interactivity). The library stores an opaque C
+            //      PageBuilder; a ص function needs the interpreter, so we keep {fn,interp}
+            //      in a side table keyed by handle and hand the library a static builder.
+            // ═══════════════════════════════════════════════════════════════════
+            struct InterpBuilderEntry
+            {
+                std::shared_ptr<Data::Value> fn;         ///< دالّة ص المُنتِجة للصفحة
+                Sad::Interpreter::Interpreter *interp;   ///< المفسّر لاستدعائها
+                std::uintptr_t pageHandle = 0;           ///< مقبض الصفحة المبنيّة (يُعاد استعماله)
+            };
+            std::unordered_map<std::uintptr_t, InterpBuilderEntry> &interpBuilderTable()
+            {
+                // (AR) مُسرَّبٌ عمدًا (نظير interpPageTable): مُدمِّر nav() الـstatic قد
+                //      يستدعي interpBuilderRelease عند الخروج وترتيب إتلاف statics غير محدَّد.
+                static auto *t = new std::unordered_map<std::uintptr_t, InterpBuilderEntry>();
+                return *t;
+            }
+            void interpBuilderRelease(void *data)
+            {
+                // (AR) عند إسقاط إدخال البانِي (عودة/استبدال/جذر): احذف مقبض صفحته المبنيّة
+                //      من interpPageTable أيضًا (لا تُبقِ الشجرة المبنيّة حيّةً) ثمّ إدخال البانِي.
+                auto &tbl = interpBuilderTable();
+                auto it = tbl.find(reinterpret_cast<std::uintptr_t>(data));
+                if (it != tbl.end())
+                {
+                    if (it->second.pageHandle != 0)
+                        interpPageTable().erase(it->second.pageHandle);
+                    tbl.erase(it);
+                }
+            }
+            /// (AR) البانِي static الذي تستدعيه nav().buildCurrent: يستدعي دالّة ص المخزّنة
+            ///      ويُعيد مقبض الصفحة المبنيّة (مُسجَّلة في interpPageTable). فارغٌ إن تعذّر.
+            void *interpBuilderInvoke(void *data)
+            {
+                auto &tbl = interpBuilderTable();
+                auto it = tbl.find(reinterpret_cast<std::uintptr_t>(data));
+                if (it == tbl.end() || !it->second.interp || !it->second.fn)
+                    return nullptr;
+                auto funcRef = it->second.fn->toFunction();
+                if (!funcRef)
+                    return nullptr;
+                Data::Value built = it->second.interp->callUserFunction(funcRef->registeredName, {});
+                // (AR) أعِد استعمال **مقبضٍ واحد لكلّ إدخال بانٍ** (لا مقبض جديد كلّ رسم):
+                //      نخصّصه مرّةً (نطاق 1<<48 منفصل عن مقابض اللقطات) ثمّ نَدُوس محتواه
+                //      بالصفحة المبنيّة الطازجة ⇒ لا نموّ غير محدود لـinterpPageTable في
+                //      تطبيقٍ حيّ يستدعي buildCurrent كلّ إطار (كان يسرّب إدخالًا/رسمة).
+                if (it->second.pageHandle == 0)
+                {
+                    static std::uintptr_t builtCounter = (static_cast<std::uintptr_t>(1) << 48);
+                    it->second.pageHandle = ++builtCounter;
+                }
+                interpPageTable()[it->second.pageHandle] = std::make_shared<Data::Value>(std::move(built));
+                return reinterpret_cast<void *>(it->second.pageHandle);
+            }
+            /// (AR) يبني NavEntry بانيًا (build/data/release) يلتقط دالّة ص + المفسّر (Q5).
+            [[nodiscard]] sad::ui::NavEntry interpBuilderEntryOf(const std::shared_ptr<Data::Value> &fn,
+                                                   Sad::Interpreter::Interpreter *interp)
+            {
+                static std::uintptr_t counter = 0;
+                const std::uintptr_t h = ++counter;
+                interpBuilderTable()[h] = InterpBuilderEntry{fn, interp};
+                sad::ui::NavEntry e;
+                e.build = &interpBuilderInvoke;
+                e.data = reinterpret_cast<void *>(h);
+                e.release = &interpBuilderRelease;
+                return e;
+            }
+            /// (AR) يبني NavEntry مناسبًا للوسيط: **دالّة ص** ⇒ بانٍ (تفاعليّة)؛ عنصر ⇒ لقطة.
+            ///      ⚠ نميّز بـisFunction() **فقط** لا isCallable(): الأخيرة true لـ
+            ///      __WidgetBuilder__ (عنصرٌ مبنيّ، لا دالّة) فتُوقِع عنصرًا في مسار البانِي
+            ///      ⇒ toFunction على عنصر = انهيار. (نظير درس الصفحة_الحالية.)
+            [[nodiscard]] sad::ui::NavEntry interpNavEntryFor(const std::shared_ptr<Data::Value> &arg,
+                                                Sad::Interpreter::Interpreter *interp)
+            {
+                if (arg && arg->isFunction())
+                    return interpBuilderEntryOf(arg, interp);
+                return interpPageEntry(arg);
+            }
+
+            /// (AR) حارس نوع وسيط التنقّل (HIGH-2، تكافؤ مع المترجم): يجب أن يكون **عنصر
+            ///      واجهة** (WidgetBuilder تحديدًا) أو **دالّة بناء صفحة** (isFunction). أيّ
+            ///      نوعٍ آخر (عدد/نص/لاشيء…) ليس صفحةً.
+            ///      ⚠ تشديد (مراجعة Amelia النهائيّة، تكافؤ): نقبل الكائن **فقط إن كان
+            ///      WidgetBuilder** لا أيّ `isObject` — لأنّ **كائن المستخدم** (مثيل صنف)
+            ///      isObject=true في المفسّر لكنّه Struct في المترجم (يرفضه checkUiNavArgType
+            ///      إذ Struct ∉ {Pointer, Function}). فقبول أيّ كائنٍ كان يجعل المفسّر يقبل
+            ///      `انتقل(مثيل_صنف)` بينما المترجم يرفضه ⇒ تباعد. الآن كلاهما يرفض غير
+            ///      العنصر. (نظير المترجم: العنصر Pointer، كائن المستخدم Struct.)
+            ///      يرفضه المترجم بـSEM_TYPE_MISMATCH فنرفضه هنا بالمثل. ctx.error
+            ///      [[noreturn]] (يرمي RuntimeAbort) نظير إيقاف الترجمة في المترجم.
+            void checkNavArg(Sad::Interpreter::BuiltinContext &ctx,
+                             const std::shared_ptr<Data::Value> &arg)
+            {
+                if (arg && arg->isFunction())
+                    return; // دالّة بناء صفحة
+                if (arg && arg->isObject())
+                {
+                    auto obj = arg->toObject();
+                    if (obj && isWidgetBuilder(obj))
+                        return; // عنصر واجهة فقط (لا كائن مستخدم)
+                }
+                ctx.error(::Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH,
+                          {{"expected", "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9 \xd8\xa3\xd9\x88 \xd8\xaf\xd8\xa7\xd9\x84\xd9\x91\xd8\xa9 \xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9"}, // عنصر واجهة أو دالّة بناء صفحة
+                           {"found", arg ? arg->toString() : "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1"}}); // لاشيء
+            }
+
+            /// (AR) الصفحة الحالية من القلب عبر buildCurrent (م1-ج، توحيد المسار): إن كان
+            ///      الإدخال بانيًا استُدعي البانِي ⇒ يُعيد مقبض صفحةٍ مبنيّةٍ طازجة؛ وإلّا
+            ///      فمقبض اللقطة. المقبض ⇒ Data::Value (أو فارغ إن لا صفحة). فيتطابق
+            ///      طباعة_شجرة(الصفحة_الحالية) headless مع الرسم الحيّ ومع المترجم.
+            [[nodiscard]] std::shared_ptr<Data::Value> interpCurrentPage()
+            {
+                const auto h = reinterpret_cast<std::uintptr_t>(sad::ui::nav().buildCurrent());
+                auto &tbl = interpPageTable();
+                const auto it = tbl.find(h);
+                return it != tbl.end() ? it->second : std::make_shared<Data::Value>();
+            }
 
             /**
              * @brief (AR) طباعة شجرة IRNode بشكل هرمي (للتصحيح والتحقّق) — تفويضٌ
@@ -72,16 +232,44 @@ namespace Sad
                         return;
                     }
 
-                    // (AR) احتياط: كائن عادي — طباعة اسم الصنف والحقول
-                    // (EN) Fallback: plain object — print class name and fields
-                    std::cout << indent << obj->getClassName() << std::endl;
+                    // (AR) غير عنصر واجهة (كائن عاديّ) ⇒ لا نطبع شيئًا، مطابقةً للمترجم
+                    //      (sad_print_tree يتجاهل ما لا يملك IRNode) ⇒ تكافؤ حتى في
+                    //      حالة الحدّ (مثل الصفحة_الحالية على مكدّس فارغ).
+                    // (EN) Non-widget object ⇒ print nothing, mirroring the compiler
+                    //      (sad_print_tree ignores non-IRNode) ⇒ parity even at the edge.
                     return;
                 }
 
-                std::cout << indent << "[" << widget.toString() << "]" << std::endl;
+                // (AR) قيمة غير كائن (فارغة/بدائيّة) ⇒ صامت، مطابقةً للمترجم (null ⇒ لا شيء).
+                // (EN) Non-object value (empty/primitive) ⇒ silent, mirroring the compiler.
             }
 
         } // anonymous namespace
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // (AR) جسر التوحيد الكامل (Amelia LOW-1): يكشف مساعدات nav (المُعرَّفة في النطاق
+        //      المجهول أعلاه) لـUIBridge ليصير مكدّس sad::ui::nav **المصدرَ الوحيد** للرسم
+        //      الحيّ، فيُزال المكدّس المُوازي navigationStack_. الدوال أدناه ذات ربطٍ خارجيّ
+        //      (تُعلَن في ui_bridge.h) وتفوّض للمساعدات الداخليّة في هذه الوحدة.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        Data::Value navCurrentPageValue()
+        {
+            // (AR) الصفحة الحاليّة من nav (عبر buildCurrent: يستدعي البانِي إن وُجد ⇒ شجرةٌ
+            //      طازجةٌ تفاعليّة). قيمةٌ فارغة إن كان المكدّس فارغًا (لم يُبذَر جذر).
+            return *interpCurrentPage();
+        }
+
+        void navSeedRoot(const Data::Value &root, Interpreter *interp)
+        {
+            // (AR) ابذر جذر التطبيق في nav كإدخالٍ حاليّ (بانٍ إن دالّة ص، لقطة إن عنصر) ⇒
+            //      يصير nav المكدّس الكامل شاملًا الجذر، فترسم rebuildUI من navCurrentPageValue
+            //      موحَّدةً (جذرًا كانت أو صفحةً مُنتقَلًا إليها). reset لبداية نظيفة لكلّ تشغيل
+            //      (نظير sad_app_run؛ يمنع تراكم مكدّسٍ static عبر تشغيلاتٍ في العمليّة الواحدة).
+            sad::ui::nav().reset();
+            sad::ui::nav().replace(interpNavEntryFor(std::make_shared<Data::Value>(root), interp));
+            sad::ui::nav().takeDirty(); // المحتوى الابتدائيّ يُضبَط في run() مباشرةً
+        }
 
         void registerUICoreBuiltins(Interpreter &interpreter)
         {
@@ -173,11 +361,16 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bc::PRINT_TREE), print_tree_fn); // طباعة_شجرة
 
             // ─── دوال التنقل ───
-            auto navigate_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
+            auto navigate_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                checkNavArg(ctx, args[0]); // حارس نوع (HIGH-2): عنصر أو دالّة
+                // (AR) مصدر الحقيقة: مكدّس المكتبة. (م1-ج) دالّة ⇒ إدخال بانٍ (تفاعليّة عبر
+                //      buildCurrent)؛ عنصر ⇒ لقطة. الجسر الحيّ يبقى بالتوازي (lockstep):
+                //      navigateTo يخزّن نفس الوسيط (دالّة أو عنصر) فيتّسق الرسم الحيّ.
+                sad::ui::nav().navigate(interpNavEntryFor(args[0], &interpreter));
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateTo(*args[0]);
@@ -188,7 +381,7 @@ namespace Sad
             // ─── انتقل_بتحريك(صفحة, نوع_انتقال, مدة؟) — تنقل مع تحريك بصري ───
             // (AR) دالة الانتقال مع تحريك — تدعم أنواع مثل "ظهور"، "انزلاق_يمين"، "تكبير"
             // (EN) Navigate with page transition animation — supports types like "fadeIn", "slideRight"
-            auto navigate_transition_fn = [](Sad::Interpreter::BuiltinContext &ctx)
+            auto navigate_transition_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
@@ -202,6 +395,8 @@ namespace Sad
                 if (args.size() >= 3)
                     duration = static_cast<float>(args[2]->toDouble());
 
+                checkNavArg(ctx, args[0]); // حارس نوع (HIGH-2): عنصر أو دالّة
+                sad::ui::nav().navigate(interpNavEntryFor(args[0], &interpreter)); // lockstep (دالّة⇒بانٍ)
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateWithTransition(*args[0], transType, duration);
@@ -214,7 +409,7 @@ namespace Sad
             // ─── انتقل_بتحريك_كامل(صفحة, دخول, خروج, مدة؟) — تنقل مع خروج + دخول ───
             // (AR) دالة انتقال مع تحريك خروج على الصفحة الحالية + تحريك دخول على الجديدة
             // (EN) Navigate with exit transition on current page + entry on new page
-            auto navigate_exit_transition_fn = [](Sad::Interpreter::BuiltinContext &ctx)
+            auto navigate_exit_transition_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
                 -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
@@ -229,6 +424,8 @@ namespace Sad
                 if (args.size() >= 4)
                     duration = static_cast<float>(args[3]->toDouble());
 
+                checkNavArg(ctx, args[0]); // حارس نوع (HIGH-2): عنصر أو دالّة
+                sad::ui::nav().navigate(interpNavEntryFor(args[0], &interpreter)); // lockstep (دالّة⇒بانٍ)
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateWithExitTransition(*args[0], entryType, exitType, duration);
@@ -241,9 +438,14 @@ namespace Sad
             auto back_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
-                auto *bridge = UIBridge::active();
-                if (bridge)
-                    bridge->navigateBack();
+                // (Amelia LOW-1) بوّابة على نتيجة nav().back(): لا إعادة رسمٍ على مكدّسٍ
+                //   فارغ (عودةٌ بلا صفحةٍ سابقة = لا-عمل، لا رسمٌ زائد ولا زيادة جيلٍ).
+                if (sad::ui::nav().back())
+                {
+                    auto *bridge = UIBridge::active();
+                    if (bridge)
+                        bridge->navigateBack();
+                }
                 return std::make_shared<Data::Value>();
             };
             fm.registerBuiltinFunction(std::string(Bc::BACK), back_fn);
@@ -262,9 +464,13 @@ namespace Sad
                 if (args.size() >= 2)
                     duration = static_cast<float>(args[1]->toDouble());
 
-                auto *bridge = UIBridge::active();
-                if (bridge)
-                    bridge->navigateBackWithTransition(transType, duration);
+                // (Amelia LOW-1) بوّابة على نتيجة back: لا رسمَ على مكدّسٍ فارغ.
+                if (sad::ui::nav().back())
+                {
+                    auto *bridge = UIBridge::active();
+                    if (bridge)
+                        bridge->navigateBackWithTransition(transType, duration);
+                }
                 return std::make_shared<Data::Value>();
             };
             fm.registerBuiltinFunction(
@@ -274,6 +480,7 @@ namespace Sad
             auto root_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
+                sad::ui::nav().root(); // مصدر الحقيقة (عمق-فقط)؛ الجسر الحيّ بالتوازي
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->navigateToRoot();
@@ -281,11 +488,14 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::BACK_TO_ROOT), root_fn);
 
-            auto replace_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
+            auto replace_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                checkNavArg(ctx, args[0]); // حارس نوع (HIGH-2): عنصر أو دالّة
+                // (م1-ج) دالّة ⇒ بانٍ (تفاعليّة)؛ عنصر ⇒ لقطة. الجسر الحيّ بالتوازي.
+                sad::ui::nav().replace(interpNavEntryFor(args[0], &interpreter));
                 auto *bridge = UIBridge::active();
                 if (bridge)
                     bridge->replacePage(*args[0]);
@@ -364,12 +574,23 @@ namespace Sad
             auto page_count_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
-                auto *bridge = UIBridge::active();
-                if (bridge)
-                    return std::make_shared<Data::Value>(static_cast<int64_t>(bridge->getNavigationDepth()));
-                return std::make_shared<Data::Value>(static_cast<int64_t>(0));
+                // (AR) العمق من مكدّس المكتبة (مصدر الحقيقة) ⇒ يعمل headless ويطابق
+                //      المترجم (sad_page_count). كان سابقًا من الجسر (0 بلا نافذة).
+                return std::make_shared<Data::Value>(
+                    static_cast<int64_t>(sad::ui::nav().depth()));
             };
             fm.registerBuiltinFunction(std::string(Bc::PAGE_COUNT), page_count_fn);
+
+            // ─── الصفحة الحالية (حارس بنيويّ) ───
+            // (AR) تُرجع الصفحة الحالية من مكدّس التنقّل المشترك (عبر جدول المقابض) ⇒
+            //      طباعة_شجرة(الصفحة_الحالية()) تكشف الجذر المرسوم headless وتطابق
+            //      المترجم (sad_current_page). خطة التنقّل §Q3 (حارس إلزاميّ).
+            auto current_page_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
+            {
+                (void)ctx.args();
+                return interpCurrentPage();
+            };
+            fm.registerBuiltinFunction(std::string(Bc::CURRENT_PAGE), current_page_fn);
 
             // ─── إغلاق النافذة ───
             auto close_window_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>

@@ -31,6 +31,7 @@
 #include "sad_ui/state.h"             // نظام إدارة الحالة التفاعلية
 #include "sad_ui/animation.h"         // محرك الحركات الموحّد
 #include "sad_ui/reconciler.h"        // نظام المطابقة الذكية (Virtual DOM)
+#include "sad_ui/nav.h"               // (توحيد كامل، LOW-1) مكدّس التنقّل المشترك — المصدر الوحيد
 #include "sad_ui/platform_renderer.h" // PlatformWindow — الواجهة المجردة لنوافذ جميع المنصات
 
 #include <memory>
@@ -53,6 +54,14 @@ namespace Sad
         // تصريح أمامي
         class Interpreter;
         class WidgetBuilder;
+
+        // ─── جسر التوحيد الكامل (Amelia LOW-1): مساعدات nav المكشوفة لـUIBridge ───
+        // (AR) مُعرَّفتان في ui_core_builtins.cpp (تفويضٌ لمساعدات nav الداخليّة). تُمكّنان
+        //      UIBridge من الرسم الحيّ من مكدّس sad::ui::nav (المصدر الوحيد) بلا مكدّسٍ مُوازٍ.
+        /// الصفحة الحاليّة من nav ⇒ Data::Value (يستدعي البانِي إن وُجد ⇒ تفاعليّة).
+        [[nodiscard]] Data::Value navCurrentPageValue();
+        /// ابذر جذر التطبيق في nav (بانٍ إن دالّة، لقطة إن عنصر) — يُستدعى من UIBridge::run.
+        void navSeedRoot(const Data::Value &root, Interpreter *interp);
 
         /**
          * @brief جسر الربط بين المفسر ونظام SadUI
@@ -184,7 +193,8 @@ namespace Sad
             /**
              * @brief عدد الصفحات في كومة التنقل
              */
-            size_t getNavigationDepth() const { return navigationStack_.size(); }
+            // (توحيد كامل، LOW-1) العمق من مكدّس nav المكتبيّ (المصدر الوحيد) لا مكدّسٍ مُوازٍ.
+            [[nodiscard]] size_t getNavigationDepth() const { return sad::ui::nav().depth(); }
 
             /**
              * @brief عرض رسالة منبثقة (SnackBar) لمدة محددة
@@ -726,21 +736,22 @@ namespace Sad
             /// (EN) Current generation number — increments with each rebuild
             uint64_t handlerGeneration_{0};
 
-            /// الـ widget الجذري الأصلي (لإعادة البناء)
+            /// (AR) عنصر الجذر الابتدائيّ (محتوى run الأوّل + احتياطُ rebuildUI الآمن).
+            ///      الرسم الحيّ يبني من sad::ui::nav (navCurrentPageValue) لا من هذا.
             Data::Value rootWidget_;
 
-            /// دالة بنّاء الواجهة — تُستدعى لإنتاج شجرة جديدة عند كل إعادة بناء
-            /// (AR) إذا كان المستخدم مرّر دالة بدلاً من شجرة، نحفظها هنا
-            /// (EN) If user passed a builder function instead of a tree, store it here
-            Data::Value builderFunc_;
+            // (Amelia LOW-2) أُزيل builderFunc_: بعد التوحيد الكامل صار الرسم من مكدّس
+            //   sad::ui::nav المبذور (navCurrentPageValue يستدعي بانِي الصفحة الحاليّة)، فلم
+            //   يبقَ لباني الجذر المنفصل قارئ. كان write-only ووثيقةً مضلِّلة.
 
             /// مؤشر للنافذة (لتحديث المحتوى عند إعادة البناء)
             /// (AR) نستخدم PlatformWindow* بدلاً من void* لدعم جميع المنصات
             /// (EN) Using PlatformWindow* instead of void* to support all platforms
             sad::ui::PlatformWindow *activeWindow_ = nullptr;
 
-            /// كومة التنقل (Navigation Stack)
-            std::vector<Data::Value> navigationStack_;
+            // (توحيد كامل، Amelia LOW-1) أُزيل المكدّس المُوازي navigationStack_: مكدّس
+            //   sad::ui::nav المكتبيّ هو **المصدر الوحيد** (عمقًا وبنيةً ورسمًا حيًّا). كان
+            //   يُحفَظ بالتوازي بلقطات Data::Value ويُتزامَن بالاتّفاق ⇒ عرضةٌ لانحرافٍ صامت.
 
             /// (AR) نوع الانتقال المُعلّق — يُستخدم في rebuildUI لتطبيق تحريك الصفحة
             /// (EN) Pending page transition type — used in rebuildUI for animated content switch

@@ -307,6 +307,31 @@ namespace Sad
                 return cg_.emitUiAppDestroy(inst);
             case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:
                 return cg_.emitUiWidgetDestroy(inst);
+            // (AR) دوال الثيم — ترتيب الحالات مطابق لترتيب التعداد في sir_types.h
+            case SIROpcode::BUILTIN_UI_TOGGLE_THEME:
+                return cg_.emitUiToggleTheme(inst);
+            case SIROpcode::BUILTIN_UI_DARK_MODE:
+                return cg_.emitUiDarkMode(inst);
+            case SIROpcode::BUILTIN_UI_LIGHT_MODE:
+                return cg_.emitUiLightMode(inst);
+            case SIROpcode::BUILTIN_UI_IS_DARK:
+                return cg_.emitUiIsDark(inst);
+            case SIROpcode::BUILTIN_UI_NAVIGATE:
+                return cg_.emitUiNavigate(inst);
+            case SIROpcode::BUILTIN_UI_NAV_BACK:
+                return cg_.emitUiNavBack(inst);
+            case SIROpcode::BUILTIN_UI_NAV_ROOT:
+                return cg_.emitUiNavRoot(inst);
+            case SIROpcode::BUILTIN_UI_REPLACE_PAGE:
+                return cg_.emitUiReplacePage(inst);
+            case SIROpcode::BUILTIN_UI_PAGE_COUNT:
+                return cg_.emitUiPageCount(inst);
+            case SIROpcode::BUILTIN_UI_CURRENT_PAGE:
+                return cg_.emitUiCurrentPage(inst);
+            case SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION:
+                return cg_.emitUiNavigateTransition(inst);
+            case SIROpcode::BUILTIN_UI_BACK_TRANSITION:
+                return cg_.emitUiBackTransition(inst);
 
             // ====================================================================
             // ״§„‚״³… 21: ״§„״×ˆ״¬‡״§״× / Directives (@״­״¬…, @״°״±)

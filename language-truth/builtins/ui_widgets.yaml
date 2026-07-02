@@ -812,6 +812,19 @@ functions:
   description_en: عدد_الصفحات
   params: []
   lookup_table: name_only
+- cpp_id: CURRENT_PAGE
+  canonical: الصفحة_الحالية
+  namespace: UICore
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: الصفحة_الحالية
+  description_en: current_page
+  params: []
+  lookup_table: name_only
 - cpp_id: CLOSE_WINDOW
   canonical: أغلق_النافذة
   namespace: UICore

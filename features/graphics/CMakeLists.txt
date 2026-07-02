@@ -36,6 +36,7 @@ project(SadUI LANGUAGES CXX)
 set(SAD_UI_CORE_SOURCES
     core/src/types.cpp
     core/src/node.cpp
+    core/src/nav.cpp
     core/src/ir.cpp
     core/src/ir_builder.cpp
     core/src/hybrid_routing.cpp

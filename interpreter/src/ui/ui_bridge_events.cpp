@@ -15,6 +15,7 @@
 
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/nav.h" // (م1-د) مكدّس التنقّل المشترك — لا تدُس الصفحة المُنتقَل إليها
 
 #include <iostream>
 #include <algorithm>
@@ -135,26 +136,28 @@ namespace Sad
             if (!activeWindow_)
                 return;
 
-            // (AR) ״¥״°״§ ƒ״§†״× ״¯״§„״© ״¨†‘״§״¡ …״³״¬‘„״©״ †״³״×״¯״¹‡״§ „״¥†״×״§״¬ ״´״¬״±״© ״¬״¯״¯״©
-            // (EN) If builder function is registered, invoke it to produce new tree
-            if (!builderFunc_.isVoid() && (builderFunc_.isFunction() || builderFunc_.isCallable()) && interpreter_)
+            // (توحيد كامل، Amelia LOW-1) الرسم من **مصدر الحقيقة الوحيد** sad::ui::nav عبر
+            //   navCurrentPageValue: يستدعي بانِي الصفحة الحاليّة إن وُجد ⇒ شجرةٌ طازجةٌ
+            //   تفاعليّة كلّ رسم (جذرًا كان — مبذورًا في run عبر navSeedRoot — أو صفحةً
+            //   مُنتقَلًا إليها). نموذج البانِي (م1-ج) مُفعَّل: دوال ص تُرجع widgets فعلًا،
+            //   فما كان يُظنّ «حجبًا» كان تشخيصًا خاطئًا. لا مكدّس navigationStack_ مُوازٍ
+            //   ولا باني جذرٍ منفصل (builderFunc_): كلاهما أُزيل، والكلّ الآن من nav.
+            Data::Value rebuilt;
             {
                 try
                 {
-                    auto funcRef = builderFunc_.toFunction();
-                    if (funcRef)
-                    {
-                        auto newWidget = interpreter_->callUserFunction(funcRef->registeredName, {});
-                        rootWidget_ = newWidget;
-                    }
+                    rebuilt = navCurrentPageValue();
                 }
                 catch (const std::exception &e)
                 {
-                    std::cerr << "״®״·״£  ״¥״¹״§״¯״© ״¨†״§״¡ ״§„ˆ״§״¬‡״©: " << e.what() << std::endl;
+                    std::cerr << "خطأ إعادة بناء الواجهة (rebuildUI): " // UI rebuild error
+                              << e.what() << std::endl;
                 }
             }
 
-            if (rootWidget_.isVoid())
+            if (rebuilt.isVoid())
+                rebuilt = rootWidget_; // احتياط: nav غير مبذور (مسارٌ لا يمرّ بـrun)
+            if (rebuilt.isVoid())
                 return;
 
             // (AR) استخدام PlatformWindow* مباشرة — applyPatches و setContent
@@ -172,7 +175,7 @@ namespace Sad
             handlerCounter_ = 0;
 
             // ״¥״¹״§״¯״© ״×״­ˆ„ ״´״¬״±״© ״§„€ widget ״¥„‰ IR
-            auto newIR = convertToIR(rootWidget_);
+            auto newIR = convertToIR(rebuilt);
 
             // ═══════════════════════════════════════════════════════════════════
             // (AR) كنس المعالجات القديمة: حذف كل معالج لم يُعاد تسجيله
@@ -542,13 +545,13 @@ namespace Sad
 
         void UIBridge::navigateTo(const Data::Value &page)
         {
-            // ״­״¸ ״§„״µ״­״© ״§„״­״§„״©  ״§„ƒˆ…״©
-            navigationStack_.push_back(rootWidget_);
+            // (توحيد كامل، LOW-1) لا مكدّس مُوازٍ: sad::ui::nav المكتبيّ حفظ الدفعة سلفًا
+            //   (النداء المتلازم nav().navigate في البِلت-إن قبل هذا). نرسم من nav.
 
-            // ״×״¹† ״§„״µ״­״© ״§„״¬״¯״¯״© ƒ״¬״°״±
-            rootWidget_ = page;
+            (void)page; // (توحيد، Amelia MED-2) لا نحفظ page في rootWidget_: قد يكون دالّةً
+                        //   فيُفسِد احتياط rebuildUI (convertToIR لدالّة ⇒ رسمٌ فارغ). الرسم
+                        //   من navCurrentPageValue، وrootWidget_ يبقى جذرَ run() احتياطًا آمنًا.
 
-            // ״¥״¹״§״¯״© ״¨†״§״¡ ״§„ˆ״§״¬‡״©
             rebuildUI();
         }
         void UIBridge::navigateWithTransition(const Data::Value &page,
@@ -556,10 +559,13 @@ namespace Sad
                                               float durationSec)
         {
             // (AR) حفظ الصفحة الحالية في الكومة
-            navigationStack_.push_back(rootWidget_);
+            // (توحيد كامل، LOW-1) لا مكدّس مُوازٍ: sad::ui::nav المكتبيّ حفظ الدفعة سلفًا
+            //   (النداء المتلازم nav().navigate في البِلت-إن قبل هذا). نرسم من nav.
 
             // (AR) تعيين الصفحة الجديدة كجذر
-            rootWidget_ = page;
+            (void)page; // (توحيد، Amelia MED-2) لا نحفظ page في rootWidget_: قد يكون دالّةً
+                        //   فيُفسِد احتياط rebuildUI (convertToIR لدالّة ⇒ رسمٌ فارغ). الرسم
+                        //   من navCurrentPageValue، وrootWidget_ يبقى جذرَ run() احتياطًا آمنًا.
 
             // (AR) تخزين نوع الانتقال المطلوب — سيُستخدم في rebuildUI
             pendingTransitionType_ = transitionType;
@@ -575,10 +581,13 @@ namespace Sad
                                                   float durationSec)
         {
             // (AR) حفظ الصفحة الحالية في الكومة
-            navigationStack_.push_back(rootWidget_);
+            // (توحيد كامل، LOW-1) لا مكدّس مُوازٍ: sad::ui::nav المكتبيّ حفظ الدفعة سلفًا
+            //   (النداء المتلازم nav().navigate في البِلت-إن قبل هذا). نرسم من nav.
 
             // (AR) تعيين الصفحة الجديدة كجذر
-            rootWidget_ = page;
+            (void)page; // (توحيد، Amelia MED-2) لا نحفظ page في rootWidget_: قد يكون دالّةً
+                        //   فيُفسِد احتياط rebuildUI (convertToIR لدالّة ⇒ رسمٌ فارغ). الرسم
+                        //   من navCurrentPageValue، وrootWidget_ يبقى جذرَ run() احتياطًا آمنًا.
 
             // (AR) تخزين نوعي الانتقال (خروج + دخول) — سيُستخدمان في rebuildUI
             pendingTransitionType_ = entryTransition;
@@ -592,54 +601,35 @@ namespace Sad
         bool UIBridge::navigateBackWithTransition(const std::string &transitionType,
                                                   float durationSec)
         {
-            if (navigationStack_.empty())
-                return false;
-
-            // (AR) استعادة الصفحة السابقة
-            rootWidget_ = navigationStack_.back();
-            navigationStack_.pop_back();
-
-            // (AR) تخزين نوع الانتقال المطلوب — سيُستخدم في rebuildUI
+            // (توحيد كامل، LOW-1) nav المكتبيّ نفّذ العودة سلفًا (النداء المتلازم nav().back
+            //   في البِلت-إن)؛ لا مكدّس مُوازٍ. نضبط الانتقال ونرسم من navCurrentPageValue.
             pendingTransitionType_ = transitionType;
             pendingTransitionDuration_ = durationSec;
-
-            // (AR) إعادة بناء الواجهة
             rebuildUI();
             return true;
         }
         bool UIBridge::navigateBack()
         {
-            if (navigationStack_.empty())
-            {
-                return false;
-            }
+            // (توحيد كامل، LOW-1) nav المكتبيّ نفّذ العودة سلفًا (nav().back في البِلت-إن).
+            // (توحيد) لا مكدّس مُوازٍ؛ نرسم الصفحة المُستعادة من navCurrentPageValue.
 
-            // ״§״³״×״¹״§״¯״© ״§„״µ״­״© ״§„״³״§״¨‚״©
-            rootWidget_ = navigationStack_.back();
-            navigationStack_.pop_back();
-
-            // ״¥״¹״§״¯״© ״¨†״§״¡ ״§„ˆ״§״¬‡״©
             rebuildUI();
             return true;
         }
 
         void UIBridge::navigateToRoot()
         {
-            if (navigationStack_.empty())
-                return;
+            // (توحيد كامل، LOW-1) nav المكتبيّ نفّذ العودة_للبداية سلفًا (nav().root).
+            // (توحيد) لا مكدّس مُوازٍ؛ نرسم الجذر المُستعاد من navCurrentPageValue.
 
-            // ״§״³״×״¹״§״¯״© ״§„״µ״­״© ״§„״£ˆ„‰
-            rootWidget_ = navigationStack_.front();
-            navigationStack_.clear();
-
-            // ״¥״¹״§״¯״© ״¨†״§״¡ ״§„ˆ״§״¬‡״©
             rebuildUI();
         }
 
         void UIBridge::replacePage(const Data::Value &page)
         {
-            // ״§״³״×״¨״¯״§„ ״¨״¯ˆ† ״¥״¶״§״© „„ƒˆ…״©
-            rootWidget_ = page;
+            (void)page; // (توحيد، Amelia MED-2) لا نحفظ page في rootWidget_: قد يكون دالّةً
+                        //   فيُفسِد احتياط rebuildUI (convertToIR لدالّة ⇒ رسمٌ فارغ). الرسم
+                        //   من navCurrentPageValue، وrootWidget_ يبقى جذرَ run() احتياطًا آمنًا.
             rebuildUI();
         }
 
@@ -837,12 +827,11 @@ namespace Sad
 
             for (size_t i = 0; i < childBuilders.size() && i < childIRNodes.size(); ++i)
             {
-                auto *childWBPtr = childBuilders[i];
-                if (!childWBPtr)
+                auto *childWB = childBuilders[i];
+                if (!childWB)
                     continue;
-                auto *childWB = childWBPtr;
 
-                auto &childIR = childIRNodes[i];
+                const auto &childIR = childIRNodes[i];
 
                 // (AR) تسجيل أحداث هذا الابن
                 for (auto &[key, val] : childWB->fields)

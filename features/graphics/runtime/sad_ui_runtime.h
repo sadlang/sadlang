@@ -4,13 +4,13 @@
  * ============================================================================
  *
  * (AR) هذا الملف يُعرّف دوال C التي يستدعيها الكود المُترجم بـ LLVM.
- *      يربط بين llvm_codegen_ui.cpp ومكتبة sad_ui.
+ *      يربط بين مولّد شفرة الواجهة (UICodeGen) ومكتبة sad_ui.
  *
  * (EN) This file declares the C functions called by LLVM-compiled code.
- *      It bridges llvm_codegen_ui.cpp and the sad_ui library.
+ *      It bridges the UI codegen (UICodeGen) and the sad_ui library.
  *
  * الدوال المُعرّفة هنا تتطابق 1:1 مع emitUIRuntimeCall() في:
- *   compiler/src/backend/llvm/llvm_codegen_ui.cpp
+ *   compiler/src/backend/llvm/builders/platform/ui_ops.cpp
  *
  * ============================================================================
  * حقوق النشر (c) 2024-2026 فريق لغة ص
@@ -30,6 +30,10 @@ extern "C" {
 typedef void* SadWidget;
 typedef void* SadApp;
 typedef void (*SadCallback)(void* userData);
+/* (م1-ج، توقيع البانِي) باني صفحة: يُنتج عنصرًا **طازجًا** عند كلّ رسم (تفاعليّة) */
+typedef SadWidget (*SadPageBuilder)(void* data);
+/* (م1-ج/Q5) مُحرِّر بيئة الإغلاق: يُستدعى عند إسقاط إدخال التنقّل (ملكيّة مُدارة) */
+typedef void (*SadReleaseFn)(void* data);
 
 /* ═══════════════════════════════════════════════════════════════════
  * 1. مصانع العناصر / Widget Factories
@@ -210,6 +214,42 @@ void sad_app_run(SadWidget root);
 
 /** طباعة_شجرة(عنصر) — طباعة شجرة العناصر للتصحيح (منطق المكتبة المشترك) */
 void sad_print_tree(SadWidget root);
+
+/* ─── دوال الثيم (م-تحكّم) — جسرٌ فوق حالة الثيم المكتبيّة المشتركة مع المفسّر ─── */
+/** تبديل_الثيم() — يبدّل بين الفاتح/الداكن */
+void sad_toggle_theme(void);
+/** وضع_داكن() — يضبط الثيم داكنًا */
+void sad_set_dark(void);
+/** وضع_فاتح() — يضبط الثيم فاتحًا */
+void sad_set_light(void);
+/** هل_داكن() — هل الثيم الحاليّ داكن؟ */
+bool sad_is_dark(void);
+
+/* ─── دوال التنقّل (م-تحكّم) — جسرٌ فوق مكدّس التنقّل المكتبيّ المشترك (nav.h) ─── */
+/** انتقل(صفحة) — يدفع الحالية ويجعل الصفحة الجديدة حاليّة */
+void sad_navigate(SadWidget page);
+/** عودة() — يعود للصفحة السابقة؛ يُرجع false إن لا صفحة */
+bool sad_navigate_back(void);
+/** عودة_للبداية() — يعود لأوّل صفحة ويُفرغ المكدّس */
+void sad_navigate_root(void);
+/** انتقل_بتحريك(صفحة, نوع, مدة) — تنقّل مع انتقال بصريّ (م2) */
+void sad_navigate_transition(SadWidget page, const char* transType, float durationSec);
+/** عودة_بتحريك(نوع, مدة) — عودة مع انتقال بصريّ (م2)؛ يُرجع 1 إن نجحت العودة، 0 إن لا صفحة */
+int sad_navigate_back_transition(const char* transType, float durationSec);
+/** استبدل(صفحة) — يبدّل الحالية دون دفع */
+void sad_replace_page(SadWidget page);
+/** انتقل(دالّة_بناء) — نموذج البانِي (م1-ج): يخزّن بانيًا يُستدعى عند كلّ رسم ⇒
+ *  تفاعليّةٌ كاملة داخل الصفحة المُنتقَل إليها (نظير Flutter routes) */
+void sad_navigate_builder(SadPageBuilder build, void* data, SadReleaseFn release);
+/** استبدل(دالّة_بناء) — نموذج البانِي: يبدّل الحالية ببانٍ دون دفع */
+void sad_replace_page_builder(SadPageBuilder build, void* data, SadReleaseFn release);
+/** انتقل_بتحريك(دالّة_بناء, نوع, مدة) — نموذج البانِي + انتقال بصريّ (م1-ج + م2) */
+void sad_navigate_transition_builder(SadPageBuilder build, void* data, SadReleaseFn release,
+                                     const char* transType, float durationSec);
+/** عدد_الصفحات() — عمق مكدّس التنقّل */
+long long sad_page_count(void);
+/** الصفحة_الحالية() — الصفحة الحالية (SadWidget) من مكدّس التنقّل (حارس بنيويّ) */
+SadWidget sad_current_page(void);
 
 /** دمّر_تطبيق(تطبيق) */
 void sad_app_destroy(SadApp app);

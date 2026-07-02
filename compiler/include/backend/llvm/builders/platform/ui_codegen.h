@@ -32,6 +32,18 @@ public:
     llvm::Value *emitUiAppRender(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAppRun(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiPrintTree(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiToggleTheme(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiDarkMode(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiLightMode(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiIsDark(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiNavigate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiNavBack(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiNavRoot(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiReplacePage(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiPageCount(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiCurrentPage(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiNavigateTransition(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiBackTransition(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButton(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst);

@@ -51,6 +51,26 @@ namespace Sad
                           << std::endl;
             }
 
+            // (AR) وسيط التنقّل (انتقل/استبدل/انتقل_بتحريك) يجب أن يكون **عنصرًا** (لقطة،
+            //      Pointer) أو **دالّة بناء صفحة** (Function). أيّ نوعٍ آخر (عدد/نص/لاشيء…)
+            //      ليس صفحةً: يُحلّ إلى i64 غير-إغلاق فيُعامَل خطأً كبانٍ (inttoptr لقيمةٍ
+            //      عدديّة ⇒ قراءة {fn,env} من مؤشّرٍ باطل ⇒ انهيار)، أو كلقطةٍ باطلة. نرفضه
+            //      هنا بتشخيصٍ من الكتالوج (نظير المفسّر الذي يرفضه أيضًا) ⇒ تكافؤٌ لا انهيار.
+            //      — إصلاح مراجعة Amelia (HIGH-2). يُرجع true إن كان الوسيط صالحًا.
+            [[nodiscard]] static bool checkUiNavArgType(const std::string &name, SadTypeKind t)
+            {
+                if (t == SadTypeKind::Pointer || t == SadTypeKind::Function)
+                    return true;
+                Sad::Errors::RenderContext ctx;
+                ctx.placeholders = {
+                    {"expected", name + ": \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9 \xd8\xa3\xd9\x88 \xd8\xaf\xd8\xa7\xd9\x84\xd9\x91\xd8\xa9 \xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9"}, // عنصر واجهة أو دالّة بناء صفحة
+                    {"found", std::string(Sad::Compiler::SIR::sirTypeToString(t))}};
+                std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                 Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ctx)
+                          << std::endl;
+                return false;
+            }
+
             std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_UI(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
@@ -982,6 +1002,121 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
+                }
+
+                // ─── م-تحكّم: دوال الثيم — جسرٌ إلى حالة الثيم المكتبيّة (sad::ui::*) ───
+                // (AR) المنطق في المكتبة؛ هذه تُصدر نداءً فقط. تبديل/داكن/فاتح بلا وسائط
+                //      وبلا إرجاع؛ هل_داكن بلا وسائط ويُرجع منطقيًّا (bool).
+                if (funcName == Bn::UICore::TOGGLE_THEME ||
+                    funcName == Bn::UICore::DARK_MODE ||
+                    funcName == Bn::UICore::LIGHT_MODE)
+                {
+                    SIROpcode op = funcName == Bn::UICore::TOGGLE_THEME ? SIROpcode::BUILTIN_UI_TOGGLE_THEME
+                                 : funcName == Bn::UICore::DARK_MODE    ? SIROpcode::BUILTIN_UI_DARK_MODE
+                                                                        : SIROpcode::BUILTIN_UI_LIGHT_MODE;
+                    SIRInstruction inst(op); // بلا operands
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                if (funcName == Bn::UICore::IS_DARK)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_IS_DARK); // بلا operands، يُرجع bool
+                    inst.result = SIROperand::Register(r, SadTypeKind::Boolean);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Boolean);
+                }
+
+                // ─── م-تحكّم: التنقّل — جسرٌ إلى مكدّس التنقّل المكتبيّ (sad::ui::nav) ───
+                // (AR) المنطق في المكتبة؛ هذه تُصدر نداءً فقط. انتقل/استبدل يأخذان صفحةً
+                //      (مقبض العنصر)؛ عودة/عودة_للبداية بلا وسائط؛ عدد_الصفحات يُرجع i64.
+                if (funcName == Bn::UICore::NAVIGATE || funcName == Bn::UICore::REPLACE_PAGE)
+                {
+                    if (argResults.empty())
+                    {
+                        reportUiWrongArgCount(
+                            funcName == Bn::UICore::NAVIGATE ? "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84"   // انتقل
+                                                             : "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", // استبدل
+                            1, argResults.size());
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    // (AR) الوسيط قد يكون **لقطة عنصر** (ptr) أو **بانِي صفحة** (دالّة ص
+                    //      تُرجع عنصرًا ⇒ إغلاق i64). يميّزهما الخافض (emitUiNavigate/
+                    //      ReplacePage) بنوع المُعامل: إغلاق ⇒ sad_navigate_builder (م1-ج،
+                    //      تفاعليّة عبر buildCurrent)؛ عنصر ⇒ sad_navigate (لقطة). دوال ص
+                    //      تُرجع widgets فعلًا (ارجع زر(..) ⇒ define ptr) فالبانِي مدعوم.
+                    // (AR) حارس نوع (HIGH-2): ارفض ما ليس عنصرًا/دالّة (منع انهيار المترجم).
+                    if (!checkUiNavArgType(
+                            funcName == Bn::UICore::NAVIGATE ? "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84"    // انتقل
+                                                             : "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", // استبدل
+                            argResults[0].type))
+                        return BuildResult("", SadTypeKind::Void);
+                    SIRInstruction inst(funcName == Bn::UICore::NAVIGATE ? SIROpcode::BUILTIN_UI_NAVIGATE
+                                                                        : SIROpcode::BUILTIN_UI_REPLACE_PAGE);
+                    inst.operands.push_back(argOperands[0]); // الصفحة (عنصر أو بانٍ)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (م2) انتقل_بتحريك(صفحة, نوع, مدة؟) — تنقّل + انتقال بصريّ.
+                if (funcName == Bn::UICore::NAVIGATE_TRANSITION)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        reportUiWrongArgCount("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", 2, argResults.size()); // انتقل_بتحريك
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    // (AR) حارس نوع (HIGH-2): الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
+                    if (!checkUiNavArgType("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", argResults[0].type)) // انتقل_بتحريك
+                        return BuildResult("", SadTypeKind::Void);
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION);
+                    inst.operands.push_back(argOperands[0]); // الصفحة
+                    inst.operands.push_back(argOperands[1]); // نوع الانتقال
+                    if (argResults.size() > 2)
+                        inst.operands.push_back(argOperands[2]); // مدة (اختياريّة)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                // (م2) عودة_بتحريك(نوع؟, مدة؟) — عودة + انتقال بصريّ.
+                if (funcName == Bn::UICore::BACK_TRANSITION)
+                {
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_BACK_TRANSITION);
+                    if (!argResults.empty())
+                        inst.operands.push_back(argOperands[0]); // نوع (اختياريّ)
+                    if (argResults.size() > 1)
+                        inst.operands.push_back(argOperands[1]); // مدة (اختياريّة)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                if (funcName == Bn::UICore::BACK || funcName == Bn::UICore::BACK_TO_ROOT)
+                {
+                    SIRInstruction inst(funcName == Bn::UICore::BACK ? SIROpcode::BUILTIN_UI_NAV_BACK
+                                                                     : SIROpcode::BUILTIN_UI_NAV_ROOT);
+                    if (b_.currentBlock_) // نداء void بلا وسائط (نتيجة عودة المنطقيّة تُهمَل كالمفسّر)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+                if (funcName == Bn::UICore::PAGE_COUNT)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_PAGE_COUNT); // بلا operands، يُرجع i64
+                    inst.result = SIROperand::Register(r, SadTypeKind::Integer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Integer);
+                }
+                if (funcName == Bn::UICore::CURRENT_PAGE)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_CURRENT_PAGE); // بلا operands، يُرجع SadWidget
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── دمر_تطبيق(تطبيق) / sad_app_destroy(app) ───
