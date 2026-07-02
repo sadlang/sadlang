@@ -275,6 +275,16 @@ target_include_directories(test_reconciler_performance PRIVATE
     ${CMAKE_SOURCE_DIR}/features/graphics/core/include
     ${CMAKE_SOURCE_DIR}/features/graphics/pipeline/include)
 
+# 14e. اختبار ذهبيّ لطبقة التخطيط + الرسم عبر RecordingRenderer (headless حتميّ)
+# (AR) يمرّر أشجار IR عبر layout() + render() بمُصيّر يسجّل نداءات الرسم نصّيًّا،
+#      فيغطّي المنطق المشترك أسفل شجرة IR الذي لا تمسّه طباعة_شجرة — بلا SDL2/بكسل.
+# (EN) Golden test of the shared layout()+render() logic below the IR tree via a
+#      draw-call-recording renderer — no SDL2/pixels, fully deterministic for CI.
+add_comprehensive_test(test_ui_render_displaylist test_ui_render_displaylist.cpp)
+target_link_libraries(test_ui_render_displaylist PRIVATE sad_graphics)
+target_include_directories(test_ui_render_displaylist PRIVATE
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
+
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
 # ──────────────────────────────────────────────────────────────────────
@@ -415,11 +425,15 @@ add_custom_target(comprehensive_tests
         test_compiler_comprehensive
         test_regression_comprehensive
         test_optional_null_comprehensive
+    # ملاحظة: اختبارات الرسومات المربوطة بـsad_graphics (test_ui_*, test_backends_*,
+    # test_event_system_*, test_reconciler_*, test_ui_render_displaylist) مستثناة
+    # عمدًا من هذا الهدف المُجمّع (تتطلّب sad_graphics)؛ تُسجَّل فرديًّا عبر add_test
+    # وتُبنى/تُشغَّل بـ ctest -R Comprehensive. أضِف أيّ اختبار رسومات جديد بالنمط نفسه.
     COMMENT "بناء جميع الاختبارات الشاملة / Building all comprehensive tests"
 )
 
 message(STATUS "════════════════════════════════════════════════════════")
-message(STATUS "  الاختبارات الشاملة: 12 ملف | 900+ اختبار + 30 انحدار + freestanding")
+message(STATUS "  الاختبارات الشاملة: 900+ اختبار + انحدار + رسومات headless + freestanding")
 message(STATUS "  بناء الكل: cmake --build build --target comprehensive_tests")
 message(STATUS "  تشغيل الكل: ctest --test-dir build -R Comprehensive")
 message(STATUS "  تشغيل الانحدار: ctest --test-dir build -L regression")

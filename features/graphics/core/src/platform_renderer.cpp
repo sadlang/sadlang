@@ -312,7 +312,9 @@ namespace sad
                 }
             }
 
-            // 2. رسم الخلفية (إن وجدت)
+            // 2. رسم الخلفية (إن وجدت) — هذه الخطوة العامّة هي المصدر الوحيد
+            //    لخلفية كلّ عقدة (بما فيها الحاويات): تدعم لون_خلفية/خلفية +
+            //    الزوايا + التحويم/الضغط. الأولوية موحَّدة على لون_خلفية ثمّ خلفية.
             const auto *bgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
             if (!bgProp)
                 bgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
@@ -920,16 +922,14 @@ namespace sad
             case UINodeType::CustomWidget:
             case UINodeType::Conditional:
             {
-                // خلفية اختيارية
-                const auto *containerBgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
-                if (!containerBgProp)
-                    containerBgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
-                if (containerBgProp)
-                {
-                    Color bg = parseColorProp(containerBgProp, {0, 0, 0, 0});
-                    if (bg.a > 0)
-                        drawFilledRect(rect.x, rect.y, rect.width, rect.height, bg);
-                }
+                // (AR) الخلفية تُرسَم أصلًا في خطوة الخلفية العامّة قبل الـswitch
+                //      (تدعم لون_خلفية/خلفية + الزوايا + تأثير التحويم/الضغط)، فلا
+                //      نكرّرها هنا. كان تكرارها يرسم الخلفية مرّتين (هدر + تراكم ألفا
+                //      على خلفيّة شبه شفّافة). أزيل التكرار — يبقى القصّ فقط.
+                // (EN) Background is already drawn by the general pre-switch step
+                //      (handles لون_خلفية/خلفية + radius + hover/press). Re-drawing
+                //      it here caused a double draw (waste + alpha accumulation on
+                //      semi-transparent backgrounds). Removed; only clipping remains.
                 // قص المحتوى للعناصر القابلة للتمرير
                 if (node.getType() == UINodeType::ScrollView ||
                     node.getType() == UINodeType::LazyColumn ||
