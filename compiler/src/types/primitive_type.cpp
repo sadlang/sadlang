@@ -1,31 +1,31 @@
-﻿// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// …„: primitive_type.cpp
+﻿// ════════════════════════════════════════════════════════════════════════════════
+// ملف: primitive_type.cpp
 // File: primitive_type.cpp
 //
-// ״§„ˆ״µ: ״×†״° ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© (״±‚…״ †״µ״ …†״·‚״ ...)
+// الوصف: تنفيذ الأنواع البدائية (رقم، نص، منطقي، ...)
 // Description: Implementation of primitive types (int, string, bool, ...)
 //
-// ״§„…״₪„: Sad Language Type System
+// المؤلف: Sad Language Type System
 // Author: Sad Language Type System
 //
-// ״§„״×״§״±״®: 2 †״§״± 2026
+// التاريخ: 2 يناير 2026
 // Date: January 2, 2026
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
 
-#include "types/primitive_type.h"  // ״§״³״×״±״§״¯ ״§„״×״¹״± / Import definition
-#include <stdexcept>                    // „€ std::invalid_argument / For invalid_argument
+#include "types/primitive_type.h"  // استيراد التعريف / Import definition
+#include <stdexcept>                    // لـ std::invalid_argument / For invalid_argument
 
 namespace Sad {
 namespace TypeSystem {
 
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// ״×†״° ״§„…†״´״¦ / Constructor Implementation
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
+// تنفيذ المُنشئ / Constructor Implementation
+// ════════════════════════════════════════════════════════════════════════════════
 
-// ״§„…†״´״¦ …״¹ †ˆ״¹ …״­״¯״¯ / Constructor with specific kind
+// المنشئ مع نوع محدد / Constructor with specific kind
 PrimitiveType::PrimitiveType(SadTypeKind kind) : Type(kind) {
-    // ״§„״×״­‚‚ …† ״£† ״§„†ˆ״¹ …״³…ˆ״­ ״¨‡ / Verify that kind is allowed
-    // ״§„״£†ˆ״§״¹ ״§„…״³…ˆ״­ ״¨‡״§: Void, Integer, Float, Boolean, String, Any, Never, Unknown
+    // التحقق من أن النوع مسموح به / Verify that kind is allowed
+    // الأنواع المسموح بها: Void, Integer, Float, Boolean, String, Any, Never, Unknown
     // Allowed types: Void, Integer, Float, Boolean, String, Any, Never, Unknown
     bool isValidType = isPrimitive() || 
                       kind == SadTypeKind::Void || 
@@ -34,38 +34,38 @@ PrimitiveType::PrimitiveType(SadTypeKind kind) : Type(kind) {
                       kind == SadTypeKind::Unknown;
     
     if (!isValidType) {
-        // ״±… ״®״·״£ ״¥״°״§ „… ƒ† †ˆ״¹״§‹ …״³…ˆ״­״§‹ / Throw error if not allowed type
-        throw std::invalid_argument("PrimitiveType: †ˆ״¹ ״÷״± ״¨״¯״§״¦ / non-primitive kind");
+        // رمي خطأ إذا لم يكن نوعاً مسموحاً / Throw error if not allowed type
+        throw std::invalid_argument("PrimitiveType: نوع غير بدائي / non-primitive kind");
     }
 }
 
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// ״×†״° ״§„״¯ˆ״§„ ״§„״§״×״±״§״¶״© / Virtual Functions Implementation
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
+// تنفيذ الدوال الافتراضية / Virtual Functions Implementation
+// ════════════════════════════════════════════════════════════════════════════════
 
-// ״§„״­״µˆ„ ״¹„‰ ״§״³… ״§„†ˆ״¹ ״¨״§„״¹״±״¨״© / Get type name in Arabic
+// الحصول على اسم النوع بالعربية / Get type name in Arabic
 std::string PrimitiveType::getArabicName() const {
-    // ״§״³״×״®״¯״§… ״§„״¯״§„״© ״§„…״³״§״¹״¯״© / Use helper function
+    // استخدام الدالة المساعدة / Use helper function
     return typeKindToArabic(getKind());
 }
 
-// ״§„״­״µˆ„ ״¹„‰ ״§״³… ״§„†ˆ״¹ ״¨״§„״¥†״¬„״²״© / Get type name in English
+// الحصول على اسم النوع بالإنجليزية / Get type name in English
 std::string PrimitiveType::getEnglishName() const {
-    // ״§״³״×״®״¯״§… ״§„״¯״§„״© ״§„…״³״§״¹״¯״© / Use helper function
+    // استخدام الدالة المساعدة / Use helper function
     return typeKindToEnglish(getKind());
 }
 
-// ״×״­ˆ„ ״§„†ˆ״¹ ״¥„‰ †״µ ״×…״«„ / Convert type to string representation
+// تحويل النوع إلى نص تمثيلي / Convert type to string representation
 std::string PrimitiveType::toString() const {
-    // ״¥״±״¬״§״¹ ״§„״§״³… ״§„״¹״±״¨ / Return Arabic name
+    // إرجاع الاسم العربي / Return Arabic name
     return getArabicName();
 }
 
-// ״§„״×״­‚‚ …† ״§„״×״³״§ˆ / Check equality
+// التحقق من التساوي / Check equality
 bool PrimitiveType::equals(const Type* other) const {
-    // ״§„״×״­‚‚ …† null / Check for null
+    // التحقق من null / Check for null
     if (other == nullptr) {
-        return false; // null „״§ ״³״§ˆ ״´״¦״§‹ / null equals nothing
+        return false; // null لا يساوي شيئاً / null equals nothing
     }
     
     // التحقق من نفس النوع / Check same kind
@@ -89,113 +89,113 @@ size_t PrimitiveType::getSizeInBytes() const {
             return 1;  // منطقي = 1 بايت / Boolean = 1 byte
         
         case SadTypeKind::Integer:
-            return 8;  // ״±‚… ״µ״­״­ = 8 ״¨״§״× (64-bit) / Integer = 8 bytes (64-bit)
+            return 8;  // رقم صحيح = 8 بايت (64-bit) / Integer = 8 bytes (64-bit)
         
         case SadTypeKind::Float:
-            return 8;  // ״¹״´״± = 8 ״¨״§״× (double) / Float = 8 bytes (double)
+            return 8;  // عشري = 8 بايت (double) / Float = 8 bytes (double)
         
         case SadTypeKind::String:
-            return sizeof(void*);  // †״µ = ״­״¬… …״₪״´״± / String = pointer size
+            return sizeof(void*);  // نص = حجم مؤشر / String = pointer size
         
-        // ״§„״£†ˆ״§״¹ ״§„״®״§״µ״© / Special types
+        // الأنواع الخاصة / Special types
         case SadTypeKind::Any:
         case SadTypeKind::Never:
         case SadTypeKind::Unknown:
-            return sizeof(void*);  // ״­״¬… …״₪״´״± „„״£†ˆ״§״¹ ״§„״®״§״µ״© / Pointer size for special types
+            return sizeof(void*);  // حجم مؤشر للأنواع الخاصة / Pointer size for special types
         
         default:
-            return 0;  // ‚…״© ״§״×״±״§״¶״© / Default value
+            return 0;  // قيمة افتراضية / Default value
     }
 }
 
-// ״§„״­״µˆ„ ״¹„‰ …״­״§״°״§״© ״§„†ˆ״¹ / Get type alignment
+// الحصول على محاذاة النوع / Get type alignment
 size_t PrimitiveType::getAlignment() const {
-    // ״§„…״­״§״°״§״© ״¹״§״¯״© ״×״³״§ˆ ״§„״­״¬… / Alignment usually equals size
-    // „„״£†ˆ״§״¹ ״§„״µ״÷״±״© / For small types
+    // المحاذاة عادة تساوي الحجم / Alignment usually equals size
+    // للأنواع الصغيرة / For small types
     
     switch (getKind()) {
         case SadTypeKind::Void:
-            return 1;  // ״±״§״÷: …״­״§״°״§״© 1 / Void: alignment 1
+            return 1;  // فراغ: محاذاة 1 / Void: alignment 1
         
         case SadTypeKind::Boolean:
-            return 1;  // …†״·‚: …״­״§״°״§״© 1 / Boolean: alignment 1
+            return 1;  // منطقي: محاذاة 1 / Boolean: alignment 1
         
         case SadTypeKind::Integer:
-            return 8;  // ״±‚…: …״­״§״°״§״© 8 / Integer: alignment 8
+            return 8;  // رقم: محاذاة 8 / Integer: alignment 8
         
         case SadTypeKind::Float:
-            return 8;  // ״¹״´״±: …״­״§״°״§״© 8 / Float: alignment 8
+            return 8;  // عشري: محاذاة 8 / Float: alignment 8
         
         case SadTypeKind::String:
-            return alignof(void*);  // †״µ: …״­״§״°״§״© ״§„…״₪״´״± / String: pointer alignment
+            return alignof(void*);  // نص: محاذاة المؤشر / String: pointer alignment
         
-        // ״§„״£†ˆ״§״¹ ״§„״®״§״µ״© / Special types
+        // الأنواع الخاصة / Special types
         case SadTypeKind::Any:
         case SadTypeKind::Never:
         case SadTypeKind::Unknown:
-            return alignof(void*);  // …״­״§״°״§״© ״§„…״₪״´״± „„״£†ˆ״§״¹ ״§„״®״§״µ״© / Pointer alignment for special types
+            return alignof(void*);  // محاذاة المؤشر للأنواع الخاصة / Pointer alignment for special types
         
         default:
-            return 1;  // ‚…״© ״§״×״±״§״¶״© / Default value
+            return 1;  // قيمة افتراضية / Default value
     }
 }
 
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// ״×†״° ״¯ˆ״§„ ״§„…״µ†״¹ / Factory Functions Implementation
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
+// تنفيذ دوال المصنع / Factory Functions Implementation
+// ════════════════════════════════════════════════════════════════════════════════
 
-// ״¥†״´״§״¡ †ˆ״¹ ״±״§״÷ / Create Void type
+// إنشاء نوع فراغ / Create Void type
 TypePtr createVoidType() {
-    // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Void / Create PrimitiveType object with Void kind
+    // إنشاء كائن PrimitiveType مع نوع Void / Create PrimitiveType object with Void kind
     return std::make_shared<PrimitiveType>(SadTypeKind::Void);
 }
 
-// ״¥†״´״§״¡ †ˆ״¹ ״±‚… ״µ״­״­ / Create Integer type
+// إنشاء نوع رقم صحيح / Create Integer type
 TypePtr createIntegerType() {
-    // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Integer / Create PrimitiveType object with Integer kind
+    // إنشاء كائن PrimitiveType مع نوع Integer / Create PrimitiveType object with Integer kind
     return std::make_shared<PrimitiveType>(SadTypeKind::Integer);
 }
 
-// ״¥†״´״§״¡ †ˆ״¹ ״¹״´״± / Create Float type
+// إنشاء نوع عشري / Create Float type
 TypePtr createFloatType() {
-    // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Float / Create PrimitiveType object with Float kind
+    // إنشاء كائن PrimitiveType مع نوع Float / Create PrimitiveType object with Float kind
     return std::make_shared<PrimitiveType>(SadTypeKind::Float);
 }
 
-// ״¥†״´״§״¡ †ˆ״¹ …†״·‚ / Create Boolean type
+// إنشاء نوع منطقي / Create Boolean type
 TypePtr createBooleanType() {
-    // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Boolean / Create PrimitiveType object with Boolean kind
+    // إنشاء كائن PrimitiveType مع نوع Boolean / Create PrimitiveType object with Boolean kind
     return std::make_shared<PrimitiveType>(SadTypeKind::Boolean);
 }
 
-// ״¥†״´״§״¡ †ˆ״¹ †״µ / Create String type
+// إنشاء نوع نص / Create String type
 TypePtr createStringType() {
-    // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ String / Create PrimitiveType object with String kind
+    // إنشاء كائن PrimitiveType مع نوع String / Create PrimitiveType object with String kind
     return std::make_shared<PrimitiveType>(SadTypeKind::String);
 }
 
-// ״¥†״´״§״¡ †ˆ״¹ ״¨״¯״§״¦ …† SadTypeKind / Create primitive type from SadTypeKind
+// إنشاء نوع بدائي من SadTypeKind / Create primitive type from SadTypeKind
 TypePtr createPrimitiveType(SadTypeKind kind) {
-    // ״§״³״×״®״¯״§… switch „״§״³״×״¯״¹״§״¡ ״§„״¯״§„״© ״§„…†״§״³״¨״© / Use switch to call appropriate function
+    // استخدام switch لاستدعاء الدالة المناسبة / Use switch to call appropriate function
     switch (kind) {
         case SadTypeKind::Void:
-            return createVoidType();  // ״±״§״÷ / Void
+            return createVoidType();  // فراغ / Void
         
         case SadTypeKind::Integer:
-            return createIntegerType();  // ״±‚… / Integer
+            return createIntegerType();  // رقم / Integer
         
         case SadTypeKind::Float:
-            return createFloatType();  // ״¹״´״± / Float
+            return createFloatType();  // عشري / Float
         
         case SadTypeKind::Boolean:
-            return createBooleanType();  // …†״·‚ / Boolean
+            return createBooleanType();  // منطقي / Boolean
         
         case SadTypeKind::String:
-            return createStringType();  // †״µ / String
+            return createStringType();  // نص / String
         
         default:
-            // ״±… ״®״·״£ „„״£†ˆ״§״¹ ״÷״± ״§„״¨״¯״§״¦״© / Throw error for non-primitive types
-            throw std::invalid_argument("createPrimitiveType: †ˆ״¹ ״÷״± ״¨״¯״§״¦ / non-primitive kind");
+            // رمي خطأ للأنواع غير البدائية / Throw error for non-primitive types
+            throw std::invalid_argument("createPrimitiveType: نوع غير بدائي / non-primitive kind");
     }
 }
 

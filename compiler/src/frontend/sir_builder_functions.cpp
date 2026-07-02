@@ -32,12 +32,12 @@ namespace Sad
         namespace SIR
         {
             // ============================================================================
-            // buildFunction - ״¨†״§״¡ ״¯״§„״© ƒ״§…„״©
+            // buildFunction - بناء دالة كاملة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:348
-            // ״§„״×ˆ‚״¹ / Signature: void buildFunction(AST::FunctionDeclNode* funcDecl);
+            // مصدر التعريف / Source: sir_builder.h:348
+            // التوقيع / Signature: void buildFunction(AST::FunctionDeclNode* funcDecl);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - funcDecl: AST::FunctionDeclNode* = Sad::AST::FunctionDecl* (sir_builder.h:58)
             //
             // FunctionDecl Members (declarations.h:19-64):
@@ -52,7 +52,7 @@ namespace Sad
             // - type: Types::SadTypeKind
             // - defaultValue: ExprPtr (optional)
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - std::make_shared<SIRFunction>: standard library
             // - SIRFunction::addParameter: sir_module.h:289
             // - astTypeToSIRType: sir_builder.h:713
@@ -68,27 +68,27 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ״×״­ˆ„ †ˆ״¹ ״§„״¥״±״¬״§״¹ …† DataType ״¥„‰ SadTypeKind
+                // (AR) تحويل نوع الإرجاع من DataType إلى SadTypeKind
                 // (EN) Convert return type from DataType to SadTypeKind
                 // astTypeToSIRType: sir_builder.h:713
                 SadTypeKind returnType;
 
                 // ================================================================
-                // (AR) ״§„…״±״­„״© 1.75 ג€” ״×״³״¬„ ״£†ˆ״§״¹ ״§„״£״µ†״§ „„…״¹״§…„״§״× ‚״¨„ ״§״³״×†״×״§״¬ †ˆ״¹ ״§„״¥״±״¬״§״¹
-                //      ‡״°״§ ״³…״­ „€ inferReturnTypeFromBody ״¨…״¹״±״© ״£† ״·_״£.״§״³… ‡ˆ ״­‚„ STRING
-                //      ״¹†״¯…״§ ƒˆ† ״·_״£ …״¹״§…„״§‹ …״±״± ״¥„‡ ƒ״§״¦† …† ״µ† ״·״§„״¨
-                // (EN) Phase 1.75 ג€” Register class types for parameters before return type inference
-                //      This allows inferReturnTypeFromBody to know that ״·_״£.״§״³… is a STRING field
-                //      when ״·_״£ is a parameter that receives an object of class ״·״§„״¨
+                // (AR) المرحلة 1.75 — تسجيل أنواع الأصناف للمعاملات قبل استنتاج نوع الإرجاع
+                //      هذا يسمح لـ inferReturnTypeFromBody بمعرفة أن ط_أ.اسم هو حقل STRING
+                //      عندما يكون ط_أ معاملاً يُمرر إليه كائن من صنف طالب
+                // (EN) Phase 1.75 — Register class types for parameters before return type inference
+                //      This allows inferReturnTypeFromBody to know that ط_أ.اسم is a STRING field
+                //      when ط_أ is a parameter that receives an object of class طالب
                 // ================================================================
-                std::vector<std::string> tempRegisteredParams; // (AR) „„״×†״¸ „״§״­‚״§‹
+                std::vector<std::string> tempRegisteredParams; // (AR) للتنظيف لاحقاً
                 {
                     auto pctIt = paramClassTypes_.find(funcDecl->name);
                     if (pctIt != paramClassTypes_.end())
                     {
                         for (const auto &[paramName, className] : pctIt->second)
                         {
-                            // (AR) †״×״­‚‚ …† ״¹״¯… ˆ״¬ˆ״¯ ״×״³״¬„ ״³״§״¨‚ „״×״¬†״¨ ״§„ƒ״×״§״¨״© ˆ‚‡
+                            // (AR) نتحقق من عدم وجود تسجيل سابق لتجنب الكتابة فوقه
                             // (EN) Check for existing registration to avoid overwriting
                             if (classInstanceTypes_.find(paramName) == classInstanceTypes_.end())
                             {
@@ -99,12 +99,12 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״¥״°״§ ƒ״§† †ˆ״¹ ״§„״¥״±״¬״§״¹ ״÷״± …״­״¯״¯ (UNKNOWN/NONE)״ †״³״×†״×״¬‡ …† ״¬״³… ״§„״¯״§„״©
+                // (AR) إذا كان نوع الإرجاع غير محدد (UNKNOWN/NONE)، نستنتجه من جسم الدالة
                 // (EN) If return type is unspecified (UNKNOWN/NONE), infer it from function body
                 if (funcDecl->returnType == Types::SadTypeKind::Unknown ||
                     funcDecl->returnType == Types::SadTypeKind::Void)
                 {
-                    // (AR) ״§״³״×†״×״§״¬ ״§„†ˆ״¹ …† ״¬״³… ״§„״¯״§„״© …״¹ …״¹„ˆ…״§״× ״§„…״¹״§…„״§״×
+                    // (AR) استنتاج النوع من جسم الدالة مع معلومات المعاملات
                     // (EN) Infer type from function body with parameter information
                     returnType = inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
                 }
@@ -136,12 +136,12 @@ namespace Sad
                           << "' inferred retType=" << static_cast<int>(returnType) << std::endl;
 #endif
 
-                // (AR) ״¥״°״§ ƒ״§†״× ״¯״§„״© ״÷״± …״×״²״§…†״©״ ״§״¬״¹„‡״§ ƒˆ״±ˆ״×†
+                // (AR) إذا كانت دالة غير متزامنة، اجعلها كوروتين
                 // (EN) If async function, mark as coroutine
                 if (funcDecl->is_async)
                 {
                     sirFunction->isCoroutine = true;
-                    // (AR) ״§„ƒˆ״±ˆ״×† ״±״¬״¹ …״₪״´״±״§‹ (handle) ״¨״¯„״§‹ …† ״§„‚…״© …״¨״§״´״±״©
+                    // (AR) الكوروتين يُرجع مؤشراً (handle) بدلاً من القيمة مباشرة
                     // (EN) Coroutine returns a pointer (handle) instead of direct value
                     sirFunction->returnType = SadTypeKind::Pointer;
 #ifdef SIR_BUILDER_DEBUG
@@ -149,31 +149,31 @@ namespace Sad
 #endif
                 }
 
-                // (AR) ״¥״°״§ ƒ״§†״× ״¯״§„״© …ˆ„‘״¯״ ״§״¬״¹„‡״§ ƒˆ״±ˆ״×† ״£״¶״§‹
+                // (AR) إذا كانت دالة مولّد، اجعلها كوروتين أيضاً
                 // (EN) If generator function, also mark as coroutine
                 if (funcDecl->isGenerator)
                 {
                     sirFunction->isCoroutine = true;
                     sirFunction->isGenerator = true;
-                    // (AR) ״§„…ˆ„‘״¯ ״±״¬״¹ …״₪״´״±״§‹ (handle) ג€” ״§„…״³״×‡„ƒ ״¬…״¹ ״§„‚…
-                    // (EN) Generator returns a pointer (handle) ג€” consumer collects values
+                    // (AR) المولّد يُرجع مؤشراً (handle) — المستهلك يجمع القيم
+                    // (EN) Generator returns a pointer (handle) — consumer collects values
                     sirFunction->returnType = SadTypeKind::Pointer;
 #ifdef SIR_BUILDER_DEBUG
                     std::cerr << "[GEN] Function '" << funcDecl->name << "' marked as generator" << std::endl;
 #endif
                 }
 
-                // (AR) ״×״¹† ״§״³… ״§„״±״¨״· ״§„״®״§״±״¬ (FFI) ״¥״°״§ ƒ״§† …״­״¯״¯״§‹
+                // (AR) تعيين اسم الربط الخارجي (FFI) إذا كان محدداً
                 // (EN) Set FFI link name if specified
                 if (!funcDecl->linkName.empty())
                 {
                     sirFunction->linkName = funcDecl->linkName;
                 }
 
-                // (AR) ״¥״¶״§״© ״§„…״¹״§…„״§״× (declarations.h:44 - parameters: vector<Parameter>)
+                // (AR) إضافة المعاملات (declarations.h:44 - parameters: vector<Parameter>)
                 // (EN) Add parameters
-                // (AR) †״³״×״®״¯… ״§„״£†ˆ״§״¹ ״§„…״³״×†״×״¬״© …† functionTable_ (״§„…״±״­„״© 1.7)
-                //      ״¨״¯„״§‹ …† ״§„״£†ˆ״§״¹ ״§„״®״§… …† AST ״¹†״¯…״§ ƒˆ† ״§„†ˆ״¹ UNKNOWN
+                // (AR) نستخدم الأنواع المستنتجة من functionTable_ (المرحلة 1.7)
+                //      بدلاً من الأنواع الخام من AST عندما يكون النوع UNKNOWN
                 // (EN) Use inferred types from functionTable_ (Phase 1.7)
                 //      instead of raw AST types when type is UNKNOWN
                 auto ftIt = functionTable_.find(funcDecl->name);
@@ -191,7 +191,7 @@ namespace Sad
                                 paramType = astTypeToSIRType(opt->getInnerType()->getKind());
                     }
 
-                    // (AR) ״¥״°״§ ƒ״§† ״§„†ˆ״¹ I64 (…† UNKNOWN) ˆfunctionTable_ ״­״×ˆ †ˆ״¹״§‹ …״³״×†״×״¬״§‹ ״£״¶„
+                    // (AR) إذا كان النوع I64 (من UNKNOWN) وfunctionTable_ يحتوي نوعاً مستنتجاً أفضل
                     // (EN) If type is I64 (from UNKNOWN) and functionTable_ has a better inferred type
                     // (AR) إصلاح X04: لا تُبدِّل إلى Boolean (i1) لأن null/لاشيء يُمرَّر كـ i64 sentinel
                     //      تبديل UNKNOWN→Boolean يُسبّب trunc i64→i1 عند الاستدعاء مما يُضيّع قيمة null
@@ -217,7 +217,7 @@ namespace Sad
                     sirFunction->addParameter(sirParam);
                 }
 
-                // (AR) ״¥״°״§ „… ƒ† ‡†״§ƒ ״¬״³… „„״¯״§„״© (builtin or declaration only), „״§ †״¨† ״§„״¬״³…
+                // (AR) إذا لم يكن هناك جسم للدالة (builtin or declaration only), لا نبني الجسم
                 // (EN) If no function body (builtin or declaration only), don't build body
                 if (!funcDecl->body)
                 {
@@ -225,17 +225,17 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ״×״¹† ״§„״¯״§„״© ״§„״­״§„״©
+                // (AR) تعيين الدالة الحالية
                 // (EN) Set current function
                 currentFunction_ = sirFunction;
 
-                // (AR) ״¥†״´״§״¡ †״·״§‚ ״¬״¯״¯ „„״¯״§„״©
+                // (AR) إنشاء نطاق جديد للدالة
                 // (EN) Create new scope for function
                 enterScope();
 
-                // (AR) ״×״³״¬„ …״¹״§…„״§״× ״§„״¯״§„״©  ״§„†״·״§‚
+                // (AR) تسجيل معاملات الدالة في النطاق
                 // (EN) Register function parameters in scope
-                // (AR) †״³״×״®״¯… ״§„״£†ˆ״§״¹ ״§„…״³״×†״×״¬״© (…״·״§״¨‚״© „…״§ ״×… ״¥״¶״§״×‡ „„״¯״§„״© ״£״¹„״§‡)
+                // (AR) نستخدم الأنواع المستنتجة (مطابقة لما تم إضافته للدالة أعلاه)
                 // (EN) Use inferred types (matching what was added to function above)
                 for (size_t i = 0; i < funcDecl->parameters.size(); i++)
                 {
@@ -251,7 +251,7 @@ namespace Sad
                                 paramType = astTypeToSIRType(opt->getInnerType()->getKind());
                     }
 
-                    // (AR) †״³ ״§„…†״·‚: ״§״³״×״®״¯״§… ״§„†ˆ״¹ ״§„…״³״×†״×״¬ ״¹†״¯…״§ ƒˆ† UNKNOWN
+                    // (AR) نفس المنطق: استخدام النوع المستنتج عندما يكون UNKNOWN
                     // (EN) Same logic: use inferred type when UNKNOWN
                     // (AR) إصلاح X04: نفس الشرط — لا تُبدِّل إلى Boolean
                     // (EN) FIX X04: Same condition — don't override to Boolean
@@ -270,12 +270,12 @@ namespace Sad
                     paramInfo.type = paramType;
                     paramInfo.registerName = "%" + param.name;
                     paramInfo.isGlobal = false;
-                    // (AR) …״¹״§…„״§״× ״§„״¯ˆ״§„ ‚״§״¨„״© „„״×״¹״¯„ ג€” ״×…״«„ †״³״®״© …״­„״© …† ״§„‚…״© ״§„……״±״±״©
-                    //      …״«״§„: ״¯״§„״© ״­„‚״©(״¹) ג†’ ״¹ = ״¹ - 1 ״¯״§״®„ ״¨†…״§ ״¬״¨ ״£† ״¹…„
-                    //      ״¨״¯ˆ† ‡״°״§: buildAssignment ״×״¬״§‡„ ״§„״×״¹† ״¨״µ…״× ג†’ ״­„‚״© „״§†‡״§״¦״©
-                    // (EN) Function parameters are mutable ג€” they represent a local copy of the passed value
-                    //      Example: func loop(x) ג†’ x = x - 1 inside while must work
-                    //      Without this: buildAssignment silently skips assignment ג†’ infinite loop
+                    // (AR) معاملات الدوال قابلة للتعديل — تمثل نسخة محلية من القيمة الممررة
+                    //      مثال: دالة حلقة(ع) → ع = ع - 1 داخل بينما يجب أن يعمل
+                    //      بدون هذا: buildAssignment يتجاهل التعيين بصمت → حلقة لانهائية
+                    // (EN) Function parameters are mutable — they represent a local copy of the passed value
+                    //      Example: func loop(x) → x = x - 1 inside while must work
+                    //      Without this: buildAssignment silently skips assignment → infinite loop
                     paramInfo.isMutable = true;
                     paramInfo.isParameter = true;
                     paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(scopeStack_.size(), "sir_builder_functions_size");
@@ -299,16 +299,16 @@ namespace Sad
                     addVariable(paramInfo);
                 }
 
-                // (AR) ״¥†״´״§״¡ basic block „„״¯״®ˆ„ (createBasicBlock: sir_builder.h:501)
+                // (AR) إنشاء basic block للدخول (createBasicBlock: sir_builder.h:501)
                 // (EN) Create entry basic block
                 auto entryBlock = createBasicBlock(kEntryBlockName);
 
-                // (AR) ״¥״¶״§״© block „„״¯״§„״© (sir_module.h:321 - addBasicBlock)
+                // (AR) إضافة block للدالة (sir_module.h:321 - addBasicBlock)
                 // (EN) Add block to function
                 sirFunction->addBasicBlock(entryBlock);
                 currentBlock_ = entryBlock;
 
-                // (AR) ״×†״¸ …ƒ״¯״³ ״§„״×״£״¬„ (defer) ״§„״³״§״¨‚ ˆ״¨״¯״¡ …ƒ״¯״³ ״¬״¯״¯ „‡״°‡ ״§„״¯״§„״©
+                // (AR) تنظيف مكدس التأجيل (defer) السابق وبدء مكدس جديد لهذه الدالة
                 // (EN) Clear previous defer stack and start fresh for this function
                 auto savedDeferredStatements = std::move(deferredStatements_);
                 deferredStatements_.clear();
@@ -394,16 +394,16 @@ namespace Sad
 
                 currentBlock_ = functionBodyBlock;
 
-                // (AR) ״¨†״§״¡ ״¬״³… ״§„״¯״§„״© (declarations.h:46 - body: StmtPtr)
+                // (AR) بناء جسم الدالة (declarations.h:46 - body: StmtPtr)
                 // (EN) Build function body
 
                 // ================================================================
-                // (AR) ״§„״¹‚ˆ״¯ ״§„״¨״±…״¬״©: ״¨†״§״¡ ״´״±ˆ״· ״×״·„״¨ (preconditions)
-                //      ״¥״°״§ ״´„ ״§„״´״±״·״ †״±״¹ ״§״³״×״«†״§״¡ ״¹״¨״± __sad_raise …ƒ† ״§„״×‚״§״·‡ ״¨€ ״­״§ˆ„/״§…״³ƒ
-                //      …״«״§„: ״×״·„״¨ ״¨ != 0 ג†’ ״¥״°״§ (!(״¨ != 0)) { __sad_raise("״®״·״£", "״´„...") }
+                // (AR) العقود البرمجية: بناء شروط يتطلب (preconditions)
+                //      إذا فشل الشرط، نرفع استثناء عبر __sad_raise يمكن التقاطه بـ حاول/امسك
+                //      مثال: يتطلب ب != 0 → إذا (!(ب != 0)) { __sad_raise("خطأ", "فشل...") }
                 // (EN) Design by Contract: build preconditions (requires)
                 //      If condition fails, raise exception via __sad_raise (catchable by try/catch)
-                //      Example: requires b != 0 ג†’ if (!(b != 0)) { __sad_raise("״®״·״£", "״´„...") }
+                //      Example: requires b != 0 → if (!(b != 0)) { __sad_raise("خطأ", "فشل...") }
                 // ================================================================
                 if (!funcDecl->preconditions.empty())
                 {
@@ -415,7 +415,7 @@ namespace Sad
                         if (condResult.registerName.empty())
                             continue;
 
-                        // (AR) ״¥†״´״§״¡ ƒ״×„: fail (״´„) + pass (†״¬״§״­)
+                        // (AR) إنشاء كتل: fail (فشل) + pass (نجاح)
                         std::string failLabel = newLabel("precond_fail");
                         std::string passLabel = newLabel("precond_pass");
                         auto failBlock = createBasicBlock(failLabel);
@@ -426,7 +426,7 @@ namespace Sad
                             currentFunction_->addBasicBlock(passBlock);
                         }
 
-                        // (AR) ״§„‚״²: ״¥״°״§ ״§„״´״±״· ״µ״­״­ ג†’ pass״ ˆ״¥„״§ ג†’ fail
+                        // (AR) القفز: إذا الشرط صحيح → pass، وإلا → fail
                         SIRInstruction brInst = SIRInstruction::BranchCond(
                             SIROperand::Register(condResult.registerName, condResult.type),
                             SIROperand::Label(passLabel),
@@ -434,7 +434,7 @@ namespace Sad
                         if (currentBlock_)
                             currentBlock_->instructions.push_back(brInst);
 
-                        // (AR) ƒ״×„״© ״§„״´„: ״±״¹ ״§״³״×״«†״§״¡ ״¹״¨״± __sad_raise (…ƒ† ״§„״×‚״§״·‡ ״¨€ ״­״§ˆ„/״§…״³ƒ)
+                        // (AR) كتلة الفشل: رفع استثناء عبر __sad_raise (يمكن التقاطه بـ حاول/امسك)
                         // (EN) Fail block: raise exception via __sad_raise (catchable by try/catch)
                         currentBlock_ = failBlock;
                         {
@@ -446,12 +446,12 @@ namespace Sad
                             SIRInstruction raiseInst;
                             raiseInst.opcode = SIROpcode::CALL;
                             raiseInst.operands.push_back(SIROperand::Function("__sad_raise"));
-                            raiseInst.operands.push_back(SIROperand::ConstantString("\xd8\xae\xd8\xb7\xd8\xa3")); // "״®״·״£"
+                            raiseInst.operands.push_back(SIROperand::ConstantString("\xd8\xae\xd8\xb7\xd8\xa3")); // "خطأ"
                             raiseInst.operands.push_back(SIROperand::ConstantString(errMsg));
-                            raiseInst.comment = "precondition failure ג€” raise catchable exception";
+                            raiseInst.comment = "precondition failure — raise catchable exception";
                             currentBlock_->addInstruction(raiseInst);
 
-                            // (AR) ƒ״×„״© …״×״© ״¨״¹״¯ raise (longjmp „״§ ״¹ˆ״¯)
+                            // (AR) كتلة ميتة بعد raise (longjmp لا يعود)
                             // (EN) Dead block after raise (longjmp never returns)
                             std::string deadLabel = newLabel("precond_dead");
                             auto deadBlock = createBasicBlock(deadLabel);
@@ -460,7 +460,7 @@ namespace Sad
                             currentBlock_ = deadBlock;
                         }
 
-                        // (AR) ƒ״×„״© ״§„†״¬״§״­: ״§„…״×״§״¨״¹״©
+                        // (AR) كتلة النجاح: المتابعة
                         currentBlock_ = passBlock;
                     }
                 }
@@ -493,11 +493,11 @@ namespace Sad
                 currentBlock_ = bodyContinuationBlock;
 
                 // ================================================================
-                // (AR) ״×†״° ״§„״¬…„ ״§„…״₪״¬„״© ״§„…״×״¨‚״© („†‡״§״© ״§„״¯״§„״© ״§„״·״¨״¹״© ״¨״¯ˆ† return)
-                //      …‡…: †״×״­‚‚ ״£ˆ„״§‹ ״£† ״§„ƒ״×„״© ״§„״­״§„״© „״§ ״×״­״×ˆ ״¹„‰ terminator
-                //      ״¥״°״§ ƒ״§† ״¬״³… ״§„״¯״§„״© †״×‡ ״¨€ return״ ״¥† buildReturnStatement
-                //      ‚״¯ †‘״° ״§„״¬…„ ״§„…״₪״¬„״© ״¨״§„״¹„ ˆ״£״¶״§ RET. ״¥״¶״§״© ƒˆ״¯ ״¢״®״± ״¨״¹״¯
-                //      RET ״×״³״¨״¨  ״®״·״£ LLVM: "Terminator in middle of basic block"
+                // (AR) تنفيذ الجمل المؤجلة المتبقية (لنهاية الدالة الطبيعية بدون return)
+                //      مهم: نتحقق أولاً أن الكتلة الحالية لا تحتوي على terminator
+                //      إذا كان جسم الدالة ينتهي بـ return، فإن buildReturnStatement
+                //      قد نفّذ الجمل المؤجلة بالفعل وأضاف RET. إضافة كود آخر بعد
+                //      RET يتسبب في خطأ LLVM: "Terminator in middle of basic block"
                 // (EN) Execute remaining deferred statements (for normal function end without return)
                 //      Important: first check that current block doesn't have a terminator.
                 //      If function body ends with return, buildReturnStatement already
@@ -532,40 +532,40 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״§״³״×״¹״§״¯״© …ƒ״¯״³ ״§„״×״£״¬„ ״§„״³״§״¨‚ („„״¯ˆ״§„ ״§„…״×״¯״§״®„״©)
+                // (AR) استعادة مكدس التأجيل السابق (للدوال المتداخلة)
                 // (EN) Restore previous defer stack (for nested functions)
                 deferredStatements_ = std::move(savedDeferredStatements);
                 currentDeferStackReg_ = savedDeferStackReg;
                 currentDeferExecutedFlagReg_ = savedDeferExecutedFlagReg;
                 currentFunctionCleanupHandlerActive_ = savedCleanupHandlerState;
 
-                // (AR) ״§„״®״±ˆ״¬ …† †״·״§‚ ״§„״¯״§„״©
+                // (AR) الخروج من نطاق الدالة
                 // (EN) Exit function scope
                 exitScope();
 
-                // (AR) ״×†״¸ ״×״³״¬„״§״× classInstanceTypes_ ״§„…״₪‚״×״© „„…״¹״§…„״§״× (״§„…״±״­„״© 1.75)
-                //      †״²„ ‚״· …״§ ״£״¶†״§‡ …״₪‚״×״§‹ ג€” ״§„״×״³״¬„״§״× ״§„״£״µ„״© (…† ״¬״¯״¯ ClassName) ״×״¨‚‰
+                // (AR) تنظيف تسجيلات classInstanceTypes_ المؤقتة للمعاملات (المرحلة 1.75)
+                //      نُزيل فقط ما أضفناه مؤقتاً — التسجيلات الأصلية (من جديد ClassName) تبقى
                 // (EN) Clean up temporary classInstanceTypes_ registrations for params (Phase 1.75)
-                //      Only remove what we temporarily added ג€” original registrations (from new ClassName) stay
+                //      Only remove what we temporarily added — original registrations (from new ClassName) stay
                 for (const auto &pName : tempRegisteredParams)
                 {
                     classInstanceTypes_.erase(pName);
                 }
 
-                // (AR) ״§„״×״£ƒ״¯ …† ˆ״¬ˆ״¯ terminator  †‡״§״© ״§„״¯״§„״©
+                // (AR) التأكد من وجود terminator في نهاية الدالة
                 // (EN) Ensure function has a terminator at the end
-                // (AR) ״§„ƒˆ״±ˆ״×†״§״× „״§ ״×״­״×״§״¬ terminator ״¥״¶״§ - ״§„״®״§״×…״© ״×״×ƒ„ ״¨״°„ƒ
+                // (AR) الكوروتينات لا تحتاج terminator إضافي - الخاتمة تتكفل بذلك
                 // (EN) Coroutines don't need extra terminators - epilogue handles it
                 if (!sirFunction->isCoroutine)
                 {
-                    // ״¥״°״§ ƒ״§†״× ״§„״¯״§„״© void ˆ„״§ ˆ״¬״¯ return ״µ״±״­״ †״¶ RET_VOID
+                    // إذا كانت الدالة void ولا يوجد return صريح، نضيف RET_VOID
                     // If function is void and has no explicit return, add RET_VOID
                     if (currentBlock_ && !currentBlock_->instructions.empty())
                     {
                         const auto &lastInst = currentBlock_->instructions.back();
                         if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID && lastInst.opcode != SIROpcode::CORO_RETURN)
                         {
-                            // (AR) „״§ ˆ״¬״¯ return - †״¶ ˆ״§״­״¯״§‹
+                            // (AR) لا يوجد return - نضيف واحداً
                             // (EN) No return - add one
                             if (returnType == SadTypeKind::Void)
                             {
@@ -575,7 +575,7 @@ namespace Sad
                             }
                             else
                             {
-                                // (AR) „„״¯ˆ״§„ ״÷״± void״ †״¶ return ״¨‚…״© ״§״×״±״§״¶״©
+                                // (AR) للدوال غير void، نضيف return بقيمة افتراضية
                                 // (EN) For non-void functions, add return with default value
                                 SIRInstruction retInst;
                                 retInst.opcode = SIROpcode::RET;
@@ -593,7 +593,7 @@ namespace Sad
                     }
                     else if (currentBlock_ && currentBlock_->instructions.empty())
                     {
-                        // (AR) ״§„״¯״§„״© ״§״±״÷״© - †״¶ return
+                        // (AR) الدالة فارغة - نضيف return
                         // (EN) Empty function - add return
                         if (returnType == SadTypeKind::Void)
                         {
@@ -618,14 +618,14 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״¥״¶״§״© ״§„״¯״§„״© „„ˆ״­״¯״© (sir_module.h:569 - addFunction)
+                // (AR) إضافة الدالة للوحدة (sir_module.h:569 - addFunction)
                 // (EN) Add function to module
                 module_->addFunction(sirFunction);
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״×״³״¬„/״×״­״¯״« ״§„״¯״§„״©  ״¬״¯ˆ„ ״§„״¯ˆ״§„ „„״¨״­״« ״¹†‡״§ ״¹†״¯ ״§„״§״³״×״¯״¹״§״¡
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) تسجيل/تحديث الدالة في جدول الدوال للبحث عنها عند الاستدعاء
                 // (EN) Register/update function in functionTable_ for call resolution
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 {
                     FunctionInfo funcInfo;
                     funcInfo.name = funcDecl->name;
@@ -754,19 +754,19 @@ namespace Sad
                     functionTable_[funcDecl->name] = funcInfo;
                 }
 
-                // (AR) ״¥״¹״§״¯״© ״×״¹† ״§„״¯״§„״© ״§„״­״§„״©
+                // (AR) إعادة تعيين الدالة الحالية
                 // (EN) Reset current function
                 currentFunction_ = nullptr;
                 currentBlock_ = nullptr;
             }
 
             // ============================================================================
-            // buildGlobalVariable - ״¨†״§״¡ …״×״÷״± ״¹״§…
+            // buildGlobalVariable - بناء متغير عام
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:356
-            // ״§„״×ˆ‚״¹ / Signature: void buildGlobalVariable(AST::VariableDeclNode* varDecl);
+            // مصدر التعريف / Source: sir_builder.h:356
+            // التوقيع / Signature: void buildGlobalVariable(AST::VariableDeclNode* varDecl);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - varDecl: AST::VariableDeclNode* = Sad::AST::VarDeclStmt* (sir_builder.h:59)
             //
             // VarDeclStmt Members (statements.h:74-100):
@@ -775,7 +775,7 @@ namespace Sad
             // - initializer: ExprPtr (line 78)
             // - isConst: bool (line 79)
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - astTypeToSIRType: sir_builder.h:713
             // - module_->addGlobalVariable: sir_module.h:591
             // ============================================================================
@@ -786,7 +786,7 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ״×״­ˆ„ ״§„†ˆ״¹ (astTypeToSIRType: sir_builder.h:713)
+                // (AR) تحويل النوع (astTypeToSIRType: sir_builder.h:713)
                 // (EN) Convert type
                 SadTypeKind varType = astTypeToSIRType(varDecl->type);
                 // (AR) إذا كان النوع UNKNOWN (افتراضي Integer)، نستنتجه من المُهيئ
@@ -809,11 +809,11 @@ namespace Sad
                             varType = SadTypeKind::Boolean;
                     }
                 }
-                // (AR) ״¥†״´״§״¡ …״×״÷״± ״¹״§… (SIRGlobalVariable constructor: sir_module.h:96)
+                // (AR) إنشاء متغير عام (SIRGlobalVariable constructor: sir_module.h:96)
                 // (EN) Create global variable
                 auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
 
-                // (AR) …״¹״§„״¬״© ״§„‚…״© ״§„״£ˆ„״© ״¥״°״§ ƒ״§†״× ״«״§״¨״×״§‹ ״­״±״§‹
+                // (AR) معالجة القيمة الأولية إذا كانت ثابتاً حرفياً
                 // (EN) Handle initializer if it's a literal constant
                 if (varDecl->initializer)
                 {
@@ -825,7 +825,7 @@ namespace Sad
 
                         if (tokenType == Lexer::TokenType::NUMBER_INTEGER)
                         {
-                            // (AR) ״×״­ˆ„ ״§„״£״¹״¯״§״¯ ״§„״³״× ״¹״´״±״©/״§„״«…״§†״©/״§„״«†״§״¦״© ״¥„‰ ״¹״´״±״©
+                            // (AR) تحويل الأعداد الست عشرية/الثمانية/الثنائية إلى عشرية
                             // (EN) Normalize hex/octal/binary literals to decimal
                             if (value.size() > 2 && value[0] == '0')
                             {
@@ -864,7 +864,7 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״¥״¶״§״© ״§„…״×״÷״± ״§„״¹״§… „„ˆ״­״¯״© (sir_module.h:591 - addGlobalVariable)
+                // (AR) إضافة المتغير العام للوحدة (sir_module.h:591 - addGlobalVariable)
                 // (EN) Add global variable to module
                 module_->addGlobalVariable(sirGlobal);
             }

@@ -1,175 +1,175 @@
-﻿// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// …„: type.cpp
+﻿// ════════════════════════════════════════════════════════════════════════════════
+// ملف: type.cpp
 // File: type.cpp
 //
-// ״§„ˆ״µ: ״×†״° ״§„†ˆ״¹ ״§„״£״³״§״³ ״§„…״¬״±״¯ „†״¸״§… ״§„״£†ˆ״§״¹
+// الوصف: تنفيذ النوع الأساسي المجرد لنظام الأنواع
 // Description: Implementation of the base abstract type for the type system
 //
-// ״§„…״₪„: Sad Language Type System
+// المؤلف: Sad Language Type System
 // Author: Sad Language Type System
 //
-// ״§„״×״§״±״®: 2 †״§״± 2026
+// التاريخ: 2 يناير 2026
 // Date: January 2, 2026
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
 
-#include "types/type.h"  // ״§״³״×״±״§״¯ ״×״¹״± ״§„״µ† / Import class definition
-#include <algorithm>          // „€ std::equal / For std::equal
+#include "types/type.h"  // استيراد تعريف الصنف / Import class definition
+#include <algorithm>          // لـ std::equal / For std::equal
 
 namespace Sad {
 namespace TypeSystem {
 
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// ״×†״° ״§„…†״´״¦ / Constructor Implementation
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
+// تنفيذ المُنشئ / Constructor Implementation
+// ════════════════════════════════════════════════════════════════════════════════
 
-// ״§„…†״´״¦ …״¹ †ˆ״¹ …״­״¯״¯ / Constructor with specific kind
+// المنشئ مع نوع محدد / Constructor with specific kind
 Type::Type(SadTypeKind kind) : kind_(kind) {
-    // ״×‡״¦״© †ˆ״¹ ״§„†ˆ״¹ / Initialize type kind
+    // تهيئة نوع النوع / Initialize type kind
 }
 
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// ״×†״° ״¹„״§‚״§״× ״§„״£†ˆ״§״¹ / Type Relations Implementation
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
+// تنفيذ علاقات الأنواع / Type Relations Implementation
+// ════════════════════════════════════════════════════════════════════════════════
 
-// ״§„״×״­‚‚ …† ״¥…ƒ״§†״© ״×״­ˆ„ ‡״°״§ ״§„†ˆ״¹ ״¥„‰ †ˆ״¹ ״¢״®״± / Check if assignable to another type
+// التحقق من إمكانية تحويل هذا النوع إلى نوع آخر / Check if assignable to another type
 bool Type::isAssignableTo(const Type* other) const {
-    // ״§„״×״­‚‚ …† null pointer / Check for null pointer
+    // التحقق من null pointer / Check for null pointer
     if (other == nullptr) {
-        return false; // „״§ …ƒ† ״§„״×״­ˆ„ ״¥„‰ nullptr / Cannot assign to nullptr
+        return false; // لا يمكن التحويل إلى nullptr / Cannot assign to nullptr
     }
     
-    // ״§„״×״­‚‚ …† ״§„״×״³״§ˆ ״§„…״¨״§״´״± / Check direct equality
+    // التحقق من التساوي المباشر / Check direct equality
     if (equals(other)) {
-        return true; // †״³ ״§„†ˆ״¹ / Same type
+        return true; // نفس النوع / Same type
     }
     
-    // Any ‚״¨„ ״£ †ˆ״¹ / Any accepts any type
+    // Any يقبل أي نوع / Any accepts any type
     if (other->isAny()) {
-        return true; // …ƒ† ״×״­ˆ„ ״£ ״´״¡ ״¥„‰ Any / Can assign anything to Any
+        return true; // يمكن تحويل أي شيء إلى Any / Can assign anything to Any
     }
     
-    // „״§ …ƒ† ״×״­ˆ„ ״´״¡ ״¥„‰ Never / Nothing can be assigned to Never
+    // لا يمكن تحويل شيء إلى Never / Nothing can be assigned to Never
     if (other->isNever()) {
-        return false; // Never „״§ ‚״¨„ ״£ ‚…״© / Never accepts no values
+        return false; // Never لا يقبل أي قيمة / Never accepts no values
     }
     
-    // Never …ƒ† ״×״­ˆ„‡ ״¥„‰ ״£ ״´״¡ / Never can be assigned to anything
+    // Never يمكن تحويله إلى أي شيء / Never can be assigned to anything
     if (isNever()) {
-        return true; // Never subtype „ƒ„ ״§„״£†ˆ״§״¹ / Never is subtype of all types
+        return true; // Never subtype لكل الأنواع / Never is subtype of all types
     }
     
-    // Unknown …ƒ† ״×״­ˆ„‡ ‚״· ״¥„‰ Any / Unknown can only be assigned to Any
+    // Unknown يمكن تحويله فقط إلى Any / Unknown can only be assigned to Any
     if (isUnknown()) {
-        return other->isAny(); // Unknown -> Any ‚״· / Unknown -> Any only
+        return other->isAny(); // Unknown -> Any فقط / Unknown -> Any only
     }
     
-    // ״§„״×״­‚‚ …† ״§„״£״±‚״§…: Integer …ƒ† ״×״­ˆ„‡ ״¥„‰ Float / Numeric: Integer -> Float
+    // التحقق من الأرقام: Integer يمكن تحويله إلى Float / Numeric: Integer -> Float
     if (isInteger() && other->isFloat()) {
-        return true; // ״±‚… ״µ״­״­ …ƒ† ״×״­ˆ„‡ ״¥„‰ ״¹״´״± / Integer can be assigned to float
+        return true; // رقم صحيح يمكن تحويله إلى عشري / Integer can be assigned to float
     }
     
-    //  ״§„״­״§„״§״× ״§„״£״®״±‰״ ״§״³״×״®״¯… subtyping / For other cases, use subtyping
+    // في الحالات الأخرى، استخدم subtyping / For other cases, use subtyping
     return isSubtypeOf(other);
 }
 
-// ״§„״×״­‚‚ …† ״¥…ƒ״§†״© ״§״³״×״¨״¯״§„ ‡״°״§ ״§„†ˆ״¹ ״¨†ˆ״¹ ״¢״®״± / Check if this is a subtype of another
+// التحقق من إمكانية استبدال هذا النوع بنوع آخر / Check if this is a subtype of another
 bool Type::isSubtypeOf(const Type* other) const {
-    // ״§„״×״­‚‚ …† null pointer / Check for null pointer
+    // التحقق من null pointer / Check for null pointer
     if (other == nullptr) {
-        return false; // „״§ …ƒ† ״£† ƒˆ† subtype …† nullptr / Cannot be subtype of nullptr
+        return false; // لا يمكن أن يكون subtype من nullptr / Cannot be subtype of nullptr
     }
     
-    // ״§„״×״­‚‚ …† ״§„״×״³״§ˆ / Check equality
+    // التحقق من التساوي / Check equality
     if (equals(other)) {
-        return true; // †ˆ״¹ ‡ˆ subtype …† †״³‡ / Type is subtype of itself
+        return true; // نوع هو subtype من نفسه / Type is subtype of itself
     }
     
-    // Never subtype „ƒ„ ״§„״£†ˆ״§״¹ / Never is subtype of all types
+    // Never subtype لكل الأنواع / Never is subtype of all types
     if (isNever()) {
-        return true; // Never  ״£״³„ hierarchy / Never at bottom of hierarchy
+        return true; // Never في أسفل hierarchy / Never at bottom of hierarchy
     }
     
-    // ƒ„ ״§„״£†ˆ״§״¹ subtype …† Any / All types are subtypes of Any
+    // كل الأنواع subtype من Any / All types are subtypes of Any
     if (other->isAny()) {
-        return true; // Any  ״£״¹„‰ hierarchy / Any at top of hierarchy
+        return true; // Any في أعلى hierarchy / Any at top of hierarchy
     }
     
-    // ״§„‚…״© ״§„״§״×״±״§״¶״©: false / Default: false
-    // ״§„״£†ˆ״§״¹ ״§„…״­״¯״¯״© ״×״¬״§ˆ״² ‡״°‡ ״§„״¯״§„״© „„‚ˆ״§״¹״¯ ״§„״®״§״µ״© / Specific types override for custom rules
+    // القيمة الافتراضية: false / Default: false
+    // الأنواع المحددة تجاوز هذه الدالة للقواعد الخاصة / Specific types override for custom rules
     return false;
 }
 
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// ״×†״° ״§„״¯ˆ״§„ ״§„…״³״§״¹״¯״© / Helper Functions Implementation
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
+// تنفيذ الدوال المساعدة / Helper Functions Implementation
+// ════════════════════════════════════════════════════════════════════════════════
 
-// ״×״­ˆ„ SadTypeKind ״¥„‰ †״µ ״¹״±״¨ / Convert SadTypeKind to Arabic text
+// تحويل SadTypeKind إلى نص عربي / Convert SadTypeKind to Arabic text
 std::string typeKindToArabic(SadTypeKind kind) {
-    // ״§״³״×״®״¯״§… switch „„״×״­ˆ„ / Use switch for conversion
+    // استخدام switch للتحويل / Use switch for conversion
     switch (kind) {
-        // ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Primitive Types
+        // الأنواع البدائية / Primitive Types
         case SadTypeKind::Void:
-            return "״±״§״÷"; // Void
+            return "فراغ"; // Void
         case SadTypeKind::Integer:
-            return "״±‚…"; // Integer
+            return "رقم"; // Integer
         case SadTypeKind::Float:
-            return "״¹״´״±"; // Float
+            return "عشري"; // Float
         case SadTypeKind::Boolean:
-            return "…†״·‚"; // Boolean
+            return "منطقي"; // Boolean
         case SadTypeKind::String:
-            return "†״µ"; // String
+            return "نص"; // String
         
-        // ״§„״£†ˆ״§״¹ ״§„…״±ƒ״¨״© / Composite Types
+        // الأنواع المركبة / Composite Types
         case SadTypeKind::Array:
-            return "…״µˆ״©"; // Array
+            return "مصفوفة"; // Array
         case SadTypeKind::Map:
-            return "‚״§…ˆ״³"; // Dictionary
+            return "قاموس"; // Dictionary
         case SadTypeKind::Tuple:
-            return "״µ"; // Tuple
+            return "صف"; // Tuple
         
-        // ״§„״£†ˆ״§״¹ ״§„ˆ״¸״© / Function Types
+        // الأنواع الوظيفية / Function Types
         case SadTypeKind::Function:
-            return "״¯״§„״©"; // Function
+            return "دالة"; // Function
         
-        // ״§„״£†ˆ״§״¹ ״§„ƒ״§״¦†״© / Object-Oriented Types
+        // الأنواع الكائنية / Object-Oriented Types
         case SadTypeKind::Class:
-            return "״µ†"; // Class
+            return "صنف"; // Class
         case SadTypeKind::Trait:
-            return "ˆ״§״¬‡״©"; // Interface
+            return "واجهة"; // Interface
         
-        // ״§„״£†ˆ״§״¹ ״§„…״×‚״¯…״© / Advanced Types
+        // الأنواع المتقدمة / Advanced Types
         case SadTypeKind::Generic:
-            return "†ˆ״¹_״¹״§…"; // Generic
+            return "نوع_عام"; // Generic
         case SadTypeKind::TypeParameter:
-            return "…״¹״§…„_†ˆ״¹"; // Type Parameter
+            return "معامل_نوع"; // Type Parameter
         case SadTypeKind::Union:
-            return "״§״×״­״§״¯"; // Union
+            return "اتحاد"; // Union
         case SadTypeKind::Intersection:
-            return "״×‚״§״·״¹"; // Intersection
+            return "تقاطع"; // Intersection
         case SadTypeKind::Optional:
-            return "״§״®״×״§״±"; // Optional
+            return "اختياري"; // Optional
         
-        // ״£†ˆ״§״¹ ״®״§״µ״© / Special Types
+        // أنواع خاصة / Special Types
         case SadTypeKind::Any:
-            return "״£"; // Any
+            return "أي"; // Any
         case SadTypeKind::Never:
-            return "״£״¨״¯״§‹"; // Never
+            return "أبداً"; // Never
         case SadTypeKind::Unknown:
-            return "…״¬‡ˆ„"; // Unknown
+            return "مجهول"; // Unknown
         case SadTypeKind::Error:
-            return "״®״·״£"; // Error
+            return "خطأ"; // Error
         
-        // ‚…״© ״§״×״±״§״¶״© („״§ †״¨״÷ ״§„ˆ״µˆ„) / Default (should not reach)
+        // قيمة افتراضية (لا ينبغي الوصول) / Default (should not reach)
         default:
-            return "†ˆ״¹_״÷״±_…״¹״±ˆ"; // Unknown type
+            return "نوع_غير_معروف"; // Unknown type
     }
 }
 
-// ״×״­ˆ„ SadTypeKind ״¥„‰ †״µ ״¥†״¬„״² / Convert SadTypeKind to English text
+// تحويل SadTypeKind إلى نص إنجليزي / Convert SadTypeKind to English text
 std::string typeKindToEnglish(SadTypeKind kind) {
-    // ״§״³״×״®״¯״§… switch „„״×״­ˆ„ / Use switch for conversion
+    // استخدام switch للتحويل / Use switch for conversion
     switch (kind) {
-        // ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Primitive Types
+        // الأنواع البدائية / Primitive Types
         case SadTypeKind::Void:
             return "Void";
         case SadTypeKind::Integer:
@@ -181,7 +181,7 @@ std::string typeKindToEnglish(SadTypeKind kind) {
         case SadTypeKind::String:
             return "String";
         
-        // ״§„״£†ˆ״§״¹ ״§„…״±ƒ״¨״© / Composite Types
+        // الأنواع المركبة / Composite Types
         case SadTypeKind::Array:
             return "Array";
         case SadTypeKind::Map:
@@ -189,17 +189,17 @@ std::string typeKindToEnglish(SadTypeKind kind) {
         case SadTypeKind::Tuple:
             return "Tuple";
         
-        // ״§„״£†ˆ״§״¹ ״§„ˆ״¸״© / Function Types
+        // الأنواع الوظيفية / Function Types
         case SadTypeKind::Function:
             return "Function";
         
-        // ״§„״£†ˆ״§״¹ ״§„ƒ״§״¦†״© / Object-Oriented Types
+        // الأنواع الكائنية / Object-Oriented Types
         case SadTypeKind::Class:
             return "Class";
         case SadTypeKind::Trait:
             return "Interface";
         
-        // ״§„״£†ˆ״§״¹ ״§„…״×‚״¯…״© / Advanced Types
+        // الأنواع المتقدمة / Advanced Types
         case SadTypeKind::Generic:
             return "Generic";
         case SadTypeKind::TypeParameter:
@@ -211,7 +211,7 @@ std::string typeKindToEnglish(SadTypeKind kind) {
         case SadTypeKind::Optional:
             return "Optional";
         
-        // ״£†ˆ״§״¹ ״®״§״µ״© / Special Types
+        // أنواع خاصة / Special Types
         case SadTypeKind::Any:
             return "Any";
         case SadTypeKind::Never:
@@ -221,43 +221,43 @@ std::string typeKindToEnglish(SadTypeKind kind) {
         case SadTypeKind::Error:
             return "Error";
         
-        // ‚…״© ״§״×״±״§״¶״© / Default
+        // قيمة افتراضية / Default
         default:
             return "UnknownType";
     }
 }
 
-// ״§„״×״­‚‚ …† ״×״³״§ˆ †ˆ״¹† / Check if two types are equal
+// التحقق من تساوي نوعين / Check if two types are equal
 bool typesEqual(const TypePtr& a, const TypePtr& b) {
-    // ״§„״×״­‚‚ …† null pointers / Check for null pointers
+    // التحقق من null pointers / Check for null pointers
     if (!a && !b) {
-        return true; // ƒ„״§‡…״§ null / Both null
+        return true; // كلاهما null / Both null
     }
     
     if (!a || !b) {
-        return false; // ˆ״§״­״¯ null ˆ״§„״¢״®״± „״³ ƒ״°„ƒ / One is null, other is not
+        return false; // واحد null والآخر ليس كذلك / One is null, other is not
     }
     
-    // ״§״³״×״®״¯״§… ״¯״§„״© equals / Use equals method
+    // استخدام دالة equals / Use equals method
     return a->equals(b.get());
 }
 
-// ״§„״×״­‚‚ …† ״×״³״§ˆ ‚ˆ״§״¦… ״§„״£†ˆ״§״¹ / Check if two type lists are equal
+// التحقق من تساوي قوائم الأنواع / Check if two type lists are equal
 bool typeListsEqual(const TypeList& a, const TypeList& b) {
-    // ״§„״×״­‚‚ …† ״§„״£״­״¬״§… ״£ˆ„״§‹ / Check sizes first
+    // التحقق من الأحجام أولاً / Check sizes first
     if (a.size() != b.size()) {
-        return false; // ״£״­״¬״§… …״®״×„״© / Different sizes
+        return false; // أحجام مختلفة / Different sizes
     }
     
-    // ״§„…‚״§״±†״© ״¹†״µ״± ״¨״¹†״µ״± / Compare element by element
+    // المقارنة عنصر بعنصر / Compare element by element
     for (size_t i = 0; i < a.size(); ++i) {
-        // ״§״³״×״®״¯״§… typesEqual „„…‚״§״±†״© / Use typesEqual for comparison
+        // استخدام typesEqual للمقارنة / Use typesEqual for comparison
         if (!typesEqual(a[i], b[i])) {
-            return false; // ״¹†״µ״± …״®״×„ / Different element
+            return false; // عنصر مختلف / Different element
         }
     }
     
-    // ״¬…״¹ ״§„״¹†״§״µ״± …״×״³״§ˆ״© / All elements equal
+    // جميع العناصر متساوية / All elements equal
     return true;
 }
 

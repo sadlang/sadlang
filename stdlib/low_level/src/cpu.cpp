@@ -1,6 +1,6 @@
 ﻿/*
  * ============================================================================
- * ״×†״° ˆ״­״¯״© ״§„…״¹״§„״¬ ״§„…״±ƒ״² „„״÷״© ״µ
+ * تنفيذ وحدة المعالج المركزي للغة ص
  * CPU Module Implementation for Sad Language
  * ============================================================================
  */
@@ -18,7 +18,7 @@ namespace Sad {
 namespace LowLevel {
 
 // ============================================================================
-// CPUFeatures - ״§„…†״´״¦ ״§„״§״×״±״§״¶ / Default Constructor
+// CPUFeatures - المنشئ الافتراضي / Default Constructor
 // ============================================================================
 
 CPUFeatures::CPUFeatures()
@@ -36,7 +36,7 @@ CPUFeatures::CPUFeatures()
 {}
 
 // ============================================================================
-// CPUManager - ״§„…״«„ ״§„ˆ״­״¯ / Singleton Instance
+// CPUManager - المثيل الوحيد / Singleton Instance
 // ============================================================================
 
 CPUManager& CPUManager::getInstance() {
@@ -49,7 +49,7 @@ CPUManager::CPUManager() : isInitialized_(false) {
 }
 
 // ============================================================================
-// ״§„״×‡״¦״© / Initialization
+// التهيئة / Initialization
 // ============================================================================
 
 void CPUManager::initialize() {
@@ -65,7 +65,7 @@ void CPUManager::initialize() {
 }
 
 // ============================================================================
-// ״×״¹„…״© CPUID / CPUID Instruction
+// تعليمة CPUID / CPUID Instruction
 // ============================================================================
 
 CPUIDResult CPUManager::cpuid(uint32_t leaf, uint32_t subleaf) {
@@ -91,7 +91,7 @@ CPUIDResult CPUManager::cpuid(uint32_t leaf, uint32_t subleaf) {
 }
 
 // ============================================================================
-// ƒ״´ ״§„״´״±ƒ״© ״§„…״µ†״¹״© / Vendor Detection
+// كشف الشركة المصنعة / Vendor Detection
 // ============================================================================
 
 void CPUManager::detectVendor() {
@@ -106,7 +106,7 @@ void CPUManager::detectVendor() {
 }
 
 // ============================================================================
-// ƒ״´ ״§״³… ״§„…״¹״§„״¬ / Brand Detection
+// كشف اسم المعالج / Brand Detection
 // ============================================================================
 
 void CPUManager::detectBrand() {
@@ -123,18 +123,18 @@ void CPUManager::detectBrand() {
             std::memcpy(brand + (i * 16) + 12, &br.edx, 4);
         }
         info_.brandString = std::string(brand);
-        // ״¥״²״§„״© ״§„…״³״§״§״× ״§„״²״§״¦״¯״© / Trim trailing spaces
+        // إزالة المسافات الزائدة / Trim trailing spaces
         size_t end = info_.brandString.find_last_not_of(" \t\0");
         if (end != std::string::npos) {
             info_.brandString.resize(end + 1);
         }
     } else {
-        info_.brandString = "״÷״± …״¹״±ˆ / Unknown";
+        info_.brandString = "غير معروف / Unknown";
     }
 }
 
 // ============================================================================
-// ƒ״´ ״§„״¹״§״¦„״© ˆ״§„†…ˆ״°״¬ / Family & Model Detection
+// كشف العائلة والنموذج / Family & Model Detection
 // ============================================================================
 
 void CPUManager::detectFamily() {
@@ -164,17 +164,17 @@ void CPUManager::detectFamily() {
 }
 
 // ============================================================================
-// ƒ״´ ״§„…״²״§״× / Feature Detection
+// كشف الميزات / Feature Detection
 // ============================================================================
 
 void CPUManager::detectFeatures() {
     if (info_.maxBasicLeaf < 1) return;
 
-    // ״§„ˆ״±‚״© 1 / Leaf 1
+    // الورقة 1 / Leaf 1
     CPUIDResult r1 = cpuid(1);
     CPUFeatures& f = info_.features;
 
-    // EDX: ״§„…״²״§״× ״§„״£״³״§״³״© / Basic features
+    // EDX: الميزات الأساسية / Basic features
     f.fpu    = (r1.edx >> 0)  & 1;
     f.vme    = (r1.edx >> 1)  & 1;
     f.de     = (r1.edx >> 3)  & 1;
@@ -197,7 +197,7 @@ void CPUManager::detectFeatures() {
     f.sse    = (r1.edx >> 26) & 1;
     f.sse2   = (r1.edx >> 27) & 1;
 
-    // ECX: …״²״§״× ״¥״¶״§״© / Additional features
+    // ECX: ميزات إضافية / Additional features
     f.sse3       = (r1.ecx >> 0)  & 1;
     f.pclmulqdq  = (r1.ecx >> 1)  & 1;
     f.ssse3      = (r1.ecx >> 9)  & 1;
@@ -214,7 +214,7 @@ void CPUManager::detectFeatures() {
     f.rdrand     = (r1.ecx >> 30) & 1;
     f.hypervisor = (r1.ecx >> 31) & 1;
 
-    // ״§„ˆ״±‚״© ״§„…ˆ״³״¹״© 80000001H / Extended leaf 80000001H
+    // الورقة الموسعة 80000001H / Extended leaf 80000001H
     if (info_.maxExtendedLeaf >= 0x80000001) {
         CPUIDResult ext1 = cpuid(0x80000001);
         f.syscall  = (ext1.edx >> 11) & 1;
@@ -224,7 +224,7 @@ void CPUManager::detectFeatures() {
         f.longMode = (ext1.edx >> 29) & 1;
     }
 
-    // ״§„ˆ״±‚״© 7 (…״²״§״× ‡ƒ„״©) / Leaf 7 (Structured features)
+    // الورقة 7 (ميزات هيكلية) / Leaf 7 (Structured features)
     if (info_.maxBasicLeaf >= 7) {
         CPUIDResult r7 = cpuid(7, 0);
         f.bmi1    = (r7.ebx >> 3)  & 1;
@@ -238,7 +238,7 @@ void CPUManager::detectFeatures() {
 }
 
 // ============================================================================
-// ƒ״´ ״§„״·ˆ״¨ˆ„ˆ״¬״§ / Topology Detection
+// كشف الطوبولوجيا / Topology Detection
 // ============================================================================
 
 void CPUManager::detectTopology() {
@@ -247,7 +247,7 @@ void CPUManager::detectTopology() {
     CPUIDResult r1 = cpuid(1);
     info_.logicalProcessors = (r1.ebx >> 16) & 0xFF;
 
-    // …״­״§ˆ„״© ƒ״´ ״§„†ˆ‰ ״§„…״§״¯״© ״¹״¨״± ״§„ˆ״±‚״© 4 / Try leaf 4 for physical cores
+    // محاولة كشف النوى المادية عبر الورقة 4 / Try leaf 4 for physical cores
     if (info_.maxBasicLeaf >= 4) {
         CPUIDResult r4 = cpuid(4, 0);
         info_.physicalCores = ((r4.eax >> 26) & 0x3F) + 1;
@@ -264,7 +264,7 @@ void CPUManager::detectTopology() {
 }
 
 // ============================================================================
-// ״³״¬„״§״× ״§„״×״­ƒ… / Control Registers
+// سجلات التحكم / Control Registers
 // ============================================================================
 
 uint64_t CPUManager::readCR0() {
@@ -332,7 +332,7 @@ void CPUManager::writeCR4(uint64_t value) {
 }
 
 // ============================================================================
-// ״³״¬„״§״× ״§„†…ˆ״°״¬ ״§„…״­״¯״¯ / Model Specific Registers
+// سجلات النموذج المحدد / Model Specific Registers
 // ============================================================================
 
 uint64_t CPUManager::readMSR(uint32_t msr) {
@@ -358,7 +358,7 @@ void CPUManager::writeMSR(uint32_t msr, uint64_t value) {
 }
 
 // ============================================================================
-// ״×״¹„…״§״× ״®״§״µ״© / Special Instructions
+// تعليمات خاصة / Special Instructions
 // ============================================================================
 
 void CPUManager::halt() {
@@ -374,7 +374,7 @@ void CPUManager::disableInterrupts() {
     // Only available in kernel mode / ring 0
     // __asm__ volatile ("cli" ::: "memory");
 #elif defined(_MSC_VER)
-    // _disable() requires kernel mode ג€” stubbed for user-mode build
+    // _disable() requires kernel mode — stubbed for user-mode build
 #endif
 }
 
@@ -383,7 +383,7 @@ void CPUManager::enableInterrupts() {
     // Only available in kernel mode / ring 0
     // __asm__ volatile ("sti" ::: "memory");
 #elif defined(_MSC_VER)
-    // _enable() requires kernel mode ג€” stubbed for user-mode build
+    // _enable() requires kernel mode — stubbed for user-mode build
 #endif
 }
 
@@ -408,7 +408,7 @@ void CPUManager::invlpg(uint64_t virtualAddress) {
 }
 
 void CPUManager::flushTLB() {
-    // ״£״³״±״¹ ״·״±‚״©: ״¥״¹״§״¯״© ƒ״×״§״¨״© CR3 / Fastest way: reload CR3
+    // أسرع طريقة: إعادة كتابة CR3 / Fastest way: reload CR3
     writeCR3(readCR3());
 }
 
@@ -419,39 +419,39 @@ void CPUManager::switchStack(uint64_t newStack) {
 }
 
 // ============================================================================
-// ״¥†״´״§״¡ ״§„״×‚״±״± / Report Generation
+// إنشاء التقرير / Report Generation
 // ============================================================================
 
 std::string CPUManager::generateReport() const {
     std::ostringstream report;
 
     report << "\n" << std::string(70, '=') << "\n";
-    report << "״×‚״±״± ״§„…״¹״§„״¬ ״§„…״±ƒ״² / CPU Report\n";
+    report << "تقرير المعالج المركزي / CPU Report\n";
     report << std::string(70, '=') << "\n\n";
 
-    report << "״§„״´״±ƒ״© ״§„…״µ†״¹״© / Vendor: " << info_.vendorId << "\n";
-    report << "״§״³… ״§„…״¹״§„״¬ / Brand: " << info_.brandString << "\n";
-    report << "״§„״¹״§״¦„״© / Family: " << info_.family << "\n";
-    report << "״§„†…ˆ״°״¬ / Model: " << info_.model << "\n";
-    report << "״§„״®״·ˆ״© / Stepping: " << info_.stepping << "\n";
-    report << "״§„†ˆ‰ ״§„…״§״¯״© / Physical Cores: " << info_.physicalCores << "\n";
-    report << "״§„…״¹״§„״¬״§״× ״§„…†״·‚״© / Logical Processors: " << info_.logicalProcessors << "\n";
-    report << "״­״¬… ״®״· ״§„״°״§ƒ״±״© ״§„…״®״¨״¦״© / Cache Line: " << info_.cacheLineSize << " ״¨״§״×/bytes\n\n";
+    report << "الشركة المصنعة / Vendor: " << info_.vendorId << "\n";
+    report << "اسم المعالج / Brand: " << info_.brandString << "\n";
+    report << "العائلة / Family: " << info_.family << "\n";
+    report << "النموذج / Model: " << info_.model << "\n";
+    report << "الخطوة / Stepping: " << info_.stepping << "\n";
+    report << "النوى المادية / Physical Cores: " << info_.physicalCores << "\n";
+    report << "المعالجات المنطقية / Logical Processors: " << info_.logicalProcessors << "\n";
+    report << "حجم خط الذاكرة المخبئية / Cache Line: " << info_.cacheLineSize << " بايت/bytes\n\n";
 
-    report << "״§„…״²״§״× ״§„…״¯״¹ˆ…״© / Supported Features:\n";
+    report << "الميزات المدعومة / Supported Features:\n";
     report << std::string(70, '-') << "\n";
 
-    auto flag = [](bool v) -> const char* { return v ? "†״¹…/Yes" : "„״§/No"; };
+    auto flag = [](bool v) -> const char* { return v ? "نعم/Yes" : "لا/No"; };
     const CPUFeatures& f = info_.features;
 
     report << "  FPU: " << flag(f.fpu) << "  |  SSE: " << flag(f.sse) << "  |  SSE2: " << flag(f.sse2) << "\n";
     report << "  SSE3: " << flag(f.sse3) << "  |  SSSE3: " << flag(f.ssse3) << "  |  SSE4.1: " << flag(f.sse41) << "\n";
     report << "  SSE4.2: " << flag(f.sse42) << "  |  AVX: " << flag(f.avx) << "  |  AVX2: " << flag(f.avx2) << "\n";
     report << "  AVX-512: " << flag(f.avx512f) << "  |  FMA: " << flag(f.fma) << "  |  AES: " << flag(f.aes) << "\n";
-    report << "  PAE: " << flag(f.pae) << "  |  NX: " << flag(f.nx) << "  |  ״§„ˆ״¶״¹ ״§„״·ˆ„/Long Mode: " << flag(f.longMode) << "\n";
-    report << "  ״µ״­״§״× 1GB/GB Pages: " << flag(f.gbPages) << "  |  TSC: " << flag(f.tsc) << "  |  MSR: " << flag(f.msr) << "\n";
+    report << "  PAE: " << flag(f.pae) << "  |  NX: " << flag(f.nx) << "  |  الوضع الطويل/Long Mode: " << flag(f.longMode) << "\n";
+    report << "  صفحات 1GB/GB Pages: " << flag(f.gbPages) << "  |  TSC: " << flag(f.tsc) << "  |  MSR: " << flag(f.msr) << "\n";
     report << "  APIC: " << flag(f.apic) << "  |  x2APIC: " << flag(f.x2apic) << "  |  SYSCALL: " << flag(f.syscall) << "\n";
-    report << "  SMEP: " << flag(f.smep) << "  |  SMAP: " << flag(f.smap) << "  |  ״¢„״© ״§״×״±״§״¶״©/Hypervisor: " << flag(f.hypervisor) << "\n";
+    report << "  SMEP: " << flag(f.smep) << "  |  SMAP: " << flag(f.smap) << "  |  آلة افتراضية/Hypervisor: " << flag(f.hypervisor) << "\n";
 
     report << std::string(70, '=') << "\n\n";
     return report.str();

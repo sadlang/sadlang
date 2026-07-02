@@ -27,7 +27,7 @@ void SecurityScanner::patternScan(const std::string& source, const std::string& 
         lineNum++;
         if (shouldExcludeLine(line)) continue;
 
-        // ״×״®״· ״§„״×״¹„‚״§״×
+        // تخطي التعليقات
         std::string trimmed = line;
         size_t firstNonSpace = trimmed.find_first_not_of(" \t");
         if (firstNonSpace != std::string::npos) trimmed = trimmed.substr(firstNonSpace);
@@ -45,14 +45,14 @@ void SecurityScanner::patternScan(const std::string& source, const std::string& 
 }
 
 static bool containsPattern(const std::string& line, const std::string& pattern) {
-    // (AR) …״­״§ˆ„״© regex ״¥† ƒ״§† ״­״×ˆ ״£״­״± ״®״§״µ״©
-    // NOTE(#24): (AR) ״×… ״×״±״¬…״©/״¨†״§״¡ ״§„״×״¹״¨״± ״§„†…״·  ƒ„ ״§״³״×״¯״¹״§״¡ ״¨״¯ˆ† ״×״®״²† …״₪‚״× (caching).
-    //            …ƒ† ״¥״¶״§״© LRU cache „„״×״¹״¨״±״§״× ״§„…״×ƒ״±״±״© „״×״­״³† ״§„״£״¯״§״¡.
+    // (AR) محاولة regex إن كان يحتوي أحرف خاصة
+    // NOTE(#24): (AR) يتم ترجمة/بناء التعبير النمطي في كل استدعاء بدون تخزين مؤقت (caching).
+    //            يمكن إضافة LRU cache للتعبيرات المتكررة لتحسين الأداء.
     // NOTE(#24): (EN) Regex pattern is compiled on every call without caching.
     //            An LRU cache for frequently-used patterns would improve performance.
-    // NOTE(#28): (AR) C++ std::regex „״§ ״¯״¹… …‡„״© ״²…†״© (timeout) ג€” ״×״¹״¨״±״§״× †…״·״© …״¹‚״¯״©
-    //            ‚״¯ ״×״³״¨״¨ ״×״¬…״¯ (ReDoS). …ƒ† ״§״³״×״®״¯״§… RE2 ƒ״¨״¯„ ״¢…†.
-    // NOTE(#28): (EN) C++ std::regex has no timeout support ג€” complex patterns may cause
+    // NOTE(#28): (AR) C++ std::regex لا يدعم مهلة زمنية (timeout) — تعبيرات نمطية معقدة
+    //            قد تسبب تجمد (ReDoS). يمكن استخدام RE2 كبديل آمن.
+    // NOTE(#28): (EN) C++ std::regex has no timeout support — complex patterns may cause
     //            catastrophic backtracking (ReDoS). Consider RE2 as a safe alternative.
     if (pattern.find('\\') != std::string::npos ||
         pattern.find('[') != std::string::npos ||
@@ -85,12 +85,12 @@ static Finding makeFinding(const SecurityRule& rule, const std::string& line,
 }
 
 // ============================================================================
-// ״¯״§„״© ״­״µ ״¹״§…״© ״¨״¯„״§‹ …† 8 ״¯ˆ״§„ …״×ƒ״±״±״©
+// دالة فحص عامة بدلاً من 8 دوال متكررة
 // Generic check function replacing 8 duplicate methods
 // ============================================================================
 
-/// (AR) ״­״µ ״³״·״± ˆ״§״­״¯ ״¶״¯ ״¬…״¹ ״§„‚ˆ״§״¹״¯ ״§„…״¹‘„״© ג€” †״³״®״© …״­״³‘†״© …ˆ״­‘״¯״©
-/// (EN) Check a single line against all enabled rules ג€” unified optimized version
+/// (AR) فحص سطر واحد ضد جميع القواعد المفعّلة — نسخة محسّنة موحّدة
+/// (EN) Check a single line against all enabled rules — unified optimized version
 static void checkLineAgainstRules(const SecurityScanner* scanner,
                                    const std::vector<SecurityRule>& rules,
                                    const std::string& line, int lineNum,
@@ -99,7 +99,7 @@ static void checkLineAgainstRules(const SecurityScanner* scanner,
                                    const ScannerConfig& config) {
     for (const auto& rule : rules) {
         if (!rule.enabled) continue;
-        // ״­״µ ״§„‚ˆ״§״¦… ״§„״¨״¶״§״¡/״§„״³ˆ״¯״§״¡
+        // فحص القوائم البيضاء/السوداء
         if (!config.enabledRules.empty()) {
             bool found = false;
             for (const auto& r : config.enabledRules) {
@@ -116,7 +116,7 @@ static void checkLineAgainstRules(const SecurityScanner* scanner,
         for (const auto& pat : rule.patterns) {
             if (containsPattern(line, pat)) {
                 auto f = makeFinding(rule, line, lineNum, file);
-                // ״×״®״µ״µ ״­״³״¨ ״§„״¦״©
+                // تخصيص حسب الفئة
                 if (rule.category == RuleCategory::Injection && rule.id.find("SQL") != std::string::npos) {
                     f.attackExample = "'; DROP TABLE users; --";
                 }
@@ -135,19 +135,19 @@ static void checkLineAgainstRules(const SecurityScanner* scanner,
                     f.attackExample = "../../../../etc/passwd";
                 }
                 else if (rule.category == RuleCategory::Injection && rule.id.find("DESER") != std::string::npos) {
-                    f.attackExample = "״¨״§†״§״× …״³„״³„״© ״®״¨״«״© ״×†״° ƒˆ״¯״§‹";
+                    f.attackExample = "بيانات مسلسلة خبيثة تنفذ كوداً";
                 }
                 else if (rule.category == RuleCategory::Secrets) {
-                    f.confidence = 0.7; // ״£״³״±״§״± ״«״§״¨״×״© ‚״¯ ״×ƒˆ† false positive
+                    f.confidence = 0.7; // أسرار ثابتة قد تكون false positive
                 }
                 findings.push_back(std::move(f));
-                break;  // †…״· ˆ״§״­״¯ ƒ״§ „ƒ„ ‚״§״¹״¯״©
+                break;  // نمط واحد كافٍ لكل قاعدة
             }
         }
     }
 }
 
-// === ״§„״×ˆ״§‚״©: ״§„״¯ˆ״§„ ״§„‚״¯…״© ״×״³״×״¯״¹ ״§„״¯״§„״© ״§„״¹״§…״© ===
+// === التوافقية: الدوال القديمة تستدعي الدالة العامة ===
 void SecurityScanner::checkSQLInjection(const std::string& line, int lineNum,
                                          const std::string& file, std::vector<Finding>& findings) {
     std::vector<SecurityRule> filtered;
@@ -210,31 +210,31 @@ void SecurityScanner::checkMemorySafety(const std::string& line, int lineNum,
 
 void SecurityScanner::taintAnalysis(const std::string& source, const std::string& file,
                                      std::vector<Finding>& findings) {
-    // ״×״­„„ ״×„ˆ‘״« …״×‚״¯…: ״×״×״¨״¹ ״§„…״×״÷״±״§״× …† ״§„…״µ״§״¯״± ״¹״¨״± ״§„״×†‚״© ״¥„‰ ״§„…״µ״§״±
+    // تحليل تلوّث متقدم: تتبع المتغيرات من المصادر عبر التنقية إلى المصارف
     static const std::vector<std::string> taintSources = {
-        "״§‚״±״£(", "״§‚״±״£_״³״·״±(", "״§״­״µ„_״¹„‰_…״¹״§…„(",
-        "״§״­״µ„_״¹„‰_״±״£״³(", "״§״­״µ„_״¹„‰_ƒˆƒ(", "input(", "readline(",
-        "״§״­״µ„_״¹„‰_״¬״³…(", "request.body", "request.query",
-        "fetch(", "״¬„״¨(", "״§‚״±״£_…„("
+        "اقرأ(", "اقرأ_سطر(", "احصل_على_معامل(",
+        "احصل_على_رأس(", "احصل_على_كوكي(", "input(", "readline(",
+        "احصل_على_جسم(", "request.body", "request.query",
+        "fetch(", "جلب(", "اقرأ_ملف("
     };
     static const std::vector<std::string> taintSinks = {
-        "†‘״°_SQL(", "״§״³״×״¹„…(", "״§ƒ״×״¨_HTML(",
-        "†‘״°(", "shell(", "system(", "exec(",
-        "״§״×״­_…„(", "״­ˆ‘„_״¥„‰(",
-        "״£״±״³„_״¨״±״¯(", "redirect(", "״£״¹״¯_״×ˆ״¬‡(",
-        "eval(", "‚‘…(", "innerHTML"
+        "نفّذ_SQL(", "استعلم(", "اكتب_HTML(",
+        "نفّذ(", "shell(", "system(", "exec(",
+        "افتح_ملف(", "حوّل_إلى(",
+        "أرسل_بريد(", "redirect(", "أعد_توجيه(",
+        "eval(", "قيّم(", "innerHTML"
     };
-    // ״¯ˆ״§„ ״§„״×†‚״© ג€” ״¥״°״§ …״±‘ ״§„…״×״÷״± ״¹״¨״±‡״§ ״²״§„ ״§„״×„ˆ‘״«
+    // دوال التنقية — إذا مرّ المتغير عبرها يُزال التلوّث
     static const std::vector<std::string> sanitizers = {
-        "†‚‘(", "sanitize(", "״×״±…״²_HTML(", "escapeHtml(",
-        "״×״­‚‚(", "validate(", "„״×״±(", "filter(",
-        "escape(", "encode(", "״×״·״¨״¹_…״³״§״±(", "normalize_path(",
-        "ƒ„…״©_…״±ˆ״±_‡״§״´(", "hash_password("
+        "نقّ(", "sanitize(", "ترميز_HTML(", "escapeHtml(",
+        "تحقق(", "validate(", "فلتر(", "filter(",
+        "escape(", "encode(", "تطبيع_مسار(", "normalize_path(",
+        "كلمة_مرور_هاش(", "hash_password("
     };
 
-    // ״§„…״±״­„״© 1: ״§ƒ״×״´״§ ״§„…״×״÷״±״§״× ״§„…„ˆ‘״«״©
-    std::map<std::string, int> taintedVars; // ״§״³… -> ״±‚… ״³״·״± ״§„…״µ״¯״±
-    std::map<std::string, bool> sanitizedVars; // ‡„ ״×… ״×†‚״© ״§„…״×״÷״±״
+    // المرحلة 1: اكتشاف المتغيرات الملوّثة
+    std::map<std::string, int> taintedVars; // اسم -> رقم سطر المصدر
+    std::map<std::string, bool> sanitizedVars; // هل تم تنقية المتغير؟
     std::istringstream stream(source);
     std::string line;
     int lineNum = 0;
@@ -243,23 +243,23 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
         lineNum++;
         if (shouldExcludeLine(line)) continue;
 
-        // ״§„״¨״­״« ״¹† ״×״¹†״§״× …† …״µ״§״¯״± …„ˆ‘״«״©
+        // البحث عن تعيينات من مصادر ملوّثة
         for (const auto& src : taintSources) {
             if (line.find(src) != std::string::npos) {
-                // ״§״³״×״®״±״§״¬ ״§״³… ״§„…״×״÷״±: …״×״÷״± ״§״³… = …״µ״¯״±()
+                // استخراج اسم المتغير: متغير اسم = مصدر()
                 size_t eq = line.find('=');
                 if (eq != std::string::npos && line.find(src) > eq) {
                     std::string leftSide = line.substr(0, eq);
-                    // ״§„״×״®„״µ …† "…״×״÷״±" ˆ״§„…״³״§״§״×
+                    // التخلص من "متغير" والمسافات
                     size_t varStart = leftSide.find_first_not_of(" \t");
                     if (varStart != std::string::npos) {
                         std::string varDecl = leftSide.substr(varStart);
-                        // ״¥״²״§„״© "…״×״÷״±" ״¥† ˆ״¬״¯
-                        if (varDecl.find("…״×״÷״±") == 0) {
+                        // إزالة "متغير" إن وُجد
+                        if (varDecl.find("متغير") == 0) {
                             size_t ws = varDecl.find(' ');
                             if (ws != std::string::npos) varDecl = varDecl.substr(ws + 1);
                         }
-                        // ״¥״²״§„״© ״§„…״³״§״§״×
+                        // إزالة المسافات
                         size_t s = varDecl.find_first_not_of(" \t");
                         size_t e = varDecl.find_last_not_of(" \t");
                         if (s != std::string::npos) {
@@ -272,7 +272,7 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
             }
         }
 
-        // ״§„…״±״­„״© 1.5: ƒ״´ ״§„״×†‚״© ג€” ״¥״°״§ …״±‘ …״×״÷״± …„ˆ‘״« ״¹״¨״± ״¯״§„״© ״×†‚״© ״²״§„ ״×„ˆ‘״«‡
+        // المرحلة 1.5: كشف التنقية — إذا مرّ متغير ملوّث عبر دالة تنقية يُزال تلوّثه
         for (const auto& san : sanitizers) {
             if (line.find(san) != std::string::npos) {
                 for (auto& [varName, srcLine] : taintedVars) {
@@ -280,7 +280,7 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
                         sanitizedVars[varName] = true;
                     }
                 }
-                // ״£״¶״§‹ ״­״µ ״¥״°״§ ƒ״§†״× ״§„†״×״¬״© ״×״¹‘† „…״×״÷״± ״¬״¯״¯
+                // أيضاً فحص إذا كانت النتيجة تُعيّن لمتغير جديد
                 size_t eq = line.find('=');
                 if (eq != std::string::npos) {
                     std::string leftSide = line.substr(0, eq);
@@ -288,14 +288,14 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
                     size_t e = leftSide.find_last_not_of(" \t");
                     if (s != std::string::npos) {
                         std::string newVar = leftSide.substr(s, e - s + 1);
-                        if (newVar.find("…״×״÷״±") == 0) {
+                        if (newVar.find("متغير") == 0) {
                             size_t ws = newVar.find(' ');
                             if (ws != std::string::npos) newVar = newVar.substr(ws + 1);
                             size_t ns = newVar.find_first_not_of(" \t");
                             size_t ne = newVar.find_last_not_of(" \t");
                             if (ns != std::string::npos) newVar = newVar.substr(ns, ne - ns + 1);
                         }
-                        // ״§„…״×״÷״± ״§„״¬״¯״¯ †״§״×״¬ ״¹† ״×†‚״© ג€” „״§ ״¹״×״¨״± …„ˆ‘״«״§‹
+                        // المتغير الجديد ناتج عن تنقية — لا يُعتبر ملوّثاً
                         sanitizedVars[newVar] = true;
                     }
                 }
@@ -305,7 +305,7 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
 
     if (taintedVars.empty()) return;
 
-    // ״§„…״±״­„״© 2: ״­״µ ״§״³״×״®״¯״§… ״§„…״×״÷״±״§״× ״§„…„ˆ‘״«״© (״÷״± ״§„…†‚‘״§״©)  ״§„…״µ״§״±
+    // المرحلة 2: فحص استخدام المتغيرات الملوّثة (غير المنقّاة) في المصارف
     stream.clear();
     stream.str(source);
     lineNum = 0;
@@ -318,7 +318,7 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
             if (line.find(sink) != std::string::npos) {
                 for (const auto& [varName, srcLine] : taintedVars) {
                     if (line.find(varName) != std::string::npos) {
-                        // ״×״®״· ״§„…״×״÷״±״§״× ״§„…†‚‘״§״©
+                        // تخطي المتغيرات المنقّاة
                         auto it = sanitizedVars.find(varName);
                         if (it != sanitizedVars.end() && it->second) continue;
 
@@ -326,15 +326,15 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
                         f.ruleId = "TAINT001";
                         f.severity = Severity::Critical;
                         f.category = RuleCategory::DataFlow;
-                        f.message = "״¨״§†״§״× …„ˆ‘״«״© …† ״³״·״± " + std::to_string(srcLine) +
-                                    " ״×״³״×״®״¯…  …״µ״± ״®״·״± ״¨״¯ˆ† ״×†‚״©";
+                        f.message = "بيانات ملوّثة من سطر " + std::to_string(srcLine) +
+                                    " تُستخدم في مصرف خطير بدون تنقية";
                         f.file = file;
                         f.line = lineNum;
                         f.codeLine = line;
-                        f.suggestion = "†‚‘ ״§„…״×״÷״± '" + varName + "' ״¹״¨״± †‚‘() ״£ˆ validate() ‚״¨„ ״§״³״×״®״¯״§…‡ ‡†״§";
+                        f.suggestion = "نقّ المتغير '" + varName + "' عبر نقّ() أو validate() قبل استخدامه هنا";
                         f.confidence = 0.9;
                         f.autoFixable = true;
-                        f.autoFixCode = "†‚‘(" + varName + ")";
+                        f.autoFixCode = "نقّ(" + varName + ")";
                         findings.push_back(std::move(f));
                     }
                 }
@@ -349,52 +349,52 @@ void SecurityScanner::taintAnalysis(const std::string& source, const std::string
 
 std::string SecurityReportFormatter::formatText(const ScanResult& result, bool verbose) {
     std::ostringstream out;
-    out << "\nג•”ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•—\n"
-        << "ג•‘  נ›¡ן¸  ״×‚״±״± ״§„״­״§״±״³ ״§„״£…† ג€” „״÷״© ״µ                               ג•‘\n"
-        << "ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•\n\n";
+    out << "\n╔══════════════════════════════════════════════════════════════════╗\n"
+        << "║  🛡️  تقرير الحارس الأمني — لغة ص                               ║\n"
+        << "╚══════════════════════════════════════════════════════════════════╝\n\n";
 
-    out << "נ“ …„״®״µ: " << result.filesScanned << " …„ | "
-        << result.totalLines << " ״³״·״± | "
-        << result.findings.size() << " †״×״¬״© | "
+    out << "📊 ملخص: " << result.filesScanned << " ملف | "
+        << result.totalLines << " سطر | "
+        << result.findings.size() << " نتيجة | "
         << std::fixed;
     out.precision(2);
-    out << result.durationSeconds << " ״«״§†״©\n\n";
+    out << result.durationSeconds << " ثانية\n\n";
 
     if (result.findings.empty()) {
-        out << "  ג… „… ״×ƒ״×״´ ״£ ״«״÷״±״§״× ״£…†״©!\n\n";
+        out << "  ✅ لم تُكتشف أي ثغرات أمنية!\n\n";
         return out.str();
     }
 
-    out << "  נ”´ ״­״±״¬״©: " << result.criticalCount()
-        << "  נ  ״¹״§„״©: " << result.highCount()
-        << "  נ¡ …״×ˆ״³״·״©: " << result.mediumCount()
-        << "  נ”µ …†״®״¶״©: " << result.lowCount() << "\n\n";
+    out << "  🔴 حرجة: " << result.criticalCount()
+        << "  🟠 عالية: " << result.highCount()
+        << "  🟡 متوسطة: " << result.mediumCount()
+        << "  🔵 منخفضة: " << result.lowCount() << "\n\n";
 
-    out << "ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€\n";
+    out << "─────────────────────────────────────────────────────────────────\n";
 
     for (const auto& f : result.findings) {
         out << f.severityIcon() << " [" << f.ruleId << "] " << f.message << "\n"
-            << "   נ“ " << f.file << ":" << f.line << "\n";
+            << "   📁 " << f.file << ":" << f.line << "\n";
         if (verbose && !f.codeLine.empty()) {
             std::string trimmed = f.codeLine;
             size_t s = trimmed.find_first_not_of(" \t");
             if (s != std::string::npos) trimmed = trimmed.substr(s);
-            out << "   נ“ " << trimmed << "\n";
+            out << "   📝 " << trimmed << "\n";
         }
         if (!f.suggestion.empty())
-            out << "   נ’¡ " << f.suggestion << "\n";
+            out << "   💡 " << f.suggestion << "\n";
         if (verbose && !f.attackExample.empty())
-            out << "   ג”ן¸  …״«״§„ ‡״¬ˆ…: " << f.attackExample << "\n";
+            out << "   ⚔️  مثال هجوم: " << f.attackExample << "\n";
         out << "\n";
     }
 
-    out << "ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•\n";
+    out << "═══════════════════════════════════════════════════════════════════\n";
     if (result.hasCritical())
-        out << "  ג›” ״×… ״§ƒ״×״´״§ ״«״÷״±״§״× ״­״±״¬״© ג€” ״¬״¨ ״§„״¥״µ„״§״­ ‚״¨„ ״§„†״´״±!\n";
+        out << "  ⛔ تم اكتشاف ثغرات حرجة — يجب الإصلاح قبل النشر!\n";
     else if (result.highCount() > 0)
-        out << "  ג ן¸  ״×… ״§ƒ״×״´״§ ״«״÷״±״§״× ״¹״§„״© ג€” †״µ״­ ״¨״§„״¥״µ„״§״­.\n";
+        out << "  ⚠️  تم اكتشاف ثغرات عالية — يُنصح بالإصلاح.\n";
     else
-        out << "  ג… „״§ ״×ˆ״¬״¯ ״«״÷״±״§״× ״­״±״¬״© ״£ˆ ״¹״§„״©.\n";
+        out << "  ✅ لا توجد ثغرات حرجة أو عالية.\n";
 
     return out.str();
 }
@@ -444,7 +444,7 @@ std::string SecurityReportFormatter::formatJSON(const ScanResult& result) {
 
 std::string SecurityReportFormatter::formatHTML(const ScanResult& result, const std::string& title) {
     std::ostringstream out;
-    std::string t = title.empty() ? "״×‚״±״± ״§„״­״§״±״³ ״§„״£…†" : title;
+    std::string t = title.empty() ? "تقرير الحارس الأمني" : title;
 
     out << "<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"UTF-8\">\n"
         << "<title>" << t << "</title>\n<style>\n"
@@ -459,18 +459,18 @@ std::string SecurityReportFormatter::formatHTML(const ScanResult& result, const 
         << ".finding .rule{font-weight:bold;color:var(--accent)}.finding .loc{color:#888;font-size:.85em}"
         << ".finding code{background:#0a0a1a;padding:4px 8px;border-radius:4px;display:block;margin:5px 0;font-family:monospace;overflow-x:auto}"
         << ".finding .fix{color:#51cf66;font-style:italic}\n</style></head><body>\n"
-        << "<h1>נ›¡ן¸ " << t << "</h1>\n";
+        << "<h1>🛡️ " << t << "</h1>\n";
 
     out << "<div class=\"summary\">\n"
-        << "<div class=\"stat\"><div class=\"num\">" << result.filesScanned << "</div>…„</div>\n"
-        << "<div class=\"stat critical\"><div class=\"num\">" << result.criticalCount() << "</div>״­״±״¬״©</div>\n"
-        << "<div class=\"stat high\"><div class=\"num\">" << result.highCount() << "</div>״¹״§„״©</div>\n"
-        << "<div class=\"stat medium\"><div class=\"num\">" << result.mediumCount() << "</div>…״×ˆ״³״·״©</div>\n"
-        << "<div class=\"stat low\"><div class=\"num\">" << result.lowCount() << "</div>…†״®״¶״©</div>\n"
+        << "<div class=\"stat\"><div class=\"num\">" << result.filesScanned << "</div>ملف</div>\n"
+        << "<div class=\"stat critical\"><div class=\"num\">" << result.criticalCount() << "</div>حرجة</div>\n"
+        << "<div class=\"stat high\"><div class=\"num\">" << result.highCount() << "</div>عالية</div>\n"
+        << "<div class=\"stat medium\"><div class=\"num\">" << result.mediumCount() << "</div>متوسطة</div>\n"
+        << "<div class=\"stat low\"><div class=\"num\">" << result.lowCount() << "</div>منخفضة</div>\n"
         << "</div>\n\n";
 
     if (result.findings.empty()) {
-        out << "<div style='text-align:center;padding:40px'><h2>ג… „״§ ״×ˆ״¬״¯ ״«״÷״±״§״× ״£…†״©</h2></div>\n";
+        out << "<div style='text-align:center;padding:40px'><h2>✅ لا توجد ثغرات أمنية</h2></div>\n";
     } else {
         for (const auto& f : result.findings) {
             std::string sevClass;
@@ -483,9 +483,9 @@ std::string SecurityReportFormatter::formatHTML(const ScanResult& result, const 
             out << "<div class=\"finding " << sevClass << "\">\n"
                 << "  <span class=\"rule\">" << f.severityIcon() << " [" << f.ruleId << "]</span> "
                 << f.message << "\n"
-                << "  <div class=\"loc\">נ“ " << f.file << ":" << f.line << "</div>\n";
+                << "  <div class=\"loc\">📁 " << f.file << ":" << f.line << "</div>\n";
             if (!f.codeLine.empty()) out << "  <code>" << f.codeLine << "</code>\n";
-            if (!f.suggestion.empty()) out << "  <div class=\"fix\">נ’¡ " << f.suggestion << "</div>\n";
+            if (!f.suggestion.empty()) out << "  <div class=\"fix\">💡 " << f.suggestion << "</div>\n";
             out << "</div>\n";
         }
     }
@@ -538,24 +538,24 @@ bool SecurityReportFormatter::writeReport(const ScanResult& result, const std::s
 
 int guard_main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cout << "ג•”ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•—\n"
-                  << "ג•‘  נ›¡ן¸  ״­״§״±״³ ״µ ״§„״£…† ג€” sad-guard            ג•‘\n"
-                  << "ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•\n\n"
-                  << "״§„״§״³״×״®״¯״§…:\n"
-                  << "  sad-guard <…„.״µ>            ״­״µ …„\n"
-                  << "  sad-guard <…״¬„״¯>             ״­״µ …״¬„״¯\n"
-                  << "  sad-guard --json <…„>       ״¥״®״±״§״¬ JSON\n"
-                  << "  sad-guard --html <…„>       ״¥״®״±״§״¬ HTML\n"
-                  << "  sad-guard --sarif <…„>      ״¥״®״±״§״¬ SARIF\n"
-                  << "  sad-guard --ci <…״¬„״¯>        ˆ״¶״¹ CI/CD\n"
-                  << "  sad-guard --critical <…„>   ״§„״­״±״¬״© ‚״·\n"
-                  << "  sad-guard --report <…„> <‡״¯>  ״­״¸ ״§„״×‚״±״±\n"
-                  << "  sad-guard --config <…„>     …„ ״¥״¹״¯״§״¯״§״×\n\n";
+        std::cout << "╔══════════════════════════════════════════╗\n"
+                  << "║  🛡️  حارس ص الأمني — sad-guard            ║\n"
+                  << "╚══════════════════════════════════════════╝\n\n"
+                  << "الاستخدام:\n"
+                  << "  sad-guard <ملف.ص>            فحص ملف\n"
+                  << "  sad-guard <مجلد>             فحص مجلد\n"
+                  << "  sad-guard --json <ملف>       إخراج JSON\n"
+                  << "  sad-guard --html <ملف>       إخراج HTML\n"
+                  << "  sad-guard --sarif <ملف>      إخراج SARIF\n"
+                  << "  sad-guard --ci <مجلد>        وضع CI/CD\n"
+                  << "  sad-guard --critical <ملف>   الحرجة فقط\n"
+                  << "  sad-guard --report <ملف> <هدف>  حفظ التقرير\n"
+                  << "  sad-guard --config <ملف>     ملف إعدادات\n\n";
         return 1;
     }
 
     ScannerConfig config;
-    config.excludeLines = {"// noguard", "# noguard", "״­״§״±״³:״×״¬״§‡„"};
+    config.excludeLines = {"// noguard", "# noguard", "حارس:تجاهل"};
     std::string path, reportPath;
 
     for (int i = 1; i < argc; ++i) {
@@ -574,7 +574,7 @@ int guard_main(int argc, char* argv[]) {
         else path = arg;
     }
 
-    if (path.empty()) { std::cerr << "״®״·״£: ״¬״¨ ״×״­״¯״¯ …„ ״£ˆ …״¬„״¯\n"; return 1; }
+    if (path.empty()) { std::cerr << "خطأ: يجب تحديد ملف أو مجلد\n"; return 1; }
 
     SecurityScanner scanner(config);
     ScanResult result;
@@ -584,11 +584,11 @@ int guard_main(int argc, char* argv[]) {
     } else if (fs::is_regular_file(path)) {
         result = scanner.scanFile(path);
     } else {
-        std::cerr << "״®״·״£: ״§„‡״¯ ״÷״± …ˆ״¬ˆ״¯: " << path << "\n";
+        std::cerr << "خطأ: الهدف غير موجود: " << path << "\n";
         return 1;
     }
 
-    // ״¹״±״¶ ״§„†״×״§״¦״¬
+    // عرض النتائج
     switch (config.reportFormat) {
         case ReportFormat::JSON: std::cout << SecurityReportFormatter::formatJSON(result); break;
         case ReportFormat::HTML: std::cout << SecurityReportFormatter::formatHTML(result); break;
@@ -596,13 +596,13 @@ int guard_main(int argc, char* argv[]) {
         default: std::cout << SecurityReportFormatter::formatText(result, config.verbose);
     }
 
-    // ״­״¸ ״§„״×‚״±״±
+    // حفظ التقرير
     if (!reportPath.empty()) {
         SecurityReportFormatter::writeReport(result, reportPath, config.reportFormat);
-        std::cout << "  נ’¾ ״×… ״­״¸ ״§„״×‚״±״±: " << reportPath << "\n";
+        std::cout << "  💾 تم حفظ التقرير: " << reportPath << "\n";
     }
 
-    // ˆ״¶״¹ CI
+    // وضع CI
     if (config.ciMode) {
         return result.hasCritical() ? 2 : (result.highCount() > 0 ? 1 : 0);
     }

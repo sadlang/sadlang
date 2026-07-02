@@ -1,14 +1,14 @@
 // ============================================================================
-// llvm_codegen_lowlevel.cpp ג€” ״×ˆ„״¯ LLVM IR „״¹…„״§״× ״§„…ƒ״×״¨״© ״§„…†״®״¶״© ״§„…״³״×ˆ‰
+// llvm_codegen_lowlevel.cpp — توليد LLVM IR لعمليات المكتبة المنخفضة المستوى
 // LLVM IR Generation for Low-Level OS Library Operations
 // ============================================================================
-// ״§„…״₪„ / Author: Sad Compiler Team
-// ״§„״×״§״±״® / Date: January 2026
-// ״§„״¥״µ״¯״§״± / Version: 5.0 ג€” ״¯״¹… 19 ˆ״­״¯״© „״¨״±…״¬״© ״£†״¸…״© ״§„״×״´״÷„
+// المؤلف / Author: Sad Compiler Team
+// التاريخ / Date: January 2026
+// الإصدار / Version: 5.0 — دعم 19 وحدة لبرمجة أنظمة التشغيل
 //
-// (AR) ‡״°״§ ״§„…„ ˆ„‘״¯ LLVM IR „״¹…„״§״× ״§„…ƒ״×״¨״© ״§„…†״®״¶״© ״§„…״³״×ˆ‰.
-//      ״§„״¹…„״§״× ״§„״¨״¯״§״¦״© ״×״×״±״¬… ״¥„‰ inline assembly …״¨״§״´״±״©.
-//      ״§„״¹…„״§״× ״§„״¹״§„״© ״§„…״³״×ˆ‰ ״×״×״±״¬… ״¥„‰ ״§״³״×״¯״¹״§״¡״§״× runtime C.
+// (AR) هذا الملف يولّد LLVM IR لعمليات المكتبة المنخفضة المستوى.
+//      العمليات البدائية تُترجم إلى inline assembly مباشرة.
+//      العمليات العالية المستوى تُترجم إلى استدعاءات runtime C.
 // (EN) This file generates LLVM IR for low-level library operations.
 //      Primitive ops are translated to inline assembly directly.
 //      High-level ops are translated to C runtime function calls.
@@ -47,11 +47,11 @@ static llvm::Value* emitRuntimeCall(
 }
 
 // ============================================================================
-// 15a. ˆ״­״¯״© ״§„…״¹״§„״¬ ״§„…״×‚״¯…״© / Advanced CPU Module
+// 15a. وحدة المعالج المتقدمة / Advanced CPU Module
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuGetInfo(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) ״§״³״×״¯״¹״§״¡ ״¯״§„״© runtime: sad_ll_cpu_get_info() -> i64 (…״₪״´״± „״¨†״© CPUInfo)
+    // (AR) استدعاء دالة runtime: sad_ll_cpu_get_info() -> i64 (مؤشر لبنية CPUInfo)
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_cpu_get_info", i64Ty, {}, {});
@@ -64,7 +64,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuGetFeatures(std::shared_ptr<SIRInst
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) rdmsr ג€” ‚״±״§״¡״© ״³״¬„ †…ˆ״°״¬ …״­״¯״¯
+    // (AR) rdmsr — قراءة سجل نموذج محدد
     // (EN) rdmsr instruction via inline assembly: ecx=reg -> edx:eax
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     llvm::Value* reg = cg_.resolveOperand(inst->operands[0]);
@@ -79,7 +79,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruct
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) wrmsr ג€” ƒ״×״§״¨״© ״³״¬„ †…ˆ״°״¬ …״­״¯״¯
+    // (AR) wrmsr — كتابة سجل نموذج محدد
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
@@ -101,7 +101,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruc
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadCR(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     llvm::Value* crNum = cg_.resolveOperand(inst->operands[0]);
-    // Call runtime ג€” handles switch on CR number
+    // Call runtime — handles switch on CR number
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_read_cr", i64Ty, {i64Ty}, {crNum});
 }
@@ -116,7 +116,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruct
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) invlpg ג€” ״¥״¨״·״§„ ״µ״­״©  TLB
+    // (AR) invlpg — إبطال صفحة في TLB
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     llvm::Value* addr = cg_.resolveOperand(inst->operands[0]);
@@ -134,7 +134,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// 15b. ˆ״­״¯״© GDT
+// 15b. وحدة GDT
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelGdtInit(std::shared_ptr<SIRInstruction> inst) {
@@ -144,7 +144,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelGdtInit(std::shared_ptr<SIRInstruction
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) lgdt ג€” ״×״­…„ ״¬״¯ˆ„ ״§„ˆ״§״µ״§״× ״§„״¹״§…״©
+    // (AR) lgdt — تحميل جدول الواصفات العامة
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_gdt_load", voidTy, {}, {});
@@ -157,7 +157,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelGdtGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// 15c. ˆ״­״¯״© ״§„״×״±״­„ / Paging
+// 15c. وحدة الترحيل / Paging
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelPagingInit(std::shared_ptr<SIRInstruction> inst) {
@@ -187,7 +187,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelPagingUnmap(std::shared_ptr<SIRInstruc
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelPagingFlushTlb(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) mov cr3, cr3 ג€” ״¥״±״§״÷ ״°״§ƒ״±״© ״§„״×״±״¬…״© ״¨״§„ƒ״§…„
+    // (AR) mov cr3, cr3 — إفراغ ذاكرة الترجمة بالكامل
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     auto* asmTy = llvm::FunctionType::get(voidTy, {}, false);
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,
@@ -202,7 +202,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelPagingGetReport(std::shared_ptr<SIRIns
 }
 
 // ============================================================================
-// 15d. ˆ״­״¯״© ״§„…‚״§״·״¹״§״× ״§„…״×‚״¯…״© / Advanced Interrupts (IDT)
+// 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts (IDT)
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelIdtInit(std::shared_ptr<SIRInstruction> inst) {
@@ -241,7 +241,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelIdtGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// 15e. ˆ״­״¯״© PCI
+// 15e. وحدة PCI
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelPciEnumerate(std::shared_ptr<SIRInstruction> inst) {
@@ -287,7 +287,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelPciGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// 15f. ˆ״­״¯״© DMA ״§„…״×‚״¯…״©
+// 15f. وحدة DMA المتقدمة
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelDmaInit(std::shared_ptr<SIRInstruction> inst) {
@@ -319,7 +319,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelDmaGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// 15g. ˆ״­״¯״© ״§„״´״§״´״© / Framebuffer
+// 15g. وحدة الشاشة / Framebuffer
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelFbInit(std::shared_ptr<SIRInstruction> inst) {
@@ -403,7 +403,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelFbGetReport(std::shared_ptr<SIRInstruc
 }
 
 // ============================================================================
-// 15h. ˆ״­״¯״© ACPI
+// 15h. وحدة ACPI
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelAcpiInit(std::shared_ptr<SIRInstruction> inst) {
@@ -432,7 +432,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelAcpiGetReport(std::shared_ptr<SIRInstr
 }
 
 // ============================================================================
-// 15i. ˆ״­״¯״© ״§„״×״²״§…† / Sync
+// 15i. وحدة التزامن / Sync
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelSpinlockInit(std::shared_ptr<SIRInstruction> inst) {
@@ -494,7 +494,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelBarrierInit(std::shared_ptr<SIRInstruc
 }
 
 // ============================================================================
-// 15j. ˆ״­״¯״© ״§„…״¬״¯ˆ„ / Scheduler
+// 15j. وحدة المجدول / Scheduler
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelSchedInit(std::shared_ptr<SIRInstruction> inst) {
@@ -544,7 +544,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelSchedGetReport(std::shared_ptr<SIRInst
 }
 
 // ============================================================================
-// 15k. ˆ״­״¯״© ״§„״¥‚„״§״¹ / Boot
+// 15k. وحدة الإقلاع / Boot
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelBootGetInfo(std::shared_ptr<SIRInstruction> inst) {
@@ -566,7 +566,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelBootGetReport(std::shared_ptr<SIRInstr
 }
 
 // ============================================================================
-// 15l. ˆ״­״¯״© †״¸״§… ״§„…„״§״× ״§„״§״×״±״§״¶ / VFS
+// 15l. وحدة نظام الملفات الافتراضي / VFS
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelVfsMount(std::shared_ptr<SIRInstruction> inst) {
@@ -632,7 +632,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelVfsGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// 15m. ˆ״­״¯״© APIC
+// 15m. وحدة APIC
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelApicInit(std::shared_ptr<SIRInstruction> inst) {
@@ -672,7 +672,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelApicGetReport(std::shared_ptr<SIRInstr
 }
 
 // ============================================================================
-// 15n. ˆ״­״¯״© HPET
+// 15n. وحدة HPET
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelHpetInit(std::shared_ptr<SIRInstruction> inst) {
@@ -702,7 +702,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelHpetGetReport(std::shared_ptr<SIRInstr
 }
 
 // ============================================================================
-// 15o. ˆ״­״¯״© ״§״³״×״¯״¹״§״¡״§״× ״§„†״¸״§… / Syscall
+// 15o. وحدة استدعاءات النظام / Syscall
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelSyscallInit(std::shared_ptr<SIRInstruction> inst) {
@@ -721,7 +721,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelSyscallRegister(std::shared_ptr<SIRIns
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelSyscallInvoke(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) syscall ג€” ״×†״° ״§״³״×״¯״¹״§״¡ †״¸״§… ״¨״§„״±‚… ˆ״§„…״¹״§…„״§״×
+    // (AR) syscall — تنفيذ استدعاء نظام بالرقم والمعاملات
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     std::vector<llvm::Type*> types;
     std::vector<llvm::Value*> vals;
@@ -740,7 +740,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelSyscallGetReport(std::shared_ptr<SIRIn
 }
 
 // ============================================================================
-// 15p. ״¹…„״§״× ״§„״°״§ƒ״±״© ״§„…״×‚״¯…״© / Advanced Memory
+// 15p. عمليات الذاكرة المتقدمة / Advanced Memory
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelMemAllocPhys(std::shared_ptr<SIRInstruction> inst) {
@@ -778,8 +778,8 @@ llvm::Value* LowlevelCodeGen::emitLowlevelMemGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// ״§„‚״³… 16: ״¨״±ˆ״×ˆƒˆ„ UEFI ג€” ״×ˆ„״¯ LLVM IR
-// Section 16: UEFI Boot Protocol ג€” LLVM IR Generation
+// القسم 16: بروتوكول UEFI — توليد LLVM IR
+// Section 16: UEFI Boot Protocol — LLVM IR Generation
 // ============================================================================
 
 } // namespace LLVM

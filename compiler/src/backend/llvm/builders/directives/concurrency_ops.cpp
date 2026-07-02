@@ -1,26 +1,26 @@
 ﻿/*
  * ============================================================================
- * …ˆ„״¯ ƒˆ״¯ LLVM IR - …„ ״§„״×†״°
+ * مولد كود LLVM IR - ملف التنفيذ
  * LLVM IR Code Generator - Implementation File
  * ============================================================================
  *
- * ‡״°״§ ״§„…„ ״­״×ˆ ״¹„‰ ״×†״° …ˆ„״¯ ƒˆ״¯ LLVM IR ״§„״° ״×״±״¬… SIR ״¥„‰ LLVM IR
+ * هذا الملف يحتوي على تنفيذ مولد كود LLVM IR الذي يترجم SIR إلى LLVM IR
  * This file contains the implementation of LLVM IR code generator that
  * translates SIR to LLVM IR
  *
- * ״§„״×״²״§… ״¨ STRICT_CODING_RULES.md:
- * - ״×… ‚״±״§״¡״© ״¬…״¹ ״§„…„״§״× ״§„״±״£״³״© ״¨״§„ƒ״§…„ (1746 ״³״·״±)
- * - ״×… ״×ˆ״«‚ ƒ„ ״§״³״×״®״¯״§… API ״¨…ˆ‚״¹ ״§„…״µ״¯״±
- * - „״§ ״×ˆ״¬״¯ ״¯ˆ״§„ ״£ˆ …״×״÷״±״§״× …״®״×״±״¹״©
+ * التزام ب STRICT_CODING_RULES.md:
+ * - تم قراءة جميع الملفات الرأسية بالكامل (1746 سطر)
+ * - تم توثيق كل استخدام API بموقع المصدر
+ * - لا توجد دوال أو متغيرات مخترعة
  *
  * STRICT_CODING_RULES.md compliance:
  * - All header files read completely (1746 lines)
  * - Every API usage documented with source location
  * - No invented functions or variables
  *
- * ״§„…״₪„ (Author): SadLanguage Compiler Team
- * ״§„״×״§״±״® (Date): December 2024
- * ״§„״¥״µ״¯״§״± (Version): 1.1.4 Phase 1
+ * المؤلف (Author): SadLanguage Compiler Team
+ * التاريخ (Date): December 2024
+ * الإصدار (Version): 1.1.4 Phase 1
  * ============================================================================
  */
 
@@ -30,7 +30,7 @@
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
 #include <llvm/Support/TargetSelect.h>
-// Source: LLVM 14+ API - llvm/MC/TargetRegistry.h ״¨״¯„״§‹ …† llvm/Support/TargetRegistry.h
+// Source: LLVM 14+ API - llvm/MC/TargetRegistry.h بدلاً من llvm/Support/TargetRegistry.h
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/TargetParser/Host.h>
@@ -52,12 +52,12 @@ namespace Sad
     {
 
 // ============================================================================
-// (AR) ״¹…„״§״× ״§„״×״²״§…†: ״£‚״§„״ ״®ˆ״·״ ״°״±״©״ ״§†״×״¸״§״±״ …״¬…ˆ״¹״§״× ״§†״×״¸״§״±
+// (AR) عمليات التزامن: أقفال، خيوط، ذرية، انتظار، مجموعات انتظار
 // (EN) Sync operations: mutex, threads, atomic, wait, select, waitgroup
-// (AR) ״×… ״×‚״³… ‡״°״§ ״§„…„ ˆ‚ CW-05. ״§„…„״§״× ״§„…†״µ„״©:
-//   - llvm_codegen_channels.cpp: ״¹…„״§״× ״§„‚†ˆ״§״×
-//   - llvm_codegen_closures.cpp: ״§„״¥״÷„״§‚״§״× ˆ״§„״°״§ƒ״±״©
-//   - llvm_codegen_oop_ops.cpp: ״§„ƒ״§״¦†״§״× ˆ״§„…״₪״´״±״§״×
+// (AR) تم تقسيم هذا الملف وفق CW-05. الملفات المنفصلة:
+//   - llvm_codegen_channels.cpp: عمليات القنوات
+//   - llvm_codegen_closures.cpp: الإغلاقات والذاكرة
+//   - llvm_codegen_oop_ops.cpp: الكائنات والمؤشرات
 // ============================================================================
         llvm::Value *ConcurrencyCodeGen::emitAsyncMutexCreate(std::shared_ptr<SIRInstruction> inst)
         {
@@ -66,27 +66,27 @@ namespace Sad
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״×״®״µ״µ 2 * 8 = 16 ״¨״§״× „„״¨†״© [handle, flag]
+            // (AR) تخصيص 2 * 8 = 16 بايت للبنية [handle, flag]
             auto mallocTy = llvm::FunctionType::get(i8PtrTy, {llvm::Type::getInt64Ty(*cg_.context_)}, false);
             auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
             auto rawPtr = cg_.builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 16)});
             auto structPtr = cg_.builder_->CreateBitCast(rawPtr, i64PtrTy);
 
-            // (AR) ״¥†״´״§״¡ ״§„‚„: CreateMutexA(NULL, FALSE, NULL)
+            // (AR) إنشاء القفل: CreateMutexA(NULL, FALSE, NULL)
             // (EN) Create mutex via cross-platform wrapper (Win32/pthread).
             auto createMutexTy = llvm::FunctionType::get(i8PtrTy, {}, false);
             auto createMutex = cg_.module_->getOrInsertFunction("sad_rt_mutex_create", createMutexTy);
             auto handle = cg_.builder_->CreateCall(createMutex, {});
 
-            // (AR) ״×״®״²† slot[0] = handle (ptr ג†’ i64)
+            // (AR) تخزين slot[0] = handle (ptr → i64)
             auto handleAsI64 = cg_.builder_->CreatePtrToInt(handle, i64Ty);
             cg_.builder_->CreateStore(handleAsI64, structPtr);
 
-            // (AR) ״×״®״²† slot[1] = 0 (…״×ˆ״­)
+            // (AR) تخزين slot[1] = 0 (مفتوح)
             auto flagPtr = cg_.builder_->CreateGEP(i64Ty, structPtr, {llvm::ConstantInt::get(i64Ty, 1)});
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), flagPtr);
 
-            // (AR) ״§„†״×״¬״© = …״₪״´״± ״§„״¨†״© …״­ˆ‘„ „€ i64
+            // (AR) النتيجة = مؤشر البنية محوّل لـ i64
             auto result = cg_.builder_->CreatePtrToInt(structPtr, i64Ty);
             if (inst->result.has_value())
             {
@@ -102,11 +102,11 @@ namespace Sad
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״§„״¨†״©
+            // (AR) استخراج مؤشر البنية
             llvm::Value *mutexId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(mutexId, i64PtrTy);
 
-            // (AR) ‚״±״§״¡״© slot[0] = handle
+            // (AR) قراءة slot[0] = handle
             auto handleAsI64 = cg_.builder_->CreateLoad(i64Ty, structPtr);
             auto handle = cg_.builder_->CreateIntToPtr(handleAsI64, i8PtrTy);
 
@@ -115,7 +115,7 @@ namespace Sad
             auto lockFunc = cg_.module_->getOrInsertFunction("sad_rt_mutex_lock", lockTy);
             cg_.builder_->CreateCall(lockFunc, {handle});
 
-            // (AR) ״×״¹† slot[1] = 1 (…‚„)
+            // (AR) تعيين slot[1] = 1 (مقفل)
             auto flagPtr = cg_.builder_->CreateGEP(i64Ty, structPtr, {llvm::ConstantInt::get(i64Ty, 1)});
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), flagPtr);
 
@@ -134,15 +134,15 @@ namespace Sad
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״§„״¨†״©
+            // (AR) استخراج مؤشر البنية
             llvm::Value *mutexId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(mutexId, i64PtrTy);
 
-            // (AR) ״×״¹† slot[1] = 0 (…״×ˆ״­) ג€” ‚״¨„ ReleaseMutex
+            // (AR) تعيين slot[1] = 0 (مفتوح) — قبل ReleaseMutex
             auto flagPtr = cg_.builder_->CreateGEP(i64Ty, structPtr, {llvm::ConstantInt::get(i64Ty, 1)});
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), flagPtr);
 
-            // (AR) ‚״±״§״¡״© slot[0] = handle ״«… ReleaseMutex
+            // (AR) قراءة slot[0] = handle ثم ReleaseMutex
             auto handleAsI64 = cg_.builder_->CreateLoad(i64Ty, structPtr);
             auto handle = cg_.builder_->CreateIntToPtr(handleAsI64, i8PtrTy);
 
@@ -166,15 +166,15 @@ namespace Sad
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״¨†״© ״§„‚„ [handle, flag]
+            // (AR) استخراج مؤشر بنية القفل [handle, flag]
             llvm::Value *mutexId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(mutexId, i64PtrTy);
 
-            // (AR) ‚״±״§״¡״© HANDLE …† slot[0]
+            // (AR) قراءة HANDLE من slot[0]
             auto handleAsI64 = cg_.builder_->CreateLoad(i64Ty, structPtr);
             auto handle = cg_.builder_->CreateIntToPtr(handleAsI64, i8PtrTy);
 
-            // (AR) ״¥״°״§ ƒ״§† ״§„״¹„… ״§„״¯״§״®„ ״´״± ״¥„‰ "…‚„" †״´„ ˆ״±״§‹ „״¶…״§† ״¯„״§„״© non-reentrant.
+            // (AR) إذا كان العلم الداخلي يشير إلى "مقفل" نفشل فوراً لضمان دلالة non-reentrant.
             auto flagPtr = cg_.builder_->CreateGEP(i64Ty, structPtr, {llvm::ConstantInt::get(i64Ty, 1)});
             auto flagVal = cg_.builder_->CreateLoad(i64Ty, flagPtr);
             auto alreadyLocked = cg_.builder_->CreateICmpNE(flagVal, llvm::ConstantInt::get(i64Ty, 0));
@@ -187,22 +187,22 @@ namespace Sad
             cg_.builder_->CreateCondBr(alreadyLocked, failBB, waitBB);
 
             cg_.builder_->SetInsertPoint(waitBB);
-            // (AR) WaitForSingleObject(handle, 0) ג€” …״­״§ˆ„״© ״÷״± ״­״§״¬״¨״©
+            // (AR) WaitForSingleObject(handle, 0) — محاولة غير حاجبة
             // (EN) Try-lock via cross-platform wrapper: returns 0 on acquire.
             auto tryTy = llvm::FunctionType::get(i32Ty, {i8PtrTy}, false);
             auto tryFunc = cg_.module_->getOrInsertFunction("sad_rt_mutex_trylock", tryTy);
             auto waitRes = cg_.builder_->CreateCall(tryFunc, {handle});
 
-            // (AR) WAIT_OBJECT_0 = 0 => †״¬״§״­ ״§„‚„
+            // (AR) WAIT_OBJECT_0 = 0 => نجاح القفل
             auto acquired = cg_.builder_->CreateICmpEQ(waitRes, llvm::ConstantInt::get(i32Ty, 0));
             cg_.builder_->CreateCondBr(acquired, okBB, failBB);
 
-            // (AR) †״¬״§״­: flag=1
+            // (AR) نجاح: flag=1
             cg_.builder_->SetInsertPoint(okBB);
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), flagPtr);
             cg_.builder_->CreateBr(doneBB);
 
-            // (AR) ״´„: „״§ ״×״÷״±
+            // (AR) فشل: لا تغيير
             cg_.builder_->SetInsertPoint(failBB);
             cg_.builder_->CreateBr(doneBB);
 
@@ -223,7 +223,7 @@ namespace Sad
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״§„״¨†״© ˆ‚״±״§״¡״© slot[1] = flag
+            // (AR) استخراج مؤشر البنية وقراءة slot[1] = flag
             llvm::Value *mutexId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(mutexId, i64PtrTy);
             auto flagPtr = cg_.builder_->CreateGEP(i64Ty, structPtr, {llvm::ConstantInt::get(i64Ty, 1)});
@@ -435,9 +435,9 @@ namespace Sad
 
         // ============================================================================
 
-        // (AR) …״¬…ˆ״¹״© ״§„״§†״×״¸״§״± (WaitGroup) ג€” ״¨†״© ״¨״³״·״©: malloc(8) ג†’ [counter]
-        //      slot[0] = ״¹״¯״§״¯ i64
-        // (EN) WaitGroup ג€” simple struct: malloc(8) ג†’ [counter]
+        // (AR) مجموعة الانتظار (WaitGroup) — بنية بسيطة: malloc(8) → [counter]
+        //      slot[0] = عداد i64
+        // (EN) WaitGroup — simple struct: malloc(8) → [counter]
         //      slot[0] = i64 counter
         // ====================================================================
 
@@ -447,18 +447,18 @@ namespace Sad
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״×״®״µ״µ 8 ״¨״§״× „„״¹״¯״§״¯
+            // (AR) تخصيص 8 بايت للعداد
             // (EN) Allocate 8 bytes for counter
             auto mallocTy = llvm::FunctionType::get(i8PtrTy, {i64Ty}, false);
             auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
             auto rawPtr = cg_.builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 8)});
             auto structPtr = cg_.builder_->CreateBitCast(rawPtr, i64PtrTy);
 
-            // (AR) ״×‡״¦״© ״§„״¹״¯״§״¯ = 0
+            // (AR) تهيئة العداد = 0
             // (EN) Initialize counter = 0
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), structPtr);
 
-            // (AR) ״§„†״×״¬״© = …״₪״´״± …״­ˆ‘„ „€ i64
+            // (AR) النتيجة = مؤشر محوّل لـ i64
             auto result = cg_.builder_->CreatePtrToInt(structPtr, i64Ty);
             if (inst->result.has_value())
             {
@@ -472,18 +472,18 @@ namespace Sad
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״§„״¨†״©
+            // (AR) استخراج مؤشر البنية
             llvm::Value *wgId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(wgId, i64PtrTy);
 
-            // (AR) ‚״±״§״¡״© ״§„״¹״¯״§״¯ ״§„״­״§„
+            // (AR) قراءة العداد الحالي
             auto currentCount = cg_.builder_->CreateLoad(i64Ty, structPtr, "wg.count");
 
-            // (AR) ״¥״¶״§״© ״§„‚…״©
+            // (AR) إضافة القيمة
             llvm::Value *addVal = cg_.resolveOperand(inst->operands[1]);
             auto newCount = cg_.builder_->CreateAdd(currentCount, addVal, "wg.new_count");
 
-            // (AR) ״×״®״²† ״§„״¹״¯״§״¯ ״§„״¬״¯״¯
+            // (AR) تخزين العداد الجديد
             cg_.builder_->CreateStore(newCount, structPtr);
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
@@ -499,15 +499,15 @@ namespace Sad
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״§„״¨†״©
+            // (AR) استخراج مؤشر البنية
             llvm::Value *wgId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(wgId, i64PtrTy);
 
-            // (AR) ״¥†‚״§״µ ״§„״¹״¯״§״¯ ״¨ˆ״§״­״¯
+            // (AR) إنقاص العداد بواحد
             auto currentCount = cg_.builder_->CreateLoad(i64Ty, structPtr, "wg.count");
             auto newCount = cg_.builder_->CreateSub(currentCount, llvm::ConstantInt::get(i64Ty, 1), "wg.dec");
 
-            // (AR) ״×״®״²† ״§„״¹״¯״§״¯ ״§„״¬״¯״¯
+            // (AR) تخزين العداد الجديد
             cg_.builder_->CreateStore(newCount, structPtr);
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
@@ -520,10 +520,10 @@ namespace Sad
 
         llvm::Value *ConcurrencyCodeGen::emitAsyncWgWait(std::shared_ptr<SIRInstruction> inst)
         {
-            // (AR) ״§†״×״¸״§״± ״­״×‰ ״§„״¹״¯״§״¯ ״µ״¨״­ 0
-            //       ״§„״¨״¦״© ״£״­״§״¯״© ״§„״®״· (single-threaded): ״§„״¹״¯״§״¯ ״¬״¨ ״£† ƒˆ† 0 ״¹„״§‹
-            //       ״¨״¦״© …״×״¹״¯״¯״© ״§„״®ˆ״·: ״­״×״§״¬ spin-wait ״£ˆ event
-            //      ״­״§„״§‹: †‚״±״£ ״§„״¹״¯״§״¯ ‚״· (״¹…„ …״¹ ״§„״§״®״×״¨״§״±״§״× ״§„״¨״³״·״©)
+            // (AR) انتظار حتى العداد يصبح 0
+            //      في البيئة أحادية الخيط (single-threaded): العداد يجب أن يكون 0 فعلاً
+            //      في بيئة متعددة الخيوط: يحتاج spin-wait أو event
+            //      حالياً: نقرأ العداد فقط (يعمل مع الاختبارات البسيطة)
             // (EN) Wait until counter reaches 0
             //      In single-threaded: counter should already be 0
             //      Multi-threaded: needs spin-wait or event
@@ -543,7 +543,7 @@ namespace Sad
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
-            // (AR) ״§״³״×״®״±״§״¬ …״₪״´״± ״§„״¨†״© ˆ‚״±״§״¡״© ״§„״¹״¯״§״¯
+            // (AR) استخراج مؤشر البنية وقراءة العداد
             llvm::Value *wgId = cg_.resolveOperand(inst->operands[0]);
             auto structPtr = cg_.builder_->CreateIntToPtr(wgId, i64PtrTy);
             auto countVal = cg_.builder_->CreateLoad(i64Ty, structPtr, "wg.count");

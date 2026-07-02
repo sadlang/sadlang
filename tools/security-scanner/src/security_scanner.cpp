@@ -1,6 +1,6 @@
-﻿// ״¨״³… ״§„„‡ ״§„״±״­…† ״§„״±״­…
+﻿// بسم الله الرحمن الرحيم
 // ============================================================================
-// security_scanner.cpp ג€” ״×†״° ״§„״­״§״±״³ ״§„״£…† ״§„״´״§…„
+// security_scanner.cpp — تنفيذ الحارس الأمني الشامل
 // Comprehensive Security Scanner Implementation
 // ============================================================================
 
@@ -23,40 +23,40 @@ namespace Security {
 
 std::string Finding::severityIcon() const {
     switch (severity) {
-        case Severity::Critical: return "נ”´";
-        case Severity::High:     return "נ ";
-        case Severity::Medium:   return "נ¡";
-        case Severity::Low:      return "נ”µ";
-        case Severity::Info:     return "ג×";
+        case Severity::Critical: return "🔴";
+        case Severity::High:     return "🟠";
+        case Severity::Medium:   return "🟡";
+        case Severity::Low:      return "🔵";
+        case Severity::Info:     return "⚪";
     }
-    return "ג”";
+    return "❔";
 }
 
 std::string Finding::severityNameAr() const {
     switch (severity) {
-        case Severity::Critical: return "״­״±״¬״©";
-        case Severity::High:     return "״¹״§„״©";
-        case Severity::Medium:   return "…״×ˆ״³״·״©";
-        case Severity::Low:      return "…†״®״¶״©";
-        case Severity::Info:     return "…״¹„ˆ…״§״×";
+        case Severity::Critical: return "حرجة";
+        case Severity::High:     return "عالية";
+        case Severity::Medium:   return "متوسطة";
+        case Severity::Low:      return "منخفضة";
+        case Severity::Info:     return "معلومات";
     }
-    return "״÷״± …״­״¯״¯";
+    return "غير محدد";
 }
 
 std::string Finding::categoryNameAr() const {
     switch (category) {
-        case RuleCategory::Injection:       return "״­‚†";
-        case RuleCategory::BufferOverflow:  return "״¶ ״§„…״®״²†";
-        case RuleCategory::InputValidation: return "״§„״×״­‚‚ …† ״§„…״¯״®„״§״×";
-        case RuleCategory::Cryptography:    return "״§„״×״´״±";
-        case RuleCategory::Secrets:         return "״£״³״±״§״± ״«״§״¨״×״©";
-        case RuleCategory::Permissions:     return "״§„״µ„״§״­״§״×";
-        case RuleCategory::DataFlow:        return "״×״¯‚ ״§„״¨״§†״§״×";
-        case RuleCategory::UnsafeBlock:     return "ƒ״×„״© ״÷״± ״¢…†״©";
-        case RuleCategory::Memory:          return "״£…״§† ״§„״°״§ƒ״±״©";
-        case RuleCategory::Configuration:   return "״§„״¥״¹״¯״§״¯״§״×";
+        case RuleCategory::Injection:       return "حقن";
+        case RuleCategory::BufferOverflow:  return "فيض المخزن";
+        case RuleCategory::InputValidation: return "التحقق من المدخلات";
+        case RuleCategory::Cryptography:    return "التشفير";
+        case RuleCategory::Secrets:         return "أسرار ثابتة";
+        case RuleCategory::Permissions:     return "الصلاحيات";
+        case RuleCategory::DataFlow:        return "تدفق البيانات";
+        case RuleCategory::UnsafeBlock:     return "كتلة غير آمنة";
+        case RuleCategory::Memory:          return "أمان الذاكرة";
+        case RuleCategory::Configuration:   return "الإعدادات";
     }
-    return "״£״®״±‰";
+    return "أخرى";
 }
 
 // ============================================================================
@@ -134,7 +134,7 @@ ScannerConfig ScannerConfig::fromFile(const std::string& path) {
 }
 
 // ============================================================================
-// SecurityScanner ג€” initialization
+// SecurityScanner — initialization
 // ============================================================================
 
 SecurityScanner::SecurityScanner(const ScannerConfig& config) : config_(config) {
@@ -144,243 +144,243 @@ SecurityScanner::SecurityScanner(const ScannerConfig& config) : config_(config) 
 void SecurityScanner::initializeRules() {
     rules_.clear();
 
-    // === SQL001: ״­‚† SQL ===
+    // === SQL001: حقن SQL ===
     rules_.push_back({
-        "SQL001", "״­‚† SQL", "SQL Injection",
+        "SQL001", "حقن SQL", "SQL Injection",
         RuleCategory::Injection, Severity::Critical,
-        "״¨״§†״§״× ״÷״± …†‚‘״§״© ״×״³״×״®״¯…  ״§״³״×״¹„״§… SQL …״¨״§״´״±״©",
+        "بيانات غير منقّاة تُستخدم في استعلام SQL مباشرة",
         "Unsanitized data used directly in SQL query",
-        "״§״³״×״®״¯… ״§״³״×״¹„״§…״§״× …״¹״§…„״© (parameterized queries) ״¨״¯„״§‹ …† ״¯…״¬ ״§„†״µˆ״µ",
+        "استخدم استعلامات معاملية (parameterized queries) بدلاً من دمج النصوص",
         "Use parameterized queries instead of string concatenation",
-        {"†‘״°_SQL", "״§״³״×״¹„…", "raw_query", "SELECT.*\\+", "INSERT.*\\+", "DELETE.*\\+", "UPDATE.*\\+"}
+        {"نفّذ_SQL", "استعلم", "raw_query", "SELECT.*\\+", "INSERT.*\\+", "DELETE.*\\+", "UPDATE.*\\+"}
     });
 
-    // === SQL002: ״×†״° SQL ״®״§… ===
+    // === SQL002: تنفيذ SQL خام ===
     rules_.push_back({
-        "SQL002", "״§״³״×״¹„״§… ״®״§…", "Raw SQL Query",
+        "SQL002", "استعلام خام", "Raw SQL Query",
         RuleCategory::Injection, Severity::High,
-        "״§״³״×״¹„״§… SQL ״®״§… ״¨״¯ˆ† ״­…״§״©",
+        "استعلام SQL خام بدون حماية",
         "Raw SQL query without protection",
-        "״§״³״×״®״¯… ORM ״£ˆ builder ״¨״¯„״§‹ …† ״§„״§״³״×״¹„״§…״§״× ״§„״®״§…",
+        "استخدم ORM أو builder بدلاً من الاستعلامات الخام",
         "Use ORM or query builder instead of raw queries",
-        {"raw_query", "†‘״°_״®״§…"}
+        {"raw_query", "نفّذ_خام"}
     });
 
-    // === BUF001: ״¶ ״§„…״®״²† ===
+    // === BUF001: فيض المخزن ===
     rules_.push_back({
-        "BUF001", "״¶ ״§„…״®״²† ״§„…״­״×…„", "Potential Buffer Overflow",
+        "BUF001", "فيض المخزن المحتمل", "Potential Buffer Overflow",
         RuleCategory::BufferOverflow, Severity::Critical,
-        "״¹…„״§״× ״¹„‰ …״µˆ״§״× ״£ˆ …״®״§״²† ‚״¯ ״×״³״¨״¨ ״¶",
+        "عمليات على مصفوفات أو مخازن قد تسبب فيض",
         "Operations on arrays/buffers that may cause overflow",
-        "״×״­‚‚ …† ״­״¯ˆ״¯ ״§„…״µˆ״© ‚״¨„ ״§„ˆ״µˆ„",
+        "تحقق من حدود المصفوفة قبل الوصول",
         "Check array bounds before access",
-        {"…״µˆ״©.*\\[.*\\]", "״§״­״µ„_״¹„‰_״¹†״µ״±", "buffer", "memcpy", "strcpy"}
+        {"مصفوفة.*\\[.*\\]", "احصل_على_عنصر", "buffer", "memcpy", "strcpy"}
     });
 
-    // === BUF002: ˆ״µˆ„ ״®״§״±״¬ ״§„״­״¯ˆ״¯ ===
+    // === BUF002: وصول خارج الحدود ===
     rules_.push_back({
-        "BUF002", "ˆ״µˆ„ ״®״§״±״¬ ״§„״­״¯ˆ״¯", "Out-of-bounds Access",
+        "BUF002", "وصول خارج الحدود", "Out-of-bounds Access",
         RuleCategory::BufferOverflow, Severity::High,
-        "ˆ״µˆ„ „…״₪״´״± ״«״§״¨״×  …״µˆ״© ״¨״¯ˆ† ״­״µ ״§„״­״¬…",
+        "وصول لمؤشر ثابت في مصفوفة بدون فحص الحجم",
         "Fixed index access without size check",
-        "״§״³״×״®״¯… ״§„״×״§״¨״¹ .״§״­״µ„_״¢…†() ״£ˆ ״×״­‚‚ …† ״§„״·ˆ„ ״£ˆ„״§‹",
+        "استخدم التابع .احصل_آمن() أو تحقق من الطول أولاً",
         "Use .safe_get() or check length first",
         {"\\[\\d+\\]"}
     });
 
-    // === INP001: ״¥״¯״®״§„ ״¨״¯ˆ† ״×״­‚‚ ===
+    // === INP001: إدخال بدون تحقق ===
     rules_.push_back({
-        "INP001", "״¥״¯״®״§„ ״¨״¯ˆ† ״×״­‚‚", "Unvalidated Input",
+        "INP001", "إدخال بدون تحقق", "Unvalidated Input",
         RuleCategory::InputValidation, Severity::High,
-        "״¥״¯״®״§„ ״§„…״³״×״®״¯… ״³״×״®״¯… …״¨״§״´״±״© ״¨״¯ˆ† ״×״­‚‚",
+        "إدخال المستخدم يُستخدم مباشرة بدون تحقق",
         "User input used directly without validation",
-        "״×״­‚‚ …† ״§„״¥״¯״®״§„ ˆ†‚‘‡ ‚״¨„ ״§„״§״³״×״®״¯״§…",
+        "تحقق من الإدخال ونقّه قبل الاستخدام",
         "Validate and sanitize input before use",
-        {"״§‚״±״£\\(", "״§‚״±״£_״³״·״±\\(", "״§״­״µ„_״¹„‰_…״¹״§…„", "input\\("}
+        {"اقرأ\\(", "اقرأ_سطر\\(", "احصل_على_معامل", "input\\("}
     });
 
-    // === INP002: ״¹״¯… ״×״­‚‚ …† ״§„†ˆ״¹ ===
+    // === INP002: عدم تحقق من النوع ===
     rules_.push_back({
-        "INP002", "״¹״¯… ״§„״×״­‚‚ …† ״§„†ˆ״¹", "Missing Type Validation",
+        "INP002", "عدم التحقق من النوع", "Missing Type Validation",
         RuleCategory::InputValidation, Severity::Medium,
-        "״×״­ˆ„ †ˆ״¹ ״¨״§†״§״× ״¨״¯ˆ† ״§„״×״­‚‚ …† ״µ„״§״­״×‡",
+        "تحويل نوع بيانات بدون التحقق من صلاحيته",
         "Type conversion without validity check",
-        "״§״³״×״®״¯… ״­״§ˆ„/״§…״³ƒ ״­ˆ„ ״×״­ˆ„״§״× ״§„״£†ˆ״§״¹",
+        "استخدم حاول/امسك حول تحويلات الأنواع",
         "Wrap type conversions in try/catch",
-        {"״­ˆ‘„_״¥„‰_״±‚…", "״­ˆ‘„_״¥„‰_״¹״´״±", "parseInt", "parseFloat"}
+        {"حوّل_إلى_رقم", "حوّل_إلى_عشري", "parseInt", "parseFloat"}
     });
 
-    // === CRY001: ״®ˆ״§״±״²…״© ״×״´״± ״¶״¹״© ===
+    // === CRY001: خوارزمية تشفير ضعيفة ===
     rules_.push_back({
-        "CRY001", "״®ˆ״§״±״²…״© ״×״´״± ״¶״¹״©", "Weak Cryptographic Algorithm",
+        "CRY001", "خوارزمية تشفير ضعيفة", "Weak Cryptographic Algorithm",
         RuleCategory::Cryptography, Severity::High,
-        "״§״³״×״®״¯״§… ״®ˆ״§״±״²…״© ״×״´״± …״¹״±ˆ״© ״¨״§„״¶״¹",
+        "استخدام خوارزمية تشفير معروفة بالضعف",
         "Use of known-weak cryptographic algorithm",
-        "״§״³״×״®״¯… SHA-256 ״£ˆ ״£״¹„‰ ״¨״¯„״§‹ …† MD5/SHA1״ ˆ״§״³״×״®״¯… AES ״¨״¯„״§‹ …† DES/RC4",
+        "استخدم SHA-256 أو أعلى بدلاً من MD5/SHA1، واستخدم AES بدلاً من DES/RC4",
         "Use SHA-256+ instead of MD5/SHA1, use AES instead of DES/RC4",
         {"MD5", "SHA1", "SHA-1", "DES", "RC4", "md5", "sha1"}
     });
 
-    // === CRY002: …״×״§״­ ״×״´״± ״«״§״¨״× ===
+    // === CRY002: مفتاح تشفير ثابت ===
     rules_.push_back({
-        "CRY002", "…״×״§״­ ״×״´״± ״«״§״¨״×", "Hardcoded Encryption Key",
+        "CRY002", "مفتاح تشفير ثابت", "Hardcoded Encryption Key",
         RuleCategory::Cryptography, Severity::Critical,
-        "…״×״§״­ ״×״´״± …״¶…‘† …״¨״§״´״±״©  ״§„ƒˆ״¯",
+        "مفتاح تشفير مضمّن مباشرة في الكود",
         "Encryption key hardcoded directly in source",
-        "״§״³״×״®״¯… …״×״÷״±״§״× ״§„״¨״¦״© ״£ˆ …״®״²† ״§„…״§״×״­",
+        "استخدم متغيرات البيئة أو مخزن المفاتيح",
         "Use environment variables or key vault",
-        {"…״×״§״­_״×״´״±.*=.*\"", "encryption_key.*=.*\"", "secret_key.*=.*\""}
+        {"مفتاح_تشفير.*=.*\"", "encryption_key.*=.*\"", "secret_key.*=.*\""}
     });
 
-    // === SEC001: ƒ״×„״© ״÷״± ״¢…†״© ===
+    // === SEC001: كتلة غير آمنة ===
     rules_.push_back({
-        "SEC001", "ƒ״×„״© ״÷״± ״¢…†״©", "Unsafe Block",
+        "SEC001", "كتلة غير آمنة", "Unsafe Block",
         RuleCategory::UnsafeBlock, Severity::Medium,
-        "״§״³״×״®״¯״§… ƒ״×„״© '״÷״±_״¢…†' ״×״×״¬״§ˆ״² ״­״µ ״§„״£…״§†",
+        "استخدام كتلة 'غير_آمن' تتجاوز فحص الأمان",
         "Use of 'unsafe' block bypasses safety checks",
-        "‚„‘„ ״§״³״×״®״¯״§… ״§„ƒ״×„ ״÷״± ״§„״¢…†״© ˆ״£״¶ ״×״¹„‚״§״× ״×ˆ״¶״­ ״§„״³״¨״¨",
+        "قلّل استخدام الكتل غير الآمنة وأضف تعليقات توضح السبب",
         "Minimize unsafe blocks and document the reason",
-        {"״÷״±_״¢…†", "unsafe"}
+        {"غير_آمن", "unsafe"}
     });
 
-    // === SEC002: ״×†״° ״£ˆ״§…״± †״¸״§… ===
+    // === SEC002: تنفيذ أوامر نظام ===
     rules_.push_back({
-        "SEC002", "״×†״° ״£ˆ״§…״± †״¸״§…", "System Command Execution",
+        "SEC002", "تنفيذ أوامر نظام", "System Command Execution",
         RuleCategory::Injection, Severity::Critical,
-        "״×†״° ״£ˆ״§…״± †״¸״§… ‚״¯ ״³…״­ ״¨״­‚† ״§„״£ˆ״§…״±",
+        "تنفيذ أوامر نظام قد يسمح بحقن الأوامر",
         "System command execution may allow command injection",
-        "״×״¬†״¨ ״×†״° ״£ˆ״§…״± ״§„†״¸״§…״ ״£ˆ ״§״³״×״®״¯… ‚״§״¦…״© ״¨״¶״§״¡ ״µ״§״±…״© „„״£ˆ״§…״± ״§„…״³…ˆ״­״©",
+        "تجنب تنفيذ أوامر النظام، أو استخدم قائمة بيضاء صارمة للأوامر المسموحة",
         "Avoid system commands, or use strict whitelist",
-        {"†‘״°\\(", "shell\\(", "system\\(", "exec\\(", "״£…״±_†״¸״§…"}
+        {"نفّذ\\(", "shell\\(", "system\\(", "exec\\(", "أمر_نظام"}
     });
 
-    // === SEC003: ״£״³״±״§״± ״«״§״¨״×״© ===
+    // === SEC003: أسرار ثابتة ===
     rules_.push_back({
-        "SEC003", "״£״³״±״§״± ״«״§״¨״×״©  ״§„ƒˆ״¯", "Hardcoded Secrets",
+        "SEC003", "أسرار ثابتة في الكود", "Hardcoded Secrets",
         RuleCategory::Secrets, Severity::Critical,
-        "ƒ„…״© …״±ˆ״± ״£ˆ …״×״§״­ API ״£ˆ ״±…״² ״³״± ״«״§״¨״×  ״§„ƒˆ״¯ ״§„…״µ״¯״±",
+        "كلمة مرور أو مفتاح API أو رمز سري ثابت في الكود المصدري",
         "Password, API key, or secret token hardcoded in source",
-        "״§״³״×״®״¯… …״×״÷״±״§״× ״§„״¨״¦״© ״£ˆ …„ .env ״£ˆ …״®״²† ״§„״£״³״±״§״±",
+        "استخدم متغيرات البيئة أو ملف .env أو مخزن الأسرار",
         "Use environment variables, .env file, or secret vault",
-        {"password.*=.*\"", "ƒ„…״©_…״±ˆ״±.*=.*\"", "api_key.*=.*\"",
-         "…״×״§״­_API.*=.*\"", "token.*=.*\"", "secret.*=.*\"",
-         "״±…״².*=.*\"", "״³״±.*=.*\""}
+        {"password.*=.*\"", "كلمة_مرور.*=.*\"", "api_key.*=.*\"",
+         "مفتاح_API.*=.*\"", "token.*=.*\"", "secret.*=.*\"",
+         "رمز.*=.*\"", "سر.*=.*\""}
     });
 
-    // === SEC004: ˆ״µˆ„ …„ ״¨״¯ˆ† ״×״­‚‚ ===
+    // === SEC004: وصول ملف بدون تحقق ===
     rules_.push_back({
-        "SEC004", "ˆ״µˆ„ …„ ״÷״± ״¢…†", "Unsafe File Access",
+        "SEC004", "وصول ملف غير آمن", "Unsafe File Access",
         RuleCategory::Injection, Severity::High,
-        "״×״­ …„ ״¨״§״³״×״®״¯״§… …״³״§״± …† …״¯״®„״§״× ״§„…״³״×״®״¯… ״¨״¯ˆ† ״×״·״¨״¹",
+        "فتح ملف باستخدام مسار من مدخلات المستخدم بدون تطبيع",
         "Opening file with user-provided path without normalization",
-        "״§״³״×״®״¯… ״×״·״¨״¹_…״³״§״±() ˆ״×״­‚‚_…״³״§״±() ‚״¨„ ״×״­ ״§„…„״§״×",
+        "استخدم تطبيع_مسار() وتحقق_مسار() قبل فتح الملفات",
         "Use normalize_path() and validate_path() before opening files",
-        {"״§״×״­_…„.*״§‚״±״£", "״§״×״­.*input", "open.*path"}
+        {"افتح_ملف.*اقرأ", "افتح.*input", "open.*path"}
     });
 
-    // === MEM001: ״×״³״±‘״¨ ״°״§ƒ״±״© …״­״×…„ ===
+    // === MEM001: تسرّب ذاكرة محتمل ===
     rules_.push_back({
-        "MEM001", "״×״³״±‘״¨ ״°״§ƒ״±״© …״­״×…„", "Potential Memory Leak",
+        "MEM001", "تسرّب ذاكرة محتمل", "Potential Memory Leak",
         RuleCategory::Memory, Severity::Medium,
-        "״×״®״µ״µ ״°״§ƒ״±״© ״¨״¯ˆ† ״×״­״±״± ˆ״§״¶״­",
+        "تخصيص ذاكرة بدون تحرير واضح",
         "Memory allocation without clear deallocation",
-        "״§״³״×״®״¯… RAII ״£ˆ ״§„…״₪״´״±״§״× ״§„״°ƒ״©",
+        "استخدم RAII أو المؤشرات الذكية",
         "Use RAII or smart pointers",
-        {"״®״µ‘״µ\\(", "alloc\\(", "״¬״¯״¯\\s"}
+        {"خصّص\\(", "alloc\\(", "جديد\\s"}
     });
 
-    // === MEM002: ״§״³״×״®״¯״§… ״¨״¹״¯ ״§„״×״­״±״± ===
+    // === MEM002: استخدام بعد التحرير ===
     rules_.push_back({
-        "MEM002", "״§״³״×״®״¯״§… ״¨״¹״¯ ״§„״×״­״±״±", "Use After Free",
+        "MEM002", "استخدام بعد التحرير", "Use After Free",
         RuleCategory::Memory, Severity::Critical,
-        "״§„ˆ״µˆ„ „״°״§ƒ״±״© ״¨״¹״¯ ״×״­״±״±‡״§",
+        "الوصول لذاكرة بعد تحريرها",
         "Accessing memory after freeing it",
-        "„״§ ״×״³״×״®״¯… …״₪״´״±״§״× ״¨״¹״¯ ״×״­״±״± ״§„״°״§ƒ״±״© ״§„״× ״×״´״± ״¥„‡״§",
+        "لا تستخدم مؤشرات بعد تحرير الذاكرة التي تشير إليها",
         "Don't use pointers after freeing the memory they point to",
-        {"״­״±‘״±.*\\n.*״§״³״×״®״¯…", "free.*use"}
+        {"حرّر.*\\n.*استخدم", "free.*use"}
     });
 
-    // === PERM001: ״µ„״§״­״§״× ˆ״§״³״¹״© ===
+    // === PERM001: صلاحيات واسعة ===
     rules_.push_back({
-        "PERM001", "״µ„״§״­״§״× ˆ״§״³״¹״©", "Overly Broad Permissions",
+        "PERM001", "صلاحيات واسعة", "Overly Broad Permissions",
         RuleCategory::Permissions, Severity::Medium,
-        "…†״­ ״µ„״§״­״§״× ״£ˆ״³״¹ …† ״§„„״§״²…",
+        "منح صلاحيات أوسع من اللازم",
         "Granting broader permissions than necessary",
-        "״§״×״¨״¹ …״¨״¯״£ ״§„״­״¯ ״§„״£״¯†‰ …† ״§„״µ„״§״­״§״×",
+        "اتبع مبدأ الحد الأدنى من الصلاحيات",
         "Follow principle of least privilege",
-        {"״§„ƒ„", "All", "777", "0777", "chmod.*777"}
+        {"الكل", "All", "777", "0777", "chmod.*777"}
     });
 
-    // === XSS001: ״­‚† ״§„†״µˆ״µ ״¹״¨״± ״§„…ˆ״§‚״¹ ===
+    // === XSS001: حقن النصوص عبر المواقع ===
     rules_.push_back({
-        "XSS001", "״­‚† ״¹״¨״± ״§„…ˆ״§‚״¹ (XSS)", "Cross-Site Scripting",
+        "XSS001", "حقن عبر المواقع (XSS)", "Cross-Site Scripting",
         RuleCategory::Injection, Severity::High,
-        "״¥״®״±״§״¬ ״¨״§†״§״× ״§„…״³״×״®״¯…  HTML ״¨״¯ˆ† ״×״±…״²",
+        "إخراج بيانات المستخدم في HTML بدون ترميز",
         "User data output in HTML without encoding",
-        "״§״³״×״®״¯… ״×״±…״²_HTML() ״£ˆ escapeHtml() ‚״¨„ ״¹״±״¶ ״¨״§†״§״× ״§„…״³״×״®״¯…",
+        "استخدم ترميز_HTML() أو escapeHtml() قبل عرض بيانات المستخدم",
         "Use html_encode() or escapeHtml() before rendering user data",
-        {"״§ƒ״×״¨_HTML.*\\+", "innerHTML.*=", "document\\.write", "render_template.*\\+"}
+        {"اكتب_HTML.*\\+", "innerHTML.*=", "document\\.write", "render_template.*\\+"}
     });
 
-    // === XSS002: ״×‚… ƒˆ״¯ ״¯†״§…ƒ ===
+    // === XSS002: تقييم كود ديناميكي ===
     rules_.push_back({
-        "XSS002", "״×‚… ƒˆ״¯ ״¯†״§…ƒ", "Dynamic Code Evaluation",
+        "XSS002", "تقييم كود ديناميكي", "Dynamic Code Evaluation",
         RuleCategory::Injection, Severity::Critical,
-        "״×‚… ƒˆ״¯ …† …״µ״¯״± ״®״§״±״¬ ג€” ״®״·״± ״­‚† ״´״¯״¯",
-        "Evaluating code from external source ג€” severe injection risk",
-        "״×״¬†״¨ eval/‚‘… ג€” ״§״³״×״®״¯… …״­„„ ״¢…† ״¨״¯„״§‹ …† ״°„ƒ",
-        "Avoid eval ג€” use a safe parser instead",
-        {"eval\\(", "‚‘…\\(", "Function\\(.*\\+"}
+        "تقييم كود من مصدر خارجي — خطر حقن شديد",
+        "Evaluating code from external source — severe injection risk",
+        "تجنب eval/قيّم — استخدم محلل آمن بدلاً من ذلك",
+        "Avoid eval — use a safe parser instead",
+        {"eval\\(", "قيّم\\(", "Function\\(.*\\+"}
     });
 
-    // === SSRF001: ״×״²ˆ״± ״·„״¨״§״× ״¬״§†״¨ ״§„״®״§״¯… ===
+    // === SSRF001: تزوير طلبات جانب الخادم ===
     rules_.push_back({
-        "SSRF001", "״×״²ˆ״± ״·„״¨״§״× ״§„״®״§״¯… (SSRF)", "Server-Side Request Forgery",
+        "SSRF001", "تزوير طلبات الخادم (SSRF)", "Server-Side Request Forgery",
         RuleCategory::Injection, Severity::High,
-        "״¥״±״³״§„ ״·„״¨ HTTP/״´״¨ƒ״© ״¨״§״³״×״®״¯״§… ״¹†ˆ״§† URL …† …״¯״®„״§״× ״§„…״³״×״®״¯…",
+        "إرسال طلب HTTP/شبكة باستخدام عنوان URL من مدخلات المستخدم",
         "Sending HTTP/network request using user-provided URL",
-        "״×״­‚‚ …† URL ˆ״§…†״¹ ״§„ˆ״µˆ„ „״¹†״§ˆ† ״¯״§״®„״© (127.0.0.1, 10.x, 192.168.x)",
+        "تحقق من URL وامنع الوصول لعناوين داخلية (127.0.0.1, 10.x, 192.168.x)",
         "Validate URL and block access to internal addresses",
-        {"fetch\\(.*\\+", "״¬„״¨\\(.*\\+", "״£״±״³„_״·„״¨\\(.*\\+", "http_get\\(.*\\+",
-         "״§״×״µ„\\(.*\\+", "connect\\(.*\\+"}
+        {"fetch\\(.*\\+", "جلب\\(.*\\+", "أرسل_طلب\\(.*\\+", "http_get\\(.*\\+",
+         "اتصل\\(.*\\+", "connect\\(.*\\+"}
     });
 
-    // === PATH001: ״§״®״×״±״§‚ ״§„…״³״§״± ===
+    // === PATH001: اختراق المسار ===
     rules_.push_back({
-        "PATH001", "״§״®״×״±״§‚ ״§„…״³״§״±", "Path Traversal",
+        "PATH001", "اختراق المسار", "Path Traversal",
         RuleCategory::Injection, Severity::High,
-        "״§״³״×״®״¯״§… …״³״§״± …„ …† ״§„…״³״×״®״¯… ‚״¯ ״³…״­ ״¨״§„ˆ״µˆ„ „…„״§״× ״®״§״±״¬ ״§„†״·״§‚",
+        "استخدام مسار ملف من المستخدم قد يسمح بالوصول لملفات خارج النطاق",
         "User-provided file path may allow access to files outside scope",
-        "״§״³״×״®״¯… ״×״·״¨״¹_…״³״§״±() ˆ…†״¹ '../' ˆ״×״­‚‚ …† ״§„…״³״§״± ״§„״£״³״§״³",
+        "استخدم تطبيع_مسار() ومنع '../' وتحقق من المسار الأساسي",
         "Use normalize_path(), block '../', and validate base path",
         {"\\.\\./", "\\.\\.\\\\", "../", "..\\\\"}
     });
 
-    // === DESER001: ״¥„״÷״§״¡ ״×״³„״³„ ״÷״± ״¢…† ===
+    // === DESER001: إلغاء تسلسل غير آمن ===
     rules_.push_back({
-        "DESER001", "״¥„״÷״§״¡ ״×״³„״³„ ״÷״± ״¢…†", "Unsafe Deserialization",
+        "DESER001", "إلغاء تسلسل غير آمن", "Unsafe Deserialization",
         RuleCategory::Injection, Severity::Critical,
-        "״¥„״÷״§״¡ ״×״³„״³„ ״¨״§†״§״× …† …״µ״¯״± ״÷״± …ˆ״«ˆ‚ ‚״¯ ״³…״­ ״¨״×†״° ƒˆ״¯",
+        "إلغاء تسلسل بيانات من مصدر غير موثوق قد يسمح بتنفيذ كود",
         "Deserializing untrusted data may allow code execution",
-        "״×״­‚‚ …† ״§„״¨״§†״§״× ‚״¨„ ״¥„״÷״§״¡ ״§„״×״³„״³„ ˆ״§״³״×״®״¯… ״µ״÷ …״­״¯ˆ״¯״© (JSON)",
+        "تحقق من البيانات قبل إلغاء التسلسل واستخدم صيغ محدودة (JSON)",
         "Validate data before deserialization and use limited formats (JSON)",
-        {"״­„‘„_ƒ״§״¦†\\(", "deserialize\\(", "unpickle\\(", "fromBytes\\(.*input"}
+        {"حلّل_كائن\\(", "deserialize\\(", "unpickle\\(", "fromBytes\\(.*input"}
     });
 
-    // === RACE001: ״­״§„״© ״§„״³״¨״§‚ ===
+    // === RACE001: حالة السباق ===
     rules_.push_back({
-        "RACE001", "״­״§„״© ״³״¨״§‚ …״­״×…„״©", "Potential Race Condition",
+        "RACE001", "حالة سباق محتملة", "Potential Race Condition",
         RuleCategory::Memory, Severity::Medium,
-        "ˆ״µˆ„ „…״×״÷״± …״´״×״±ƒ ״¨״¯ˆ† ‚„  ״³״§‚ …״×״¹״¯״¯ ״§„״®ˆ״·",
+        "وصول لمتغير مشترك بدون قفل في سياق متعدد الخيوط",
         "Shared variable access without lock in multi-threaded context",
-        "״§״³״×״®״¯… ‚„() ״£ˆ mutex „״­…״§״© ״§„ˆ״µˆ„ ״§„…״´״×״±ƒ",
+        "استخدم قفل() أو mutex لحماية الوصول المشترك",
         "Use lock/mutex to protect shared access",
-        {"…״´״×״±ƒ.*=", "shared.*=.*thread", "global.*״®״·", "״¨״¯ˆ†_‚„"}
+        {"مشترك.*=", "shared.*=.*thread", "global.*خيط", "بدون_قفل"}
     });
 }
 
 bool SecurityScanner::isRuleEnabled(const std::string& id) const {
-    // ״¥״°״§ ˆ״¬״¯״× ‚״§״¦…״© ״¨״¶״§״¡״ ״¬״¨ ״£† ƒˆ† ‡״§
+    // إذا وُجدت قائمة بيضاء، يجب أن يكون فيها
     if (!config_.enabledRules.empty()) {
         bool found = false;
         for (const auto& r : config_.enabledRules) {
@@ -388,7 +388,7 @@ bool SecurityScanner::isRuleEnabled(const std::string& id) const {
         }
         if (!found) return false;
     }
-    // ״§„‚״§״¦…״© ״§„״³ˆ״¯״§״¡
+    // القائمة السوداء
     for (const auto& r : config_.disabledRules) {
         if (r == id) return false;
     }
@@ -396,13 +396,13 @@ bool SecurityScanner::isRuleEnabled(const std::string& id) const {
 }
 
 bool SecurityScanner::shouldExcludeLine(const std::string& line) const {
-    // ״×״¹„‚״§״× ״§„״×״¬״§‡„: // noguard, // ״­״§״±״³:״×״¬״§‡„
+    // تعليقات التجاهل: // noguard, // حارس:تجاهل
     for (const auto& ex : config_.excludeLines) {
         if (line.find(ex) != std::string::npos) return true;
     }
     if (line.find("// noguard") != std::string::npos) return true;
     if (line.find("# noguard") != std::string::npos) return true;
-    if (line.find("״­״§״±״³:״×״¬״§‡„") != std::string::npos) return true;
+    if (line.find("حارس:تجاهل") != std::string::npos) return true;
     return false;
 }
 
@@ -419,7 +419,7 @@ ScanResult SecurityScanner::scanFile(const std::string& path) {
     if (!file.is_open()) {
         ScanResult r;
         r.findings.push_back({"ERR", Severity::Info, RuleCategory::Configuration,
-            "„״§ …ƒ† ״×״­ ״§„…„: " + path, path, 0, 0, "", "", "", 1.0, false, ""});
+            "لا يمكن فتح الملف: " + path, path, 0, 0, "", "", "", 1.0, false, ""});
         return r;
     }
     std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -433,7 +433,7 @@ ScanResult SecurityScanner::scanDirectory(const std::string& dir, bool recursive
     try {
         auto scan = [&](const fs::path& p) {
             std::string ext = p.extension().string();
-            if (ext != ".״µ" && ext != ".sad") return;
+            if (ext != ".ص" && ext != ".sad") return;
             for (const auto& pat : config_.excludePatterns) {
                 if (p.string().find(pat) != std::string::npos) return;
             }
@@ -454,7 +454,7 @@ ScanResult SecurityScanner::scanDirectory(const std::string& dir, bool recursive
         }
     } catch (const fs::filesystem_error& e) {
         total.findings.push_back({"ERR", Severity::Info, RuleCategory::Configuration,
-            std::string("״®״·״£  ‚״±״§״¡״© ״§„…״¬„״¯: ") + e.what(), dir, 0, 0, "", "", "", 1.0, false, ""});
+            std::string("خطأ في قراءة المجلد: ") + e.what(), dir, 0, 0, "", "", "", 1.0, false, ""});
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -468,7 +468,7 @@ ScanResult SecurityScanner::scanSource(const std::string& source, const std::str
 
     result.filesScanned = 1;
 
-    // ״¹״¯ ״§„״£״³״·״±
+    // عد الأسطر
     int lineCount = 1;
     for (char c : source) if (c == '\n') lineCount++;
     result.totalLines = lineCount;
@@ -481,14 +481,14 @@ ScanResult SecurityScanner::scanSource(const std::string& source, const std::str
         taintAnalysis(source, filename, result.findings);
     }
 
-    // ״×״±״×״¨ ״§„†״×״§״¦״¬ ״­״³״¨ ״§„״®״·ˆ״±״© ״«… ״§„״³״·״±
+    // ترتيب النتائج حسب الخطورة ثم السطر
     std::sort(result.findings.begin(), result.findings.end(),
         [](const Finding& a, const Finding& b) {
             if (a.severity != b.severity) return (int)a.severity < (int)b.severity;
             return a.line < b.line;
         });
 
-    // „״×״±״© ״­״³״¨ ״§„״­״¯ ״§„״£״¯†‰
+    // فلترة حسب الحد الأدنى
     if (config_.criticalOnly) {
         result.findings.erase(
             std::remove_if(result.findings.begin(), result.findings.end(),

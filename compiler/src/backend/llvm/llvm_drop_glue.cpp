@@ -1,24 +1,24 @@
-﻿// ״×״¹״·„ ״×״­״°״± Unicode „„״×״¹„‚״§״× ״§„״¹״±״¨״©
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
 
 /**
  * @file llvm_drop_glue.cpp
- * @brief ״×†״° †״¸״§… ״×ˆ„״¯ ƒˆ״¯ ״§„״×†״¸ (Drop Glue) / Drop Glue Code Generator
- * @author ״±‚ „״÷״© ״µ
- * @date †״§״± 2026
+ * @brief تنفيذ نظام توليد كود التنظيف (Drop Glue) / Drop Glue Code Generator
+ * @author فريق لغة ص
+ * @date يناير 2026
  * @version 1.0
- * @phase …-‡€03: ״×ˆ„״¯ ƒˆ״¯ Drop/Destructor ״¨״¯ˆ† GC
+ * @phase م-هـ03: توليد كود Drop/Destructor بدون GC
  * 
- *     ‡״°״§ ״§„…„ ˆ„‘״¯ ƒˆ״¯ LLVM IR „״×†״¸ ״§„…ˆ״§״±״¯ ״×„‚״§״¦״§‹ ״¹†״¯ †‡״§״© ״§„†״·״§‚״§״×.
- *      ˆ״¶״¹ ״§„…„ƒ״© ״§„״µ״§״±…״© (״¨„״§ GC)״ ƒ„ …ˆ״±״¯ ״¬״¨ ״£† ״­״±‘״± ״×„‚״§״¦״§‹.
+ *     هذا الملف يُولّد كود LLVM IR لتنظيف الموارد تلقائياً عند نهاية النطاقات.
+ *     في وضع الملكية الصارمة (بلا GC)، كل مورد يجب أن يُحرَّر تلقائياً.
  *     
- *     ״§„†…״· ״§„…״×״¨״¹ …״´״§״¨‡ „€ Rust drop glue:
- *     - „ƒ„ †ˆ״¹ ״­״×״§״¬ ״×†״¸״ ״×ˆ„‘״¯ ״¯״§„״© __sad_drop_<Type>
- *     - ״¹†״¯ †‡״§״© ״§„†״·״§‚״ ״×״³״×״¯״¹‰ drop „„…״×״÷״±״§״× ״¨״×״±״×״¨ LIFO
- *     - ״§„‚… ״§„…†‚ˆ„״© „״§ ״×†״¸‘ (״×… †‚„ ״§„…„ƒ״©)
- *     - ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© „״§ ״×״­״×״§״¬ ״×†״¸
+ *     النمط المُتبع مشابه لـ Rust drop glue:
+ *     - لكل نوع يحتاج تنظيف، تُولّد دالة __sad_drop_<Type>
+ *     - عند نهاية النطاق، تُستدعى drop للمتغيرات بترتيب LIFO
+ *     - القيم المنقولة لا تُنظَّف (تم نقل الملكية)
+ *     - الأنواع البدائية لا تحتاج تنظيف
  */
 
 #include "backend/llvm/llvm_drop_glue.h"
@@ -41,7 +41,7 @@ namespace Sad {
 namespace LLVM {
 
 // =============================================================================
-//                    ״§„״¨†״§״¡ ˆ״§„‡״¯… / Construction & Destruction
+//                    البناء والهدم / Construction & Destruction
 // =============================================================================
 
 LLVMDropGlue::LLVMDropGlue(llvm::LLVMContext& context, llvm::Module& module)
@@ -49,57 +49,57 @@ LLVMDropGlue::LLVMDropGlue(llvm::LLVMContext& context, llvm::Module& module)
     , module_(module)
     , nextScopeId_(0) {
     
-    // (AR) ״×״³״¬„ ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© ״§„״× „״§ ״×״­״×״§״¬ ״×†״¸
+    // (AR) تسجيل الأنواع البدائية التي لا تحتاج تنظيف
     // (EN) Register primitive types that don't need cleanup
     primitiveTypes_ = {
-        // ״£†ˆ״§״¹ ״µ״­״­״© / Integer types
-        "״¹8", "״¹16", "״¹32", "״¹64", "״¹128",
+        // أنواع صحيحة / Integer types
+        "ع8", "ع16", "ع32", "ع64", "ع128",
         "i8", "i16", "i32", "i64", "i128",
-        "״·8", "״·16", "״·32", "״·64",
+        "ط8", "ط16", "ط32", "ط64",
         "", "u16", "u32", "u64",
         
-        // ״£†ˆ״§״¹ ״¹״´״±״© / Float types
-        "״¹32", "״¹64",
+        // أنواع عشرية / Float types
+        "ع32ف", "ع64ف",
         "f32", "f64", "float", "double",
         
-        // ״£†ˆ״§״¹ ״£״®״±‰ / Other types
-        "…†״·‚", "bool",
-        "״­״±", "char",
-        "״±״§״÷", "void",
-        "…״₪״´״±_״®״§…", "raw_ptr",
+        // أنواع أخرى / Other types
+        "منطق", "bool",
+        "حرف", "char",
+        "فراغ", "void",
+        "مؤشر_خام", "raw_ptr",
         
-        // ״£†ˆ״§״¹ ״­״¬… / Size types
-        "״­״¬…", "usize", "isize",
+        // أنواع حجم / Size types
+        "حجم", "usize", "isize",
     };
 }
 
 LLVMDropGlue::~LLVMDropGlue() = default;
 
 // =============================================================================
-//                    ״×״³״¬„ ״§„״£†ˆ״§״¹ / Type Registration
+//                    تسجيل الأنواع / Type Registration
 // =============================================================================
 
 void LLVMDropGlue::registerDroppableType(const DropTypeInfo& info) {
     if (info.isPrimitive()) {
-        return;  // (AR) ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© „״§ ״×״³״¬‘„
+        return;  // (AR) الأنواع البدائية لا تُسجَّل
     }
     
     registeredTypes_[info.typeName] = info;
 }
 
 bool LLVMDropGlue::needsDrop(const std::string& typeName) const {
-    // (AR) ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© „״§ ״×״­״×״§״¬ drop
+    // (AR) الأنواع البدائية لا تحتاج drop
     if (isPrimitiveType(typeName)) {
         return false;
     }
     
-    // (AR) ״§„״×״­‚‚ …† ״§„״£†ˆ״§״¹ ״§„…״³״¬„״©
+    // (AR) التحقق من الأنواع المسجلة
     auto it = registeredTypes_.find(typeName);
     if (it != registeredTypes_.end()) {
         return it->second.needsDrop();
     }
     
-    // (AR) ״§״×״±״§״¶: ״§„״£†ˆ״§״¹ ״÷״± ״§„…״¹״±ˆ״© ‚״¯ ״×״­״×״§״¬ drop
+    // (AR) افتراضي: الأنواع غير المعروفة قد تحتاج drop
     return true;
 }
 
@@ -112,7 +112,7 @@ const DropTypeInfo* LLVMDropGlue::getDropInfo(const std::string& typeName) const
 }
 
 // =============================================================================
-//                    ״¥״¯״§״±״© ״§„†״·״§‚״§״× / Scope Management
+//                    إدارة النطاقات / Scope Management
 // =============================================================================
 
 size_t LLVMDropGlue::enterScope() {
@@ -123,21 +123,21 @@ size_t LLVMDropGlue::enterScope() {
 
 void LLVMDropGlue::registerVariable(const ScopedVariable& var) {
     if (scopeStack_.empty()) {
-        return;  // (AR) „״§ †״·״§‚ †״´״·
+        return;  // (AR) لا نطاق نشط
     }
     scopeStack_.back().variables.push_back(var);
 }
 
 void LLVMDropGlue::markMoved(const std::string& varName) {
-    // (AR) ״§„״¨״­״« …† ״§„״£״¹„‰ (״§„†״·״§‚ ״§„״¯״§״®„ ״£ˆ„״§‹)
+    // (AR) البحث من الأعلى (النطاق الداخلي أولاً)
     for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
         for (auto& var : it->variables) {
             if (var.name == varName) {
                 var.isMoved = true;
                 
-                // (AR) ״¥״°״§ ƒ״§† ‡†״§ƒ ״¹„… drop״ ״­״¯‘״«‡  IR
+                // (AR) إذا كان هناك علم drop، حدّثه في IR
                 // (EN) If there's a drop flag, update it in IR
-                // ״³״­״¯‘״«  emitScopeExit
+                // سيُحدَّث في emitScopeExit
                 return;
             }
         }
@@ -145,7 +145,7 @@ void LLVMDropGlue::markMoved(const std::string& varName) {
 }
 
 // =============================================================================
-//                    ״×ˆ„״¯ ƒˆ״¯ ״§„״®״±ˆ״¬ …† ״§„†״·״§‚
+//                    توليد كود الخروج من النطاق
 //                    Scope Exit Code Generation
 // =============================================================================
 
@@ -156,32 +156,31 @@ void LLVMDropGlue::emitScopeExit(llvm::IRBuilder<>& builder) {
     
     DropScope& scope = scopeStack_.back();
     
-    // (AR) ‡״¯… ״§„…״×״÷״±״§״× ״¨״×״±״×״¨ ״¹ƒ״³ (LIFO)
+    // (AR) هدم المتغيرات بترتيب عكسي (LIFO)
     // (EN) Drop variables in reverse order (LIFO)
-    // ?�?r?� ?.?x?�???� ?�???+?'?� �?" ?�?^?, ?.?x?�???� ?????�?_?.
     for (auto it = scope.variables.rbegin(); it != scope.variables.rend(); ++it) {
         ScopedVariable& var = *it;
         
-        // (AR) ״×״®״· ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״©
+        // (AR) تخطي الأنواع البدائية
         if (var.dropInfo.isPrimitive()) {
             continue;
         }
         
-        // (AR) ״×״®״· ״§„‚… ״§„…†‚ˆ„״© (״¨„״§ ״´״±״·)
+        // (AR) تخطي القيم المنقولة (بلا شرط)
         if (var.isMoved && var.dropFlag == nullptr) {
             continue;
         }
         
-        // (AR) ״¥״°״§ ƒ״§† ‡†״§ƒ ״¹„… drop״ ˆ„‘״¯ ״­״µ״§‹ ״´״±״·״§‹
+        // (AR) إذا كان هناك علم drop، ولّد فحصاً شرطياً
         // (EN) If drop flag exists, generate conditional check
         if (var.dropFlag != nullptr) {
-            // ״×״­…„ ״¹„… ״§„״×†״¸
+            // تحميل علم التنظيف
             llvm::Value* flagVal = builder.CreateLoad(
                 llvm::Type::getInt1Ty(context_), 
                 var.dropFlag,
                 var.name + ".dropflag");
             
-            // ״¥†״´״§״¡ ״±ˆ״¹: drop vs skip
+            // إنشاء فروع: drop vs skip
             llvm::Function* currentFn = builder.GetInsertBlock()->getParent();
             llvm::BasicBlock* dropBB = llvm::BasicBlock::Create(
                 context_, "drop." + var.name, currentFn);
@@ -190,25 +189,25 @@ void LLVMDropGlue::emitScopeExit(llvm::IRBuilder<>& builder) {
             
             builder.CreateCondBr(flagVal, dropBB, skipBB);
             
-            // ƒ״×„״© ״§„״×†״¸
+            // كتلة التنظيف
             builder.SetInsertPoint(dropBB);
             emitDropCall(builder, var);
             builder.CreateBr(skipBB);
             
-            // …״×״§״¨״¹״© ״¨״¹״¯ ״§„״×†״¸
+            // متابعة بعد التنظيف
             builder.SetInsertPoint(skipBB);
         } else {
-            // (AR) drop ״÷״± …״´״±ˆ״· (״§„…״×״÷״± „… †‚„)
+            // (AR) drop غير مشروط (المتغير لم يُنقل)
             emitDropCall(builder, var);
         }
     }
     
-    // (AR) ״¥״²״§„״© ״§„†״·״§‚ …† ״§„…ƒ״¯״³
+    // (AR) إزالة النطاق من المكدس
     scopeStack_.pop_back();
 }
 
 // =============================================================================
-//                    ״×ˆ„״¯ ״§״³״×״¯״¹״§״¡״§״× Drop
+//                    توليد استدعاءات Drop
 //                    Drop Call Generation
 // =============================================================================
 
@@ -220,11 +219,11 @@ void LLVMDropGlue::emitDropCall(llvm::IRBuilder<>& builder,
     
     switch (var.dropInfo.dropKind) {
         case DropKind::None:
-            // (AR) „״§ ״´״¡ „„״¹„
+            // (AR) لا شيء للفعل
             break;
             
         case DropKind::CustomDestructor: {
-            // (AR) ״§״³״×״¯״¹״§״¡ ״¯״§„״© ‡״¯…() ״§„…״®״µ״µ״©
+            // (AR) استدعاء دالة هدم() المخصصة
             // (EN) Call custom destructor function
             std::string dtorName = var.dropInfo.destructorName;
             if (dtorName.empty()) {
@@ -233,7 +232,7 @@ void LLVMDropGlue::emitDropCall(llvm::IRBuilder<>& builder,
             
             llvm::Function* dropFn = module_.getFunction(dtorName);
             if (!dropFn) {
-                // (AR) ״¥†״´״§״¡ ״¥״¹„״§† ״§„״¯״§„״© ״¥״°״§ „… ״×ƒ† …ˆ״¬ˆ״¯״©
+                // (AR) إنشاء إعلان الدالة إذا لم تكن موجودة
                 llvm::FunctionType* fnType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(context_),
                     {llvm::PointerType::getUnqual(context_)},
@@ -247,7 +246,7 @@ void LLVMDropGlue::emitDropCall(llvm::IRBuilder<>& builder,
         }
         
         case DropKind::Deallocate: {
-            // (AR) ״×״­״±״± ״§„״°״§ƒ״±״© ״§„…״®״µ״µ״©
+            // (AR) تحرير الذاكرة المُخصصة
             // (EN) Deallocate heap memory
             std::string deallocName = "__sad_dealloc";
             llvm::Function* deallocFn = module_.getFunction(deallocName);
@@ -260,7 +259,7 @@ void LLVMDropGlue::emitDropCall(llvm::IRBuilder<>& builder,
                     fnType, llvm::Function::ExternalLinkage, deallocName, module_);
             }
             
-            // (AR) ״×״­…„ ״§„…״₪״´״± ˆ״×״­״±״±‡
+            // (AR) تحميل المؤشر وتحريره
             llvm::Value* ptr = builder.CreateLoad(
                 llvm::PointerType::getUnqual(context_), var.alloca);
             builder.CreateCall(deallocFn, {ptr});
@@ -268,14 +267,14 @@ void LLVMDropGlue::emitDropCall(llvm::IRBuilder<>& builder,
         }
         
         case DropKind::StructFields: {
-            // (AR) ‡״¯… ״­‚ˆ„ ״§„״¨†״© ״¨״×״±״×״¨ ״¹ƒ״³
+            // (AR) هدم حقول البنية بترتيب عكسي
             // (EN) Drop struct fields in reverse order
             emitStructDrop(builder, var.alloca, var.dropInfo);
             break;
         }
         
         case DropKind::ArrayElements: {
-            // (AR) ‡״¯… ״¹†״§״µ״± ״§„…״µˆ״©
+            // (AR) هدم عناصر المصفوفة
             // (EN) Drop array elements
             emitArrayDrop(builder, var.alloca, var.dropInfo);
             break;
@@ -348,7 +347,7 @@ llvm::AllocaInst* LLVMDropGlue::emitDropFlag(
     llvm::IRBuilder<>& builder,
     const std::string& varName) {
     
-    // (AR) ״¥†״´״§״¡ ״¹„… drop: i1 …‡״£ ״¨€ true (״­״×״§״¬ drop)
+    // (AR) إنشاء علم drop: i1 مُهيأ بـ true (يحتاج drop)
     // (EN) Create drop flag: i1 initialized to true (needs drop)
     llvm::Function* currentFn = builder.GetInsertBlock()->getParent();
     llvm::IRBuilder<> entryBuilder(
@@ -359,11 +358,11 @@ llvm::AllocaInst* LLVMDropGlue::emitDropFlag(
         llvm::Type::getInt1Ty(context_), nullptr,
         varName + ".dropflag.addr");
     
-    // (AR) ״×‡״¦״© ״¨€ true (״­״×״§״¬ ״×†״¸ ״­״×‰ †‚„)
+    // (AR) تهيئة بـ true (يحتاج تنظيف حتى يُنقل)
     builder.CreateStore(
         llvm::ConstantInt::getTrue(context_), flag);
     
-    // (AR) ״×״³״¬„ ״§„״¹„…  ״§„…״×״÷״± ״§„…†״§״³״¨
+    // (AR) تسجيل العلم في المتغير المناسب
     for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
         for (auto& var : it->variables) {
             if (var.name == varName) {
@@ -377,7 +376,7 @@ llvm::AllocaInst* LLVMDropGlue::emitDropFlag(
 }
 
 // =============================================================================
-//                    ״×ˆ„״¯ ״¯ˆ״§„ Drop
+//                    توليد دوال Drop
 //                    Drop Function Generation
 // =============================================================================
 
@@ -397,13 +396,13 @@ void LLVMDropGlue::generateAllDropFunctions(
 llvm::Function* LLVMDropGlue::generateDropFunction(const DropTypeInfo& info) {
     std::string fnName = getDropFunctionName(info.typeName);
     
-    // (AR) ״§„״×״­‚‚ ״¥״°״§ ƒ״§†״× ״§„״¯״§„״© …ˆ״¬ˆ״¯״© ״¨״§„״¹„
+    // (AR) التحقق إذا كانت الدالة موجودة بالفعل
     llvm::Function* existing = module_.getFunction(fnName);
     if (existing && !existing->empty()) {
-        return existing;  // (AR) ״×… ״§„״×ˆ„״¯ …״³״¨‚״§‹
+        return existing;  // (AR) تم التوليد مسبقاً
     }
     
-    // (AR) ״¥†״´״§״¡ †ˆ״¹ ״§„״¯״§„״©: void(ptr)
+    // (AR) إنشاء نوع الدالة: void(ptr)
     llvm::FunctionType* fnType = llvm::FunctionType::get(
         llvm::Type::getVoidTy(context_),
         {llvm::PointerType::getUnqual(context_)},
@@ -412,11 +411,11 @@ llvm::Function* LLVMDropGlue::generateDropFunction(const DropTypeInfo& info) {
     llvm::Function* dropFn = llvm::Function::Create(
         fnType, llvm::Function::InternalLinkage, fnName, module_);
     
-    // (AR) ״×״³…״© ״§„…״¹״§…„
+    // (AR) تسمية المعامل
     llvm::Argument* selfArg = dropFn->arg_begin();
     selfArg->setName("self");
     
-    // (AR) ״¥†״´״§״¡ ƒ״×„״© ״§„״¯״®ˆ„
+    // (AR) إنشاء كتلة الدخول
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(
         context_, "entry", dropFn);
     
@@ -424,11 +423,11 @@ llvm::Function* LLVMDropGlue::generateDropFunction(const DropTypeInfo& info) {
     
     switch (info.dropKind) {
         case DropKind::CustomDestructor: {
-            // (AR) ״§״³״×״¯״¹״§״¡ ״§„…״¯…‘״± ״§„…״®״µ״µ
+            // (AR) استدعاء المُدمِّر المخصص
             if (!info.destructorName.empty()) {
                 llvm::Function* dtor = module_.getFunction(info.destructorName);
                 if (!dtor) {
-                    // (AR) ״¥״¹„״§† ״®״§״±״¬
+                    // (AR) إعلان خارجي
                     llvm::FunctionType* dtorType = llvm::FunctionType::get(
                         llvm::Type::getVoidTy(context_),
                         {llvm::PointerType::getUnqual(context_)},
@@ -443,19 +442,19 @@ llvm::Function* LLVMDropGlue::generateDropFunction(const DropTypeInfo& info) {
         }
         
         case DropKind::StructFields: {
-            // (AR) ‡״¯… ״­‚ˆ„ ״§„״¨†״© ״¨״×״±״×״¨ ״¹ƒ״³
+            // (AR) هدم حقول البنية بترتيب عكسي
             emitStructDrop(fnBuilder, selfArg, info);
             break;
         }
         
         case DropKind::ArrayElements: {
-            // (AR) ‡״¯… ״¹†״§״µ״± ״§„…״µˆ״©
+            // (AR) هدم عناصر المصفوفة
             emitArrayDrop(fnBuilder, selfArg, info);
             break;
         }
         
         case DropKind::Deallocate: {
-            // (AR) ״×״­״±״± ״§„״°״§ƒ״±״©
+            // (AR) تحرير الذاكرة
             std::string deallocName = "__sad_dealloc";
             llvm::Function* deallocFn = module_.getFunction(deallocName);
             if (!deallocFn) {
@@ -482,16 +481,15 @@ llvm::Function* LLVMDropGlue::generateDropFunction(const DropTypeInfo& info) {
 }
 
 // =============================================================================
-//                    ״×ˆ„״¯ ƒˆ״¯ Drop „„״£†ˆ״§״¹ ״§„…״±ƒ״¨״©
+//                    توليد كود Drop للأنواع المركبة
 //                    Composite Type Drop Code Generation
 // =============================================================================
 
 void LLVMDropGlue::emitStructDrop(llvm::IRBuilder<>& builder,
                                    llvm::Value* structPtr,
                                    const DropTypeInfo& info) {
-    // (AR) ‡״¯… ״§„״­‚ˆ„ ״¨״×״±״×״¨ ״¹ƒ״³
+    // (AR) هدم الحقول بترتيب عكسي
     // (EN) Drop fields in reverse order
-    // ?�?r?� ?-?,?, ?�???1?,?+ �?" ?�?^?, ?-?,?, ?????�?_?.
     
     const auto& fields = info.fieldTypes;
     
@@ -499,36 +497,36 @@ void LLVMDropGlue::emitStructDrop(llvm::IRBuilder<>& builder,
         const DropTypeInfo& field = fields[i];
         
         if (field.isPrimitive()) {
-            continue;  // (AR) ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© „״§ ״×״­״×״§״¬ drop
+            continue;  // (AR) الأنواع البدائية لا تحتاج drop
         }
         
-        // (AR) ״§„״­״µˆ„ ״¹„‰ ״§„†ˆ״¹ ״§„‡ƒ„ …† LLVM
+        // (AR) الحصول على النوع الهيكلي من LLVM
         llvm::Type* structType = nullptr;
         if (auto* ptrType = llvm::dyn_cast<llvm::PointerType>(structPtr->getType())) {
-            // (AR) „„…״₪״´״±״§״× ״÷״± ״§„״´״§״© (opaque pointers)
-            // †״­״×״§״¬ ״§„†ˆ״¹ ״§„‡ƒ„ …† ״§„…״¹„ˆ…״§״× ״§„…״³״¬„״©
+            // (AR) للمؤشرات غير الشفافة (opaque pointers)
+            // نحتاج النوع الهيكلي من المعلومات المسجلة
             structType = llvm::StructType::getTypeByName(context_, info.typeName);
         }
         
-        // (AR) ״­״³״§״¨ …״₪״´״± ״§„״­‚„
+        // (AR) حساب مؤشر الحقل
         llvm::Value* fieldPtr = nullptr;
         if (structType && structType->isStructTy()) {
             fieldPtr = builder.CreateStructGEP(structType, structPtr, i,
                                                "field." + std::to_string(i));
         } else {
-            // (AR) fallback: ״§״³״×״®״¯״§… GEP ״¹״§…
+            // (AR) fallback: استخدام GEP عام
             fieldPtr = builder.CreateConstGEP2_32(
                 llvm::Type::getInt8Ty(context_), structPtr, 0, i,
                 "field." + std::to_string(i));
         }
         
-        // (AR) ״§״³״×״¯״¹״§״¡ drop „„״­‚„
+        // (AR) استدعاء drop للحقل
         std::string fieldDropName = getDropFunctionName(field.typeName);
         llvm::Function* fieldDropFn = module_.getFunction(fieldDropName);
         if (fieldDropFn) {
             builder.CreateCall(fieldDropFn, {fieldPtr});
         } else if (field.dropKind == DropKind::Deallocate) {
-            // (AR) ״×״­״±״± …״¨״§״´״±
+            // (AR) تحرير مباشر
             std::string deallocName = "__sad_dealloc";
             llvm::Function* deallocFn = module_.getFunction(deallocName);
             if (deallocFn) {
@@ -544,25 +542,25 @@ void LLVMDropGlue::emitArrayDrop(llvm::IRBuilder<>& builder,
                                   llvm::Value* arrayPtr,
                                   const DropTypeInfo& info) {
     if (!info.elementType || info.elementType->isPrimitive()) {
-        return;  // (AR) ?1?+??�?� ?"?_??�???c �?" ?,? ?x?-?x??� drop
+        return;  // (AR) الأنواع البدائيّة لا تحتاج drop / (EN) primitives need no drop glue
     }
     
     if (info.arraySize == 0) {
-        return;  // (AR) …״µˆ״© ״§״±״÷״©
+        return;  // (AR) مصفوفة فارغة
     }
     
-    // (AR) ‡״¯… ״§„״¹†״§״µ״± …† ״§„״£״®״± ״¥„‰ ״§„״£ˆ„
+    // (AR) هدم العناصر من الأخير إلى الأول
     // (EN) Drop elements from last to first
     llvm::Type* elemType = llvm::Type::getInt8Ty(context_);  // placeholder
     
     for (int i = static_cast<int>(info.arraySize) - 1; i >= 0; --i) {
-        // (AR) ״­״³״§״¨ …״₪״´״± ״§„״¹†״µ״±
+        // (AR) حساب مؤشر العنصر
         llvm::Value* elemPtr = builder.CreateConstGEP2_32(
             llvm::ArrayType::get(elemType, info.arraySize),
             arrayPtr, 0, i,
             "elem." + std::to_string(i));
         
-        // (AR) ״§״³״×״¯״¹״§״¡ drop „„״¹†״µ״±
+        // (AR) استدعاء drop للعنصر
         std::string elemDropName = getDropFunctionName(info.elementType->typeName);
         llvm::Function* elemDropFn = module_.getFunction(elemDropName);
         if (elemDropFn) {
@@ -572,7 +570,7 @@ void LLVMDropGlue::emitArrayDrop(llvm::IRBuilder<>& builder,
 }
 
 // =============================================================================
-//                    ״¯ˆ״§„ …״³״§״¹״¯״© / Helper Functions
+//                    دوال مساعدة / Helper Functions
 // =============================================================================
 
 bool LLVMDropGlue::isPrimitiveType(const std::string& typeName) const {
@@ -580,7 +578,7 @@ bool LLVMDropGlue::isPrimitiveType(const std::string& typeName) const {
 }
 
 std::string LLVMDropGlue::getDropFunctionName(const std::string& typeName) const {
-    // (AR) ״×ˆ„״¯ ״§״³… ״¯״§„״© drop ״±״¯
+    // (AR) توليد اسم دالة drop فريد
     // (EN) Generate unique drop function name
     // __sad_drop_<TypeName>
     return "__sad_drop_" + typeName;

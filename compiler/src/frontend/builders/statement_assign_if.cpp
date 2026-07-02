@@ -31,45 +31,45 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ״§„״¨״­״« ״¹† ״§„…״×״÷״± (AssignExpr::name: std::string, line 249)
+                // (AR) البحث عن المتغير (AssignExpr::name: std::string, line 249)
                 // (EN) Lookup variable
                 VariableInfo *varInfo = b_.lookupVariable(assignment->name);
                 if (!varInfo)
                 {
-                    // (AR) …״×״÷״± ״÷״± …״¹״±
+                    // (AR) متغير غير معرف
                     // (EN) Undefined variable
                     b_.errors_.push_back("Undefined variable: " + assignment->name);
                     return;
                 }
 
-                // (AR) ״§„״×״­‚‚ …† ״¥…ƒ״§†״© ״§„״×״¹״¯„ (VariableInfo::isMutable, sir_builder.h:145)
+                // (AR) التحقق من إمكانية التعديل (VariableInfo::isMutable, sir_builder.h:145)
                 // (EN) Check if mutable
                 if (!varInfo->isMutable)
                 {
-                    // (AR) …״×״÷״± ״«״§״¨״× „״§ …ƒ† ״×״¹״¯„‡
+                    // (AR) متغير ثابت لا يمكن تعديله
                     // (EN) Constant variable cannot be modified
                     b_.errors_.push_back("Cannot assign to const variable: " + assignment->name);
                     return;
                 }
 
-                // (AR) ״¨†״§״¡ ‚…״© ״§„״×״¹״¨״± (AssignExpr::value: ExprPtr, line 250)
+                // (AR) بناء قيمة التعبير (AssignExpr::value: ExprPtr, line 250)
                 // (EN) Build value expression
                 auto valueResult = b_.buildExpression(assignment->value.get());
 
-                // (AR) ״×ˆ„״¯ ״×״¹„…״© STORE „״¥״³†״§״¯ ״§„‚…״©
+                // (AR) توليد تعليمة STORE لإسناد القيمة
                 // (EN) Generate STORE instruction to assign value
                 if (b_.currentBlock_ && !valueResult.registerName.empty())
                 {
                     SIRInstruction storeInst;
                     storeInst.opcode = SIROpcode::STORE;
 
-                    // (AR) ״§„…״¹״§…„ ״§„״£ˆ„: ״§„‚…״© ״§„…״±״§״¯ ״×״®״²†‡״§
+                    // (AR) المعامل الأول: القيمة المراد تخزينها
                     // (EN) First operand: value to store
                     SIROperand valueOp;
                     if (valueResult.isConstant && valueResult.type == SadTypeKind::Function)
                     {
-                        // (AR) ״¥״¹״§״¯״© ״×״¹† „״§…״¯״§ „…״×״÷״±: ״§״³״×״®״¯… SIROperand::Function
-                        //      ״¨״¯„״§‹ …† CONSTANT „״£† resolveOperand ״¯״¹… FUNCTION …״¨״§״´״±״©
+                        // (AR) إعادة تعيين لامدا لمتغير: استخدم SIROperand::Function
+                        //      بدلاً من CONSTANT لأن resolveOperand يدعم FUNCTION مباشرة
                         // (EN) Lambda reassignment: use SIROperand::Function
                         //      instead of CONSTANT since resolveOperand handles FUNCTION directly
                         valueOp = SIROperand::Function(valueResult.constantValue);
@@ -102,11 +102,11 @@ namespace Sad
                             }
                         }
                         // ================================================================
-                        // (AR) [Fix #49] …״¹״§„״¬ Boolean ג€” ״¨״¯ˆ† ‡״°״§״ ״µ״­״­/״®״·״£ ״®״²†״§† ״¯״§״¦…״§‹ ƒ€ false
-                        //      „״£† intValue ״¨‚‰ 0 (״§„״§״×״±״§״¶) ˆ„״§ ״¹‘† …† constantValue
-                        //      constantValue ‡ "true" ״£ˆ "false" (…† b_.buildLiteral)
-                        //      resolveOperand ״³״×״®״¯… intValue != 0 „״×״­״¯״¯ i1 true/false
-                        // (EN) [Fix #49] Boolean handler ג€” without this, true/false always stored as false
+                        // (AR) [Fix #49] معالج Boolean — بدون هذا، صحيح/خطأ يُخزنان دائماً كـ false
+                        //      لأن intValue يبقى 0 (الافتراضي) ولا يُعيّن من constantValue
+                        //      constantValue هي "true" أو "false" (من b_.buildLiteral)
+                        //      resolveOperand يستخدم intValue != 0 لتحديد i1 true/false
+                        // (EN) [Fix #49] Boolean handler — without this, true/false always stored as false
                         //      because intValue stays 0 (default) and is not set from constantValue
                         //      resolveOperand uses intValue != 0 to determine i1 true/false
                         // ================================================================
@@ -114,8 +114,8 @@ namespace Sad
                         {
                             valueOp.intValue = (valueResult.constantValue == "true") ? 1 : 0;
                         }
-                        // (AR) [Fix #47] „״§״´״¡/null ג€” ״¹״¯״¯ ״µ״­״­ ״¨‚…״© 0 (״×…״«„ …ˆ״­״¯)
-                        // (EN) [Fix #47] null ג€” integer with value 0 (unified representation)
+                        // (AR) [Fix #47] لاشيء/null — عدد صحيح بقيمة 0 (تمثيل موحد)
+                        // (EN) [Fix #47] null — integer with value 0 (unified representation)
                         else if (valueResult.type == SadTypeKind::Pointer)
                         {
                             valueOp.intValue = 0;
@@ -145,7 +145,7 @@ namespace Sad
                     }
                     storeInst.operands.push_back(valueOp);
 
-                    // (AR) ״§„…״¹״§…„ ״§„״«״§†: ״§„…״₪״´״± (alloca) „„…״×״÷״±
+                    // (AR) المعامل الثاني: المؤشر (alloca) للمتغير
                     // (EN) Second operand: variable pointer (alloca)
                     SIROperand ptrOp;
                     ptrOp.type = SIROperandType::REGISTER;
@@ -156,13 +156,13 @@ namespace Sad
                     b_.currentBlock_->instructions.push_back(storeInst);
 
                     // ================================================================
-                    // (AR) [Fix #51] ״¥״°״§ ƒ״§† ״§„…״×״÷״± …„״×‚״·״§‹  ״¥״÷„״§‚ ג€” ״£״µ״¯״± ENV_STORE
-                    //      „ƒ״×״§״¨״© ״§„‚…״© ״§„״¬״¯״¯״© ״¥„‰ …״µˆ״© env[captureIndex]
-                    //      †״³״×״®״¯… †״³ valueOp (״§„‚…״© ״§„…״³†״¯״©) …״¨״§״´״±״© ג€” „״§ ״­״§״¬״© „€ LOAD
-                    //      „״£† ״§„‚…״© …״×״§״­״© ״¨״§„״¹„  registerName ״£ˆ ƒ״«״§״¨״×
-                    // (EN) [Fix #51] If variable is captured in closure ג€” emit ENV_STORE
+                    // (AR) [Fix #51] إذا كان المتغير ملتقطاً في إغلاق — أصدر ENV_STORE
+                    //      لكتابة القيمة الجديدة إلى مصفوفة env[captureIndex]
+                    //      نستخدم نفس valueOp (القيمة المُسندة) مباشرة — لا حاجة لـ LOAD
+                    //      لأن القيمة متاحة بالفعل في registerName أو كثابت
+                    // (EN) [Fix #51] If variable is captured in closure — emit ENV_STORE
                     //      to write new value to env[captureIndex]
-                    //      Use valueOp directly ג€” no need for LOAD since value is already available
+                    //      Use valueOp directly — no need for LOAD since value is already available
                     // ================================================================
                     if (varInfo->isCaptured && varInfo->captureIndex >= 0)
                     {
@@ -176,16 +176,16 @@ namespace Sad
                     }
 
                     // ================================================================
-                    // (AR) [Fix #52] ״×״­״¯״« †ˆ״¹ ״§„…״×״÷״± ״¹†״¯ ״¥״¹״§״¯״© ״§„״¥״³†״§״¯ ״¨†ˆ״¹ …״®״×„:
-                    //      „״÷״© ״µ ״¯†״§…ƒ״© ג€” …ƒ† ״¥״¹״§״¯״© ״¥״³†״§״¯ …״×״÷״± ״¨†ˆ״¹ ״¢״®״±:
-                    //      …״×״÷״± ״³ = „״§״´״¡  ג†’  †ˆ״¹: Integer/Pointer
-                    //      ״³ = 42           ג†’  †ˆ״¹: Integer
-                    //      ״³ = "†״µ"         ג†’  †ˆ״¹: **״¬״¨ ״£† ״µ״¨״­ String**
-                    //      ״¨״¯ˆ† ‡״°״§: varInfo->type ״¨‚‰ Integer״ ˆ״§„״·״¨״§״¹״© ״×״·״¨״¹ ״¹†ˆ״§† ״§„…״₪״´״±
-                    //      ƒ״±‚… ״¨״¯„״§‹ …† …״­״×ˆ‰ ״§„†״µ.
-                    //      ‡״°״§ ״§„״×״­״¯״« ״¨„‘״÷ b_.buildExpression ˆ b_.emitBuiltinPrint ״¨״§„†ˆ״¹ ״§„״µ״­״­.
+                    // (AR) [Fix #52] تحديث نوع المتغير عند إعادة الإسناد بنوع مختلف:
+                    //      لغة ص ديناميكية — يمكن إعادة إسناد متغير بنوع آخر:
+                    //      متغير س = لاشيء  →  نوع: Integer/Pointer
+                    //      س = 42           →  نوع: Integer
+                    //      س = "نص"         →  نوع: **يجب أن يصبح String**
+                    //      بدون هذا: varInfo->type يبقى Integer، والطباعة تطبع عنوان المؤشر
+                    //      كرقم بدلاً من محتوى النص.
+                    //      هذا التحديث يُبلّغ b_.buildExpression و b_.emitBuiltinPrint بالنوع الصحيح.
                     // (EN) [Fix #52] Update variable type on cross-type reassignment:
-                    //      Sad is dynamically typed ג€” variables can be reassigned to different types.
+                    //      Sad is dynamically typed — variables can be reassigned to different types.
                     //      Without this: varInfo->type stays Integer, print outputs pointer address
                     //      as number instead of string content.
                     // ================================================================
@@ -197,30 +197,30 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† ״¹†״¯ ״¥״¹״§״¯״© ״§„״×״¹† ״¨€ ״¬״¯״¯()
-                //      …״«״§„: _†״¸״§… = ״¬״¯״¯ †״¸״§…_…„״§״×() ג† ״¬״¨ ״±״¨״· _†״¸״§… ״¨״§„״µ† †״¸״§…_…„״§״×
-                //      ״¨״¯ˆ† ‡״°״§״ ״§״³״×״¯״¹״§״¡״§״× _†״¸״§….‡״¦() ״×ˆ„‘״¯ ".‡״¦" ״¨״¯„״§‹ …† "†״¸״§…_…„״§״×.‡״¦"
+                // (AR) تتبع نوع الصنف عند إعادة التعيين بـ جديد()
+                //      مثال: _نظام = جديد نظام_ملفات() ← يجب ربط _نظام بالصنف نظام_ملفات
+                //      بدون هذا، استدعاءات _نظام.هيئ() تولّد ".هيئ" بدلاً من "نظام_ملفات.هيئ"
                 // (EN) Track class type on reassignment with new()
-                //      e.g., _†״¸״§… = ״¬״¯״¯ †״¸״§…_…„״§״×() ג†’ must associate _†״¸״§… with †״¸״§…_…„״§״×
-                //      Without this, _†״¸״§….‡״¦() generates ".‡״¦" instead of "†״¸״§…_…„״§״×.‡״¦"
+                //      e.g., _نظام = جديد نظام_ملفات() → must associate _نظام with نظام_ملفات
+                //      Without this, _نظام.هيئ() generates ".هيئ" instead of "نظام_ملفات.هيئ"
                 if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(assignment->value.get()))
                 {
                     b_.classInstanceTypes_[assignment->name] = newExpr->className;
                 }
 
-                // (AR) [†״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯] „… †״¹״¯ †״³״¬‘„ b_.lambdaAliases_ ״¹†״¯ ״¥״¹״§״¯״© ״§„״×״¹†
-                //      ״¬…״¹ ״§״³״×״¯״¹״§״¡״§״× ״§„„״§…״¯״§ ״×…״± ״¹״¨״± CLOSURE_CALL
+                // (AR) [نظام الإغلاقات الجديد] لم نعد نُسجّل b_.lambdaAliases_ عند إعادة التعيين
+                //      جميع استدعاءات اللامدا تمر عبر CLOSURE_CALL
                 // (EN) [New closure system] No longer update b_.lambdaAliases_ on reassignment
                 //      All lambda calls go through CLOSURE_CALL
             }
 
             // ============================================================================
-            // buildLocalVariable - ״¨†״§״¡ ״×״µ״±״­ …״×״÷״± …״­„
+            // buildLocalVariable - بناء تصريح متغير محلي
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:433
-            // ״§„״×ˆ‚״¹ / Signature: void buildLocalVariable(AST::VarDeclStmt* varDecl);
+            // مصدر التعريف / Source: sir_builder.h:433
+            // التوقيع / Signature: void buildLocalVariable(AST::VarDeclStmt* varDecl);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - varDecl: AST::VarDeclStmt* (statements.h:74)
             //
             // VarDeclStmt Members (statements.h:74-100):
@@ -242,15 +242,15 @@ namespace Sad
 #endif
 
                 // ================================================================
-                // (AR) ״×״®״· ״§„״«ˆ״§״¨״× ״§„״¹״§…״© ״§„״× „״¯‡״§ ‚…״© ״£ˆ„״© ״­״±״©:
-                //      ״§„…״×״÷״± …״³״¬‘„ …״³״¨‚״§‹ ƒ…״×״÷״± ״¹״§… ״«״§״¨״×  ״§„…״±״­„״© 1.5 …״¹ ‚…״© ״£ˆ„״©.
-                //      b_.emitGlobalVariables †״´״¦ `@name = internal constant i64 42`.
-                //      „״§ †״­״×״§״¬ ALLOC ״£ˆ STORE ג€” ״§„‚…״© …ˆ״¬ˆ״¯״©  ״§„…״×״÷״± ״§„״¹״§….
-                //      ״¨״¯ˆ† ‡״°״§: STORE ״¥„‰ constant = ACCESS_VIOLATION/crash.
+                // (AR) تخطي الثوابت العامة التي لديها قيمة أولية حرفية:
+                //      المتغير مسجّل مسبقاً كمتغير عام ثابت في المرحلة 1.5 مع قيمة أولية.
+                //      b_.emitGlobalVariables ينشئ `@name = internal constant i64 42`.
+                //      لا نحتاج ALLOC أو STORE — القيمة موجودة في المتغير العام.
+                //      بدون هذا: STORE إلى constant = ACCESS_VIOLATION/crash.
                 // (EN) Skip const globals that already have a literal initializer:
                 //      The variable is pre-registered as a constant global in Phase 1.5 with initialValue.
                 //      b_.emitGlobalVariables creates `@name = internal constant i64 42`.
-                //      No ALLOC or STORE needed ג€” value is already in the global.
+                //      No ALLOC or STORE needed — value is already in the global.
                 //      Without this: STORE to constant = ACCESS_VIOLATION/crash.
                 // ================================================================
                 if (b_.module_ && varDecl->isConst)
@@ -258,13 +258,13 @@ namespace Sad
                     auto sirGlobal = b_.module_->getGlobalVariable(varDecl->name);
                     if (sirGlobal && sirGlobal->isConstant && !sirGlobal->initialValue.empty())
                     {
-                        // (AR) ״§„״«״§״¨״× ״§„״¹״§… …‡״£ ״¨״§„״¹„ ג€” „״§ ״­״§״¬״© „ƒˆ״¯ ״¥״¶״§
-                        // (EN) Const global already initialized ג€” no code needed
+                        // (AR) الثابت العام مُهيأ بالفعل — لا حاجة لكود إضافي
+                        // (EN) Const global already initialized — no code needed
                         return;
                     }
                 }
 
-                // (AR) ״×״­ˆ„ ״§„†ˆ״¹ (VarDeclStmt::type: Types::SadTypeKind, line 77)
+                // (AR) تحويل النوع (VarDeclStmt::type: Types::SadTypeKind, line 77)
                 // (EN) Convert type
                 SadTypeKind varType = b_.astTypeToSIRType(varDecl->type);
                 bool needsTypeInference = (varDecl->type == Types::SadTypeKind::Unknown);
@@ -284,7 +284,7 @@ namespace Sad
                             varType = b_.astTypeToSIRType(opt->getInnerType()->getKind());
                 }
 
-                // (AR) ״¥†״´״§״¡ …״¹„ˆ…״§״× ״§„…״×״÷״± (sir_builder.h:139 - VariableInfo)
+                // (AR) إنشاء معلومات المتغير (sir_builder.h:139 - VariableInfo)
                 // (EN) Create variable info
                 VariableInfo varInfo;
                 varInfo.name = varDecl->name; // line 76
@@ -294,7 +294,7 @@ namespace Sad
                 varInfo.isMutable = !varDecl->isConst; // line 79
                 varInfo.scopeLevel = b_.currentScopeLevel_;
 
-                // (AR) …״¹״§„״¬״© ״§„‚…״© ״§„״£ˆ„״© (VarDeclStmt::initializer: ExprPtr, line 78)
+                // (AR) معالجة القيمة الأولية (VarDeclStmt::initializer: ExprPtr, line 78)
                 // (EN) Handle initializer - process first for type inference
                 BuildResult initResult;
                 bool hasInitializer = varDecl->initializer && b_.currentBlock_;
@@ -313,7 +313,7 @@ namespace Sad
                               << " constVal='" << initResult.constantValue << "'" << std::endl;
 #endif
 
-                    // (AR) ״§״³״×†״×״§״¬ ״§„†ˆ״¹ …† ״§„״×״¹״¨״± ״¥״°״§ ƒ״§† ״§„†ˆ״¹ ״÷״± …״¹״±ˆ
+                    // (AR) استنتاج النوع من التعبير إذا كان النوع غير معروف
                     // (EN) Infer type from expression if type is unknown
                     if (needsTypeInference)
                     {
@@ -321,26 +321,26 @@ namespace Sad
                         varInfo.type = varType;
 
                         // ================================================================
-                        // (AR) [Fix #44] ״×״­״¯״« ״§„…״×״÷״± ״§„״¹״§…  SIRModule ״¹†״¯…״§ ״×״÷״± ״§„†ˆ״¹:
-                        //      Phase 1.5 ״×״³״¬‘„ ״§„…״×״÷״±״§״× ״§„״¹״§…״© …״¨ƒ״±״§‹ ‚״¨„ ״×†״° b_.buildExpression.
-                        //      ״¥״°״§ ƒ״§†״× ״§„‚…״© ״§„״£ˆ„״© ״×״¹״¨״±״§‹ …״¹‚״¯״§‹ (BinaryExpr, CallExpr...)
-                        //      ‚״¯ ״®״·״¦ Phase 1.5  ״§״³״×†״×״§״¬ ״§„†ˆ״¹ (…״«„״§‹: Integer ״¨״¯„״§‹ …† Float).
-                        //      ‡†״§  Phase 2/3״ ״¨״¹״¯ b_.buildExpression ״§„״¹„״ „״¯†״§ ״§„†ˆ״¹ ״§„״¯‚‚.
-                        //      †״­״¯‘״« SIRGlobalVariable ˆ״§„†״·״§‚ „״×״·״§״¨‚״§ …״¹ ״§„†ˆ״¹ ״§„״­‚‚.
-                        //      ״¨״¯ˆ† ‡״°״§: …״×״÷״± ״¹״´״± ״®״²†  alloca i64 ג†’ fptosi ג†’ ‚״·״¹ ״¹״´״±!
+                        // (AR) [Fix #44] تحديث المتغير العام في SIRModule عندما يتغير النوع:
+                        //      Phase 1.5 تُسجّل المتغيرات العامة مبكراً قبل تنفيذ b_.buildExpression.
+                        //      إذا كانت القيمة الأولية تعبيراً معقداً (BinaryExpr, CallExpr...)
+                        //      قد يُخطئ Phase 1.5 في استنتاج النوع (مثلاً: Integer بدلاً من Float).
+                        //      هنا في Phase 2/3، بعد b_.buildExpression الفعلي، لدينا النوع الدقيق.
+                        //      نُحدّث SIRGlobalVariable والنطاق ليتطابقا مع النوع الحقيقي.
+                        //      بدون هذا: متغير عشري يُخزن في alloca i64 → fptosi → قطع عشري!
                         //
-                        //      …״«״§„: …״×״÷״± …״¬ = ״¹1 + ״¹2 ״­״« ״¹1=3.14, ״¹2=2.71
-                        //      Phase 1.5 ״£†״´״£ SIRGlobalVariable(…״¬, Integer) [‚״¨„ ״§„״¥״µ„״§״­]
-                        //      ״§„״¢† ״¨״¹״¯ b_.inferExprType: SIRGlobalVariable(…״¬, Float)
-                        //      …״¹ ‡״°״§ ״§„״£…״§† ״§„״¥״¶״§: ״­״×‰ „ˆ ״£״®״·״£ b_.inferExprType״
-                        //      b_.buildExpression ״¹״·†״§ ״§„†ˆ״¹ ״§„״¯‚‚ ˆ†״­״¯‘״« ‡†״§.
+                        //      مثال: متغير مج = ع1 + ع2 حيث ع1=3.14, ع2=2.71
+                        //      Phase 1.5 أنشأ SIRGlobalVariable(مج, Integer) [قبل الإصلاح]
+                        //      الآن بعد b_.inferExprType: SIRGlobalVariable(مج, Float)
+                        //      مع هذا الأمان الإضافي: حتى لو أخطأ b_.inferExprType،
+                        //      b_.buildExpression يعطينا النوع الدقيق ونُحدّث هنا.
                         // (EN) [Fix #44] Update SIRGlobalVariable when type changes:
                         //      Phase 1.5 pre-registers globals before b_.buildExpression runs.
                         //      For complex initializers (BinaryExpr, CallExpr...),
                         //      Phase 1.5 may infer wrong type (e.g. Integer instead of Float).
                         //      Here in Phase 2/3, after real b_.buildExpression, we have exact type.
                         //      Update SIRGlobalVariable and scope to match the real type.
-                        //      Without this: float stored in i64 alloca ג†’ fptosi ג†’ truncation!
+                        //      Without this: float stored in i64 alloca → fptosi → truncation!
                         // ================================================================
                         if (b_.module_)
                         {
@@ -350,7 +350,7 @@ namespace Sad
                                 sirGlobal->type = varType;
                             }
                         }
-                        // (AR) ״×״­״¯״« VariableInfo ״§„…״³״¬„ …״³״¨‚״§‹  ״§„†״·״§‚ ״§„״¹״§… ״£״¶״§‹
+                        // (AR) تحديث VariableInfo المُسجل مسبقاً في النطاق العام أيضاً
                         // (EN) Also update pre-registered VariableInfo in global scope
                         VariableInfo *existingVar = b_.lookupVariable(varDecl->name);
                         if (existingVar && existingVar->type != varType)
@@ -359,7 +359,7 @@ namespace Sad
                         }
                     }
 
-                    // (AR) †‚„ †ˆ״¹ ״¹†״µ״± ״§„…״µˆ״© ״¥„‰ VariableInfo „״¯״¹… foreach
+                    // (AR) نقل نوع عنصر المصفوفة إلى VariableInfo لدعم foreach
                     // (EN) Propagate array element type to VariableInfo for foreach support
                     if (initResult.elementType != SadTypeKind::Void)
                     {
@@ -370,28 +370,28 @@ namespace Sad
                         varInfo.elementClassName = initResult.elementClassName;
                     }
 
-                    // (AR) ״×״×״¨״¹ ״§״³… ״¯״§„״© ״§„„״§…״¯״§ ״§„…״±״×״¨״·״© („״×״­״¯״¯ †ˆ״¹ ״§„״¥״±״¬״§״¹  CLOSURE_CALL)
+                    // (AR) تتبع اسم دالة اللامدا المرتبطة (لتحديد نوع الإرجاع في CLOSURE_CALL)
                     // (EN) Track associated lambda function name (for CLOSURE_CALL return type)
                     if (!initResult.closureLambdaName.empty())
                     {
                         varInfo.closureLambdaName = initResult.closureLambdaName;
                     }
 
-                    // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ״¬״¯״¯ ClassName()
+                    // (AR) تتبع نوع الصنف إذا كان التعبير جديد ClassName()
                     // (EN) Track class type if expression is new ClassName()
                     if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(varDecl->initializer.get()))
                     {
                         b_.classInstanceTypes_[varDecl->name] = newExpr->className;
                     }
                     // ================================================================
-                    // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† …† ״£ …״µ״¯״± ״¢״®״± (״§״³״×״¯״¹״§״¡ ״¯״§„״©״ ״¹״§…„ …״­…‘„״ ״§„״®):
-                    //      ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ״§„…״¨״¯״¦ ״­…„ className (…״«„״§‹ …† b_.buildFunctionCall
-                    //      ״£ˆ b_.buildBinaryOp …״¹ operator overloading)״ †״³״¬‘„ ״§„…״×״÷״±
-                    //       b_.classInstanceTypes_ ״­״×‰ ״×…ƒ† ״§„…״×״±״¬… …† …״¹״±״© †ˆ״¹ ״§„״µ†
-                    //      ״¹†״¯ ״§„ˆ״µˆ„ „״­‚ˆ„ ״§„ƒ״§״¦† „״§״­‚״§‹.
-                    //      …״«״§„: …״×״÷״± ״¬ = ״£ + ״¨ ג†’ ״¥״°״§ ״¹״§…„ + ״±״¬״¹ ƒ״§״¦† †‚״·״© ג†’ ״¬.״³ ״¹…„
-                    //      …״«״§„: …״×״÷״± † = ״§״µ†״¹_†‚״·״©() ג†’ †.״³ ״¹…„
-                    //      ״¨״¯ˆ† ‡״°״§ ״§„״¥״µ„״§״­: ״§„ˆ״µˆ„ „״­‚ˆ„ ƒ״§״¦† …״±״¬״¹ …† ״¯״§„״© ״£ˆ ״¹״§…„ ״×״¹״·„
+                    // (AR) تتبع نوع الصنف من أي مصدر آخر (استدعاء دالة، عامل محمّل، الخ):
+                    //      إذا كان التعبير المبدئي يحمل className (مثلاً من b_.buildFunctionCall
+                    //      أو b_.buildBinaryOp مع operator overloading)، نُسجّل المتغير
+                    //      في b_.classInstanceTypes_ حتى يتمكن المترجم من معرفة نوع الصنف
+                    //      عند الوصول لحقول الكائن لاحقاً.
+                    //      مثال: متغير ج = أ + ب → إذا عامل + يُرجع كائن نقطة → ج.س يعمل
+                    //      مثال: متغير ن = اصنع_نقطة() → ن.س يعمل
+                    //      بدون هذا الإصلاح: الوصول لحقول كائن مُرجع من دالة أو عامل يتعطل
                     // (EN) Track class type from any other source (function call, operator, etc):
                     //      If the initializer expression has className (e.g. from b_.buildFunctionCall
                     //      or b_.buildBinaryOp with operator overloading), register the variable
@@ -405,7 +405,7 @@ namespace Sad
                     }
                 }
 
-                // (AR) ״×ˆ„״¯ ״×״¹„…״© ALLOC „״×״®״µ״µ ״§„״°״§ƒ״±״©
+                // (AR) توليد تعليمة ALLOC لتخصيص الذاكرة
                 // (EN) Generate ALLOC instruction for memory allocation
                 if (b_.currentBlock_)
                 {
@@ -415,17 +415,17 @@ namespace Sad
                     b_.currentBlock_->addInstruction(allocInst);
                 }
 
-                // (AR) ״×ˆ„״¯ ״×״¹„…״© STORE „״¥״³†״§״¯ ״§„‚…״© ״§„״£ˆ„״©
+                // (AR) توليد تعليمة STORE لإسناد القيمة الأولية
                 // (EN) Generate STORE instruction to assign initial value
                 if (hasInitializer)
                 {
-                    // (AR) ״×״­‚‚: ‡„ ״§„‚…״© ״«״§״¨״×״© …ƒ† ״§״³״×״®״¯״§…‡״§ …״¨״§״´״±״©״
+                    // (AR) تحقق: هل القيمة ثابتة يمكن استخدامها مباشرة؟
                     // (EN) Check: is the value a usable constant?
                     bool useConstant = initResult.isConstant && (initResult.type == SadTypeKind::String ||
                                                                  !initResult.constantValue.empty());
 
-                    // (AR) ״×״®״· STORE ״¥״°״§ „… ״×ƒ† ״§„‚…״© ״«״§״¨״×״© ˆ„״§  ״³״¬„ ״µ״§„״­
-                    //      ‡״°״§ ״­״¯״« ״¹†״¯ ״´„ b_.buildExpression (…״«„״§‹: …״×״÷״± ״÷״± …״¹״±‘)
+                    // (AR) تخطي STORE إذا لم تكن القيمة ثابتة ولا في سجل صالح
+                    //      هذا يحدث عند فشل b_.buildExpression (مثلاً: متغير غير معرّف)
                     // (EN) Skip STORE if value is neither a usable constant nor in a valid register.
                     //      This happens when b_.buildExpression fails (e.g., undefined variable).
                     if (!useConstant && initResult.registerName.empty())
@@ -438,11 +438,11 @@ namespace Sad
                     SIRInstruction storeInst;
                     storeInst.opcode = SIROpcode::STORE;
 
-                    // (AR) ״§„…״¹״§…„ ״§„״£ˆ„: ״§„‚…״© ״§„…״±״§״¯ ״×״®״²†‡״§
+                    // (AR) المعامل الأول: القيمة المراد تخزينها
                     // (EN) First operand: value to store
                     if (useConstant)
                     {
-                        // (AR) ״§„‚…״© ״«״§״¨״×״© - ״×״­ˆ„‡״§ „״«״§״¨״× SIR
+                        // (AR) القيمة ثابتة - تحويلها لثابت SIR
                         // (EN) Value is constant - convert to SIR constant
                         switch (initResult.type)
                         {
@@ -459,9 +459,9 @@ namespace Sad
                             storeInst.operands.push_back(SIROperand::ConstantString(initResult.constantValue));
                             break;
                         case SadTypeKind::Function:
-                            // (AR) ״×״®״²† …״₪״´״± ״¯״§„״© („״§…״¯״§ ״£ˆ ״¯״§„״© ״¹״§״¯״©)
-                            //      †״³״×״®״¯… SIROperand::Function „״×״¬†״¨ ״®״·״£ "Undefined register"
-                            //      „״£† ״§„„״§…״¯״§ „״§ ״×†״×״¬ ״×״¹„…״© SIR ״×״¹״±‘ ״³״¬„״§‹ ג€” ‚״· SIRFunction
+                            // (AR) تخزين مؤشر دالة (لامدا أو دالة عادية)
+                            //      نستخدم SIROperand::Function لتجنب خطأ "Undefined register"
+                            //      لأن اللامدا لا تُنتج تعليمة SIR تُعرّف سجلاً — فقط SIRFunction
                             // (EN) Store function pointer (lambda or regular function)
                             //      Use SIROperand::Function to avoid "Undefined register" error
                             //      since lambda doesn't emit a SIR instruction that defines a register
@@ -474,37 +474,37 @@ namespace Sad
                     }
                     else
                     {
-                        // (AR) ״§„‚…״©  ״³״¬„
+                        // (AR) القيمة في سجل
                         // (EN) Value is in register
                         storeInst.operands.push_back(SIROperand::Register(initResult.registerName, initResult.type));
                     }
 
-                    // (AR) ״§„…״¹״§…„ ״§„״«״§†: ״¹†ˆ״§† ״§„…״×״÷״±
+                    // (AR) المعامل الثاني: عنوان المتغير
                     // (EN) Second operand: variable address
                     storeInst.operands.push_back(SIROperand::Register(varInfo.registerName, varType));
 
                     b_.currentBlock_->addInstruction(storeInst);
                 }
 
-                // (AR) ״¥״¶״§״© ״§„…״×״÷״± „„†״·״§‚ (sir_builder.h:591 - b_.addVariable)
+                // (AR) إضافة المتغير للنطاق (sir_builder.h:591 - b_.addVariable)
                 // (EN) Add variable to scope
                 b_.addVariable(varInfo);
 
-                // (AR) [†״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯] „… †״¹״¯ †״³״¬‘„ b_.lambdaAliases_ ‡†״§
-                //      ״¬…״¹ ״§״³״×״¯״¹״§״¡״§״× ״§„„״§…״¯״§ ״×…״± ״¹״¨״± CLOSURE_CALL (״§„״®״·ˆ״© 3.5)
-                //      ״¨״¯„״§‹ …† ״§„״§״³״×״¯״¹״§״¡ ״§„…״¨״§״´״± ״¹״¨״± ״§„״§״³… ״§„…״³״×״¹״§״± (״§„״®״·ˆ״© 2.7)
+                // (AR) [نظام الإغلاقات الجديد] لم نعد نُسجّل b_.lambdaAliases_ هنا
+                //      جميع استدعاءات اللامدا تمر عبر CLOSURE_CALL (الخطوة 3.5)
+                //      بدلاً من الاستدعاء المباشر عبر الاسم المستعار (الخطوة 2.7)
                 // (EN) [New closure system] No longer register b_.lambdaAliases_ here
                 //      All lambda calls go through CLOSURE_CALL (Step 3.5)
                 //      instead of direct call via alias (Step 2.7)
             }
 
             // ============================================================================
-            // buildIfStatement - ״¨†״§״¡ ״¬…„״© if
+            // buildIfStatement - بناء جملة if
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:385
-            // ״§„״×ˆ‚״¹ / Signature: void buildIfStatement(AST::IfStmt* ifStmt);
+            // مصدر التعريف / Source: sir_builder.h:385
+            // التوقيع / Signature: void buildIfStatement(AST::IfStmt* ifStmt);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - ifStmt: AST::IfStmt* = Sad::AST::IfStmt* (sir_builder.h:385)
             //
             // IfStmt Members (statements.h:104-135):
@@ -512,10 +512,10 @@ namespace Sad
             // - thenBranch: StmtPtr (line 108)
             // - elseBranch: StmtPtr (line 109) - optional, can be nullptr
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - b_.currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - b_.buildExpression: sir_builder.h:432
             // - buildStatement: sir_builder.h:372
             // - b_.createBasicBlock: sir_builder.h:501
@@ -533,15 +533,15 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 1: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
+                // (AR) الخطوة 1: إنشاء الكتل الأساسية
                 // (EN) Step 1: Create basic blocks
-                // ״§„…״µ״¯״±: sir_builder.h:501 - b_.createBasicBlock()
-                // ״§„…״µ״¯״±: sir_builder.h:520 - b_.newLabel()
+                // المصدر: sir_builder.h:501 - b_.createBasicBlock()
+                // المصدر: sir_builder.h:520 - b_.newLabel()
                 // ========================================================================
                 std::string thenLabel = b_.newLabel("then");
                 std::string mergeLabel = b_.newLabel("merge");
 
-                // (AR) ƒ״×„״© else ‚״· ״¥״°״§ ƒ״§† ‡†״§ƒ ״±״¹ else
+                // (AR) كتلة else فقط إذا كان هناك فرع else
                 // (EN) Else block only if there's an else branch
                 std::string elseLabel = ifStmt->elseBranch ? b_.newLabel("else") : mergeLabel;
 
@@ -549,7 +549,7 @@ namespace Sad
                 auto elseBlock = ifStmt->elseBranch ? b_.createBasicBlock(elseLabel) : nullptr;
                 auto mergeBlock = b_.createBasicBlock(mergeLabel);
 
-                // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
+                // (AR) إضافة الكتل إلى الدالة الحالية
                 // (EN) Add blocks to current function
                 if (b_.currentFunction_)
                 {
@@ -565,9 +565,9 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 2: ״¨†״§״¡ ״§„״´״±״·
+                // (AR) الخطوة 2: بناء الشرط
                 // (EN) Step 2: Build condition expression
-                // ״§„…״µ״¯״±: IfStmt::condition (statements.h:107)
+                // المصدر: IfStmt::condition (statements.h:107)
                 // ========================================================================
                 auto condResult = b_.buildExpression(ifStmt->condition.get());
 
@@ -585,12 +585,12 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 2.5: ״×״­ˆ„ ״×„‚״§״¦ „€ __op_tobool__ ״¥״°״§ ƒ״§† ״§„״´״±״· ƒ״§״¦†״§‹
-                //      …״«״§„: ״¥״°״§ (ƒ״§״¦†) ג†’ ״¥״°״§ (__op_tobool__(ƒ״§״¦†))
-                //      ״×ˆ״§‚ …״¹: expression_evaluator_calls.cpp findOperator("…†״·‚")
+                // (AR) الخطوة 2.5: تحويل تلقائي لـ __op_tobool__ إذا كان الشرط كائناً
+                //      مثال: إذا (كائن) → إذا (__op_tobool__(كائن))
+                //      يتوافق مع: expression_evaluator_calls.cpp findOperator("منطقي")
                 // (EN) Step 2.5: Auto-convert __op_tobool__ if condition is an object
-                //      Example: if (object) ג†’ if (__op_tobool__(object))
-                //      Matches: interpreter's findOperator("…†״·‚")
+                //      Example: if (object) → if (__op_tobool__(object))
+                //      Matches: interpreter's findOperator("منطقي")
                 // ========================================================================
                 {
                     std::string condClassName = condResult.className;
@@ -602,7 +602,7 @@ namespace Sad
                     }
                     if (!condClassName.empty())
                     {
-                        // (AR) ״¨״­״«  ״³„״³„״© ״§„ˆ״±״§״«״© ״¹† __op_tobool__
+                        // (AR) بحث في سلسلة الوراثة عن __op_tobool__
                         // (EN) Search inheritance chain for __op_tobool__
                         std::string searchClass = condClassName;
                         std::string toboolName;
@@ -637,13 +637,13 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 3: ״×ˆ„״¯ ״×״¹„…״© ״§„‚״² ״§„״´״±״·
+                // (AR) الخطوة 3: توليد تعليمة القفز الشرطي
                 // (EN) Step 3: Generate conditional branch instruction
-                // ״§„…״µ״¯״±: sir_instruction.h:190-197 - SIRInstruction::BranchCond()
-                // ״§„…״µ״¯״±: sir_types.h:366-372 - SIROperand::Label()
+                // المصدر: sir_instruction.h:190-197 - SIRInstruction::BranchCond()
+                // المصدر: sir_types.h:366-372 - SIROperand::Label()
                 // ========================================================================
-                // (AR) ״¥״°״§ ƒ״§† ״§„״´״±״· ״«״§״¨״×״§‹ …†״·‚״§‹ (״µ״­״­/״®״·״£)״ †״³״×״®״¯… ConstantBool ״¨״¯„״§‹ …† Register
-                //      „״×״¬†״¨ ״×ˆ„״¯ ״³״¬„ ״÷״± …״¹״±‘  LLVM IR
+                // (AR) إذا كان الشرط ثابتاً منطقياً (صحيح/خطأ)، نستخدم ConstantBool بدلاً من Register
+                //      لتجنب توليد سجل غير معرّف في LLVM IR
                 // (EN) If condition is a boolean constant (true/false), use ConstantBool instead of Register
                 //      to avoid generating an undefined register in LLVM IR
                 SIROperand condOp;
@@ -673,9 +673,9 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 4: ״¨†״§״¡ ״±״¹ then
+                // (AR) الخطوة 4: بناء فرع then
                 // (EN) Step 4: Build then branch
-                // ״§„…״µ״¯״±: IfStmt::thenBranch (statements.h:108)
+                // المصدر: IfStmt::thenBranch (statements.h:108)
                 // ========================================================================
                 b_.currentBlock_ = thenBlock;
                 if (ifStmt->thenBranch)
@@ -683,9 +683,9 @@ namespace Sad
                     buildStatement(ifStmt->thenBranch.get());
                 }
 
-                // (AR) ‚״² ״÷״± ״´״±״· ״¥„‰ merge (sir_instruction.h:178-183)
+                // (AR) قفز غير شرطي إلى merge (sir_instruction.h:178-183)
                 // (EN) Unconditional jump to merge
-                // (AR) „״§ †״¶ ״§„‚״² ״¥״°״§ ƒ״§† ״§„״±״¹ ‚״¯ ״§†״×‡‰ ״¨€ RET ״£ˆ BR ״£ˆ BR_COND
+                // (AR) لا نضيف القفز إذا كان الفرع قد انتهى بـ RET أو BR أو BR_COND
                 // (EN) Don't add branch if the block already ends with RET or BR or BR_COND
                 SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
                 SIRInstruction brMergeInst = SIRInstruction::Branch(mergeLabelOp);
@@ -720,18 +720,18 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 5: ״¨†״§״¡ ״±״¹ else ״¥״°״§ ˆ״¬״¯
+                // (AR) الخطوة 5: بناء فرع else إذا وُجد
                 // (EN) Step 5: Build else branch if exists
-                // ״§„…״µ״¯״±: IfStmt::elseBranch (statements.h:109)
+                // المصدر: IfStmt::elseBranch (statements.h:109)
                 // ========================================================================
                 if (ifStmt->elseBranch && elseBlock)
                 {
                     b_.currentBlock_ = elseBlock;
                     buildStatement(ifStmt->elseBranch.get());
 
-                    // (AR) ‚״² ״÷״± ״´״±״· ״¥„‰ merge
+                    // (AR) قفز غير شرطي إلى merge
                     // (EN) Unconditional jump to merge
-                    // (AR) „״§ †״¶ ״§„‚״² ״¥״°״§ ƒ״§† ״§„״±״¹ ‚״¯ ״§†״×‡‰ ״¨€ RET ״£ˆ BR ״£ˆ BR_COND
+                    // (AR) لا نضيف القفز إذا كان الفرع قد انتهى بـ RET أو BR أو BR_COND
                     // (EN) Don't add branch if the block already ends with RET or BR or BR_COND
                     if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                     {
@@ -764,7 +764,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 6: ״§„״§״³״×…״±״§״± ״¨״¹״¯ if
+                // (AR) الخطوة 6: الاستمرار بعد if
                 // (EN) Step 6: Continue after if statement
                 // ========================================================================
                 b_.currentBlock_ = mergeBlock;
@@ -774,17 +774,17 @@ namespace Sad
             }
 
             // ============================================================================
-            // buildMatchStatement - ״¨†״§״¡ ״¬…„״© match (Pattern Matching)
+            // buildMatchStatement - بناء جملة match (Pattern Matching)
             // ============================================================================
-            // (AR) ״×״­ˆ„ ״¬…„״© match ״¥„‰ ״³„״³„״© …† BR_COND/BR ״¨״§״³״×״®״¯״§… SIR ״§„…ˆ״¬ˆ״¯
+            // (AR) تحويل جملة match إلى سلسلة من BR_COND/BR باستخدام SIR الموجود
             // (EN) Lower match statement to chain of BR_COND/BR using existing SIR
             //
-            // (AR) ״§„״§״³״×״±״§״×״¬״©:
-            // „ƒ„ case:
-            //   1. ƒ״×„״© ״§״®״×״¨״§״±: …‚״§״±†״© ״§„†…״· …״¹ ״§„‚…״©
-            //   2. ƒ״×„״© guard (״¥† ˆ״¬״¯): ״×‚… ״§„״´״±״· ״§„״¥״¶״§
-            //   3. ƒ״×„״© ״§„״¬״³…: ״×†״° ״§„ƒˆ״¯
-            //   4. ‚״² ״¥„‰ ƒ״×„״© ״§„†‡״§״©
+            // (AR) الاستراتيجية:
+            // لكل case:
+            //   1. كتلة اختبار: مقارنة النمط مع القيمة
+            //   2. كتلة guard (إن وجد): تقييم الشرط الإضافي
+            //   3. كتلة الجسم: تنفيذ الكود
+            //   4. قفز إلى كتلة النهاية
             //
             // (EN) Strategy:
             // For each case:

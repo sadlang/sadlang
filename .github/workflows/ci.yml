@@ -59,12 +59,14 @@ jobs:
         shell: bash
         run: |
           errors=0
+          # (AR) الأقواس ضروريّة: بدونها يقيّد -print0 آخرَ -name وحده فيفحص .hpp فقط
+          # (EN) Grouping is required: without it -print0 binds to the last -name only (.hpp)
           while IFS= read -r -d '' f; do
             if ! file "$f" | grep -qE 'UTF-8|ASCII'; then
               echo "❌ Non-UTF-8: $f"
               errors=$((errors + 1))
             fi
-          done < <(find shared/ interpreter/ stdlib/ compiler/ features/network/ -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -print0 2>/dev/null)
+          done < <(find shared/ interpreter/ stdlib/ compiler/ features/network/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print0 2>/dev/null)
           if [ $errors -gt 0 ]; then
             echo "::error::Found $errors files with non-UTF-8 encoding"
             exit 1

@@ -384,7 +384,7 @@ namespace Sad
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::THREAD_JOIN), thread_join_func);
 
-            // 16b. create_atomic ג€” ״¥†״´״§״¡ …״×״÷״± ״°״±
+            // 16b. create_atomic — إنشاء متغير ذري
             auto create_atomic_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
@@ -530,12 +530,12 @@ namespace Sad
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CHANNEL_SELECT), channel_select_func);
 
-            // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-            // (AR) ״¯ˆ״§„ ״§„״¨״±…״¬״© ״§„ƒ״§״¦†״© ״§„…״¨†״© / (EN) OOP Built-in Functions
-            // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) دوال البرمجة الكائنية المبنية / (EN) OOP Built-in Functions
+            // ═══════════════════════════════════════════════════════════════════
 
-            // ג”€ג”€ג”€ ‡ˆ_…״«„(ƒ״§״¦†״ "״§״³…_״µ†") ג€” instanceof check ג”€ג”€ג”€
-            // (AR) ״×״­‚‚ ‡„ ״§„ƒ״§״¦† …† †ˆ״¹ ״§„״µ† ״§„…״­״¯״¯ (״£ˆ ״£ ״µ† ״£״¨)
+            // ─── هو_مثيل(كائن، "اسم_صنف") — instanceof check ───
+            // (AR) يتحقق هل الكائن من نوع الصنف المحدد (أو أي صنف أب)
             // (EN) Checks if object is instance of specified class (or any parent class)
             auto instanceof_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
@@ -553,11 +553,11 @@ namespace Sad
                 bool result = obj->isInstanceOf(className);
                 return std::make_shared<Data::Value>(result ? 1 : 0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::IS_INSTANCE), instanceof_func); // ‡ˆ_…״«„
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::INSTANCE_OF), instanceof_func); // …״«„_…†
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::IS_INSTANCE), instanceof_func); // هو_مثيل
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::INSTANCE_OF), instanceof_func); // مثيل_من
 
-            // ג”€ג”€ג”€ †ˆ״¹_״§„ƒ״§״¦†(ƒ״§״¦†) ג€” get object class name ג”€ג”€ג”€
-            // (AR) ״±״¬״¹ ״§״³… ״µ† ״§„ƒ״§״¦† ƒ†״µ
+            // ─── نوع_الكائن(كائن) — get object class name ───
+            // (AR) يُرجع اسم صنف الكائن كنص
             // (EN) Returns the class name of an object as string
             auto get_class_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
@@ -566,7 +566,7 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::string(""));
                 if (!args[0]->isObject())
                 {
-                    // (AR) †״±״¬״¹ †ˆ״¹ ״§„‚…״© ״¥״°״§ „… ƒ† ƒ״§״¦†״§‹
+                    // (AR) نُرجع نوع القيمة إذا لم يكن كائناً
                     // (EN) Return value type if not an object
                     using VT = Types::SadTypeKind;
                     auto vt = args[0]->getType();
@@ -574,25 +574,25 @@ namespace Sad
                     switch (vt)
                     {
                     case VT::Integer:
-                        typeName = "״±‚…";
+                        typeName = "رقم";
                         break;
                     case VT::Float:
-                        typeName = "״¹״´״±";
+                        typeName = "عشري";
                         break;
                     case VT::Boolean:
-                        typeName = "…†״·‚";
+                        typeName = "منطقي";
                         break;
                     case VT::String:
-                        typeName = "†״µ";
+                        typeName = "نص";
                         break;
                     case VT::Array:
-                        typeName = "…״µˆ״©";
+                        typeName = "مصفوفة";
                         break;
                     case VT::Map:
-                        typeName = "‚״§…ˆ״³";
+                        typeName = "قاموس";
                         break;
                     default:
-                        typeName = "…״¬‡ˆ„";
+                        typeName = "مجهول";
                         break;
                     }
                     return std::make_shared<Data::Value>(typeName);
@@ -602,10 +602,10 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::string(""));
                 return std::make_shared<Data::Value>(obj->getClassName());
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::OBJECT_TYPE), get_class_func); // †ˆ״¹_״§„ƒ״§״¦†
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::OBJECT_TYPE), get_class_func); // نوع_الكائن
 
-            // ג”€ג”€ג”€ ״­‚ˆ„_״§„ƒ״§״¦†(ƒ״§״¦†) ג€” get object fields as map ג”€ג”€ג”€
-            // (AR) ״±״¬״¹ ‚״§…ˆ״³ ״¨״­‚ˆ„ ״§„ƒ״§״¦†
+            // ─── حقول_الكائن(كائن) — get object fields as map ───
+            // (AR) يُرجع قاموس بحقول الكائن
             // (EN) Returns a map of object fields
             auto get_fields_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
@@ -625,7 +625,7 @@ namespace Sad
                 }
                 return std::make_shared<Data::Value>(result);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::OBJECT_FIELDS), get_fields_func); // ״­‚ˆ„_״§„ƒ״§״¦†
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::OBJECT_FIELDS), get_fields_func); // حقول_الكائن
         }
 
     } // namespace Interpreter

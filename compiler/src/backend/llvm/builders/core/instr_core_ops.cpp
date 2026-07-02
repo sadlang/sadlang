@@ -1,7 +1,7 @@
 ﻿/*
- * (AR) …ˆ„״¯ ״×״¹„…״§״× LLVM ג€” ״§„״¬ˆ‡״±: ״­״³״§״¨ / ״«†״§״¦ / …‚״§״±†״© / ״°״§ƒ״±״© / ״³„״§״³„ / ״×״­ƒ… / FFI / Async / ƒ״§״¦†״§״× / ״×״­ˆ„ / …״µˆ״§״× / …„״§״×
- * (EN) LLVM instruction emitter ג€” Core: arithmetic / bitwise / compare / memory / string / control / FFI / Async / objects / cast / arrays / files
- * …״³״×״®״±״¬ …†: llvm_codegen_instructions.cpp (״³״·ˆ״± 144-740)
+ * (AR) مولد تعليمات LLVM — الجوهر: حساب / ثنائي / مقارنة / ذاكرة / سلاسل / تحكم / FFI / Async / كائنات / تحويل / مصفوفات / ملفات
+ * (EN) LLVM instruction emitter — Core: arithmetic / bitwise / compare / memory / string / control / FFI / Async / objects / cast / arrays / files
+ * مستخرج من: llvm_codegen_instructions.cpp (سطور 144-740)
  */
 
 #include "llvm_codegen.h"
@@ -29,9 +29,9 @@ namespace Sad
     {
 
         /**
-         * (AR) ״×†״° ״×״¹„…״§״× ״§„״¬ˆ‡״± (״­״³״§״¨״ ״°״§ƒ״±״©״ ״³„״§״³„״ ״×״­ƒ…״ FFI״ async״ ƒ״§״¦†״§״×״ ״×״­ˆ„״ …״µˆ״§״×״ …„״§״×״ …״×״±‚״§״×)
+         * (AR) تنفيذ تعليمات الجوهر (حساب، ذاكرة، سلاسل، تحكم، FFI، async، كائنات، تحويل، مصفوفات، ملفات، متفرقات)
          * (EN) Emit core instructions (arithmetic, memory, string, control, FFI, async, objects, cast, arrays, files, misc)
-         * @return nullptr ״¥״°״§ „… ״×״¹״± ״¹„‰ ״§„€ opcode / nullptr if opcode not handled
+         * @return nullptr إذا لم يتعرف على الـ opcode / nullptr if opcode not handled
          */
         llvm::Value *InstrCoreCodeGen::emitInstructionCore(std::shared_ptr<SIRInstruction> inst)
         {
@@ -96,7 +96,7 @@ namespace Sad
             case SIROpcode::MOVE:
                 return cg_.emitMove(inst);
 
-            // String - ״¯…״¬ ״§„†״µˆ״µ
+            // String - دمج النصوص
             case SIROpcode::STRING_CONCAT:
                 return cg_.emitStringConcat(inst);
             case SIROpcode::STRING_CMP:
@@ -423,7 +423,7 @@ namespace Sad
             case SIROpcode::CALL_INDIRECT:
                 return cg_.emitCallIndirect(inst);
 
-            // ===== Closures / ״§„״¥״÷„״§‚״§״× =====
+            // ===== Closures / الإغلاقات =====
             case SIROpcode::CLOSURE_CREATE:
                 return cg_.emitClosureCreate(inst);
             case SIROpcode::CLOSURE_CALL:
@@ -471,8 +471,8 @@ namespace Sad
             case SIROpcode::ARRAY_CONCAT:
                 return cg_.emitArrayConcat(inst);
 
-            // ===== Tuples (3) - ״¹״§״¯ ״§״³״×״®״¯״§… ״¨†״© ״§„…״µˆ״© =====
-            // (AR) ״§„״µˆ ״×״´״×״±ƒ …״¹ ״§„…״µˆ״§״×  †״³ ״¨†״© runtime
+            // ===== Tuples (3) - يُعاد استخدام بنية المصفوفة =====
+            // (AR) الصفوف تشترك مع المصفوفات في نفس بنية runtime
             // (EN) Tuples share the same runtime structure as arrays
             case SIROpcode::TUPLE_NEW:
                 return cg_.emitArrayNew(inst);
@@ -649,12 +649,12 @@ namespace Sad
 
                 // ====================================================================
                 // Section 15: Low-Level OS Module Operations (85 opcodes)
-                // (AR) ״¹…„״§״× ״§„ˆ״­״¯״§״× ״§„…†״®״¶״© ״§„…״³״×ˆ‰ „״×״·ˆ״± ״£†״¸…״© ״§„״×״´״÷„
+                // (AR) عمليات الوحدات المنخفضة المستوى لتطوير أنظمة التشغيل
                 // (EN) Low-level module operations for OS development
                 // ====================================================================
 
             default:
-                return nullptr; // (AR) ״÷״± …״¯״¹ˆ… ‡†״§ ג€” ״­ˆ‘„ „„״·״¨‚״© ״§„״×״§„״© / (EN) not handled here ג€” forwarded to next tier
+                return nullptr; // (AR) غير مدعوم هنا — يُحوَّل للطبقة التالية / (EN) not handled here — forwarded to next tier
             }
         }
 

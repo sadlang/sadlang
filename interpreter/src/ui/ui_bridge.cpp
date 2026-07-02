@@ -1,16 +1,16 @@
 ﻿/**
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
- * …„: ui_bridge.cpp
- * ״§„…״³״§״±: interpreter/src/ui/ui_bridge.cpp
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ملف: ui_bridge.cpp
+ * المسار: interpreter/src/ui/ui_bridge.cpp
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * ״§„ˆ״µ:
+ * الوصف:
  * ------
- * ״×†״° ״¬״³״± ״§„״±״¨״· ״¨† ״§„…״³״± ˆ†״¸״§… ˆ״§״¬‡״§״× ״µ (SadUI).
+ * تنفيذ جسر الربط بين المفسر ونظام واجهات ص (SadUI).
  *
- * ״­‚ˆ‚ ״§„†״´״± (c) 2024-2026 ״±‚ „״÷״© ״µ
- * …״±״®״µ ״×״­״× ״±״®״µ״© MIT
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+ * حقوق النشر (c) 2024-2026 فريق لغة ص
+ * مرخص تحت رخصة MIT
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 #include "ui_bridge.h"
@@ -75,9 +75,9 @@ namespace Sad
     namespace Interpreter
     {
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° UIBridge
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // تنفيذ UIBridge
+        // ═══════════════════════════════════════════════════════════════════════════════
 
         UIBridge::UIBridge() = default;
         UIBridge::~UIBridge()
@@ -88,20 +88,20 @@ namespace Sad
             }
         }
 
-        // ״§„…״«„ ״§„†״´״·
+        // المثيل النشط
         UIBridge *UIBridge::activeInstance_ = nullptr;
 
-        // (AR) HTML ״§„…ˆ„‘״¯ ג€” ״®״²‘† ‡†״§ „״§״³״×״±״¬״§״¹‡ …† WASM
-        // (EN) Generated HTML ג€” stored here for WASM retrieval
+        // (AR) HTML المولّد — يُخزَّن هنا لاسترجاعه من WASM
+        // (EN) Generated HTML — stored here for WASM retrieval
         static std::string s_lastGeneratedHtml;
 
         bool UIBridge::run(const Data::Value &rootWidget, Interpreter *interpreter)
         {
             interpreter_ = interpreter;
-            activeInstance_ = this; // ״×״¹† ״§„…״«„ ״§„†״´״·
+            activeInstance_ = this; // تعيين المثيل النشط
 
-            // (AR) ״¯״¹… ״¯״§„״© ״§„״¨†‘״§״¡: ״¥״°״§ ƒ״§† ״§„״¬״°״± ״¯״§„״© (ˆ„״³ ƒ״§״¦† ˆ״§״¬‡״©)״ †״­״¸‡״§ ƒ״¨†‘״§״¡
-            //      ˆ†״³״×״¯״¹‡״§ „„״­״µˆ„ ״¹„‰ ״§„״´״¬״±״© ״§„״£ˆ„״©
+            // (AR) دعم دالة البنّاء: إذا كان الجذر دالة (وليس كائن واجهة)، نحفظها كبنّاء
+            //      ونستدعيها للحصول على الشجرة الأولية
             // (EN) Builder function support: if root is a function, call it once for the initial tree;
             Data::Value actualWidget;
             if (rootWidget.isFunction())
@@ -118,7 +118,7 @@ namespace Sad
                 }
                 catch (const std::exception &e)
                 {
-                    std::cerr << "״®״·״£  ״§״³״×״¯״¹״§״¡ ״¯״§„״© ״§„״¨†‘״§״¡: " << e.what() << std::endl;
+                    std::cerr << "خطأ في استدعاء دالة البنّاء: " << e.what() << std::endl;
                     return false;
                 }
             }
@@ -133,24 +133,24 @@ namespace Sad
             navSeedRoot(rootWidget, interpreter);
             rootWidget_ = actualWidget; // (AR) لقطةُ الجذر: محتوى العرض الأوّل + احتياطُ rebuildUI الآمن
 
-            // ״×״­…„ ״§„״×״®״²† ״§„…״­„ …† ״§„‚״±״µ
+            // تحميل التخزين المحلي من القرص
             loadStorageFromDisk();
-            // ״×״­ˆ„ ״´״¬״±״© Widget ״¥„‰ ״´״¬״±״© IR
+            // تحويل شجرة Widget إلى شجرة IR
             auto irRoot = convertToIR(actualWidget);
             if (!irRoot)
             {
-                std::cerr << "״´„ ״×״­ˆ„ ״´״¬״±״© ״§„ˆ״§״¬‡״© ״¥„‰ IR" << std::endl;
+                std::cerr << "فشل تحويل شجرة الواجهة إلى IR" << std::endl;
                 return false;
             }
 
 #ifdef SAD_UI_USE_SDL2
-            // ״¥†״´״§״¡ †״§״°״© ״³״·״­ ״§„…ƒ״×״¨
+            // إنشاء نافذة سطح المكتب
             sad::ui::desktop::DesktopWindow window;
-            activeWindow_ = &window; // ״­״¸ …״₪״´״± ״§„†״§״°״© „״¥״¹״§״¯״© ״§„״¨†״§״¡
+            activeWindow_ = &window; // حفظ مؤشر النافذة لإعادة البناء
             sad::ui::desktop::WindowOptions options;
 
-            // ‚״±״§״¡״© ״¹†ˆ״§† ״§„†״§״°״© …† IR ״¥״°״§ ˆ״¬״¯ (…† ״®״§״µ״© "״¹†ˆ״§†"  ״§„״¬״°״±)
-            const auto *titleProp = irRoot->findProperty("״¹†ˆ״§†");
+            // قراءة عنوان النافذة من IR إذا وُجد (من خاصية "عنوان" في الجذر)
+            const auto *titleProp = irRoot->findProperty("عنوان");
             if (titleProp)
             {
                 if (auto *str = std::get_if<std::string>(&titleProp->value))
@@ -160,12 +160,12 @@ namespace Sad
             }
             else
             {
-                options.title = "״×״·״¨‚ ״µ";
+                options.title = "تطبيق ص";
             }
 
-            // ‚״±״§״¡״© ״£״¨״¹״§״¯ ״§„†״§״°״© ״¥״°״§ ˆ״¬״¯״×
-            const auto *widthProp = irRoot->findProperty("״¹״±״¶");
-            const auto *heightProp = irRoot->findProperty("״§״±״×״§״¹");
+            // قراءة أبعاد النافذة إذا وُجدت
+            const auto *widthProp = irRoot->findProperty("عرض");
+            const auto *heightProp = irRoot->findProperty("ارتفاع");
             if (widthProp)
             {
                 if (auto *num = std::get_if<int64_t>(&widthProp->value))
@@ -191,11 +191,11 @@ namespace Sad
 
             if (!window.create(options))
             {
-                std::cerr << "״´„ ״¥†״´״§״¡ ״§„†״§״°״©" << std::endl;
+                std::cerr << "فشل إنشاء النافذة" << std::endl;
                 return false;
             }
 
-            // ״×״¹† ״§„…״­״×ˆ‰
+            // تعيين المحتوى
             window.setContent(irRoot);
 
             // (AR) حفظ الشجرة الأولية كمرجع لـ Reconciler — أول rebuildUI سيستخدمها للمقارنة الذكية
@@ -209,7 +209,7 @@ namespace Sad
             UIStateManager::instance().setRebuildCallback([this]()
                                                           { rebuildUI(); });
 
-            // ״×״¹† callback „„״£״­״¯״§״«
+            // تعيين callback للأحداث
             window.setOnEventCallback(
                 [this](sad::ui::IREventType eventType,
                        const std::string &elementId,
@@ -219,7 +219,7 @@ namespace Sad
                     handleEvent(eventType, elementId, node, eventData);
                 });
 
-            // ״×״³״¬„ callback ״§„…״₪‚״×״§״× ג€” ״³״×״¯״¹‰ ƒ„ ״¥״·״§״±
+            // تسجيل callback المؤقتات — يُستدعى كل إطار
             window.setTimerUpdateCallback([this]()
                                           {
         updateTimers();
@@ -233,14 +233,14 @@ namespace Sad
         // (EN) Poll hot reload every frame
         pollHotReload(); });
 
-            // ״×״³״¬„ callback ״¥„״§״× ״§„…„״§״×
+            // تسجيل callback إفلات الملفات
             window.setDropFileCallback([this](const std::string &filePath)
                                        { handleFileDrop(filePath); });
 
-            // ״×״´״÷„ ״­„‚״© ״§„״£״­״¯״§״«
+            // تشغيل حلقة الأحداث
             window.run();
 
-            // ״×†״¸
+            // تنظيف
             activeWindow_ = nullptr;
             activeInstance_ = nullptr;
             window.destroy();
@@ -252,20 +252,20 @@ namespace Sad
             return true;
 #else
 #if defined(SAD_WASM_BUILD)
-            // (AR) ˆ״¶״¹ WASM ג€” ״×ˆ„״¯ HTML …† ״´״¬״±״© IR ״¨״§״³״×״®״¯״§… HtmlCodegen
-            // (EN) WASM mode ג€” generate HTML from IR tree using HtmlCodegen
+            // (AR) وضع WASM — توليد HTML من شجرة IR باستخدام HtmlCodegen
+            // (EN) WASM mode — generate HTML from IR tree using HtmlCodegen
             {
                 sad::ui::IRModule module;
-                module.name = "ˆ״­״¯״©_ˆ״§״¬‡״©";
+                module.name = "وحدة_واجهة";
                 module.root = irRoot;
 
                 sad::ui::web::HtmlCodegenOptions htmlOpts;
-                htmlOpts.title = "״×״·״¨‚ ״µ";
+                htmlOpts.title = "تطبيق ص";
                 htmlOpts.dir = "rtl";
                 htmlOpts.lang = "ar";
 
-                // ‚״±״§״¡״© ״¹†ˆ״§† ״§„†״§״°״© …† IR ״¥״°״§ ˆ״¬״¯
-                const auto *titleProp = irRoot->findProperty("״¹†ˆ״§†");
+                // قراءة عنوان النافذة من IR إذا وُجد
+                const auto *titleProp = irRoot->findProperty("عنوان");
                 if (titleProp)
                 {
                     if (auto *str = std::get_if<std::string>(&titleProp->value))
@@ -277,7 +277,7 @@ namespace Sad
                 sad::ui::web::HtmlCodegen codegen(htmlOpts);
                 s_lastGeneratedHtml = codegen.generate(module);
 
-                // ״·״¨״§״¹״© ״¹„״§…״© ״®״§״µ״© „״×״¹״± ״¹„‡״§ runtime
+                // طباعة علامة خاصة ليتعرف عليها runtime
                 std::cout << "<!--SAD_UI_HTML_START-->" << std::endl;
                 std::cout << s_lastGeneratedHtml << std::endl;
                 std::cout << "<!--SAD_UI_HTML_END-->" << std::endl;
@@ -386,12 +386,12 @@ namespace Sad
             }
             return true;
 #else
-            // SDL2 ״÷״± …״¹‘„ ג€” ״·״¨״§״¹״© ״´״¬״±״© IR ‚״·
-            std::cout << "=== ״´״¬״±״© IR ===" << std::endl;
+            // SDL2 غير مفعّل — طباعة شجرة IR فقط
+            std::cout << "=== شجرة IR ===" << std::endl;
             std::cout << irRoot->dump() << std::endl;
-            std::cout << "=== ״§†״×‡‰ ===" << std::endl;
-            std::cout << "[״×״­״°״±] SDL2 ״÷״± …״¹‘„ ג€” ״§„ˆ״§״¬‡״© „† ״×״¹״±״¶ ״±״³ˆ…״§‹" << std::endl;
-            std::cout << "„״×״¹„ SDL2״ ״«״¨‘״× SDL2 ״¹„‰ ״§„†״¸״§… ״«… ״£״¹״¯ ״§„״¨†״§״¡" << std::endl;
+            std::cout << "=== انتهى ===" << std::endl;
+            std::cout << "[تحذير] SDL2 غير مفعّل — الواجهة لن تُعرض رسومياً" << std::endl;
+            std::cout << "لتفعيل SDL2، ثبّت SDL2 على النظام ثم أعد البناء" << std::endl;
             return true;
 #endif
 #endif
@@ -409,11 +409,11 @@ namespace Sad
             constexpr int MAX_DEPTH = 100;
             if (depth > MAX_DEPTH)
             {
-                std::cerr << "״×״­״°״±: ˆ״µ„״× ״´״¬״±״© ״§„ˆ״§״¬‡״© „„״­״¯ ״§„״£‚״µ‰ …† ״§„״¹…‚" << std::endl;
+                std::cerr << "تحذير: وصلت شجرة الواجهة للحد الأقصى من العمق" << std::endl;
                 return nullptr;
             }
 
-            // ג”€ג”€ג”€ ƒ״§״¦† (†״³״®״© ״µ†) ג”€ג”€ג”€
+            // ─── كائن (نسخة صنف) ───
             if (widget.isObject())
             {
                 auto obj = widget.toObject();
@@ -475,9 +475,9 @@ namespace Sad
                     return irNode;
                 }
 
-                // ‚״±״§״¡״© _†ˆ״¹
-                std::string widgetType = obj->getClassName();                        // ״§״³… ״§„״µ† ƒ†ˆ״¹ ״§״×״±״§״¶
-                Data::Value *typeField = obj->getField("_\xd9\x86\xd9\x88\xd8\xb9"); // _†ˆ״¹
+                // قراءة _نوع
+                std::string widgetType = obj->getClassName();                        // اسم الصنف كنوع افتراضي
+                Data::Value *typeField = obj->getField("_\xd9\x86\xd9\x88\xd8\xb9"); // _نوع
                 if (typeField && typeField->isString())
                 {
                     widgetType = typeField->toString();
@@ -608,12 +608,12 @@ namespace Sad
                 }
             }
 
-            // ג”€ג”€ג”€ †״µ ״¨״³״· ג†’ ״¹‚״¯״© Text ג”€ג”€ג”€
+            // ─── نص بسيط → عقدة Text ───
             if (widget.isString())
             {
                 auto irNode = sad::ui::IRNode::create(sad::ui::UINodeType::Text);
                 sad::ui::IRProperty prop;
-                prop.key = "†״µ";
+                prop.key = "نص";
                 prop.value = widget.toString();
                 irNode->addProperty(prop);
                 return irNode;
@@ -624,14 +624,14 @@ namespace Sad
 
         sad::ui::UINodeType UIBridge::stringToNodeType(const std::string &typeName)
         {
-            // ״§״³״×״®״¯״§… ״§„״¯״§„״© ״§„…ˆ״¬ˆ״¯״©  types.h
+            // استخدام الدالة الموجودة في types.h
             auto result = sad::ui::arabicNameToNodeType(typeName);
             if (result.has_value())
             {
                 return result.value();
             }
 
-            // …״­״§ˆ„״© ״×״®…† ״§„†ˆ״¹ …† ״§„״§״³…
+            // محاولة تخمين النوع من الاسم
             static const std::unordered_map<std::string, sad::ui::UINodeType> fallbackMap = {
                 // ─── عناصر أساسية ───
                 {"\xd9\x86\xd8\xb5", sad::ui::UINodeType::Text},
@@ -643,90 +643,90 @@ namespace Sad
                 {"\xd9\x87\xd9\x8a\xd9\x83\xd9\x84", sad::ui::UINodeType::Scaffold},
                 {"\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa9", sad::ui::UINodeType::Card},
                 {"\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9", sad::ui::UINodeType::List},
-                {"״£‚ˆ†״©", sad::ui::UINodeType::Icon},
-                {"״§‚ˆ†״©", sad::ui::UINodeType::Icon},
-                {"…†״²„‚", sad::ui::UINodeType::Slider},
-                {"…״×״§״­", sad::ui::UINodeType::Toggle},
-                {"״×ƒ״¯״³", sad::ui::UINodeType::Stack},
-                // ג”€ג”€ג”€ ״¥״¯״®״§„ ג”€ג”€ג”€
-                {"״­‚„", sad::ui::UINodeType::TextField},
-                {"״­‚„_†״µ", sad::ui::UINodeType::TextField},
-                {"״­‚„_״³״±", sad::ui::UINodeType::TextField},
-                {"״­‚„_״¨״­״«", sad::ui::UINodeType::SearchBar},
-                {"…†״·‚״©_†״µ", sad::ui::UINodeType::TextArea},
-                {"…״±״¨״¹_״§״®״×״§״±", sad::ui::UINodeType::Checkbox},
-                {"‚״§״¦…״©_…†״³״¯„״©", sad::ui::UINodeType::Picker},
-                {"״×‚…", sad::ui::UINodeType::RatingBar},
-                // ג”€ג”€ג”€ ״£״²״±״§״± ג”€ג”€ג”€
-                {"״²״±_…״­״·", sad::ui::UINodeType::Button},
-                {"״²״±_†״µ", sad::ui::UINodeType::Button},
-                {"״²״±_״§‚ˆ†״©", sad::ui::UINodeType::Button},
-                {"״²״±_״¹״§״¦…", sad::ui::UINodeType::FAB},
-                {"״²״±_״×״¨״¯„", sad::ui::UINodeType::Toggle},
-                // ג”€ג”€ג”€ ״×†‚„ ג”€ג”€ג”€
-                {"״´״±״·_״×״·״¨‚", sad::ui::UINodeType::AppBar},
-                {"״´״±״·_״³„", sad::ui::UINodeType::BottomNav},
-                // ג”€ג”€ג”€ ״£†ˆ״§״¹ ״§„…ˆ״§״¯ (Material Design) ג”€ג”€ג”€
-                {"״×״·״¨‚_…״§״¯״©", sad::ui::UINodeType::Container},
-                {"‡ƒ„_…״§״¯״©", sad::ui::UINodeType::Scaffold},
-                {"״´״±״·_״×״·״¨‚_…״§״¯״©", sad::ui::UINodeType::AppBar},
-                {"״´״±״·_״×†‚„_…״§״¯״©", sad::ui::UINodeType::BottomNav},
-                {"״¨״·״§‚״©_…״§״¯״©", sad::ui::UINodeType::Card},
-                {"״²״±_…״±״×״¹", sad::ui::UINodeType::Button},
-                {"״²״±_…״¹״¨״£", sad::ui::UINodeType::Button},
-                {"״²״±_…״¹״¨״£_״¨״§‡״×", sad::ui::UINodeType::Button},
-                {"״²״±_…״­״¯״¯", sad::ui::UINodeType::Button},
-                {"״²״±_†״µ_…״§״¯״©", sad::ui::UINodeType::Button},
-                {"״²״±_״£‚ˆ†״©_…״§״¯״©", sad::ui::UINodeType::Button},
-                {"״²״±_״¹״§״¦…_…״§״¯״©", sad::ui::UINodeType::FAB},
-                {"״§״µ„_…״§״¯״©", sad::ui::UINodeType::Divider},
-                {"״¯״±״¬", sad::ui::UINodeType::Drawer},
-                {"״´״±״·_״×״¨ˆ״¨", sad::ui::UINodeType::Tabs},
-                {"״×״¨ˆ״¨", sad::ui::UINodeType::TabItem},
-                // ג”€ג”€ג”€ ״×״®״·״· ג”€ג”€ג”€
-                {"״´״¨ƒ״©", sad::ui::UINodeType::Grid},
-                {"״§״µ„", sad::ui::UINodeType::Spacer},
-                {"״®״·_״§״µ„", sad::ui::UINodeType::Divider},
-                {"״×ˆ״³״·", sad::ui::UINodeType::Container},
-                {"…״±†", sad::ui::UINodeType::Container},
-                {"״µ†״¯ˆ‚", sad::ui::UINodeType::Box},
-                // ג”€ג”€ג”€ ״­ˆ״§״±״§״× ג”€ג”€ג”€
-                {"״­ˆ״§״±", sad::ui::UINodeType::Dialog},
-                {"״­ˆ״§״±_״×״£ƒ״¯", sad::ui::UINodeType::Dialog},
-                {"„ˆ״­״©_״³„״©", sad::ui::UINodeType::BottomSheet},
-                {"״±״³״§„״©_…†״¨״«‚״©", sad::ui::UINodeType::SnackBar},
-                {"״×„…״­", sad::ui::UINodeType::Tooltip},
-                // ג”€ג”€ג”€ ״×‚״¯… ג”€ג”€ג”€
-                {"״´״±״·_״×‚״¯…", sad::ui::UINodeType::ProgressBar},
-                {"״×‚״¯…_״¯״§״¦״±", sad::ui::UINodeType::ProgressBar},
-                {"״×״­…„", sad::ui::UINodeType::Skeleton},
-                {"‡ƒ„_״×״­…„", sad::ui::UINodeType::Skeleton},
-                {"‡ƒ„_״¹״¸…", sad::ui::UINodeType::Skeleton},
-                // ג”€ג”€ג”€ ״µˆ״± ג”€ג”€ג”€
-                {"״µˆ״±״©_״±…״²״©", sad::ui::UINodeType::Avatar},
-                {"״´״§״±״©", sad::ui::UINodeType::Badge},
-                {"״±‚״§‚״©", sad::ui::UINodeType::Chip},
-                // ג”€ג”€ג”€ †״µˆ״µ ג”€ג”€ג”€
-                {"״¹†ˆ״§†", sad::ui::UINodeType::Text},
-                {"״×״³…״©", sad::ui::UINodeType::Text},
-                {"‚״±״©", sad::ui::UINodeType::Text},
-                {"״±״§״¨״·", sad::ui::UINodeType::Text},
-                {"ƒˆ״¯", sad::ui::UINodeType::CodeBlock},
-                {"״§‚״×״¨״§״³", sad::ui::UINodeType::Text},
-                // ג”€ג”€ג”€ ‚ˆ״§״¦… ג”€ג”€ג”€
-                {"״£ƒˆ״±״¯ˆ†", sad::ui::UINodeType::Expandable},
-                {"‚״§״¦…״©_״´״¨ƒ״©", sad::ui::UINodeType::LazyGrid},
-                {"‚״§״¦…״©_״×…״±״±", sad::ui::UINodeType::ScrollView},
-                // ג”€ג”€ג”€ …״×‚״¯…״© ג”€ג”€ג”€
-                {"״²״±_״±״§״¯ˆ", sad::ui::UINodeType::Radio},
-                {"…†״×‚_״×״§״±״®", sad::ui::UINodeType::DatePicker},
-                {"…†״×‚_„ˆ†", sad::ui::UINodeType::ColorPicker},
-                {"…†״×‚_ˆ‚״×", sad::ui::UINodeType::TimePicker},
-                {"״×‚ˆ…", sad::ui::UINodeType::Calendar},
-                {"״¬״¯ˆ„_״¨״§†״§״×", sad::ui::UINodeType::DataTable},
-                {"״¹״±״¶_״´״¬״±", sad::ui::UINodeType::TreeView},
-                {"״®״·_״²…†", sad::ui::UINodeType::Timeline},
-                {"״¹״±״¶_״¯ˆ״§״±", sad::ui::UINodeType::Carousel}, // ─── تخطيط Flutter الأساسي (v4) ───
+                {"أيقونة", sad::ui::UINodeType::Icon},
+                {"ايقونة", sad::ui::UINodeType::Icon},
+                {"منزلق", sad::ui::UINodeType::Slider},
+                {"مفتاح", sad::ui::UINodeType::Toggle},
+                {"تكديس", sad::ui::UINodeType::Stack},
+                // ─── إدخال ───
+                {"حقل", sad::ui::UINodeType::TextField},
+                {"حقل_نص", sad::ui::UINodeType::TextField},
+                {"حقل_سر", sad::ui::UINodeType::TextField},
+                {"حقل_بحث", sad::ui::UINodeType::SearchBar},
+                {"منطقة_نص", sad::ui::UINodeType::TextArea},
+                {"مربع_اختيار", sad::ui::UINodeType::Checkbox},
+                {"قائمة_منسدلة", sad::ui::UINodeType::Picker},
+                {"تقييم", sad::ui::UINodeType::RatingBar},
+                // ─── أزرار ───
+                {"زر_محيط", sad::ui::UINodeType::Button},
+                {"زر_نصي", sad::ui::UINodeType::Button},
+                {"زر_ايقونة", sad::ui::UINodeType::Button},
+                {"زر_عائم", sad::ui::UINodeType::FAB},
+                {"زر_تبديل", sad::ui::UINodeType::Toggle},
+                // ─── تنقل ───
+                {"شريط_تطبيق", sad::ui::UINodeType::AppBar},
+                {"شريط_سفلي", sad::ui::UINodeType::BottomNav},
+                // ─── أنواع المواد (Material Design) ───
+                {"تطبيق_مادة", sad::ui::UINodeType::Container},
+                {"هيكل_مادة", sad::ui::UINodeType::Scaffold},
+                {"شريط_تطبيق_مادة", sad::ui::UINodeType::AppBar},
+                {"شريط_تنقل_مادة", sad::ui::UINodeType::BottomNav},
+                {"بطاقة_مادة", sad::ui::UINodeType::Card},
+                {"زر_مرتفع", sad::ui::UINodeType::Button},
+                {"زر_معبأ", sad::ui::UINodeType::Button},
+                {"زر_معبأ_باهت", sad::ui::UINodeType::Button},
+                {"زر_محدد", sad::ui::UINodeType::Button},
+                {"زر_نصي_مادة", sad::ui::UINodeType::Button},
+                {"زر_أيقونة_مادة", sad::ui::UINodeType::Button},
+                {"زر_عائم_مادة", sad::ui::UINodeType::FAB},
+                {"فاصل_مادة", sad::ui::UINodeType::Divider},
+                {"درج", sad::ui::UINodeType::Drawer},
+                {"شريط_تبويب", sad::ui::UINodeType::Tabs},
+                {"تبويب", sad::ui::UINodeType::TabItem},
+                // ─── تخطيط ───
+                {"شبكة", sad::ui::UINodeType::Grid},
+                {"فاصل", sad::ui::UINodeType::Spacer},
+                {"خط_فاصل", sad::ui::UINodeType::Divider},
+                {"توسيط", sad::ui::UINodeType::Container},
+                {"مرن", sad::ui::UINodeType::Container},
+                {"صندوق", sad::ui::UINodeType::Box},
+                // ─── حوارات ───
+                {"حوار", sad::ui::UINodeType::Dialog},
+                {"حوار_تأكيد", sad::ui::UINodeType::Dialog},
+                {"لوحة_سفلية", sad::ui::UINodeType::BottomSheet},
+                {"رسالة_منبثقة", sad::ui::UINodeType::SnackBar},
+                {"تلميح", sad::ui::UINodeType::Tooltip},
+                // ─── تقدم ───
+                {"شريط_تقدم", sad::ui::UINodeType::ProgressBar},
+                {"تقدم_دائري", sad::ui::UINodeType::ProgressBar},
+                {"تحميل", sad::ui::UINodeType::Skeleton},
+                {"هيكل_تحميل", sad::ui::UINodeType::Skeleton},
+                {"هيكل_عظمي", sad::ui::UINodeType::Skeleton},
+                // ─── صور ───
+                {"صورة_رمزية", sad::ui::UINodeType::Avatar},
+                {"شارة", sad::ui::UINodeType::Badge},
+                {"رقاقة", sad::ui::UINodeType::Chip},
+                // ─── نصوص ───
+                {"عنوان", sad::ui::UINodeType::Text},
+                {"تسمية", sad::ui::UINodeType::Text},
+                {"فقرة", sad::ui::UINodeType::Text},
+                {"رابط", sad::ui::UINodeType::Text},
+                {"كود", sad::ui::UINodeType::CodeBlock},
+                {"اقتباس", sad::ui::UINodeType::Text},
+                // ─── قوائم ───
+                {"أكورديون", sad::ui::UINodeType::Expandable},
+                {"قائمة_شبكية", sad::ui::UINodeType::LazyGrid},
+                {"قائمة_تمرير", sad::ui::UINodeType::ScrollView},
+                // ─── متقدمة ───
+                {"زر_راديو", sad::ui::UINodeType::Radio},
+                {"منتقي_تاريخ", sad::ui::UINodeType::DatePicker},
+                {"منتقي_لون", sad::ui::UINodeType::ColorPicker},
+                {"منتقي_وقت", sad::ui::UINodeType::TimePicker},
+                {"تقويم", sad::ui::UINodeType::Calendar},
+                {"جدول_بيانات", sad::ui::UINodeType::DataTable},
+                {"عرض_شجري", sad::ui::UINodeType::TreeView},
+                {"خط_زمني", sad::ui::UINodeType::Timeline},
+                {"عرض_دوار", sad::ui::UINodeType::Carousel}, // ─── تخطيط Flutter الأساسي (v4) ───
                 {"\xd9\x88\xd8\xb3\xd8\xb7", sad::ui::UINodeType::Center},
                 {"\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7", sad::ui::UINodeType::Center},
                 {"\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9", sad::ui::UINodeType::Padding},
@@ -752,25 +752,25 @@ namespace Sad
                 return it->second;
             }
 
-            // ״§״×״±״§״¶: ״­״§ˆ״©
+            // افتراضي: حاوية
             return sad::ui::UINodeType::Container;
         }
 
         sad::ui::Color UIBridge::parseColor(const std::string &colorStr)
         {
-            // ״£„ˆ״§† …״³…״§״© (‚… …† 0.0 ״¥„‰ 1.0)
+            // ألوان مُسماة (قيم من 0.0 إلى 1.0)
             static const std::unordered_map<std::string, sad::ui::Color> namedColors = {
-                {"״£״­…״±", {1.0f, 0.0f, 0.0f, 1.0f}},
-                {"״£״®״¶״±", {0.0f, 1.0f, 0.0f, 1.0f}},
-                {"״£״²״±‚", {0.0f, 0.0f, 1.0f, 1.0f}},
-                {"״£״¨״¶", {1.0f, 1.0f, 1.0f, 1.0f}},
-                {"״£״³ˆ״¯", {0.0f, 0.0f, 0.0f, 1.0f}},
-                {"״±…״§״¯", {0.5f, 0.5f, 0.5f, 1.0f}},
-                {"״£״µ״±", {1.0f, 1.0f, 0.0f, 1.0f}},
-                {"״¨״±״×‚״§„", {1.0f, 0.65f, 0.0f, 1.0f}},
-                {"״¨†״³״¬", {0.5f, 0.0f, 0.5f, 1.0f}},
-                {"ˆ״±״¯", {1.0f, 0.75f, 0.8f, 1.0f}},
-                {"״´״§", {0.0f, 0.0f, 0.0f, 0.0f}},
+                {"أحمر", {1.0f, 0.0f, 0.0f, 1.0f}},
+                {"أخضر", {0.0f, 1.0f, 0.0f, 1.0f}},
+                {"أزرق", {0.0f, 0.0f, 1.0f, 1.0f}},
+                {"أبيض", {1.0f, 1.0f, 1.0f, 1.0f}},
+                {"أسود", {0.0f, 0.0f, 0.0f, 1.0f}},
+                {"رمادي", {0.5f, 0.5f, 0.5f, 1.0f}},
+                {"أصفر", {1.0f, 1.0f, 0.0f, 1.0f}},
+                {"برتقالي", {1.0f, 0.65f, 0.0f, 1.0f}},
+                {"بنفسجي", {0.5f, 0.0f, 0.5f, 1.0f}},
+                {"وردي", {1.0f, 0.75f, 0.8f, 1.0f}},
+                {"شفاف", {0.0f, 0.0f, 0.0f, 0.0f}},
             };
 
             auto it = namedColors.find(colorStr);
@@ -779,7 +779,7 @@ namespace Sad
                 return it->second;
             }
 
-            // #RRGGBB ״£ˆ #RRGGBBAA
+            // #RRGGBB أو #RRGGBBAA
             if (colorStr.size() >= 7 && colorStr[0] == '#')
             {
                 unsigned int r, g, b, a = 255;
@@ -798,7 +798,7 @@ namespace Sad
                     static_cast<float>(a) / 255.0f};
             }
 
-            // ״§״×״±״§״¶: ״£״³ˆ״¯
+            // افتراضي: أسود
             return {0.0f, 0.0f, 0.0f, 1.0f};
         }
 

@@ -1,22 +1,22 @@
 ﻿/**
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
- * …„: renderer.cpp
- * ״§„…״³״§״±: sad_ui/backends/desktop/src/renderer.cpp
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ملف: renderer.cpp
+ * المسار: sad_ui/backends/desktop/src/renderer.cpp
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * ״×†״° …״µ‘״± ״³״·״­ ״§„…ƒ״×״¨ (Desktop Renderer).
+ * تنفيذ مُصيّر سطح المكتب (Desktop Renderer).
  *
- * ״±״³… ״¹†״§״µ״± ״§„ˆ״§״¬‡״© ״¹״¨״± SDL2:
- * - SDL_RenderFillRect „„…״³״×״·„״§״×
- * - SDL_ttf „„†״µˆ״µ
- * - SDL_RenderCopy „„״µˆ״±
+ * يرسم عناصر الواجهة عبر SDL2:
+ * - SDL_RenderFillRect للمستطيلات
+ * - SDL_ttf للنصوص
+ * - SDL_RenderCopy للصور
  *
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
- * ״×… ״§„״×״¹„ ״§„ƒ״§…„ ג€” SDL2 …״±״¨ˆ״· ˆ״¹…„
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * تم التفعيل الكامل — SDL2 مربوط ويعمل
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * ״­‚ˆ‚ ״§„†״´״± (c) 2024-2026 ״±‚ „״÷״© ״µ
- * ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+ * حقوق النشر (c) 2024-2026 فريق لغة ص
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 #include "sad_ui/desktop/renderer.h"
@@ -33,7 +33,7 @@
 #include <iostream>
 #include <algorithm>
 
-// ג”€ג”€ג”€ ״§„״¯ˆ״§„ ״§„…״³״§״¹״¯״© ״§„…״´״×״±ƒ״© ג”€ג”€ג”€
+// ─── الدوال المساعدة المشتركة ───
 #include "renderer_internal.h"
 #include "text_editing.h"
 
@@ -44,9 +44,9 @@ namespace sad
         namespace desktop
         {
 
-            // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-            // ״×†״° DesktopRenderer
-            // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+            // ═══════════════════════════════════════════════════════════════════════════════
+            // تنفيذ DesktopRenderer
+            // ═══════════════════════════════════════════════════════════════════════════════
 
             DesktopRenderer::DesktopRenderer() = default;
 
@@ -65,17 +65,17 @@ namespace sad
                 initialized_ = true;
 
 #ifdef SAD_UI_USE_SDL2
-                // ״×״¹„ ˆ״¶״¹ ״§„…״²״¬ „„״´״§״© ״¹״§„…״§‹
+                // تفعيل وضع المزج للشفافية عالمياً
                 SDL_SetRenderDrawBlendMode(sdlRenderer_, SDL_BLENDMODE_BLEND);
-                // ״×״­״³† ״¬ˆ״¯״© ״§„‚״§״³ „„״µˆ״± ˆ״§„†״µˆ״µ
-                SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1"); // ״×״µ״© ״®״·״©
+                // تحسين جودة القياس للصور والنصوص
+                SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1"); // تصفية خطية
 #endif
 
 #ifdef SAD_UI_HAS_SDL_TTF
-                // ״×‡״¦״© SDL_ttf
+                // تهيئة SDL_ttf
                 if (TTF_Init() == -1)
                 {
-                    std::cerr << "״®״·״£ ״×‡״¦״© SDL_ttf: " << TTF_GetError() << std::endl;
+                    std::cerr << "خطأ تهيئة SDL_ttf: " << TTF_GetError() << std::endl;
                     return false;
                 }
 #endif
@@ -86,7 +86,7 @@ namespace sad
             void DesktopRenderer::shutdown()
             {
 #ifdef SAD_UI_HAS_SDL_TTF
-                // ״×†״¸ ״°״§ƒ״±״© ״§„״×״®״²† ״§„…״₪‚״× „„†״µˆ״µ
+                // تنظيف ذاكرة التخزين المؤقت للنصوص
                 for (auto &[key, cached] : g_textCache_)
                 {
                     if (cached.texture)
@@ -96,7 +96,7 @@ namespace sad
                 }
                 g_textCache_.clear();
 
-                // ״×†״¸ ״§„״®״·ˆ״·
+                // تنظيف الخطوط
                 for (auto &[size, font] : g_fontSizeCache_)
                 {
                     if (font)
@@ -106,7 +106,7 @@ namespace sad
                 }
                 g_fontSizeCache_.clear();
 
-                // ״×†״¸ ״®״·ˆ״· ״§„״¥…ˆ״¬
+                // تنظيف خطوط الإيموجي
                 for (auto &[size, font] : g_emojiFontCache_)
                 {
                     if (font)
@@ -136,8 +136,8 @@ namespace sad
                 defaultFont_ = TTF_OpenFont(fontPath.c_str(), static_cast<int>(fontSize));
                 if (!defaultFont_)
                 {
-                    std::cerr << "״®״·״£ ״×״­…„ ״§„״®״·: " << TTF_GetError() << std::endl;
-                    // …״­״§ˆ„״© ״×״­…„ ״®״· ״¨״¯„ ״­״³״¨ ״§„…†״µ״©
+                    std::cerr << "خطأ تحميل الخط: " << TTF_GetError() << std::endl;
+                    // محاولة تحميل خط بديل حسب المنصة
                     const char *fallbackFonts[] = {
 #ifdef _WIN32
                         "C:/Windows/Fonts/arial.ttf",
@@ -157,14 +157,14 @@ namespace sad
                         defaultFont_ = TTF_OpenFont(fallbackFonts[i], static_cast<int>(fontSize));
                         if (defaultFont_)
                         {
-                            std::cout << "״×… ״×״­…„ ״§„״®״· ״§„״¨״¯„: " << fallbackFonts[i] << std::endl;
+                            std::cout << "تم تحميل الخط البديل: " << fallbackFonts[i] << std::endl;
                             break;
                         }
                     }
                 }
                 if (defaultFont_)
                 {
-                    // ״×״¹„ HarfBuzz „„״®״· ״§„״§״×״±״§״¶ ג€” ״¯״¹… ״§„״¹״±״¨״©
+                    // تفعيل HarfBuzz للخط الافتراضي — دعم العربية
                     TTF_SetFontDirection(defaultFont_, TTF_DIRECTION_RTL);
                     TTF_SetFontScriptName(defaultFont_, "Arab");
                 }
@@ -182,7 +182,7 @@ namespace sad
                     return;
 
 #ifdef SAD_UI_USE_SDL2
-                // ״×״­״¯״« ״£״¨״¹״§״¯ …†״° ״§„״¹״±״¶ „‚״µ ״§„״¹†״§״µ״± ״®״§״±״¬ ״§„״´״§״´״©
+                // تحديث أبعاد منفذ العرض لقص العناصر خارج الشاشة
                 SDL_GetRendererOutputSize(sdlRenderer_, &viewportWidth_, &viewportHeight_);
 
                 SDL_SetRenderDrawColor(sdlRenderer_,
@@ -203,7 +203,7 @@ namespace sad
                 if (!initialized_ || !root || !layout)
                     return;
 
-                // ״±״³… ״§„״´״¬״±״© ״¨״§„״×ƒ״±״§״±
+                // رسم الشجرة بالتكرار
                 renderNode(*root, *layout);
             }
 
@@ -217,7 +217,7 @@ namespace sad
 #endif
             }
 
-            // ג”€ג”€ג”€ ״±״³… ״§„״¹†״§״µ״± ״§„״±״¯״© ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
+            // ─── رسم العناصر الفردية ───────────────────
 
             void DesktopRenderer::renderNode(const IRNode &node, const LayoutResult &layout)
             {
@@ -279,9 +279,9 @@ namespace sad
                 if (animOpacity <= 0.001f)
                     return;
 
-                // 0. ‚״µ ״§„״¹†״§״µ״± ״®״§״±״¬ …†״° ״§„״¹״±״¶ (Viewport Culling)
-                // ״×״®״· ״§„״¹†״§״µ״± ״§„״× ״×‚״¹ ״¨״§„ƒ״§…„ ״®״§״±״¬ ״§„״´״§״´״© „״×״­״³† ״§„״£״¯״§״¡
-                // …״¹ …״±״§״¹״§״© ״¥״²״§״­״© ״§„״×…״±״± (scrollTranslateY_)
+                // 0. قص العناصر خارج منفذ العرض (Viewport Culling)
+                // تخطي العناصر التي تقع بالكامل خارج الشاشة لتحسين الأداء
+                // مع مراعاة إزاحة التمرير (scrollTranslateY_)
 #ifdef SAD_UI_USE_SDL2
                 if (viewportWidth_ > 0 && viewportHeight_ > 0)
                 {
@@ -291,15 +291,15 @@ namespace sad
                     if (rect.x > vpW || effectiveY > vpH ||
                         (rect.x + rect.width) < 0 || (effectiveY + rect.height) < 0)
                     {
-                        return; // ״§„״¹†״µ״± ״®״§״±״¬ ״§„״´״§״´״© ״¨״§„ƒ״§…„ ג€” ״×״®״·‡ …״¹ ƒ„ ״£״¨†״§״¦‡
+                        return; // العنصر خارج الشاشة بالكامل — تخطيه مع كل أبنائه
                     }
                 }
 #endif
 
-                // 1. ״±״³… ״§„״®„״© (״¥† ˆ״¬״¯״×)
-                const auto *bgProp = node.findProperty("„ˆ†_״®„״©");
+                // 1. رسم الخلفية (إن وجدت)
+                const auto *bgProp = node.findProperty("لون_خلفية");
                 if (!bgProp)
-                    bgProp = node.findProperty("״®„״©");
+                    bgProp = node.findProperty("خلفية");
                 if (bgProp)
                 {
                     if (auto *colorStr = std::get_if<std::string>(&bgProp->value))
@@ -311,7 +311,7 @@ namespace sad
                         }
                         else if (colorStr->size() > 0 && (*colorStr)[0] == '#')
                         {
-                            // ״×״­ˆ„ ״§„†״µ ״§„״³״¯״§״³ (#RRGGBB) ״¥„‰ „ˆ†
+                            // تحويل النص السداسي (#RRGGBB) إلى لون
                             unsigned int hex = 0;
                             if (colorStr->size() == 7)
                             {
@@ -325,8 +325,8 @@ namespace sad
                     }
                 }
 
-                // 1.5 ״±״³… ״§„״¸„ (״¥† ˆ״¬״¯)
-                const auto *shadowProp = node.findProperty("״¸„");
+                // 1.5 رسم الظل (إن وجد)
+                const auto *shadowProp = node.findProperty("ظل");
                 if (shadowProp)
                 {
                     if (auto *v = std::get_if<double>(&shadowProp->value))
@@ -338,9 +338,9 @@ namespace sad
                     }
                 }
 
-                // 1.6 ״¯״¹… ״§„״´״§״© ״§„״¹״§…״© (opacity)
+                // 1.6 دعم الشفافية العامة (opacity)
 #ifdef SAD_UI_USE_SDL2
-                float nodeOpacity = getNumericProp(node.findProperty("״´״§״©"), 1.0f);
+                float nodeOpacity = getNumericProp(node.findProperty("شفافية"), 1.0f);
                 if (nodeOpacity < 0.0f)
                     nodeOpacity = 0.0f;
                 if (nodeOpacity > 1.0f)
@@ -355,36 +355,36 @@ namespace sad
                 currentNodeRotation_ = animRotation; // حفظ زاوية الدوران
 #endif
 
-                // 2. ״±״³… ״§„…״­״×ˆ‰ ״­״³״¨ †ˆ״¹ ״§„״¹†״µ״±
+                // 2. رسم المحتوى حسب نوع العنصر
                 switch (node.getType())
                 {
                 case UINodeType::Text:
                 {
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // …״­״×ˆ‰
+                        textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
                     if (!textProp)
-                        textProp = node.findProperty("\xd9\x86\xd8\xb5"); // †״µ
+                        textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            // ״§„״­״µˆ„ ״¹„‰ ״­״¬… ״§„״®״·
-                            const auto *sizeProp = node.findProperty("״­״¬…_״®״·");
+                            // الحصول على حجم الخط
+                            const auto *sizeProp = node.findProperty("حجم_خط");
                             if (!sizeProp)
-                                sizeProp = node.findProperty("״­״¬…_״§„״®״·");
+                                sizeProp = node.findProperty("حجم_الخط");
                             if (!sizeProp)
-                                sizeProp = node.findProperty("״­״¬…");
+                                sizeProp = node.findProperty("حجم");
                             float fontSize = getNumericProp(sizeProp, 16.0f);
 
-                            // ״§„״­״µˆ„ ״¹„‰ „ˆ† ״§„†״µ
-                            const auto *colorProp = node.findProperty("„ˆ†_״§„†״µ");
+                            // الحصول على لون النص
+                            const auto *colorProp = node.findProperty("لون_النص");
                             if (!colorProp)
-                                colorProp = node.findProperty("„ˆ†");
+                                colorProp = node.findProperty("لون");
                             Color textColor = parseColorProp(colorProp, {0, 0, 0, 1});
 
-                            // ״§„״­״µˆ„ ״¹„‰ …״­״§״°״§״© ״§„†״µ
-                            const auto *alignProp = node.findProperty("…״­״§״°״§״©");
+                            // الحصول على محاذاة النص
+                            const auto *alignProp = node.findProperty("محاذاة");
                             std::string alignment = "";
                             if (alignProp)
                             {
@@ -392,12 +392,12 @@ namespace sad
                                     alignment = *s;
                             }
 
-                            // ״­״³״§״¨ …ˆ‚״¹ ״§„†״µ …״¹ ״¯״¹… RTL
+                            // حساب موقع النص مع دعم RTL
                             float textX = rect.x;
-                            if (isArabicUTF8(*text) || alignment == "…†" || alignment == "right")
+                            if (isArabicUTF8(*text) || alignment == "يمين" || alignment == "right")
                             {
-                                // ״§„†״µ ״§„״¹״±״¨: …״­״§״°״§״© „„…†
-                                // TTF_SizeUTF8 ״¹״·†״§ ״§„״¹״±״¶ ״§„״¹„ „„†״µ
+                                // النص العربي: محاذاة لليمين
+                                // TTF_SizeUTF8 يعطينا العرض الفعلي للنص
 #ifdef SAD_UI_HAS_SDL_TTF
                                 TTF_Font *font = getFontForSize(fontSize);
                                 if (!font)
@@ -412,7 +412,7 @@ namespace sad
                                 }
 #endif
                             }
-                            else if (alignment == "ˆ״³״·" || alignment == "center")
+                            else if (alignment == "وسط" || alignment == "center")
                             {
 #ifdef SAD_UI_HAS_SDL_TTF
                                 TTF_Font *font = getFontForSize(fontSize);
@@ -438,13 +438,13 @@ namespace sad
                     bool isHovered = (hoveredNode_ == &node);
                     bool isPressed = (pressedNode_ == &node);
 
-                    // ״±״³… ״¸„ †״§״¹… „„״²״± (Material Design)
-                    float elevation = getNumericProp(node.findProperty("״¸„"), 2.0f);
-                    float radius = getNumericProp(node.findProperty("״²ˆ״§״§"), 8.0f);
-                    if (!node.findProperty("״²ˆ״§״§"))
-                        radius = getNumericProp(node.findProperty("†״µ_‚״·״±"), 8.0f);
+                    // رسم ظل ناعم للزر (Material Design)
+                    float elevation = getNumericProp(node.findProperty("ظل"), 2.0f);
+                    float radius = getNumericProp(node.findProperty("زوايا"), 8.0f);
+                    if (!node.findProperty("زوايا"))
+                        radius = getNumericProp(node.findProperty("نصف_قطر"), 8.0f);
 
-                    // ״×״£״«״± hover: ״±״¹ ״§„״¸„
+                    // تأثير hover: رفع الظل
                     if (isHovered && !isPressed)
                         elevation += 2.0f;
                     if (isPressed)
@@ -456,20 +456,20 @@ namespace sad
                                        0.0f, elevation * 0.6f, {0, 0, 0, 0.2f});
                     }
 
-                    // ״±״³… ״®„״© ״§„״²״± (…״¹ ״¯״¹… ״§„״×״¯״±״¬)
-                    const auto *bgColorProp = node.findProperty("„ˆ†_״®„״©");
+                    // رسم خلفية الزر (مع دعم التدرج)
+                    const auto *bgColorProp = node.findProperty("لون_خلفية");
                     if (!bgColorProp)
-                        bgColorProp = node.findProperty("״®„״©");
+                        bgColorProp = node.findProperty("خلفية");
                     Color btnColor = parseColorProp(bgColorProp, Color::fromNamed(NamedColor::Primary));
 
-                    // ״×״£״«״± hover: ״¥״¶״§״¡״© ״§„„ˆ†
+                    // تأثير hover: إضاءة اللون
                     if (isHovered && !isPressed)
                     {
                         btnColor.r = std::min(1.0f, btnColor.r + 0.08f);
                         btnColor.g = std::min(1.0f, btnColor.g + 0.08f);
                         btnColor.b = std::min(1.0f, btnColor.b + 0.08f);
                     }
-                    // ״×״£״«״± ״§„״¶״÷״·: ״×״¹״×… ״§„„ˆ†
+                    // تأثير الضغط: تعتيم اللون
                     if (isPressed)
                     {
                         btnColor.r = std::max(0.0f, btnColor.r - 0.1f);
@@ -477,8 +477,8 @@ namespace sad
                         btnColor.b = std::max(0.0f, btnColor.b - 0.1f);
                     }
 
-                    const auto *gradProp = node.findProperty("״×״¯״±״¬");
-                    const auto *gradEndProp = node.findProperty("״×״¯״±״¬_†‡״§״©");
+                    const auto *gradProp = node.findProperty("تدرج");
+                    const auto *gradEndProp = node.findProperty("تدرج_نهاية");
                     if (gradProp && gradEndProp)
                     {
                         Color gradStart = parseColorProp(gradProp, btnColor);
@@ -490,34 +490,34 @@ namespace sad
                         drawRoundedRect(rect, btnColor, radius);
                     }
 
-                    // ״×״£״«״± ripple ״¹†״¯ ״§„״¶״÷״· (״¯״§״¦״±״© ״´״¨‡ ״´״§״©)
+                    // تأثير ripple عند الضغط (دائرة شبه شفافة)
                     if (isPressed)
                     {
                         Color ripple = {1.0f, 1.0f, 1.0f, 0.15f};
                         drawRoundedRect(rect, ripple, radius);
                     }
 
-                    // ״±״³… †״µ ״§„״²״±
+                    // رسم نص الزر
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("…״­״×ˆ‰");
+                        textProp = node.findProperty("محتوى");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            // „ˆ† †״µ ״§„״²״± ג€” ‚״±״£ …† „ˆ†_†״µ ״£ˆ ״£״¨״¶ ״§״×״±״§״¶״§‹
-                            const auto *textColorProp = node.findProperty("„ˆ†_†״µ");
+                            // لون نص الزر — يقرأ من لون_نص أو أبيض افتراضياً
+                            const auto *textColorProp = node.findProperty("لون_نص");
                             if (!textColorProp)
-                                textColorProp = node.findProperty("„ˆ†_״§„†״µ");
+                                textColorProp = node.findProperty("لون_النص");
                             Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::White));
 
-                            float btnFontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 16.0f);
+                            float btnFontSize = getNumericProp(node.findProperty("حجم_الخط"), 16.0f);
                             if (btnFontSize <= 1.0f)
-                                btnFontSize = getNumericProp(node.findProperty("״­״¬…_״®״·"), 16.0f);
+                                btnFontSize = getNumericProp(node.findProperty("حجم_خط"), 16.0f);
 
-                            // ״­״³״§״¨ …ˆ‚״¹ ״§„†״µ  ˆ״³״· ״§„״²״± (״¨״¯‚״© ״¹״¨״± TTF_SizeUTF8)
+                            // حساب موقع النص في وسط الزر (بدقة عبر TTF_SizeUTF8)
                             float textX = rect.x + rect.width / 2;
                             float textY = rect.y + rect.height / 2 - btnFontSize / 2;
 #ifdef SAD_UI_HAS_SDL_TTF
@@ -540,8 +540,8 @@ namespace sad
 
                 case UINodeType::Divider:
                 {
-                    Color divColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Grey));
-                    float thickness = getNumericProp(node.findProperty("״³…״§ƒ״©"), rect.height);
+                    Color divColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Grey));
+                    float thickness = getNumericProp(node.findProperty("سماكة"), rect.height);
                     LayoutRect divRect = {rect.x, rect.y, rect.width, thickness};
                     drawFilledRect(divRect, divColor);
                     break;
@@ -549,27 +549,27 @@ namespace sad
 
                 case UINodeType::Image:
                 {
-                    // ״×״­…„ ˆ״¹״±״¶ ״§„״µˆ״±״©
-                    const auto *srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // …״µ״¯״±
+                    // تحميل وعرض الصورة
+                    const auto *srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
                     if (!srcProp)
                         srcProp = node.findProperty("src");
                     if (!srcProp)
-                        srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // …״³״§״±
+                        srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
                     bool loaded = false;
                     if (srcProp)
                     {
                         if (auto *path = std::get_if<std::string>(&srcProp->value))
                         {
-                            // …״­״§ˆ„״© ״±״³… ״§„״µˆ״±״©
+                            // محاولة رسم الصورة
                             drawImage(*path, rect);
                             loaded = true;
                         }
                     }
                     if (!loaded)
                     {
-                        // Placeholder ״¥״°״§ „״§ ˆ״¬״¯ …״µ״¯״±
+                        // Placeholder إذا لا يوجد مصدر
                         Color placeholder = Color::fromNamed(NamedColor::LightGray);
-                        float imgRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 0.0f); // ״²ˆ״§״§
+                        float imgRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 0.0f); // زوايا
                         if (imgRadius > 0)
                             drawRoundedRect(rect, placeholder, imgRadius);
                         else
@@ -749,12 +749,12 @@ namespace sad
                 {
                     bool isHoveredT = (hoveredNode_ == &node);
                     bool isPressedT = (pressedNode_ == &node);
-                    // ״±״³… …״×״§״­ ״×״¨״¯„
-                    bool isOn = getBoolProp(node.findProperty("…״¹„"), false);
-                    Color activeColor = parseColorProp(node.findProperty("„ˆ†_†״´״·"), Color::fromNamed(NamedColor::Primary));
-                    Color inactiveColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::LightGray));
+                    // رسم مفتاح تبديل
+                    bool isOn = getBoolProp(node.findProperty("مفعل"), false);
+                    Color activeColor = parseColorProp(node.findProperty("لون_نشط"), Color::fromNamed(NamedColor::Primary));
+                    Color inactiveColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::LightGray));
                     Color trackColor = isOn ? activeColor : inactiveColor;
-                    // ״×״£״«״± hover
+                    // تأثير hover
                     if (isHoveredT && !isPressedT)
                     {
                         trackColor.r = std::min(1.0f, trackColor.r + 0.06f);
@@ -763,7 +763,7 @@ namespace sad
                     }
                     LayoutRect track = {rect.x, rect.y + rect.height / 4, rect.width, rect.height / 2};
                     drawRoundedRect(track, trackColor, rect.height / 4);
-                    // …‚״¨״¶ …״¹ ״¸„
+                    // مقبض مع ظل
                     Color knobColor = Color::fromNamed(NamedColor::White);
                     float knobSize = rect.height - 4;
                     float knobX = isOn ? rect.x + rect.width - knobSize - 2 : rect.x + 2;
@@ -771,15 +771,15 @@ namespace sad
                     drawRoundedRect(knobShadow, {0, 0, 0, 0.15f}, (knobSize + 2) / 2);
                     LayoutRect knob = {knobX, rect.y + 2, knobSize, knobSize};
                     drawRoundedRect(knob, knobColor, knobSize / 2);
-                    // †״µ ״§„״×״³…״©
-                    const auto *labelProp = node.findProperty("†״µ");
+                    // نص التسمية
+                    const auto *labelProp = node.findProperty("نص");
                     if (!labelProp)
-                        labelProp = node.findProperty("…״­״×ˆ‰");
+                        labelProp = node.findProperty("محتوى");
                     if (labelProp)
                     {
                         if (auto *lbl = std::get_if<std::string>(&labelProp->value))
                         {
-                            float fsize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 14.0f);
+                            float fsize = getNumericProp(node.findProperty("حجم_الخط"), 14.0f);
                             drawText(*lbl, rect.x + rect.width + 8, rect.y + rect.height / 2 - fsize / 2,
                                      {0, 0, 0, 1}, fsize);
                         }
@@ -789,26 +789,26 @@ namespace sad
 
                 case UINodeType::Slider:
                 {
-                    // ״±״³… ״´״±״· …†״²„‚
-                    float sliderVal = getNumericProp(node.findProperty("‚…״©"), 50.0f) / 100.0f;
+                    // رسم شريط منزلق
+                    float sliderVal = getNumericProp(node.findProperty("قيمة"), 50.0f) / 100.0f;
                     sliderVal = std::max(0.0f, std::min(1.0f, sliderVal));
-                    Color trackBg = parseColorProp(node.findProperty("״®„״©"), Color::fromNamed(NamedColor::LightGray));
-                    Color trackFill = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Primary));
+                    Color trackBg = parseColorProp(node.findProperty("خلفية"), Color::fromNamed(NamedColor::LightGray));
+                    Color trackFill = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Primary));
                     float trackY = rect.y + rect.height / 2 - 2;
                     LayoutRect track = {rect.x, trackY, rect.width, 4};
                     drawRoundedRect(track, trackBg, 2.0f);
-                    // ״§„״¬״²״¡ ״§„……„ˆ״¡
+                    // الجزء المملوء
                     float filledW = rect.width * sliderVal;
                     if (filledW > 0)
                     {
                         LayoutRect filled = {rect.x, trackY, filledW, 4};
                         drawRoundedRect(filled, trackFill, 2.0f);
                     }
-                    // …‚״¨״¶
-                    Color thumbColor = parseColorProp(node.findProperty("„ˆ†_״§„…‚״¨״¶"), trackFill);
+                    // مقبض
+                    Color thumbColor = parseColorProp(node.findProperty("لون_المقبض"), trackFill);
                     float thumbX = rect.x + filledW;
                     LayoutRect thumb = {thumbX - 8, rect.y + rect.height / 2 - 8, 16, 16};
-                    // ״¸„ ״§„…‚״¨״¶
+                    // ظل المقبض
                     LayoutRect thumbShadow = {thumbX - 9, rect.y + rect.height / 2 - 7, 18, 18};
                     drawRoundedRect(thumbShadow, {0, 0, 0, 0.15f}, 9.0f);
                     drawRoundedRect(thumb, thumbColor, 8.0f);
@@ -818,9 +818,9 @@ namespace sad
                 case UINodeType::Checkbox:
                 {
                     bool isHoveredCB = (hoveredNode_ == &node);
-                    // ״±״³… …״±״¨״¹ ״§״®״×״§״±
-                    bool checked = getBoolProp(node.findProperty("…״¹„"), false);
-                    Color activeColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Primary));
+                    // رسم مربع اختيار
+                    bool checked = getBoolProp(node.findProperty("مفعل"), false);
+                    Color activeColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Primary));
                     Color borderColor = checked ? activeColor : Color::fromNamed(NamedColor::Gray);
                     // hover effect
                     if (isHoveredCB && !checked)
@@ -835,25 +835,25 @@ namespace sad
                     {
                         LayoutRect inner = {rect.x + 1, rect.y + 1, 18, 18};
                         drawRoundedRect(inner, activeColor, 2.0f);
-                        drawText("ג“", rect.x + 3, rect.y + 1, Color::fromNamed(NamedColor::White), 15.0f);
+                        drawText("✓", rect.x + 3, rect.y + 1, Color::fromNamed(NamedColor::White), 15.0f);
                     }
                     else
                     {
                         LayoutRect inner = {rect.x + 1, rect.y + 1, 18, 18};
                         drawRoundedRect(inner, Color::fromNamed(NamedColor::White), 2.0f);
                     }
-                    // †״µ
+                    // نص
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("…״­״×ˆ‰");
+                        textProp = node.findProperty("محتوى");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), {0, 0, 0, 1});
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 14.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), {0, 0, 0, 1});
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 14.0f);
                             float textX = rect.x + 28;
                             if (isArabicUTF8(*text))
                             {
@@ -878,8 +878,8 @@ namespace sad
 
                 case UINodeType::Radio:
                 {
-                    // ״±״³… ״²״± ״±״§״¯ˆ (״¯״§״¦״±״©)
-                    bool selected = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84")); // …״¹„
+                    // رسم زر راديو (دائرة)
+                    bool selected = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84")); // مفعل
                     bool isRadioHovered = (hoveredNode_ == &node);
                     Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), Color::fromNamed(NamedColor::Primary));
                     Color borderColor = selected ? activeColor : Color::fromNamed(NamedColor::Gray);
@@ -898,15 +898,15 @@ namespace sad
                         LayoutRect dot = {rect.x + 5, rect.y + 5, 10, 10};
                         drawRoundedRect(dot, activeColor, 5.0f);
                     }
-                    // †״µ
+                    // نص
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("\xd9\x86\xd8\xb5"); // †״µ
+                        textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), {0, 0, 0, 1}); // „ˆ†_״§„†״µ
+                            Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), {0, 0, 0, 1}); // لون_النص
                             drawText(*text, rect.x + 28, rect.y + 2, textColor, 14.0f);
                         }
                     }
@@ -918,36 +918,36 @@ namespace sad
                     bool isHovered = (hoveredNode_ == &node);
                     bool isPressed = (pressedNode_ == &node);
 
-                    // ״¨״·״§‚״© …״¹ ״¸„ †״§״¹… ˆ״²ˆ״§״§ …״³״×״¯״±״© (Material Design 3)
-                    float cardElevation = getNumericProp(node.findProperty("״±״¹"), 4.0f);
-                    float cardRadius = getNumericProp(node.findProperty("״²ˆ״§״§"), 12.0f);
+                    // بطاقة مع ظل ناعم وزوايا مستديرة (Material Design 3)
+                    float cardElevation = getNumericProp(node.findProperty("رفع"), 4.0f);
+                    float cardRadius = getNumericProp(node.findProperty("زوايا"), 12.0f);
 
-                    // ״×״£״«״±״§״× ״§„״×״§״¹„
+                    // تأثيرات التفاعل
                     if (isPressed)
                         cardElevation = std::max(1.0f, cardElevation - 2.0f);
                     else if (isHovered)
                         cardElevation += 4.0f;
 
-                    // ״¸„ …״×״¹״¯״¯ ״§„״·״¨‚״§״× (3 ״·״¨‚״§״× „…״­״§ƒ״§״© Material elevation)
+                    // ظل متعدد الطبقات (3 طبقات لمحاكاة Material elevation)
                     if (cardElevation > 0)
                     {
-                        // ״·״¨‚״© 1: ״¸„ ƒ״¨״± ״® (ambient)
+                        // طبقة 1: ظل كبير خفيف (ambient)
                         drawSoftShadow(rect, cardRadius, cardElevation * 3.5f,
                                        0.0f, cardElevation * 0.5f, {0, 0, 0, 0.10f});
-                        // ״·״¨‚״© 2: ״¸„ …״×ˆ״³״· (umbra)
+                        // طبقة 2: ظل متوسط (umbra)
                         drawSoftShadow(rect, cardRadius, cardElevation * 2.0f,
                                        0.0f, cardElevation * 1.0f, {0, 0, 0, 0.18f});
-                        // ״·״¨‚״© 3: ״¸„ ״­״§״¯ (penumbra)
+                        // طبقة 3: ظل حاد (penumbra)
                         drawSoftShadow(rect, cardRadius, cardElevation * 1.0f,
                                        0.0f, cardElevation * 0.4f, {0, 0, 0, 0.12f});
                     }
 
-                    const auto *cardColorProp = node.findProperty("„ˆ†");
+                    const auto *cardColorProp = node.findProperty("لون");
                     if (!cardColorProp)
-                        cardColorProp = node.findProperty("״®„״©");
+                        cardColorProp = node.findProperty("خلفية");
                     Color cardBg = parseColorProp(cardColorProp, Color::fromNamed(NamedColor::White));
 
-                    // ״×״£״«״± hover: ״×״±״§ƒ״¨ ״´״§
+                    // تأثير hover: تراكب شفاف
                     if (isHovered && !isPressed)
                     {
                         cardBg.r = std::min(1.0f, cardBg.r + 0.03f);
@@ -955,7 +955,7 @@ namespace sad
                         cardBg.b = std::min(1.0f, cardBg.b + 0.03f);
                     }
 
-                    // ״×״£״«״± pressed: ״×״¹״×…
+                    // تأثير pressed: تعتيم
                     if (isPressed)
                     {
                         cardBg.r *= 0.95f;
@@ -963,14 +963,14 @@ namespace sad
                         cardBg.b *= 0.95f;
                     }
 
-                    // ״¯״¹… ״§„״´״§״©
-                    float opacity = getNumericProp(node.findProperty("״´״§״©"), 1.0f);
+                    // دعم الشفافية
+                    float opacity = getNumericProp(node.findProperty("شفافية"), 1.0f);
                     if (opacity < 1.0f)
                         cardBg.a *= opacity;
 
-                    // ״¯״¹… ״§„״×״¯״±״¬  ״§„״¨״·״§‚״§״×
-                    const auto *gradProp = node.findProperty("״×״¯״±״¬");
-                    const auto *gradEndProp = node.findProperty("״×״¯״±״¬_†‡״§״©");
+                    // دعم التدرج في البطاقات
+                    const auto *gradProp = node.findProperty("تدرج");
+                    const auto *gradEndProp = node.findProperty("تدرج_نهاية");
                     if (gradProp && gradEndProp)
                     {
                         Color gradStart = parseColorProp(gradProp, cardBg);
@@ -982,8 +982,8 @@ namespace sad
                         drawRoundedRect(rect, cardBg, cardRadius);
                     }
 
-                    // ״­״¯ ״§„״¨״·״§‚״© (״¥† ˆ״¬״¯)
-                    const auto *borderColorProp = node.findProperty("״­״¯_„ˆ†");
+                    // حد البطاقة (إن وجد)
+                    const auto *borderColorProp = node.findProperty("حد_لون");
                     if (borderColorProp)
                     {
                         Color borderColor = parseColorProp(borderColorProp, Color::fromNamed(NamedColor::Gray));
@@ -996,24 +996,24 @@ namespace sad
 
                 case UINodeType::ProgressBar:
                 {
-                    // ״´״±״· ״×‚״¯… …״¹ ״×״£״«״±״§״× HD ˆ״×״¯״±״¬ „ˆ†
-                    float barRadius = getNumericProp(node.findProperty("״²ˆ״§״§"), rect.height / 2.0f);
-                    Color trackColor = parseColorProp(node.findProperty("״®„״©"), {0.9f, 0.9f, 0.9f, 1.0f});
+                    // شريط تقدم مع تأثيرات HD وتدرج لوني
+                    float barRadius = getNumericProp(node.findProperty("زوايا"), rect.height / 2.0f);
+                    Color trackColor = parseColorProp(node.findProperty("خلفية"), {0.9f, 0.9f, 0.9f, 1.0f});
                     drawRoundedRect(rect, trackColor, barRadius);
 
-                    // ‚״±״§״¡״© ״§„‚…״©
-                    float progressValue = getNumericProp(node.findProperty("‚…״©"),
+                    // قراءة القيمة
+                    float progressValue = getNumericProp(node.findProperty("قيمة"),
                                                          getNumericProp(node.findProperty("value"), 50.0f));
                     progressValue /= 100.0f;
                     progressValue = std::max(0.0f, std::min(1.0f, progressValue));
 
-                    // „ˆ† ״§„״´״±״· (…״¹ ״¯״¹… ״×״¯״±״¬ ״×„‚״§״¦)
-                    Color fillColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Primary));
+                    // لون الشريط (مع دعم تدرج تلقائي)
+                    Color fillColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Primary));
                     float fillWidth = rect.width * progressValue;
                     if (fillWidth > 0)
                     {
                         LayoutRect fill = {rect.x, rect.y, fillWidth, rect.height};
-                        // ״×״¯״±״¬ ״® „…״¸‡״± „״§…״¹
+                        // تدرج خفيف لمظهر لامع
                         Color lighter = {
                             std::min(1.0f, fillColor.r * 1.2f),
                             std::min(1.0f, fillColor.g * 1.2f),
@@ -1026,15 +1026,15 @@ namespace sad
 
                 case UINodeType::SearchBar:
                 {
-                    // ״´״±״· ״¨״­״«
-                    Color bgColor = parseColorProp(node.findProperty("״®„״©"), Color::fromNamed(NamedColor::LightGray));
-                    float radius = getNumericProp(node.findProperty("״²ˆ״§״§"), rect.height / 2);
+                    // شريط بحث
+                    Color bgColor = parseColorProp(node.findProperty("خلفية"), Color::fromNamed(NamedColor::LightGray));
+                    float radius = getNumericProp(node.findProperty("زوايا"), rect.height / 2);
                     drawRoundedRect(rect, bgColor, radius);
-                    // ״£‚ˆ†״© ״¨״­״«
-                    Color iconColor = parseColorProp(node.findProperty("„ˆ†_״§„״§‚ˆ†״©"), Color::fromNamed(NamedColor::Gray));
-                    drawText("נ”", rect.x + 8, rect.y + rect.height / 2 - 8, iconColor, 14.0f);
-                    // †״µ ״×„…״­
-                    const auto *hintProp = node.findProperty("״×„…״­");
+                    // أيقونة بحث
+                    Color iconColor = parseColorProp(node.findProperty("لون_الايقونة"), Color::fromNamed(NamedColor::Gray));
+                    drawText("🔍", rect.x + 8, rect.y + rect.height / 2 - 8, iconColor, 14.0f);
+                    // نص تلميحي
+                    const auto *hintProp = node.findProperty("تلميح");
                     if (!hintProp)
                         hintProp = node.findProperty("placeholder");
                     if (hintProp)
@@ -1050,13 +1050,13 @@ namespace sad
 
                 case UINodeType::FAB:
                 {
-                    // ״²״± ״¹״§״¦… ״¯״§״¦״± …״¹ ״¸„ †״§״¹… (Material Design)
-                    Color fabColor = parseColorProp(node.findProperty("„ˆ†_״®„״©"), Color::fromNamed(NamedColor::Primary));
-                    if (!node.findProperty("„ˆ†_״®„״©"))
-                        fabColor = parseColorProp(node.findProperty("„ˆ†"), fabColor);
+                    // زر عائم دائري مع ظل ناعم (Material Design)
+                    Color fabColor = parseColorProp(node.findProperty("لون_خلفية"), Color::fromNamed(NamedColor::Primary));
+                    if (!node.findProperty("لون_خلفية"))
+                        fabColor = parseColorProp(node.findProperty("لون"), fabColor);
                     float radius = std::min(rect.width, rect.height) / 2;
-                    // ״¸„ †״§״¹…
-                    float elevation = getNumericProp(node.findProperty("״¸„"), 6.0f);
+                    // ظل ناعم
+                    float elevation = getNumericProp(node.findProperty("ظل"), 6.0f);
                     if (elevation > 0)
                     {
                         drawSoftShadow(rect, radius, elevation * 2.0f,
@@ -1065,15 +1065,15 @@ namespace sad
                     drawRoundedRect(rect, fabColor, radius);
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("״§‚ˆ†״©");
+                        textProp = node.findProperty("ايقونة");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), Color::fromNamed(NamedColor::White));
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 20.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::White));
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 20.0f);
 #ifdef SAD_UI_HAS_SDL_TTF
                             TTF_Font *font = getFontForSize(fontSize);
                             if (!font)
@@ -1094,18 +1094,18 @@ namespace sad
 
                 case UINodeType::AppBar:
                 {
-                    // ״´״±״· ״×״·״¨‚ ״¹„ˆ …״¹ ״×״¯״±״¬ „ˆ† ˆ״¸„
-                    Color barColor = parseColorProp(node.findProperty("„ˆ†_״®„״©"), Color::fromNamed(NamedColor::Primary));
-                    if (!node.findProperty("„ˆ†_״®„״©"))
-                        barColor = parseColorProp(node.findProperty("„ˆ†"), barColor);
-                    // ״¸„ †״§״¹… ״£״³„ ״§„״´״±״·
-                    float elevation = getNumericProp(node.findProperty("״¸„"), 3.0f);
+                    // شريط تطبيق علوي مع تدرج لوني وظل
+                    Color barColor = parseColorProp(node.findProperty("لون_خلفية"), Color::fromNamed(NamedColor::Primary));
+                    if (!node.findProperty("لون_خلفية"))
+                        barColor = parseColorProp(node.findProperty("لون"), barColor);
+                    // ظل ناعم أسفل الشريط
+                    float elevation = getNumericProp(node.findProperty("ظل"), 3.0f);
                     if (elevation > 0)
                     {
                         drawSoftShadow(rect, 0.0f, elevation * 2.0f,
                                        0.0f, elevation, {0, 0, 0, 0.15f});
                     }
-                    // ״®„״© ״¨״×״¯״±״¬ ״®
+                    // خلفية بتدرج خفيف
                     Color barLighter = {
                         std::min(1.0f, barColor.r * 1.15f),
                         std::min(1.0f, barColor.g * 1.15f),
@@ -1114,17 +1114,17 @@ namespace sad
                     drawLinearGradient(rect, barLighter, barColor, true);
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("״¹†ˆ״§†");
+                        textProp = node.findProperty("عنوان");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), Color::fromNamed(NamedColor::White));
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 20.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::White));
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 20.0f);
                             float textX = rect.x + 16;
-                            // RTL: …״­״§״°״§״© „„…†
+                            // RTL: محاذاة لليمين
                             if (isArabicUTF8(*text))
                             {
 #ifdef SAD_UI_HAS_SDL_TTF
@@ -1147,23 +1147,23 @@ namespace sad
 
                 case UINodeType::Badge:
                 {
-                    // ״´״§״±״© ״¥״´״¹״§״±
-                    Color badgeColor = parseColorProp(node.findProperty("„ˆ†_״®„״©"), Color::fromNamed(NamedColor::Error));
-                    if (!node.findProperty("„ˆ†_״®„״©"))
-                        badgeColor = parseColorProp(node.findProperty("„ˆ†"), badgeColor);
+                    // شارة إشعار
+                    Color badgeColor = parseColorProp(node.findProperty("لون_خلفية"), Color::fromNamed(NamedColor::Error));
+                    if (!node.findProperty("لون_خلفية"))
+                        badgeColor = parseColorProp(node.findProperty("لون"), badgeColor);
                     float r = std::min(rect.width, rect.height) / 2;
                     drawRoundedRect(rect, badgeColor, r);
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("…״­״×ˆ‰");
+                        textProp = node.findProperty("محتوى");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), Color::fromNamed(NamedColor::White));
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 10.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::White));
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 10.0f);
 #ifdef SAD_UI_HAS_SDL_TTF
                             TTF_Font *font = getFontForSize(fontSize);
                             if (!font)
@@ -1184,14 +1184,14 @@ namespace sad
 
                 case UINodeType::Chip:
                 {
-                    // ״±‚״§‚״©
-                    Color chipBg = parseColorProp(node.findProperty("״®„״©"), Color::fromNamed(NamedColor::LightGray));
-                    if (!node.findProperty("״®„״©"))
-                        chipBg = parseColorProp(node.findProperty("„ˆ†"), chipBg);
-                    float chipRadius = getNumericProp(node.findProperty("״²ˆ״§״§"), 16.0f);
+                    // رقاقة
+                    Color chipBg = parseColorProp(node.findProperty("خلفية"), Color::fromNamed(NamedColor::LightGray));
+                    if (!node.findProperty("خلفية"))
+                        chipBg = parseColorProp(node.findProperty("لون"), chipBg);
+                    float chipRadius = getNumericProp(node.findProperty("زوايا"), 16.0f);
                     drawRoundedRect(rect, chipBg, chipRadius);
-                    // ״§„״­״¯
-                    const auto *borderProp = node.findProperty("״­״¯_„ˆ†");
+                    // الحد
+                    const auto *borderProp = node.findProperty("حد_لون");
                     if (borderProp)
                     {
                         Color borderColor = parseColorProp(borderProp, Color::fromNamed(NamedColor::Gray));
@@ -1201,15 +1201,15 @@ namespace sad
                     }
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("…״­״×ˆ‰");
+                        textProp = node.findProperty("محتوى");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), {0, 0, 0, 1});
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 13.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), {0, 0, 0, 1});
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 13.0f);
 #ifdef SAD_UI_HAS_SDL_TTF
                             TTF_Font *font = getFontForSize(fontSize);
                             if (!font)
@@ -1230,23 +1230,23 @@ namespace sad
 
                 case UINodeType::Avatar:
                 {
-                    // ״µˆ״±״© ״±…״²״© ״¯״§״¦״±״©
-                    Color avatarBg = parseColorProp(node.findProperty("״®„״©"), Color::fromNamed(NamedColor::Primary));
-                    if (!node.findProperty("״®„״©"))
-                        avatarBg = parseColorProp(node.findProperty("„ˆ†"), avatarBg);
+                    // صورة رمزية دائرية
+                    Color avatarBg = parseColorProp(node.findProperty("خلفية"), Color::fromNamed(NamedColor::Primary));
+                    if (!node.findProperty("خلفية"))
+                        avatarBg = parseColorProp(node.findProperty("لون"), avatarBg);
                     float r = std::min(rect.width, rect.height) / 2;
                     drawRoundedRect(rect, avatarBg, r);
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("״­״±");
+                        textProp = node.findProperty("حرف");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), Color::fromNamed(NamedColor::White));
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 18.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::White));
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 18.0f);
 #ifdef SAD_UI_HAS_SDL_TTF
                             TTF_Font *font = getFontForSize(fontSize);
                             if (!font)
@@ -1267,21 +1267,21 @@ namespace sad
 
                 case UINodeType::SnackBar:
                 {
-                    // ״´״±״· ״¥״´״¹״§״± ״£״³„ ״§„״´״§״´״©
-                    Color snackBg = parseColorProp(node.findProperty("״®„״©"), {0.2f, 0.2f, 0.2f, 0.9f});
-                    float radius = getNumericProp(node.findProperty("״²ˆ״§״§"), 4.0f);
+                    // شريط إشعار أسفل الشاشة
+                    Color snackBg = parseColorProp(node.findProperty("خلفية"), {0.2f, 0.2f, 0.2f, 0.9f});
+                    float radius = getNumericProp(node.findProperty("زوايا"), 4.0f);
                     drawRoundedRect(rect, snackBg, radius);
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("…״­״×ˆ‰");
+                        textProp = node.findProperty("محتوى");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†_״§„†״µ"), Color::fromNamed(NamedColor::White));
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 14.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::White));
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 14.0f);
                             float textX = rect.x + 16;
                             if (isArabicUTF8(*text))
                             {
@@ -1305,8 +1305,8 @@ namespace sad
 
                 case UINodeType::Spacer:
                 {
-                    // ״§״µ„ ״´״§ ג€” ״³״×״®״¯… ‚״· „״­״¬״² …״³״§״­״©  ״§„״×״®״·״·
-                    // …ƒ† ״±״³… ״®„״© ״§״®״×״§״±״© „„״×״µ״­״­
+                    // فاصل شفاف — يُستخدم فقط لحجز مساحة في التخطيط
+                    // يمكن رسم خلفية اختيارية للتصحيح
                     if (desktopOptions_.debugBounds)
                     {
                         Color spacerDebug = {0.0f, 0.8f, 0.0f, 0.1f};
@@ -1317,14 +1317,14 @@ namespace sad
 
                 case UINodeType::Icon:
                 {
-                    // ״£‚ˆ†״©
-                    Color iconColor = parseColorProp(node.findProperty("„ˆ†"), {0, 0, 0, 1});
-                    float fontSize = getNumericProp(node.findProperty("״­״¬…"), 24.0f);
+                    // أيقونة
+                    Color iconColor = parseColorProp(node.findProperty("لون"), {0, 0, 0, 1});
+                    float fontSize = getNumericProp(node.findProperty("حجم"), 24.0f);
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("״§‚ˆ†״©");
+                        textProp = node.findProperty("ايقونة");
                     if (!textProp)
-                        textProp = node.findProperty("״±…״²");
+                        textProp = node.findProperty("رمز");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -1335,14 +1335,14 @@ namespace sad
 
                 case UINodeType::Drawer:
                 {
-                    // ג”€ג”€ג”€ ״¯״±״¬ ״¬״§†״¨ (Material Drawer) ג”€ג”€ג”€
-                    // ״®„״© ״´״¨‡ ״´״§״© (overlay)
+                    // ─── درج جانبي (Material Drawer) ───
+                    // خلفية شبه شفافة (overlay)
                     int vw = 0, vh = 0;
                     SDL_GetRendererOutputSize(sdlRenderer_, &vw, &vh);
                     LayoutRect overlay = {0, 0, static_cast<float>(vw), static_cast<float>(vh)};
                     drawFilledRect(overlay, {0, 0, 0, 0.4f});
 
-                    // ״±״³… ״§„״¯״±״¬ †״³‡
+                    // رسم الدرج نفسه
                     float drawerW = getNumericProp(node.findProperty("\xd8\xb9\xd8\xb1\xd8\xb6"), 280.0f);
                     LayoutRect drawerRect = {0, 0, drawerW, static_cast<float>(vh)};
                     drawSoftShadow(drawerRect, 0.0f, 20.0f, 4.0f, 0.0f, {0, 0, 0, 0.3f});
@@ -1353,24 +1353,24 @@ namespace sad
 
                 case UINodeType::BottomSheet:
                 {
-                    // ג”€ג”€ג”€ ˆ״±‚״© ״³„״© (Material Bottom Sheet) ג”€ג”€ג”€
+                    // ─── ورقة سفلية (Material Bottom Sheet) ───
                     int bsVW = 0, bsVH = 0;
                     SDL_GetRendererOutputSize(sdlRenderer_, &bsVW, &bsVH);
                     float sheetH = getNumericProp(node.findProperty("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9"), static_cast<float>(bsVH) * 0.5f);
                     float sheetY = static_cast<float>(bsVH) - sheetH;
 
-                    // ״®„״© ״´״¨‡ ״´״§״©
+                    // خلفية شبه شفافة
                     LayoutRect bsOverlay = {0, 0, static_cast<float>(bsVW), static_cast<float>(bsVH)};
                     drawFilledRect(bsOverlay, {0, 0, 0, 0.35f});
 
-                    // ״§„ˆ״±‚״©
+                    // الورقة
                     LayoutRect sheetRect = {0, sheetY, static_cast<float>(bsVW), sheetH};
                     drawSoftShadow(sheetRect, 20.0f, 16.0f, 0.0f, -4.0f, {0, 0, 0, 0.25f});
                     Color sheetBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::White));
                     drawRoundedRect({sheetRect.x, sheetRect.y, sheetRect.width, 24.0f}, sheetBg, 20.0f);
                     drawFilledRect({sheetRect.x, sheetRect.y + 12, sheetRect.width, sheetH - 12}, sheetBg);
 
-                    // …‚״¨״¶ ״³״­״¨
+                    // مقبض سحب
                     float handleW = 40.0f;
                     LayoutRect handle = {sheetRect.x + sheetRect.width / 2 - handleW / 2, sheetRect.y + 10, handleW, 4.0f};
                     drawRoundedRect(handle, {0.7f, 0.7f, 0.7f, 1.0f}, 2.0f);
@@ -1380,30 +1380,30 @@ namespace sad
                 case UINodeType::Dialog:
                 case UINodeType::Alert:
                 {
-                    // ג”€ג”€ג”€ ״­ˆ״§״± / ״×†״¨‡ (Material Dialog) ג”€ג”€ג”€
+                    // ─── حوار / تنبيه (Material Dialog) ───
                     int dlgVW = 0, dlgVH = 0;
                     SDL_GetRendererOutputSize(sdlRenderer_, &dlgVW, &dlgVH);
 
-                    // ״®„״© ״´״¨‡ ״´״§״© (scrim)
+                    // خلفية شبه شفافة (scrim)
                     LayoutRect dlgOverlay = {0, 0, static_cast<float>(dlgVW), static_cast<float>(dlgVH)};
                     drawFilledRect(dlgOverlay, {0, 0, 0, 0.5f});
 
-                    // …ˆ‚״¹ ˆ…‚״§״³ ״§„״­ˆ״§״± (ˆ״³״· ״§„״´״§״´״©)
+                    // موقع ومقاس الحوار (وسط الشاشة)
                     float dlgW = getNumericProp(node.findProperty("\xd8\xb9\xd8\xb1\xd8\xb6"), 350.0f);
                     float dlgH = getNumericProp(node.findProperty("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9"), 220.0f);
                     float dlgX = (static_cast<float>(dlgVW) - dlgW) / 2.0f;
                     float dlgY = (static_cast<float>(dlgVH) - dlgH) / 2.0f;
                     LayoutRect dlgRect = {dlgX, dlgY, dlgW, dlgH};
 
-                    // ״¸„ †״§״¹…
+                    // ظل ناعم
                     drawSoftShadow(dlgRect, 16.0f, 24.0f, 0.0f, 8.0f, {0, 0, 0, 0.3f});
 
-                    // ״®„״© ״§„״­ˆ״§״±
+                    // خلفية الحوار
                     Color dlgBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::White));
                     drawRoundedRect(dlgRect, dlgBg, 16.0f);
 
-                    // ״§„״¹†ˆ״§† (״¥† ˆ״¬״¯)
-                    const auto *titleProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // ״¹†ˆ״§†
+                    // العنوان (إن وجد)
+                    const auto *titleProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
                     if (!titleProp)
                         titleProp = node.findProperty("title");
                     if (titleProp)
@@ -1414,8 +1414,8 @@ namespace sad
                         }
                     }
 
-                    // ״§„…״­״×ˆ‰ (״¥† ˆ״¬״¯)
-                    const auto *contentProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // …״­״×ˆ‰
+                    // المحتوى (إن وجد)
+                    const auto *contentProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
                     if (!contentProp)
                         contentProp = node.findProperty("content");
                     if (contentProp)
@@ -1448,16 +1448,16 @@ namespace sad
                 case UINodeType::ConstrainedBox:
                 case UINodeType::AspectRatio:
                 {
-                    // ״­״§ˆ״§״× ג€” ״®„״© ״§״®״×״§״±״©״ ״§„״£״¨†״§״¡ ״±״³…ˆ† ״¨״§„״×ƒ״±״§״±
-                    const auto *containerBgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // ״®„״©
+                    // حاويات — خلفية اختيارية، الأبناء يُرسمون بالتكرار
+                    const auto *containerBgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
                     if (!containerBgProp)
-                        containerBgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // „ˆ†_״®„״©
+                        containerBgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
                     if (containerBgProp)
                     {
                         Color containerBg = parseColorProp(containerBgProp, {0, 0, 0, 0});
                         if (containerBg.a > 0)
                         {
-                            float containerRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 0.0f); // ״²ˆ״§״§
+                            float containerRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 0.0f); // زوايا
                             if (containerRadius > 0)
                                 drawRoundedRect(rect, containerBg, containerRadius);
                             else
@@ -1473,35 +1473,35 @@ namespace sad
                     Color borderColor = Color::fromNamed(NamedColor::Gray);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, borderColor, 4.0f);
-                    drawText("ג–¼", rect.x + rect.width - 20, rect.y + 4, borderColor, 14.0f);
+                    drawText("▼", rect.x + rect.width - 20, rect.y + 4, borderColor, 14.0f);
                     break;
                 }
 
                 case UINodeType::TabView:
                 {
-                    // ג”€ג”€ג”€ ״¹״±״¶ ״£‚״³״§… (TabView) ג€” ״±״₪ˆ״³ ״§„״£‚״³״§… + ״§„…״­״×ˆ‰ ג”€ג”€ג”€
-                    Color tabBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::Primary)); // ״®„״©
+                    // ─── عرض أقسام (TabView) — رؤوس الأقسام + المحتوى ───
+                    Color tabBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::Primary)); // خلفية
                     float tabH = 48.0f;
                     LayoutRect tabBarRect = {rect.x, rect.y, rect.width, tabH};
                     drawFilledRect(tabBarRect, tabBg);
 
-                    // ״±״³… ״£„״³†״© ״§„״×״¨ˆ״¨ …† ״£״³…״§״¡ ״§„״£״¨†״§״¡
+                    // رسم ألسنة التبويب من أسماء الأبناء
                     size_t tabCount = node.childCount();
-                    int selectedTab = static_cast<int>(getNumericProp(node.findProperty("\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"), 0.0f)); // …״­״¯״¯
+                    int selectedTab = static_cast<int>(getNumericProp(node.findProperty("\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf"), 0.0f)); // محدد
                     if (tabCount > 0)
                     {
                         float tabW = rect.width / static_cast<float>(tabCount);
                         for (size_t t = 0; t < tabCount; ++t)
                         {
                             float tx = rect.x + t * tabW;
-                            // ״§״³… ״§„‚״³…
+                            // اسم القسم
                             const auto &tabChild = node.getChildren()[t];
-                            const auto *tabLabel = tabChild->findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // ״¹†ˆ״§†
+                            const auto *tabLabel = tabChild->findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
                             if (!tabLabel)
-                                tabLabel = tabChild->findProperty("\xd9\x86\xd8\xb5"); // †״µ
+                                tabLabel = tabChild->findProperty("\xd9\x86\xd8\xb5"); // نص
                             if (!tabLabel)
                                 tabLabel = tabChild->findProperty("title");
-                            std::string label = "‚״³… " + std::to_string(t + 1);
+                            std::string label = "قسم " + std::to_string(t + 1);
                             if (tabLabel)
                             {
                                 if (auto *s = std::get_if<std::string>(&tabLabel->value))
@@ -1510,7 +1510,7 @@ namespace sad
                             Color textCol = (static_cast<int>(t) == selectedTab) ? Color{1, 1, 1, 1} : Color{1, 1, 1, 0.6f};
                             drawText(label, tx + tabW / 2 - 20, rect.y + 14, textCol, 14.0f);
 
-                            // ״®״· ״³„ „„‚״³… ״§„…״­״¯״¯
+                            // خط سفلي للقسم المحدد
                             if (static_cast<int>(t) == selectedTab)
                             {
                                 LayoutRect indicator = {tx + 8, rect.y + tabH - 3, tabW - 16, 3.0f};
@@ -1531,18 +1531,18 @@ namespace sad
                 case UINodeType::Row:
                 case UINodeType::Wrap:
                 {
-                    // ״×״®״·״·״§״× ג€” ״§„״£״¨†״§״¡ ״±״³…ˆ† ״¨״§„״×ƒ״±״§״±
-                    // ״®„״© ״§״®״×״§״±״©
-                    const auto *layoutBgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // ״®„״©
+                    // تخطيطات — الأبناء يُرسمون بالتكرار
+                    // خلفية اختيارية
+                    const auto *layoutBgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
                     if (!layoutBgProp)
-                        layoutBgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // „ˆ†_״®„״©
+                        layoutBgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
                     if (layoutBgProp)
                     {
                         Color bg = parseColorProp(layoutBgProp, {0, 0, 0, 0});
                         if (bg.a > 0)
                             drawFilledRect(rect, bg);
                     }
-                    // ‚״µ ״§„…״­״×ˆ‰ „„״¹†״§״µ״± ״§„‚״§״¨„״© „„״×…״±״±
+                    // قص المحتوى للعناصر القابلة للتمرير
                     if (node.getType() == UINodeType::ScrollView ||
                         node.getType() == UINodeType::LazyColumn ||
                         node.getType() == UINodeType::LazyRow ||
@@ -1553,19 +1553,19 @@ namespace sad
                     break;
                 }
 
-                    // ג”€ג”€ ֲ§11 …ƒˆ†״§״× ״§„״¨״§†״§״× (Data Components ג€” v3) ג”€ג”€
+                    // ── §11 مكونات البيانات (Data Components — v3) ──
 
                 case UINodeType::Tooltip:
                 {
-                    // ״×„…״­ ״¸‡״± ״¹†״¯ ״§„״×…״±״±
+                    // تلميح يظهر عند التمرير
                     bool isTooltipHovered = (hoveredNode_ == &node);
                     if (isTooltipHovered)
                     {
-                        const auto *tipProp = node.findProperty("†״µ");
+                        const auto *tipProp = node.findProperty("نص");
                         if (!tipProp)
                             tipProp = node.findProperty("text");
                         if (!tipProp)
-                            tipProp = node.findProperty("…״­״×ˆ‰");
+                            tipProp = node.findProperty("محتوى");
                         if (tipProp)
                         {
                             if (auto *tip = std::get_if<std::string>(&tipProp->value))
@@ -1592,7 +1592,7 @@ namespace sad
                     Color borderColor = Color::fromNamed(NamedColor::Gray);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, borderColor, 2.0f);
-                    // ״±״³… ״®״·ˆ״· ״§„״´״¨ƒ״©
+                    // رسم خطوط الشبكة
                     float rowH = 30.0f;
                     for (float y = rect.y + rowH; y < rect.y + rect.height; y += rowH)
                     {
@@ -1611,19 +1611,19 @@ namespace sad
 
                 case UINodeType::Breadcrumb:
                 {
-                    // …״³״§״± ״§„״×†‚„: ״¹†״µ״±1 > ״¹†״µ״±2 > ״¹†״µ״±3
-                    Color crumbColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Blue));
+                    // مسار التنقل: عنصر1 > عنصر2 > عنصر3
+                    Color crumbColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Blue));
                     Color sepColor = Color::fromNamed(NamedColor::Gray);
-                    float crumbFontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 14.0f);
+                    float crumbFontSize = getNumericProp(node.findProperty("حجم_الخط"), 14.0f);
                     float xOff = rect.x + 4;
                     for (size_t ci = 0; ci < node.childCount(); ++ci)
                     {
                         if (ci > 0)
                         {
-                            drawText(" ג€÷ ", xOff, rect.y + 4, sepColor, crumbFontSize);
+                            drawText(" › ", xOff, rect.y + 4, sepColor, crumbFontSize);
                             xOff += crumbFontSize * 1.2f;
                         }
-                        const auto *childText = node.getChildren()[ci]->findProperty("†״µ");
+                        const auto *childText = node.getChildren()[ci]->findProperty("نص");
                         if (!childText)
                             childText = node.getChildren()[ci]->findProperty("text");
                         if (childText)
@@ -1642,15 +1642,15 @@ namespace sad
 
                 case UINodeType::Pagination:
                 {
-                    // ״´״±״· ״×†‚„ ״§„״µ״­״§״×:  ֲ« 1 2 3 4 ֲ»
-                    float currentPage = getNumericProp(node.findProperty("״µ״­״©"), 1.0f);
-                    float totalPages = getNumericProp(node.findProperty("״¥״¬…״§„"), 5.0f);
-                    Color activeColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Primary));
+                    // شريط تنقل الصفحات:  « 1 2 3 4 »
+                    float currentPage = getNumericProp(node.findProperty("صفحة"), 1.0f);
+                    float totalPages = getNumericProp(node.findProperty("إجمالي"), 5.0f);
+                    Color activeColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Primary));
                     Color inactiveColor = Color::fromNamed(NamedColor::LightGray);
                     float btnSize = 28.0f, gap = 4.0f;
                     float startX = rect.x + (rect.width - (totalPages * (btnSize + gap))) / 2;
-                    // ״²״± ״§„״³״§״¨‚
-                    drawText("ֲ«", startX - btnSize - gap, rect.y + 4, activeColor, 16.0f);
+                    // زر السابق
+                    drawText("«", startX - btnSize - gap, rect.y + 4, activeColor, 16.0f);
                     for (int p = 1; p <= static_cast<int>(totalPages); ++p)
                     {
                         float px = startX + (p - 1) * (btnSize + gap);
@@ -1660,31 +1660,31 @@ namespace sad
                         Color txtColor = isCurrent ? Color::fromNamed(NamedColor::White) : Color::fromNamed(NamedColor::Black);
                         drawText(std::to_string(p), px + btnSize / 2 - 4, rect.y + 6, txtColor, 14.0f);
                     }
-                    // ״²״± ״§„״×״§„
+                    // زر التالي
                     float endX = startX + totalPages * (btnSize + gap);
-                    drawText("ֲ»", endX, rect.y + 4, activeColor, 16.0f);
+                    drawText("»", endX, rect.y + 4, activeColor, 16.0f);
                     break;
                 }
 
                 case UINodeType::Timeline:
                 {
                     Color lineColor = Color::fromNamed(NamedColor::Blue);
-                    // ״®״· ״¹…ˆ״¯
+                    // خط عمودي
                     LayoutRect line = {rect.x + 6.0f, rect.y, 2.0f, rect.height};
                     drawFilledRect(line, lineColor);
                     break;
                 }
 
-                    // ג”€ג”€ ֲ§12 …ƒˆ†״§״× ״§„ˆ״³״§״¦״· (Media Components ג€” v3) ג”€ג”€
+                    // ── §12 مكونات الوسائط (Media Components — v3) ──
 
                 case UINodeType::Carousel:
                 {
                     Color bgColor = {0.95f, 0.95f, 0.95f, 1.0f};
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, Color::fromNamed(NamedColor::Gray), 8.0f);
-                    // ״£״³‡… ״§„״×†‚„
-                    drawText("ג—€", rect.x + 4, rect.y + rect.height / 2 - 10, Color::fromNamed(NamedColor::Gray), 20.0f);
-                    drawText("ג–¶", rect.x + rect.width - 20, rect.y + rect.height / 2 - 10, Color::fromNamed(NamedColor::Gray), 20.0f);
+                    // أسهم التنقل
+                    drawText("◀", rect.x + 4, rect.y + rect.height / 2 - 10, Color::fromNamed(NamedColor::Gray), 20.0f);
+                    drawText("▶", rect.x + rect.width - 20, rect.y + rect.height / 2 - 10, Color::fromNamed(NamedColor::Gray), 20.0f);
                     break;
                 }
 
@@ -1693,15 +1693,15 @@ namespace sad
                 {
                     const auto *textProp = node.findProperty("text");
                     if (!textProp)
-                        textProp = node.findProperty("†״µ");
+                        textProp = node.findProperty("نص");
                     if (!textProp)
-                        textProp = node.findProperty("…״­״×ˆ‰");
+                        textProp = node.findProperty("محتوى");
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("„ˆ†"), Color::fromNamed(NamedColor::Black));
-                            float fontSize = getNumericProp(node.findProperty("״­״¬…_״§„״®״·"), 14.0f);
+                            Color textColor = parseColorProp(node.findProperty("لون"), Color::fromNamed(NamedColor::Black));
+                            float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 14.0f);
                             float textX = rect.x;
                             if (isArabicUTF8(*text))
                             {
@@ -1843,8 +1843,8 @@ namespace sad
                     Color bgColor = {0.95f, 0.95f, 0.95f, 1.0f};
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, Color::fromNamed(NamedColor::Gray), 8.0f);
-                    drawText("ג–¶", rect.x + 8, rect.y + 6, Color::fromNamed(NamedColor::Blue), 18.0f);
-                    // ״´״±״· ״§„״×‚״¯…
+                    drawText("▶", rect.x + 8, rect.y + 6, Color::fromNamed(NamedColor::Blue), 18.0f);
+                    // شريط التقدم
                     LayoutRect bar = {rect.x + 40, rect.y + rect.height / 2 - 2, rect.width - 90, 4.0f};
                     drawFilledRect(bar, Color::fromNamed(NamedColor::Gray));
                     drawText("00:00", rect.x + rect.width - 45, rect.y + 6, Color::fromNamed(NamedColor::Gray), 12.0f);
@@ -1858,11 +1858,11 @@ namespace sad
                     break;
                 }
 
-                    // ג”€ג”€ ֲ§13 …ƒˆ†״§״× ״§„״­״±ƒ״© (Animation Components ג€” v3) ג”€ג”€
+                    // ── §13 مكونات الحركة (Animation Components — v3) ──
 
                 case UINodeType::Skeleton:
                 {
-                    // ‡ƒ„ ״×״­…„ …״¹ ״×״¯״±״¬ „״§…״¹ (shimmer-like)
+                    // هيكل تحميل مع تدرج لامع (shimmer-like)
                     Color placeholderDark = {0.82f, 0.82f, 0.82f, 1.0f};
                     Color placeholderLight = {0.92f, 0.92f, 0.92f, 1.0f};
                     drawLinearGradient(rect, placeholderDark, placeholderLight, false, 4.0f);
@@ -1871,7 +1871,7 @@ namespace sad
 
                 case UINodeType::Shimmer:
                 {
-                    // ״×״£״«״± ˆ…״¶ …״¹ ״×״¯״±״¬
+                    // تأثير وميض مع تدرج
                     Color shimmerDark = {0.88f, 0.88f, 0.88f, 1.0f};
                     Color shimmerLight = {0.96f, 0.96f, 0.96f, 1.0f};
                     drawLinearGradient(rect, shimmerDark, shimmerLight, false);
@@ -1881,8 +1881,8 @@ namespace sad
                 case UINodeType::AnimatedList:
                 case UINodeType::ForEach:
                 {
-                    // ‚ˆ״§״¦… ״¯†״§…ƒ״© ג€” ״±״³… ״®„״© ״®״© + ״§„״£״¨†״§״¡ ״±״³…ˆ† ״¨״§„״×ƒ״±״§״± ״£״¯†״§‡
-                    Color listBg = parseColorProp(node.findProperty("״®„״©"), {0.98f, 0.98f, 0.98f, 1.0f});
+                    // قوائم ديناميكية — رسم خلفية خفيفة + الأبناء يُرسمون بالتكرار أدناه
+                    Color listBg = parseColorProp(node.findProperty("خلفية"), {0.98f, 0.98f, 0.98f, 1.0f});
                     drawFilledRect(rect, listBg);
                     break;
                 }
@@ -1891,18 +1891,18 @@ namespace sad
                 case UINodeType::Collapsible:
                 {
                     const auto *textProp = node.findProperty("text");
-                    std::string title = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "ג–¶ ״¹†״µ״±") : "ג–¶ ״¹†״µ״±";
+                    std::string title = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "▶ عنصر") : "▶ عنصر";
                     drawText(title, rect.x + 4, rect.y + 4, Color::fromNamed(NamedColor::Black), 14.0f);
                     break;
                 }
 
                 case UINodeType::Swipeable:
                 {
-                    // ״§„״£״¨†״§״¡ ״±״³…ˆ† ״¨״§„״×ƒ״±״§״±
+                    // الأبناء يُرسمون بالتكرار
                     break;
                 }
 
-                    // ג”€ג”€ ֲ§14 …ƒˆ†״§״× ״§„״×״­ƒ… ״§„…״×‚״¯…״© (Advanced Controls ג€” v3) ג”€ג”€
+                    // ── §14 مكونات التحكم المتقدمة (Advanced Controls — v3) ──
 
                 case UINodeType::Stepper:
                 {
@@ -1910,7 +1910,7 @@ namespace sad
                     Color borderColor = Color::fromNamed(NamedColor::Gray);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, borderColor, 4.0f);
-                    drawText("גˆ’", rect.x + 4, rect.y + 2, Color::fromNamed(NamedColor::Black), 18.0f);
+                    drawText("−", rect.x + 4, rect.y + 2, Color::fromNamed(NamedColor::Black), 18.0f);
                     drawText("0", rect.x + rect.width / 2 - 6, rect.y + 4, Color::fromNamed(NamedColor::Black), 14.0f);
                     drawText("+", rect.x + rect.width - 20, rect.y + 2, Color::fromNamed(NamedColor::Black), 18.0f);
                     break;
@@ -1922,7 +1922,7 @@ namespace sad
                     Color selectedColor = Color::fromNamed(NamedColor::White);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, Color::fromNamed(NamedColor::Gray), 8.0f);
-                    // ״£ˆ„ ״´״±״­״© …״­״¯״¯״©
+                    // أول شريحة محددة
                     if (rect.width > 20)
                     {
                         float segW = rect.width / 3.0f;
@@ -1935,12 +1935,12 @@ namespace sad
 
                 case UINodeType::RatingBar:
                 {
-                    Color starColor = {1.0f, 0.84f, 0.0f, 1.0f}; // ״°‡״¨
+                    Color starColor = {1.0f, 0.84f, 0.0f, 1.0f}; // ذهبي
                     Color emptyColor = Color::fromNamed(NamedColor::Gray);
                     for (int s = 0; s < 5; s++)
                     {
                         Color c = s < 3 ? starColor : emptyColor;
-                        drawText("ג˜…", rect.x + s * 22.0f, rect.y, c, 20.0f);
+                        drawText("★", rect.x + s * 22.0f, rect.y, c, 20.0f);
                     }
                     break;
                 }
@@ -1953,14 +1953,14 @@ namespace sad
                     Color borderColor = Color::fromNamed(NamedColor::Gray);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, borderColor, 4.0f);
-                    drawText("נ“…", rect.x + 4, rect.y + 4, Color::fromNamed(NamedColor::Black), 14.0f);
+                    drawText("📅", rect.x + 4, rect.y + 4, Color::fromNamed(NamedColor::Black), 14.0f);
                     break;
                 }
 
                 case UINodeType::ColorPicker:
                 case UINodeType::ColorWheel:
                 {
-                    // ״· „ˆ† ״¨״§„״×״¯״±״¬ (״£״­…״± ג†’ ״£״®״¶״± ג†’ ״£״²״±‚)
+                    // طيف لوني بالتدرج (أحمر → أخضر → أزرق)
                     float third = rect.width / 3.0f;
                     LayoutRect r1 = {rect.x, rect.y, third + 1, rect.height};
                     LayoutRect r2 = {rect.x + third, rect.y, third + 1, rect.height};
@@ -1968,17 +1968,17 @@ namespace sad
                     drawLinearGradient(r1, Color::fromNamed(NamedColor::Red), Color::fromNamed(NamedColor::Green), false);
                     drawLinearGradient(r2, Color::fromNamed(NamedColor::Green), Color::fromNamed(NamedColor::Blue), false);
                     drawLinearGradient(r3, Color::fromNamed(NamedColor::Blue), {1.0f, 0.0f, 1.0f, 1.0f}, false);
-                    drawRoundedRect(rect, {0, 0, 0, 0}, 4.0f); // ״­״¯ˆ״¯ ‚״·
+                    drawRoundedRect(rect, {0, 0, 0, 0}, 4.0f); // حدود فقط
                     break;
                 }
 
-                    // ג”€ג”€ ֲ§15 …ƒˆ†״§״× ״§„״×†‚„ ״§„…״×‚״¯…״© (Extended Navigation ג€” v3) ג”€ג”€
+                    // ── §15 مكونات التنقل المتقدمة (Extended Navigation — v3) ──
 
                 case UINodeType::BottomNav:
                 {
                     Color bgColor = Color::fromNamed(NamedColor::White);
                     drawFilledRect(rect, bgColor);
-                    // ״®״· ״¹„ˆ
+                    // خط علوي
                     LayoutRect topLine = {rect.x, rect.y, rect.width, 1.0f};
                     drawFilledRect(topLine, Color::fromNamed(NamedColor::Gray));
                     break;
@@ -1988,7 +1988,7 @@ namespace sad
                 {
                     Color bgColor = {0.95f, 0.95f, 0.97f, 1.0f};
                     drawFilledRect(rect, bgColor);
-                    // ״®״· ״¬״§†״¨
+                    // خط جانبي
                     LayoutRect sideLine = {rect.x + rect.width - 1, rect.y, 1.0f, rect.height};
                     drawFilledRect(sideLine, Color::fromNamed(NamedColor::Gray));
                     break;
@@ -2005,7 +2005,7 @@ namespace sad
 
                 case UINodeType::SplitView:
                 {
-                    // ״®״· ״§״µ„  ״§„…†״×״µ
+                    // خط فاصل في المنتصف
                     float mid = rect.x + rect.width / 2.0f;
                     LayoutRect divider = {mid - 1, rect.y, 2.0f, rect.height};
                     drawFilledRect(divider, Color::fromNamed(NamedColor::Gray));
@@ -2029,17 +2029,17 @@ namespace sad
                     break;
                 }
 
-                    // ג”€ג”€ ״£†ˆ״§״¹ v1-v2 …‚ˆ״¯״© ג”€ג”€
+                    // ── أنواع v1-v2 مفقودة ──
 
                     // ─── TextArea handled above with TextField ───
 
                 case UINodeType::LazyGrid:
                 {
-                    // ״´״¨ƒ״© ƒ״³ˆ„״© ג€” ״®„״© + ״¥״·״§״± + ״§„״£״¨†״§״¡ ״¹״±״¶ˆ† ״¨״§„״×ƒ״±״§״± ״£״¯†״§‡
-                    Color gridBg = parseColorProp(node.findProperty("״®„״©"), {0.97f, 0.97f, 0.97f, 1.0f});
+                    // شبكة كسولة — خلفية + إطار + الأبناء يُعرضون بالتكرار أدناه
+                    Color gridBg = parseColorProp(node.findProperty("خلفية"), {0.97f, 0.97f, 0.97f, 1.0f});
                     drawFilledRect(rect, gridBg);
-                    // ״±״³… ״®״·ˆ״· ״´״¨ƒ״© ״®״©
-                    float cellSize = getNumericProp(node.findProperty("״­״¬…_״®„״©"), 80.0f);
+                    // رسم خطوط شبكة خفيفة
+                    float cellSize = getNumericProp(node.findProperty("حجم_خلية"), 80.0f);
                     Color gridLine = {0.9f, 0.9f, 0.9f, 0.5f};
                     for (float gx = rect.x + cellSize; gx < rect.x + rect.width; gx += cellSize)
                     {
@@ -2057,40 +2057,40 @@ namespace sad
                 case UINodeType::NavigationLink:
                 {
                     Color linkColor = Color::fromNamed(NamedColor::Blue);
-                    drawText("ג†’", rect.x + 4, rect.y + 4, linkColor, 14.0f);
+                    drawText("→", rect.x + 4, rect.y + 4, linkColor, 14.0f);
                     break;
                 }
 
                 case UINodeType::TabItem:
                 case UINodeType::Section:
                 {
-                    // ‚״³… ג€” ״¹†ˆ״§† + …״­״×ˆ‰
-                    const auto *sectionTitle = node.findProperty("״¹†ˆ״§†");
+                    // قسم — عنوان + محتوى
+                    const auto *sectionTitle = node.findProperty("عنوان");
                     if (!sectionTitle)
-                        sectionTitle = node.findProperty("†״µ");
+                        sectionTitle = node.findProperty("نص");
                     if (sectionTitle)
                     {
                         if (auto *t = std::get_if<std::string>(&sectionTitle->value))
                         {
-                            Color titleColor = parseColorProp(node.findProperty("„ˆ†"), {0.3f, 0.3f, 0.3f, 1.0f});
+                            Color titleColor = parseColorProp(node.findProperty("لون"), {0.3f, 0.3f, 0.3f, 1.0f});
                             drawText(*t, rect.x + 4, rect.y + 2, titleColor, 12.0f);
-                            // ״®״· ״§״µ„ ״×״­״× ״§„״¹†ˆ״§†
+                            // خط فاصل تحت العنوان
                             LayoutRect sep = {rect.x, rect.y + 18, rect.width, 1.0f};
                             drawFilledRect(sep, {0.85f, 0.85f, 0.85f, 1.0f});
                         }
                     }
-                    // ״§„״£״¨†״§״¡ ״¹״±״¶ˆ† ״¨״§„״×ƒ״±״§״± ״£״¯†״§‡
+                    // الأبناء يُعرضون بالتكرار أدناه
                     break;
                 }
 
                 case UINodeType::Sheet:
                 {
-                    // ״¸„ †״§״¹… „„ˆ״±‚״© ״§„…†״¨״«‚״©
+                    // ظل ناعم للورقة المنبثقة
                     drawSoftShadow(rect, 12.0f, 16.0f, 0.0f, -4.0f, {0, 0, 0, 0.2f});
                     Color bgColor = Color::fromNamed(NamedColor::White);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, Color::fromNamed(NamedColor::Gray), 12.0f);
-                    // …‚״¨״¶ ״§„ˆ״±‚״©
+                    // مقبض الورقة
                     float handleW = 40.0f;
                     LayoutRect handle = {rect.x + rect.width / 2 - handleW / 2, rect.y + 8, handleW, 4.0f};
                     drawRoundedRect(handle, Color::fromNamed(NamedColor::Gray), 2.0f);
@@ -2109,7 +2109,7 @@ namespace sad
                 {
                     Color mapColor = {0.85f, 0.92f, 0.85f, 1.0f};
                     drawFilledRect(rect, mapColor);
-                    drawText("נ—÷ן¸", rect.x + rect.width / 2 - 10, rect.y + rect.height / 2 - 10, Color::fromNamed(NamedColor::Black), 20.0f);
+                    drawText("🗺️", rect.x + rect.width / 2 - 10, rect.y + rect.height / 2 - 10, Color::fromNamed(NamedColor::Black), 20.0f);
                     break;
                 }
 
@@ -2118,7 +2118,7 @@ namespace sad
                     Color bgColor = Color::fromNamed(NamedColor::White);
                     drawFilledRect(rect, bgColor);
                     drawRoundedRect(rect, Color::fromNamed(NamedColor::Gray), 2.0f);
-                    drawText("נ", rect.x + 4, rect.y + 4, Color::fromNamed(NamedColor::Blue), 16.0f);
+                    drawText("🌐", rect.x + 4, rect.y + 4, Color::fromNamed(NamedColor::Blue), 16.0f);
                     break;
                 }
 
@@ -2126,25 +2126,25 @@ namespace sad
                 {
                     Color bgColor = Color::fromNamed(NamedColor::Black);
                     drawFilledRect(rect, bgColor);
-                    // ״²״± ״×״´״÷„ ˆ״³״·
-                    drawText("ג–¶", rect.x + rect.width / 2 - 12, rect.y + rect.height / 2 - 12, Color::fromNamed(NamedColor::White), 24.0f);
+                    // زر تشغيل وسط
+                    drawText("▶", rect.x + rect.width / 2 - 12, rect.y + rect.height / 2 - 12, Color::fromNamed(NamedColor::White), 24.0f);
                     break;
                 }
 
                 case UINodeType::Canvas:
                 {
-                    // …†״·‚״© ״±״³… …״®״µ״µ״© ג€” ״®„״© + ״¥״·״§״±
+                    // منطقة رسم مخصصة — خلفية + إطار
                     Color canvasBg = Color::fromNamed(NamedColor::White);
                     drawFilledRect(rect, canvasBg);
                     drawRoundedRect(rect, Color::fromNamed(NamedColor::Gray), 1.0f);
-                    // ״§„״£״¨†״§״¡ (״£ˆ״§…״± ״§„״±״³…) ״¹״±״¶ˆ† ״¨״§„״×ƒ״±״§״± ״£״¯†״§‡
+                    // الأبناء (أوامر الرسم) يُعرضون بالتكرار أدناه
                     break;
                 }
 
                 case UINodeType::CustomWidget:
                 case UINodeType::Conditional:
                 {
-                    // ״¹†״§״µ״± …״®״µ״µ״© ג€” ״§„״£״¨†״§״¡ ״¹״±״¶ˆ† ״¨״§„״×ƒ״±״§״±
+                    // عناصر مخصصة — الأبناء يُعرضون بالتكرار
                     break;
                 }
 
@@ -2152,14 +2152,14 @@ namespace sad
                     break;
                 }
 
-                // 3. ״±״³… ״­״¯ˆ״¯ ״§„״×״µ״­״­ (״¥״°״§ …״¹‘„)
+                // 3. رسم حدود التصحيح (إذا مفعّل)
                 if (desktopOptions_.debugBounds)
                 {
-                    Color debugColor = {1.0f, 0.0f, 0.0f, 0.3f}; // ״£״­…״± ״´״§
+                    Color debugColor = {1.0f, 0.0f, 0.0f, 0.3f}; // أحمر شفاف
                     drawFilledRect(rect, debugColor);
                 }
 
-                // 4. ״±״³… ״§„״£״¨†״§״¡ (״×ƒ״±״§״±) ג€” …״¹ ״¯״¹… ״§„״×…״±״±
+                // 4. رسم الأبناء (تكرار) — مع دعم التمرير
                 bool isScrollable = (node.getType() == UINodeType::ScrollView ||
                                      node.getType() == UINodeType::LazyColumn ||
                                      node.getType() == UINodeType::LazyRow ||
@@ -2177,13 +2177,13 @@ namespace sad
                     renderNode(*node.getChildren()[i], *layout.children[i]);
                 }
 
-                // 5. ״¥״¹״§״¯״© ״×״¹† ״§„‚״µ ˆ״§„״×…״±״± ״¨״¹״¯ ״§„״¹†״§״µ״± ״§„‚״§״¨„״© „„״×…״±״±
+                // 5. إعادة تعيين القص والتمرير بعد العناصر القابلة للتمرير
                 if (isScrollable)
                 {
                     scrollTranslateY_ = prevScrollTranslateY;
                     setClipRect(nullptr);
 
-                    // 5.1 ״±״³… ״´״±״· ״§„״×…״±״± (scrollbar)
+                    // 5.1 رسم شريط التمرير (scrollbar)
                     float scrollOff = getScrollOffset(&node);
                     float contentH = layout.contentHeight;
                     float viewH = rect.height;

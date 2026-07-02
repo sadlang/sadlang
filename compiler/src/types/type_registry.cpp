@@ -1,71 +1,71 @@
-﻿// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-// …„: type_registry.cpp
+﻿// ════════════════════════════════════════════════════════════════════════════════
+// ملف: type_registry.cpp
 // File: type_registry.cpp
 //
-// ״§„ˆ״µ: ״×†״° ״³״¬„ …״±ƒ״² „״¬…״¹ ״§„״£†ˆ״§״¹
+// الوصف: تنفيذ سجل مركزي لجميع الأنواع
 // Description: Implementation of central registry for all types
 //
-// ״§„…״₪„: Sad Language Type System
+// المؤلف: Sad Language Type System
 // Author: Sad Language Type System
 //
-// ״§„״×״§״±״®: 2 †״§״± 2026
+// التاريخ: 2 يناير 2026
 // Date: January 2, 2026
-// ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+// ════════════════════════════════════════════════════════════════════════════════
 
-#include "types/type_registry.h" // ״§״³״×״±״§״¯ ״§„״×״¹״± / Import definition
-#include <functional>            // „€ std::hash / For std::hash
+#include "types/type_registry.h" // استيراد التعريف / Import definition
+#include <functional>            // لـ std::hash / For std::hash
 
 namespace Sad
 {
     namespace TypeSystem
     {
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° Singleton Pattern
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ Singleton Pattern
         // Singleton Pattern Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
 
-        // ״§„״­״µˆ„ ״¹„‰ ״§„…״«„ ״§„ˆ״­״¯ / Get singleton instance
+        // الحصول على المثيل الوحيد / Get singleton instance
         TypeRegistry &TypeRegistry::getInstance()
         {
-            // static …״­„ thread-safe  C++11+ / Local static is thread-safe in C++11+
+            // static محلي thread-safe في C++11+ / Local static is thread-safe in C++11+
             static TypeRegistry instance;
 
-            // ״¥״±״¬״§״¹ ״§„…״«„ / Return instance
+            // إرجاع المثيل / Return instance
             return instance;
         }
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° ״§„…†״´״¦ / Constructor Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ المُنشئ / Constructor Implementation
+        // ════════════════════════════════════════════════════════════════════════════════
 
-        // ״§„…†״´״¦ ״§„״®״§״µ / Private constructor
+        // المنشئ الخاص / Private constructor
         TypeRegistry::TypeRegistry()
         {
-            // ״×‡״¦״© ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Initialize primitive types
+            // تهيئة الأنواع البدائية / Initialize primitive types
             initializePrimitiveTypes();
         }
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° ״§„״×‡״¦״© / Initialization Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ التهيئة / Initialization Implementation
+        // ════════════════════════════════════════════════════════════════════════════════
 
-        // ״×‡״¦״© cache ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Initialize primitive type cache
+        // تهيئة cache الأنواع البدائية / Initialize primitive type cache
         void TypeRegistry::initializePrimitiveTypes()
         {
-            // ״¥†״´״§״¡ ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Create primitive types
-            void_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Void);       // ״±״§״÷
-            integer_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Integer); // ״±‚…
-            float_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Float);     // ״¹״´״±
-            boolean_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Boolean); // …†״·‚
-            string_type_ = std::make_shared<PrimitiveType>(SadTypeKind::String);   // †״µ
+            // إنشاء الأنواع البدائية / Create primitive types
+            void_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Void);       // فراغ
+            integer_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Integer); // رقم
+            float_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Float);     // عشري
+            boolean_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Boolean); // منطقي
+            string_type_ = std::make_shared<PrimitiveType>(SadTypeKind::String);   // نص
 
-            // ״¥†״´״§״¡ ״§„״£†ˆ״§״¹ ״§„״®״§״µ״© / Create special types
-            any_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Any);         // ״£
-            never_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Never);     // ״£״¨״¯״§‹
-            unknown_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Unknown); // …״¬‡ˆ„
+            // إنشاء الأنواع الخاصة / Create special types
+            any_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Any);         // أي
+            never_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Never);     // أبداً
+            unknown_type_ = std::make_shared<PrimitiveType>(SadTypeKind::Unknown); // مجهول
 
-            // ״¥״¶״§״© ״§„״£†ˆ״§״¹ ״¥„‰ ״§„״®״±״·״© / Add types to map
+            // إضافة الأنواع إلى الخريطة / Add types to map
             type_map_[hashType(void_type_)] = void_type_;
             type_map_[hashType(integer_type_)] = integer_type_;
             type_map_[hashType(float_type_)] = float_type_;
@@ -76,93 +76,93 @@ namespace Sad
             type_map_[hashType(unknown_type_)] = unknown_type_;
         }
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° ״§„״­״µˆ„ ״¹„‰ ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Primitive Type Getters Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ الحصول على الأنواع البدائية / Primitive Type Getters Implementation
+        // ════════════════════════════════════════════════════════════════════════════════
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ ״±״§״÷ / Get Void type
+        // الحصول على نوع فراغ / Get Void type
         TypePtr TypeRegistry::getVoidType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return void_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ ״±‚… / Get Integer type
+        // الحصول على نوع رقم / Get Integer type
         TypePtr TypeRegistry::getIntegerType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return integer_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ ״¹״´״± / Get Float type
+        // الحصول على نوع عشري / Get Float type
         TypePtr TypeRegistry::getFloatType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return float_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ …†״·‚ / Get Boolean type
+        // الحصول على نوع منطقي / Get Boolean type
         TypePtr TypeRegistry::getBooleanType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return boolean_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ †״µ / Get String type
+        // الحصول على نوع نص / Get String type
         TypePtr TypeRegistry::getStringType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return string_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ Any / Get Any type
+        // الحصول على نوع Any / Get Any type
         TypePtr TypeRegistry::getAnyType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return any_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ Never / Get Never type
+        // الحصول على نوع Never / Get Never type
         TypePtr TypeRegistry::getNeverType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return never_type_;
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ †ˆ״¹ Unknown / Get Unknown type
+        // الحصول على نوع Unknown / Get Unknown type
         TypePtr TypeRegistry::getUnknownType()
         {
-            // ״¥״±״¬״§״¹ …† cache / Return from cache
+            // إرجاع من cache / Return from cache
             return unknown_type_;
         }
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° Type Interning
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ Type Interning
         // Type Interning Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
 
-        // ״§„״­״µˆ„ ״¹„‰ ״£ˆ ״¥†״´״§״¡ †ˆ״¹ ״¨״¯״§״¦ / Get or create primitive type
+        // الحصول على أو إنشاء نوع بدائي / Get or create primitive type
         TypePtr TypeRegistry::internPrimitiveType(SadTypeKind kind)
         {
-            // ״§״³״×״®״¯״§… switch „„״£†ˆ״§״¹ ״§„…״®״×„״© / Use switch for different kinds
+            // استخدام switch للأنواع المختلفة / Use switch for different kinds
             switch (kind)
             {
             case SadTypeKind::Void:
-                return getVoidType(); // ״±״§״÷
+                return getVoidType(); // فراغ
             case SadTypeKind::Integer:
-                return getIntegerType(); // ״±‚…
+                return getIntegerType(); // رقم
             case SadTypeKind::Float:
-                return getFloatType(); // ״¹״´״±
+                return getFloatType(); // عشري
             case SadTypeKind::Boolean:
-                return getBooleanType(); // …†״·‚
+                return getBooleanType(); // منطقي
             case SadTypeKind::String:
-                return getStringType(); // †״µ
+                return getStringType(); // نص
             case SadTypeKind::Any:
-                return getAnyType(); // ״£
+                return getAnyType(); // أي
             case SadTypeKind::Never:
-                return getNeverType(); // ״£״¨״¯״§‹
+                return getNeverType(); // أبداً
             case SadTypeKind::Unknown:
-                return getUnknownType(); // …״¬‡ˆ„
+                return getUnknownType(); // مجهول
             case SadTypeKind::Class:
             case SadTypeKind::Trait:
                 // (AR) أنواع معقدة — نُعيد Any كبديل مؤقت
@@ -171,24 +171,24 @@ namespace Sad
                 //      since they are not primitive and PrimitiveType cannot handle them
                 return getAnyType();
             default:
-                // „„״£†ˆ״§״¹ ״§„״£״®״±‰״ ״§״³״×״®״¯… internType / For other types, use internType
+                // للأنواع الأخرى، استخدم internType / For other types, use internType
                 return internType(std::make_shared<PrimitiveType>(kind));
             }
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ ״£ˆ ״¥†״´״§״¡ †ˆ״¹ ״¹״§… / Get or create type with interning
+        // الحصول على أو إنشاء نوع عام / Get or create type with interning
         TypePtr TypeRegistry::internType(TypePtr type)
         {
-            // ״§„״×״­‚‚ …† null / Check for null
+            // التحقق من null / Check for null
             if (!type)
             {
-                return nullptr; // ״¥״±״¬״§״¹ null ״¥״°״§ ƒ״§† ״§„…״¯״®„ null / Return null if input is null
+                return nullptr; // إرجاع null إذا كان المدخل null / Return null if input is null
             }
 
-            // ‚„ mutex „„€ thread safety / Lock mutex for thread safety
+            // قفل mutex للـ thread safety / Lock mutex for thread safety
             std::lock_guard<std::mutex> lock(mutex_);
 
-            // ״­״³״§״¨ hash / Calculate hash
+            // حساب hash / Calculate hash
             size_t hash = hashType(type);
 
             // البحث في الخريطة / Search in map
@@ -207,9 +207,9 @@ namespace Sad
             return type;
         }
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° Hash / Hash Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ Hash / Hash Implementation
+        // ════════════════════════════════════════════════════════════════════════════════
 
         // حساب hash لنوع / Calculate hash for a type
         size_t TypeRegistry::hashType(const TypePtr &type) const
@@ -241,45 +241,45 @@ namespace Sad
             return hash;
         }
 
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-        // ״×†״° ״§„״¥״­״µ״§״¦״§״× / Statistics Implementation
-        // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+        // ════════════════════════════════════════════════════════════════════════════════
+        // تنفيذ الإحصائيات / Statistics Implementation
+        // ════════════════════════════════════════════════════════════════════════════════
 
-        // ״§„״­״µˆ„ ״¹„‰ ״¹״¯״¯ ״§„״£†ˆ״§״¹ ״§„…״³״¬„״© / Get number of registered types
+        // الحصول على عدد الأنواع المسجلة / Get number of registered types
         size_t TypeRegistry::getTypeCount() const
         {
-            // ‚„ mutex / Lock mutex
+            // قفل mutex / Lock mutex
             std::lock_guard<std::mutex> lock(mutex_);
 
-            // ״¥״±״¬״§״¹ ״­״¬… ״§„״®״±״·״© / Return map size
+            // إرجاع حجم الخريطة / Return map size
             return type_map_.size();
         }
 
-        // ״§„״­״µˆ„ ״¹„‰ ״¹״¯״¯ ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Get primitive type count
+        // الحصول على عدد الأنواع البدائية / Get primitive type count
         size_t TypeRegistry::getPrimitiveTypeCount() const
         {
-            // ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© ״§„…״¹״¯״© …״³״¨‚״§‹: 8 ״£†ˆ״§״¹ / Pre-cached primitive types: 8 types
+            // الأنواع البدائية المُعدة مسبقاً: 8 أنواع / Pre-cached primitive types: 8 types
             // (Void, Integer, Float, Boolean, String, Any, Never, Unknown)
             return 8;
         }
 
-        // …״³״­ ״§„״³״¬„ („„״§״®״×״¨״§״±״§״× ‚״·) / Clear registry (for tests only)
+        // مسح السجل (للاختبارات فقط) / Clear registry (for tests only)
         void TypeRegistry::clear()
         {
-            // ‚„ mutex / Lock mutex
+            // قفل mutex / Lock mutex
             std::lock_guard<std::mutex> lock(mutex_);
 
-            // …״³״­ ״§„״®״±״·״© / Clear map
+            // مسح الخريطة / Clear map
             type_map_.clear();
 
-            // ״¥״¹״§״¯״© ״×‡״¦״© / Reinitialize
+            // إعادة تهيئة / Reinitialize
             initializePrimitiveTypes();
         }
 
-        // ״¥״¹״§״¯״© ״×‡״¦״© ״§„״³״¬„ / Reinitialize registry
+        // إعادة تهيئة السجل / Reinitialize registry
         void TypeRegistry::reset()
         {
-            // ״§״³״×״¯״¹״§״¡ clear / Call clear
+            // استدعاء clear / Call clear
             clear();
         }
 

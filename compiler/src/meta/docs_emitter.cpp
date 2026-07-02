@@ -1,12 +1,12 @@
-﻿// ״¨״³… ״§„„‡ ״§„״±״­…† ״§„״±״­…
+﻿// بسم الله الرحمن الرحيم
 // ============================================================================
-// docs_emitter.cpp ג€” ״×†״° …״µ״¯‘״± ״§„״×ˆ״«‚ ״§„…״×‚״¯…
+// docs_emitter.cpp — تنفيذ مُصدِّر التوثيق المتقدم
 // Advanced Documentation Emitter Implementation
 // ============================================================================
 //
-// (AR) ״×†״° ƒ״§…„ „†״¸״§… ״×ˆ„״¯ ״§„״×ˆ״«‚ ״§„״§״­״×״±״§ „„״÷״© ״µ.
-//      ״¯״¹… HTML ˆMarkdown ˆJSON״ …״¹ ״¨״­״« ˆ…״±״§״¬״¹ …״×‚״§״·״¹״© ˆ״³…״§״× …״×״¹״¯״¯״©.
-//      ״­„ …״­„ docs_emitter.cpp ״§„‚״¯… (129 ״³״·״±) ״¨†״¸״§… ״´״§…„.
+// (AR) تنفيذ كامل لنظام توليد التوثيق الاحترافي للغة ص.
+//      يدعم HTML وMarkdown وJSON، مع بحث ومراجع متقاطعة وسمات متعددة.
+//      يحل محل docs_emitter.cpp القديم (129 سطر) بنظام شامل.
 //
 // (EN) Complete implementation of the professional documentation generation
 //      system for Sad language. Replaces old 129-line stub with full system.
@@ -31,21 +31,21 @@ namespace Meta {
 
 std::string DocEntry::kindNameAr() const {
     switch (kind) {
-        case DocItemKind::Function:    return "״¯״§„״©";
-        case DocItemKind::Class:       return "״µ†";
-        case DocItemKind::Struct:      return "‡ƒ„";
-        case DocItemKind::Enum:        return "״×״¹״¯״§״¯";
-        case DocItemKind::Trait:       return "״³…״©";
-        case DocItemKind::Interface:   return "ˆ״§״¬‡״©";
-        case DocItemKind::Variable:    return "…״×״÷״±";
-        case DocItemKind::Constant:    return "״«״§״¨״×";
-        case DocItemKind::Module:      return "ˆ״­״¯״©";
-        case DocItemKind::Property:    return "״®״§״µ״©";
-        case DocItemKind::Constructor: return "״¨״§†";
-        case DocItemKind::Method:      return "״×״§״¨״¹";
-        case DocItemKind::TypeAlias:   return "״§״³…_״¨״¯„";
+        case DocItemKind::Function:    return "دالة";
+        case DocItemKind::Class:       return "صنف";
+        case DocItemKind::Struct:      return "هيكل";
+        case DocItemKind::Enum:        return "تعداد";
+        case DocItemKind::Trait:       return "سمة";
+        case DocItemKind::Interface:   return "واجهة";
+        case DocItemKind::Variable:    return "متغير";
+        case DocItemKind::Constant:    return "ثابت";
+        case DocItemKind::Module:      return "وحدة";
+        case DocItemKind::Property:    return "خاصية";
+        case DocItemKind::Constructor: return "باني";
+        case DocItemKind::Method:      return "تابع";
+        case DocItemKind::TypeAlias:   return "اسم_بديل";
     }
-    return "״÷״±_…״¹״±ˆ";
+    return "غير_معروف";
 }
 
 std::string DocEntry::kindNameEn() const {
@@ -68,7 +68,7 @@ std::string DocEntry::kindNameEn() const {
 }
 
 // ============================================================================
-// DocCommentParser ג€” …״­„„ ״×״¹„‚״§״× ״§„״×ˆ״«‚
+// DocCommentParser — محلل تعليقات التوثيق
 // ============================================================================
 
 std::vector<DocEntry> DocCommentParser::parseFile(const std::string& filePath) const {
@@ -93,7 +93,7 @@ std::vector<DocEntry> DocCommentParser::parseSource(
     while (std::getline(stream, line)) {
         lineNumber++;
 
-        // ========== ״×״¹„‚ ƒ״×„״© ״×ˆ״«‚ #** ... **# ==========
+        // ========== تعليق كتلة توثيق #** ... **# ==========
         if (!inBlockComment) {
             size_t blockStart = line.find("#**");
             if (blockStart != std::string::npos) {
@@ -133,7 +133,7 @@ std::vector<DocEntry> DocCommentParser::parseSource(
             continue;
         }
 
-        // ========== ״×״¹„‚ ״×ˆ״«‚ ״³״·״± ## ״£ˆ /// ==========
+        // ========== تعليق توثيق سطري ## أو /// ==========
         size_t docPos = std::string::npos;
 
         size_t hashHash = line.find("##");
@@ -167,7 +167,7 @@ std::vector<DocEntry> DocCommentParser::parseSource(
             continue;
         }
 
-        // ========== ״¥״¹„״§† ״¨״¹״¯ ƒ״×„״© ״×״¹„‚״§״× ==========
+        // ========== إعلان بعد كتلة تعليقات ==========
         if (!docLines.empty()) {
             std::string trimmed = line;
             size_t firstNonSpace = trimmed.find_first_not_of(" \t");
@@ -177,8 +177,8 @@ std::vector<DocEntry> DocCommentParser::parseSource(
 
             bool isDecl = false;
             static const std::vector<std::string> declKeywords = {
-                "״¯״§„״©", "״µ†", "‡ƒ„", "״×״¹״¯״§״¯", "״³…״©", "ˆ״§״¬‡״©",
-                "…״×״÷״±", "״«״§״¨״×", "ˆ״­״¯״©", "״®״§״µ״©", "״¨״§†",
+                "دالة", "صنف", "هيكل", "تعداد", "سمة", "واجهة",
+                "متغير", "ثابت", "وحدة", "خاصية", "باني",
                 "function", "class", "struct", "enum", "trait",
                 "interface", "var", "const", "module", "property"
             };
@@ -234,40 +234,40 @@ DocEntry DocCommentParser::parseDocBlock(const std::vector<std::string>& docLine
             inDescription = false;
             DocTag tag = parseTag(line);
 
-            if (tag.name == "@…״¹״·‰" || tag.name == "@param") {
+            if (tag.name == "@معطى" || tag.name == "@param") {
                 ParamInfo param;
                 param.name = tag.paramName;
                 param.description = tag.content;
                 entry.params.push_back(std::move(param));
             }
-            else if (tag.name == "@״£״±״¬״¹" || tag.name == "@return" || tag.name == "@returns") {
+            else if (tag.name == "@أرجع" || tag.name == "@return" || tag.name == "@returns") {
                 entry.returnDescription = tag.content;
             }
-            else if (tag.name == "@…״«״§„" || tag.name == "@example") {
+            else if (tag.name == "@مثال" || tag.name == "@example") {
                 entry.examples.push_back(tag.content);
             }
-            else if (tag.name == "@״§†״¸״±" || tag.name == "@see") {
+            else if (tag.name == "@انظر" || tag.name == "@see") {
                 entry.seeAlso.push_back(tag.content);
             }
-            else if (tag.name == "@…†״°" || tag.name == "@since") {
+            else if (tag.name == "@منذ" || tag.name == "@since") {
                 entry.since = tag.content;
             }
-            else if (tag.name == "@…‡…„" || tag.name == "@deprecated") {
+            else if (tag.name == "@مهمل" || tag.name == "@deprecated") {
                 entry.deprecated = tag.content;
             }
-            else if (tag.name == "@…„״§״­״¸״©" || tag.name == "@note") {
+            else if (tag.name == "@ملاحظة" || tag.name == "@note") {
                 entry.notes.push_back(tag.content);
             }
-            else if (tag.name == "@״×״­״°״±" || tag.name == "@warning") {
+            else if (tag.name == "@تحذير" || tag.name == "@warning") {
                 entry.warnings.push_back(tag.content);
             }
-            else if (tag.name == "@†״³״®״©" || tag.name == "@version") {
+            else if (tag.name == "@نسخة" || tag.name == "@version") {
                 entry.version = tag.content;
             }
-            else if (tag.name == "@…״₪„" || tag.name == "@author") {
+            else if (tag.name == "@مؤلف" || tag.name == "@author") {
                 entry.metadata["author"] = tag.content;
             }
-            else if (tag.name == "@״±…" || tag.name == "@throws") {
+            else if (tag.name == "@رمي" || tag.name == "@throws") {
                 entry.metadata["throws:" + tag.paramName] = tag.content;
             }
             else {
@@ -289,7 +289,7 @@ DocEntry DocCommentParser::parseDocBlock(const std::vector<std::string>& docLine
         entry.description.pop_back();
     }
 
-    // ״¥״°״§ ƒ״§† ״§„ˆ״µ ״§״±״÷״§‹ „ƒ† ״§„…„״®״µ …ˆ״¬ˆ״¯״ ״§״³״×״®״¯… ״§„…„״®״µ ƒˆ״µ
+    // إذا كان الوصف فارغاً لكن الملخص موجود، استخدم الملخص كوصف
     if (entry.description.empty() && !entry.summary.empty()) {
         entry.description = entry.summary;
     }
@@ -303,8 +303,8 @@ DocTag DocCommentParser::parseTag(const std::string& line) const {
     tag.name = (spacePos != std::string::npos) ? line.substr(0, spacePos) : line;
     std::string rest = (spacePos != std::string::npos) ? line.substr(spacePos + 1) : "";
 
-    if (tag.name == "@…״¹״·‰" || tag.name == "@param" ||
-        tag.name == "@״±…" || tag.name == "@throws") {
+    if (tag.name == "@معطى" || tag.name == "@param" ||
+        tag.name == "@رمي" || tag.name == "@throws") {
         size_t nameEnd = rest.find(' ');
         if (nameEnd != std::string::npos) {
             tag.paramName = rest.substr(0, nameEnd);
@@ -321,54 +321,54 @@ DocTag DocCommentParser::parseTag(const std::string& line) const {
 void DocCommentParser::parseDeclaration(const std::string& line, DocEntry& entry) const {
     entry.declarationCode = line;
 
-    if (line.find("״¯״§„״© ") == 0 || line.find("function ") == 0) {
+    if (line.find("دالة ") == 0 || line.find("function ") == 0) {
         entry.kind = DocItemKind::Function;
         parseFunctionSignature(line, entry);
     }
-    else if (line.find("״µ† ") == 0 || line.find("class ") == 0) {
+    else if (line.find("صنف ") == 0 || line.find("class ") == 0) {
         entry.kind = DocItemKind::Class;
         parseClassDeclaration(line, entry);
     }
-    else if (line.find("‡ƒ„ ") == 0 || line.find("struct ") == 0) {
+    else if (line.find("هيكل ") == 0 || line.find("struct ") == 0) {
         entry.kind = DocItemKind::Struct;
         parseClassDeclaration(line, entry);
     }
-    else if (line.find("״×״¹״¯״§״¯ ") == 0 || line.find("enum ") == 0) {
+    else if (line.find("تعداد ") == 0 || line.find("enum ") == 0) {
         entry.kind = DocItemKind::Enum;
         size_t start = line.find(' ') + 1;
         size_t end = line.find_first_of(" {:<(", start);
         entry.name = (end != std::string::npos) ? line.substr(start, end - start) : line.substr(start);
     }
-    else if (line.find("״³…״© ") == 0 || line.find("trait ") == 0) {
+    else if (line.find("سمة ") == 0 || line.find("trait ") == 0) {
         entry.kind = DocItemKind::Trait;
         size_t start = line.find(' ') + 1;
         size_t end = line.find_first_of(" {:<", start);
         entry.name = (end != std::string::npos) ? line.substr(start, end - start) : line.substr(start);
     }
-    else if (line.find("ˆ״§״¬‡״© ") == 0 || line.find("interface ") == 0) {
+    else if (line.find("واجهة ") == 0 || line.find("interface ") == 0) {
         entry.kind = DocItemKind::Interface;
         size_t start = line.find(' ') + 1;
         size_t end = line.find_first_of(" {:<", start);
         entry.name = (end != std::string::npos) ? line.substr(start, end - start) : line.substr(start);
     }
-    else if (line.find("״«״§״¨״× ") == 0 || line.find("const ") == 0) {
+    else if (line.find("ثابت ") == 0 || line.find("const ") == 0) {
         entry.kind = DocItemKind::Constant;
         size_t start = line.find(' ') + 1;
         size_t end = line.find_first_of(" =:", start);
         entry.name = (end != std::string::npos) ? line.substr(start, end - start) : line.substr(start);
     }
-    else if (line.find("…״×״÷״± ") == 0 || line.find("var ") == 0) {
+    else if (line.find("متغير ") == 0 || line.find("var ") == 0) {
         entry.kind = DocItemKind::Variable;
         size_t start = line.find(' ') + 1;
         size_t end = line.find_first_of(" =:", start);
         entry.name = (end != std::string::npos) ? line.substr(start, end - start) : line.substr(start);
     }
-    else if (line.find("״¨״§†") == 0) {
+    else if (line.find("باني") == 0) {
         entry.kind = DocItemKind::Constructor;
-        entry.name = "״¨״§†";
+        entry.name = "باني";
         parseFunctionSignature(line, entry);
     }
-    else if (line.find("ˆ״­״¯״© ") == 0 || line.find("module ") == 0) {
+    else if (line.find("وحدة ") == 0 || line.find("module ") == 0) {
         entry.kind = DocItemKind::Module;
         size_t start = line.find(' ') + 1;
         size_t end = line.find_first_of(" {", start);
@@ -540,7 +540,7 @@ std::string DocCommentParser::generateId(const DocEntry& entry) {
 }
 
 // ============================================================================
-// FileCollector ג€” ״¬״§…״¹ ״§„…„״§״×
+// FileCollector — جامع الملفات
 // ============================================================================
 
 std::vector<std::string> FileCollector::collect(
@@ -573,7 +573,7 @@ void FileCollector::collectFromDirectory(
         for (const auto& entry : fs::recursive_directory_iterator(dir)) {
             if (entry.is_regular_file()) {
                 std::string ext = entry.path().extension().string();
-                if (ext == ".״µ" || ext == ".sad") {
+                if (ext == ".ص" || ext == ".sad") {
                     std::string path = entry.path().string();
                     if (!shouldExclude(path, excludePatterns)) {
                         files.push_back(path);
@@ -582,7 +582,7 @@ void FileCollector::collectFromDirectory(
             }
         }
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "״×״­״°״±: ״®״·״£  ‚״±״§״¡״© ״§„…״¬„״¯: " << e.what() << "\n";
+        std::cerr << "تحذير: خطأ في قراءة المجلد: " << e.what() << "\n";
     }
 }
 
@@ -596,7 +596,7 @@ bool FileCollector::shouldExclude(
 }
 
 // ============================================================================
-// HtmlDocGenerator ג€” …ˆ„‘״¯ HTML
+// HtmlDocGenerator — مولّد HTML
 // ============================================================================
 
 

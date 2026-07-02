@@ -29,35 +29,35 @@ namespace Sad
         {
             void SIRBuilder::enterScope()
             {
-                // (AR) ״²״§״¯״© …״³״×ˆ‰ ״§„†״·״§‚ (sir_builder.h:599 - currentScopeLevel_)
+                // (AR) زيادة مستوى النطاق (sir_builder.h:599 - currentScopeLevel_)
                 // (EN) Increase scope level
                 currentScopeLevel_++;
 
-                // (AR) ״¥״¶״§״© †״·״§‚ ״¬״¯״¯ (sir_builder.h:714 - scopeStack_)
+                // (AR) إضافة نطاق جديد (sir_builder.h:714 - scopeStack_)
                 // (EN) Add new scope
                 scopeStack_.push_back(std::unordered_map<std::string, VariableInfo>());
             }
 
             // ============================================================================
-            // exitScope - ״§„״®״±ˆ״¬ …† ״§„†״·״§‚ ״§„״­״§„
+            // exitScope - الخروج من النطاق الحالي
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:589
-            // ״§„״×ˆ‚״¹ / Signature: void exitScope();
+            // مصدر التعريف / Source: sir_builder.h:589
+            // التوقيع / Signature: void exitScope();
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - currentScopeLevel_: sir_builder.h:599 (int)
             // - scopes_: sir_builder.h:630 (std::vector<std::vector<VariableInfo>>)
             // ============================================================================
             void SIRBuilder::exitScope()
             {
-                // (AR) ״¥״²״§„״© ״§„†״·״§‚ ״§„״£״®״± (sir_builder.h:714 - scopeStack_)
+                // (AR) إزالة النطاق الأخير (sir_builder.h:714 - scopeStack_)
                 // (EN) Remove last scope
                 if (!scopeStack_.empty())
                 {
                     scopeStack_.pop_back();
                 }
 
-                // (AR) ״×‚„„ …״³״×ˆ‰ ״§„†״·״§‚ (sir_builder.h:599 - currentScopeLevel_)
+                // (AR) تقليل مستوى النطاق (sir_builder.h:599 - currentScopeLevel_)
                 // (EN) Decrease scope level
                 if (currentScopeLevel_ > 0)
                 {
@@ -66,20 +66,20 @@ namespace Sad
             }
 
             // ============================================================================
-            // addVariable - ״¥״¶״§״© …״×״÷״± „„†״·״§‚ ״§„״­״§„
+            // addVariable - إضافة متغير للنطاق الحالي
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:591
-            // ״§„״×ˆ‚״¹ / Signature: void addVariable(const VariableInfo& varInfo);
+            // مصدر التعريف / Source: sir_builder.h:591
+            // التوقيع / Signature: void addVariable(const VariableInfo& varInfo);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - varInfo: const VariableInfo& = sir_builder.h:139 (VariableInfo struct)
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - scopes_: sir_builder.h:630 (std::vector<std::vector<VariableInfo>>)
             // ============================================================================
             void SIRBuilder::addVariable(const VariableInfo &varInfo)
             {
-                // (AR) ״¥״¶״§״© ״§„…״×״÷״± „„†״·״§‚ ״§„״­״§„ (sir_builder.h:714 - scopeStack_)
+                // (AR) إضافة المتغير للنطاق الحالي (sir_builder.h:714 - scopeStack_)
                 // (EN) Add variable to current scope
                 if (!scopeStack_.empty())
                 {
@@ -88,23 +88,23 @@ namespace Sad
             }
 
             // ============================================================================
-            // lookupVariable - ״§„״¨״­״« ״¹† …״×״÷״±  ״§„†״·״§‚״§״×
+            // lookupVariable - البحث عن متغير في النطاقات
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:597
-            // ״§„״×ˆ‚״¹ / Signature: VariableInfo* lookupVariable(const std::string& name);
+            // مصدر التعريف / Source: sir_builder.h:597
+            // التوقيع / Signature: VariableInfo* lookupVariable(const std::string& name);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
-            // - name: const std::string& (״§״³… ״§„…״×״÷״±)
+            // المعاملات / Parameters:
+            // - name: const std::string& (اسم المتغير)
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - scopes_: sir_builder.h:630 (std::vector<std::vector<VariableInfo>>)
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
-            // - VariableInfo*: …״₪״´״± „„…״×״÷״± ״£ˆ nullptr
+            // الإرجاع / Returns:
+            // - VariableInfo*: مؤشر للمتغير أو nullptr
             // ============================================================================
             VariableInfo *SIRBuilder::lookupVariable(const std::string &name)
             {
-                // (AR) ״§„״¨״­״«  ״§„†״·״§‚״§״× …† ״§„״£״­״¯״« „„״£‚״¯… (sir_builder.h:714 - scopeStack_)
+                // (AR) البحث في النطاقات من الأحدث للأقدم (sir_builder.h:714 - scopeStack_)
                 // (EN) Search in scopes from newest to oldest
                 for (auto scopeIt = scopeStack_.rbegin(); scopeIt != scopeStack_.rend(); ++scopeIt)
                 {
@@ -116,9 +116,9 @@ namespace Sad
                 }
 
                 // =====================================================================
-                // (AR) ״§„״¨״­״«  ״§„…״×״÷״±״§״× ״§„״¹״§…״© ״¹„‰ …״³״×ˆ‰ ״§„ˆ״­״¯״©
+                // (AR) البحث في المتغيرات العامة على مستوى الوحدة
                 // (EN) Fallback: search in module-level global variables
-                // ״¹†״¯…״§ „״§ ״¹״«״± ״¹„‰ ״§„…״×״÷״±  ״§„†״·״§‚״§״× ״§„…״­„״©״ †״¨״­״«  ״§„ˆ״­״¯״©
+                // عندما لا يُعثر على المتغير في النطاقات المحلية، نبحث في الوحدة
                 // When not found in local scopes, search in module globals
                 // =====================================================================
                 if (module_)
@@ -126,7 +126,7 @@ namespace Sad
                     auto globalVar = module_->getGlobalVariable(name);
                     if (globalVar)
                     {
-                        // (AR) ״¥†״´״§״¡ VariableInfo „„…״×״÷״± ״§„״¹״§… ˆ״×״®״²†‡  ״£ˆ„ †״·״§‚
+                        // (AR) إنشاء VariableInfo للمتغير العام وتخزينه في أول نطاق
                         // (EN) Create VariableInfo for global var and cache in first scope
                         VariableInfo globalInfo;
                         globalInfo.name = name;
@@ -136,7 +136,7 @@ namespace Sad
                         globalInfo.isMutable = !globalVar->getIsConstant();
                         globalInfo.scopeLevel = 0;
 
-                        // (AR) ״×״®״²†  ״£‚״¯… †״·״§‚ „„״¨״­״« ״§„״³״±״¹ „״§״­‚״§‹
+                        // (AR) تخزين في أقدم نطاق للبحث السريع لاحقاً
                         // (EN) Cache in oldest scope for fast future lookups
                         if (!scopeStack_.empty())
                         {
@@ -146,42 +146,42 @@ namespace Sad
                     }
                 }
 
-                // (AR) „… ״¹״«״± ״¹„‰ ״§„…״×״÷״±
+                // (AR) لم يُعثر على المتغير
                 // (EN) Variable not found
                 return nullptr;
             }
 
             // ============================================================================
-            // enterLoop - ״¯״®ˆ„ ״³״§‚ ״­„‚״©
+            // enterLoop - دخول سياق حلقة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:607
-            // ״§„״×ˆ‚״¹ / Signature: void enterLoop(const LoopContext& ctx);
+            // مصدر التعريف / Source: sir_builder.h:607
+            // التوقيع / Signature: void enterLoop(const LoopContext& ctx);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - ctx: const LoopContext& = sir_builder.h:180 (LoopContext struct)
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - loopStack_: sir_builder.h:639 (std::vector<LoopContext>)
             // ============================================================================
             void SIRBuilder::enterLoop(const LoopContext &ctx)
             {
-                // (AR) ״¥״¶״§״© ״³״§‚ ״­„‚״© ״¬״¯״¯ (sir_builder.h:639 - loopStack_)
+                // (AR) إضافة سياق حلقة جديد (sir_builder.h:639 - loopStack_)
                 // (EN) Add new loop context
                 loopStack_.push_back(ctx);
             }
 
             // ============================================================================
-            // exitLoop - ״§„״®״±ˆ״¬ …† ״³״§‚ ״§„״­„‚״©
+            // exitLoop - الخروج من سياق الحلقة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:615
-            // ״§„״×ˆ‚״¹ / Signature: void exitLoop();
+            // مصدر التعريف / Source: sir_builder.h:615
+            // التوقيع / Signature: void exitLoop();
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - loopStack_: sir_builder.h:639 (std::vector<LoopContext>)
             // ============================================================================
             void SIRBuilder::exitLoop()
             {
-                // (AR) ״¥״²״§„״© ״³״§‚ ״§„״­„‚״© ״§„״£״®״± (sir_builder.h:639 - loopStack_)
+                // (AR) إزالة سياق الحلقة الأخير (sir_builder.h:639 - loopStack_)
                 // (EN) Remove last loop context
                 if (!loopStack_.empty())
                 {
@@ -190,46 +190,46 @@ namespace Sad
             }
 
             // ============================================================================
-            // getCurrentLoop - ״§„״­״µˆ„ ״¹„‰ ״³״§‚ ״§„״­„‚״© ״§„״­״§„״©
+            // getCurrentLoop - الحصول على سياق الحلقة الحالية
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:622
-            // ״§„״×ˆ‚״¹ / Signature: LoopContext* getCurrentLoop();
+            // مصدر التعريف / Source: sir_builder.h:622
+            // التوقيع / Signature: LoopContext* getCurrentLoop();
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - loopStack_: sir_builder.h:639 (std::vector<LoopContext>)
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
-            // - LoopContext*: …״₪״´״± „״³״§‚ ״§„״­„‚״© ״§„״­״§„״© ״£ˆ nullptr
+            // الإرجاع / Returns:
+            // - LoopContext*: مؤشر لسياق الحلقة الحالية أو nullptr
             // ============================================================================
             LoopContext *SIRBuilder::getCurrentLoop()
             {
-                // (AR) ״¥״±״¬״§״¹ ״³״§‚ ״§„״­„‚״© ״§„״£״®״± (sir_builder.h:639 - loopStack_)
+                // (AR) إرجاع سياق الحلقة الأخير (sir_builder.h:639 - loopStack_)
                 // (EN) Return last loop context
                 if (!loopStack_.empty())
                 {
                     return &loopStack_.back();
                 }
 
-                // (AR) „״§ ״×ˆ״¬״¯ ״­„‚״© ״­״§„״©
+                // (AR) لا توجد حلقة حالية
                 // (EN) No current loop
                 return nullptr;
             }
 
             // ============================================================================
-            // enterGenericScope - ״¯״®ˆ„ †״·״§‚ ״£†ˆ״§״¹ ״¹״§…״©
+            // enterGenericScope - دخول نطاق أنواع عامة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:641
-            // ״§„״×ˆ‚״¹ / Signature: void enterGenericScope(const std::vector<TypeParameter>& typeParams);
+            // مصدر التعريف / Source: sir_builder.h:641
+            // التوقيع / Signature: void enterGenericScope(const std::vector<TypeParameter>& typeParams);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - typeParams: const std::vector<TypeParameter>& = sir_builder.h:187 (TypeParameter)
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - genericScopeStack_: sir_builder.h:643 (std::vector<GenericScope>)
             // ============================================================================
             void SIRBuilder::enterGenericScope(const std::vector<TypeParameter> &typeParams)
             {
-                // (AR) ״¥†״´״§״¡ †״·״§‚ ״¬״¯״¯ ˆ״¥״¶״§״×‡ (sir_builder.h:643 - genericScopeStack_)
+                // (AR) إنشاء نطاق جديد وإضافته (sir_builder.h:643 - genericScopeStack_)
                 // (EN) Create new scope and add it
                 GenericScope scope;
                 scope.typeParameters = typeParams;
@@ -237,17 +237,17 @@ namespace Sad
             }
 
             // ============================================================================
-            // exitGenericScope - ״§„״®״±ˆ״¬ …† †״·״§‚ ״§„״£†ˆ״§״¹ ״§„״¹״§…״©
+            // exitGenericScope - الخروج من نطاق الأنواع العامة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:649
-            // ״§„״×ˆ‚״¹ / Signature: void exitGenericScope();
+            // مصدر التعريف / Source: sir_builder.h:649
+            // التوقيع / Signature: void exitGenericScope();
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - genericScopeStack_: sir_builder.h:643 (std::vector<GenericScope>)
             // ============================================================================
             void SIRBuilder::exitGenericScope()
             {
-                // (AR) ״¥״²״§„״© ״§„†״·״§‚ ״§„״£״®״± (sir_builder.h:643 - genericScopeStack_)
+                // (AR) إزالة النطاق الأخير (sir_builder.h:643 - genericScopeStack_)
                 // (EN) Remove last scope
                 if (!genericScopeStack_.empty())
                 {

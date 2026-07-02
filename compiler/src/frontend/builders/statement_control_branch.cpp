@@ -26,18 +26,18 @@ namespace Sad
         {
 
             // ============================================================================
-            // buildReturnStatement - ״¨†״§״¡ ״¬…„״© return
+            // buildReturnStatement - بناء جملة return
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:409
-            // ״§„״×ˆ‚״¹ / Signature: void buildReturnStatement(AST::ReturnStmt* retStmt);
+            // مصدر التعريف / Source: sir_builder.h:409
+            // التوقيع / Signature: void buildReturnStatement(AST::ReturnStmt* retStmt);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - retStmt: AST::ReturnStmt* = Sad::AST::ReturnStmt* (sir_builder.h:409)
             //
             // ReturnStmt Members (statements.h:266):
             // - value: ExprPtr (line 268) - optional, can be nullptr
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - b_.buildExpression: sir_builder.h:432
             // ============================================================================
             void StatementBuilder::buildReturnStatement(AST::ReturnStmt *retStmt)
@@ -99,7 +99,7 @@ namespace Sad
                 }
 
                 // ================================================================
-                // (AR) ״×†״° ״§„״¬…„ ״§„…״₪״¬„״© (״£״¬‘„/defer) ‚״¨„ RET ״¨״×״±״×״¨ LIFO
+                // (AR) تنفيذ الجمل المؤجلة (أجّل/defer) قبل RET بترتيب LIFO
                 // (EN) Execute deferred statements (defer) before RET in LIFO order
                 // ================================================================
                 if (!b_.currentDeferStackReg_.empty())
@@ -116,12 +116,12 @@ namespace Sad
                 }
 
                 // ================================================================
-                // (AR) ״­״µ ״³״§‚ finally: ״¥״°״§ ƒ†״§ ״¯״§״®„ try/catch …״¹ ״£״®״±״§‹
-                //      „״§ †״µ״¯״± RET …״¨״§״´״±״© ג€” †״­״¸ ״§„‚…״© ˆ†‚״² „€ finally „״¶…״§† ״×†״°‡
-                //      ״§„״£†ˆ״§״¹ ״§„…״¯״¹ˆ…״©: 0=״±״§״÷״ 1=״±‚…/…†״·‚״ 2=†״µ/…״₪״´״±״ 3=״¹״´״±
-                //      ‡״°״§ ״§„״­״µ ״¬״¨ ״£† ƒˆ† ״¨״¹״¯ defer ˆ‚״¨„ ƒ„ ״´״¡ ״¢״®״±
+                // (AR) فحص سياق finally: إذا كنا داخل try/catch مع أخيراً
+                //      لا نُصدر RET مباشرة — نحفظ القيمة ونقفز لـ finally لضمان تنفيذه
+                //      الأنواع المدعومة: 0=فراغ، 1=رقم/منطقي، 2=نص/مؤشر، 3=عشري
+                //      هذا الفحص يجب أن يكون بعد defer وقبل كل شيء آخر
                 // (EN) Check finally context: if inside try/catch with finally block
-                //      Don't emit direct RET ג€” save value and branch to finally to guarantee execution
+                //      Don't emit direct RET — save value and branch to finally to guarantee execution
                 //      Supported types: 0=void, 1=integer/bool, 2=string/ptr, 3=float
                 //      This check must come after defer processing and before everything else
                 // ================================================================
@@ -131,12 +131,12 @@ namespace Sad
 
                     if (retStmt->value)
                     {
-                        // (AR) ״¨†״§״¡ ‚…״© ״§„״¥״±״¬״§״¹
+                        // (AR) بناء قيمة الإرجاع
                         // (EN) Build return value expression
                         BuildResult valResult = b_.buildExpression(retStmt->value.get());
 
-                        // (AR) ״¥״°״§ ƒ״§†״× ״§„‚…״©  alloca (…״×״÷״± …״­„) ג†’ †״­״×״§״¬ LOAD ״£ˆ„״§‹
-                        // (EN) If value is in alloca (local variable) ג†’ need LOAD first
+                        // (AR) إذا كانت القيمة في alloca (متغير محلي) → نحتاج LOAD أولاً
+                        // (EN) If value is in alloca (local variable) → need LOAD first
                         std::string actualReg = valResult.registerName;
                         SadTypeKind actualType = valResult.type;
 
@@ -162,7 +162,7 @@ namespace Sad
                             }
                         }
 
-                        // (AR) ״×״­״¯״¯ typeCode ˆ״×״®״²† ״§„‚…״©  ״§„״³״¬„ ״§„…†״§״³״¨
+                        // (AR) تحديد typeCode وتخزين القيمة في السجل المناسب
                         // (EN) Determine typeCode and store value in appropriate register
                         int typeCode = 0;
                         if (actualType == SadTypeKind::Integer || actualType == SadTypeKind::Boolean)
@@ -214,8 +214,8 @@ namespace Sad
                         }
                         else if (!valResult.registerName.empty())
                         {
-                            // (AR) †ˆ״¹ ״÷״± …״¹״±ˆ ג€” †״¹״§…„‡… ƒ״±‚…
-                            // (EN) Unknown type ג€” treat as integer
+                            // (AR) نوع غير معروف — نعاملهم كرقم
+                            // (EN) Unknown type — treat as integer
                             typeCode = 1;
                             SIRInstruction stU;
                             stU.opcode = SIROpcode::STORE;
@@ -226,7 +226,7 @@ namespace Sad
                                 b_.currentBlock_->addInstruction(stU);
                         }
 
-                        // (AR) ״×״®״²† typeCode  ״³״¬„ ״§„†ˆ״¹
+                        // (AR) تخزين typeCode في سجل النوع
                         // (EN) Store typeCode in type register
                         {
                             SIRInstruction stTC;
@@ -238,30 +238,30 @@ namespace Sad
                                 b_.currentBlock_->addInstruction(stTC);
                         }
                     }
-                    // (AR) ״§״±״¬״¹ ״¨״¯ˆ† ‚…״© ג†’ type = 0 (void) ג€” …״¨״¯״¦״§‹ 0 …† ״§„״×‡״¦״©
-                    // (EN) Return without value ג†’ type = 0 (void) ג€” already 0 from initialization
+                    // (AR) ارجع بدون قيمة → type = 0 (void) — مبدئياً 0 من التهيئة
+                    // (EN) Return without value → type = 0 (void) — already 0 from initialization
 
-                    // (AR) ״×״¹† ״¹„״§…״© has_return = 1 „״¥״¹„״§… finally ״¨ˆ״¬ˆ״¯ ״§״±״¬״¹ …†״×״¸״±
+                    // (AR) تعيين علامة has_return = 1 لإعلام finally بوجود ارجع منتظر
                     // (EN) Set has_return = 1 to notify finally that a return is pending
                     {
                         SIRInstruction stHR;
                         stHR.opcode = SIROpcode::STORE;
                         stHR.operands.push_back(SIROperand::ConstantI64(1));
                         stHR.operands.push_back(SIROperand::Register(ctx.hasReturnReg, SadTypeKind::Integer));
-                        stHR.comment = "set finally has_return = 1 (״§״±״¬״¹ intercepted by finally)";
+                        stHR.comment = "set finally has_return = 1 (ارجع intercepted by finally)";
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(stHR);
                     }
 
-                    // (AR) ״§„‚״² ״¥„‰ ƒ״×„״© finally ״¨״¯„״§‹ …† ״¥״µ״¯״§״± RET …״¨״§״´״±
+                    // (AR) القفز إلى كتلة finally بدلاً من إصدار RET مباشر
                     // (EN) Branch to finally block instead of emitting direct RET
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(ctx.finallyLabel)));
 
-                    return; // (AR) „״§ †״µ״¯״± RET ג€” finally ״³״µ״¯״±‡ ״¨״¹״¯ ״×†״°‡
+                    return; // (AR) لا نُصدر RET — finally سيُصدره بعد تنفيذه
                 }
 
-                // (AR) ״¥״°״§ ƒ†״§ ״¯״§״®„ ƒˆ״±ˆ״×†״ †״³״×״®״¯… CORO_RETURN ״¨״¯„״§‹ …† RET
+                // (AR) إذا كنا داخل كوروتين، نستخدم CORO_RETURN بدلاً من RET
                 // (EN) Inside a coroutine, use CORO_RETURN instead of RET
                 if (b_.currentFunction_ && b_.currentFunction_->isCoroutine && retStmt->value)
                 {
@@ -299,7 +299,7 @@ namespace Sad
                 // (EN) Build return instruction
                 if (retStmt->value)
                 {
-                    // (AR) ״¨†״§״¡ ״×״¹״¨״± ״§„‚…״© ״§„…״±״¬״¹״©
+                    // (AR) بناء تعبير القيمة المُرجعة
                     // (EN) Build return value expression
                     // (AR) FIX X06: استخدام القيمة المُحسوبة مسبقاً إذا توفرت
                     // (EN) FIX X06: use prebuilt return value if available
@@ -326,18 +326,18 @@ namespace Sad
                     }
 
                     // ================================================================
-                    // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† ״§„…״±״¬״¹:
-                    //      ״¥״°״§ ƒ״§†״× ״§„‚…״© ״§„…״±״¬״¹״© ƒ״§״¦† („״¯‡״§ className)״ †״³״¬‘„ ״°„ƒ 
-                    //      b_.functionTable_ ״­״×‰ ״×…ƒ† b_.buildFunctionCall „״§״­‚״§‹ …† …״¹״±״© ״£†
-                    //      ‡״°‡ ״§„״¯״§„״© ״×״±״¬״¹ ƒ״§״¦†״§‹ …† ״µ† …״¹‘†.
-                    //      ‡״°״§ ״¶״±ˆ״± „״×״×״¨״¹ †ˆ״¹ ״§„ƒ״§״¦† ״¹״¨״± ״§״³״×״¯״¹״§״¡״§״× ״§„״¯ˆ״§„.
-                    //      …״«״§„: ״¯״§„״© ״§״µ†״¹_†‚״·״©() ג†’ ״§״±״¬״¹ ״¬״¯״¯ †‚״·״©(1,2) ג†’ returnClassName = "†‚״·״©"
-                    //      ״¨״¯ˆ† ‡״°״§: …״×״÷״± † = ״§״µ†״¹_†‚״·״©() ג†’ †.״³ ״×״¹״·„ „״£† ״§„…״×״±״¬… „״§ ״¹״± ״£† † ƒ״§״¦†
+                    // (AR) تتبع نوع الصنف المُرجع:
+                    //      إذا كانت القيمة المُرجعة كائن (لديها className)، نُسجّل ذلك في
+                    //      b_.functionTable_ حتى يتمكن b_.buildFunctionCall لاحقاً من معرفة أن
+                    //      هذه الدالة تُرجع كائناً من صنف معيّن.
+                    //      هذا ضروري لتتبع نوع الكائن عبر استدعاءات الدوال.
+                    //      مثال: دالة اصنع_نقطة() → ارجع جديد نقطة(1,2) → returnClassName = "نقطة"
+                    //      بدون هذا: متغير ن = اصنع_نقطة() → ن.س يتعطل لأن المترجم لا يعرف أن ن كائن
                     // (EN) Track return class type:
                     //      If the returned value is an object (has className), record it in
                     //      b_.functionTable_ so b_.buildFunctionCall can later know this function
                     //      returns an object of a specific class.
-                    //      Without this: var p = makePoint() ג†’ p.x crashes because compiler
+                    //      Without this: var p = makePoint() → p.x crashes because compiler
                     //      doesn't know p is an object.
                     // ================================================================
                     if (!valueResult.className.empty() && b_.currentFunction_)
@@ -348,7 +348,7 @@ namespace Sad
                             ftIt->second.returnClassName = valueResult.className;
                         }
                     }
-                    // (AR) ״£״¶״§‹: ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ״§„…״±״¬״¹ ‡ˆ ״¬״¯״¯ ClassName() …״¨״§״´״±״©
+                    // (AR) أيضاً: إذا كان التعبير المُرجع هو جديد ClassName() مباشرة
                     // (EN) Also: if the return expression is directly new ClassName()
                     if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(retStmt->value.get()))
                     {
@@ -361,11 +361,11 @@ namespace Sad
                             }
                         }
                     }
-                    // (AR) ˆ״£״¶״§‹: ״¥״°״§ ƒ״§† ״§„…״×״÷״± ״§„…״±״¬״¹ …״³״¬‘„  b_.classInstanceTypes_
+                    // (AR) وأيضاً: إذا كان المتغير المُرجع مُسجّل في b_.classInstanceTypes_
                     // (EN) Also: if returned variable is tracked in b_.classInstanceTypes_
                     if (valueResult.className.empty() && b_.currentFunction_)
                     {
-                        // (AR) ״§„״×״­‚‚ …† b_.classInstanceTypes_ ״¨״§„״§״³… ״¨״¯ˆ† %
+                        // (AR) التحقق من b_.classInstanceTypes_ بالاسم بدون %
                         // (EN) Check b_.classInstanceTypes_ by name without %
                         std::string varName = valueResult.registerName;
                         if (!varName.empty() && varName[0] == '%')
@@ -383,16 +383,16 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ״×ˆ„״¯ ״×״¹„…״© RET …״¹ ״§„‚…״©
+                    // (AR) توليد تعليمة RET مع القيمة
                     // (EN) Generate RET instruction with value
                     SIRInstruction retInst;
                     retInst.opcode = SIROpcode::RET;
 
-                    // (AR) ״¥״°״§ ƒ״§†״× ״§„‚…״© ״«״§״¨״×״©״ ״£״±״¬״¹‡״§ …״¨״§״´״±״© (״¬״¨ ״£† ƒˆ† ‡״°״§ ‚״¨„ ״­״µ %)
+                    // (AR) إذا كانت القيمة ثابتة، أرجعها مباشرة (يجب أن يكون هذا قبل فحص %)
                     // (EN) If value is constant, return it directly (must check before % check)
                     if (valueResult.isConstant && !valueResult.constantValue.empty())
                     {
-                        // (AR) ״§„‚…״© ״«״§״¨״×״©
+                        // (AR) القيمة ثابتة
                         // (EN) Value is constant
                         switch (valueResult.type)
                         {
@@ -409,16 +409,16 @@ namespace Sad
                             retInst.operands.push_back(SIROperand::ConstantString(valueResult.constantValue));
                             break;
                         // ================================================================
-                        // (AR) ״¥״±״¬״§״¹ ״¨†״© ״¥״÷„״§‚ (Closure)
-                        //      †״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯: buildLambdaExpr †״´״¦ CLOSURE_CREATE
-                        //      ˆ״±״¬״¹ ״³״¬„״§‹ ״­‚‚״§‹ (isConstant=false)
-                        //      „† †״µ„ ‡†״§ (״­״§„״© Function …״¹ isConstant=true) ״¥„״§ ״¥״°״§
-                        //      ƒ״§†״× ״¯״§„״© ״¹״§״¯״© ……״±״±״© ƒ‚…״© ג€” †״±״¬״¹‡״§ ƒ€ Function operand
+                        // (AR) إرجاع بنية إغلاق (Closure)
+                        //      نظام الإغلاقات الجديد: buildLambdaExpr يُنشئ CLOSURE_CREATE
+                        //      ويُرجع سجلاً حقيقياً (isConstant=false)
+                        //      لن نصل هنا (حالة Function مع isConstant=true) إلا إذا
+                        //      كانت دالة عادية مُمررة كقيمة — نُرجعها كـ Function operand
                         // (EN) Return closure struct
                         //      New closure system: buildLambdaExpr creates CLOSURE_CREATE
                         //      and returns real register (isConstant=false)
                         //      We only reach here (Function with isConstant=true) for
-                        //      regular functions passed as values ג€” return as Function operand
+                        //      regular functions passed as values — return as Function operand
                         // ================================================================
                         case SadTypeKind::Function:
                         {
@@ -430,29 +430,29 @@ namespace Sad
                         }
                     }
                     // ================================================================
-                    // (AR) ״­״µ: ‡„ ״§„‚…״©  alloca ״¹„ (…״×״÷״± …״­„ ״£ˆ …״¹״§…„ ״¯״§„״©)״
-                    //      ״¥״°״§ ƒ״§† ״§״³… ״§„״³״¬„ ״·״§״¨‚ …״×״÷״±״§‹ …״¹״±ˆ״§‹ ג†’ LOAD …״·„ˆ״¨
-                    //      ˆ״¥„״§ ג†’ ״§„״³״¬„ ‚…״© …״¨״§״´״±״© (…† ״¹…„״© ״­״³״§״¨״©״ ״§״³״×״¯״¹״§״¡״ ״¥„״®)
+                    // (AR) فحص: هل القيمة في alloca فعلي (متغير محلي أو معامل دالة)؟
+                    //      إذا كان اسم السجل يطابق متغيراً معروفاً → LOAD مطلوب
+                    //      وإلا → السجل قيمة مباشرة (من عملية حسابية، استدعاء، إلخ)
                     // (EN) Check: is the value in an actual alloca (local var or param)?
-                    //      If register name matches a known variable ג†’ LOAD needed
-                    //      Otherwise ג†’ register is a direct value (from binary op, call, etc)
+                    //      If register name matches a known variable → LOAD needed
+                    //      Otherwise → register is a direct value (from binary op, call, etc)
                     // ================================================================
                     else if (!valueResult.registerName.empty() && valueResult.registerName[0] == '%' && !valueResult.isFieldAccess && !valueResult.isDirectValue && valueResult.type != SadTypeKind::String && valueResult.type != SadTypeKind::Function && valueResult.className.empty())
                     {
-                        // (AR) ״×״­‚‚: ‡„ ״§„״³״¬„ ״´״± ״¥„‰ …״×״÷״± …״­„ (alloca)״
-                        //      ״§„…״×״÷״±״§״× ״§„…״­„״©: %variableName (״÷״± ״±‚…״©)
-                        //      ״§„״³״¬„״§״× ״§„…״₪‚״×״©: %N (״±‚…״©) ג€” „״§ ״×״­״×״§״¬ LOAD
+                        // (AR) تحقق: هل السجل يشير إلى متغير محلي (alloca)؟
+                        //      المتغيرات المحلية: %variableName (غير رقمية)
+                        //      السجلات المؤقتة: %N (رقمية) — لا تحتاج LOAD
                         // (EN) Check: does register refer to a local variable (alloca)?
                         //      Local variables: %variableName (non-numeric)
-                        //      Temp registers: %N (numeric) ג€” no LOAD needed
-                        std::string varName = valueResult.registerName.substr(1); // ״¥״²״§„״© %
+                        //      Temp registers: %N (numeric) — no LOAD needed
+                        std::string varName = valueResult.registerName.substr(1); // إزالة %
                         VariableInfo *maybeVar = b_.lookupVariable(varName);
                         bool isAllocaVar = maybeVar != nullptr;
 
-                        // (AR) ״×״­‚‚ ״¥״¶״§: ״¥״°״§ „… ƒ† …״×״÷״±״§‹ „ƒ†‡ ״¨״§״¯״¦״© inlining
-                        //      …״«„ %_inl0_variable ג†’ †״­״§ˆ„ ״§„״¨״­״« ״¨״§„״§״³… ״¨״¹״¯ ״§„״¨״§״¯״¦״©
+                        // (AR) تحقق إضافي: إذا لم يكن متغيراً لكنه بادئة inlining
+                        //      مثل %_inl0_variable → نحاول البحث بالاسم بعد البادئة
                         // (EN) Extra check: if not a variable but has inlining prefix
-                        //      like %_inl0_variable ג†’ try looking up after prefix
+                        //      like %_inl0_variable → try looking up after prefix
                         if (!isAllocaVar && varName.size() > 4 && varName.substr(0, 4) == "_inl")
                         {
                             size_t underscorePos = varName.find('_', 4);
@@ -466,8 +466,8 @@ namespace Sad
 
                         if (isAllocaVar)
                         {
-                            // (AR) ״§„‚…״©  ״¹†ˆ״§† alloca …״­„ ג€” †״­״×״§״¬ „״×״­…„‡״§
-                            // (EN) Value is in local alloca address ג€” need to load it
+                            // (AR) القيمة في عنوان alloca محلي — نحتاج لتحميلها
+                            // (EN) Value is in local alloca address — need to load it
                             std::string loadedReg = b_.newTempRegister();
 
                             SIRInstruction loadInst;
@@ -485,15 +485,15 @@ namespace Sad
                         }
                         else
                         {
-                            // (AR) ״³״¬„ …״₪‚״× (‚…״© …״¨״§״´״±״©) ג€” „״§ †״­״×״§״¬ LOAD
-                            // (EN) Temp register (direct value) ג€” no LOAD needed
+                            // (AR) سجل مؤقت (قيمة مباشرة) — لا نحتاج LOAD
+                            // (EN) Temp register (direct value) — no LOAD needed
                             SIROperand retOperand = SIROperand::Register(valueResult.registerName, valueResult.type);
                             retInst.operands.push_back(retOperand);
                         }
                     }
                     else
                     {
-                        // (AR) ‚…״©  ״³״¬„ …״₪‚״×
+                        // (AR) قيمة في سجل مؤقت
                         // (EN) Value in temporary register
                         SIROperand retOperand = SIROperand::Register(valueResult.registerName, valueResult.type);
                         retInst.operands.push_back(retOperand);
@@ -510,7 +510,7 @@ namespace Sad
                 }
                 else
                 {
-                    // (AR) ״×ˆ„״¯ ״×״¹„…״© RET_VOID
+                    // (AR) توليد تعليمة RET_VOID
                     // (EN) Generate RET_VOID instruction
                     SIRInstruction retInst;
                     retInst.opcode = SIROpcode::RET_VOID;
@@ -526,13 +526,13 @@ namespace Sad
             }
 
             // ============================================================================
-            // buildBreakStatement - ״¨†״§״¡ ״¬…„״© break
+            // buildBreakStatement - بناء جملة break
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:417
-            // ״§„״×ˆ‚״¹ / Signature: void buildBreakStatement(AST::BreakStmt* breakStmt);
+            // مصدر التعريف / Source: sir_builder.h:417
+            // التوقيع / Signature: void buildBreakStatement(AST::BreakStmt* breakStmt);
             //
             // BreakStmt (statements.h:360):
-            // - „״§ ״×ˆ״¬״¯ ״£״¹״¶״§״¡ ״¥״¶״§״©
+            // - لا توجد أعضاء إضافية
             // - No additional members
             // ============================================================================
             void StatementBuilder::buildBreakStatement(AST::BreakStmt *breakStmt)
@@ -543,9 +543,9 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״¬…„״© break: ״§„‚״² ״¥„‰ †‡״§״© ״§„״­„‚״© ״§„״­״§„״©
-                //      †״³״×״®״¯… …ƒ״¯״³ ״§„״­„‚״§״× (b_.loopStack_) „„״­״µˆ„ ״¹„‰ ״×״³…״© ƒ״×„״© ״§„״®״±ˆ״¬
-                //      ״«… †ˆ„‘״¯ ״×״¹„…״© ‚״² ״÷״± ״´״±״· (BR) ״¥„‰ ״×„ƒ ״§„ƒ״×„״©
+                // (AR) جملة break: القفز إلى نهاية الحلقة الحالية
+                //      نستخدم مكدس الحلقات (b_.loopStack_) للحصول على تسمية كتلة الخروج
+                //      ثم نولّد تعليمة قفز غير شرطي (BR) إلى تلك الكتلة
                 //
                 // (EN) break statement: Jump to the end of current loop
                 //      We use the loop stack (b_.loopStack_) to get the exit block label
@@ -554,11 +554,11 @@ namespace Sad
                 LoopContext *loop = b_.getCurrentLoop();
                 if (!loop)
                 {
-                    b_.errors_.push_back("(AR) ״®״·״£: ״¬…„״© '‚' ״®״§״±״¬ ״­„‚״©. (EN) Error: 'break' outside of loop.");
+                    b_.errors_.push_back("(AR) خطأ: جملة 'قف' خارج حلقة. (EN) Error: 'break' outside of loop.");
                     return;
                 }
 
-                // (AR) ״×ˆ„״¯ ‚״² ״÷״± ״´״±״· ״¥„‰ ƒ״×„״© ״®״±ˆ״¬ ״§„״­„‚״©
+                // (AR) توليد قفز غير شرطي إلى كتلة خروج الحلقة
                 // (EN) Generate unconditional branch to loop exit block
                 SIROperand exitLabel = SIROperand::Label(loop->breakLabel);
                 SIRInstruction brInst = SIRInstruction::Branch(exitLabel);
@@ -568,8 +568,8 @@ namespace Sad
                     b_.currentBlock_->instructions.push_back(brInst);
                 }
 
-                // (AR) ״¥†״´״§״¡ ƒ״×„״© ״¬״¯״¯״© „„ƒˆ״¯ ״¨״¹״¯ break (ƒˆ״¯ …״×)
-                //      ‡״°״§ ״¶״±ˆ״± „״£† LLVM ״×״·„״¨ ״£† ƒ„ ƒ״×„״© ״×†״×‡ ״¨…†‡ ˆ״§״­״¯ ‚״·
+                // (AR) إنشاء كتلة جديدة للكود بعد break (كود ميت)
+                //      هذا ضروري لأن LLVM يتطلب أن كل كتلة تنتهي بمُنهِي واحد فقط
                 // (EN) Create new block for code after break (dead code)
                 //      Required because LLVM needs each block to end with exactly one terminator
                 std::string afterBreakLabel = b_.newLabel("after_break");
@@ -582,13 +582,13 @@ namespace Sad
             }
 
             // ============================================================================
-            // buildContinueStatement - ״¨†״§״¡ ״¬…„״© continue
+            // buildContinueStatement - بناء جملة continue
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:425
-            // ״§„״×ˆ‚״¹ / Signature: void buildContinueStatement(AST::ContinueStmt* continueStmt);
+            // مصدر التعريف / Source: sir_builder.h:425
+            // التوقيع / Signature: void buildContinueStatement(AST::ContinueStmt* continueStmt);
             //
             // ContinueStmt (statements.h:392):
-            // - „״§ ״×ˆ״¬״¯ ״£״¹״¶״§״¡ ״¥״¶״§״©
+            // - لا توجد أعضاء إضافية
             // - No additional members
             // ============================================================================
             void StatementBuilder::buildContinueStatement(AST::ContinueStmt *continueStmt)
@@ -599,11 +599,11 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״¬…„״© continue: ״§„‚״² ״¥„‰ ״¨״¯״§״© ״×ƒ״±״§״± ״§„״­„‚״© ״§„״×״§„
-                //      -  ״­„‚״© while: †‚״² ״¥„‰ ƒ״×„״© ״§„״´״±״· (while_cond)
-                //      -  ״­„‚״© for: †‚״² ״¥„‰ ƒ״×„״© ״§„״²״§״¯״© (for_inc)
-                //        ״«… ״§„״²״§״¯״© ״³״×‚״² ״¨״¯ˆ״±‡״§ „„״´״±״·
-                //      †״³״×״®״¯… continueLabel …† …ƒ״¯״³ ״§„״­„‚״§״×
+                // (AR) جملة continue: القفز إلى بداية تكرار الحلقة التالي
+                //      - في حلقة while: نقفز إلى كتلة الشرط (while_cond)
+                //      - في حلقة for: نقفز إلى كتلة الزيادة (for_inc)
+                //        ثم الزيادة ستقفز بدورها للشرط
+                //      نستخدم continueLabel من مكدس الحلقات
                 //
                 // (EN) continue statement: Jump to next loop iteration
                 //      - In while loop: jump to condition block (while_cond)
@@ -614,11 +614,11 @@ namespace Sad
                 LoopContext *loop = b_.getCurrentLoop();
                 if (!loop)
                 {
-                    b_.errors_.push_back("(AR) ״®״·״£: ״¬…„״© '״£ƒ…„' ״®״§״±״¬ ״­„‚״©. (EN) Error: 'continue' outside of loop.");
+                    b_.errors_.push_back("(AR) خطأ: جملة 'أكمل' خارج حلقة. (EN) Error: 'continue' outside of loop.");
                     return;
                 }
 
-                // (AR) ״×ˆ„״¯ ‚״² ״÷״± ״´״±״· ״¥„‰ ƒ״×„״© ״§״³״×…״±״§״± ״§„״­„‚״©
+                // (AR) توليد قفز غير شرطي إلى كتلة استمرار الحلقة
                 // (EN) Generate unconditional branch to loop continue block
                 SIROperand continueLabel = SIROperand::Label(loop->continueLabel);
                 SIRInstruction brInst = SIRInstruction::Branch(continueLabel);
@@ -628,8 +628,8 @@ namespace Sad
                     b_.currentBlock_->instructions.push_back(brInst);
                 }
 
-                // (AR) ״¥†״´״§״¡ ƒ״×„״© ״¬״¯״¯״© „„ƒˆ״¯ ״¨״¹״¯ continue (ƒˆ״¯ …״×)
-                //      ‡״°״§ ״¶״±ˆ״± „״£† LLVM ״×״·„״¨ ״£† ƒ„ ƒ״×„״© ״×†״×‡ ״¨…†‡ ˆ״§״­״¯ ‚״·
+                // (AR) إنشاء كتلة جديدة للكود بعد continue (كود ميت)
+                //      هذا ضروري لأن LLVM يتطلب أن كل كتلة تنتهي بمُنهِي واحد فقط
                 // (EN) Create new block for code after continue (dead code)
                 //      Required because LLVM needs each block to end with exactly one terminator
                 std::string afterContinueLabel = b_.newLabel("after_continue");
@@ -642,19 +642,19 @@ namespace Sad
             }
 
             // ============================================================================
-            // buildAssignment - ״¨†״§״¡ ״¥״³†״§״¯ …״×״÷״±
+            // buildAssignment - بناء إسناد متغير
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:429
-            // ״§„״×ˆ‚״¹ / Signature: void buildAssignment(AST::AssignExpr* assignment);
+            // مصدر التعريف / Source: sir_builder.h:429
+            // التوقيع / Signature: void buildAssignment(AST::AssignExpr* assignment);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - assignment: AST::AssignExpr* = Sad::AST::AssignExpr* (sir_builder.h:429)
             //
             // AssignExpr Members (expressions.h:247):
             // - name: std::string (line 249)
             // - value: ExprPtr (line 250)
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - b_.buildExpression: sir_builder.h:432
             // - b_.lookupVariable: sir_builder.h:597
             // ============================================================================

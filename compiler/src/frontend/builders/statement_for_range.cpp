@@ -26,19 +26,19 @@ namespace Sad
         {
 
             // ============================================================================
-            // buildForRangeLoop - ״¨†״§״¡ ״­„‚״© „ƒ„  (foreach)
+            // buildForRangeLoop - بناء حلقة لكل في (foreach)
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:405
-            // ״§„״×ˆ‚״¹ / Signature: void buildForRangeLoop(AST::ForRangeStmt* forRange);
+            // مصدر التعريف / Source: sir_builder.h:405
+            // التوقيع / Signature: void buildForRangeLoop(AST::ForRangeStmt* forRange);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - forRange: AST::ForRangeStmt* = Sad::AST::ForRangeStmt* (statements.h:228)
             //
             // ForRangeStmt Members (statements.h:228-235):
-            // - variable: std::string (line 230) - ״§״³… …״×״÷״± ״§„״­„‚״©
-            // - valueVar: std::string (line 231) - …״×״÷״± ״§„‚…״© „„‚ˆ״§…״³ (״§״®״×״§״±)
-            // - iterable: ExprPtr (line 232) - ״§„״×״¹״¨״± ״§„‚״§״¨„ „„״×ƒ״±״§״±
-            // - body: StmtPtr (line 233) - ״¬״³… ״§„״­„‚״©
+            // - variable: std::string (line 230) - اسم متغير الحلقة
+            // - valueVar: std::string (line 231) - متغير القيمة للقواميس (اختياري)
+            // - iterable: ExprPtr (line 232) - التعبير القابل للتكرار
+            // - body: StmtPtr (line 233) - جسم الحلقة
             // ============================================================================
             void StatementBuilder::buildForRangeLoop(AST::ForRangeStmt *forRange)
             {
@@ -53,7 +53,7 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) …״³״§״± ״®״§״µ: ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± †״·״§‚״§‹ (RangeExpr) †ˆ„‘״¯ ״­„‚״© while ״¨״³״·״©
+                // (AR) مسار خاص: إذا كان التعبير نطاقاً (RangeExpr) نولّد حلقة while بسيطة
                 // (EN) Special path: if iterable is RangeExpr, generate simple while loop
                 // ========================================================================
                 if (auto *rangeExpr = dynamic_cast<Sad::AST::RangeExpr *>(forRange->iterable.get()))
@@ -64,21 +64,21 @@ namespace Sad
 
                     b_.enterScope();
 
-                    // (AR) ״¨†״§״¡ ״¨״¯״§״© ˆ†‡״§״© ״§„†״·״§‚
+                    // (AR) بناء بداية ونهاية النطاق
                     auto startResult = b_.buildExpression(rangeExpr->start.get());
                     auto endResult = b_.buildExpression(rangeExpr->end.get());
 
                     // ================================================================
-                    // (AR) [Fix #47] ״×״­״¯״¯ ״§״×״¬״§‡ ״§„…״¯‰ ג€” ״µ״¹ˆ״¯ ״£ˆ ״×†״§״²„:
-                    //      „ƒ„ ״¹ …† 1 ״§„‰ 5 ג†’ ״µ״¹ˆ״¯ (LE, +1)
-                    //      „ƒ„ ״¹ …† 5 ״§„‰ 1 ג†’ ״×†״§״²„ (GE, -1)
-                    //      „ƒ„ ״¹ …† ״³ ״§„‰ ״µ ג†’ ״­״¯״¯  ˆ‚״× ״§„״×״´״÷„
-                    //      ״¨״¯ˆ† ‡״°״§: „ƒ„ ״¹ …† 5 ״§„‰ 1 „״§ †״° ״§„״­„‚״© ״£״¨״¯״§‹
-                    //      „״£† ״§„״´״±״· 5 <= 1 ״®״·״£ …† ״£ˆ„ ״×ƒ״±״§״±
-                    // (EN) [Fix #47] Determine range direction ג€” ascending or descending:
-                    //      for i from 1 to 5 ג†’ ascending (LE, +1)
-                    //      for i from 5 to 1 ג†’ descending (GE, -1)
-                    //      for i from x to y ג†’ determined at runtime
+                    // (AR) [Fix #47] تحديد اتجاه المدى — صعودي أو تنازلي:
+                    //      لكل ع من 1 الى 5 → صعودي (LE, +1)
+                    //      لكل ع من 5 الى 1 → تنازلي (GE, -1)
+                    //      لكل ع من س الى ص → يُحدد في وقت التشغيل
+                    //      بدون هذا: لكل ع من 5 الى 1 لا ينفذ الحلقة أبداً
+                    //      لأن الشرط 5 <= 1 خطأ من أول تكرار
+                    // (EN) [Fix #47] Determine range direction — ascending or descending:
+                    //      for i from 1 to 5 → ascending (LE, +1)
+                    //      for i from 5 to 1 → descending (GE, -1)
+                    //      for i from x to y → determined at runtime
                     //      Without this: for i from 5 to 1 never executes because 5<=1 is false
                     // ================================================================
                     bool isDescending = false;
@@ -98,7 +98,7 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
+                    // (AR) إنشاء الكتل الأساسية
                     std::string condL = b_.newLabel("range_cond");
                     std::string bodyL = b_.newLabel("range_body");
                     std::string incL = b_.newLabel("range_inc");
@@ -109,8 +109,8 @@ namespace Sad
                     auto incB = b_.createBasicBlock(incL);
                     auto exitB = b_.createBasicBlock(exitL);
 
-                    // (AR) ƒ״×„ ״¥״¶״§״© „„…״¯‰ ״§„״¯†״§…ƒ ג€” ״×״­״¯״¯ ״§„״§״×״¬״§‡  ˆ‚״× ״§„״×״´״÷„
-                    // (EN) Extra blocks for dynamic range ג€” determine direction at runtime
+                    // (AR) كتل إضافية للمدى الديناميكي — تحديد الاتجاه في وقت التشغيل
+                    // (EN) Extra blocks for dynamic range — determine direction at runtime
                     std::shared_ptr<SIRBasicBlock> stepAscB, stepDescB;
                     std::string stepAscL, stepDescL;
                     if (!isStaticDirection)
@@ -134,7 +134,7 @@ namespace Sad
                         b_.currentFunction_->addBasicBlock(exitB);
                     }
 
-                    // (AR) ״×״®״µ״µ alloca „…״×״÷״± ״§„״­„‚״©
+                    // (AR) تخصيص alloca لمتغير الحلقة
                     std::string loopVarAlloc = "%" + forRange->variable;
                     {
                         SIRInstruction allocInst(SIROpcode::ALLOC);
@@ -142,7 +142,7 @@ namespace Sad
                         if (b_.currentBlock_)
                             b_.currentBlock_->instructions.push_back(allocInst);
                     }
-                    // (AR) ״¯״§„״© …״³״§״¹״¯״©: ״×״­ˆ„ BuildResult ״¥„‰ SIROperand …״¹ …״±״§״¹״§״© ״§„״«ˆ״§״¨״×
+                    // (AR) دالة مساعدة: تحويل BuildResult إلى SIROperand مع مراعاة الثوابت
                     // (EN) Helper: convert BuildResult to SIROperand, handling constants
                     auto resultToOperand = [](const BuildResult &r) -> SIROperand
                     {
@@ -160,7 +160,7 @@ namespace Sad
                         return SIROperand::Register(r.registerName, r.type);
                     };
 
-                    // (AR) ״×‡״¦״© ״§„…״×״÷״± ״¨‚…״© ״§„״¨״¯״§״©
+                    // (AR) تهيئة المتغير بقيمة البداية
                     {
                         SIRInstruction storeInit(SIROpcode::STORE);
                         storeInit.operands.push_back(resultToOperand(startResult));
@@ -169,7 +169,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(storeInit);
                     }
 
-                    // (AR) ״×״®״µ״µ alloca „†‡״§״© ״§„†״·״§‚
+                    // (AR) تخصيص alloca لنهاية النطاق
                     std::string endAlloc = b_.newTempRegister();
                     {
                         SIRInstruction allocEnd(SIROpcode::ALLOC);
@@ -185,7 +185,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(storeEnd);
                     }
 
-                    // (AR) ״×״³״¬„ …״×״÷״± ״§„״­„‚״©
+                    // (AR) تسجيل متغير الحلقة
                     VariableInfo varInfo;
                     varInfo.name = forRange->variable;
                     varInfo.registerName = loopVarAlloc;
@@ -194,10 +194,10 @@ namespace Sad
                     b_.addVariable(varInfo);
 
                     // ================================================================
-                    // (AR) [Fix #47] ״×״®״µ״µ alloca „״®״·ˆ״© ״§„…״¯‰ ˆ״×‡״¦״×‡״§:
-                    //      ״«״§״¨״× ״µ״¹ˆ״¯: step = 1
-                    //      ״«״§״¨״× ״×†״§״²„: step = -1
-                    //      ״¯†״§…ƒ: ״­״µ start <= end  ˆ‚״× ״§„״×״´״÷„
+                    // (AR) [Fix #47] تخصيص alloca لخطوة المدى وتهيئتها:
+                    //      ثابت صعودي: step = 1
+                    //      ثابت تنازلي: step = -1
+                    //      ديناميكي: فحص start <= end في وقت التشغيل
                     // ================================================================
                     std::string stepAlloc = b_.newTempRegister();
                     {
@@ -209,7 +209,7 @@ namespace Sad
 
                     if (isStaticDirection)
                     {
-                        // (AR) ״§„״§״×״¬״§‡ …״¹״±ˆ ˆ‚״× ״§„״×״±״¬…״© ג€” †״®״²† ״§„״®״·ˆ״© …״¨״§״´״±״©
+                        // (AR) الاتجاه معروف وقت الترجمة — نخزن الخطوة مباشرة
                         SIRInstruction storeStep(SIROpcode::STORE);
                         storeStep.operands.push_back(SIROperand::ConstantI64(isDescending ? -1 : 1));
                         storeStep.operands.push_back(SIROperand::Register(stepAlloc, SadTypeKind::Integer));
@@ -217,16 +217,16 @@ namespace Sad
                         if (b_.currentBlock_)
                             b_.currentBlock_->instructions.push_back(storeStep);
 
-                        // ״§„‚״² ״¥„‰ ״§„״´״±״·
+                        // القفز إلى الشرط
                         SIRInstruction br = SIRInstruction::Branch(SIROperand::Label(condL));
                         if (b_.currentBlock_)
                             b_.currentBlock_->instructions.push_back(br);
                     }
                     else
                     {
-                        // (AR) ״§„״§״×״¬״§‡ ״÷״± …״¹״±ˆ ג€” †״­״µ start <= end  ˆ‚״× ״§„״×״´״÷„
-                        //      ˆ†‚״² „ƒ״×„״© step_asc ״£ˆ step_desc „״×״¹† ״§„״®״·ˆ״©
-                        // (EN) Unknown direction ג€” check start <= end at runtime
+                        // (AR) الاتجاه غير معروف — نفحص start <= end في وقت التشغيل
+                        //      ونقفز لكتلة step_asc أو step_desc لتعيين الخطوة
+                        // (EN) Unknown direction — check start <= end at runtime
                         //      branch to step_asc or step_desc to set step value
                         std::string loadS = b_.newTempRegister();
                         {
@@ -262,7 +262,7 @@ namespace Sad
                                 b_.currentBlock_->instructions.push_back(brDir);
                         }
 
-                        // -- ƒ״×„״© step_asc: ״×״®״²† step = 1 --
+                        // -- كتلة step_asc: تخزين step = 1 --
                         b_.currentBlock_ = stepAscB;
                         {
                             SIRInstruction store(SIROpcode::STORE);
@@ -276,7 +276,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(br);
                         }
 
-                        // -- ƒ״×„״© step_desc: ״×״®״²† step = -1 --
+                        // -- كتلة step_desc: تخزين step = -1 --
                         b_.currentBlock_ = stepDescB;
                         {
                             SIRInstruction store(SIROpcode::STORE);
@@ -291,7 +291,7 @@ namespace Sad
                         }
                     }
 
-                    // ---- ƒ״×„״© ״§„״´״±״· ----
+                    // ---- كتلة الشرط ----
                     b_.currentBlock_ = condB;
                     std::string loadedVar = b_.newTempRegister();
                     {
@@ -312,11 +312,11 @@ namespace Sad
                     std::string cmpReg = b_.newTempRegister();
                     {
                         // ================================================================
-                        // (AR) [Fix #47] ״§„״´״±״· ״¹״×…״¯ ״¹„‰ ״§״×״¬״§‡ ״§„…״¯‰:
-                        //      ״µ״¹ˆ״¯ (״«״§״¨״×): LE (״£״µ״÷״± ״£ˆ ״³״§ˆ)
-                        //      ״×†״§״²„ (״«״§״¨״×): GE (״£ƒ״¨״± ״£ˆ ״³״§ˆ)
-                        //      ״¯†״§…ƒ: †״­״µ step > 0 ˆ†״®״×״§״± LE ״£ˆ GE
-                        //       ״§„״­״§„״© ״§„״¯†״§…ƒ״© ††״´״¦ ƒ״×„״× ״´״±״· …†״µ„״×†
+                        // (AR) [Fix #47] الشرط يعتمد على اتجاه المدى:
+                        //      صعودي (ثابت): LE (أصغر أو يساوي)
+                        //      تنازلي (ثابت): GE (أكبر أو يساوي)
+                        //      ديناميكي: نفحص step > 0 ونختار LE أو GE
+                        //      في الحالة الديناميكية نُنشئ كتلتي شرط منفصلتين
                         // (EN) [Fix #47] Condition depends on range direction:
                         //      ascending (static): LE
                         //      descending (static): GE
@@ -335,8 +335,8 @@ namespace Sad
                         }
                         else
                         {
-                            // (AR) ״¯†״§…ƒ: †‚״±״£ step״ ״¥״°״§ step > 0 ג†’ LE״ ˆ״¥„״§ ג†’ GE
-                            // (EN) Dynamic: read step, if step > 0 ג†’ LE, else ג†’ GE
+                            // (AR) ديناميكي: نقرأ step، إذا step > 0 → LE، وإلا → GE
+                            // (EN) Dynamic: read step, if step > 0 → LE, else → GE
                             std::string loadStep = b_.newTempRegister();
                             {
                                 SIRInstruction ls(SIROpcode::LOAD);
@@ -353,7 +353,7 @@ namespace Sad
                                 sp.comment = "step > 0?";
                                 b_.currentBlock_->instructions.push_back(sp);
                             }
-                            // (AR) ƒ״×„ ״´״±״· ״±״¹״©: le_cond ˆ ge_cond
+                            // (AR) كتل شرط فرعية: le_cond و ge_cond
                             std::string leCL = b_.newLabel("le_cond");
                             std::string geCL = b_.newLabel("ge_cond");
                             std::string mergeCL = b_.newLabel("cond_merge");
@@ -372,7 +372,7 @@ namespace Sad
                                     SIROperand::Label(leCL), SIROperand::Label(geCL));
                                 b_.currentBlock_->instructions.push_back(br);
                             }
-                            // -- LE ƒ״×„״© --
+                            // -- LE كتلة --
                             b_.currentBlock_ = leCB;
                             std::string leRes = b_.newTempRegister();
                             {
@@ -386,7 +386,7 @@ namespace Sad
                                 SIRInstruction br = SIRInstruction::Branch(SIROperand::Label(mergeCL));
                                 b_.currentBlock_->instructions.push_back(br);
                             }
-                            // -- GE ƒ״×„״© --
+                            // -- GE كتلة --
                             b_.currentBlock_ = geCB;
                             std::string geRes = b_.newTempRegister();
                             {
@@ -400,7 +400,7 @@ namespace Sad
                                 SIRInstruction br = SIRInstruction::Branch(SIROperand::Label(mergeCL));
                                 b_.currentBlock_->instructions.push_back(br);
                             }
-                            // -- ״¯…״¬: PHI „״§״®״×״§״± ״§„†״×״¬״© ״§„״µ״­״­״© --
+                            // -- دمج: PHI لاختيار النتيجة الصحيحة --
                             b_.currentBlock_ = mergeCB;
                             {
                                 SIRInstruction phi(SIROpcode::PHI);
@@ -422,7 +422,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(brCond);
                     }
 
-                    // ---- ƒ״×„״© ״§„״¬״³… ----
+                    // ---- كتلة الجسم ----
                     b_.currentBlock_ = bodyB;
                     if (forRange->body)
                     {
@@ -434,7 +434,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(brInc);
                     }
 
-                    // ---- ƒ״×„״© ״§„״²״§״¯״© ----
+                    // ---- كتلة الزيادة ----
                     b_.currentBlock_ = incB;
                     std::string loadedInc = b_.newTempRegister();
                     {
@@ -445,14 +445,14 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(loadI);
                     }
                     // ================================================================
-                    // (AR) [Fix #47] ״§״³״×״®״¯״§… step ״¨״¯„ +1 ״§„״«״§״¨״×:
-                    //      ״µ״¹ˆ״¯ ג†’ i = i + 1
-                    //      ״×†״§״²„ ג†’ i = i + (-1) = i - 1
-                    //      ״¯†״§…ƒ ג†’ i = i + step (״­״« step = 1 ״£ˆ -1)
+                    // (AR) [Fix #47] استخدام step بدل +1 الثابت:
+                    //      صعودي → i = i + 1
+                    //      تنازلي → i = i + (-1) = i - 1
+                    //      ديناميكي → i = i + step (حيث step = 1 أو -1)
                     // (EN) [Fix #47] Use step instead of hardcoded +1:
-                    //      ascending ג†’ i = i + 1
-                    //      descending ג†’ i = i + (-1) = i - 1
-                    //      dynamic ג†’ i = i + step (where step = 1 or -1)
+                    //      ascending → i = i + 1
+                    //      descending → i = i + (-1) = i - 1
+                    //      dynamic → i = i + step (where step = 1 or -1)
                     // ================================================================
                     std::string newVal = b_.newTempRegister();
                     if (isStaticDirection)
@@ -467,7 +467,7 @@ namespace Sad
                     }
                     else
                     {
-                        // (AR) ״¯†״§…ƒ: †‚״±״£ step ˆ†״¶‡
+                        // (AR) ديناميكي: نقرأ step ونضيفه
                         std::string loadStep = b_.newTempRegister();
                         {
                             SIRInstruction ls(SIROpcode::LOAD);
@@ -497,22 +497,22 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(brBack);
                     }
 
-                    // ---- ƒ״×„״© ״§„״®״±ˆ״¬ ----
+                    // ---- كتلة الخروج ----
                     b_.currentBlock_ = exitB;
                     b_.exitScope();
                     return;
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 1: ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯ „„״­„‚״©
+                // (AR) الخطوة 1: دخول نطاق جديد للحلقة
                 // (EN) Step 1: Enter new scope for loop
                 // ========================================================================
                 b_.enterScope();
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 2: ״¨†״§״¡ ״§„״×״¹״¨״± ״§„‚״§״¨„ „„״×ƒ״±״§״±
+                // (AR) الخطوة 2: بناء التعبير القابل للتكرار
                 // (EN) Step 2: Build iterable expression
-                // ״§„…״µ״¯״±: ForRangeStmt::iterable (statements.h:232)
+                // المصدر: ForRangeStmt::iterable (statements.h:232)
                 // ========================================================================
                 auto iterableResult = b_.buildExpression(forRange->iterable.get());
 
@@ -532,14 +532,14 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) …״³״§״± ״®״§״µ: ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ‚†״§״© ג€” ״­„‚״© ״§״³״×‚״¨״§„ …† ״§„‚†״§״©
-                // (EN) Special path: if iterable is a channel ג€” channel receive loop
+                // (AR) مسار خاص: إذا كان التعبير قناة — حلقة استقبال من القناة
+                // (EN) Special path: if iterable is a channel — channel receive loop
                 //
-                // (AR) ״¨†״© ״§„״­„‚״©:
-                //   [chan_cond]  ג€” ״­״µ ˆ״¬ˆ״¯ ״¨״§†״§״×  ״§„‚†״§״©
-                //   [chan_check] ג€” ״¥״°״§ „״§ ״¨״§†״§״×״ ״­״µ ״¥״÷„״§‚ ״§„‚†״§״© ג†’ ״®״±ˆ״¬ ״£ˆ ״§†״×״¸״§״±
-                //   [chan_body]  ג€” ״§״³״×‚״¨״§„ + ״×†״° ״§„״¬״³…
-                //   [chan_exit]  ג€” ״¨״¹״¯ ״§†״×‡״§״¡ ״§„‚†״§״©
+                // (AR) بنية الحلقة:
+                //   [chan_cond]  — فحص وجود بيانات في القناة
+                //   [chan_check] — إذا لا بيانات، فحص إغلاق القناة → خروج أو انتظار
+                //   [chan_body]  — استقبال + تنفيذ الجسم
+                //   [chan_exit]  — بعد انتهاء القناة
                 // ========================================================================
                 if (iterableResult.className == "__channel__")
                 {
@@ -547,7 +547,7 @@ namespace Sad
                     std::cout << "[DEBUG] buildForRangeLoop: detected channel iterable" << std::endl;
 #endif
 
-                    // (AR) ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״© „״­„‚״© ״§„‚†״§״©
+                    // (AR) إنشاء الكتل الأساسية لحلقة القناة
                     // (EN) Create basic blocks for channel loop
                     std::string condLabel = b_.newLabel("chan_cond");
                     std::string checkLabel = b_.newLabel("chan_check_closed");
@@ -605,7 +605,7 @@ namespace Sad
                     chanVarInfo.isMutable = true;
                     b_.addVariable(chanVarInfo);
 
-                    // (AR) ״§„‚״² ״¥„‰ ƒ״×„״© ״§„״´״±״·
+                    // (AR) القفز إلى كتلة الشرط
                     // (EN) Jump to condition block
                     {
                         SIRInstruction br = SIRInstruction::Branch(SIROperand::Label(condLabel));
@@ -613,7 +613,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(br);
                     }
 
-                    // ---- ƒ״×„״© ״§„״´״±״·: ‡„ ˆ״¬״¯ ״¨״§†״§״×״ ----
+                    // ---- كتلة الشرط: هل يوجد بيانات؟ ----
                     // ---- Condition: does channel have data? ----
                     b_.currentBlock_ = condBlock;
                     SIROperand chanOp = SIROperand::Register(iterableResult.registerName, iterableResult.type);
@@ -627,8 +627,8 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(hasDataInst);
                     }
 
-                    // (AR) …‚״§״±†״©: has_data != 0 ג†’ …†״·‚
-                    // (EN) Compare: has_data != 0 ג†’ bool
+                    // (AR) مقارنة: has_data != 0 → منطقي
+                    // (EN) Compare: has_data != 0 → bool
                     std::string hasDataBool = b_.newTempRegister();
                     {
                         SIRInstruction cmp = SIRInstruction::Binary(
@@ -639,7 +639,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(cmp);
                     }
 
-                    // BR_COND: has_data ג†’ body, else ג†’ check_closed
+                    // BR_COND: has_data → body, else → check_closed
                     {
                         SIRInstruction brCond = SIRInstruction::BranchCond(
                             SIROperand::Register(hasDataBool, SadTypeKind::Boolean),
@@ -649,7 +649,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(brCond);
                     }
 
-                    // ---- ƒ״×„״© ״­״µ ״§„״¥״÷„״§‚ ----
+                    // ---- كتلة فحص الإغلاق ----
                     // ---- Check closed block ----
                     b_.currentBlock_ = checkBlock;
 
@@ -672,8 +672,8 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(cmp);
                     }
 
-                    // (AR) ״¥״°״§ …״÷„‚״© ג†’ ״®״±ˆ״¬״ ˆ״¥„״§ ג†’ ״¹ˆ״¯״© „„״´״±״· (״§†״×״¸״§״±)
-                    // (EN) If closed ג†’ exit, else ג†’ back to cond (wait)
+                    // (AR) إذا مغلقة → خروج، وإلا → عودة للشرط (انتظار)
+                    // (EN) If closed → exit, else → back to cond (wait)
                     {
                         SIRInstruction brCond = SIRInstruction::BranchCond(
                             SIROperand::Register(isClosedBool, SadTypeKind::Boolean),
@@ -683,7 +683,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(brCond);
                     }
 
-                    // ---- ƒ״×„״© ״§„״¬״³…: ״§״³״×‚״¨״§„ + ״×†״° ----
+                    // ---- كتلة الجسم: استقبال + تنفيذ ----
                     // ---- Body: receive + execute ----
                     b_.currentBlock_ = bodyBlock;
 
@@ -696,7 +696,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(recvInst);
                     }
 
-                    // (AR) ״×״®״²† ״§„‚…״© ״§„…״³״×‚״¨„״©  …״×״÷״± ״§„״­„‚״©
+                    // (AR) تخزين القيمة المُستقبَلة في متغير الحلقة
                     // (EN) Store received value into loop variable
                     {
                         SIRInstruction storeElem(SIROpcode::STORE);
@@ -706,14 +706,14 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(storeElem);
                     }
 
-                    // (AR) ״×״³״¬„ ״³״§‚ ״§„״­„‚״© „״¯״¹… ״×ˆ‚/״§״³״×…״±
+                    // (AR) تسجيل سياق الحلقة لدعم توقف/استمر
                     // (EN) Register loop context for break/continue
                     LoopContext chanLoopCtx;
                     chanLoopCtx.continueLabel = condLabel;
                     chanLoopCtx.breakLabel = exitLabel;
                     b_.enterLoop(chanLoopCtx);
 
-                    // (AR) ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
+                    // (AR) بناء جسم الحلقة
                     // (EN) Build loop body
                     if (forRange->body)
                     {
@@ -722,7 +722,7 @@ namespace Sad
 
                     b_.exitLoop();
 
-                    // (AR) ״§„״¹ˆ״¯״© ״¥„‰ ״§„״´״±״·
+                    // (AR) العودة إلى الشرط
                     // (EN) Jump back to condition
                     {
                         SIRInstruction br = SIRInstruction::Branch(SIROperand::Label(condLabel));
@@ -730,7 +730,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(br);
                     }
 
-                    // ---- ƒ״×„״© ״§„״®״±ˆ״¬ ----
+                    // ---- كتلة الخروج ----
                     b_.currentBlock_ = exitBlock;
                     b_.exitScope();
 
@@ -741,7 +741,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 3: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״© (…״³״§״± ״§„…״µˆ״©)
+                // (AR) الخطوة 3: إنشاء الكتل الأساسية (مسار المصفوفة)
                 // (EN) Step 3: Create basic blocks (array path)
                 // ========================================================================
                 std::string condLabel = b_.newLabel("foreach_cond");
@@ -754,7 +754,7 @@ namespace Sad
                 auto incBlock = b_.createBasicBlock(incLabel);
                 auto exitBlock = b_.createBasicBlock(exitLabel);
 
-                // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
+                // (AR) إضافة الكتل إلى الدالة الحالية
                 // (EN) Add blocks to current function
                 if (b_.currentFunction_)
                 {
@@ -765,10 +765,10 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 4: ״¥†״´״§״¡ …״×״÷״± ״§„״¹״¯״§״¯ ״¹״¨״± ALLOC+STORE (†…״· ״÷״±-SSA ״¢…†)
+                // (AR) الخطوة 4: إنشاء متغير العداد عبر ALLOC+STORE (نمط غير-SSA آمن)
                 // (EN) Step 4: Create index counter via ALLOC+STORE (safe non-SSA pattern)
-                // (AR) †״³״×״®״¯… †…״· ״§„״×״®״µ״µ ״¹„‰ ״§„…ƒ״¯״³ …״«„ ״§„…״×״÷״±״§״× ״§„…״­„״© „״×״¬†״¨
-                //      …״´ƒ„״© ״×״¹״± ״§„״³״¬„ ״§„ˆ״§״­״¯  ƒ״×„ …״×״¹״¯״¯״© (non-SSA counter).
+                // (AR) نستخدم نمط التخصيص على المكدس مثل المتغيرات المحلية لتجنب
+                //      مشكلة تعريف السجل الواحد في كتل متعددة (non-SSA counter).
                 // (EN) We use stack allocation like local variables to avoid single-def
                 //      register being "defined" in multiple blocks (non-SSA counter).
                 // ========================================================================
@@ -793,24 +793,24 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 5: ״¥†״´״§״¡ …״×״÷״± ״§„״­„‚״© ˆ״×״³״¬„‡  ״§„†״·״§‚
+                // (AR) الخطوة 5: إنشاء متغير الحلقة وتسجيله في النطاق
                 // (EN) Step 5: Create loop variable and register in scope
-                // ״§„…״µ״¯״±: ForRangeStmt::variable (statements.h:230)
+                // المصدر: ForRangeStmt::variable (statements.h:230)
                 // ========================================================================
-                // (AR) [״¥״µ„״§״­] ״§״³״×״®״¯״§… ״§״³… ״±״¯ „…״×״÷״± ״§„״­„‚״© „״×״¬†״¨ ״×״¶״§״±״¨ ALLOCAs
-                //      ״¹†״¯ ˆ״¬ˆ״¯ ״¹״¯״© ״­„‚״§״× „ƒ„ ״¨†״³ ״§״³… ״§„…״×״÷״± (…״«„ ״¹).
-                //      ״¨״¯ˆ† ״§„„״§״­‚״©: namedValues["%״¹"] ƒ״×״¨ ˆ‚‡ ״¹״¯״© …״±״§״×  codegen
-                //      ˆ״¹…„״§״× LOAD/STORE ״¯״§״®„ ״§„״­„‚״© ״×‚״±״£/״×ƒ״×״¨  alloca ״§„״­„‚״© ״§„״®״·״£.
+                // (AR) [إصلاح] استخدام اسم فريد لمتغير الحلقة لتجنب تضارب ALLOCAs
+                //      عند وجود عدة حلقات لكل بنفس اسم المتغير (مثل ع).
+                //      بدون اللاحقة: namedValues["%ع"] يُكتب فوقه عدة مرات في codegen
+                //      وعمليات LOAD/STORE داخل الحلقة تقرأ/تكتب في alloca الحلقة الخطأ.
                 // (EN) [Fix] Use unique name for loop variable to avoid alloca collision
-                //      when multiple foreach loops use the same variable name (e.g. ״¹).
-                //      Without suffix: namedValues["%״¹"] gets overwritten in codegen
+                //      when multiple foreach loops use the same variable name (e.g. ع).
+                //      Without suffix: namedValues["%ع"] gets overwritten in codegen
                 //      and LOAD/STORE inside the loop body reads/writes wrong alloca.
                 std::string loopVarAllocName = "%" + forRange->variable + "_" + idxSuffix;
 
                 // ALLOC the loop variable slot
-                // (AR) †״³״×״®״¯… †ˆ״¹ ״§„״¹†״µ״± ״§„״¹„ ״¥† ƒ״§† …״¹״±ˆ״§‹ (…״«„ STRING „„†״µˆ״µ)
-                //      ‡״°״§ ״¶…† ״¥†״´״§״¡ alloca ptr „„†״µˆ״µ ״¨״¯„״§‹ …† alloca i64
-                //      ……״§ …†״¹ ״×״­ˆ„ ptrtoint ״¹†״¯ ״§„״×״®״²† ˆ״­״§״¸ ״¹„‰ ״§„…״₪״´״± ƒ€ ptr
+                // (AR) نستخدم نوع العنصر الفعلي إن كان معروفاً (مثل STRING للنصوص)
+                //      هذا يضمن إنشاء alloca ptr للنصوص بدلاً من alloca i64
+                //      مما يمنع تحويل ptrtoint عند التخزين ويحافظ على المؤشر كـ ptr
                 // (EN) Use actual element type when known (e.g., STRING for text arrays)
                 //      This ensures alloca ptr for strings instead of alloca i64
                 {
@@ -823,8 +823,8 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(allocLoop);
                 }
 
-                // (AR) ״×״³״¬„ …״×״÷״± ״§„״­„‚״© (sir_builder.h:144 - VariableInfo)
-                //      †״³״×״®״¯… †ˆ״¹ ״§„״¹†״µ״± ״§„…״³״×†״×״¬ ״¥† ˆ״¬״¯ „״×״µ״­״­ ״§„״·״¨״§״¹״©
+                // (AR) تسجيل متغير الحلقة (sir_builder.h:144 - VariableInfo)
+                //      نستخدم نوع العنصر المستنتج إن وجد لتصحيح الطباعة
                 // (EN) Register loop variable using b_.addVariable (sir_builder.h:591)
                 //      Use inferred element type when available for correct printing
                 VariableInfo varInfo;
@@ -851,7 +851,7 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 6: ‚״² ״÷״± ״´״±״· ״¥„‰ ƒ״×„״© ״§„״´״±״·
+                // (AR) الخطوة 6: قفز غير شرطي إلى كتلة الشرط
                 // (EN) Step 6: Unconditional jump to condition block
                 // ========================================================================
                 SIROperand condLabelOp = SIROperand::Label(condLabel);
@@ -863,7 +863,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 7: ״¨†״§״¡ ״§„״´״±״· (index < length)
+                // (AR) الخطوة 7: بناء الشرط (index < length)
                 // (EN) Step 7: Build condition (index < length)
                 // ========================================================================
                 b_.currentBlock_ = condBlock;
@@ -903,7 +903,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(cmpInst);
                 }
 
-                // BR_COND ג†’ body / exit
+                // BR_COND → body / exit
                 SIROperand bodyLabelOp = SIROperand::Label(bodyLabel);
                 SIROperand exitLabelOp = SIROperand::Label(exitLabel);
                 {
@@ -914,7 +914,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 8: ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
+                // (AR) الخطوة 8: بناء جسم الحلقة
                 // (EN) Step 8: Build loop body
                 // ========================================================================
                 b_.currentBlock_ = bodyBlock;
@@ -930,8 +930,8 @@ namespace Sad
                 }
 
                 // ARRAY_GET: loopVar = iterable[loadedIdx]
-                // (AR) †״³״×״®״¯… †ˆ״¹ ״§„״¹†״µ״± ״§„…״³״×†״×״¬ …† ״§„…״µˆ״© ״¥† ˆ״¬״¯
-                //      ‡״°״§ ״­„ …״´ƒ„״© ״×ƒ״±״§״± ״§„†״µˆ״µ ״§„״× ƒ״§†״× ״×״­…‘„ ƒ״£״±‚״§…
+                // (AR) نستخدم نوع العنصر المستنتج من المصفوفة إن وجد
+                //      هذا يحل مشكلة تكرار النصوص التي كانت تُحمَّل كأرقام
                 // (EN) Use inferred element type from array if available
                 //      This fixes string iteration being loaded as numbers
                 SadTypeKind elemType = SadTypeKind::Integer;
@@ -950,7 +950,7 @@ namespace Sad
                 }
 
                 // STORE element into loop variable slot
-                // (AR) †״³״×״®״¯… †ˆ״¹ ״§„״¹†״µ״± ״§„״¹„ „„״×״®״²† „״×״¬†״¨ ptrtoint ״¹†״¯ ״×״®״²† †״µˆ״µ
+                // (AR) نستخدم نوع العنصر الفعلي للتخزين لتجنب ptrtoint عند تخزين نصوص
                 // (EN) Use actual element type for store to avoid ptrtoint when storing strings
                 {
                     SIRInstruction storeElem(SIROpcode::STORE);
@@ -961,30 +961,30 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 8.5: ״×״³״¬„ ״³״§‚ ״§„״­„‚״© „״¯״¹… break/continue
-                //      continueLabel = ƒ״×„״© ״§„״²״§״¯״© (foreach_inc) ג€” continue ״²״¯ ״§„״¹״¯״§״¯ ״«… ״­״µ ״§„״´״±״·
-                //      breakLabel = ƒ״×„״© ״§„״®״±ˆ״¬ (foreach_exit) ג€” break ‚״² „„״®״±ˆ״¬
+                // (AR) الخطوة 8.5: تسجيل سياق الحلقة لدعم break/continue
+                //      continueLabel = كتلة الزيادة (foreach_inc) — continue يزيد العداد ثم يفحص الشرط
+                //      breakLabel = كتلة الخروج (foreach_exit) — break يقفز للخروج
                 // (EN) Step 8.5: Register loop context for break/continue support
-                //      continueLabel = increment block (foreach_inc) ג€” continue increments then checks condition
-                //      breakLabel = exit block (foreach_exit) ג€” break jumps to exit
+                //      continueLabel = increment block (foreach_inc) — continue increments then checks condition
+                //      breakLabel = exit block (foreach_exit) — break jumps to exit
                 // ========================================================================
                 LoopContext foreachLoopCtx;
                 foreachLoopCtx.continueLabel = incLabel;
                 foreachLoopCtx.breakLabel = exitLabel;
                 b_.enterLoop(foreachLoopCtx);
 
-                // (AR) ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
+                // (AR) بناء جسم الحلقة
                 // (EN) Build loop body
                 if (forRange->body)
                 {
                     buildStatement(forRange->body.get());
                 }
 
-                // (AR) ״§„״®״±ˆ״¬ …† ״³״§‚ ״§„״­„‚״© (break/continue)
+                // (AR) الخروج من سياق الحلقة (break/continue)
                 // (EN) Exit loop context (break/continue)
                 b_.exitLoop();
 
-                // (AR) ‚״² ״¥„‰ ƒ״×„״© ״§„״²״§״¯״©
+                // (AR) قفز إلى كتلة الزيادة
                 // (EN) Jump to increment block
                 SIROperand incLabelOp = SIROperand::Label(incLabel);
                 {
@@ -994,7 +994,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 9: ״¨†״§״¡ ״§„״²״§״¯״© (index = index + 1)
+                // (AR) الخطوة 9: بناء الزيادة (index = index + 1)
                 // (EN) Step 9: Build increment (index = index + 1)
                 // ========================================================================
                 b_.currentBlock_ = incBlock;
@@ -1030,7 +1030,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(storeIdx);
                 }
 
-                // (AR) ‚״² „„״¹ˆ״¯״© ״¥„‰ ״§„״´״±״·
+                // (AR) قفز للعودة إلى الشرط
                 // (EN) Jump back to condition
                 {
                     SIRInstruction brBackInst = SIRInstruction::Branch(condLabelOp);
@@ -1039,12 +1039,12 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 10: ״§„״§״³״×…״±״§״± ״¨״¹״¯ ״§„״­„‚״©
+                // (AR) الخطوة 10: الاستمرار بعد الحلقة
                 // (EN) Step 10: Continue after loop
                 // ========================================================================
                 b_.currentBlock_ = exitBlock;
 
-                // (AR) ״§„״®״±ˆ״¬ …† †״·״§‚ ״§„״­„‚״©
+                // (AR) الخروج من نطاق الحلقة
                 // (EN) Exit loop scope
                 b_.exitScope();
 

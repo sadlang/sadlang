@@ -40,10 +40,10 @@ static llvm::Value* emitRuntimeCall(
     return builder.CreateCall(fn, argValues);
 }
 //
-// (AR) ״¬…״¹ ״¹…„״§״× UEFI ״×״×״±״¬… ״¥„‰ ״§״³״×״¯״¹״§״¡״§״× ״¯ˆ״§„ runtime ״®״§״±״¬״©
-//      ״¨״§„״¨״§״¯״¦״© sad_ll_uefi_* ˆ״§„״× ״×… ״±״¨״·‡״§  ˆ‚״× ״§„״±״¨״· ״§„†‡״§״¦.
-//      ״¹„‰ ״¨״¦״© UEFI ״§„״­‚‚״©״ ‡״°‡ ״§„״¯ˆ״§„ ״×״³״×״¯״¹ ״®״¯…״§״× UEFI …״¨״§״´״±״©.
-//      ״¹„‰ ״¨״¦״© ״§„…״­״§ƒ״§״©״ ״×… ״±״¨״·‡״§ ״¨״×†״° ˆ‡….
+// (AR) جميع عمليات UEFI تُترجم إلى استدعاءات دوال runtime خارجية
+//      بالبادئة sad_ll_uefi_* والتي يتم ربطها في وقت الربط النهائي.
+//      على بيئة UEFI الحقيقية، هذه الدوال تستدعي خدمات UEFI مباشرة.
+//      على بيئة المحاكاة، يتم ربطها بتنفيذ وهمي.
 //
 // (EN) All UEFI operations are translated to external runtime function calls
 //      prefixed with sad_ll_uefi_* which are linked at final link time.
@@ -51,7 +51,7 @@ static llvm::Value* emitRuntimeCall(
 //      On simulation, they link to a stub implementation.
 // ============================================================================
 
-// --- 16a. ״§„״×‡״¦״© ˆ״§„״×״­ƒ… / Initialization & Control ---
+// --- 16a. التهيئة والتحكم / Initialization & Control ---
 
 llvm::Value* LowlevelCodeGen::emitLowlevelUefiInit(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
@@ -99,7 +99,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelUefiResetSystem(std::shared_ptr<SIRIns
         "sad_ll_uefi_reset_system", voidTy, {i32Ty}, vals);
 }
 
-// --- 16b. ״¥״¯״§״±״© ״§„״°״§ƒ״±״© / Memory Services ---
+// --- 16b. إدارة الذاكرة / Memory Services ---
 
 llvm::Value* LowlevelCodeGen::emitLowlevelUefiAllocPages(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
@@ -163,7 +163,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelUefiTotalMemory(std::shared_ptr<SIRIns
         "sad_ll_uefi_total_memory", i64Ty, {}, {});
 }
 
-// --- 16c. ״¨״±ˆ״×ˆƒˆ„ ״§„״±״³ˆ…״§״× GOP / Graphics Output Protocol ---
+// --- 16c. بروتوكول الرسوميات GOP / Graphics Output Protocol ---
 
 llvm::Value* LowlevelCodeGen::emitLowlevelUefiInitGop(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
@@ -253,7 +253,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelUefiGopBlt(std::shared_ptr<SIRInstruct
         "sad_ll_uefi_gop_blt", i64Ty, types, vals);
 }
 
-// --- 16d. ״®״¯…״§״× ˆ‚״× ״§„״×״´״÷„ / Runtime Services ---
+// --- 16d. خدمات وقت التشغيل / Runtime Services ---
 
 llvm::Value* LowlevelCodeGen::emitLowlevelUefiGetTime(std::shared_ptr<SIRInstruction> inst) {
     auto* i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
@@ -295,7 +295,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelUefiSetVariable(std::shared_ptr<SIRIns
         "sad_ll_uefi_set_variable", i64Ty, types, vals);
 }
 
-// --- 16e. †״¸״§… ״§„…„״§״× / File System ---
+// --- 16e. نظام الملفات / File System ---
 
 llvm::Value* LowlevelCodeGen::emitLowlevelUefiOpenVolume(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
@@ -358,7 +358,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelUefiFileInfo(std::shared_ptr<SIRInstru
         "sad_ll_uefi_file_info", i8PtrTy, {i64Ty}, vals);
 }
 
-// --- 16f. ״¨״±ˆ״×ˆƒˆ„״§״× ˆ…״¹„ˆ…״§״× / Protocols & System Info ---
+// --- 16f. بروتوكولات ومعلومات / Protocols & System Info ---
 
 llvm::Value* LowlevelCodeGen::emitLowlevelUefiLocateProtocol(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
@@ -395,7 +395,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelUefiReport(std::shared_ptr<SIRInstruct
 }
 
 // ============================================================================
-// ״§„‚״³… 17: ACPI ״§„…ˆ״³‘״¹ / Extended ACPI
+// القسم 17: ACPI الموسّع / Extended ACPI
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelAcpiInitFull(std::shared_ptr<SIRInstruction> inst) {
@@ -491,7 +491,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelAcpiEcamBase(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
-// ״§„‚״³… 18: APIC ״§„…ˆ״³‘״¹ / Extended APIC
+// القسم 18: APIC الموسّع / Extended APIC
 // ============================================================================
 
 llvm::Value* LowlevelCodeGen::emitLowlevelApicSupported(std::shared_ptr<SIRInstruction> inst) {

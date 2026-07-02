@@ -1,7 +1,7 @@
 ﻿/*
- * (AR) …ˆ„״¯ ״×״¹„…״§״× LLVM ג€” ״§„…†״µ״§״×: Android / UI / ״×ˆ״¬‡״§״× (@״­״¬…״ @״°״±) / ˆ״­״¯״§״×
- * (EN) LLVM instruction emitter ג€” Platform: Android / UI / Directives (@sizeof, @atomic) / Modules
- * …״³״×״®״±״¬ …†: llvm_codegen_instructions.cpp (״³״·ˆ״± 1100-1375)
+ * (AR) مولد تعليمات LLVM — المنصات: Android / UI / توجيهات (@حجم، @ذري) / وحدات
+ * (EN) LLVM instruction emitter — Platform: Android / UI / Directives (@sizeof, @atomic) / Modules
+ * مستخرج من: llvm_codegen_instructions.cpp (سطور 1100-1375)
  */
 
 #include "llvm_codegen.h"
@@ -29,16 +29,16 @@ namespace Sad
     {
 
         /**
-         * (AR) ״×†״° ״×״¹„…״§״× ״§„…†״µ״§״× ˆ״§„״×ˆ״¬‡״§״× (Android״ UI״ @״­״¬…״ @״°״±״ ˆ״­״¯״§״×)
+         * (AR) تنفيذ تعليمات المنصات والتوجيهات (Android، UI، @حجم، @ذري، وحدات)
          * (EN) Emit platform and directive instructions (Android, UI, @sizeof, @atomic, modules)
-         * @return nullptr ״¥״°״§ „… ״×״¹״± ״¹„‰ ״§„€ opcode / nullptr if opcode not handled
+         * @return nullptr إذا لم يتعرف على الـ opcode / nullptr if opcode not handled
          */
         llvm::Value *InstrPlatformCodeGen::emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst)
         {
             switch (inst->opcode)
             {
                 // ====================================================================
-                // ״§„‚״³… 19: ״¹…„״§״× ״£†״¯״±ˆ״¯ / Android Operations
+                // القسم 19: عمليات أندرويد / Android Operations
                 // ====================================================================
 #ifdef ENABLE_ANDROID_CODEGEN
             case SIROpcode::ANDROID_ALLOC:
@@ -140,7 +140,7 @@ namespace Sad
 #endif // ENABLE_ANDROID_CODEGEN
 
             // ====================================================================
-            // ״§„‚״³… 20: †״¸״§… ״§„ˆ״§״¬‡״© ״§„…ˆ״­״¯ / Unified UI System (Always enabled)
+            // القسم 20: نظام الواجهة الموحد / Unified UI System (Always enabled)
             // ====================================================================
             case SIROpcode::BUILTIN_UI_COLUMN:
                 return cg_.emitUiColumn(inst);
@@ -347,7 +347,7 @@ namespace Sad
                 return cg_.emitUiGenWeb(inst);
 
             // ====================================================================
-            // ״§„‚״³… 21: ״§„״×ˆ״¬‡״§״× / Directives (@״­״¬…, @״°״±)
+            // القسم 21: التوجيهات / Directives (@حجم, @ذري)
             // ====================================================================
             case SIROpcode::Sizeof:
                 return cg_.emitSizeof(inst);
@@ -365,18 +365,18 @@ namespace Sad
                 return cg_.emitAtomicCmpXchg(inst);
 
             // ====================================================================
-            // ״§„‚״³… 22: †״¸״§… ״§„ˆ״­״¯״§״× / Module System
+            // القسم 22: نظام الوحدات / Module System
             // ====================================================================
             case SIROpcode::MODULE_LOAD:
             {
-                // (AR) ״×״­…„ ˆ״­״¯״© ג€” †״´״¦ ״×״¹״±״§‹ ״®״§״±״¬״§‹ „״¯״§„״© ״×‡״¦״© ״§„ˆ״­״¯״©
-                // (EN) Module load ג€” creates extern declaration for module init function
+                // (AR) تحميل وحدة — يُنشئ تعريفاً خارجياً لدالة تهيئة الوحدة
+                // (EN) Module load — creates extern declaration for module init function
                 if (!inst->operands.empty())
                 {
                     std::string moduleName = inst->operands[0].name;
-                    // ״×״­ˆ„ ״§״³… ״§„ˆ״­״¯״© „״§״³… ״¯״§„״© ״×‡״¦״© ״µ״§„״­
+                    // تحويل اسم الوحدة لاسم دالة تهيئة صالح
                     std::string initFnName = "__sad_module_init_" + moduleName;
-                    // ״×״¹״± ״®״§״±״¬ „״¯״§„״© ״§„״×‡״¦״©
+                    // تعريف خارجي لدالة التهيئة
                     auto *fnType = llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*cg_.context_), false);
                     cg_.module_->getOrInsertFunction(initFnName, fnType);
@@ -385,8 +385,8 @@ namespace Sad
             }
             case SIROpcode::MODULE_INIT:
             {
-                // (AR) ״×‡״¦״© ˆ״­״¯״© ג€” ״³״×״¯״¹ ״¯״§„״© ״×‡״¦״© ״§„ˆ״­״¯״© ״§„…״³״×ˆ״±״¯״©
-                // (EN) Module init ג€” calls the imported module's init function
+                // (AR) تهيئة وحدة — يستدعي دالة تهيئة الوحدة المستوردة
+                // (EN) Module init — calls the imported module's init function
                 if (!inst->operands.empty())
                 {
                     std::string moduleName = inst->operands[0].name;
@@ -401,23 +401,23 @@ namespace Sad
             }
             case SIROpcode::MODULE_SYMBOL:
             {
-                // (AR) ״±…״² ˆ״­״¯״© ג€” ״¹„† ״¹† ״±…״² ״®״§״±״¬ …״³״×ˆ״±״¯ …† ˆ״­״¯״© ״£״®״±‰
-                // (EN) Module symbol ג€” declares external symbol imported from another module
+                // (AR) رمز وحدة — يُعلن عن رمز خارجي مستورد من وحدة أخرى
+                // (EN) Module symbol — declares external symbol imported from another module
                 if (inst->operands.size() >= 2)
                 {
                     std::string symbolName = inst->operands[0].name;
-                    // ״×״¹״± ״®״§״±״¬ „„״±…״² ג€” ״³״­„‘‡ ״§„״±״§״¨״· „״§״­‚״§‹
+                    // تعريف خارجي للرمز — سيحلّه الرابط لاحقاً
                     auto *fnType = llvm::FunctionType::get(
                         llvm::Type::getInt64Ty(*cg_.context_),
-                        {}, true); // variadic „„…״±ˆ†״©
+                        {}, true); // variadic للمرونة
                     cg_.module_->getOrInsertFunction(symbolName, fnType);
                 }
                 return nullptr;
             }
             case SIROpcode::MODULE_EXPORT:
             {
-                // (AR) ״×״µ״¯״± ˆ״­״¯״© ג€” ״¶״¹ ״±״¨״·״§‹ ״®״§״±״¬״§‹ ״¹„‰ ״§„״¯״§„״© ״§„…״µ״¯‘״±״©
-                // (EN) Module export ג€” sets external linkage on exported function
+                // (AR) تصدير وحدة — يضع ربطاً خارجياً على الدالة المصدّرة
+                // (EN) Module export — sets external linkage on exported function
                 if (!inst->operands.empty())
                 {
                     std::string symbolName = inst->operands[0].name;
@@ -431,7 +431,7 @@ namespace Sad
             }
 
             default:
-                return nullptr; // (AR) ״÷״± …״¯״¹ˆ… ‡†״§ / (EN) not handled here
+                return nullptr; // (AR) غير مدعوم هنا / (EN) not handled here
             }
         }
 

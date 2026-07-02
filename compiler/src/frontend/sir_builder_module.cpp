@@ -1,12 +1,12 @@
 ﻿// ============================================================================
-// sir_builder.cpp - ״¨†״§״¡ SIR …† AST / SIR Builder from AST
+// sir_builder.cpp - بناء SIR من AST / SIR Builder from AST
 // ============================================================================
-// ״§„…״₪„ / Author: Sad Compiler Team
-// ״§„״×״§״±״® / Date: January 5, 2026
-// ״§„״¥״µ״¯״§״± / Version: 2.0 (״¥״¹״§״¯״© ƒ״×״§״¨״© ƒ״§…„״© …† ״§„״µ״±)
+// المؤلف / Author: Sad Compiler Team
+// التاريخ / Date: January 5, 2026
+// الإصدار / Version: 2.0 (إعادة كتابة كاملة من الصفر)
 //
-// …„״§״­״¸״© ‡״§…״© / Important Note:
-// ‡״°״§ ״§„…„ …״¹״§״¯ ƒ״×״§״¨״×‡ ״¨״§„ƒ״§…„ …† ״§„״µ״± ״¨…״§ ״×ˆ״§‚ 100% …״¹:
+// ملاحظة هامة / Important Note:
+// هذا الملف مُعاد كتابته بالكامل من الصفر بما يتوافق 100% مع:
 // This file is completely rewritten from scratch to comply 100% with:
 // - STRICT_CODING_RULES.md
 // - sir_builder.h
@@ -37,12 +37,12 @@ namespace Sad
         {
 
             // ============================================================================
-            // ״§„…†״´״¦ / Constructor
+            // المنشئ / Constructor
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:287
-            // ״§„״×ˆ‚״¹ / Signature: SIRBuilder();
+            // مصدر التعريف / Source: sir_builder.h:287
+            // التوقيع / Signature: SIRBuilder();
             //
-            // ״§„…״×״÷״±״§״× ״§„…‡‘״¦״© / Initialized variables:
+            // المتغيرات المُهيّئة / Initialized variables:
             // - module_: sir_builder.h:582 (std::shared_ptr<SIRModule>)
             // - currentFunction_: sir_builder.h:583 (std::shared_ptr<SIRFunction>)
             // - currentBlock_: sir_builder.h:584 (SIRBasicBlock*)
@@ -75,25 +75,25 @@ namespace Sad
                 // (AR) تهيئة بنّاء القوالب (Phase 6 Step 8 - الأخيرة)
                 // (EN) Initialize template builder (Phase 6 Step 8 - final)
                 templates_ = std::make_unique<TemplateBuilder>(*this);
-                // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
+                // (AR) لا توجد تهيئة إضافية مطلوبة
                 // (EN) No additional initialization required
             }
 
             // ============================================================================
-            // buildModule - ״¨†״§״¡ ˆ״­״¯״© SIR ƒ״§…„״© …† AST
+            // buildModule - بناء وحدة SIR كاملة من AST
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:329
-            // ״§„״×ˆ‚״¹ / Signature:
+            // مصدر التعريف / Source: sir_builder.h:329
+            // التوقيع / Signature:
             //   std::shared_ptr<SIRModule> buildModule(AST::ProgramNode* program);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - program: AST::ProgramNode* = Sad::AST::StmtList* (sir_builder.h:51)
-            //            ˆ‡ˆ alias „€ std::vector<StmtPtr> (ast_node.h:170)
+            //            وهو alias لـ std::vector<StmtPtr> (ast_node.h:170)
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
-            // - std::shared_ptr<SIRModule>: ˆ״­״¯״© SIR ƒ״§…„״© ״£ˆ nullptr ״¹†״¯ ״§„״®״·״£
+            // الإرجاع / Returns:
+            // - std::shared_ptr<SIRModule>: وحدة SIR كاملة أو nullptr عند الخطأ
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - std::make_shared<SIRModule>: standard library
             // - buildFunction: sir_builder.h:348
             // - buildGlobalVariable: sir_builder.h:356
@@ -194,7 +194,7 @@ namespace Sad
                     return nullptr;
                 }
 
-                // (AR) ״¥†״´״§״¡ ˆ״­״¯״© SIR ״¬״¯״¯״© (sir_module.h:501 - SIRModule constructor)
+                // (AR) إنشاء وحدة SIR جديدة (sir_module.h:501 - SIRModule constructor)
                 // (EN) Create new SIR module
                 module_ = std::make_shared<SIRModule>("main");
 
@@ -218,10 +218,10 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© ״§„״£ˆ„‰: ״×״³״¬„ ״×ˆ‚״¹״§״× ״¬…״¹ ״§„״¯ˆ״§„ …״³״¨‚״§‹
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة الأولى: تسجيل توقيعات جميع الدوال مسبقاً
                 // (EN) Phase 1: Pre-register all function signatures for forward references
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 for (const auto &stmt : *program)
                 {
                     if (!stmt)
@@ -229,12 +229,12 @@ namespace Sad
 
                     AST::FunctionDecl *funcDecl = nullptr;
 
-                    // (AR) ״¯״§„״© ״¹״§״¯״©
+                    // (AR) دالة عادية
                     if (auto fd = dynamic_cast<Sad::AST::FunctionDecl *>(stmt.get()))
                     {
                         funcDecl = fd;
                     }
-                    // (AR) ״¯״§„״© …״µ״¯‘״±״© (״§„״¥״µ״¯״§״± ״§„״¬״¯״¯)
+                    // (AR) دالة مُصدَّرة (الإصدار الجديد)
                     else if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
                     {
                         if (exportDecl->declaration)
@@ -242,7 +242,7 @@ namespace Sad
                             funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(exportDecl->declaration.get());
                         }
                     }
-                    // (AR) ״¯״§„״© …״µ״¯‘״±״© (״§„״¥״µ״¯״§״± ״§„‚״¯…)
+                    // (AR) دالة مُصدَّرة (الإصدار القديم)
                     else if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
                     {
                         if (exportStmt->declaration)
@@ -253,7 +253,7 @@ namespace Sad
 
                     if (funcDecl)
                     {
-                        // (AR) ״×״³״¬„ ״×ˆ‚״¹ ״§„״¯״§„״©  ״§„״¬״¯ˆ„
+                        // (AR) تسجيل توقيع الدالة في الجدول
                         // (EN) Register function signature in function table
                         FunctionInfo funcInfo;
                         funcInfo.name = funcDecl->name;
@@ -276,10 +276,10 @@ namespace Sad
                             SadTypeKind paramType = astTypeToSIRType(param.type);
                             funcInfo.parameters.push_back(SIRParameter(param.name, paramType));
                         }
-                        // (AR) …״₪״´״± ״§„״¯״§„״© ״³״­״¯‘״« „״§״­‚״§‹  buildFunction
+                        // (AR) مؤشر الدالة سيُحدَّث لاحقاً في buildFunction
                         // (EN) sirFunction pointer will be updated later in buildFunction
                         funcInfo.sirFunction = nullptr;
-                        // (AR) ״­״¸ …״±״¬״¹ AST „…״¹״§„״¬״© ״§„‚… ״§„״§״×״±״§״¶״© ״¹†״¯ ״§„״§״³״×״¯״¹״§״¡
+                        // (AR) حفظ مرجع AST لمعالجة القيم الافتراضية عند الاستدعاء
                         // (EN) Save AST reference for default parameter values at call sites
                         funcInfo.astDecl = funcDecl;
                         functionTable_[funcDecl->name] = funcInfo;
@@ -290,13 +290,13 @@ namespace Sad
 #endif
                     }
 
-                    // ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-                    // (AR) ״×״³״¬„ ״¯ˆ״§„ ״§„״§…״×״¯״§״¯ …״³״¨‚״§‹: ״§…״×״¯״§״¯ †ˆ״¹_‡״¯ ... †‡״§״©
-                    //      ״×״³״¬‘„ ƒ€ "†ˆ״¹_‡״¯.״§״³…_״§„״¯״§„״©"  ״¬״¯ˆ„ ״§„״¯ˆ״§„
-                    //      ‡״°״§ ״¶…† ״£† ״§„״¯ˆ״§„ ״§„…״¹״±‘״© ‚״¨„ ƒ״×„״© ״§„״§…״×״¯״§״¯ …ƒ†‡״§ ״§„ˆ״µˆ„ ״¥„‡״§
+                    // ─────────────────────────────────────────────────────────────
+                    // (AR) تسجيل دوال الامتداد مسبقاً: امتداد نوع_هدف ... نهاية
+                    //      تُسجّل كـ "نوع_هدف.اسم_الدالة" في جدول الدوال
+                    //      هذا يضمن أن الدوال المُعرّفة قبل كتلة الامتداد يمكنها الوصول إليها
                     // (EN) Pre-register extension methods: extension target_type ... end
                     //      Registered as "target_type.method_name" in function table
-                    // ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
+                    // ─────────────────────────────────────────────────────────────
                     if (auto extensionDecl = dynamic_cast<Sad::AST::ExtensionDecl *>(stmt.get()))
                     {
                         for (auto &method : extensionDecl->methods)
@@ -311,7 +311,7 @@ namespace Sad
                             FunctionInfo extInfo;
                             extInfo.name = fullName;
                             extInfo.returnType = astTypeToSIRType(extFunc->returnType);
-                            // (AR) ״§„…״¹״§…„ ״§„״£ˆ„ ‡ˆ self
+                            // (AR) المعامل الأول هو self
                             extInfo.parameters.push_back(SIRParameter(kSelfParamName, SadTypeKind::Integer));
                             for (const auto &param : extFunc->parameters)
                             {
@@ -328,14 +328,14 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 1.3: ״×״³״¬„ ״×ˆ‚״¹״§״× ״¯ˆ״§„ ״§„״£״µ†״§ …״³״¨‚״§‹ (״®״§״µ״© ״§„״³״§ƒ†״©)
-                //      ״­״×‰ ״×״×ˆ״±  functionTable_ ‚״¨„ ״§„…״±״­„״© 1.7 (״§״³״×†״×״§״¬ ״§„״£†ˆ״§״¹)
-                //      ״¨״¯ˆ† ‡״°״§: ״§״³״×״¯״¹״§״¡״§״× …״«„ ״³״¬„.״³״¬‘„("״£ˆ„") „״§ ״×״­״¯‘״« ״£†ˆ״§״¹ ״§„…״¹״§…„״§״×
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.3: تسجيل توقيعات دوال الأصناف مسبقاً (خاصة الساكنة)
+                //      حتى تتوفر في functionTable_ قبل المرحلة 1.7 (استنتاج الأنواع)
+                //      بدون هذا: استدعاءات مثل سجل.سجّل("أول") لا تُحدّث أنواع المعاملات
                 // (EN) Phase 1.3: Pre-register class method signatures (especially static)
                 //      So they're available in functionTable_ before Phase 1.7 (type inference)
                 //      Without this: calls like Class.method("arg") don't update param types
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 for (const auto &stmt : *program)
                 {
                     if (!stmt)
@@ -359,7 +359,7 @@ namespace Sad
 
                         std::string fullMethodName = classDecl->name + "." + methodDecl->name;
 
-                        // (AR) ״×״®״· ״¥״°״§ ״³״¨‚ ״§„״×״³״¬„
+                        // (AR) تخطي إذا سبق التسجيل
                         // (EN) Skip if already registered
                         if (functionTable_.count(fullMethodName) > 0)
                             continue;
@@ -368,7 +368,7 @@ namespace Sad
                         methodInfo.name = fullMethodName;
                         methodInfo.returnType = astTypeToSIRType(methodDecl->returnType);
 
-                        // (AR) ״§„״¯ˆ״§„ ״÷״± ״§„״³״§ƒ†״© ״×״£״®״° self ƒ…״¹״§…„ ״£ˆ„
+                        // (AR) الدوال غير الساكنة تأخذ self كمعامل أول
                         // (EN) Non-static methods take self as first parameter
                         if (!methodDecl->isStatic)
                         {
@@ -449,20 +449,20 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 1.5: ״×״³״¬„ ״§„…״×״÷״±״§״× ״§„״¹״§…״© …״³״¨‚״§‹  †״·״§‚ ״¹״§… ״«״§״¨״×
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.5: تسجيل المتغيرات العامة مسبقاً في نطاق عام ثابت
                 // (EN) Phase 1.5: Pre-register global variables in a persistent global scope
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ‡״°״§ ״§„†״·״§‚ ״¨‚‰ ״·ˆ״§„ ״¨†״§״¡ ״§„ˆ״­״¯״© ״­״×‰ ״×״³״×״·״¹ ״§„״¯ˆ״§„ ״§„ˆ״µˆ„ „„…״×״÷״±״§״× ״§„״¹״§…״©
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) هذا النطاق يبقى طوال بناء الوحدة حتى تستطيع الدوال الوصول للمتغيرات العامة
                 // (EN) This scope persists throughout module building so functions can access globals
-                enterScope(); // (AR) ״§„†״·״§‚ ״§„״¹״§… - ״³״¨‚‰ ״­״×‰ †‡״§״© buildModule
+                enterScope(); // (AR) النطاق العام - سيبقى حتى نهاية buildModule
 
                 for (const auto &stmt : *program)
                 {
                     if (!stmt)
                         continue;
 
-                    // (AR) ״§״³״×״®״±״§״¬ VarDeclStmt …״¨״§״´״±״© ״£ˆ …† ״¯״§״®„ ExportDecl/ExportStmt
+                    // (AR) استخراج VarDeclStmt مباشرة أو من داخل ExportDecl/ExportStmt
                     // (EN) Extract VarDeclStmt directly or from inside ExportDecl/ExportStmt
                     Sad::AST::VarDeclStmt *varDecl = nullptr;
 
@@ -491,24 +491,24 @@ namespace Sad
 
                     if (varDecl)
                     {
-                        // (AR) ״×״³״¬„ ״§„…״×״÷״± ״§„״¹״§…  ״§„†״·״§‚ ״§„״¹״§…
+                        // (AR) تسجيل المتغير العام في النطاق العام
                         // (EN) Register global variable in global scope
                         SadTypeKind varType = astTypeToSIRType(varDecl->type);
 
                         // ================================================================
-                        // (AR) ״§״³״×†״×״§״¬ ״§„†ˆ״¹ …† ״§„‚…״© ״§„״­״±״© ״¹†״¯…״§ ƒˆ† ״§„†ˆ״¹ ״÷״± …״¹״±ˆ:
-                        //      …״×״÷״± ״³ = 3.14 ג†’ ״§„†ˆ״¹ UNKNOWN ג†’ ״¬״¨ ״£† ƒˆ† F64 „״§ I64
-                        //      ״¨״¯ˆ† ‡״°״§: ״§„״¹״´״± ״®״²† ƒ€ i64 (״¨״×״§״× ״®״§…) ˆ״·״¨״¹ ״¨״´ƒ„ ״®״§״·״¦
+                        // (AR) استنتاج النوع من القيمة الحرفية عندما يكون النوع غير معروف:
+                        //      متغير س = 3.14 → النوع UNKNOWN → يجب أن يكون F64 لا I64
+                        //      بدون هذا: العشري يُخزن كـ i64 (بتات خام) ويُطبع بشكل خاطئ
                         // (EN) Infer type from literal initializer when type is UNKNOWN:
-                        //      var x = 3.14 ג†’ type UNKNOWN ג†’ should be F64 not I64
+                        //      var x = 3.14 → type UNKNOWN → should be F64 not I64
                         //      Without this: double stored as i64 (raw bits) and printed incorrectly
                         // ================================================================
                         if (varDecl->type == Types::SadTypeKind::Unknown && varDecl->initializer)
                         {
-                            // (AR) ״§״³״×†״×״§״¬ ״§„†ˆ״¹ …† ״£ ״×״¹״¨״± ג€” „״³ ‚״· ״§„״­״±״§״×
-                            //      †״³״×״®״¯… ״¯״§„״© …״³״§״¹״¯״© ״×…״´  ״´״¬״±״© ״§„״×״¹״¨״± ״¨״´ƒ„ ״¹…‚
-                            //      „״§ƒ״×״´״§ ״£ ˆ״¬ˆ״¯ „€ NUMBER_DOUBLE ״£ˆ …״×״÷״± Float
-                            // (EN) Infer type from any expression ג€” not just literals
+                            // (AR) استنتاج النوع من أي تعبير — ليس فقط الحرفيات
+                            //      نستخدم دالة مساعدة تمشي في شجرة التعبير بشكل عميق
+                            //      لاكتشاف أي وجود لـ NUMBER_DOUBLE أو متغير Float
+                            // (EN) Infer type from any expression — not just literals
                             //      Use helper that walks expression tree to detect float presence
                             varType = inferExprType(varDecl->initializer.get());
                         }
@@ -521,9 +521,9 @@ namespace Sad
                         globalVarInfo.isMutable = !varDecl->isConst;
                         globalVarInfo.scopeLevel = 0;
 
-                        // (AR) ״§״³״×†״×״§״¬ †ˆ״¹ ״¹†״µ״± ״§„…״µˆ״© …† ArrayExpr „״¯״¹… foreach
-                        //      …״«״§„: …״×״÷״± ״§„ˆ״§ƒ‡ = ["״×״§״­"״ "…ˆ״²"] ג†’ elementType = STRING
-                        //      ‡״°״§ …ƒ‘† ARRAY_GET …† ״§״³״×״®״¯״§… ״§„†ˆ״¹ ״§„״µ״­״­ ״¹†״¯ ״§„״×ƒ״±״§״±
+                        // (AR) استنتاج نوع عنصر المصفوفة من ArrayExpr لدعم foreach
+                        //      مثال: متغير الفواكه = ["تفاح"، "موز"] → elementType = STRING
+                        //      هذا يُمكّن ARRAY_GET من استخدام النوع الصحيح عند التكرار
                         // (EN) Infer array element type from ArrayExpr for foreach support
                         if (varDecl->initializer)
                         {
@@ -554,7 +554,7 @@ namespace Sad
 
                         addVariable(globalVarInfo);
 
-                        // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† …״³״¨‚״§‹ „„…״×״÷״±״§״× ״§„״¹״§…״© ״§„…‡״£״© ״¨€ ״¬״¯״¯ ״µ†()
+                        // (AR) تتبع نوع الصنف مسبقاً للمتغيرات العامة المهيأة بـ جديد صنف()
                         // (EN) Pre-track class type for global variables initialized with new ClassName()
                         if (varDecl->initializer)
                         {
@@ -564,12 +564,12 @@ namespace Sad
                             }
                         }
 
-                        // (AR) ״¥״¶״§״© ״§„…״×״÷״± ״§„״¹״§… ״£״¶״§‹ „ˆ״­״¯״© SIR ״­״×‰ †״´״¦ LLVM CodeGen …״×״÷״±״§״× ״¹״§…״© ״­‚‚״©
+                        // (AR) إضافة المتغير العام أيضاً لوحدة SIR حتى ينشئ LLVM CodeGen متغيرات عامة حقيقية
                         // (EN) Also add global variable to SIR module so LLVM CodeGen creates real LLVM globals
                         auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
                         sirGlobal->isConstant = varDecl->isConst;
 
-                        // (AR) ״§״³״×״®״±״§״¬ ״§„‚…״© ״§„״£ˆ„״© ״¥״°״§ ƒ״§†״× ״«״§״¨״×״§‹ ״­״±״§‹
+                        // (AR) استخراج القيمة الأولية إذا كانت ثابتاً حرفياً
                         // (EN) Extract initial value if it's a literal constant
                         if (varDecl->initializer)
                         {
@@ -581,7 +581,7 @@ namespace Sad
 
                                 if (tokenType == Lexer::TokenType::NUMBER_INTEGER)
                                 {
-                                    // (AR) ״×״­ˆ„ ״§„״£״¹״¯״§״¯ ״§„״³״× ״¹״´״±״©/״§„״«…״§†״©/״§„״«†״§״¦״© ״¥„‰ ״¹״´״±״©
+                                    // (AR) تحويل الأعداد الست عشرية/الثمانية/الثنائية إلى عشرية
                                     // (EN) Normalize hex/octal/binary literals to decimal
                                     if (value.size() > 2 && value[0] == '0')
                                     {
@@ -620,30 +620,30 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 1.7: ״§״³״×†״×״§״¬ ״£†ˆ״§״¹ ״§„…״¹״§…„״§״× …† …ˆ״§‚״¹ ״§„״§״³״×״¯״¹״§״¡
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.7: استنتاج أنواع المعاملات من مواقع الاستدعاء
                 // (EN) Phase 1.7: Infer parameter types from call sites
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ‚״¨„ ״¨†״§״¡ ״£״¬״³״§… ״§„״¯ˆ״§„״ †…״³״­ ƒ„ ״§״³״×״¯״¹״§״¡״§״× ״§„״¯ˆ״§„  ״§„״¨״±†״§…״¬
-                //      „״×״­״¯״« ״£†ˆ״§״¹ ״§„…״¹״§…„״§״× ״÷״± ״§„…״­״¯״¯״© (UNKNOWN ג†’ I64) ״¥„‰ ״£†ˆ״§״¹‡״§ ״§„״­‚‚״©
-                //      ״¨†״§״¡‹ ״¹„‰ ״§„ˆ״³״§״¦״· ״§„״¹„״© ״§„……״±״±״©  …ˆ״§‚״¹ ״§„״§״³״×״¯״¹״§״¡
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) قبل بناء أجسام الدوال، نمسح كل استدعاءات الدوال في البرنامج
+                //      لتحديث أنواع المعاملات غير المحددة (UNKNOWN → I64) إلى أنواعها الحقيقية
+                //      بناءً على الوسائط الفعلية المُمررة في مواقع الاستدعاء
                 // (EN) Before building function bodies, scan all function calls in the program
-                //      to update untyped parameter types (UNKNOWN ג†’ I64) to their actual types
+                //      to update untyped parameter types (UNKNOWN → I64) to their actual types
                 //      based on the real arguments passed at call sites
                 inferParamTypesFromCallSites(program);
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 1.8: ״§״³״×†״×״§״¬ ״£†ˆ״§״¹ ״­‚ˆ„ ״§„״£״µ†״§ …† ˆ״³״§״¦״· ״¬״¯״¯() …״¨ƒ״±״§‹
-                //      †…״³״­ ƒ„ ״×״¹״¨״±״§״× NewExpr  ״§„״¨״±†״§…״¬ ˆ†״·״§״¨‚ ˆ״³״§״¦״·‡״§ …״¹ ״­‚ˆ„ ״§„״µ†
-                //      ״¹״¨״± paramToFieldMap_ ג€” ‡״°״§ ״³…״­ „€ inferReturnTypeFromBody ״¨…״¹״±״©
-                //      ״£† ״­‚„ "״§״³…" ‡ˆ STRING ‚״¨„ ״¨†״§״¡ ״£״¬״³״§… ״§„״¯ˆ״§„
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.8: استنتاج أنواع حقول الأصناف من وسائط جديد() مبكراً
+                //      نمسح كل تعبيرات NewExpr في البرنامج ونُطابق وسائطها مع حقول الصنف
+                //      عبر paramToFieldMap_ — هذا يسمح لـ inferReturnTypeFromBody بمعرفة
+                //      أن حقل "اسم" هو STRING قبل بناء أجسام الدوال
                 // (EN) Phase 1.8: Early field type inference from NewExpr arguments
                 //      Scan all NewExpr in program and match arguments with class fields
-                //      via paramToFieldMap_ ג€” this allows inferReturnTypeFromBody to know
-                //      that field "״§״³…" is STRING before building function bodies
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                //      via paramToFieldMap_ — this allows inferReturnTypeFromBody to know
+                //      that field "اسم" is STRING before building function bodies
+                // ═══════════════════════════════════════════════════════════════════
                 {
-                    // (AR) ״¯״§„״© ״×״¹״§ˆ״¯״© „…״³״­ ״×״¹״¨״±״§״× NewExpr  ״§„״¬…„
+                    // (AR) دالة تعاودية لمسح تعبيرات NewExpr في الجمل
                     // (EN) Recursive function to scan NewExpr in statements
                     std::function<void(const Sad::AST::Expression *)> scanExprForNewExpr;
                     std::function<void(const Sad::AST::Statement *)> scanStmtForNewExpr;
@@ -657,9 +657,9 @@ namespace Sad
                             auto sirClass = module_->getClass(newExpr->className);
                             if (sirClass && !sirClass->paramToFieldMap_.empty())
                             {
-                                // (AR) ״§„״¨״­״« ״¹† ״§„״¨״§† „„״­״µˆ„ ״¹„‰ ״£״³…״§״¡ ״§„…״¹״§…„״§״×
+                                // (AR) البحث عن الباني للحصول على أسماء المعاملات
                                 // (EN) Find constructor to get parameter names
-                                std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .״¨״§†
+                                std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
                                 auto ctorFunc = module_->getFunction(ctorName);
                                 if (ctorFunc)
                                 {
@@ -676,7 +676,7 @@ namespace Sad
                                             if (currentType != sirClass->fields_.end() &&
                                                 currentType->second == SadTypeKind::Pointer)
                                             {
-                                                // (AR) ״§״³״×†״×״§״¬ †ˆ״¹ ״§„ˆ״³״· …† AST
+                                                // (AR) استنتاج نوع الوسيط من AST
                                                 // (EN) Infer argument type from AST
                                                 const auto &arg = newExpr->arguments[i - 1];
                                                 SadTypeKind argType = SadTypeKind::Pointer;
@@ -698,8 +698,8 @@ namespace Sad
                                                 }
                                                 else if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(arg.get()))
                                                 {
-                                                    // (AR) …״×״÷״± ג€” †״¨״­״« ״¹† †ˆ״¹‡  ״§„״¬״¯ˆ„
-                                                    // (EN) Variable ג€” look up its type
+                                                    // (AR) متغير — نبحث عن نوعه في الجدول
+                                                    // (EN) Variable — look up its type
                                                     auto *varInfo = lookupVariable(varExpr->name);
                                                     if (varInfo && varInfo->type != SadTypeKind::Void)
                                                         argType = varInfo->type;
@@ -715,7 +715,7 @@ namespace Sad
                                 }
                             }
                         }
-                        // (AR) …״³״­ ״§„״×״¹״¨״±״§״× ״§„״±״¹״©
+                        // (AR) مسح التعبيرات الفرعية
                         if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                         {
                             scanExprForNewExpr(call->callee.get());
@@ -795,23 +795,23 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© ״§„״«״§†״©: ״¨†״§״¡ ״§„״×״µ״±״­״§״× ˆ״¬…״¹ ״§„״¬…„ ״§„״×†״°״©
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة الثانية: بناء التصريحات وجمع الجمل التنفيذية
                 // (EN) Phase 2: Build declarations and collect executable statements
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״¬…״¹ ״§„״¬…„ ״§„״×†״°״©  ״§„…״³״×ˆ‰ ״§„״£״¹„‰ „״×״¶…†‡״§  __sad_main
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) جمع الجمل التنفيذية في المستوى الأعلى لتضمينها في __sad_main
                 // (EN) Collect top-level executable statements for __sad_main wrapper
                 std::vector<Sad::AST::Statement *> topLevelStatements;
-                bool hasMainFunction = false; // (AR) ‡„ ״×ˆ״¬״¯ ״¯״§„״© "״±״¦״³״©" ״£ˆ "main"״
+                bool hasMainFunction = false; // (AR) هل توجد دالة "رئيسية" أو "main"؟
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 2״£: ״¨†״§״¡ ״§„״£״µ†״§ ˆ״§„״×״¹״¯״§״¯״§״× ˆ״§„״³…״§״× ״£ˆ„״§‹
-                //      ‡״°״§ ״¶״±ˆ״± ״­״×‰ ״×״×ˆ״± …״¹„ˆ…״§״× ״§„״­‚ˆ„ ˆ״§„״¨״§†״§״×
-                //      ‚״¨„ ״¨†״§״¡ ״§„״¯ˆ״§„ ״§„״× ‚״¯ ״×״­״×״§״¬ inferReturnTypeFromBody
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 2أ: بناء الأصناف والتعدادات والسمات أولاً
+                //      هذا ضروري حتى تتوفر معلومات الحقول والبانيات
+                //      قبل بناء الدوال التي قد تحتاج inferReturnTypeFromBody
                 // (EN) Phase 2A: Build classes, enums, traits FIRST
                 //      This ensures field info and constructors are available
                 //      before building functions that may need inferReturnTypeFromBody
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 // ═══════════════════════════════════════════════════════════════════════
                 // (AR) [ISSUE-049] المرحلة 2A-0: سجّل البُنى (struct) قبل بناء أجسام طرق
                 //      الأصناف. وإلا فإنّ بناء بنية داخل طريقة صنف «ن()» لا يجد نوعها
@@ -905,16 +905,16 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 2״¨: …״³״­ NewExpr „״×״­״¯״« ״£†ˆ״§״¹ ״­‚ˆ„ ״§„״£״µ†״§
-                //      ״§„״¢† ״¨״¹״¯ ״¨†״§״¡ ״§„״£״µ†״§״ †…״³״­ ״¬…״¹ ״×״¹״¨״±״§״× ״¬״¯״¯()  ״§„״¨״±†״§…״¬
-                //      ˆ†״³״×†״×״¬ ״£†ˆ״§״¹ ״§„״­‚ˆ„ …† ״§„ˆ״³״§״¦״· ״§„״¹„״©
-                //      ƒ״°„ƒ †״­״¯‘״« ״£†ˆ״§״¹ …״¹״§…„״§״× ״§„״¨״§†״§״×  functionTable_
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 2ب: مسح NewExpr لتحديث أنواع حقول الأصناف
+                //      الآن بعد بناء الأصناف، نمسح جميع تعبيرات جديد() في البرنامج
+                //      ونستنتج أنواع الحقول من الوسائط الفعلية
+                //      كذلك نُحدّث أنواع معاملات البانيات في functionTable_
                 // (EN) Phase 2B: Scan NewExpr to update class field types
                 //      Now that classes are built, scan all NewExpr in program
                 //      and infer field types from actual arguments
                 //      Also update constructor param types in functionTable_
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 {
                     std::function<void(const Sad::AST::Expression *)> scanExprForNewExpr;
                     std::function<void(const Sad::AST::Statement *)> scanStmtForNewExpr;
@@ -928,7 +928,7 @@ namespace Sad
                             auto sirClass = module_->getClass(newExpr->className);
                             if (sirClass && !sirClass->paramToFieldMap_.empty())
                             {
-                                std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .״¨״§†
+                                std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
                                 auto ctorFunc = module_->getFunction(ctorName);
                                 auto ctorTableIt = functionTable_.find(ctorName);
                                 if (ctorFunc)
@@ -967,7 +967,7 @@ namespace Sad
                                                 if (argType != SadTypeKind::Pointer && argType != SadTypeKind::Void)
                                                 {
                                                     sirClass->fields_[fieldName] = argType;
-                                                    // (AR) ״×״­״¯״« ״£״¶״§‹ functionTable_ „„״¨״§†
+                                                    // (AR) تحديث أيضاً functionTable_ للباني
                                                     if (ctorTableIt != functionTable_.end() && i < ctorTableIt->second.parameters.size())
                                                     {
                                                         if (ctorTableIt->second.parameters[i].type == SadTypeKind::Integer)
@@ -1229,19 +1229,19 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© 2״¬: ״¨†״§״¡ ״§„״¯ˆ״§„ ˆ״§„‚ˆ״§„״¨ ˆ״§„״µ״§״¯״±״§״× + ״¬…״¹ ״§„״¬…„ ״§„״×†״°״©
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 2ج: بناء الدوال والقوالب والصادرات + جمع الجمل التنفيذية
                 // (EN) Phase 2C: Build functions, templates, exports + collect executable stmts
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
 
-                // program ‡ˆ StmtList = std::vector<StmtPtr> (ast_node.h:170)
+                // program هو StmtList = std::vector<StmtPtr> (ast_node.h:170)
                 for (const auto &stmt : *program)
                 {
                     if (!stmt)
                         continue;
 
-                    // (AR) ״§„״£״µ†״§ ˆ״§„״×״¹״¯״§״¯״§״× ˆ״§„״³…״§״× ״×… ״¨†״§״₪‡״§  ״§„…״±״­„״© 2״£ ג€” †״×״®״·״§‡״§
-                    // (EN) Classes, enums, traits were built in Phase 2A ג€” skip them
+                    // (AR) الأصناف والتعدادات والسمات تم بناؤها في المرحلة 2أ — نتخطاها
+                    // (EN) Classes, enums, traits were built in Phase 2A — skip them
                     if (dynamic_cast<Sad::AST::ClassDecl *>(stmt.get()))
                         continue;
                     if (dynamic_cast<Sad::AST::EnumDecl *>(stmt.get()))
@@ -1261,12 +1261,12 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״¯״§„״©״ (declarations.h:19 - class FunctionDecl)
+                    // (AR) دالة؟ (declarations.h:19 - class FunctionDecl)
                     // (EN) Function declaration?
                     if (auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(stmt.get()))
                     {
                         buildFunction(funcDecl);
-                        // (AR) ״§„״×״­‚‚ ‡„ ‡ ״¯״§„״© ״±״¦״³״©
+                        // (AR) التحقق هل هي دالة رئيسية
                         if (funcDecl->name == "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9" || funcDecl->name == "main")
                         {
                             hasMainFunction = true;
@@ -1274,7 +1274,7 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״¯״§„״© ‚״§„״¨״ (declarations.h:470 - class TemplateFunctionDecl)
+                    // (AR) دالة قالب؟ (declarations.h:470 - class TemplateFunctionDecl)
                     // (EN) Template function declaration?
                     if (auto templateDecl = dynamic_cast<Sad::AST::TemplateFunctionDecl *>(stmt.get()))
                     {
@@ -1282,12 +1282,12 @@ namespace Sad
                         continue;
                     }
 
-                    // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                    // (AR) †״¸״§… ״§„״§״³״×״±״§״¯ ˆ״§„״×״µ״¯״±  ״§„…״×״±״¬…
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) نظام الاستيراد والتصدير في المترجم
                     // (EN) Import/Export system in compiler
-                    // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                    // ═══════════════════════════════════════════════════════════════
 
-                    // (AR) ״×״µ״¯״± (״§„״¥״µ״¯״§״± ״§„״¬״¯״¯): ״µ״¯‘״± ״¯״§„״©|״µ†|…״×״÷״± ...
+                    // (AR) تصدير (الإصدار الجديد): صدّر دالة|صنف|متغير ...
                     // (EN) Export declaration (new version): export function|class|var ...
                     if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
                     {
@@ -1297,13 +1297,13 @@ namespace Sad
                             if (auto innerFunc = dynamic_cast<Sad::AST::FunctionDecl *>(innerStmt))
                             {
                                 buildFunction(innerFunc);
-                                // (AR) ״×״¹„… ״§„״¯״§„״© ƒ…״µ״¯‘״±״© ג†’ ExternalLinkage  ˆ״¶״¹ ״§„ˆ״­״¯״©
-                                // (EN) Mark function as exported ג†’ ExternalLinkage in module mode
+                                // (AR) تعليم الدالة كمُصدّرة → ExternalLinkage في وضع الوحدة
+                                // (EN) Mark function as exported → ExternalLinkage in module mode
                                 if (currentFunction_)
                                 {
                                     currentFunction_->isExported = true;
                                 }
-                                // (AR) ״§„״¨״­״« ״¹† ״§„״¯״§„״© ״¨״§„״§״³…  ״­״§„ currentFunction_ ״×״÷״±״×
+                                // (AR) البحث عن الدالة بالاسم في حال currentFunction_ تغيرت
                                 auto exportedFn = module_->getFunction(innerFunc->name);
                                 if (exportedFn)
                                 {
@@ -1336,14 +1336,14 @@ namespace Sad
                             }
                             else
                             {
-                                // (AR) ״£ ״×״µ״¯״± ״¢״®״± (…״×״÷״±״ ״¥„״®) ג†’ ״¬…„״© ״×†״°״©
+                                // (AR) أي تصدير آخر (متغير، إلخ) → جملة تنفيذية
                                 topLevelStatements.push_back(stmt.get());
                             }
                         }
                         continue;
                     }
 
-                    // (AR) ״×״µ״¯״± (״§„״¥״µ״¯״§״± ״§„‚״¯…): ״µ״¯‘״± ...
+                    // (AR) تصدير (الإصدار القديم): صدّر ...
                     // (EN) Export statement (legacy): export ...
                     if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
                     {
@@ -1354,7 +1354,7 @@ namespace Sad
                             if (auto innerFunc = dynamic_cast<Sad::AST::FunctionDecl *>(innerStmt))
                             {
                                 buildFunction(innerFunc);
-                                // (AR) ״×״¹„… ״§„״¯״§„״© ƒ…״µ״¯‘״±״©
+                                // (AR) تعليم الدالة كمُصدّرة
                                 // (EN) Mark function as exported
                                 auto exportedFn = module_->getFunction(innerFunc->name);
                                 if (exportedFn)
@@ -1390,7 +1390,7 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״§״³״×״±״§״¯ ״§†״×‚״§״¦: …† ˆ״­״¯״© ״§״³״×ˆ״±״¯ ...
+                    // (AR) استيراد انتقائي: من وحدة استورد ...
                     // (EN) Selective import: from module import ...
                     if (auto fromImport = dynamic_cast<Sad::AST::FromImportStmt *>(stmt.get()))
                     {
@@ -1398,7 +1398,7 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״§״³״×״±״§״¯ ƒ״§…„: ״§״³״×ˆ״±״¯ ˆ״­״¯״©
+                    // (AR) استيراد كامل: استورد وحدة
                     // (EN) Full import: import module
                     if (auto importStmt = dynamic_cast<Sad::AST::ImportStmt *>(stmt.get()))
                     {
@@ -1406,7 +1406,7 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״¥״¹״§״¯״© ״§„״×״µ״¯״±: ״µ״¯‘״± * …† ˆ״­״¯״© / ״µ״¯‘״± ״¹†״µ״±1 …† ˆ״­״¯״©
+                    // (AR) إعادة التصدير: صدّر * من وحدة / صدّر عنصر1 من وحدة
                     // (EN) Re-export: export * from module / export item1 from module
                     if (auto reExportStmt = dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get()))
                     {
@@ -1414,8 +1414,8 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ƒ״×„״© ״§„״§…״×״¯״§״¯: ״§…״×״¯״§״¯ ״µ† ... †‡״§״©
-                    //      ״×״¹״§„״¬  ״§„…״±״­„״© 2 „״£† ״§„״¯ˆ״§„ ״§„…״¶״§״© ״¬״¨ ״£† ״×ƒˆ† …״×״§״­״© „״¬…״¹ ״§„״¯ˆ״§„
+                    // (AR) كتلة الامتداد: امتداد صنف ... نهاية
+                    //      تُعالج في المرحلة 2 لأن الدوال المُضافة يجب أن تكون متاحة لجميع الدوال
                     // (EN) Extension block: extension class ... end
                     //      Processed in Phase 2 so added methods are available to all functions
                     if (auto extensionDecl = dynamic_cast<Sad::AST::ExtensionDecl *>(stmt.get()))
@@ -1424,8 +1424,8 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״§״³… …״³״×״¹״§״± „„†ˆ״¹: †ˆ״¹ ״§״³… = †ˆ״¹_‡״¯
-                    //      ״¹״§„״¬  ״§„…״±״­„״© 2 „״£† ״§„״£״³…״§״¡ ״¬״¨ ״£† ״×ƒˆ† …״×״§״­״© …״¨ƒ״±״§‹
+                    // (AR) اسم مستعار للنوع: نوع اسم = نوع_هدف
+                    //      يُعالج في المرحلة 2 لأن الأسماء يجب أن تكون متاحة مبكراً
                     // (EN) Type alias: type name = target_type
                     //      Processed in Phase 2 so aliases are available early
                     if (auto typeAliasDecl = dynamic_cast<Sad::AST::TypeAliasDecl *>(stmt.get()))
@@ -1434,8 +1434,8 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) ״¨†״©: ״¨†״© ״§״³… ... †‡״§״©
-                    //      ״¹״§„״¬  ״§„…״±״­„״© 2 …״«„ ״§„״£״µ†״§
+                    // (AR) بنية: بنية اسم ... نهاية
+                    //      يُعالج في المرحلة 2 مثل الأصناف
                     // (EN) Struct: struct name ... end
                     //      Processed in Phase 2 like classes
                     if (dynamic_cast<Sad::AST::StructDecl *>(stmt.get()))
@@ -1447,19 +1447,19 @@ namespace Sad
                         continue;
                     }
 
-                    // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                    // (AR) ״¬…„״© ״×†״°״©  ״§„…״³״×ˆ‰ ״§„״£״¹„‰ (״·״¨״§״¹״©״ …״×״÷״±״ ״´״±״·״ ״­„‚״©...)
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) جملة تنفيذية في المستوى الأعلى (طباعة، متغير، شرط، حلقة...)
                     // (EN) Top-level executable statement (print, var, if, while...)
-                    // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                    // ═══════════════════════════════════════════════════════════════
                     topLevelStatements.push_back(stmt.get());
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„…״±״­„״© ״§„״«״§„״«״©: ״¥†״´״§״¡ ״¯״§„״© __sad_main „״×״÷„ ״§„ƒˆ״¯ ״§„״×†״°
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة الثالثة: إنشاء دالة __sad_main لتغليف الكود التنفيذي
                 // (EN) Phase 3: Create __sad_main to wrap top-level executable code
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״¥״°״§ ״×ˆ״¬״¯ ״¬…„ ״×†״°״© ˆ„״§ ״×ˆ״¬״¯ ״¯״§„״© ״±״¦״³״© ״µ״±״­״©
-                //      ˆ„״³  ˆ״¶״¹ ״§„ˆ״­״¯״© (--module)
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) إذا توجد جمل تنفيذية ولا توجد دالة رئيسية صريحة
+                //      وليس في وضع الوحدة (--module)
                 // (EN) If there are executable statements and no explicit main function
                 //      and not in module mode (--module)
                 if (!topLevelStatements.empty() && !hasMainFunction && !moduleMode_)
@@ -1469,28 +1469,28 @@ namespace Sad
                               << topLevelStatements.size() << " top-level statements" << std::endl;
 #endif
 
-                    // (AR) ״¥†״´״§״¡ ״¯״§„״© __sad_main …† †ˆ״¹ void ״¨״¯ˆ† …״¹״§…„״§״×
+                    // (AR) إنشاء دالة __sad_main من نوع void بدون معاملات
                     // (EN) Create __sad_main function: void __sad_main()
                     auto sadMainFunc = std::make_shared<SIRFunction>("__sad_main", SadTypeKind::Void);
 
-                    // (AR) ״­״¸ ״§„״­״§„״© ״§„״­״§„״©
+                    // (AR) حفظ الحالة الحالية
                     // (EN) Save current state
                     auto prevFunction = currentFunction_;
                     auto prevBlock = currentBlock_;
 
                     currentFunction_ = sadMainFunc;
 
-                    // (AR) ״¥†״´״§״¡ †״·״§‚ ״¬״¯״¯ „„״¯״§„״© ״§„״±״¦״³״©
+                    // (AR) إنشاء نطاق جديد للدالة الرئيسية
                     // (EN) Create new scope for main function
                     enterScope();
 
-                    // (AR) ״¥†״´״§״¡ basic block „„״¯״®ˆ„
+                    // (AR) إنشاء basic block للدخول
                     // (EN) Create entry basic block
                     auto entryBlock = createBasicBlock(kEntryBlockName);
                     sadMainFunc->addBasicBlock(entryBlock);
                     currentBlock_ = entryBlock;
 
-                    // (AR) ״¨†״§״¡ ״¬…״¹ ״§„״¬…„ ״§„״×†״°״©
+                    // (AR) بناء جميع الجمل التنفيذية
                     // (EN) Build all executable statements
                     for (auto *stmtNode : topLevelStatements)
                     {
@@ -1500,11 +1500,11 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ״§„״®״±ˆ״¬ …† ״§„†״·״§‚
+                    // (AR) الخروج من النطاق
                     // (EN) Exit scope
                     exitScope();
 
-                    // (AR) ״§„״×״£ƒ״¯ …† ˆ״¬ˆ״¯ terminator
+                    // (AR) التأكد من وجود terminator
                     // (EN) Ensure terminator exists
                     if (currentBlock_)
                     {
@@ -1523,11 +1523,11 @@ namespace Sad
                         }
                     }
 
-                    // (AR) ״¥״¶״§״© ״§„״¯״§„״© „„ˆ״­״¯״©
+                    // (AR) إضافة الدالة للوحدة
                     // (EN) Add function to module
                     module_->addFunction(sadMainFunc);
 
-                    // (AR) ״×״³״¬„  ״¬״¯ˆ„ ״§„״¯ˆ״§„
+                    // (AR) تسجيل في جدول الدوال
                     // (EN) Register in function table
                     {
                         FunctionInfo funcInfo;
@@ -1537,13 +1537,13 @@ namespace Sad
                         functionTable_["__sad_main"] = funcInfo;
                     }
 
-                    // (AR) ״§״³״×״¹״§״¯״© ״§„״­״§„״© ״§„״³״§״¨‚״©
+                    // (AR) استعادة الحالة السابقة
                     // (EN) Restore previous state
                     currentFunction_ = prevFunction;
                     currentBlock_ = prevBlock;
                 }
 
-                // (AR) ״§„״®״±ˆ״¬ …† ״§„†״·״§‚ ״§„״¹״§… ״§„״° ״£†״´״£†״§‡  ״§„…״±״­„״© 1.5
+                // (AR) الخروج من النطاق العام الذي أنشأناه في المرحلة 1.5
                 // (EN) Exit the global scope we created in Phase 1.5
                 exitScope();
 

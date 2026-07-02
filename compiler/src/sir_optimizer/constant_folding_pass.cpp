@@ -1,10 +1,10 @@
 /**
  * @file constant_folding_pass.cpp
- * @brief ????? ????? ?? ???????
+ * @brief تنفيذ ممرّ طيّ الثوابت
  * @brief Constant Folding Pass Implementation
  *
  * @details
- * (AR) ???? ??? ??????? ??? ???????? ???????? ??? ??????? ?? ??? ???????.
+ * (AR) يطوي هذا الممرّ العمليّات الحسابيّة على الثوابت في وقت الترجمة.
  * (EN) This pass folds arithmetic operations on constants at compile time.
  *
  * @author SadLanguage Compiler Team
@@ -23,7 +23,7 @@ namespace Sad
         {
 
             // ============================================================================
-            // Constructor / ??????
+            // Constructor / البانِي
             // ============================================================================
 
             ConstantFoldingPass::ConstantFoldingPass()
@@ -380,7 +380,7 @@ namespace Sad
             {
                 using SIR::SIROpcode;
 
-                // NOT ?? ????? � ??? ??? ??????? ????? ????? ??????
+                // NOT عمليّة أحاديّة — تُعالَج هنا قبل مسار العمليّات الثنائيّة
                 if (inst.opcode == SIROpcode::NOT)
                 {
                     if (inst.operands.empty())
@@ -393,7 +393,7 @@ namespace Sad
 
                     if (isBooleanNot)
                     {
-                        // NOT ??? ?????: ???? ?????? ????????
+                        // NOT على منطقيّ: اقلب القيمة المنطقيّة
                         replaceWithConstant(inst, (*val == 0));
                     }
                     else
@@ -403,13 +403,13 @@ namespace Sad
                     return true;
                 }
 
-                // ???????? ????????
+                // العمليّات الثنائيّة
                 if (inst.operands.size() < 2)
                 {
                     return false;
                 }
 
-                // ??? ??? ??? ??? ????????? ??????? (Boolean)
+                // تحقّق ممّا إذا كان كلا المعاملَين منطقيًّا (Boolean)
                 bool isBooleanOp = (inst.operands[0].dataType == SIR::SadTypeKind::Boolean &&
                                     inst.operands[1].dataType == SIR::SadTypeKind::Boolean);
 
@@ -444,7 +444,7 @@ namespace Sad
                     return false;
                 }
 
-                // ??? ???? ??????? AND/OR ??? ??????? ??????? ????? ??? ????? ???????
+                // اطوِ عمليّات AND/OR على المعاملَين المنطقيَّين أوّلًا قبل مسار الطيّ الحسابيّ
                 if (isBooleanOp && (inst.opcode == SIROpcode::AND || inst.opcode == SIROpcode::OR))
                 {
                     replaceWithConstant(inst, result != 0);
@@ -583,8 +583,8 @@ namespace Sad
             {
                 inst.operands.clear();
 
-                // (AR) ??????? ConstantBool ????? ??? boolValue ?? union ???? ????
-                //      ????? ?? ??? ?????? ?????? (???? ??? ???? boolValue = 0)
+                // (AR) استخدام ConstantBool يضبط حقل boolValue في الـunion ضبطًا صحيحًا
+                //      بدلًا من ضبط الحقول يدويًّا (كان يترك boolValue = 0)
                 // (EN) Use ConstantBool to properly set boolValue in the union
                 //      instead of manually setting fields (which left boolValue = 0)
                 SIR::SIROperand constOp = SIR::SIROperand::ConstantBool(value);

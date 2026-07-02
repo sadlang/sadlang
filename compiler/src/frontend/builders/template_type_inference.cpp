@@ -24,37 +24,37 @@ namespace Sad
         namespace SIR
         {
             // ????????????????????????????????????????????????????????????
-            // (AR) ????? ????? ????? � for lambda param type inference
+            // (AR) ????? ????? ????? — for lambda param type inference
             //      ??????? ??? ????? namespace ????? ????? MSVC ?? static locals ?? lambdas
-            // (EN) Method name tables � for lambda param type inference
+            // (EN) Method name tables — for lambda param type inference
             //      Defined at namespace level to avoid MSVC issues with static locals in lambdas
             // ????????????????????????????????????????????????????????????
             static const std::set<std::string> kStringMethodNames = {
-                "\xD8\xB7\xD9\x88\xD9\x84",                                                  // ???
-                "\xD9\x8A\xD8\xAD\xD8\xAA\xD9\x88\xD9\x8A",                                  // ?????
-                "\xD9\x8A\xD8\xA8\xD8\xAF\xD8\xA3_\xD8\xA8\xD9\x80",                         // ????_??
-                "\xD9\x8A\xD9\x86\xD8\xAA\xD9\x87\xD9\x8A_\xD8\xA8\xD9\x80",                 // ?????_??
-                "\xD8\xAA\xD9\x82\xD8\xB3\xD9\x8A\xD9\x85",                                  // ?????
-                "\xD8\xA7\xD8\xB3\xD8\xAA\xD8\xA8\xD8\xAF\xD9\x84",                          // ??????
-                "\xD8\xA7\xD8\xB3\xD8\xAA\xD8\xAE\xD8\xB1\xD8\xA7\xD8\xAC",                  // ???????
-                "\xD9\x82\xD8\xB5_\xD8\xA3\xD8\xB7\xD8\xB1\xD8\xA7\xD9\x81",                 // ??_?????
-                "\xD8\xAA\xD8\xAD\xD9\x88\xD9\x8A\xD9\x84_\xD9\x83\xD8\xA8\xD9\x8A\xD8\xB1", // ?????_????
-                "\xD8\xAA\xD8\xAD\xD9\x88\xD9\x8A\xD9\x84_\xD8\xB5\xD8\xBA\xD9\x8A\xD8\xB1", // ?????_????
+                "\xD8\xB7\xD9\x88\xD9\x84",                                                  // طول
+                "\xD9\x8A\xD8\xAD\xD8\xAA\xD9\x88\xD9\x8A",                                  // يحتوي
+                "\xD9\x8A\xD8\xA8\xD8\xAF\xD8\xA3_\xD8\xA8\xD9\x80",                         // يبدأ_بـ
+                "\xD9\x8A\xD9\x86\xD8\xAA\xD9\x87\xD9\x8A_\xD8\xA8\xD9\x80",                 // ينتهي_بـ
+                "\xD8\xAA\xD9\x82\xD8\xB3\xD9\x8A\xD9\x85",                                  // تقسيم
+                "\xD8\xA7\xD8\xB3\xD8\xAA\xD8\xA8\xD8\xAF\xD9\x84",                          // استبدل
+                "\xD8\xA7\xD8\xB3\xD8\xAA\xD8\xAE\xD8\xB1\xD8\xA7\xD8\xAC",                  // استخراج
+                "\xD9\x82\xD8\xB5_\xD8\xA3\xD8\xB7\xD8\xB1\xD8\xA7\xD9\x81",                 // قص_أطراف
+                "\xD8\xAA\xD8\xAD\xD9\x88\xD9\x8A\xD9\x84_\xD9\x83\xD8\xA8\xD9\x8A\xD8\xB1", // تحويل_كبير
+                "\xD8\xAA\xD8\xAD\xD9\x88\xD9\x8A\xD9\x84_\xD8\xB5\xD8\xBA\xD9\x8A\xD8\xB1", // تحويل_صغير
             };
             static const std::set<std::string> kArrayMethodNames = {
-                "\xD8\xA7\xD8\xB6\xD9\x81",                                          // ???
-                "\xD8\xA7\xD8\xAD\xD8\xB0\xD9\x81_\xD8\xA7\xD8\xAE\xD9\x8A\xD8\xB1", // ????_????
-                "\xD8\xB1\xD8\xAA\xD8\xA8",                                          // ???
-                "\xD8\xB9\xD9\x83\xD8\xB3",                                          // ???
-                "\xD8\xAE\xD8\xB1\xD9\x8A\xD8\xB7\xD8\xA9",                          // ?????
-                "\xD8\xB1\xD8\xB4\xD8\xAD",                                          // ???
-                "\xD8\xA7\xD8\xAE\xD8\xAA\xD8\xB2\xD9\x84",                          // ?????
-                "\xD9\x84\xD9\x83\xD9\x84",                                          // ???
-                "\xD8\xA7\xD9\x88\xD9\x84",                                          // ???
-                "\xD8\xA2\xD8\xAE\xD8\xB1",                                          // ???
-                "\xD9\x81\xD8\xA7\xD8\xB1\xD8\xBA\xD8\xA9",                          // ?????
-                "\xD8\xA7\xD9\x84\xD8\xB7\xD9\x88\xD9\x84",                          // ?????
-                "\xD8\xB4\xD8\xB1\xD9\x8A\xD8\xAD\xD8\xA9",                          // ?????
+                "\xD8\xA7\xD8\xB6\xD9\x81",                                          // اضف
+                "\xD8\xA7\xD8\xAD\xD8\xB0\xD9\x81_\xD8\xA7\xD8\xAE\xD9\x8A\xD8\xB1", // احذف_اخير
+                "\xD8\xB1\xD8\xAA\xD8\xA8",                                          // رتب
+                "\xD8\xB9\xD9\x83\xD8\xB3",                                          // عكس
+                "\xD8\xAE\xD8\xB1\xD9\x8A\xD8\xB7\xD8\xA9",                          // خريطة
+                "\xD8\xB1\xD8\xB4\xD8\xAD",                                          // رشح
+                "\xD8\xA7\xD8\xAE\xD8\xAA\xD8\xB2\xD9\x84",                          // اختزل
+                "\xD9\x84\xD9\x83\xD9\x84",                                          // لكل
+                "\xD8\xA7\xD9\x88\xD9\x84",                                          // اول
+                "\xD8\xA2\xD8\xAE\xD8\xB1",                                          // آخر
+                "\xD9\x81\xD8\xA7\xD8\xB1\xD8\xBA\xD8\xA9",                          // فارغة
+                "\xD8\xA7\xD9\x84\xD8\xB7\xD9\x88\xD9\x84",                          // الطول
+                "\xD8\xB4\xD8\xB1\xD9\x8A\xD8\xAD\xD8\xA9",                          // شريحة
             };
 
             // (AR) ??? ????????? ????? ?? ????? (??????? ???????? ?????????)
@@ -481,8 +481,8 @@ namespace Sad
                 if (!expr)
                     return SadTypeKind::Integer;
 
-                // (AR) ???? � ?????? ????? ?? ??? ?????
-                // (EN) Literal � infer type from token type
+                // (AR) ???? — ?????? ????? ?? ??? ?????
+                // (EN) Literal — infer type from token type
                 if (auto *lit = dynamic_cast<const Sad::AST::LiteralExpr *>(expr))
                 {
                     auto tokenType = lit->token.getType();
@@ -500,8 +500,8 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
-                // (AR) ????? � ???? ?? ???????? ??????? (?? ?????)
-                // (EN) Variable � look up in current scopes (if available)
+                // (AR) ????? — ???? ?? ???????? ??????? (?? ?????)
+                // (EN) Variable — look up in current scopes (if available)
                 if (auto *var = dynamic_cast<const Sad::AST::VariableExpr *>(expr))
                 {
                     // (AR) ??? ?? ???????? ???????
@@ -552,8 +552,8 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
-                // (AR) ????? ????? � ??? ??? ??? ??????? ????? ??????? ?? (??? ????)
-                // (EN) Binary expr � if either side is string, result is string (concatenation)
+                // (AR) ????? ????? — ??? ??? ??? ??????? ????? ??????? ?? (??? ????)
+                // (EN) Binary expr — if either side is string, result is string (concatenation)
                 if (auto *bin = dynamic_cast<const Sad::AST::BinaryExpr *>(expr))
                 {
                     SadTypeKind leftType = inferExprType(bin->left.get());
@@ -595,8 +595,8 @@ namespace Sad
                 if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                     return SadTypeKind::Struct;
 
-                // (AR) ??????? ???? � ???? ?? ??? ??????? ?? b_.functionTable_
-                // (EN) Function call � look up return type in b_.functionTable_
+                // (AR) ??????? ???? — ???? ?? ??? ??????? ?? b_.functionTable_
+                // (EN) Function call — look up return type in b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                 {
                     if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
@@ -641,8 +641,8 @@ namespace Sad
                     return trueType;
                 }
 
-                // (AR) ????? � ??? ?????? ????????
-                // (EN) Assignment � type of assigned value
+                // (AR) ????? — ??? ?????? ????????
+                // (EN) Assignment — type of assigned value
                 if (auto *assign = dynamic_cast<const Sad::AST::AssignExpr *>(expr))
                 {
                     return inferExprType(assign->value.get());
@@ -671,8 +671,8 @@ namespace Sad
                 if (dtype == Sad::Types::SadTypeKind::Map)
                     return SadTypeKind::Map;
 
-                // (AR) ??????? � I64
-                // (EN) Default � I64
+                // (AR) ??????? — I64
+                // (EN) Default — I64
                 return SadTypeKind::Integer;
             }
 

@@ -43,10 +43,10 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 1: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
+                // (AR) الخطوة 1: إنشاء الكتل الأساسية
                 // (EN) Step 1: Create basic blocks
-                // ״§„…״µ״¯״±: sir_builder.h:501 - b_.createBasicBlock()
-                // ״§„…״µ״¯״±: sir_builder.h:520 - b_.newLabel()
+                // المصدر: sir_builder.h:501 - b_.createBasicBlock()
+                // المصدر: sir_builder.h:520 - b_.newLabel()
                 // ========================================================================
                 std::string condLabel = b_.newLabel("while_cond");
                 std::string bodyLabel = b_.newLabel("while_body");
@@ -56,7 +56,7 @@ namespace Sad
                 auto bodyBlock = b_.createBasicBlock(bodyLabel);
                 auto exitBlock = b_.createBasicBlock(exitLabel);
 
-                // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
+                // (AR) إضافة الكتل إلى الدالة الحالية
                 // (EN) Add blocks to current function
                 if (b_.currentFunction_)
                 {
@@ -71,9 +71,9 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 2: ‚״² ״÷״± ״´״±״· ״¥„‰ ƒ״×„״© ״§„״´״±״·
+                // (AR) الخطوة 2: قفز غير شرطي إلى كتلة الشرط
                 // (EN) Step 2: Unconditional jump to condition block
-                // ״§„…״µ״¯״±: sir_instruction.h:178-183 - SIRInstruction::Branch()
+                // المصدر: sir_instruction.h:178-183 - SIRInstruction::Branch()
                 // ========================================================================
                 SIROperand condLabelOp = SIROperand::Label(condLabel);
                 SIRInstruction brCondBlockInst = SIRInstruction::Branch(condLabelOp);
@@ -87,9 +87,9 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 3: ״¨†״§״¡ ״§„״´״±״·
+                // (AR) الخطوة 3: بناء الشرط
                 // (EN) Step 3: Build condition expression
-                // ״§„…״µ״¯״±: WhileStmt::condition (statements.h:149)
+                // المصدر: WhileStmt::condition (statements.h:149)
                 // ========================================================================
                 b_.currentBlock_ = condBlock;
                 auto condResult = b_.buildExpression(whileLoop->condition.get());
@@ -107,7 +107,7 @@ namespace Sad
                 std::cout << "[DEBUG] buildWhileLoop: condition reg=" << condResult.registerName << std::endl;
 #endif
 
-                // (AR) ״×״­ˆ„ ״×„‚״§״¦ „€ __op_tobool__ ״¥״°״§ ƒ״§† ״§„״´״±״· ƒ״§״¦†״§‹ (…״«„ buildIfStatement)
+                // (AR) تحويل تلقائي لـ __op_tobool__ إذا كان الشرط كائناً (مثل buildIfStatement)
                 // (EN) Auto-convert __op_tobool__ if condition is an object (like buildIfStatement)
                 {
                     std::string condClassName = condResult.className;
@@ -119,7 +119,7 @@ namespace Sad
                     }
                     if (!condClassName.empty())
                     {
-                        // (AR) ״¨״­״«  ״³„״³„״© ״§„ˆ״±״§״«״© ״¹† __op_tobool__
+                        // (AR) بحث في سلسلة الوراثة عن __op_tobool__
                         // (EN) Search inheritance chain for __op_tobool__
                         std::string searchClass = condClassName;
                         std::string toboolName;
@@ -154,12 +154,12 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 4: ״×ˆ„״¯ ״×״¹„…״© ״§„‚״² ״§„״´״±״·
+                // (AR) الخطوة 4: توليد تعليمة القفز الشرطي
                 // (EN) Step 4: Generate conditional branch instruction
-                // ״§„…״µ״¯״±: sir_instruction.h:190-197 - SIRInstruction::BranchCond()
+                // المصدر: sir_instruction.h:190-197 - SIRInstruction::BranchCond()
                 // ========================================================================
-                // (AR) ״¥״°״§ ƒ״§† ״§„״´״±״· ״«״§״¨״×״§‹ …†״·‚״§‹ (״µ״­״­/״®״·״£)״ †״³״×״®״¯… ConstantBool ״¨״¯„״§‹ …† Register
-                //      „״×״¬†״¨ ״×ˆ„״¯ ״³״¬„ ״÷״± …״¹״±‘  LLVM IR
+                // (AR) إذا كان الشرط ثابتاً منطقياً (صحيح/خطأ)، نستخدم ConstantBool بدلاً من Register
+                //      لتجنب توليد سجل غير معرّف في LLVM IR
                 // (EN) If condition is a boolean constant (true/false), use ConstantBool instead of Register
                 //      to avoid generating an undefined register in LLVM IR
                 SIROperand condOp;
@@ -189,12 +189,12 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 4.5: ״×״³״¬„ ״³״§‚ ״§„״­„‚״© „״¯״¹… break/continue
-                //      continueLabel = ƒ״×„״© ״§„״´״±״· (while_cond) ג€” continue ‚״² „„״´״±״·
-                //      breakLabel = ƒ״×„״© ״§„״®״±ˆ״¬ (while_exit) ג€” break ‚״² „„״®״±ˆ״¬
+                // (AR) الخطوة 4.5: تسجيل سياق الحلقة لدعم break/continue
+                //      continueLabel = كتلة الشرط (while_cond) — continue يقفز للشرط
+                //      breakLabel = كتلة الخروج (while_exit) — break يقفز للخروج
                 // (EN) Step 4.5: Register loop context for break/continue support
-                //      continueLabel = condition block (while_cond) ג€” continue jumps to condition
-                //      breakLabel = exit block (while_exit) ג€” break jumps to exit
+                //      continueLabel = condition block (while_cond) — continue jumps to condition
+                //      breakLabel = exit block (while_exit) — break jumps to exit
                 // ========================================================================
                 LoopContext whileLoopCtx;
                 whileLoopCtx.continueLabel = condLabel;
@@ -202,9 +202,9 @@ namespace Sad
                 b_.enterLoop(whileLoopCtx);
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 5: ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
+                // (AR) الخطوة 5: بناء جسم الحلقة
                 // (EN) Step 5: Build loop body
-                // ״§„…״µ״¯״±: WhileStmt::body (statements.h:150)
+                // المصدر: WhileStmt::body (statements.h:150)
                 // ========================================================================
                 b_.currentBlock_ = bodyBlock;
                 if (whileLoop->body)
@@ -212,14 +212,14 @@ namespace Sad
                     buildStatement(whileLoop->body.get());
                 }
 
-                // (AR) ״§„״®״±ˆ״¬ …† ״³״§‚ ״§„״­„‚״© ״¨״¹״¯ ״¨†״§״¡ ״§„״¬״³…
+                // (AR) الخروج من سياق الحلقة بعد بناء الجسم
                 // (EN) Exit loop context after building body
                 b_.exitLoop();
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 6: ‚״² „„״¹ˆ״¯״© ״¥„‰ ƒ״×„״© ״§„״´״±״·
+                // (AR) الخطوة 6: قفز للعودة إلى كتلة الشرط
                 // (EN) Step 6: Jump back to condition block
-                // (AR) „״§ †״¶ ״§„‚״² ״¥״°״§ ƒ״§† ״§„״¬״³… ‚״¯ ״§†״×‡‰ ״¨€ RET ״£ˆ BR ״£ˆ BR_COND
+                // (AR) لا نضيف القفز إذا كان الجسم قد انتهى بـ RET أو BR أو BR_COND
                 // (EN) Don't add branch if the body already ends with RET or BR or BR_COND
                 // ========================================================================
                 SIRInstruction brBackInst = SIRInstruction::Branch(condLabelOp);
@@ -254,7 +254,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 7: ״§„״§״³״×…״±״§״± ״¨״¹״¯ ״§„״­„‚״©
+                // (AR) الخطوة 7: الاستمرار بعد الحلقة
                 // (EN) Step 7: Continue after loop
                 // ========================================================================
                 b_.currentBlock_ = exitBlock;
@@ -264,12 +264,12 @@ namespace Sad
             }
 
             // ============================================================================
-            // buildForLoop - ״¨†״§״¡ ״­„‚״© for
+            // buildForLoop - بناء حلقة for
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:401
-            // ״§„״×ˆ‚״¹ / Signature: void buildForLoop(AST::ForStmt* forLoop);
+            // مصدر التعريف / Source: sir_builder.h:401
+            // التوقيع / Signature: void buildForLoop(AST::ForStmt* forLoop);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - forLoop: AST::ForStmt* = Sad::AST::ForStmt* (sir_builder.h:401)
             //
             // ForStmt Members (statements.h:187-253):
@@ -278,11 +278,11 @@ namespace Sad
             // - increment: ExprPtr (line 195) - optional
             // - body: StmtPtr (line 196)
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - b_.currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
             // - b_.currentScopeLevel_: sir_builder.h:599 (int)
             //
-            // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
+            // الدوال المستدعاة / Called functions:
             // - buildStatement: sir_builder.h:372
             // - b_.buildExpression: sir_builder.h:432
             // - b_.createBasicBlock: sir_builder.h:501
@@ -302,16 +302,16 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 1: ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯ „„״­„‚״©
+                // (AR) الخطوة 1: دخول نطاق جديد للحلقة
                 // (EN) Step 1: Enter new scope for loop
-                // ״§„…״µ״¯״±: sir_builder.h:587 - b_.enterScope()
+                // المصدر: sir_builder.h:587 - b_.enterScope()
                 // ========================================================================
                 b_.enterScope();
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 2: ״×†״° initializer ״¥״°״§ ˆ״¬״¯
+                // (AR) الخطوة 2: تنفيذ initializer إذا وُجد
                 // (EN) Step 2: Execute initializer if exists
-                // ״§„…״µ״¯״±: ForStmt::initializer (statements.h:193)
+                // المصدر: ForStmt::initializer (statements.h:193)
                 // ========================================================================
                 if (forLoop->initializer)
                 {
@@ -322,7 +322,7 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 3: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
+                // (AR) الخطوة 3: إنشاء الكتل الأساسية
                 // (EN) Step 3: Create basic blocks
                 // ========================================================================
                 std::string condLabel = b_.newLabel("for_cond");
@@ -335,7 +335,7 @@ namespace Sad
                 auto incBlock = b_.createBasicBlock(incLabel);
                 auto exitBlock = b_.createBasicBlock(exitLabel);
 
-                // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
+                // (AR) إضافة الكتل إلى الدالة الحالية
                 // (EN) Add blocks to current function
                 if (b_.currentFunction_)
                 {
@@ -352,7 +352,7 @@ namespace Sad
 #endif
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 4: ‚״² ״÷״± ״´״±״· ״¥„‰ ƒ״×„״© ״§„״´״±״·
+                // (AR) الخطوة 4: قفز غير شرطي إلى كتلة الشرط
                 // (EN) Step 4: Unconditional jump to condition block
                 // ========================================================================
                 SIROperand condLabelOp = SIROperand::Label(condLabel);
@@ -367,9 +367,9 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 5: ״¨†״§״¡ ״§„״´״±״·
+                // (AR) الخطوة 5: بناء الشرط
                 // (EN) Step 5: Build condition
-                // ״§„…״µ״¯״±: ForStmt::condition (statements.h:194)
+                // المصدر: ForStmt::condition (statements.h:194)
                 // ========================================================================
                 b_.currentBlock_ = condBlock;
 
@@ -382,9 +382,9 @@ namespace Sad
 
                     if (!condResult.registerName.empty())
                     {
-                        // (AR) ״×ˆ„״¯ BR ״´״±״· „€ body ״£ˆ exit
+                        // (AR) توليد BR شرطي لـ body أو exit
                         // (EN) Generate conditional BR to body or exit
-                        // (AR) ״¥״°״§ ƒ״§† ״§„״´״±״· ״«״§״¨״×״§‹ …†״·‚״§‹״ †״³״×״®״¯… ConstantBool ״¨״¯„״§‹ …† Register
+                        // (AR) إذا كان الشرط ثابتاً منطقياً، نستخدم ConstantBool بدلاً من Register
                         // (EN) If condition is a boolean constant, use ConstantBool instead of Register
                         SIROperand condOp;
                         if (condResult.isConstant && condResult.type == SadTypeKind::Boolean)
@@ -412,7 +412,7 @@ namespace Sad
                 }
                 else
                 {
-                    // (AR) „״§ ˆ״¬״¯ ״´״±״· - ‚״² ״÷״± ״´״±״· „€ body (״­„‚״© „״§ †‡״§״¦״©)
+                    // (AR) لا يوجد شرط - قفز غير شرطي لـ body (حلقة لا نهائية)
                     // (EN) No condition - unconditional jump to body (infinite loop)
                     SIRInstruction brBodyInst = SIRInstruction::Branch(bodyLabelOp);
 
@@ -426,13 +426,13 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 5.5: ״×״³״¬„ ״³״§‚ ״§„״­„‚״© „״¯״¹… break/continue
-                //      continueLabel = ƒ״×„״© ״§„״²״§״¯״© (for_inc) ג€” continue ‚״² „„״²״§״¯״© ״£ˆ„״§‹
-                //      breakLabel = ƒ״×„״© ״§„״®״±ˆ״¬ (for_exit) ג€” break ‚״² „„״®״±ˆ״¬ …״¨״§״´״±״©
-                //      …„״§״­״¸״©:  for״ continue ״¬״¨ ״£† †‘״° ״§„״²״§״¯״© ״«… ״¹ˆ״¯ „„״´״±״·
+                // (AR) الخطوة 5.5: تسجيل سياق الحلقة لدعم break/continue
+                //      continueLabel = كتلة الزيادة (for_inc) — continue يقفز للزيادة أولاً
+                //      breakLabel = كتلة الخروج (for_exit) — break يقفز للخروج مباشرة
+                //      ملاحظة: في for، continue يجب أن ينفّذ الزيادة ثم يعود للشرط
                 // (EN) Step 5.5: Register loop context for break/continue support
-                //      continueLabel = increment block (for_inc) ג€” continue goes to increment first
-                //      breakLabel = exit block (for_exit) ג€” break jumps to exit directly
+                //      continueLabel = increment block (for_inc) — continue goes to increment first
+                //      breakLabel = exit block (for_exit) — break jumps to exit directly
                 //      Note: In for, continue must execute increment then go to condition
                 // ========================================================================
                 LoopContext forLoopCtx;
@@ -441,9 +441,9 @@ namespace Sad
                 b_.enterLoop(forLoopCtx);
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 6: ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
+                // (AR) الخطوة 6: بناء جسم الحلقة
                 // (EN) Step 6: Build loop body
-                // ״§„…״µ״¯״±: ForStmt::body (statements.h:196)
+                // المصدر: ForStmt::body (statements.h:196)
                 // ========================================================================
                 b_.currentBlock_ = bodyBlock;
                 if (forLoop->body)
@@ -451,11 +451,11 @@ namespace Sad
                     buildStatement(forLoop->body.get());
                 }
 
-                // (AR) ״§„״®״±ˆ״¬ …† ״³״§‚ ״§„״­„‚״© ״¨״¹״¯ ״¨†״§״¡ ״§„״¬״³…
+                // (AR) الخروج من سياق الحلقة بعد بناء الجسم
                 // (EN) Exit loop context after building body
                 b_.exitLoop();
 
-                // (AR) ‚״² ״¥„‰ ƒ״×„״© ״§„״²״§״¯״©
+                // (AR) قفز إلى كتلة الزيادة
                 // (EN) Jump to increment block
                 SIROperand incLabelOp = SIROperand::Label(incLabel);
                 SIRInstruction brIncInst = SIRInstruction::Branch(incLabelOp);
@@ -469,9 +469,9 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 7: ״¨†״§״¡ ״§„״²״§״¯״©
+                // (AR) الخطوة 7: بناء الزيادة
                 // (EN) Step 7: Build increment
-                // ״§„…״µ״¯״±: ForStmt::increment (statements.h:195)
+                // المصدر: ForStmt::increment (statements.h:195)
                 // ========================================================================
                 b_.currentBlock_ = incBlock;
                 if (forLoop->increment)
@@ -482,7 +482,7 @@ namespace Sad
 #endif
                 }
 
-                // (AR) ‚״² „„״¹ˆ״¯״© ״¥„‰ ƒ״×„״© ״§„״´״±״·
+                // (AR) قفز للعودة إلى كتلة الشرط
                 // (EN) Jump back to condition block
                 SIRInstruction brBackInst = SIRInstruction::Branch(condLabelOp);
 
@@ -495,12 +495,12 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) ״§„״®״·ˆ״© 8: ״§„״§״³״×…״±״§״± ״¨״¹״¯ ״§„״­„‚״©
+                // (AR) الخطوة 8: الاستمرار بعد الحلقة
                 // (EN) Step 8: Continue after loop
                 // ========================================================================
                 b_.currentBlock_ = exitBlock;
 
-                // (AR) ״§„״®״±ˆ״¬ …† †״·״§‚ ״§„״­„‚״©
+                // (AR) الخروج من نطاق الحلقة
                 // (EN) Exit loop scope
                 b_.exitScope();
 

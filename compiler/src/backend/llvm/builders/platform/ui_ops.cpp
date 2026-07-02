@@ -1,18 +1,18 @@
 ﻿/**
  * ==========================================================================
- * llvm_codegen_ui.cpp - ״×ˆ„״¯ LLVM IR „†״¸״§… ״§„ˆ״§״¬‡״© ״§„…ˆ״­״¯
+ * llvm_codegen_ui.cpp - توليد LLVM IR لنظام الواجهة الموحد
  * LLVM IR Generation for Unified UI System (sad_ui.h)
  * ==========================================================================
  * 
- * ״§„ˆ״µ (״¹״±״¨):
+ * الوصف (عربي):
  * --------------
- * ‡״°״§ ״§„…„ ˆ„‘״¯ LLVM IR „״§״³״×״¯״¹״§״¡ ״¯ˆ״§„ Runtime ˆ״§״¬‡״© ״§„…״³״×״®״¯… ״§„…ˆ״­״¯״©.
- * ״¹…„ ״¹„‰ ״¬…״¹ ״§„…†״µ״§״× (Android, Desktop, WASM) ג€” „״³ …״´״±ˆ״·״§‹ ״¨€ ENABLE_ANDROID_CODEGEN.
+ * هذا الملف يُولّد LLVM IR لاستدعاء دوال Runtime واجهة المستخدم الموحدة.
+ * يعمل على جميع المنصات (Android, Desktop, WASM) — ليس مشروطاً بـ ENABLE_ANDROID_CODEGEN.
  * 
  * Description (English):
  * ----------------------
  * This file generates LLVM IR for calling unified UI runtime functions.
- * Works on all platforms (Android, Desktop, WASM) ג€” NOT conditional on ENABLE_ANDROID_CODEGEN.
+ * Works on all platforms (Android, Desktop, WASM) — NOT conditional on ENABLE_ANDROID_CODEGEN.
  * 
  * ==========================================================================
  */
@@ -30,7 +30,7 @@ using SIROperand = Compiler::SIR::SIROperand;
 using SIROpcode = Compiler::SIR::SIROpcode;
 
 // ============================================================================
-// ״¯״§„״© …״³״§״¹״¯״© „״§״³״×״¯״¹״§״¡ ״¯ˆ״§„ Runtime
+// دالة مساعدة لاستدعاء دوال Runtime
 // Helper to emit runtime function calls (declaration only - implemented elsewhere)
 // ============================================================================
 
@@ -57,7 +57,7 @@ static llvm::Value* emitUIRuntimeCall(
         fn->addFnAttr(llvm::Attribute::NoUnwind);
     }
     
-    // (AR) ״¯ˆ״§„ void „״§ ״¬״¨ ״£† ״×״­…„ ״§״³…״§‹ „„†״×״¬״©
+    // (AR) دوال void لا يجب أن تحمل اسماً للنتيجة
     // (EN) void functions should not have a result name
     if (retType->isVoidTy()) {
         return builder->CreateCall(fn, argValues);
@@ -205,14 +205,14 @@ struct UiBuilderTriple { bool isBuilder = false; llvm::Value* build = nullptr; l
 }
 
 // =====================================================================
-// 21. †״¸״§… ״§„ˆ״§״¬‡״© ״§„…ˆ״­״¯ / Unified UI System (sad_ui.h)
+// 21. نظام الواجهة الموحد / Unified UI System (sad_ui.h)
 // =====================================================================
-// (AR) ƒ„ ״¯״§„״© …״µ†״¹ ״×״±״¬״¹ SadWidget* ג€” …״₪״´״± ״®״§… (opaque pointer)
-// (EN) Each factory returns SadWidget* ג€” opaque pointer
-// (AR) ƒ„ ״¯״§„״© ״¶״¨״· ״®״µ״§״¦״µ ״×״±״¬״¹ void
+// (AR) كل دالة مصنع تُرجع SadWidget* — مؤشر خام (opaque pointer)
+// (EN) Each factory returns SadWidget* — opaque pointer
+// (AR) كل دالة ضبط خصائص ترجع void
 // (EN) Each property setter returns void
 
-// ג”€ג”€ג”€ 21a. …״µ״§†״¹ ״§„״¹†״§״µ״± / Widget Factories ג”€ג”€ג”€
+// ─── 21a. مصانع العناصر / Widget Factories ───
 
 llvm::Value* UICodeGen::emitUiColumn(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
@@ -461,7 +461,7 @@ llvm::Value* UICodeGen::emitUiDialog(std::shared_ptr<SIRInstruction> inst) {
     return result;
 }
 
-// ג”€ג”€ג”€ 21b. ״¥״¯״§״±״© ״§„״´״¬״±״© / Tree Management ג”€ג”€ג”€
+// ─── 21b. إدارة الشجرة / Tree Management ───
 
 llvm::Value* UICodeGen::emitUiAddChild(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
@@ -486,7 +486,7 @@ llvm::Value* UICodeGen::emitUiClearChildren(std::shared_ptr<SIRInstruction> inst
     return emitUIRuntimeCall(cg_, "sad_clear_children", voidTy, {ptrTy}, {widget});
 }
 
-// ג”€ג”€ג”€ 21c. ״¶״¨״· ״§„״®״µ״§״¦״µ / Property Setters ג”€ג”€ג”€
+// ─── 21c. ضبط الخصائص / Property Setters ───
 
 llvm::Value* UICodeGen::emitUiSetText(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
@@ -580,7 +580,7 @@ llvm::Value* UICodeGen::emitUiSetBorder(std::shared_ptr<SIRInstruction> inst) {
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* width = castNumericToF32(cg_, cg_.resolveOperand(inst->operands[1]));
-    // sad_set_border(widget, width) ג€” optional color via separate call
+    // sad_set_border(widget, width) — optional color via separate call
     return emitUIRuntimeCall(cg_, "sad_set_border", voidTy, {ptrTy, f32Ty}, {widget, width});
 }
 
@@ -611,7 +611,7 @@ llvm::Value* UICodeGen::emitUiSetVisibility(std::shared_ptr<SIRInstruction> inst
     return emitUIRuntimeCall(cg_, "sad_set_visibility", voidTy, {ptrTy, i32Ty}, {widget, visible});
 }
 
-// ג”€ג”€ג”€ 21d. ״¥״¯״§״±״© ״§„״×״·״¨‚ / App Management ג”€ג”€ג”€
+// ─── 21d. إدارة التطبيق / App Management ───
 
 llvm::Value* UICodeGen::emitUiAppCreate(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);

@@ -45,10 +45,10 @@ int HtmlDocGenerator::generate(
 
     struct KindInfo { DocItemKind kind; std::string title; };
     std::vector<KindInfo> kinds = {
-        {DocItemKind::Function, "״§„״¯ˆ״§„"}, {DocItemKind::Class, "״§„״£״µ†״§"},
-        {DocItemKind::Struct, "״§„‡״§ƒ„"}, {DocItemKind::Enum, "״§„״×״¹״¯״§״¯״§״×"},
-        {DocItemKind::Trait, "״§„״³…״§״×"}, {DocItemKind::Interface, "״§„ˆ״§״¬‡״§״×"},
-        {DocItemKind::Constant, "״§„״«ˆ״§״¨״×"}, {DocItemKind::Module, "״§„ˆ״­״¯״§״×"},
+        {DocItemKind::Function, "الدوال"}, {DocItemKind::Class, "الأصناف"},
+        {DocItemKind::Struct, "الهياكل"}, {DocItemKind::Enum, "التعدادات"},
+        {DocItemKind::Trait, "السمات"}, {DocItemKind::Interface, "الواجهات"},
+        {DocItemKind::Constant, "الثوابت"}, {DocItemKind::Module, "الوحدات"},
     };
     for (const auto& ki : kinds) {
         std::vector<DocEntry> filtered;
@@ -83,23 +83,23 @@ void HtmlDocGenerator::generateIndexPage(const std::vector<DocEntry>& entries) {
     if (!config_.description.empty())
         f << "  <p class=\"subtitle\">" << escapeHtml(config_.description) << "</p>\n";
     if (!config_.version.empty())
-        f << "  <span class=\"version\">״§„״¥״µ״¯״§״± " << escapeHtml(config_.version) << "</span>\n";
+        f << "  <span class=\"version\">الإصدار " << escapeHtml(config_.version) << "</span>\n";
     f << "</header>\n\n";
 
     if (config_.searchEnabled) {
         f << "<div class=\"search-container\">\n"
-          << "  <input type=\"text\" id=\"search-input\" placeholder=\"״§״¨״­״«  ״§„״×ˆ״«‚...\">\n"
+          << "  <input type=\"text\" id=\"search-input\" placeholder=\"ابحث في التوثيق...\">\n"
           << "  <div id=\"search-results\"></div>\n</div>\n\n";
     }
 
-    // ״§„״¥״­״µ״§״¦״§״×
+    // الإحصائيات
     std::map<DocItemKind, int> counts;
     for (const auto& e : entries) counts[e.kind]++;
     f << "<div class=\"stats-grid\">\n";
     struct SI { DocItemKind kind; std::string icon; std::string label; };
     for (auto& s : std::vector<SI>{
-        {DocItemKind::Function,"ג¡","״¯ˆ״§„"},{DocItemKind::Class,"נ—ן¸","״£״µ†״§"},
-        {DocItemKind::Struct,"נ“¦","‡״§ƒ„"},{DocItemKind::Constant,"נ”’","״«ˆ״§״¨״×"}}) {
+        {DocItemKind::Function,"⚡","دوال"},{DocItemKind::Class,"🏗️","أصناف"},
+        {DocItemKind::Struct,"📦","هياكل"},{DocItemKind::Constant,"🔒","ثوابت"}}) {
         if (counts[s.kind] > 0) {
             f << "  <div class=\"stat-card\"><span class=\"stat-icon\">" << s.icon
               << "</span><span class=\"stat-number\">" << counts[s.kind]
@@ -108,12 +108,12 @@ void HtmlDocGenerator::generateIndexPage(const std::vector<DocEntry>& entries) {
     }
     f << "</div>\n\n";
 
-    // ״§„״£‚״³״§…
+    // الأقسام
     struct SD { DocItemKind kind; std::string title; std::string slug; };
     for (auto& sec : std::vector<SD>{
-        {DocItemKind::Module,"״§„ˆ״­״¯״§״×","modules"},{DocItemKind::Class,"״§„״£״µ†״§","classes"},
-        {DocItemKind::Function,"״§„״¯ˆ״§„","functions"},{DocItemKind::Struct,"״§„‡״§ƒ„","structs"},
-        {DocItemKind::Constant,"״§„״«ˆ״§״¨״×","constants"}}) {
+        {DocItemKind::Module,"الوحدات","modules"},{DocItemKind::Class,"الأصناف","classes"},
+        {DocItemKind::Function,"الدوال","functions"},{DocItemKind::Struct,"الهياكل","structs"},
+        {DocItemKind::Constant,"الثوابت","constants"}}) {
         bool has = false;
         for (const auto& e : entries) if (e.kind == sec.kind) { has = true; break; }
         if (!has) continue;
@@ -129,7 +129,7 @@ void HtmlDocGenerator::generateIndexPage(const std::vector<DocEntry>& entries) {
         f << "</div>\n</section>\n\n";
     }
 
-    f << "<footer><p>״×… ״§„״×ˆ„״¯ ״¨ˆ״§״³״·״© <strong>״µ ˆ״«‘‚</strong></p></footer>\n";
+    f << "<footer><p>تم التوليد بواسطة <strong>ص وثّق</strong></p></footer>\n";
     if (config_.searchEnabled) f << "<script src=\"assets/search.js\"></script>\n";
     f << "</body>\n</html>\n";
 }
@@ -139,21 +139,21 @@ void HtmlDocGenerator::generateItemPage(
     std::ofstream f(config_.outputDir + "/api/" + entry.id + ".html");
     f << "<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\">\n<head>\n"
       << "  <meta charset=\"UTF-8\">\n"
-      << "  <title>" << escapeHtml(entry.name) << " ג€” " << escapeHtml(config_.title) << "</title>\n"
+      << "  <title>" << escapeHtml(entry.name) << " — " << escapeHtml(config_.title) << "</title>\n"
       << "  <link rel=\"stylesheet\" href=\"../assets/style.css\">\n"
       << "</head>\n<body class=\"theme-" << config_.theme << "\">\n"
-      << "<nav class=\"breadcrumb\"><a href=\"../index.html\">נ  ״§„״±״¦״³״©</a> ג€÷ "
+      << "<nav class=\"breadcrumb\"><a href=\"../index.html\">🏠 الرئيسية</a> › "
       << escapeHtml(entry.name) << "</nav>\n\n"
       << "<header class=\"item-header\">\n"
       << "  <span class=\"kind-badge\">" << kindIcon(entry.kind) << " "
       << entry.kindNameAr() << "</span> " << accessBadge(entry.access) << "\n";
-    if (entry.isDeprecated()) f << "  <span class=\"deprecated-badge\">ג ן¸ …‡…„</span>\n";
+    if (entry.isDeprecated()) f << "  <span class=\"deprecated-badge\">⚠️ مهمل</span>\n";
     f << "  <h1>" << escapeHtml(entry.name) << "</h1>\n</header>\n\n"
       << "<div class=\"signature\"><pre><code>" << highlightSadCode(entry.signature)
       << "</code></pre></div>\n\n";
 
     if (entry.isDeprecated())
-        f << "<div class=\"admonition warning\"><strong>ג ן¸ …‡…„:</strong> "
+        f << "<div class=\"admonition warning\"><strong>⚠️ مهمل:</strong> "
           << escapeHtml(entry.deprecated) << "</div>\n\n";
     if (!entry.summary.empty())
         f << "<div class=\"summary\">" << escapeHtml(entry.summary) << "</div>\n\n";
@@ -161,13 +161,13 @@ void HtmlDocGenerator::generateItemPage(
         f << "<div class=\"description\">" << renderMarkdownToHtml(entry.description) << "</div>\n\n";
 
     for (const auto& n : entry.notes)
-        f << "<div class=\"admonition note\"><strong>נ“ …„״§״­״¸״©:</strong> " << escapeHtml(n) << "</div>\n";
+        f << "<div class=\"admonition note\"><strong>📝 ملاحظة:</strong> " << escapeHtml(n) << "</div>\n";
     for (const auto& w : entry.warnings)
-        f << "<div class=\"admonition danger\"><strong>נ”´ ״×״­״°״±:</strong> " << escapeHtml(w) << "</div>\n";
+        f << "<div class=\"admonition danger\"><strong>🔴 تحذير:</strong> " << escapeHtml(w) << "</div>\n";
 
     if (!entry.params.empty()) {
-        f << "<section><h2>״§„…״¹״·״§״×</h2><table class=\"params-table\">\n"
-          << "<thead><tr><th>״§„״§״³…</th><th>״§„†ˆ״¹</th><th>״§„ˆ״µ</th></tr></thead><tbody>\n";
+        f << "<section><h2>المعطيات</h2><table class=\"params-table\">\n"
+          << "<thead><tr><th>الاسم</th><th>النوع</th><th>الوصف</th></tr></thead><tbody>\n";
         for (const auto& p : entry.params) {
             f << "<tr><td><code>" << escapeHtml(p.name) << "</code></td><td><code>"
               << escapeHtml(p.type) << "</code></td><td>" << escapeHtml(p.description) << "</td></tr>\n";
@@ -176,21 +176,21 @@ void HtmlDocGenerator::generateItemPage(
     }
 
     if (!entry.returnType.empty()) {
-        f << "<section><h2>״§„‚…״© ״§„…״±״¬״¹״©</h2><p><code>" << escapeHtml(entry.returnType) << "</code></p>\n";
+        f << "<section><h2>القيمة المرجعة</h2><p><code>" << escapeHtml(entry.returnType) << "</code></p>\n";
         if (!entry.returnDescription.empty())
             f << "<p>" << escapeHtml(entry.returnDescription) << "</p>\n";
         f << "</section>\n\n";
     }
 
     if (!entry.examples.empty()) {
-        f << "<section><h2>״£…״«„״©</h2>\n";
+        f << "<section><h2>أمثلة</h2>\n";
         for (const auto& ex : entry.examples)
             f << "<pre><code class=\"lang-sad\">" << highlightSadCode(ex) << "</code></pre>\n";
         f << "</section>\n\n";
     }
 
     if (!entry.seeAlso.empty()) {
-        f << "<section><h2>״§†״¸״± ״£״¶״§‹</h2><ul>\n";
+        f << "<section><h2>انظر أيضاً</h2><ul>\n";
         for (const auto& r : entry.seeAlso) {
             auto it = index.find(r);
             if (it != index.end())
@@ -203,10 +203,10 @@ void HtmlDocGenerator::generateItemPage(
 
     f << "<footer class=\"source-info\">\n";
     if (!entry.sourceFile.empty())
-        f << "  <p>נ“ " << escapeHtml(entry.sourceFile);
-    if (entry.lineNumber > 0) f << " ג€” ״§„״³״·״± " << entry.lineNumber;
+        f << "  <p>📁 " << escapeHtml(entry.sourceFile);
+    if (entry.lineNumber > 0) f << " — السطر " << entry.lineNumber;
     f << "</p>\n";
-    if (!entry.since.empty()) f << "  <p>נ“… …†״° " << escapeHtml(entry.since) << "</p>\n";
+    if (!entry.since.empty()) f << "  <p>📅 منذ " << escapeHtml(entry.since) << "</p>\n";
     f << "</footer>\n</body>\n</html>\n";
 }
 
@@ -217,9 +217,9 @@ void HtmlDocGenerator::generateListPage(
     f << "<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"UTF-8\">\n"
       << "<title>" << title << "</title><link rel=\"stylesheet\" href=\"../assets/style.css\">\n"
       << "</head><body class=\"theme-" << config_.theme << "\">\n"
-      << "<nav><a href=\"../index.html\">נ  ״§„״±״¦״³״©</a></nav>\n"
+      << "<nav><a href=\"../index.html\">🏠 الرئيسية</a></nav>\n"
       << "<h1>" << title << " (" << entries.size() << ")</h1>\n"
-      << "<table class=\"items-table\"><thead><tr><th>״§„״§״³…</th><th>״§„…„״®״µ</th></tr></thead><tbody>\n";
+      << "<table class=\"items-table\"><thead><tr><th>الاسم</th><th>الملخص</th></tr></thead><tbody>\n";
     for (const auto& e : entries) {
         f << "<tr><td><a href=\"" << e.id << ".html\">" << escapeHtml(e.name) << "</a></td>"
           << "<td>" << escapeHtml(e.summary) << "</td></tr>\n";
@@ -287,12 +287,12 @@ std::string HtmlDocGenerator::highlightSadCode(const std::string& code) const {
     if (!config_.syntaxHighlight) return escapeHtml(code);
     std::string result = escapeHtml(code);
     static const std::vector<std::string> kws = {
-        "״¯״§„״©","״µ†","‡ƒ„","״×״¹״¯״§״¯","״³…״©","ˆ״§״¬‡״©","ˆ״­״¯״©",
-        "״¥״°״§","ˆ״¥„״§","״¨†…״§","„ƒ„","","״§״±״¬״¹","״§״®״±״¬","״×״§״¨״¹","†‡״§״©",
-        "…״×״÷״±","״«״§״¨״×","״¬״¯״¯","‡״°״§","״¨״§†","״­״§ˆ„","״§…״³ƒ","״£״®״±״§‹",
-        "״§״³״×ˆ״±״¯","…†","״µ״¯‘״±","״µ״­״­","״®״·״£","״¹״¯…",
-        "״±‚…","״¹״´״±","…†״·‚","†״µ","…״µˆ״©","״®״±״·״©",
-        "״­״§„״©","״¹†״¯…״§","״§״×״±״§״¶"
+        "دالة","صنف","هيكل","تعداد","سمة","واجهة","وحدة",
+        "إذا","وإلا","بينما","لكل","في","ارجع","اخرج","تابع","نهاية",
+        "متغير","ثابت","جديد","هذا","باني","حاول","امسك","أخيراً",
+        "استورد","من","صدّر","صحيح","خطأ","عدم",
+        "رقم","عشري","منطقي","نص","مصفوفة","خريطة",
+        "حالة","عندما","افتراضي"
     };
     for (const auto& kw : kws) {
         std::string ek = escapeHtml(kw);
@@ -327,25 +327,25 @@ std::string HtmlDocGenerator::escapeHtml(const std::string& s) const {
 
 std::string HtmlDocGenerator::accessBadge(AccessLevel level) const {
     switch(level) {
-        case AccessLevel::Public: return "<span class=\"access-badge access-public\">״¹״§…</span>";
-        case AccessLevel::Private: return "<span class=\"access-badge access-private\">״®״§״µ</span>";
-        case AccessLevel::Protected: return "<span class=\"access-badge access-protected\">…״­…</span>";
-        case AccessLevel::Internal: return "<span class=\"access-badge access-protected\">״¯״§״®„</span>";
+        case AccessLevel::Public: return "<span class=\"access-badge access-public\">عام</span>";
+        case AccessLevel::Private: return "<span class=\"access-badge access-private\">خاص</span>";
+        case AccessLevel::Protected: return "<span class=\"access-badge access-protected\">محمي</span>";
+        case AccessLevel::Internal: return "<span class=\"access-badge access-protected\">داخلي</span>";
     }
     return "";
 }
 
 std::string HtmlDocGenerator::kindIcon(DocItemKind kind) const {
     switch(kind) {
-        case DocItemKind::Function: return "ג¡"; case DocItemKind::Class: return "נ—ן¸";
-        case DocItemKind::Struct: return "נ“¦"; case DocItemKind::Enum: return "נ“‹";
-        case DocItemKind::Trait: return "נ”—"; case DocItemKind::Interface: return "נ”";
-        case DocItemKind::Variable: return "נ“"; case DocItemKind::Constant: return "נ”’";
-        case DocItemKind::Module: return "נ“"; case DocItemKind::Property: return "נ·ן¸";
-        case DocItemKind::Constructor: return "נ”¨"; case DocItemKind::Method: return "ג™ן¸";
-        case DocItemKind::TypeAlias: return "נ”„";
+        case DocItemKind::Function: return "⚡"; case DocItemKind::Class: return "🏗️";
+        case DocItemKind::Struct: return "📦"; case DocItemKind::Enum: return "📋";
+        case DocItemKind::Trait: return "🔗"; case DocItemKind::Interface: return "🔌";
+        case DocItemKind::Variable: return "📎"; case DocItemKind::Constant: return "🔒";
+        case DocItemKind::Module: return "📁"; case DocItemKind::Property: return "🏷️";
+        case DocItemKind::Constructor: return "🔨"; case DocItemKind::Method: return "⚙️";
+        case DocItemKind::TypeAlias: return "🔄";
     }
-    return "נ“„";
+    return "📄";
 }
 
 // ============================================================================
@@ -359,7 +359,7 @@ int MarkdownDocGenerator::generate(const std::vector<DocEntry>& entries, DocsRes
         std::ofstream f(config_.outputDir + "/README.md");
         f << "# " << config_.title << "\n\n";
         if (!config_.description.empty()) f << config_.description << "\n\n";
-        if (!config_.version.empty()) f << "**״§„״¥״µ״¯״§״±:** " << config_.version << "\n\n";
+        if (!config_.version.empty()) f << "**الإصدار:** " << config_.version << "\n\n";
         f << generateTableOfContents(entries);
         result.pagesGenerated++;
         result.generatedFiles.push_back(config_.outputDir + "/README.md");
@@ -377,34 +377,34 @@ int MarkdownDocGenerator::generate(const std::vector<DocEntry>& entries, DocsRes
 
 std::string MarkdownDocGenerator::generateEntryMarkdown(const DocEntry& entry) const {
     std::ostringstream ss;
-    ss << "# " << entry.name << "\n\n**״§„†ˆ״¹:** " << entry.kindNameAr() << "\n\n";
-    if (entry.isDeprecated()) ss << "> ג ן¸ **…‡…„:** " << entry.deprecated << "\n\n";
+    ss << "# " << entry.name << "\n\n**النوع:** " << entry.kindNameAr() << "\n\n";
+    if (entry.isDeprecated()) ss << "> ⚠️ **مهمل:** " << entry.deprecated << "\n\n";
     ss << "```sad\n" << entry.signature << "\n```\n\n";
     if (!entry.summary.empty()) ss << entry.summary << "\n\n";
     if (!entry.description.empty()) ss << entry.description << "\n\n";
     if (!entry.params.empty()) {
-        ss << "## ״§„…״¹״·״§״×\n\n| ״§„״§״³… | ״§„†ˆ״¹ | ״§„ˆ״µ |\n|-------|------|-------|\n";
+        ss << "## المعطيات\n\n| الاسم | النوع | الوصف |\n|-------|------|-------|\n";
         for (const auto& p : entry.params)
             ss << "| `" << p.name << "` | `" << p.type << "` | " << p.description << " |\n";
         ss << "\n";
     }
     if (!entry.returnType.empty()) {
-        ss << "## ״§„‚…״© ״§„…״±״¬״¹״©\n\n- **״§„†ˆ״¹:** `" << entry.returnType << "`\n";
+        ss << "## القيمة المرجعة\n\n- **النوع:** `" << entry.returnType << "`\n";
         if (!entry.returnDescription.empty()) ss << "- " << entry.returnDescription << "\n";
         ss << "\n";
     }
     if (!entry.examples.empty()) {
-        ss << "## ״£…״«„״©\n\n";
+        ss << "## أمثلة\n\n";
         for (const auto& ex : entry.examples) ss << "```sad\n" << ex << "\n```\n\n";
     }
     if (!entry.seeAlso.empty()) {
-        ss << "## ״§†״¸״± ״£״¶״§‹\n\n";
+        ss << "## انظر أيضاً\n\n";
         for (const auto& r : entry.seeAlso) ss << "- `" << r << "`\n";
         ss << "\n";
     }
     if (!entry.sourceFile.empty()) {
-        ss << "---\nנ“ **״§„…„:** `" << entry.sourceFile << "`";
-        if (entry.lineNumber > 0) ss << " ג€” ״§„״³״·״± " << entry.lineNumber;
+        ss << "---\n📁 **الملف:** `" << entry.sourceFile << "`";
+        if (entry.lineNumber > 0) ss << " — السطر " << entry.lineNumber;
         ss << "\n";
     }
     return ss.str();
@@ -412,12 +412,12 @@ std::string MarkdownDocGenerator::generateEntryMarkdown(const DocEntry& entry) c
 
 std::string MarkdownDocGenerator::generateTableOfContents(const std::vector<DocEntry>& entries) const {
     std::ostringstream ss;
-    ss << "## ״§„‡״±״³\n\n";
+    ss << "## الفهرس\n\n";
     struct SD { DocItemKind kind; std::string title; };
     for (auto& sec : std::vector<SD>{
-        {DocItemKind::Module,"״§„ˆ״­״¯״§״×"},{DocItemKind::Class,"״§„״£״µ†״§"},
-        {DocItemKind::Function,"״§„״¯ˆ״§„"},{DocItemKind::Struct,"״§„‡״§ƒ„"},
-        {DocItemKind::Constant,"״§„״«ˆ״§״¨״×"}}) {
+        {DocItemKind::Module,"الوحدات"},{DocItemKind::Class,"الأصناف"},
+        {DocItemKind::Function,"الدوال"},{DocItemKind::Struct,"الهياكل"},
+        {DocItemKind::Constant,"الثوابت"}}) {
         bool has = false;
         for (const auto& e : entries) if (e.kind == sec.kind) { has = true; break; }
         if (!has) continue;
@@ -425,7 +425,7 @@ std::string MarkdownDocGenerator::generateTableOfContents(const std::vector<DocE
         for (const auto& e : entries) {
             if (e.kind != sec.kind) continue;
             ss << "- [`" << e.name << "`](api/" << e.id << ".md)";
-            if (!e.summary.empty()) ss << " ג€” " << e.summary;
+            if (!e.summary.empty()) ss << " — " << e.summary;
             ss << "\n";
         }
         ss << "\n";
@@ -499,7 +499,7 @@ std::string JsonDocGenerator::escapeJson(const std::string& s) {
 }
 
 // ============================================================================
-// DocsEmitter ג€” ״§„…״­״±ƒ ״§„״±״¦״³
+// DocsEmitter — المحرك الرئيسي
 // ============================================================================
 
 void DocsEmitter::addEntry(const DocEntry& entry) {
@@ -557,7 +557,7 @@ DocsResult DocsEmitter::generate() {
         FileCollector collector;
         auto files = collector.collect(config_.inputFiles);
         for (const auto& file : files) {
-            if (config_.verbose) std::cout << "  נ“„ " << file << "\n";
+            if (config_.verbose) std::cout << "  📄 " << file << "\n";
             addFromFile(file);
             result.filesProcessed++;
         }
@@ -567,19 +567,19 @@ DocsResult DocsEmitter::generate() {
     if (config_.crossRefsEnabled) buildCrossReferences();
 
     if (config_.htmlOutput) {
-        if (config_.verbose) std::cout << "נ ״×ˆ„״¯ HTML...\n";
+        if (config_.verbose) std::cout << "🌐 توليد HTML...\n";
         HtmlDocGenerator gen(config_);
         gen.generate(entries_, result);
     }
     if (config_.markdownOutput) {
-        if (config_.verbose) std::cout << "נ“ ״×ˆ„״¯ Markdown...\n";
+        if (config_.verbose) std::cout << "📝 توليد Markdown...\n";
         DocsConfig mc = config_;
         if (config_.htmlOutput) mc.outputDir = config_.outputDir + "/markdown";
         MarkdownDocGenerator gen(mc);
         gen.generate(entries_, result);
     }
     if (config_.jsonOutput) {
-        if (config_.verbose) std::cout << "נ“ ״×ˆ„״¯ JSON...\n";
+        if (config_.verbose) std::cout << "📊 توليد JSON...\n";
         JsonDocGenerator gen(config_);
         gen.generate(entries_, result);
     }
@@ -614,7 +614,7 @@ std::string DocsEmitter::emitJson() const {
 
 std::string DocsEmitter::emitMarkdown() const {
     std::ostringstream out;
-    out << "# ״×ˆ״«‚ „״÷״© ״µ\n\n";
+    out << "# توثيق لغة ص\n\n";
     std::map<std::string, std::vector<const DocEntry*>> byKind;
     for (const auto& e : entries_) byKind[e.kindNameAr()].push_back(&e);
     for (const auto& [kind, items] : byKind) {
@@ -625,16 +625,16 @@ std::string DocsEmitter::emitMarkdown() const {
             if (!e->summary.empty()) out << e->summary << "\n\n";
             if (!e->description.empty()) out << e->description << "\n\n";
             if (!e->params.empty()) {
-                out << "**…״¹״§…„״§״×:**\n\n";
+                out << "**معاملات:**\n\n";
                 for (const auto& p : e->params) out << "- `" << p.name << "`: " << p.description << "\n";
                 out << "\n";
             }
             if (!e->returnType.empty()) {
-                out << "**״¥״±״¬״§״¹:** `" << e->returnType << "`";
-                if (!e->returnDescription.empty()) out << " ג€” " << e->returnDescription;
+                out << "**إرجاع:** `" << e->returnType << "`";
+                if (!e->returnDescription.empty()) out << " — " << e->returnDescription;
                 out << "\n\n";
             }
-            for (const auto& ex : e->examples) out << "**…״«״§„:**\n```sad\n" << ex << "\n```\n\n";
+            for (const auto& ex : e->examples) out << "**مثال:**\n```sad\n" << ex << "\n```\n\n";
         }
     }
     return out.str();

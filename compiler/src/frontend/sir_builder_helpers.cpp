@@ -1,12 +1,12 @@
 ﻿// ============================================================================
-// sir_builder.cpp - ״¨†״§״¡ SIR …† AST / SIR Builder from AST
+// sir_builder.cpp - بناء SIR من AST / SIR Builder from AST
 // ============================================================================
-// ״§„…״₪„ / Author: Sad Compiler Team
-// ״§„״×״§״±״® / Date: January 5, 2026
-// ״§„״¥״µ״¯״§״± / Version: 2.0 (״¥״¹״§״¯״© ƒ״×״§״¨״© ƒ״§…„״© …† ״§„״µ״±)
+// المؤلف / Author: Sad Compiler Team
+// التاريخ / Date: January 5, 2026
+// الإصدار / Version: 2.0 (إعادة كتابة كاملة من الصفر)
 //
-// …„״§״­״¸״© ‡״§…״© / Important Note:
-// ‡״°״§ ״§„…„ …״¹״§״¯ ƒ״×״§״¨״×‡ ״¨״§„ƒ״§…„ …† ״§„״µ״± ״¨…״§ ״×ˆ״§‚ 100% …״¹:
+// ملاحظة هامة / Important Note:
+// هذا الملف مُعاد كتابته بالكامل من الصفر بما يتوافق 100% مع:
 // This file is completely rewritten from scratch to comply 100% with:
 // - STRICT_CODING_RULES.md
 // - sir_builder.h
@@ -40,16 +40,16 @@ namespace Sad
         {
 
             // ============================================================================
-            // HELPER FUNCTIONS - ״§„״¯ˆ״§„ ״§„…״³״§״¹״¯״©
+            // HELPER FUNCTIONS - الدوال المساعدة
             // ============================================================================
 
             // ============================================================================
-            // createBasicBlock - ״¥†״´״§״¡ ƒ״×„״© ״£״³״§״³״© ״¬״¯״¯״©
+            // createBasicBlock - إنشاء كتلة أساسية جديدة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:501
-            // ״§„״×ˆ‚״¹ / Signature: std::shared_ptr<SIRBasicBlock> createBasicBlock(const std::string& name);
+            // مصدر التعريف / Source: sir_builder.h:501
+            // التوقيع / Signature: std::shared_ptr<SIRBasicBlock> createBasicBlock(const std::string& name);
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
+            // الإرجاع / Returns:
             // - std::shared_ptr<SIRBasicBlock>: sir_module.h:145 (SIRBasicBlock class)
             //
             // SIRBasicBlock Constructor (sir_module.h:145):
@@ -57,62 +57,62 @@ namespace Sad
             // ============================================================================
             std::shared_ptr<SIRBasicBlock> SIRBuilder::createBasicBlock(const std::string &name)
             {
-                // (AR) ״¥†״´״§״¡ ƒ״×„״© ״¬״¯״¯״© (sir_module.h:168 - SIRBasicBlock constructor)
+                // (AR) إنشاء كتلة جديدة (sir_module.h:168 - SIRBasicBlock constructor)
                 // (EN) Create new block
                 return std::make_shared<SIRBasicBlock>(name);
             }
 
             // ============================================================================
-            // newTempRegister - ״¥†״´״§״¡ ״³״¬„ …״₪‚״× ״¬״¯״¯
+            // newTempRegister - إنشاء سجل مؤقت جديد
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:511
-            // ״§„״×ˆ‚״¹ / Signature: std::string newTempRegister();
+            // مصدر التعريف / Source: sir_builder.h:511
+            // التوقيع / Signature: std::string newTempRegister();
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - registerCounter_: sir_builder.h:600 (int)
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
-            // - std::string: ״§״³… ״§„״³״¬„ ״¨״µ״÷״© %0, %1, %2, ...
+            // الإرجاع / Returns:
+            // - std::string: اسم السجل بصيغة %0, %1, %2, ...
             // ============================================================================
             std::string SIRBuilder::newTempRegister()
             {
-                // (AR) ״¥†״´״§״¡ ״³״¬„ ״¨״µ״÷״© %N ״­״« N ‡ˆ nextTempRegister_
+                // (AR) إنشاء سجل بصيغة %N حيث N هو nextTempRegister_
                 // (EN) Create register in format %N where N is nextTempRegister_
                 return "%" + std::to_string(nextTempRegister_++);
             }
 
             // ============================================================================
-            // newLabel - ״¥†״´״§״¡ ״×״³…״© ״¬״¯״¯״©
+            // newLabel - إنشاء تسمية جديدة
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:520
-            // ״§„״×ˆ‚״¹ / Signature: std::string newLabel(const std::string& prefix);
+            // مصدر التعريف / Source: sir_builder.h:520
+            // التوقيع / Signature: std::string newLabel(const std::string& prefix);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
-            // - prefix: std::string = ״§„״¨״§״¯״¦״© (L, if, loop, etc)
+            // المعاملات / Parameters:
+            // - prefix: std::string = البادئة (L, if, loop, etc)
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - labelCounter_: sir_builder.h:601 (int)
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
-            // - std::string: ״§״³… ״§„״×״³…״© ״¨״µ״÷״© prefix_N
+            // الإرجاع / Returns:
+            // - std::string: اسم التسمية بصيغة prefix_N
             // ============================================================================
             std::string SIRBuilder::newLabel(const std::string &prefix)
             {
-                // (AR) ״¥†״´״§״¡ ״×״³…״© ״¨״µ״÷״© prefix_N
+                // (AR) إنشاء تسمية بصيغة prefix_N
                 // (EN) Create label in format prefix_N
                 return prefix + "_" + std::to_string(nextLabel_++);
             }
 
             // ============================================================================
-            // astTypeToSIRType - ״×״­ˆ„ DataType ״¥„‰ SadTypeKind
+            // astTypeToSIRType - تحويل DataType إلى SadTypeKind
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:741
-            // ״§„״×ˆ‚״¹ / Signature: SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind& type);
+            // مصدر التعريف / Source: sir_builder.h:741
+            // التوقيع / Signature: SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind& type);
             //
-            // ״§„…״¹״§…„״§״× / Parameters:
+            // المعاملات / Parameters:
             // - type: const Sad::Types::SadTypeKind& (parser/data.h)
             //
-            // ״§„״¥״±״¬״§״¹ / Returns:
+            // الإرجاع / Returns:
             // - SadTypeKind: sir_types.h:57 (enum class SadTypeKind)
             //
             // SadTypeKind Values (sir_types.h:57):
@@ -120,7 +120,7 @@ namespace Sad
             // ============================================================================
             SadTypeKind SIRBuilder::astTypeToSIRType(const Sad::Types::SadTypeKind &type)
             {
-                // (AR) ״×״­ˆ„ DataType ״¥„‰ SadTypeKind
+                // (AR) تحويل DataType إلى SadTypeKind
                 // (EN) Convert DataType to SadTypeKind
                 switch (type)
                 {
@@ -137,34 +137,34 @@ namespace Sad
                 case Types::SadTypeKind::Function:
                     return SadTypeKind::Function;
                 case Types::SadTypeKind::Class:
-                    // (AR) ƒ״§״¦† -  ״§„״÷״§„״¨ …״¹״§…„ ״¨״¯ˆ† †ˆ״¹ ״µ״±״­
+                    // (AR) كائن - في الغالب معامل بدون نوع صريح
                     // (EN) Object - usually a parameter without explicit type
-                    //  LLVM״ †״³״×״®״¯… i64 „״×…״±״± ״§„…״₪״´״±״§״×/״§„‚…
+                    // في LLVM، نستخدم i64 لتمرير المؤشرات/القيم
                     return SadTypeKind::Integer;
                 case Types::SadTypeKind::Void:
                     return SadTypeKind::Void;
                 case Types::SadTypeKind::Unknown:
-                    // (AR) †ˆ״¹ ״÷״± …״¹״±ˆ - ״³״×… ״§״³״×†״×״§״¬‡ …† ״§„״×״¹״¨״±
+                    // (AR) نوع غير معروف - سيتم استنتاجه من التعبير
                     // (EN) Unknown type - will be inferred from expression
                     return SadTypeKind::Integer; // Default, will be overwritten by type inference
                 default:
-                    // (AR) ״£†ˆ״§״¹ ״£״®״±‰ (MAP, TUPLE, ENUM, BYTE, ERROR) ג€” ״×״­״°״± + fallback
-                    // (EN) Other types (MAP, TUPLE, ENUM, BYTE, ERROR) ג€” warn + fallback
-                    std::cerr << "[sadc ״×״­״°״±] DataType ״÷״± …״¹״§„״¬  astTypeToSIRType: "
-                              << static_cast<int>(type) << " ג€” ״§״³״×״®״¯״§… I64" << std::endl;
+                    // (AR) أنواع أخرى (MAP, TUPLE, ENUM, BYTE, ERROR) — تحذير + fallback
+                    // (EN) Other types (MAP, TUPLE, ENUM, BYTE, ERROR) — warn + fallback
+                    std::cerr << "[sadc تحذير] DataType غير معالج في astTypeToSIRType: "
+                              << static_cast<int>(type) << " — استخدام I64" << std::endl;
                     return SadTypeKind::Integer; // Fallback
                 }
             }
 
             // ============================================================================
-            // astTypeToSadType ג€” ״×״­ˆ„ DataType ״¥„‰ SadTypePtr (״§„†״¸״§… ״§„…ˆ״­״¯)
+            // astTypeToSadType — تحويل DataType إلى SadTypePtr (النظام الموحد)
             // ============================================================================
-            // (AR) ״±״¬״¹ SadTypePtr …״¨״§״´״±״© ״¨״¯„״§‹ …† SadTypeKind
-            //      ״³״×״®״¯… SadType::fromDataType „„״×״­ˆ„ ״§„…״¨״§״´״±
-            //      ‡״°״§ ‡ˆ ״§„״·״±‚ ״§„…״«״§„ ג€” ״×״¬†״¨ ‚״¯״§† …״¹„ˆ…״§״× ״§„†ˆ״¹
+            // (AR) يُرجع SadTypePtr مباشرة بدلاً من SadTypeKind
+            //      يستخدم SadType::fromDataType للتحويل المباشر
+            //      هذا هو الطريق المثالي — يتجنب فقدان معلومات النوع
             // (EN) Returns SadTypePtr directly instead of SadTypeKind
             //      Uses SadType::fromDataType for direct conversion
-            //      This is the ideal path ג€” avoids type information loss
+            //      This is the ideal path — avoids type information loss
             // ============================================================================
             Sad::Types::SadTypePtr SIRBuilder::astTypeToSadType(const Sad::Types::SadTypeKind &type)
             {
@@ -172,12 +172,12 @@ namespace Sad
             }
 
             // ============================================================================
-            // hasReturnWithValue - ״­״µ ״¥״°״§ ƒ״§†״× ״§„״¬…„״© ״×״­״×ˆ return …״¹ ‚…״©
+            // hasReturnWithValue - فحص إذا كانت الجملة تحتوي return مع قيمة
             // ============================================================================
-            // ״§„״×ˆ‚״¹ / Signature: bool hasReturnWithValue(const Sad::AST::Statement* stmt);
+            // التوقيع / Signature: bool hasReturnWithValue(const Sad::AST::Statement* stmt);
             //
-            // ״§„ˆ״µ / Description:
-            // ״×״­״µ ״§„״¬…„״© ״¨״´ƒ„ ״×״¹״§ˆ״¯ „„״¨״­״« ״¹† ״¬…„ return ״×״­״×ˆ ‚…״©.
+            // الوصف / Description:
+            // تفحص الجملة بشكل تعاودي للبحث عن جمل return تحتوي قيمة.
             // Recursively checks statement for return statements with values.
             // ============================================================================
             bool SIRBuilder::hasReturnWithValue(const Sad::AST::Statement *stmt)
@@ -185,14 +185,14 @@ namespace Sad
                 if (!stmt)
                     return false;
 
-                // (AR) ״¬…„״© return …״¨״§״´״±״©
+                // (AR) جملة return مباشرة
                 // (EN) Direct return statement
                 if (auto ret = dynamic_cast<const Sad::AST::ReturnStmt *>(stmt))
                 {
                     return ret->value != nullptr; // true if return has a value
                 }
 
-                // (AR) ƒ״×„״© …† ״§„״¬…„
+                // (AR) كتلة من الجمل
                 // (EN) Block of statements
                 if (auto block = dynamic_cast<const Sad::AST::BlockStmt *>(stmt))
                 {
@@ -204,7 +204,7 @@ namespace Sad
                     return false;
                 }
 
-                // (AR) ״¬…„״© if
+                // (AR) جملة if
                 // (EN) If statement
                 if (auto ifStmt = dynamic_cast<const Sad::AST::IfStmt *>(stmt))
                 {
@@ -215,29 +215,29 @@ namespace Sad
                     return false;
                 }
 
-                // (AR) ״­„‚״© while
+                // (AR) حلقة while
                 // (EN) While loop
                 if (auto whileLoop = dynamic_cast<const Sad::AST::WhileStmt *>(stmt))
                 {
                     return hasReturnWithValue(whileLoop->body.get());
                 }
 
-                // (AR) ״­„‚״© for
+                // (AR) حلقة for
                 // (EN) For loop
                 if (auto forLoop = dynamic_cast<const Sad::AST::ForStmt *>(stmt))
                 {
                     return hasReturnWithValue(forLoop->body.get());
                 }
 
-                // (AR) ״­„‚״© for-range
+                // (AR) حلقة for-range
                 // (EN) For-range loop
                 if (auto forRange = dynamic_cast<const Sad::AST::ForRangeStmt *>(stmt))
                 {
                     return hasReturnWithValue(forRange->body.get());
                 }
 
-                // (AR) ״¬…„״© match ג€” †״¨״­״«  ״£״¬״³״§… ״¬…״¹ ״§„״­״§„״§״×
-                // (EN) Match statement ג€” search in all case bodies
+                // (AR) جملة match — نبحث في أجسام جميع الحالات
+                // (EN) Match statement — search in all case bodies
                 if (auto matchStmt = dynamic_cast<const Sad::AST::MatchStmt *>(stmt))
                 {
                     for (const auto &caseClause : matchStmt->cases)
@@ -251,8 +251,8 @@ namespace Sad
                     return false;
                 }
 
-                // (AR) ״¬…„״© try-catch ג€” †״¨״­״«  ƒ״×„ ״§„…״­״§ˆ„״© ˆ״§„״§„״×‚״§״·
-                // (EN) Try-catch statement ג€” search in try and catch blocks
+                // (AR) جملة try-catch — نبحث في كتل المحاولة والالتقاط
+                // (EN) Try-catch statement — search in try and catch blocks
                 if (auto tryStmt = dynamic_cast<const Sad::AST::TryStmt *>(stmt))
                 {
                     if (hasReturnWithValue(tryStmt->tryBlock.get()))
@@ -267,20 +267,20 @@ namespace Sad
                     return false;
                 }
 
-                // (AR) ״¬…„ ״£״®״±‰ „״§ ״×״­״×ˆ return
+                // (AR) جمل أخرى لا تحتوي return
                 // (EN) Other statements don't contain return
                 return false;
             }
 
             // ============================================================================
-            // inferReturnTypeFromBody - ״§״³״×†״×״§״¬ †ˆ״¹ ״§„״¥״±״¬״§״¹ …† ״¬״³… ״§„״¯״§„״©
+            // inferReturnTypeFromBody - استنتاج نوع الإرجاع من جسم الدالة
             // ============================================================================
-            // ״§„״×ˆ‚״¹ / Signature: SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement* body);
+            // التوقيع / Signature: SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement* body);
             //
-            // ״§„ˆ״µ / Description:
-            // ״×״­״µ ״¬״³… ״§„״¯״§„״© „״§״³״×†״×״§״¬ †ˆ״¹ ״§„״¥״±״¬״§״¹:
-            // - ״¥״°״§ „… ƒ† ‡†״§ƒ return …״¹ ‚…״©״ ״×״±״¬״¹ VOID
-            // - ״¥״°״§ ˆ״¬״¯ return …״¹ ‚…״©״ ״×״­״µ †ˆ״¹ ״§„״×״¹״¨״±
+            // الوصف / Description:
+            // تفحص جسم الدالة لاستنتاج نوع الإرجاع:
+            // - إذا لم يكن هناك return مع قيمة، تُرجع VOID
+            // - إذا وُجد return مع قيمة، تفحص نوع التعبير
             // ============================================================================
 
             // Helper: get the return expression from the body
@@ -321,8 +321,8 @@ namespace Sad
                 {
                     return findFirstReturnExpr(fr->body.get());
                 }
-                // (AR) ״¬…„״© match ג€” †״¨״­״« ״¹† ״£ˆ„ return  ״£ ״­״§„״©
-                // (EN) Match statement ג€” find first return in any case
+                // (AR) جملة match — نبحث عن أول return في أي حالة
+                // (EN) Match statement — find first return in any case
                 if (auto matchStmt = dynamic_cast<const Sad::AST::MatchStmt *>(stmt))
                 {
                     for (const auto &caseClause : matchStmt->cases)
@@ -335,8 +335,8 @@ namespace Sad
                         }
                     }
                 }
-                // (AR) ״¬…„״© try-catch ג€” †״¨״­״«  ƒ״×„ ״§„…״­״§ˆ„״© ˆ״§„״§„״×‚״§״·
-                // (EN) Try-catch statement ג€” search in try and catch blocks
+                // (AR) جملة try-catch — نبحث في كتل المحاولة والالتقاط
+                // (EN) Try-catch statement — search in try and catch blocks
                 if (auto tryStmt = dynamic_cast<const Sad::AST::TryStmt *>(stmt))
                 {
                     auto *e = findFirstReturnExpr(tryStmt->tryBlock.get());

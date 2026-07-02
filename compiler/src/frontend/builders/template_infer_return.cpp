@@ -51,13 +51,13 @@ namespace Sad
                     return SadTypeKind::Void;
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״®״±״·״© ״£†ˆ״§״¹ ״§„…״×״÷״±״§״× ״§„…״­„״© ג€” ״×…„״£ ״×״³„״³„״§‹ ״£״«†״§״¡ ״§„…״³״­
-                // (EN) Local variable type map ג€” populated sequentially during scan
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) خريطة أنواع المتغيرات المحلية — تُملأ تسلسلياً أثناء المسح
+                // (EN) Local variable type map — populated sequentially during scan
+                // ═══════════════════════════════════════════════════════════════════
                 std::unordered_map<std::string, SadTypeKind> localVarTypes;
 
-                // (AR) ״§„״®״·ˆ״© 1: ״×״¹״¨״¦״© ״£†ˆ״§״¹ …״¹״§…„״§״× ״§„״¯״§„״© …† b_.functionTable_ (״§„…״±״­„״© 1.7)
+                // (AR) الخطوة 1: تعبئة أنواع معاملات الدالة من b_.functionTable_ (المرحلة 1.7)
                 // (EN) Step 1: Populate function parameter types from b_.functionTable_ (Phase 1.7)
                 if (funcDecl)
                 {
@@ -74,7 +74,7 @@ namespace Sad
                     }
                     else
                     {
-                        // (AR) ״¥״°״§ „… ״×ƒ†  ״§„״¬״¯ˆ„״ †״³״×״®״¯… ״£†ˆ״§״¹ AST
+                        // (AR) إذا لم تكن في الجدول، نستخدم أنواع AST
                         // (EN) If not in table, use AST types
                         for (const auto &param : funcDecl->parameters)
                         {
@@ -84,18 +84,18 @@ namespace Sad
                     }
                 }
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„״®״·ˆ״© 2: ״¯״§„״© ״§״³״×†״×״§״¬ †ˆ״¹ ״×״¹״¨״± …״¹ ״¯״¹… ״§„…״×״÷״±״§״× ״§„…״­„״©
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) الخطوة 2: دالة استنتاج نوع تعبير مع دعم المتغيرات المحلية
                 // (EN) Step 2: Expression type inference with local variable support
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 std::function<SadTypeKind(const Sad::AST::Expression *)> inferExprType;
                 inferExprType = [&](const Sad::AST::Expression *expr) -> SadTypeKind
                 {
                     if (!expr)
                         return SadTypeKind::Integer;
 
-                    // (AR) ״­״± ג€” †״³״×†״×״¬ …† †ˆ״¹ ״§„״±…״²
-                    // (EN) Literal ג€” infer from token type
+                    // (AR) حرفي — نستنتج من نوع الرمز
+                    // (EN) Literal — infer from token type
                     if (auto lit = dynamic_cast<const Sad::AST::LiteralExpr *>(expr))
                     {
                         auto tt = lit->token.getType();
@@ -111,8 +111,8 @@ namespace Sad
                         return SadTypeKind::Integer;
                     }
 
-                    // (AR) …״×״÷״± ג€” †״¨״­״«  ״§„…״×״÷״±״§״× ״§„…״­„״© ״§„…״×״×״¨‘״¹״©
-                    // (EN) Variable ג€” look up in tracked local variable types
+                    // (AR) متغير — نبحث في المتغيرات المحلية المُتتبَّعة
+                    // (EN) Variable — look up in tracked local variable types
                     if (auto var = dynamic_cast<const Sad::AST::VariableExpr *>(expr))
                     {
                         auto it = localVarTypes.find(var->name);
@@ -121,19 +121,19 @@ namespace Sad
                         return SadTypeKind::Integer;
                     }
 
-                    // (AR) …״µˆ״© ״­״±״©
+                    // (AR) مصفوفة حرفية
                     // (EN) Array literal
                     if (dynamic_cast<const Sad::AST::ArrayExpr *>(expr))
                         return SadTypeKind::Array;
 
-                    // (AR) ״×״¹״¨״± ״«†״§״¦ ג€” †״´״± ״§„†ˆ״¹ ״§„†״µ/״§„״¹״´״±
-                    // (EN) Binary expression ג€” propagate string/float types
+                    // (AR) تعبير ثنائي — نشر النوع النصي/العشري
+                    // (EN) Binary expression — propagate string/float types
                     if (auto bin = dynamic_cast<const Sad::AST::BinaryExpr *>(expr))
                     {
                         SadTypeKind left = inferExprType(bin->left.get());
                         SadTypeKind right = inferExprType(bin->right.get());
-                        // (AR) ״¹…„״§״× ״§„…‚״§״±†״© ״×״±״¬״¹ BOOL ״¯״§״¦…״§‹ ג€” ״¬״¨ ״­״µ‡״§ ‚״¨„ †״´״± ״§„†ˆ״¹ ״§„†״µ/״§„״¹״´״±
-                        // (EN) Comparison operations always return BOOL ג€” must be checked BEFORE string/float propagation
+                        // (AR) عمليات المقارنة تُرجع BOOL دائماً — يجب فحصها قبل نشر النوع النصي/العشري
+                        // (EN) Comparison operations always return BOOL — must be checked BEFORE string/float propagation
                         switch (bin->op)
                         {
                         case Sad::Lexer::TokenType::OP_EQUAL:
@@ -148,11 +148,11 @@ namespace Sad
                         default:
                             break;
                         }
-                        // (AR) ״§„‚״³…״© `/` ״×†״×״¬ ״¹״´״± ״¯״§״¦…״§‹ (״­״³״¨ …ˆ״§״µ״§״× ״§„„״÷״©)
+                        // (AR) القسمة `/` تُنتج عشري دائماً (حسب مواصفات اللغة)
                         // (EN) Division `/` always produces float (per language spec)
                         if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
                             return SadTypeKind::Float;
-                        // (AR) ״¥״°״§ ƒ״§† ״§„״·״±״§† †״µ״§‹ ״£ˆ ״£״­״¯‡…״§״ ״§„†״×״¬״© †״µ (״¬…״¹ †״µˆ״µ)
+                        // (AR) إذا كان الطرفان نصاً أو أحدهما، النتيجة نص (جمع نصوص)
                         if (left == SadTypeKind::String || right == SadTypeKind::String)
                             return SadTypeKind::String;
                         if (left == SadTypeKind::Float || right == SadTypeKind::Float)
@@ -160,7 +160,7 @@ namespace Sad
                         return left;
                     }
 
-                    // (AR) ״×״¹״¨״± ״£״­״§״¯
+                    // (AR) تعبير أحادي
                     // (EN) Unary expression
                     if (auto unary = dynamic_cast<const Sad::AST::UnaryExpr *>(expr))
                     {
@@ -300,7 +300,7 @@ namespace Sad
                         return SadTypeKind::Integer;
                     }
 
-                    // (AR) ״×״¹״¨״± ״«„״§״«
+                    // (AR) تعبير ثلاثي
                     // (EN) Ternary expression
                     if (auto ternary = dynamic_cast<const Sad::AST::TernaryExpr *>(expr))
                     {
@@ -313,16 +313,16 @@ namespace Sad
                         return trueType;
                     }
 
-                    // (AR) ״¥״³†״§״¯ ג€” †ˆ״¹ ״§„‚…״© ״§„…״³†״¯״©
-                    // (EN) Assignment ג€” type of assigned value
+                    // (AR) إسناد — نوع القيمة المُسندة
+                    // (EN) Assignment — type of assigned value
                     if (auto assign = dynamic_cast<const Sad::AST::AssignExpr *>(expr))
                     {
                         return inferExprType(assign->value.get());
                     }
 
-                    // (AR) ˆ״µˆ„ „״­‚„ ״¹״¨״± ‡״°״§.״­‚„ ג€” †״¨״­״« ״¹† †ˆ״¹ ״§„״­‚„  b_.module_->getClass
-                    // (EN) Member access via this.field ג€” look up field type in b_.module_->getClass
-                    // (AR) …„״§״­״¸״©: AST ״­״×ˆ ״¹„‰ †ˆ״¹†: MemberExpr (expressions.h) ˆ MemberAccessExpr (class_nodes.h)
+                    // (AR) وصول لحقل عبر هذا.حقل — نبحث عن نوع الحقل في b_.module_->getClass
+                    // (EN) Member access via this.field — look up field type in b_.module_->getClass
+                    // (AR) ملاحظة: AST يحتوي على نوعين: MemberExpr (expressions.h) و MemberAccessExpr (class_nodes.h)
                     // (EN) Note: AST has two types: MemberExpr (expressions.h) and MemberAccessExpr (class_nodes.h)
                     if (auto memberExpr = dynamic_cast<const Sad::AST::MemberExpr *>(expr))
                     {
@@ -441,19 +441,19 @@ namespace Sad
                                         //      then check its type in b_.functionTable_ (updated in Phase 1.7)
                                         if (ft == SadTypeKind::Pointer)
                                         {
-                                            // (AR) ״¨״­״« ״¹ƒ״³: ״£ …״¹״§…„ ‚״§״¨„ ‡״°״§ ״§„״­‚„״
+                                            // (AR) بحث عكسي: أي معامل يُقابل هذا الحقل؟
                                             // (EN) Reverse lookup: which param maps to this field?
                                             for (const auto &[paramName, fieldName] : sirClass->paramToFieldMap_)
                                             {
                                                 if (fieldName == memberExpr->member)
                                                 {
-                                                    // (AR) ˆ״¬״¯†״§ ״§„…״¹״§…„ ג€” ״§„״¢† †״¨״­״« ״¹† †ˆ״¹‡  ״§„״¨״§†
-                                                    // (EN) Found param ג€” now look up its type in constructor
-                                                    std::string ctorName = ciIt->second + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .״¨״§†
+                                                    // (AR) وجدنا المعامل — الآن نبحث عن نوعه في الباني
+                                                    // (EN) Found param — now look up its type in constructor
+                                                    std::string ctorName = ciIt->second + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
                                                     auto ctorIt = b_.functionTable_.find(ctorName);
                                                     if (ctorIt != b_.functionTable_.end())
                                                     {
-                                                        // (AR) params[0] = self, ״§״¨״­״« ״¹† ״§„…״¹״§…„ ״¨״§„״§״³…
+                                                        // (AR) params[0] = self, ابحث عن المعامل بالاسم
                                                         for (const auto &param : ctorIt->second.parameters)
                                                         {
                                                             if (param.name == paramName)
@@ -548,7 +548,7 @@ namespace Sad
                         return SadTypeKind::Integer;
                     }
 
-                    // (AR) ״¥†״´״§״¡ ƒ״§״¦† ״¬״¯״¯
+                    // (AR) إنشاء كائن جديد
                     // (EN) New object creation
                     if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                         return SadTypeKind::Struct;
@@ -568,7 +568,7 @@ namespace Sad
                     // ================================================================
                     if (dynamic_cast<const Sad::AST::LambdaExpr *>(expr))
                         return SadTypeKind::Function;
-                    // (AR) ״­״µ DataType …† ״§„״×״¹״¨״± †״³‡ (״¥״°״§ ״×ˆ״±)
+                    // (AR) فحص DataType من التعبير نفسه (إذا توفر)
                     // (EN) Check DataType from expression itself (if available)
                     auto dtype = expr->getTypeKind();
                     if (dtype == Sad::Types::SadTypeKind::Float)
@@ -587,18 +587,18 @@ namespace Sad
                     return SadTypeKind::Integer;
                 };
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„״®״·ˆ״© 3: …״³״­ ״×״³„״³„ „״¬״³… ״§„״¯״§„״© „״×״¹״¨״¦״© ״£†ˆ״§״¹ ״§„…״×״÷״±״§״× ״§„…״­„״©
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) الخطوة 3: مسح تسلسلي لجسم الدالة لتعبئة أنواع المتغيرات المحلية
                 // (EN) Step 3: Sequential scan of function body to populate local variable types
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 std::function<void(const Sad::AST::Statement *)> populateVarTypes;
                 populateVarTypes = [&](const Sad::AST::Statement *stmt)
                 {
                     if (!stmt)
                         return;
 
-                    // (AR) ״¥״¹„״§† …״×״÷״± ג€” †״³״×†״×״¬ †ˆ״¹ ״§„…‡‘״¦ ˆ†״³״¬‘„‡
-                    // (EN) Variable declaration ג€” infer initializer type and register
+                    // (AR) إعلان متغير — نستنتج نوع المُهيِّئ ونسجّله
+                    // (EN) Variable declaration — infer initializer type and register
                     if (auto varDecl = dynamic_cast<const Sad::AST::VarDeclStmt *>(stmt))
                     {
                         if (varDecl->initializer)
@@ -608,15 +608,15 @@ namespace Sad
                         }
                         else
                         {
-                            // (AR) …״×״÷״± ״¨״¯ˆ† …‡‘״¦ ג€” ††״¸״± ״¥„‰ †ˆ״¹ AST
+                            // (AR) متغير بدون مُهيِّئ — ننظر إلى نوع AST
                             SadTypeKind astType = b_.astTypeToSIRType(varDecl->type);
                             localVarTypes[varDecl->name] = astType;
                         }
                         return;
                     }
 
-                    // (AR) ƒ״×„״© ״¬…„ ג€” …״³״­ ״×״³„״³„ „„״­״§״¸ ״¹„‰ ״×״±״×״¨ ״§„״¥״¹„״§†״§״×
-                    // (EN) Block statement ג€” sequential scan to preserve declaration order
+                    // (AR) كتلة جمل — مسح تسلسلي للحفاظ على ترتيب الإعلانات
+                    // (EN) Block statement — sequential scan to preserve declaration order
                     if (auto block = dynamic_cast<const Sad::AST::BlockStmt *>(stmt))
                     {
                         for (const auto &s : block->statements)
@@ -626,8 +626,8 @@ namespace Sad
                         return;
                     }
 
-                    // (AR) ״×״¹״¨״± ״¥״³†״§״¯ ג€” ״×״­״¯״« †ˆ״¹ ״§„…״×״÷״±
-                    // (EN) Assignment expression ג€” update variable type
+                    // (AR) تعبير إسناد — تحديث نوع المتغير
+                    // (EN) Assignment expression — update variable type
                     if (auto exprStmt = dynamic_cast<const Sad::AST::ExprStmt *>(stmt))
                     {
                         if (auto assign = dynamic_cast<const Sad::AST::AssignExpr *>(exprStmt->expression.get()))
@@ -638,8 +638,8 @@ namespace Sad
                         return;
                     }
 
-                    // (AR) ״±ˆ״¹ ״´״±״·״© ג€” …״³״­ ƒ„״§ ״§„״±״¹†
-                    // (EN) Conditional branches ג€” scan both branches
+                    // (AR) فروع شرطية — مسح كلا الفرعين
+                    // (EN) Conditional branches — scan both branches
                     if (auto ifStmt = dynamic_cast<const Sad::AST::IfStmt *>(stmt))
                     {
                         populateVarTypes(ifStmt->thenBranch.get());
@@ -648,7 +648,7 @@ namespace Sad
                         return;
                     }
 
-                    // (AR) ״­„‚״§״×
+                    // (AR) حلقات
                     // (EN) Loops
                     if (auto whileStmt = dynamic_cast<const Sad::AST::WhileStmt *>(stmt))
                     {
@@ -660,8 +660,8 @@ namespace Sad
                         populateVarTypes(forRange->body.get());
                         return;
                     }
-                    // (AR) ״¬…„״© match ג€” …״³״­ ״£״¬״³״§… ״§„״­״§„״§״×
-                    // (EN) Match statement ג€” scan case bodies
+                    // (AR) جملة match — مسح أجسام الحالات
+                    // (EN) Match statement — scan case bodies
                     if (auto matchStmt = dynamic_cast<const Sad::AST::MatchStmt *>(stmt))
                     {
                         for (const auto &caseClause : matchStmt->cases)
@@ -673,8 +673,8 @@ namespace Sad
                         }
                         return;
                     }
-                    // (AR) ״¬…„״© try-catch ג€” …״³״­ ƒ״×„ ״§„…״­״§ˆ„״© ˆ״§„״§„״×‚״§״·
-                    // (EN) Try-catch statement ג€” scan try and catch blocks
+                    // (AR) جملة try-catch — مسح كتل المحاولة والالتقاط
+                    // (EN) Try-catch statement — scan try and catch blocks
                     if (auto tryStmt = dynamic_cast<const Sad::AST::TryStmt *>(stmt))
                     {
                         populateVarTypes(tryStmt->tryBlock.get());
@@ -690,10 +690,10 @@ namespace Sad
 
                 populateVarTypes(body);
 
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
-                // (AR) ״§„״®״·ˆ״© 4: ״¬…״¹ ״£†ˆ״§״¹ ״¬…״¹ ״¹״¨״§״±״§״× ״§„״¥״±״¬״§״¹ ˆ״×ˆ״­״¯‡״§
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) الخطوة 4: جمع أنواع جميع عبارات الإرجاع وتوحيدها
                 // (EN) Step 4: Collect types from ALL return statements and unify them
-                // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+                // ═══════════════════════════════════════════════════════════════════
                 std::function<void(const Sad::AST::Statement *, std::vector<SadTypeKind> &)> collectReturnTypes;
                 collectReturnTypes = [&](const Sad::AST::Statement *stmt, std::vector<SadTypeKind> &types)
                 {
@@ -726,8 +726,8 @@ namespace Sad
                     {
                         collectReturnTypes(forRange->body.get(), types);
                     }
-                    // (AR) ״¬…„״© match ג€” †״¨״­״« ״¹† return  ״¬…״¹ ״£״¬״³״§… ״§„״­״§„״§״×
-                    // (EN) Match statement ג€” search for return in all case bodies
+                    // (AR) جملة match — نبحث عن return في جميع أجسام الحالات
+                    // (EN) Match statement — search for return in all case bodies
                     if (auto matchStmt = dynamic_cast<const Sad::AST::MatchStmt *>(stmt))
                     {
                         for (const auto &caseClause : matchStmt->cases)
@@ -738,8 +738,8 @@ namespace Sad
                             }
                         }
                     }
-                    // (AR) ״¬…„״© try-catch ג€” †״¨״­״«  ƒ״×„ ״§„…״­״§ˆ„״© ˆ״§„״§„״×‚״§״·
-                    // (EN) Try-catch statement ג€” search in try and catch blocks
+                    // (AR) جملة try-catch — نبحث في كتل المحاولة والالتقاط
+                    // (EN) Try-catch statement — search in try and catch blocks
                     if (auto tryStmt = dynamic_cast<const Sad::AST::TryStmt *>(stmt))
                     {
                         collectReturnTypes(tryStmt->tryBlock.get(), types);
@@ -758,8 +758,8 @@ namespace Sad
                 if (returnTypes.empty())
                     return SadTypeKind::Integer;
 
-                // (AR) ״×ˆ״­״¯ ״§„״£†ˆ״§״¹: STRING ״³״·״±״ I64+F64ג†’F64
-                // (EN) Unify types: STRING dominates, I64+F64ג†’F64
+                // (AR) توحيد الأنواع: STRING يسيطر، I64+F64→F64
+                // (EN) Unify types: STRING dominates, I64+F64→F64
                 SadTypeKind unified = returnTypes[0];
                 for (size_t i = 1; i < returnTypes.size(); ++i)
                 {
@@ -780,12 +780,12 @@ namespace Sad
             }
 
             // ============================================================================
-            // b_.enterScope - ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯
+            // b_.enterScope - دخول نطاق جديد
             // ============================================================================
-            // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:587
-            // ״§„״×ˆ‚״¹ / Signature: void b_.enterScope();
+            // مصدر التعريف / Source: sir_builder.h:587
+            // التوقيع / Signature: void b_.enterScope();
             //
-            // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
+            // المتغيرات المستخدمة / Used variables:
             // - b_.currentScopeLevel_: sir_builder.h:599 (int)
             // - scopes_: sir_builder.h:630 (std::vector<std::vector<VariableInfo>>)
             // ============================================================================
