@@ -104,7 +104,7 @@ brew install sad-lang/tap/sad
 
 > **القاعدة المعمارية:** كل مسار يعتمد على `shared/` فقط. ممنوع تماماً أن يستورد أي مسار من مسار آخر.
 
-> **توحيد الملكية:** فحص الملكية يُنفَّذ في `shared/ownership` فقط، لذا `sad-run` و `sad-build` و `sad-check` يعطون نتائج متطابقة بايت-ببايت. راجع `_scratch/ownership_symmetry_test.ص`.
+> **توحيد الملكية:** فحص الملكية يُنفَّذ في `shared/ownership` فقط، لذا `sad-run` و `sad-build` و `sad-check` يعطون نتائج متطابقة بايت-ببايت.
 
 ### تفاصيل المكونات
 

@@ -60,6 +60,11 @@ _deps/
 # ── مجلد الملفات المؤقتة للتجارب / Scratch directory ──
 _scratch/
 
+# ── التقارير المؤقّتة: تُحفَظ خارج المستودع (على القرص) لا في git ──
+# (AR) سياسة المشروع: تقارير الجلسات مؤقّتة لا تدخل الفروع؛ انظر sadlang-rfcs#10 §ط-5
+# (EN) Session reports are ephemeral and must not be tracked in branches
+تقارير_مؤقته/
+
 # ── مخرجات BMAD / BMAD outputs ──
 # (متتبَّعة في git — حوكمة BMAD جزء من المستودع / tracked: BMAD governance is part of the repo)
 
