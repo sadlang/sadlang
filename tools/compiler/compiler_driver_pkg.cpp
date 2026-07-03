@@ -37,11 +37,11 @@
 //
 // الاستخدام:
 // ══════════
-//   sadc pkg install <اسم_الحزمة>     -- تثبيت حزمة
+//   sadc pkg install <اسم_الحزمة>     -- تثبيت حزمة (مرادف: تثبيت)
 //   sadc pkg install حزمة -v 1.2.0   -- تثبيت إصدار محدد
-//   sadc pkg list                     -- سرد الحزم المثبتة
-//   sadc pkg sync                     -- مزامنة من sad.toml
-//   sadc pkg search <نص>              -- البحث عن حزم
+//   sadc pkg list                     -- سرد الحزم المثبتة (مرادف: سرد)
+//   sadc pkg sync                     -- مزامنة من sad.toml (مرادف: مزامنة)
+//   sadc pkg search <نص>              -- البحث عن حزم (مرادف: بحث)
 //
 // ملف sad.toml:
 // ═════════════
@@ -184,23 +184,26 @@ namespace sad
 الاستخدام:
   sadc pkg <أمر> [خيارات]
 
-الأوامر المتاحة:
-  install <حزمة>    تثبيت حزمة من السجل المركزي
-  list              سرد الحزم المثبتة محلياً
-  sync              مزامنة الحزم من ملف sad.toml
-  info <حزمة>       عرض معلومات حزمة
-  search <نص>       البحث عن حزم في السجل
+الأوامر المتاحة (ولكل أمر مرادف عربي):
+  install <حزمة>    تثبيت حزمة من السجل المركزي         (تثبيت)
+  list              سرد الحزم المثبتة محلياً            (سرد)
+  sync              مزامنة الحزم من ملف sad.toml        (مزامنة)
+  search <نص>       البحث عن حزم في السجل               (بحث)
+
+الخيارات:
+  install: --version <إصدار>, -v <إصدار>    تثبيت إصدار محدد
+  sync:    --file <مسار>, -f <مسار>         ملف بديل عن sad.toml
 
 أمثلة:
-  sadc pkg install شبكة-http
+  sadc pkg تثبيت شبكة-http
   sadc pkg install sad-math --version 1.2.0
-  sadc pkg list
-  sadc pkg sync
+  sadc pkg سرد
+  sadc pkg مزامنة
   sadc pkg search رياضيات
 
 ملاحظات:
   - الحزم تُخزّن في مجلد ./حزم/
-  - التبعيات تُحل تلقائياً
+  - أمر sync يثبت التبعيات المذكورة في ملف sad.toml
   - يمكن تغيير عنوان السجل عبر متغير البيئة SAD_REGISTRY_URL
 
 )" << std::endl;
