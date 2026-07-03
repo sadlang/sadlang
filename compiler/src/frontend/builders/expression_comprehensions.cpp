@@ -5,6 +5,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "sir_constants.h"
 #include <set>
 #include <functional>
 #include <iostream>
@@ -15,6 +16,76 @@ namespace Sad
     {
         namespace SIR
         {
+            // ============================================================================
+            // lowerMapComprehensionIterable — تهيئة تكرار الخريطة (مشترك بين الاستيعابات)
+            // ============================================================================
+            void ExpressionBuilder::lowerMapComprehensionIterable(BuildResult &iterResult,
+                                                                  const std::string &valueVar,
+                                                                  std::string &outValuesReg,
+                                                                  SadTypeKind &outKeyType,
+                                                                  SadTypeKind &outValueType)
+            {
+                outValuesReg.clear();
+                outValueType = SadTypeKind::Integer;
+
+                if (iterResult.type != SadTypeKind::Map)
+                {
+                    // (AR) مصفوفة عاديّة: نوع العنصر من نتيجة المصدر (أو Integer إن مجهولًا). لا قيم.
+                    // (EN) Plain array: element type from the source result (or Integer if unknown). No values.
+                    outKeyType = (iterResult.elementType != SadTypeKind::Void)
+                                     ? iterResult.elementType
+                                     : SadTypeKind::Integer;
+                    return;
+                }
+
+                // (AR) نوع قيمة الخريطة كما يعقّبه buildExprMap في elementType — يُلتقَط قبل الدهس.
+                // (EN) Map value type as tracked by buildExprMap in elementType — captured before overwrite.
+                SadTypeKind mapValueType = iterResult.elementType;
+
+                // (AR) __sad_map_keys ⇒ مصفوفة المفاتيح (نصوص دائمًا: الخريطة تُخزّنها strdup).
+                // (EN) __sad_map_keys ⇒ keys array (always strings: the map strdup's them).
+                std::string keysReg = b_.newTempRegister();
+                {
+                    SIRInstruction c(SIROpcode::CALL);
+                    c.result = SIROperand::Register(keysReg, SadTypeKind::Array);
+                    c.operands.push_back(SIROperand::ConstantString(kRuntimeMapKeys));
+                    c.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(c);
+                }
+
+                if (!valueVar.empty())
+                {
+                    outValuesReg = b_.newTempRegister();
+                    SIRInstruction c(SIROpcode::CALL);
+                    c.result = SIROperand::Register(outValuesReg, SadTypeKind::Array);
+                    c.operands.push_back(SIROperand::ConstantString(kRuntimeMapValues));
+                    c.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(c);
+
+                    // (AR) نوع القيمة يُشتقّ من تمثيلها المخزَّن الفعليّ (كما في حلقة «لكل»):
+                    //      صحيح/منطقيّ ⇒ i64؛ نصّ/عشريّ ⇒ مؤشّر نصّ ⇒ String؛ مختلط ⇒ Integer.
+                    // (EN) Value type derived from its actual stored representation (as in the «for» loop):
+                    //      int/bool ⇒ i64; string/float ⇒ string pointer ⇒ String; mixed ⇒ Integer.
+                    outValueType = (mapValueType == SadTypeKind::Integer ||
+                                    mapValueType == SadTypeKind::Boolean)
+                                       ? mapValueType
+                                   : (mapValueType == SadTypeKind::String ||
+                                      mapValueType == SadTypeKind::Float)
+                                       ? SadTypeKind::String
+                                       : SadTypeKind::Integer;
+                }
+
+                // (AR) استبدل المصدر بمصفوفة المفاتيح (عناصرها نصوص). / (EN) Replace source with the keys array (string elements).
+                iterResult.registerName = keysReg;
+                iterResult.type = SadTypeKind::Array;
+                iterResult.elementType = SadTypeKind::String;
+                iterResult.className.clear();
+                iterResult.elementClassName.clear();
+                outKeyType = SadTypeKind::String;
+            }
+
             BuildResult ExpressionBuilder::buildExprListComp(AST::ListComprehensionExpr *listCompExpr)
             {
 #ifndef NDEBUG
@@ -41,6 +112,14 @@ namespace Sad
                 // (AR) بناء التعبير القابل للتكرار
                 // (EN) Build iterable expression
                 auto iterResult = buildExpression(listCompExpr->iterable.get());
+
+                // (AR) تهيئة تكرار الخريطة (يستبدل المصدر بمفاتيحها ويُصدِر قيمها إن طُلب فكّ زوج)
+                // (EN) Prepare map iteration (replaces source with keys, emits values if pair-unpacking)
+                std::string mapValuesReg;
+                SadTypeKind keyElemType = SadTypeKind::Integer;
+                SadTypeKind valueVarType = SadTypeKind::Integer;
+                lowerMapComprehensionIterable(iterResult, listCompExpr->valueVariable,
+                                              mapValuesReg, keyElemType, valueVarType);
 
                 // (AR) إنشاء حلقة للتكرار (تُترجم إلى حلقة عداد)
                 // (EN) Create iteration loop (lowered to counter loop)
@@ -125,7 +204,7 @@ namespace Sad
                 // (EN) Load current element and register loop variable
                 std::string elemReg = b_.newTempRegister();
                 SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-                loadElem.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
+                loadElem.result = SIROperand::Register(elemReg, keyElemType);
                 loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
                 if (b_.currentBlock_)
@@ -133,11 +212,32 @@ namespace Sad
 
                 VariableInfo loopVar;
                 loopVar.name = listCompExpr->variable;
-                loopVar.type = SadTypeKind::Integer;
+                loopVar.type = keyElemType;
                 loopVar.registerName = elemReg;
                 loopVar.isMutable = false;
                 loopVar.scopeLevel = b_.currentScopeLevel_;
                 b_.addVariable(loopVar);
+
+                // (AR) فكّ زوج الخريطة: حمّل القيمة المقابلة وسجّل متغيّر القيمة (SSA — دومينوسه الجسم).
+                // (EN) Map pair-unpack: load the matching value and register the value variable (SSA — dominated by body).
+                if (!mapValuesReg.empty())
+                {
+                    std::string valElemReg = b_.newTempRegister();
+                    SIRInstruction loadVal(SIROpcode::ARRAY_GET);
+                    loadVal.result = SIROperand::Register(valElemReg, valueVarType);
+                    loadVal.operands.push_back(SIROperand::Register(mapValuesReg, SadTypeKind::Array));
+                    loadVal.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(loadVal);
+
+                    VariableInfo valueLoopVar;
+                    valueLoopVar.name = listCompExpr->valueVariable;
+                    valueLoopVar.type = valueVarType;
+                    valueLoopVar.registerName = valElemReg;
+                    valueLoopVar.isMutable = false;
+                    valueLoopVar.scopeLevel = b_.currentScopeLevel_;
+                    b_.addVariable(valueLoopVar);
+                }
 
                 // (AR) فحص الشرط (إن وجد)
                 // (EN) Check condition (if present)
@@ -221,7 +321,16 @@ namespace Sad
                     b_.currentFunction_->addBasicBlock(exitBlock);
                 b_.currentBlock_ = exitBlock;
 
-                return BuildResult(resultArrReg, SadTypeKind::Array);
+                // (AR) نمرّر نوع عنصر الناتج إلى نتيجة المصفوفة حتى يعمل الوصول المفهرَس بنوعه
+                //      الصحيح (نصّ يُطبع كنصّ لا كمؤشّر). يطابق سلوك المصفوفة الحرفيّة النصّيّة.
+                //      (حدّ منفصل: طبع المصفوفة كاملةً يبقى عدديًّا عبر __sad_array_to_string.)
+                // (EN) Propagate the output element type to the array result so indexed access
+                //      is correctly typed (a string prints as a string, not a pointer) — matching
+                //      a string array literal. (Separate limit: whole-array print stays integer via
+                //      the untyped __sad_array_to_string helper.)
+                BuildResult listResult(resultArrReg, SadTypeKind::Array);
+                listResult.elementType = elemExprResult.type;
+                return listResult;
             }
 
             // ============================================================================
@@ -249,6 +358,14 @@ namespace Sad
                 // (AR) بناء التعبير القابل للتكرار
                 // (EN) Build iterable expression
                 auto iterResult = buildExpression(dictCompExpr->iterable.get());
+
+                // (AR) تهيئة تكرار الخريطة (مفاتيح + قيم إن طُلب فكّ زوج)
+                // (EN) Prepare map iteration (keys + values if pair-unpacking)
+                std::string mapValuesReg;
+                SadTypeKind keyElemType = SadTypeKind::Integer;
+                SadTypeKind valueVarType = SadTypeKind::Integer;
+                lowerMapComprehensionIterable(iterResult, dictCompExpr->valueVariable,
+                                              mapValuesReg, keyElemType, valueVarType);
 
                 // (AR) تخصيص عداد الحلقة
                 // (EN) Allocate loop counter
@@ -329,7 +446,7 @@ namespace Sad
                 // (EN) Load element and register loop variable
                 std::string elemReg = b_.newTempRegister();
                 SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-                loadElem.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
+                loadElem.result = SIROperand::Register(elemReg, keyElemType);
                 loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
                 if (b_.currentBlock_)
@@ -337,11 +454,31 @@ namespace Sad
 
                 VariableInfo loopVar;
                 loopVar.name = dictCompExpr->variable;
-                loopVar.type = SadTypeKind::Integer;
+                loopVar.type = keyElemType;
                 loopVar.registerName = elemReg;
                 loopVar.isMutable = false;
                 loopVar.scopeLevel = b_.currentScopeLevel_;
                 b_.addVariable(loopVar);
+
+                // (AR) فكّ زوج الخريطة: حمّل القيمة المقابلة وسجّل متغيّر القيمة. / (EN) Map pair-unpack: load & register the value variable.
+                if (!mapValuesReg.empty())
+                {
+                    std::string valElemReg = b_.newTempRegister();
+                    SIRInstruction loadVal(SIROpcode::ARRAY_GET);
+                    loadVal.result = SIROperand::Register(valElemReg, valueVarType);
+                    loadVal.operands.push_back(SIROperand::Register(mapValuesReg, SadTypeKind::Array));
+                    loadVal.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(loadVal);
+
+                    VariableInfo valueLoopVar;
+                    valueLoopVar.name = dictCompExpr->valueVariable;
+                    valueLoopVar.type = valueVarType;
+                    valueLoopVar.registerName = valElemReg;
+                    valueLoopVar.isMutable = false;
+                    valueLoopVar.scopeLevel = b_.currentScopeLevel_;
+                    b_.addVariable(valueLoopVar);
+                }
 
                 // (AR) فحص الشرط (إن وجد)
                 // (EN) Check condition (if present)

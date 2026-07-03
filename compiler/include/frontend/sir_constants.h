@@ -83,4 +83,16 @@ namespace Sad::Compiler
     // (EN) Current exception message (string pointer)
     inline constexpr const char *kRuntimeExceptionMsg = "__sad_exception_msg";
 
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) أسماء وقت التشغيل لجمع مفاتيح/قيم الخريطة عند تكرارها (حلقة «لكل»
+    //      والاستيعابات). عقد ABI مع الخلفيّة في map_ops.cpp — تُعيد كلٌّ منهما
+    //      SadArray {len,cap,data}. ثوابت مسمّاة تفاديًا للسلاسل الخام.
+    // (EN) Runtime symbol names for collecting a map's keys/values during iteration
+    //      («for» loop and comprehensions). ABI contract with the backend in
+    //      map_ops.cpp — each returns a SadArray {len,cap,data}. Named constants to
+    //      avoid raw string literals.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kRuntimeMapKeys = "__sad_map_keys";
+    inline constexpr const char *kRuntimeMapValues = "__sad_map_values";
+
 } // namespace Sad::Compiler

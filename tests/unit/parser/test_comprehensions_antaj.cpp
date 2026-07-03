@@ -730,7 +730,93 @@ TEST(OutputStructure, dict_folding_key_is_binary)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// (10) البانِي (main)
+// (11) فكّ الزوج «لكل مفتاح، قيمة في خريطة» / pair-unpacking (RFC 25 التعارض 1أ)
+// ═════════════════════════════════════════════════════════════════════════════
+// (AR) «م» و«ق» بترميز UTF-8 (متغيّرا المفتاح والقيمة في الأمثلة).
+static const std::string KEYVAR = "\xd9\x85"; // «م»
+static const std::string VALVAR = "\xd9\x82"; // «ق»
+
+// (AR) الوضع الافتراضيّ: بلا فاصلة ⇒ valueVariable فارغ في الأنواع الثلاثة.
+TEST(PairUnpack, list_single_var_has_empty_valuevar)
+{
+    auto p = parseProg("متغير ن = [لكل س في [1، 2، 3] أنتج س]");
+    auto *lc = asList(p);
+    ASSERT_NOT_NULL(lc);
+    ASSERT_TRUE(lc->valueVariable.empty());
+}
+
+TEST(PairUnpack, set_single_var_has_empty_valuevar)
+{
+    auto p = parseProg("متغير ن = {لكل س في [1، 2] أنتج س}");
+    auto *sc = asSet(p);
+    ASSERT_NOT_NULL(sc);
+    ASSERT_TRUE(sc->valueVariable.empty());
+}
+
+TEST(PairUnpack, dict_single_var_has_empty_valuevar)
+{
+    auto p = parseProg("متغير ن = {لكل س في [1، 2] أنتج س: س}");
+    auto *dc = asDict(p);
+    ASSERT_NOT_NULL(dc);
+    ASSERT_TRUE(dc->valueVariable.empty());
+}
+
+// (AR) فكّ الزوج: الفاصلة + اسم ثانٍ ⇒ variable=المفتاح، valueVariable=القيمة.
+TEST(PairUnpack, list_two_vars_populates_valuevar)
+{
+    auto p = parseProg("متغير ن = [لكل م، ق في خ أنتج م]");
+    auto *lc = asList(p);
+    ASSERT_NOT_NULL(lc);
+    ASSERT_EQ(lc->variable, KEYVAR);
+    ASSERT_EQ(lc->valueVariable, VALVAR);
+    ASSERT_NOT_NULL(lc->iterable.get());
+}
+
+TEST(PairUnpack, set_two_vars_populates_valuevar)
+{
+    auto p = parseProg("متغير ن = {لكل م، ق في خ أنتج ق}");
+    auto *sc = asSet(p);
+    ASSERT_NOT_NULL(sc);
+    ASSERT_EQ(sc->variable, KEYVAR);
+    ASSERT_EQ(sc->valueVariable, VALVAR);
+}
+
+TEST(PairUnpack, dict_two_vars_populates_valuevar)
+{
+    auto p = parseProg("متغير ن = {لكل م، ق في خ أنتج م: ق}");
+    auto *dc = asDict(p);
+    ASSERT_NOT_NULL(dc);
+    ASSERT_EQ(dc->variable, KEYVAR);
+    ASSERT_EQ(dc->valueVariable, VALVAR);
+    ASSERT_NOT_NULL(dc->key.get());
+    ASSERT_NOT_NULL(dc->value.get());
+}
+
+// (AR) فكّ الزوج يتعايش مع الشرط الاختياريّ.
+TEST(PairUnpack, list_two_vars_with_condition)
+{
+    auto p = parseProg("متغير ن = [لكل م، ق في خ إذا ق > 1 أنتج م]");
+    auto *lc = asList(p);
+    ASSERT_NOT_NULL(lc);
+    ASSERT_EQ(lc->valueVariable, VALVAR);
+    ASSERT_NOT_NULL(lc->condition.get());
+}
+
+// (AR) فاصلة بلا اسم ثانٍ ⇒ خطأ تحليل (لا عقدة استيعاب).
+TEST(PairUnpack, list_comma_without_second_name_fails)
+{
+    auto p = parseProg("متغير ن = [لكل م، في خ أنتج م]");
+    ASSERT_NULL(asList(p));
+}
+
+TEST(PairUnpack, dict_comma_without_second_name_fails)
+{
+    auto p = parseProg("متغير ن = {لكل م، في خ أنتج م: ق}");
+    ASSERT_NULL(asDict(p));
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// (12) البانِي (main)
 // ═════════════════════════════════════════════════════════════════════════════
 
 int main(int argc, char **argv)

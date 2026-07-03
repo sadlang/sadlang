@@ -7,6 +7,7 @@
 #include <string>
 #include "sir_builder.h"
 #include "builders/statement_builder.h"
+#include "sir_constants.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -24,6 +25,10 @@ namespace Sad
     {
         namespace SIR
         {
+            // (AR) أسماء دوال جمع مفاتيح/قيم الخريطة موحَّدة في sir_constants.h
+            //      (kRuntimeMapKeys/kRuntimeMapValues) — مشتركة مع باني الاستيعابات.
+            // (EN) Map keys/values collector names are unified in sir_constants.h
+            //      (kRuntimeMapKeys/kRuntimeMapValues) — shared with the comprehension builder.
 
             // ============================================================================
             // buildForRangeLoop - بناء حلقة لكل في (foreach)
@@ -532,6 +537,77 @@ namespace Sad
 #endif
 
                 // ========================================================================
+                // (AR) مسار الخريطة: المترجم كان يعامل الخريطة كمصفوفة (ARRAY_GET على بنية
+                //      الخريطة {count,cap,keys,values,types} ⇒ قمامة). الحلّ: نُكرّر على
+                //      مفاتيح الخريطة عبر __sad_map_keys (تُرجع SadArray {len,cap,data})،
+                //      ونربط متغيّر القيمة valueVar بالقيم عبر __sad_map_values إن وُجد.
+                //      يطابق دلالة المفسّر «لكل مفتاح[، قيمة] في خريطة» (statement_executor).
+                // (EN) Map path: the compiler used to treat a map as an array (ARRAY_GET on
+                //      the map struct ⇒ garbage). Fix: iterate the map's keys via __sad_map_keys
+                //      (returns a SadArray), binding valueVar to values via __sad_map_values
+                //      when present — mirrors the interpreter's «for key[, value] in map».
+                // ========================================================================
+                // (AR) فارغ ما لم نُكرّر خريطة بمتغيّر قيمة / (EN) empty unless iterating a map with a value var
+                std::string mapValuesReg;
+                // (AR) فتحة alloc لمتغيّر القيمة (تُضبَط أدناه) / (EN) alloc slot for the value var (set below)
+                std::string valueVarAllocName;
+                // (AR) نوع متغيّر القيمة المحسوم (يُستخدَم في alloc والربط بالجسم) / (EN) resolved value-var type (used at alloc and body bind)
+                SadTypeKind valueVarType = SadTypeKind::Integer;
+                // (AR) نوع قيمة الخريطة كما تعقّبه بانٍ الحرفيّ (Void = مختلط/مجهول) — يُلتقَط قبل دهس elementType.
+                // (EN) Map value type as tracked by the literal builder (Void = heterogeneous/unknown) — captured before elementType is overwritten.
+                SadTypeKind mapValueType = SadTypeKind::Void;
+                // (AR) قيود موثَّقة (راجعتها Amelia): (1) مصفوفتا المفاتيح/القيم المُعادتان من
+                //      __sad_map_* تُخصَّصان ولا تُحرَّران هنا — تسريب متّسق مع بقيّة مجمِّعات
+                //      المصفوفات في الخلفيّة، يُترك لإدارة الذاكرة العامّة لا لهذا المسار. (2) لو
+                //      وُضِع valueVar على غير خريطة (مصفوفة)، لا يُخصَّص هنا فيصير رمزًا غير معرَّف
+                //      وقت البناء — يوازي سلوك المفسّر (يترك valueVar غير معرَّف للمصفوفات).
+                // (EN) Documented limitations (reviewed by Amelia): (1) the keys/values arrays
+                //      returned by __sad_map_* are allocated and not freed here — a leak consistent
+                //      with the backend's other array collectors, left to global memory management.
+                //      (2) a valueVar on a non-map (array) is not allocated here, so it surfaces as
+                //      an undefined symbol at build time — mirroring the interpreter (which leaves
+                //      valueVar undefined for arrays).
+                if (iterableResult.type == SadTypeKind::Map)
+                {
+                    // (AR) بانٍ حرفيّ الخريطة يحفظ نوع القيمة الموحَّد في elementType (Void إن مختلطًا)
+                    //      — انظر buildExprMap في expression_collections.cpp. نلتقطه لتصنيف valueVar.
+                    // (EN) The map-literal builder stores the homogeneous value type in elementType
+                    //      (Void if mixed) — see buildExprMap. Capture it to type valueVar.
+                    mapValueType = iterableResult.elementType;
+
+                    std::string keysReg = b_.newTempRegister();
+                    {
+                        SIRInstruction c(SIROpcode::CALL);
+                        c.result = SIROperand::Register(keysReg, SadTypeKind::Array);
+                        c.operands.push_back(SIROperand::ConstantString(kRuntimeMapKeys));
+                        c.operands.push_back(SIROperand::Register(iterableResult.registerName, iterableResult.type));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(c);
+                    }
+                    if (!forRange->valueVar.empty())
+                    {
+                        mapValuesReg = b_.newTempRegister();
+                        SIRInstruction c(SIROpcode::CALL);
+                        c.result = SIROperand::Register(mapValuesReg, SadTypeKind::Array);
+                        c.operands.push_back(SIROperand::ConstantString(kRuntimeMapValues));
+                        c.operands.push_back(SIROperand::Register(iterableResult.registerName, iterableResult.type));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(c);
+                    }
+                    // (AR) استبدل المصدر بمصفوفة المفاتيح — فتعمل آليّة ARRAY_LEN/GET التالية عليها.
+                    //      المفاتيح نصّيّة دائمًا: الخريطة تُخزّنها بـ strdup وتحوّل المفاتيح العدديّة
+                    //      إلى نصّ (ISSUE-044 في buildExprMap)، فنوع عنصر مصفوفة المفاتيح = String.
+                    // (EN) Replace the iterable with the keys array so the following ARRAY_LEN/GET works.
+                    //      Keys are always strings: the map strdup's them and converts numeric keys to
+                    //      text (ISSUE-044 in buildExprMap), so the keys-array element type is String.
+                    iterableResult.registerName = keysReg;
+                    iterableResult.type = SadTypeKind::Array;
+                    iterableResult.elementType = SadTypeKind::String;
+                    iterableResult.className.clear();
+                    iterableResult.elementClassName.clear();
+                }
+
+                // ========================================================================
                 // (AR) مسار خاص: إذا كان التعبير قناة — حلقة استقبال من القناة
                 // (EN) Special path: if iterable is a channel — channel receive loop
                 //
@@ -845,6 +921,57 @@ namespace Sad
                     b_.classInstanceTypes_[loopVarAllocName] = varInfo.className;
                 }
 
+                // (AR) متغيّر القيمة للخريطة («لكل مفتاح، قيمة في خريطة»): فتحة alloc + تسجيل
+                //      في النطاق. الربط الفعليّ (ARRAY_GET من مصفوفة القيم) في جسم الحلقة أدناه.
+                // (EN) Map value variable ("for key, value in map"): alloc slot + register in
+                //      scope. The actual bind (ARRAY_GET from the values array) is in the body.
+                if (!mapValuesReg.empty())
+                {
+                    // (AR) نوع القيمة يُشتقّ من تمثيلها المخزَّن الفعليّ في الخريطة (buildExprMap):
+                    //      • صحيح/منطقيّ ⇒ يُخزَّن i64 مباشرة ⇒ النوع نفسه.
+                    //      • نصّ ⇒ يُخزَّن مؤشّرًا ⇒ String.
+                    //      • عشريّ ⇒ يُخزَّن **نصًّا** (F64_TO_STRING، typeTag=0) ⇒ String (لا Integer،
+                    //        وإلّا فُسِّرت بتّات المؤشّر رقمًا بلا معنى — ملاحظة Amelia #F1).
+                    //      • مختلط (Void)/غيرها ⇒ تراجع إلى Integer (قيد موثَّق).
+                    // (EN) The value type is derived from its actual stored representation in the map
+                    //      (buildExprMap): int/bool are stored as i64 ⇒ same type; string is stored as
+                    //      a pointer ⇒ String; float is stored as **text** (F64_TO_STRING, typeTag=0)
+                    //      ⇒ String (not Integer, else the pointer bits print as a meaningless number —
+                    //      Amelia note #F1); mixed (Void)/other ⇒ fall back to Integer (documented).
+                    valueVarType = (mapValueType == SadTypeKind::Integer ||
+                                    mapValueType == SadTypeKind::Boolean)
+                                       ? mapValueType
+                                   : (mapValueType == SadTypeKind::String ||
+                                      mapValueType == SadTypeKind::Float)
+                                       ? SadTypeKind::String
+                                       : SadTypeKind::Integer;
+
+                    valueVarAllocName = "%" + forRange->valueVar + "_" + idxSuffix;
+                    {
+                        SIRInstruction allocVal(SIROpcode::ALLOC);
+                        allocVal.result = SIROperand::Register(valueVarAllocName, valueVarType);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(allocVal);
+                    }
+                    // (AR) تهيئة ابتدائيّة للفتحة (0/null) اتّساقًا مع فتحة العدّاد — يمنع قراءة
+                    //      قمامة إن قرئ المتغيّر قبل أوّل ربط (مثلًا خريطة فارغة). / (EN) Zero/null
+                    //      init for the slot (mirrors the counter slot) — prevents reading garbage
+                    //      if the var is read before the first bind (e.g. an empty map).
+                    {
+                        SIRInstruction storeInit(SIROpcode::STORE);
+                        storeInit.operands.push_back(SIROperand::ConstantI64(0));
+                        storeInit.operands.push_back(SIROperand::Register(valueVarAllocName, valueVarType));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeInit);
+                    }
+                    VariableInfo valVarInfo;
+                    valVarInfo.name = forRange->valueVar;
+                    valVarInfo.registerName = valueVarAllocName;
+                    valVarInfo.type = valueVarType;
+                    valVarInfo.isMutable = true;
+                    b_.addVariable(valVarInfo);
+                }
+
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildForRangeLoop: registered loop var '"
                           << forRange->variable << "' alloc=" << loopVarAllocName << std::endl;
@@ -958,6 +1085,32 @@ namespace Sad
                     storeElem.operands.push_back(SIROperand::Register(loopVarAllocName, elemType));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(storeElem);
+                }
+
+                // (AR) ربط متغيّر القيمة للخريطة: قيمة = مصفوفة_القيم[نفس الفهرس]، ثمّ خزّنها.
+                // (EN) Bind the map value variable: value = valuesArray[same index], then store.
+                if (!mapValuesReg.empty())
+                {
+                    // (AR) نستخدم النوع المحسوم valueVarType لتحميل/تخزين القيمة — فتُفسَّر النصوص
+                    //      كمؤشّرات (لا ptrtoint) والأعداد كـ i64، مطابقةً لتخزين buildExprMap.
+                    // (EN) Use the resolved valueVarType to load/store the value — so strings are
+                    //      read as pointers (no ptrtoint) and integers as i64, matching buildExprMap.
+                    std::string valElemReg = b_.newTempRegister();
+                    {
+                        SIRInstruction loadVal(SIROpcode::ARRAY_GET);
+                        loadVal.result = SIROperand::Register(valElemReg, valueVarType);
+                        loadVal.operands.push_back(SIROperand::Register(mapValuesReg, SadTypeKind::Array));
+                        loadVal.operands.push_back(SIROperand::Register(loadedIdxBody, SadTypeKind::Integer));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(loadVal);
+                    }
+                    {
+                        SIRInstruction storeVal(SIROpcode::STORE);
+                        storeVal.operands.push_back(SIROperand::Register(valElemReg, valueVarType));
+                        storeVal.operands.push_back(SIROperand::Register(valueVarAllocName, valueVarType));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeVal);
+                    }
                 }
 
                 // ========================================================================

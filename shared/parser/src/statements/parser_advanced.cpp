@@ -62,6 +62,24 @@ namespace Sad
                 Token var = peek();
                 advance();
 
+                // (AR) فكّ زوج اختياريّ: «لكل مفتاح، قيمة في خريطة» — الفاصلة تُدخِل متغيّر القيمة.
+                //      يوازي حلقة «لكل» (parseForStmt) ويعمل على الخرائط فقط دلاليًّا.
+                // (EN) Optional pair-unpack: "for key, value in map" — a comma introduces the value
+                //      variable. Mirrors the «for» loop (parseForStmt); semantically map-only.
+                std::string listValueVar;
+                if (matchComma())
+                {
+                    if (!check(TT::IDENTIFIER))
+                    {
+                        errorBilingual(
+                            "خطأ: توقعت اسم متغيّر القيمة بعد '،' في استيعاب القائمة. الصيغة: [لكل مفتاح، قيمة في خريطة أنتج تعبير]",
+                            "Error: expected value variable name after ',' in list comprehension. Format: [لكل key, value في map أنتج expr]");
+                        return nullptr;
+                    }
+                    listValueVar = peek().getValue();
+                    advance();
+                }
+
                 // (AR) توقّع 'في' / (EN) expect 'في'
                 if (!check(TT::KEYWORD_IN))
                 {
@@ -134,12 +152,14 @@ namespace Sad
 
                 // (AR) إنشاء عقدة استيعاب القائمة (نفس عقدة AST — الترتيب فقط تغيّر)
                 // (EN) Build the list comprehension node (same AST node — only order changed)
-                return std::make_unique<ListComprehensionExpr>(
+                auto listComp = std::make_unique<ListComprehensionExpr>(
                     std::move(elemExpr),
                     var.getValue(),
                     std::move(iterable),
                     std::move(condition),
                     var.getPosition());
+                listComp->valueVariable = listValueVar; // (AR) متغيّر القيمة (فارغ إن غاب) / (EN) value var (empty if absent)
+                return listComp;
             }
 
             // Parse first element/expression (regular array)
@@ -291,6 +311,22 @@ namespace Sad
                 Token loopVar = peek();
                 advance();
 
+                // (AR) فكّ زوج اختياريّ: «لكل مفتاح، قيمة في خريطة» (مجموعة وقاموس معًا).
+                // (EN) Optional pair-unpack: "for key, value in map" (both set and dict).
+                std::string compValueVar;
+                if (matchComma())
+                {
+                    if (!check(TT::IDENTIFIER))
+                    {
+                        errorBilingual(
+                            "خطأ: توقعت اسم متغيّر القيمة بعد '،' في الاستيعاب. الصيغة: {لكل مفتاح، قيمة في خريطة أنتج تعبير}",
+                            "Error: expected value variable name after ',' in comprehension. Format: {لكل key, value في map أنتج expr}");
+                        return nullptr;
+                    }
+                    compValueVar = peek().getValue();
+                    advance();
+                }
+
                 // (AR) توقّع 'في' / (EN) expect 'في'
                 if (!check(TT::KEYWORD_IN))
                 {
@@ -375,13 +411,15 @@ namespace Sad
                     }
 
                     // (AR) عقدة استيعاب القاموس (نفس عقدة AST — الترتيب فقط تغيّر)
-                    return std::make_unique<DictComprehensionExpr>(
+                    auto dictComp = std::make_unique<DictComprehensionExpr>(
                         std::move(firstOut),
                         std::move(valueExpr),
                         loopVar.getValue(),
                         std::move(iterable),
                         std::move(condition),
                         loopVar.getPosition());
+                    dictComp->valueVariable = compValueVar; // (AR) متغيّر القيمة (فارغ إن غاب) / (EN) value var (empty if absent)
+                    return dictComp;
                 }
 
                 // (AR) استيعاب مجموعة / (EN) set comprehension
@@ -394,11 +432,13 @@ namespace Sad
                 }
                 consume(TT::BRACE_RIGHT, "");
 
-                return std::make_unique<SetComprehensionExpr>(
+                auto setComp = std::make_unique<SetComprehensionExpr>(
                     std::move(firstOut),
                     loopVar.getValue(),
                     std::move(iterable),
                     std::move(condition));
+                setComp->valueVariable = compValueVar; // (AR) متغيّر القيمة (فارغ إن غاب) / (EN) value var (empty if absent)
+                return setComp;
             }
 
             // Parse first expression using parseTernary to avoid consuming 'for' keyword

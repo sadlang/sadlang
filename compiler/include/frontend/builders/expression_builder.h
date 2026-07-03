@@ -129,6 +129,26 @@ namespace Sad
                 BuildResult buildMemberAccess(Sad::AST::MemberAccessExpr *expr);
 
             private:
+                // (AR) يُهيّئ تكرار خريطة في الاستيعابات الثلاثة: إن كان المصدر خريطةً يستبدله
+                //      بمصفوفة مفاتيحها (عناصرها نصوص) عبر __sad_map_keys، ويُصدِر مصفوفة القيم
+                //      عبر __sad_map_values إن طُلب متغيّر قيمة (فكّ زوج «لكل مفتاح، قيمة»). يوحّد
+                //      المنطق بين buildExprListComp/DictComp/SetComp ويطابق مسار حلقة «لكل».
+                // (EN) Prepares map iteration for the three comprehensions: if the source is a map it
+                //      replaces it with its keys array (string elements) via __sad_map_keys, and emits
+                //      the values array via __sad_map_values when a value variable is requested
+                //      (pair-unpack «for key, value»). Shared by buildExprListComp/DictComp/SetComp and
+                //      mirrors the «for» loop path.
+                // @param iterResult   (in/out) نتيجة المصدر — تُستبدَل بمصفوفة المفاتيح إن كان خريطة
+                // @param valueVar     اسم متغيّر القيمة (فارغ ⇒ لا تُجمَع القيم)
+                // @param outValuesReg سجلّ مصفوفة القيم (يبقى فارغًا إن لا قيمة أو ليس خريطة)
+                // @param outKeyType   نوع عنصر الحلقة المحسوم (String للخريطة، أو نوع عنصر المصفوفة)
+                // @param outValueType نوع متغيّر القيمة المحسوم (صالح فقط إن outValuesReg غير فارغ)
+                void lowerMapComprehensionIterable(BuildResult &iterResult,
+                                                   const std::string &valueVar,
+                                                   std::string &outValuesReg,
+                                                   SadTypeKind &outKeyType,
+                                                   SadTypeKind &outValueType);
+
                 SIRBuilder &b_;
             };
 

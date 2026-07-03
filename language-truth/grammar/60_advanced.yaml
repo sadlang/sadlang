@@ -255,11 +255,15 @@ productions:
 
   - id: gr.adv.list_comprehension
     lhs: { nonterminal: ListComprehension, name_ar: "استيعاب قائمة", name_en: list_comprehension }
-    ebnf: "ListComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;"
+    ebnf: "ListComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;"
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
           - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
           - kind: optional
@@ -272,7 +276,7 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseArrayLiteral" }
     ast_node: "ListComprehensionExpr"
-    description_ar: "«[لكل س في مصدر [إذا شرط] أنتج تعبير]» داخل «[]»؛ رأس الحلقة أوّلًا ثم «أنتج» تفصله عن تعبير الناتج (ترتيب عربيّ)؛ الشرط اختياريّ"
+    description_ar: "«[لكل س في مصدر [إذا شرط] أنتج تعبير]» داخل «[]»؛ رأس الحلقة أوّلًا ثم «أنتج» تفصله عن تعبير الناتج (ترتيب عربيّ)؛ الشرط اختياريّ؛ يدعم فكّ الزوج «لكل مفتاح، قيمة في خريطة» (متغيّر القيمة اختياريّ، للخرائط)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 5, negative: 2, interaction: 3 } }
@@ -281,11 +285,15 @@ productions:
 
   - id: gr.adv.set_comprehension
     lhs: { nonterminal: SetComprehension, name_ar: "استيعاب مجموعة", name_en: set_comprehension }
-    ebnf: "SetComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;"
+    ebnf: "SetComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;"
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
           - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
           - kind: optional
@@ -298,7 +306,7 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }
     ast_node: "SetComprehensionExpr"
-    description_ar: "«{لكل س في مصدر [إذا شرط] أنتج تعبير}» داخل «{}» بلا «:» بعد الناتج ⇒ مجموعة؛ الشرط اختياريّ"
+    description_ar: "«{لكل س في مصدر [إذا شرط] أنتج تعبير}» داخل «{}» بلا «:» بعد الناتج ⇒ مجموعة؛ الشرط اختياريّ؛ يدعم فكّ الزوج «لكل مفتاح، قيمة في خريطة» (متغيّر القيمة اختياريّ، للخرائط)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
@@ -307,11 +315,15 @@ productions:
 
   - id: gr.adv.dict_comprehension
     lhs: { nonterminal: DictComprehension, name_ar: "استيعاب قاموس", name_en: dict_comprehension }
-    ebnf: "DictComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ( ':' | '=' ) Expression ;"
+    ebnf: "DictComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ( ':' | '=' ) Expression ;"
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
           - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
           - kind: optional
@@ -326,7 +338,7 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }
     ast_node: "DictComprehensionExpr"
-    description_ar: "«{لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}» داخل «{}» مع «:» بعد الناتج ⇒ قاموس (متغيّر حلقة مفرد)؛ الشرط اختياريّ"
+    description_ar: "«{لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}» داخل «{}» مع «:» بعد الناتج ⇒ قاموس؛ الشرط اختياريّ؛ يدعم فكّ الزوج «لكل مفتاح، قيمة في خريطة» (متغيّر القيمة اختياريّ، للخرائط)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }

@@ -301,7 +301,14 @@ namespace Sad
                                 continue;
                             }
                         }
-                        resolvedOps.push_back(argOperands[i]);
+                        // (AR) مرّر نوع عنصر المصفوفة إلى معامل الطبع حتى تطبع الخلفيّة المصفوفات
+                        //      النصّيّة بـ%s. الأنواع الأخرى تبقى بسلوكها العدديّ الافتراضيّ.
+                        // (EN) Carry the array element type onto the print operand so the backend
+                        //      prints string arrays via %s. Other types keep the default integer path.
+                        SIROperand printOp = argOperands[i];
+                        if (argResults[i].type == SadTypeKind::Array)
+                            printOp.elementType = argResults[i].elementType;
+                        resolvedOps.push_back(printOp);
                     }
 
                     SIRInstruction printInst(SIROpcode::BUILTIN_PRINT); // (sir_types.h:221)
@@ -369,7 +376,12 @@ namespace Sad
                                 continue;
                             }
                         }
-                        resolvedOps.push_back(argOperands[i]);
+                        // (AR) مرّر نوع عنصر المصفوفة (كما في اطبع) لطبع المصفوفات النصّيّة بـ%s.
+                        // (EN) Carry the array element type (as in print) so string arrays use %s.
+                        SIROperand printOp = argOperands[i];
+                        if (argResults[i].type == SadTypeKind::Array)
+                            printOp.elementType = argResults[i].elementType;
+                        resolvedOps.push_back(printOp);
                     }
 
                     // طباعة المعاملات أولاً

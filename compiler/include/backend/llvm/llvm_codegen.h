@@ -662,6 +662,8 @@ namespace Sad
             // (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
             llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringConcat(inst); }
             void ensureArrayToStringHelper() { strs_->ensureArrayToStringHelper(); } // توليد دالة __sad_array_to_string / Generate array-to-string helper
+            void ensureArrayToStringStrHelper() { strs_->ensureArrayToStringStrHelper(); } // نظير نصّيّ __sad_array_to_string_str / String variant
+            void ensureMapToStringHelper() { strs_->ensureMapToStringHelper(); } // __sad_map_to_string / Map-to-string helper
             llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
             llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCmp(inst); }
 

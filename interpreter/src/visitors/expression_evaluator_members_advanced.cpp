@@ -50,7 +50,13 @@ namespace Sad
             node.iterable->accept(*this);
             Value iterableValue = lastResult_;
 
-            if (!iterableValue.isArray())
+            // (AR) يقبل الاستيعاب مصفوفةً أو خريطةً. على الخريطة يُربَط متغيّر الحلقة بالمفتاح،
+            //      ومتغيّر القيمة (إن وُجد فكّ زوج «لكل مفتاح، قيمة») بالقيمة — يطابق حلقة «لكل».
+            // (EN) A comprehension accepts an array or a map. Over a map the loop variable binds to
+            //      the key and the value variable (if pair-unpacking «for key, value») to the value —
+            //      mirroring the «for» loop.
+            const bool isMapIter = iterableValue.isMap();
+            if (!iterableValue.isArray() && !isMapIter)
             {
                 {
                     Sad::Errors::RenderContext _rc;
@@ -67,36 +73,74 @@ namespace Sad
             // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
             variableManager_.enterScope(Data::ScopeType::BLOCK, "list_comprehension");
 
-            // (AR) المرور على كل عنصر / (EN) Iterate over each element
-            for (size_t i = 0; i < iterableValue.size(); ++i)
+            if (isMapIter)
             {
-                Value item = iterableValue[i];
+                // (AR) تكرار مدخلات الخريطة (المفتاح[، القيمة]) / (EN) Iterate map entries (key[, value])
+                const auto &map = iterableValue.toMapRef();
+                bool firstEntry = true;
+                for (const auto &[key, val] : map)
+                {
+                    Value keyValue(key);
+                    if (firstEntry)
+                    {
+                        variableManager_.define(node.variable, keyValue);
+                        if (!node.valueVariable.empty())
+                            variableManager_.define(node.valueVariable, val);
+                        firstEntry = false;
+                    }
+                    else
+                    {
+                        variableManager_.assign(node.variable, keyValue);
+                        if (!node.valueVariable.empty())
+                            variableManager_.assign(node.valueVariable, val);
+                    }
 
-                // (AR) تحديث متغير الحلقة / (EN) Update loop variable
-                if (i == 0)
-                {
-                    // أول iteration - نعرّف المتغير
-                    variableManager_.define(node.variable, item);
+                    bool includeItem = true;
+                    if (node.condition)
+                    {
+                        node.condition->accept(*this);
+                        includeItem = lastResult_.toBool();
+                    }
+                    if (includeItem)
+                    {
+                        node.element->accept(*this);
+                        result.push_back(lastResult_);
+                    }
                 }
-                else
+            }
+            else
+            {
+                // (AR) المرور على كل عنصر / (EN) Iterate over each element
+                for (size_t i = 0; i < iterableValue.size(); ++i)
                 {
-                    // iterations تالية - نحدّث باستخدام assign
-                    variableManager_.assign(node.variable, item);
-                }
+                    Value item = iterableValue[i];
 
-                // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
-                bool includeItem = true;
-                if (node.condition)
-                {
-                    node.condition->accept(*this);
-                    includeItem = lastResult_.toBool();
-                }
+                    // (AR) تحديث متغير الحلقة / (EN) Update loop variable
+                    if (i == 0)
+                    {
+                        // أول iteration - نعرّف المتغير
+                        variableManager_.define(node.variable, item);
+                    }
+                    else
+                    {
+                        // iterations تالية - نحدّث باستخدام assign
+                        variableManager_.assign(node.variable, item);
+                    }
 
-                // (AR) تقييم التعبير وإضافة النتيجة / (EN) Evaluate element expression and add result
-                if (includeItem)
-                {
-                    node.element->accept(*this);
-                    result.push_back(lastResult_);
+                    // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
+                    bool includeItem = true;
+                    if (node.condition)
+                    {
+                        node.condition->accept(*this);
+                        includeItem = lastResult_.toBool();
+                    }
+
+                    // (AR) تقييم التعبير وإضافة النتيجة / (EN) Evaluate element expression and add result
+                    if (includeItem)
+                    {
+                        node.element->accept(*this);
+                        result.push_back(lastResult_);
+                    }
                 }
             }
 
@@ -117,7 +161,9 @@ namespace Sad
             node.iterable->accept(*this);
             Value iterableValue = lastResult_;
 
-            if (!iterableValue.isArray())
+            // (AR) يقبل مصفوفةً أو خريطةً — انظر التعليق في استيعاب القائمة. / (EN) Accepts an array or map — see the list-comprehension note.
+            const bool isMapIter = iterableValue.isMap();
+            if (!iterableValue.isArray() && !isMapIter)
             {
                 {
                     Sad::Errors::RenderContext _rc;
@@ -134,47 +180,78 @@ namespace Sad
             // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
             variableManager_.enterScope(Data::ScopeType::BLOCK, "dict_comprehension");
 
-            // (AR) المرور على كل عنصر / (EN) Iterate over each element
-            for (size_t i = 0; i < iterableValue.size(); ++i)
+            // (AR) يقيّم مفتاح+قيمة القاموس بعد فحص الشرط، ويضيف الزوج. / (EN) Evaluate the dict key+value after the condition, add the pair.
+            auto emitDictPair = [&]()
             {
-                Value item = iterableValue[i];
+                node.key->accept(*this);
+                Value keyValue = lastResult_;
+                node.value->accept(*this);
+                Value valueValue = lastResult_;
+                result[keyValue.toString()] = valueValue;
+            };
 
-                // (AR) تحديث متغير الحلقة / (EN) Update loop variable
-                if (i == 0)
+            if (isMapIter)
+            {
+                // (AR) تكرار مدخلات الخريطة (المفتاح[، القيمة]) / (EN) Iterate map entries (key[, value])
+                const auto &map = iterableValue.toMapRef();
+                bool firstEntry = true;
+                for (const auto &[key, val] : map)
                 {
-                    // أول iteration - نعرّف المتغير
-                    variableManager_.define(node.variable, item);
+                    Value keyValue(key);
+                    if (firstEntry)
+                    {
+                        variableManager_.define(node.variable, keyValue);
+                        if (!node.valueVariable.empty())
+                            variableManager_.define(node.valueVariable, val);
+                        firstEntry = false;
+                    }
+                    else
+                    {
+                        variableManager_.assign(node.variable, keyValue);
+                        if (!node.valueVariable.empty())
+                            variableManager_.assign(node.valueVariable, val);
+                    }
+
+                    bool includeItem = true;
+                    if (node.condition)
+                    {
+                        node.condition->accept(*this);
+                        includeItem = lastResult_.toBool();
+                    }
+                    if (includeItem)
+                        emitDictPair();
                 }
-                else
+            }
+            else
+            {
+                // (AR) المرور على كل عنصر / (EN) Iterate over each element
+                for (size_t i = 0; i < iterableValue.size(); ++i)
                 {
-                    // iterations تالية - نحدّث باستخدام assign
-                    variableManager_.assign(node.variable, item);
-                }
+                    Value item = iterableValue[i];
 
-                // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
-                bool includeItem = true;
-                if (node.condition)
-                {
-                    node.condition->accept(*this);
-                    includeItem = lastResult_.toBool();
-                }
+                    // (AR) تحديث متغير الحلقة / (EN) Update loop variable
+                    if (i == 0)
+                    {
+                        // أول iteration - نعرّف المتغير
+                        variableManager_.define(node.variable, item);
+                    }
+                    else
+                    {
+                        // iterations تالية - نحدّث باستخدام assign
+                        variableManager_.assign(node.variable, item);
+                    }
 
-                // (AR) تقييم Key و Value وإضافة النتيجة / (EN) Evaluate key & value expressions and add result
-                if (includeItem)
-                {
-                    // تقييم تعبير المفتاح / Evaluate key expression
-                    node.key->accept(*this);
-                    Value keyValue = lastResult_;
+                    // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
+                    bool includeItem = true;
+                    if (node.condition)
+                    {
+                        node.condition->accept(*this);
+                        includeItem = lastResult_.toBool();
+                    }
 
-                    // تقييم تعبير القيمة / Evaluate value expression
-                    node.value->accept(*this);
-                    Value valueValue = lastResult_;
-
-                    // تحويل المفتاح إلى نص / Convert key to string
-                    std::string keyStr = keyValue.toString();
-
-                    // إضافة إلى القاموس / Add to dictionary
-                    result[keyStr] = valueValue;
+                    // (AR) تقييم Key و Value وإضافة النتيجة / (EN) Evaluate key & value expressions and add result
+                    if (includeItem)
+                        emitDictPair();
                 }
             }
 
@@ -195,7 +272,9 @@ namespace Sad
             node.iterable->accept(*this);
             Value iterableValue = lastResult_;
 
-            if (!iterableValue.isArray())
+            // (AR) يقبل مصفوفةً أو خريطةً — انظر التعليق في استيعاب القائمة. / (EN) Accepts an array or map — see the list-comprehension note.
+            const bool isMapIter = iterableValue.isMap();
+            if (!iterableValue.isArray() && !isMapIter)
             {
                 {
                     Sad::Errors::RenderContext _rc;
@@ -212,55 +291,82 @@ namespace Sad
             // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
             variableManager_.enterScope(Data::ScopeType::BLOCK, "set_comprehension");
 
-            // (AR) المرور على كل عنصر / (EN) Iterate over each element
-            for (size_t i = 0; i < iterableValue.size(); ++i)
+            // (AR) يقيّم عنصر المجموعة ويضيفه إن لم يكن مكرّرًا. / (EN) Evaluate the set element and add it if not a duplicate.
+            auto emitSetElement = [&]()
             {
-                Value item = iterableValue[i];
-
-                // (AR) تحديث متغير الحلقة / (EN) Update loop variable
-                if (i == 0)
+                node.expression->accept(*this);
+                Value itemValue = lastResult_;
+                for (const auto &existingItem : result)
                 {
-                    // أول iteration - نعرّف المتغير
-                    variableManager_.define(node.variable, item);
+                    // (AR) فحص بسيط للمساواة - مقارنة التمثيلات النصية / (EN) Simple equality via toString()
+                    if (existingItem.toString() == itemValue.toString())
+                        return;
                 }
-                else
-                {
-                    // iterations تالية - نحدّث باستخدام assign
-                    variableManager_.assign(node.variable, item);
-                }
+                result.push_back(itemValue);
+            };
 
-                // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
-                bool includeItem = true;
-                if (node.condition)
+            if (isMapIter)
+            {
+                // (AR) تكرار مدخلات الخريطة (المفتاح[، القيمة]) / (EN) Iterate map entries (key[, value])
+                const auto &map = iterableValue.toMapRef();
+                bool firstEntry = true;
+                for (const auto &[key, val] : map)
                 {
-                    node.condition->accept(*this);
-                    includeItem = lastResult_.toBool();
-                }
-
-                // (AR) تقييم Expression وإضافة النتيجة (بدون تكرار) / (EN) Evaluate expression and add result (without duplicates)
-                if (includeItem)
-                {
-                    node.expression->accept(*this);
-                    Value itemValue = lastResult_;
-
-                    // (AR) فحص إذا كان العنصر موجود مسبقاً / (EN) Check if item already exists
-                    bool exists = false;
-                    for (const auto &existingItem : result)
+                    Value keyValue(key);
+                    if (firstEntry)
                     {
-                        // Simple equality check - compare toString() representations
-                        // (AR) فحص بسيط للمساواة - مقارنة التمثيلات النصية
-                        if (existingItem.toString() == itemValue.toString())
-                        {
-                            exists = true;
-                            break;
-                        }
+                        variableManager_.define(node.variable, keyValue);
+                        if (!node.valueVariable.empty())
+                            variableManager_.define(node.valueVariable, val);
+                        firstEntry = false;
+                    }
+                    else
+                    {
+                        variableManager_.assign(node.variable, keyValue);
+                        if (!node.valueVariable.empty())
+                            variableManager_.assign(node.valueVariable, val);
                     }
 
-                    // (AR) إضافة العنصر إذا لم يكن موجوداً / (EN) Add item if not exists
-                    if (!exists)
+                    bool includeItem = true;
+                    if (node.condition)
                     {
-                        result.push_back(itemValue);
+                        node.condition->accept(*this);
+                        includeItem = lastResult_.toBool();
                     }
+                    if (includeItem)
+                        emitSetElement();
+                }
+            }
+            else
+            {
+                // (AR) المرور على كل عنصر / (EN) Iterate over each element
+                for (size_t i = 0; i < iterableValue.size(); ++i)
+                {
+                    Value item = iterableValue[i];
+
+                    // (AR) تحديث متغير الحلقة / (EN) Update loop variable
+                    if (i == 0)
+                    {
+                        // أول iteration - نعرّف المتغير
+                        variableManager_.define(node.variable, item);
+                    }
+                    else
+                    {
+                        // iterations تالية - نحدّث باستخدام assign
+                        variableManager_.assign(node.variable, item);
+                    }
+
+                    // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
+                    bool includeItem = true;
+                    if (node.condition)
+                    {
+                        node.condition->accept(*this);
+                        includeItem = lastResult_.toBool();
+                    }
+
+                    // (AR) تقييم Expression وإضافة النتيجة (بدون تكرار) / (EN) Evaluate expression and add result (without duplicates)
+                    if (includeItem)
+                        emitSetElement();
                 }
             }
 

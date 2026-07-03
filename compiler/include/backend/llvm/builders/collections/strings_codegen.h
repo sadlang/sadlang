@@ -26,6 +26,16 @@ public:
 
     llvm::Value *emitInlineAsm(std::shared_ptr<SIRInstruction> inst);
     void ensureArrayToStringHelper();
+    // (AR) نظير نصّيّ: يبني «[س0، س1، ...]» بعناصر نصّيّة (%s). يخصّص مخزنه داخليًّا
+    //      (طول متغيّر) ويُعيده — المستدعي يحرّره. / (EN) String variant: builds "[s0, s1, ...]"
+    //      with string elements (%s); mallocs its own buffer (variable length) and returns it —
+    //      the caller frees it.
+    void ensureArrayToStringStrHelper();
+    // (AR) يبني «{"م0": ق0، "م1": ق1، …}» من خريطة (مفاتيح مقتبسة، قيم حسب النوع:
+    //      نصّ %s، رقم %lld، منطقيّ صحيح/خطأ). يخصّص مخزنه ويُعيده — المستدعي يحرّره.
+    // (EN) Builds "{"k0": v0, …}" from a map (quoted keys; values by type tag: string
+    //      %s, int %lld, bool صحيح/خطأ). Mallocs its own buffer and returns it — caller frees.
+    void ensureMapToStringHelper();
     llvm::Value *emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinArrayAppend(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinArrayRemove(std::shared_ptr<SIRInstruction> inst);

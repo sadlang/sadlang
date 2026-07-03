@@ -770,15 +770,15 @@ flowchart LR
 ### gr.adv.list_comprehension — استيعاب قائمة <span dir="ltr">(ListComprehension)</span>
 
 - **الرقم التسلسليّ:** `ق-082` · **المعرّف الموحَّد:** `gr.adv.list_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** «[لكل س في مصدر [إذا شرط] أنتج تعبير]» داخل «[]»؛ رأس الحلقة أوّلًا ثم «أنتج» تفصله عن تعبير الناتج (ترتيب عربيّ)؛ الشرط اختياريّ
+- **الوصف:** «[لكل س في مصدر [إذا شرط] أنتج تعبير]» داخل «[]»؛ رأس الحلقة أوّلًا ثم «أنتج» تفصله عن تعبير الناتج (ترتيب عربيّ)؛ الشرط اختياريّ؛ يدعم فكّ الزوج «لكل مفتاح، قيمة في خريطة» (متغيّر القيمة اختياريّ، للخرائط)
 
 #### 📐 BNF
 ```bnf
-ListComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;
+ListComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«لكل» «IDENTIFIER» «في» expression [ «إذا» expression ] «أنتج» expression`
+- `«لكل» «IDENTIFIER» [ «،» «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -805,26 +805,35 @@ flowchart LR
   n2["«لكل»"]
   n3["«IDENTIFIER»"]
   n2 --> n3
-  n4["«في»"]
+  n4{"◇"}
+  n5{"◇"}
+  n6["«،»"]
+  n7["«IDENTIFIER»"]
+  n6 --> n7
+  n4 --> n6
+  n7 --> n5
+  n4 -- "تخطّي" --> n5
   n3 --> n4
-  n5["expression"]
-  n4 --> n5
-  n6{"◇"}
-  n7{"◇"}
-  n8["«إذا»"]
+  n8["«في»"]
+  n5 --> n8
   n9["expression"]
   n8 --> n9
-  n6 --> n8
-  n9 --> n7
-  n6 -- "تخطّي" --> n7
-  n5 --> n6
-  n10["«أنتج»"]
-  n7 --> n10
-  n11["expression"]
-  n10 --> n11
+  n10{"◇"}
+  n11{"◇"}
+  n12["«إذا»"]
+  n13["expression"]
+  n12 --> n13
+  n10 --> n12
+  n13 --> n11
+  n10 -- "تخطّي" --> n11
+  n9 --> n10
+  n14["«أنتج»"]
+  n11 --> n14
+  n15["expression"]
+  n14 --> n15
   n1 --> n2
-  n12(["⇒ ListComprehensionExpr"])
-  n11 --> n12
+  n16(["⇒ ListComprehensionExpr"])
+  n15 --> n16
 ```
 
 #### مثال
@@ -838,15 +847,15 @@ flowchart LR
 ### gr.adv.set_comprehension — استيعاب مجموعة <span dir="ltr">(SetComprehension)</span>
 
 - **الرقم التسلسليّ:** `ق-083` · **المعرّف الموحَّد:** `gr.adv.set_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** «{لكل س في مصدر [إذا شرط] أنتج تعبير}» داخل «{}» بلا «:» بعد الناتج ⇒ مجموعة؛ الشرط اختياريّ
+- **الوصف:** «{لكل س في مصدر [إذا شرط] أنتج تعبير}» داخل «{}» بلا «:» بعد الناتج ⇒ مجموعة؛ الشرط اختياريّ؛ يدعم فكّ الزوج «لكل مفتاح، قيمة في خريطة» (متغيّر القيمة اختياريّ، للخرائط)
 
 #### 📐 BNF
 ```bnf
-SetComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;
+SetComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«لكل» «IDENTIFIER» «في» expression [ «إذا» expression ] «أنتج» expression`
+- `«لكل» «IDENTIFIER» [ «،» «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -873,26 +882,35 @@ flowchart LR
   n2["«لكل»"]
   n3["«IDENTIFIER»"]
   n2 --> n3
-  n4["«في»"]
+  n4{"◇"}
+  n5{"◇"}
+  n6["«،»"]
+  n7["«IDENTIFIER»"]
+  n6 --> n7
+  n4 --> n6
+  n7 --> n5
+  n4 -- "تخطّي" --> n5
   n3 --> n4
-  n5["expression"]
-  n4 --> n5
-  n6{"◇"}
-  n7{"◇"}
-  n8["«إذا»"]
+  n8["«في»"]
+  n5 --> n8
   n9["expression"]
   n8 --> n9
-  n6 --> n8
-  n9 --> n7
-  n6 -- "تخطّي" --> n7
-  n5 --> n6
-  n10["«أنتج»"]
-  n7 --> n10
-  n11["expression"]
-  n10 --> n11
+  n10{"◇"}
+  n11{"◇"}
+  n12["«إذا»"]
+  n13["expression"]
+  n12 --> n13
+  n10 --> n12
+  n13 --> n11
+  n10 -- "تخطّي" --> n11
+  n9 --> n10
+  n14["«أنتج»"]
+  n11 --> n14
+  n15["expression"]
+  n14 --> n15
   n1 --> n2
-  n12(["⇒ SetComprehensionExpr"])
-  n11 --> n12
+  n16(["⇒ SetComprehensionExpr"])
+  n15 --> n16
 ```
 
 #### مثال
@@ -906,15 +924,15 @@ flowchart LR
 ### gr.adv.dict_comprehension — استيعاب قاموس <span dir="ltr">(DictComprehension)</span>
 
 - **الرقم التسلسليّ:** `ق-084` · **المعرّف الموحَّد:** `gr.adv.dict_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** «{لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}» داخل «{}» مع «:» بعد الناتج ⇒ قاموس (متغيّر حلقة مفرد)؛ الشرط اختياريّ
+- **الوصف:** «{لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}» داخل «{}» مع «:» بعد الناتج ⇒ قاموس؛ الشرط اختياريّ؛ يدعم فكّ الزوج «لكل مفتاح، قيمة في خريطة» (متغيّر القيمة اختياريّ، للخرائط)
 
 #### 📐 BNF
 ```bnf
-DictComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ( ':' | '=' ) Expression ;
+DictComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ( ':' | '=' ) Expression ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«لكل» «IDENTIFIER» «في» expression [ «إذا» expression ] «أنتج» expression ( «:» | «=» ) expression`
+- `«لكل» «IDENTIFIER» [ «،» «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression ( «:» | «=» ) expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -941,37 +959,46 @@ flowchart LR
   n2["«لكل»"]
   n3["«IDENTIFIER»"]
   n2 --> n3
-  n4["«في»"]
+  n4{"◇"}
+  n5{"◇"}
+  n6["«،»"]
+  n7["«IDENTIFIER»"]
+  n6 --> n7
+  n4 --> n6
+  n7 --> n5
+  n4 -- "تخطّي" --> n5
   n3 --> n4
-  n5["expression"]
-  n4 --> n5
-  n6{"◇"}
-  n7{"◇"}
-  n8["«إذا»"]
+  n8["«في»"]
+  n5 --> n8
   n9["expression"]
   n8 --> n9
-  n6 --> n8
-  n9 --> n7
-  n6 -- "تخطّي" --> n7
-  n5 --> n6
-  n10["«أنتج»"]
-  n7 --> n10
-  n11["expression"]
-  n10 --> n11
-  n12{"◆"}
-  n13{"◆"}
-  n14["«:»"]
-  n12 --> n14
-  n14 --> n13
-  n15["«=»"]
-  n12 --> n15
-  n15 --> n13
-  n11 --> n12
-  n16["expression"]
-  n13 --> n16
+  n10{"◇"}
+  n11{"◇"}
+  n12["«إذا»"]
+  n13["expression"]
+  n12 --> n13
+  n10 --> n12
+  n13 --> n11
+  n10 -- "تخطّي" --> n11
+  n9 --> n10
+  n14["«أنتج»"]
+  n11 --> n14
+  n15["expression"]
+  n14 --> n15
+  n16{"◆"}
+  n17{"◆"}
+  n18["«:»"]
+  n16 --> n18
+  n18 --> n17
+  n19["«=»"]
+  n16 --> n19
+  n19 --> n17
+  n15 --> n16
+  n20["expression"]
+  n17 --> n20
   n1 --> n2
-  n17(["⇒ DictComprehensionExpr"])
-  n16 --> n17
+  n21(["⇒ DictComprehensionExpr"])
+  n20 --> n21
 ```
 
 #### مثال

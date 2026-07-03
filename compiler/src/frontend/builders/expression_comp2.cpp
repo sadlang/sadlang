@@ -3,6 +3,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "sir_constants.h"
 #include <set>
 #include <functional>
 #include <iostream>
@@ -29,6 +30,14 @@ namespace Sad
                 // (AR) بناء التعبير القابل للتكرار
                 // (EN) Build iterable expression
                 auto iterResult = buildExpression(setCompExpr->iterable.get());
+
+                // (AR) تهيئة تكرار الخريطة (مفاتيح + قيم إن طُلب فكّ زوج)
+                // (EN) Prepare map iteration (keys + values if pair-unpacking)
+                std::string mapValuesReg;
+                SadTypeKind keyElemType = SadTypeKind::Integer;
+                SadTypeKind valueVarType = SadTypeKind::Integer;
+                lowerMapComprehensionIterable(iterResult, setCompExpr->valueVariable,
+                                              mapValuesReg, keyElemType, valueVarType);
 
                 // (AR) تخصيص عداد الحلقة
                 // (EN) Allocate loop counter
@@ -130,7 +139,7 @@ namespace Sad
 
                 std::string elemReg = b_.newTempRegister();
                 SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-                loadElem.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
+                loadElem.result = SIROperand::Register(elemReg, keyElemType);
                 loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
                 loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
                 if (b_.currentBlock_)
@@ -138,11 +147,31 @@ namespace Sad
 
                 VariableInfo loopVar;
                 loopVar.name = setCompExpr->variable;
-                loopVar.type = SadTypeKind::Integer;
+                loopVar.type = keyElemType;
                 loopVar.registerName = elemReg;
                 loopVar.isMutable = false;
                 loopVar.scopeLevel = b_.currentScopeLevel_;
                 b_.addVariable(loopVar);
+
+                // (AR) فكّ زوج الخريطة: حمّل القيمة المقابلة وسجّل متغيّر القيمة. / (EN) Map pair-unpack: load & register the value variable.
+                if (!mapValuesReg.empty())
+                {
+                    std::string valElemReg = b_.newTempRegister();
+                    SIRInstruction loadVal(SIROpcode::ARRAY_GET);
+                    loadVal.result = SIROperand::Register(valElemReg, valueVarType);
+                    loadVal.operands.push_back(SIROperand::Register(mapValuesReg, SadTypeKind::Array));
+                    loadVal.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(loadVal);
+
+                    VariableInfo valueLoopVar;
+                    valueLoopVar.name = setCompExpr->valueVariable;
+                    valueLoopVar.type = valueVarType;
+                    valueLoopVar.registerName = valElemReg;
+                    valueLoopVar.isMutable = false;
+                    valueLoopVar.scopeLevel = b_.currentScopeLevel_;
+                    b_.addVariable(valueLoopVar);
+                }
 
                 // (AR) إزالة التكرار: نبني الناتج ثمّ نمسح مصفوفة النتيجة، ونضيف فقط إن لم يكن موجودًا
                 //      (المجموعة = مصفوفة فريدة، مطابقة للمفسّر). كلّ العمليّات أوكواد مصفوفة مُلوَّنة
@@ -366,7 +395,13 @@ namespace Sad
                     b_.currentFunction_->addBasicBlock(exitBlock);
                 b_.currentBlock_ = exitBlock;
 
-                return BuildResult(resultSetReg, SadTypeKind::Array);
+                // (AR) نمرّر نوع عنصر الناتج إلى نتيجة المجموعة (كالقائمة) — يُصلح الوصول المفهرَس
+                //      النصّيّ. طبع المجموعة كاملةً يبقى محدودًا (نفس قيد __sad_array_to_string).
+                // (EN) Propagate the output element type to the set result (like the list) — fixes
+                //      indexed string access. Whole-set print stays limited (same __sad_array_to_string).
+                BuildResult setResult(resultSetReg, SadTypeKind::Array);
+                setResult.elementType = elemExprResult.type;
+                return setResult;
             }
 
             // ============================================================================

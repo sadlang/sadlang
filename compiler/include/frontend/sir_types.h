@@ -1262,6 +1262,11 @@ namespace Sad
             public:
                 SIROperandType type;  ///< نوع المعامل / Operand type
                 SadTypeKind dataType; ///< نوع البيانات / Data type
+                // (AR) نوع عنصر المصفوفة (للمعاملات من نوع Array) — يُستخدم لطبع المصفوفات
+                //      النصّيّة بـ%s بدل %lld. افتراضيّ Void ⇒ سلوك عدديّ (متوافق مع السابق).
+                // (EN) Array element type (for Array-typed operands) — used to print string arrays
+                //      via %s instead of %lld. Defaults to Void ⇒ integer behavior (back-compatible).
+                SadTypeKind elementType = SadTypeKind::Void;
 
                 // القيمة / Value (based on type)
                 union

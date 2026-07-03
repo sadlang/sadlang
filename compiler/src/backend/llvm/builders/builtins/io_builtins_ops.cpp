@@ -180,29 +180,76 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "print.arr.data.gep");
                     llvm::Value *dataPtr = cg_.builder_->CreateLoad(ptrTy, dataGep, "print.arr.data");
 
-                    // (AR) تخصيص مخزن مؤقت: طول * 34 + 4 بايت
-                    // (EN) Allocate buffer: len * 34 + 4 bytes
-                    llvm::Value *bufLen = cg_.builder_->CreateAdd(
-                        cg_.builder_->CreateMul(arrLen, llvm::ConstantInt::get(i64Ty, 34)),
-                        llvm::ConstantInt::get(i64Ty, 4), "print.arr.bufsz");
-                    llvm::FunctionType *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                    llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-                    llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufLen}, "print.arr.buf");
-
-                    // (AR) استدعاء __sad_array_to_string(buf, len, data)
-                    llvm::FunctionType *helperType = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);
-                    llvm::FunctionCallee helperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string", helperType);
-                    llvm::Value *strResult = cg_.builder_->CreateCall(helperFn, {buf, arrLen, dataPtr}, "print.arr.str");
-
-                    // (AR) طباعة النص الناتج
-                    llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
-                    cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
-
-                    // (AR) تحرير المخزن المؤقت
-                    // (EN) Free temporary buffer
                     llvm::FunctionType *freeType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy}, false);
                     llvm::FunctionCallee freeFn = cg_.module_->getOrInsertFunction("free", freeType);
-                    cg_.builder_->CreateCall(freeFn, {buf});
+                    llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
+
+                    // (AR) عناصر نصّيّة ⇒ نظير __sad_array_to_string_str (يخصّص مخزنه ويطبع بـ%s).
+                    //      يُصلح طبع المصفوفات النصّيّة («[أ، ب]») بدل عناوين المؤشّرات. غير النصّيّة
+                    //      تبقى على المسار العدديّ (%lld) الأصليّ — متوافق تمامًا مع السابق.
+                    // (EN) String elements ⇒ the __sad_array_to_string_str variant (mallocs its own
+                    //      buffer, prints via %s). Fixes string-array printing ("[a, b]") instead of
+                    //      pointer addresses. Non-string arrays keep the original integer path (%lld).
+                    if (op.elementType == SadTypeKind::String)
+                    {
+                        cg_.ensureArrayToStringStrHelper();
+                        llvm::FunctionType *strHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
+                        llvm::FunctionCallee strHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_str", strHelperType);
+                        llvm::Value *strResult = cg_.builder_->CreateCall(strHelperFn, {arrLen, dataPtr}, "print.arr.sstr");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
+                        cg_.builder_->CreateCall(freeFn, {strResult}); // (AR) المساعِد النصّيّ يخصّص، فنحرّر ناتجه
+                    }
+                    else
+                    {
+                        // (AR) المسار العدديّ الأصليّ: مخزن مُقدَّر (طول*34+4) + __sad_array_to_string.
+                        // (EN) Original integer path: estimated buffer (len*34+4) + __sad_array_to_string.
+                        llvm::Value *bufLen = cg_.builder_->CreateAdd(
+                            cg_.builder_->CreateMul(arrLen, llvm::ConstantInt::get(i64Ty, 34)),
+                            llvm::ConstantInt::get(i64Ty, 4), "print.arr.bufsz");
+                        llvm::FunctionType *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
+                        llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
+                        llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufLen}, "print.arr.buf");
+
+                        llvm::FunctionType *helperType = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);
+                        llvm::FunctionCallee helperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string", helperType);
+                        llvm::Value *strResult = cg_.builder_->CreateCall(helperFn, {buf, arrLen, dataPtr}, "print.arr.str");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
+                        cg_.builder_->CreateCall(freeFn, {buf});
+                    }
+                }
+                // ================================================================
+                // (AR) طباعة الخريطة: «{"م": ق، …}» عبر __sad_map_to_string (مفاتيح مقتبسة،
+                //      قيم حسب النوع). يطابق تنسيق المفسّر. يجب أن يسبق فرع المؤشّر لأنّ الخريطة
+                //      مؤشّر (وإلّا طُبِعت بـ%s كقمامة). المساعِد يخصّص مخزنه فنحرّر ناتجه.
+                // (EN) Map printing: "{"k": v, …}" via __sad_map_to_string (quoted keys, typed
+                //      values), mirroring the interpreter. Must precede the pointer branch since a
+                //      map is a pointer. The helper mallocs, so we free its result.
+                // ================================================================
+                else if (op.dataType == SadTypeKind::Map)
+                {
+                    auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+                    auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                    llvm::Value *mapPtr = v;
+                    if (mapPtr->getType()->isIntegerTy(64))
+                        mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "print.map.i2p");
+                    if (mapPtr->getType()->isPointerTy())
+                    {
+                        cg_.ensureMapToStringHelper();
+                        llvm::FunctionType *mHelperType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
+                        llvm::FunctionCallee mHelperFn = cg_.module_->getOrInsertFunction("__sad_map_to_string", mHelperType);
+                        llvm::Value *mStr = cg_.builder_->CreateCall(mHelperFn, {mapPtr}, "print.map.str");
+                        llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, mStr});
+                        llvm::FunctionType *freeType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy}, false);
+                        llvm::FunctionCallee freeFn = cg_.module_->getOrInsertFunction("free", freeType);
+                        cg_.builder_->CreateCall(freeFn, {mStr});
+                    }
+                    else
+                    {
+                        // (AR) نوع غير متوقّع — اطبع رقمًا بدل الانهيار / (EN) unexpected — print as number
+                        llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%lld", "fmt.d");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, v});
+                    }
                 }
                 else if (v->getType()->isPointerTy())
                 {

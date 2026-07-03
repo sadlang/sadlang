@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: فكّ الزوج — «[لكل مفتاح، قيمة في خريطة أنتج قيمة]» (RFC 25 التعارض 1أ)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+متغير ز = [لكل م، ق في {"أ": 7} أنتج ق]
+اطبع_سطر(ز[0])

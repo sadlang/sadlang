@@ -927,6 +927,7 @@ namespace Sad
         public:
             ExprPtr element;      ///< Element expression / تعبير العنصر
             std::string variable; ///< Loop variable / متغير الحلقة
+            std::string valueVariable; ///< (AR) متغيّر القيمة لفكّ زوج الخريطة (اختياريّ، فارغ إن غاب) / (EN) Value var for map pair-unpacking (optional; empty if absent)
             ExprPtr iterable;     ///< Iterable expression / التعبير القابل للتكرار
             ExprPtr condition;    ///< Filter condition (optional) / شرط التصفية
 
@@ -977,6 +978,7 @@ namespace Sad
             ExprPtr key;          ///< Key expression / تعبير المفتاح
             ExprPtr value;        ///< Value expression / تعبير القيمة
             std::string variable; ///< Loop variable / متغير الحلقة
+            std::string valueVariable; ///< (AR) متغيّر القيمة لفكّ زوج الخريطة (اختياريّ، فارغ إن غاب) / (EN) Value var for map pair-unpacking (optional; empty if absent)
             ExprPtr iterable;     ///< Iterable expression / التعبير القابل للتكرار
             ExprPtr condition;    ///< Filter condition (optional) / شرط التصفية
 
@@ -1066,6 +1068,7 @@ namespace Sad
         public:
             ExprPtr expression;   ///< Output expression / التعبير المُنتَج
             std::string variable; ///< Loop variable / متغير الحلقة
+            std::string valueVariable; ///< (AR) متغيّر القيمة لفكّ زوج الخريطة (اختياريّ، فارغ إن غاب) / (EN) Value var for map pair-unpacking (optional; empty if absent)
             ExprPtr iterable;     ///< Iterable expression / التعبير القابل للتكرار
             ExprPtr condition;    ///< Filter condition (optional) / شرط التصفية
 
