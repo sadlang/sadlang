@@ -154,12 +154,16 @@ namespace Sad
 
         void WidgetBuilder::addChildBuilder(WidgetBuilder *child)
         {
-            if (child && child->getIRNode())
-            {
-                irNode_->addChild(child->getIRNode());
-                // (AR) حفظ مرجع الابن (مؤشر خام مُدار بـGC) للوصول لاحقاً لحقول __event_*
-                childBuilders_.push_back(child);
-            }
+            // (AR) حارس الإضافة الذاتيّة: منع أ.ابن(أ) الذي يصنع دورةً في الشجرة.
+            if (!child || child == this)
+                return;
+            auto childNode = child->getIRNode();
+            if (!childNode)
+                return;
+            irNode_->addChild(std::move(childNode));
+            // (AR) حفظ مرجع الابن (مؤشر خام؛ حياته مضمونة ما دام الأب حيًّا لأنّ
+            //   المفسّر يُبقي شجرة القيم جذرًا خلال البناء) للوصول لحقول __event_*.
+            childBuilders_.push_back(child);
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════

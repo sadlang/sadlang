@@ -14,6 +14,7 @@
 
 #include "sad_ui/desktop/renderer.h"
 #include "sad_ui/types.h"
+#include "sad_ui/prop_keys.h" // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
 
 #ifdef SAD_UI_USE_SDL2
 #include <SDL.h>
@@ -245,6 +246,35 @@ inline bool getBoolProp(const IRProperty* prop, bool defaultVal = false) {
     }
     if (auto* i = std::get_if<int64_t>(&prop->value)) return *i != 0;
     return defaultVal;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// (AR) بحثٌ موحَّد عن نصّ العنصر عبر قائمة مفاتيح مرتَّبة بالأولويّة.
+//   يزيل تكرار سلسلة fallback المبعثرة في فروع العناصر (كان تكرارها يُدخِل
+//   انحراف مفاتيح صامتًا: زرٌّ فارغ لعدم قراءة «عنوان»، وزرٌّ عائم بلا أيقونة
+//   لخطأ إملائيّ في المفتاح). يحوّل القيم العدديّة إلى نصّ كي يَعرض زر(5)
+//   نصَّه. يعيد true ويملأ out عند أوّل مفتاح موجود (ولو نصُّه فارغ).
+//   القاعدة القانونيّة: مرّر «عنوان» أوّلًا فهو ما يكتبه مصنع زر() (SoT).
+// ═══════════════════════════════════════════════════════════════════
+inline bool findTextProp(const IRNode& node,
+                         std::initializer_list<const char*> keys,
+                         std::string& out) {
+    for (const char* key : keys) {
+        const IRProperty* prop = node.findProperty(key);
+        if (!prop) continue;
+        if (auto* s = std::get_if<std::string>(&prop->value)) { out = *s; return true; }
+        if (auto* i = std::get_if<int64_t>(&prop->value)) { out = std::to_string(*i); return true; }
+        if (auto* d = std::get_if<double>(&prop->value)) {
+            std::string s = std::to_string(*d);
+            // (AR) إزالة الأصفار الزائدة: «12.500000»⇒«12.5»، «12.000000»⇒«12».
+            if (s.find('.') != std::string::npos) {
+                s.erase(s.find_last_not_of('0') + 1);
+                if (!s.empty() && s.back() == '.') s.pop_back();
+            }
+            out = s; return true;
+        }
+    }
+    return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════

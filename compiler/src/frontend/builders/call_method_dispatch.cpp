@@ -657,24 +657,20 @@ namespace Sad
                         {
                             // ════════════════════════════════════════════════════════
                             // (AR) ابن/أبناء الانسيابيّة ⇒ ADD_CHILD على العقدة المشتركة
-                            //      (نظير WidgetBuilder::addChild في المفسّر). «ابن» يضيف
-                            //      الأوّل فقط؛ «أبناء» يضيف الكلّ — مطابقةً لـ
-                            //      ui_widget_method_call.cpp:50-82. args[0]=الأب، args[1..]=الأبناء.
-                            //      يعيد المقبض نفسه (أدناه) فتتسلسل السلسلة كالمفسّر.
-                            // (EN) Fluent ابن/أبناء → ADD_CHILD on the shared node (mirrors
-                            //      WidgetBuilder::addChild). «ابن» adds only the first;
-                            //      «أبناء» adds all — matching the interpreter.
+                            //      (نظير addChildBuilder في المفسّر). كلتاهما تضيفان **كلّ**
+                            //      الوسائط — مطابقةً لـ addChildIfWidget في
+                            //      ui_widget_method_call.cpp (وُحِّدت ابن/أبناء هناك).
+                            //      args[0]=الأب، args[1..]=الأبناء. يعيد المقبض نفسه (أدناه)
+                            //      فتتسلسل السلسلة كالمفسّر.
+                            // (EN) Fluent ابن/أبناء → ADD_CHILD on the shared node. Both add
+                            //      ALL args — matching the unified interpreter path.
                             // ════════════════════════════════════════════════════════
                             // (AR) ملاحظة تكافؤ: المفسّر يحرس نوع كلّ طفل
                             //      (isWidgetBuilder) ويتخطّى غير العناصر صمتًا؛ هنا نعتمد
                             //      على أنّ نظام الأنواع لا يُنتج مقبض Pointer لغير عنصرٍ في
                             //      هذا المسار (الوسائط مقابضُ عناصر)، وsad_add_child يحرس
                             //      nullptr. تباعدٌ نظريّ حدّيّ فقط لو مُرِّر مقبضٌ غير عنصر.
-                            const bool isSingleChild =
-                                (m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child");
-                            const size_t lim =
-                                isSingleChild ? std::min<size_t>(args.size(), 2) : args.size();
-                            for (size_t i = 1; i < lim; ++i)
+                            for (size_t i = 1; i < args.size(); ++i)
                             {
                                 SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
                                 inst.operands.push_back(handleOp);  // الأب

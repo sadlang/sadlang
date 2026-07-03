@@ -12,6 +12,7 @@
 
 #include "sad_ui/ios/swiftui_codegen.h"
 #include "sad_ui/color_utils.h" // أدوات الألوان
+#include "sad_ui/prop_keys.h"   // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
 
 namespace sad
 {
@@ -19,6 +20,34 @@ namespace sad
     {
         namespace ios
         {
+
+            namespace
+            {
+                // (AR) نصّ العنصر بالترتيب القانونيّ («عنوان» أوّلًا) مع بدائل وهروب
+                //   محارف Swift (\ و") كي لا يكسر عنوانٌ فيهما الكودَ. كان الفرع يقرأ
+                //   "text" وحده فتظهر نصوص/أزرار SwiftUI فارغة.
+                std::string swiftLabel(const IRNode &node)
+                {
+                    static const char *keys[] = {props::TITLE, props::ICON, props::TEXT_LATIN, props::TEXT, props::CONTENT};
+                    std::string raw;
+                    for (const char *k : keys)
+                    {
+                        const auto *p = node.findProperty(k);
+                        if (!p)
+                            continue;
+                        if (auto *s = std::get_if<std::string>(&p->value)) { raw = *s; break; }
+                        if (auto *iv = std::get_if<int64_t>(&p->value)) { raw = std::to_string(*iv); break; }
+                        if (auto *dv = std::get_if<double>(&p->value)) { raw = std::to_string(*dv); break; }
+                    }
+                    std::string out;
+                    for (char c : raw)
+                    {
+                        if (c == '\\' || c == '"') out += '\\';
+                        out += c;
+                    }
+                    return out;
+                }
+            } // namespace
 
             SwiftUICodegen::SwiftUICodegen(const SwiftUICodegenOptions &options)
                 : options_(options)
@@ -211,8 +240,7 @@ namespace sad
 
                 case UINodeType::Text:
                 {
-                    const auto *textProp = node.findProperty("text");
-                    std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
+                    std::string text = swiftLabel(node);
 
                     out << i << "Text(\"" << text << "\")\n";
                     generateViewModifiers(out, node, indentLevel);
@@ -221,8 +249,7 @@ namespace sad
 
                 case UINodeType::Button:
                 {
-                    const auto *textProp = node.findProperty("text");
-                    std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
+                    std::string text = swiftLabel(node);
 
                     // حدث النقر
                     std::string action = "{}";

@@ -37,6 +37,7 @@
 #include "interpreter_core.h"
 #include "builtin_registry.h"
 #include "sad_ui/types.h"
+#include "sad_ui/prop_keys.h" // مصدر الحقيقة لمفاتيح الخصائص (يستهلكه المُرسِّم والمُصرِّفات ذاتها)
 #include "sad_type_system.h"
 
 #include <memory>
@@ -106,17 +107,17 @@ namespace Sad
             // ═════════════════════════════════════════════════════════════════════════
 
             // نص("محتوى") — عنصر نصي
-            auto text_fn = MAKE_WIDGET_WITH_PROP_FN(Text, "\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+            auto text_fn = MAKE_WIDGET_WITH_PROP_FN(Text, sad::ui::props::CONTENT); // محتوى
             fm.registerBuiltinFunction(std::string(Bw::TEXT_WIDGET), text_fn);                         // نص_عنصر
             // (AR) ملاحظة: سيتم تسجيل "نص" كدالة بناء أيضاً لكن بأولوية أقل
             //      Parser يميّز بين نص(تعبير) ← استدعاء دالة  و  نص اسم ← تصريح متغير
 
             // صورة("مصدر") — عنصر صورة
-            auto image_fn = MAKE_WIDGET_WITH_PROP_FN(Image, "\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
+            auto image_fn = MAKE_WIDGET_WITH_PROP_FN(Image, sad::ui::props::SOURCE); // مصدر
             fm.registerBuiltinFunction(std::string(Bw::IMAGE), image_fn);                        // صورة
 
             // أيقونة("اسم") — أيقونة متجهة
-            auto icon_fn = MAKE_WIDGET_WITH_PROP_FN(Icon, "\xd8\xa7\xd8\xb3\xd9\x85"); // اسم
+            auto icon_fn = MAKE_WIDGET_WITH_PROP_FN(Icon, sad::ui::props::NAME); // اسم
             fm.registerBuiltinFunction(std::string(Bw::ICON), icon_fn);                // أيقونة
 
             // ═════════════════════════════════════════════════════════════════════════
@@ -124,19 +125,19 @@ namespace Sad
             // ═════════════════════════════════════════════════════════════════════════
 
             // زر("عنوان") — زر قابل للنقر
-            auto button_fn = MAKE_WIDGET_WITH_PROP_FN(Button, "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            auto button_fn = MAKE_WIDGET_WITH_PROP_FN(Button, sad::ui::props::TITLE); // عنوان
             fm.registerBuiltinFunction(std::string(Bw::BUTTON), button_fn);                                // زر
 
             // زر_عائم(أيقونة: "إضافة") — زر عائم دائري (FAB)
-            auto fab_fn = MAKE_WIDGET_WITH_PROP_FN(FAB, "\xd8\xa3\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // أيقونة
+            auto fab_fn = MAKE_WIDGET_WITH_PROP_FN(FAB, sad::ui::props::ICON); // أيقونة
             fm.registerBuiltinFunction(std::string(Bw::FAB), fab_fn);                                        // زر_عائم
 
             // زر_نصي("نص") — زر بنص فقط بدون خلفية
-            auto text_btn_fn = MAKE_WIDGET_WITH_PROP_FN(Button, "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            auto text_btn_fn = MAKE_WIDGET_WITH_PROP_FN(Button, sad::ui::props::TITLE); // عنوان
             fm.registerBuiltinFunction(std::string(Bw::TEXT_BUTTON), text_btn_fn);                           // زر_نصي
 
             // زر_أيقونة("حذف") — زر بأيقونة فقط
-            auto icon_btn_fn = MAKE_WIDGET_WITH_PROP_FN(Button, "\xd8\xa3\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // أيقونة
+            auto icon_btn_fn = MAKE_WIDGET_WITH_PROP_FN(Button, sad::ui::props::ICON); // أيقونة
             fm.registerBuiltinFunction(std::string(Bw::ICON_BUTTON), icon_btn_fn);                                   // زر_أيقونة
 
             // حقل_نص(تلميح: "أدخل...") — حقل إدخال نصي

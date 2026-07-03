@@ -25,6 +25,22 @@ namespace Sad
         using namespace Data;
         using namespace AST;
 
+        namespace
+        {
+            // (AR) يضيف قيمةً كابنٍ إن كانت عنصر واجهة (WidgetBuilder)، عبر
+            //   addChildBuilder كي تُسجَّل أحداث الأبناء المتداخلين. يوحّد منطق
+            //   .ابن()/.أبناء() فلا يتكرّر، ويجعل .ابن(أ، ب) يضيف الاثنين بدل
+            //   إسقاط ب صامتًا (تكافؤ مع .أبناء والصيغة الموضعيّة).
+            inline void addChildIfWidget(Sad::Interpreter::WidgetBuilder *wb, const Value &v)
+            {
+                if (!v.isObject())
+                    return;
+                auto *childObj = v.toObject();
+                if (childObj && isWidgetBuilder(childObj))
+                    wb->addChildBuilder(static_cast<Sad::Interpreter::WidgetBuilder *>(childObj));
+            }
+        } // namespace
+
         // (AR) يُرجِع true إن كان objectValue عنصر WidgetBuilder وعولِج الاستدعاء.
         bool UIEvalBridgeImpl::tryWidgetMethodCall(ExpressionEvaluator &ev,
                                                    const Data::Value &objectValue,
@@ -46,37 +62,14 @@ namespace Sad
                             args.push_back(ev.lastResult_);
                         }
 
-                        // (AR) طريقة ابن/أبناء — لإضافة عناصر فرعية
-                        if (m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child")
+                        // (AR) طريقة ابن/أبناء — إضافة عناصر فرعية. كلتاهما تعالج
+                        //   كلّ الوسائط عبر addChildIfWidget⇒addChildBuilder فتُسجَّل
+                        //   أحداث الأبناء المتداخلين (تكافؤ الصيغتين والموضعيّة).
+                        if (m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child" ||
+                            m == "\xd8\xa3\xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1" || m == "children")
                         {
-                            // ابن
-                            if (!args.empty() && args[0].isObject())
-                            {
-                                auto childObj = args[0].toObject();
-                                if (childObj && isWidgetBuilder(childObj))
-                                {
-                                    auto *childWB = static_cast<WidgetBuilder *>(childObj);
-                                    wb->addChild(childWB->getIRNode());
-                                }
-                            }
-                            ev.lastResult_ = objectValue;
-                            return true;
-                        }
-                        if (m == "\xd8\xa3\xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1" || m == "children")
-                        {
-                            // أبناء
                             for (auto &a : args)
-                            {
-                                if (a.isObject())
-                                {
-                                    auto childObj = a.toObject();
-                                    if (childObj && isWidgetBuilder(childObj))
-                                    {
-                                        auto *childWB = static_cast<WidgetBuilder *>(childObj);
-                                        wb->addChild(childWB->getIRNode());
-                                    }
-                                }
-                            }
+                                addChildIfWidget(wb, a);
                             ev.lastResult_ = objectValue;
                             return true;
                         }

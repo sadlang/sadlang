@@ -497,25 +497,28 @@ namespace sad
                         drawRoundedRect(rect, ripple, radius);
                     }
 
-                    // رسم نص الزر
-                    const auto *textProp = node.findProperty("text");
-                    if (!textProp)
-                        textProp = node.findProperty("نص");
-                    if (!textProp)
-                        textProp = node.findProperty("محتوى");
-                    if (textProp)
+                    // رسم نص الزر — «عنوان» المفتاح القانونيّ من مصنع زر()، ثمّ
+                    // «أيقونة» (زر_أيقونة)، ثمّ بدائل احتياطيّة. findTextProp يوحّد
+                    // الترتيب ويحوّل العدد لنصّ (زر(5)) ويمنع انحراف المفاتيح.
+                    std::string btnText;
+                    if (findTextProp(node, {props::TITLE, props::ICON, props::TEXT_LATIN, props::TEXT, props::CONTENT}, btnText) && !btnText.empty())
                     {
-                        if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            // لون نص الزر — يقرأ من لون_نص أو أبيض افتراضياً
+                            // لون نص الزر — لون_نص/لون_النص، ثمّ «لون» الصريح، وإلّا
+                            // OnPrimary من الثيم (لا أبيض ثابت غير مقروء على الفاتح).
                             const auto *textColorProp = node.findProperty("لون_نص");
                             if (!textColorProp)
                                 textColorProp = node.findProperty("لون_النص");
-                            Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::White));
+                            if (!textColorProp)
+                                textColorProp = node.findProperty("لون");
+                            Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::OnPrimary));
 
-                            float btnFontSize = getNumericProp(node.findProperty("حجم_الخط"), 16.0f);
-                            if (btnFontSize <= 1.0f)
-                                btnFontSize = getNumericProp(node.findProperty("حجم_خط"), 16.0f);
+                            // حجم الخط: «حجم_الخط» ثمّ «حجم_خط» — بفحص وجود الخاصّيّة
+                            // لا بعتبة قيمة هشّة.
+                            const auto *fsProp = node.findProperty("حجم_الخط");
+                            if (!fsProp)
+                                fsProp = node.findProperty("حجم_خط");
+                            float btnFontSize = getNumericProp(fsProp, 16.0f);
 
                             // حساب موقع النص في وسط الزر (بدقة عبر TTF_SizeUTF8)
                             float textX = rect.x + rect.width / 2;
@@ -527,12 +530,12 @@ namespace sad
                             if (font)
                             {
                                 int textW = 0, textH = 0;
-                                TTF_SizeUTF8(font, text->c_str(), &textW, &textH);
+                                TTF_SizeUTF8(font, btnText.c_str(), &textW, &textH);
                                 textX = rect.x + (rect.width - static_cast<float>(textW)) / 2.0f;
                                 textY = rect.y + (rect.height - static_cast<float>(textH)) / 2.0f;
                             }
 #endif
-                            drawText(*text, textX, textY, textColor, btnFontSize);
+                            drawText(btnText, textX, textY, textColor, btnFontSize);
                         }
                     }
                     break;
@@ -771,10 +774,12 @@ namespace sad
                     drawRoundedRect(knobShadow, {0, 0, 0, 0.15f}, (knobSize + 2) / 2);
                     LayoutRect knob = {knobX, rect.y + 2, knobSize, knobSize};
                     drawRoundedRect(knob, knobColor, knobSize / 2);
-                    // نص التسمية
-                    const auto *labelProp = node.findProperty("نص");
+                    // نص التسمية — «عنوان» أوّلًا اتّساقًا مع بقيّة العناصر.
+                    const auto *labelProp = node.findProperty(props::TITLE);
                     if (!labelProp)
-                        labelProp = node.findProperty("محتوى");
+                        labelProp = node.findProperty(props::TEXT);
+                    if (!labelProp)
+                        labelProp = node.findProperty(props::CONTENT);
                     if (labelProp)
                     {
                         if (auto *lbl = std::get_if<std::string>(&labelProp->value))
@@ -879,7 +884,7 @@ namespace sad
                 case UINodeType::Radio:
                 {
                     // رسم زر راديو (دائرة)
-                    bool selected = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84")); // مفعل
+                    bool selected = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"), false); // مفعل
                     bool isRadioHovered = (hoveredNode_ == &node);
                     Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), Color::fromNamed(NamedColor::Primary));
                     Color borderColor = selected ? activeColor : Color::fromNamed(NamedColor::Gray);
@@ -1063,16 +1068,14 @@ namespace sad
                                        0.0f, elevation * 0.7f, {0, 0, 0, 0.3f});
                     }
                     drawRoundedRect(rect, fabColor, radius);
-                    const auto *textProp = node.findProperty("text");
-                    if (!textProp)
-                        textProp = node.findProperty("نص");
-                    if (!textProp)
-                        textProp = node.findProperty("ايقونة");
-                    if (textProp)
+                    // نصّ الزرّ العائم: «أيقونة» أوّلًا (ما يكتبه مصنع زر_عائم،
+                    // بهمزة على الألف) ثمّ بدائل. كان المفتاح يُكتب بألف مجرَّدة
+                    // خطأً فلا تُرسم الأيقونة أبدًا — findTextProp يوحّده ويصحّحه.
+                    std::string fabText;
+                    if (findTextProp(node, {props::ICON, props::TEXT_LATIN, props::TEXT, props::CONTENT}, fabText) && !fabText.empty())
                     {
-                        if (auto *text = std::get_if<std::string>(&textProp->value))
                         {
-                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::White));
+                            Color textColor = parseColorProp(node.findProperty("لون_النص"), Color::fromNamed(NamedColor::OnPrimary));
                             float fontSize = getNumericProp(node.findProperty("حجم_الخط"), 20.0f);
 #ifdef SAD_UI_HAS_SDL_TTF
                             TTF_Font *font = getFontForSize(fontSize);
@@ -1081,12 +1084,12 @@ namespace sad
                             if (font)
                             {
                                 int tw = 0, th = 0;
-                                TTF_SizeUTF8(font, text->c_str(), &tw, &th);
-                                drawText(*text, rect.x + (rect.width - tw) / 2, rect.y + (rect.height - th) / 2, textColor, fontSize);
+                                TTF_SizeUTF8(font, fabText.c_str(), &tw, &th);
+                                drawText(fabText, rect.x + (rect.width - tw) / 2, rect.y + (rect.height - th) / 2, textColor, fontSize);
                             }
                             else
 #endif
-                                drawText(*text, rect.x + rect.width / 2 - 8, rect.y + rect.height / 2 - 8, textColor, fontSize);
+                                drawText(fabText, rect.x + rect.width / 2 - 8, rect.y + rect.height / 2 - 8, textColor, fontSize);
                         }
                     }
                     break;
@@ -1112,11 +1115,12 @@ namespace sad
                         std::min(1.0f, barColor.b * 1.15f),
                         barColor.a};
                     drawLinearGradient(rect, barLighter, barColor, true);
-                    const auto *textProp = node.findProperty("text");
+                    // «عنوان» أوّلًا (الترتيب القانونيّ الموحَّد عبر العناصر).
+                    const auto *textProp = node.findProperty(props::TITLE);
                     if (!textProp)
-                        textProp = node.findProperty("عنوان");
+                        textProp = node.findProperty(props::TEXT_LATIN);
                     if (!textProp)
-                        textProp = node.findProperty("نص");
+                        textProp = node.findProperty(props::TEXT);
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))

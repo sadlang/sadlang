@@ -47,6 +47,7 @@
 #include <string>
 #include <atomic>
 #include <functional>
+#include <vector> // childBuilders_ (كان يُضمَّن عبورًا فقط — تصريحٌ مباشر)
 
 namespace Sad
 {

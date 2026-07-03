@@ -111,7 +111,7 @@ namespace Sad
                         }
                         else
                         {
-                            interpreter_->callUserFunction(expr, args);
+                            interpreter_->callUserFunction(expr, adaptEventArgsToArity(expr, args));
                         }
 
                         // (AR) إعادة بناء UI بعد تنفيذ الحدث
@@ -434,6 +434,35 @@ namespace Sad
             return id;
         }
 
+        std::vector<Data::Value> UIBridge::adaptEventArgsToArity(
+            const std::string &funcName, std::vector<Data::Value> args) const
+        {
+            if (!interpreter_)
+                return args;
+            auto &fm = interpreter_->getFunctionManager();
+            // (AR) جرّب أكبر عددٍ من الوسائط يقبله المعالِج فأصغر — نُبقي الأوائل
+            //   (قيمة المنزلق ثمّ خريطة الحدث) فيعمل معالِجٌ صفريّ المعاملات ومعالِجٌ
+            //   يستقبل بيانات الحدث سواءً بسواء. getFunction بحثٌ واحدٌ يحترم
+            //   المعاملات الافتراضيّة (كمُرسِل المفسّر) ويكشف نوع الدالّة معًا.
+            for (size_t k = args.size() + 1; k-- > 0;)
+            {
+                auto def = fm.getFunction(funcName, k);
+                if (!def)
+                    continue;
+                // (AR) المدمجات تُسجَّل بأريّة معلَنة 0 وتقرأ وسائطها عبر
+                //   BuiltinContext لا بعدّ المعاملات؛ فاقتطاعها إلى 0 يفقدها خريطة
+                //   الحدث. مرّرها كما وصلت.
+                if (def->getType() == Data::FunctionType::BUILT_IN)
+                    return args;
+                if (k < args.size())
+                    args.resize(k); // اقتطاع للأريّة المعلَنة (نُبقي الأوائل)
+                return args;
+            }
+            // (AR) لا تطابق أريّة / اسم غير موجود — اترك الخطأ الطبيعيّ (SEM004 أو
+            //   «دالّة غير معرّفة») يظهر بلا إخفاء.
+            return args;
+        }
+
         Data::Value UIBridge::invokeHandler(const std::string &handlerId,
                                             const std::vector<Data::Value> &args)
         {
@@ -471,14 +500,15 @@ namespace Sad
                 auto funcRef = handler.toFunction();
                 if (funcRef && interpreter_)
                 {
+                    auto callArgs = adaptEventArgsToArity(funcRef->registeredName, args);
                     if (ownerObj)
                     {
                         // (AR) تنفيذ في سياق الكائن المالك — يُعرّف هذا ومتغيرات الحقول
                         // (EN) Execute in owner object context — defines هذا and field variables
                         return interpreter_->callFunctionInObjectContext(
-                            funcRef->registeredName, ownerObj, args);
+                            funcRef->registeredName, ownerObj, callArgs);
                     }
-                    return interpreter_->callUserFunction(funcRef->registeredName, args);
+                    return interpreter_->callUserFunction(funcRef->registeredName, callArgs);
                 }
             }
             else if (handler.isString())
@@ -486,12 +516,13 @@ namespace Sad
                 const std::string &funcName = handler.toString();
                 if (interpreter_)
                 {
+                    auto callArgs = adaptEventArgsToArity(funcName, args);
                     if (ownerObj)
                     {
                         return interpreter_->callFunctionInObjectContext(
-                            funcName, ownerObj, args);
+                            funcName, ownerObj, callArgs);
                     }
-                    return interpreter_->callUserFunction(funcName, args);
+                    return interpreter_->callUserFunction(funcName, callArgs);
                 }
             }
 
@@ -814,12 +845,24 @@ namespace Sad
         // ═══════════════════════════════════════════════════════════════════════════════
         void UIBridge::registerWidgetBuilderEvents(
             const std::shared_ptr<sad::ui::IRNode> &irNode,
-            Sad::Interpreter::WidgetBuilder *wb)
+            Sad::Interpreter::WidgetBuilder *wb,
+            std::unordered_set<Sad::Interpreter::WidgetBuilder *> *visited)
         {
             if (!wb)
                 return;
 
-            // (AR) تمرّ على الأبناء WidgetBuilder (المحفوظين عند addChildBuilder)
+            // (AR) حارس الدورة: مجموعة الزيارة تُنشأ في الاستدعاء الجذر وتُمرَّر
+            //   للأحفاد؛ إن سبقت زيارة هذا البانِي فثمّة دورة (أ.ابن(ب)، ب.ابن(أ))
+            //   نخرج بدل التكرار اللانهائيّ.
+            std::unordered_set<Sad::Interpreter::WidgetBuilder *> rootVisited;
+            if (!visited)
+                visited = &rootVisited;
+            if (!visited->insert(wb).second)
+                return;
+
+            // (AR) تمرّ على الأبناء WidgetBuilder (المحفوظين عند addChildBuilder).
+            //   childBuilders_ يتوازى فهرسيًّا مع getChildren لأنّ addChildBuilder
+            //   وحده يضيف بُناةً (لا مسارَ addChild خام على المتّصل).
             const auto &childBuilders = wb->getChildBuilders();
             const auto &childIRNodes = irNode->getChildren();
 
@@ -858,8 +901,8 @@ namespace Sad
                     }
                 }
 
-                // (AR) تمرير تكراري للأحفاد
-                registerWidgetBuilderEvents(childIR, childWB);
+                // (AR) تمرير تكراري للأحفاد مع مجموعة الزيارة نفسها (حارس الدورة)
+                registerWidgetBuilderEvents(childIR, childWB, visited);
             }
         }
 

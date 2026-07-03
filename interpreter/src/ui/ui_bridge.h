@@ -38,6 +38,7 @@
 #include <string>
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 #include <atomic>
 #include <vector>
 #include <mutex>
@@ -673,10 +674,22 @@ namespace Sad
                 const Data::Value &widget,
                 int depth = 0);
 
-            /// (AR) تسجيل أحداث WidgetBuilder المخزنة كحقول في eventHandlers_
+            /// (AR) تسجيل أحداث WidgetBuilder المخزنة كحقول في eventHandlers_.
+            ///   visited يمنع التكرار اللانهائيّ عند وجود دورة في شجرة البُناة
+            ///   (مثل أ.ابن(ب) وب.ابن(أ))؛ يُنشأ تلقائيًّا في الاستدعاء الجذر.
             void registerWidgetBuilderEvents(
                 const std::shared_ptr<sad::ui::IRNode> &irNode,
-                Sad::Interpreter::WidgetBuilder *wb);
+                Sad::Interpreter::WidgetBuilder *wb,
+                std::unordered_set<Sad::Interpreter::WidgetBuilder *> *visited = nullptr);
+
+            // (AR) تكييف وسائط الحدث لأريّة المعالِج المعلَنة (مساعد داخليّ). مُوزِّع
+            //   الأحداث يبني وسائط الحدث دائمًا (قيمة المنزلق أوّلًا ثمّ خريطة الحدث)،
+            //   لكن معالِجًا صفريّ المعاملات (زرّ يؤدّي فعلًا ثابتًا) شائعٌ ومشروع
+            //   ولغة ص تفرض تطابق العدد بدقّة ⇒ SEM004 وإجهاض. نُبقي أوائل الوسائط
+            //   بقدر أكبر أريّةٍ يقبلها المعالِج. ملاحظة تكافؤ: يُضمَن تطابق المفسّر/
+            //   المترجم عند أريّة 0 فقط حتى يُصلَح جسر thunk الإغلاق في المترجم.
+            std::vector<Data::Value> adaptEventArgsToArity(
+                const std::string &funcName, std::vector<Data::Value> args) const;
 
             /// تحويل نوع العنصر (نص → UINodeType::Text)
             sad::ui::UINodeType stringToNodeType(const std::string &typeName);

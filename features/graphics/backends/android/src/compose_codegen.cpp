@@ -19,6 +19,7 @@
 #include "sad_ui/android/compose_codegen.h"
 #include "sad_ui/color_utils.h" // أدوات الألوان
 #include "sad_ui/types.h"
+#include "sad_ui/prop_keys.h" // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
 
 namespace sad
 {
@@ -26,6 +27,36 @@ namespace sad
     {
         namespace android
         {
+
+            namespace
+            {
+                // (AR) يستخرج نصّ العنصر بالترتيب القانونيّ («عنوان» أوّلًا كما يكتبه
+                //   مصنع زر())، مع بدائل، ويهرب محارف Kotlin كي لا يكسر عنوانٌ فيه
+                //   " أو \ أو $ الكودَ المولَّد. كان كلّ فرع يقرأ "text" وحده فتظهر
+                //   أزرار/نصوص Compose فارغة (فقدان «عنوان»/«محتوى»).
+                std::string composeLabel(const IRNode &node)
+                {
+                    static const char *keys[] = {props::TITLE, props::ICON, props::TEXT_LATIN, props::TEXT, props::CONTENT};
+                    std::string raw;
+                    for (const char *k : keys)
+                    {
+                        const auto *p = node.findProperty(k);
+                        if (!p)
+                            continue;
+                        if (auto *s = std::get_if<std::string>(&p->value)) { raw = *s; break; }
+                        if (auto *iv = std::get_if<int64_t>(&p->value)) { raw = std::to_string(*iv); break; }
+                        if (auto *dv = std::get_if<double>(&p->value)) { raw = std::to_string(*dv); break; }
+                    }
+                    std::string out;
+                    for (char c : raw)
+                    {
+                        if (c == '\\' || c == '"') { out += '\\'; out += c; }
+                        else if (c == '$') { out += "\\$"; }
+                        else out += c;
+                    }
+                    return out;
+                }
+            } // namespace
 
             // ═══════════════════════════════════════════════════════════════════════════════
             // تنفيذ ComposeCodegen
@@ -200,8 +231,7 @@ namespace sad
 
                 case UINodeType::Text:
                 {
-                    const auto *textProp = node.findProperty("text");
-                    std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
+                    std::string text = composeLabel(node);
 
                     out << ind << "Text(\n"
                         << ind << "    text = \"" << text << "\",\n";
@@ -221,8 +251,7 @@ namespace sad
 
                 case UINodeType::Button:
                 {
-                    const auto *textProp = node.findProperty("text");
-                    std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
+                    std::string text = composeLabel(node);
 
                     // البحث عن حدث النقر
                     std::string onClickExpr = "{}";

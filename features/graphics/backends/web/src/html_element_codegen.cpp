@@ -13,11 +13,37 @@
 
 #include "sad_ui/web/html_codegen.h"
 #include "sad_ui/color_utils.h"
+#include "sad_ui/prop_keys.h" // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
 #include <optional>
 
 namespace sad {
 namespace ui {
 namespace web {
+
+namespace {
+// (AR) نصّ العنصر بالترتيب القانونيّ («عنوان» أوّلًا) مع بدائل وهروب محارف
+//   HTML (& < >) كي لا يكسر عنوانٌ فيها بنيةَ الصفحة أو يفتح ثغرة حقن. كان
+//   فرع الزرّ يقرأ "text/نص/محتوى" فيفوّت «عنوان» ⇒ أزرار الويب فارغة.
+inline std::string htmlLabel(const IRNode& node) {
+    static const char* keys[] = {props::TITLE, props::ICON, props::TEXT_LATIN, props::TEXT, props::CONTENT};
+    std::string raw;
+    for (const char* k : keys) {
+        const auto* p = node.findProperty(k);
+        if (!p) continue;
+        if (auto* s = std::get_if<std::string>(&p->value)) { raw = *s; break; }
+        if (auto* iv = std::get_if<int64_t>(&p->value)) { raw = std::to_string(*iv); break; }
+        if (auto* dv = std::get_if<double>(&p->value)) { raw = std::to_string(*dv); break; }
+    }
+    std::string out;
+    for (char c : raw) {
+        if (c == '&') out += "&amp;";
+        else if (c == '<') out += "&lt;";
+        else if (c == '>') out += "&gt;";
+        else out += c;
+    }
+    return out;
+}
+} // namespace
 
 // ═══ الموزّع الرئيسي — يوجّه كل نوع عقدة للدالة المناسبة ═══
 
@@ -112,23 +138,13 @@ void HtmlCodegen::generateBasicElement(
 
     switch (node.getType()) {
         case UINodeType::Text: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
-            std::string text = textProp ?
-                (std::get_if<std::string>(&textProp->value) ?
-                    *std::get_if<std::string>(&textProp->value) : "") : "";
+            std::string text = htmlLabel(node);
             out << i << "<span" << style << ">" << text << "</span>\n";
             break;
         }
 
         case UINodeType::Button: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
-            std::string text = textProp ?
-                (std::get_if<std::string>(&textProp->value) ?
-                    *std::get_if<std::string>(&textProp->value) : "") : "";
+            std::string text = htmlLabel(node);
 
             std::string onclick;
             for (const auto& evt : node.getEvents()) {
