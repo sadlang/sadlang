@@ -1,6 +1,6 @@
 ---
 name: sad-lang-dev
-description: 'تطوير لغة ص نفسها — العمل على كود C++ للمفسر والمترجم وأنظمتها الداخلية. Use when: developing the Sad language implementation (not writing .ص code), modifying the lexer/parser/AST/interpreter/compiler (sadc), adding or editing builtin functions, working with the error/diagnostics system, editing language-truth YAML (Single Source of Truth), running the codegen pipeline (scripts/codegen/gen_*.py), adding a new keyword/directive/type, building a new internal subsystem, regenerating generated C++ from YAML, working with sadinfo tooling, understanding the layered architecture (Lexer→Parser→AST→SIR→LLVM), understanding the BMAD governance system (_bmad-output), understanding how language subsystems interlock (a builtin touches docs/YAML + errors + module/section + tests). Covers: error system (shared/errors + language-truth/errors), builtins system (interpreter/src/builtins + language-truth/builtins + codegen), documentation/YAML SoT system, interconnected-systems map, governance onboarding, strict dev workflow + Definition of Done, task delivery conditions + impact analysis + final checklist (which compiler/interpreter/tooling paths a change affects, how to confirm nothing was forgotten), extensibility — adding entirely new language subsystems.'
+description: 'تطوير لغة ص نفسها — العمل على كود C++ للمفسر والمترجم وأنظمتها الداخلية. Use when: developing the Sad language implementation (not writing .ص code), modifying the lexer/parser/AST/interpreter/compiler (sadc), adding or editing builtin functions, working with the error/diagnostics system, editing language-truth YAML (Single Source of Truth), running the codegen pipeline (scripts/codegen/gen_*.py), adding a new keyword/directive/type, building a new internal subsystem, regenerating generated C++ from YAML, understanding the layered architecture (Lexer→Parser→AST→SIR→LLVM), understanding the BMAD governance system (_bmad-output), understanding how language subsystems interlock (a builtin touches docs/YAML + errors + module/section + tests). Covers: error system (shared/errors + language-truth/errors), builtins system (interpreter/src/builtins + language-truth/builtins + codegen), documentation/YAML SoT system, interconnected-systems map, governance onboarding, strict dev workflow + Definition of Done, task delivery conditions + impact analysis + final checklist (which compiler/interpreter/tooling paths a change affects, how to confirm nothing was forgotten), extensibility — adding entirely new language subsystems.'
 ---
 
 # مهارة مبرمج لغة ص (تطوير اللغة نفسها)
@@ -54,7 +54,7 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 لا تُعلن الإنجاز قبل اجتياز **كل** بوّابة (التفصيل في [./references/delivery-checklist.md](./references/delivery-checklist.md)):
 
 1. **تحليل الأثر مكتمل** — حدّدتَ كل مسار/نظام متأثّر (مفسر، مترجم SIR/LLVM، VM، وأدوات
-   `language-truth`: LSP/المنسّق/sadinfo/الحزم) ولم تُهمل شيئاً بلا مبرّر.
+   `language-truth`: LSP/المنسّق/الحزم) ولم تُهمل شيئاً بلا مبرّر.
 2. **الاختبارات موجودة وتمرّ 100%** — `.ص` إيجابي+سلبي، و`runner.py --level P0` + القسم + `P1` خضراء، بلا تراجع.
 3. **البناء نظيف** — `sad-run` (Debug) و`sadc` (Release) بلا أخطاء/تحذيرات جديدة.
 4. **التوليد متسق** — YAML + `generated/` متطابقان في نفس الـ commit.
@@ -80,7 +80,7 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 | **مصدر الحقيقة** | `language-truth/` | **YAML SoT** لكل بيانات اللغة |
 | مولّدات الكود | `scripts/codegen/` | `gen_*.py` تقرأ YAML وتُنتج C++ |
 | الكود المُولَّد | `shared/*/generated/` | **لا يُحرَّر يدوياً** |
-| أدوات | `tools/` | `sadinfo/` (استعلام بيانات اللغة)، `lsp/`, `formatter/`, `pkg/`, `compiler/` |
+| أدوات | `tools/` | `lsp/`, `formatter/`, `pkg/`, `compiler/` |
 
 ## المراجع التفصيلية
 

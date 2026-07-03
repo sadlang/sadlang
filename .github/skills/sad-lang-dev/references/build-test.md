@@ -27,8 +27,8 @@ cmake --build build --config Debug
 # بيئة Python (مرة واحدة)
 pip install pyyaml jsonschema
 
-# تشغيل كل المولّدات
-python scripts/codegen/gen_all.py
+# تشغيل كل المولّدات (المُنسِّق الموحَّد + حارس الانجراف --check)
+python x.py gen
 
 # أو مولّد محدد — مثال الكلمات المفتاحية
 python scripts/codegen/gen_keywords.py `
@@ -37,8 +37,7 @@ python scripts/codegen/gen_keywords.py `
     --header shared/lexer/generated/keywords_generated.h `
     --source shared/lexer/generated/keywords_generated.cpp
 
-# التحقق من كل الـ Schemas
-python scripts/validate_schemas.py            # يقبل --strict / --verbose فقط (لا --truth-dir)
+# تحقق الـ Schemas مدمج في المولّدات نفسها (jsonschema داخل gen_*.py — لا أداة مستقلّة)
 ```
 
 > إن لم ينعكس تغيير YAML بعد البناء: احذف ملف الإخراج المُولَّد وأعد البناء لإجبار التوليد.

@@ -2933,10 +2933,10 @@ namespace Sad
         }
 
         // ════════════════════════════════════════════════════════════════════
-        // (AR) سجل شامل لكل المدمجات للأدوات (LSP/sadinfo) — اسم + بيانات وصفية.
+        // (AR) سجل شامل لكل المدمجات للأدوات (LSP) — اسم + بيانات وصفية.
         //      يغطّي كل الدوال، لا الـ72 القابلة للاستعلام في BuiltinEntry فقط.
         //      returnType فارغ حتى يُضاف حقل `returns` في language-truth/builtins/*.yaml.
-        // (EN) Comprehensive registry of ALL builtins for tooling (LSP/sadinfo).
+        // (EN) Comprehensive registry of ALL builtins for tooling (LSP).
         // ════════════════════════════════════════════════════════════════════
         struct BuiltinMeta
         {

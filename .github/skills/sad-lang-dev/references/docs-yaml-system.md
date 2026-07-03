@@ -41,19 +41,20 @@ language-truth/*.yaml  →  scripts/codegen/gen_*.py  →  shared/*/generated/*.
 | `gen_keywords.py` | `keywords.yaml` | `shared/lexer/generated/keywords_generated.{h,cpp}` |
 | `gen_builtins_registry.py` | `builtins/*.yaml` | `shared/builtins/generated/builtin_registry_generated.h` |
 | `gen_error_messages.py` | `language-truth/errors/*.yaml` (V5 — `--yaml-dir`، مربوط في CMake منذ EM-V5-1) | `shared/errors/generated/error_messages_generated.{h,cpp}` |
-| `gen_operators.py` | `operators.yaml` | كود العوامل المُولَّد |
-| `gen_directives.py` | `directives.yaml` | كود التوجيهات |
-| `gen_types.py`, `gen_type_methods.py` | `types.yaml`, `type_methods.yaml` | الأنواع والطرق |
-| `gen_grammar.py`, `gen_constructs.py` | `*_constructs.yaml` | بنى القواعد |
-| `gen_stdlib.py`, `gen_modules.py` | `stdlib/*.yaml` | المكتبة القياسية |
-| `gen_docs.py` | متعدد | وثائق |
-| `gen_all.py` | الكل | يشغّل كل المولّدات |
+| `gen_types.py` | `types.yaml` | كود الأنواع المُولَّد |
+| `gen_parser_grammar_docs.py` | `grammar/*.yaml` | `docs/parser_rule/_generated` |
+| `gen_tmgrammar.py` | `language-truth/` | قواعد TextMate لإبراز المحرّرات |
 
-**التوليد التلقائي وقت البناء — ✅ كل النطاقات مربوطة (EM-V5-4):** `cmake/codegen.cmake` يربط
-**13 هدفاً** عبر دالة موحَّدة `sad_add_codegen` + هدف تجميعي `sad_all_codegen`: keywords، builtins،
-errors، sadinfo (إسقاط)، operators، directives، types، type_methods، grammar، modules، stdlib،
-patterns، oop/expr_constructs. أي تعديل YAML في أي نطاق يُعاد توليده **آلياً** وقت البناء.
-لا حاجة لتشغيل `gen_all.py` يدوياً بعد الآن (يبقى أداةً للتشغيل الشامل خارج البناء).
+> مولّدات النطاقات الأخرى (operators/directives/type_methods/grammar/modules/stdlib/…)
+> **غير موجودة بعد** — سقالاتها معطَّلة في `cmake/codegen.cmake` (انظر أدناه).
+> المُنسِّق الشامل هو `python x.py gen` (مع حارس انجراف `x.py gen --check`).
+
+**التوليد التلقائي وقت البناء (EM-V5-4):** `cmake/codegen.cmake` يربط **4 نطاقات عاملة** بهدفٍ
+تجميعيّ `sad_all_codegen`: types، keywords، builtins، error_messages. أي تعديل YAML في نطاق
+عامل يُعاد توليده **آلياً** وقت البناء. النطاقات التسعة الباقية (operators، directives،
+grammar، modules، stdlib، type_methods، patterns، oop/expr_constructs) **سقالات معطَّلة**
+(مولّداتها مفقودة/غير مستهلَكة — انظر التعليق فوق `sad_add_codegen` في `codegen.cmake`).
+للتشغيل الشامل خارج البناء استخدم `python x.py gen` (لا يوجد `gen_all.py`).
 
 > **تنبيه دقّة:** توليد الأخطاء يقرأ V5، لكن **C++ لا يُجمّع المُولَّد بعد** (رسائل وقت التشغيل ما زالت
 > من `error_codes.cpp` اليدوي) — التكامل في نطاق `EM-3`.
@@ -67,24 +68,20 @@ pip install pyyaml jsonschema
 
 ## 3. التحقق من الـ Schema
 
-> ⚠️ **حالة الـ Schemas غير موحَّدة (V4→V5):** يوجد مجلدا schemas: `data/_schemas/` (يستخدمه
-> `validate_schemas.py` فعلياً) و`language-truth/_schemas/` (V5). وقد **لا تتطابق** الملفات الفعلية
-> مع schema مجلدها (خاصةً الأخطاء — راجع [./error-system.md](./error-system.md) §3). لا تفترض
-> أن كل YAML يجتاز schema حتى تكتمل الهجرة؛ **اعتمد ملفاً شقيقاً في نفس المجلد كمرجع بنية**.
+> ⚠️ **المخططات الآن في مكان واحد:** `language-truth/_schemas/` (حُذف `data/_schemas/` مع
+> تقاعد sadinfo — 2026-07-03). وقد **لا تتطابق** كل الملفات الفعلية مع schema مجلدها
+> (راجع [./error-system.md](./error-system.md) §3). لا تفترض أن كل YAML يجتاز الـ schema؛
+> **اعتمد ملفاً شقيقاً في نفس المجلد كمرجع بنية**.
 
-الأداة النشطة تتحقق من `data/_schemas/` مقابل fixtures الخاصة بـ sadinfo:
+> ⚠️ **لا توجد أداة تحقّق مستقلّة في المستودع** (`scripts/validate_schemas.py` غير موجود).
+> التحقق الفعلي يجري داخل المولّدات نفسها (`gen_keywords.py`/`gen_types.py`/`gen_error_messages.py`
+> تتحقق بـ jsonschema قبل التوليد) وفي اختباراتها (`scripts/codegen/test_*.py`).
 
-```powershell
-python scripts/validate_schemas.py            # يقبل --strict / --verbose فقط (لا --truth-dir)
-```
+## 4. أداة `sadinfo` — متقاعدة (2026-07-03)
 
-> فشل التحقق = حقل ناقص أو نوع خاطئ في الـ fixtures المعنيّة. تحقّق من البنية الفعلية بـ Read.
-
-## 4. أداة `sadinfo` — الاستعلام عن بيانات اللغة
-
-`tools/sadinfo/` أداة CLI تقرأ بيانات اللغة المُولَّدة/الموثّقة وتسمح بالاستعلام عنها
-(الكلمات، الدوال، الأخطاء، الأنواع). تُستخدم في الاختبارات (`tests/sadinfo/fixtures/`)
-وللتحقق من اتساق البيانات. راجع `tools/sadinfo/README.md`.
+كانت أداة CLI للاستعلام عن بيانات اللغة. **تقاعدت**: نصف مصادرها لم يدخل git قطّ،
+ومخطط كتالوجها مفقود، وهدفها لم يكن مربوطاً في CMake. حُذفت مع `data/` كتالوجِها.
+إن لزمت لاحقاً تُعاد كتابتها من `language-truth/` مباشرة (SoT).
 
 ## 5. سياسة الإصدار (VERSIONING.md)
 
@@ -98,13 +95,13 @@ python scripts/validate_schemas.py            # يقبل --strict / --verbose ف
 ## 6. الإجراء عند تعديل أي بيانات لغة
 
 1. عدّل ملف YAML المصدر في `language-truth/` (لا تلمس `generated/`).
-2. تحقق من البنية: قارن بملف شقيق في نفس المجلد + `python scripts/validate_schemas.py` (يتحقق من fixtures sadinfo).
-3. أعد التوليد (CMake أو `gen_*.py` يدوياً، أو `gen_all.py`).
+2. تحقق من البنية: قارن بملف شقيق في نفس المجلد (المولّد `gen_*.py` يتحقق من المخطط عند التوليد).
+3. أعد التوليد (CMake أو `gen_*.py` يدوياً، أو `python x.py gen`).
 4. ابنِ واختبر المفسر والمترجم.
 5. حدّث رقم الإصدار في `VERSIONING.md`/`_meta/` حسب نوع التغيير.
 
 ## 7. تنبيهات
 
-- `language-truth/` هو المصدر الموحَّد المعتمَد (ADR-DOCS-V4-005). بقايا `data/language/` تُتقاعَد
-  تدريجياً: أخطاء V4 حُذفت (EM-V5-3)؛ `keywords.yaml` يبقى مؤقتاً حتى M2-004.
+- `language-truth/` هو المصدر الموحَّد الوحيد (ADR-DOCS-V4-005). بقايا `data/language/` زالت
+  كلّها: أخطاء V4 حُذفت (EM-V5-3)، و`keywords.yaml` القديم حُذف بإغلاق M2-004 (2026-07-03).
 - ملفات `_bmad-output/` تخضع لحوكمة منفصلة — اقرأ سياستها قبل لمسها (راجع `copilot-instructions.md`).

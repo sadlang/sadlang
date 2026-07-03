@@ -23,7 +23,6 @@
 | الأمان (Sandbox) | `shared/security/` | عزل/سياسات أمان التنفيذ | — |
 | إعادة التحميل الساخن | `shared/hot_reload/` | تحديث الكود أثناء التشغيل | — |
 | المُحلّل (Profiler) | `shared/profiler/` | قياس الأداء (استخدمه قبل التحسين — CW-30) | — |
-| نواة sadinfo | `shared/sadinfo_core/` | المكتبة الخلفية لأداة `sadinfo` | [docs-yaml-system](./docs-yaml-system.md) |
 | أدوات مساعدة | `shared/utils/` | مرافق مشتركة | — |
 
 ## 2. محرّكات التنفيذ
@@ -41,8 +40,6 @@
 |--------|--------|------|------|
 | مصدر الحقيقة | `language-truth/` | YAML SoT لكل بيانات اللغة | [docs-yaml-system](./docs-yaml-system.md) |
 | مولّدات الكود | `scripts/codegen/` | `gen_*.py` → C++ مُولَّد | [docs-yaml-system](./docs-yaml-system.md) |
-| بقايا V4 | `data/language/keywords.yaml` | مصدر قديم (الكلمات فقط؛ أخطاء V4 حُذفت في EM-V5-3) — يُتقاعَد | [error-system](./error-system.md) |
-| كتالوج sadinfo (مُولَّد) | `data/errors/` | إسقاط مُولَّد من `language-truth/errors/` (EM-V5-2) — لا يُحرَّر يدوياً | [error-yaml-structures](./error-yaml-structures.md) |
 
 ## 4. الأدوات (`tools/`) — كلها تستهلك `language-truth`
 
@@ -51,14 +48,13 @@
 | LSP | `tools/lsp/` | خادم اللغة (تلوين/إكمال/تشخيص للمحرّرات) |
 | المنسّق | `tools/formatter/` | تنسيق كود `.ص` |
 | مدير الحزم | `tools/pkg/` | الحزم والاعتماديات |
-| sadinfo | `tools/sadinfo/` | استعلام بيانات اللغة |
 | واجهة المترجم | `tools/compiler/` | `compiler_driver_*` (واجهة sadc) |
 | REPL | `tools/repl/` | الصدفة التفاعلية |
 | الموزّع (Hub) | `tools/hub/` | `sad.exe` موزّع الأوامر (المفسر الفعلي `sad-run`) |
 | أخرى | `tools/{analyze,check,profiler,wasm,apk_builder,installers,security-scanner}/` | تحليل/فحص/نشر |
 
 > ⚠️ **أثر التموّج:** أي تعديل على `language-truth/` (كلمة/دالة/نوع/عامل) يَمَسّ **LSP + المنسّق
-> + sadinfo + مدير الحزم + الموقع** لأنها تستهلك نفس المصدر. أدرِجها في تحليل الأثر.
+> + مدير الحزم + الموقع** لأنها تستهلك نفس المصدر. أدرِجها في تحليل الأثر.
 
 ## 5. المكتبة القياسية والمجالات
 
@@ -76,7 +72,6 @@
 |--------|--------|------|------|
 | التنفيذ المزدوج | `tests/behavior/` | `runner.py` يقارن المفسر بالمترجم | [build-test](./build-test.md) |
 | اختبارات C++ | `tests/unit/` (الشاملة في `unit/comprehensive/`) | وحدات + الحزمة الشاملة | [build-test](./build-test.md) |
-| اختبارات sadinfo | `tests/sadinfo/` | تحقّق بيانات اللغة | [docs-yaml-system](./docs-yaml-system.md) |
 | البناء | `cmake/` | `codegen.cmake`, `executables.cmake`, `llvm.cmake` | [build-test](./build-test.md) |
 
 ## 7. الحوكمة

@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 1 — وحدة | [`unit/`](unit/) | مكوّن C++ معزول (Lexer/Parser/AST/SIR/Value) | CTest |
 | 2 — سلوك | [`behavior/`](behavior/) | `.ص` عبر المفسر + المترجم (تكافؤ) | `runner.py` |
-| 3 — نظام | [`system/`](system/) | أدوات (LSP/pkg/sadinfo) + أداء + توثيق | CTest / scripts |
+| 3 — نظام | [`system/`](system/) | أدوات (LSP/pkg) + أداء + توثيق | CTest / scripts |
 
 > **مبدأ (ADR-004):** «فضّل المستويات الأدنى» — منطق قابل للعزل يُختبَر في `unit/`؛
 > التنفيذ المزدوج البطيء في `behavior/` محجوز للدلالات التشغيلية.

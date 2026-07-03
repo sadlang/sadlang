@@ -69,7 +69,7 @@ target_link_libraries(sad_interp PUBLIC sad_lowlevel)
 add_dependencies(sad_shared sad_keywords_codegen)
 
 # (AR) EM-V5-4 / ق-فرعي-3 (ADR-DOCS-V4-005): ربط كل نطاقات language-truth بالبناء.
-#      sad_all_codegen يجمع الـ13 هدفاً (keywords/builtins/errors/sadinfo + 10 نطاقات)؛
+#      sad_all_codegen يجمع النطاقات الأربعة العاملة (types/keywords/builtins/error_messages)؛
 #      idempotent عبر stamp فلا يُعيد التوليد بلا تغيير YAML.
 # (EN) Wire all language-truth domains into the build so any YAML edit auto-regenerates.
 add_dependencies(sad_shared sad_all_codegen)

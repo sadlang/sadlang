@@ -334,12 +334,12 @@ describe("المحلل المعجمي", []() {
 ### الملف الوحيد الذي تحتاج تعديله:
 
 ```
-data/language/keywords.yaml
+language-truth/keywords.yaml
 ```
 
 ### خطوات إضافة كلمة محجوزة (reserved):
 
-1. افتح `data/language/keywords.yaml`
+1. افتح `language-truth/keywords.yaml`
 2. أضف إدخالاً ضمن قسم `reserved` بهذا الشكل:
    ```yaml
    - word: "كلمتي"
@@ -353,7 +353,7 @@ data/language/keywords.yaml
 
 ### خطوات إضافة كلمة سياقية (contextual):
 
-1. افتح `data/language/keywords.yaml`
+1. افتح `language-truth/keywords.yaml`
 2. أضف إدخالاً ضمن قسم `contextual`:
    ```yaml
    - word: "كلمتي"

@@ -21,7 +21,6 @@
 - [ ] **السجل/الكتالوج المُولَّد** (`shared/*/generated/`) أُعيد توليده وضُمّ للـ commit.
 - [ ] **LSP** (`tools/lsp/`): تلوين/إكمال كلمة/دالة جديدة (سياقية → `semantic_tokens_provider.cpp`).
 - [ ] **المنسّق** (`tools/formatter/`): هل تتأثر قواعد التنسيق برمز/كلمة جديدة؟
-- [ ] **sadinfo** (`tools/sadinfo/`): استعلام البيانات يعكس الإضافة.
 - [ ] **مدير الحزم / الموقع / التوثيق**: يستهلكون نفس المصدر.
 
 ### أ.3 الأنظمة المتشابكة (راجع [./interconnected-systems.md](./interconnected-systems.md))

@@ -12,8 +12,8 @@ add_library(sad_shared STATIC
     lexer/src/lexer_core.cpp
     lexer/src/lexer_keywords.cpp
     lexer/src/token.cpp
-    # (AR) Codegen v4.1: جدول الكلمات المولَّد من data/language/keywords.yaml
-    # (EN) Codegen v4.1: keyword table generated from data/language/keywords.yaml
+    # (AR) Codegen v4.1: جدول الكلمات المولَّد من language-truth/keywords.yaml
+    # (EN) Codegen v4.1: keyword table generated from language-truth/keywords.yaml
     lexer/generated/keywords_generated.cpp
     
     # Parser

@@ -6,12 +6,10 @@
 #      كلما تغيرت language-truth/keywords.yaml، يُعاد توليد:
 #        - shared/lexer/generated/keywords_generated.h
 #        - shared/lexer/generated/keywords_generated.cpp
-#      المصدر الأصلي data/language/keywords.yaml محفوظ كنسخة احتياطية حتى M2-004.
 # (EN) Adds custom command calling scripts/codegen/gen_keywords.py.
 #      Whenever language-truth/keywords.yaml changes, regenerates:
 #        - shared/lexer/generated/keywords_generated.h
 #        - shared/lexer/generated/keywords_generated.cpp
-#      Original data/language/keywords.yaml kept as fallback until M2-004.
 # ============================================================================
 
 # ─── (AR) اشتراط Python 3.9+ ─── (Winston: شرط واضح + رسالة)
@@ -28,10 +26,9 @@ if(NOT Python3_FOUND)
 endif()
 
 # ─── (AR) المسارات الكاملة ───
-# (AR) V5: المصدر الجديد language-truth/ — المصدر القديم محفوظ كـ SAD_KW_YAML_LEGACY حتى M2-004
+# (AR) V5: المصدر الوحيد language-truth/ (حُذفت النسخة القديمة data/language — قرار M2-004)
 set(SAD_KW_YAML       "${CMAKE_SOURCE_DIR}/language-truth/keywords.yaml"         CACHE INTERNAL "")
 set(SAD_KW_SCHEMA     "${CMAKE_SOURCE_DIR}/language-truth/_schemas/keywords.schema.json" CACHE INTERNAL "")
-set(SAD_KW_YAML_LEGACY "${CMAKE_SOURCE_DIR}/data/language/keywords.yaml"         CACHE INTERNAL "")
 set(SAD_KW_GEN_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/codegen/gen_keywords.py"      CACHE INTERNAL "")
 set(SAD_KW_GEN_DIR    "${CMAKE_SOURCE_DIR}/shared/lexer/generated"               CACHE INTERNAL "")
 set(SAD_KW_GEN_H      "${SAD_KW_GEN_DIR}/keywords_generated.h"                   CACHE INTERNAL "")
@@ -189,38 +186,6 @@ add_dependencies(sad_error_messages_codegen sad_check_codegen_env)
 message(STATUS "(sad) Error messages codegen configured (V5): DIR=${SAD_EM_YAML_DIR}")
 
 # ============================================================================
-# (AR) sadinfo Errors Projection (V5) — إسقاط كتالوج sadinfo من language-truth/errors/
-# (EN) sadinfo Errors Projection — generate sadinfo entity catalog from language-truth.
-# (AR) القرار: ADR-DOCS-V4-005 (ق-فرعي-2) — sadinfo إسقاط مُولَّد لا مصدر يدوي + EM-V5-2.
-# ============================================================================
-set(SAD_SI_GEN_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/codegen/gen_sadinfo_errors.py"           CACHE INTERNAL "")
-set(SAD_SI_OUT_SCHEMA "${CMAKE_SOURCE_DIR}/data/_schemas/error.schema.json"                  CACHE INTERNAL "")
-set(SAD_SI_OUT_DIR    "${CMAKE_SOURCE_DIR}/data/errors"                                       CACHE INTERNAL "")
-set(SAD_SI_STAMP      "${CMAKE_BINARY_DIR}/sad_sadinfo_errors.stamp"                          CACHE INTERNAL "")
-
-add_custom_command(
-    OUTPUT  ${SAD_SI_STAMP}
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8
-            ${Python3_EXECUTABLE} ${SAD_SI_GEN_SCRIPT}
-                --yaml-dir    ${SAD_EM_YAML_DIR}
-                --src-schema  ${SAD_EM_SCHEMA}
-                --out-schema  ${SAD_SI_OUT_SCHEMA}
-                --out-dir     ${SAD_SI_OUT_DIR}
-                --quiet
-    COMMAND ${CMAKE_COMMAND} -E touch ${SAD_SI_STAMP}
-    DEPENDS ${SAD_EM_YAML_FILES} ${SAD_EM_SCHEMA} ${SAD_SI_OUT_SCHEMA} ${SAD_SI_GEN_SCRIPT}
-    COMMENT "(sad) Projecting sadinfo error catalog from language-truth/errors/*.yaml (V5)..."
-    VERBATIM
-)
-
-add_custom_target(sad_sadinfo_errors_codegen
-    DEPENDS ${SAD_SI_STAMP}
-)
-add_dependencies(sad_sadinfo_errors_codegen sad_check_codegen_env)
-
-message(STATUS "(sad) sadinfo errors projection configured (V5): OUT=${SAD_SI_OUT_DIR}")
-
-# ============================================================================
 # (AR) ربط كل نطاقات language-truth المتبقّية في CMake (V5) — EM-V5-4 / ق-فرعي-3.
 #      القرار ADR-DOCS-V4-005: توليد آلي وقت البناء لكل نطاق (لا gen_all.py يدوي).
 #      دالة موحَّدة تتجنّب تكرار الكتل (CW-19)؛ الوسائط مطابقة لـ gen_all.py المثبت.
@@ -282,10 +247,4 @@ endfunction()
 add_custom_target(sad_all_codegen DEPENDS
     sad_types_codegen sad_keywords_codegen sad_builtin_registry_codegen sad_error_messages_codegen
 )
-# (AR) sad_sadinfo_errors_codegen مُستبعَد من مُجمِّع بناء C++: مُخرَجه (data/errors) إسقاط
-#      تشغيلي للأدوات/الموقع، صفر استهلاك في كود C++، ومخططه (data/_schemas/error.schema.json)
-#      مفقود حالياً. الهدف يبقى معرّفاً ويُشغَّل يدوياً عند الحاجة (بعد استعادة المخطط).
-# (EN) sad_sadinfo_errors_codegen excluded from the C++ build aggregate: its output
-#      (data/errors) is a tooling/site projection with zero C++ consumers and a currently
-#      missing schema. The target stays defined; run it manually when needed.
-message(STATUS "(sad) Codegen wired: 4 C++ build domains (types/keywords/builtins/error_messages); sadinfo + 9 V5 scaffolds excluded")
+message(STATUS "(sad) Codegen wired: 4 C++ build domains (types/keywords/builtins/error_messages); 9 V5 scaffolds excluded; sadinfo retired")

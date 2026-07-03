@@ -59,8 +59,8 @@ migration_notes: "ترقية من data/language/ → language-truth/ (V5 Codegen
 ## سياسة التوافق
 
 - **V5.x.x** — متوافق مع Codegen Python V5 + `libsadlangtruth` V5.
-- **V4.x.x** (السابق: `data/language/`) — يبقى يعمل طوال مرحلة M0–M2.
-- عند الوصول لـ M2 (إغلاق S-V5-M2-004)، يُحذف `data/language/` ويصبح `language-truth/` SoT الوحيد.
+- **V4.x.x** (السابق: `data/language/`) — عمل طوال مرحلة M0–M2 ثم حُذف.
+- **أُنجز (2026-07-03، إغلاق S-V5-M2-004):** حُذف `data/language/` وصار `language-truth/` SoT الوحيد.
 
 ---
 

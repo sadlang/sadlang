@@ -1,8 +1,0 @@
-schema_version: 999
-id: "builtin.broken_version"
-kind: "builtin"
-name: "إصدار غير مدعوم"
-category: "io"
-since: "0.1.0"
-signature: {}
-owners: ["test"]

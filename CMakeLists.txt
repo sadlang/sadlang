@@ -77,13 +77,6 @@ option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
 #    / Optional LLVM configuration (must precede cmake/core_components.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/llvm.cmake)
 
-# 1.5. yaml-cpp الاختيارية لـ sadinfo / Optional yaml-cpp for sadinfo
-# (AR) يجب أن تُحمَّل قبل cmake/core_components.cmake وtools.cmake لتعريف SAD_HAS_YAML_CPP
-#      و target yaml-cpp قبل أن يتحقق منها tools/sadinfo/CMakeLists.txt.
-# (EN) Must load before cmake/core_components.cmake and tools.cmake to define SAD_HAS_YAML_CPP
-#      and the yaml-cpp target before tools/sadinfo/CMakeLists.txt checks them.
-include(${CMAKE_SOURCE_DIR}/cmake/yaml_cpp.cmake)
-
 # 2. إعدادات المنصة (preprocessor, warnings) / Platform Configuration
 # (AR) يجب تحميلها قبل cmake/core_components.cmake لتنتشر الخيارات إلى المجلّدات الفرعيّة
 # (EN) Must be loaded before cmake/core_components.cmake so options propagate to subdirectories

@@ -141,6 +141,6 @@ shared/builtins/generated/
 
 ```powershell
 python scripts/codegen/audit_duplicate_registrations.py   # كشف تسجيل مكرر بين الوحدات
-python scripts/codegen/check_docs_coverage.py             # تغطية التوثيق لكل دالة
-python scripts/validate_schemas.py            # يقبل --strict / --verbose فقط (لا --truth-dir)
+python x.py gen --check                                   # حارس انجراف المُولَّد عن YAML
+# تحقق الـ Schemas مدمج في المولّدات نفسها (لا توجد أداة validate_schemas.py مستقلّة)
 ```

@@ -33,7 +33,7 @@ tests/
 ├── runner.py + config.yaml + report_html.py   ← المشغّل الموحّد
 ├── behavior/    ← طبقة السلوك: P0_smoke + sections(12) + rules_matrix + _regression
 ├── unit/        ← طبقة الوحدة C++: 12+ مكوّناً + comprehensive (ctest -L Unit)
-├── system/      ← طبقة النظام: hub, sadinfo, lsp, pkg, docs, benchmark, network(خلف علم), fuzzing
+├── system/      ← طبقة النظام: hub, lsp, pkg, docs, benchmark, network(خلف علم), fuzzing
 ├── framework/   ← إطار اختبار C++ المشترك
 └── _archive/    ← هذا المجلد
 ```

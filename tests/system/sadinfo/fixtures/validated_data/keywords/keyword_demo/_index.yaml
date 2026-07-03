@@ -1,9 +1,0 @@
-schema_version: 1
-id: "keyword.demo"
-kind: "keyword"
-name: "تجريبي"
-reserved: true
-category: "declaration"
-since: "0.1.0"
-owners:
-  - "test"

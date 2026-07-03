@@ -3,11 +3,11 @@
 // ======================================================================
 // (AR) واجهة جدول الكلمات المفتاحية. تُبنى البيانات من المعجم المولَّد
 //      shared/lexer/generated/keywords_generated.{h,cpp} المنتج من
-//      data/language/keywords.yaml. لا توجد سلاسل عربية مكتوبة يدوياً
+//      language-truth/keywords.yaml. لا توجد سلاسل عربية مكتوبة يدوياً
 //      في هذا الملف ولا في تنفيذه.
 // (EN) Keyword table API. Data is built from auto-generated
 //      shared/lexer/generated/keywords_generated.{h,cpp} produced from
-//      data/language/keywords.yaml. No hand-written Arabic strings live
+//      language-truth/keywords.yaml. No hand-written Arabic strings live
 //      in this header or its implementation.
 // ======================================================================
 

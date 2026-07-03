@@ -11,13 +11,13 @@
      تتعارضان أبداً.
 
      يُمرَّر هذا الـ context للمولِّدات الحالية وسيُمرَّر للمولِّدات
-     الجديدة في UTM-6.2+ عند دعم data/language/index.yaml.
+     الجديدة في UTM-6.2+ عند دعم language-truth/index.yaml.
 
 (EN) Carries loaded and validated data, passed to generators.
      Contains NO global state — two instances are fully independent.
 
      Passed to current generators and will be used by new generators
-     in UTM-6.2+ when data/language/index.yaml is introduced.
+     in UTM-6.2+ when language-truth/index.yaml is introduced.
 ----------------------------------------------------------------------------
 (AR) التصميم: بسيط مقصود (YAGNI) — لا نُضيف خصائص لا تُستخدم الآن.
      الامتداد يكون عبر إضافة حقول جديدة (additive, non-breaking).

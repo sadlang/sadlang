@@ -5,12 +5,12 @@
 // ============================================================================
 //
 // (AR) كل البيانات تُستمد من المعجم المولَّد من YAML
-//      `data/language/keywords.yaml` عبر `Generated::allEntries()`.
+//      `language-truth/keywords.yaml` عبر `Generated::allEntries()`.
 //      لا توجد سلاسل عربية مكتوبة يدوياً في هذا الملف. أي كلمة جديدة أو
 //      تعديل إملاء يحدث في YAML فقط — يَنتشر تلقائياً.
 //
 // (EN) All data is derived from the YAML-generated lexicon
-//      `data/language/keywords.yaml` via `Generated::allEntries()`.
+//      `language-truth/keywords.yaml` via `Generated::allEntries()`.
 //      There are NO hand-written Arabic strings in this file. Any new word
 //      or spelling change happens in YAML only — propagates automatically.
 // ============================================================================

@@ -63,9 +63,10 @@ shared/errors/  (كود المعالجة والعرض — يُحرَّر يدو�
 ## 3. بنية تعريف خطأ في YAML
 
 > ✅ **الصيغة المُعتمَدة رسمياً (ADR-DOCS-V4-005): المتداخلة** أدناه (`title/brief/fix_hint/detailed`
-> لكلٍّ `{ar,en}`). `language-truth/_schemas/error.schema.json` يصفها (الملفات الـ7 تجتازه بصفر
+> لكلٍّ `{ar,en}`). `language-truth/_schemas/error.schema.json` يصفها (الملفات الـ8 تجتازه بصفر
 > مخالفات). **`data/language/error_messages.yaml` (V4) حُذف** (EM-V5-3) — المصدر الآن `language-truth/errors/`.
-> كتالوج `sadinfo` (`E####`) صار **إسقاطاً مُولَّداً** (EM-V5-2).
+> كتالوج `sadinfo` (`E####`) كان إسقاطاً مُولَّداً (EM-V5-2)، ثم **تقاعدت أداة sadinfo وكتالوجها
+> `data/` معاً (2026-07-03)** — 4 من 9 مصادرها لم تدخل git قطّ؛ تُعاد كتابتها من SoT إن لزمت.
 >
 > **القاعدة العملية:** انسخ بنية **خطأ شقيق في نفس الملف**.
 >
@@ -146,8 +147,8 @@ shared/errors/  (كود المعالجة والعرض — يُحرَّر يدو�
 ## 6. التحقق
 
 ```powershell
-# تحقق من مطابقة كل YAML للـ Schema
-python scripts/validate_schemas.py            # يقبل --strict / --verbose فقط (لا --truth-dir)
+# تحقق الـ Schema مدمج في المولّد (gen_error_messages.py يتحقق بـ jsonschema + 6 فحوص دلالية)
+# لا توجد أداة scripts/validate_schemas.py مستقلّة في المستودع.
 
 # اختبارات المولّد + حُرّاس الترحيل (الفعّال V5: منها حارس ICE وحارس placeholders)
 python -m pytest scripts/codegen/test_gen_error_messages_v5.py -q

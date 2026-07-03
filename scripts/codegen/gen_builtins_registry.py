@@ -11,7 +11,7 @@
      5. TYPE_METHOD_BUILTINS[] — طرق الأنواع
      6. static_assert للتحقق من الأعداد
      7. دوال البحث (findBuiltinByName، isAvailableWithoutImport)
-     8. ALL_BUILTINS — سجل شامل (BuiltinMeta) لكل المدمجات للأدوات (LSP/sadinfo)
+     8. ALL_BUILTINS — سجل شامل (BuiltinMeta) لكل المدمجات للأدوات (LSP)
         + دالّتا البحث الشامل findBuiltinMeta و isKnownBuiltin
 
 (EN) Reads builtins/*.yaml and produces a C++ header with the same structure
@@ -445,17 +445,17 @@ def _cpp_str(s: Any) -> str:
 def emit_all_builtins(functions: list[dict]) -> str:
     """
     @brief (AR) يُولِّد سجلاً شاملاً (BuiltinMeta + ALL_BUILTINS) لكل المدمجات
-                للأدوات (LSP/sadinfo): اسم + فضاء + تصنيف + وحدة + وصف + معاملات.
+                للأدوات (LSP): اسم + فضاء + تصنيف + وحدة + وصف + معاملات.
                 نوع الإرجاع فارغ حتى يُضاف حقل `returns` في YAML.
     @brief (EN) Emit a comprehensive BuiltinMeta + ALL_BUILTINS registry covering
                 EVERY builtin (not just the 72 in BuiltinEntry) for tooling.
     """
     lines: list[str] = []
     lines.append("        // ════════════════════════════════════════════════════════════════════")
-    lines.append("        // (AR) سجل شامل لكل المدمجات للأدوات (LSP/sadinfo) — اسم + بيانات وصفية.")
+    lines.append("        // (AR) سجل شامل لكل المدمجات للأدوات (LSP) — اسم + بيانات وصفية.")
     lines.append("        //      يغطّي كل الدوال، لا الـ72 القابلة للاستعلام في BuiltinEntry فقط.")
     lines.append("        //      returnType فارغ حتى يُضاف حقل `returns` في language-truth/builtins/*.yaml.")
-    lines.append("        // (EN) Comprehensive registry of ALL builtins for tooling (LSP/sadinfo).")
+    lines.append("        // (EN) Comprehensive registry of ALL builtins for tooling (LSP).")
     lines.append("        // ════════════════════════════════════════════════════════════════════")
     lines.append("        struct BuiltinMeta")
     lines.append("        {")

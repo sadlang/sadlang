@@ -2,10 +2,10 @@
 // lexer_keywords.cpp - تنفيذ جدول الكلمات (v4.1)
 // (AR) لا يحتوي هذا الملف على أي سلاسل عربية أو قوائم كلمات يدوية.
 //      كل البيانات مأخوذة من Generated::allEntries() المولَّدة من
-//      data/language/keywords.yaml.
+//      language-truth/keywords.yaml.
 // (EN) This file contains zero hand-written Arabic strings or keyword
 //      lists. All data flows from Generated::allEntries() produced from
-//      data/language/keywords.yaml.
+//      language-truth/keywords.yaml.
 // ======================================================================
 
 #include "lexer_keywords.h"

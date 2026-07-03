@@ -1,6 +1,6 @@
 # language-truth/ — مصدر الحقيقة لبيانات لغة ص
 
-> **الحالة:** SoT انتقالي — يعمل بالتوازي مع `data/language/` بلا كسر بناء.
+> **الحالة:** **SoT الوحيد** (أُغلق M2-004 في 2026-07-03: حُذف `data/language/`).
 > **المرجع:** [ARCHITECTURE.md](../_bmad-output/systems/living-documentation/ARCHITECTURE.md)
 
 ---
@@ -10,8 +10,8 @@
 `language-truth/` هو المصدر الموحَّد (Single Source of Truth) لكل بيانات لغة ص:
 الكلمات المفتاحية، الدوال المدمجة، الأنواع، العوامل، التوجيهات، الأخطاء، المكتبة القياسية.
 
-يعمل هذا المجلد كـ **SoT انتقالي** بالتوازي مع `data/language/` القائم خلال مرحلة الترقية إلى V5.
-عند اكتمال M2، سيُحذف `data/language/` (قرار ADR-DOCS-V4-003).
+هذا المجلد هو **SoT الوحيد** للغة. اكتملت هجرة V5: حُذف `data/language/` الانتقاليّ في 2026-07-03
+(قرار ADR-DOCS-V4-003 / إغلاق S-V5-M2-004).
 
 ---
 
@@ -74,8 +74,10 @@ language-truth/
 
 ### التحقق اليدوي
 ```bash
-python scripts/validate_schemas.py --truth-dir language-truth/
+python x.py gen --check   # حارس الانجراف: يتأكد أن generated/ مطابق لـ YAML الحالي
 ```
+> تحقق الـ Schema نفسه مدمج في المولّدات (`gen_keywords.py`/`gen_types.py`/`gen_error_messages.py`
+> تتحقق بـ jsonschema قبل التوليد) — لا توجد أداة `validate_schemas.py` مستقلّة.
 
 ---
 
@@ -91,6 +93,6 @@ python scripts/validate_schemas.py --truth-dir language-truth/
 `language-truth/` is the Single Source of Truth for all Sad programming language data
 (keywords, builtins, types, operators, errors, stdlib).
 
-It operates as a transitional SoT alongside `data/language/` during V5 migration.
+It is the sole SoT; the transitional `data/language/` copy was removed on 2026-07-03 (M2-004 closed).
 All tooling (LSP, Website, Formatter, Package Manager) should consume from this directory
 via Python codegen → `shared/*/generated/*.h` or via `libsadlangtruth` C++ API.

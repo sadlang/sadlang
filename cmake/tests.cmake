@@ -456,14 +456,6 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/hub/CMakeLists.txt")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
-# (AR) اختبارات sadinfo (Story 1.2)
-# (EN) sadinfo tests (Story 1.2)
-# ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/tests/system/sadinfo/CMakeLists.txt")
-    add_subdirectory(tests/system/sadinfo)
-endif()
-
-# ──────────────────────────────────────────────────────────────────────
 # (AR) TEST-004 AC-02: وسم Unit للاختبارات الفردية لطبقة الوحدة —
 #      يُكمل وسم ماكرو الحزمة الشاملة في tests_comprehensive.cmake،
 #      فيشغّل `ctest -L Unit` الطبقة كلها. حارس if(TEST) يتخطى المعطّل.
