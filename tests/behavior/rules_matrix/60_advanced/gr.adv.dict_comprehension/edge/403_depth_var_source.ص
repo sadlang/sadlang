@@ -1,0 +1,8 @@
+# @rule: gr.adv.dict_comprehension
+# @description: قاموس بمصدر متغيّر ق؛ probe د[«3»]
+# @priority: P2
+# @requires: اطبع_سطر، نص
+# @expected: 30
+متغير ق = [1، 2، 3]
+متغير د = {لكل س في ق أنتج نص(س): س * 10}
+اطبع_سطر(د["3"])

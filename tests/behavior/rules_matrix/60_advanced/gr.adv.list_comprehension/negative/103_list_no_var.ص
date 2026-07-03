@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: قائمة بلا متغيّر تُرفض
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير ز = [لكل في [1، 2، 3] أنتج س]
+اطبع_سطر(ز)

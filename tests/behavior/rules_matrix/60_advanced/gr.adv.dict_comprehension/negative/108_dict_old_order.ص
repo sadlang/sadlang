@@ -1,0 +1,7 @@
+# @rule: gr.adv.dict_comprehension
+# @description: الترتيب القديم للقاموس يُرفض
+# @priority: P1
+# @requires: اطبع_سطر، نص
+# @expect_error
+متغير د = {نص(س): س لكل س في [1، 2، 3]}
+اطبع_سطر(د)

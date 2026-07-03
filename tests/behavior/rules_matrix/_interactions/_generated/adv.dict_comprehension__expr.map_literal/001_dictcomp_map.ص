@@ -1,8 +1,8 @@
 # @rule: gr.adv.dict_comprehension, gr.expr.map_literal
 # @description: استيعاب قاموس بصيغة خريطة حرفيّة
 # @priority: P2
-# @requires: اطبع_سطر
+# @requires: اطبع_سطر، نص
 # @expected: 20
 
-متغير د = {نص(م): م * 10 لكل م في [1، 2، 3]}
+متغير د = {لكل م في [1، 2، 3] أنتج نص(م): م * 10}
 اطبع_سطر(د["2"])

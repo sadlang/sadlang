@@ -1359,7 +1359,7 @@ namespace Sad
             // Check for block vs map literal
             // Strategy: { followed by expression is likely map if we find : early
             // Block: { stmt; stmt; }
-            // Map: {k: v} or {k: v for x in list}
+            // Map: {k: v} or comprehension {لكل x في src أنتج ...}
             // (AR) التحقق من block أو خريطة حرفية
             if (check(TT::BRACE_LEFT))
             {

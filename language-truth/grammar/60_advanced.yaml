@@ -255,10 +255,9 @@ productions:
 
   - id: gr.adv.list_comprehension
     lhs: { nonterminal: ListComprehension, name_ar: "استيعاب قائمة", name_en: list_comprehension }
-    ebnf: "ListComprehension = Expression 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] ;"
+    ebnf: "ListComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;"
     alternatives:
       - symbols:
-          - { kind: nonterminal, ref: gr.expr.expression }
           - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
           - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
@@ -267,28 +266,25 @@ productions:
             children:
               - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
               - { kind: nonterminal, ref: gr.expr.expression }
-    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012"] }
+          - { kind: terminal, ref: KEYWORD_YIELD, value: "أنتج" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012", "KW-CTX-013"] }
     maps_to:
-      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseListComprehension" }
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseArrayLiteral" }
     ast_node: "ListComprehensionExpr"
-    description_ar: "«[تعبير لكل س في مجموعة إذا شرط]» داخل «[]»؛ الشرط اختياريّ"
+    description_ar: "«[لكل س في مصدر [إذا شرط] أنتج تعبير]» داخل «[]»؛ رأس الحلقة أوّلًا ثم «أنتج» تفصله عن تعبير الناتج (ترتيب عربيّ)؛ الشرط اختياريّ"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 5, negative: 2, interaction: 3 } }
     example: |
-      متغير ز = [س * 2 لكل س في [1، 2، 3]]
+      متغير ز = [لكل س في [1، 2، 3] أنتج س * 2]
 
-  - id: gr.adv.dict_comprehension
-    lhs: { nonterminal: DictComprehension, name_ar: "استيعاب قاموس", name_en: dict_comprehension }
-    ebnf: "DictComprehension = Expression ':' Expression 'لكل' Identifier ',' Identifier 'في' Expression [ 'إذا' Expression ] ;"
+  - id: gr.adv.set_comprehension
+    lhs: { nonterminal: SetComprehension, name_ar: "استيعاب مجموعة", name_en: set_comprehension }
+    ebnf: "SetComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;"
     alternatives:
       - symbols:
-          - { kind: nonterminal, ref: gr.expr.expression }
-          - { kind: terminal, ref: COLON, value: ":" }
-          - { kind: nonterminal, ref: gr.expr.expression }
           - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
-          - { kind: terminal, ref: IDENTIFIER }
-          - { kind: terminal, ref: OP_COMMA, value: "،" }
           - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
@@ -296,14 +292,46 @@ productions:
             children:
               - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
               - { kind: nonterminal, ref: gr.expr.expression }
-    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012"] }
+          - { kind: terminal, ref: KEYWORD_YIELD, value: "أنتج" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012", "KW-CTX-013"] }
     maps_to:
-      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseDictComprehension" }
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }
+    ast_node: "SetComprehensionExpr"
+    description_ar: "«{لكل س في مصدر [إذا شرط] أنتج تعبير}» داخل «{}» بلا «:» بعد الناتج ⇒ مجموعة؛ الشرط اختياريّ"
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+    example: |
+      متغير م = {لكل س في [1، 2، 2، 3] أنتج س}
+
+  - id: gr.adv.dict_comprehension
+    lhs: { nonterminal: DictComprehension, name_ar: "استيعاب قاموس", name_en: dict_comprehension }
+    ebnf: "DictComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ( ':' | '=' ) Expression ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: KEYWORD_IN, value: "في" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+              - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: KEYWORD_YIELD, value: "أنتج" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: alt, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: terminal, ref: OP_ASSIGN, value: "=" } ] }
+          - { kind: nonterminal, ref: gr.expr.expression }
+    references: { keywords: ["KW-RES-015", "KW-RES-016", "KW-RES-012", "KW-CTX-013"] }
+    maps_to:
+      - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }
     ast_node: "DictComprehensionExpr"
-    description_ar: "«{م: ق لكل م، ق في قاموس إذا شرط}» داخل «{}»؛ الشرط اختياريّ"
+    description_ar: "«{لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}» داخل «{}» مع «:» بعد الناتج ⇒ قاموس (متغيّر حلقة مفرد)؛ الشرط اختياريّ"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }
+    example: |
+      متغير ق = {لكل س في [1، 2، 3] أنتج س: س * س}
 
   - id: gr.adv.macro
     lhs: { nonterminal: MacroDecl, name_ar: "تصريح ماكرو", name_en: macro_declaration }
@@ -395,21 +423,21 @@ productions:
 
   - id: gr.adv.ffi_extern_block
     lhs: { nonterminal: ExternBlock, name_ar: "كتلة خارجي", name_en: extern_block }
-    ebnf: "ExternBlock = Linkage '{' { ExternFunction } '}' ;"
+    ebnf: "ExternBlock = Linkage { ExternFunction } 'نهاية' ;"
     alternatives:
       - symbols:
           - { kind: nonterminal, ref: gr.adv.ffi_linkage }
-          - { kind: terminal, ref: BRACE_LEFT, value: "{" }
           - { kind: repeat, children: [ { kind: nonterminal, ref: gr.decl.extern } ] }
-          - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
     references: { keywords: ["KW-RES-037"] }
     maps_to:
-      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseExternBlock" }
-      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseExternFunction" }
-    ast_node: "ExternBlockAST"
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDeclaration" }
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExternFunctionDecl" }
+    ast_node: "BlockStmt"
     description_ar: >
-      كتلة ربط أجنبيّ نمط‑C «خارجي \"C\" { دالة ... }» — تستخدم الأقواس «{}» (لا «نهاية»).
-      يحلّلها مُحلّل فرعيّ مستقلّ ExternParser؛ تدعم C/C++/نظام كاتفاقيّات ربط.
+      كتلة ربط أجنبيّ «خارجي \"C\" دالة ... نهاية» — تُغلق بـ«نهاية» اتّساقًا مع نمط
+      الإغلاق العربيّ الموحَّد في لغة ص (لا الأقواس «{}»). يحلّلها ParserCore::parseDeclaration
+      مباشرةً (لا مُحلّل فرعيّ)؛ تدعم C/C++/نظام كاتفاقيّات ربط.
     since: "1.0.0"
     status: experimental
     conformance:
@@ -428,7 +456,7 @@ productions:
               - { kind: terminal, ref: STRING_LITERAL, value: "\"C\"" }
     references: { keywords: ["KW-RES-037"] }
     maps_to:
-      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseLinkage" }
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDeclaration" }
     ast_node: "ExternLinkage"
     description_ar: "نوع الربط الأجنبيّ: C (افتراضيّ) أو C++ أو نظام (system)"
     since: "1.0.0"

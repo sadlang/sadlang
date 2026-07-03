@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: استيعاب قائمة ترشيح س < 4 ثمّ أنتج س * 10؛ probe أوّل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+متغير ز = [لكل س في [1، 3، 5، 7] إذا س < 4 أنتج س * 10]
+اطبع_سطر(ز[0])

@@ -1,0 +1,7 @@
+# @rule: gr.adv.set_comprehension
+# @description: استيعاب مجموعة بلا «أنتج» يجب أن يُرفض (رأس الحلقة يتطلّب «أنتج» قبل الناتج)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير م = {لكل س في [1، 2، 3] س}
+اطبع_سطر(م)

@@ -7,7 +7,7 @@
 
 - **الطبقة:** `advanced` · **ملف المصدر:** `language-truth/grammar/60_advanced.yaml`
 - **الوصف:** بنيات متقدمة — أنواع/قوالب/عمر/قيود + أنتج/باستخدام/أجّل/أطلق/اختر + استيعاب/ماكرو/اختبار/عقد/FFI/واجهة
-- **عدد القواعد:** 26
+- **عدد القواعد:** 27
 
 > **قراءة المخطّطات:** «📊 مخطّط البنية النحويّة» يُظهر تسلسل الرموز (تكرار «تكرار»، اختياري «تخطّي»، بدائل ◆). «مخطّط مسار الدوال» يُظهر دوال المحلل التي تُستدعى حتى بناء عقدة AST.
 
@@ -26,28 +26,29 @@ flowchart TD
   o9["جملة أجّل<br/>parseDeferStmt()"]
   o10["جملة أطلق<br/>parseGoStmt()"]
   o11["جملة اختر<br/>parseSelectStmt()"]
-  o12["استيعاب قائمة<br/>parseListComprehension()"]
-  o13["استيعاب قاموس<br/>parseDictComprehension()"]
-  o14["تصريح ماكرو<br/>parseMacroDecl()"]
-  o15["اختبار خصائص<br/>parseTestDecl()"]
-  o16["تعبير انتظر<br/>parsePrimary()"]
-  o17["عقد ذكيّ<br/>parseDeclaration()"]
-  o18["كتلة خارجي<br/>parseExternBlock()"]
-  o19["اتفاقيّة ربط<br/>parseLinkage()"]
-  o20["نوع C<br/>parseCType()"]
-  o21["تجميع مضمَّن<br/>tryParseDirective()"]
-  o22["تصريح واجهة<br/>parseUIDeclaration()"]
-  o23["تصريح حالة واجهة<br/>parseUIStateDecl()"]
-  o24["تعبير عنصر واجهة<br/>parseWidgetExpression()"]
-  o25["سلسلة معدّلات<br/>parseModifierChain()"]
-  o26["معالج حدث<br/>parseUIEventHandler()"]
+  o12["استيعاب قائمة<br/>parseArrayLiteral()"]
+  o13["استيعاب مجموعة<br/>parseMapLiteral()"]
+  o14["استيعاب قاموس<br/>parseMapLiteral()"]
+  o15["تصريح ماكرو<br/>parseMacroDecl()"]
+  o16["اختبار خصائص<br/>parseTestDecl()"]
+  o17["تعبير انتظر<br/>parsePrimary()"]
+  o18["عقد ذكيّ<br/>parseDeclaration()"]
+  o19["كتلة خارجي<br/>parseDeclaration()"]
+  o20["اتفاقيّة ربط<br/>parseDeclaration()"]
+  o21["نوع C<br/>parseCType()"]
+  o22["تجميع مضمَّن<br/>tryParseDirective()"]
+  o23["تصريح واجهة<br/>parseUIDeclaration()"]
+  o24["تصريح حالة واجهة<br/>parseUIStateDecl()"]
+  o25["تعبير عنصر واجهة<br/>parseWidgetExpression()"]
+  o26["سلسلة معدّلات<br/>parseModifierChain()"]
+  o27["معالج حدث<br/>parseUIEventHandler()"]
   o3 --> o4
   o4 --> o1
   o5 --> o1
-  o18 --> o19
-  o22 --> o23
-  o23 --> o1
-  o24 --> o25
+  o19 --> o20
+  o23 --> o24
+  o24 --> o1
+  o25 --> o26
 ```
 
 ---
@@ -60,7 +61,7 @@ flowchart TD
 
 #### 📐 BNF
 ```bnf
-Type = TypeCore [ '?' ] ; TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
+Type = TypeCore [ '؟' ] ; TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
          | ( 'مصفوفة' | 'خريطة' ) [ '<' Type [ ',' Type ] '>' ] | Identifier ;
 ```
 
@@ -769,28 +770,28 @@ flowchart LR
 ### gr.adv.list_comprehension — استيعاب قائمة <span dir="ltr">(ListComprehension)</span>
 
 - **الرقم التسلسليّ:** `ق-082` · **المعرّف الموحَّد:** `gr.adv.list_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** «[تعبير لكل س في مجموعة إذا شرط]» داخل «[]»؛ الشرط اختياريّ
+- **الوصف:** «[لكل س في مصدر [إذا شرط] أنتج تعبير]» داخل «[]»؛ رأس الحلقة أوّلًا ثم «أنتج» تفصله عن تعبير الناتج (ترتيب عربيّ)؛ الشرط اختياريّ
 
 #### 📐 BNF
 ```bnf
-ListComprehension = Expression 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] ;
+ListComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `expression «لكل» «IDENTIFIER» «في» expression [ «إذا» expression ]`
+- `«لكل» «IDENTIFIER» «في» expression [ «إذا» expression ] «أنتج» expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
-1. [`ParserCore::parseListComprehension`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+1. [`ParserCore::parseArrayLiteral`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
 - **عقدة AST المُنتَجة:** `ListComprehensionExpr`
 - **يستدعي دوال:** [`parseExpression`](40_expressions.md#gr.expr.expression)
 - **مُستدعى من:** [`parseArrayLiteral`](40_expressions.md#gr.expr.array_literal)
-- **روابط المعجم:** كلمات: «لكل»، «في»، «إذا»
+- **روابط المعجم:** كلمات: «لكل»، «في»، «إذا»، «أنتج»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
-  f1["parseListComprehension()"]
+  f1["parseArrayLiteral()"]
   f2["parseExpression()"]
   f1 -- "تعبير" --> f2
   f3(["⇒ ListComprehensionExpr"])
@@ -801,32 +802,102 @@ flowchart TD
 ```mermaid
 flowchart LR
   n1(["استيعاب قائمة"])
-  n2["expression"]
-  n3["«لكل»"]
+  n2["«لكل»"]
+  n3["«IDENTIFIER»"]
   n2 --> n3
-  n4["«IDENTIFIER»"]
+  n4["«في»"]
   n3 --> n4
-  n5["«في»"]
+  n5["expression"]
   n4 --> n5
-  n6["expression"]
-  n5 --> n6
+  n6{"◇"}
   n7{"◇"}
-  n8{"◇"}
-  n9["«إذا»"]
-  n10["expression"]
-  n9 --> n10
-  n7 --> n9
-  n10 --> n8
-  n7 -- "تخطّي" --> n8
-  n6 --> n7
+  n8["«إذا»"]
+  n9["expression"]
+  n8 --> n9
+  n6 --> n8
+  n9 --> n7
+  n6 -- "تخطّي" --> n7
+  n5 --> n6
+  n10["«أنتج»"]
+  n7 --> n10
+  n11["expression"]
+  n10 --> n11
   n1 --> n2
-  n11(["⇒ ListComprehensionExpr"])
-  n8 --> n11
+  n12(["⇒ ListComprehensionExpr"])
+  n11 --> n12
 ```
 
 #### مثال
 ```sad
-متغير ز = [س * 2 لكل س في [1، 2، 3]]
+متغير ز = [لكل س في [1، 2، 3] أنتج س * 2]
+```
+
+---
+
+<a id="gr.adv.set_comprehension"></a>
+### gr.adv.set_comprehension — استيعاب مجموعة <span dir="ltr">(SetComprehension)</span>
+
+- **الرقم التسلسليّ:** `ق-083` · **المعرّف الموحَّد:** `gr.adv.set_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
+- **الوصف:** «{لكل س في مصدر [إذا شرط] أنتج تعبير}» داخل «{}» بلا «:» بعد الناتج ⇒ مجموعة؛ الشرط اختياريّ
+
+#### 📐 BNF
+```bnf
+SetComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ;
+```
+
+#### 🧩 تفصيل البدائل
+- `«لكل» «IDENTIFIER» «في» expression [ «إذا» expression ] «أنتج» expression`
+
+#### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
+**دالة (دوال) الدخول:**
+1. [`ParserCore::parseMapLiteral`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
+- **عقدة AST المُنتَجة:** `SetComprehensionExpr`
+- **يستدعي دوال:** [`parseExpression`](40_expressions.md#gr.expr.expression)
+- **مُستدعى من:** [`parseMapLiteral`](40_expressions.md#gr.expr.map_literal)
+- **روابط المعجم:** كلمات: «لكل»، «في»، «إذا»، «أنتج»
+
+##### مخطّط مسار الدوال (حتى AST)
+```mermaid
+flowchart TD
+  f1["parseMapLiteral()"]
+  f2["parseExpression()"]
+  f1 -- "تعبير" --> f2
+  f3(["⇒ SetComprehensionExpr"])
+  f1 --> f3
+```
+
+#### 📊 مخطّط البنية النحويّة (Mermaid)
+```mermaid
+flowchart LR
+  n1(["استيعاب مجموعة"])
+  n2["«لكل»"]
+  n3["«IDENTIFIER»"]
+  n2 --> n3
+  n4["«في»"]
+  n3 --> n4
+  n5["expression"]
+  n4 --> n5
+  n6{"◇"}
+  n7{"◇"}
+  n8["«إذا»"]
+  n9["expression"]
+  n8 --> n9
+  n6 --> n8
+  n9 --> n7
+  n6 -- "تخطّي" --> n7
+  n5 --> n6
+  n10["«أنتج»"]
+  n7 --> n10
+  n11["expression"]
+  n10 --> n11
+  n1 --> n2
+  n12(["⇒ SetComprehensionExpr"])
+  n11 --> n12
+```
+
+#### مثال
+```sad
+متغير م = {لكل س في [1، 2، 2، 3] أنتج س}
 ```
 
 ---
@@ -834,29 +905,29 @@ flowchart LR
 <a id="gr.adv.dict_comprehension"></a>
 ### gr.adv.dict_comprehension — استيعاب قاموس <span dir="ltr">(DictComprehension)</span>
 
-- **الرقم التسلسليّ:** `ق-083` · **المعرّف الموحَّد:** `gr.adv.dict_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** «{م: ق لكل م، ق في قاموس إذا شرط}» داخل «{}»؛ الشرط اختياريّ
+- **الرقم التسلسليّ:** `ق-084` · **المعرّف الموحَّد:** `gr.adv.dict_comprehension` · **الحالة:** stable · **منذ:** 1.0.0
+- **الوصف:** «{لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}» داخل «{}» مع «:» بعد الناتج ⇒ قاموس (متغيّر حلقة مفرد)؛ الشرط اختياريّ
 
 #### 📐 BNF
 ```bnf
-DictComprehension = Expression ':' Expression 'لكل' Identifier ',' Identifier 'في' Expression [ 'إذا' Expression ] ;
+DictComprehension = 'لكل' Identifier 'في' Expression [ 'إذا' Expression ] 'أنتج' Expression ( ':' | '=' ) Expression ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `expression «:» expression «لكل» «IDENTIFIER» «،» «IDENTIFIER» «في» expression [ «إذا» expression ]`
+- `«لكل» «IDENTIFIER» «في» expression [ «إذا» expression ] «أنتج» expression ( «:» | «=» ) expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
-1. [`ParserCore::parseDictComprehension`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+1. [`ParserCore::parseMapLiteral`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
 - **عقدة AST المُنتَجة:** `DictComprehensionExpr`
 - **يستدعي دوال:** [`parseExpression`](40_expressions.md#gr.expr.expression)
 - **مُستدعى من:** [`parseMapLiteral`](40_expressions.md#gr.expr.map_literal)
-- **روابط المعجم:** كلمات: «لكل»، «في»، «إذا»
+- **روابط المعجم:** كلمات: «لكل»، «في»، «إذا»، «أنتج»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
-  f1["parseDictComprehension()"]
+  f1["parseMapLiteral()"]
   f2["parseExpression()"]
   f1 -- "تعبير" --> f2
   f3(["⇒ DictComprehensionExpr"])
@@ -867,35 +938,45 @@ flowchart TD
 ```mermaid
 flowchart LR
   n1(["استيعاب قاموس"])
-  n2["expression"]
-  n3["«:»"]
+  n2["«لكل»"]
+  n3["«IDENTIFIER»"]
   n2 --> n3
-  n4["expression"]
+  n4["«في»"]
   n3 --> n4
-  n5["«لكل»"]
+  n5["expression"]
   n4 --> n5
-  n6["«IDENTIFIER»"]
-  n5 --> n6
-  n7["«،»"]
-  n6 --> n7
-  n8["«IDENTIFIER»"]
-  n7 --> n8
-  n9["«في»"]
+  n6{"◇"}
+  n7{"◇"}
+  n8["«إذا»"]
+  n9["expression"]
   n8 --> n9
-  n10["expression"]
-  n9 --> n10
-  n11{"◇"}
-  n12{"◇"}
-  n13["«إذا»"]
-  n14["expression"]
-  n13 --> n14
-  n11 --> n13
-  n14 --> n12
-  n11 -- "تخطّي" --> n12
+  n6 --> n8
+  n9 --> n7
+  n6 -- "تخطّي" --> n7
+  n5 --> n6
+  n10["«أنتج»"]
+  n7 --> n10
+  n11["expression"]
   n10 --> n11
-  n1 --> n2
-  n15(["⇒ DictComprehensionExpr"])
+  n12{"◆"}
+  n13{"◆"}
+  n14["«:»"]
+  n12 --> n14
+  n14 --> n13
+  n15["«=»"]
   n12 --> n15
+  n15 --> n13
+  n11 --> n12
+  n16["expression"]
+  n13 --> n16
+  n1 --> n2
+  n17(["⇒ DictComprehensionExpr"])
+  n16 --> n17
+```
+
+#### مثال
+```sad
+متغير ق = {لكل س في [1، 2، 3] أنتج س: س * س}
 ```
 
 ---
@@ -903,7 +984,7 @@ flowchart LR
 <a id="gr.adv.macro"></a>
 ### gr.adv.macro — تصريح ماكرو <span dir="ltr">(MacroDecl)</span>
 
-- **الرقم التسلسليّ:** `ق-084` · **المعرّف الموحَّد:** `gr.adv.macro` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-085` · **المعرّف الموحَّد:** `gr.adv.macro` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** تعريف ماكرو يُستدعى بعلامة تعجّب «اسم!(...)»؛ يدعم معاملًا متغيّرًا «...رسائل». «ماكرو» سياقيّة
 
 #### 📐 BNF
@@ -966,7 +1047,7 @@ flowchart LR
 <a id="gr.adv.property_test"></a>
 ### gr.adv.property_test — اختبار خصائص <span dir="ltr">(TestDecl)</span>
 
-- **الرقم التسلسليّ:** `ق-085` · **المعرّف الموحَّد:** `gr.adv.property_test` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-086` · **المعرّف الموحَّد:** `gr.adv.property_test` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** «اختبر("اسم") تكرارات N بذرة S ... نهاية»؛ الأقواس حول الاسم إلزاميّة. «اختبر» سياقيّة
 
 #### 📐 BNF
@@ -1043,7 +1124,7 @@ flowchart LR
 <a id="gr.adv.await"></a>
 ### gr.adv.await — تعبير انتظر <span dir="ltr">(AwaitExpr)</span>
 
-- **الرقم التسلسليّ:** `ق-086` · **المعرّف الموحَّد:** `gr.adv.await` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-087` · **المعرّف الموحَّد:** `gr.adv.await` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** تعبير انتظار لقيمة غير متزامنة؛ «انتظر» كلمة سياقيّة تُحلَّل في الأوّليّ (gr.expr.primary)
 
 #### 📐 BNF
@@ -1087,7 +1168,7 @@ flowchart LR
 <a id="gr.adv.contract"></a>
 ### gr.adv.contract — عقد ذكيّ <span dir="ltr">(ContractDecl)</span>
 
-- **الرقم التسلسليّ:** `ق-087` · **المعرّف الموحَّد:** `gr.adv.contract` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-088` · **المعرّف الموحَّد:** `gr.adv.contract` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** عقد ذكيّ بكلمة «عقد» — يُعامَل صنفًا مع isContract=true (نفس بنية gr.oop.class). «عقد» سياقيّة.
 
 #### 📐 BNF
@@ -1170,35 +1251,33 @@ flowchart LR
 <a id="gr.adv.ffi_extern_block"></a>
 ### gr.adv.ffi_extern_block — كتلة خارجي <span dir="ltr">(ExternBlock)</span>
 
-- **الرقم التسلسليّ:** `ق-088` · **المعرّف الموحَّد:** `gr.adv.ffi_extern_block` · **الحالة:** experimental · **منذ:** 1.0.0
-- **الوصف:** كتلة ربط أجنبيّ نمط‑C «خارجي \"C\" { دالة ... }» — تستخدم الأقواس «{}» (لا «نهاية»). يحلّلها مُحلّل فرعيّ مستقلّ ExternParser؛ تدعم C/C++/نظام كاتفاقيّات ربط.
+- **الرقم التسلسليّ:** `ق-089` · **المعرّف الموحَّد:** `gr.adv.ffi_extern_block` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الوصف:** كتلة ربط أجنبيّ «خارجي \"C\" دالة ... نهاية» — تُغلق بـ«نهاية» اتّساقًا مع نمط الإغلاق العربيّ الموحَّد في لغة ص (لا الأقواس «{}»). يحلّلها ParserCore::parseDeclaration مباشرةً (لا مُحلّل فرعيّ)؛ تدعم C/C++/نظام كاتفاقيّات ربط.
 
 #### 📐 BNF
 ```bnf
-ExternBlock = Linkage '{' { ExternFunction } '}' ;
+ExternBlock = Linkage { ExternFunction } 'نهاية' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `ffi_linkage «{» { extern } «}»`
+- `ffi_linkage { extern } «نهاية»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
-1. [`ExternParser::parseExternBlock`](../../../shared/parser/src/specs/ffi/parser_extern.cpp) — `shared/parser/src/specs/ffi/parser_extern.cpp`
-2. [`ExternParser::parseExternFunction`](../../../shared/parser/src/specs/ffi/parser_extern.cpp) — `shared/parser/src/specs/ffi/parser_extern.cpp`
-- **عقدة AST المُنتَجة:** `ExternBlockAST`
-- **يستدعي دوال:** [`parseLinkage`](60_advanced.md#gr.adv.ffi_linkage)، [`parseExternFunctionDecl`](20_declarations.md#gr.decl.extern)
+1. [`ParserCore::parseDeclaration`](../../../shared/parser/src/core/parser_main.cpp) — `shared/parser/src/core/parser_main.cpp`
+2. [`ParserCore::parseExternFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
+- **عقدة AST المُنتَجة:** `BlockStmt`
+- **يستدعي دوال:** [`parseExternFunctionDecl`](20_declarations.md#gr.decl.extern)
 - **روابط المعجم:** كلمات: «خارجي»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
-  f1["parseExternBlock()"]
-  f2["parseLinkage()"]
-  f1 -- "اتفاقيّة ربط" --> f2
-  f3["parseExternFunctionDecl()"]
-  f1 -- "تصريح خارجي" --> f3
-  f4(["⇒ ExternBlockAST"])
-  f1 --> f4
+  f1["parseDeclaration()"]
+  f2["parseExternFunctionDecl()"]
+  f1 -- "تصريح خارجي" --> f2
+  f3(["⇒ BlockStmt"])
+  f1 --> f3
 ```
 
 #### 📊 مخطّط البنية النحويّة (Mermaid)
@@ -1206,21 +1285,19 @@ flowchart TD
 flowchart LR
   n1(["كتلة خارجي"])
   n2["ffi_linkage"]
-  n3["«❲»"]
-  n2 --> n3
+  n3{"◇"}
   n4{"◇"}
-  n5{"◇"}
-  n6["extern"]
+  n5["extern"]
+  n3 --> n5
+  n5 --> n4
+  n5 -- "تكرار" --> n5
+  n3 -- "صفر/أكثر" --> n4
+  n2 --> n3
+  n6["«نهاية»"]
   n4 --> n6
-  n6 --> n5
-  n6 -- "تكرار" --> n6
-  n4 -- "صفر/أكثر" --> n5
-  n3 --> n4
-  n7["«❳»"]
-  n5 --> n7
   n1 --> n2
-  n8(["⇒ ExternBlockAST"])
-  n7 --> n8
+  n7(["⇒ BlockStmt"])
+  n6 --> n7
 ```
 
 ---
@@ -1228,7 +1305,7 @@ flowchart LR
 <a id="gr.adv.ffi_linkage"></a>
 ### gr.adv.ffi_linkage — اتفاقيّة ربط <span dir="ltr">(Linkage)</span>
 
-- **الرقم التسلسليّ:** `ق-089` · **المعرّف الموحَّد:** `gr.adv.ffi_linkage` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-090` · **المعرّف الموحَّد:** `gr.adv.ffi_linkage` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** نوع الربط الأجنبيّ: C (افتراضيّ) أو C++ أو نظام (system)
 
 #### 📐 BNF
@@ -1241,15 +1318,15 @@ Linkage = 'خارجي' [ '"C"' | '"C++"' | 'نظام' ] ;
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
-1. [`ExternParser::parseLinkage`](../../../shared/parser/src/specs/ffi/parser_extern.cpp) — `shared/parser/src/specs/ffi/parser_extern.cpp`
+1. [`ParserCore::parseDeclaration`](../../../shared/parser/src/core/parser_main.cpp) — `shared/parser/src/core/parser_main.cpp`
 - **عقدة AST المُنتَجة:** `ExternLinkage`
-- **مُستدعى من:** [`parseExternBlock`](60_advanced.md#gr.adv.ffi_extern_block)
+- **مُستدعى من:** [`parseDeclaration`](60_advanced.md#gr.adv.ffi_extern_block)
 - **روابط المعجم:** كلمات: «خارجي»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
-  f1["parseLinkage()"]
+  f1["parseDeclaration()"]
   f2(["⇒ ExternLinkage"])
   f1 --> f2
 ```
@@ -1276,7 +1353,7 @@ flowchart LR
 <a id="gr.adv.ffi_ctype"></a>
 ### gr.adv.ffi_ctype — نوع C <span dir="ltr">(CType)</span>
 
-- **الرقم التسلسليّ:** `ق-090` · **المعرّف الموحَّد:** `gr.adv.ffi_ctype` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-091` · **المعرّف الموحَّد:** `gr.adv.ffi_ctype` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** نوع C في توقيع دالة خارجيّة: نوع أساسيّ + مؤشّرات «*» + مصفوفة «[N]» اختياريّة
 
 #### 📐 BNF
@@ -1324,7 +1401,7 @@ flowchart LR
 <a id="gr.adv.inline_asm"></a>
 ### gr.adv.inline_asm — تجميع مضمَّن <span dir="ltr">(InlineAsm)</span>
 
-- **الرقم التسلسليّ:** `ق-091` · **المعرّف الموحَّد:** `gr.adv.inline_asm` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-092` · **المعرّف الموحَّد:** `gr.adv.inline_asm` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** تجميع مضمَّن «@تجميع(\"code\", outputs, inputs, clobbers)» — sadc فقط. يُحلَّل في tryParseDirective ويُلَفّ في ExprStmt.
 
 #### 📐 BNF
@@ -1381,7 +1458,7 @@ flowchart LR
 <a id="gr.adv.ui_decl"></a>
 ### gr.adv.ui_decl — تصريح واجهة <span dir="ltr">(UIDeclaration)</span>
 
-- **الرقم التسلسليّ:** `ق-092` · **المعرّف الموحَّد:** `gr.adv.ui_decl` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-093` · **المعرّف الموحَّد:** `gr.adv.ui_decl` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** مكوّن واجهة تصريحيّ «واجهة عداد ... نهاية»؛ يحوي تصريحات حالة ودوال. «واجهة» سياقيّة.
 
 #### 📐 BNF
@@ -1454,7 +1531,7 @@ flowchart LR
 <a id="gr.adv.ui_state"></a>
 ### gr.adv.ui_state — تصريح حالة واجهة <span dir="ltr">(UIStateDecl)</span>
 
-- **الرقم التسلسليّ:** `ق-093` · **المعرّف الموحَّد:** `gr.adv.ui_state` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-094` · **المعرّف الموحَّد:** `gr.adv.ui_state` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** حالة مكوّن: «@حالة اسم: نوع = قيمة» (محليّة)، «@ربط» (مرجع)، «@بيئة» (عالميّة)، «@محسوب اسم = تعبير» (مشتقّة).
 
 #### 📐 BNF
@@ -1519,7 +1596,7 @@ flowchart LR
 <a id="gr.adv.widget"></a>
 ### gr.adv.widget — تعبير عنصر واجهة <span dir="ltr">(WidgetExpr)</span>
 
-- **الرقم التسلسليّ:** `ق-094` · **المعرّف الموحَّد:** `gr.adv.widget` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-095` · **المعرّف الموحَّد:** `gr.adv.widget` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** عنصر واجهة «نص("مرحبا").حجم(32)»؛ يدعم وسائط مسمّاة وغير مسمّاة، سلسلة معدّلات، وكتلة أبناء للحاويات تُغلَق بـ«نهاية». يُحلَّل بعد «اعرض» أو في موضع تعبير.
 
 #### 📐 BNF
@@ -1581,7 +1658,7 @@ flowchart LR
 <a id="gr.adv.ui_modifier_chain"></a>
 ### gr.adv.ui_modifier_chain — سلسلة معدّلات <span dir="ltr">(ModifierChain)</span>
 
-- **الرقم التسلسليّ:** `ق-095` · **المعرّف الموحَّد:** `gr.adv.ui_modifier_chain` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-096` · **المعرّف الموحَّد:** `gr.adv.ui_modifier_chain` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** سلسلة معدّلات لاحقيّة على عنصر «.حجم(32).لون(أحمر)»؛ تشمل معالجات الأحداث
 
 #### 📐 BNF
@@ -1638,7 +1715,7 @@ flowchart LR
 <a id="gr.adv.ui_event"></a>
 ### gr.adv.ui_event — معالج حدث <span dir="ltr">(UIEventHandler)</span>
 
-- **الرقم التسلسليّ:** `ق-096` · **المعرّف الموحَّد:** `gr.adv.ui_event` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-097` · **المعرّف الموحَّد:** `gr.adv.ui_event` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** معالج حدث «.عند_النقر => اطبع("تم!")»؛ الجسم تعبير «=>» أو كتلة تنتهي بـ«نهاية»
 
 #### 📐 BNF

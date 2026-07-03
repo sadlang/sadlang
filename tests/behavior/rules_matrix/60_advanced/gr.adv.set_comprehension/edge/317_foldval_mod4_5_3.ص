@@ -1,0 +1,7 @@
+# @rule: gr.adv.set_comprehension
+# @description: مجموعة س % 4؛ probe قيمة م[3] يثبت تطبيق أنتج (لا عنصر المصدر)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+متغير م = {لكل س في [1، 2، 3، 4، 5] أنتج س % 4}
+اطبع_سطر(م[3])

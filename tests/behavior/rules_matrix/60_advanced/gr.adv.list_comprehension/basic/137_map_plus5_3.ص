@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: استيعاب قائمة: أنتج س + 5 على مصدر بطول 3؛ probe آخر عنصر
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 11
+متغير ز = [لكل س في [2، 4، 6] أنتج س + 5]
+اطبع_سطر(ز[2])

@@ -91,7 +91,7 @@ Expression = Pipeline ;
 1. [`ParserCore::parseExpression`](../../../shared/parser/src/core/parser_expressions.cpp) — `shared/parser/src/core/parser_expressions.cpp`
 - **عقدة AST المُنتَجة:** `—`
 - **يستدعي دوال:** [`parsePipeline`](40_expressions.md#gr.expr.pipeline)
-- **مُستدعى من:** [`parseIfStmt`](10_statements.md#gr.stmt.if)، [`parseWhileStmt`](10_statements.md#gr.stmt.while)، [`parseForStmt`](10_statements.md#gr.stmt.for)، [`parseMatchStmt`](10_statements.md#gr.stmt.match)، [`parseRaiseStmt`](10_statements.md#gr.stmt.throw)، [`parseReturnStmt`](10_statements.md#gr.stmt.return)، [`parseExpressionStmt`](10_statements.md#gr.stmt.expression)، [`parseSwitchStmt`](10_statements.md#gr.stmt.switch)، [`parseVarDecl`](20_declarations.md#gr.decl.variable)، [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)، [`parseArgumentList`](20_declarations.md#gr.decl.arg_list)، [`parseEnumDecl`](30_oop.md#gr.oop.enum)، [`parseFieldDeclaration`](30_oop.md#gr.oop.field)، [`parseTernary`](40_expressions.md#gr.expr.ternary)، [`parsePostfix`](40_expressions.md#gr.expr.postfix)، [`parsePrimary`](40_expressions.md#gr.expr.primary)، [`parseLambda`](40_expressions.md#gr.expr.lambda)، [`parseArrayLiteral`](40_expressions.md#gr.expr.array_literal)، [`parseMapLiteral`](40_expressions.md#gr.expr.map_literal)، [`parseTemplateInstantiation`](60_advanced.md#gr.adv.template_args)، [`parseYieldStmt`](60_advanced.md#gr.adv.yield)، [`parseWithStmt`](60_advanced.md#gr.adv.with)، [`parseGoStmt`](60_advanced.md#gr.adv.go)، [`parseSelectStmt`](60_advanced.md#gr.adv.select)، [`parseListComprehension`](60_advanced.md#gr.adv.list_comprehension)، [`parseDictComprehension`](60_advanced.md#gr.adv.dict_comprehension)، [`parsePrimary`](60_advanced.md#gr.adv.await)، [`parseUIStateDecl`](60_advanced.md#gr.adv.ui_state)، [`parseUIEventHandler`](60_advanced.md#gr.adv.ui_event)
+- **مُستدعى من:** [`parseIfStmt`](10_statements.md#gr.stmt.if)، [`parseWhileStmt`](10_statements.md#gr.stmt.while)، [`parseForStmt`](10_statements.md#gr.stmt.for)، [`parseMatchStmt`](10_statements.md#gr.stmt.match)، [`parseRaiseStmt`](10_statements.md#gr.stmt.throw)، [`parseReturnStmt`](10_statements.md#gr.stmt.return)، [`parseExpressionStmt`](10_statements.md#gr.stmt.expression)، [`parseSwitchStmt`](10_statements.md#gr.stmt.switch)، [`parseVarDecl`](20_declarations.md#gr.decl.variable)، [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)، [`parseArgumentList`](20_declarations.md#gr.decl.arg_list)، [`parseEnumDecl`](30_oop.md#gr.oop.enum)، [`parseFieldDeclaration`](30_oop.md#gr.oop.field)، [`parseTernary`](40_expressions.md#gr.expr.ternary)، [`parsePostfix`](40_expressions.md#gr.expr.postfix)، [`parsePrimary`](40_expressions.md#gr.expr.primary)، [`parseLambda`](40_expressions.md#gr.expr.lambda)، [`parseArrayLiteral`](40_expressions.md#gr.expr.array_literal)، [`parseMapLiteral`](40_expressions.md#gr.expr.map_literal)، [`parseTemplateInstantiation`](60_advanced.md#gr.adv.template_args)، [`parseYieldStmt`](60_advanced.md#gr.adv.yield)، [`parseWithStmt`](60_advanced.md#gr.adv.with)، [`parseGoStmt`](60_advanced.md#gr.adv.go)، [`parseSelectStmt`](60_advanced.md#gr.adv.select)، [`parseArrayLiteral`](60_advanced.md#gr.adv.list_comprehension)، [`parseMapLiteral`](60_advanced.md#gr.adv.set_comprehension)، [`parseMapLiteral`](60_advanced.md#gr.adv.dict_comprehension)، [`parsePrimary`](60_advanced.md#gr.adv.await)، [`parseUIStateDecl`](60_advanced.md#gr.adv.ui_state)، [`parseUIEventHandler`](60_advanced.md#gr.adv.ui_event)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -265,7 +265,7 @@ flowchart LR
 
 #### 📐 BNF
 ```bnf
-Ternary = NullCoalesce [ '?' Expression ':' Ternary ] ;
+Ternary = NullCoalesce [ '؟' Expression ':' Ternary ] ;
 ```
 
 #### 🧩 تفصيل البدائل
@@ -277,7 +277,7 @@ Ternary = NullCoalesce [ '?' Expression ':' Ternary ] ;
 - **عقدة AST المُنتَجة:** `TernaryExpr`
 - **يستدعي دوال:** [`parseNullCoalesce`](40_expressions.md#gr.expr.null_coalesce)، [`parseExpression`](40_expressions.md#gr.expr.expression)
 - **مُستدعى من:** [`parseAssignment`](40_expressions.md#gr.expr.assignment)، [`parseTernary`](40_expressions.md#gr.expr.ternary)
-- **روابط المعجم:** عوامل: «? :»
+- **روابط المعجم:** عوامل: «؟ :»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -329,11 +329,11 @@ flowchart LR
 
 #### 📐 BNF
 ```bnf
-NullCoalesce = LogicalOr { '??' LogicalOr } ;
+NullCoalesce = LogicalOr { '؟؟' LogicalOr } ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `logical_or { «??» logical_or }`
+- `logical_or { «؟؟» logical_or }`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -341,7 +341,7 @@ NullCoalesce = LogicalOr { '??' LogicalOr } ;
 - **عقدة AST المُنتَجة:** `NullCoalesceExpr`
 - **يستدعي دوال:** [`parseLogicalOr`](40_expressions.md#gr.expr.logical_or)
 - **مُستدعى من:** [`parseTernary`](40_expressions.md#gr.expr.ternary)
-- **روابط المعجم:** عوامل: «??»
+- **روابط المعجم:** عوامل: «؟؟»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -360,7 +360,7 @@ flowchart LR
   n2["logical_or"]
   n3{"◇"}
   n4{"◇"}
-  n5["«??»"]
+  n5["«؟؟»"]
   n6["logical_or"]
   n5 --> n6
   n3 --> n5
@@ -1131,12 +1131,12 @@ flowchart LR
 #### 📐 BNF
 ```bnf
 Postfix = Primary { PostfixOp } ; PostfixOp = Identifier '!' '(' ArgList ')' | '(' ArgList ')' [ 'جديد' ]
-          | '.' Member [ '(' ArgList ')' ] | '?.' Member
-          | '[' IndexOrSlice ']' | ( '++' | '--' ) | '?' '[' Expression ']' ;
+          | '.' Member [ '(' ArgList ')' ] | '؟.' Member
+          | '[' IndexOrSlice ']' | ( '++' | '--' ) | '؟' '[' Expression ']' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `primary { ( ( «!» «(» arg_list «)» ) | ( «(» arg_list «)» [ «جديد» ] ) | ( «.» «IDENTIFIER» [ «(» arg_list «)» ] ) | ( «?.» «IDENTIFIER» ) | ( «[» expression «]» ) | ( «++» | «--» ) ) }`
+- `primary { ( ( «!» «(» arg_list «)» ) | ( «(» arg_list «)» [ «جديد» ] ) | ( «.» «IDENTIFIER» [ «(» arg_list «)» ] ) | ( «؟.» «IDENTIFIER» ) | ( «[» expression «]» ) | ( «++» | «--» ) ) }`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -1144,7 +1144,7 @@ Postfix = Primary { PostfixOp } ; PostfixOp = Identifier '!' '(' ArgList ')' | '
 - **عقدة AST المُنتَجة:** `CallExpr | MethodCallExpr | MemberExpr | OptionalChainExpr | IndexExpr | SliceExpr | NewExpr | UnaryExpr`
 - **يستدعي دوال:** [`parsePrimary`](40_expressions.md#gr.expr.primary)، [`parseArgumentList`](20_declarations.md#gr.decl.arg_list)، [`parseExpression`](40_expressions.md#gr.expr.expression)
 - **مُستدعى من:** [`parsePower`](40_expressions.md#gr.expr.power)
-- **روابط المعجم:** كلمات: «جديد» · عوامل: «()»، «.»، «[]»، «?.»، «++»، «--»
+- **روابط المعجم:** كلمات: «جديد» · عوامل: «()»، «.»، «[]»، «؟.»، «++»، «--»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -1208,7 +1208,7 @@ flowchart LR
   n18 --> n19
   n5 --> n17
   n20 --> n6
-  n24["«?.»"]
+  n24["«؟.»"]
   n25["«IDENTIFIER»"]
   n24 --> n25
   n5 --> n24
@@ -1651,11 +1651,11 @@ flowchart LR
 ### gr.expr.array_literal — مصفوفة حرفيّة <span dir="ltr">(ArrayLiteral)</span>
 
 - **الرقم التسلسليّ:** `ق-063` · **المعرّف الموحَّد:** `gr.expr.array_literal` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** مصفوفة «[أ، ب، ج]» أو فارغة «[]»؛ تتحوّل لاستيعاب قائمة إن تلا العنصر الأول «لكل»
+- **الوصف:** مصفوفة «[أ، ب، ج]» أو فارغة «[]»؛ تتحوّل لاستيعاب قائمة إن بدأ المحتوى بـ«لكل» (ترتيب عربيّ: لكل … أنتج …)
 
 #### 📐 BNF
 ```bnf
-ArrayLiteral = '[' [ Expression { ( ',' | '،' ) Expression } | ListComprehension ] ']' ;
+ArrayLiteral = '[' [ ListComprehension | Expression { ( ',' | '،' ) Expression } ] ']' ;
 ```
 
 #### 🧩 تفصيل البدائل
@@ -1665,19 +1665,17 @@ ArrayLiteral = '[' [ Expression { ( ',' | '،' ) Expression } | ListComprehensio
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseArrayLiteral`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
 - **عقدة AST المُنتَجة:** `ArrayExpr | ListComprehensionExpr`
-- **يستدعي دوال:** [`parseListComprehension`](60_advanced.md#gr.adv.list_comprehension)، [`parseExpression`](40_expressions.md#gr.expr.expression)
+- **يستدعي دوال:** [`parseExpression`](40_expressions.md#gr.expr.expression)
 - **مُستدعى من:** [`parsePrimary`](40_expressions.md#gr.expr.primary)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
   f1["parseArrayLiteral()"]
-  f2["parseListComprehension()"]
-  f1 -- "استيعاب قائمة" --> f2
-  f3["parseExpression()"]
-  f1 -- "تعبير" --> f3
-  f4(["⇒ ArrayExpr ∣ ListComprehensionExpr"])
-  f1 --> f4
+  f2["parseExpression()"]
+  f1 -- "تعبير" --> f2
+  f3(["⇒ ArrayExpr ∣ ListComprehensionExpr"])
+  f1 --> f3
 ```
 
 #### 📊 مخطّط البنية النحويّة (Mermaid)
@@ -1727,33 +1725,31 @@ flowchart LR
 ### gr.expr.map_literal — خريطة حرفيّة <span dir="ltr">(MapLiteral)</span>
 
 - **الرقم التسلسليّ:** `ق-064` · **المعرّف الموحَّد:** `gr.expr.map_literal` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** خريطة «{مفتاح: قيمة، ...}» (يُقبَل «=» بدل «:») أو فارغة؛ تتحوّل لاستيعاب قاموس إن وُجد «لكل»
+- **الوصف:** خريطة «{مفتاح: قيمة، ...}» (يُقبَل «=» بدل «:») أو فارغة؛ تتحوّل لاستيعاب قاموس/مجموعة إن بدأ المحتوى بـ«لكل» (ترتيب عربيّ: لكل … أنتج …؛ «:» بعد الناتج ⇒ قاموس وإلّا مجموعة)
 
 #### 📐 BNF
 ```bnf
-MapLiteral = '{' [ Expression ( ':' | '=' ) Expression { ',' ... } | DictComprehension ] '}' ;
+MapLiteral = '{' [ DictComprehension | SetComprehension | Expression ( ':' | '=' ) Expression { ',' ... } ] '}' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«{» [ ( dict_comprehension | ( expression ( «:» | «=» ) expression { «،» expression } ) ) ] «}»`
+- `«{» [ ( dict_comprehension | set_comprehension | ( expression ( «:» | «=» ) expression { «،» expression } ) ) ] «}»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseMapLiteral`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
-- **عقدة AST المُنتَجة:** `MapExpr | DictComprehensionExpr`
-- **يستدعي دوال:** [`parseDictComprehension`](60_advanced.md#gr.adv.dict_comprehension)، [`parseExpression`](40_expressions.md#gr.expr.expression)
+- **عقدة AST المُنتَجة:** `MapExpr | DictComprehensionExpr | SetComprehensionExpr`
+- **يستدعي دوال:** [`parseExpression`](40_expressions.md#gr.expr.expression)
 - **مُستدعى من:** [`parsePrimary`](40_expressions.md#gr.expr.primary)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
   f1["parseMapLiteral()"]
-  f2["parseDictComprehension()"]
-  f1 -- "استيعاب قاموس" --> f2
-  f3["parseExpression()"]
-  f1 -- "تعبير" --> f3
-  f4(["⇒ MapExpr ∣ DictComprehensionExpr"])
-  f1 --> f4
+  f2["parseExpression()"]
+  f1 -- "تعبير" --> f2
+  f3(["⇒ MapExpr ∣ DictComprehensionExpr ∣ SetComprehensionExpr"])
+  f1 --> f3
 ```
 
 #### 📊 مخطّط البنية النحويّة (Mermaid)
@@ -1768,39 +1764,42 @@ flowchart LR
   n7["dict_comprehension"]
   n5 --> n7
   n7 --> n6
-  n8["expression"]
-  n9{"◆"}
-  n10{"◆"}
-  n11["«:»"]
-  n9 --> n11
-  n11 --> n10
-  n12["«=»"]
-  n9 --> n12
-  n12 --> n10
-  n8 --> n9
-  n13["expression"]
-  n10 --> n13
-  n14{"◇"}
-  n15{"◇"}
-  n16["«،»"]
-  n17["expression"]
-  n16 --> n17
-  n14 --> n16
-  n17 --> n15
-  n17 -- "تكرار" --> n16
-  n14 -- "صفر/أكثر" --> n15
-  n13 --> n14
+  n8["set_comprehension"]
   n5 --> n8
-  n15 --> n6
+  n8 --> n6
+  n9["expression"]
+  n10{"◆"}
+  n11{"◆"}
+  n12["«:»"]
+  n10 --> n12
+  n12 --> n11
+  n13["«=»"]
+  n10 --> n13
+  n13 --> n11
+  n9 --> n10
+  n14["expression"]
+  n11 --> n14
+  n15{"◇"}
+  n16{"◇"}
+  n17["«،»"]
+  n18["expression"]
+  n17 --> n18
+  n15 --> n17
+  n18 --> n16
+  n18 -- "تكرار" --> n17
+  n15 -- "صفر/أكثر" --> n16
+  n14 --> n15
+  n5 --> n9
+  n16 --> n6
   n3 --> n5
   n6 --> n4
   n3 -- "تخطّي" --> n4
   n2 --> n3
-  n18["«❳»"]
-  n4 --> n18
+  n19["«❳»"]
+  n4 --> n19
   n1 --> n2
-  n19(["⇒ MapExpr ∣ DictComprehensionExpr"])
-  n18 --> n19
+  n20(["⇒ MapExpr ∣ DictComprehensionExpr ∣ SetComprehensionExpr"])
+  n19 --> n20
 ```
 
 #### مثال

@@ -1,0 +1,7 @@
+# @rule: gr.adv.dict_comprehension
+# @description: استيعاب قاموس بترشيح س % 2 == 0؛ probe مفتاح باقٍ «4»
+# @priority: P2
+# @requires: اطبع_سطر، نص
+# @expected: 40
+متغير د = {لكل س في [1، 2، 3، 4] إذا س % 2 == 0 أنتج نص(س): س * 10}
+اطبع_سطر(د["4"])

@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: الترتيب القديم للقائمة يُرفض
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير ز = [س * 2 لكل س في [1، 2، 3]]
+اطبع_سطر(ز)

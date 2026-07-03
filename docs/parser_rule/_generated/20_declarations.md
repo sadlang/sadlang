@@ -459,7 +459,7 @@ ExternDeclaration = 'خارجي' 'دالة' Identifier '(' [ Parameters ] ')' ;
 1. [`ParserCore::parseExternFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
 - **عقدة AST المُنتَجة:** `FunctionDecl`
 - **يستدعي دوال:** [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)
-- **مُستدعى من:** [`parseExternBlock`](60_advanced.md#gr.adv.ffi_extern_block)
+- **مُستدعى من:** [`parseDeclaration`](60_advanced.md#gr.adv.ffi_extern_block)
 - **روابط المعجم:** كلمات: «خارجي»، «دالة»
 
 ##### مخطّط مسار الدوال (حتى AST)

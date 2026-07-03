@@ -1,0 +1,7 @@
+# @rule: gr.adv.list_comprehension
+# @description: استيعاب قائمة ترشيح س % 2 == 0 ثمّ أنتج س * س؛ probe أوّل
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+متغير ز = [لكل س في [2، 4، 6، 8] إذا س % 2 == 0 أنتج س * س]
+اطبع_سطر(ز[0])

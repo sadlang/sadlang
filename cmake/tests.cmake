@@ -31,6 +31,30 @@ else()
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
+# (AR) اختبارات وحدة المحلّل لصياغة الاستيعابات بترتيب «أنتج» (RFC 25 م1ب)
+#      تستعمل إطار sad_test.h وتتحقّق من عقد AST (List/Set/Dict ComprehensionExpr).
+# (EN) Parser unit tests for the «أنتج» comprehension order (RFC 25 م1ب);
+#      use the sad_test.h harness and assert on AST nodes.
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_comprehensions_antaj.cpp")
+    add_executable(comprehension_antaj_tests tests/unit/parser/test_comprehensions_antaj.cpp)
+    target_link_libraries(comprehension_antaj_tests PRIVATE sad_core)
+    target_include_directories(comprehension_antaj_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/tests/framework
+        ${CMAKE_SOURCE_DIR}/shared/parser/include
+        ${CMAKE_SOURCE_DIR}/shared/lexer/include
+        ${CMAKE_SOURCE_DIR}/shared/ast/include
+        ${CMAKE_SOURCE_DIR}/shared/errors/include)
+    set_target_properties(comprehension_antaj_tests PROPERTIES
+        OUTPUT_NAME "comprehension_antaj_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME ComprehensionAntajTests COMMAND comprehension_antaj_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    set_property(TEST ComprehensionAntajTests APPEND PROPERTY LABELS "Unit")
+    message(STATUS "✓ اختبارات استيعاب أنتج / Comprehension أنتج unit tests enabled")
+else()
+    message(STATUS "⚠ اختبارات استيعاب أنتج غير متاحة / Comprehension أنتج tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
 # اختبارات تحليل الوحدات / Module Parsing Tests
 # ──────────────────────────────────────────────────────────────────────
 if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/parser/test_module_parsing.cpp")

@@ -1555,8 +1555,8 @@ namespace Sad
                 if (!result)
                 {
                     errorBilingual(
-                        "خطأ في تحليل مصفوفة حرفية. تأكد من صيغة المصفوفة: [عنصر1، عنصر2، ...] أو [x for x in list]",
-                        "Error parsing array literal. Make sure array syntax is correct: [elem1, elem2, ...] or [x for x in list]");
+                        "خطأ في تحليل مصفوفة حرفية. تأكد من صيغة المصفوفة: [عنصر1، عنصر2، ...] أو استيعاب: [لكل س في مصدر أنتج تعبير]",
+                        "Error parsing array literal. Make sure array syntax is correct: [elem1, elem2, ...] or comprehension: [لكل var في iterable أنتج expr]");
                     return nullptr;
                 }
                 return result;

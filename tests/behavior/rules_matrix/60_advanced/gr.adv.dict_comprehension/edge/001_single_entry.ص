@@ -1,0 +1,7 @@
+# @rule: gr.adv.dict_comprehension
+# @description: استيعاب قاموس بمصدر أحاديّ العنصر (حالة حدّيّة)
+# @priority: P2
+# @requires: اطبع_سطر، نص
+# @expected: 7
+متغير د = {لكل م في [7] أنتج نص(م): م}
+اطبع_سطر(د["7"])

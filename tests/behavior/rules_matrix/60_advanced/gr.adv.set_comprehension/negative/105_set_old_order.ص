@@ -1,0 +1,7 @@
+# @rule: gr.adv.set_comprehension
+# @description: الترتيب القديم للمجموعة يُرفض
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير م = {س * 2 لكل س في [1، 2، 3]}
+اطبع_سطر(م)

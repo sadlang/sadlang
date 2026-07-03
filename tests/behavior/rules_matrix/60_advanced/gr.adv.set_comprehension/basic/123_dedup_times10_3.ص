@@ -1,0 +1,7 @@
+# @rule: gr.adv.set_comprehension
+# @description: استيعاب مجموعة أنتج س * 10؛ طول بعد إزالة التكرار
+# @priority: P2
+# @requires: اطبع_سطر، طول
+# @expected: 3
+متغير م = {لكل س في [2، 4، 6] أنتج س * 10}
+اطبع_سطر(طول(م))

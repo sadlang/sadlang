@@ -30,8 +30,8 @@ namespace Sad
         using TT = TokenType;
 
         /**
-         * @brief (AR) يحلل مصفوفة حرفية أو list comprehension: [1, 2, 3] أو [x * 2 for x in list].
-         *        (EN) Parses array literal or list comprehension: [1, 2, 3] or [x * 2 for x in list].
+         * @brief (AR) يحلل مصفوفة حرفية أو استيعاب قائمة: [1، 2، 3] أو [لكل س في مصدر أنتج س * 2].
+         *        (EN) Parses array literal or list comprehension: [1, 2, 3] or [لكل var في iterable أنتج var * 2].
          */
         ExprPtr ParserCore::parseArrayLiteral()
         {
@@ -43,62 +43,46 @@ namespace Sad
                 return std::make_unique<ArrayExpr>(ExprList{}, previous().getPosition());
             }
 
-            // Parse first element/expression
-            // (AR) تحليل العنصر/التعبير الأول
-            auto firstExpr = parseExpression();
-            if (!firstExpr)
-            {
-                errorBilingual(
-                    "خطأ: لم يتم تحليل التعبير الأول في المصفوفة. تأكد من أن التعبير صحيح.",
-                    "Error: failed to parse first expression in array. Make sure the expression is valid.");
-                return nullptr;
-            }
-
-            // Check if this is a list comprehension
-            // (AR) التحقق إذا كان list comprehension
+            // (AR) استيعاب قائمة بالترتيب العربيّ: [لكل س في مصدر [إذا شرط] أنتج تعبير]
+            //      يُكتشف الاستيعاب مبكّرًا عبر 'لكل' في البداية — لا لبس مع مصفوفة عاديّة.
+            // (EN) List comprehension in Arabic order: [for var in iterable [if cond] yield expr]
+            //      Detected early via leading 'لكل' — no ambiguity with a regular array.
             if (check(TT::KEYWORD_FOR))
             {
-                // This is a list comprehension: [expr for var in iterable if cond]
-                // (AR) هذا list comprehension
+                advance(); // consume 'لكل'
 
-                advance(); // consume 'for'
-
-                // Parse variable
-                // (AR) تحليل المتغير
+                // (AR) اسم متغيّر الحلقة / (EN) loop variable name
                 if (!check(TT::IDENTIFIER))
                 {
                     errorBilingual(
-                        "خطأ: توقعت اسم متغير بعد 'for' في list comprehension. مثال: [x for x in list]",
-                        "Error: expected variable name after 'for' in list comprehension. Example: [x for x in list]");
+                        "خطأ: توقعت اسم متغيّر بعد 'لكل' في استيعاب القائمة. الصيغة: [لكل س في مصدر أنتج تعبير]",
+                        "Error: expected variable name after 'لكل' in list comprehension. Format: [لكل var في iterable أنتج expr]");
                     return nullptr;
                 }
                 Token var = peek();
                 advance();
 
-                // Expect 'in' keyword
-                // (AR) توقع كلمة 'في'
+                // (AR) توقّع 'في' / (EN) expect 'في'
                 if (!check(TT::KEYWORD_IN))
                 {
                     errorBilingual(
-                        "خطأ: توقعت 'في' بعد اسم المتغير في list comprehension. الصيغة: [expr for var in iterable]",
-                        "Error: expected 'in' after variable name in list comprehension. Format: [expr for var in iterable]");
+                        "خطأ: توقعت 'في' بعد اسم المتغيّر في استيعاب القائمة. الصيغة: [لكل س في مصدر أنتج تعبير]",
+                        "Error: expected 'في' after variable name in list comprehension. Format: [لكل var في iterable أنتج expr]");
                     return nullptr;
                 }
                 advance();
 
-                // Parse iterable
-                // (AR) تحليل المجموعة القابلة للتكرار
+                // (AR) المصدر القابل للتكرار / (EN) iterable source
                 auto iterable = parseExpression();
                 if (!iterable)
                 {
                     errorBilingual(
-                        "خطأ: فشل تحليل المجموعة القابلة للتكرار بعد 'في'. تأكد من صيغة list comprehension.",
-                        "Error: failed to parse iterable after 'in'. Make sure list comprehension syntax is correct.");
+                        "خطأ: فشل تحليل المصدر القابل للتكرار بعد 'في' في استيعاب القائمة.",
+                        "Error: failed to parse iterable after 'في' in list comprehension.");
                     return nullptr;
                 }
 
-                // Optional condition
-                // (AR) الشرط الاختياري
+                // (AR) شرط اختياريّ قبل 'أنتج' / (EN) optional condition before 'أنتج'
                 ExprPtr condition = nullptr;
                 if (match(TT::KEYWORD_IF))
                 {
@@ -106,21 +90,40 @@ namespace Sad
                     if (!condition)
                     {
                         errorBilingual(
-                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في list comprehension.",
-                            "Error: invalid condition expression after 'if' in list comprehension.");
+                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في استيعاب القائمة.",
+                            "Error: invalid condition expression after 'إذا' in list comprehension.");
                         return nullptr;
                     }
                 }
 
+                // (AR) 'أنتج' تفصل رأس الحلقة عن تعبير الناتج (KEYWORD_YIELD، سياقيّة)
+                // (EN) 'أنتج' separates the loop head from the output expression
+                if (!match(TT::KEYWORD_YIELD) && !matchContextual(TT::KEYWORD_YIELD))
+                {
+                    errorBilingual(
+                        "خطأ: توقعت 'أنتج' قبل تعبير الناتج في استيعاب القائمة. الصيغة: [لكل س في مصدر أنتج تعبير]",
+                        "Error: expected 'أنتج' before the output expression in list comprehension. Format: [لكل var في iterable أنتج expr]");
+                    return nullptr;
+                }
+
+                // (AR) تعبير الناتج / (EN) output expression
+                auto elemExpr = parseExpression();
+                if (!elemExpr)
+                {
+                    errorBilingual(
+                        "خطأ: فشل تحليل تعبير الناتج بعد 'أنتج' في استيعاب القائمة.",
+                        "Error: failed to parse output expression after 'أنتج' in list comprehension.");
+                    return nullptr;
+                }
+
                 if (!check(TT::BRACKET_RIGHT))
                 {
-                    // (AR) محاولة التعافي: إدراج ']' المفقودة في list comprehension
-                    // (EN) Try recovery: insert missing ']' in list comprehension
+                    // (AR) محاولة التعافي: إدراج ']' المفقودة / (EN) recover missing ']'
                     if (!tryRecoverFromError(TT::BRACKET_RIGHT, "list comprehension"))
                     {
                         errorBilingual(
-                            "خطأ: توقعت ']' في نهاية list comprehension. الصيغة: [expr for var in iterable if cond]",
-                            "Error: expected ']' at end of list comprehension. Format: [expr for var in iterable if cond]");
+                            "خطأ: توقعت ']' في نهاية استيعاب القائمة. الصيغة: [لكل س في مصدر إذا شرط أنتج تعبير]",
+                            "Error: expected ']' at end of list comprehension. Format: [لكل var في iterable إذا cond أنتج expr]");
                         return nullptr;
                     }
                 }
@@ -129,14 +132,25 @@ namespace Sad
                     consume(TT::BRACKET_RIGHT, "");
                 }
 
-                // Create list comprehension node
-                // (AR) إنشاء عقدة List Comprehension
+                // (AR) إنشاء عقدة استيعاب القائمة (نفس عقدة AST — الترتيب فقط تغيّر)
+                // (EN) Build the list comprehension node (same AST node — only order changed)
                 return std::make_unique<ListComprehensionExpr>(
-                    std::move(firstExpr),
+                    std::move(elemExpr),
                     var.getValue(),
                     std::move(iterable),
                     std::move(condition),
                     var.getPosition());
+            }
+
+            // Parse first element/expression (regular array)
+            // (AR) تحليل العنصر/التعبير الأول (مصفوفة عاديّة)
+            auto firstExpr = parseExpression();
+            if (!firstExpr)
+            {
+                errorBilingual(
+                    "خطأ: لم يتم تحليل التعبير الأول في المصفوفة. تأكد من أن التعبير صحيح.",
+                    "Error: failed to parse first expression in array. Make sure the expression is valid.");
+                return nullptr;
             }
 
             // Regular array literal
@@ -194,8 +208,8 @@ namespace Sad
         }
 
         /**
-         * @brief (AR) يحلل خريطة حرفية أو dict comprehension: {k: v} أو {k: v for k, v in items}.
-         *        (EN) Parses map literal or dict comprehension: {k: v} or {k: v for k, v in items}.
+         * @brief (AR) يحلل خريطة حرفية أو استيعاب قاموس/مجموعة: {م: ق} أو {لكل س في مصدر أنتج م: ق} أو {لكل س في مصدر أنتج تعبير}.
+         *        (EN) Parses map literal or dict/set comprehension: {k: v} or {لكل var في iterable أنتج k: v} or {لكل var في iterable أنتج expr}.
          */
         ExprPtr ParserCore::parseMapLiteral()
         {
@@ -258,6 +272,135 @@ namespace Sad
                 return std::make_unique<MapExpr>(std::move(pairs), previous().getPosition());
             }
 
+            // (AR) استيعاب مجموعة/قاموس بالترتيب العربيّ — يُكتشف مبكّرًا عبر 'لكل' في البداية:
+            //      مجموعة: {لكل س في مصدر [إذا شرط] أنتج تعبير}
+            //      قاموس:  {لكل س في مصدر [إذا شرط] أنتج مفتاح: قيمة}
+            // (EN) Set/dict comprehension in Arabic order — detected early via leading 'لكل'.
+            if (check(TT::KEYWORD_FOR))
+            {
+                advance(); // consume 'لكل'
+
+                // (AR) متغيّر الحلقة / (EN) loop variable
+                if (!check(TT::IDENTIFIER))
+                {
+                    errorBilingual(
+                        "خطأ: توقعت اسم متغيّر بعد 'لكل' في الاستيعاب. الصيغة: {لكل س في مصدر أنتج تعبير}",
+                        "Error: expected variable name after 'لكل' in comprehension. Format: {لكل var في iterable أنتج expr}");
+                    return nullptr;
+                }
+                Token loopVar = peek();
+                advance();
+
+                // (AR) توقّع 'في' / (EN) expect 'في'
+                if (!check(TT::KEYWORD_IN))
+                {
+                    errorBilingual(
+                        "خطأ: توقعت 'في' بعد متغيّر الحلقة في الاستيعاب. الصيغة: {لكل س في مصدر أنتج تعبير}",
+                        "Error: expected 'في' after loop variable in comprehension. Format: {لكل var في iterable أنتج expr}");
+                    return nullptr;
+                }
+                advance();
+
+                // (AR) المصدر القابل للتكرار / (EN) iterable source
+                auto iterable = parseExpression();
+                if (!iterable)
+                {
+                    errorBilingual(
+                        "خطأ: فشل تحليل المصدر القابل للتكرار في الاستيعاب.",
+                        "Error: failed to parse iterable in comprehension.");
+                    return nullptr;
+                }
+
+                // (AR) شرط اختياريّ قبل 'أنتج' / (EN) optional condition before 'أنتج'
+                ExprPtr condition = nullptr;
+                if (match(TT::KEYWORD_IF))
+                {
+                    condition = parseExpression();
+                    if (!condition)
+                    {
+                        errorBilingual(
+                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في الاستيعاب.",
+                            "Error: invalid condition expression after 'إذا' in comprehension.");
+                        return nullptr;
+                    }
+                }
+
+                // (AR) 'أنتج' تفصل رأس الحلقة عن الناتج / (EN) 'أنتج' separates loop head from output
+                if (!match(TT::KEYWORD_YIELD) && !matchContextual(TT::KEYWORD_YIELD))
+                {
+                    errorBilingual(
+                        "خطأ: توقعت 'أنتج' قبل الناتج في الاستيعاب. الصيغة: {لكل س في مصدر أنتج تعبير} أو {لكل س في مصدر أنتج مفتاح: قيمة}",
+                        "Error: expected 'أنتج' before the output in comprehension. Format: {لكل var في iterable أنتج expr} or {... أنتج key: value}");
+                    return nullptr;
+                }
+
+                // (AR) الناتج الأوّل — عنصر مجموعة أو مفتاح قاموس (parseTernary لتجنّب التباس ':')
+                // (EN) First output — set element or dict key (parseTernary to avoid ':' clash)
+                auto firstOut = parseTernary();
+                if (!firstOut)
+                {
+                    errorBilingual(
+                        "خطأ: فشل تحليل الناتج بعد 'أنتج' في الاستيعاب.",
+                        "Error: failed to parse output after 'أنتج' in comprehension.");
+                    return nullptr;
+                }
+
+                // (AR) وجود ':' بعد الناتج ⇒ استيعاب قاموس، وإلّا استيعاب مجموعة
+                // (EN) A ':' after the output ⇒ dict comprehension, else set comprehension
+                if (check(TT::COLON) || check(TT::OP_ASSIGN))
+                {
+                    advance(); // consume ':' or '='
+                    auto valueExpr = parseExpression();
+                    if (!valueExpr)
+                    {
+                        errorBilingual(
+                            "خطأ: فشل تحليل قيمة القاموس بعد ':' في الاستيعاب.",
+                            "Error: failed to parse dict value after ':' in comprehension.");
+                        return nullptr;
+                    }
+
+                    if (!check(TT::BRACE_RIGHT))
+                    {
+                        if (!tryRecoverFromError(TT::BRACE_RIGHT, "dict comprehension"))
+                        {
+                            errorBilingual(
+                                "خطأ: توقعت '}' في نهاية استيعاب القاموس.",
+                                "Error: expected '}' at end of dict comprehension.");
+                            return nullptr;
+                        }
+                    }
+                    else
+                    {
+                        consume(TT::BRACE_RIGHT, "");
+                    }
+
+                    // (AR) عقدة استيعاب القاموس (نفس عقدة AST — الترتيب فقط تغيّر)
+                    return std::make_unique<DictComprehensionExpr>(
+                        std::move(firstOut),
+                        std::move(valueExpr),
+                        loopVar.getValue(),
+                        std::move(iterable),
+                        std::move(condition),
+                        loopVar.getPosition());
+                }
+
+                // (AR) استيعاب مجموعة / (EN) set comprehension
+                if (!check(TT::BRACE_RIGHT))
+                {
+                    errorBilingual(
+                        "خطأ: توقعت '}' في نهاية استيعاب المجموعة.",
+                        "Error: expected '}' at end of set comprehension.");
+                    return nullptr;
+                }
+                consume(TT::BRACE_RIGHT, "");
+
+                return std::make_unique<SetComprehensionExpr>(
+                    std::move(firstOut),
+                    loopVar.getValue(),
+                    std::move(iterable),
+                    std::move(condition));
+            }
+
             // Parse first expression using parseTernary to avoid consuming 'for' keyword
             // (AR) تحليل التعبير الأول باستخدام parseTernary لتجنب استهلاك 'for'
             auto firstKey = parseTernary();
@@ -269,89 +412,15 @@ namespace Sad
                 return nullptr;
             }
 
-            // Check if this is a set comprehension: {expr for var in iterable}
-            // (AR) التحقق إذا كان set comprehension
-            if (check(TT::KEYWORD_FOR))
-            {
-                // This is a set comprehension: {expr for var in iterable if cond}
-                // (AR) هذا set comprehension
-
-                advance(); // consume 'for'
-
-                // Parse loop variable
-                // (AR) تحليل متغير الحلقة
-                if (!check(TT::IDENTIFIER))
-                {
-                    errorBilingual(
-                        "خطأ: توقعت اسم متغير حلقة بعد 'for' في set comprehension. مثال: {x for x in list}",
-                        "Error: expected loop variable name after 'for' in set comprehension. Example: {x for x in list}");
-                    return nullptr;
-                }
-                Token loopVar = peek();
-                advance();
-
-                // Expect 'in' keyword
-                // (AR) توقع كلمة 'في'
-                if (!check(TT::KEYWORD_IN))
-                {
-                    errorBilingual(
-                        "خطأ: توقعت 'في' بعد متغير الحلقة. الصيغة: {expr for var in iterable}",
-                        "Error: expected 'in' after loop variable. Format: {expr for var in iterable}");
-                    return nullptr;
-                }
-                advance();
-
-                // Parse iterable
-                // (AR) تحليل المجموعة القابلة للتكرار
-                auto iterable = parseExpression();
-                if (!iterable)
-                {
-                    errorBilingual(
-                        "خطأ: فشل تحليل المجموعة القابلة للتكرار في set comprehension.",
-                        "Error: failed to parse iterable in set comprehension.");
-                    return nullptr;
-                }
-
-                // Optional condition
-                // (AR) الشرط الاختياري
-                ExprPtr condition = nullptr;
-                if (match(TT::KEYWORD_IF))
-                {
-                    condition = parseExpression();
-                    if (!condition)
-                    {
-                        errorBilingual(
-                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في set comprehension.",
-                            "Error: invalid condition expression after 'if' in set comprehension.");
-                        return nullptr;
-                    }
-                }
-
-                if (!check(TT::BRACE_RIGHT))
-                {
-                    errorBilingual(
-                        "خطأ: توقعت '}' في نهاية set comprehension.",
-                        "Error: expected '}' at end of set comprehension.");
-                    return nullptr;
-                }
-                consume(TT::BRACE_RIGHT, "");
-
-                // Create set comprehension node
-                // (AR) إنشاء عقدة Set Comprehension
-                return std::make_unique<SetComprehensionExpr>(
-                    std::move(firstKey),
-                    loopVar.getValue(),
-                    std::move(iterable),
-                    std::move(condition));
-            }
-
-            // Check if this is a dict (has colon or =) or set (no colon)
-            // (AR) التحقق إذا كان dict (له : أو =) أو set (بدون :)
+            // (AR) الاستيعابات (قائمة/مجموعة/قاموس) تُكتشف مبكّرًا عبر 'لكل' في البداية،
+            //      لذا هنا يكون العنصر الأوّل دائمًا مفتاح خريطة عاديّ — يجب أن يتبعه ':' أو '='.
+            // (EN) Comprehensions are detected earlier via leading 'لكل', so the first element
+            //      here is always a plain map key — it must be followed by ':' or '='.
             if (!check(TT::COLON) && !check(TT::OP_ASSIGN))
             {
                 errorBilingual(
-                    "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}. لـ Set Comprehension استخدم: {expr for x in list}",
-                    "Error: expected ':' after map key. Format: {key: value, ...}. For Set Comprehension use: {expr for x in list}");
+                    "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}. للاستيعاب استخدم: {لكل س في مصدر أنتج تعبير}",
+                    "Error: expected ':' after map key. Format: {key: value, ...}. For a comprehension use: {لكل var في iterable أنتج expr}");
                 return nullptr;
             }
             advance(); // consume ':' or '='
@@ -367,93 +436,8 @@ namespace Sad
                 return nullptr;
             }
 
-            // Check if this is a dict comprehension
-            // (AR) التحقق إذا كان dict comprehension
-            if (check(TT::KEYWORD_FOR))
-            {
-                // This is a dict comprehension: {k: v for var in iterable if cond}
-                // Note: firstKey and firstValue are the TEMPLATE expressions (k, v)
-                // The loop variable comes AFTER 'for'
-                // (AR) هذا dict comprehension - firstKey و firstValue هي القوالب
-
-                advance(); // consume 'for'
-
-                // Parse loop variable (can be single: 'x' or tuple: 'k, v')
-                // For now, we support single variable only
-                // (AR) تحليل متغير الحلقة
-                if (!check(TT::IDENTIFIER))
-                {
-                    errorBilingual(
-                        "خطأ: توقعت اسم متغير حلقة بعد 'for' في dict comprehension. مثال: {k: v for item in list}",
-                        "Error: expected loop variable name after 'for' in dict comprehension. Example: {k: v for item in list}");
-                    return nullptr;
-                }
-                Token loopVar = peek();
-                advance();
-
-                // Expect 'in' keyword
-                // (AR) توقع كلمة 'في'
-                if (!check(TT::KEYWORD_IN))
-                {
-                    errorBilingual(
-                        "خطأ: توقعت 'في' بعد متغير الحلقة. الصيغة: {k: v for var in iterable}",
-                        "Error: expected 'in' after loop variable. Format: {k: v for var in iterable}");
-                    return nullptr;
-                }
-                advance();
-
-                // Parse iterable
-                // (AR) تحليل المجموعة القابلة للتكرار
-                auto iterable = parseExpression();
-                if (!iterable)
-                {
-                    errorBilingual(
-                        "خطأ: فشل تحليل المجموعة القابلة للتكرار في dict comprehension.",
-                        "Error: failed to parse iterable in dict comprehension.");
-                    return nullptr;
-                }
-
-                // Optional condition
-                // (AR) الشرط الاختياري
-                ExprPtr condition = nullptr;
-                if (match(TT::KEYWORD_IF))
-                {
-                    condition = parseExpression();
-                    if (!condition)
-                    {
-                        errorBilingual(
-                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في dict comprehension.",
-                            "Error: invalid condition expression after 'if' in dict comprehension.");
-                        return nullptr;
-                    }
-                }
-
-                if (!check(TT::BRACE_RIGHT))
-                {
-                    // (AR) محاولة التعافي: إدراج '}' المفقودة في dict comprehension
-                    if (!tryRecoverFromError(TT::BRACE_RIGHT, "dict comprehension"))
-                    {
-                        errorBilingual(
-                            "خطأ: توقعت '}' في نهاية dict comprehension.",
-                            "Error: expected '}' at end of dict comprehension.");
-                        return nullptr;
-                    }
-                }
-                else
-                {
-                    consume(TT::BRACE_RIGHT, "");
-                }
-
-                // Create dict comprehension node
-                // (AR) إنشاء عقدة Dict Comprehension
-                return std::make_unique<DictComprehensionExpr>(
-                    std::move(firstKey),
-                    std::move(firstValue),
-                    loopVar.getValue(),
-                    std::move(iterable),
-                    std::move(condition),
-                    loopVar.getPosition());
-            }
+            // (AR) استيعاب القاموس يُكتشف مبكّرًا عبر 'لكل' في البداية (أعلاه)؛ هنا خريطة عاديّة فقط.
+            // (EN) Dict comprehension is detected earlier via leading 'لكل' (above); only a plain map here.
 
             // Regular map literal
             // (AR) خريطة حرفية عادية
@@ -607,13 +591,11 @@ namespace Sad
                 {
                     // (AR) تحليل الحالة الافتراضية — تعامل كـ WildcardPattern
                     // (EN) Parse default case — treat as WildcardPattern
-                    if (!match(TT::COLON))
-                    {
-                        errorBilingual(
-                            "خطأ: توقعت ':' بعد 'افتراضي'",
-                            "Error: Expected ':' after 'default'");
-                        return nullptr;
-                    }
+                    // (AR) نقطتان اختياريّتان بعد 'افتراضي' (gr.stmt.match: COLON optional)،
+                    //      اتّساقًا مع اختياريّتها بعد نمط 'عندما'. نستهلكها إن وُجدت.
+                    // (EN) Optional colon after 'default' (gr.stmt.match: COLON optional),
+                    //      mirroring its optionality after a 'when' pattern. Consume if present.
+                    match(TT::COLON);
                     // (AR) تحليل جسم الحالة الافتراضية
                     // (EN) Parse default case body
                     std::vector<StmtPtr> defaultBody;
@@ -712,15 +694,13 @@ namespace Sad
                 }
             }
 
-            // Expect colon
-            // (AR) توقع نقطتين رأسيتين
-            if (!match(TT::COLON))
-            {
-                errorBilingual(
-                    "خطأ: توقعت ':' بعد نمط case",
-                    "Error: Expected ':' after case pattern");
-                return AST::CaseClause(nullptr, nullptr, {});
-            }
+            // (AR) نقطتان اختياريّتان بعد النمط (gr.stmt.match: COLON optional). جسم
+            //      الذراع يُغلَق ضمنيًّا بوصول عندما/حالة/افتراضي/نهاية التالية، فلا حاجة
+            //      لإلزام ':'. نستهلكها إن وُجدت ونتجاوز غيابها بلا خطأ.
+            // (EN) Optional colon after the pattern (gr.stmt.match: COLON is optional). The
+            //      arm body is delimited implicitly by the next when/case/default/end, so ':'
+            //      is not required; consume it if present, tolerate its absence.
+            match(TT::COLON);
 
             // Parse body - multiple statements until next 'case' or 'end' or '}'
             // (AR) تحليل الجسم - جمل متعددة حتى 'حالة' أو 'نهاية' أو '}' التالية

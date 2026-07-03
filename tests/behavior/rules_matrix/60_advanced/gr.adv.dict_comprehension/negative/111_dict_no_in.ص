@@ -1,0 +1,7 @@
+# @rule: gr.adv.dict_comprehension
+# @description: قاموس بلا «في» يُرفض
+# @priority: P1
+# @requires: اطبع_سطر، نص
+# @expect_error
+متغير د = {لكل س [1، 2، 3] أنتج نص(س): س}
+اطبع_سطر(د)

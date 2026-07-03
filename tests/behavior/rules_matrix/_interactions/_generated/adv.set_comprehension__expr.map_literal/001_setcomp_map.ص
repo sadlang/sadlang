@@ -1,0 +1,7 @@
+# @rule: gr.adv.set_comprehension, gr.expr.map_literal
+# @description: استيعاب مجموعة بصيغة «{}» (ترتيب عربيّ: لكل … أنتج …) يزيل التكرار
+# @priority: P2
+# @requires: اطبع_سطر، طول
+# @expected: 3
+متغير م = {لكل س في [1، 2، 2، 3] أنتج س}
+اطبع_سطر(طول(م))

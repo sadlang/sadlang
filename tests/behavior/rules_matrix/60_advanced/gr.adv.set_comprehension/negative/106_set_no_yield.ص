@@ -1,0 +1,7 @@
+# @rule: gr.adv.set_comprehension
+# @description: مجموعة بلا أنتج تُرفض
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير م = {لكل س في [1، 2، 3] س}
+اطبع_سطر(م)

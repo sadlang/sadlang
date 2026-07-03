@@ -595,7 +595,7 @@ productions:
 
   - id: gr.expr.array_literal
     lhs: { nonterminal: ArrayLiteral, name_ar: "مصفوفة حرفيّة", name_en: array_literal }
-    ebnf: "ArrayLiteral = '[' [ Expression { ( ',' | '،' ) Expression } | ListComprehension ] ']' ;"
+    ebnf: "ArrayLiteral = '[' [ ListComprehension | Expression { ( ',' | '،' ) Expression } ] ']' ;"
     alternatives:
       - symbols:
           - { kind: terminal, ref: BRACKET_LEFT, value: "[" }
@@ -609,7 +609,7 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseArrayLiteral" }
     ast_node: "ArrayExpr | ListComprehensionExpr"
-    description_ar: "مصفوفة «[أ، ب، ج]» أو فارغة «[]»؛ تتحوّل لاستيعاب قائمة إن تلا العنصر الأول «لكل»"
+    description_ar: "مصفوفة «[أ، ب، ج]» أو فارغة «[]»؛ تتحوّل لاستيعاب قائمة إن بدأ المحتوى بـ«لكل» (ترتيب عربيّ: لكل … أنتج …)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }
@@ -618,7 +618,7 @@ productions:
 
   - id: gr.expr.map_literal
     lhs: { nonterminal: MapLiteral, name_ar: "خريطة حرفيّة", name_en: map_literal }
-    ebnf: "MapLiteral = '{' [ Expression ( ':' | '=' ) Expression { ',' ... } | DictComprehension ] '}' ;"
+    ebnf: "MapLiteral = '{' [ DictComprehension | SetComprehension | Expression ( ':' | '=' ) Expression { ',' ... } ] '}' ;"
     alternatives:
       - symbols:
           - { kind: terminal, ref: BRACE_LEFT, value: "{" }
@@ -627,6 +627,7 @@ productions:
               - kind: alt
                 children:
                   - { kind: nonterminal, ref: gr.adv.dict_comprehension }
+                  - { kind: nonterminal, ref: gr.adv.set_comprehension }
                   - kind: group
                     children:
                       - { kind: nonterminal, ref: gr.expr.expression }
@@ -636,8 +637,8 @@ productions:
           - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }
-    ast_node: "MapExpr | DictComprehensionExpr"
-    description_ar: "خريطة «{مفتاح: قيمة، ...}» (يُقبَل «=» بدل «:») أو فارغة؛ تتحوّل لاستيعاب قاموس إن وُجد «لكل»"
+    ast_node: "MapExpr | DictComprehensionExpr | SetComprehensionExpr"
+    description_ar: "خريطة «{مفتاح: قيمة، ...}» (يُقبَل «=» بدل «:») أو فارغة؛ تتحوّل لاستيعاب قاموس/مجموعة إن بدأ المحتوى بـ«لكل» (ترتيب عربيّ: لكل … أنتج …؛ «:» بعد الناتج ⇒ قاموس وإلّا مجموعة)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 3 } }

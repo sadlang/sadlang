@@ -7,7 +7,7 @@
 
 المصدر الموحَّد: [`language-truth/grammar/`](../../../language-truth/grammar/) (قواعد إنتاج YAML). هذا التوثيق مُشتقّ منه آليًّا.
 
-**إجمالي القواعد:** 104 · **الطبقات:** 8 · **عقد AST مميَّزة:** 86 · **الحالة:** experimental: 9، stable: 95
+**إجمالي القواعد:** 105 · **الطبقات:** 8 · **عقد AST مميَّزة:** 86 · **الحالة:** experimental: 9، stable: 96
 
 ## خريطة التوزيع العليا (البرنامج → التصريح → الجملة)
 ```mermaid
@@ -67,7 +67,7 @@ flowchart TD
 | 4 | البرمجة الكائنية | [30_oop.md](30_oop.md) | `30_oop.yaml` | 16 |
 | 5 | التعابير وسلسلة الأسبقية | [40_expressions.md](40_expressions.md) | `40_expressions.yaml` | 25 |
 | 6 | أنماط المطابقة | [50_patterns.md](50_patterns.md) | `50_patterns.yaml` | 6 |
-| 7 | البنيات المتقدمة | [60_advanced.md](60_advanced.md) | `60_advanced.yaml` | 26 |
+| 7 | البنيات المتقدمة | [60_advanced.md](60_advanced.md) | `60_advanced.yaml` | 27 |
 | 8 | القواعد المعجمية | [70_lexical.md](70_lexical.md) | `70_lexical.yaml` | 8 |
 
 ## كل القواعد (المعرّف ⇒ عقدة AST ⇒ دالة المحلل)
@@ -137,7 +137,7 @@ flowchart TD
 | ق-061 | [`gr.expr.decorator`](40_expressions.md#gr.expr.decorator) | مُزخرِف | `DecoratorExpr` | `ParserCore::parseDecorator` |
 | ق-062 | [`gr.expr.directive`](40_expressions.md#gr.expr.directive) | تعبير توجيه | `SizeofExpr \| AtomicExpr \| InlineAsmExpr` | `ParserCore::parseDirectiveExpr` |
 | ق-063 | [`gr.expr.array_literal`](40_expressions.md#gr.expr.array_literal) | مصفوفة حرفيّة | `ArrayExpr \| ListComprehensionExpr` | `ParserCore::parseArrayLiteral` |
-| ق-064 | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) | خريطة حرفيّة | `MapExpr \| DictComprehensionExpr` | `ParserCore::parseMapLiteral` |
+| ق-064 | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) | خريطة حرفيّة | `MapExpr \| DictComprehensionExpr \| SetComprehensionExpr` | `ParserCore::parseMapLiteral` |
 | ق-065 | [`gr.pattern.pattern`](50_patterns.md#gr.pattern.pattern) | نمط | `WildcardPattern \| StructPattern \| ListPattern \| BindingPattern \| OrPattern` | `ParserCore::parsePattern` |
 | ق-066 | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) | نمط أوّليّ | `LiteralPattern \| RangePattern \| VariablePattern` | `ParserCore::parsePrimaryPattern` |
 | ق-067 | [`gr.pattern.list`](50_patterns.md#gr.pattern.list) | نمط قائمة | `ListPattern` | `ParserCore::parseListPattern` |
@@ -155,29 +155,30 @@ flowchart TD
 | ق-079 | [`gr.adv.defer`](60_advanced.md#gr.adv.defer) | جملة أجّل | `DeferStmt` | `ParserCore::parseDeferStmt` |
 | ق-080 | [`gr.adv.go`](60_advanced.md#gr.adv.go) | جملة أطلق | `GoStmt` | `ParserCore::parseGoStmt` |
 | ق-081 | [`gr.adv.select`](60_advanced.md#gr.adv.select) | جملة اختر | `SelectStmt` | `ParserCore::parseSelectStmt` |
-| ق-082 | [`gr.adv.list_comprehension`](60_advanced.md#gr.adv.list_comprehension) | استيعاب قائمة | `ListComprehensionExpr` | `ParserCore::parseListComprehension` |
-| ق-083 | [`gr.adv.dict_comprehension`](60_advanced.md#gr.adv.dict_comprehension) | استيعاب قاموس | `DictComprehensionExpr` | `ParserCore::parseDictComprehension` |
-| ق-084 | [`gr.adv.macro`](60_advanced.md#gr.adv.macro) | تصريح ماكرو | `MacroDecl` | `ParserCore::parseMacroDecl` |
-| ق-085 | [`gr.adv.property_test`](60_advanced.md#gr.adv.property_test) | اختبار خصائص | `TestDecl` | `ParserCore::parseTestDecl` |
-| ق-086 | [`gr.adv.await`](60_advanced.md#gr.adv.await) | تعبير انتظر | `AwaitExpr` | `ParserCore::parsePrimary` |
-| ق-087 | [`gr.adv.contract`](60_advanced.md#gr.adv.contract) | عقد ذكيّ | `ClassDecl` | `ParserCore::parseDeclaration` |
-| ق-088 | [`gr.adv.ffi_extern_block`](60_advanced.md#gr.adv.ffi_extern_block) | كتلة خارجي | `ExternBlockAST` | `ExternParser::parseExternBlock` |
-| ق-089 | [`gr.adv.ffi_linkage`](60_advanced.md#gr.adv.ffi_linkage) | اتفاقيّة ربط | `ExternLinkage` | `ExternParser::parseLinkage` |
-| ق-090 | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) | نوع C | `CTypePtr` | `ExternParser::parseCType` |
-| ق-091 | [`gr.adv.inline_asm`](60_advanced.md#gr.adv.inline_asm) | تجميع مضمَّن | `InlineAsmExpr` | `ParserCore::tryParseDirective` |
-| ق-092 | [`gr.adv.ui_decl`](60_advanced.md#gr.adv.ui_decl) | تصريح واجهة | `UIDeclarationNode` | `ParserCore::parseUIDeclaration` |
-| ق-093 | [`gr.adv.ui_state`](60_advanced.md#gr.adv.ui_state) | تصريح حالة واجهة | `UIStateDecl` | `ParserCore::parseUIStateDecl` |
-| ق-094 | [`gr.adv.widget`](60_advanced.md#gr.adv.widget) | تعبير عنصر واجهة | `UIWidgetExprNode` | `ParserCore::parseWidgetExpression` |
-| ق-095 | [`gr.adv.ui_modifier_chain`](60_advanced.md#gr.adv.ui_modifier_chain) | سلسلة معدّلات | `std::vector<UIModifierNode>` | `ParserCore::parseModifierChain` |
-| ق-096 | [`gr.adv.ui_event`](60_advanced.md#gr.adv.ui_event) | معالج حدث | `UIEventHandlerNode` | `ParserCore::parseUIEventHandler` |
-| ق-097 | [`gr.lex.identifier`](70_lexical.md#gr.lex.identifier) | مُعرّف | `Token(IDENTIFIER)` | `LexerCore::nextToken` |
-| ق-098 | [`gr.lex.integer`](70_lexical.md#gr.lex.integer) | عدد صحيح | `Token(NUMBER_INTEGER)` | `LexerCore::nextToken` |
-| ق-099 | [`gr.lex.double`](70_lexical.md#gr.lex.double) | عدد عشريّ | `Token(NUMBER_DOUBLE)` | `LexerCore::nextToken` |
-| ق-100 | [`gr.lex.string`](70_lexical.md#gr.lex.string) | نص حرفيّ | `Token(STRING_LITERAL)` | `LexerCore::nextToken` |
-| ق-101 | [`gr.lex.raw_string`](70_lexical.md#gr.lex.raw_string) | نص خام | `Token(STRING_RAW)` | `LexerCore::nextToken` |
-| ق-102 | [`gr.lex.fstring`](70_lexical.md#gr.lex.fstring) | رمز نص منسَّق | `Token(STRING_FSTRING)` | `LexerCore::nextToken` |
-| ق-103 | [`gr.lex.lifetime`](70_lexical.md#gr.lex.lifetime) | تعليق عمر | `Token(LIFETIME)` | `LexerCore::nextToken` |
-| ق-104 | [`gr.lex.comment`](70_lexical.md#gr.lex.comment) | تعليق | `Token(COMMENT) \| Token(DOC_COMMENT)` | `LexerCore::nextToken` |
+| ق-082 | [`gr.adv.list_comprehension`](60_advanced.md#gr.adv.list_comprehension) | استيعاب قائمة | `ListComprehensionExpr` | `ParserCore::parseArrayLiteral` |
+| ق-083 | [`gr.adv.set_comprehension`](60_advanced.md#gr.adv.set_comprehension) | استيعاب مجموعة | `SetComprehensionExpr` | `ParserCore::parseMapLiteral` |
+| ق-084 | [`gr.adv.dict_comprehension`](60_advanced.md#gr.adv.dict_comprehension) | استيعاب قاموس | `DictComprehensionExpr` | `ParserCore::parseMapLiteral` |
+| ق-085 | [`gr.adv.macro`](60_advanced.md#gr.adv.macro) | تصريح ماكرو | `MacroDecl` | `ParserCore::parseMacroDecl` |
+| ق-086 | [`gr.adv.property_test`](60_advanced.md#gr.adv.property_test) | اختبار خصائص | `TestDecl` | `ParserCore::parseTestDecl` |
+| ق-087 | [`gr.adv.await`](60_advanced.md#gr.adv.await) | تعبير انتظر | `AwaitExpr` | `ParserCore::parsePrimary` |
+| ق-088 | [`gr.adv.contract`](60_advanced.md#gr.adv.contract) | عقد ذكيّ | `ClassDecl` | `ParserCore::parseDeclaration` |
+| ق-089 | [`gr.adv.ffi_extern_block`](60_advanced.md#gr.adv.ffi_extern_block) | كتلة خارجي | `BlockStmt` | `ParserCore::parseDeclaration` |
+| ق-090 | [`gr.adv.ffi_linkage`](60_advanced.md#gr.adv.ffi_linkage) | اتفاقيّة ربط | `ExternLinkage` | `ParserCore::parseDeclaration` |
+| ق-091 | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) | نوع C | `CTypePtr` | `ExternParser::parseCType` |
+| ق-092 | [`gr.adv.inline_asm`](60_advanced.md#gr.adv.inline_asm) | تجميع مضمَّن | `InlineAsmExpr` | `ParserCore::tryParseDirective` |
+| ق-093 | [`gr.adv.ui_decl`](60_advanced.md#gr.adv.ui_decl) | تصريح واجهة | `UIDeclarationNode` | `ParserCore::parseUIDeclaration` |
+| ق-094 | [`gr.adv.ui_state`](60_advanced.md#gr.adv.ui_state) | تصريح حالة واجهة | `UIStateDecl` | `ParserCore::parseUIStateDecl` |
+| ق-095 | [`gr.adv.widget`](60_advanced.md#gr.adv.widget) | تعبير عنصر واجهة | `UIWidgetExprNode` | `ParserCore::parseWidgetExpression` |
+| ق-096 | [`gr.adv.ui_modifier_chain`](60_advanced.md#gr.adv.ui_modifier_chain) | سلسلة معدّلات | `std::vector<UIModifierNode>` | `ParserCore::parseModifierChain` |
+| ق-097 | [`gr.adv.ui_event`](60_advanced.md#gr.adv.ui_event) | معالج حدث | `UIEventHandlerNode` | `ParserCore::parseUIEventHandler` |
+| ق-098 | [`gr.lex.identifier`](70_lexical.md#gr.lex.identifier) | مُعرّف | `Token(IDENTIFIER)` | `LexerCore::nextToken` |
+| ق-099 | [`gr.lex.integer`](70_lexical.md#gr.lex.integer) | عدد صحيح | `Token(NUMBER_INTEGER)` | `LexerCore::nextToken` |
+| ق-100 | [`gr.lex.double`](70_lexical.md#gr.lex.double) | عدد عشريّ | `Token(NUMBER_DOUBLE)` | `LexerCore::nextToken` |
+| ق-101 | [`gr.lex.string`](70_lexical.md#gr.lex.string) | نص حرفيّ | `Token(STRING_LITERAL)` | `LexerCore::nextToken` |
+| ق-102 | [`gr.lex.raw_string`](70_lexical.md#gr.lex.raw_string) | نص خام | `Token(STRING_RAW)` | `LexerCore::nextToken` |
+| ق-103 | [`gr.lex.fstring`](70_lexical.md#gr.lex.fstring) | رمز نص منسَّق | `Token(STRING_FSTRING)` | `LexerCore::nextToken` |
+| ق-104 | [`gr.lex.lifetime`](70_lexical.md#gr.lex.lifetime) | تعليق عمر | `Token(LIFETIME)` | `LexerCore::nextToken` |
+| ق-105 | [`gr.lex.comment`](70_lexical.md#gr.lex.comment) | تعليق | `Token(COMMENT) \| Token(DOC_COMMENT)` | `LexerCore::nextToken` |
 
 ## فهرس حسب عقدة AST
 
@@ -189,7 +190,7 @@ flowchart TD
 | `BinaryExpr` | [`gr.expr.logical_or`](40_expressions.md#gr.expr.logical_or)، [`gr.expr.logical_and`](40_expressions.md#gr.expr.logical_and)، [`gr.expr.bitwise_or`](40_expressions.md#gr.expr.bitwise_or)، [`gr.expr.bitwise_xor`](40_expressions.md#gr.expr.bitwise_xor)، [`gr.expr.bitwise_and`](40_expressions.md#gr.expr.bitwise_and)، [`gr.expr.equality`](40_expressions.md#gr.expr.equality)، [`gr.expr.comparison`](40_expressions.md#gr.expr.comparison)، [`gr.expr.term`](40_expressions.md#gr.expr.term)، [`gr.expr.factor`](40_expressions.md#gr.expr.factor)، [`gr.expr.power`](40_expressions.md#gr.expr.power) |
 | `BinaryExpr \| LiteralExpr` | [`gr.expr.fstring`](40_expressions.md#gr.expr.fstring) |
 | `BindingPattern` | [`gr.pattern.binding`](50_patterns.md#gr.pattern.binding) |
-| `BlockStmt` | [`gr.program.block`](00_program.md#gr.program.block) |
+| `BlockStmt` | [`gr.program.block`](00_program.md#gr.program.block)، [`gr.adv.ffi_extern_block`](60_advanced.md#gr.adv.ffi_extern_block) |
 | `BreakStmt` | [`gr.stmt.break`](10_statements.md#gr.stmt.break) |
 | `CTypePtr` | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) |
 | `CallExpr` | [`gr.expr.pipeline`](40_expressions.md#gr.expr.pipeline) |
@@ -205,7 +206,6 @@ flowchart TD
 | `ExportStmt` | [`gr.decl.export`](20_declarations.md#gr.decl.export) |
 | `ExprStmt` | [`gr.stmt.expression`](10_statements.md#gr.stmt.expression) |
 | `ExtensionDecl` | [`gr.oop.extension`](30_oop.md#gr.oop.extension) |
-| `ExternBlockAST` | [`gr.adv.ffi_extern_block`](60_advanced.md#gr.adv.ffi_extern_block) |
 | `ExternLinkage` | [`gr.adv.ffi_linkage`](60_advanced.md#gr.adv.ffi_linkage) |
 | `FieldDecl` | [`gr.oop.field`](30_oop.md#gr.oop.field) |
 | `ForStmt \| ForRangeStmt` | [`gr.stmt.for`](10_statements.md#gr.stmt.for) |
@@ -221,7 +221,7 @@ flowchart TD
 | `LiteralExpr \| VariableExpr \| TupleExpr \| ArrayExpr \| MapExpr \| ThisExpr \| SuperExpr \| AwaitExpr \| ErrorPropagateExpr \| TernaryExpr \| LambdaExpr \| CallExpr \| TemplateInstantiation` | [`gr.expr.primary`](40_expressions.md#gr.expr.primary) |
 | `LiteralPattern \| RangePattern \| VariablePattern` | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) |
 | `MacroDecl` | [`gr.adv.macro`](60_advanced.md#gr.adv.macro) |
-| `MapExpr \| DictComprehensionExpr` | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) |
+| `MapExpr \| DictComprehensionExpr \| SetComprehensionExpr` | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) |
 | `MatchStmt` | [`gr.stmt.match`](10_statements.md#gr.stmt.match) |
 | `MethodDecl` | [`gr.oop.method`](30_oop.md#gr.oop.method) |
 | `NewExpr` | [`gr.oop.new`](30_oop.md#gr.oop.new) |
@@ -234,6 +234,7 @@ flowchart TD
 | `ReturnStmt` | [`gr.stmt.return`](10_statements.md#gr.stmt.return) |
 | `SadTypeKind \| SadTypePtr` | [`gr.adv.type`](60_advanced.md#gr.adv.type) |
 | `SelectStmt` | [`gr.adv.select`](60_advanced.md#gr.adv.select) |
+| `SetComprehensionExpr` | [`gr.adv.set_comprehension`](60_advanced.md#gr.adv.set_comprehension) |
 | `SizeofExpr \| AtomicExpr \| InlineAsmExpr` | [`gr.expr.directive`](40_expressions.md#gr.expr.directive) |
 | `StmtList` | [`gr.program.program`](00_program.md#gr.program.program) |
 | `StructDecl` | [`gr.oop.struct`](30_oop.md#gr.oop.struct) |

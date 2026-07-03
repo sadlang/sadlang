@@ -1,0 +1,7 @@
+# @rule: gr.adv.dict_comprehension
+# @description: استيعاب قاموس نص(س):س + 1؛ probe مفتاح «6»
+# @priority: P2
+# @requires: اطبع_سطر، نص
+# @expected: 7
+متغير د = {لكل س في [2، 4، 6] أنتج نص(س): س + 1}
+اطبع_سطر(د["6"])

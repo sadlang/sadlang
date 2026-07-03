@@ -1099,23 +1099,11 @@ namespace Sad
              */
             AST::ExprPtr parseDirectiveExpr();
 
-            /**
-             * @brief (AR) يحلل List Comprehension ([x*2 for x in list]).
-             *        (EN) Parses list comprehension ([x*2 for x in list]).
-             *
-             * @return (AR) مؤشر لعقدة List Comprehension.
-             *         (EN) Pointer to list comprehension node.
-             */
-            AST::ExprPtr parseListComprehension();
-
-            /**
-             * @brief (AR) يحلل Dictionary Comprehension ({k: v for k, v in dict}).
-             *        (EN) Parses dictionary comprehension ({k: v for k, v in dict}).
-             *
-             * @return (AR) مؤشر لعقدة Dict Comprehension.
-             *         (EN) Pointer to dict comprehension node.
-             */
-            AST::ExprPtr parseDictComprehension();
+            // (AR) دالّتا parseListComprehension/parseDictComprehension حُذفتا في RFC 25 م1ب
+            //      (كانتا بالترتيب البايثونيّ). الاستيعابات تُحلَّل الآن في parseArrayLiteral/parseMapLiteral
+            //      بالترتيب العربيّ «لكل … أنتج …».
+            // (EN) parseListComprehension/parseDictComprehension removed in RFC 25 م1ب; comprehensions
+            //      now parse in parseArrayLiteral/parseMapLiteral in the Arabic «لكل … أنتج …» order.
 
             /**
              * @brief (AR) يحلل مصفوفة حرفية [1, 2, 3].
