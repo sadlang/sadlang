@@ -318,6 +318,14 @@ namespace Sad
             // (AR) خيارات المفسر / (EN) Interpreter options
             InterpreterOptions options_;
 
+            // (AR) هل سُجِّل تعداد الألوان المدمَج «ألوان»؟ (مرّة واحدة لكلّ مفسّر).
+            // (EN) Was the builtin `ألوان` color enum registered? (once per instance).
+            bool builtinColorsRegistered_ = false;
+
+            // (AR) يسجّل تعداد الألوان المدمَج بتحليل بادئته المولَّدة وتنفيذها مرّةً.
+            // (EN) Registers the builtin color enum by parsing+executing its prelude once.
+            void ensureBuiltinColorsRegistered();
+
             // (AR) المديرون / (EN) Managers
             std::shared_ptr<Data::ScopeManager> scopeManager_;
             std::shared_ptr<Data::VariableManager> variableManager_;

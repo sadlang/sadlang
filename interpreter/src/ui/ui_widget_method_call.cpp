@@ -16,6 +16,7 @@
 #include "value.h"       // (AR) Value/toObject/toString… (تضمين صريح لا عبوريّ)
 #include "object_instance.h"
 #include "widget_builder.h" // (AR) WidgetBuilder + sad_ui/ir.h (IRAnimation/easing) عبوريًّا
+#include "sad_ui/ui_modifiers.h" // (AR) مصدر الحقيقة لأسماء المعدّلات (مُولَّد من language-truth)
 #include "ui_eval_bridge_impl.h"
 
 namespace Sad
@@ -65,8 +66,7 @@ namespace Sad
                         // (AR) طريقة ابن/أبناء — إضافة عناصر فرعية. كلتاهما تعالج
                         //   كلّ الوسائط عبر addChildIfWidget⇒addChildBuilder فتُسجَّل
                         //   أحداث الأبناء المتداخلين (تكافؤ الصيغتين والموضعيّة).
-                        if (m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child" ||
-                            m == "\xd8\xa3\xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1" || m == "children")
+                        if (sad::ui::mods::isChild(m))
                         {
                             for (auto &a : args)
                                 addChildIfWidget(wb, a);
@@ -75,7 +75,7 @@ namespace Sad
                         }
 
                         // (AR) طريقة عند_* — تسجيل حدث
-                        if (m.find("\xd8\xb9\xd9\x86\xd8\xaf_") == 0 || m.find("on_") == 0)
+                        if (sad::ui::mods::isEvent(m))
                         {
                             // عند_النقر، عند_التغيير...
                             if (!args.empty())
@@ -97,8 +97,7 @@ namespace Sad
                         //      Supports compound: .حرّك("ظهور,دوران") or .حرّك("ظهور", "دوران")
                         // ═══════════════════════════════════════════════════════
                         // حرّك / animate — بدء تسلسل تحريك جديد (أو مركّب بفاصلة)
-                        if (m == "\xd8\xad\xd8\xb1\xd9\x91\xd9\x83" || m == "animate" ||
-                            m == "\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83" || m == "\xd8\xad\xd8\xb1\xd9\x83")
+                        if (sad::ui::mods::isAnimate(m))
                         {
                             // (AR) جمع كل أسماء الأنواع من الوسائط
                             std::vector<std::string> types;
@@ -127,9 +126,11 @@ namespace Sad
                                 }
                             }
 
-                            // (AR) احتياطي — إذا لم تنتج أي أنواع
+                            // (AR) احتياطيّ — إذا لم تنتج أيّ أنواع: النوع الافتراضيّ
+                            //   (FadeIn) مشتقٌّ من مصدر الحقيقة عبر animationTypeToString
+                            //   (لا ليترال إنجليزيّ؛ يعيد الاسم القانونيّ «ظهور»).
                             if (types.empty())
-                                types.push_back("fadeIn");
+                                types.push_back(sad::ui::animationTypeToString(sad::ui::AnimationType::FadeIn));
 
                             // (AR) وضع المجموعة المركبة إذا كان هناك أكثر من نوع
                             bool isCompound = types.size() > 1;
@@ -147,7 +148,7 @@ namespace Sad
                         }
 
                         // مدة / duration — تعيين مدة التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd9\x85\xd8\xaf\xd8\xa9" || m == "duration")
+                        if (sad::ui::mods::isDuration(m))
                         {
                             if (wb->isInAnimationChain() && !args.empty())
                             {
@@ -160,7 +161,7 @@ namespace Sad
                         }
 
                         // منحنى / easing — تعيين منحنى التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd9\x89" || m == "easing" || m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd8\xa7")
+                        if (sad::ui::mods::isEasing(m))
                         {
                             if (wb->isInAnimationChain() && !args.empty())
                             {
@@ -173,7 +174,7 @@ namespace Sad
                         }
 
                         // تأخير / delay — تعيين التأخير قبل التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd8\xaa\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1" || m == "delay")
+                        if (sad::ui::mods::isDelay(m))
                         {
                             if (wb->isInAnimationChain() && !args.empty())
                             {
@@ -186,7 +187,7 @@ namespace Sad
                         }
 
                         // تكرار / repeat — عدد تكرارات التحريك (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd8\xaa\xd9\x83\xd8\xb1\xd8\xa7\xd8\xb1" || m == "repeat")
+                        if (sad::ui::mods::isRepeat(m))
                         {
                             if (wb->isInAnimationChain() && !args.empty())
                             {
@@ -199,7 +200,7 @@ namespace Sad
                         }
 
                         // عكس_تلقائي / autoReverse — عكس الحركة تلقائياً (تُطبّق على كل المجموعة المركبة)
-                        if (m == "\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xaa\xd9\x84\xd9\x82\xd8\xa7\xd8\xa6\xd9\x8a" || m == "autoReverse" || m == "auto_reverse")
+                        if (sad::ui::mods::isAutoReverse(m))
                         {
                             if (wb->isInAnimationChain())
                             {

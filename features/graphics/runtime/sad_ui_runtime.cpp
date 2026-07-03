@@ -557,7 +557,9 @@ void sad_anim_begin(SadWidget w, const char* typesCsv) {
             }
         }
     }
-    if (types.empty()) types.push_back("fadeIn"); // احتياطيّ كالمفسّر
+    // (AR) احتياطيّ كالمفسّر: النوع الافتراضيّ (FadeIn) مشتقٌّ من مصدر الحقيقة
+    //   عبر animationTypeToString (لا ليترال إنجليزيّ؛ يعيد الاسم القانونيّ «ظهور»).
+    if (types.empty()) types.push_back(sad::ui::animationTypeToString(sad::ui::AnimationType::FadeIn));
     // (AR) أكثر من نوع ⇒ مجموعة مركّبة (المعدّلات تُطبَّق على الكلّ).
     const bool isCompound = types.size() > 1;
     if (isCompound) {

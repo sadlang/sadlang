@@ -1,0 +1,161 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لأنواع أحداث SadUI — لاحقةُ اسمِ الحدث التي يكتبها
+#      مطوّر ص بعد البادئة `عند_`: `.عند_النقر(...)`، `.عند_التغيير(...)` …
+#      يُولَّد منه sad_ui/generated/event_vocab_generated.h عبر gen_ui_vocab.py،
+#      وتستهلكه دوالّ المكتبة (stringToIREventType/irEventTypeToString في
+#      types.cpp). المفسّر والمترجم يحلّان اسمَ الحدث بالدالّة ذاتها ⇒ تطابق دقيق
+#      في getEvents() بين المحرّكين.
+#
+#      سياسة: الأسماء العربيّة القانونيّة فقط، بلا تشكيل، لا بدائل إنجليزيّة ولا
+#      عربيّة. اسمُ الحدث الكامل وسيطُ مطابقةٍ نصّيّ يُجرَّد تشكيله في المكتبة قبل
+#      البحث (stripArabicDiacritics). المخطّط يمنع أيّ حقلٍ إضافيّ (لا aliases).
+#
+#      ملاحظة: البادئة `عند_` نفسها معدّلٌ مُعرَّف في ui_modifiers.yaml (EVENT)؛
+#      هذا الملفّ يعرّف اللاحقةَ التي تُميّز نوعَ الحدث بعد البادئة.
+#
+# (EN) Central SoT for SadUI event type names (the suffix after the `عند_`
+#      prefix). Generates event_vocab_generated.h consumed by the library mappers
+#      in types.cpp. Both engines resolve the event name via the same function ⇒
+#      exact getEvents() parity. Canonical Arabic only, no aliases.
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+macro: SAD_UI_EVENT_VOCAB
+enum: IREventType
+description_ar: أنواع أحداث SadUI
+description_en: SadUI event types
+
+# (AR) الترتيب يطابق enum IREventType في types.h. القيمة الأخيرة Custom = احتياطيّ
+#      لأيّ اسمٍ غير معروف (لا يُعدّ حدثًا معروفًا). لا يُدرَج _Count (ليس نوعًا).
+entries:
+  - id: OnTap
+    canonical: عند_النقر
+    description_ar: عند النقر/الضغط على العنصر
+    description_en: On tap/click
+  - id: OnDoubleTap
+    canonical: عند_النقر_المزدوج
+    description_ar: عند النقر المزدوج
+    description_en: On double tap
+  - id: OnLongPress
+    canonical: عند_الضغط_المطول
+    description_ar: عند الضغط المطوّل
+    description_en: On long press
+  - id: OnDrag
+    canonical: عند_السحب
+    description_ar: عند سحب العنصر
+    description_en: On drag
+  - id: OnSwipeLeft
+    canonical: عند_السحب_يسار
+    description_ar: عند السحب يسارًا
+    description_en: On swipe left
+  - id: OnSwipeRight
+    canonical: عند_السحب_يمين
+    description_ar: عند السحب يمينًا
+    description_en: On swipe right
+  - id: OnSwipeUp
+    canonical: عند_السحب_أعلى
+    description_ar: عند السحب للأعلى
+    description_en: On swipe up
+  - id: OnSwipeDown
+    canonical: عند_السحب_أسفل
+    description_ar: عند السحب للأسفل
+    description_en: On swipe down
+  - id: OnZoom
+    canonical: عند_التكبير
+    description_ar: عند التكبير (إيماءة قرص)
+    description_en: On zoom (pinch gesture)
+  - id: OnChange
+    canonical: عند_التغيير
+    description_ar: عند تغيّر القيمة
+    description_en: On value change
+  - id: OnInput
+    canonical: عند_الإدخال
+    description_ar: عند الإدخال
+    description_en: On input
+  - id: OnRelease
+    canonical: عند_التحرير
+    description_ar: عند تحرير الضغط
+    description_en: On release
+  - id: OnScroll
+    canonical: عند_التمرير
+    description_ar: عند التمرير
+    description_en: On scroll
+  - id: OnHover
+    canonical: عند_التحويم
+    description_ar: عند تحويم المؤشّر فوق العنصر
+    description_en: On hover
+  - id: OnHoverExit
+    canonical: عند_الخروج
+    description_ar: عند خروج المؤشّر من العنصر
+    description_en: On hover exit
+  - id: OnFocus
+    canonical: عند_التركيز
+    description_ar: عند تركيز العنصر
+    description_en: On focus
+  - id: OnBlur
+    canonical: عند_فقد_التركيز
+    description_ar: عند فقد التركيز
+    description_en: On blur
+  - id: OnAppear
+    canonical: عند_الظهور
+    description_ar: عند ظهور العنصر
+    description_en: On appear
+  - id: OnDisappear
+    canonical: عند_الاختفاء
+    description_ar: عند اختفاء العنصر
+    description_en: On disappear
+  - id: OnKeyDown
+    canonical: عند_ضغط_مفتاح
+    description_ar: عند ضغط مفتاح لوحة المفاتيح
+    description_en: On key down
+  - id: OnKeyUp
+    canonical: عند_رفع_مفتاح
+    description_ar: عند رفع مفتاح لوحة المفاتيح
+    description_en: On key up
+  - id: OnSubmit
+    canonical: عند_الإرسال
+    description_ar: عند إرسال نموذج
+    description_en: On submit (form)
+  - id: OnDragStart
+    canonical: عند_بدء_السحب
+    description_ar: عند بدء عمليّة السحب
+    description_en: On drag start
+  - id: OnDragEnd
+    canonical: عند_انتهاء_السحب
+    description_ar: عند انتهاء عمليّة السحب
+    description_en: On drag end
+  - id: OnDrop
+    canonical: عند_الإسقاط
+    description_ar: عند إسقاط عنصر مسحوب
+    description_en: On drop
+  - id: OnRotate
+    canonical: عند_الدوران
+    description_ar: عند إيماءة الدوران باللمس
+    description_en: On rotate gesture
+  - id: OnContextMenu
+    canonical: عند_القائمة_السياقية
+    description_ar: عند القائمة السياقيّة (نقرة يمنى/ضغط مطوّل)
+    description_en: On context menu (right click/long press)
+  - id: OnSelect
+    canonical: عند_التحديد
+    description_ar: عند تحديد نصّ أو عنصر
+    description_en: On select
+  - id: OnResize
+    canonical: عند_تغيير_الحجم
+    description_ar: عند تغيير أبعاد العنصر
+    description_en: On resize
+  - id: OnAnimationEnd
+    canonical: عند_انتهاء_التحريك
+    description_ar: عند انتهاء حركة
+    description_en: On animation end
+  - id: OnLoad
+    canonical: عند_التحميل
+    description_ar: عند اكتمال تحميل محتوى (صورة، …)
+    description_en: On load (content loaded)
+  - id: OnError
+    canonical: عند_الخطأ
+    description_ar: عند فشل تحميل محتوى
+    description_en: On error (content load failed)
+  - id: Custom
+    canonical: مخصص
+    description_ar: حدث مخصّص غير معروف (احتياطيّ — يحتاج customEventName)
+    description_en: Custom unknown event (fallback — needs customEventName)

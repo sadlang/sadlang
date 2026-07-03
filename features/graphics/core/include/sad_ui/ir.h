@@ -43,6 +43,10 @@
 #define SAD_UI_IR_H
 
 #include "types.h"
+#include "text_normalize.h" // (AR) تجريد التشكيل من الوسائط النصّيّة قبل المطابقة
+// (AR) قوائم X-macro مولَّدة من language-truth (مصدر الحقيقة الوحيد لأسماء المفردات).
+#include "generated/animation_vocab_generated.h"
+#include "generated/easing_vocab_generated.h"
 
 #include <string>
 #include <vector>
@@ -227,60 +231,15 @@ namespace sad
          */
         inline AnimationType stringToAnimationType(const std::string &name)
         {
-            // أسماء عربية
-            if (name == "\xd8\xb8\xd9\x87\xd9\x88\xd8\xb1" || name == "fadeIn" || name == "fade_in")
-                return AnimationType::FadeIn;
-            if (name == "\xd8\xa7\xd8\xae\xd8\xaa\xd9\x81\xd8\xa7\xd8\xa1" || name == "fadeOut" || name == "fade_out")
-                return AnimationType::FadeOut;
-            if (name == "\xd8\xaa\xd9\x83\xd8\xa8\xd9\x8a\xd8\xb1" || name == "scaleUp" || name == "scale_up")
-                return AnimationType::ScaleUp;
-            if (name == "\xd8\xaa\xd8\xb5\xd8\xba\xd9\x8a\xd8\xb1" || name == "scaleDown" || name == "scale_down")
-                return AnimationType::ScaleDown;
-            if (name == "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86" || name == "slideRight" || name == "slide_right")
-                return AnimationType::SlideRight;
-            if (name == "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1" || name == "slideLeft" || name == "slide_left")
-                return AnimationType::SlideLeft;
-            if (name == "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd8\xa3\xd8\xb9\xd9\x84\xd9\x89" || name == "slideUp" || name == "slide_up")
-                return AnimationType::SlideUp;
-            if (name == "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd8\xa3\xd8\xb3\xd9\x81\xd9\x84" || name == "slideDown" || name == "slide_down")
-                return AnimationType::SlideDown;
-            if (name == "\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd9\x86" || name == "rotate")
-                return AnimationType::Rotate;
-            if (name == "\xd9\x86\xd8\xa8\xd8\xb6" || name == "pulse")
-                return AnimationType::Pulse;
-            if (name == "\xd8\xa7\xd9\x87\xd8\xaa\xd8\xb2\xd8\xa7\xd8\xb2" || name == "shake")
-                return AnimationType::Shake;
-            if (name == "\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf" || name == "bounce")
-                return AnimationType::Bounce;
-            if (name == "\xd8\xaa\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a" || name == "crossFade" || name == "cross_fade")
-                return AnimationType::CrossFade;
-            if (name == "\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xa8" || name == "zoomIn" || name == "zoom_in")
-                return AnimationType::ZoomIn;
-            if (name == "\xd8\xaa\xd8\xa8\xd8\xb9\xd9\x8a\xd8\xaf" || name == "zoomOut" || name == "zoom_out")
-                return AnimationType::ZoomOut;
-            if (name == "\xd8\xb3\xd9\x82\xd9\x88\xd8\xb7" || name == "dropIn" || name == "drop_in")
-                return AnimationType::DropIn;
-            if (name == "\xd8\xb7\xd9\x8a\xd8\xb1\xd8\xa7\xd9\x86" || name == "flyOut" || name == "fly_out")
-                return AnimationType::FlyOut;
-            if (name == "\xd8\xaa\xd8\xa3\xd8\xb1\xd8\xac\xd8\xad" || name == "swing")
-                return AnimationType::Swing;
-            // ── الأنواع الجديدة (v4) ──
-            if (name == "\xd9\x82\xd9\x84\xd8\xa8_\xd8\xa3\xd9\x81\xd9\x82\xd9\x8a" || name == "flipX" || name == "flip_x")
-                return AnimationType::FlipX;
-            if (name == "\xd9\x82\xd9\x84\xd8\xa8_\xd8\xb9\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a" || name == "flipY" || name == "flip_y")
-                return AnimationType::FlipY;
-            if (name == "\xd8\xaa\xd8\xb1\xd9\x86\xd9\x91\xd8\xad" || name == "\xd8\xaa\xd8\xb1\xd9\x86\xd8\xad" || name == "wobble")
-                return AnimationType::Wobble;
-            if (name == "\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xaf\xd8\xae\xd9\x88\xd9\x84" || name == "bounceIn" || name == "bounce_in")
-                return AnimationType::BounceIn;
-            if (name == "\xd9\x88\xd9\x85\xd9\x8a\xd8\xb6" || name == "blink")
-                return AnimationType::Blink;
-            if (name == "\xd8\xaa\xd9\x85\xd8\xb7\xd9\x91\xd9\x8a" || name == "\xd8\xaa\xd9\x85\xd8\xb7\xd9\x8a" || name == "stretch")
-                return AnimationType::Stretch;
-            if (name == "\xd8\xa7\xd9\x86\xd9\x81\xd8\xac\xd8\xa7\xd8\xb1" || name == "explode")
-                return AnimationType::Explode;
-            if (name == "\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa9_3D" || name == "spin3D" || name == "spin_3d" || name == "\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa9_3\xd8\xaf\xd9\x8a")
-                return AnimationType::Spin3D;
+            // (AR) اسمٌ عربيّ قانونيّ واحد لكلّ نوع (من language-truth/ui_animations.yaml).
+            //   الوسيط قد يحمل تشكيلًا (وسيطٌ نصّيّ لا معرّف)، فنجرّده أوّلًا فيستوي
+            //   «ترنّح» و«ترنح». لا بدائل إنجليزيّة (سياسة الأسماء القانونيّة فقط).
+            const std::string s = stripArabicDiacritics(name);
+#define X(id, str)          \
+    if (s == str)           \
+        return AnimationType::id;
+            SAD_UI_ANIMATION_VOCAB(X)
+#undef X
             return AnimationType::Custom;
         }
 
@@ -290,20 +249,14 @@ namespace sad
          */
         inline EasingCurve stringToEasingCurve(const std::string &name)
         {
-            if (name == "\xd8\xae\xd8\xb7\xd9\x8a" || name == "linear")
-                return EasingCurve::Linear;
-            if (name == "\xd8\xaa\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xb9" || name == "easeIn" || name == "ease_in")
-                return EasingCurve::EaseIn;
-            if (name == "\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7\xd8\xa4" || name == "easeOut" || name == "ease_out")
-                return EasingCurve::EaseOut;
-            if (name == "\xd8\xaa\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xb9_\xd9\x88\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7\xd8\xa4" || name == "easeInOut" || name == "ease_in_out")
-                return EasingCurve::EaseInOut;
-            if (name == "\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf" || name == "bounce")
-                return EasingCurve::Bounce;
-            if (name == "\xd9\x85\xd8\xb1\xd9\x86" || name == "elastic")
-                return EasingCurve::Elastic;
-            if (name == "\xd9\x86\xd8\xa7\xd8\xa8\xd8\xb6" || name == "spring")
-                return EasingCurve::Spring;
+            // (AR) اسمٌ عربيّ قانونيّ واحد لكلّ منحنى (من language-truth/ui_easings.yaml)؛
+            //   نجرّد تشكيل الوسيط قبل المطابقة. الافتراض عند عدم التطابق: تسارع_وتباطؤ.
+            const std::string s = stripArabicDiacritics(name);
+#define X(id, str)          \
+    if (s == str)           \
+        return EasingCurve::id;
+            SAD_UI_EASING_VOCAB(X)
+#undef X
             return EasingCurve::EaseInOut;
         }
 
@@ -313,64 +266,17 @@ namespace sad
          */
         inline std::string animationTypeToString(AnimationType type)
         {
+            // (AR) الاتّجاه المعكوس من نفس المصدر (SAD_UI_ANIMATION_VOCAB) — الاسم
+            //   العربيّ القانونيّ بلا تشكيل. Custom مُدرَج في القائمة (احتياطيّ).
             switch (type)
             {
-            case AnimationType::FadeIn:
-                return "\xd8\xb8\xd9\x87\xd9\x88\xd8\xb1"; // ظهور
-            case AnimationType::FadeOut:
-                return "\xd8\xa7\xd8\xae\xd8\xaa\xd9\x81\xd8\xa7\xd8\xa1"; // اختفاء
-            case AnimationType::ScaleUp:
-                return "\xd8\xaa\xd9\x83\xd8\xa8\xd9\x8a\xd8\xb1"; // تكبير
-            case AnimationType::ScaleDown:
-                return "\xd8\xaa\xd8\xb5\xd8\xba\xd9\x8a\xd8\xb1"; // تصغير
-            case AnimationType::SlideRight:
-                return "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86"; // انزلاق_يمين
-            case AnimationType::SlideLeft:
-                return "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1"; // انزلاق_يسار
-            case AnimationType::SlideUp:
-                return "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd8\xa3\xd8\xb9\xd9\x84\xd9\x89"; // انزلاق_أعلى
-            case AnimationType::SlideDown:
-                return "\xd8\xa7\xd9\x86\xd8\xb2\xd9\x84\xd8\xa7\xd9\x82_\xd8\xa3\xd8\xb3\xd9\x81\xd9\x84"; // انزلاق_أسفل
-            case AnimationType::Rotate:
-                return "\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd9\x86"; // دوران
-            case AnimationType::Pulse:
-                return "\xd9\x86\xd8\xa8\xd8\xb6"; // نبض
-            case AnimationType::Shake:
-                return "\xd8\xa7\xd9\x87\xd8\xaa\xd8\xb2\xd8\xa7\xd8\xb2"; // اهتزاز
-            case AnimationType::Bounce:
-                return "\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf"; // ارتداد
-            case AnimationType::CrossFade:
-                return "\xd8\xaa\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a"; // تلاشي
-            case AnimationType::ZoomIn:
-                return "\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xa8"; // تقريب
-            case AnimationType::ZoomOut:
-                return "\xd8\xaa\xd8\xa8\xd8\xb9\xd9\x8a\xd8\xaf"; // تبعيد
-            case AnimationType::DropIn:
-                return "\xd8\xb3\xd9\x82\xd9\x88\xd8\xb7"; // سقوط
-            case AnimationType::FlyOut:
-                return "\xd8\xb7\xd9\x8a\xd8\xb1\xd8\xa7\xd9\x86"; // طيران
-            case AnimationType::Swing:
-                return "\xd8\xaa\xd8\xa3\xd8\xb1\xd8\xac\xd8\xad"; // تأرجح
-            case AnimationType::FlipX:
-                return "\xd9\x82\xd9\x84\xd8\xa8_\xd8\xa3\xd9\x81\xd9\x82\xd9\x8a"; // قلب_أفقي
-            case AnimationType::FlipY:
-                return "\xd9\x82\xd9\x84\xd8\xa8_\xd8\xb9\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a"; // قلب_عمودي
-            case AnimationType::Wobble:
-                return "\xd8\xaa\xd8\xb1\xd9\x86\xd9\x91\xd8\xad"; // ترنّح
-            case AnimationType::BounceIn:
-                return "\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xaf\xd8\xae\xd9\x88\xd9\x84"; // ارتداد_دخول
-            case AnimationType::Blink:
-                return "\xd9\x88\xd9\x85\xd9\x8a\xd8\xb6"; // وميض
-            case AnimationType::Stretch:
-                return "\xd8\xaa\xd9\x85\xd8\xb7\xd9\x91\xd9\x8a"; // تمطّي
-            case AnimationType::Explode:
-                return "\xd8\xa7\xd9\x86\xd9\x81\xd8\xac\xd8\xa7\xd8\xb1"; // انفجار
-            case AnimationType::Spin3D:
-                return "\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa9_3D"; // دورة_3D
-            case AnimationType::Custom:
-                return "\xd9\x85\xd8\xae\xd8\xb5\xd8\xb5"; // مخصص
+#define X(id, str)              \
+    case AnimationType::id:     \
+        return str;
+                SAD_UI_ANIMATION_VOCAB(X)
+#undef X
             }
-            return "\xd9\x85\xd8\xae\xd8\xb5\xd8\xb5"; // مخصص
+            return "\xd9\x85\xd8\xae\xd8\xb5\xd8\xb5"; // مخصص (احتياطيّ لقيمةٍ خارج القائمة)
         }
 
         /**
@@ -379,24 +285,16 @@ namespace sad
          */
         inline std::string easingCurveToString(EasingCurve curve)
         {
+            // (AR) الاتّجاه المعكوس من نفس المصدر (SAD_UI_EASING_VOCAB).
             switch (curve)
             {
-            case EasingCurve::Linear:
-                return "\xd8\xae\xd8\xb7\xd9\x8a"; // خطي
-            case EasingCurve::EaseIn:
-                return "\xd8\xaa\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xb9"; // تسارع
-            case EasingCurve::EaseOut:
-                return "\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7\xd8\xa4"; // تباطؤ
-            case EasingCurve::EaseInOut:
-                return "\xd8\xaa\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xb9_\xd9\x88\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7\xd8\xa4"; // تسارع_وتباطؤ
-            case EasingCurve::Bounce:
-                return "\xd8\xa7\xd8\xb1\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf"; // ارتداد
-            case EasingCurve::Elastic:
-                return "\xd9\x85\xd8\xb1\xd9\x86"; // مرن
-            case EasingCurve::Spring:
-                return "\xd9\x86\xd8\xa7\xd8\xa8\xd8\xb6"; // نابض
+#define X(id, str)              \
+    case EasingCurve::id:       \
+        return str;
+                SAD_UI_EASING_VOCAB(X)
+#undef X
             }
-            return "\xd8\xaa\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xb9_\xd9\x88\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7\xd8\xa4"; // تسارع_وتباطؤ
+            return "\xd8\xaa\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xb9_\xd9\x88\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb7\xd8\xa4"; // تسارع_وتباطؤ (احتياطيّ)
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════

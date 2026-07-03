@@ -12,6 +12,7 @@
 #include "declarations.h"
 #include "statements.h"
 #include "module_nodes.h"
+#include "sad_ui/generated/color_table_generated.h" // (AR) ماكرو أعضاء تعداد الألوان + اسمه (SoT)
 #include "error_manager.h"
 #include "source_location.h"
 #include "error_codes.h"
@@ -215,10 +216,37 @@ namespace Sad
         // (AR) تنفيذ البرنامج / (EN) Program Execution
         // =========================================================================
 
+        void Interpreter::ensureBuiltinColorsRegistered()
+        {
+            // (AR) تسجيلٌ يدويّ لتعداد «ألوان» المدمَج من ماكرو SoT — **بلا أسماء
+            //   مجرّدة** (بخلاف visitEnumDecl الذي يعرّف «أحمر» عامًّا). نعرّف فقط:
+            //     • خريطة «ألوان» (لوصول العضو: ألوان.أحمر ⇐ «أحمر»)،
+            //     • الاسم المؤهّل «ألوان.أحمر» (احتياط).
+            //   فلا نلوّث الفضاء العامّ بـ28 كلمة، ولا نُدخِل تباعدًا مع المترجم
+            //   (الذي يبذر المؤهّل فقط في enumStringConstants_). القيم تُنسَخ.
+            if (builtinColorsRegistered_)
+                return;
+            Data::Value::MapType colorMap;
+#define X(qualified, value)                                 \
+    {                                                       \
+        Data::Value _cv{std::string(value)};                \
+        colorMap[std::string(value)] = _cv;                 \
+        variableManager_->defineOrAssign(qualified, _cv);   \
+    }
+            SAD_UI_COLOR_MEMBERS(X)
+#undef X
+            variableManager_->defineOrAssign(std::string(SAD_UI_COLOR_ENUM_NAME),
+                                             Data::Value(colorMap));
+            builtinColorsRegistered_ = true;
+        }
+
         ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Statement>> &program)
         {
             try
             {
+                // (AR) سجّل تعداد الألوان المدمَج قبل أيّ كود مستخدم (مرّة واحدة).
+                ensureBuiltinColorsRegistered();
+
                 if (options_.enableDebugMode)
                 {
                     std::cout << "(AR) بدء تنفيذ البرنامج (" << program.size() << " جملة)"

@@ -72,17 +72,24 @@ VALID_CONFIGS = ("Debug", "Release", "RelWithDebInfo", "MinSizeRel")
 #      أدناه مشتقّات خالصة تبقى متعقَّبة في git (نمط Go `go generate`)، و
 #      `x.py gen --check` حارس انجراف يفشل إن لم تَعُد مطابقةً لِما يولّده YAML.
 #
-#      تعريف واحد يطابق نطاقات هدف CMake `sad_all_codegen` (cmake/codegen.cmake):
-#      types / keywords / builtins / error_messages. النطاقات الأربعة **مستقلّة**
-#      (أشقّاء بلا اعتماد متبادل) فيُستدعى مولّد كلٍّ مباشرةً — لا حاجة إلى
-#      تهيئة CMake الثقيلة لبوّابة فحصٍ يجب أن تكون خفيفة. السلوك (write_if_changed)
-#      يفرض أسطر LF فالمقارنة بالبايت آمنة عبر المنصّات.
+#      عشرة نطاقات مستقلّة (أشقّاء بلا اعتماد متبادل) فيُستدعى مولّد كلٍّ مباشرةً —
+#      لا حاجة إلى تهيئة CMake الثقيلة لبوّابة فحصٍ يجب أن تكون خفيفة. أربعةٌ منها
+#      (types/keywords/builtins/error_messages) تطابق هدف CMake `sad_all_codegen`
+#      (cmake/codegen.cmake)؛ ونطاقات الواجهة الستّة (ui_props/ui_modifiers +
+#      مفردات ui_animations/ui_easings/ui_events + ui_colors) **تُولَّد عبر x.py
+#      فقط** — هيدرات ورقيّة مُلتزَمة داخل مكتبة الرسومات الطرفيّة، بلا هدف CMake
+#      (فلا يعيد بناءُ CMake توليدَها؛ حارس الانجراف وحده يمسكها). السلوك
+#      (write_if_changed) يفرض أسطر LF فالمقارنة بالبايت آمنة عبر المنصّات.
 # (EN) Source-of-truth codegen domains — Phase 1 of sadlang-rfcs#10. The YAML in
 #      language-truth/ is the SINGLE source of truth; the generated files stay
 #      tracked in git (Go `go generate` pattern) and `x.py gen --check` is the
-#      drift guard. ONE definition mirroring CMake's `sad_all_codegen` aggregate.
-#      The 4 domains are independent siblings, so each generator is invoked
-#      directly — no heavy CMake configure for a check that must stay light.
+#      drift guard. Nine independent siblings; each generator is invoked directly —
+#      no heavy CMake configure for a check that must stay light. Four
+#      (types/keywords/builtins/error_messages) mirror CMake's `sad_all_codegen`;
+#      the five UI domains (ui_props/ui_modifiers + the ui_animations/ui_easings/
+#      ui_events vocabularies) are x.py-ONLY — papered headers committed inside the
+#      leaf graphics library, with no CMake target (so a CMake build does NOT
+#      regenerate them; only the drift guard catches edits).
 #
 # (AR) كلّ نطاق: مولّده، مجلّد الإخراج في الشجرة، ملفّاته المولَّدة، ودالة تبني
 #      وسائط CLI بدلالة مجلّد الإخراج (شجرة المصدر لـ`gen`، مجلّد مؤقّت لـ`--check`).
@@ -121,6 +128,89 @@ CODEGEN_DOMAINS = (
             "--yaml-dir", "language-truth/builtins",
             "--index", "language-truth/builtins/_index.yaml",
             "--out-h", f"{d}/builtin_registry_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) مفاتيح خصائص عناصر واجهة SadUI (عنوان/محتوى/…) — مصدر الحقيقة الوحيد.
+        #      يُولَّد إلى هيدر مُلتزَم داخل مكتبة الرسومات الطرفيّة (لا اعتماد ربط جديد).
+        "name": "ui_props",
+        "script": "gen_ui_props.py",
+        "out_dir": "features/graphics/core/include/sad_ui",
+        "outputs": ("prop_keys.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_props.yaml",
+            "--schema", "language-truth/_schemas/ui_props.schema.json",
+            "--header", f"{d}/prop_keys.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) طرق (معدّلات) عناصر واجهة SadUI (ابن/عند_*/حرّك/…) — مصدر الحقيقة الوحيد.
+        "name": "ui_modifiers",
+        "script": "gen_ui_modifiers.py",
+        "out_dir": "features/graphics/core/include/sad_ui",
+        "outputs": ("ui_modifiers.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_modifiers.yaml",
+            "--schema", "language-truth/_schemas/ui_modifiers.schema.json",
+            "--header", f"{d}/ui_modifiers.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) مفردات حركة SadUI النصّيّة (ظهور/انزلاق_يمين/…) — قانونيّ بلا تشكيل.
+        #      X-macro مولَّد يستهلكه ir.h في المكتبة الطرفيّة (لا اعتماد ربط جديد).
+        "name": "ui_animations",
+        "script": "gen_ui_vocab.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("animation_vocab_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_animations.yaml",
+            "--schema", "language-truth/_schemas/ui_vocab.schema.json",
+            "--header", f"{d}/animation_vocab_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) مفردات منحنيات تسارع SadUI (خطي/مرن/…) — قانونيّ بلا تشكيل.
+        "name": "ui_easings",
+        "script": "gen_ui_vocab.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("easing_vocab_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_easings.yaml",
+            "--schema", "language-truth/_schemas/ui_vocab.schema.json",
+            "--header", f"{d}/easing_vocab_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) مفردات أحداث SadUI (عند_النقر/عند_التغيير/…) — قانونيّ بلا تشكيل.
+        #      يستهلكه types.cpp (stringToIREventType) فيتوحّد المحرّكان في getEvents().
+        "name": "ui_events",
+        "script": "gen_ui_vocab.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("event_vocab_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_events.yaml",
+            "--schema", "language-truth/_schemas/ui_vocab.schema.json",
+            "--header", f"{d}/event_vocab_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) ألوان SadUI (تعداد `ألوان` المدمَج + جدول hex/RGBA موحَّد) — قانونيّ.
+        #      مخرَجان: بادئة التعداد (تُحقَن في المحرّكين) + جداول المكتبة الموحَّدة.
+        "name": "ui_colors",
+        "script": "gen_ui_colors.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("color_prelude_generated.h", "color_table_generated.h"),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_colors.yaml",
+            "--schema", "language-truth/_schemas/ui_colors.schema.json",
+            "--prelude", f"{d}/color_prelude_generated.h",
+            "--table", f"{d}/color_table_generated.h",
             "--quiet",
         ],
     },

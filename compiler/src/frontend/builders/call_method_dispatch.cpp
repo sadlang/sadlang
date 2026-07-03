@@ -26,6 +26,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_ui/ui_modifiers.h" // (AR) أسماء معدّلات SadUI (مُولَّد من language-truth) — لا literals
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -540,28 +541,24 @@ namespace Sad
                             SIROperand::Register(objResult.registerName, SadTypeKind::Pointer);
                         const size_t numModifierArgs = args.empty() ? 0 : args.size() - 1; // args[0]=العنصر
 
-                        // (AR) عند_*/on_* = حدث (L2): يُسجَّل على العقدة ويُربَط ردّ النداء.
-                        const bool isEvent =
-                            (m.rfind("\xd8\xb9\xd9\x86\xd8\xaf_", 0) == 0) || // عند_
-                            (m.rfind("on_", 0) == 0);
-                        // (AR) معدّلات التحريك (L3): سلسلة حالة فوق IRNode تحاكي
-                        //      WidgetBuilder. كلٌّ يُصدِر رمزًا مخصّصًا (begin/مدة/منحنى/…).
-                        const bool isAnimBegin =
-                            m == "\xd8\xad\xd8\xb1\xd9\x91\xd9\x83" || m == "animate" ||
-                            m == "\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83" || m == "\xd8\xad\xd8\xb1\xd9\x83";
-                        const bool isAnimDuration = m == "\xd9\x85\xd8\xaf\xd8\xa9" || m == "duration";
-                        const bool isAnimEasing =
-                            m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd9\x89" || m == "easing" || m == "\xd9\x85\xd9\x86\xd8\xad\xd9\x86\xd8\xa7";
-                        const bool isAnimDelay = m == "\xd8\xaa\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1" || m == "delay";
-                        const bool isAnimRepeat = m == "\xd8\xaa\xd9\x83\xd8\xb1\xd8\xa7\xd8\xb1" || m == "repeat";
-                        const bool isAnimAutoReverse =
-                            m == "\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xaa\xd9\x84\xd9\x82\xd8\xa7\xd8\xa6\xd9\x8a" || m == "autoReverse" || m == "auto_reverse";
+                        // (AR) أسماء المعدّلات من مصدر الحقيقة (sad_ui/ui_modifiers.h المولَّد
+                        //      من language-truth/ui_modifiers.yaml) — لا literals حرفيّة هنا،
+                        //      ويستهلك المحرّكان الهيدر نفسه فيمتنع الانحراف بايتيًّا بالبناء.
+                        //      سياسة: الأسماء القانونيّة فقط (لا بدائل).
+                        // (EN) Modifier names from the SoT header (generated from
+                        //      language-truth/ui_modifiers.yaml). Both engines consume the same
+                        //      predicates, so byte-divergence is impossible by construction.
+                        namespace mods = sad::ui::mods;
+                        const bool isEvent = mods::isEvent(m);            // عند_* (حدث، L2)
+                        const bool isAnimBegin = mods::isAnimate(m);      // حرّك (بدء سلسلة، L3)
+                        const bool isAnimDuration = mods::isDuration(m);  // مدة
+                        const bool isAnimEasing = mods::isEasing(m);      // منحنى
+                        const bool isAnimDelay = mods::isDelay(m);        // تأخير
+                        const bool isAnimRepeat = mods::isRepeat(m);      // تكرار
+                        const bool isAnimAutoReverse = mods::isAutoReverse(m); // عكس_تلقائي
                         const bool isAnim = isAnimBegin || isAnimDuration || isAnimEasing ||
                                             isAnimDelay || isAnimRepeat || isAnimAutoReverse;
-                        // (AR) ابن/أبناء ⇒ إضافةُ أطفالٍ للعقدة المشتركة (ADD_CHILD أدناه).
-                        const bool isChild =
-                            m == "\xd8\xa7\xd8\xa8\xd9\x86" || m == "child" ||
-                            m == "\xd8\xa3\xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1" || m == "children";
+                        const bool isChild = mods::isChild(m);            // ابن (إضافة أطفال)
 
                         if (isEvent)
                         {

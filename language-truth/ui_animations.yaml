@@ -1,0 +1,138 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لأنواع حركة عناصر واجهة SadUI — الأسماء التي يكتبها
+#      مطوّر ص وسيطًا نصّيًّا: `.حرك("ظهور")`، `.حرك("انزلاق_يمين")` …
+#      يُعرَّف كلٌّ هنا حصرًا فيصير موثَّقًا ومكتشَفًا، ويُولَّد منه الهيدر
+#      features/graphics/core/include/sad_ui/generated/animation_vocab_generated.h
+#      عبر scripts/codegen/gen_ui_vocab.py. تستهلكه دوالّ المكتبة
+#      (stringToAnimationType/animationTypeToString في ir.h) فيتوحّد المحرّكان
+#      (المفسّر يمرّر السلسلة، والمترجم يُصدِرها ويحلّها وقت التشغيل بنفس الدوالّ).
+#
+#      سياسة: **الأسماء العربيّة القانونيّة فقط، بلا تشكيل، لا بدائل إنجليزيّة**.
+#      المفردة وسيطٌ نصّيّ (لا معرّف)، فلا يجرّد المعجمُ تشكيلها؛ لذا تُجرَّد في
+#      المكتبة (sad::ui::stringToAnimationType عبر stripArabicDiacritics) قبل
+#      المطابقة، ويحمل هذا المصدرُ الصورةَ المجرّدة الوحيدة (حرك لا حرّك، ترنح لا
+#      ترنّح). المخطّط يمنع أيّ حقلٍ إضافيّ (لا aliases).
+#
+# (EN) Central SoT for SadUI animation type names (string args a Sad dev writes:
+#      `.حرك("ظهور")`). Generates animation_vocab_generated.h consumed by the
+#      library mappers in ir.h, unifying both engines. Canonical Arabic only,
+#      diacritic-free, no English aliases (schema forbids extra fields).
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+# (AR) اسم الماكرو المولَّد ونوع الـenum المستهدف في المكتبة (لتوليد X-macro).
+macro: SAD_UI_ANIMATION_VOCAB
+enum: AnimationType
+description_ar: أنواع حركة عناصر واجهة SadUI
+description_en: SadUI animation types
+
+# (AR) الحقول: id (قيمة enum C++، مطابقة لـAnimationType في ir.h) — canonical
+#      (الاسم العربيّ القانونيّ بلا تشكيل) — description_ar/en. الترتيب يطابق enum.
+entries:
+  - id: FadeIn
+    canonical: ظهور
+    description_ar: ظهور تدريجيّ — من شفاف إلى معتم
+    description_en: Fade in — from transparent to opaque
+  - id: FadeOut
+    canonical: اختفاء
+    description_ar: اختفاء تدريجيّ — من معتم إلى شفاف
+    description_en: Fade out — from opaque to transparent
+  - id: ScaleUp
+    canonical: تكبير
+    description_ar: تكبير — من صغير إلى الحجم الطبيعيّ
+    description_en: Scale up — from small to natural size
+  - id: ScaleDown
+    canonical: تصغير
+    description_ar: تصغير — من الحجم الطبيعيّ إلى صغير
+    description_en: Scale down — from natural size to small
+  - id: SlideRight
+    canonical: انزلاق_يمين
+    description_ar: انزلاق يمينًا — دخول من اليسار
+    description_en: Slide right — enter from the left
+  - id: SlideLeft
+    canonical: انزلاق_يسار
+    description_ar: انزلاق يسارًا — دخول من اليمين
+    description_en: Slide left — enter from the right
+  - id: SlideUp
+    canonical: انزلاق_أعلى
+    description_ar: انزلاق للأعلى — دخول من الأسفل
+    description_en: Slide up — enter from the bottom
+  - id: SlideDown
+    canonical: انزلاق_أسفل
+    description_ar: انزلاق للأسفل — دخول من الأعلى
+    description_en: Slide down — enter from the top
+  - id: Rotate
+    canonical: دوران
+    description_ar: دوران — تدوير العنصر
+    description_en: Rotate the element
+  - id: Pulse
+    canonical: نبض
+    description_ar: نبض — تكبير وتصغير متكرّر
+    description_en: Pulse — repeated scale up/down
+  - id: Shake
+    canonical: اهتزاز
+    description_ar: اهتزاز — حركة أفقيّة سريعة
+    description_en: Shake — fast horizontal motion
+  - id: Bounce
+    canonical: ارتداد
+    description_ar: ارتداد — نطّة لطيفة
+    description_en: Bounce — gentle hop
+  - id: CrossFade
+    canonical: تلاشي
+    description_ar: تلاشٍ — تبديل سلس بين حالتين
+    description_en: Cross fade — smooth swap between two states
+  - id: ZoomIn
+    canonical: تقريب
+    description_ar: تقريب — تكبير مع ظهور تدريجيّ
+    description_en: Zoom in — scale up with fade in
+  - id: ZoomOut
+    canonical: تبعيد
+    description_ar: تبعيد — تصغير مع اختفاء تدريجيّ
+    description_en: Zoom out — scale down with fade out
+  - id: DropIn
+    canonical: سقوط
+    description_ar: سقوط — نزول من أعلى مع ارتداد
+    description_en: Drop in — fall from top with bounce
+  - id: FlyOut
+    canonical: طيران
+    description_ar: طيران — انزلاق للخارج مع اختفاء
+    description_en: Fly out — slide out with fade
+  - id: Swing
+    canonical: تأرجح
+    description_ar: تأرجح — حركة بندوليّة مستمرّة
+    description_en: Swing — continuous pendulum motion
+  - id: FlipX
+    canonical: قلب_أفقي
+    description_ar: قلب أفقيّ — قلب 180° حول المحور الأفقيّ
+    description_en: Flip X — 180° flip about the horizontal axis
+  - id: FlipY
+    canonical: قلب_عمودي
+    description_ar: قلب عموديّ — قلب 180° حول المحور العموديّ
+    description_en: Flip Y — 180° flip about the vertical axis
+  - id: Wobble
+    canonical: ترنح
+    description_ar: ترنّح — اهتزاز دورانيّ سريع مثل جرس
+    description_en: Wobble — fast rotational shake like a bell
+  - id: BounceIn
+    canonical: ارتداد_دخول
+    description_ar: ارتداد الدخول — انزلاق مع ارتداد مرن على المحور X
+    description_en: Bounce in — slide with elastic bounce on the X axis
+  - id: Blink
+    canonical: وميض
+    description_ar: وميض — ظهور/اختفاء متكرّر سريع
+    description_en: Blink — fast repeated appear/disappear
+  - id: Stretch
+    canonical: تمطي
+    description_ar: تمطّي — تمدّد مطاطيّ إلى الحجم الطبيعيّ
+    description_en: Stretch — elastic expansion to natural size
+  - id: Explode
+    canonical: انفجار
+    description_ar: انفجار — تكبير سريع مع اختفاء (خروج انفجاريّ)
+    description_en: Explode — fast scale up with fade (explosive exit)
+  - id: Spin3D
+    canonical: دورة_3D
+    description_ar: دورة ثلاثيّة — دوران مع تغيّر حجم (محاكاة عمق 3D)
+    description_en: Spin 3D — rotation with size change (3D depth illusion)
+  - id: Custom
+    canonical: مخصص
+    description_ar: مخصّص — يُحدَّد بالخصائص (احتياطيّ لأيّ اسمٍ غير معروف)
+    description_en: Custom — defined by properties (fallback for any unknown name)

@@ -2,6 +2,13 @@ version: 1
 namespace_group: ui_widgets
 description_ar: وحدة ui_widgets (62 دالة)
 description_en: ui_widgets module (62 functions)
+# (AR) عقدٌ يفرضه scripts/codegen/check_ui_props_consistency.py:
+#   • لكلّ عنصر UIWidgets ذي خاصّيّة أولى: primary_prop = معرّف مفتاحه في
+#     language-truth/ui_props.yaml، ويجب أن يطابق مفتاح المصنع الفعليّ في
+#     interpreter/src/ui/widget_builtins.cpp.
+#   • params[0] لعنصرٍ ذي primary_prop يجب أن **يبدأ** بالاسم العربيّ القانونيّ
+#     للمفتاح (مثل «عنوان: …»)؛ فإعادةُ صياغةٍ لا تحفظ البادئة تُفشِل الحارس.
+# (EN) Contract enforced by check_ui_props_consistency.py — see above.
 functions:
 - cpp_id: TEXT_WIDGET
   canonical: نص_عنصر
@@ -15,7 +22,9 @@ functions:
   status: stable
   description_ar: نص_عنصر
   description_en: نص_عنصر
-  params: []
+  primary_prop: CONTENT
+  params:
+  - "محتوى: نصّ العنصر المعروض"
   lookup_table: name_only
 - cpp_id: IMAGE
   canonical: صورة
@@ -29,7 +38,9 @@ functions:
   status: stable
   description_ar: صورة
   description_en: صورة
-  params: []
+  primary_prop: SOURCE
+  params:
+  - "مصدر: مسار الصورة أو رابطها"
   lookup_table: name_only
 - cpp_id: ICON
   canonical: أيقونة
@@ -43,7 +54,9 @@ functions:
   status: stable
   description_ar: أيقونة
   description_en: أيقونة
-  params: []
+  primary_prop: NAME
+  params:
+  - "اسم: اسم الأيقونة المتجهة"
   lookup_table: name_only
 - cpp_id: BUTTON
   canonical: زر
@@ -57,7 +70,9 @@ functions:
   status: stable
   description_ar: زر
   description_en: زر
-  params: []
+  primary_prop: TITLE
+  params:
+  - "عنوان: نصّ الزرّ الظاهر"
   lookup_table: name_only
 - cpp_id: FAB
   canonical: زر_عائم
@@ -71,7 +86,9 @@ functions:
   status: stable
   description_ar: زر_عائم
   description_en: زر_عائم
-  params: []
+  primary_prop: ICON
+  params:
+  - "أيقونة: رمز الزرّ العائم"
   lookup_table: name_only
 - cpp_id: TEXT_BUTTON
   canonical: زر_نصي
@@ -85,7 +102,9 @@ functions:
   status: stable
   description_ar: زر_نصي
   description_en: زر_نصي
-  params: []
+  primary_prop: TITLE
+  params:
+  - "عنوان: نصّ الزرّ"
   lookup_table: name_only
 - cpp_id: ICON_BUTTON
   canonical: زر_أيقونة
@@ -99,7 +118,9 @@ functions:
   status: stable
   description_ar: زر_أيقونة
   description_en: زر_أيقونة
-  params: []
+  primary_prop: ICON
+  params:
+  - "أيقونة: رمز زرّ الأيقونة"
   lookup_table: name_only
 - cpp_id: TEXT_FIELD
   canonical: حقل_نص
@@ -113,7 +134,9 @@ functions:
   status: stable
   description_ar: حقل_نص
   description_en: حقل_نص
-  params: []
+  primary_prop: HINT
+  params:
+  - "تلميح: نصّ إرشاديّ افتراضيّ"
   lookup_table: name_only
 - cpp_id: TOGGLE
   canonical: مفتاح
@@ -127,7 +150,9 @@ functions:
   status: stable
   description_ar: مفتاح
   description_en: مفتاح
-  params: []
+  primary_prop: VALUE
+  params:
+  - "قيمة: حالة التشغيل أو الإيقاف"
   lookup_table: name_only
 - cpp_id: CHECKBOX
   canonical: خانة_اختيار
@@ -141,7 +166,9 @@ functions:
   status: stable
   description_ar: خانة_اختيار
   description_en: خانة_اختيار
-  params: []
+  primary_prop: VALUE
+  params:
+  - "قيمة: حالة التحديد"
   lookup_table: name_only
 - cpp_id: SLIDER
   canonical: منزلق
@@ -155,7 +182,9 @@ functions:
   status: stable
   description_ar: منزلق
   description_en: منزلق
-  params: []
+  primary_prop: VALUE
+  params:
+  - "قيمة: القيمة الحاليّة للمنزلق"
   lookup_table: name_only
 - cpp_id: COLUMN
   canonical: عمود
@@ -169,7 +198,8 @@ functions:
   status: stable
   description_ar: عمود
   description_en: عمود
-  params: []
+  params:
+  - "الأبناء: عناصر تُرتَّب عموديًّا"
   lookup_table: name_only
 - cpp_id: ROW
   canonical: صف
@@ -183,7 +213,8 @@ functions:
   status: stable
   description_ar: صف
   description_en: صف
-  params: []
+  params:
+  - "الأبناء: عناصر تُرتَّب أفقيًّا"
   lookup_table: name_only
 - cpp_id: STACK
   canonical: رصة
@@ -197,7 +228,8 @@ functions:
   status: stable
   description_ar: رصة
   description_en: رصة
-  params: []
+  params:
+  - "الأبناء: عناصر تُكدَّس فوق بعضها"
   lookup_table: name_only
 - cpp_id: GRID
   canonical: شبكة
@@ -211,7 +243,8 @@ functions:
   status: stable
   description_ar: شبكة
   description_en: شبكة
-  params: []
+  params:
+  - "الأبناء: عناصر في تخطيط شبكيّ"
   lookup_table: name_only
 - cpp_id: CENTER
   canonical: وسط
@@ -225,7 +258,8 @@ functions:
   status: stable
   description_ar: وسط
   description_en: وسط
-  params: []
+  params:
+  - "ابن: عنصر يُوسَّط"
   lookup_table: name_only
 - cpp_id: PADDING
   canonical: حشوة
@@ -239,7 +273,8 @@ functions:
   status: stable
   description_ar: حشوة
   description_en: حشوة
-  params: []
+  params:
+  - "ابن: عنصر تُضاف حوله حشوة"
   lookup_table: name_only
 - cpp_id: ALIGN
   canonical: محاذاة
@@ -253,7 +288,8 @@ functions:
   status: stable
   description_ar: محاذاة
   description_en: محاذاة
-  params: []
+  params:
+  - "ابن: عنصر يُحاذى في موضع محدَّد"
   lookup_table: name_only
 - cpp_id: EXPANDED
   canonical: موسع
@@ -267,7 +303,8 @@ functions:
   status: stable
   description_ar: موسع
   description_en: موسع
-  params: []
+  params:
+  - "ابن: عنصر يملأ المساحة المتاحة"
   lookup_table: name_only
 - cpp_id: FLEXIBLE
   canonical: مرن
@@ -281,7 +318,8 @@ functions:
   status: stable
   description_ar: مرن
   description_en: مرن
-  params: []
+  params:
+  - "ابن: عنصر بحجم مرن داخل صفّ أو عمود"
   lookup_table: name_only
 - cpp_id: SIZED_BOX
   canonical: مقاس
@@ -295,7 +333,10 @@ functions:
   status: stable
   description_ar: مقاس
   description_en: مقاس
-  params: []
+  primary_prop: WIDTH
+  params:
+  - "عرض: العرض بالبكسل"
+  - "ارتفاع: الارتفاع بالبكسل"
   lookup_table: name_only
 - cpp_id: SPACER
   canonical: فاصل
@@ -337,7 +378,8 @@ functions:
   status: stable
   description_ar: التفاف
   description_en: التفاف
-  params: []
+  params:
+  - "الأبناء: عناصر تلتفّ إلى السطر التالي"
   lookup_table: name_only
 - cpp_id: CONTAINER
   canonical: حاوية
@@ -351,7 +393,8 @@ functions:
   status: stable
   description_ar: حاوية
   description_en: حاوية
-  params: []
+  params:
+  - "الأبناء: عناصر داخل الحاوية"
   lookup_table: name_only
 - cpp_id: CARD
   canonical: بطاقة
@@ -365,7 +408,8 @@ functions:
   status: stable
   description_ar: بطاقة
   description_en: بطاقة
-  params: []
+  params:
+  - "الأبناء: عناصر داخل البطاقة"
   lookup_table: name_only
 - cpp_id: SCAFFOLD
   canonical: هيكل
@@ -379,7 +423,8 @@ functions:
   status: stable
   description_ar: هيكل
   description_en: هيكل
-  params: []
+  params:
+  - "الأبناء: أجزاء الشاشة (شريط، محتوى، زرّ عائم)"
   lookup_table: name_only
 - cpp_id: BOX
   canonical: صندوق
@@ -393,7 +438,8 @@ functions:
   status: stable
   description_ar: صندوق
   description_en: صندوق
-  params: []
+  params:
+  - "الأبناء: عناصر داخل الصندوق"
   lookup_table: name_only
 - cpp_id: SCROLL_VIEW
   canonical: عرض_تمرير
@@ -407,7 +453,8 @@ functions:
   status: stable
   description_ar: عرض_تمرير
   description_en: عرض_تمرير
-  params: []
+  params:
+  - "الأبناء: محتوى قابل للتمرير"
   lookup_table: name_only
 - cpp_id: APP_BAR
   canonical: شريط_تطبيق
@@ -421,7 +468,9 @@ functions:
   status: stable
   description_ar: شريط_تطبيق
   description_en: شريط_تطبيق
-  params: []
+  primary_prop: TITLE
+  params:
+  - "عنوان: عنوان الشريط العلويّ"
   lookup_table: name_only
 - cpp_id: BOTTOM_NAV
   canonical: تنقل_سفلي
@@ -435,7 +484,8 @@ functions:
   status: stable
   description_ar: تنقل_سفلي
   description_en: تنقل_سفلي
-  params: []
+  params:
+  - "الأبناء: عناصر شريط التنقّل"
   lookup_table: name_only
 - cpp_id: DIALOG
   canonical: حوار
@@ -449,7 +499,9 @@ functions:
   status: stable
   description_ar: حوار
   description_en: حوار
-  params: []
+  primary_prop: TITLE
+  params:
+  - "عنوان: عنوان الحوار"
   lookup_table: name_only
 - cpp_id: SNACKBAR
   canonical: شريط_إشعار
@@ -463,7 +515,9 @@ functions:
   status: stable
   description_ar: شريط_إشعار
   description_en: شريط_إشعار
-  params: []
+  primary_prop: MESSAGE
+  params:
+  - "رسالة: نصّ الإشعار"
   lookup_table: name_only
 - cpp_id: TOOLTIP
   canonical: تلميح
@@ -477,7 +531,9 @@ functions:
   status: stable
   description_ar: تلميح
   description_en: تلميح
-  params: []
+  primary_prop: TEXT
+  params:
+  - "نص: نصّ التلميح عند التمرير"
   lookup_table: name_only
 - cpp_id: PROGRESS
   canonical: شريط_تقدم
@@ -491,7 +547,9 @@ functions:
   status: stable
   description_ar: شريط_تقدم
   description_en: شريط_تقدم
-  params: []
+  primary_prop: VALUE
+  params:
+  - "قيمة: نسبة التقدّم من 0 إلى 1"
   lookup_table: name_only
 - cpp_id: LAZY_COLUMN
   canonical: عمود_كسول
@@ -505,7 +563,8 @@ functions:
   status: stable
   description_ar: عمود_كسول
   description_en: عمود_كسول
-  params: []
+  params:
+  - "الأبناء: عناصر قائمة عموديّة كسولة"
   lookup_table: name_only
 - cpp_id: LAZY_ROW
   canonical: صف_كسول
@@ -519,7 +578,8 @@ functions:
   status: stable
   description_ar: صف_كسول
   description_en: صف_كسول
-  params: []
+  params:
+  - "الأبناء: عناصر قائمة أفقيّة كسولة"
   lookup_table: name_only
 - cpp_id: LIST_VIEW
   canonical: قائمة
@@ -533,7 +593,8 @@ functions:
   status: stable
   description_ar: قائمة
   description_en: قائمة
-  params: []
+  params:
+  - "الأبناء: عناصر القائمة"
   lookup_table: name_only
 - cpp_id: TEXT_AREA
   canonical: منطقة_نص
@@ -547,7 +608,9 @@ functions:
   status: stable
   description_ar: منطقة_نص
   description_en: منطقة_نص
-  params: []
+  primary_prop: HINT
+  params:
+  - "تلميح: نصّ إرشاديّ افتراضيّ"
   lookup_table: name_only
 - cpp_id: DRAWER
   canonical: درج
@@ -561,7 +624,8 @@ functions:
   status: stable
   description_ar: درج
   description_en: درج
-  params: []
+  params:
+  - "الأبناء: محتوى اللوحة الجانبيّة"
   lookup_table: name_only
 - cpp_id: SAFE_AREA
   canonical: منطقة_آمنة
@@ -575,7 +639,8 @@ functions:
   status: stable
   description_ar: منطقة_آمنة
   description_en: منطقة_آمنة
-  params: []
+  params:
+  - "ابن: عنصر يتجنّب مناطق النظام"
   lookup_table: name_only
 - cpp_id: SURFACE
   canonical: سطح
@@ -589,7 +654,8 @@ functions:
   status: stable
   description_ar: سطح
   description_en: سطح
-  params: []
+  params:
+  - "الأبناء: عناصر على السطح"
   lookup_table: name_only
 - cpp_id: ENGINE
   canonical: _محرك_واجهات
@@ -602,7 +668,8 @@ functions:
   status: stable
   description_ar: _محرك_واجهات
   description_en: _محرك_واجهات
-  params: []
+  params:
+  - "جذر: عنصر الجذر (داخليّ)"
   lookup_table: name_only
 - cpp_id: RUN_APP
   canonical: تشغيل_تطبيق
@@ -615,7 +682,8 @@ functions:
   status: stable
   description_ar: تشغيل_تطبيق
   description_en: تشغيل_تطبيق
-  params: []
+  params:
+  - "جذر: عنصر الجذر للتطبيق"
   lookup_table: name_only
 - cpp_id: PRINT_TREE
   canonical: طباعة_شجرة
@@ -628,7 +696,8 @@ functions:
   status: stable
   description_ar: طباعة_شجرة
   description_en: طباعة_شجرة
-  params: []
+  params:
+  - "عنصر: عنصر الواجهة لطباعة شجرته"
   lookup_table: name_only
 - cpp_id: NAVIGATE
   canonical: انتقل
@@ -641,7 +710,8 @@ functions:
   status: stable
   description_ar: انتقل
   description_en: انتقل
-  params: []
+  params:
+  - "صفحة: عنصر أو دالّة تُرجع عنصرًا"
   lookup_table: name_only
 - cpp_id: NAVIGATE_TRANSITION
   canonical: انتقل_بتحريك
@@ -654,7 +724,10 @@ functions:
   status: stable
   description_ar: انتقل_بتحريك
   description_en: انتقل_بتحريك
-  params: []
+  params:
+  - "صفحة: عنصر أو دالّة تُرجع عنصرًا"
+  - "نوع_الانتقال: اسم تأثير الانتقال"
+  - "المدة: زمن الانتقال بالثواني (اختياريّ)"
   lookup_table: name_only
 - cpp_id: NAVIGATE_EXIT_TRANSITION
   canonical: انتقل_بتحريك_كامل
@@ -667,7 +740,11 @@ functions:
   status: stable
   description_ar: انتقل_بتحريك_كامل
   description_en: انتقل_بتحريك_كامل
-  params: []
+  params:
+  - "صفحة: عنصر أو دالّة تُرجع عنصرًا"
+  - "نوع_الدخول: تأثير الدخول"
+  - "نوع_الخروج: تأثير الخروج"
+  - "المدة: بالثواني (اختياريّ)"
   lookup_table: name_only
 - cpp_id: BACK
   canonical: عودة
@@ -693,7 +770,9 @@ functions:
   status: stable
   description_ar: عودة_بتحريك
   description_en: عودة_بتحريك
-  params: []
+  params:
+  - "نوع_الانتقال: اسم التأثير (اختياريّ)"
+  - "المدة: بالثواني (اختياريّ)"
   lookup_table: name_only
 - cpp_id: BACK_TO_ROOT
   canonical: عودة_للبداية
@@ -719,7 +798,8 @@ functions:
   status: stable
   description_ar: استبدل
   description_en: استبدل
-  params: []
+  params:
+  - "صفحة: عنصر أو دالّة تحلّ محلّ الحاليّة"
   lookup_table: name_only
 - cpp_id: TOGGLE_THEME
   canonical: تبديل_الثيم
@@ -797,7 +877,8 @@ functions:
   status: stable
   description_ar: عنوان_النافذة
   description_en: عنوان_النافذة
-  params: []
+  params:
+  - "عنوان: نصّ عنوان النافذة"
   lookup_table: name_only
 - cpp_id: PAGE_COUNT
   canonical: عدد_الصفحات
@@ -849,7 +930,8 @@ functions:
   status: stable
   description_ar: عين_الحالة
   description_en: عين_الحالة
-  params: []
+  params:
+  - "دالّة: دالّة إغلاق تُنشئ حالة الصفحة"
   lookup_table: name_only
 - cpp_id: GEN_WEB
   canonical: توليد_ويب
@@ -862,5 +944,7 @@ functions:
   status: stable
   description_ar: توليد_ويب
   description_en: توليد_ويب
-  params: []
+  params:
+  - "جذر: عنصر الجذر"
+  - "عنوان: عنوان صفحة الويب (اختياريّ)"
   lookup_table: name_only

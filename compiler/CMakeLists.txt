@@ -79,6 +79,15 @@ target_include_directories(sad_frontend
  ${SAD_SHARED_DIR}/shared/hot_reload/include
 )
 
+# (AR) مسار هيدرات sad_ui (ui_modifiers.h المولَّد من language-truth) — PRIVATE:
+#      يستهلكه call_method_dispatch.cpp وحده لأسماء معدّلات SadUI القانونيّة. هيدر
+#      ورقيّ (constexpr + inline) بلا أيّ اعتماد ربط، فالطبقيّة محفوظة: sad_frontend
+#      لا يربط sad_graphics. (نفس المسار الذي يضمّه المفسّر في cmake/libraries.cmake.)
+# (EN) sad_ui header path (generated ui_modifiers.h) — PRIVATE, consumed only by
+#      call_method_dispatch.cpp. Header-only, no link dependency; layering preserved.
+target_include_directories(sad_frontend PRIVATE
+ ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
+
 # (AR) ????? ??????? UTF-8 / Fix UTF-8 encoding warnings for frontend
 if(MSVC)
  target_compile_options(sad_frontend PRIVATE /utf-8 /FS)

@@ -24,6 +24,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "sad_ui/generated/color_table_generated.h" // (AR) تعداد الألوان المدمَج (SoT)
 #include "utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
@@ -75,8 +76,18 @@ namespace Sad
                 // (AR) تهيئة بنّاء القوالب (Phase 6 Step 8 - الأخيرة)
                 // (EN) Initialize template builder (Phase 6 Step 8 - final)
                 templates_ = std::make_unique<TemplateBuilder>(*this);
-                // (AR) لا توجد تهيئة إضافية مطلوبة
-                // (EN) No additional initialization required
+
+                // (AR) تسجيل تعداد الألوان المدمَج «ألوان» (مولَّد من ui_colors.yaml):
+                //   نملأ ثوابت الأعضاء النصّيّة مباشرةً فيصير «ألوان.أحمر» ⇐ «أحمر»
+                //   (يستهلكها وصولُ العضو بعد إصلاح م0). المفسّر يسجّله عبر بادئته،
+                //   فالنتيجة متكافئة. مصدرٌ واحد ⇒ لا تباعد.
+                // (EN) Register the builtin `ألوان` color enum (generated from SoT):
+                //   pre-populate the string member constants so `ألوان.أحمر` → «أحمر»
+                //   (consumed by member access after the m0 fix). Parity with the
+                //   interpreter, which registers it via its prelude.
+#define X(qualified, value) enumStringConstants_[qualified] = value;
+                SAD_UI_COLOR_MEMBERS(X)
+#undef X
             }
 
             // ============================================================================

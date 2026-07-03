@@ -301,6 +301,13 @@ message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
 #      Interpreter includes "semantic/type_checker.h" directly without relative path.
 target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/semantic/include)
 
+# (AR) هيدرات مكتبة الرسومات المولَّدة من مصدر الحقيقة (تعداد الألوان المدمَج
+#      color_prelude_generated.h): يضمّها القلب interpreter_core.cpp لتسجيل «ألوان»
+#      عند الإقلاع. هيدرٌ ورقيّ مُلتزَم ذاتيّ الاكتفاء ⇒ لا اعتماد ربط، الطبقيّة محفوظة.
+# (EN) SoT-generated graphics headers (builtin color enum prelude): included by the
+#      core to register `ألوان` at startup. Header-only committed file — no link dep.
+target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
+
 # ──────────────────────────────────────────────────────────────────────
 # (AR) م3 (RFC sadlang-rfcs#10): ترويسات المفسّر الخاصّة كـPUBLIC على sad_interp
 #      بدل الكتلة العامّة include_directories في الجذر. هذا يقصر رؤية ترويسات

@@ -1,0 +1,105 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لمفاتيح خصائص عناصر واجهة SadUI (IR property keys).
+#      كلّ مفتاح خاصّيّة يكتبه مطوّر لغة ص (مثل «عنوان» في زر("عنوان")) معرَّفٌ هنا
+#      حصرًا، فيصير موثَّقًا ومكتشَفًا في المرجع الرسميّ وأدوات LSP/sadinfo.
+#      يُولَّد منه features/graphics/core/include/sad_ui/prop_keys.h عبر
+#      scripts/codegen/gen_ui_props.py (لا يُحرَّر الهيدر يدويًّا).
+#
+#      قاعدة الطبقات: sad_graphics مكتبة طرفيّة لا تعتمد shared/builtins؛ الهيدر
+#      المولَّد مُلتزَمٌ وذاتيّ الاكتفاء، فلا اعتماد ربط جديد — التوليد وقت البناء
+#      لا وقت التشغيل (كما builtin_registry_generated.h المولَّد من language-truth).
+#
+# (EN) Central source of truth for SadUI IR property-key names. Every property key
+#      a Sad developer writes (e.g. «عنوان» in زر("...")) is defined here, making it
+#      documented and discoverable in the official reference and LSP/sadinfo tooling.
+#      Generates features/graphics/core/include/sad_ui/prop_keys.h via
+#      scripts/codegen/gen_ui_props.py (the header is never hand-edited).
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+description_ar: مفاتيح خصائص عناصر واجهة SadUI
+description_en: SadUI widget property keys
+
+# (AR) الحقول لكلّ مفتاح:
+#   id            — اسم الثابت في C++ (namespace sad::ui::props) — UPPER_SNAKE_CASE
+#   canonical     — سلسلة المفتاح العربيّة القانونيّة (تُكتب في IRNode)
+#   value_type    — نوع القيمة المتوقَّع (نصّ/عدد/منطقيّ)
+#   description_ar/en — وصف بشريّ للتوثيق
+#   latin_alias   — (اختياريّ) بديل احتياطيّ لاتينيّ يقرؤه المُرسِّم فقط، لا قانونيّ
+keys:
+  - id: TITLE
+    canonical: عنوان
+    value_type: نص
+    description_ar: نصّ العنوان الظاهر للزرّ والشريط والحوار والتبويب
+    description_en: Visible title text for button, app-bar, dialog, tab
+
+  - id: CONTENT
+    canonical: محتوى
+    value_type: نص
+    description_ar: محتوى النصّ لعنصر نص_عنصر ونظائره
+    description_en: Text content for the نص_عنصر widget and similar
+
+  - id: TEXT
+    canonical: نص
+    value_type: نص
+    description_ar: نصّ عامّ (اسم بديل شائع للمحتوى، ونصّ التلميح)
+    description_en: Generic text (common alias for content; tooltip text)
+
+  # (AR) تنبيه التباس مقصود ومحفوظ تاريخيًّا: مفتاح ICON (canonical «أيقونة») يستعمله
+  #   العنصران زر_عائم/زر_أيقونة، بينما العنصر «أيقونة»(Icon) نفسه يكتب مفتاح NAME
+  #   (canonical «اسم») — أي `أيقونة("home")` يكتب «اسم» لا «أيقونة». سلوكٌ محفوظ.
+  - id: ICON
+    canonical: أيقونة
+    value_type: نص
+    description_ar: رمز/أيقونة الزرّ العائم وزرّ الأيقونة (يقبل رمزًا نصّيًّا)
+    description_en: Icon/glyph for the floating-action and icon buttons
+
+  - id: SOURCE
+    canonical: مصدر
+    value_type: نص
+    description_ar: مصدر الصورة (مسار أو رابط)
+    description_en: Image source (path or URL)
+
+  - id: NAME
+    canonical: اسم
+    value_type: نص
+    description_ar: اسم الأيقونة المتجهة (مفتاح عنصر «أيقونة» — لا يخلط بمفتاح ICON)
+    description_en: Vector-icon name (key for the «أيقونة» widget — distinct from ICON)
+
+  - id: HINT
+    canonical: تلميح
+    value_type: نص
+    description_ar: نصّ التلميح الافتراضيّ لحقل الإدخال ومنطقة النصّ
+    description_en: Placeholder hint for text field and text area
+
+  - id: VALUE
+    canonical: قيمة
+    value_type: عدد أو منطقيّ
+    description_ar: القيمة الحاليّة (عدديّة للمنزلق/شريط التقدّم، منطقيّة للمفتاح/خانة الاختيار)
+    description_en: Current value (numeric for slider/progress, boolean for toggle/checkbox)
+
+  - id: MESSAGE
+    canonical: رسالة
+    value_type: نص
+    description_ar: نصّ الرسالة لشريط الإشعار
+    description_en: Message text for the snack-bar
+
+  - id: WIDTH
+    canonical: عرض
+    value_type: عدد
+    description_ar: العرض الثابت (بالبكسل) لصندوق المقاس
+    description_en: Fixed width (px) for the sized box
+
+  - id: HEIGHT
+    canonical: ارتفاع
+    value_type: عدد
+    description_ar: الارتفاع الثابت (بالبكسل) لصندوق المقاس
+    description_en: Fixed height (px) for the sized box
+
+  # (AR) مفتاح احتياطيّ لاتينيّ يُنتجه مسار UINode (ir_builder: primaryArg ⇒ "text").
+  #      يقرؤه المُرسِّم كبديل فقط؛ ليس مفتاحًا قانونيًّا يكتبه مطوّر ص.
+  - id: TEXT_LATIN
+    canonical: text
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط
+    description_en: Latin fallback (UINode path) — renderer-read only

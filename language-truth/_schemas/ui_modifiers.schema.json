@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sadlang.org/schemas/v5/ui_modifiers.schema.json",
+  "title": "SadUI Modifier Method Schema",
+  "description": "مخطّط معدّل (طريقة) واحد في language-truth/ui_modifiers.yaml",
+  "type": "object",
+  "required": ["id", "kind", "canonical", "match", "description_ar", "description_en"],
+  "additionalProperties": false,
+  "comment_ar": "الأسماء القانونيّة فقط — حقل aliases محظور عمدًا (additionalProperties:false يرفضه) لمنع البدائل في اللغة.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "اسم المُعرِّف (يُولَّد منه ثابت ودالّة is<Id>)"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["child", "event_prefix", "animation"],
+      "description": "التصنيف الدلاليّ للمعدّل"
+    },
+    "canonical": { "type": "string", "minLength": 1 },
+    "match": {
+      "type": "string",
+      "enum": ["exact", "prefix"],
+      "description": "exact = تطابق تامّ، prefix = بادئة (عائلة عند_*)"
+    },
+    "arg": { "type": "string", "description": "وصف الوسيط المتوقَّع (للتوثيق)" },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 }
+  }
+}

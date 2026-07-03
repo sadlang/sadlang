@@ -281,6 +281,17 @@ namespace Sad
                                 auto valResult = b_.buildExpression(member.value.get());
                                 if (valResult.isConstant)
                                 {
+                                    // (AR) قيمة نصّيّة صريحة (مثل «أحمر = "أحمر"»): يشرّفها
+                                    //   المفسّر كنصّ، فنطابقه — نخزّنها ثابتًا نصّيًّا ونتخطّى
+                                    //   مسار الـi64 (تكافؤ المحرّكين). وإلّا فهي عدد.
+                                    // (EN) Explicit string value: honor it as a string (parity
+                                    //   with the interpreter) — store as a string constant and
+                                    //   skip the i64 path. Otherwise treat as an integer.
+                                    if (valResult.type == SadTypeKind::String)
+                                    {
+                                        b_.enumStringConstants_[fullName] = valResult.constantValue;
+                                        continue;
+                                    }
                                     try
                                     {
                                         enumValue = std::stoll(valResult.constantValue);

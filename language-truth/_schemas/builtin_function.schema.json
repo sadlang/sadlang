@@ -69,6 +69,16 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+(\\.\\d+)?$"
     },
+    "primary_prop": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "معرّف مفتاح الخاصّيّة الأساسيّ للعنصر (id في language-truth/ui_props.yaml). لعناصر UIWidgets ذات الخاصّيّة الأولى فقط."
+    },
+    "params": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "معاملات الدالّة موصوفةً؛ الأوّل لعنصرٍ ذي primary_prop = مفتاحه العربيّ + وصف"
+    },
     "stability": {
       "type": "string",
       "enum": [

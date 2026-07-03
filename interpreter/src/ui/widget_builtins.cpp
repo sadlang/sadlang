@@ -141,19 +141,19 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bw::ICON_BUTTON), icon_btn_fn);                                   // زر_أيقونة
 
             // حقل_نص(تلميح: "أدخل...") — حقل إدخال نصي
-            auto textfield_fn = MAKE_WIDGET_WITH_PROP_FN(TextField, "\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+            auto textfield_fn = MAKE_WIDGET_WITH_PROP_FN(TextField, sad::ui::props::HINT); // تلميح
             fm.registerBuiltinFunction(std::string(Bw::TEXT_FIELD), textfield_fn);                               // حقل_نص
 
             // مفتاح(قيمة) — مفتاح تشغيل/إيقاف
-            auto toggle_fn = MAKE_WIDGET_WITH_PROP_FN(Toggle, "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+            auto toggle_fn = MAKE_WIDGET_WITH_PROP_FN(Toggle, sad::ui::props::VALUE); // قيمة
             fm.registerBuiltinFunction(std::string(Bw::TOGGLE), toggle_fn);                        // مفتاح
 
             // خانة_اختيار(قيمة) — خانة اختيار
-            auto checkbox_fn = MAKE_WIDGET_WITH_PROP_FN(Checkbox, "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+            auto checkbox_fn = MAKE_WIDGET_WITH_PROP_FN(Checkbox, sad::ui::props::VALUE); // قيمة
             fm.registerBuiltinFunction(std::string(Bw::CHECKBOX), checkbox_fn);                        // خانة_اختيار
 
             // منزلق(قيمة) — شريط قيمة قابل للسحب
-            auto slider_fn = MAKE_WIDGET_WITH_PROP_FN(Slider, "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+            auto slider_fn = MAKE_WIDGET_WITH_PROP_FN(Slider, sad::ui::props::VALUE); // قيمة
             fm.registerBuiltinFunction(std::string(Bw::SLIDER), slider_fn);                        // منزلق
 
             // ═════════════════════════════════════════════════════════════════════════
@@ -206,11 +206,11 @@ namespace Sad
                 // (AR) معالجة وسائط عرض وارتفاع
                 if (args.size() >= 1 && args[0])
                 {
-                    builder->setIRPropertyFromValue("\xd8\xb9\xd8\xb1\xd8\xb6", *args[0]); // عرض
+                    builder->setIRPropertyFromValue(sad::ui::props::WIDTH, *args[0]); // عرض
                 }
                 if (args.size() >= 2 && args[1])
                 {
-                    builder->setIRPropertyFromValue("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", *args[1]); // ارتفاع
+                    builder->setIRPropertyFromValue(sad::ui::props::HEIGHT, *args[1]); // ارتفاع
                 }
                 return std::make_shared<Data::Value>(
                     static_cast<Data::ObjectInstance *>(builder));
@@ -258,7 +258,7 @@ namespace Sad
             // ═════════════════════════════════════════════════════════════════════════
 
             // شريط_تطبيق(عنوان: "عنوان") — شريط علوي
-            auto appbar_fn = MAKE_WIDGET_WITH_PROP_FN(AppBar, "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            auto appbar_fn = MAKE_WIDGET_WITH_PROP_FN(AppBar, sad::ui::props::TITLE); // عنوان
             fm.registerBuiltinFunction(std::string(Bw::APP_BAR), appbar_fn);                               // شريط_تطبيق
 
             // تنقل_سفلي — شريط تنقل سفلي
@@ -270,15 +270,15 @@ namespace Sad
             // ═════════════════════════════════════════════════════════════════════════
 
             // حوار(عنوان: "...") — نافذة حوار
-            auto dialog_fn = MAKE_WIDGET_WITH_PROP_FN(Dialog, "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            auto dialog_fn = MAKE_WIDGET_WITH_PROP_FN(Dialog, sad::ui::props::TITLE); // عنوان
             fm.registerBuiltinFunction(std::string(Bw::DIALOG), dialog_fn);                                // حوار
 
             // شريط_إشعار(رسالة: "...") — رسالة منبثقة أسفل الشاشة
-            auto snackbar_fn = MAKE_WIDGET_WITH_PROP_FN(SnackBar, "\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9"); // رسالة
+            auto snackbar_fn = MAKE_WIDGET_WITH_PROP_FN(SnackBar, sad::ui::props::MESSAGE); // رسالة
             fm.registerBuiltinFunction(std::string(Bw::SNACKBAR), snackbar_fn);                                // شريط_إشعار
 
             // تلميح(نص: "...") — تلميح عند التمرير
-            auto tooltip_fn = MAKE_WIDGET_WITH_PROP_FN(Tooltip, "\xd9\x86\xd8\xb5"); // نص
+            auto tooltip_fn = MAKE_WIDGET_WITH_PROP_FN(Tooltip, sad::ui::props::TEXT); // نص
             fm.registerBuiltinFunction(std::string(Bw::TOOLTIP), tooltip_fn);        // تلميح
 
             // ═════════════════════════════════════════════════════════════════════════
@@ -286,7 +286,7 @@ namespace Sad
             // ═════════════════════════════════════════════════════════════════════════
 
             // شريط_تقدم(قيمة) — شريط تقدم
-            auto progress_fn = MAKE_WIDGET_WITH_PROP_FN(ProgressBar, "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+            auto progress_fn = MAKE_WIDGET_WITH_PROP_FN(ProgressBar, sad::ui::props::VALUE); // قيمة
             fm.registerBuiltinFunction(std::string(Bw::PROGRESS), progress_fn);                           // شريط_تقدم
 
             // عمود_كسول — قائمة عمودية كسولة
@@ -302,7 +302,7 @@ namespace Sad
             fm.registerBuiltinFunction(std::string(Bw::LIST_VIEW), list_fn); // قائمة
 
             // منطقة_نص — حقل إدخال متعدد الأسطر
-            auto textarea_fn = MAKE_WIDGET_WITH_PROP_FN(TextArea, "\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+            auto textarea_fn = MAKE_WIDGET_WITH_PROP_FN(TextArea, sad::ui::props::HINT); // تلميح
             fm.registerBuiltinFunction(std::string(Bw::TEXT_AREA), textarea_fn);                               // منطقة_نص
 
             // درج — لوحة جانبية

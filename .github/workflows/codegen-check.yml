@@ -3,13 +3,13 @@
 # (AR) الوصف: حارس انجراف المصدر المولَّد — المرحلة 1 من sadlang-rfcs#10.
 #             language-truth/*.yaml هو مصدر الحقيقة الوحيد؛ الملفّات المولَّدة
 #             تبقى متعقَّبة لكنّها مشتقّات خالصة. تفشل البوّابة إن لم تَعُد أيّ
-#             منها مطابقةً لِما يولّده YAML الحاليّ (النطاقات الأربعة، 6 ملفّات).
+#             منها مطابقةً لِما يولّده YAML الحاليّ (النطاقات العشرة، 13 ملفًّا).
 #             نقطة الدخول الموحَّدة: `python x.py gen --check`.
 # (EN) Description: Generated-source drift guard — Phase 1 of sadlang-rfcs#10.
 #             language-truth/*.yaml is the SINGLE source of truth; generated
 #             files stay tracked but are pure derivations. The gate fails if any
-#             of them no longer matches what the current YAML generates (all 4
-#             domains, 6 files). Single entry point: `python x.py gen --check`.
+#             of them no longer matches what the current YAML generates (all 10
+#             domains, 13 files). Single entry point: `python x.py gen --check`.
 # ======================================================================
 # (AR) يُشغَّل عند تغيّر أيّ مدخَل توليد (YAML/مخطّط/مولّد/x.py) أو أيّ مخرَج مولَّد.
 # (EN) Runs when any codegen input (YAML/schema/generator/x.py) or any generated
@@ -28,6 +28,7 @@ on:
       - "shared/builtins/generated/**"
       - "shared/errors/generated/**"
       - "shared/errors/include/error_codes.h"
+      - "features/graphics/core/include/sad_ui/**"
       - "x.py"
       - ".github/workflows/codegen-check.yml"
   pull_request:
@@ -40,6 +41,7 @@ on:
       - "shared/builtins/generated/**"
       - "shared/errors/generated/**"
       - "shared/errors/include/error_codes.h"
+      - "features/graphics/core/include/sad_ui/**"
       - "x.py"
       - ".github/workflows/codegen-check.yml"
 
@@ -50,8 +52,8 @@ concurrency:
 
 jobs:
   # ======================================================================
-  # (AR) فحص التزامن: language-truth/*.yaml → 6 ملفّات مولَّدة، لا انجراف.
-  # (EN) Sync check: language-truth/*.yaml → 6 generated files — no drift.
+  # (AR) فحص التزامن: language-truth/*.yaml → 13 ملفًّا مولَّدًا، لا انجراف.
+  # (EN) Sync check: language-truth/*.yaml → 13 generated files — no drift.
   # ======================================================================
   codegen-sync:
     name: "🔑 فحص توليد الكود / Codegen Sync Check"
@@ -78,8 +80,16 @@ jobs:
         run: python -m pytest scripts/codegen/test_xpy_codegen_guard.py -q
 
       # ── (AR) البوّابة الواحدة: يعيد التوليد إلى مجلّد مؤقّت ويقارن بالمتعقَّب.
-      #         يفشل إن انحرف أيّ من النطاقات الأربعة (types/keywords/builtins/errors).
+      #         يفشل إن انحرف أيّ من النطاقات العشرة (types/keywords/builtins/errors/
+      #         ui_props/ui_modifiers/ui_animations/ui_easings/ui_events/ui_colors).
       # (EN) The single gate: regenerates into a temp dir and compares against the
-      #      tracked files; fails if any of the 4 domains drifted.
+      #      tracked files; fails if any of the 10 domains drifted.
       - name: "🔍 حارس الانجراف / Drift guard — python x.py gen --check"
         run: python x.py gen --check
+
+      # ── (AR) حارس الاتّساق الدلاليّ لمفاتيح خصائص الواجهة: يربط
+      #         ui_props.yaml ↔ ui_widgets.yaml(primary_prop/params) ↔ prop_keys.h
+      #         ↔ ليترالات المصنع، ويربط ui_modifiers.yaml ↔ موزّعَي المحرّكين.
+      # (EN) Semantic consistency guard tying the SoT roots for UI keys/modifiers.
+      - name: "🔗 اتّساق مفاتيح/معدّلات الواجهة / UI props & modifiers consistency"
+        run: python scripts/codegen/check_ui_props_consistency.py

@@ -4,8 +4,8 @@
  * @brief اختبارات شاملة لنظام الأحداث الموحد (IREventType enum)
  *
  * يغطي:
- *   1. تحويل الأسماء العربية إلى IREventType (stringToIREventType)
- *   2. تحويل الأسماء الإنجليزية والمستعارة إلى IREventType
+ *   1. تحويل الأسماء العربية القانونية إلى IREventType (stringToIREventType)
+ *   2. رفض الأسماء الإنجليزية/المستعارة → Custom (سياسة: عربيّ قانونيّ فقط)
  *   3. تحويل IREventType إلى الاسم العربي (irEventTypeToString)
  *   4. التعرف على أسماء الأحداث المعروفة (isKnownEventName)
  *   5. تحويل ModifierType إلى IREventType (modifierTypeToIREventType)
@@ -92,100 +92,38 @@ void test_arabic_names_to_event_type()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. تحويل الأسماء الإنجليزية والمستعارة → IREventType
+// 2. الأسماء الإنجليزية/المستعارة مرفوضة → Custom (سياسة: عربيّ قانونيّ فقط)
 // ═══════════════════════════════════════════════════════════════════════════════
+//
+// (AR) بعد رفع مفردات الأحداث إلى مصدر الحقيقة (ui_events.yaml) صار النظام
+//   **عربيًّا قانونيًّا فقط، بلا بدائل** — لا إنجليزيّة (onTap/onClick) ولا صيغ
+//   snake_case. هذا الاختبار يحرس السياسة: كلّ اسمٍ إنجليزيّ/مستعار يُرجِع Custom.
+//   المطوّر يكتب الحدث عربيًّا دائمًا (البادئة «عند_» + لاحقة عربيّة).
 
-void test_english_names_to_event_type()
+void test_english_names_rejected()
 {
     auto &runner = TestRunner::instance();
-    runner.beginGroup("2. English/Alias names \xe2\x86\x92 IREventType");
-    // 2. الأسماء الإنجليزية والمستعارة → IREventType
+    runner.beginGroup("2. \xd8\xa7\xd9\x84\xd8\xa5\xd9\x86\xd8\xac\xd9\x84\xd9\x8a\xd8\xb2\xd9\x8a\xd8\xa9 \xd9\x85\xd8\xb1\xd9\x81\xd9\x88\xd8\xb6\xd8\xa9 \xe2\x86\x92 Custom");
+    // 2. الأسماء الإنجليزية/المستعارة مرفوضة → Custom
 
-    struct EnglishTestCase
-    {
-        const char *name;
-        IREventType expected;
+    // (AR) عيّنة تمثيليّة من الأسماء الإنجليزيّة/المستعارة التي كانت مدعومةً وأُزيلت.
+    std::vector<const char *> rejected = {
+        // camelCase
+        "onTap", "onClick", "onDoubleTap", "onLongPress", "onDrag", "onSwipe",
+        "onSwipeLeft", "onZoom", "onPinch", "onChange", "onHover", "onMouseEnter",
+        "onMouseLeave", "onFocus", "onKeyDown", "onSubmit", "onDragStart",
+        "onContextMenu", "onRightClick", "onSelect", "onResize", "onLoad", "onError",
+        // snake_case
+        "on_tap", "on_click", "on_double_tap", "on_drag", "on_zoom", "on_change",
+        "on_hover", "on_key_down", "on_drag_start", "on_context_menu", "on_error",
     };
 
-    std::vector<EnglishTestCase> cases = {
-        // ─── camelCase ───
-        {"onTap", IREventType::OnTap},
-        {"onClick", IREventType::OnTap},
-        {"onDoubleTap", IREventType::OnDoubleTap},
-        {"onLongPress", IREventType::OnLongPress},
-        {"onDrag", IREventType::OnDrag},
-        {"onSwipe", IREventType::OnDrag},
-        {"onSwipeLeft", IREventType::OnSwipeLeft},
-        {"onSwipeRight", IREventType::OnSwipeRight},
-        {"onSwipeUp", IREventType::OnSwipeUp},
-        {"onSwipeDown", IREventType::OnSwipeDown},
-        {"onZoom", IREventType::OnZoom},
-        {"onPinch", IREventType::OnZoom},
-        {"onChange", IREventType::OnChange},
-        {"onInput", IREventType::OnInput},
-        {"onRelease", IREventType::OnRelease},
-        {"onScroll", IREventType::OnScroll},
-        {"onHover", IREventType::OnHover},
-        {"onMouseEnter", IREventType::OnHover},
-        {"onHoverExit", IREventType::OnHoverExit},
-        {"onMouseLeave", IREventType::OnHoverExit},
-        {"onFocus", IREventType::OnFocus},
-        {"onBlur", IREventType::OnBlur},
-        {"onAppear", IREventType::OnAppear},
-        {"onDisappear", IREventType::OnDisappear},
-        {"onKeyDown", IREventType::OnKeyDown},
-        {"onKeyUp", IREventType::OnKeyUp},
-        {"onSubmit", IREventType::OnSubmit},
-        {"onDragStart", IREventType::OnDragStart},
-        {"onDragEnd", IREventType::OnDragEnd},
-        {"onDrop", IREventType::OnDrop},
-        {"onRotate", IREventType::OnRotate},
-        {"onContextMenu", IREventType::OnContextMenu},
-        {"onRightClick", IREventType::OnContextMenu},
-        {"onSelect", IREventType::OnSelect},
-        {"onResize", IREventType::OnResize},
-        {"onAnimationEnd", IREventType::OnAnimationEnd},
-        {"onLoad", IREventType::OnLoad},
-        {"onError", IREventType::OnError},
-
-        // ─── snake_case ───
-        {"on_tap", IREventType::OnTap},
-        {"on_click", IREventType::OnTap},
-        {"on_double_tap", IREventType::OnDoubleTap},
-        {"on_long_press", IREventType::OnLongPress},
-        {"on_drag", IREventType::OnDrag},
-        {"on_zoom", IREventType::OnZoom},
-        {"on_change", IREventType::OnChange},
-        {"on_input", IREventType::OnInput},
-        {"on_release", IREventType::OnRelease},
-        {"on_scroll", IREventType::OnScroll},
-        {"on_hover", IREventType::OnHover},
-        {"on_hover_exit", IREventType::OnHoverExit},
-        {"on_focus", IREventType::OnFocus},
-        {"on_blur", IREventType::OnBlur},
-        {"on_appear", IREventType::OnAppear},
-        {"on_disappear", IREventType::OnDisappear},
-        {"on_key_down", IREventType::OnKeyDown},
-        {"on_key_up", IREventType::OnKeyUp},
-        {"on_submit", IREventType::OnSubmit},
-        {"on_drag_start", IREventType::OnDragStart},
-        {"on_drag_end", IREventType::OnDragEnd},
-        {"on_drop", IREventType::OnDrop},
-        {"on_rotate", IREventType::OnRotate},
-        {"on_context_menu", IREventType::OnContextMenu},
-        {"on_select", IREventType::OnSelect},
-        {"on_resize", IREventType::OnResize},
-        {"on_animation_end", IREventType::OnAnimationEnd},
-        {"on_load", IREventType::OnLoad},
-        {"on_error", IREventType::OnError},
-    };
-
-    for (auto &tc : cases)
+    for (const char *name : rejected)
     {
-        runner.runTest(std::string("\"") + tc.name + "\"", [&]()
+        runner.runTest(std::string("\"") + name + "\" -> Custom", [&]()
                        {
-            IREventType result = stringToIREventType(tc.name);
-            SAD_ASSERT_TRUE(result == tc.expected); });
+            IREventType result = stringToIREventType(name);
+            SAD_ASSERT_TRUE(result == IREventType::Custom); });
     }
 }
 
@@ -196,19 +134,25 @@ void test_english_names_to_event_type()
 void test_arabic_aliases()
 {
     auto &runner = TestRunner::instance();
-    runner.beginGroup("3. Arabic aliases \xe2\x86\x92 IREventType");
-    // 3. الأسماء المستعارة العربية
+    runner.beginGroup("3. \xd8\xa7\xd9\x84\xd8\xa8\xd8\xaf\xd8\xa7\xd8\xa6\xd9\x84 \xd8\xa7\xd9\x84\xd8\xb9\xd8\xb1\xd8\xa8\xd9\x8a\xd8\xa9 \xd9\x85\xd8\xb1\xd9\x81\xd9\x88\xd8\xb6\xd8\xa9 \xe2\x86\x92 Custom");
+    // 3. البدائل العربية مرفوضة → Custom (قانونيّ فقط، لا مرادفات)
 
-    runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb6\xd8\xba\xd8\xb7 -> OnTap", [&]()
+    // (AR) عند_الضغط (بديل عند_النقر) لم يعد مدعومًا — القانونيّ «عند_النقر».
+    runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb6\xd8\xba\xd8\xb7 -> Custom", [&]()
                    {
-        // عند_الضغط → عند_النقر (OnTap)
         IREventType result = stringToIREventType("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb6\xd8\xba\xd8\xb7");
-        SAD_ASSERT_TRUE(result == IREventType::OnTap); });
+        SAD_ASSERT_TRUE(result == IREventType::Custom); });
 
-    runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xaa\xd8\xba\xd9\x8a\xd9\x91\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9 -> OnChange", [&]()
+    // (AR) عند_تغيّر_القيمة (بديل عند_التغيير) لم يعد مدعومًا.
+    runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xaa\xd8\xba\xd9\x8a\xd9\x91\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9 -> Custom", [&]()
                    {
-        // عند_تغيّر_القيمة → عند_التغيير (OnChange)
         IREventType result = stringToIREventType("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xaa\xd8\xba\xd9\x8a\xd9\x91\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
+        SAD_ASSERT_TRUE(result == IREventType::Custom); });
+
+    // (AR) لكنّ الصورة القانونيّة «عند_التغيير» تعمل (تجريد الشدّة لا يُنشئ مرادفًا هنا).
+    runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xba\xd9\x8a\xd9\x8a\xd8\xb1 -> OnChange", [&]()
+                   {
+        IREventType result = stringToIREventType("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xba\xd9\x8a\xd9\x8a\xd8\xb1");
         SAD_ASSERT_TRUE(result == IREventType::OnChange); });
 }
 
@@ -258,26 +202,29 @@ void test_is_known_event_name()
     auto &runner = TestRunner::instance();
     runner.beginGroup("5. isKnownEventName");
 
-    // أسماء معروفة
-    runner.runTest("onTap is known", [&]()
-                   { SAD_ASSERT_TRUE(isKnownEventName("onTap")); });
-
-    runner.runTest("onClick is known", [&]()
-                   { SAD_ASSERT_TRUE(isKnownEventName("onClick")); });
-
-    runner.runTest("on_drag_start is known", [&]()
-                   { SAD_ASSERT_TRUE(isKnownEventName("on_drag_start")); });
-
+    // (AR) أسماء عربيّة قانونيّة معروفة
     runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1 is known", [&]()
                    {
         // عند_النقر
         SAD_ASSERT_TRUE(isKnownEventName("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1")); });
 
-    runner.runTest("onRightClick is known", [&]()
-                   { SAD_ASSERT_TRUE(isKnownEventName("onRightClick")); });
+    runner.runTest("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa8\xd8\xaf\xd8\xa1_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8 is known", [&]()
+                   {
+        // عند_بدء_السحب
+        SAD_ASSERT_TRUE(isKnownEventName("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa8\xd8\xaf\xd8\xa1_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8")); });
 
-    runner.runTest("onPinch is known (alias for OnZoom)", [&]()
-                   { SAD_ASSERT_TRUE(isKnownEventName("onPinch")); });
+    // (AR) الإنجليزيّة والبدائل لم تعد معروفة (قانونيّ عربيّ فقط)
+    runner.runTest("onTap is NOT known (canonical Arabic only)", [&]()
+                   { SAD_ASSERT_TRUE(!isKnownEventName("onTap")); });
+
+    runner.runTest("onClick is NOT known", [&]()
+                   { SAD_ASSERT_TRUE(!isKnownEventName("onClick")); });
+
+    runner.runTest("onRightClick is NOT known", [&]()
+                   { SAD_ASSERT_TRUE(!isKnownEventName("onRightClick")); });
+
+    runner.runTest("onPinch is NOT known", [&]()
+                   { SAD_ASSERT_TRUE(!isKnownEventName("onPinch")); });
 
     // أسماء مجهولة
     runner.runTest("\"foobar\" is NOT known", [&]()
@@ -450,19 +397,21 @@ void test_round_trip()
         // يجب أن ينجح الجميع (34 قيمة شاملة Custom)
         SAD_ASSERT_EQ(passed, count); });
 
-    runner.runTest("English round-trip: onTap -> Arabic -> onTap", [&]()
+    // (AR) ذهاب وإياب بالاسم العربيّ القانونيّ (لا إنجليزيّة).
+    runner.runTest("Arabic round-trip: \xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1 -> enum -> \xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1", [&]()
                    {
-        IREventType t1 = stringToIREventType("onTap");
+        // عند_النقر
+        IREventType t1 = stringToIREventType("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1");
         const std::string& arabic = irEventTypeToString(t1);
         IREventType t2 = stringToIREventType(arabic);
         SAD_ASSERT_TRUE(t1 == t2);
         SAD_ASSERT_TRUE(t1 == IREventType::OnTap); });
 
-    runner.runTest("Alias round-trip: onClick -> Arabic -> same enum", [&]()
+    // (AR) تجريد الشدّة: «عند_التغيّر» (بشدّة) ≡ «عند_التغيير» القانونيّ.
+    runner.runTest("Shadda-insensitive: \xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xba\xd9\x8a\xd9\x8a\xd8\xb1 -> OnChange", [&]()
                    {
-        IREventType t1 = stringToIREventType("onClick");
-        IREventType t2 = stringToIREventType("onTap");
-        SAD_ASSERT_TRUE(t1 == t2); });
+        IREventType t = stringToIREventType("\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xba\xd9\x8a\xd9\x8a\xd8\xb1");
+        SAD_ASSERT_TRUE(t == IREventType::OnChange); });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -488,48 +437,16 @@ void test_completeness()
         // عدد الأسماء الفريدة = عدد الأنواع
         SAD_ASSERT_EQ(static_cast<int>(names.size()), count); });
 
-    runner.runTest("Every English primary alias maps correctly", [&]()
+    runner.runTest("Every canonical Arabic name round-trips via its enum", [&]()
                    {
-        // التأكد من أن كل نوع (باستثناء Custom و _Count) له على الأقل
-        // اسم إنجليزي camelCase مسجل
-        std::vector<std::pair<const char*, IREventType>> primaryEnglish = {
-            {"onTap", IREventType::OnTap},
-            {"onDoubleTap", IREventType::OnDoubleTap},
-            {"onLongPress", IREventType::OnLongPress},
-            {"onDrag", IREventType::OnDrag},
-            {"onSwipeLeft", IREventType::OnSwipeLeft},
-            {"onSwipeRight", IREventType::OnSwipeRight},
-            {"onSwipeUp", IREventType::OnSwipeUp},
-            {"onSwipeDown", IREventType::OnSwipeDown},
-            {"onZoom", IREventType::OnZoom},
-            {"onChange", IREventType::OnChange},
-            {"onInput", IREventType::OnInput},
-            {"onRelease", IREventType::OnRelease},
-            {"onScroll", IREventType::OnScroll},
-            {"onHover", IREventType::OnHover},
-            {"onHoverExit", IREventType::OnHoverExit},
-            {"onFocus", IREventType::OnFocus},
-            {"onBlur", IREventType::OnBlur},
-            {"onAppear", IREventType::OnAppear},
-            {"onDisappear", IREventType::OnDisappear},
-            {"onKeyDown", IREventType::OnKeyDown},
-            {"onKeyUp", IREventType::OnKeyUp},
-            {"onSubmit", IREventType::OnSubmit},
-            {"onDragStart", IREventType::OnDragStart},
-            {"onDragEnd", IREventType::OnDragEnd},
-            {"onDrop", IREventType::OnDrop},
-            {"onRotate", IREventType::OnRotate},
-            {"onContextMenu", IREventType::OnContextMenu},
-            {"onSelect", IREventType::OnSelect},
-            {"onResize", IREventType::OnResize},
-            {"onAnimationEnd", IREventType::OnAnimationEnd},
-            {"onLoad", IREventType::OnLoad},
-            {"onError", IREventType::OnError},
-        };
-
-        for (auto& [name, expected] : primaryEnglish) {
-            IREventType result = stringToIREventType(name);
-            SAD_ASSERT_TRUE(result == expected);
+        // (AR) لكلّ نوع (عدا Custom): الاسم العربيّ القانونيّ (من irEventTypeToString)
+        //   يعود إلى نفس النوع عبر stringToIREventType — الجدول الوحيد المدعوم.
+        int count = static_cast<int>(IREventType::_Count);
+        for (int i = 0; i < count; ++i) {
+            IREventType t = static_cast<IREventType>(i);
+            const std::string& canonical = irEventTypeToString(t);
+            IREventType back = stringToIREventType(canonical);
+            SAD_ASSERT_TRUE(back == t);
         } });
 }
 
@@ -984,7 +901,7 @@ int main()
               << C_RESET << "\n";
 
     test_arabic_names_to_event_type();
-    test_english_names_to_event_type();
+    test_english_names_rejected();
     test_arabic_aliases();
     test_event_type_to_string();
     test_is_known_event_name();

@@ -1,0 +1,99 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لطرق (معدّلات) عناصر واجهة SadUI — الطرق الانسيابيّة
+#      التي يكتبها مطوّر لغة ص على عنصر: .ابن(...)، .عند_النقر(...)، .حرّك(...) …
+#      يُعرَّف كلٌّ هنا حصرًا فيصير موثَّقًا ومكتشَفًا، ويُولَّد منه الهيدر
+#      features/graphics/core/include/sad_ui/ui_modifiers.h عبر
+#      scripts/codegen/gen_ui_modifiers.py. يستهلكه موزّع المعدّلات في
+#      **المحرّكين معًا** (المفسّر + المترجم) مباشرةً — فلا اسمَ معدّلٍ حرفيّ في أيٍّ.
+#
+#      سياسة: **الأسماء القانونيّة فقط، لا بدائل** (لا إنجليزيّة ولا صيغ مطبّعة).
+#      المخطّط يمنع حقل aliases (additionalProperties:false).
+#
+#      ملاحظة: المعدّل «مفتوح الاحتياط» (أيّ اسمٍ غير مُعرَّف هنا يصير ضبطَ خاصّيّة
+#      بصريّة ديناميكيًّا: .عرض(100) ⇒ خاصّيّة «عرض») — لذا هذا السجلّ يوثّق
+#      المعدّلات ذات الدلالة الخاصّة فقط (أبناء/أحداث/سلسلة تحريك)، لا كلّ اسمٍ ممكن.
+#
+# (EN) Central SoT for SadUI widget modifier methods (the fluent chain a Sad dev
+#      writes: .ابن(...), .عند_النقر(...), .حرّك(...)). Generates
+#      features/graphics/core/include/sad_ui/ui_modifiers.h. The fallback modifier
+#      (any unlisted name ⇒ dynamic visual-property set) means this registry
+#      documents only the special-semantics modifiers, not every possible name.
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+description_ar: طرق (معدّلات) عناصر واجهة SadUI
+description_en: SadUI widget modifier methods
+
+# (AR) الحقول:
+#   id            — اسم المُعرِّف (يُولَّد منه ثابت وقالب دالّة is<Id>) — UPPER_SNAKE_CASE
+#   kind          — child | event_prefix | animation (تصنيف دلاليّ)
+#   canonical     — الاسم العربيّ القانونيّ (لا بدائل — سياسة الأسماء القانونيّة فقط)
+#   match         — exact (تطابق تامّ) | prefix (بادئة، لعائلة عند_*)
+#   arg           — وصف الوسيط المتوقَّع (للتوثيق)
+#   description_ar/en
+modifiers:
+  - id: CHILD
+    kind: child
+    canonical: ابن
+    match: exact
+    arg: عنصر واجهة واحد أو أكثر
+    description_ar: يضيف عنصرًا (أو عناصر) أبناءً للعنصر الحاليّ
+    description_en: Adds one or more child widgets to the current widget
+
+  - id: EVENT
+    kind: event_prefix
+    canonical: عند_
+    match: prefix
+    arg: دالّة معالِجة (عادةً بلا وسائط)
+    description_ar: يسجّل معالِج حدث (عند_النقر، عند_التغيير، …) — أيّ اسمٍ يبدأ بالبادئة
+    description_en: Registers an event handler (عند_النقر, عند_التغيير, …) — any name with this prefix
+
+  # (AR) بلا شدّة: المعجم المشترك يجرّد كلّ التشكيل (U+064B–U+065F) من المعرّفات،
+  #   فـ«.حرّك()» يصل الموزّعَ كـ«حرك». القانونيّ = الصورة المجرّدة التي يراها الكود
+  #   (قاعدة المشروع: أسماء بلا تشكيل). المطوّر يكتبها بشدّة أو بدونها — سيّان.
+  - id: ANIMATE
+    kind: animation
+    canonical: حرك
+    match: exact
+    arg: اسم نوع الحركة (أو أنواع مفصولة بفاصلة)
+    description_ar: يبدأ سلسلة تحريك على العنصر (يقبل أنواعًا مركّبة بفاصلة)
+    description_en: Starts an animation chain (accepts compound comma-separated types)
+
+  - id: DURATION
+    kind: animation
+    canonical: مدة
+    match: exact
+    arg: زمن بالثواني
+    description_ar: يعيّن مدّة الحركة الحاليّة (بالثواني)
+    description_en: Sets the current animation duration (seconds)
+
+  - id: EASING
+    kind: animation
+    canonical: منحنى
+    match: exact
+    arg: اسم منحنى التسارع
+    description_ar: يعيّن منحنى تسارع الحركة
+    description_en: Sets the animation easing curve
+
+  - id: DELAY
+    kind: animation
+    canonical: تأخير
+    match: exact
+    arg: زمن بالثواني
+    description_ar: يعيّن تأخير بدء الحركة (بالثواني)
+    description_en: Sets the animation start delay (seconds)
+
+  - id: REPEAT
+    kind: animation
+    canonical: تكرار
+    match: exact
+    arg: عدد مرّات التكرار
+    description_ar: يعيّن عدد تكرارات الحركة
+    description_en: Sets the animation repeat count
+
+  - id: AUTO_REVERSE
+    kind: animation
+    canonical: عكس_تلقائي
+    match: exact
+    arg: منطقيّ (اختياريّ، الافتراض صحيح)
+    description_ar: يعكس الحركة تلقائيًّا بعد انتهائها
+    description_en: Auto-reverses the animation after it completes

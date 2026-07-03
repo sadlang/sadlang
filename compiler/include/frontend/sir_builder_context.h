@@ -217,6 +217,16 @@ namespace Sad
                 // (EN) ADT enum table
                 std::unordered_map<std::string, ADTEnumInfo> adtEnumTable_;
 
+                // (AR) ثوابت أعضاء التعداد النصّيّة: "التعداد.العضو" → القيمة النصّيّة.
+                //   المسار البسيط للتعداد يفرض i64، فأعضاء القيم النصّيّة (مثل
+                //   «تعداد ألوان { أحمر = "أحمر" }») تُخزَّن هنا ويعيدها وصولُ العضو
+                //   كثابتٍ نصّيّ — تكافؤًا مع المفسّر الذي يشرّف القيمة النصّيّة.
+                // (EN) String-valued enum member constants: "Enum.Member" → string.
+                //   The simple-enum path forces i64; string-valued members are stored
+                //   here and returned as string constants by member access — matching
+                //   the interpreter, which honors the explicit string value.
+                std::unordered_map<std::string, std::string> enumStringConstants_;
+
                 // (AR) مكدس سياق الحلقات / (EN) Loop context stack
                 std::vector<LoopContext> loopStack_;
 

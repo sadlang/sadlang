@@ -14,6 +14,11 @@
  */
 
 #include "sad_ui/types.h"
+#include "sad_ui/text_normalize.h" // (AR) تجريد التشكيل من اسم الحدث قبل المطابقة
+// (AR) قائمة X-macro لأنواع الأحداث مولَّدة من language-truth/ui_events.yaml.
+#include "sad_ui/generated/event_vocab_generated.h"
+// (AR) جداول الألوان الموحَّدة مولَّدة من language-truth/ui_colors.yaml.
+#include "sad_ui/generated/color_table_generated.h"
 
 #include <unordered_map>
 
@@ -348,146 +353,35 @@ namespace sad
         // جداول التحويل — أنواع أحداث IR (IREventType)
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        /// جدول: IREventType → الاسم العربي الأساسي
+        /// جدول: IREventType → الاسم العربي الأساسي (مولَّد من ui_events.yaml)
         static const std::unordered_map<IREventType, std::string> &getIREventTypeNames()
         {
             static const std::unordered_map<IREventType, std::string> table = {
-                {IREventType::OnTap, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1"},                                                                                          // عند_النقر
-                {IREventType::OnDoubleTap, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x86\xd9\x82\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb2\xd8\xaf\xd9\x88\xd8\xac"},                           // عند_النقر_المزدوج
-                {IREventType::OnLongPress, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb6\xd8\xba\xd8\xb7_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb7\xd9\x88\xd9\x84"},                                   // عند_الضغط_المطول
-                {IREventType::OnDrag, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8"},                                                                                         // عند_السحب
-                {IREventType::OnSwipeLeft, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1"},                                                   // عند_السحب_يسار
-                {IREventType::OnSwipeRight, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86"},                                                  // عند_السحب_يمين
-                {IREventType::OnSwipeUp, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa3\xd8\xb9\xd9\x84\xd9\x89"},                                                     // عند_السحب_أعلى
-                {IREventType::OnSwipeDown, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa3\xd8\xb3\xd9\x81\xd9\x84"},                                                   // عند_السحب_أسفل
-                {IREventType::OnZoom, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd9\x83\xd8\xa8\xd9\x8a\xd8\xb1"},                                                                         // عند_التكبير
-                {IREventType::OnChange, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xba\xd9\x8a\xd9\x8a\xd8\xb1"},                                                                       // عند_التغيير
-                {IREventType::OnInput, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xaf\xd8\xae\xd8\xa7\xd9\x84"},                                                                        // عند_الإدخال
-                {IREventType::OnRelease, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd8\xb1"},                                                                      // عند_التحرير
-                {IREventType::OnScroll, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd9\x85\xd8\xb1\xd9\x8a\xd8\xb1"},                                                                       // عند_التمرير
-                {IREventType::OnHover, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x88\xd9\x8a\xd9\x85"},                                                                        // عند_التحويم
-                {IREventType::OnHoverExit, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb1\xd9\x88\xd8\xac"},                                                                            // عند_الخروج
-                {IREventType::OnFocus, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb1\xd9\x83\xd9\x8a\xd8\xb2"},                                                                        // عند_التركيز
-                {IREventType::OnBlur, "\xd8\xb9\xd9\x86\xd8\xaf_\xd9\x81\xd9\x82\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb1\xd9\x83\xd9\x8a\xd8\xb2"},                                                // عند_فقد_التركيز
-                {IREventType::OnAppear, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb8\xd9\x87\xd9\x88\xd8\xb1"},                                                                               // عند_الظهور
-                {IREventType::OnDisappear, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xae\xd8\xaa\xd9\x81\xd8\xa7\xd8\xa1"},                                                            // عند_الاختفاء
-                {IREventType::OnKeyDown, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xb6\xd8\xba\xd8\xb7_\xd9\x85\xd9\x81\xd8\xaa\xd8\xa7\xd8\xad"},                                                             // عند_ضغط_مفتاح
-                {IREventType::OnKeyUp, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xb1\xd9\x81\xd8\xb9_\xd9\x85\xd9\x81\xd8\xaa\xd8\xa7\xd8\xad"},                                                               // عند_رفع_مفتاح
-                {IREventType::OnSubmit, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84"},                                                                       // عند_الإرسال
-                {IREventType::OnDragStart, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa8\xd8\xaf\xd8\xa1_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8"},                                                           // عند_بدء_السحب
-                {IREventType::OnDragEnd, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x86\xd8\xaa\xd9\x87\xd8\xa7\xd8\xa1_\xd8\xa7\xd9\x84\xd8\xb3\xd8\xad\xd8\xa8"},                                     // عند_انتهاء_السحب
-                {IREventType::OnDrop, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb3\xd9\x82\xd8\xa7\xd8\xb7"},                                                                         // عند_الإسقاط
-                {IREventType::OnRotate, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd9\x86"},                                                                       // عند_الدوران
-                {IREventType::OnContextMenu, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xb3\xd9\x8a\xd8\xa7\xd9\x82\xd9\x8a\xd8\xa9"}, // عند_القائمة_السياقية
-                {IREventType::OnSelect, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd8\xaf\xd9\x8a\xd8\xaf"},                                                                       // عند_التحديد
-                {IREventType::OnResize, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xaa\xd8\xba\xd9\x8a\xd9\x8a\xd8\xb1_\xd8\xa7\xd9\x84\xd8\xad\xd8\xac\xd9\x85"},                                              // عند_تغيير_الحجم
-                {IREventType::OnAnimationEnd, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x86\xd8\xaa\xd9\x87\xd8\xa7\xd8\xa1_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83"},                // عند_انتهاء_التحريك
-                {IREventType::OnLoad, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x85\xd9\x8a\xd9\x84"},                                                                         // عند_التحميل
-                {IREventType::OnError, "\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7\xd8\xa3"},                                                                                        // عند_الخطأ
-                {IREventType::Custom, "\xd9\x85\xd8\xae\xd8\xb5\xd8\xb5"},                                                                                                                          // مخصص
+#define X(id, str) {IREventType::id, str},
+                SAD_UI_EVENT_VOCAB(X)
+#undef X
             };
             return table;
         }
 
-        /// جدول معكوس: اسم (عربي أو إنجليزي أو مستعار) → IREventType
+        /// جدول معكوس: اسم عربيّ قانونيّ → IREventType (مولَّد؛ لا بدائل)
         static const std::unordered_map<std::string, IREventType> &getIREventTypeByName()
         {
-            static std::unordered_map<std::string, IREventType> table;
-            static bool initialized = false;
-            if (!initialized)
-            {
-                // ─── الأسماء العربية الأساسية ───
-                for (const auto &[type, name] : getIREventTypeNames())
-                {
-                    if (type != IREventType::Custom)
-                    {
-                        table[name] = type;
-                    }
-                }
-                // ─── الأسماء المستعارة العربية ───
-                table["\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb6\xd8\xba\xd8\xb7"] = IREventType::OnTap;                                                     // عند_الضغط → عند_النقر
-                table["\xd8\xb9\xd9\x86\xd8\xaf_\xd8\xaa\xd8\xba\xd9\x8a\xd9\x91\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"] = IREventType::OnChange; // عند_تغيّر_القيمة
-
-                // ─── الأسماء الإنجليزية ───
-                table["onTap"] = IREventType::OnTap;
-                table["onClick"] = IREventType::OnTap;
-                table["on_tap"] = IREventType::OnTap;
-                table["on_click"] = IREventType::OnTap;
-                table["onDoubleTap"] = IREventType::OnDoubleTap;
-                table["on_double_tap"] = IREventType::OnDoubleTap;
-                table["onLongPress"] = IREventType::OnLongPress;
-                table["on_long_press"] = IREventType::OnLongPress;
-                table["onDrag"] = IREventType::OnDrag;
-                table["onSwipe"] = IREventType::OnDrag;
-                table["on_drag"] = IREventType::OnDrag;
-                table["onSwipeLeft"] = IREventType::OnSwipeLeft;
-                table["onSwipeRight"] = IREventType::OnSwipeRight;
-                table["onSwipeUp"] = IREventType::OnSwipeUp;
-                table["onSwipeDown"] = IREventType::OnSwipeDown;
-                table["onZoom"] = IREventType::OnZoom;
-                table["onPinch"] = IREventType::OnZoom;
-                table["on_zoom"] = IREventType::OnZoom;
-                table["onChange"] = IREventType::OnChange;
-                table["on_change"] = IREventType::OnChange;
-                table["onInput"] = IREventType::OnInput;
-                table["on_input"] = IREventType::OnInput;
-                table["onRelease"] = IREventType::OnRelease;
-                table["on_release"] = IREventType::OnRelease;
-                table["onScroll"] = IREventType::OnScroll;
-                table["on_scroll"] = IREventType::OnScroll;
-                table["onHover"] = IREventType::OnHover;
-                table["onMouseEnter"] = IREventType::OnHover;
-                table["on_hover"] = IREventType::OnHover;
-                table["onHoverExit"] = IREventType::OnHoverExit;
-                table["onMouseLeave"] = IREventType::OnHoverExit;
-                table["on_hover_exit"] = IREventType::OnHoverExit;
-                table["onFocus"] = IREventType::OnFocus;
-                table["on_focus"] = IREventType::OnFocus;
-                table["onBlur"] = IREventType::OnBlur;
-                table["on_blur"] = IREventType::OnBlur;
-                table["onAppear"] = IREventType::OnAppear;
-                table["on_appear"] = IREventType::OnAppear;
-                table["onDisappear"] = IREventType::OnDisappear;
-                table["on_disappear"] = IREventType::OnDisappear;
-                table["onKeyDown"] = IREventType::OnKeyDown;
-                table["on_key_down"] = IREventType::OnKeyDown;
-                table["onKeyUp"] = IREventType::OnKeyUp;
-                table["on_key_up"] = IREventType::OnKeyUp;
-
-                // ─── الأحداث الجديدة ───
-                table["onSubmit"] = IREventType::OnSubmit;
-                table["on_submit"] = IREventType::OnSubmit;
-                table["onDragStart"] = IREventType::OnDragStart;
-                table["on_drag_start"] = IREventType::OnDragStart;
-                table["onDragEnd"] = IREventType::OnDragEnd;
-                table["on_drag_end"] = IREventType::OnDragEnd;
-                table["onDrop"] = IREventType::OnDrop;
-                table["on_drop"] = IREventType::OnDrop;
-                table["onRotate"] = IREventType::OnRotate;
-                table["on_rotate"] = IREventType::OnRotate;
-                table["onContextMenu"] = IREventType::OnContextMenu;
-                table["on_context_menu"] = IREventType::OnContextMenu;
-                table["onRightClick"] = IREventType::OnContextMenu;
-                table["onSelect"] = IREventType::OnSelect;
-                table["on_select"] = IREventType::OnSelect;
-                table["onResize"] = IREventType::OnResize;
-                table["on_resize"] = IREventType::OnResize;
-                table["onAnimationEnd"] = IREventType::OnAnimationEnd;
-                table["on_animation_end"] = IREventType::OnAnimationEnd;
-                table["onLoad"] = IREventType::OnLoad;
-                table["on_load"] = IREventType::OnLoad;
-                table["onError"] = IREventType::OnError;
-                table["on_error"] = IREventType::OnError;
-
-                initialized = true;
-            }
+            static const std::unordered_map<std::string, IREventType> table = {
+#define X(id, str) {str, IREventType::id},
+                SAD_UI_EVENT_VOCAB(X)
+#undef X
+            };
             return table;
         }
 
         IREventType stringToIREventType(const std::string &name)
         {
+            // (AR) اسمُ الحدث وسيطٌ نصّيّ قد يحمل تشكيلًا — نجرّده قبل البحث فيستوي
+            //   «عند_التغيّر» و«عند_التغير». لا بدائل إنجليزيّة (قانونيّ فقط).
+            const std::string key = stripArabicDiacritics(name);
             const auto &table = getIREventTypeByName();
-            auto it = table.find(name);
+            auto it = table.find(key);
             if (it != table.end())
             {
                 return it->second;
@@ -537,55 +431,13 @@ namespace sad
         // جداول التحويل — الألوان المسماة
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        /// جدول: اسم عربي/إنجليزي → NamedColor
+        /// جدول: اسم عربيّ قانونيّ → NamedColor (مولَّد من ui_colors.yaml؛ لا بدائل)
         static const std::unordered_map<std::string, NamedColor> &getColorByName()
         {
             static const std::unordered_map<std::string, NamedColor> table = {
-                // ─── ألوان عربية ──────────
-                {"أسود", NamedColor::Black},
-                {"أبيض", NamedColor::White},
-                {"أحمر", NamedColor::Red},
-                {"أخضر", NamedColor::Green},
-                {"أزرق", NamedColor::Blue},
-                {"أصفر", NamedColor::Yellow},
-                {"برتقالي", NamedColor::Orange},
-                {"بنفسجي", NamedColor::Purple},
-                {"وردي", NamedColor::Pink},
-                {"بني", NamedColor::Brown},
-                {"رمادي", NamedColor::Gray},
-                {"رمادي_فاتح", NamedColor::LightGray},
-                {"رمادي_غامق", NamedColor::DarkGray},
-                {"سماوي", NamedColor::Cyan},
-                {"أزرق_مخضر", NamedColor::Teal},
-                {"شفاف", NamedColor::Transparent},
-                {"أساسي", NamedColor::Primary},
-                {"ثانوي", NamedColor::Secondary},
-                {"سطح", NamedColor::Surface},
-                {"خلفية", NamedColor::Background},
-                {"خطأ", NamedColor::Error},
-                // ─── ألوان إنجليزية ───────
-                {"black", NamedColor::Black},
-                {"white", NamedColor::White},
-                {"red", NamedColor::Red},
-                {"green", NamedColor::Green},
-                {"blue", NamedColor::Blue},
-                {"yellow", NamedColor::Yellow},
-                {"orange", NamedColor::Orange},
-                {"purple", NamedColor::Purple},
-                {"pink", NamedColor::Pink},
-                {"brown", NamedColor::Brown},
-                {"gray", NamedColor::Gray},
-                {"grey", NamedColor::Grey},
-                {"lightgray", NamedColor::LightGray},
-                {"darkgray", NamedColor::DarkGray},
-                {"cyan", NamedColor::Cyan},
-                {"teal", NamedColor::Teal},
-                {"transparent", NamedColor::Transparent},
-                {"primary", NamedColor::Primary},
-                {"secondary", NamedColor::Secondary},
-                {"surface", NamedColor::Surface},
-                {"background", NamedColor::Background},
-                {"error", NamedColor::Error},
+#define X(name, id) {name, NamedColor::id},
+                SAD_UI_COLOR_BY_NAME(X)
+#undef X
             };
             return table;
         }
@@ -603,62 +455,13 @@ namespace sad
 
         uint32_t namedColorToRGBA(NamedColor color)
         {
+            // (AR) مولَّد من ui_colors.yaml (SAD_UI_COLOR_RGBA) — مصدرٌ واحد مع
+            //   getColorByName والجدول النصّيّ، فلا تباعد صامت.
             switch (color)
             {
-            case NamedColor::Black:
-                return 0x000000FF;
-            case NamedColor::White:
-                return 0xFFFFFFFF;
-            case NamedColor::Red:
-                return 0xF44336FF;
-            case NamedColor::Green:
-                return 0x4CAF50FF;
-            case NamedColor::Blue:
-                return 0x2196F3FF;
-            case NamedColor::Yellow:
-                return 0xFFEB3BFF;
-            case NamedColor::Orange:
-                return 0xFF9800FF;
-            case NamedColor::Purple:
-                return 0x9C27B0FF;
-            case NamedColor::Pink:
-                return 0xE91E63FF;
-            case NamedColor::Brown:
-                return 0x795548FF;
-            case NamedColor::Gray:
-                return 0x9E9E9EFF;
-            case NamedColor::Grey:
-                return 0x9E9E9EFF;
-            case NamedColor::LightGray:
-                return 0xBDBDBDFF;
-            case NamedColor::DarkGray:
-                return 0x616161FF;
-            case NamedColor::Cyan:
-                return 0x00BCD4FF;
-            case NamedColor::Teal:
-                return 0x009688FF;
-            case NamedColor::Transparent:
-                return 0x00000000;
-            case NamedColor::Primary:
-                return 0x1E88E5FF;
-            case NamedColor::Secondary:
-                return 0x43A047FF;
-            case NamedColor::Surface:
-                return 0xFFFFFFFF;
-            case NamedColor::Background:
-                return 0xFAFAFAFF;
-            case NamedColor::OnPrimary:
-                return 0xFFFFFFFF;
-            case NamedColor::OnSecondary:
-                return 0xFFFFFFFF;
-            case NamedColor::OnSurface:
-                return 0x212121FF;
-            case NamedColor::OnBackground:
-                return 0x212121FF;
-            case NamedColor::Error:
-                return 0xE53935FF;
-            case NamedColor::OnError:
-                return 0xFFFFFFFF;
+#define X(id, rgba) case NamedColor::id: return rgba;
+                SAD_UI_COLOR_RGBA(X)
+#undef X
             default:
                 return 0x000000FF;
             }

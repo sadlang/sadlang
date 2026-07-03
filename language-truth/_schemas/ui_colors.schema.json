@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sadlang.org/schemas/v5/ui_colors.schema.json",
+  "title": "SadUI Named Color Entry Schema",
+  "description": "مخطّط لون مسمّى واحد في language-truth/ui_colors.yaml",
+  "type": "object",
+  "required": ["id", "rgba", "named_color"],
+  "additionalProperties": false,
+  "comment_ar": "الأسماء العربيّة القانونيّة فقط — لا بدائل. member اختياريّ (ألوان السمة الداخليّة بلا اسم للمطوّر).",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "مُعرِّف PascalCase (= قيمة NamedColor C++ للألوان الأساسيّة)"
+    },
+    "member": {
+      "type": "string",
+      "minLength": 1,
+      "description": "اسم العضو العربيّ القانونيّ (= قيمة `ألوان.<member>` نصًّا). غيابه = لون سمة داخليّ"
+    },
+    "rgba": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{8}$",
+      "description": "8 خانات ستّ-عشريّة RRGGBBAA (المصدر الوحيد للقيمة)"
+    },
+    "named_color": {
+      "type": "boolean",
+      "description": "هل يقابل قيمةَ enum NamedColor في المكتبة؟"
+    },
+    "in_enum": {
+      "type": "boolean",
+      "description": "هل يظهر في تعداد `ألوان` للمطوّر؟ (الافتراض true إن وُجد member)"
+    },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 }
+  }
+}

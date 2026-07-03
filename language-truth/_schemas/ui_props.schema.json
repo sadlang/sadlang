@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sadlang.org/schemas/v5/ui_props.schema.json",
+  "title": "SadUI Property Key Schema",
+  "description": "مخطّط عنصر مفتاح خاصّيّة واحد في language-truth/ui_props.yaml",
+  "type": "object",
+  "required": ["id", "canonical", "value_type", "description_ar", "description_en"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "description": "اسم الثابت في C++ (namespace sad::ui::props)"
+    },
+    "canonical": {
+      "type": "string",
+      "minLength": 1,
+      "description": "سلسلة المفتاح العربيّة القانونيّة (تُكتب في IRNode)"
+    },
+    "value_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "نوع القيمة المتوقَّع (نصّ/عدد/منطقيّ/…)"
+    },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "latin_alias": {
+      "type": "boolean",
+      "description": "بديل احتياطيّ لاتينيّ يقرؤه المُرسِّم فقط، لا قانونيّ"
+    }
+  }
+}

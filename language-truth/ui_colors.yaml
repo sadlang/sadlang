@@ -1,0 +1,79 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لألوان SadUI المسمّاة. الهدف (قرار المالك): الألوان
+#      **ليست نصوصًا** يكتبها المطوّر (قابلة للخطأ) بل **أعضاء تعداد** `ألوان.أحمر`
+#      فلا يخطئ الكتابة. يُولَّد من هذا الملفّ:
+#        1. تعداد `ألوان` المدمَج (قيمة العضو = اسمه القانونيّ نصًّا) يُحقَن في
+#           المحرّكين (عبر بادئة مصدر) — يعمل لأنّ قيم التعداد النصّيّة صارت
+#           متكافئةً بين المحرّكين (إصلاح م0).
+#        2. جدول موحَّد «اسم → hex/RGBA» يستبدل الجدولين المتباعدين سابقًا
+#           (features/graphics/core/include/sad_ui/color_utils.h getColorTable
+#           + features/graphics/core/src/types.cpp getColorByName/namedColorToRGBA)
+#           فيزول التباعد الصامت بينهما.
+#
+#      سياسة: **الأسماء العربيّة القانونيّة فقط، لا بدائل** (لا إنجليزيّة ولا صيغتين
+#      لنفس اللون). حُسمت تعارضات الجدولين لصالح **مسار التشغيل (NamedColor)**
+#      لأنّه الحيّ (SDL/المفسّر)، مع ضمّ درجات الويب الإضافيّة كأعضاء جديدة.
+#
+# (EN) Central SoT for SadUI named colors. Colors are a typed enum `ألوان.أحمر`
+#      (not misspellable strings). Generates the builtin `ألوان` enum + a unified
+#      name→hex/RGBA table replacing the two previously divergent tables.
+#      Canonical Arabic only, no aliases. Conflicts resolved to the runtime
+#      (NamedColor) path; web-only shades added as new members.
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+enum: ألوان
+description_ar: ألوان SadUI المسمّاة
+description_en: SadUI named colors
+
+# (AR) الحقول لكلّ لون:
+#   id           — مُعرِّف PascalCase (= قيمة NamedColor C++ للألوان الأساسيّة).
+#   member       — اسم العضو العربيّ القانونيّ (= قيمة `ألوان.<member>` نصًّا).
+#   rgba         — 8 خانات ستّ-عشريّة RRGGBBAA (المصدر الوحيد للقيمة).
+#   named_color  — هل يقابل قيمةَ enum `NamedColor` في المكتبة (الأساسيّة) أم لا
+#                  (درجات الويب المضافة ليست في NamedColor — جدول hex فقط).
+#   description_ar/en
+#
+# (AR) تعارضات محسومة (مسار التشغيل مرجعيّ): ثانوي=43A047 (لا 388E3C)، رمادي_فاتح=
+#   BDBDBD (لا E0E0E0). بدائل مُسقَطة: زهري→وردي، رئيسي→أساسي، خطر→خطأ،
+#   رمادي_داكن→رمادي_غامق، grey→رمادي، وكلّ الإنجليزيّة. ملاحظة: «تأكيد»=«ثانوي»
+#   و«معلومات»=«أساسي» قيمةً (دلالة مختلفة، عضوان متمايزان عمدًا).
+colors:
+  # ─── الأساسيّة (تقابل NamedColor في المكتبة) ───
+  - { id: Black,       member: أسود,        rgba: "000000FF", named_color: true,  description_ar: أسود,            description_en: Black }
+  - { id: White,       member: أبيض,        rgba: "FFFFFFFF", named_color: true,  description_ar: أبيض,            description_en: White }
+  - { id: Red,         member: أحمر,        rgba: "F44336FF", named_color: true,  description_ar: أحمر,            description_en: Red }
+  - { id: Green,       member: أخضر,        rgba: "4CAF50FF", named_color: true,  description_ar: أخضر,            description_en: Green }
+  - { id: Blue,        member: أزرق,        rgba: "2196F3FF", named_color: true,  description_ar: أزرق,            description_en: Blue }
+  - { id: Yellow,      member: أصفر,        rgba: "FFEB3BFF", named_color: true,  description_ar: أصفر,            description_en: Yellow }
+  - { id: Orange,      member: برتقالي,     rgba: "FF9800FF", named_color: true,  description_ar: برتقاليّ,        description_en: Orange }
+  - { id: Purple,      member: بنفسجي,      rgba: "9C27B0FF", named_color: true,  description_ar: بنفسجيّ,         description_en: Purple }
+  - { id: Pink,        member: وردي,        rgba: "E91E63FF", named_color: true,  description_ar: ورديّ,           description_en: Pink }
+  - { id: Brown,       member: بني,         rgba: "795548FF", named_color: true,  description_ar: بنّيّ,           description_en: Brown }
+  - { id: Gray,        member: رمادي,       rgba: "9E9E9EFF", named_color: true,  description_ar: رماديّ,          description_en: Gray }
+  - { id: LightGray,   member: رمادي_فاتح,  rgba: "BDBDBDFF", named_color: true,  description_ar: رماديّ فاتح,     description_en: Light gray }
+  - { id: DarkGray,    member: رمادي_غامق,  rgba: "616161FF", named_color: true,  description_ar: رماديّ غامق,     description_en: Dark gray }
+  - { id: Cyan,        member: سماوي,       rgba: "00BCD4FF", named_color: true,  description_ar: سماويّ,          description_en: Cyan }
+  - { id: Teal,        member: أزرق_مخضر,   rgba: "009688FF", named_color: true,  description_ar: أزرق مخضرّ,      description_en: Teal }
+  - { id: Transparent, member: شفاف,        rgba: "00000000", named_color: true,  description_ar: شفّاف,           description_en: Transparent }
+  - { id: Primary,     member: أساسي,       rgba: "1E88E5FF", named_color: true,  description_ar: أساسيّ (Material), description_en: Primary (Material) }
+  - { id: Secondary,   member: ثانوي,       rgba: "43A047FF", named_color: true,  description_ar: ثانويّ (Material), description_en: Secondary (Material) }
+  - { id: Surface,     member: سطح,         rgba: "FFFFFFFF", named_color: true,  description_ar: سطح,             description_en: Surface }
+  - { id: Background,  member: خلفية,       rgba: "FAFAFAFF", named_color: true,  description_ar: خلفيّة,          description_en: Background }
+  - { id: Error,       member: خطأ,         rgba: "E53935FF", named_color: true,  description_ar: خطأ,             description_en: Error }
+  # ─── درجات الويب المضافة (صارت في NamedColor — تُرسَم أصلاً على سطح المكتب) ───
+  - { id: LightBlue,   member: أزرق_فاتح,   rgba: "03A9F4FF", named_color: true,  description_ar: أزرق فاتح,       description_en: Light blue }
+  - { id: DarkBlue,    member: أزرق_داكن,   rgba: "1565C0FF", named_color: true,  description_ar: أزرق داكن,       description_en: Dark blue }
+  - { id: LightGreen,  member: أخضر_فاتح,   rgba: "8BC34AFF", named_color: true,  description_ar: أخضر فاتح,       description_en: Light green }
+  - { id: DarkGreen,   member: أخضر_داكن,   rgba: "2E7D32FF", named_color: true,  description_ar: أخضر داكن,       description_en: Dark green }
+  - { id: Success,     member: تأكيد,       rgba: "43A047FF", named_color: true,  description_ar: تأكيد (نجاح),    description_en: Success }
+  - { id: Warning,     member: تحذير,       rgba: "FB8C00FF", named_color: true,  description_ar: تحذير,           description_en: Warning }
+  - { id: Info,        member: معلومات,     rgba: "1E88E5FF", named_color: true,  description_ar: معلومات,         description_en: Info }
+  # ─── ألوان السمة الداخليّة (تقابل NamedColor لكن بلا اسمٍ للمطوّر: in_enum=false) ───
+  #     تُدرَج ليُولَّد namedColorToRGBA كاملًا من المصدر (قيمٌ مطابقة للحاليّ، بلا كسر).
+  #     grey = مرادف Gray في enum المكتبة (لا اسم عربيّ — البديل «grey» مُسقَط).
+  - { id: Grey,        rgba: "9E9E9EFF", named_color: true, in_enum: false, description_ar: رماديّ (مرادف enum), description_en: Grey (enum synonym) }
+  - { id: OnPrimary,   rgba: "FFFFFFFF", named_color: true, in_enum: false, description_ar: على الأساسيّ,   description_en: On primary }
+  - { id: OnSecondary, rgba: "FFFFFFFF", named_color: true, in_enum: false, description_ar: على الثانويّ,   description_en: On secondary }
+  - { id: OnSurface,   rgba: "212121FF", named_color: true, in_enum: false, description_ar: على السطح,      description_en: On surface }
+  - { id: OnBackground, rgba: "212121FF", named_color: true, in_enum: false, description_ar: على الخلفيّة,  description_en: On background }
+  - { id: OnError,     rgba: "FFFFFFFF", named_color: true, in_enum: false, description_ar: على الخطأ,      description_en: On error }

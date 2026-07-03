@@ -76,6 +76,11 @@ target_include_directories(sad_interpreter
         # (EN) Phase F-XX: core runtime headers in shared/builtins/include/runtime/
         ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
         ${CMAKE_SOURCE_DIR}/stdlib
+        # (AR) هيدرات مكتبة الرسومات المولَّدة (تعداد الألوان المدمَج): يضمّها
+        #      interpreter_core.cpp لتسجيل «ألوان». هيدر ورقيّ ذاتيّ الاكتفاء بلا
+        #      اعتماد ربط (نظير sad_interp في cmake/libraries.cmake).
+        # (EN) SoT-generated graphics headers (builtin color enum) — header-only.
+        ${CMAKE_SOURCE_DIR}/features/graphics/core/include
 )
 
 # (AR) للتوافق مع الكود القديم / (EN) Legacy include paths for backward compatibility

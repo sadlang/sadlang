@@ -7,10 +7,14 @@
  * أدوات تحويل الألوان العربية لجميع المنصات.
  *
  * توفر:
- * - arabicColorToHex: تحويل "أزرق" → "#2196F3"
+ * - arabicColorToHex: تحويل "أزرق" → "#2196F3" (الجدول مولَّد من ui_colors.yaml)
  * - arabicColorToKotlin: تحويل "أزرق" → "Color(0xFF2196F3)"
  * - arabicColorToSwift: تحويل "أزرق" → "Color.blue"
  * - arabicColorToCSS: تحويل "أزرق" → "#2196F3"
+ *
+ * ملاحظة: أسماء الألوان قانونيّة عربيّة فقط (لا بدائل إنجليزيّة — أُزيلت مع توحيد
+ *   الجدول من مصدر الحقيقة). ⚠️ دَينٌ متبقٍّ: swiftNames أدناه ما زالت يدويّة
+ *   (رموز SwiftUI خارج مصدر الحقيقة) — تُولَّد لاحقًا عند إضافة swift_name للـSoT.
  *
  * حقوق النشر (c) 2024-2026 فريق لغة ص
  * ═══════════════════════════════════════════════════════════════════════════════
@@ -24,71 +28,22 @@
 #include <optional>
 #include <vector>
 
+// (AR) جدول الأسماء→hex مولَّد من مصدر الحقيقة (language-truth/ui_colors.yaml) —
+//   لا سلاسلَ عربيّةً خامًّا هنا (كانت خطر ترميز MSVC)، ولا بدائلَ إنجليزيّة.
+#include "sad_ui/generated/color_table_generated.h"
+
 namespace sad {
 namespace ui {
 
 /**
- * @brief جدول الألوان: اسم عربي/إنجليزي → قيمة HEX
+ * @brief (AR) جدول الألوان: اسم عربيّ قانونيّ → قيمة HEX — مولَّد من SoT.
+ * @brief (EN) Color table: canonical Arabic name → HEX — generated from the SoT.
  */
 inline const std::unordered_map<std::string, std::string>& getColorTable() {
     static const std::unordered_map<std::string, std::string> colors = {
-        // الألوان الأساسية (عربي)
-        {"أبيض", "#FFFFFF"},
-        {"أسود", "#000000"},
-        {"أحمر", "#F44336"},
-        {"أخضر", "#4CAF50"},
-        {"أزرق", "#2196F3"},
-        {"أصفر", "#FFEB3B"},
-        {"برتقالي", "#FF9800"},
-        {"بنفسجي", "#9C27B0"},
-        {"زهري", "#E91E63"},
-        {"رمادي", "#9E9E9E"},
-        {"بني", "#795548"},
-        {"سماوي", "#00BCD4"},
-        
-        // درجات الألوان (عربي)
-        {"أزرق_فاتح", "#03A9F4"},
-        {"أزرق_داكن", "#1565C0"},
-        {"أخضر_فاتح", "#8BC34A"},
-        {"أخضر_داكن", "#2E7D32"},
-        {"رمادي_فاتح", "#E0E0E0"},
-        {"رمادي_داكن", "#616161"},
-        
-        // ألوان Material Design (عربي)
-        {"رئيسي", "#1E88E5"},
-        {"ثانوي", "#388E3C"},
-        {"تأكيد", "#43A047"},
-        {"خطر", "#E53935"},
-        {"تحذير", "#FB8C00"},
-        {"معلومات", "#1E88E5"},
-        
-        // الألوان الإنجليزية
-        {"white", "#FFFFFF"},
-        {"black", "#000000"},
-        {"red", "#F44336"},
-        {"green", "#4CAF50"},
-        {"blue", "#2196F3"},
-        {"yellow", "#FFEB3B"},
-        {"orange", "#FF9800"},
-        {"purple", "#9C27B0"},
-        {"pink", "#E91E63"},
-        {"gray", "#9E9E9E"},
-        {"grey", "#9E9E9E"},
-        {"brown", "#795548"},
-        {"cyan", "#00BCD4"},
-        {"teal", "#009688"},
-        {"amber", "#FFC107"},
-        {"indigo", "#3F51B5"},
-        {"lime", "#CDDC39"},
-        
-        // Material colors (English)
-        {"primary", "#1E88E5"},
-        {"secondary", "#388E3C"},
-        {"success", "#43A047"},
-        {"error", "#E53935"},
-        {"warning", "#FB8C00"},
-        {"info", "#1E88E5"},
-        {"danger", "#E53935"},
+#define X(name, hex) {name, hex},
+        SAD_UI_COLOR_NAME_HEX(X)
+#undef X
     };
     return colors;
 }
@@ -144,7 +99,7 @@ inline std::string arabicColorToSwift(const std::string& colorName) {
         {"أصفر", "Color.yellow"},
         {"برتقالي", "Color.orange"},
         {"بنفسجي", "Color.purple"},
-        {"زهري", "Color.pink"},
+        {"وردي", "Color.pink"},
         {"رمادي", "Color.gray"},
         {"سماوي", "Color.cyan"},
         {"white", "Color.white"},

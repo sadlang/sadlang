@@ -1,0 +1,47 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لمنحنيات تسارع حركة SadUI — الأسماء التي يكتبها
+#      مطوّر ص وسيطًا نصّيًّا: `.منحنى("مرن")`، `.منحنى("خطي")` …
+#      يُولَّد منه sad_ui/generated/easing_vocab_generated.h عبر gen_ui_vocab.py،
+#      وتستهلكه دوالّ المكتبة (stringToEasingCurve/easingCurveToString في ir.h).
+#
+#      سياسة: الأسماء العربيّة القانونيّة فقط، بلا تشكيل، لا بدائل إنجليزيّة.
+#      المفردة وسيطٌ نصّيّ (تُجرَّد في المكتبة قبل المطابقة). المخطّط يمنع البدائل.
+#
+# (EN) Central SoT for SadUI easing curve names. Generates easing_vocab_generated.h
+#      consumed by the library mappers in ir.h. Canonical Arabic only, no aliases.
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+macro: SAD_UI_EASING_VOCAB
+enum: EasingCurve
+description_ar: منحنيات تسارع حركة SadUI
+description_en: SadUI animation easing curves
+
+entries:
+  - id: Linear
+    canonical: خطي
+    description_ar: خطّيّ — سرعة ثابتة
+    description_en: Linear — constant speed
+  - id: EaseIn
+    canonical: تسارع
+    description_ar: تسارع — بطيء ثمّ سريع
+    description_en: Ease in — slow then fast
+  - id: EaseOut
+    canonical: تباطؤ
+    description_ar: تباطؤ — سريع ثمّ بطيء
+    description_en: Ease out — fast then slow
+  - id: EaseInOut
+    canonical: تسارع_وتباطؤ
+    description_ar: تسارع وتباطؤ — بطيء ثمّ سريع ثمّ بطيء
+    description_en: Ease in-out — slow, fast, then slow
+  - id: Bounce
+    canonical: ارتداد
+    description_ar: ارتداد — ارتداد في النهاية
+    description_en: Bounce — bounces at the end
+  - id: Elastic
+    canonical: مرن
+    description_ar: مرن — تمدّد مرن في النهاية
+    description_en: Elastic — elastic stretch at the end
+  - id: Spring
+    canonical: نابض
+    description_ar: نابض — فيزيائيّ نابضيّ
+    description_en: Spring — spring physics

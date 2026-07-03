@@ -2,7 +2,7 @@
 ============================================================================
 (AR) test_xpy_codegen_guard.py — اختبارات حارس انجراف المصدر المولَّد
      (المرحلة 1 من sadlang-rfcs#10). يثبّت عقد `x.py gen --check`:
-       - جدول النطاقات يغطّي الملفّات الستّة المولَّدة بالضبط، وكل مولّد موجود.
+       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (13 ملفًّا)، وكل مولّد موجود.
        - منطق القرار (تطبيع نهايات الأسطر) يتجاهل CRLF↔LF ويلتقط فرق المحتوى.
        - الحارس يمرّ على الشجرة النظيفة (تكامل: وسائط الجدول صحيحة + لا انحراف).
 (EN) Tests for the generated-source drift guard (Phase 1 of sadlang-rfcs#10).
@@ -33,7 +33,9 @@ def _load_xpy():
 
 xpy = _load_xpy()
 
-# (AR) الملفّات الستّة المولَّدة التي يحرسها x.py gen --check (مصدر الحقيقة = YAML).
+# (AR) الملفّات المولَّدة التي يحرسها x.py gen --check (مصدر الحقيقة = YAML).
+#   الأربعة الأصليّة (types/keywords/builtins/errors) + نطاقات الواجهة الستّة
+#   (ui_props/ui_modifiers + مفردات animations/easings/events + colors).
 EXPECTED_OUTPUTS = {
     "shared/types/generated/sad_type_kind_generated.h",
     "shared/lexer/generated/keywords_generated.h",
@@ -41,10 +43,17 @@ EXPECTED_OUTPUTS = {
     "shared/builtins/generated/builtin_registry_generated.h",
     "shared/errors/generated/error_messages_generated.h",
     "shared/errors/generated/error_messages_generated.cpp",
+    "features/graphics/core/include/sad_ui/prop_keys.h",
+    "features/graphics/core/include/sad_ui/ui_modifiers.h",
+    "features/graphics/core/include/sad_ui/generated/animation_vocab_generated.h",
+    "features/graphics/core/include/sad_ui/generated/easing_vocab_generated.h",
+    "features/graphics/core/include/sad_ui/generated/event_vocab_generated.h",
+    "features/graphics/core/include/sad_ui/generated/color_prelude_generated.h",
+    "features/graphics/core/include/sad_ui/generated/color_table_generated.h",
 }
 
 
-def test_domain_table_covers_exactly_the_six_files():
+def test_domain_table_covers_exactly_the_expected_files():
     covered = {
         f"{d['out_dir']}/{fname}"
         for d in xpy.CODEGEN_DOMAINS

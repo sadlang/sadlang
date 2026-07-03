@@ -68,6 +68,21 @@ namespace Sad
                             }
                         }
                     }
+
+                    // (AR) عضو تعداد بقيمة نصّيّة صريحة (مثل «ألوان.أحمر») — فحصٌ
+                    //   مبكّر **قبل** بناء الكائن، لأنّ اسم التعداد ليس متغيّرًا وبناؤه
+                    //   يدفع «Undefined variable» زائفًا إلى errors_ (نظير فحص فضاء
+                    //   الأسماء أعلاه). يُعاد ثابتًا نصّيًّا مطابقًا لليترال (تكافؤ).
+                    // (EN) String-valued enum member (e.g. ألوان.أحمر) — checked BEFORE
+                    //   building the object (the enum name is not a variable; building it
+                    //   would push a spurious "Undefined variable" into errors_).
+                    {
+                        auto sit = b_.enumStringConstants_.find(varExpr->name + "." + memberExpr->member);
+                        if (sit != b_.enumStringConstants_.end())
+                        {
+                            return BuildResult(sit->second, SadTypeKind::String, true);
+                        }
+                    }
                 }
 
                 // (AR) الخطوة 1: بناء تعبير الكائن
@@ -87,6 +102,9 @@ namespace Sad
                     if (!objName.empty())
                     {
                         std::string fullName = objName + "." + memberExpr->member;
+
+                        // (AR) ملاحظة: ثوابت التعداد النصّيّة (ألوان.أحمر) تُفحَص مبكّرًا
+                        //   أعلاه (قبل بناء الكائن) لتفادي تلويث errors_.
 
                         // (AR) الخطوة 1.25أ: فحص ما إذا كان unit variant في تعداد جبري (ADT)
                         // (EN) Step 1.25a: Check if this is a unit variant in an ADT enum
