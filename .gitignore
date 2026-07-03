@@ -2,7 +2,7 @@
 # .gitignore — لغة ص / Sad Programming Language
 # ════════════════════════════════════════════════════════════════
 
-# ── مجلدات البناء / Build directories ──
+# ── مجلّدات البناء / Build directories ──
 # (AR) مُرسًى بالجذر عمدًا: النمط غير المُرسى كان يتجاهل ملفّات جديدة تحت tools/build/ (مصادر حيّة) صامتًا
 # (EN) Anchored to root on purpose: the unanchored pattern silently ignored new files under tools/build/ (live sources)
 /build/
@@ -16,7 +16,7 @@ cmake-build-*/
 dist/
 _xpy_build.log
 
-# ── ملفات مُجمَّعة / Compiled files ──
+# ── ملفّات مُجمَّعة / Compiled files ──
 *.exe
 *.lib
 *.pdb
@@ -29,7 +29,7 @@ _xpy_build.log
 *.ilk
 *.exp
 
-# ── ملفات IDE ──
+# ── ملفّات IDE / IDE files ──
 .vs/
 .vscode/settings.json
 .vscode/c_cpp_properties.json
@@ -46,10 +46,10 @@ CMakeFiles/
 cmake_install.cmake
 _deps/
 
-# ── سجلات / Logs ──
+# ── سجلّات / Logs ──
 *.log
 
-# ── ملفات مؤقتة / Temporary files ──
+# ── ملفّات مؤقّتة / Temporary files ──
 *.tmp
 *.temp
 *.swp
@@ -59,7 +59,7 @@ _deps/
 *.new
 *~
 
-# ── مجلد الملفات المؤقتة للتجارب / Scratch directory ──
+# ── مجلّد الملفّات المؤقّتة للتجارب / Scratch directory ──
 _scratch/
 
 # ── التقارير المؤقّتة: تُحفَظ خارج المستودع (على القرص) لا في git ──
@@ -70,7 +70,7 @@ _scratch/
 # ── مخرجات BMAD / BMAD outputs ──
 # (متتبَّعة في git — حوكمة BMAD جزء من المستودع / tracked: BMAD governance is part of the repo)
 
-# ── مخرجات بناء واختبار في الجذر ──
+# ── مخرجات بناء واختبار في الجذر / Root build & test outputs ──
 build_*.txt
 test_*.txt
 test_*.xml
@@ -82,16 +82,16 @@ sadc_build_log*.txt
 CMakeLists.txt.new
 CMakeLists.txt.backup
 
-# ── ملفات LLVM IR مؤقتة ──
+# ── ملفّات LLVM IR مؤقّتة / Temporary LLVM IR files ──
 *.ll
 !examples/**/*.ll
 !docs/**/*.ll
 
-# ── ملفات تنفيذ تجريبية في الجذر ──
+# ── ملفّات تنفيذ تجريبيّة في الجذر / Experimental executables at root ──
 /*.exe
 /*.so
 
-# ── سكربتات مؤقتة في الجذر ──
+# ── سكربتات مؤقّتة في الجذر / Temporary root scripts ──
 /fix*.py
 /read_*.py
 /tmp_*.py
@@ -100,12 +100,12 @@ CMakeLists.txt.backup
 /tmp_*.js
 !build_wasm.ps1
 
-# ── ملفات أخرى مؤقتة ──
+# ── ملفّات أخرى مؤقّتة / Other temporary files ──
 *.ppm
 *.rsp
 *.bc
 
-# ── ملفات debug و trace ──
+# ── ملفّات debug وtrace / Debug & trace files ──
 *_debug.txt
 *_trace.txt
 *_err.txt
@@ -118,14 +118,14 @@ out*.txt
 res*.txt
 trace*.txt
 
-# ── مخرجات SIR ──
+# ── مخرجات SIR / SIR outputs ──
 sir_*.txt
 *.sir
 
 # ── مخرجات أداة التنسيق / Formatter output ──
 fmt_*.txt
 
-# ── ملفات اختبار مترجم ──
+# ── ملفّات اختبار المترجم / Compiler test files ──
 comp_*.txt
 exc_*.txt
 fin_*.txt
@@ -134,7 +134,7 @@ fin_*.txt
 *.apk
 *.ipa
 
-# ── حزم خارجية ──
+# ── حزم خارجيّة / External packages ──
 node_modules/
 __pycache__/
 *.pyc
@@ -145,7 +145,7 @@ __pycache__/
 Thumbs.db
 Desktop.ini
 
-# ── ملفات تجريبية في الجذر ──
+# ── ملفّات تجريبيّة في الجذر / Experimental files at root ──
 /_*
 # استثناء: مخرجات حوكمة BMAD متتبَّعة في git / exception: BMAD governance tracked
 !/_bmad-output/
@@ -154,7 +154,7 @@ Desktop.ini
 /E[0-9]*_*.ll
 /test_*.exe
 
-# ── build/ outputs from individual test files ──
+# ── مخرجات build/ لملفّات الاختبار المنفردة / build/ outputs from individual test files ──
 build/_*.ص
 build/_*.ll
 build/_*.sir
@@ -162,5 +162,11 @@ build/_*.txt
 build/_*.log
 build/_*.json
 
-# (AR) أثر تشغيل REPL (تاريخ الأوامر) — لا يُتعقَّب
+# (AR) أثر تشغيل REPL (تاريخ الأوامر) — لا يُتعقَّب / (EN) REPL run artifact (command history) — untracked
 .sad_history
+
+# (AR) خبيئة VitePress — لا مصدر موقع في هذا المستودع / (EN) VitePress cache — no site source lives here
+.vitepress/
+
+# (AR) إعدادات Claude Code المحلّيّة الشخصيّة / (EN) Personal local Claude Code settings
+.claude/settings.local.json

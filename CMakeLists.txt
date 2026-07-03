@@ -1,21 +1,21 @@
 # ======================================================================
-# CMakeLists.txt - لغة ص البرمجية / Sad Programming Language
+# CMakeLists.txt - لغة ص البرمجيّة / Sad Programming Language
 # ======================================================================
 # الوصف / Description:
-#   ملف بناء CMake الرئيسي لمشروع لغة ص البرمجية العربية
+#   ملفّ بناء CMake الرئيسيّ لمشروع لغة ص البرمجيّة العربيّة
 #   Main CMake build file for Sad Arabic Programming Language project
 #
 # المتطلبات / Requirements:
 #   - CMake 3.15 أو أحدث / or newer
 #   - مترجم C++17 / C++17 compatible compiler
-#   - مكتبات النظام الأساسية / System standard libraries
+#   - مكتبات النظام الأساسيّة / System standard libraries
 #
 # الاستخدام / Usage:
 #   cmake -S . -B build
 #   cmake --build build --config Debug
 #
 # البنية / Structure:
-#   cmake/llvm.cmake              - إعدادات LLVM الاختيارية
+#   cmake/llvm.cmake              - إعدادات LLVM الاختياريّة
 #   cmake/platform.cmake          - خيارات المنصة والمترجم
 #   cmake/sources.cmake           - تعريفات ملفات المصدر
 #   cmake/libraries.cmake         - المكتبات (sad_interp, sad_runtime, graphics)
@@ -33,11 +33,11 @@ cmake_minimum_required(VERSION 3.15)
 # ══════════════════════════════════════════════════════════════════════
 project(SadLanguage
     VERSION 1.0.0
-    DESCRIPTION "لغة ص - لغة برمجة عربية حديثة / Sad - Modern Arabic Programming Language"
+    DESCRIPTION "لغة ص - لغة برمجة عربيّة حديثة / Sad - Modern Arabic Programming Language"
     LANGUAGES C CXX
 )
 
-# Beta version suffix (for display/packaging)
+# (AR) لاحقة إصدار بيتا (للعرض والتغليف) / (EN) Beta version suffix (for display/packaging)
 set(SAD_VERSION_SUFFIX "-beta.1")
 
 # ══════════════════════════════════════════════════════════════════════
@@ -58,13 +58,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # خيارات البناء / Build Options
 # ══════════════════════════════════════════════════════════════════════
 option(BUILD_TESTS "بناء الاختبارات / Build tests" OFF)
-# (AR) TEST-005 T1.3: اختبارات الشبكة تجري نداءات خارجية — معزولة خلف علم
-#      افتراضيه OFF حتى لا تُفشِل CI بأسباب بيئية (Architecture §9)
+# (AR) TEST-005 T1.3: اختبارات الشبكة تجري نداءات خارجيّة — معزولة خلف علم
+#      افتراضيّه OFF حتى لا تُفشِل CI بأسباب بيئيّة (Architecture §9)
 # (EN) TEST-005 T1.3: network tests make external calls — isolated behind a
 #      flag (default OFF) so environment issues never fail CI (Architecture §9)
-option(SAD_ENABLE_NETWORK_TESTS "تفعيل اختبارات الشبكة الخارجية / Enable external network tests" OFF)
+option(SAD_ENABLE_NETWORK_TESTS "تفعيل اختبارات الشبكة الخارجيّة / Enable external network tests" OFF)
 option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
-option(ENABLE_DEBUG_LOGGING "تفعيل سجلات التنقيح / Enable debug logging" OFF)
+option(ENABLE_DEBUG_LOGGING "تفعيل سجلّات التنقيح / Enable debug logging" OFF)
 option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" ON)
 option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
 option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
@@ -73,33 +73,34 @@ option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
 # تحميل وحدات CMake / Load CMake Modules
 # ══════════════════════════════════════════════════════════════════════
 
-# 1. إعدادات LLVM الاختيارية (يجب أن تأتي قبل reorganized.cmake) / Optional LLVM Configuration
+# 1. إعدادات LLVM الاختياريّة (يجب أن تأتي قبل cmake/core_components.cmake)
+#    / Optional LLVM configuration (must precede cmake/core_components.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/llvm.cmake)
 
 # 1.5. yaml-cpp الاختيارية لـ sadinfo / Optional yaml-cpp for sadinfo
-# (AR) يجب أن تُحمَّل قبل reorganized.cmake/tools.cmake لتعريف SAD_HAS_YAML_CPP
+# (AR) يجب أن تُحمَّل قبل cmake/core_components.cmake وtools.cmake لتعريف SAD_HAS_YAML_CPP
 #      و target yaml-cpp قبل أن يتحقق منها tools/sadinfo/CMakeLists.txt.
-# (EN) Must load before reorganized.cmake/tools.cmake to define SAD_HAS_YAML_CPP
+# (EN) Must load before cmake/core_components.cmake and tools.cmake to define SAD_HAS_YAML_CPP
 #      and the yaml-cpp target before tools/sadinfo/CMakeLists.txt checks them.
 include(${CMAKE_SOURCE_DIR}/cmake/yaml_cpp.cmake)
 
 # 2. إعدادات المنصة (preprocessor, warnings) / Platform Configuration
-# (AR) يجب تحميلها قبل reorganized.cmake لتنتشر الخيارات إلى المجلدات الفرعية
-# (EN) Must be loaded before reorganized.cmake so options propagate to subdirectories
+# (AR) يجب تحميلها قبل cmake/core_components.cmake لتنتشر الخيارات إلى المجلّدات الفرعيّة
+# (EN) Must be loaded before cmake/core_components.cmake so options propagate to subdirectories
 include(${CMAKE_SOURCE_DIR}/cmake/platform.cmake)
 
 # ══════════════════════════════════════════════════════════════════════
 # توافق MSVC مع LLVM Release فقط
 # MSVC compatibility with Release-only LLVM
 # ══════════════════════════════════════════════════════════════════════
-# (AR) عند تفعيل وضع التوافق، يجب توحيد Runtime على /MD لكل الأهداف
+# (AR) عند تفعيل وضع التوافق، يجب توحيد Runtime على /MD لكلّ الأهداف
 #      حتى لا تظهر رموز Debug CRT مثل __imp__calloc_dbg أثناء الربط.
 # (EN) In compatibility mode, force /MD runtime for all targets
 #      to avoid Debug CRT symbols like __imp__calloc_dbg at link time.
 if(MSVC AND ENABLE_LLVM_BACKEND AND SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "MSVC runtime library" FORCE)
 
-    # (AR) في Debug نلغي تعريف _DEBUG ونوحد STL debug iterators مع Release.
+    # (AR) في Debug نلغي تعريف _DEBUG ونوحّد STL debug iterators مع Release.
     # (EN) In Debug, undefine _DEBUG and align STL debug iterators with Release.
     add_compile_options($<$<CONFIG:Debug>:/U_DEBUG>)
     add_compile_definitions(
@@ -112,27 +113,27 @@ if(MSVC AND ENABLE_LLVM_BACKEND AND SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
 endif()
 
 # ══════════════════════════════════════════════════════════════════════
-# تضمين المكونات الفرعية المعاد تنظيمها
-# Include reorganized sub-components (shared/, interpreter/, compiler/)
+# تضمين المكوّنات الفرعيّة الرئيسيّة
+# Include core sub-components (shared/, interpreter/, compiler/)
 # ══════════════════════════════════════════════════════════════════════
-include(${CMAKE_SOURCE_DIR}/reorganized.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/core_components.cmake)
 
 # ══════════════════════════════════════════════════════════════════════
 # وحدات إضافية / Additional Modules
 # ══════════════════════════════════════════════════════════════════════
 
-# 3. مجلدات التضمين / Include Directories
+# 3. مجلّدات التضمين / Include Directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/features/network/core
     ${CMAKE_SOURCE_DIR}/stdlib
-    # (AR) Phase F-XX: أعيدت هيكلة shared/builtins/ إلى include/runtime + src/runtime
+    # (AR) Phase F-XX: أُعيدت هيكلة shared/builtins/ إلى include/runtime + src/runtime
     # (EN) Phase F-XX: shared/builtins/ restructured to include/runtime + src/runtime
     ${CMAKE_SOURCE_DIR}/shared/builtins/include/runtime
     ${CMAKE_SOURCE_DIR}/stdlib/low_level/include
     ${CMAKE_SOURCE_DIR}/stdlib/mobile
     ${CMAKE_SOURCE_DIR}/compiler/frontend/include
-    # البنية المعاد تنظيمها / Reorganized structure
+    # البنية المُعاد تنظيمها / Reorganized structure
     ${CMAKE_SOURCE_DIR}/shared/utils/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/parser/include
@@ -157,7 +158,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/compiler/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler/include/backend
     ${CMAKE_SOURCE_DIR}/compiler/include/types
-    # (AR) مسار include/optimizer أُزيل — المجلد محذوف بعد توحيد passes في middle/
+    # (AR) مسار include/optimizer أُزيل — المجلّد محذوف بعد توحيد passes في middle/
     # (EN) include/optimizer path removed — folder deleted after unifying passes in middle/
     # (AR) مسارات include لوضع Freestanding
     # (EN) Include paths for Freestanding mode
@@ -166,7 +167,7 @@ include_directories(
 )
 
 # 3.9. توليد كود المعجم من YAML / Keyword codegen from YAML (v4.1)
-# (AR) يجب أن يسبق sources.cmake لأنه ينتج keywords_generated.{h,cpp}
+# (AR) يجب أن يسبق sources.cmake لأنّه يُنتج keywords_generated.{h,cpp}
 # (EN) Must run before sources.cmake — it produces keywords_generated.{h,cpp}
 include(${CMAKE_SOURCE_DIR}/cmake/codegen.cmake)
 
@@ -179,7 +180,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/libraries.cmake)
 # 6. مكتبات الشبكات / Networking Libraries (TCP/UDP, HTTP, WebSocket)
 include(${CMAKE_SOURCE_DIR}/cmake/network.cmake)
 
-# 6.5. صNet — مكتبة الشبكات اللامركزية / SadNet Decentralized Networking
+# 6.5. صNet — مكتبة الشبكات اللامركزيّة / SadNet Decentralized Networking
 include(${CMAKE_SOURCE_DIR}/cmake/sadnet.cmake)
 
 # 7. مكتبات الدعم التنفيذيّة / Executable-support libs (sad_mobile, flush_smoke)
@@ -203,7 +204,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/tests_comprehensive.cmake)
 # 11. اختبارات التنفيذ المزدوج / Dual Execution Tests (ADR-03)
 include(${CMAKE_SOURCE_DIR}/cmake/dual_tests.cmake)
 
-# 11.b اختبارات استخراج التوثيق المزدوج / Doc Generation Dual Tests (sad ↔ sadc)
+# 11-ب. اختبارات استخراج التوثيق المزدوج / Doc Generation Dual Tests (sad ↔ sadc)
 include(${CMAKE_SOURCE_DIR}/cmake/doc_gen_dual_tests.cmake)
 
 # 12. WebAssembly (اختياري) / WebAssembly (optional)
@@ -211,12 +212,12 @@ if(BUILD_WASM)
     include(${CMAKE_SOURCE_DIR}/cmake/wasm.cmake)
 endif()
 
-# 13. قواعد التثبيت و CPack / Install Rules & CPack
+# 13. قواعد التثبيت وCPack / Install Rules & CPack
 include(${CMAKE_SOURCE_DIR}/cmake/install.cmake)
 
 # 14. حارس الملفات اليتيمة / Orphan Sources Guard
-#     (AR) يفشل البناء إذا وُجد .cpp في compiler/src أو interpreter/src أو vm/src
-#          غير مذكور في أي target. يمنع تراكم الكود الميت.
+#     (AR) يفشل البناء إذا وُجد .cpp في compiler/src أو interpreter/src
+#          غير مذكور في أيّ target. يمنع تراكم الكود الميت.
 #     (EN) Fails build on orphan .cpp files. Prevents dead code accumulation.
 include(${CMAKE_SOURCE_DIR}/cmake/orphan_sources_guard.cmake)
 sad_check_orphan_sources()
@@ -225,14 +226,14 @@ sad_check_orphan_sources()
 # الأمثلة / Examples
 # ══════════════════════════════════════════════════════════════════════
 if(BUILD_EXAMPLES)
-    message(STATUS "✓ الأمثلة مفعلة / Examples enabled")
+    message(STATUS "✓ الأمثلة مُفعَّلة / Examples enabled")
 endif()
 
 # ══════════════════════════════════════════════════════════════════════
 # رسائل التأكيد / Confirmation Messages
 # ══════════════════════════════════════════════════════════════════════
 message(STATUS "══════════════════════════════════════════════════")
-message(STATUS "  لغة ص البرمجية / Sad Programming Language")
+message(STATUS "  لغة ص البرمجيّة / Sad Programming Language")
 message(STATUS "══════════════════════════════════════════════════")
 message(STATUS "  الإصدار / Version:        ${PROJECT_VERSION}")
 message(STATUS "  معيار C++ / C++ Standard: C++${CMAKE_CXX_STANDARD}")
@@ -244,10 +245,10 @@ message(STATUS "  الاختبارات / Tests:       ${BUILD_TESTS}")
 message(STATUS "══════════════════════════════════════════════════")
 
 # ══════════════════════════════════════════════════════════════════════
-# ملاحظات للمطورين / Developer Notes
+# ملاحظات للمطوّرين / Developer Notes
 # ══════════════════════════════════════════════════════════════════════
-# - جميع الملفات يجب أن تكون UTF-8 لدعم العربية / All files must be UTF-8
-# - استخدم debugPrint() بدلاً من std::cout / Use debugPrint() instead of std::cout
+# - جميع الملفّات يجب أن تكون UTF-8 لدعم العربيّة / All files must be UTF-8
+# - استخدم debugPrint() بدلًا من std::cout / Use debugPrint() instead of std::cout
 # - شغّل الاختبارات قبل الإيداع / Run tests before committing:
 #     cmake --build build --config Debug --target comprehensive_tests
 #     ctest --test-dir build -R Comprehensive
