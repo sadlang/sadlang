@@ -20,10 +20,11 @@
 | 8 | نموذج الدخول | `index.html` + `app.js` | إرسال `{username, password}` بدلاً من `{email, password}` |
 | 9 | تصنيفات الواجهة | `index.html` | استخدام slugs إنجليزية (`network`, `math`...) تطابق الخادم |
 | 10 | أمان api_token | `user-service.js` + `auth.js` | تخزين SHA-256 hash بدلاً من نص عادي |
-| 11 | URL المستودع | `package_search.h` + `package_manager.cpp` | توحيد إلى `http://185.47.174.39:3000` |
+| 11 | URL المستودع | `package_search.h` + `package_manager.cpp` | توحيد إلى عنوان سجل واحد (الحالي: `https://sila-hub.dev` — انظر #15) |
 | 12 | حذف v1 | `cli.cpp` + `registry_client.h` | ملفات محذوفة |
 | 13 | حذف v3 | `src/registry_client.cpp` + `src/registry_client.hpp` | ملفات محذوفة |
 | 14 | تنظيف كود ميت | `tools/pkg/src/` | حذف المجلد بالكامل (غير مبني في CMake) |
+| 15 | توحيد URL + TLS | `registry_client_v2.h` + `cli_v2.cpp` + `compiler_driver_pkg.cpp` + `publish_libs.ps1` | استبدال عنوان الـIP القديم (`http://<ip>:3000`) بـ`https://sila-hub.dev` وتوحيد الثابت في `sad::pkg::DEFAULT_REGISTRY_URL` مع تجاوز `SAD_REGISTRY_URL` |
 
 ---
 
@@ -33,13 +34,13 @@
 
 | الملف | النسخة | المكتبات | Registry URL الافتراضي |
 |-------|--------|----------|----------------------|
-| `registry_client.h` | v1 | libcurl + nlohmann/json | `http://185.47.174.39:3000` |
-| `registry_client_v2.h` | v2 | WinHTTP (بدون تبعيات خارجية) | `http://185.47.174.39:3000` |
-| `src/registry_client.cpp` | v3? | libcurl + nlohmann/json | `https://packages.sad-lang.org` |
-| `include/package_search.h` | — | — | `https://registry.sad-pkg.org` |
-| `src/package_manager.cpp` | — | — | `https://packages.sad-lang.org` |
+| `registry_client.h` | v1 | libcurl + nlohmann/json | *(حُذف — إصلاح #12)* |
+| `registry_client_v2.h` | v2 | WinHTTP/curl (بدون تبعيات خارجية) | `https://sila-hub.dev` |
+| `src/registry_client.cpp` | v3? | libcurl + nlohmann/json | *(حُذف — إصلاح #13)* |
+| `include/package_search.h` | — | — | `https://sila-hub.dev` |
+| `src/package_manager.cpp` | — | — | *(حُذف — إصلاح #14)* |
 
-**⛔ مشكلة حرجة #1:** ثلاثة عناوين مختلفة للمستودع في الكود!
+**✅ مشكلة حرجة #1 (مُغلقة):** كانت ثلاثة عناوين مختلفة للمستودع في الكود — وُحِّدت إلى `https://sila-hub.dev` عبر الثابت `sad::pkg::DEFAULT_REGISTRY_URL` (إصلاح #15).
 
 ### 1.2 أوامر CLI
 
@@ -287,7 +288,7 @@ Node.js >= 18 (--experimental-sqlite)
 10. **CORS مفتوح للجميع:** `origin: '*'` يسمح لأي موقع بالوصول
 11. **api_token مخزّن كنص صريح** في جدول `users` — تسريب قاعدة البيانات يكشف كل الرموز
 12. **بيانات الاعتماد محفوظة كنص JSON عادي** في `credentials.json` محلياً
-13. **لا يوجد تحقق من HTTPS:** عميل v1/v2 يقبل HTTP عادي
+13. **لا يوجد تحقق من HTTPS:** العميل يقبل HTTP عادي — *خُفِّفت جزئيًّا: الافتراضي صار `https://sila-hub.dev` (إصلاح #15)، لكن التجاوز عبر `SAD_REGISTRY_URL`/`config.toml` ما زال يقبل `http://`*
 14. **لا يوجد تشفير لملفات الحزم:** الملفات تُخزن كما هي في `storage/packages/`
 15. **Helmet مع CSP معطل:** `contentSecurityPolicy: false`
 16. **كلمة المرور 8 أحرف فقط:** بدون متطلبات تعقيد (أرقام/رموز)
@@ -322,7 +323,7 @@ Node.js >= 18 (--experimental-sqlite)
 
 ### 🟣 تحسينات مقترحة
 
-39. **توحيد عنوان المستودع:** ملف إعدادات مركزي واحد
+39. **توحيد عنوان المستودع:** ملف إعدادات مركزي واحد — *أُنجز على مستوى الكود: ثابت واحد `sad::pkg::DEFAULT_REGISTRY_URL` (إصلاح #15)*
 40. **توحيد RegistryClient:** نسخة واحدة بواجهة IPackageRegistry
 41. **توحيد SemanticVersion:** استخدام semver_arabic.cpp كمصدر وحيد
 42. **توحيد TOML Parser:** دمج arabic_toml_parser.cpp مع toml_parser.h
@@ -377,6 +378,8 @@ Node.js >= 18 (--experimental-sqlite)
 ---
 
 ## ملحق: خريطة الملفات
+
+> **ملاحظة:** الخريطة أدناه لقطة تاريخيّة وقت التحليل — الملفات `cli.cpp` و`registry_client.h` ومجلد `src/` حُذفت لاحقًا (الإصلاحات #12–#14).
 
 ```
 tools/pkg/

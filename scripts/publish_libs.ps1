@@ -1,9 +1,26 @@
-# publish_libs.ps1 - نشر المكتبات على خادم الحزم
+﻿# publish_libs.ps1 - نشر المكتبات على خادم الحزم
+# الاستخدام: عيّن SAD_TOKEN (إلزاميّ) وSAD_REGISTRY_URL (اختياريّ) قبل التشغيل:
+#   $env:SAD_TOKEN = "sad_xxxx"; .\scripts\publish_libs.ps1
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Continue"
 
-$token = "sad_6d933fe995c6dde260ba1a8e97683e851149de61bb9eea018112faf7e1aec502"
-$server = "http://185.47.174.39:3000/api/v1/packages/publish"
+# (AR) PowerShell 5.1 قد يفاوض TLS 1.0 افتراضيًّا — نفرض TLS 1.2 لأنّ السجلّ HTTPS الآن
+# (EN) PowerShell 5.1 may default to TLS 1.0 — force TLS 1.2 since the registry is HTTPS now
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+# (AR) الرمز من متغيّر البيئة حصرًا — لا أسرار مُصلَّبة في المستودع
+# (EN) Token comes from the environment only — no hardcoded secrets in the repo
+$token = $env:SAD_TOKEN
+if ([string]::IsNullOrWhiteSpace($token)) {
+    Write-Host "[X] SAD_TOKEN environment variable is required (sad_pkg API token)" -ForegroundColor Red
+    exit 1
+}
+
+# (AR) عنوان السجلّ: SAD_REGISTRY_URL إن وُجد وإلّا الافتراضيّ الموحَّد https://sila-hub.dev
+# (EN) Registry URL: SAD_REGISTRY_URL if set, otherwise the unified default https://sila-hub.dev
+$registry = $env:SAD_REGISTRY_URL
+if ([string]::IsNullOrWhiteSpace($registry)) { $registry = "https://sila-hub.dev" }
+$server = "$($registry.TrimEnd('/'))/api/v1/packages/publish"
 $base = "C:\s_lang\s-programming-language"
 
 # Library data: folder_name, package_name, description, keywords, category

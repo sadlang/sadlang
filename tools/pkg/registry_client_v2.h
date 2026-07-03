@@ -25,6 +25,12 @@
 namespace sad {
 namespace pkg {
 
+// (AR) عنوان السجلّ المركزيّ الافتراضيّ — مصدر الحقيقة الوحيد لهذا الثابت.
+//      يتجاوزه متغيّر البيئة SAD_REGISTRY_URL (في sadc) أو config.toml (في sad-pkg).
+// (EN) Default central registry URL — single source of truth for this constant.
+//      Overridable via the SAD_REGISTRY_URL environment variable (sadc) or config.toml (sad-pkg).
+inline constexpr const char* DEFAULT_REGISTRY_URL = "https://sila-hub.dev";
+
 /**
  * @brief عميل السجل المركزي للحزم (الإصدار ٢)
  * @brief Central package registry client (version 2)
@@ -38,7 +44,7 @@ class RegistryClientV2 {
 public:
     /**
      * @brief إنشاء عميل جديد
-     * @param base_url عنوان السجل (مثل: http://185.47.174.39:3000)
+     * @param base_url عنوان السجلّ (الافتراضيّ: DEFAULT_REGISTRY_URL أي https://sila-hub.dev)
      */
     explicit RegistryClientV2(const std::string& base_url)
         : base_url_(base_url) {
@@ -58,6 +64,9 @@ public:
         std::vector<std::string> results;
         try {
             HttpClient http;
+            // TODO(registry-paths): (AR) الخادم يخدم تحت /api/v1/packages/... — هذا المسار بلا v1
+            //   قد يُرجع 404؛ يلزم تحقّق e2e عند عودة الخادم قبل أيّ تعديل سلوكيّ.
+            //   (EN) Server routes live under /api/v1/packages/...; this un-versioned path may 404.
             std::string url = base_url_ + "/api/packages/search?q=" + urlEncode(query);
             auto response = http.get(url);
             
@@ -80,6 +89,7 @@ public:
         std::vector<Version> versions;
         try {
             HttpClient http;
+            // TODO(registry-paths): مسار بلا /v1 — انظر ملاحظة search() أعلاه / un-versioned path, see search() note
             std::string url = base_url_ + "/api/packages/" + urlEncode(package_name) + "/versions";
             auto response = http.get(url);
             
@@ -112,7 +122,8 @@ public:
                               const std::filesystem::path& dest_dir) {
         try {
             HttpClient http;
-            std::string url = base_url_ + "/api/packages/" + urlEncode(name) 
+            // TODO(registry-paths): مسار بلا /v1 — انظر ملاحظة search() أعلاه / un-versioned path, see search() note
+            std::string url = base_url_ + "/api/packages/" + urlEncode(name)
                             + "/download/" + ver.to_string();
             auto response = http.get(url);
             

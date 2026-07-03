@@ -13,6 +13,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
+#include <cstdlib> // std::getenv
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -22,7 +23,9 @@
 using namespace sad::pkg;
 
 static const char *SAD_PKG_VERSION = "2.0.0";
-static const char *DEFAULT_REGISTRY = "https://sila-hub.dev";
+// (AR) الثابت الموحَّد لعنوان السجلّ — مصدره registry_client_v2.h
+// (EN) Unified registry URL constant — sourced from registry_client_v2.h
+static const char *DEFAULT_REGISTRY = sad::pkg::DEFAULT_REGISTRY_URL;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -115,6 +118,14 @@ static std::filesystem::path get_cache_dir()
 
 static std::string get_registry_url()
 {
+    // (AR) أولويّة التجاوز: متغيّر البيئة SAD_REGISTRY_URL ثم config.toml ثم الافتراضيّ
+    //      — نفس متغيّر التجاوز الذي يقرأه sadc (compiler_driver_pkg.cpp)
+    // (EN) Override precedence: SAD_REGISTRY_URL env var, then config.toml, then default
+    //      — same override variable honored by sadc (compiler_driver_pkg.cpp)
+    const char *env_url = std::getenv("SAD_REGISTRY_URL");
+    if (env_url && *env_url)
+        return std::string(env_url);
+
     auto cpath = get_config_dir() / "config.toml";
     if (std::filesystem::exists(cpath))
     {
@@ -662,7 +673,9 @@ static int cmd_publish(bool local_mode)
         print_error("Must set token first: sad-pkg config token <TOKEN>");
         return 1;
     }
-    print_warning("Remote publish requires sila-hub.dev registry active.");
+    // (AR) لا نُصلّب اسم النطاق في الرسالة — نعرض العنوان الفعليّ المُستخدَم
+    // (EN) Don't hardcode the domain in the message — show the effective URL
+    print_warning("Remote publish requires an active registry at: " + get_registry_url());
     return 0;
 }
 

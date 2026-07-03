@@ -28,10 +28,10 @@
 //
 // الميزات:
 // ════════
-//   1. تثبيت الحزم من السجل المركزي (install)
+//   1. تثبيت الحزم من السجلّ المركزيّ (install)
 //   2. قراءة ملف sad.toml لمعرفة التبعيات (sync)
-//   3. سرد الحزم المثبتة محلياً (list)
-//   4. البحث عن حزم في السجل (search)
+//   3. سرد الحزم المثبَّتة محلّيًّا (list)
+//   4. البحث عن حزم في السجلّ (search)
 //   5. استخراج Kotlin Bridges للأندرويد
 //   6. استخراج اعتماديات Gradle
 //
@@ -69,15 +69,16 @@
 //   └── رياضيات/
 //       └── ...
 //
-// السجل المركزي:
+// السجلّ المركزيّ:
 // ═══════════════
-// العنوان الافتراضي: http://185.47.174.39:3000
-// يمكن تغييره عبر متغير البيئة: SAD_REGISTRY_URL
+// العنوان الافتراضيّ: https://sila-hub.dev (الثابت الموحَّد sad::pkg::DEFAULT_REGISTRY_URL)
+// يمكن تغييره عبر متغيّر البيئة: SAD_REGISTRY_URL
 //
-// API المتاح:
-//   GET  /api/v1/packages/:name/:version/download
-//   GET  /api/v1/search?q=query
-//   GET  /api/v1/packages/:name
+// API المستدعى فعليًّا (عبر RegistryClientV2 في tools/pkg/registry_client_v2.h):
+//   GET  /api/packages/search?q=query
+//   GET  /api/packages/:name/versions
+//   GET  /api/packages/:name/download/:version
+// ملاحظة: الخادم يخدم تحت البادئة /api/v1/ — انظر TODO(registry-paths) في العميل.
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -90,7 +91,7 @@
 #include <map>
 #include <cstring>
 
-// تضمين عميل المستودع (الإصدار ٢ بدون تبعيات خارجية)
+// تضمين عميل المستودع (الإصدار ٢ بدون تبعيّات خارجيّة)
 #include "../pkg/registry_client_v2.h"
 
 #ifdef _WIN32
@@ -112,9 +113,9 @@ namespace sad
         // ثوابت التكوين
         // ═══════════════════════════════════════════════════════════════════════════
 
-        // عنوان خادم السجل المركزي
-        // يمكن تغييره عبر متغير البيئة SAD_REGISTRY_URL
-        const std::string DEFAULT_REGISTRY_URL = "http://185.47.174.39:3000";
+        // عنوان خادم السجلّ المركزيّ — يُستمَدّ من الثابت الموحَّد في tools/pkg/registry_client_v2.h
+        // يمكن تغييره عبر متغيّر البيئة SAD_REGISTRY_URL
+        const std::string DEFAULT_REGISTRY_URL = sad::pkg::DEFAULT_REGISTRY_URL;
 
         // مجلد تخزين الحزم المحلية
         const std::string PACKAGES_DIR = "حزم";
@@ -124,9 +125,9 @@ namespace sad
         // ═══════════════════════════════════════════════════════════════════════════
 
         /**
-         * @brief معلومات حزمة محلية
+         * @brief معلومات حزمة محلّيّة
          *
-         * تمثل حزمة مثبتة محلياً مع بياناتها الأساسية
+         * تمثّل حزمة مثبَّتة محلّيًّا مع بياناتها الأساسيّة
          */
         struct LocalPackage
         {
@@ -158,7 +159,7 @@ namespace sad
         // ═══════════════════════════════════════════════════════════════════════════
 
         /**
-         * @brief الحصول على عنوان السجل من البيئة أو الافتراضي
+         * @brief الحصول على عنوان السجلّ من البيئة أو الافتراضيّ
          */
         std::string getRegistryUrl()
         {
@@ -280,7 +281,7 @@ namespace sad
         }
 
         /**
-         * @brief سرد الحزم المثبتة محلياً
+         * @brief سرد الحزم المثبَّتة محلّيًّا
          */
         std::vector<LocalPackage> listLocalPackages()
         {
@@ -372,7 +373,7 @@ namespace sad
             std::string subCommand = argv[2];
 
             // ═══════════════════════════════════════════════════════════════════
-            // أمر list — سرد الحزم المثبتة
+            // أمر list — سرد الحزم المثبَّتة
             // ═══════════════════════════════════════════════════════════════════
             if (subCommand == "list" || subCommand == u8"سرد")
             {
@@ -464,7 +465,7 @@ namespace sad
 
                 for (const auto &[name, version_str] : deps)
                 {
-                    // التحقق إذا كانت مثبتة مسبقاً
+                    // التحقّق إذا كانت مثبَّتة مسبقًا
                     if (fs::exists(dest_dir / fs::u8path(name)))
                     {
                         std::cout << u8"  ✓ " << name << u8" (موجود بالفعل)\n";

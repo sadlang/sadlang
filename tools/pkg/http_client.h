@@ -115,8 +115,12 @@ struct ParsedUrl {
 /**
  * @brief عميل HTTP بدون تبعيات خارجية
  *
- * يستخدم WinHTTP على Windows (مضمّن في النظام)
- * لا يحتاج libcurl أو أي مكتبة خارجية
+ * (AR) على Windows: يستخدم WinHTTP (مضمّن في النظام) — HTTPS مدعوم عبر WINHTTP_FLAG_SECURE.
+ *      على Linux/macOS: يستدعي أمر curl عبر popen — HTTPS/TLS يتولّاه curl نفسه،
+ *      ويلزم وجود curl على PATH وقت التشغيل (لا فحص وقت الترجمة).
+ * (EN) On Windows: WinHTTP (built-in) — HTTPS via WINHTTP_FLAG_SECURE.
+ *      On Linux/macOS: shells out to the curl CLI via popen — HTTPS/TLS handled by curl;
+ *      curl must be on PATH at runtime (no compile-time check).
  */
 class HttpClient {
 public:
@@ -242,10 +246,10 @@ private:
         Response response;
         auto parsed = ParsedUrl::parse(url);
 
-        // تحويل السلاسل إلى wstring
-        std::wstring whost(parsed.host.begin(), parsed.host.end());
+        // تحويل السلاسل إلى wstring (المضيف عبر المحوّل الآمن لـUTF-8 لا التوسيع حرفًا-حرفًا)
+        std::wstring whost = string_to_wstring(parsed.host);
         std::wstring wpath = string_to_wstring(parsed.path + parsed.query);
-        std::wstring wmethod(method.begin(), method.end());
+        std::wstring wmethod(method.begin(), method.end()); // أسماء الطرائق ASCII دائمًا
 
         // فتح جلسة WinHTTP
         HINTERNET hSession = WinHttpOpen(
@@ -377,7 +381,7 @@ private:
                           const std::filesystem::path& dest_path,
                           std::function<void(size_t, size_t)> progress_callback) {
         auto parsed = ParsedUrl::parse(url);
-        std::wstring whost(parsed.host.begin(), parsed.host.end());
+        std::wstring whost = string_to_wstring(parsed.host);
         std::wstring wpath = string_to_wstring(parsed.path + parsed.query);
 
         HINTERNET hSession = WinHttpOpen(
@@ -536,6 +540,17 @@ private:
     // ========================================================================
     // POSIX/CLI Fallback - بديل POSIX باستخدام أمر curl
     // ========================================================================
+    //
+    // (AR) قيود معروفة (موثَّقة عمدًا بلا تغيير سلوكيّ):
+    //   1. يفترض وجود curl على PATH؛ غيابه يظهر كخطأ "curl request failed".
+    //   2. الوسائط تُقتبس بعلامة اقتباس مفردة — جسم/عنوان يحوي ' يكسر الأمر
+    //      (حقن صدفة نظريّ؛ المدخلات هنا داخليّة: عناوين سجلّ وJSON مولَّد).
+    //   3. رمز الحالة يُقرأ من آخر سطر عبر std::stoi — مخرجات مشوّهة قد ترمي استثناء.
+    // (EN) Known limitations (documented deliberately, no behavior change):
+    //   1. Assumes curl on PATH; absence surfaces as "curl request failed".
+    //   2. Arguments are single-quoted — a body/URL containing ' breaks the command
+    //      (theoretical shell injection; inputs here are internal registry URLs / generated JSON).
+    //   3. Status code parsed from last line via std::stoi — malformed output may throw.
 
     Response curl_cli_request(const std::string& method,
                               const std::string& url,

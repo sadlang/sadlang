@@ -5,6 +5,15 @@
  * 
  * @author عمر
  * @date نوفمبر 2026
+ *
+ * ⚠️ (AR) ملف ميّت لا يُبنى: غير مُضمَّن من أيّ ملف وغير مُسجَّل في CMake،
+ *    ومحتواه مرمَّز بكيانات HTML (&lt; بدل <) فلا يترجم أصلًا — انظر
+ *    tools/PACKAGE_SYSTEM_ANALYSIS.md المشكلة #24. أُبقي العنوان فيه مواكبًا
+ *    للثابت الموحَّد sad::pkg::DEFAULT_REGISTRY_URL منعًا لعودة عنوان بائت عند إحيائه.
+ * ⚠️ (EN) Dead file, not built: included nowhere and absent from CMake, and its
+ *    content is HTML-entity encoded (&lt; instead of <) so it cannot compile — see
+ *    tools/PACKAGE_SYSTEM_ANALYSIS.md issue #24. Its URL is kept in sync with the
+ *    unified sad::pkg::DEFAULT_REGISTRY_URL to avoid resurrecting a stale address.
  */
 
 #ifndef SAD_PKG_SEARCH_H
@@ -266,7 +275,9 @@ private:
     std::map&lt;std::string, PackageInfo&gt; packages_;
     std::chrono::system_clock::time_point lastUpdated_;
     std::string cacheFile_;
-    std::string registryUrl_ = "http://185.47.174.39:3000";
+    // (AR) يواكب sad::pkg::DEFAULT_REGISTRY_URL — حدّثهما معًا
+    // (EN) Mirrors sad::pkg::DEFAULT_REGISTRY_URL — update both together
+    std::string registryUrl_ = "https://sila-hub.dev";
 };
 
 //==============================================================================
