@@ -1,17 +1,17 @@
-# ======================================================================
-# نظام التكامل المستمر / Continuous Integration
+# ══════════════════════════════════════════════════════════════════════
+# نظام التكامل المستمرّ / Continuous Integration
 # لغة ص البرمجية / Sad Programming Language
-# ======================================================================
-# خط أنابيب CI/CD شامل — 3 منصات (Windows + Linux + macOS)
-# يضمن عدم دمج أي كود بدون نجاح جميع الاختبارات
+# ══════════════════════════════════════════════════════════════════════
+# خطّ أنابيب CI/CD شامل — 3 منصّات (Windows + Linux + macOS)
+# يضمن عدم دمج أيّ كود بدون نجاح جميع الاختبارات
 # ══════════════════════════════════════════════════════════════════════
 # نظام الاختبارات:
-#   - 9 ملفات اختبار شاملة (700+ اختبار فردي)
-#   - 22 اختبار regression لكل مشكلة موثقة
-#   - يغطي: Lexer, Parser, Value, Interpreter, StdLib, Errors,
+#   - 9 ملفات اختبار شاملة (700+ اختبار فرديّ)
+#   - 22 اختبار regression لكلّ مشكلة موثَّقة
+#   - يغطّي: Lexer, Parser, Value, Interpreter, StdLib, Errors,
 #           Compiler, E2E, Utils/Modules, Regression
-#   - يختبر المفسر (sad-run.exe) والمترجم (sad-build.exe) بالتوازي
-#   - لا يُقبل أي PR بدون نجاح 100% من الاختبارات
+#   - يختبر المفسّر (sad-run.exe) والمترجم (sad-build.exe) بالتوازي
+#   - لا يُقبل أيّ PR بدون نجاح 100% من الاختبارات
 # ══════════════════════════════════════════════════════════════════════
 # المسؤول: سعيد — مهندس المترجم (Sprint 1)
 # ══════════════════════════════════════════════════════════════════════
@@ -28,12 +28,13 @@ on:
     #      on any PR targeting them (previously only `develop`, so dev PRs ran no CI).
     branches: [ main, master, develop, dev, sadlang ]
     types: [opened, synchronize, reopened]
-  # (AR) تشغيل ليلي (Nightly) — يرفع مستوى اختبارات التنفيذ المزدوج إلى P2 (TEST-006).
-  # (EN) Nightly schedule — raises dual-execution level to P2.
+  # (AR) تشغيل ليليّ (Nightly) — يرفع مستوى اختبارات التنفيذ المزدوج إلى P2 (TEST-006).
+  # (EN) Nightly schedule — raises dual-execution level to P2 (TEST-006).
   schedule:
-    - cron: "0 3 * * *"   # 03:00 UTC يومياً
+    - cron: "0 3 * * *"   # 03:00 UTC يوميًا
 
-# منع التشغيل المتزامن لنفس الفرع
+# (AR) منع التشغيل المتزامن لنفس الفرع — تشغيل أحدث يلغي الأقدم
+# (EN) Cancel in-progress runs of the same ref — newest run wins
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -61,31 +62,50 @@ jobs:
           errors=0
           # (AR) الأقواس ضروريّة: بدونها يقيّد -print0 آخرَ -name وحده فيفحص .hpp فقط
           # (EN) Grouping is required: without it -print0 binds to the last -name only (.hpp)
+          # (AR) iconv لا file: وصف file استدلاليّ وقد يُخطئ التصنيف (ملفّ UTF-8
+          #      صالح صُنِّف Hunspell affix) — فكّ الترميز الفعليّ هو الحكم.
+          # (EN) iconv, not file: file(1) descriptions are heuristic and can
+          #      misclassify (a valid UTF-8 file was tagged Hunspell affix) —
+          #      actual decoding is authoritative.
+          # (AR) غياب iconv = فشل أداة صريح، لا «أخطاء ترميز» زائفة في كلّ ملفّ.
+          # (EN) Missing iconv must fail loudly, not masquerade as per-file
+          #      encoding errors.
+          command -v iconv > /dev/null || { echo "::error::iconv not found on runner"; exit 1; }
+          # (AR) حارس NUL: بايتات UTF-16/32 قد تمرّ من iconv كـUTF-8 «صالح»
+          #      (0x00 بايت مشروع)؛ وجود NUL في مصدر نصّيّ = ترميز خاطئ
+          #      (كان file يلتقطه).
+          # (EN) NUL guard: UTF-16/32 bytes can pass iconv as "valid" UTF-8
+          #      (0x00 is a legal byte); a NUL in text source means wrong
+          #      encoding (file(1) used to catch this).
           while IFS= read -r -d '' f; do
-            if ! file "$f" | grep -qE 'UTF-8|ASCII'; then
+            if ! iconv -f UTF-8 -t UTF-8 "$f" > /dev/null 2>&1 || ! tr -d '\0' < "$f" | cmp -s - "$f"; then
               echo "❌ Non-UTF-8: $f"
               errors=$((errors + 1))
             fi
-          done < <(find shared/ interpreter/ stdlib/ compiler/ features/network/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print0 2>/dev/null)
+          done < <(find shared/ interpreter/ stdlib/ compiler/ features/ tools/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -print0 2>/dev/null)
           if [ $errors -gt 0 ]; then
             echo "::error::Found $errors files with non-UTF-8 encoding"
             exit 1
           fi
-          echo "✅ جميع الملفات بترميز UTF-8 صحيح"
+          echo "✅ جميع الملفات بترميز UTF-8 صحيح / All files are valid UTF-8"
 
       - name: "📏 فحص حجم الملفات / Check File Sizes"
         shell: bash
         run: |
-          large=$(find shared/ interpreter/ stdlib/ compiler/ features/network/ \
-            \( -name '*.cpp' -o -name '*.h' \) -size +512k 2>/dev/null)
+          # (AR) نفس نطاق فحص الترميز أعلاه (features/ tools/ مع استثناء third_party) — اتّساقًا
+          # (EN) Same scope as the encoding check above (features/ tools/, third_party excluded) — for consistency
+          large=$(find shared/ interpreter/ stdlib/ compiler/ features/ tools/ \
+            \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -size +512k 2>/dev/null)
           if [ -n "$large" ]; then
             echo "::warning::Large files found: $large"
           fi
-          echo "✅ فحص حجم الملفات اكتمل"
+          echo "✅ فحص حجم الملفات اكتمل / File size check completed"
 
       - name: "🧹 فحص ملفات مؤقتة في الجذر / Check Root Temp Files"
         shell: bash
         run: |
+          # (AR) عتبة تحذيريّة فقط (>10 ملفّات .txt في الجذر) — لا تُفشِل الوظيفة.
+          # (EN) Warning-only threshold (>10 root .txt files) — never fails the job.
           count=$(find . -maxdepth 1 -name '*.txt' -not -name 'CMakeLists*.txt' | wc -l)
           if [ "$count" -gt 10 ]; then
             echo "::warning::Found $count .txt files in root directory — cleanup recommended"
@@ -120,7 +140,7 @@ jobs:
           sudo apt-get install -y llvm-18-dev libclang-18-dev || true
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
-      - name: "🔨 تكوين CMake (لتوليد compile_commands.json) / Configure CMake"
+      - name: "🔨 تكوين CMake (لتوليد compile_commands.json) / Configure CMake (compile_commands.json)"
         run: |
           cmake -B build \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
@@ -129,9 +149,9 @@ jobs:
             -DLLVM_DIR=$LLVM_DIR \
             -DCMAKE_BUILD_TYPE=Debug
 
-      - name: "🔍 cppcheck / Run cppcheck"
+      - name: "🔍 تشغيل cppcheck / Run cppcheck"
         run: |
-          echo "═══ cppcheck — فحص الكود الساكن ═══"
+          echo "═══ cppcheck — فحص الكود الساكن / static analysis ═══"
           cppcheck \
             --enable=warning,performance,portability \
             --suppress=missingInclude \
@@ -149,12 +169,18 @@ jobs:
             -I interpreter/include \
             -I compiler/include \
             shared/ interpreter/ compiler/ stdlib/ features/network/ 2>&1 | head -100
+          # (AR) ملحوظة: نطاق cppcheck أضيق عمدًا من نطاق فحص الترميز أعلاه
+          #      (features/network/ فقط لا features/ tools/) — توسيعه قرار كلفة
+          #      تحليل منفصل، لا يُغيَّر ضمن تصحيح تجميليّ.
+          # (EN) Note: cppcheck scope is intentionally narrower than the encoding
+          #      check above (features/network/ only, not features/ tools/) —
+          #      widening it is a separate analysis-cost decision.
           echo "✅ cppcheck اكتمل / cppcheck completed"
 
-      - name: "🔍 clang-tidy (ملفات مُعدَّلة فقط) / Run clang-tidy (changed files only)"
+      - name: "🔍 تشغيل clang-tidy (ملفات مُعدَّلة فقط) / Run clang-tidy (changed files only)"
         if: github.event_name == 'pull_request'
         run: |
-          echo "═══ clang-tidy — فحص الملفات المُعدَّلة فقط ═══"
+          echo "═══ clang-tidy — فحص الملفات المُعدَّلة فقط / changed files only ═══"
           git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -- '*.cpp' '*.h' | \
             grep -v 'third_party\|SDL2\|build' | head -20 | while read f; do
               if [ -f "$f" ]; then
@@ -204,7 +230,7 @@ jobs:
           $py = (Get-Command python).Source
           "PYTHON3_EXECUTABLE=$py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: "📦 تحميل LLVM 18 / Download LLVM 18 (Release only)"
+      - name: "📦 تحميل LLVM 18 (Release فقط) / Download LLVM 18 (Release only)"
         if: matrix.config == 'Release'
         shell: pwsh
         run: |
@@ -219,7 +245,7 @@ jobs:
           echo "C:\LLVM\bin" >> $env:GITHUB_PATH
           Write-Host "LLVM ${llvmVer} installed at C:\LLVM"
 
-      - name: "📦 Cache CMake Build"
+      - name: "📦 خبيئة بناء CMake / Cache CMake Build"
         uses: actions/cache@v4
         with:
           path: build
@@ -229,7 +255,8 @@ jobs:
       - name: "🔨 تكوين CMake / Configure CMake"
         shell: pwsh
         run: |
-          # على Windows: LLVM متوفر فقط في Release بسبب _ITERATOR_DEBUG_LEVEL mismatch
+          # (AR) على Windows: LLVM متوفّر فقط في Release بسبب عدم تطابق _ITERATOR_DEBUG_LEVEL.
+          # (EN) On Windows LLVM is Release-only due to the _ITERATOR_DEBUG_LEVEL mismatch.
           $useLlvm = if ("${{ matrix.config }}" -eq "Release") { "ON" } else { "OFF" }
           $llvmArg = if ("${{ matrix.config }}" -eq "Release" -and $env:LLVM_DIR) { "-DLLVM_DIR=$env:LLVM_DIR" } else { "" }
           # (AR) تثبيت مفسّر Python نفسه الذي ثُبّتت فيه حزم التوليد (يطابق خطوة pip).
@@ -245,7 +272,7 @@ jobs:
       - name: "🏗️ بناء المشروع / Build Project"
         run: cmake --build build --config ${{ matrix.config }} --parallel 4
 
-      - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler (Release only)"
+      - name: "🏗️ بناء المترجم sad-build (Release فقط) / Build sad-build Compiler (Release only)"
         if: matrix.config == 'Release'
         shell: pwsh
         run: |
@@ -265,7 +292,7 @@ jobs:
           }
           exit 0
 
-      - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors)"
+      - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         shell: pwsh
         run: |
           $failed = 0
@@ -292,7 +319,7 @@ jobs:
             exit 1
           }
 
-      - name: "🧪 اختبارات المفسر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
         shell: pwsh
         run: |
           $failed = 0
@@ -307,7 +334,7 @@ jobs:
               & $exe
               if ($LASTEXITCODE -ne 0) { $failed++ }
             } else {
-              Write-Host "❌ MISSING: $exe" -ForegroundColor Red
+              Write-Host "❌ MISSING: $exe — test binary not found!" -ForegroundColor Red
               $failed++
             }
           }
@@ -351,7 +378,7 @@ jobs:
             Write-Host "⚠️ SKIP: E2E tests not built" -ForegroundColor Yellow
           }
 
-      - name: "🧪 اختبارات Regression (المفسر) / Regression Tests (Interpreter)"
+      - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
         shell: pwsh
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
@@ -389,7 +416,7 @@ jobs:
           # (EN) ctest selects config via -C/--build-config, not --config (that's a cmake --build flag)
           ctest -C ${{ matrix.config }} --output-on-failure --timeout 120 -j4
 
-      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests (مستوى هرمي + بوّابة)"
+      - name: "🔄 اختبارات التنفيذ المزدوج (مستوى هرميّ + بوّابة) / Dual Execution Tests (level + gate)"
         shell: pwsh
         if: matrix.config == 'Release'
         run: |
@@ -403,13 +430,14 @@ jobs:
           }
           # (AR) اختيار المستوى حسب حدث CI (ADR-002 / TEST-006):
           #      push → P0 (دخان، 100% مطلوب) · pull_request → P1 · schedule → P2.
-          # (EN) Pick hierarchical level by CI event.
+          # (EN) Pick hierarchical level by CI event (ADR-002 / TEST-006):
+          #      push → P0 (smoke, 100% required) · pull_request → P1 · schedule → P2.
           $ev = "${{ github.event_name }}"
           if ($ev -eq 'pull_request') { $level = 'P1'; $floor = '86.0' }
           elseif ($ev -eq 'schedule') { $level = 'P2'; $floor = '86.0' }
           else { $level = 'P0'; $floor = $null }
-          # (AR) أهداف المحرّكات: المفسّر دائمًا؛ المترجم إن بُني على هذا الrunner.
-          #      حين يغيب المترجم (مثلاً ويندوز بلا مكتبات LLVM-dev) **لا نتخطّى** بل
+          # (AR) أهداف المحرّكات: المفسّر دائمًا؛ المترجم إن بُني على هذا الـrunner.
+          #      حين يغيب المترجم (مثلًا ويندوز بلا مكتبات LLVM-dev) **لا نتخطّى** بل
           #      نشغّل وضع المفسّر-فقط (يقارن runner.py مخرجَ المفسّر بـ@expected)،
           #      فتعمل الاختبارات فعلًا بدل العلامة الخضراء المخادعة.
           # (EN) Engine targets: interpreter always; compiler if built on this runner.
@@ -422,7 +450,7 @@ jobs:
             $engineArgs += @('--compiler', $sadc)
             Write-Host "▶️ تنفيذ مزدوج كامل (مفسّر + مترجم) — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
           } else {
-            Write-Host "▶️ وضع المفسّر-فقط (المترجم غير مبنيّ على هذا الrunner) — المستوى: $level (حدث: $ev)" -ForegroundColor Yellow
+            Write-Host "▶️ وضع المفسّر-فقط (المترجم غير مبنيّ على هذا الـrunner) — المستوى: $level (حدث: $ev)" -ForegroundColor Yellow
           }
           # (AR) --gate يُصدر PASS/CONCERNS/FAIL؛ --gate-floor يمنع التراجع تحت الأساس (86%).
           #      P0 بلا أرضية: أي فشل دخان = FAIL.
@@ -435,17 +463,18 @@ jobs:
           }
           Write-Host "✅ بوّابة القرار: PASS/CONCERNS — لا تراجع حرج" -ForegroundColor Green
 
-      - name: "🔥 Burn-in للاختبارات الجديدة في PR / Burn-in changed tests"
+      - name: "🔥 Burn-in للاختبارات الجديدة في الـPR / Burn-in changed PR tests"
         shell: pwsh
         if: matrix.config == 'Release' && github.event_name == 'pull_request'
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not ((Test-Path $sad) -and (Test-Path $sadc))) { exit 0 }
-          # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـ PR وتشغيلها 5× لاكتشاف الرفرفة (R6).
+          # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـPR وتشغيلها 5× لاكتشاف الرفرفة (R6).
+          # (EN) Detect new/modified .ص test files in the PR and run them 5× to catch flakiness (R6).
           git fetch origin $env:GITHUB_BASE_REF --depth=1 2>$null
           $changed = git diff --name-only --diff-filter=AM "origin/$env:GITHUB_BASE_REF...HEAD" -- 'tests/behavior/**/*.ص' 2>$null
-          if (-not $changed) { Write-Host "لا اختبارات .ص جديدة في هذا الـ PR." -ForegroundColor Cyan; exit 0 }
+          if (-not $changed) { Write-Host "لا اختبارات .ص جديدة في هذا الـPR." -ForegroundColor Cyan; exit 0 }
           $failed = 0
           foreach ($f in $changed) {
             $name = Split-Path $f -Leaf
@@ -456,7 +485,7 @@ jobs:
           if ($failed -gt 0) { Write-Host "❌ $failed اختبار جديد مترفرف/فاشل في burn-in" -ForegroundColor Red; exit 1 }
           Write-Host "✅ Burn-in نظيف لكل الاختبارات الجديدة" -ForegroundColor Green
 
-      - name: "💾 حفظ الملفات التنفيذية / Upload Artifacts"
+      - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: sad-windows-${{ matrix.config }}
@@ -490,7 +519,8 @@ jobs:
           #      SDL2.lib on Linux, breaking the link (R_AMD64_IMAGEBASE/__ImageBase).
           sudo apt-get install -y cmake g++ build-essential \
             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
-          # (AR) حزم توليد الكود (sad_check_codegen_env يتطلبها) / (EN) codegen deps
+          # (AR) حزم توليد الكود — sad_check_codegen_env يتطلّبها وقت البناء.
+          # (EN) Codegen deps — required at build time by sad_check_codegen_env.
           python3 -m pip install --user --break-system-packages pyyaml jsonschema \
             || python3 -m pip install --user pyyaml jsonschema
 
@@ -503,7 +533,7 @@ jobs:
           sudo apt-get install -y llvm-18-dev libclang-18-dev lld-18
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
-      - name: "📦 Cache CMake Build"
+      - name: "📦 خبيئة بناء CMake / Cache CMake Build"
         uses: actions/cache@v4
         with:
           path: build
@@ -524,7 +554,7 @@ jobs:
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc) || \
             echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
 
-      - name: "🧪 اختبارات النواة / Core Tests"
+      - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
           failed=0
           for test in test_lexer_comprehensive test_parser_comprehensive \
@@ -544,7 +574,7 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المفسر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
         run: |
           failed=0
           for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
@@ -589,7 +619,7 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 CTest"
+      - name: "🧪 CTest / Run CTest"
         run: |
           cd build
           # (AR) Linux يستخدم مولّدًا أحاديّ التهيئة (Make/Ninja) — نوع البناء مُثبَّت
@@ -612,7 +642,7 @@ jobs:
             echo "⚠️ SKIP: sad-run or sad-build not found"
           fi
 
-      - name: "💾 حفظ الملفات / Upload Artifacts"
+      - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: sad-linux-${{ matrix.config }}
@@ -651,7 +681,7 @@ jobs:
         run: |
           echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
 
-      - name: "📦 Cache CMake Build"
+      - name: "📦 خبيئة بناء CMake / Cache CMake Build"
         uses: actions/cache@v4
         with:
           path: build
@@ -672,7 +702,7 @@ jobs:
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4 || \
             echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
 
-      - name: "🧪 اختبارات النواة / Core Tests"
+      - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
           failed=0
           for test in test_lexer_comprehensive test_parser_comprehensive \
@@ -682,13 +712,13 @@ jobs:
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
               # (AR) لا "if ! "$exe"" (يستهلك "!" رمز الخروج فيصبح "$?" 0/1 فقط
-              #      لا الرمز الحقيقي)، ولا استدعاء عارٍ لـ"$exe" بلا "&&/||"
-              #      (خطوات GitHub Actions تُنفَّذ بـ"bash -eo pipefail"، فأي أمر
-              #      top-level يفشل يُسقط الخطوة بأكملها فوراً بنفس رمز الخروج،
-              #      قبل الوصول لـ"rc=$?" — هذا ما حدث فعلاً: الخطوة انتهت بـ
-              #      "exit code 133" دون تنفيذ أي شيء بعد "$exe"). الحل: نمط
-              #      "cmd && rc=0 || rc=$?" يُبقي السطر ناجحاً من منظور errexit
-              #      بغض النظر عن نتيجة "$exe" الداخلية، فيستمر السكربت.
+              #      لا الرمز الحقيقيّ)، ولا استدعاء عارٍ لـ"$exe" بلا "&&/||"
+              #      (خطوات GitHub Actions تُنفَّذ بـ"bash -eo pipefail"، فأيّ أمر
+              #      top-level يفشل يُسقط الخطوة بأكملها فورًا بنفس رمز الخروج،
+              #      قبل الوصول لـ"rc=$?" — هذا ما حدث فعلًا: الخطوة انتهت بـ
+              #      "exit code 133" دون تنفيذ أيّ شيء بعد "$exe"). الحل: نمط
+              #      "cmd && rc=0 || rc=$?" يُبقي السطر ناجحًا من منظور errexit
+              #      بغضّ النظر عن نتيجة "$exe" الداخليّة، فيستمرّ السكربت.
               # (EN) Neither "if ! "$exe"" (the "!" negation consumes the real
               #      exit code, so "$?" afterwards is just 0/1) nor a bare
               #      "$exe" call without "&&/||" (GitHub Actions steps run
@@ -713,9 +743,9 @@ jobs:
                   #      libunwind نفسها (_Unwind_GetIP) — أي أن آلية unwinding
                   #      المُستخدَمة لبناء "bt" هي بالضبط ما تعطّل، فقد تفشل
                   #      "bt"/"bt all" بصمت. نقرأ السجلات الخام (pc/lr/fp/sp)
-                  #      مباشرة (لا تحتاج unwind info على الإطلاق)، ثم نترجمها
+                  #      مباشرة (لا تحتاج unwind info على الإطلاق)، ثمّ نترجمها
                   #      لأسماء دوال عبر "image lookup"، لمعرفة العنوان الذي
-                  #      استدعى _Unwind_GetIP فعلاً حتى لو فشل "bt" تماماً.
+                  #      استدعى _Unwind_GetIP فعلًا حتى لو فشل "bt" تمامًا.
                   # (EN) "bt all" alone isn't enough here: the actual stop is
                   #      inside libunwind itself (_Unwind_GetIP) — i.e. the
                   #      very unwinding machinery "bt" relies on is what's
@@ -725,15 +755,15 @@ jobs:
                   #      "image lookup", to find what actually called
                   #      _Unwind_GetIP even if "bt" produces nothing.
                   # (AR) حاسم: "-o" العادية لا تُنفَّذ هنا على الإطلاق بعد
-                  #      "run" — في "batch mode" (-b)، إذا توقفت العملية لسبب
-                  #      غير متوقع (crash/signal لا breakpoint مقصود)، يطبع
-                  #      lldb معلومات التوقف تلقائياً ثم يُنهي الجلسة فوراً،
-                  #      متجاوزاً كل أوامر "-o" المتبقية تماماً (هذا ما فسّر
-                  #      غياب أي ناتج لـ"bt all"/"register read"/"image lookup"
+                  #      "run" — في "batch mode" (-b)، إذا توقّفت العمليّة لسبب
+                  #      غير متوقَّع (crash/signal لا breakpoint مقصود)، يطبع
+                  #      lldb معلومات التوقف تلقائيًا ثمّ يُنهي الجلسة فورًا،
+                  #      متجاوزًا كلّ أوامر "-o" المتبقّية تمامًا (هذا ما فسّر
+                  #      غياب أيّ ناتج لـ"bt all"/"register read"/"image lookup"
                   #      في تشغيل سابق رغم نجاح إصلاح errexit). الحل: استخدام
-                  #      "-k"/"--one-line-on-crash" بدلاً من "-o" — هذه الأوامر
-                  #      مصمَّمة خصيصاً للتنفيذ "عند" حدوث crash، فتُنفَّذ هي
-                  #      بدلاً من الإنهاء التلقائي.
+                  #      "-k"/"--one-line-on-crash" بدلًا من "-o" — هذه الأوامر
+                  #      مصمَّمة خصيصًا للتنفيذ "عند" حدوث crash، فتُنفَّذ هي
+                  #      بدلًا من الإنهاء التلقائي.
                   # (EN) Critical: plain "-o" commands never run here at all
                   #      after "run" — in batch mode (-b), if the process
                   #      stops for an unexpected reason (crash/signal, not a
@@ -767,7 +797,7 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المفسر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
         run: |
           failed=0
           for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
@@ -812,10 +842,10 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 CTest"
+      - name: "🧪 CTest / Run CTest"
         run: |
           cd build
-          # (AR) macOS كلينكس: مولّد أحاديّ التهيئة، لا يقبل ctest --config هنا.
+          # (AR) macOS مثل Linux: مولّد أحاديّ التهيئة، لا يقبل ctest --config هنا.
           # (EN) Single-config generator like Linux; ctest rejects --config here.
           ctest --output-on-failure --timeout 120 -j4
 
@@ -832,7 +862,7 @@ jobs:
             echo "⚠️ SKIP: sad-run or sad-build not found"
           fi
 
-      - name: "💾 حفظ الملفات / Upload Artifacts"
+      - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: sad-macos-${{ matrix.config }}
@@ -865,11 +895,11 @@ jobs:
              [ "${{ needs.linux.result }}" = "failure" ] || \
              [ "${{ needs.macos.result }}" = "failure" ]; then
             echo ""
-            echo "::error::❌ فشلت الاختبارات على منصة واحدة أو أكثر!"
+            echo "::error::❌ فشلت الاختبارات على منصّة واحدة أو أكثر!"
           fi
 
   # ======================================================================
-  # 6. حماية الفرع الرئيسي / Branch Protection Gate
+  # 6. حماية الفرع الرئيسيّ / Branch Protection Gate
   # ======================================================================
   all-tests-pass:
     name: "✅ جميع الاختبارات / All Tests Pass"
@@ -893,5 +923,5 @@ jobs:
             exit 1
           fi
 
-          echo "✅ جميع الاختبارات نجحت على الثلاث منصّات (Windows + Linux + macOS)!"
+          echo "✅ جميع الاختبارات نجحت على المنصّات الثلاث (Windows + Linux + macOS)!"
           echo "✅ All tests passed on all three platforms (Windows + Linux + macOS)!"

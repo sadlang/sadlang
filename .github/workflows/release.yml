@@ -1,16 +1,16 @@
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
-# GitHub Actions — بناء ونشر إصدارات لغة ص تلقائياً
+# GitHub Actions — بناء ونشر إصدارات لغة ص تلقائيًا
 # Automated Build & Release for Sad Programming Language
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # يعمل هذا الـ workflow عند:
 #   1. دفع وسم (tag) يبدأ بـ v (مثل v1.0.0 أو v0.5.0-alpha)
-#   2. يدوياً من واجهة GitHub Actions
+#   2. يدويًا من واجهة GitHub Actions
 #
 # ينتج:
-#   - sad-v{VER}-windows-x86_64.zip        (المفسر فقط)
-#   - sad-full-v{VER}-windows-x86_64.zip   (المفسر + المترجم + كل الأدوات)
+#   - sad-v{VER}-windows-x86_64.zip        (المفسّر فقط)
+#   - sad-full-v{VER}-windows-x86_64.zip   (المفسّر + المترجم + كلّ الأدوات)
 #   - sadc-v{VER}-windows-x86_64.zip       (المترجم فقط)
 #   - نفس الملفات لـ linux-x86_64, linux-aarch64, macos-x86_64, macos-aarch64
 #
@@ -43,10 +43,10 @@ env:
 # ──────────────────────────────────────────────────────────────────────
 jobs:
   # ════════════════════════════════════════════════════════════════════
-  # 1. بناء المفسر على جميع المنصات (بدون LLVM)
+  # 1. بناء المفسّر على جميع المنصّات (بدون LLVM)
   # ════════════════════════════════════════════════════════════════════
   build-interpreter:
-    name: "المفسر / Interpreter (${{ matrix.os }}-${{ matrix.arch }})"
+    name: "المفسّر / Interpreter (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -116,7 +116,7 @@ jobs:
           -DBUILD_LSP_SERVER=ON
           -DBUILD_REPL=ON
 
-      # ── بناء المفسر والأدوات ──
+      # ── بناء المفسّر والأدوات ──
       - name: "بناء / Build"
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
 
@@ -144,7 +144,7 @@ jobs:
           cp build/bin/sad-repl "$PKG_DIR/bin/" 2>/dev/null || true
           cp build/bin/sad-fmt "$PKG_DIR/bin/" 2>/dev/null || true
 
-          # نسخ المكتبة القياسية
+          # نسخ المكتبة القياسيّة
           cp -r stdlib/* "$PKG_DIR/stdlib/" 2>/dev/null || true
           cp -r features/graphics/stdlib/* "$PKG_DIR/stdlib/" 2>/dev/null || true
           # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
@@ -174,7 +174,7 @@ jobs:
           Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-fmt.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
           Copy-Item "build\bin\${{ env.BUILD_TYPE }}\SDL2.dll" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
 
-          # المكتبة القياسية
+          # المكتبة القياسيّة
           Copy-Item -Path "stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           Copy-Item -Path "features\graphics\stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
@@ -346,8 +346,8 @@ jobs:
             throw "Failed to build sadc after two retries"
           }
 
-      # ── بناء المفسر أيضاً (للحزمة الكاملة) ──
-      - name: "بناء المفسر / Build Interpreter"
+      # ── بناء المفسّر أيضًا (للحزمة الكاملة) ──
+      - name: "بناء المفسّر / Build Interpreter"
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
 
       # ── تجميع حزمة المترجم فقط ──
@@ -363,7 +363,7 @@ jobs:
           cp build/bin/sadc "$SADC_DIR/bin/" 2>/dev/null || true
           tar -czf "${SADC_DIR}.tar.gz" "$SADC_DIR"
 
-          # الحزمة الكاملة (المفسر + المترجم + أدوات)
+          # الحزمة الكاملة (المفسّر + المترجم + أدوات)
           FULL_DIR="sad-full-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p "$FULL_DIR/bin" "$FULL_DIR/stdlib"
           cp build/bin/sad "$FULL_DIR/bin/" 2>/dev/null || true
@@ -522,18 +522,18 @@ jobs:
 
           | الملف | المحتوى |
           |-------|---------|
-          | `sad-v*-{OS}-{ARCH}.*` | **المفسر** + المكتبة القياسية + الأدوات الأساسية |
-          | `sad-full-v*-{OS}-{ARCH}.*` | **المفسر + المترجم** + كل الأدوات |
-          | `sadc-v*-{OS}-{ARCH}.*` | **المترجم فقط** (يتطلب LLVM 18) |
+          | `sad-v*-{OS}-{ARCH}.*` | **المفسّر** + المكتبة القياسيّة + الأدوات الأساسيّة |
+          | `sad-full-v*-{OS}-{ARCH}.*` | **المفسّر + المترجم** + كلّ الأدوات |
+          | `sadc-v*-{OS}-{ARCH}.*` | **المترجم فقط** (يتطلّب LLVM 18) |
 
-          ### المنصات المدعومة
+          ### المنصّات المدعومة
           - Windows x86_64
           - Linux x86_64 / aarch64
           - macOS x86_64 / aarch64 (Apple Silicon)
 
-          ### ما الفرق بين المفسر والمترجم؟
-          - **المفسر (sad)**: يشغل ملفات `.ص` مباشرة — لا يحتاج أي تبعيات إضافية
-          - **المترجم (sadc)**: يحوّل `.ص` إلى ملف تنفيذي أصلي عبر LLVM — أداء أعلى، يتطلب LLVM 18
+          ### ما الفرق بين المفسّر والمترجم؟
+          - **المفسّر (sad)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
+          - **المترجم (sadc)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
 
           ---
           NOTES
