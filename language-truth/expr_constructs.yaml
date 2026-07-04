@@ -1,7 +1,7 @@
 # expr_constructs.yaml — بنيات التعبيرات المتقدمة في لغة ص
 # المصدر:
-#   shared/parser/src/specs/flow/{parser_comprehension,parser_dict_comprehension,parser_pipeline}.cpp
-#   shared/parser/src/core/parser_expressions.cpp (lambda, f-string, tuple)
+#   shared/parser/src/core/parser_expressions.cpp (lambda, f-string, tuple, أنبوب |>)
+#   shared/parser/src/statements/parser_advanced.cpp (الاستيعابات: قائمة/قاموس/مجموعة)
 
 version: "1.0"
 description_ar: "بنيات التعبيرات المتقدمة — استيعاب، أنابيب، lambda، closure، f-string، tuple، spread"

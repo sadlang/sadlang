@@ -2,9 +2,12 @@
 # (AR) 60_advanced.yaml — البنيات المتقدمة في لغة ص (طبقة متقدمة)
 # (EN) Advanced constructs (advanced layer)
 # ----------------------------------------------------------------------------
-# (AR) المصدر: parser_helpers.cpp (الأنواع)، parser_advanced.cpp (القوالب/where)،
-#      parser_declarations.cpp (العمر/الماكرو/الاختبار)، parser_statements.cpp
-#      (yield/with/defer/go/select)، specs/{ffi,patterns,...}، ui/parser_ui.cpp.
+# (AR) المصدر: parser_helpers.cpp (الأنواع + أنواع FFI عبر parseType)،
+#      parser_advanced.cpp (القوالب/where)، parser_declarations.cpp
+#      (العمر/الماكرو/الاختبار/الدوال الخارجيّة)، parser_statements.cpp
+#      (yield/with/defer/go/select)، patterns/*، ui/parser_ui.cpp.
+#      ملاحظة: شجرة specs/ القديمة (معماريّة «صنف لكلّ ميزة» مهجورة لا تُترجم)
+#      حُذفت 2026-07-04 عدا ui/parser_ui_maps.cpp؛ لا تُشتقّ أيّ قاعدة من specs.
 # ============================================================================
 
 schema_version: "5.0"
@@ -483,13 +486,27 @@ productions:
           - { kind: terminal, ref: IDENTIFIER }
           - { kind: repeat, children: [ { kind: terminal, ref: OP_MULTIPLY, value: "*" } ] }
     maps_to:
-      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseCType" }
-      - { file: shared/parser/src/specs/ffi/parser_extern.cpp, function: "ExternParser::parseBasicType" }
-    ast_node: "CTypePtr"
-    description_ar: "نوع C في توقيع دالة خارجيّة: نوع أساسيّ + مؤشّرات «*» + مصفوفة «[N]» اختياريّة"
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseType" }
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseTypedParameterList" }
+    ast_node: "SadTypeKind"
+    description_ar: "نوع معامل/إرجاع في توقيع دالة خارجيّة. حيًّا يُحلَّل عبر نظام أنواع ص الأصليّ (ParserCore::parseType) لا عبر نحو أنواع C مستقلّ."
+    description_en: "Parameter/return type in an extern function signature. Live, it is parsed by S's native type system (ParserCore::parseType), not a standalone C-type grammar."
     since: "1.0.0"
     status: experimental
-    conformance: { compiler_optional: true, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 0 } }
+    conformance:
+      compiler_optional: true
+      # (AR) الميزانية صفريّة عمدًا: نحو أنواع C المصغّر (ebnf) غير مُنفَّذ حيًّا، فلا
+      #      يمكن كتابة اختبار مطابقة لنحوه (نوع «C*»/«C[N]») — parseType الحيّ يرفض «*».
+      #      divergent: النحو الموصوف يخالف ما تنفّذه maps_to (أنواع ص الأصليّة).
+      divergent: true
+      test_budget: { basic: 0, edge: 0, negative: 0, interaction: 0 }
+      notes_ar: >
+        المحلّل الحيّ يحلّل أنواع معاملات الدوال الخارجيّة وأنواع إرجاعها عبر نظام
+        أنواع ص الأصليّ (parseType/parseTypedParameterList في parser_helpers.cpp):
+        نص/رقم/منطقيّ/… ومصفوفات «[]» واختياريّات «؟». نحو أنواع C المصغّر
+        (مؤشّرات «*» ومصفوفات «[N]») الموصوف في ebnf/alternatives **غير مُنفَّذ حيًّا
+        بعد**؛ كان تنفيذه الوحيد في شجرة specs/ffi القديمة (حُذفت 2026-07-04،
+        معماريّة مهجورة خارج البناء).
 
   - id: gr.adv.inline_asm
     lhs: { nonterminal: InlineAsm, name_ar: "تجميع مضمَّن", name_en: inline_asm }

@@ -35,7 +35,7 @@ flowchart TD
   o18["عقد ذكيّ<br/>parseDeclaration()"]
   o19["كتلة خارجي<br/>parseDeclaration()"]
   o20["اتفاقيّة ربط<br/>parseDeclaration()"]
-  o21["نوع C<br/>parseCType()"]
+  o21["نوع C<br/>parseType()"]
   o22["تجميع مضمَّن<br/>tryParseDirective()"]
   o23["تصريح واجهة<br/>parseUIDeclaration()"]
   o24["تصريح حالة واجهة<br/>parseUIStateDecl()"]
@@ -1381,7 +1381,7 @@ flowchart LR
 ### gr.adv.ffi_ctype — نوع C <span dir="ltr">(CType)</span>
 
 - **الرقم التسلسليّ:** `ق-091` · **المعرّف الموحَّد:** `gr.adv.ffi_ctype` · **الحالة:** experimental · **منذ:** 1.0.0
-- **الوصف:** نوع C في توقيع دالة خارجيّة: نوع أساسيّ + مؤشّرات «*» + مصفوفة «[N]» اختياريّة
+- **الوصف:** نوع معامل/إرجاع في توقيع دالة خارجيّة. حيًّا يُحلَّل عبر نظام أنواع ص الأصليّ (ParserCore::parseType) لا عبر نحو أنواع C مستقلّ.
 
 #### 📐 BNF
 ```bnf
@@ -1393,15 +1393,15 @@ CType = BasicCType { '*' } [ '[' Number ']' ] ;
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
-1. [`ExternParser::parseCType`](../../../shared/parser/src/specs/ffi/parser_extern.cpp) — `shared/parser/src/specs/ffi/parser_extern.cpp`
-2. [`ExternParser::parseBasicType`](../../../shared/parser/src/specs/ffi/parser_extern.cpp) — `shared/parser/src/specs/ffi/parser_extern.cpp`
-- **عقدة AST المُنتَجة:** `CTypePtr`
+1. [`ParserCore::parseType`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+2. [`ParserCore::parseTypedParameterList`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+- **عقدة AST المُنتَجة:** `SadTypeKind`
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
-  f1["parseCType()"]
-  f2(["⇒ CTypePtr"])
+  f1["parseType()"]
+  f2(["⇒ SadTypeKind"])
   f1 --> f2
 ```
 
@@ -1419,7 +1419,7 @@ flowchart LR
   n3 -- "صفر/أكثر" --> n4
   n2 --> n3
   n1 --> n2
-  n6(["⇒ CTypePtr"])
+  n6(["⇒ SadTypeKind"])
   n4 --> n6
 ```
 

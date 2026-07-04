@@ -1,5 +1,5 @@
 # oop_constructs.yaml — بنيات البرمجة الكائنية في لغة ص
-# المصدر: shared/parser/src/declarations/parser_class.cpp + statement_executor_oop*.cpp
+# المصدر: shared/parser/src/declarations/parser_oop.cpp + statement_executor_oop*.cpp
 
 version: "1.0"
 description_ar: "بنيات البرمجة الكائنية — أصناف، بنى، تعداد، سمات، وراثة، خصائص، قوالب"

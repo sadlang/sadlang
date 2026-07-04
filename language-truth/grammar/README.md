@@ -60,10 +60,10 @@ language-truth/grammar/
 | `00_program.yaml` | `core/parser_main.cpp` (`parseProgram`، `parseDeclaration`، `parseStatement`، `parseBlockStmt`) |
 | `10_statements.yaml` | `statements/parser_statements.cpp`، `statements/parser_advanced.cpp` |
 | `20_declarations.yaml` | `declarations/parser_declarations.cpp`، `declarations/parser_modules.cpp` |
-| `30_oop.yaml` | `declarations/parser_oop.cpp` + `specs/oop/` |
+| `30_oop.yaml` | `declarations/parser_oop.cpp` |
 | `40_expressions.yaml` | `core/parser_expressions.cpp` (تربط أسبقية `operators.yaml`) |
-| `50_patterns.yaml` | `specs/patterns/` |
-| `60_advanced.yaml` | `specs/{contracts,async,meta,ffi,flow}/` |
+| `50_patterns.yaml` | `statements/parser_advanced.cpp` (`parsePattern` وفروعها) |
+| `60_advanced.yaml` | `declarations/parser_declarations.cpp` + `statements/parser_advanced.cpp` + `core/parser_helpers.cpp` |
 | `70_lexical.yaml` | `shared/lexer/` (جسر — الطرفيات) |
 
 ---

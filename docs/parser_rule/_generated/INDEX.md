@@ -164,7 +164,7 @@ flowchart TD
 | ق-088 | [`gr.adv.contract`](60_advanced.md#gr.adv.contract) | عقد ذكيّ | `ClassDecl` | `ParserCore::parseDeclaration` |
 | ق-089 | [`gr.adv.ffi_extern_block`](60_advanced.md#gr.adv.ffi_extern_block) | كتلة خارجي | `BlockStmt` | `ParserCore::parseDeclaration` |
 | ق-090 | [`gr.adv.ffi_linkage`](60_advanced.md#gr.adv.ffi_linkage) | اتفاقيّة ربط | `ExternLinkage` | `ParserCore::parseDeclaration` |
-| ق-091 | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) | نوع C | `CTypePtr` | `ExternParser::parseCType` |
+| ق-091 | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) | نوع C | `SadTypeKind` | `ParserCore::parseType` |
 | ق-092 | [`gr.adv.inline_asm`](60_advanced.md#gr.adv.inline_asm) | تجميع مضمَّن | `InlineAsmExpr` | `ParserCore::tryParseDirective` |
 | ق-093 | [`gr.adv.ui_decl`](60_advanced.md#gr.adv.ui_decl) | تصريح واجهة | `UIDeclarationNode` | `ParserCore::parseUIDeclaration` |
 | ق-094 | [`gr.adv.ui_state`](60_advanced.md#gr.adv.ui_state) | تصريح حالة واجهة | `UIStateDecl` | `ParserCore::parseUIStateDecl` |
@@ -192,7 +192,6 @@ flowchart TD
 | `BindingPattern` | [`gr.pattern.binding`](50_patterns.md#gr.pattern.binding) |
 | `BlockStmt` | [`gr.program.block`](00_program.md#gr.program.block)، [`gr.adv.ffi_extern_block`](60_advanced.md#gr.adv.ffi_extern_block) |
 | `BreakStmt` | [`gr.stmt.break`](10_statements.md#gr.stmt.break) |
-| `CTypePtr` | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) |
 | `CallExpr` | [`gr.expr.pipeline`](40_expressions.md#gr.expr.pipeline) |
 | `CallExpr \| MethodCallExpr \| MemberExpr \| OptionalChainExpr \| IndexExpr \| SliceExpr \| NewExpr \| UnaryExpr` | [`gr.expr.postfix`](40_expressions.md#gr.expr.postfix) |
 | `ClassDecl` | [`gr.oop.class`](30_oop.md#gr.oop.class)، [`gr.adv.contract`](60_advanced.md#gr.adv.contract) |
@@ -232,6 +231,7 @@ flowchart TD
 | `RaiseStmt` | [`gr.stmt.throw`](10_statements.md#gr.stmt.throw) |
 | `RangeExpr` | [`gr.expr.range`](40_expressions.md#gr.expr.range) |
 | `ReturnStmt` | [`gr.stmt.return`](10_statements.md#gr.stmt.return) |
+| `SadTypeKind` | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) |
 | `SadTypeKind \| SadTypePtr` | [`gr.adv.type`](60_advanced.md#gr.adv.type) |
 | `SelectStmt` | [`gr.adv.select`](60_advanced.md#gr.adv.select) |
 | `SetComprehensionExpr` | [`gr.adv.set_comprehension`](60_advanced.md#gr.adv.set_comprehension) |

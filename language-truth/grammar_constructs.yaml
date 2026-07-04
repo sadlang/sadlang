@@ -1,5 +1,8 @@
 # grammar_constructs.yaml — بنيات النحو المتقدمة في لغة ص
-# المصدر: shared/parser/src/specs/{contracts,async,meta,ffi}/
+# المصدر: shared/parser/src/declarations/parser_declarations.cpp (عقود، خارجي/ffi، ماكرو)
+#         + shared/parser/src/statements/{parser_statements,parser_advanced}.cpp (تزامن/async، تأجيل)
+#         + shared/parser/src/core/parser_helpers.cpp (تحليل الأنواع)
+# ملاحظة: شجرة specs/ القديمة (معماريّة «صنف لكلّ ميزة») حُذفت — الميزات حيّة في ParserCore المتراصّ.
 # يغطي: العقود، التزامن، الماكروز، الامتداد، العمر، async، FFI، التأجيل
 
 version: "1.0"

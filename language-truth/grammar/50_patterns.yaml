@@ -2,8 +2,8 @@
 # (AR) 50_patterns.yaml — قواعد أنماط المطابقة في لغة ص (طبقة الأنماط)
 # (EN) Match-pattern productions (patterns layer)
 # ----------------------------------------------------------------------------
-# (AR) المصدر: shared/parser/src/statements/parser_advanced.cpp (parsePattern وفروعها)
-#      + shared/parser/src/specs/patterns/parser_pattern_guard.cpp (الحارس).
+# (AR) المصدر: shared/parser/src/statements/parser_advanced.cpp
+#      (parsePattern وفروعها، بما فيها حرّاس الأنماط).
 #      تُستهلَك من gr.stmt.match (فروع «عندما»).
 # ============================================================================
 
