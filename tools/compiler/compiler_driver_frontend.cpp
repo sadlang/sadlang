@@ -84,6 +84,13 @@ namespace sad
                 return 1;
             }
 
+            // (AR) وضع AST-JSON: أبقِ قناة stdout نظيفة للـJSON — اكبح verbose.
+            // (EN) AST-JSON mode: keep stdout clean for JSON — suppress verbose chatter.
+            if (options_.emit_ast_json)
+            {
+                options_.verbose = false;
+            }
+
             // ════════════════════════════════════════════════════════════════════════
             // (AR) Phase E-3 — تطبيق إعدادات شرح الخطأ ولغة الإخراج على ErrorManager
             // (EN) Phase E-3 — apply explanation level + output language to EM
@@ -453,6 +460,13 @@ namespace sad
                 return false;
             }
 
+            // (AR) وضع إخراج AST بصيغة JSON — يتوقّف بعد الواجهة الأماميّة (لا توليد/ربط).
+            // (EN) AST-JSON mode — halt after frontend (no codegen/link).
+            if (options_.emit_ast_json)
+            {
+                return true;
+            }
+
             auto end_time = std::chrono::high_resolution_clock::now();
             frontend_time_ += std::chrono::duration<double>(end_time - start_time).count();
 
@@ -708,6 +722,15 @@ namespace sad
                                               " / نوع ملف غير معروف");
                     return false;
                 }
+            }
+
+            // (AR) وضع AST-JSON: توقّف بعد إخراج شجرة كلّ ملفّ — لا ربط (يمنع فشل الرابط
+            //      على «كائنات» غير مولَّدة في حالة تعدّد الملفّات).
+            // (EN) AST-JSON mode: halt after emitting each file's tree — no linking.
+            if (options_.emit_ast_json)
+            {
+                cleanup_temp_files();
+                return true;
             }
 
             // Link if needed

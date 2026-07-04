@@ -83,6 +83,7 @@ namespace sad
             os << "Debug / التنقيح:\n";
             os << "  -g                     " << "Generate debug info / معلومات التنقيح\n";
             os << "  --emit-ast             " << "Print AST / طباعة AST\n";
+            os << "  --emit-ast-json        " << "Print AST as JSON, halt before codegen / طباعة AST بصيغة JSON آليّة (توقّف قبل التوليد)\n";
             os << "  --emit-sir             " << "Print SIR / طباعة SIR\n";
             os << "  --time-passes          " << "Time each compilation pass / توقيت المراحل\n";
             os << "\n";
@@ -313,6 +314,10 @@ namespace sad
             else if (arg == "--emit-ast")
             {
                 options.emit_ast = true;
+            }
+            else if (arg == "--emit-ast-json")
+            {
+                options.emit_ast_json = true;
             }
             else if (arg == "--emit-sir")
             {

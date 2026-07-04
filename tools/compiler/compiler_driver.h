@@ -296,6 +296,7 @@ namespace sad
             // ========== Output ==========
             bool verbose = false;     // إخراج مفصل / Verbose output
             bool emit_ast = false;    // طباعة AST
+            bool emit_ast_json = false; // طباعة AST بصيغة JSON آليّة (يتوقّف قبل التوليد)
             bool emit_sir = false;    // طباعة SIR
             bool emit_llvm = false;   // طباعة LLVM IR
             bool emit_asm = false;    // طباعة assembly

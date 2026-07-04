@@ -398,6 +398,86 @@ namespace sad
             }
 
             // ================================================================
+            // (AR) إخراج AST بصيغة JSON آليّة — لأدوات المنظومة (مثل نِبراس).
+            //      يتوقّف بعد التحليل النحويّ (لا فحص/توليد/ربط) — يفكّ حجب EmitAdapter.
+            // (EN) Emit AST as machine-readable JSON for tooling (e.g. Nebras).
+            //      Halts right after parsing — no checks/codegen/link.
+            //
+            //   العقد (contract v1):
+            //     {"version":1,"file":<str>,"statements":[{"index":int,
+            //       "kind":<str|null>,"repr":<str|null>}]}
+            //   - عند تعدّد الملفّات: كائن JSON لكلّ ملفّ على سطر مستقلّ (NDJSON).
+            //   - kind: مشتقّ من RTTI (typeid) — مقروء ببناء MSVC؛ قناة النوع المستقرّة نسبيًّا.
+            //     (متابعة nebras#kind-stability: enum مستقرّ عبر المترجمات لاحقًا.)
+            //   - repr: نصّ toString معتِم للعرض — لا يُحلَّل بنيويًّا (قد يتغيّر).
+            //   يتطلّب --emit-ast-json كبح --verbose (تُوجَّه أسطر [n/5] لغير stdout) لإبقاء
+            //   قناة الآلة نظيفة — يفرضه run() بضبط verbose=false.
+            // ================================================================
+            if (options_.emit_ast_json)
+            {
+                auto esc = [](const std::string &s)
+                {
+                    static const char *hex = "0123456789abcdef";
+                    std::string o;
+                    o.reserve(s.size() + 8);
+                    for (char c : s)
+                    {
+                        switch (c)
+                        {
+                        case '"': o += "\\\""; break;
+                        case '\\': o += "\\\\"; break;
+                        case '\n': o += "\\n"; break;
+                        case '\r': o += "\\r"; break;
+                        case '\t': o += "\\t"; break;
+                        default:
+                            if (static_cast<unsigned char>(c) < 0x20)
+                            {
+                                o += "\\u00";
+                                o += hex[(static_cast<unsigned char>(c) >> 4) & 0xF];
+                                o += hex[static_cast<unsigned char>(c) & 0xF];
+                            }
+                            else
+                            {
+                                o += c; // بايتات UTF-8 (عربيّة) تمرّ كما هي — صالحة في JSON
+                            }
+                        }
+                    }
+                    return o;
+                };
+                auto kind_of = [](const Sad::AST::ASTNode &n)
+                {
+                    std::string k = typeid(n).name();
+                    for (const char *pre : {"class ", "struct ", "Sad::AST::"})
+                    {
+                        std::string prefix(pre);
+                        for (auto p = k.find(prefix); p != std::string::npos; p = k.find(prefix))
+                            k.erase(p, prefix.size());
+                    }
+                    return k;
+                };
+                std::cout << "{\"version\":1,\"file\":\"" << esc(file)
+                          << "\",\"statements\":[";
+                for (size_t i = 0; i < current_ast_.size(); ++i)
+                {
+                    if (i)
+                        std::cout << ",";
+                    std::cout << "{\"index\":" << i;
+                    if (current_ast_[i])
+                    {
+                        std::cout << ",\"kind\":\"" << esc(kind_of(*current_ast_[i]))
+                                  << "\",\"repr\":\"" << esc(current_ast_[i]->toString())
+                                  << "\"}";
+                    }
+                    else
+                    {
+                        std::cout << ",\"kind\":null,\"repr\":null}";
+                    }
+                }
+                std::cout << "]}\n";
+                return true; // توقّف — لا فحص ولا توليد ولا ربط
+            }
+
+            // ================================================================
             // (AR) فحص الملكية والاستعارة - بين التحليل وبناء SIR
             // (EN) Borrow check - between parsing and SIR building
             // ================================================================
