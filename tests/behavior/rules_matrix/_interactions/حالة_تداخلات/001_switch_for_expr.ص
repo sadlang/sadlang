@@ -1,0 +1,14 @@
+# @rule: gr.stmt.switch, gr.stmt.for, gr.expr.term
+# @description: تداخل: حالة داخل حلقة مع جمع
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير مج = 0
+لكل ن في [1، 2]
+    حالة ن
+        عندما 1: مج = مج + 1
+        افتراضي: مج = مج + 2
+    نهاية
+نهاية
+اطبع_سطر(مج)

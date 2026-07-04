@@ -50,7 +50,13 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseIfStmt" }
     ast_node: "IfStmt"
-    description_ar: "تفرّع شرطي؛ الكتلة قد تُغلَق بـ«نهاية» أو ضمنياً بـ«وإلا»"
+    description_ar: >
+      تفرّع شرطي؛ الكتلة قد تُغلَق بـ«نهاية» أو ضمنياً بـ«وإلا». تُكتب «وإلا إذا»
+      ككلمتين متتاليتين **على السطر نفسه**: يستهلك المحلّل «وإلا» ثمّ يتقدّم فوق «إذا»
+      ويُعامِلهما سلسلة else-if تعاوديّاً (لا توجد كلمة مفردة «وإلا_إذا» في المعجم؛
+      والرمز المفرد KEYWORD_ELSE_IF رمزٌ قديم لا يُنتجه المعجم). إن أُغلقت كتلة «إذا»
+      بـ«نهاية» صريحة فلا يُلتمَس «وإلا» تالٍ (يُنسَب لسلسلة if خارجية). الأقواس حول
+      الشرط إلزامية.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
@@ -90,9 +96,12 @@ productions:
   # ── لكل ... في ... ─────────────────────────────────────────────────────
   - id: gr.stmt.for
     lhs: { nonterminal: ForStatement, name_ar: "جملة لكل", name_en: for_statement }
-    ebnf: "ForStatement = 'لكل' Identifier [ ',' Identifier ] 'في' Expression Block ;"
+    ebnf: >
+      ForStatement = 'لكل' Identifier [ ',' Identifier ] 'في' Expression Block
+                   | 'لكل' Identifier 'من' Expression 'الى' Expression Block ;
     alternatives:
-      - symbols:
+      - label: "تكرار على مجموعة (مع تفكيك اختياري)"
+        symbols:
           - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
@@ -102,11 +111,23 @@ productions:
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
           - { kind: nonterminal, ref: gr.program.block }
+      - label: "نطاق «من ... الى ...» ⇒ ForRangeStmt"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_FOR, value: "لكل" }
+          - { kind: terminal, ref: IDENTIFIER }
+          - { kind: terminal, ref: KEYWORD_FROM, value: "من" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: terminal, ref: KEYWORD_TO, value: "الى" }
+          - { kind: nonterminal, ref: gr.expr.expression }
+          - { kind: nonterminal, ref: gr.program.block }
     references: { keywords: ["KW-RES-015", "KW-RES-016"] }
     maps_to:
       - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseForStmt" }
     ast_node: "ForStmt | ForRangeStmt"
-    description_ar: "حلقة تكرار على مصفوفة/مدى/خريطة؛ تدعم التفكيك «لكل فهرس، عنصر في ...» (بلا أقواس)"
+    description_ar: >
+      حلقة تكرار بصيغتين (بلا أقواس): (أ) «لكل اسم في تعبير» على مصفوفة/مدى/خريطة،
+      وتدعم التفكيك «لكل فهرس، عنصر في ...»؛ (ب) «لكل اسم من بداية الى نهاية» تبني
+      RangeExpr ضمنياً (تقبل «الى» أو «إلى»). صيغة الأقواس «لكل (...)» مرفوضة برسالة.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
@@ -120,7 +141,7 @@ productions:
     lhs: { nonterminal: MatchStatement, name_ar: "جملة طابق", name_en: match_statement }
     ebnf: >
       MatchStatement = 'طابق' '(' Expression ')'
-                       { 'عندما' Pattern [ ':' ] { Statement } }
+                       { 'عندما' Pattern [ 'إذا' Expression ] [ ':' ] { Statement } }
                        [ 'افتراضي' [ ':' ] { Statement } ] 'نهاية' ;
     alternatives:
       - symbols:
@@ -132,6 +153,10 @@ productions:
             children:
               - { kind: terminal, ref: KEYWORD_WHEN, value: "عندما" }
               - { kind: nonterminal, ref: gr.pattern.pattern }
+              - kind: optional
+                children:
+                  - { kind: terminal, ref: KEYWORD_IF, value: "إذا" }
+                  - { kind: nonterminal, ref: gr.expr.expression }
               - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" } ] }
               - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
           - kind: optional
@@ -145,9 +170,13 @@ productions:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMatchStmt" }
     ast_node: "MatchStmt"
     description_ar: >
-      مطابقة أنماط بكلمة «طابق»؛ النقطتان «:» بعد النمط اختيارية. تفاصيل الأنماط في
-      gr.pattern.*. ملاحظة: «حالة» (KEYWORD_CASE) بناء شقيق يوزّعه parseSwitchStmt
-      (parser_main.cpp:1200) — يُغطَّى لاحقاً منفصلاً.
+      مطابقة **أنماط** بكلمة «طابق»: كلّ فرع «عندما نمط» يطابق المُطابَق ببنية النمط
+      (حرفيّ، نطاق «أ..ب» شامل/غير شامل، تفكيك قائمة/بنية، عضو تعداد، ربط «@»، بدائل
+      «|») لا بالمساواة القيميّة — هذا **الفرق الجوهريّ عن «حالة»** (gr.stmt.switch)
+      التي تقارن بالمساواة. النقطتان «:» بعد النمط **اختيارية** (يُغلَق جسم الذراع
+      ضمنياً بوصول «عندما»/«افتراضي»/«نهاية»). حارس اختياري «عندما نمط إذا شرط:»
+      يزيد قيداً منطقياً. يشترك مع «حالة» في كلمتَي الفرع «عندما» والافتراضي
+      «افتراضي». تفاصيل الأنماط في gr.pattern.*. «حالة» داخل «طابق» مرفوضة برسالة.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
@@ -164,13 +193,13 @@ productions:
     lhs: { nonterminal: TryStatement, name_ar: "جملة حاول", name_en: try_statement }
     ebnf: >
       TryStatement = 'حاول' Block
-                     [ 'امسك' Identifier Block ]
+                     { 'امسك' Identifier Block }
                      [ 'أخيراً' Block ] 'نهاية' ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_TRY, value: "حاول" }
           - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
-          - kind: optional
+          - kind: repeat
             children:
               - { kind: terminal, ref: KEYWORD_CATCH, value: "امسك" }
               - { kind: terminal, ref: IDENTIFIER, value: "خطأ" }
@@ -184,7 +213,9 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseTryStmt" }
     ast_node: "TryStmt"
-    description_ar: "معالجة الأخطاء؛ «امسك خطأ» بلا أقواس (خطأ = اسم المتغير الملتقَط)"
+    description_ar: >
+      معالجة الأخطاء؛ «امسك خطأ» بلا أقواس (خطأ = اسم المتغير الملتقَط). يدعم
+      **عدّة بنود «امسك»** متتالية (حلقة)؛ صيغة الأقواس «امسك (خطأ)» مرفوضة برسالة.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
@@ -320,11 +351,19 @@ productions:
       - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseSwitchStmt" }
     ast_node: "SwitchStmt"
     description_ar: >
-      بناء شقيق لـ«طابق» بكلمة «حالة» (KEYWORD_CASE)؛ الأقواس «(تعبير)» أُزيلت. «:» اختياريّة بعد
-      القيمة و«افتراضي». «افتراضي» يجب أن يكون الأخير. «حالة» سياقيّة (تُستثنى مع ( . [ أو عوامل إسناد).
+      «حالة» (KEYWORD_CASE) بناءٌ شقيقٌ لـ«طابق»، لكنّهما يختلفان جوهرياً:
+      • «حالة» تقارن المُطابَق بقيمة كلّ فرع «عندما» **بالمساواة** (==) — الفروع
+        قيَمٌ لا أنماط؛ فـ«عندما 1..10» في «حالة» يُقيَّم النطاق ككائن ويُقارَن
+        مساواةً (لا يطابق العضوية).
+      • «طابق» تقارن بـ**الأنماط** (حرفيات، نطاقات، تفكيك، حارس) — انظر gr.stmt.match.
+      يشترك البناءان في كلمة الفرع «عندما» وكلمة الافتراضي «افتراضي». «حالة» ليست
+      بديلاً عن «عندما»: «حالة» تفتتح البناء، و«عندما» تفتتح كلّ فرع بداخله. النقطتان
+      «:» **اختياريّة** بعد قيمة الفرع وبعد «افتراضي» (يُغلَق جسم الفرع ضمنياً بوصول
+      «عندما»/«افتراضي»/«نهاية»). «افتراضي» يجب أن يكون الأخير. الأقواس «حالة (تعبير)»
+      مُزالة (مرفوضة). «حالة» سياقيّة (تُستثنى إذا تلاها ( . [ أو عامل إسناد).
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 10, edge: 8, negative: 5, interaction: 5 } }
     example: |
       حالة الرقم
           عندما 1: اطبع_سطر("واحد")

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.switch
+# @description: حالة — صيغة الأقواس {} مرفوضة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+حالة 1 {
+    عندما 1: اطبع_سطر("واحد")
+}

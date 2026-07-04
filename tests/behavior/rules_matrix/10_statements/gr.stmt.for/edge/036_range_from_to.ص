@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: حلقة نطاق «لكل س من بداية الى نهاية»
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+# @expected: 2
+# @expected: 3
+
+لكل س من 1 الى 3
+    اطبع_سطر(س)
+نهاية

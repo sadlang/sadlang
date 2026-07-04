@@ -1,0 +1,9 @@
+# @rule: gr.stmt.switch
+# @description: جملة حالة — بلا «نهاية» (غير مغلقة)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير ن = 1
+حالة ن
+    عندما 1: اطبع_سطر("واحد")

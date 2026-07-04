@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: حلقة نطاق بحدّ واحد (بداية = نهاية)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+لكل س من 5 الى 5
+    اطبع_سطر(س)
+نهاية

@@ -1,0 +1,11 @@
+# @rule: gr.stmt.switch, gr.decl.variable, gr.expr.primary
+# @description: حالة على متغيّر نصّي مع افتراضي
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+متغير ت = "hi"
+حالة ت
+    عندما "hi": اطبع_سطر("مرحبا")
+    افتراضي: اطبع_سطر("؟")
+نهاية
