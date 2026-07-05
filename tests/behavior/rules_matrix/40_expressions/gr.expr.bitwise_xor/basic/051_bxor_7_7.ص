@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_xor
+# @description: bxor_7_7
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+اطبع_سطر(7 ^ 7)

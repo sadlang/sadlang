@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator, gr.expr.expression
+# @description: مزخرِف على دالة تُستعمَل نتيجتها في تعبير
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+@سجل
+دالة جمع(أ، ب) ارجع أ + ب نهاية
+اطبع_سطر(جمع(2، 3) * 2)

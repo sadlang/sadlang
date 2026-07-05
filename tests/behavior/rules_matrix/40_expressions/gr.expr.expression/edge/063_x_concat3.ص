@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression
+# @description: x_concat3
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ابج
+اطبع_سطر("ا" + "ب" + "ج")

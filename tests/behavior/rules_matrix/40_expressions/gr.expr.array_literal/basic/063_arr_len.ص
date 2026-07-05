@@ -1,0 +1,6 @@
+# @rule: gr.expr.array_literal
+# @description: arr_len
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+اطبع_سطر(طول([1، 2، 3]))

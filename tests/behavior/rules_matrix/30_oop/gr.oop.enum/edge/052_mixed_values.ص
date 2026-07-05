@@ -1,0 +1,10 @@
+# @rule: gr.oop.enum
+# @description: mixed_values
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: عُرّف
+
+تعداد رمز
+    أ = 1، ب، ج = 10
+نهاية
+اطبع_سطر("عُرّف")

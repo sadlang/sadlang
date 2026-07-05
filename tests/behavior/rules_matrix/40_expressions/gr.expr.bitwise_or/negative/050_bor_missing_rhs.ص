@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_or
+# @description: bor_missing_rhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(6 |)

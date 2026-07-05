@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_cond_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+اطبع_سطر((2 + 2 == 4) ؟ 1 : 0)

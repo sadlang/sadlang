@@ -45,16 +45,30 @@ productions:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseClassDecl" }
     ast_node: "ClassDecl"
     description_ar: >
-      الجسم بلا أقواس (ينتهي بـ«نهاية»). المعدّلات «مجرد»/«محكم» بعد «صنف» (الصفة بعد الموصوف).
-      الوراثة بـ«يرث»، وتنفيذ السمات بـ«نفّذ». أسماء الأنواع المدمجة مقبولة كأسماء.
+      صنفٌ بكلمة «صنف» ثمّ الاسم ثمّ أعضاء (حقول/بانٍ/هادم/طرق/خصائص/عوامل) يُغلَقون
+      بـ«نهاية» (الجسم بلا أقواس). المعدّلات «مجرد»/«محكم» تأتي **بعد** «صنف» (الصفة بعد
+      الموصوف). الوراثة المفردة/المتعدّدة بـ«يرث أب [، أب…]»، وربط السمات بـ«نفّذ سمة
+      [، سمة…]» في الترويسة. أسماء الأنواع المدمجة مقبولة كأسماء أصناف. يُنشأ المثيل
+      بـ«اسم(وسائط)» أو «اسم(وسائط) جديد» (gr.oop.new).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
+      # أساسيّ
       صنف نقطة
           متغير عام س
           باني(س) هذا.س = س نهاية
       نهاية
+
+      # وراثة + معدّل + سمة
+      سمة ناطق دالة صوت() نهاية
+      صنف حيوان
+          دالة صوت() ارجع "..." نهاية
+      نهاية
+      صنف قط يرث حيوان نفّذ ناطق
+          دالة صوت() ارجع "مياو" نهاية
+      نهاية
+      اطبع_سطر(قط().صوت())     # مياو
 
   - id: gr.oop.enum
     lhs: { nonterminal: EnumDecl, name_ar: "تصريح تعداد", name_en: enum_declaration }
@@ -73,13 +87,22 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseEnumDecl" }
     ast_node: "EnumDecl"
-    description_ar: "الأقواس {} مُزالة. عضو واحد على الأقل. أسماء أعضاء مرنة (تقبل كلمات محجوزة غير بنيويّة)"
+    description_ar: >
+      تعدادٌ بكلمة «تعداد» ثمّ الاسم ثمّ أعضاء يُغلَقون بـ«نهاية» (الأقواس «{}» مُزالة).
+      عضوٌ واحدٌ على الأقلّ، والأعضاء مفصولون بفواصل (والفاصلة بين الأعضاء اختياريّة في
+      بعض المواضع). لكلّ عضوٍ قيمةٌ صريحة اختياريّة «= تعبير» (وإلّا تُرقَّم ضمنيّاً).
+      أسماء الأعضاء مرنة (تقبل كلماتٍ محجوزةً غير بنيويّة).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 2 } }
     example: |
       تعداد لون
           أحمر، أخضر، أزرق
+      نهاية
+
+      # بقيَم صريحة
+      تعداد حالة
+          نشط = 1، متوقف = 2
       نهاية
 
   - id: gr.oop.struct
@@ -102,7 +125,11 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseStructDecl" }
     ast_node: "StructDecl"
-    description_ar: "الأقواس {} مُزالة. معاملات عمر اختياريّة. الصفة بعد الموصوف («باني عام» لا «عام باني»)"
+    description_ar: >
+      بنيةٌ بكلمة «بنية» ثمّ الاسم ثمّ أعضاء (حقول/بانٍ/طرق) يُغلَقون بـ«نهاية» (الأقواس
+      «{}» مُزالة). تشبه الصنف لكن بلا وراثة؛ معاملات العمر اختياريّة (gr.adv.lifetime_params).
+      المعدّلات بعد الموصوف («باني عام» لا «عام باني»). **قيد مترجم:** «صدّر بنية» لا
+      يُترجَم (ISSUE-026).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
@@ -111,6 +138,9 @@ productions:
           متغير عام س
           متغير عام ص
       نهاية
+      متغير ن = نقطة()
+      ن.س = 3
+      اطبع_سطر(ن.س)     # 3
 
   - id: gr.oop.member
     lhs: { nonterminal: ClassMember, name_ar: "عضو صنف", name_en: class_member }
@@ -128,11 +158,21 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseClassDecl" }
     description_ar: >
-      موزّع الأعضاء يميّز بالكلمة المفتاحيّة (خاصية/دالة/باني/هدم/عامل/متغير/ثابت). الصيغة القديمة
-      (معدّل قبل الكلمة) تُنتج خطأً توجيهيًّا مع استرداد عبر parseModifiers.
+      عضو الصنف يُختار بالكلمة المفتاحيّة الافتتاحيّة: «خاصية»⇒خاصيّة، «دالة»⇒طريقة،
+      «باني»⇒باني، «هدم»⇒هادم، «عامل»⇒تحميل عامل، «متغير»/«ثابت»⇒حقل (انظر القواعد
+      المفردة لكلٍّ). الموزّع يُميّز قبل قراءة المعدّلات، فالمعدّل يأتي **بعد** الكلمة؛
+      الصيغة القديمة (معدّل قبل الكلمة، «عام متغير») تُنتج خطأً توجيهيّاً مع استردادٍ عبر
+      parseModifiers.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 4, interaction: 3 } }
+    example: |
+      صنف نقطة
+          متغير عام س              # حقل
+          باني(س) هذا.س = س نهاية    # باني
+          دالة اطبع() اطبع_سطر(هذا.س) نهاية   # طريقة
+      نهاية
+      نقطة(9).اطبع()     # 9
 
   - id: gr.oop.field
     lhs: { nonterminal: FieldDecl, name_ar: "حقل", name_en: field }
@@ -151,10 +191,23 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseFieldDeclaration" }
     ast_node: "FieldDecl"
-    description_ar: "حقل بيانات في صنف/بنية؛ المعدّلات بعد «متغير/ثابت». تُقبَل كلمات ناعمة كأسماء حقول"
+    description_ar: >
+      حقل بيانات في صنف/بنية بـ«متغير» (قابل للتغيير) أو «ثابت». المعدّلات (عام/خاص/
+      محمي/ساكن) تأتي **بعد** «متغير/ثابت» (الصفة بعد الموصوف): «متغير عام س»، «متغير خاص
+      _ن». النوع اختياريّ والتهيئة «= قيمة» اختياريّة. تُقبَل كلمات ناعمة (غير بنيويّة)
+      كأسماء حقول. الافتراضيّ للوصول «عام».
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      صنف حساب
+          متغير عام رصيد = 0
+          متغير خاص _رقم = "000"
+          ثابت عام العملة = "ريال"
+      نهاية
+      متغير ح = حساب()
+      ح.رصيد = 100
+      اطبع_سطر(ح.رصيد)     # 100
 
   - id: gr.oop.method
     lhs: { nonterminal: MethodDecl, name_ar: "طريقة", name_en: method }
@@ -174,10 +227,21 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseMethodDeclaration" }
     ast_node: "MethodDecl"
-    description_ar: "طريقة صنف؛ المعدّلات (عام/خاص/محمي/ساكن/مجرد) بعد «دالة». الطرق المجرّدة بلا جسم"
+    description_ar: >
+      طريقة داخل صنف/بنية بكلمة «دالة». المعدّلات (عام/خاص/محمي/ساكن/مجرد) تأتي **بعد
+      «دالة»** (الصفة بعد الموصوف): «دالة ساكن مربّع(س)». الطريقة الساكنة تُستدعى على
+      الصنف نفسه («رياضة.مربّع(4)») لا على مثيل. نوع الإرجاع اختياريّ قبل الاسم و«غير_متزامن»
+      بعد المعدّلات. الطرق المجرّدة (في صنفٍ «مجرد» أو سمة) بلا جسم. الوصول للحقول عبر «هذا.».
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 } }
+    example: |
+      صنف رياضة
+          دالة ساكن مربّع(س)
+              ارجع س * س
+          نهاية
+      نهاية
+      اطبع_سطر(رياضة.مربّع(4))     # 16
 
   - id: gr.oop.constructor
     lhs: { nonterminal: ConstructorDecl, name_ar: "باني", name_en: constructor }
@@ -201,10 +265,23 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseConstructorDeclaration" }
     ast_node: "ConstructorDecl"
-    description_ar: "الباني بكلمة «باني» (لا __تهيئة__)؛ يدعم استدعاء باني الأساس «: الأساس(...)»"
+    description_ar: >
+      باني الصنف بكلمة «باني» (لا «__تهيئة__»)؛ يُستدعى عند إنشاء المثيل ويهيّئ الحقول
+      عبر «هذا.». يدعم تمرير الوسائط لباني الصنف الأساسيّ بلاحقة «: الأساس(وسائط)» قبل
+      الجسم. المعدّلات بعد «باني» (الصفة بعد الموصوف).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 3 } }
+    example: |
+      صنف حيوان
+          متغير عام اسم
+          باني(اسم) هذا.اسم = اسم نهاية
+      نهاية
+      صنف قط يرث حيوان
+          باني(اسم) : الأساس(اسم) نهاية
+      نهاية
+      متغير ح = قط("توم")
+      اطبع_سطر(ح.اسم)     # توم
 
   - id: gr.oop.destructor
     lhs: { nonterminal: DestructorDecl, name_ar: "هادم", name_en: destructor }
@@ -219,14 +296,25 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseDestructorDeclaration" }
     ast_node: "DestructorDecl"
-    description_ar: "هادم الصنف بكلمة «هدم»؛ بلا معاملات"
+    description_ar: >
+      هادم الصنف بكلمة «هدم» متبوعةً بأقواس فارغة «()» وجسم — يُستدعى عند تحرّر المثيل
+      لتنظيف الموارد. **بلا معاملات** (بخلاف الباني). واحدٌ لكلّ صنف. المعدّلات بعد «هدم».
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 2, negative: 1, interaction: 1 } }
+    example: |
+      صنف مورد
+          باني() اطبع_سطر("فتح") نهاية
+          هدم() اطبع_سطر("إغلاق") نهاية
+      نهاية
+      متغير م = مورد()
 
   - id: gr.oop.property
     lhs: { nonterminal: PropertyDecl, name_ar: "خاصيّة", name_en: property }
-    ebnf: "PropertyDecl = 'خاصية' Modifiers [ Type ] Identifier { ( 'احصل' Block | 'عيّن' Block ) } 'نهاية' ;"
+    ebnf: >
+      PropertyDecl = 'خاصية' Modifiers [ Type ] Identifier
+                     { ( 'احصل' '(' ')' Block | 'عيّن' '(' Identifier ')' Block ) }
+                     'نهاية' ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_PROPERTY, value: "خاصية" }
@@ -243,10 +331,25 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parsePropertyDeclaration" }
     ast_node: "PropertyDecl"
-    description_ar: "خاصيّة بكتل «احصل»/«عيّن» (سياقيّتان داخل الخاصيّة)"
+    description_ar: >
+      خاصيّة مُحسوبة بكتلتَي «احصل()» (بلا معامل، تُرجع القيمة) و«عيّن(معامل)» (المعامل
+      يستقبل القيمة المُسنَدة)؛ كلتاهما بأقواس ثمّ جسم يُغلَق بـ«نهاية»، والخاصيّة كلّها
+      بـ«نهاية». «احصل»/«عيّن» سياقيّتان داخل الخاصيّة فقط. تُستعمل عادةً لتغليف حقلٍ
+      خاصّ («_س») والوصول إليه كأنّه حقلٌ عاديّ («ك.س = 7»).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      صنف ع
+          متغير خاص _س = 0
+          خاصية س
+              احصل() ارجع هذا._س نهاية
+              عيّن(ق) هذا._س = ق نهاية
+          نهاية
+      نهاية
+      متغير ك = ع()
+      ك.س = 7
+      اطبع_سطر(ك.س)     # 7
 
   - id: gr.oop.operator
     lhs: { nonterminal: OperatorDecl, name_ar: "تحميل عامل", name_en: operator_overload }
@@ -263,10 +366,21 @@ productions:
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseOperatorDecl" }
     ast_node: "OperatorDecl"
-    description_ar: "تحميل عامل زائد (+ - * / == ...) داخل صنف بكلمة «عامل»"
+    description_ar: >
+      تحميل عاملٍ زائدٍ داخل صنف بكلمة «عامل» يليها رمز العامل (+ - * / == …) ثمّ معامل
+      الطرف الآخر وجسم يُرجع النتيجة. يتيح استعمال العامل بين مثيلَي الصنف («أ + ب»
+      تستدعي «عامل +»). المعدّلات بعد «عامل».
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+    example: |
+      صنف متجه
+          متغير عام س
+          باني(س) هذا.س = س نهاية
+          عامل +(آخر) ارجع متجه(هذا.س + آخر.س) نهاية
+      نهاية
+      متغير ج = متجه(3) + متجه(4)
+      اطبع_سطر(ج.س)     # 7
 
   - id: gr.oop.modifiers
     lhs: { nonterminal: Modifiers, name_ar: "معدّلات وصول", name_en: access_modifiers }
@@ -285,10 +399,23 @@ productions:
     references: { keywords: ["KW-RES-026", "KW-RES-027", "KW-RES-028", "KW-RES-036", "KW-RES-029"] }
     maps_to:
       - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseModifiers" }
-    description_ar: "معدّلات تأتي بعد الكلمة المفتاحيّة (الصفة بعد الموصوف)؛ الافتراضيّ «عام»"
+    description_ar: >
+      مجموعة معدّلات الوصول/الطبيعة (عام/خاص/محمي/ساكن/مجرد) تأتي **بعد** الكلمة
+      المفتاحيّة للعضو (الصفة بعد الموصوف): «متغير خاص س»، «دالة ساكن ف()»، «باني عام».
+      قد تتوالى عدّة معدّلات. الافتراضيّ عند غيابها «عام». وضعها قبل الكلمة (الصيغة
+      القديمة «عام متغير») يُنتج خطأً توجيهيّاً مع استرداد.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      صنف ص
+          متغير خاص _د = 0
+          دالة عام زد() هذا._د = هذا._د + 1 نهاية
+          دالة عام اقرأ() ارجع هذا._د نهاية
+      نهاية
+      متغير ك = ص()
+      ك.زد()
+      اطبع_سطر(ك.اقرأ())     # 1
 
   - id: gr.oop.trait
     lhs: { nonterminal: TraitDecl, name_ar: "تصريح سمة", name_en: trait_declaration }
@@ -318,10 +445,21 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseTraitDecl" }
     ast_node: "TraitDecl"
-    description_ar: "سمة (واجهة) بدوال مجرّدة ضمنيًّا (بلا جسم) أو بجسم افتراضيّ اختياريّ. «سمة» سياقيّة"
+    description_ar: >
+      سمة (واجهة) تُعرّف عقداً من دوالٍ **مجرّدة ضمنيّاً** (توقيع بلا جسم) أو بجسمٍ
+      افتراضيّ اختياريّ يُغلَق بـ«نهاية». تُورَّث بـ«يرث»، وتُنفَّذ للأصناف عبر «نفّذ سمة
+      لـ صنف» (gr.oop.impl) أو تُربط في ترويسة الصنف بـ«نفّذ». «سمة» كلمة سياقيّة.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }
+    example: |
+      سمة ناطق
+          دالة صوت()
+      نهاية
+      صنف كلب نفّذ ناطق
+          دالة صوت() ارجع "هو" نهاية
+      نهاية
+      اطبع_سطر(كلب().صوت())     # هو
 
   - id: gr.oop.impl
     lhs: { nonterminal: ImplDecl, name_ar: "كتلة تنفيذ", name_en: impl_block }
@@ -340,10 +478,23 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseImplDecl" }
     ast_node: "ImplDecl"
-    description_ar: "صيغتان: «نفّذ سمة لـ صنف» و«نفّذ صنف». «نفّذ» سياقيّة"
+    description_ar: >
+      كتلة تنفيذٍ خارج جسم الصنف تضيف/تحقّق دوالاً. صيغتان: «نفّذ سمة لـ صنف» (تحقيق
+      سمةٍ لصنف) و«نفّذ صنف» (إضافة دوال للصنف مباشرةً). تحوي دوالاً بـ«دالة …» وتُغلَق
+      بـ«نهاية». «نفّذ» و«لـ» سياقيّتان. بديلٌ لربط السمة في ترويسة الصنف («صنف س نفّذ سمة»).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 3 } }
+    example: |
+      سمة ناطق
+          دالة صوت()
+      نهاية
+      صنف كلب
+      نهاية
+      نفّذ ناطق لـ كلب
+          دالة صوت() ارجع "هو" نهاية
+      نهاية
+      اطبع_سطر(كلب().صوت())     # هو
 
   - id: gr.oop.extension
     lhs: { nonterminal: ExtensionDecl, name_ar: "كتلة امتداد", name_en: extension_block }
@@ -358,10 +509,22 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExtensionDecl" }
     ast_node: "ExtensionDecl"
-    description_ar: "إضافة دوال لنوع موجود (اختصار لـ«نفّذ نوع» بلا سمة). «امتداد» سياقيّة"
+    description_ar: >
+      إضافة دوالٍ لنوعٍ موجود دون تعديل تعريفه — اختصارٌ لـ«نفّذ نوع» بلا سمة. تحوي
+      دوالاً بـ«دالة …» تصل حقول النوع عبر «هذا.»، وتُغلَق بـ«نهاية». «امتداد» كلمة
+      سياقيّة.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 2 } }
+    example: |
+      صنف رقمي
+          متغير عام ق
+          باني(ق) هذا.ق = ق نهاية
+      نهاية
+      امتداد رقمي
+          دالة مضاعف() ارجع هذا.ق * 2 نهاية
+      نهاية
+      اطبع_سطر(رقمي(5).مضاعف())     # 10
 
   - id: gr.oop.new
     lhs: { nonterminal: NewExpr, name_ar: "إنشاء كائن", name_en: new_expression }
@@ -375,12 +538,26 @@ productions:
           - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_NEW, value: "جديد" } ] }
     references: { keywords: ["KW-RES-008"] }
     maps_to:
-      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseNewExpr" }
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePostfix" }
     ast_node: "NewExpr"
-    description_ar: "«جديد» لاحقيّة اختياريّة (الصفة بعد الموصوف)؛ بادئةً تُعامَل مُعرّفًا. يُبنى في gr.expr.postfix"
+    description_ar: >
+      إنشاء كائن بصيغة **لاحقة**: «صنف(وسائط) جديد» — يُبنى في parsePostfix؛ إن تلا «)»
+      كلمةُ «جديد» حُوِّل CallExpr إلى NewExpr (الصفة بعد الموصوف)، و«جديد» اختياريّة
+      (بدونها استدعاءٌ عاديّ يكتشف المحرّكان كونه صنفاً). «جديد» بادئةً تُعامَل مُعرّفاً
+      عاديّاً (parsePrimary يُرجعها VariableExpr). **تحقيق دالة ميتة:** الدالة
+      `parseNewExpr` في parser_oop.cpp **ميتة** (بلا مستدعٍ) وتحمل صيغة بادئة بقوالب
+      «جديد صنف<نوع>(...)» غيرَ قابلةٍ للوصول بصيغة اللغة اللاحقة الحاليّة؛ إحياؤها
+      (تنصيب مُعمَّم) **قرار لغويّ** لا أدواتيّ — لم تُحيَ.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      صنف نقطة
+          متغير عام س
+          باني(س) هذا.س = س نهاية
+      نهاية
+      متغير ن = نقطة(5) جديد     # «جديد» لاحقة اختياريّة
+      اطبع_سطر(ن.س)              # 5
 
   - id: gr.oop.this_super
     lhs: { nonterminal: ThisSuperExpr, name_ar: "هذا/الأساس", name_en: this_super }
@@ -396,10 +573,28 @@ productions:
           - { kind: terminal, ref: IDENTIFIER }
     references: { keywords: ["KW-RES-009", "KW-RES-011"] }
     maps_to:
-      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseThisExpression" }
-      - { file: shared/parser/src/declarations/parser_oop.cpp, function: "ParserCore::parseSuperExpression" }
+      - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parsePrimary" }
     ast_node: "ThisExpr | SuperExpr"
-    description_ar: "«هذا» للكائن الحاليّ؛ «الأساس» تُعامَل تعبيرَ أساسٍ فقط إن تلاها «.» (وإلا مُعرّف عاديّ)"
+    description_ar: >
+      «هذا» يشير للكائن الحاليّ ويُبنى ThisExpr في parsePrimary. «الأساس» تُعامَل
+      تعبيرَ أساسٍ (SuperExpr) **فقط إن تلاها «.»** (وصول عضو)، وإلّا فمُعرّف عاديّ
+      (مثل معامل اسمه «أساس»). الوصول للعضو «هذا.س»/«الأساس.طريقة()» يُكمِله parsePostfix،
+      واستدعاء باني الأساس «: الأساس(...)» في gr.oop.constructor. **تحقيق دوال ميتة:**
+      `parseThisExpression` و`parseSuperExpression` في parser_oop.cpp **ميتتان** (بلا
+      مستدعٍ) — جسمهما مجرّد `make_unique<ThisExpr/SuperExpr>()` يؤدّيه المسار الحيّ
+      (parsePrimary) بالكامل، بل نسخة «الأساس» الحيّة أدقّ (حارس «.»)؛ فهما **زائدتان**
+      لا تحملان قدرةً مفقودة — مرشَّحتان للحذف (تنظيف كود لا ميزة).
+    example: |
+      صنف حيوان
+          متغير عام اسم
+          باني(اسم) هذا.اسم = اسم نهاية
+          دالة صوت() ارجع "..." نهاية
+      نهاية
+      صنف قط يرث حيوان
+          باني(اسم) : الأساس(اسم) نهاية
+          دالة صوت() ارجع "مياو: " + الأساس.صوت() نهاية
+      نهاية
+      اطبع_سطر(قط("توم").صوت())     # مياو: ...
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 3, negative: 1, interaction: 2 } }

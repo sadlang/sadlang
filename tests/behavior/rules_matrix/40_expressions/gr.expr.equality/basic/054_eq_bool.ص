@@ -1,0 +1,6 @@
+# @rule: gr.expr.equality
+# @description: eq_bool
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: خطأ
+اطبع_سطر(صحيح == خطأ)

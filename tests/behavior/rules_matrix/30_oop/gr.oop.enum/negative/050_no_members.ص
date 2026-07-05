@@ -1,0 +1,8 @@
+# @rule: gr.oop.enum
+# @description: no_members
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+تعداد ل
+نهاية

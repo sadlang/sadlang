@@ -1,0 +1,6 @@
+# @rule: gr.expr.range
+# @description: r_no_start
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(..5)

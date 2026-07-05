@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: l_two_params
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+متغير ج = لامدا(أ، ب) => أ + ب
+اطبع_سطر(ج(3، 4))

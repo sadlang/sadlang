@@ -1,0 +1,11 @@
+# @rule: gr.stmt.throw
+# @description: حدّي — throw_caught_msg
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ملتقط
+
+حاول
+    ارمي "رسالة"
+امسك ه
+    اطبع_سطر("ملتقط")
+نهاية

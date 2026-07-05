@@ -1,0 +1,6 @@
+# @rule: gr.expr.factor
+# @description: f_floor_neg
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -3
+اطبع_سطر(0 - 7 // 2)

@@ -1,0 +1,14 @@
+# @rule: gr.oop.class
+# @description: three_level_inherit
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: جذر
+
+صنف أ
+    دالة س() ارجع "جذر" نهاية
+نهاية
+صنف ب يرث أ
+نهاية
+صنف ج يرث ب
+نهاية
+اطبع_سطر(ج().س())

@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: tm_shr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+اطبع_سطر(16 >> 2)

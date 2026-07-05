@@ -1,0 +1,9 @@
+# @rule: gr.oop.constructor
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    باني() هذا.ق = 1
+نهاية

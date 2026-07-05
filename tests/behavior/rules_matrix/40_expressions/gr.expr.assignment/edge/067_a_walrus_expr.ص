@@ -1,0 +1,7 @@
+# @rule: gr.expr.assignment
+# @description: a_walrus_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 11
+متغير ن = (ك := 5) + 6
+اطبع_سطر(ن)

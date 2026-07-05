@@ -1,0 +1,9 @@
+# @rule: gr.expr.decorator
+# @description: d_two_stacked
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+@أول
+@ثاني
+دالة اثنان() ارجع 2 نهاية
+اطبع_سطر(اثنان())

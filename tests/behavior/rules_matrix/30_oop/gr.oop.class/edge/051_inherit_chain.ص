@@ -1,0 +1,14 @@
+# @rule: gr.oop.class
+# @description: inherit_chain
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ج
+
+صنف أ
+    دالة س() ارجع "ج" نهاية
+نهاية
+صنف ب يرث أ
+نهاية
+صنف ج يرث ب
+نهاية
+اطبع_سطر(ج().س())

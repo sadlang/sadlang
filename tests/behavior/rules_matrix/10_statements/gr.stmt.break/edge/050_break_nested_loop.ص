@@ -1,0 +1,12 @@
+# @rule: gr.stmt.break
+# @description: حدّي — break_nested_loop
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: تم
+
+لكل أ في [1، 2]
+    لكل ب في [1، 2]
+        توقف
+    نهاية
+نهاية
+اطبع_سطر("تم")

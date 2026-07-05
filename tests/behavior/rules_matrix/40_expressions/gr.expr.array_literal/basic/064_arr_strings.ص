@@ -1,0 +1,6 @@
+# @rule: gr.expr.array_literal
+# @description: arr_strings
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [أ, ب]
+اطبع_سطر(["أ"، "ب"])

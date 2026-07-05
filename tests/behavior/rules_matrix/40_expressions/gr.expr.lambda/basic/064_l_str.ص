@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: l_str
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: hi!
+متغير د = لامدا(س) => س + "!"
+اطبع_سطر(د("hi"))

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: حدّي — or_cond
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: نعم
+
+متغير ن = 9
+إذا (ن == 1 أو ن == 9)
+    اطبع_سطر("نعم")
+نهاية

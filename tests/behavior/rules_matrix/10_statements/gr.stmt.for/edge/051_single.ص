@@ -1,0 +1,9 @@
+# @rule: gr.stmt.for
+# @description: حدّي — single
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: واحد
+
+لكل ن في ["واحد"]
+    اطبع_سطر(ن)
+نهاية

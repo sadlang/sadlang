@@ -1,0 +1,7 @@
+# @rule: gr.expr.primary
+# @description: pr_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+متغير س = 8
+اطبع_سطر(س)

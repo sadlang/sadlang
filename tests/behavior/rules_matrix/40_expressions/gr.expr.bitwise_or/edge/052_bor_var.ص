@@ -1,0 +1,8 @@
+# @rule: gr.expr.bitwise_or
+# @description: bor_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 14
+متغير أ = 8
+متغير ب = 6
+اطبع_سطر(أ | ب)

@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_str_index0
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أ
+اطبع_سطر("أبج"[0])

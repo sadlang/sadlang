@@ -1,0 +1,9 @@
+# @rule: gr.oop.enum
+# @description: stray_body
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+تعداد ل
+    أحمر
+    اطبع_سطر("خطأ")

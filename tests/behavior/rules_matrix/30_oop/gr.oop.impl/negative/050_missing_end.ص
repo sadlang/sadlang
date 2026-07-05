@@ -1,0 +1,13 @@
+# @rule: gr.oop.impl
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+سمة ن
+    دالة ص()
+نهاية
+صنف ك
+نهاية
+نفّذ ن لـ ك
+    دالة ص() ارجع 1 نهاية

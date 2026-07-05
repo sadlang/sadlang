@@ -1,0 +1,12 @@
+# @rule: gr.oop.method
+# @description: two_methods
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 12
+
+صنف آلة
+    دالة أ() ارجع 5 نهاية
+    دالة ب() ارجع 7 نهاية
+نهاية
+متغير م = آلة()
+اطبع_سطر(م.أ() + م.ب())

@@ -1,0 +1,6 @@
+# @rule: gr.expr.factor
+# @description: f_mod_chain
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+اطبع_سطر(17 % 5 % 2)

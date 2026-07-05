@@ -1,0 +1,11 @@
+# @rule: gr.stmt.match
+# @description: حدّي — no_parens
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: اثنان
+
+متغير ع = 2
+طابق ع
+    عندما 2: اطبع_سطر("اثنان")
+    افتراضي: اطبع_سطر("غير")
+نهاية

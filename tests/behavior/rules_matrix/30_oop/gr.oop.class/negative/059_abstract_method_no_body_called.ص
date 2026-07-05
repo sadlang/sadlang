@@ -1,0 +1,11 @@
+# @rule: gr.oop.class
+# @description: abstract_method_no_body_called
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف ك
+    دالة مجرّدة()
+نهاية
+متغير م = ك()
+م.مجرّدة()

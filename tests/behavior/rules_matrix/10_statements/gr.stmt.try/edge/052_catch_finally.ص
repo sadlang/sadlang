@@ -1,0 +1,14 @@
+# @rule: gr.stmt.try
+# @description: حدّي — catch_finally
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ملتقط
+# @expected: نهائي
+
+حاول
+    ارمي "ع"
+امسك خطأ
+    اطبع_سطر("ملتقط")
+أخيراً
+    اطبع_سطر("نهائي")
+نهاية

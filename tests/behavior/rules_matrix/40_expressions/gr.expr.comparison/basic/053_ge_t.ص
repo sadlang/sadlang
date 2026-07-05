@@ -1,0 +1,6 @@
+# @rule: gr.expr.comparison
+# @description: ge_t
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(4 >= 3)

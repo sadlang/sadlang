@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator
+# @description: d_basic
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+@تذكير
+دالة حيّ() ارجع 1 نهاية
+اطبع_سطر(حيّ())

@@ -1,0 +1,12 @@
+# @rule: gr.stmt.try
+# @description: حدّي — with_finally
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ج
+# @expected: نهائي
+
+حاول
+    اطبع_سطر("ج")
+أخيراً
+    اطبع_سطر("نهائي")
+نهاية

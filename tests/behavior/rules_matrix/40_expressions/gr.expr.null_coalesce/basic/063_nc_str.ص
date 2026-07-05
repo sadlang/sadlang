@@ -1,0 +1,6 @@
+# @rule: gr.expr.null_coalesce
+# @description: nc_str
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: x
+اطبع_سطر("x" ؟؟ "y")

@@ -1,0 +1,8 @@
+# @rule: gr.oop.trait
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+سمة ن
+    دالة ص()

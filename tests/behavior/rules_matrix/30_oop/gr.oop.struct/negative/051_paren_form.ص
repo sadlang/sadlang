@@ -1,0 +1,9 @@
+# @rule: gr.oop.struct
+# @description: paren_form
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+بنية ن {
+    متغير عام س
+}

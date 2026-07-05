@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: empty_body_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: تم
+
+صنف ع
+    دالة لاشيء() نهاية
+نهاية
+متغير ك = ع()
+ك.لاشيء()
+اطبع_سطر("تم")

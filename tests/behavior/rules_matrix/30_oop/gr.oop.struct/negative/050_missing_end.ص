@@ -1,0 +1,8 @@
+# @rule: gr.oop.struct
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+بنية ن
+    متغير عام س

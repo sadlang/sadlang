@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: حدّي — inclusive_range
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: حد
+
+طابق (10)
+    عندما 1..=10: اطبع_سطر("حد")
+    افتراضي: اطبع_سطر("خارج")
+نهاية

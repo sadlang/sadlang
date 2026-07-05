@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_if_str
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ل
+اطبع_سطر(إذا (خطأ) "ن" وإلا "ل")

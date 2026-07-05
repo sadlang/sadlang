@@ -1,0 +1,10 @@
+# @rule: gr.expr.range
+# @description: r_sum24
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+متغير م = 0
+لكل ع في 2..4
+    م = م + ع
+نهاية
+اطبع_سطر(م)

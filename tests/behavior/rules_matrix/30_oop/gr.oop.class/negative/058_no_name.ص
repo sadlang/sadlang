@@ -1,0 +1,9 @@
+# @rule: gr.oop.class
+# @description: no_name
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف
+    متغير عام ق
+نهاية

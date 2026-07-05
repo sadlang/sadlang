@@ -1,0 +1,10 @@
+# @rule: gr.stmt.switch
+# @description: حدّي — bool_false
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: لا
+
+حالة خطأ
+    عندما صحيح: اطبع_سطر("نعم")
+    عندما خطأ: اطبع_سطر("لا")
+نهاية

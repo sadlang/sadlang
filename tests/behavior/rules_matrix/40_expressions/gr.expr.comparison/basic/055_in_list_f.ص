@@ -1,0 +1,6 @@
+# @rule: gr.expr.comparison
+# @description: in_list_f
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: خطأ
+اطبع_سطر(9 في [1، 2، 3])

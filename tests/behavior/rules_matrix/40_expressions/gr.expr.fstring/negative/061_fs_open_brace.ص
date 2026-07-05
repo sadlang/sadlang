@@ -1,0 +1,6 @@
+# @rule: gr.expr.fstring
+# @description: fs_open_brace
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(م"{")

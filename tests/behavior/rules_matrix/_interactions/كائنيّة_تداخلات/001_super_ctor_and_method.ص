@@ -1,0 +1,13 @@
+# @rule: gr.oop.this_super, gr.oop.constructor, gr.oop.class
+# @description: super_ctor_and_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مياو: صوت
+
+صنف حيوان
+    دالة صوت() ارجع "صوت" نهاية
+نهاية
+صنف قط يرث حيوان
+    دالة صوت() ارجع "مياو: " + الأساس.صوت() نهاية
+نهاية
+اطبع_سطر(قط().صوت())

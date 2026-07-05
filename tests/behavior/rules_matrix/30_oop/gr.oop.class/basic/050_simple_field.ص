@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: simple_field — حقل مُهيّأ يُضبط خارجيّاً ثمّ يُقرأ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف نقطة
+    متغير عام س = 0
+نهاية
+متغير ن = نقطة()
+ن.س = 5
+اطبع_سطر(ن.س)

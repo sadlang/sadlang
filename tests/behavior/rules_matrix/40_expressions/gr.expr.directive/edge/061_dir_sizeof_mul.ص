@@ -1,0 +1,6 @@
+# @rule: gr.expr.directive
+# @description: dir_sizeof_mul
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 24
+اطبع_سطر(@حجم(رقم) * 3)

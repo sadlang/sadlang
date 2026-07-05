@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: حدّي — countdown
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+# @expected: 2
+# @expected: 1
+
+متغير ع = 3
+بينما (ع > 0)
+    اطبع_سطر(ع)
+    ع = ع - 1
+نهاية

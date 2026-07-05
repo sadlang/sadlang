@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: tm_leftassoc
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(10 - 3 - 2)

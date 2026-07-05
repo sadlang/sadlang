@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression
+# @description: x_bool
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(صحيح)

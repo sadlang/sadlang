@@ -1,0 +1,6 @@
+# @rule: gr.expr.equality
+# @description: eq_chain_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(1 + 1 == 2)

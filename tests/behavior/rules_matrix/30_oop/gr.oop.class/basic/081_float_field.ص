@@ -1,0 +1,11 @@
+# @rule: gr.oop.class
+# @description: float_field
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2.5
+
+صنف ق
+    متغير عام قيمة
+    باني(ق) هذا.قيمة = ق نهاية
+نهاية
+اطبع_سطر(ق(2.5).قيمة)

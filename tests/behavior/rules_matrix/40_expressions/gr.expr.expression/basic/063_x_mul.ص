@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression
+# @description: x_mul
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+اطبع_سطر(3 * 4)

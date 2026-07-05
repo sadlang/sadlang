@@ -1,0 +1,6 @@
+# @rule: gr.expr.directive
+# @description: dir_sizeof_cmp
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(@حجم(رقم) == 8)

@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_str_plus
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ab
+متغير س = "a"
+س += "b"
+اطبع_سطر(س)

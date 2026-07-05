@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: string_field_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ص!
+
+صنف ش
+    متغير عام اسم
+    باني(ا) هذا.اسم = ا نهاية
+    دالة صيحة() ارجع هذا.اسم + "!" نهاية
+نهاية
+اطبع_سطر(ش("ص").صيحة())

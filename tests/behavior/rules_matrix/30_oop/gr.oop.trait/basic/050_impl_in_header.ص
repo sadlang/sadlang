@@ -1,0 +1,13 @@
+# @rule: gr.oop.trait
+# @description: impl_in_header
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: هو
+
+سمة ناطق
+    دالة صوت()
+نهاية
+صنف كلب نفّذ ناطق
+    دالة صوت() ارجع "هو" نهاية
+نهاية
+اطبع_سطر(كلب().صوت())

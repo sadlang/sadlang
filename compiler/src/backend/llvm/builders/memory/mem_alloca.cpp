@@ -263,15 +263,14 @@ namespace Sad
                                     }
                                     case SadTypeKind::String:
                                     {
-                                        // (AR) إنشاء نص ثابت عبر sad_string_new_cstr
-                                        // (EN) Create constant string via sad_string_new_cstr
-                                        auto *strFnTy = llvm::FunctionType::get(
-                                            llvm::PointerType::getUnqual(*cg_.context_),
-                                            {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-                                        auto strFn = cg_.module_->getOrInsertFunction("sad_string_new_cstr", strFnTy);
+                                        // (AR) ISSUE-059: النصّ مؤشّرُ char* خام (كالنصوص الحرفيّة)؛
+                                        //      نخزّن المؤشّر مباشرةً بدل استدعاء sad_string_new_cstr
+                                        //      **غير المعرَّفة** (كانت تُسبّب undefined symbol وفشل ربط).
+                                        // (EN) ISSUE-059: strings are raw char* pointers (like string
+                                        //      literals); store the pointer directly instead of calling
+                                        //      the UNDEFINED sad_string_new_cstr (caused undefined symbol).
                                         auto *strConst = cg_.builder_->CreateGlobalStringPtr(defaultVal, fieldName + ".defstr");
-                                        llvm::Value *strVal = cg_.builder_->CreateCall(strFn, {strConst}, fieldName + ".defval");
-                                        cg_.builder_->CreateStore(strVal, fieldGep);
+                                        cg_.builder_->CreateStore(strConst, fieldGep);
                                         break;
                                     }
                                     default:

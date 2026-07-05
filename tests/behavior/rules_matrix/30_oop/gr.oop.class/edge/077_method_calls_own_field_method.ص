@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: method_calls_own_field_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+صنف ع
+    متغير عام ق = 4
+    دالة ضعف() ارجع هذا.ق * 2 نهاية
+    دالة عبر_دالة() ارجع هذا.ضعف() نهاية
+نهاية
+اطبع_سطر(ع().عبر_دالة())

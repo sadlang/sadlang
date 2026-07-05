@@ -1,0 +1,6 @@
+# @rule: gr.expr.null_coalesce
+# @description: nc_val
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(5 ؟؟ 7)

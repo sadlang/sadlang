@@ -733,6 +733,18 @@ namespace Sad
                         b_.currentBlock_ = nextCheckBlock;
                     }
 
+                    // (AR) ISSUE-054: إن لم توجد أيّ حالة «عندما»، فحلقة المقارنة أعلاه لم تُنفَّذ،
+                    //      فبقيت كتلة المدخل بلا تفرّع إلى الافتراضيّ ⇒ جسم الافتراضيّ كودٌ ميت
+                    //      (المترجم يبني ولا يُخرِج شيئاً). نُضيف قفزاً صريحاً إلى الافتراضيّ/الخروج.
+                    // (EN) ISSUE-054: with no 'when' cases the comparison loop above didn't run,
+                    //      so the entry block never branched to default ⇒ the default body is dead
+                    //      code (compiler builds but emits nothing). Add an explicit jump.
+                    if (switchStmt->cases.empty() && b_.currentBlock_)
+                    {
+                        b_.currentBlock_->addInstruction(
+                            SIRInstruction::Branch(SIROperand::Label(defaultLabel)));
+                    }
+
                     // (AR) بناء أجسام الحالات
                     // (EN) Build case bodies
                     for (size_t i = 0; i < switchStmt->cases.size(); ++i)

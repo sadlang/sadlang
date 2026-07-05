@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: حدّي — with_break
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+لكل ن في [1، 2، 3]
+    اطبع_سطر(ن)
+    توقف
+نهاية

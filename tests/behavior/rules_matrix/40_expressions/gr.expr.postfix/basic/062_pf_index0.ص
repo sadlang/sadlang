@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_index0
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+اطبع_سطر([1، 2، 3][0])

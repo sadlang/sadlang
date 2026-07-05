@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_and
+# @description: band_0_9
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+اطبع_سطر(0 & 9)

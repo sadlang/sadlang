@@ -1,0 +1,8 @@
+# @rule: gr.expr.lambda
+# @description: l_closure
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+متغير ز = 10
+متغير د = لامدا(س) => س + ز
+اطبع_سطر(د(5))

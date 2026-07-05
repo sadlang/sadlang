@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_nested_index
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+اطبع_سطر([[1، 2]، [3، 4]][1][0])

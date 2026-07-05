@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_index4 — فهرسة العنصر الخامس
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر([1، 2، 3، 4، 5][4])

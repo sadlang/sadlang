@@ -1,0 +1,15 @@
+# @rule: gr.oop.class
+# @description: field_modified_across_methods
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+صنف ع
+    متغير عام ق = 0
+    دالة زد() هذا.ق = هذا.ق + 3 نهاية
+    دالة اقرأ() ارجع هذا.ق نهاية
+نهاية
+متغير ك = ع()
+ك.زد()
+ك.زد()
+اطبع_سطر(ك.اقرأ())

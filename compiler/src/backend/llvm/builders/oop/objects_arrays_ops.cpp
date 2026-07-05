@@ -950,15 +950,18 @@ namespace Sad
                             }
                             case SadTypeKind::String:
                             {
-                                // (AR) إنشاء نص ثابت عبر sad_string_new_cstr
-                                // (EN) Create constant string via sad_string_new_cstr
-                                auto *strFnTy = llvm::FunctionType::get(
-                                    llvm::PointerType::getUnqual(*cg_.context_),
-                                    {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-                                auto strFn = cg_.module_->getOrInsertFunction("sad_string_new_cstr", strFnTy);
+                                // (AR) ISSUE-059: النصّ يُمثَّل مؤشّرَ char* خامًا (كالنصوص
+                                //      الحرفيّة عبر CreateGlobalStringPtr) — نخزّن المؤشّر
+                                //      مباشرةً. كان يستدعي sad_string_new_cstr **غير المعرَّفة**
+                                //      في الـruntime ⇒ «undefined symbol» فيفشل ربط أيّ صنفٍ
+                                //      بحقلٍ نصّيّ مُهيّأ بلا باني.
+                                // (EN) ISSUE-059: strings are raw char* pointers (like string
+                                //      literals via CreateGlobalStringPtr) — store the pointer
+                                //      directly. Previously called the UNDEFINED runtime function
+                                //      sad_string_new_cstr ⇒ "undefined symbol", breaking the link
+                                //      of any class with a string-initialized field and no ctor.
                                 auto *strConst = cg_.builder_->CreateGlobalStringPtr(defaultVal, fieldName + ".defstr");
-                                llvm::Value *strVal = cg_.builder_->CreateCall(strFn, {strConst}, fieldName + ".defval");
-                                cg_.builder_->CreateStore(strVal, fieldGep);
+                                cg_.builder_->CreateStore(strConst, fieldGep);
                                 break;
                             }
                             default:

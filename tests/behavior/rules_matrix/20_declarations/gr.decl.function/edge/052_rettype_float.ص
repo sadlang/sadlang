@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: rettype_float
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2.5
+
+دالة عشري نصف(رقم س) ارجع س / 2 نهاية
+اطبع_سطر(نصف(5))

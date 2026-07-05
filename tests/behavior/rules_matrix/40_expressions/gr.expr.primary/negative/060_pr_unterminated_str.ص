@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_unterminated_str
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر("مرحبا)

@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: inherited_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أساس
+
+صنف أ
+    دالة س() ارجع "أساس" نهاية
+نهاية
+صنف ب يرث أ
+نهاية
+اطبع_سطر(ب().س())

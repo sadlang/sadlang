@@ -1,0 +1,6 @@
+# @rule: gr.expr.map_literal
+# @description: map_unclosed
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر({"أ": 1)

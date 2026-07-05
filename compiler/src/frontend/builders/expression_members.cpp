@@ -90,6 +90,61 @@ namespace Sad
                 auto objResult = buildExpression(memberExpr->object.get());
 
                 // ================================================================
+                // (AR) [ISSUE-062] الوصول النقطيّ الرقميّ للصفّ: «ص.0»/«ص.1». المحلّل
+                //      يحوّله إلى MemberExpr باسم عضوٍ رقميّ؛ لكنّ الصفّ يُخزَّن ببنية
+                //      المصفوفة، فتحميل حقلٍ باسم نصّيّ «0» كان يُرجع 0. الصحيح: تحويله
+                //      إلى ARRAY_GET بفهرسٍ عدديّ — نظير الفهرسة بالأقواس «ص[0]».
+                // (EN) [ISSUE-062] Numeric tuple dot access «ص.0»/«ص.1». The parser turns
+                //      it into a MemberExpr with a numeric member name; but a tuple is
+                //      stored with array layout, so loading a field named «0» returned 0.
+                //      Correct: lower it to ARRAY_GET with an integer index — mirroring
+                //      bracket indexing «ص[0]».
+                if ((objResult.type == SadTypeKind::Tuple || objResult.type == SadTypeKind::Array) &&
+                    !memberExpr->member.empty() &&
+                    memberExpr->member.find_first_not_of("0123456789") == std::string::npos &&
+                    b_.currentBlock_)
+                {
+                    int64_t tupleIdx = 0;
+                    try
+                    {
+                        tupleIdx = std::stoll(memberExpr->member);
+                    }
+                    catch (...)
+                    {
+                        tupleIdx = 0;
+                    }
+
+                    // (AR) استنتاج نوع الناتج من نوع عنصر الكائن، مطابقةً لمسار الفهرسة
+                    //      بالأقواس «ص[0]» (buildExprIndex): عنصرٌ معروف ⇒ نوعه، وإلّا Integer.
+                    // (EN) Infer result type from the object's element type, mirroring the
+                    //      bracket-index path «ص[0]» (buildExprIndex): known element ⇒ its
+                    //      type, else Integer.
+                    SadTypeKind elemType = SadTypeKind::Integer;
+                    if (objResult.elementType == SadTypeKind::Array)
+                        elemType = SadTypeKind::Array;
+                    else if (objResult.elementType != SadTypeKind::Void)
+                        elemType = objResult.elementType;
+
+                    // (AR) تجسيد الفهرس في سجلّ (ARRAY_GET يتوقّع معاملًا سجلّيًّا)
+                    // (EN) Materialize index into a register (ARRAY_GET expects a register operand)
+                    std::string idxReg = b_.newTempRegister();
+                    SIRInstruction idxMove(SIROpcode::MOVE);
+                    idxMove.result = SIROperand::Register(idxReg, SadTypeKind::Integer);
+                    idxMove.operands.push_back(SIROperand::ConstantI64(tupleIdx));
+                    b_.currentBlock_->addInstruction(idxMove);
+
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction getInst(SIROpcode::ARRAY_GET);
+                    getInst.result = SIROperand::Register(resultReg, elemType);
+                    getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+                    getInst.operands.push_back(SIROperand::Register(idxReg, SadTypeKind::Integer));
+                    getInst.comment = "tuple numeric member access: ." + memberExpr->member;
+                    b_.currentBlock_->addInstruction(getInst);
+
+                    return BuildResult(resultReg, elemType);
+                }
+
+                // ================================================================
                 // (AR) الخطوة 1.25: فحص وصول لحالة واحدية (Unit variant) في تعداد جبري
                 // (EN) Step 1.25: Check if accessing Unit variant of ADT enum
                 // ================================================================

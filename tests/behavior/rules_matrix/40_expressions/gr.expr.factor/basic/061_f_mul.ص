@@ -1,0 +1,6 @@
+# @rule: gr.expr.factor
+# @description: f_mul
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 42
+اطبع_سطر(6 * 7)

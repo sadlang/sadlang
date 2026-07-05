@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_float
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3.5
+اطبع_سطر(3.5)

@@ -1,0 +1,6 @@
+# @rule: gr.expr.fstring
+# @description: fs_multi
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 123
+اطبع_سطر(م"{1}{2}{3}")

@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: sub_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 4
+
+صنف حاسبة
+    دالة اطرح(أ، ب) ارجع أ - ب نهاية
+نهاية
+اطبع_سطر(حاسبة().اطرح(10، 6))

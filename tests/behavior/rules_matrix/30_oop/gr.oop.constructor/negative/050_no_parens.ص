@@ -1,0 +1,10 @@
+# @rule: gr.oop.constructor
+# @description: no_parens
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    باني هذا.ق = 1 نهاية
+نهاية
+متغير ك = س()

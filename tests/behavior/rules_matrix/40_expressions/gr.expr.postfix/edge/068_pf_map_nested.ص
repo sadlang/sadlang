@@ -1,0 +1,7 @@
+# @rule: gr.expr.postfix
+# @description: pf_map_nested — فهرسة متسلسلة على خريطة متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+متغير خ = {"أ": {"ب": 3}}
+اطبع_سطر(خ["أ"]["ب"])

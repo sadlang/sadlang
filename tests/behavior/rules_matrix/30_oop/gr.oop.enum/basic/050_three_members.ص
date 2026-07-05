@@ -1,0 +1,10 @@
+# @rule: gr.oop.enum
+# @description: three_members
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: عُرّف
+
+تعداد لون
+    أحمر، أخضر، أزرق
+نهاية
+اطبع_سطر("عُرّف")

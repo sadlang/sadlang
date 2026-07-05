@@ -359,6 +359,36 @@ namespace Sad
                 BuildResult result(varInfo->registerName, varInfo->type);
                 result.isParameter = varInfo->isParameter;
 
+                // ================================================================
+                // (AR) ISSUE-057: المعامل غير المُصرَّح يُخزَّن i64 (حماية null، FIX X04)،
+                //      لكن قد يكون نوعه الدلاليّ Boolean في functionTable_ (استُنتِج من
+                //      موقع الاستدعاء). نُبلّغ Boolean في BuildResult فقط ليُنسّق نص()
+                //      القيمةَ صحيحاً («صحيح»/«خطأ» لا «1») — دون تغيير تخزين i64، فلا
+                //      قصّ i64→i1 عند الاستدعاء ولا فساد null.
+                // (EN) ISSUE-057: an untyped parameter is stored as i64 (null-safety,
+                //      FIX X04), but functionTable_ may know its semantic type is Boolean
+                //      (inferred from the call site). Report Boolean in the BuildResult so
+                //      نص()/to_string formats it correctly ("صحيح"/"خطأ" not "1") — without
+                //      changing i64 storage, so no i64→i1 truncation at the call and no null
+                //      corruption.
+                // ================================================================
+                if (result.type == SadTypeKind::Integer && varInfo->isParameter &&
+                    b_.currentFunction_)
+                {
+                    auto ftIt = b_.functionTable_.find(b_.currentFunction_->name);
+                    if (ftIt != b_.functionTable_.end())
+                    {
+                        for (const auto &p : ftIt->second.parameters)
+                        {
+                            if (p.name == var->name && p.type == SadTypeKind::Boolean)
+                            {
+                                result.type = SadTypeKind::Boolean;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 // (AR) تتبع اسم الصنف إذا كان المتغير يحمل كائناً
                 // (EN) Track class name if variable holds an object
                 auto cit = b_.classInstanceTypes_.find(var->name);

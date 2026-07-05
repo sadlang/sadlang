@@ -1,0 +1,6 @@
+# @rule: gr.expr.power
+# @description: pw_right_assoc
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 512
+اطبع_سطر(2 ** 3 ** 2)

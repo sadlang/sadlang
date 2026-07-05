@@ -1,0 +1,13 @@
+# @rule: gr.oop.class
+# @description: method_with_local_var
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 11
+
+صنف ح
+    دالة احسب(ن)
+        متغير م = ن * 2
+        ارجع م + 1
+    نهاية
+نهاية
+اطبع_سطر(ح().احسب(5))

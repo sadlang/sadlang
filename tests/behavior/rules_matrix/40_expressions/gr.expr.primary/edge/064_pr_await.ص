@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_await
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(انتظر 5)

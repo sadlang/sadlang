@@ -1,0 +1,10 @@
+# @rule: gr.oop.method
+# @description: no_parens
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    دالة ص ارجع 1 نهاية
+نهاية
+متغير ك = س()

@@ -1,0 +1,10 @@
+# @rule: gr.expr.range
+# @description: r_count
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+متغير ك = 0
+لكل ع في 1..3
+    ك = ك + 1
+نهاية
+اطبع_سطر(ك)

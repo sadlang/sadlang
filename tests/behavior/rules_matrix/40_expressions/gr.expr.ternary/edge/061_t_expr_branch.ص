@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_expr_branch
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+اطبع_سطر((صحيح) ؟ (1 + 1) : (2 + 2))

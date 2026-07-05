@@ -1,0 +1,7 @@
+# @rule: gr.oop.this_super
+# @description: سالب — «هذا» خارج أيّ صنف مرفوض
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+اطبع_سطر(هذا.ق)

@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_mul_zero
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0
+متغير س = 9
+س *= 0
+اطبع_سطر(س)

@@ -1,0 +1,12 @@
+# @rule: gr.oop.member
+# @description: all_member_kinds
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+صنف نقطة
+    متغير عام س = 0
+    باني(س) هذا.س = س نهاية
+    دالة اقرأ() ارجع هذا.س نهاية
+نهاية
+اطبع_سطر(نقطة(7).اقرأ())

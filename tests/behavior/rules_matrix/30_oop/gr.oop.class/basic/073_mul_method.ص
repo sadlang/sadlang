@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: mul_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 24
+
+صنف حاسبة
+    دالة اضرب(أ، ب) ارجع أ * ب نهاية
+نهاية
+اطبع_سطر(حاسبة().اضرب(4، 6))

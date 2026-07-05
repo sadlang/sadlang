@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_neg_result
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -2
+متغير س = 3
+س -= 5
+اطبع_سطر(س)

@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: rettype_num
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+دالة رقم مربّع(س) ارجع س * س نهاية
+اطبع_سطر(مربّع(5))

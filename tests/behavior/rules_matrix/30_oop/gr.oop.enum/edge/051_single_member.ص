@@ -1,0 +1,10 @@
+# @rule: gr.oop.enum
+# @description: single_member
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: عُرّف
+
+تعداد وحيد
+    فقط
+نهاية
+اطبع_سطر("عُرّف")

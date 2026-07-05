@@ -467,6 +467,28 @@ namespace Sad
                     }
                     return;
                 }
+
+                // ================================================================
+                // (AR) SwitchStmt — حالة: التعبير المُختبَر وأجسام الفروع والافتراضيّ
+                //      قد تحوي متغيّرات حرّة (كان مفقوداً — نظير MatchStmt أعلاه).
+                // (EN) SwitchStmt — case: scrutinee + case bodies + default may contain
+                //      free variables (was missing — mirror of MatchStmt above).
+                // ================================================================
+                if (auto *switchStmt = dynamic_cast<Sad::AST::SwitchStmt *>(stmt))
+                {
+                    if (switchStmt->expression)
+                        collectFreeVarsExpr(switchStmt->expression.get(), boundNames, freeVars);
+                    for (auto &caseBranch : switchStmt->cases)
+                    {
+                        if (caseBranch.value)
+                            collectFreeVarsExpr(caseBranch.value.get(), boundNames, freeVars);
+                        if (caseBranch.body)
+                            collectFreeVarsStmt(caseBranch.body.get(), boundNames, freeVars);
+                    }
+                    if (switchStmt->defaultCase)
+                        collectFreeVarsStmt(switchStmt->defaultCase.get(), boundNames, freeVars);
+                    return;
+                }
             }
 
             // ============================================================================

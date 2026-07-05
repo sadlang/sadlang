@@ -1,0 +1,8 @@
+# @rule: gr.expr.fstring
+# @description: fs_two
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1-2
+متغير ا = 1
+متغير ب = 2
+اطبع_سطر(م"{ا}-{ب}")

@@ -201,6 +201,17 @@ namespace Sad
                 // (EN) Static fields: "class.field" → type
                 std::unordered_map<std::string, SadTypeKind> staticFields_;
 
+                // (AR) ISSUE-058: نوع الحقل المُستنتَج من إسناداته عبر البرنامج
+                //      (اسم الحقل → نوع بدائيّ) — يُملأ بمسحٍ مسبق في buildModule، ويستشيره
+                //      باني الصنف للحقول غير المُصرَّحة بلا مُهيّئ (بدل افتراض Pointer الذي
+                //      ينهار عند تخزين عدد). القيمة Unknown تعني «متضارب/غير بدائيّ ⇒ لا تستنتج».
+                // (EN) ISSUE-058: field type inferred from its assignments across the program
+                //      (fieldName → primitive type) — populated by a pre-scan in buildModule and
+                //      consulted by the class builder for untyped/uninitialized fields (instead of
+                //      the Pointer default that crashes when an integer is stored). Value Unknown
+                //      means "ambiguous/non-primitive ⇒ do not infer".
+                std::unordered_map<std::string, SadTypeKind> inferredFieldTypes_;
+
                 // (AR) الدوال الساكنة: "صنف.دالة"
                 // (EN) Static methods: "class.method"
                 std::unordered_set<std::string> staticMethods_;

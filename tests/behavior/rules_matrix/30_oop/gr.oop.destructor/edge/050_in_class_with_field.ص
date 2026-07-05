@@ -1,0 +1,12 @@
+# @rule: gr.oop.destructor
+# @description: in_class_with_field
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: فتح
+
+صنف م
+    متغير عام ق = 0
+    باني() اطبع_سطر("فتح") نهاية
+    هدم() اطبع_سطر("غلق") نهاية
+نهاية
+متغير ك = م()

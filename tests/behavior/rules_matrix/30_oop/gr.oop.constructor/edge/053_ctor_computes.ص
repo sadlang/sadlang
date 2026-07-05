@@ -1,0 +1,11 @@
+# @rule: gr.oop.constructor
+# @description: ctor_computes
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+صنف مربّع
+    متغير عام مساحة
+    باني(ض) هذا.مساحة = ض * ض نهاية
+نهاية
+اطبع_سطر(مربّع(5).مساحة)

@@ -1,0 +1,6 @@
+# @rule: gr.expr.comparison
+# @description: in_string
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر("ب" في "أبج")

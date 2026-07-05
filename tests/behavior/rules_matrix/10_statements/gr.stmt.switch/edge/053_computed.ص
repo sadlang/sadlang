@@ -1,0 +1,11 @@
+# @rule: gr.stmt.switch
+# @description: حدّي — computed
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ستة
+
+متغير أ = 2
+حالة أ * 3
+    عندما 6: اطبع_سطر("ستة")
+    افتراضي: اطبع_سطر("غير")
+نهاية

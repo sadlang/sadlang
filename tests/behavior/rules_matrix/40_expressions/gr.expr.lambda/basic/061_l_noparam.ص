@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: l_noparam
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+متغير د = لامدا() => 9
+اطبع_سطر(د())

@@ -1,0 +1,11 @@
+# @rule: gr.stmt.try
+# @description: حدّي — no_error
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: تمام
+
+حاول
+    اطبع_سطر("تمام")
+امسك خطأ
+    اطبع_سطر("لن")
+نهاية

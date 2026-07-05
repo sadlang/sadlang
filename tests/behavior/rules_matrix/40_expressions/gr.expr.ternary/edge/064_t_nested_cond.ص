@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_nested_cond
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: a
+اطبع_سطر(((5 > 3) ؟ صحيح : خطأ) ؟ "a" : "b")

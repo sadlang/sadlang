@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_if_nested
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+اطبع_سطر(إذا (صحيح) (إذا (خطأ) 1 وإلا 2) وإلا 3)

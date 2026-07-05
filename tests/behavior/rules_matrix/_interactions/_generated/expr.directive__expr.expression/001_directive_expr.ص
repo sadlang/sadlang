@@ -1,0 +1,6 @@
+# @rule: gr.expr.directive, gr.expr.expression
+# @description: توجيه @حجم داخل تعبير حسابيّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 17
+اطبع_سطر(@حجم(رقم) * 2 + 1)

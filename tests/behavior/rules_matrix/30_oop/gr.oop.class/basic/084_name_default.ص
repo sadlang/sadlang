@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: name_default
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مجهول
+
+صنف ش
+    متغير عام اسم = "مجهول"
+نهاية
+اطبع_سطر(ش().اسم)

@@ -1,0 +1,8 @@
+# @rule: gr.expr.map_literal
+# @description: map_reassign
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+متغير خ = {"أ": 1}
+خ["أ"] = 8
+اطبع_سطر(خ["أ"])

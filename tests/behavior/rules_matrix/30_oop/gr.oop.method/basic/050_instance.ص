@@ -1,0 +1,10 @@
+# @rule: gr.oop.method
+# @description: instance
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+صنف رياضة
+    دالة مربّع(س) ارجع س * س نهاية
+نهاية
+اطبع_سطر(رياضة().مربّع(5))

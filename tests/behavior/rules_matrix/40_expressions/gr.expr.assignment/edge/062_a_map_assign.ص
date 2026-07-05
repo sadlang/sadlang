@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_map_assign
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+متغير خ = {"أ": 1}
+خ["أ"] = 7
+اطبع_سطر(خ["أ"])

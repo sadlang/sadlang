@@ -1,0 +1,7 @@
+# @rule: gr.expr.pipeline
+# @description: p_user_fn
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+دالة زد(س) ارجع س + 1 نهاية
+اطبع_سطر(5 |> زد)

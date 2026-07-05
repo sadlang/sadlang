@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_mod
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+متغير س = 10
+س %= 3
+اطبع_سطر(س)

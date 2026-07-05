@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal
+# @description: map_empty_ok
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صفر
+متغير خ = {}
+اطبع_سطر("صفر")

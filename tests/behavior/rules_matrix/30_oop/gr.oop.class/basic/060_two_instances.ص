@@ -1,0 +1,13 @@
+# @rule: gr.oop.class
+# @description: two_instances
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+صنف عدد
+    متغير عام ق
+    باني(ق) هذا.ق = ق نهاية
+نهاية
+متغير أ = عدد(3)
+متغير ب = عدد(4)
+اطبع_سطر(أ.ق + ب.ق)

@@ -1,0 +1,6 @@
+# @rule: gr.expr.assignment
+# @description: a_no_lhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(= 5)

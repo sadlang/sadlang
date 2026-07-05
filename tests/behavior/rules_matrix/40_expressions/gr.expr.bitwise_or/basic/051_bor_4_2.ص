@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_or
+# @description: bor_4_2
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+اطبع_سطر(4 | 2)

@@ -1,0 +1,14 @@
+# @rule: gr.stmt.try
+# @description: حدّي — finally_after_catch
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: م
+# @expected: ف
+
+حاول
+    ارمي "ع"
+امسك خطأ
+    اطبع_سطر("م")
+أخيراً
+    اطبع_سطر("ف")
+نهاية

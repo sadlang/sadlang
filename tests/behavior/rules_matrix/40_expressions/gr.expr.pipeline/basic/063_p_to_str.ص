@@ -1,0 +1,6 @@
+# @rule: gr.expr.pipeline
+# @description: p_to_str
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+اطبع_سطر(7 |> نص)

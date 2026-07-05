@@ -1,0 +1,8 @@
+# @rule: gr.decl.arg_list
+# @description: many_args
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 15
+
+دالة خمسة(أ، ب، ج، د، هـ) ارجع أ + ب + ج + د + هـ نهاية
+اطبع_سطر(خمسة(1، 2، 3، 4، 5))

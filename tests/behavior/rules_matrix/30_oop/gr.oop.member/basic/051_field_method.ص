@@ -1,0 +1,11 @@
+# @rule: gr.oop.member
+# @description: field_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+صنف ع
+    متغير عام ق = 10
+    دالة اقرأ() ارجع هذا.ق نهاية
+نهاية
+اطبع_سطر(ع().اقرأ())

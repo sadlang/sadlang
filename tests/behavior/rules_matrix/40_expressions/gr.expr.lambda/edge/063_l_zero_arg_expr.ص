@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: l_zero_arg_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 100
+متغير د = لامدا() => 100
+اطبع_سطر(د())

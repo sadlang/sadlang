@@ -1,0 +1,11 @@
+# @rule: gr.oop.property
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    متغير خاص _ق = 0
+    خاصية ق
+        احصل() ارجع هذا._ق نهاية
+نهاية

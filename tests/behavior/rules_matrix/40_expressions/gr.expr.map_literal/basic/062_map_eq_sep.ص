@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal
+# @description: map_eq_sep
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+متغير خ = {"ك" = 9}
+اطبع_سطر(خ["ك"])

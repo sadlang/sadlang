@@ -1,0 +1,6 @@
+# @rule: gr.expr.null_coalesce
+# @description: nc_bool
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(لاشيء ؟؟ صحيح)

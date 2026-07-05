@@ -1,0 +1,6 @@
+# @rule: gr.expr.pipeline
+# @description: p_str_len
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر("مرحبا" |> طول)

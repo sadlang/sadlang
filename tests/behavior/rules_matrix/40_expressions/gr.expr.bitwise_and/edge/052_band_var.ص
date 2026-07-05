@@ -1,0 +1,8 @@
+# @rule: gr.expr.bitwise_and
+# @description: band_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+متغير أ = 12
+متغير ب = 10
+اطبع_سطر(أ & ب)

@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_if_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1
+اطبع_سطر(إذا (5 > 0) 1 وإلا 2)

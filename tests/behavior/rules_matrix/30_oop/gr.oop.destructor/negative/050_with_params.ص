@@ -1,0 +1,10 @@
+# @rule: gr.oop.destructor
+# @description: with_params
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    هدم(ق) اطبع_سطر("x") نهاية
+نهاية
+متغير ك = س()

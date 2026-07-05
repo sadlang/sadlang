@@ -381,21 +381,48 @@ namespace Sad
                         }
                     }
 
-                    // (AR) إضافة الدوال المنفذة (إن وجدت)
-                    // (EN) Add implemented methods (if any)
-                    for (auto &methodStmt : structDecl->methods)
-                    {
-                        buildStatement(methodStmt.get());
-                    }
-
+                    // (AR) ISSUE-060: سجّل الصنف **قبل** بناء الباني/الطرق (كما في class_main)
+                    //      حتى يجد بناءُ الأعضاء تخطيطَ الحقول عبر module_->getClass(name).
+                    //      كان التسجيل بعد الحلقة ⇒ الطرق تُبنى بلا تخطيط حقول ⇒ تقرأ 0.
+                    // (EN) ISSUE-060: register the class BEFORE building ctor/methods (like
+                    //      class_main) so member building can look up the field layout via
+                    //      module_->getClass(name). Registering after the loop made methods
+                    //      build without field layout ⇒ read 0.
                     if (b_.module_)
                     {
                         b_.module_->addClass(sirClass);
                     }
-
-                    // (AR) تسجيل الصنف في الجدول
-                    // (EN) Register class in table
                     b_.classTable_[structDecl->name] = sirClass;
+
+                    // (AR) ISSUE-060: البنية تحصل على آليّة أعضاء الصنف الكاملة — الباني عبر
+                    //      buildClassConstructor (يربط self/هذا ويسجّل «بنية.باني» فيُستدعى عند
+                    //      الإنشاء)، والطرق عبر buildClassMethod (تخطيط الحقول وربط هذا).
+                    //      كان buildStatement العامّ يُسقطهما بلا سياق صنف ⇒ يعيدان 0.
+                    // (EN) ISSUE-060: give the struct the full class-member machinery — the
+                    //      constructor via buildClassConstructor (binds self/this and registers
+                    //      "Struct.باني" so it's called on construction), and methods via
+                    //      buildClassMethod (field layout + this binding). The generic
+                    //      buildStatement dropped both without class context ⇒ they returned 0.
+                    {
+                        // (AR) ClassDecl خفيف على المكدّس — buildClassConstructor/Method لا يقرآن
+                        //      إلّا الاسم وsuperclasses (فارغة للبنية). لا نقل ملكيّة AST.
+                        // (EN) Lightweight stack ClassDecl — buildClassConstructor/Method only read
+                        //      name + superclasses (empty for a struct). No AST ownership transfer.
+                        Sad::AST::ClassDecl tmpClass(structDecl->name, std::string(),
+                                                     Sad::AST::StmtList{}, false);
+                        auto savedClassName = b_.currentClassName_;
+                        b_.currentClassName_ = structDecl->name;
+                        for (auto &methodStmt : structDecl->methods)
+                        {
+                            if (auto *ctorDecl = dynamic_cast<Sad::AST::ConstructorDecl *>(methodStmt.get()))
+                                b_.buildClassConstructor(&tmpClass, sirClass, ctorDecl);
+                            else if (auto *methodDecl = dynamic_cast<Sad::AST::MethodDecl *>(methodStmt.get()))
+                                b_.buildClassMethod(&tmpClass, sirClass, methodDecl);
+                            else
+                                buildStatement(methodStmt.get());
+                        }
+                        b_.currentClassName_ = savedClassName;
+                    }
                     return true;
                 }
 

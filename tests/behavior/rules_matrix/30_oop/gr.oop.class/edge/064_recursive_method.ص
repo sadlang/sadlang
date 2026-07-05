@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: recursive_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 120
+
+صنف ر
+    دالة عاملي(ن) إذا (ن <= 1) ارجع 1 نهاية ارجع ن * هذا.عاملي(ن - 1) نهاية
+نهاية
+اطبع_سطر(ر().عاملي(5))

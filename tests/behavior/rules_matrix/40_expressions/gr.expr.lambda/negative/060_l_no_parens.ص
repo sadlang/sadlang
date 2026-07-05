@@ -1,0 +1,6 @@
+# @rule: gr.expr.lambda
+# @description: l_no_parens
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير د = لامدا س => س

@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: حدّي — with_break
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+متغير ع = 1
+بينما (صحيح)
+    اطبع_سطر(ع)
+    توقف
+نهاية

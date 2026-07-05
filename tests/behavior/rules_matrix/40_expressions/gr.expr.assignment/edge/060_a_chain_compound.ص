@@ -1,0 +1,9 @@
+# @rule: gr.expr.assignment
+# @description: a_chain_compound
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 20
+متغير س = 5
+س += 5
+س *= 2
+اطبع_سطر(س)

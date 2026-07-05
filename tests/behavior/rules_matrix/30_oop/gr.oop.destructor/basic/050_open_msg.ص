@@ -1,0 +1,11 @@
+# @rule: gr.oop.destructor
+# @description: open_msg
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: فتح
+
+صنف مورد
+    باني() اطبع_سطر("فتح") نهاية
+    هدم() اطبع_سطر("إغلاق") نهاية
+نهاية
+متغير م = مورد()

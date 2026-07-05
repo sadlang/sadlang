@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_abs_unclosed
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(|5)

@@ -1,0 +1,14 @@
+# @rule: gr.oop.class
+# @description: mutate_via_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف ع
+    متغير عام ق = 0
+    دالة زد(ن) هذا.ق = هذا.ق + ن نهاية
+نهاية
+متغير ك = ع()
+ك.زد(2)
+ك.زد(3)
+اطبع_سطر(ك.ق)

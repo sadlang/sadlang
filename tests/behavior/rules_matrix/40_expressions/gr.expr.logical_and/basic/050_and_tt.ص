@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_and
+# @description: and_tt
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(صحيح && صحيح)

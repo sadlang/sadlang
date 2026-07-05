@@ -1,0 +1,8 @@
+# @rule: gr.decl.arg_list
+# @description: trailing_comma
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة جمع(أ، ب) ارجع أ + ب نهاية
+اطبع_سطر(جمع(1، 2،))

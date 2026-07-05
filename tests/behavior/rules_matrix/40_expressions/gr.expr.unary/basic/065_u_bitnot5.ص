@@ -1,0 +1,6 @@
+# @rule: gr.expr.unary
+# @description: u_bitnot5
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -6
+اطبع_سطر(~5)

@@ -1,0 +1,7 @@
+# @rule: gr.expr.null_coalesce
+# @description: nc_var_null
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+متغير ك = لاشيء
+اطبع_سطر(ك ؟؟ 9)

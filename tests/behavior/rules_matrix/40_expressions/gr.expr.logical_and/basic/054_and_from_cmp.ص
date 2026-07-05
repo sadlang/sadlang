@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_and
+# @description: and_from_cmp
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(2 > 1 && 3 > 1)

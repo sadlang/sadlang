@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_plus
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+متغير س = 10
+س += 5
+اطبع_سطر(س)

@@ -1,0 +1,12 @@
+# @rule: gr.oop.member
+# @description: ctor_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+صنف ع
+    متغير عام ق
+    باني(ق) هذا.ق = ق نهاية
+    دالة ق_() ارجع هذا.ق نهاية
+نهاية
+اطبع_سطر(ع(3).ق_())

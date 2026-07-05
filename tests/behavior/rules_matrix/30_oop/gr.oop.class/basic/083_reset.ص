@@ -1,0 +1,13 @@
+# @rule: gr.oop.class
+# @description: reset
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 0
+
+صنف ع
+    متغير عام ق = 99
+    دالة صفّر() هذا.ق = 0 نهاية
+نهاية
+متغير ك = ع()
+ك.صفّر()
+اطبع_سطر(ك.ق)

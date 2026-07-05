@@ -1,0 +1,13 @@
+# @rule: gr.stmt.continue
+# @description: حدّي — continue_skips_even
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+# @expected: 3
+
+لكل ن في [1، 2، 3]
+    إذا (ن == 2)
+        استمر
+    نهاية
+    اطبع_سطر(ن)
+نهاية

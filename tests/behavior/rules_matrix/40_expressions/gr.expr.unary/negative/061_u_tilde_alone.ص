@@ -1,0 +1,6 @@
+# @rule: gr.expr.unary
+# @description: u_tilde_alone
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(~)

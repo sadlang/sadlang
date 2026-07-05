@@ -1,0 +1,7 @@
+# @rule: gr.stmt.expression
+# @description: حدّي — call_stmt
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+اطبع_سطر("مرحبا")

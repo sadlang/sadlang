@@ -1,0 +1,13 @@
+# @rule: gr.oop.class
+# @description: multiple_instances_independent
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3-7
+
+صنف ص
+    متغير عام ق
+    باني(ق) هذا.ق = ق نهاية
+نهاية
+متغير أ = ص(3)
+متغير ب = ص(7)
+اطبع_سطر(نص(أ.ق) + "-" + نص(ب.ق))

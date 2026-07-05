@@ -1,0 +1,11 @@
+# @rule: gr.oop.class
+# @description: double_field_default
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+صنف ع
+    متغير عام ق = 4
+    دالة ضعف() ارجع هذا.ق * 2 نهاية
+نهاية
+اطبع_سطر(ع().ضعف())

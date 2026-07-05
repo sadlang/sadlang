@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: حدّي — string_pattern
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أهلا
+
+طابق ("hi")
+    عندما "hi": اطبع_سطر("أهلا")
+    افتراضي: اطبع_سطر("؟")
+نهاية

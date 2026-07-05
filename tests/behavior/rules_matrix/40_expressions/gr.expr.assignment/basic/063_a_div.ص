@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_div
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+متغير س = 12
+س /= 4
+اطبع_سطر(س)

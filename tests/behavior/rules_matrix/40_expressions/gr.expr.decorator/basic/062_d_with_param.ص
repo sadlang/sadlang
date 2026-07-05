@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator
+# @description: d_with_param
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+@تتبع
+دالة زد(س) ارجع س + 1 نهاية
+اطبع_سطر(زد(5))

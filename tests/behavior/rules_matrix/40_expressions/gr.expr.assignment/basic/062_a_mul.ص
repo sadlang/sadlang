@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_mul
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+متغير س = 4
+س *= 3
+اطبع_سطر(س)

@@ -1,0 +1,6 @@
+# @rule: gr.expr.equality
+# @description: neq_str
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر("أ" != "ب")

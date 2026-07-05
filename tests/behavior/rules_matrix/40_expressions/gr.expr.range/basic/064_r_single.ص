@@ -1,0 +1,10 @@
+# @rule: gr.expr.range
+# @description: r_single
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+متغير م = 0
+لكل ع في 5..5
+    م = م + ع
+نهاية
+اطبع_سطر(م)

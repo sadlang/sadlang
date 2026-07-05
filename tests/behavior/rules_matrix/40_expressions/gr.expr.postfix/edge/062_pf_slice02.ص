@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_slice02 — شريحة «[0:2]» (نهاية حصريّة)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [1, 2]
+اطبع_سطر([1، 2، 3][0:2])

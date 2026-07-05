@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_call_index
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+اطبع_سطر(طول([1، 2، 3]))

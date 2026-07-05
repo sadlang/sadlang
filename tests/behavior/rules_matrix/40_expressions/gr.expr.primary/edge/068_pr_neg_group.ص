@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_neg_group
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -4
+اطبع_سطر((-4))

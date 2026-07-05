@@ -1,0 +1,15 @@
+# @rule: gr.oop.new, gr.stmt.for, gr.oop.class
+# @description: new_in_loop
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+صنف عدد
+    متغير عام ق
+    باني(ق) هذا.ق = ق نهاية
+نهاية
+متغير مج = 0
+لكل ن في [1، 2، 3]
+    مج = مج + عدد(ن).ق
+نهاية
+اطبع_سطر(مج)

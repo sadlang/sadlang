@@ -1,0 +1,8 @@
+# @rule: gr.expr.unary
+# @description: u_predecr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+متغير س = 5
+متغير ك = --س
+اطبع_سطر(ك)

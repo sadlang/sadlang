@@ -1,0 +1,8 @@
+# @rule: gr.decl.arg_list
+# @description: nested_call
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+دالة جمع(أ، ب) ارجع أ + ب نهاية
+اطبع_سطر(جمع(جمع(1، 2)، 3))

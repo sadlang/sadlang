@@ -1,0 +1,10 @@
+# @rule: gr.oop.modifiers
+# @description: before_keyword
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    خاص متغير ق = 0
+نهاية
+متغير ك = س()

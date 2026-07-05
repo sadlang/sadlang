@@ -1,0 +1,7 @@
+# @rule: gr.expr.directive
+# @description: dir_sizeof_in_var_add
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+متغير ح = @حجم(رقم) + 2
+اطبع_سطر(ح)

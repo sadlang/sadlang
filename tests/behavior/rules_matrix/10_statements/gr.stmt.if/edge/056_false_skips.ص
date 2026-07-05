@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: حدّي — false_skips
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: بعد
+
+إذا (خطأ)
+    اطبع_سطر("داخل")
+نهاية
+اطبع_سطر("بعد")

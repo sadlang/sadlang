@@ -1,0 +1,6 @@
+# @rule: gr.expr.map_literal
+# @description: map_no_value
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير خ = {"أ":}

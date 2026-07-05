@@ -1,0 +1,9 @@
+# @rule: gr.stmt.expression
+# @description: حدّي — assignment_side_effect
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير س = 0
+س = 5
+اطبع_سطر(س)

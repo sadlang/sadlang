@@ -515,6 +515,27 @@ namespace Sad
                         scanCallSitesInStmt(goStmt->blockBody.get());
                     return;
                 }
+
+                // (AR) جملة حالة/switch وطابق/match — يجب فحص أجسام الفروع
+                //      بدون هذا: دالّة("نص") داخل فرعٍ لا يُستنتَج نوع معاملها ⇒ يُعامَل i64.
+                // (EN) Switch/Match statements — must scan case bodies; without this a
+                //      call inside an arm doesn't get its param types inferred (treated i64).
+                if (auto *switchStmt = dynamic_cast<const Sad::AST::SwitchStmt *>(stmt))
+                {
+                    for (const auto &caseBranch : switchStmt->cases)
+                        if (caseBranch.body)
+                            scanCallSitesInStmt(caseBranch.body.get());
+                    if (switchStmt->defaultCase)
+                        scanCallSitesInStmt(switchStmt->defaultCase.get());
+                    return;
+                }
+                if (auto *matchStmt = dynamic_cast<const Sad::AST::MatchStmt *>(stmt))
+                {
+                    for (const auto &matchCase : matchStmt->cases)
+                        for (const auto &bodyStmt : matchCase.body)
+                            scanCallSitesInStmt(bodyStmt.get());
+                    return;
+                }
             }
 
             // ============================================================================

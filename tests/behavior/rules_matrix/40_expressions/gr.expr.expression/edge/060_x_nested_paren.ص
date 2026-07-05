@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression
+# @description: x_nested_paren
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 21
+اطبع_سطر((1 + 2) * (3 + 4))

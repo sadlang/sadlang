@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring
+# @description: fs_text_after
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3 نقطة
+متغير ا = 3
+اطبع_سطر(م"{ا} نقطة")

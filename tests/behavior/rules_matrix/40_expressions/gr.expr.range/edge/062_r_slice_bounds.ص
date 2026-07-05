@@ -1,0 +1,6 @@
+# @rule: gr.expr.range
+# @description: r_slice_closed_range — شريحة بمدى مغلق «[ب..ن]»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [2]
+اطبع_سطر([1، 2، 3، 4][1..2])

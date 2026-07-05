@@ -1,0 +1,7 @@
+# @rule: gr.expr.ternary
+# @description: t_in_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ك
+متغير ن = (4 > 2) ؟ "ك" : "ص"
+اطبع_سطر(ن)

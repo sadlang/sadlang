@@ -1,0 +1,10 @@
+# @rule: gr.stmt.for
+# @description: حدّي — empty_array
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: بعد
+
+لكل ن في []
+    اطبع_سطر(ن)
+نهاية
+اطبع_سطر("بعد")

@@ -1,0 +1,10 @@
+# @rule: gr.oop.member
+# @description: unknown_kw
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    شيء ق = 0
+نهاية
+متغير ك = س()

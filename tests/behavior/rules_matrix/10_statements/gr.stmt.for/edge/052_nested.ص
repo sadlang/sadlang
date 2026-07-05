@@ -1,0 +1,11 @@
+# @rule: gr.stmt.for
+# @description: حدّي — nested
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: زوج
+
+لكل أ في [1]
+    لكل ب في [1]
+        اطبع_سطر("زوج")
+    نهاية
+نهاية

@@ -1,0 +1,12 @@
+# @rule: gr.oop.modifiers
+# @description: static_and_instance
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+صنف ح
+    متغير عام ق = 4
+    دالة ساكن ثابت() ارجع 5 نهاية
+    دالة اقرأ() ارجع هذا.ق نهاية
+نهاية
+اطبع_سطر(ح.ثابت() + ح().اقرأ())

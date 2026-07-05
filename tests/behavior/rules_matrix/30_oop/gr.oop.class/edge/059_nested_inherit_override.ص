@@ -1,0 +1,15 @@
+# @rule: gr.oop.class
+# @description: nested_inherit_override
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: فرع
+
+صنف أ
+    دالة س() ارجع "أساس" نهاية
+نهاية
+صنف ب يرث أ
+    دالة س() ارجع "فرع" نهاية
+نهاية
+صنف ج يرث ب
+نهاية
+اطبع_سطر(ج().س())

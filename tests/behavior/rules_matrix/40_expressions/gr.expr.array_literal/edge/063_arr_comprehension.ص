@@ -1,0 +1,6 @@
+# @rule: gr.expr.array_literal
+# @description: arr_comprehension
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [2, 4, 6]
+اطبع_سطر([لكل س في [1، 2، 3] أنتج س * 2])

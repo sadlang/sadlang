@@ -1,0 +1,7 @@
+# @rule: gr.oop.class
+# @description: empty_no_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س

@@ -1,0 +1,10 @@
+# @rule: gr.oop.field
+# @description: modifier_before
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    عام متغير ق = 0
+نهاية
+متغير ك = س()

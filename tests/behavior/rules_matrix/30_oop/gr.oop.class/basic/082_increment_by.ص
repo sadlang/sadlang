@@ -1,0 +1,13 @@
+# @rule: gr.oop.class
+# @description: increment_by
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 15
+
+صنف ع
+    متغير عام ق = 5
+    دالة زد(ن) هذا.ق = هذا.ق + ن نهاية
+نهاية
+متغير ك = ع()
+ك.زد(10)
+اطبع_سطر(ك.ق)

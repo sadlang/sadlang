@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator
+# @description: d_func_adds
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+@سجل
+دالة جمع(أ، ب) ارجع أ + ب نهاية
+اطبع_سطر(جمع(3، 4))

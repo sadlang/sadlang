@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_str_t
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن
+اطبع_سطر((صحيح) ؟ "ن" : "ل")

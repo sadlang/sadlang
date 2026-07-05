@@ -1,0 +1,13 @@
+# @rule: gr.stmt.try
+# @description: حدّي — multi_catch_first
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: اول
+
+حاول
+    ارمي "ع"
+امسك أ
+    اطبع_سطر("اول")
+امسك ب
+    اطبع_سطر("ثان")
+نهاية

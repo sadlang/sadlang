@@ -1,0 +1,7 @@
+# @rule: gr.expr.assignment
+# @description: a_missing_rhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير س = 1
+س +=

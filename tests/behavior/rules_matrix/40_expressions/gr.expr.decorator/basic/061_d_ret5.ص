@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator
+# @description: d_ret5
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+@سجل
+دالة خمسة() ارجع 5 نهاية
+اطبع_سطر(خمسة())

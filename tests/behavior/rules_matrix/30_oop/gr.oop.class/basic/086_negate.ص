@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: negate
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: -7
+
+صنف ع
+    دالة اعكس(ن) ارجع 0 - ن نهاية
+نهاية
+اطبع_سطر(ع().اعكس(7))

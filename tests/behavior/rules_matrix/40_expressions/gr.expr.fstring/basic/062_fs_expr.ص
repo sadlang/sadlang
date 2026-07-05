@@ -1,0 +1,6 @@
+# @rule: gr.expr.fstring
+# @description: fs_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(م"{2 + 3}")

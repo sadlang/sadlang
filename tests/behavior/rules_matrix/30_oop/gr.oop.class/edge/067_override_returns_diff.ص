@@ -1,0 +1,13 @@
+# @rule: gr.oop.class
+# @description: override_returns_diff
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: قط
+
+صنف حيوان
+    دالة نوع() ارجع "حيوان" نهاية
+نهاية
+صنف قط يرث حيوان
+    دالة نوع() ارجع "قط" نهاية
+نهاية
+اطبع_سطر(قط().نوع())

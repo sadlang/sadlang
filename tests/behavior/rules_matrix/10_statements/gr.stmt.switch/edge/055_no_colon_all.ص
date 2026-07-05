@@ -1,0 +1,12 @@
+# @rule: gr.stmt.switch
+# @description: حدّي — no_colon_all
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ب
+
+حالة 2
+    عندما 1
+        اطبع_سطر("أ")
+    عندما 2
+        اطبع_سطر("ب")
+نهاية

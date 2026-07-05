@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal
+# @description: map_expr_val
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+متغير خ = {"أ": 3 + 4}
+اطبع_سطر(خ["أ"])

@@ -1,0 +1,6 @@
+# @rule: gr.expr.array_literal
+# @description: arr_unclosed
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر([1، 2)

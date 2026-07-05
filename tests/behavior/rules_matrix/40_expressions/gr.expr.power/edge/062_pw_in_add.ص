@@ -1,0 +1,6 @@
+# @rule: gr.expr.power
+# @description: pw_in_add
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+اطبع_سطر(1 + 2 ** 3)

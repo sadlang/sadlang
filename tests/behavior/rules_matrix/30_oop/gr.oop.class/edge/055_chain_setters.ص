@@ -1,0 +1,14 @@
+# @rule: gr.oop.class
+# @description: chain_setters
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+صنف ع
+    متغير عام ق = 0
+    دالة زد() هذا.ق = هذا.ق + 3 نهاية
+نهاية
+متغير ك = ع()
+ك.زد()
+ك.زد()
+اطبع_سطر(ك.ق)

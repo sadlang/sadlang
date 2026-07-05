@@ -1289,6 +1289,13 @@ namespace Sad
                     classes_->buildClassConstructor(classDecl, sirClass, ctorDecl);
                 }
 
+                // (AR) بناء طريقة صنف/بنية بسياق الصنف الكامل — ISSUE-060
+                // (EN) Build a class/struct method with full class context — ISSUE-060
+                void buildClassMethod(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::MethodDecl *methodDecl)
+                {
+                    classes_->buildClassMethod(classDecl, sirClass, methodDecl);
+                }
+
                 /**
                  * @brief (AR) بناء عامل زائد في صنف — مستخرج من buildClass (CW-05)
                  * @brief (EN) Build class operator overload — extracted from buildClass

@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: حدّي — accumulate
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير مج = 0
+متغير ع = 1
+بينما (ع <= 3)
+    مج = مج + ع
+    ع = ع + 1
+نهاية
+اطبع_سطر(مج)

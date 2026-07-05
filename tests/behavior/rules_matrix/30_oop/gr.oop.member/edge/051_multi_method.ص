@@ -1,0 +1,12 @@
+# @rule: gr.oop.member
+# @description: multi_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+صنف ح
+    دالة أ() ارجع 4 نهاية
+    دالة ب() ارجع 5 نهاية
+نهاية
+متغير ك = ح()
+اطبع_سطر(ك.أ() + ك.ب())

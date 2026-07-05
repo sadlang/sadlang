@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: bool_method_branch
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: إيجابيّ
+
+صنف ف
+    دالة صنّف(ن) إذا (ن >= 0) ارجع "إيجابيّ" وإلا ارجع "سالب" نهاية نهاية
+نهاية
+اطبع_سطر(ف().صنّف(0))

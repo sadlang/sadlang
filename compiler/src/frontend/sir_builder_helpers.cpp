@@ -251,6 +251,22 @@ namespace Sad
                     return false;
                 }
 
+                // (AR) جملة حالة/switch — نبحث في أجسام جميع الفروع والافتراضيّ (ISSUE-055)
+                //      دون هذا يُستنتَج نوع الدالة void فيُقرأ الإرجاع 0 في المُنادي.
+                // (EN) Switch statement — search all case bodies + default (ISSUE-055).
+                //      Without this the function is inferred void and its return reads 0.
+                if (auto switchStmt = dynamic_cast<const Sad::AST::SwitchStmt *>(stmt))
+                {
+                    for (const auto &caseBranch : switchStmt->cases)
+                    {
+                        if (hasReturnWithValue(caseBranch.body.get()))
+                            return true;
+                    }
+                    if (switchStmt->defaultCase && hasReturnWithValue(switchStmt->defaultCase.get()))
+                        return true;
+                    return false;
+                }
+
                 // (AR) جملة try-catch — نبحث في كتل المحاولة والالتقاط
                 // (EN) Try-catch statement — search in try and catch blocks
                 if (auto tryStmt = dynamic_cast<const Sad::AST::TryStmt *>(stmt))
@@ -333,6 +349,23 @@ namespace Sad
                             if (e)
                                 return e;
                         }
+                    }
+                }
+                // (AR) جملة حالة/switch — أوّل return في أيّ فرع أو الافتراضيّ (ISSUE-055)
+                // (EN) Switch statement — first return in any case body or default (ISSUE-055)
+                if (auto switchStmt = dynamic_cast<const Sad::AST::SwitchStmt *>(stmt))
+                {
+                    for (const auto &caseBranch : switchStmt->cases)
+                    {
+                        auto *e = findFirstReturnExpr(caseBranch.body.get());
+                        if (e)
+                            return e;
+                    }
+                    if (switchStmt->defaultCase)
+                    {
+                        auto *e = findFirstReturnExpr(switchStmt->defaultCase.get());
+                        if (e)
+                            return e;
                     }
                 }
                 // (AR) جملة try-catch — نبحث في كتل المحاولة والالتقاط

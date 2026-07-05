@@ -1,0 +1,9 @@
+# @rule: gr.oop.operator
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    عامل +(آخر) ارجع هذا
+نهاية

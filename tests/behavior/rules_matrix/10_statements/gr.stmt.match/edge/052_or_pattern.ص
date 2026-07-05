@@ -1,0 +1,10 @@
+# @rule: gr.stmt.match
+# @description: حدّي — or_pattern
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: واحد_او_اثنان
+
+طابق (2)
+    عندما 1 | 2: اطبع_سطر("واحد_او_اثنان")
+    افتراضي: اطبع_سطر("غير")
+نهاية

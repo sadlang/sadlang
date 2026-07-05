@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_floordiv
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+متغير س = 7
+س //= 2
+اطبع_سطر(س)

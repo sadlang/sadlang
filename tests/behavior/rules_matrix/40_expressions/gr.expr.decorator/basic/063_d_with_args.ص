@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator
+# @description: d_with_args
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+@مخبأ(10)
+دالة ثلاثة() ارجع 3 نهاية
+اطبع_سطر(ثلاثة())

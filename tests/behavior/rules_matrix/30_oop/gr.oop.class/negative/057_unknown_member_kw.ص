@@ -1,0 +1,9 @@
+# @rule: gr.oop.class
+# @description: unknown_member_kw
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف ك
+    xyz ق = 0
+نهاية

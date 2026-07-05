@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_str_idx0 — فهرسة أوّل محرف في نصّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+اطبع_سطر("مرحبا"[0])

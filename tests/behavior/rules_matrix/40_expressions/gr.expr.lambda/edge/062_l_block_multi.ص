@@ -1,0 +1,10 @@
+# @rule: gr.expr.lambda
+# @description: l_block_multi
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+متغير د = لامدا(س)
+    متغير ك = س * 2
+    ارجع ك
+نهاية
+اطبع_سطر(د(3))

@@ -1,0 +1,6 @@
+# @rule: gr.expr.null_coalesce
+# @description: nc_missing_rhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(5 ؟؟)

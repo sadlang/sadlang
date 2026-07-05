@@ -1,0 +1,6 @@
+# @rule: gr.expr.array_literal
+# @description: arr_nested
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [3, 4]
+اطبع_سطر([[1، 2]، [3، 4]][1])

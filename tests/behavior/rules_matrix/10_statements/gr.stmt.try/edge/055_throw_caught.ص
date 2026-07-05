@@ -1,0 +1,11 @@
+# @rule: gr.stmt.try
+# @description: حدّي — throw_caught
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: أمسكت
+
+حاول
+    ارمي "خلل"
+امسك ه
+    اطبع_سطر("أمسكت")
+نهاية

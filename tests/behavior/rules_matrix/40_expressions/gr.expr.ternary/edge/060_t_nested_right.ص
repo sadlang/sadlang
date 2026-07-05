@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_nested_right
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+اطبع_سطر((خطأ) ؟ 1 : (صحيح) ؟ 2 : 3)

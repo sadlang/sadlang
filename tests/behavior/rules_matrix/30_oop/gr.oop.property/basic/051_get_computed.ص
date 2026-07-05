@@ -1,0 +1,13 @@
+# @rule: gr.oop.property
+# @description: get_computed
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 10
+
+صنف دائرة
+    متغير عام نق = 5
+    خاصية القطر
+        احصل() ارجع هذا.نق * 2 نهاية
+    نهاية
+نهاية
+اطبع_سطر(دائرة().القطر)

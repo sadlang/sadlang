@@ -1,0 +1,8 @@
+# @rule: gr.decl.arg_list
+# @description: single_arg
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة هوية(س) ارجع س نهاية
+اطبع_سطر(هوية(7))

@@ -1,0 +1,6 @@
+# @rule: gr.expr.unary
+# @description: u_neg_mul
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+اطبع_سطر(-3 * -2)

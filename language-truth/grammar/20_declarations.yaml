@@ -48,20 +48,27 @@ productions:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
     ast_node: "VarDeclStmt"
     description_ar: >
-      تصريح متغير قابل للتغيير (متغير)، ثابت (ثابت)، أو ساكن. اسم النوع اختياري قبل المعرّف
-      (متغير رقم س)؛ التهيئة اختيارية.
-      ⭐ قاعدة «الصفة بعد الموصوف»: تأتي المُعدِّلات بعد الكلمة المفتاحية:
-      «متغير ثابت ص = 10»، «متغير عام س»، «متغير خاص س»، «متغير ساكن عام ك».
-      ملاحظات سلوك: «متغير ثابت» لا يمنع إعادة الإسناد حالياً (ISSUE-030)؛ وبعض تركيبات
-      المُعدِّلات تفشل مثل «متغير ثابت عام» (ISSUE-031).
+      تصريح متغير قابل للتغيير («متغير»)، أو ثابت («ثابت»)، أو ساكن («ساكن»). اسم النوع
+      اختياريّ قبل المعرّف («متغير رقم س») والأنواع غير محجوزة (تُلفَظ IDENTIFIER)؛
+      التهيئة «= تعبير» اختياريّة (تصريح بلا قيمة مسموح). ⭐ قاعدة «الصفة بعد الموصوف»:
+      تأتي المُعدِّلات **بعد** الكلمة المفتاحية لا قبلها: «متغير ثابت ص = 10»، «متغير عام
+      س»، «متغير خاص س»، «متغير محمي س»، «متغير ساكن عام ك». **ملاحظات سلوك محقَّقة:**
+      «ثابت»/«متغير ثابت» لا يمنع إعادة الإسناد حالياً — «متغير ثابت ص = 10» ثمّ «ص = 20»
+      يقبل ويطبع 20 (ISSUE-030)؛ وتركيب «متغير ثابت عام» يفشل بـSEM001 بينما «متغير ساكن
+      عام» يعمل (ISSUE-031).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
+      # أساسيّ + نوع اختياريّ
       متغير س = 5
       ثابت ع = 7
-      متغير ثابت ص = 10        # الصفة بعد الموصوف
-      متغير عام رقم ك = 3
+      متغير رقم عدد = 3
+
+      # الصفة بعد الموصوف
+      متغير ثابت ص = 10
+      متغير عام ك = 1
+      متغير ساكن عام مشترك = 0
 
   # ── إشارة نوع (مساعِدة) ────────────────────────────────────────────────
   - id: gr.decl.type_ref
@@ -72,38 +79,66 @@ productions:
           - { kind: terminal, ref: IDENTIFIER, value: "<اسم نوع>" }
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
-    description_ar: "اسم نوع مدمج أو معرّف صنف — يُلفظ كـIDENTIFIER (الأنواع غير محجوزة)"
+    description_ar: >
+      اسم نوع يُلفَظ كـIDENTIFIER (الأنواع **غير محجوزة** في المعجم). الأنواع المدمجة
+      شائعة الاستعمال: «رقم» (صحيح)، «عشري»، «نص»، «منطقي»، «مصفوفة»، «خريطة»، «أي»؛
+      ويصلح أيّ معرّف صنفٍ مُعرَّفٍ من المستخدم. يظهر في تصريح المتغير («متغير نص اسم»)،
+      ونوع المعامل («دالة ت(رقم س)»)، ونوع إرجاع الدالة («دالة رقم جمع()»). لاحقة «؟»
+      تجعل النوع اختياريّاً (أمان العدم، NS-06).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 3 } }
     example: |
       متغير نص اسم = "ص"
+      متغير رقم عدد = 42
+      دالة عشري نصف(رقم س) ارجع س / 2 نهاية
 
   # ── تصريح دالة ─────────────────────────────────────────────────────────
   - id: gr.decl.function
     lhs: { nonterminal: FunctionDeclaration, name_ar: "تصريح دالة", name_en: function_declaration }
-    ebnf: "FunctionDeclaration = 'دالة' Identifier '(' [ Parameters ] ')' Block ;"
+    ebnf: >
+      FunctionDeclaration = 'دالة' [ Type ] Identifier '(' [ Parameters ] ')'
+                            [ 'غير_متزامن' ] Block ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
           - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: PAREN_LEFT, value: "(" }
           - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.parameters } ] }
           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_ASYNC, value: "غير_متزامن" } ] }
           - { kind: nonterminal, ref: gr.program.block }
     references: { keywords: ["KW-RES-001"] }
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
     ast_node: "FunctionDecl"
     description_ar: >
-      تصريح دالة باسم ومعاملات وجسم. الصفة «غير_متزامن» تأتي بعد الاسم (سياقية).
-      ملاحظة: نوع الإرجاع بصيغة «-> نوع» غير مدعوم حالياً (ISSUE-023).
+      تصريح دالة باسم ومعاملات وجسم يُغلَق بـ«نهاية». **نوع الإرجاع اختياريّ ويأتي قبل
+      الاسم** (لا بعد المعاملات): «دالة رقم جمع(...)»، «دالة نص حيّ()»، ويشمل الأنواع
+      المدمجة والاختياريّة «نوع؟» (NS-06) وأصناف المستخدم «دالة نقطة اصنع()». الصفة
+      «غير_متزامن» تأتي **بعد المعاملات** (سياقية). المعاملات اختيارية وتقبل نوعاً
+      وقيمة افتراضيّة (انظر gr.decl.parameters). إن غاب نوع الإرجاع استُنتِج من جسم
+      الدالة. **قيد:** صيغة السهم «-> نوع» بعد المعاملات مرفوضة برسالة صريحة تُرشِد
+      لوضع النوع قبل الاسم (ISSUE-023 — ليست فقدان ميزة بل صيغة بديلة). تفاصيل
+      «غير_متزامن»/«انتظر» في 60_advanced.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
     example: |
+      # بلا نوع إرجاع (يُستنتَج)
       دالة جمع(أ، ب)
           ارجع أ + ب
+      نهاية
+
+      # نوع الإرجاع قبل الاسم
+      دالة رقم مربّع(س)
+          ارجع س * س
+      نهاية
+
+      # نوع نصّ قبل الاسم
+      دالة نص حيّ()
+          ارجع "مرحبا"
       نهاية
 
   # ── المعاملات ──────────────────────────────────────────────────────────
@@ -124,15 +159,21 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
     description_ar: >
-      قائمة معاملات مفصولة بفواصل؛ يدعم النوع الاختياري (رقم س) والقيمة الافتراضية (س = 10).
-      ملاحظة: المعامل المتغير «...اسم» غير مدعوم في الدوال حالياً (ISSUE-022).
+      قائمة معاملات مفصولة بفواصل (عربيّة «،» أو لاتينيّة «,»). كلّ معامل: نوع اختياريّ
+      («رقم س») ثمّ الاسم ثمّ قيمة افتراضيّة اختياريّة («ب = 10»). يجوز خلط المُنوَّع
+      وغير المُنوَّع وذي الافتراضيّ في القائمة نفسها. استدعاء الدالة بأقلّ من العدد يملأ
+      النواقص بالافتراضيّات. **قيد:** المعامل المتغيّر «...اسم» (variadic) غير مدعوم —
+      يُتخطّى «...» ثمّ يُخطئ (ISSUE-022).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 20, edge: 15, negative: 5, interaction: 3 } }
     example: |
+      # مُنوَّع + قيمة افتراضيّة
       دالة ت(رقم س، ب = 10)
           ارجع س + ب
       نهاية
+      اطبع_سطر(ت(5))      # 15 (ب افتراضيّ)
+      اطبع_سطر(ت(5، 20))  # 25
 
   # ── الاستيراد ──────────────────────────────────────────────────────────
   - id: gr.decl.import
@@ -160,14 +201,18 @@ productions:
       - { file: shared/parser/src/declarations/parser_modules.cpp, function: "ParserCore::parseImportStmt" }
     ast_node: "ImportStmt | FromImportStmt"
     description_ar: >
-      استيراد وحدة كاملة (مع اسم مستعار اختياري «كـ»)، أو أسماء محددة عبر «من ... استورد».
-      ملاحظة: «من ... استورد» يفشل حالياً في بعض الحالات (ISSUE-024).
+      صيغتان: (أ) «استورد وحدة» لوحدة كاملة، مع اسم مستعار اختياريّ «استورد وحدة كـ ر»؛
+      (ب) «من وحدة استورد اسم [، اسم…]» أو «من وحدة استورد *» لأسماء محدَّدة. **كلتاهما
+      تُحلَّلان نحوياً بنجاح** — فشل «من … استورد» في ISSUE-024 خطأُ **تنفيذٍ** (الرمز غير
+      موجود في الوحدة/تحليل الوحدة) لا خطأ نحو؛ فالبناء سليم والعائق دلاليّ (توفّر الرمز
+      في الوحدة المضمَّنة). بعض المدمجات تتطلّب «استورد أساسيات» أوّلاً.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 12, edge: 8, negative: 4, interaction: 6 } }
     example: |
       استورد رياضيات
       استورد رياضيات كـ ر
+      من رياضيات استورد جا، جتا
 
   # ── التصدير ────────────────────────────────────────────────────────────
   - id: gr.decl.export
@@ -181,12 +226,18 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExportStmt" }
     ast_node: "ExportStmt"
-    description_ar: "تصدير تصريح (دالة/صنف/متغير) من وحدة لإتاحته للاستيراد"
+    description_ar: >
+      «صدّر» تسبق تصريحاً (دالة/صنف/متغير) فتُتيحه للاستيراد من وحدات أخرى. تلتفّ حول
+      تصريحٍ كامل لا حول قيمة؛ فـ«صدّر متغير ص = 42» و«صدّر دالة …» صحيحان. **قيد
+      مترجم:** «صدّر بنية» لا يُترجَم (ISSUE-026)، و«صدّر *» مرفوض بالمحرّكين.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 3 } }
     example: |
-      صدّر دالة جمع(أ، ب) ارجع أ + ب نهاية
+      صدّر متغير ثابت النسخة = "1.0"
+      صدّر دالة جمع(أ، ب)
+          ارجع أ + ب
+      نهاية
 
   # ── الربط الخارجي (FFI) ────────────────────────────────────────────────
   - id: gr.decl.extern
@@ -204,12 +255,16 @@ productions:
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExternFunctionDecl" }
     ast_node: "FunctionDecl"
-    description_ar: "ربط دالة خارجية (C/C++ ABI) — تصريح بلا جسم"
+    description_ar: >
+      ربط دالة خارجيّة (C/C++ ABI) عبر «خارجي دالة اسم(معاملات)» — **تصريح بلا جسم**
+      (لا «نهاية»): يُعرّف التوقيع فقط ليُربط برمزٍ خارجيّ وقت الوصل. تفاصيل كتلة الربط
+      وسمات الوصل في 60_advanced (gr.adv.ffi_*).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: true, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 1 }, notes_ar: "FFI قد لا يُنفَّذ مستقلاً بلا رمز خارجي" }
     example: |
       خارجي دالة printf(نص)
+      خارجي دالة sqrt(عشري)
 
   # ── قائمة الوسائط (مساعِدة) — يستهلكها استدعاء الدوال/الطرق/المُزخرِفات ──────
   - id: gr.decl.arg_list
@@ -223,7 +278,14 @@ productions:
               - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
     maps_to:
       - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseArgumentList" }
-    description_ar: "وسائط الاستدعاء مفصولة بفواصل (عربيّة أو لاتينيّة)؛ مساعِدة لاستدعاءات gr.expr.postfix والمُزخرِفات والعناصر"
+    description_ar: >
+      وسائط الاستدعاء مفصولة بفواصل **عربيّة «،» أو لاتينيّة «,» (يجوز خلطهما)**؛ قد تكون
+      القائمة فارغة. كلّ وسيطٍ تعبيرٌ كامل (حرفيّ، متغيّر، عمليّة، استدعاء متداخل…). قاعدة
+      مساعِدة يستهلكها استدعاء الدوال/الطرق (gr.expr.postfix) والمُزخرِفات ومصانع العناصر.
+      تُقيَّم الوسائط قبل الاستدعاء؛ لا وسائط مُسمّاة ولا نشر «...» في الاستدعاء.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 2 } }
+    example: |
+      اطبع_سطر(جمع(1، 2))
+      اطبع_سطر(اكبر(3, 5, 8))

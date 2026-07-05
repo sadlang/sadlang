@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: stray_member_kw
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف نقطة
+    عام متغير س
+نهاية
+متغير ن = نقطة()

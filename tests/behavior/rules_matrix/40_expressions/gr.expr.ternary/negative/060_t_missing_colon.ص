@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_missing_colon
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر((صحيح) ؟ 1)

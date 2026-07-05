@@ -1,0 +1,6 @@
+# @rule: gr.expr.directive
+# @description: dir_no_name
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(@())

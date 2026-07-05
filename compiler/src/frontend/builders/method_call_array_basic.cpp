@@ -7,6 +7,7 @@
 
 #include <string>
 #include <optional>
+#include <limits>
 #include "sir_builder.h"
 #include "builders/method_call_builder.h"
 // (AR) ثوابت أسماء طرق الأنواع المُولَّدة
@@ -268,12 +269,22 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SLICE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    // (AR) الوسيط الثاني: فهرس البداية، الثالث: فهرس النهاية
-                    // (EN) Second arg: start index, Third: end index
+                    // (AR) الوسيط الثاني: فهرس البداية، الثالث: فهرس النهاية.
+                    //      [ISSUE-063] الخلفية تشترط 3 معاملات على الأقل وتفسّر INT64_MIN
+                    //      «حتى آخر المصفوفة». فالبداية المحذوفة = 0 والنهاية المحذوفة =
+                    //      INT64_MIN لا حذفٌ (كان `م.شريحة(١)` يعطي خطأ معاملات).
+                    // (EN) Second arg: start, third: end. [ISSUE-063] The backend requires
+                    //      ≥3 operands and reads INT64_MIN as «to end of array». So omitted
+                    //      start = 0 and omitted end = INT64_MIN, never dropped (`م.شريحة(١)`
+                    //      used to raise an operand-count error).
                     if (args.size() > 1)
                         inst.operands.push_back(args[1]);
+                    else
+                        inst.operands.push_back(SIROperand::ConstantI64(0));
                     if (args.size() > 2)
                         inst.operands.push_back(args[2]);
+                    else
+                        inst.operands.push_back(SIROperand::ConstantI64(std::numeric_limits<int64_t>::min()));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Array);

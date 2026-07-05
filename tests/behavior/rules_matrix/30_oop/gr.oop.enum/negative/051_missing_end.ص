@@ -1,0 +1,8 @@
+# @rule: gr.oop.enum
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+تعداد ل
+    أحمر، أخضر

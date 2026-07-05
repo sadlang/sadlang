@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: l_bool
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+متغير د = لامدا(س) => س > 0
+اطبع_سطر(د(5))

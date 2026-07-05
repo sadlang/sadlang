@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_and
+# @description: band_7_4
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+اطبع_سطر(7 & 4)

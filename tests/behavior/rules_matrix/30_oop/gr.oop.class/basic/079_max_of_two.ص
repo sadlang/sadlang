@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: max_of_two
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+صنف م
+    دالة اكبر(أ، ب) إذا (أ > ب) ارجع أ وإلا ارجع ب نهاية نهاية
+نهاية
+اطبع_سطر(م().اكبر(3، 8))

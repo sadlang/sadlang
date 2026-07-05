@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_missing_close
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر([1، 2][0)

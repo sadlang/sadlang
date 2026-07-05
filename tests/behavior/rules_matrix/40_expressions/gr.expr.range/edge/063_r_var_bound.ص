@@ -1,0 +1,11 @@
+# @rule: gr.expr.range
+# @description: r_var_bound
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+متغير ن = 3
+متغير م = 0
+لكل ع في 1..ن
+    م = م + ع
+نهاية
+اطبع_سطر(م)

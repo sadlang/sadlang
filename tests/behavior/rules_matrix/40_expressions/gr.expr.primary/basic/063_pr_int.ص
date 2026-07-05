@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_int
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 42
+اطبع_سطر(42)

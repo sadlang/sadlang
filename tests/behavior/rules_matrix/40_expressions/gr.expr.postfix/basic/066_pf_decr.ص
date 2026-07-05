@@ -1,0 +1,8 @@
+# @rule: gr.expr.postfix
+# @description: pf_decr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+متغير س = 5
+س--
+اطبع_سطر(س)

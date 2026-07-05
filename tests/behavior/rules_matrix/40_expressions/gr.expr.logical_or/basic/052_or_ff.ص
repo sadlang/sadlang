@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_or
+# @description: or_ff
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: خطأ
+اطبع_سطر(خطأ || خطأ)

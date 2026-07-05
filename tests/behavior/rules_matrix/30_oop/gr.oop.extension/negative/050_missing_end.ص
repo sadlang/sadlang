@@ -1,0 +1,10 @@
+# @rule: gr.oop.extension
+# @description: missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف ك
+نهاية
+امتداد ك
+    دالة ص() ارجع 1 نهاية

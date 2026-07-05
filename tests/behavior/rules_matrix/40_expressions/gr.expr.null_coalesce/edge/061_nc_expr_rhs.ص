@@ -1,0 +1,6 @@
+# @rule: gr.expr.null_coalesce
+# @description: nc_expr_rhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+اطبع_سطر(لاشيء ؟؟ (1 + 2))

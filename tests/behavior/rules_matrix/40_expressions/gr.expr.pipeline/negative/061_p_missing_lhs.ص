@@ -1,0 +1,6 @@
+# @rule: gr.expr.pipeline
+# @description: p_missing_lhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(|> طول)

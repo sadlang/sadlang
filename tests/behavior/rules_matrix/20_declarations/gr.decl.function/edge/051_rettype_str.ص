@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: rettype_str
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+دالة نص حيّ() ارجع "مرحبا" نهاية
+اطبع_سطر(حيّ())

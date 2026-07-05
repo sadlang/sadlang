@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression
+# @description: x_neg
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -7
+اطبع_سطر(-7)

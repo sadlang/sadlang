@@ -1,0 +1,11 @@
+# @rule: gr.oop.class
+# @description: self_method_call
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 12
+
+صنف ح
+    دالة ضعف(ن) ارجع ن * 2 نهاية
+    دالة رباعي(ن) ارجع هذا.ضعف(هذا.ضعف(ن)) نهاية
+نهاية
+اطبع_سطر(ح().رباعي(3))

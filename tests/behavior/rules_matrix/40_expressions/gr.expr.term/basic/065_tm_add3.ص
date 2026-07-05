@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: tm_add3
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+اطبع_سطر(5 + 5 + 5)

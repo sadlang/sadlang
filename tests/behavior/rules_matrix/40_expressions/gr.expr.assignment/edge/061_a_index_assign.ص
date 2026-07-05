@@ -1,0 +1,8 @@
+# @rule: gr.expr.assignment
+# @description: a_index_assign
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+متغير q = [1، 2، 3]
+q[0] = 9
+اطبع_سطر(q[0])

@@ -683,6 +683,16 @@ namespace Sad
                         }
                         return;
                     }
+                    // (AR) جملة حالة/switch — مسح أجسام الفروع والافتراضيّ (شقيق collectReturnTypes)
+                    // (EN) Switch statement — scan case bodies + default (sibling of collectReturnTypes)
+                    if (auto switchStmt = dynamic_cast<const Sad::AST::SwitchStmt *>(stmt))
+                    {
+                        for (const auto &caseBranch : switchStmt->cases)
+                            populateVarTypes(caseBranch.body.get());
+                        if (switchStmt->defaultCase)
+                            populateVarTypes(switchStmt->defaultCase.get());
+                        return;
+                    }
                     // (AR) جملة try-catch — مسح كتل المحاولة والالتقاط
                     // (EN) Try-catch statement — scan try and catch blocks
                     if (auto tryStmt = dynamic_cast<const Sad::AST::TryStmt *>(stmt))
@@ -747,6 +757,17 @@ namespace Sad
                                 collectReturnTypes(bodyStmt.get(), types);
                             }
                         }
+                    }
+                    // (AR) جملة حالة/switch — نجمع أنواع الإرجاع من كلّ فرع والافتراضيّ (ISSUE-055)
+                    // (EN) Switch statement — collect return types from all cases + default (ISSUE-055)
+                    if (auto switchStmt = dynamic_cast<const Sad::AST::SwitchStmt *>(stmt))
+                    {
+                        for (const auto &caseBranch : switchStmt->cases)
+                        {
+                            collectReturnTypes(caseBranch.body.get(), types);
+                        }
+                        if (switchStmt->defaultCase)
+                            collectReturnTypes(switchStmt->defaultCase.get(), types);
                     }
                     // (AR) جملة try-catch — نبحث في كتل المحاولة والالتقاط
                     // (EN) Try-catch statement — search in try and catch blocks

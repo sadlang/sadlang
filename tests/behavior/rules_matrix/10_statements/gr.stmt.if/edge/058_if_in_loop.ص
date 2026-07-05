@@ -1,0 +1,12 @@
+# @rule: gr.stmt.if
+# @description: حدّي — if_in_loop
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+# @expected: 2
+
+لكل ن في [1، 2]
+    إذا (ن > 0)
+        اطبع_سطر(ن)
+    نهاية
+نهاية

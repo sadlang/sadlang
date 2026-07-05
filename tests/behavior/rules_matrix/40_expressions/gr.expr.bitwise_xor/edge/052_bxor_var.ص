@@ -1,0 +1,8 @@
+# @rule: gr.expr.bitwise_xor
+# @description: bxor_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+متغير أ = 10
+متغير ب = 6
+اطبع_سطر(أ ^ ب)

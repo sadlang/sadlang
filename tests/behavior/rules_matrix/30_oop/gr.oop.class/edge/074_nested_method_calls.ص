@@ -1,0 +1,11 @@
+# @rule: gr.oop.class
+# @description: nested_method_calls
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 25
+
+صنف ح
+    دالة مربّع(ن) ارجع ن * ن نهاية
+    دالة خماسي() ارجع هذا.مربّع(5) نهاية
+نهاية
+اطبع_سطر(ح().خماسي())

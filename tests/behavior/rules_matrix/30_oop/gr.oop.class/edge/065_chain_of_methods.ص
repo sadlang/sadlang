@@ -1,0 +1,11 @@
+# @rule: gr.oop.class
+# @description: chain_of_methods
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 40
+
+صنف ح
+    دالة ضعف(ن) ارجع ن * 2 نهاية
+نهاية
+متغير ك = ح()
+اطبع_سطر(ك.ضعف(ك.ضعف(ك.ضعف(5))))

@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: حدّي — contains_if
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: كبير
+
+متغير ع = 0
+بينما (ع < 1)
+    ع = ع + 1
+    إذا (ع == 1)
+        اطبع_سطر("كبير")
+    نهاية
+نهاية

@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_or
+# @description: or_mixed_word_sym
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(خطأ أو خطأ || صحيح)

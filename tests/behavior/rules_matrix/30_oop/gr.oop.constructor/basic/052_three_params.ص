@@ -1,0 +1,11 @@
+# @rule: gr.oop.constructor
+# @description: three_params
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+صنف ث
+    متغير عام مج
+    باني(أ، ب، ج) هذا.مج = أ + ب + ج نهاية
+نهاية
+اطبع_سطر(ث(1، 2، 3).مج)

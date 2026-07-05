@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring
+# @description: fs_str_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أهلا علي
+متغير اسم = "علي"
+اطبع_سطر(م"أهلا {اسم}")

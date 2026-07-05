@@ -1,0 +1,13 @@
+# @rule: gr.oop.struct
+# @description: two_fields
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+بنية نقطة
+    متغير عام س
+    متغير عام ص
+نهاية
+متغير ن = نقطة()
+ن.س = 3
+اطبع_سطر(ن.س)

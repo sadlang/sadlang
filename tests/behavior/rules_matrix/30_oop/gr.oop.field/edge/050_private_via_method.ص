@@ -1,0 +1,11 @@
+# @rule: gr.oop.field
+# @description: private_via_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 42
+
+صنف صندوق
+    متغير خاص _ق = 42
+    دالة اقرأ() ارجع هذا._ق نهاية
+نهاية
+اطبع_سطر(صندوق().اقرأ())

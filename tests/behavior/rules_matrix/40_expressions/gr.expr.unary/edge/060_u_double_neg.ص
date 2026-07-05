@@ -1,0 +1,6 @@
+# @rule: gr.expr.unary
+# @description: u_double_neg
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(- -5)

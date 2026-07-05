@@ -1,0 +1,6 @@
+# @rule: gr.expr.logical_and
+# @description: and_missing_rhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(صحيح &&)

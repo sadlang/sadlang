@@ -1,0 +1,6 @@
+# @rule: gr.expr.lambda
+# @description: l_iife
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 16
+اطبع_سطر((لامدا(س) => س * س)(4))

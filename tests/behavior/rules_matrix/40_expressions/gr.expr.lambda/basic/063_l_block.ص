@@ -1,0 +1,9 @@
+# @rule: gr.expr.lambda
+# @description: l_block
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+متغير د = لامدا(س)
+    ارجع س + 1
+نهاية
+اطبع_سطر(د(4))

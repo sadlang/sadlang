@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: tm_shr_chain
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+اطبع_سطر(32 >> 1 >> 1)

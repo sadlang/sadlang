@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <optional>
+#include <limits>
 
 // (AR) اختصار لأسماء الدوال المركزية
 namespace Bs = Sad::Builtins::Names::Strings;
@@ -541,6 +542,14 @@ namespace Sad
                     if (argResults.size() >= 3)
                     {
                         inst.operands.push_back(argOperands[2]); // end (optional)
+                    }
+                    else
+                    {
+                        // (AR) [ISSUE-063] النهاية المحذوفة = حارس INT64_MIN «حتى آخر
+                        //      المصفوفة»، لا حذفٌ: الخلفية تشترط 3 معاملات (وإلا خطأ).
+                        // (EN) [ISSUE-063] Omitted end = INT64_MIN sentinel «to end of
+                        //      array», not dropped: the backend requires 3 operands.
+                        inst.operands.push_back(SIROperand::ConstantI64(std::numeric_limits<int64_t>::min()));
                     }
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);

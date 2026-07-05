@@ -1,0 +1,10 @@
+# @rule: gr.expr.range
+# @description: r_sum15
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+متغير م = 0
+لكل ع في 1..5
+    م = م + ع
+نهاية
+اطبع_سطر(م)

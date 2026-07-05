@@ -1,0 +1,7 @@
+# @rule: gr.expr.lambda
+# @description: l_passed_arg
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+دالة طبق(د، ق) ارجع د(ق) نهاية
+اطبع_سطر(طبق(لامدا(س) => س * 2، 4))

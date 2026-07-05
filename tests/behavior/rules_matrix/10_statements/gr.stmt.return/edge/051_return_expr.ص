@@ -1,0 +1,10 @@
+# @rule: gr.stmt.return
+# @description: حدّي — return_expr
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+دالة ف()
+    ارجع 3 + 4
+نهاية
+اطبع_سطر(ف())

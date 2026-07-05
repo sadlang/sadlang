@@ -1,0 +1,6 @@
+# @rule: gr.expr.expression, gr.expr.ternary
+# @description: تعبير ثلاثيّ بفرعين حسابيّين داخل تعبير
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 2
+اطبع_سطر((2 > 1) ؟ (1 + 1) : 0)

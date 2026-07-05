@@ -1,0 +1,6 @@
+# @rule: gr.expr.pipeline
+# @description: p_len4
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 4
+اطبع_سطر([1، 2، 3، 4] |> طول)

@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal
+# @description: map_bool_val
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+متغير خ = {"أ": صحيح}
+اطبع_سطر(خ["أ"])

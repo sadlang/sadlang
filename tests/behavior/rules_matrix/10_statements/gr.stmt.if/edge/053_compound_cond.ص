@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if
+# @description: حدّي — compound_cond
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: نعم
+
+متغير أ = 1
+متغير ب = 2
+إذا (أ == 1 و ب == 2)
+    اطبع_سطر("نعم")
+نهاية

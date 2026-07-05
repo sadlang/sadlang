@@ -1,0 +1,6 @@
+# @rule: gr.expr.factor
+# @description: f_muldiv
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+اطبع_سطر(4 * 5 / 2)

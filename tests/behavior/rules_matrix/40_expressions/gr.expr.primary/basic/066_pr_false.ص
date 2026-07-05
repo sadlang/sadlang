@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_false
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: خطأ
+اطبع_سطر(خطأ)

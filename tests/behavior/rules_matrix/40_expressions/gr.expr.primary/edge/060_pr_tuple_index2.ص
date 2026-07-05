@@ -1,0 +1,7 @@
+# @rule: gr.expr.primary
+# @description: pr_tuple_index2
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+متغير ص = (7، 8، 9)
+اطبع_سطر(ص[2])

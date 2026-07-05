@@ -1,0 +1,6 @@
+# @rule: gr.expr.unary
+# @description: u_double_not
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(!!صحيح)

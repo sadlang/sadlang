@@ -1,0 +1,10 @@
+# @rule: gr.oop.modifiers
+# @description: public_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف ع
+    دالة عام قيمة() ارجع 5 نهاية
+نهاية
+اطبع_سطر(ع().قيمة())

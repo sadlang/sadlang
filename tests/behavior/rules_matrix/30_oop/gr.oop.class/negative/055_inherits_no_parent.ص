@@ -1,0 +1,9 @@
+# @rule: gr.oop.class
+# @description: inherits_no_parent
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف ك يرث
+    متغير عام ق
+نهاية

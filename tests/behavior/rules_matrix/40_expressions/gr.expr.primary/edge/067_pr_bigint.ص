@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_bigint
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1000000
+اطبع_سطر(1000000)

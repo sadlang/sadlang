@@ -1,0 +1,8 @@
+# @rule: gr.expr.directive
+# @description: dir_sizeof_twice
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+متغير أ = @حجم(رقم)
+متغير ب = @حجم(رقم)
+اطبع_سطر(أ)

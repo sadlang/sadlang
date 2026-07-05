@@ -1,0 +1,15 @@
+# @rule: gr.stmt.switch, gr.decl.function, gr.stmt.return
+# @description: تداخل — «ارجع» من داخل ذراع «حالة» يُرجع القيمة (تكافؤ مزدوج بعد إصلاح ISSUE-055)
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 99
+# @expected: 7
+
+دالة ج(ن)
+    حالة ن
+        عندما 2: ارجع 99
+        افتراضي: ارجع 7
+    نهاية
+نهاية
+اطبع_سطر(ج(2))
+اطبع_سطر(ج(5))

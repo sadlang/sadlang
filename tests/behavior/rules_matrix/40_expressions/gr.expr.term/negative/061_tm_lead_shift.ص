@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: tm_lead_shift
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(<< 3)

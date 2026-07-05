@@ -1,0 +1,6 @@
+# @rule: gr.expr.ternary
+# @description: t_gt
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 20
+اطبع_سطر((1 > 2) ؟ 10 : 20)

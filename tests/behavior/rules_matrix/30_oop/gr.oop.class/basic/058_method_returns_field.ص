@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: method_returns_field
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+صنف ح
+    متغير عام ق
+    باني(ق) هذا.ق = ق نهاية
+    دالة اقرأ() ارجع هذا.ق نهاية
+نهاية
+اطبع_سطر(ح(9).اقرأ())

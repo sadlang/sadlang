@@ -1,0 +1,6 @@
+# @rule: gr.expr.equality
+# @description: eq_int_t
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(3 == 3)

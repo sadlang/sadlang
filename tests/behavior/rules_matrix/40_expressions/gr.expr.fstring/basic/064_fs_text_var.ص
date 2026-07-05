@@ -1,0 +1,7 @@
+# @rule: gr.expr.fstring
+# @description: fs_text_var
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: القيمة 7
+متغير س = 7
+اطبع_سطر(م"القيمة {س}")

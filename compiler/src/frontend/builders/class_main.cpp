@@ -179,6 +179,25 @@ namespace Sad
                         {
                             fieldType = SadTypeKind::Pointer; // الافتراضي / default
 
+                            // (AR) ISSUE-058: حقلٌ غير مُصرَّح بلا مُهيّئ — استنتِج نوعه من
+                            //      إسناداته عبر البرنامج (Phase 0.5) بدل Pointer الذي ينهار
+                            //      عند تخزين عدد. لا نطبّقه إلّا حين لا مُهيّئ (المُهيّئ أدقّ).
+                            // (EN) ISSUE-058: untyped field with no initializer — infer its type
+                            //      from its program-wide assignments (Phase 0.5) instead of the
+                            //      Pointer default that crashes when an integer is stored. Only
+                            //      when there is no initializer (an initializer is more precise).
+                            if (!fieldDecl->initializer)
+                            {
+                                // (AR) المفتاح مؤهَّل بالصنف «صنف.حقل» لمنع التلوّث العابر للأصناف
+                                // (EN) Class-qualified key "class.field" to prevent cross-class pollution
+                                auto infIt = b_.inferredFieldTypes_.find(classDecl->name + "." + fieldDecl->name);
+                                if (infIt != b_.inferredFieldTypes_.end() &&
+                                    infIt->second != SadTypeKind::Unknown)
+                                {
+                                    fieldType = infIt->second;
+                                }
+                            }
+
                             // (AR) استنتاج النوع من القيمة الابتدائية
                             // (EN) Infer type from initializer value
                             if (fieldDecl->initializer)
@@ -793,6 +812,222 @@ namespace Sad
                           << sirClass->fields_.size() << " fields and "
                           << sirClass->methods_.size() << " methods" << std::endl;
 #endif
+            }
+
+            // ============================================================================
+            // (AR) buildClassMethod — بناء طريقة صنف/بنية بسياق الصنف الكامل (ISSUE-060)
+            //      منطقٌ مطابق لكتلة MethodDecl في buildClass، لكن قابل لإعادة الاستخدام
+            //      من مسار البنية (statement_types.cpp) حتى تحصل طرق البنية على ربط self/هذا
+            //      وتخطيط الحقول (كانت تُبنى بلا سياق صنف فتقرأ 0).
+            // (EN) buildClassMethod — build a class/struct method with full class context.
+            //      Mirrors the MethodDecl block in buildClass but reusable from the struct path
+            //      so struct methods get self/this binding + field layout (they used to build
+            //      with no class context and read fields as 0).
+            // ============================================================================
+            void ClassBuilder::buildClassMethod(AST::ClassDeclNode *classDecl,
+                                                std::shared_ptr<SIRClass> sirClass,
+                                                AST::MethodDecl *methodDecl)
+            {
+                if (!methodDecl || !classDecl || !sirClass)
+                    return;
+                if (methodDecl->isAbstract)
+                    return; // (AR) الدوال المجردة بلا جسم / (EN) abstract methods have no body
+
+                SadTypeKind returnType;
+                if (methodDecl->returnType == Types::SadTypeKind::Unknown ||
+                    methodDecl->returnType == Types::SadTypeKind::Void)
+                {
+                    auto savedClassName = b_.currentClassName_;
+                    b_.currentClassName_ = classDecl->name;
+                    returnType = b_.inferReturnTypeFromBody(methodDecl->body.get());
+                    b_.currentClassName_ = savedClassName;
+                }
+                else
+                {
+                    returnType = b_.astTypeToSIRType(methodDecl->returnType);
+                }
+                std::string fullMethodName = classDecl->name + "." + methodDecl->name;
+                auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
+
+                bool isStaticMethod = methodDecl->isStatic;
+                if (!isStaticMethod)
+                    sirMethod->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Integer));
+
+                {
+                    auto ftIt = b_.functionTable_.find(fullMethodName);
+                    if (ftIt != b_.functionTable_.end())
+                    {
+                        auto &inferredParams = ftIt->second.parameters;
+                        for (const auto &param : methodDecl->parameters)
+                        {
+                            SadTypeKind paramType = b_.astTypeToSIRType(param.type);
+                            for (const auto &ip : inferredParams)
+                            {
+                                if (ip.name == param.name && ip.type != SadTypeKind::Integer)
+                                { paramType = ip.type; break; }
+                                if (ip.name == param.name && param.type == Types::SadTypeKind::Unknown && ip.type != paramType)
+                                { paramType = ip.type; break; }
+                            }
+                            sirMethod->addParameter(SIRParameter(param.name, paramType));
+                        }
+                    }
+                    else
+                    {
+                        for (const auto &param : methodDecl->parameters)
+                            sirMethod->addParameter(SIRParameter(param.name, b_.astTypeToSIRType(param.type)));
+                    }
+                }
+
+                sirClass->addMethod(sirMethod);
+
+                if (!methodDecl->body)
+                    return;
+
+                auto prevFunction = b_.currentFunction_;
+                auto prevBlock = b_.currentBlock_;
+                auto prevClassName = b_.currentClassName_;
+                b_.currentFunction_ = sirMethod;
+                b_.currentClassName_ = classDecl->name;
+                b_.enterScope();
+
+                if (!isStaticMethod)
+                {
+                    VariableInfo selfInfo;
+                    selfInfo.name = kSelfParamName;
+                    selfInfo.type = SadTypeKind::Integer;
+                    selfInfo.registerName = kSelfRegisterName;
+                    selfInfo.isGlobal = false;
+                    selfInfo.isMutable = false;
+                    selfInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "buildClassMethod_size");
+                    b_.addVariable(selfInfo);
+
+                    VariableInfo thisInfo;
+                    thisInfo.name = kThisAliasName;
+                    thisInfo.type = SadTypeKind::Integer;
+                    thisInfo.registerName = kSelfRegisterName;
+                    thisInfo.isGlobal = false;
+                    thisInfo.isMutable = false;
+                    thisInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "buildClassMethod_size");
+                    b_.addVariable(thisInfo);
+                }
+
+                std::unordered_set<std::string> methodParamNames;
+                for (const auto &param : methodDecl->parameters)
+                {
+                    methodParamNames.insert(param.name);
+                    VariableInfo paramInfo;
+                    paramInfo.name = param.name;
+                    paramInfo.type = b_.astTypeToSIRType(param.type);
+                    paramInfo.registerName = "%" + param.name;
+                    paramInfo.isGlobal = false;
+                    paramInfo.isMutable = false;
+                    paramInfo.isParameter = true;
+                    paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "buildClassMethod_size");
+                    b_.addVariable(paramInfo);
+                }
+
+                if (!isStaticMethod)
+                {
+                    for (const auto &field : sirClass->fields_)
+                    {
+                        if (methodParamNames.count(field.first) > 0)
+                            continue;
+                        VariableInfo fieldInfo;
+                        fieldInfo.name = field.first;
+                        fieldInfo.type = field.second;
+                        fieldInfo.registerName = "%" + field.first;
+                        fieldInfo.isGlobal = false;
+                        fieldInfo.isMutable = true;
+                        fieldInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "buildClassMethod_size");
+                        b_.addVariable(fieldInfo);
+                    }
+                }
+
+                auto entryBlock = b_.createBasicBlock(kEntryBlockName);
+                sirMethod->addBasicBlock(entryBlock);
+                b_.currentBlock_ = entryBlock;
+
+                if (!isStaticMethod)
+                {
+                    for (const auto &field : sirClass->fields_)
+                    {
+                        if (methodParamNames.count(field.first) > 0)
+                            continue;
+                        SIRInstruction allocInst;
+                        allocInst.opcode = SIROpcode::ALLOC;
+                        allocInst.result = SIROperand::Register("%" + field.first, field.second);
+                        b_.currentBlock_->addInstruction(allocInst);
+                    }
+                }
+
+                {
+                    auto existingIt = b_.functionTable_.find(fullMethodName);
+                    if (existingIt != b_.functionTable_.end())
+                    {
+                        existingIt->second.returnType = returnType;
+                        existingIt->second.sirFunction = sirMethod;
+                    }
+                    else
+                    {
+                        FunctionInfo preInfo;
+                        preInfo.name = fullMethodName;
+                        preInfo.returnType = returnType;
+                        preInfo.sirFunction = sirMethod;
+                        b_.functionTable_[fullMethodName] = preInfo;
+                    }
+                }
+
+                if (isStaticMethod)
+                    b_.staticMethods_.insert(fullMethodName);
+
+                b_.buildStatement(methodDecl->body.get());
+
+                if (b_.currentBlock_)
+                {
+                    bool hasTerminator = false;
+                    if (!b_.currentBlock_->instructions.empty())
+                    {
+                        auto lastOp = b_.currentBlock_->instructions.back().opcode;
+                        hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
+                    }
+                    if (!hasTerminator)
+                    {
+                        SIRInstruction retInst;
+                        if (returnType == SadTypeKind::Void)
+                        {
+                            retInst.opcode = SIROpcode::RET_VOID;
+                        }
+                        else
+                        {
+                            retInst.opcode = SIROpcode::RET;
+                            if (returnType == SadTypeKind::String)
+                                retInst.operands.push_back(SIROperand::ConstantString(""));
+                            else
+                                retInst.operands.push_back(SIROperand::ConstantI64(0));
+                        }
+                        b_.currentBlock_->addInstruction(retInst);
+                    }
+                }
+
+                b_.exitScope();
+                b_.module_->addFunction(sirMethod);
+
+                std::string savedReturnClassName1;
+                auto prevFtIt1 = b_.functionTable_.find(fullMethodName);
+                if (prevFtIt1 != b_.functionTable_.end())
+                    savedReturnClassName1 = prevFtIt1->second.returnClassName;
+
+                FunctionInfo methodInfo;
+                methodInfo.name = fullMethodName;
+                methodInfo.returnType = returnType;
+                methodInfo.parameters = sirMethod->getParameters();
+                methodInfo.sirFunction = sirMethod;
+                methodInfo.returnClassName = savedReturnClassName1;
+                b_.functionTable_[fullMethodName] = methodInfo;
+
+                b_.currentFunction_ = prevFunction;
+                b_.currentBlock_ = prevBlock;
+                b_.currentClassName_ = prevClassName;
             }
 
             // ============================================================================

@@ -1,0 +1,6 @@
+# @rule: gr.expr.fstring
+# @description: fs_literal
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مرحبا
+اطبع_سطر(م"مرحبا")

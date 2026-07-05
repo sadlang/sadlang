@@ -1,0 +1,9 @@
+# @rule: gr.oop.class
+# @description: ctor_missing_end
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف ك
+    باني()
+نهاية

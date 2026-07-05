@@ -1,0 +1,10 @@
+# @rule: gr.stmt.while
+# @description: حدّي — never
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: بعد
+
+بينما (خطأ)
+    اطبع_سطر("داخل")
+نهاية
+اطبع_سطر("بعد")

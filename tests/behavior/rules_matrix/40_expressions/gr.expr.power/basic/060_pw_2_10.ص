@@ -1,0 +1,6 @@
+# @rule: gr.expr.power
+# @description: pw_2_10
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1024
+اطبع_سطر(2 ** 10)

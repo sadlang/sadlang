@@ -1,0 +1,7 @@
+# @rule: gr.expr.pipeline
+# @description: p_extra_arg
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 15
+دالة جمع(أ، ب) ارجع أ + ب نهاية
+اطبع_سطر(5 |> جمع(10))

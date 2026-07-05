@@ -1,0 +1,11 @@
+# @rule: gr.oop.modifiers
+# @description: protected_field
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 3
+
+صنف ب
+    متغير محمي _ق = 3
+    دالة اقرأ() ارجع هذا._ق نهاية
+نهاية
+اطبع_سطر(ب().اقرأ())

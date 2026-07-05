@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_unbalanced_call
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(طول(

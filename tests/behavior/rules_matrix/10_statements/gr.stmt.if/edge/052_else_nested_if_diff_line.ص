@@ -1,0 +1,14 @@
+# @rule: gr.stmt.if
+# @description: حدّي — else_nested_if_diff_line
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ب
+
+متغير ن = 5
+إذا (ن == 1)
+    اطبع_سطر("أ")
+وإلا
+    إذا (ن == 5)
+        اطبع_سطر("ب")
+    نهاية
+نهاية

@@ -1,0 +1,6 @@
+# @rule: gr.expr.equality
+# @description: eq_missing_rhs
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(3 ==)

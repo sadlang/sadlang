@@ -1,0 +1,6 @@
+# @rule: gr.expr.bitwise_or
+# @description: bor_with_and_prec
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+اطبع_سطر(1 | 2 & 3)

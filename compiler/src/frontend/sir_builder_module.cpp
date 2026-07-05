@@ -230,6 +230,134 @@ namespace Sad
                 }
 
                 // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 0.5 (ISSUE-058): مسح مسبق لأنواع إسناد الحقول
+                //      يجمع نوع القيمة الحرفيّة المُسنَدة لكلّ حقل (كائن.حقل = حرفيّ) عبر
+                //      البرنامج. إن اتّفقت الإسنادات على نوعٍ بدائيّ واحد يُستنتَج للحقل غير
+                //      المُصرَّح بلا مُهيّئ (بدل Pointer الافتراضيّ الذي ينهار مع عدد). عند
+                //      التضارب يُوسَم Unknown فيُبقى الافتراضيّ (آمن للنصوص/الكائنات).
+                // (EN) Phase 0.5 (ISSUE-058): pre-scan field-assignment types. Collects the
+                //      literal value type assigned to each field (obj.field = literal) across
+                //      the program. If assignments agree on one primitive it is inferred for an
+                //      untyped/uninitialized field (instead of the crashing Pointer default). On
+                //      conflict it is marked Unknown, keeping the default (safe for str/objects).
+                // ═══════════════════════════════════════════════════════════════════
+                {
+                    // (AR) خريطة متغيّر→صنف (من «متغير v = صنف(...)») لتأهيل مفتاح الحقل
+                    //      بالصنف ومنع تلوّث حقلٍ باسمٍ مشترك عبر أصناف مختلفة.
+                    // (EN) var→class map (from «var v = Class(...)») to qualify the field key by
+                    //      class, preventing cross-class pollution of same-named fields.
+                    std::unordered_map<std::string, std::string> varClass;
+
+                    auto litType = [](Sad::AST::Expression *e) -> SadTypeKind {
+                        if (auto *lit = dynamic_cast<Sad::AST::LiteralExpr *>(e))
+                        {
+                            switch (lit->token.getType())
+                            {
+                            case Sad::Lexer::TokenType::NUMBER_INTEGER: return SadTypeKind::Integer;
+                            case Sad::Lexer::TokenType::NUMBER_DOUBLE:  return SadTypeKind::Float;
+                            case Sad::Lexer::TokenType::STRING_LITERAL: return SadTypeKind::String;
+                            case Sad::Lexer::TokenType::LITERAL_TRUE:
+                            case Sad::Lexer::TokenType::LITERAL_FALSE:  return SadTypeKind::Boolean;
+                            default: break;
+                            }
+                        }
+                        return SadTypeKind::Unknown;
+                    };
+                    // (AR) المفتاح «صنف.حقل»؛ لا نُسجّل إلّا حين نعرف الصنف المُضيف.
+                    // (EN) Key "class.field"; only record when the host class is known.
+                    auto record = [this](const std::string &cls, const std::string &field, SadTypeKind t) {
+                        if (t == SadTypeKind::Unknown || cls.empty())
+                            return;
+                        std::string key = cls + "." + field;
+                        auto it = inferredFieldTypes_.find(key);
+                        if (it == inferredFieldTypes_.end())
+                            inferredFieldTypes_[key] = t;
+                        else if (it->second != t)
+                            it->second = SadTypeKind::Unknown; // (AR) تضارب ⇒ لا تستنتج
+                    };
+                    // (AR) استنتاج صنف مُستقبِل الإسناد: «هذا»⇒الصنف الحاليّ، متغيّرٌ معروف⇒صنفه.
+                    // (EN) Resolve the assignment target's class: «this»⇒current class, known var⇒its class.
+                    auto resolveClass = [&](Sad::AST::Expression *obj, const std::string &cur) -> std::string {
+                        if (dynamic_cast<Sad::AST::ThisExpr *>(obj))
+                            return cur;
+                        if (auto *v = dynamic_cast<Sad::AST::VariableExpr *>(obj))
+                        {
+                            auto it = varClass.find(v->name);
+                            if (it != varClass.end())
+                                return it->second;
+                        }
+                        return "";
+                    };
+                    std::function<void(Sad::AST::Statement *, const std::string &)> scan;
+                    scan = [&](Sad::AST::Statement *s, const std::string &cur) {
+                        if (!s)
+                            return;
+                        // (AR) «متغير v = صنف(...)» أو «صنف(...) جديد» ⇒ سجّل v→صنف
+                        if (auto *vd = dynamic_cast<Sad::AST::VarDeclStmt *>(s))
+                        {
+                            if (vd->initializer)
+                            {
+                                std::string cn;
+                                if (auto *ne = dynamic_cast<Sad::AST::NewExpr *>(vd->initializer.get()))
+                                    cn = ne->className;
+                                else if (auto *ce = dynamic_cast<Sad::AST::CallExpr *>(vd->initializer.get()))
+                                    if (auto *cv = dynamic_cast<Sad::AST::VariableExpr *>(ce->callee.get()))
+                                        cn = cv->name;
+                                if (!cn.empty())
+                                    varClass[vd->name] = cn;
+                            }
+                            return;
+                        }
+                        if (auto *es = dynamic_cast<Sad::AST::ExprStmt *>(s))
+                        {
+                            if (auto *ma = dynamic_cast<Sad::AST::MemberAssignExpr *>(es->expression.get()))
+                                record(resolveClass(ma->object.get(), cur), ma->member, litType(ma->value.get()));
+                            return;
+                        }
+                        if (auto *b = dynamic_cast<Sad::AST::BlockStmt *>(s))
+                            for (auto &c : b->statements) scan(c.get(), cur);
+                        else if (auto *iff = dynamic_cast<Sad::AST::IfStmt *>(s))
+                        { scan(iff->thenBranch.get(), cur); scan(iff->elseBranch.get(), cur); }
+                        else if (auto *w = dynamic_cast<Sad::AST::WhileStmt *>(s))
+                            scan(w->body.get(), cur);
+                        else if (auto *f = dynamic_cast<Sad::AST::ForStmt *>(s))
+                            scan(f->body.get(), cur);
+                        else if (auto *fr = dynamic_cast<Sad::AST::ForRangeStmt *>(s))
+                            scan(fr->body.get(), cur);
+                        else if (auto *fn = dynamic_cast<Sad::AST::FunctionDecl *>(s))
+                            scan(fn->body.get(), cur);
+                        else if (auto *cl = dynamic_cast<Sad::AST::ClassDecl *>(s))
+                            for (auto &m : cl->members)
+                            {
+                                if (auto *md = dynamic_cast<Sad::AST::MethodDecl *>(m.get()))
+                                    scan(md->body.get(), cl->name);
+                                else if (auto *cd = dynamic_cast<Sad::AST::ConstructorDecl *>(m.get()))
+                                    scan(cd->body.get(), cl->name);
+                            }
+                        else if (auto *tr = dynamic_cast<Sad::AST::TryStmt *>(s))
+                        {
+                            scan(tr->tryBlock.get(), cur);
+                            for (auto &cc : tr->catchClauses) scan(cc.body.get(), cur);
+                            scan(tr->finallyBlock.get(), cur);
+                        }
+                        else if (auto *sw = dynamic_cast<Sad::AST::SwitchStmt *>(s))
+                        {
+                            for (auto &cb : sw->cases) scan(cb.body.get(), cur);
+                            scan(sw->defaultCase.get(), cur);
+                        }
+                        else if (auto *mt = dynamic_cast<Sad::AST::MatchStmt *>(s))
+                        {
+                            for (auto &cc : mt->cases)
+                                for (auto &bs : cc.body) scan(bs.get(), cur);
+                        }
+                        else if (auto *go = dynamic_cast<Sad::AST::GoStmt *>(s))
+                            scan(go->blockBody.get(), cur);
+                    };
+                    for (const auto &stmt : *program)
+                        scan(stmt.get(), "");
+                }
+
+                // ═══════════════════════════════════════════════════════════════════
                 // (AR) المرحلة الأولى: تسجيل توقيعات جميع الدوال مسبقاً
                 // (EN) Phase 1: Pre-register all function signatures for forward references
                 // ═══════════════════════════════════════════════════════════════════

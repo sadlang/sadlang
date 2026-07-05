@@ -1,0 +1,8 @@
+# @rule: gr.decl.function
+# @description: arrow_rettype_after_params
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة ف() -> رقم ارجع 5 نهاية
+اطبع_سطر(ف())

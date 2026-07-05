@@ -1,0 +1,6 @@
+# @rule: gr.expr.equality
+# @description: eq_neg
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر(0 - 1 == 0 - 1)

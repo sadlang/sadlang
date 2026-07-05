@@ -1,0 +1,7 @@
+# @rule: gr.expr.assignment
+# @description: a_double_op
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير س = 1
+س += += 2

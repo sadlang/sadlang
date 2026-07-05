@@ -1,0 +1,7 @@
+# @rule: gr.expr.decorator
+# @description: d_number
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+@123
+دالة س() ارجع 1 نهاية

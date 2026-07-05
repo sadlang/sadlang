@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: حدّي — not_cond
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: سالب
+
+متغير ن = -1
+إذا (!(ن > 0))
+    اطبع_سطر("سالب")
+نهاية

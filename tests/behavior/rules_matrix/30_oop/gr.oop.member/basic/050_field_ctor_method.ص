@@ -1,0 +1,12 @@
+# @rule: gr.oop.member
+# @description: field_ctor_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 9
+
+صنف نقطة
+    متغير عام س
+    باني(س) هذا.س = س نهاية
+    دالة اقرأ() ارجع هذا.س نهاية
+نهاية
+اطبع_سطر(نقطة(9).اقرأ())

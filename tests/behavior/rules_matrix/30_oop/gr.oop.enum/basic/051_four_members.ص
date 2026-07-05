@@ -1,0 +1,10 @@
+# @rule: gr.oop.enum
+# @description: four_members
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: عُرّف
+
+تعداد جهة
+    شمال، جنوب، شرق، غرب
+نهاية
+اطبع_سطر("عُرّف")

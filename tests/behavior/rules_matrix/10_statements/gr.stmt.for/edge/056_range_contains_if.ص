@@ -1,0 +1,12 @@
+# @rule: gr.stmt.for
+# @description: حدّي — range_contains_if
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: ك
+# @expected: ك
+
+لكل س من 4 الى 5
+    إذا (س > 3)
+        اطبع_سطر("ك")
+    نهاية
+نهاية

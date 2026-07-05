@@ -1,0 +1,6 @@
+# @rule: gr.expr.factor
+# @description: f_trailing
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+اطبع_سطر(5 *)

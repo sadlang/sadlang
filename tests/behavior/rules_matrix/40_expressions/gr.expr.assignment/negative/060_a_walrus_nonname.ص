@@ -1,0 +1,6 @@
+# @rule: gr.expr.assignment
+# @description: a_walrus_nonname
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+متغير ن = (3 := 5)

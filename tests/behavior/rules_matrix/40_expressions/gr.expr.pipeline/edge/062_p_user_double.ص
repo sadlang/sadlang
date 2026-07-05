@@ -1,0 +1,7 @@
+# @rule: gr.expr.pipeline
+# @description: p_user_double
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+دالة ضعف(س) ارجع س * 2 نهاية
+اطبع_سطر(3 |> ضعف)

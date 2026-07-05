@@ -1,0 +1,8 @@
+# @rule: gr.expr.decorator
+# @description: d_called_twice
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 20
+@سجل
+دالة ضعف(س) ارجع س * 2 نهاية
+اطبع_سطر(ضعف(4) + ضعف(6))

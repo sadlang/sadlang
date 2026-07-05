@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: greeting
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا ص
+
+صنف تحية
+    دالة سلّم(اسم) ارجع "مرحبا " + اسم نهاية
+نهاية
+اطبع_سطر(تحية().سلّم("ص"))

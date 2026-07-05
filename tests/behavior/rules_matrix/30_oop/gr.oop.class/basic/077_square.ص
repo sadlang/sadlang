@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: square
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 16
+
+صنف رياضة
+    دالة مربّع(ن) ارجع ن * ن نهاية
+نهاية
+اطبع_سطر(رياضة().مربّع(4))

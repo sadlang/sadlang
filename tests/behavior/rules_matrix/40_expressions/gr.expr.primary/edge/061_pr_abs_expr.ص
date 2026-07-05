@@ -1,0 +1,6 @@
+# @rule: gr.expr.primary
+# @description: pr_abs_expr
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+اطبع_سطر(|3 - 10|)

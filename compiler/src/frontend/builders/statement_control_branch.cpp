@@ -65,6 +65,11 @@ namespace Sad
                 std::string prebuiltRetReg;
                 SadTypeKind prebuiltRetType = SadTypeKind::Void;
                 bool hasPrebuiltRet = false;
+                // (AR) ISSUE-056: علامة أنّ تعبير الإرجاع نداءٌ يُرجع فراغاً وبُني مسبقاً
+                //      لأثره الجانبيّ فقط — يمنع المسار العاديّ من إعادة بنائه (تباعد مزدوج).
+                // (EN) ISSUE-056: flag that the return expr is a void-returning call already
+                //      built for its side effect only — prevents the normal path rebuilding it.
+                bool voidSideEffectPrebuilt = false;
 
                 if (retStmt->value && !b_.currentDeferStackReg_.empty() && b_.finallyStack_.empty() &&
                     (!b_.currentFunction_ || !b_.currentFunction_->isCoroutine))
@@ -95,6 +100,16 @@ namespace Sad
                         prebuiltRetReg = tempAllocaReg;
                         prebuiltRetType = storeType;
                         hasPrebuiltRet = true;
+                    }
+                    else if (preResult.registerName.empty() && !preResult.isConstant)
+                    {
+                        // (AR) ISSUE-056: التعبير نداءٌ يُرجع فراغاً — نُفِّذ أثره الجانبيّ (طباعة)
+                        //      مرّة واحدة هنا، ولا قيمة تُرجَع. نعلّمه لئلا يُعاد بناؤه في المسار
+                        //      العاديّ (كان المفسّر يطبع مرّة والمترجم مرّتين).
+                        // (EN) ISSUE-056: void-returning call — its side effect (print) already
+                        //      ran once here and there is no value to return. Flag it so the
+                        //      normal path does NOT rebuild it (interp printed once, compiler twice).
+                        voidSideEffectPrebuilt = true;
                     }
                 }
 
@@ -297,7 +312,11 @@ namespace Sad
 
                 // (AR) ReturnStmt::value: ExprPtr (statements.h:268)
                 // (EN) Build return instruction
-                if (retStmt->value)
+                // (AR) ISSUE-056: تخطَّ المسار العاديّ إن كان التعبير فراغاً بُني مسبقاً
+                //      (وإلّا أُعيد بناؤه فتَكرّر أثره الجانبيّ) — يُعامَل كإرجاع فارغ.
+                // (EN) ISSUE-056: skip the normal path when a void expr was already prebuilt
+                //      (else it re-runs its side effect) — treat as a bare void return.
+                if (retStmt->value && !voidSideEffectPrebuilt)
                 {
                     // (AR) بناء تعبير القيمة المُرجعة
                     // (EN) Build return value expression

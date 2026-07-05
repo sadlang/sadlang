@@ -1,0 +1,7 @@
+# @rule: gr.expr.map_literal
+# @description: map_int_key
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 20
+متغير خ = {1: 10، 2: 20}
+اطبع_سطر(خ[2])

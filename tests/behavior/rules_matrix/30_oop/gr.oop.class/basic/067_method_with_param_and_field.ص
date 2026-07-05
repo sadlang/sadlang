@@ -1,0 +1,12 @@
+# @rule: gr.oop.class
+# @description: method_with_param_and_field
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 15
+
+صنف ح
+    متغير عام أساس
+    باني(أ) هذا.أساس = أ نهاية
+    دالة اضرب(ن) ارجع هذا.أساس * ن نهاية
+نهاية
+اطبع_سطر(ح(3).اضرب(5))

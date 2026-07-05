@@ -1,0 +1,12 @@
+# @rule: gr.stmt.while
+# @description: حدّي — break_in_nested
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: تم
+
+متغير ع = 0
+بينما (ع < 5)
+    إذا (ع == 2) توقف نهاية
+    ع = ع + 1
+نهاية
+اطبع_سطر("تم")

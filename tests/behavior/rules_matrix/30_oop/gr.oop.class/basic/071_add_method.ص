@@ -1,0 +1,10 @@
+# @rule: gr.oop.class
+# @description: add_method
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 30
+
+صنف حاسبة
+    دالة اجمع(أ، ب) ارجع أ + ب نهاية
+نهاية
+اطبع_سطر(حاسبة().اجمع(10، 20))

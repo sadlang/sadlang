@@ -1,0 +1,6 @@
+# @rule: gr.expr.term
+# @description: tm_shl
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 8
+اطبع_سطر(1 << 3)

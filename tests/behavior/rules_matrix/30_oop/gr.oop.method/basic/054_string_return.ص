@@ -1,0 +1,10 @@
+# @rule: gr.oop.method
+# @description: string_return
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+صنف ت
+    دالة حيّ() ارجع "مرحبا" نهاية
+نهاية
+اطبع_سطر(ت().حيّ())

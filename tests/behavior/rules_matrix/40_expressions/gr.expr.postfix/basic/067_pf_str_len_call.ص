@@ -1,0 +1,6 @@
+# @rule: gr.expr.postfix
+# @description: pf_str_len_call
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+اطبع_سطر(طول("مرحبا"))

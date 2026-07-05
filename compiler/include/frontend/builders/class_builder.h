@@ -49,6 +49,10 @@ namespace Sad
 
                 void buildClassConstructor(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::ConstructorDecl *ctorDecl);
 
+                // (AR) بناء طريقة صنف/بنية بسياق الصنف الكامل (ربط self/هذا + تخطيط الحقول). ISSUE-060
+                // (EN) Build a class/struct method with full class context (self/this binding + field layout). ISSUE-060
+                void buildClassMethod(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::MethodDecl *methodDecl);
+
                 void buildClassOperator(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::OperatorDecl *operatorDecl);
 
                 void buildTrait(Sad::AST::TraitDecl *traitDecl);
