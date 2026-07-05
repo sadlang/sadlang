@@ -97,6 +97,13 @@ target_link_libraries(sad_interp PUBLIC sad_ownership)
 target_link_libraries(sad_interp PUBLIC sad_null_safety)
 target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_safety/include)
 
+# (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018) — sad_interp يجمّع interpreter_core.cpp
+#      الذي يستدعي checkMainFunctionRule (مصدر حقيقة واحد مشترك مع sad-build).
+# (EN) Unified main-function rule (SEM018) — sad_interp compiles interpreter_core.cpp
+#      which invokes checkMainFunctionRule (single source of truth shared with sad-build).
+target_link_libraries(sad_interp PUBLIC sad_program_rules)
+target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/program_rules/include)
+
 # (AR) الطبقة الأمنية المشتركة (BoundsChecker, SafeArithmetic, InputSanitizer,
 #      SafeAllocator, TaintTracker). sad_interp يجمّع مصادر المفسر التي تستخدم
 #      assertSafeCast<int>(...) في أي تحويل size_t→int، فلا بد من الربط هنا

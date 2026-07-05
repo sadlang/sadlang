@@ -183,6 +183,16 @@ add_subdirectory(ownership)
 add_subdirectory(null_safety)
 
 # ============================================================================
+# (AR) المكتبة الفرعية: قواعد البرنامج البنيويّة الموحَّدة (sad_program_rules)
+# (EN) Sub-library: unified structural program rules (sad_program_rules)
+# (AR) checkMainFunctionRule (SEM018) يُستدعى من المحرّكين ليكون مصدرَ حقيقة واحدًا
+#      لقاعدة الدالة الرئيسية — إنهاءً لتباعد المحرّكات (كان الفحص محصورًا بالمفسّر).
+# (EN) checkMainFunctionRule (SEM018) invoked from both engines as a single source
+#      of truth for the main-function rule — ending the engine divergence.
+# ============================================================================
+add_subdirectory(program_rules)
+
+# ============================================================================
 # (AR) المكتبة الفرعية: الطبقة الأمنية المشتركة (sad_security_core)
 # (EN) Sub-library: shared security layer (sad_security_core)
 # (AR) نُقلت من compiler/src/security/ لتكون متاحة لكل المسارات (المترجم،

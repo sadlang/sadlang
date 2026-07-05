@@ -28,6 +28,7 @@
 #ifndef __EMSCRIPTEN__
 #include "semantic/type_checker.h"
 #include "null_safety/null_safety_analyzer.h"
+#include "program_rules/main_function_rule.h" // (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
 #endif
 
 // (AR) المكتبة القياسية / (EN) Standard Library Manager
@@ -280,52 +281,37 @@ namespace Sad
                     }
                 }
 
-                // (AR) التحقق من صحة البرنامج عند وجود دالة رئيسية
-                // (EN) Validate program structure when main function exists
+                // (AR) قاعدة الدالة الرئيسية (SEM018) عبر المكوّن المشترك sad_program_rules —
+                //      مصدر حقيقة واحد يستهلكه المحرّكان (نظير null_safety/ownership). كان هذا
+                //      الفحص محصورًا هنا فيقبله المترجم بصمت؛ توحيده أنهى تباعد المحرّكات.
+                // (EN) Main-function rule (SEM018) via the shared sad_program_rules component —
+                //      a single source of truth consumed by both engines (mirrors null_safety).
+                //
+                // (AR) محروسٌ بنفس شرط استدعاءَي type_checker/null_safety تمامًا (استبعاد wasm
+                //      وأندرويد): مونوليث أندرويد لا يُجمّع main_function_rule.cpp ولا يربط
+                //      sad_program_rules، وwasm لا يضمّن الرأس. فيُعطَّل الفحص عليهما كبقيّة الفحوص
+                //      الدلاليّة المشتركة، ويعمل على المنصّات الحاكمة (Windows/Linux/macOS).
+                // (EN) Guarded exactly like the type_checker/null_safety call sites (exclude wasm
+                //      AND android): the android monolith neither compiles main_function_rule.cpp
+                //      nor links sad_program_rules, and wasm doesn't include the header.
+#if !defined(__EMSCRIPTEN__) && !defined(SAD_PLATFORM_ANDROID)
                 if (hasMainFunction)
                 {
-                    for (const auto &stmt : program)
+                    const auto mainRule = Sad::Semantic::checkMainFunctionRule(program);
+                    if (!mainRule.ok)
                     {
-                        // (AR) التحقق من أن الجمل خارج الدوال هي تصريحات فقط وليست جمل تنفيذية
-                        // (EN) Check that top-level statements are declarations only, not executable statements
-                        bool isDeclaration =
-                            dynamic_cast<AST::FunctionDecl *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::ClassDecl *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::EnumDecl *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::TemplateFunctionDecl *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::TemplateClassDecl *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::NamespaceDecl *>(stmt.get()) != nullptr;
+                        // (AR) موقع أوّل جملة تنفيذية علويّة مخالِفة (تحسين: كان ثابتًا 1:1).
+                        // (EN) Location of the first offending top-level executable statement.
+                        Sad::Errors::SourceLocation location("<input>", mainRule.line, mainRule.column);
+                        Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                            ::Sad::Errors::ErrorCode::SEM_MAIN_FUNCTION_RULE, location);
 
-                        // (AR) السماح بالمتغيرات العامة والاستيراد والتصدير
-                        // (EN) Allow global variables, import, and export statements
-                        bool isGlobalVar = dynamic_cast<AST::VarDeclStmt *>(stmt.get()) != nullptr;
-
-                        // (AR) السماح بجمل الاستيراد والتصدير على المستوى الأعلى
-                        // (EN) Allow import/export statements at top level
-                        bool isModuleStmt =
-                            dynamic_cast<AST::ImportStmt *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::FromImportStmt *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::ExportDecl *>(stmt.get()) != nullptr ||
-                            dynamic_cast<AST::ExportStmt *>(stmt.get()) != nullptr;
-
-                        if (!isDeclaration && !isGlobalVar && !isModuleStmt)
-                        {
-                            // (AR) جملة تنفيذية خارج الدوال - غير مسموح عند وجود main
-                            // (EN) Executable statement outside functions - not allowed when main exists
-
-                            // (AR) إنشاء موقع من الجملة (افتراضي إذا لم يكن متاحاً)
-                            // (EN) Create location from statement (default if not available)
-                            Sad::Errors::SourceLocation location("<input>", 1, 1);
-
-                            Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_MAIN_FUNCTION_RULE, // (AR) استخدام خطأ دلالي عام / (EN) Use general semantic error
-                                location);
-
-                            return ExecutionResult(false, Data::Value(),
-                                                   "(AR) خطأ: كود تنفيذي خارج الدوال عند وجود main / "
-                                                   "(EN) Error: Executable code outside functions when main exists");
-                        }
+                        return ExecutionResult(false, Data::Value(),
+                                               "(AR) خطأ: كود تنفيذي خارج الدوال عند وجود main / "
+                                               "(EN) Error: Executable code outside functions when main exists");
                     }
                 }
+#endif
 
                 // (AR) تسجيل التصريحات (الدوال، الأصناف، المتغيرات العامة)
                 // (EN) Register declarations (functions, classes, global variables)

@@ -106,6 +106,12 @@ target_include_directories(sad_interpreter
         # (AR) NS-01: رأس محلّل أمان null المشترك (null_safety/null_safety_analyzer.h)
         # (EN) NS-01: shared null-safety analyzer header
         ${CMAKE_SOURCE_DIR}/shared/null_safety/include
+        # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018): interpreter_core.cpp يضمّن
+        #      program_rules/main_function_rule.h. هذا الهدف (sad_interpreter) توافقيّ لكنّ
+        #      CI يبنيه فيلزمه المسار (المفسّر الحيّ sad_interp يأخذه من cmake/libraries.cmake).
+        # (EN) Unified main-function rule (SEM018): interpreter_core.cpp includes the header;
+        #      this legacy target is still compiled by CI so it needs the path too.
+        ${CMAKE_SOURCE_DIR}/shared/program_rules/include
         # (AR) خطافات مصحح الأداء (profiler_hooks.h) المشتركة في shared/profiler/.
         # (EN) Shared profiler hooks (profiler_hooks.h) in shared/profiler/.
         ${CMAKE_SOURCE_DIR}/shared/profiler/include
@@ -125,6 +131,11 @@ target_link_libraries(sad_interpreter
         # (AR) NS-01: نظام أمان null المشترك — interpreter_core.cpp يستدعي NullSafetyAnalyzer
         # (EN) NS-01: shared null-safety — interpreter_core.cpp invokes NullSafetyAnalyzer
         sad_null_safety
+        # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018) — interpreter_core.cpp يستدعي
+        #      checkMainFunctionRule؛ يُربَط للاتّساق مع sad_null_safety (وإن كان هذا الهدف
+        #      لا يُربَط حاليًّا في أيّ exe، فالربط يمنع مفاجأة مستقبليّة).
+        # (EN) Unified main-function rule (SEM018) — linked for parity with sad_null_safety.
+        sad_program_rules
         # (AR) Memory Layer Unification (Phase A): سياسة أوضاع الذاكرة الموحَّدة
         #      مصدر الحقيقة لـ --dev/--prod/--learn، استراتيجيات GC، مستويات الملكية.
         # (EN) Memory Layer Unification (Phase A): unified memory mode policy

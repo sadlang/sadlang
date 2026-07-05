@@ -56,6 +56,14 @@
 //      per memory policy (--gc/--learn/--prod). Same hub used by the interpreter.
 #include "../../shared/errors/include/builders/dispatch.h"
 
+// (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018) — المكوّن المشترك sad_program_rules
+//      الذي يستدعيه المفسّر أيضًا، فلا يتباعد المحرّكان في قاعدة نقطة الدخول.
+// (EN) Unified main-function rule (SEM018) — shared sad_program_rules component,
+//      also invoked by the interpreter, so the engines never diverge on entry-point.
+#include "program_rules/main_function_rule.h"
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (SoT)
+#include "error_codes.h"
+
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لحل التبعيات تلقائياً
 // (EN) Module AST nodes — ImportStmt & FromImportStmt for auto dependency resolution
 #include "module_nodes.h"
@@ -475,6 +483,32 @@ namespace sad
                 }
                 std::cout << "]}\n";
                 return true; // توقّف — لا فحص ولا توليد ولا ربط
+            }
+
+            // ================================================================
+            // (AR) قاعدة الدالة الرئيسية (SEM018) — المكوّن المشترك sad_program_rules.
+            //      كان الفحص محصورًا في المفسّر فيقبله المترجم بصمت (تباعد محرّكات):
+            //      برنامجٌ فيه «رئيسية» + كود علويّ كان يُبنى ويتجاهل العلويّ صامتًا.
+            //      توحيده هنا يجعل المحرّكين يرفضانه معًا (مصدر حقيقة واحد = SoT SEM018).
+            //      يُتجاوَز في freestanding/‎--no-main: لا حقن main افتراضيّ ونقطة الدخول
+            //      مخصّصة (‎--entry-point)، فلا تنطبق قاعدة تعارض «رئيسية» مع العلويّ.
+            // (EN) Main-function rule (SEM018) via the shared sad_program_rules component.
+            //      Skipped under freestanding/‎--no-main (custom entry point).
+            // ================================================================
+            if (!options_.freestanding && !options_.no_main)
+            {
+                const auto mainRule =
+                    Sad::Semantic::checkMainFunctionRule(current_ast_);
+                if (!mainRule.ok)
+                {
+                    Sad::Errors::RenderContext ctx{
+                        Sad::Errors::SourceLocation(file, mainRule.line, mainRule.column)};
+                    const std::string msg =
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            ::Sad::Errors::ErrorCode::SEM_MAIN_FUNCTION_RULE, ctx);
+                    diagnostics_.report_error(msg, file);
+                    return false;
+                }
             }
 
             // ================================================================

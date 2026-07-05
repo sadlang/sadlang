@@ -38,6 +38,7 @@ target_link_libraries(sad-run PRIVATE
     sad_graphics
     sad_memory_policy   # (AR) Phase A2: سياسة الذاكرة الموحَّدة / (EN) Phase A2: unified memory policy
     sad_null_safety     # (AR) NS-01: نظام أمان null المشترك / (EN) NS-01: shared null-safety
+    sad_program_rules   # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018) / (EN) unified main-function rule
 )
 
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
@@ -61,6 +62,7 @@ target_include_directories(sad-run PRIVATE
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/shared/ownership/include
     ${CMAKE_SOURCE_DIR}/shared/null_safety/include   # (AR) NS-01: رأس محلّل أمان null
+    ${CMAKE_SOURCE_DIR}/shared/program_rules/include # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
     ${CMAKE_SOURCE_DIR}/compiler/include/types
     ${CMAKE_SOURCE_DIR}/compiler/include/backend
     ${CMAKE_SOURCE_DIR}/tools/compiler/src
@@ -172,6 +174,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/compiler/include/frontend
         ${CMAKE_SOURCE_DIR}/shared/ownership/include
         ${CMAKE_SOURCE_DIR}/shared/null_safety/include   # (AR) NS-01: رأس محلّل أمان null
+        ${CMAKE_SOURCE_DIR}/shared/program_rules/include # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
         ${CMAKE_SOURCE_DIR}/compiler/include/types
         ${CMAKE_SOURCE_DIR}/compiler/include/backend/llvm
         ${SAD_LLVM_INCLUDES}
@@ -183,7 +186,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     add_dependencies(sad-build generate_runtime_header)
 
     target_link_libraries(sad-build PRIVATE
-        sad_shared sad_compiler sad_mobile sad_null_safety ${LLVM_LIBS}
+        sad_shared sad_compiler sad_mobile sad_null_safety sad_program_rules ${LLVM_LIBS}
     )
 
     # ═══════════════════════════════════════════════════════════════════════════
