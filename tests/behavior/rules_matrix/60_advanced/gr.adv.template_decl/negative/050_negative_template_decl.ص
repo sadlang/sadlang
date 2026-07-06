@@ -1,0 +1,6 @@
+# @rule: gr.adv.template_decl
+# @description: قالب بلا معاملات «<>» يُرفض
+# @expect_error
+
+قالب
+دالة د() ارجع 1 نهاية

@@ -1,0 +1,6 @@
+# @rule: gr.adv.go
+# @description: أطلق بلا جسم/تعبير يُرفض
+# @requires: قناة
+# @expect_error
+
+أطلق

@@ -1,0 +1,8 @@
+# @rule: gr.adv.ui_event
+# @description: معالج حدث بجسم كتلة
+# @requires: اطبع_سطر
+# @skip_interpreter
+# @expected: ok
+
+اعرض زر("اضغط").عند_النقر => اطبع_سطر("نُقر")
+اطبع_سطر("ok")

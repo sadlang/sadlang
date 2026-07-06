@@ -1,0 +1,9 @@
+# @rule: gr.adv.contract
+# @description: عقد بحقلٍ عامّ يُقرأ
+# @requires: اطبع_سطر
+# @expected: 0
+
+عقد ح
+    متغير عام ر = 0
+نهاية
+اطبع_سطر(ح().ر)

@@ -1,0 +1,5 @@
+# @rule: gr.adv.yield
+# @description: أنتج خارج مولّد/دالة (مستوى أعلى) يُرفض
+# @expect_error
+
+أنتج 5

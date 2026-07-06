@@ -1,0 +1,8 @@
+# @rule: gr.adv.defer
+# @description: أجّل بلا جملة يُرفض
+# @expect_error
+
+دالة د()
+    أجّل
+نهاية
+د()

@@ -1,0 +1,9 @@
+# @rule: gr.adv.inline_asm
+# @description: تجميع مضمّن بتعليمتين
+# @requires: اطبع_سطر
+# @skip_interpreter
+# @expected: ok
+
+@تجميع("nop")
+@تجميع("nop")
+اطبع_سطر("ok")

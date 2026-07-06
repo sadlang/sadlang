@@ -1,0 +1,7 @@
+# @rule: gr.adv.lifetime_params
+# @description: معامل عمر على دالة
+# @requires: اطبع_سطر
+# @expected: 3
+
+دالة أطول<'أ>(رقم س) ارجع س نهاية
+اطبع_سطر(أطول(3))

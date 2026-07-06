@@ -1,0 +1,8 @@
+# @rule: gr.adv.lifetime_params
+# @description: معاملات عمر فارغة «<>» تُرفض
+# @expect_error
+
+بنية مرجع<>
+    رقم ق = 0
+نهاية
+اطبع_سطر(مرجع().ق)

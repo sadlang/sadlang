@@ -1,0 +1,9 @@
+# @rule: gr.adv.select
+# @description: اختر بلا «:» بعد القناة يُرفض
+# @requires: قناة
+# @expect_error
+
+اختر
+    عندما 1
+        اطبع_سطر("ج")
+نهاية

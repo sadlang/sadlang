@@ -1,0 +1,6 @@
+# @rule: gr.adv.await
+# @description: انتظر قيمة نصّيّة
+# @requires: اطبع_سطر
+# @expected: مرحبا
+
+اطبع_سطر(انتظر "مرحبا")

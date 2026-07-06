@@ -1,0 +1,7 @@
+# @rule: gr.adv.type
+# @description: نقطتان بلا نوع «متغير س: = 5» تُرفض
+# @requires: اطبع_سطر
+# @expect_error
+
+متغير س: = 5
+اطبع_سطر(س)

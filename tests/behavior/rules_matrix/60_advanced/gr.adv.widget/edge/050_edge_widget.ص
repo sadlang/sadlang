@@ -1,0 +1,8 @@
+# @rule: gr.adv.widget
+# @description: عرض عنصر زرّ
+# @requires: اطبع_سطر
+# @skip_interpreter
+# @expected: ok
+
+اعرض زر("موافق")
+اطبع_سطر("ok")

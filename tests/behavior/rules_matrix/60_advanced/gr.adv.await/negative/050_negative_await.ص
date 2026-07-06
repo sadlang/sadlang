@@ -1,0 +1,5 @@
+# @rule: gr.adv.await
+# @description: انتظر بلا معامل يُرفض
+# @expect_error
+
+اطبع_سطر(انتظر)

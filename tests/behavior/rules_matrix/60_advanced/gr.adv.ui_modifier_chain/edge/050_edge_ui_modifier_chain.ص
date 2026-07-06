@@ -1,0 +1,8 @@
+# @rule: gr.adv.ui_modifier_chain
+# @description: سلسلة معدِّلات متعدّدة
+# @requires: اطبع_سطر
+# @skip_interpreter
+# @expected: ok
+
+اعرض نص("مرحبا").حجم(32).لون("أحمر")
+اطبع_سطر("ok")

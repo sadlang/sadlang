@@ -1,0 +1,8 @@
+# @rule: gr.adv.template_params
+# @description: const-generic «ثابت رقم ن»
+# @requires: اطبع_سطر
+# @expected: 3
+
+قالب <ثابت رقم ن>
+دالة د() ارجع ن نهاية
+اطبع_سطر(د<3>())

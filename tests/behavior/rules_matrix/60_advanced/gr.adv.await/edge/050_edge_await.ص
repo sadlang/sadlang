@@ -1,0 +1,6 @@
+# @rule: gr.adv.await
+# @description: انتظر داخل تعبير حسابيّ
+# @requires: اطبع_سطر
+# @expected: 5
+
+اطبع_سطر((انتظر 3) + 2)

@@ -1,0 +1,6 @@
+# @rule: gr.adv.with
+# @description: باستخدام بلا نهاية يُرفض
+# @expect_error
+
+باستخدام 5 كـ م
+    اطبع_سطر(م)
