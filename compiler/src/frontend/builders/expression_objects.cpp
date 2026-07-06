@@ -461,9 +461,26 @@ namespace Sad
                     }
                 }
 
-                // (AR) الخطوة 1: بناء تعبير الكائن
-                // (EN) Step 1: Build object expression
-                auto objResult = buildExpression(memberExpr->object.get());
+                // (AR) الخطوة 1: بناء تعبير الكائن. مثل buildExprMember: لا تبنِ قاعدةً اسمًا
+                //      مجرّدًا ليس متغيّرًا معرّفًا (تدفع «Undefined variable» زائفًا)؛ قد تكون اسم
+                //      نوعٍ قاعدةَ وصولِ عضوٍ تحلّه الخطوة 1.25. نؤجّل ونُبلّغ الخطأ الحقيقيّ لاحقًا
+                //      فقط إن لم يُحَلّ (H2 — مرآة إصلاح buildExprMember؛ هذا التوأم غير مُخلَّق
+                //      اليوم من المحلّل لكن نُبقيه متّسقًا تفاديًا لقنبلةٍ كامنة عند إحيائه).
+                // (EN) Step 1: Build object expression. Like buildExprMember: don't build a bare
+                //      undefined-variable base (it pushes a spurious "Undefined variable"); it may
+                //      be a type name serving as a member-access base resolved by Step 1.25. Defer
+                //      and report the genuine error later only if unresolved (H2 — mirrors the
+                //      buildExprMember fix; this twin is not produced by the parser today but is
+                //      kept consistent to defuse a latent bomb on revival).
+                Sad::AST::VariableExpr *baseVarExpr =
+                    dynamic_cast<Sad::AST::VariableExpr *>(memberExpr->object.get());
+                bool deferBase = (baseVarExpr != nullptr) && (b_.lookupVariable(baseVarExpr->name) == nullptr);
+
+                BuildResult objResult;
+                if (!deferBase)
+                {
+                    objResult = buildExpression(memberExpr->object.get());
+                }
 
                 // ================================================================
                 // (AR) الخطوة 1.25: فحص إن كان الوصول لمتغاير وحدة (Unit variant)
@@ -568,6 +585,16 @@ namespace Sad
                         // (AR) الحقل غير موجود في ADT — نسقط إلى المسار العادي
                         // (EN) Field not found in ADT — fall through to regular path
                     }
+                }
+
+                // (AR) قاعدة مؤجّلة لم يحلّها أيّ مسار عضو ⇒ اسمٌ غير معرّف فعلًا (H2). نُبلّغ
+                //      الخطأ الحقيقيّ (لا نجاح صامت — objResult فارغ فالمتابعة تُنتِج SIR معطوبًا).
+                // (EN) Deferred base unresolved by any member path ⇒ genuinely undefined (H2).
+                //      Report the real error (no silent success — objResult is empty).
+                if (deferBase)
+                {
+                    b_.errors_.push_back("Error: Undefined variable '" + baseVarExpr->name + "'");
+                    return BuildResult();
                 }
 
                 // (AR) الخطوة 2: إنشاء تعليمة الوصول للعضو (المسار العادي للأصناف)

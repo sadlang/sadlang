@@ -541,8 +541,12 @@ namespace Sad
 
                             if (!missingVariants.empty())
                             {
-                                // (AR) تحذير: حالات غير مغطاة — قد يحدث سلوك غير متوقع
-                                // (EN) Warning: uncovered variants — may cause unexpected behavior
+                                // (AR) تحذير: حالات غير مغطاة — قد يحدث سلوك غير متوقع.
+                                //      يُدفَع في قناة warnings_ لا errors_: تحذيرٌ لا خطأٌ، فلا
+                                //      يُفشِل البناء (RFC: فصل التحذيرات عن الأخطاء في بانِي SIR).
+                                // (EN) Warning: uncovered variants — may cause unexpected behavior.
+                                //      Pushed to warnings_ (not errors_): a warning must not fail
+                                //      the build (RFC: separate warnings from errors in SIRBuilder).
                                 std::string warning = "Warning: Non-exhaustive match on enum '" +
                                                       adtEnumName + "'. Missing variants: ";
                                 for (size_t m = 0; m < missingVariants.size(); ++m)
@@ -551,11 +555,9 @@ namespace Sad
                                         warning += ", ";
                                     warning += adtEnumName + "." + missingVariants[m];
                                 }
-                                b_.errors_.push_back(warning);
-
-#ifndef NDEBUG
-                                std::cout << "[WARNING] " << warning << std::endl;
-#endif
+                                // (AR) يُطبَع رسميًّا من السائق عبر report_warning بعد بناء الوحدة؛
+                                //   لا نطبعه هنا ثانيةً (كان يُكرَّر في بناء Debug). [L3]
+                                b_.warnings_.push_back(warning);
                             }
                         }
                     }

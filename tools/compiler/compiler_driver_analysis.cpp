@@ -565,7 +565,36 @@ namespace sad
             sir_builder_->setModuleMode(options_.module_mode);
             sir_module_ = sir_builder_->buildModule(&current_ast_);
 
-            // Check for semantic errors
+            // (AR) سجّل تحذيرات بناء SIR (غير قاتلة) قبل الحكم على الأخطاء — تُسجَّل سواءٌ نجح
+            //      البناء أم فشل، ولا تُفشِله. الطبع الفعليّ يقع لاحقًا عبر print_diagnostics
+            //      (report_warning يُراكِم لا يطبع فورًا). [L6] (RFC: فصل التحذيرات عن الأخطاء.)
+            // (EN) Register non-fatal SIR-build warnings before judging errors — recorded whether
+            //      the build passes or fails, and never fail it. Actual printing happens later via
+            //      print_diagnostics (report_warning accumulates, does not print immediately).
+            for (const auto &warning : sir_builder_->getWarnings())
+            {
+                diagnostics_.report_warning(warning, file);
+            }
+
+            // (AR) بوّابة النجاح الحقيقيّة = غياب الأخطاء، لا مجرّد لا-null. buildModule قد يُرجع
+            //      وحدةً غير فارغة رغم تسجيل أخطاء بناء SIR (مثل عدد وسائط دالّة مضمَّنة خاطئ)؛
+            //      الفحص على !sir_module_ وحده كان يُهمِلها صمتًا فينجح البناء خطأً (exit 0).
+            //      نفشل الآن عند أيّ خطأ ونُفرِّغ تشخيصه المحدَّد. (RFC: فصل التحذيرات عن الأخطاء.)
+            // (EN) The real success gate is the absence of errors, not merely non-null.
+            //      buildModule may return a non-null module while SIR-build errors were recorded
+            //      (e.g. wrong builtin arg count); checking only !sir_module_ dropped them
+            //      silently and the build wrongly "succeeded". Now we fail on any error and flush
+            //      its specific diagnostics.
+            if (sir_builder_->hasErrors())
+            {
+                for (const auto &error : sir_builder_->getErrors())
+                {
+                    diagnostics_.report_error(error, file);
+                }
+                return false;
+            }
+            // (AR) تحقّق دفاعيّ من null (لا يُفترَض بلوغه بعد اجتياز فحص الأخطاء، لكن نحفظه صريحًا).
+            // (EN) Defensive null check (should be unreachable past the error gate; kept explicit).
             if (!sir_module_)
             {
                 diagnostics_.report_error("Failed to build SIR module", file);

@@ -85,9 +85,29 @@ namespace Sad
                     }
                 }
 
-                // (AR) الخطوة 1: بناء تعبير الكائن
-                // (EN) Step 1: Build object expression
-                auto objResult = buildExpression(memberExpr->object.get());
+                // (AR) الخطوة 1: بناء تعبير الكائن.
+                //   لكن إن كانت القاعدة اسمًا مجرّدًا (VariableExpr) ليس متغيّرًا معرّفًا، فلا
+                //   نبنِها كمتغيّر: بناؤها يدفع «Undefined variable» زائفًا إلى errors_ بينما قد
+                //   تكون اسم نوعٍ (تعداد/صنف) قاعدةَ وصولٍ لعضوٍ تحلّه الخطوة 1.25 أدناه عبر الاسم
+                //   لا عبر السجلّ. نؤجّل البناء (deferBase) ونُبلّغ الخطأ الحقيقيّ لاحقًا فقط إن لم
+                //   يُحَلّ كعضو (حارسٌ ضدّ إعادة إدخال «النجاح الصامت» لقاعدةٍ غير معرّفةٍ فعلًا).
+                //   (RFC: فصل التحذيرات عن الأخطاء — تنظيف الأخطاء الكاذبة كي تصحّ بوّابة الأخطاء.)
+                // (EN) Step 1: Build object expression. But if the base is a bare VariableExpr that
+                //   is not a defined variable, don't build it as a variable: doing so pushes a
+                //   spurious "Undefined variable" while it may be a type name (enum/class) serving
+                //   as a member-access base resolved by Step 1.25 below via the name (not a
+                //   register). We defer the build and report the genuine error later only if it is
+                //   not resolved as a member (a guard against re-introducing "silent success" for a
+                //   genuinely undefined base).
+                Sad::AST::VariableExpr *baseVarExpr =
+                    dynamic_cast<Sad::AST::VariableExpr *>(memberExpr->object.get());
+                bool deferBase = (baseVarExpr != nullptr) && (b_.lookupVariable(baseVarExpr->name) == nullptr);
+
+                BuildResult objResult;
+                if (!deferBase)
+                {
+                    objResult = buildExpression(memberExpr->object.get());
+                }
 
                 // ================================================================
                 // (AR) [ISSUE-062] الوصول النقطيّ الرقميّ للصفّ: «ص.0»/«ص.1». المحلّل
@@ -200,6 +220,17 @@ namespace Sad
                             return BuildResult(varInfo->registerName, varInfo->type);
                         }
                     }
+                }
+
+                // (AR) وصلنا هنا دون أن يحلّ أيّ مسار عضوٍ القاعدةَ المؤجّلة ⇒ اسمٌ غير معرّف فعلًا
+                //   (تعداد/صنف مجهول أو خطأ مطبعيّ). نُبلّغ الخطأ الحقيقيّ الآن (لا نجاح صامت).
+                // (EN) Reached here without any member path resolving the deferred base ⇒ a
+                //   genuinely undefined name (unknown enum/class or a typo). Report the real error
+                //   now (no silent success). objResult is empty, so proceeding would emit broken SIR.
+                if (deferBase)
+                {
+                    b_.errors_.push_back("Error: Undefined variable '" + baseVarExpr->name + "'");
+                    return BuildResult();
                 }
 
                 // (AR) استنتاج نوع العضو من module (الأصناف المسجلة)

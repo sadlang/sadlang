@@ -287,8 +287,15 @@ namespace Sad
                 // (EN) Macros map
                 std::unordered_map<std::string, Sad::AST::MacroDecl *> macros_;
 
-                // (AR) قائمة الأخطاء / (EN) Error list
+                // (AR) قائمة الأخطاء (قاتلة — تمنع إنتاج الثنائيّ) / (EN) Error list (fatal)
                 std::vector<std::string> errors_;
+
+                // (AR) قائمة التحذيرات (غير قاتلة — تُطبَع ولا تمنع البناء). قناة منفصلة عن
+                //      errors_ كي لا يُخلَط تحذيرٌ بخطأ فيفشل البناء خطأً أو ينجح خطأً (RFC:
+                //      فصل التحذيرات عن الأخطاء في بانِي SIR).
+                // (EN) Warning list (non-fatal — printed, does not block the build). A channel
+                //      distinct from errors_ so a warning is never conflated with an error.
+                std::vector<std::string> warnings_;
 
                 // (AR) محلل الوحدات للاستيراد / (EN) Module resolver
                 std::unique_ptr<Modules::ModuleResolver> moduleResolver_;

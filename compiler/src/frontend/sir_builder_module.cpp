@@ -199,6 +199,14 @@ namespace Sad
 
             std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode *program)
             {
+                // (AR) امسح قناتَي التشخيص عند دخول كلّ وحدة: مستهلكٌ يعيد استخدام الباني (LSP/
+                //   متعدّد الوحدات) لا يرث أخطاء/تحذيرات وحدةٍ سابقة (M1). السائق يُنشئ بانيًا
+                //   لكلّ ملفّ فلا يتأثّر، لكنّ المسح يجعل السلوك صحيحًا لأيّ مستهلك.
+                // (EN) Clear both diagnostic channels on each module entry so a builder reused
+                //   across modules (LSP/multi-unit) never inherits a prior module's diagnostics.
+                errors_.clear();
+                warnings_.clear();
+
                 if (!program)
                 {
                     errors_.push_back("Error: Null program AST");

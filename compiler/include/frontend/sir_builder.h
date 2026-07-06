@@ -1626,6 +1626,18 @@ namespace Sad
                  */
                 const std::vector<std::string> &getErrors() const { return errors_; }
 
+                /**
+                 * @brief (AR) هل توجد تحذيرات؟ (غير قاتلة — لا تُفشِل البناء)
+                 * @brief (EN) Has warnings? (non-fatal — do not fail the build)
+                 */
+                bool hasWarnings() const { return !warnings_.empty(); }
+
+                /**
+                 * @brief (AR) الحصول على قائمة التحذيرات
+                 * @brief (EN) Get list of warnings
+                 */
+                const std::vector<std::string> &getWarnings() const { return warnings_; }
+
             private:
                 // ==================================================================
                 // الحالة الداخلية / Internal State
