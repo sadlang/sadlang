@@ -1189,24 +1189,22 @@ namespace Sad
                     return SadTypeKind::Integer;
                 };
 
-                // (AR) بوّابة نوع ساكنة لابنٍ مركّب (نقد Amelia): هل يمكن للعنصر/الحقل
-                //      ذي النوع الساكن `childStaticType` أن يطابق نمطًا مركّبًا؟
-                //      - نمط قائمة: يلزم عنصرٌ مصفوفة أو مجهول (Void) — نرفض القياديّ.
-                //      - نمط بنية: يلزم عنصرٌ كائنيّ مؤكَّد — نرفض القياديّ **والمجهول**
-                //        (يمنع المطابقة الصامتة الخاطئة على مصفوفة مختلطة/عدد).
-                //      المجهول (Void) يُقبَل للقائمة تفاؤلًا (يحفظ التداخل العميق حيث
-                //      يتعذّر تتبّع نوع العنصر لأكثر من مستوى) ويُرفَض للبنية تحفّظًا.
-                // (EN) Static type gate for a composite child (Amelia's review): can a
-                //      child of static type `childStaticType` match a composite pattern?
-                //      List child: needs array-like or Unknown; reject definite scalars.
-                //      Struct child: needs a definite object; reject scalars AND Unknown
-                //      (prevents silent false-match on a scalar/mixed element).
-                //      **صارمة (تحصين ثانٍ بعد نقد Amelia):** لا ننزل في ابنٍ مركّب إلّا
-                //      إذا كان نوعه الساكن **مُثبَتًا** مطابقًا (مصفوفة للقائمة، كائن للبنية).
+                // (AR) بوّابة نوع ساكنة **صارمة** لابنٍ مركّب (نقد Amelia): هل يمكن للعنصر
+                //      /الحقل ذي النوع الساكن `childStaticType` أن يطابق نمطًا مركّبًا؟
+                //      لا ننزل في ابنٍ مركّب إلّا إذا كان نوعه الساكن **مُثبَتًا** مطابقًا:
+                //      - نمط قائمة ⇒ يلزم نوعٌ مصفوفيّ مُثبَت (`sadKindIsArrayLikeProven`).
+                //      - نمط بنية ⇒ يلزم نوعٌ كائنيّ مُثبَت (`sadKindIsObjectLike`).
                 //      المجهول (Void — نوع عنصر مصفوفة مختلطة أو مستوى تداخل لا يُتتبَّع) ⇒
-                //      **غير قابل** ⇒ فشلٌ ساكن (افتراضيّ) بدل النزول الأعمى ⇒ **صفر تحطّم**.
+                //      **غير قابلٍ للنوعين** ⇒ فشلٌ ساكن (افتراضيّ) بدل النزول الأعمى الذي
+                //      يُصدر ARRAY_LEN/instanceof على قيمةٍ قد تكون عددًا ⇒ **صفر تحطّم**.
                 //      الثمن: التداخل المتباين/العميق (حاويات ص الديناميّة) يسقط للافتراضيّ
                 //      ولا يُطابَق في المترجم (ISSUE-070 — يحتاج وسوم نوع تشغيليّة).
+                // (EN) STRICT static type gate for a composite child (Amelia's review): only
+                //      descend into a composite child when its static type is PROVEN to match —
+                //      list child needs a proven array type, struct child a proven object.
+                //      Unknown (Void: mixed-array element or untracked nesting depth) is viable
+                //      for NEITHER ⇒ static fail (default) instead of a blind descent that would
+                //      emit ARRAY_LEN/instanceof on a possibly-scalar value ⇒ zero crash.
                 auto compositeChildViable =
                     [&](const AST::PatternNode *childPat, SadTypeKind childStaticType) -> bool
                 {
@@ -1263,9 +1261,11 @@ namespace Sad
                         dynamic_cast<const Sad::AST::StructPattern *>(childPat))
                     {
                         // (AR) مركّب متداخل ⇒ تعاود. نوع عنصر الابن غير متتبَّع لأكثر من
-                        //      مستوى ⇒ نمرّر Void (تفاؤليّ للقائمة، تحفّظيّ للبنية).
-                        // (EN) Nested composite ⇒ recurse. Child's element type isn't
-                        //      tracked beyond one level ⇒ pass Void.
+                        //      مستوى ⇒ نمرّر Void ⇒ بوّابة المستوى التالي الصارمة ترفض أيّ
+                        //      حفيدٍ مركّب (لا يُطابَق العمق الأبعد — ISSUE-070).
+                        // (EN) Nested composite ⇒ recurse. Child's element type isn't tracked
+                        //      beyond one level ⇒ pass Void ⇒ the next level's strict gate
+                        //      rejects any composite grandchild (deeper nesting unmatched).
                         emitPatternMatchShortCircuit(childPat, childReg, childType, failLabel,
                                                      SadTypeKind::Void);
                     }
