@@ -58,6 +58,11 @@ namespace Sad
                 // (EN) If value is constant, need to load it into a register
                 std::string matchValueReg = matchResult.registerName;
                 SadTypeKind matchValueType = matchResult.type;
+                // (AR) ISSUE-067: نوع عنصر المصفوفة المُطابَقة (لبوّابة النوع الساكنة
+                //      في قصر الدائرة المتداخل — يمنع Segfault على عنصرٍ قياديّ).
+                // (EN) ISSUE-067: matched array's element type (for the static gate
+                //      in nested short-circuit — prevents Segfault on a scalar element).
+                SadTypeKind matchValueElementType = matchResult.elementType;
 
                 if (matchResult.isConstant)
                 {
@@ -245,12 +250,24 @@ namespace Sad
                     {
                         // (AR) توليد شرط النمط عبر دالة مساعدة — CW-05
                         // (EN) Generate pattern condition via helper — CW-05
+                        // (AR) ISSUE-067: تمرير nextLabel كهدف فشل يُمكّن قصر الدائرة
+                        //      للأنماط المركّبة المتداخلة. لكن حين وُجد guard على الذراع
+                        //      يجب ألّا يقفز فشل النمط مباشرة للتالي متجاوزًا الربط لـguard؛
+                        //      نُبقي المسار المسطّح في تلك الحالة (failLabel="").
+                        // (EN) ISSUE-067: pass nextLabel as fail target to enable
+                        //      short-circuit for nested composite patterns. When the arm
+                        //      has a guard, keep the flat path (failLabel="") so pattern
+                        //      failure does not bypass the guard branch.
+                        const std::string patternFailLabel =
+                            caseClause.guard ? std::string() : nextLabel;
                         condReg = b_.buildMatchPatternCondition(
                             caseClause.pattern.get(),
                             matchValueReg,
                             matchValueType,
                             i,
-                            deferredADTExtractions[i]);
+                            deferredADTExtractions[i],
+                            patternFailLabel,
+                            matchValueElementType);
                     } // end if (caseClause.pattern)
 
                     // === التفريع / Branching ===

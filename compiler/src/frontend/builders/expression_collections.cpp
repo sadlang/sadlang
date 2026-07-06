@@ -44,12 +44,22 @@ namespace Sad
                 // (EN) Store elements one by one
                 SadTypeKind inferredElementType = SadTypeKind::Void;
                 std::string inferredElementClassName;
+                // (AR) ISSUE-067/070: تتبّع تجانس أنواع العناصر. المصفوفة المختلطة
+                //      (`[[1،2]، 9]`) كانت تُستنتَج `Array` من العنصر الأوّل **كذبًا**،
+                //      فيثق بها مُطابِق الأنماط المتداخل وينزل على عددٍ كمؤشّر ⇒ Segfault.
+                //      حين تختلف الأنواع نُبقي نوع العنصر `Void` (مجهول) — وهو الصادق —
+                //      فترفضه البوّابة الصارمة وتسقط المطابقة للافتراضيّ بأمان.
+                // (EN) ISSUE-067/070: track element-type homogeneity. A mixed array was
+                //      inferred as `Array` from element 0 — a lie the nested matcher trusts,
+                //      dereferencing a scalar-as-pointer ⇒ Segfault. On heterogeneous types
+                //      keep the element type `Void` (honest) so the strict gate rejects it.
+                bool elementTypesHomogeneous = true;
                 for (size_t i = 0; i < arrayExpr->elements.size(); ++i)
                 {
                     auto elemResult = buildExpression(arrayExpr->elements[i].get());
 
-                    // (AR) استنتاج نوع العنصر من العنصر الأول
-                    // (EN) Infer element type from first element
+                    // (AR) استنتاج نوع العنصر من العنصر الأول + كشف الاختلاط
+                    // (EN) Infer element type from first element + detect heterogeneity
                     if (i == 0)
                     {
                         inferredElementType = elemResult.type;
@@ -57,6 +67,10 @@ namespace Sad
                         {
                             inferredElementClassName = elemResult.className;
                         }
+                    }
+                    else if (elemResult.type != inferredElementType)
+                    {
+                        elementTypesHomogeneous = false;
                     }
 
                     // (AR) تجسيد الثوابت قبل تخزينها (نفس الإصلاح المُطبَّق على MapExpr)
@@ -113,9 +127,11 @@ namespace Sad
                 }
 
                 BuildResult result(arrReg, SadTypeKind::Array);
-                // (AR) استنتاج نوع العنصر من العنصر الأول (تم حفظه في الحلقة أعلاه)
-                // (EN) Infer element type from first element (saved during loop above)
-                if (inferredElementType != SadTypeKind::Void)
+                // (AR) نوع العنصر يُثبَّت فقط حين تجانس كلّ العناصر؛ المختلط يبقى Void
+                //      (صادق) ⇒ لا يثق به مُطابِق الأنماط المتداخل (ISSUE-067/070).
+                // (EN) Element type is set only when all elements are homogeneous;
+                //      a mixed array stays Void (honest) so the nested matcher won't trust it.
+                if (inferredElementType != SadTypeKind::Void && elementTypesHomogeneous)
                 {
                     result.elementType = inferredElementType;
                 }

@@ -1,0 +1,9 @@
+# @rule: gr.pattern.primary
+# @description: «-» بلا رقم بعده في النمط ⇒ خطأ نحويّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+طابق (3)
+    عندما -: اطبع_سطر("x")
+    افتراضي: اطبع_سطر("y")
+نهاية

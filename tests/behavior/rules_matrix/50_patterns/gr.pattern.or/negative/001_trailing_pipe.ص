@@ -1,0 +1,9 @@
+# @rule: gr.pattern.or
+# @description: «|» بلا نمط بعده ⇒ خطأ نحويّ
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+طابق (1)
+    عندما 1 |: اطبع_سطر("x")
+    افتراضي: اطبع_سطر("y")
+نهاية

@@ -18,15 +18,103 @@ namespace Sad
     {
         namespace SIR
         {
+            // ============================================================
+            // (AR) ISSUE-067: مساعِدا تصنيف النوع للحراسة الساكنة. المترجم
+            //      بلا وسوم نوع تشغيليّة، فالتمييز بين مصفوفة وعدد وقت التشغيل
+            //      مستحيل ⇒ نرفض الأذرع التي لا تطابق بنيةً **وقت الترجمة**.
+            // (EN) ISSUE-067: static type classifiers. The compiler has no runtime
+            //      type tags, so array-vs-scalar can't be told at runtime ⇒ reject
+            //      structurally-impossible arms at COMPILE time.
+            // ============================================================
+            static bool sadKindIsDefiniteScalar(SadTypeKind k)
+            {
+                switch (k)
+                {
+                case SadTypeKind::Integer:
+                case SadTypeKind::Float:
+                case SadTypeKind::Boolean:
+                case SadTypeKind::String:
+                case SadTypeKind::Byte:
+                case SadTypeKind::Int8:  case SadTypeKind::Int16:
+                case SadTypeKind::Int32: case SadTypeKind::Int64:
+                case SadTypeKind::UInt8: case SadTypeKind::UInt16:
+                case SadTypeKind::UInt32: case SadTypeKind::UInt64:
+                case SadTypeKind::Float32: case SadTypeKind::Float64:
+                case SadTypeKind::Char:
+                    return true;
+                default:
+                    return false;
+                }
+            }
+            static bool sadKindIsObjectLike(SadTypeKind k)
+            {
+                return k == SadTypeKind::Struct || k == SadTypeKind::Class ||
+                       k == SadTypeKind::Pointer;
+            }
+            // (AR) نوع مصفوفة **مُثبَت** (لا يشمل Void المجهول) — للبوّابة الصارمة.
+            // (EN) PROVEN array type (excludes unknown Void) — for the strict gate.
+            static bool sadKindIsArrayLikeProven(SadTypeKind k)
+            {
+                return k == SadTypeKind::Array || k == SadTypeKind::Tuple ||
+                       k == SadTypeKind::Slice;
+            }
+
             std::string SIRBuilder::buildMatchPatternCondition(
                 const AST::PatternNode *pattern,
                 const std::string &matchValueReg,
                 SadTypeKind matchValueType,
                 size_t caseIndex,
-                std::vector<MatchDeferredField> &deferredExtractions)
+                std::vector<MatchDeferredField> &deferredExtractions,
+                const std::string &failLabel,
+                SadTypeKind matchValueElementType)
             {
                 std::string condReg;
                 size_t i = caseIndex;
+
+                // ============================================================
+                // (AR) ISSUE-067: توجيه الأنماط المركّبة المتداخلة إلى مُطابِق
+                //      قاصر الدائرة الآمن. يُفعَّل فقط حين (أ) توفّر failLabel
+                //      (سياق اختبار حالة، لا داخل OR) و(ب) وجود ابنٍ مركّب
+                //      (قائمة/بنية/نطاق… داخل قائمة/بنية). عدا ذلك يُسلَك المسار
+                //      المسطّح التقليديّ ⇒ صفر تغيّر لكلّ الأنماط أحاديّة المستوى.
+                // (EN) ISSUE-067: route nested composite patterns to the safe
+                //      short-circuit matcher. Enabled only when a failLabel exists
+                //      (case-test context, not inside OR) AND a composite child is
+                //      present. Otherwise the classic flat path runs ⇒ zero change
+                //      for all single-level patterns.
+                // ============================================================
+                // (AR) حارس التوجيه الساكن (نقد Amelia — إصلاح انحدار Segfault):
+                //      لا نوجّه لقصر الدائرة إلّا حين يطابق **نوع القيمة الساكن**
+                //      بنيةَ النمط الأعلى (قائمة⇒مصفوفة، بنية⇒كائن). حين لا يطابق
+                //      (مثلاً `عندما [[أ،ب]]` على `طابق(5)`) يُسلَك المسار المسطّح
+                //      الذي يفشل بأمان للافتراضيّ بلا تحطّم (إذ SC يُصدر ARRAY_LEN
+                //      على عددٍ مُعامَل كمؤشّر ⇒ Segfault).
+                // (EN) Static routing guard (Amelia's review — fixes Segfault regression):
+                //      route to short-circuit only when the value's STATIC type matches
+                //      the top-level pattern shape (list⇒array, struct⇒object). On a
+                //      mismatch (e.g. `[[a,b]]` over `match(5)`) take the flat path which
+                //      safely falls to default instead of dereferencing a scalar-as-pointer.
+                //      (نوجّه كلّ نمط مركّب لقصر الدائرة، وSC نفسه يفشل ساكنًا فورًا
+                //       حين لا يطابق نوع القيمة الأعلى البنية — فلا مسار مسطّح مكسور.)
+                if (!failLabel.empty() &&
+                    (dynamic_cast<const Sad::AST::ListPattern *>(pattern) ||
+                     dynamic_cast<const Sad::AST::StructPattern *>(pattern)) &&
+                    patternHasCompositeChild(pattern))
+                {
+                    emitPatternMatchShortCircuit(pattern, matchValueReg, matchValueType,
+                                                 failLabel, matchValueElementType);
+                    // (AR) نجاح: كلّ الفحوص تفرّعت للفشل بالفعل؛ condReg=true
+                    //      فيقفز المتصل إلى كتلة الجسم مباشرة.
+                    // (EN) Success: all checks already branched on failure; condReg=true
+                    //      so the caller unconditionally proceeds to the body block.
+                    condReg = newTempRegister();
+                    SIRInstruction moveTrue(SIROpcode::MOVE);
+                    moveTrue.result = SIROperand::Register(condReg, SadTypeKind::Boolean);
+                    moveTrue.operands = {SIROperand::ConstantBool(true)};
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(moveTrue);
+                    return condReg;
+                }
 
                 if (dynamic_cast<const Sad::AST::WildcardPattern *>(pattern))
                 {
@@ -293,8 +381,12 @@ namespace Sad
                         //      يدعم: LiteralPattern، RangePattern، WildcardPattern، VariablePattern
                         // (EN) Recursive call: build condition for current alternative, any pattern type
                         //      Supports: LiteralPattern, RangePattern, WildcardPattern, VariablePattern
+                        // (AR) بدائل OR تبقى على المسار المسطّح (failLabel="") إذ يجب
+                        //      أن تُجرَّب تباعًا لا أن تتفرّع للفشل عند أوّل إخفاق.
+                        // (EN) OR alternatives stay flat (failLabel="") — they must be
+                        //      tried in sequence, not branch away on first mismatch.
                         std::string altCondReg = buildMatchPatternCondition(
-                            alt.get(), matchValueReg, matchValueType, caseIndex, deferredExtractions);
+                            alt.get(), matchValueReg, matchValueType, caseIndex, deferredExtractions, "");
 
                         // (AR) دمج مع النتيجة المتراكمة عبر OR
                         // (EN) OR with accumulated result
@@ -436,20 +528,31 @@ namespace Sad
                     if (listPat->has_rest && !listPat->rest_name.empty())
                     {
                         std::string restReg = newTempRegister();
-                        SIRInstruction sliceInst;
-                        sliceInst.opcode = SIROpcode::CALL;
-                        sliceInst.result = SIROperand::Register(restReg, SadTypeKind::Pointer);
-                        sliceInst.operands.push_back(SIROperand::Function("__sad_array_slice"));
+                        // (AR) إصلاح ISSUE-068 (جذريّ): نمط الباقي كان يُصدر `CALL` لرمزٍ
+                        //      خارجيّ (`__sad_array_slice`/`sad_array_slice`) غير معرَّفٍ عند
+                        //      الربط ⇒ يفشل lld ثمّ يسقط المترجم إلى clang بلا `/LIBPATH`
+                        //      (أخطاء CRT زائفة). الشريحة العاديّة `م[أ..]` لا تنادي رمزًا
+                        //      بل تستخدم أوبكود `BUILTIN_ARRAY_SLICE` المُخفَّض inline في
+                        //      `emitBuiltinArraySlice`. نوحّد نمط الباقي على المسار نفسه:
+                        //      شريحة من `elements.size()` حتى الطول الفعليّ ⇒ ذيل العناصر.
+                        // (EN) ISSUE-068 root fix: the rest pattern emitted a `CALL` to an
+                        //      external symbol that no runtime defines, so lld failed and the
+                        //      driver fell back to clang without /LIBPATH (spurious CRT errors).
+                        //      The ordinary slice `arr[a..]` never calls a symbol — it uses the
+                        //      `BUILTIN_ARRAY_SLICE` opcode lowered inline by emitBuiltinArraySlice.
+                        //      Unify the rest pattern onto that path: slice [elements.size()..len].
+                        SIRInstruction sliceInst(SIROpcode::BUILTIN_ARRAY_SLICE);
+                        sliceInst.result = SIROperand::Register(restReg, SadTypeKind::Array);
                         sliceInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
                         sliceInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(listPat->elements.size())));
                         sliceInst.operands.push_back(SIROperand::Register(lenReg, SadTypeKind::Integer));
-                        sliceInst.comment = "list pattern: slice rest elements";
+                        sliceInst.comment = "list pattern: slice rest elements (ISSUE-068: BUILTIN_ARRAY_SLICE)";
                         if (currentBlock_)
                             currentBlock_->addInstruction(sliceInst);
 
                         VariableInfo restVarInfo;
                         restVarInfo.name = listPat->rest_name;
-                        restVarInfo.type = SadTypeKind::Pointer;
+                        restVarInfo.type = SadTypeKind::Array;
                         restVarInfo.registerName = restReg;
                         restVarInfo.isGlobal = false;
                         restVarInfo.isMutable = false;
@@ -1031,6 +1134,318 @@ namespace Sad
                 }
 
                 return condReg;
+            }
+
+            // ================================================================
+            // (AR) ISSUE-067 — بنية تحتيّة لقصر الدائرة في الأنماط المتداخلة
+            // (EN) ISSUE-067 — short-circuit infrastructure for nested patterns
+            // ================================================================
+
+            bool SIRBuilder::patternHasCompositeChild(const AST::PatternNode *pattern)
+            {
+                // (AR) طفلٌ «مركّب» = يتطلّب استخراجًا ثمّ فحصًا بنيويًّا لا يُنفَّذ
+                //      بأمان في المسار المسطّح (قائمة/بنية/نطاق/تعداد/بدائل/ربط).
+                //      الحرفيّ/المتغيّر/الشامل ليست مركّبة (المسار المسطّح يعالجها).
+                auto isComposite = [](const AST::PatternNode *p) -> bool
+                {
+                    return dynamic_cast<const Sad::AST::ListPattern *>(p) ||
+                           dynamic_cast<const Sad::AST::StructPattern *>(p) ||
+                           dynamic_cast<const Sad::AST::RangePattern *>(p) ||
+                           dynamic_cast<const Sad::AST::EnumVariantPattern *>(p) ||
+                           dynamic_cast<const Sad::AST::OrPattern *>(p) ||
+                           dynamic_cast<const Sad::AST::BindingPattern *>(p);
+                };
+
+                if (auto *listPat = dynamic_cast<const Sad::AST::ListPattern *>(pattern))
+                {
+                    for (const auto &el : listPat->elements)
+                        if (isComposite(el.get()))
+                            return true;
+                }
+                else if (auto *structPat = dynamic_cast<const Sad::AST::StructPattern *>(pattern))
+                {
+                    for (const auto &fp : structPat->fields)
+                        if (isComposite(fp.second.get()))
+                            return true;
+                }
+                return false;
+            }
+
+            void SIRBuilder::emitPatternMatchShortCircuit(
+                const AST::PatternNode *pattern,
+                const std::string &valueReg,
+                SadTypeKind valueType,
+                const std::string &failLabel,
+                SadTypeKind valueElementType)
+            {
+                // (AR) استنتاج نوع سجلّ الابن حسب نوع نمطه
+                // (EN) Infer child register type from its pattern kind
+                auto inferChildType = [](const AST::PatternNode *p) -> SadTypeKind
+                {
+                    if (dynamic_cast<const Sad::AST::ListPattern *>(p))
+                        return SadTypeKind::Array;
+                    if (dynamic_cast<const Sad::AST::StructPattern *>(p))
+                        return SadTypeKind::Pointer;
+                    return SadTypeKind::Integer;
+                };
+
+                // (AR) بوّابة نوع ساكنة لابنٍ مركّب (نقد Amelia): هل يمكن للعنصر/الحقل
+                //      ذي النوع الساكن `childStaticType` أن يطابق نمطًا مركّبًا؟
+                //      - نمط قائمة: يلزم عنصرٌ مصفوفة أو مجهول (Void) — نرفض القياديّ.
+                //      - نمط بنية: يلزم عنصرٌ كائنيّ مؤكَّد — نرفض القياديّ **والمجهول**
+                //        (يمنع المطابقة الصامتة الخاطئة على مصفوفة مختلطة/عدد).
+                //      المجهول (Void) يُقبَل للقائمة تفاؤلًا (يحفظ التداخل العميق حيث
+                //      يتعذّر تتبّع نوع العنصر لأكثر من مستوى) ويُرفَض للبنية تحفّظًا.
+                // (EN) Static type gate for a composite child (Amelia's review): can a
+                //      child of static type `childStaticType` match a composite pattern?
+                //      List child: needs array-like or Unknown; reject definite scalars.
+                //      Struct child: needs a definite object; reject scalars AND Unknown
+                //      (prevents silent false-match on a scalar/mixed element).
+                //      **صارمة (تحصين ثانٍ بعد نقد Amelia):** لا ننزل في ابنٍ مركّب إلّا
+                //      إذا كان نوعه الساكن **مُثبَتًا** مطابقًا (مصفوفة للقائمة، كائن للبنية).
+                //      المجهول (Void — نوع عنصر مصفوفة مختلطة أو مستوى تداخل لا يُتتبَّع) ⇒
+                //      **غير قابل** ⇒ فشلٌ ساكن (افتراضيّ) بدل النزول الأعمى ⇒ **صفر تحطّم**.
+                //      الثمن: التداخل المتباين/العميق (حاويات ص الديناميّة) يسقط للافتراضيّ
+                //      ولا يُطابَق في المترجم (ISSUE-070 — يحتاج وسوم نوع تشغيليّة).
+                auto compositeChildViable =
+                    [&](const AST::PatternNode *childPat, SadTypeKind childStaticType) -> bool
+                {
+                    if (dynamic_cast<const Sad::AST::ListPattern *>(childPat))
+                        return sadKindIsArrayLikeProven(childStaticType);
+                    if (dynamic_cast<const Sad::AST::StructPattern *>(childPat))
+                        return sadKindIsObjectLike(childStaticType);
+                    return true; // (AR) غير مركّب ⇒ تعالجه المسارات الأخرى
+                };
+
+                // (AR) يُنهي الكتلة الحاليّة بتفريع: نجاح⇒كتلة استمرار، فشل⇒failLabel
+                //      ثمّ يجعل كتلة الاستمرار هي الحاليّة.
+                // (EN) End current block with a conditional branch: success→cont,
+                //      failure→failLabel; make cont the current block.
+                auto branchOnCond = [&](const std::string &cond, const std::string &tag)
+                {
+                    std::string contLabel = newLabel("match.sc." + tag);
+                    std::shared_ptr<SIRBasicBlock> contBlock = createBasicBlock(contLabel);
+                    if (currentFunction_)
+                        currentFunction_->addBasicBlock(contBlock);
+                    SIRInstruction br = SIRInstruction::BranchCond(
+                        SIROperand::Register(cond, SadTypeKind::Boolean),
+                        SIROperand::Label(contLabel),
+                        SIROperand::Label(failLabel));
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(br);
+                    currentBlock_ = contBlock;
+                };
+
+                // (AR) فشلٌ ساكن غير مشروط (النمط لا يطابق بنيةً وقت الترجمة): نتفرّع
+                //      إلى failLabel مع الحفاظ على كتلة استمرار مفتوحة (ميتة) كيلا
+                //      نكسر عقد المتصل الذي يُصدر فرعًا نهائيًّا في الكتلة الحاليّة.
+                // (EN) Unconditional static fail (arm can't match structurally): branch
+                //      to failLabel while keeping a valid (dead) continuation block open,
+                //      so the caller's final branch still has a well-formed block.
+                auto failAlways = [&](const std::string &tag)
+                {
+                    std::string f = newTempRegister();
+                    SIRInstruction mv(SIROpcode::MOVE);
+                    mv.result = SIROperand::Register(f, SadTypeKind::Boolean);
+                    mv.operands = {SIROperand::ConstantBool(false)};
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(mv);
+                    branchOnCond(f, tag);
+                };
+
+                // (AR) يعالج نمط ابن: مركّب⇒تعاود، بسيط⇒تفويض للمسطّح ثمّ تفريع عند اللزوم
+                // (EN) Handle a child pattern: composite→recurse; simple→flat then branch
+                auto handleChild = [&](const AST::PatternNode *childPat,
+                                       const std::string &childReg,
+                                       SadTypeKind childType)
+                {
+                    if (dynamic_cast<const Sad::AST::ListPattern *>(childPat) ||
+                        dynamic_cast<const Sad::AST::StructPattern *>(childPat))
+                    {
+                        // (AR) مركّب متداخل ⇒ تعاود. نوع عنصر الابن غير متتبَّع لأكثر من
+                        //      مستوى ⇒ نمرّر Void (تفاؤليّ للقائمة، تحفّظيّ للبنية).
+                        // (EN) Nested composite ⇒ recurse. Child's element type isn't
+                        //      tracked beyond one level ⇒ pass Void.
+                        emitPatternMatchShortCircuit(childPat, childReg, childType, failLabel,
+                                                     SadTypeKind::Void);
+                    }
+                    else if (dynamic_cast<const Sad::AST::WildcardPattern *>(childPat) ||
+                             dynamic_cast<const Sad::AST::VariablePattern *>(childPat))
+                    {
+                        // (AR) شامل/متغيّر ⇒ لا فحص، فقط ربط (المسطّح يربط السجلّ مباشرة)
+                        std::vector<MatchDeferredField> d;
+                        buildMatchPatternCondition(childPat, childReg, childType, 0, d, "");
+                    }
+                    else
+                    {
+                        // (AR) حرفيّ/نطاق/تعداد/بدائل/ربط ⇒ احسب شرطًا مسطّحًا ثمّ تفرّع.
+                        //      (ملاحظة: ربط حمولة تعداد متداخل لا يُنقَل هنا — حدّ موثّق)
+                        // (EN) Literal/Range/Enum/Or/Binding ⇒ flat cond then branch.
+                        std::vector<MatchDeferredField> d;
+                        std::string c = buildMatchPatternCondition(childPat, childReg, childType, 0, d, "");
+                        branchOnCond(c, "child");
+                    }
+                };
+
+                // ---- نمط القائمة / List pattern ----
+                if (auto *listPat = dynamic_cast<const Sad::AST::ListPattern *>(pattern))
+                {
+                    // (AR) 0) حارس النوع الأعلى الساكن (نقد Amelia): قيمةٌ نوعُها قياديّ
+                    //      مؤكَّد (عدد/نصّ…) لا تكون مصفوفةً أبدًا ⇒ فشلٌ فوريّ قبل ARRAY_LEN
+                    //      (يمنع Segfault من قراءة عددٍ كمؤشّر، ويسقط للافتراضيّ).
+                    // (EN) 0) Static top-type guard: a definite-scalar value is never an
+                    //      array ⇒ fail before ARRAY_LEN (prevents scalar-as-pointer crash).
+                    if (sadKindIsDefiniteScalar(valueType))
+                    {
+                        failAlways("listtype");
+                        return;
+                    }
+
+                    // (AR) 1) فحص الطول (== أو >= مع الباقي) ⇒ تفريع
+                    std::string lenReg = newTempRegister();
+                    {
+                        SIRInstruction lenInst(SIROpcode::ARRAY_LEN);
+                        lenInst.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
+                        lenInst.operands.push_back(SIROperand::Register(valueReg, valueType));
+                        lenInst.comment = "SC list: length";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(lenInst);
+                    }
+                    std::string lenOk = newTempRegister();
+                    SIRInstruction lenCmp = SIRInstruction::Binary(
+                        listPat->has_rest ? SIROpcode::GE : SIROpcode::EQ,
+                        SIROperand::Register(lenOk, SadTypeKind::Boolean),
+                        SIROperand::Register(lenReg, SadTypeKind::Integer),
+                        SIROperand::ConstantI64(static_cast<int64_t>(listPat->elements.size())));
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(lenCmp);
+                    branchOnCond(lenOk, "listlen");
+
+                    // (AR) 2) الطول تحقّق ⇒ استخراج كلّ عنصر بأمان ثمّ معالجته.
+                    //      بوّابة النوع الساكنة (نقد Amelia): لو كان عنصرٌ نمطُه مركّب
+                    //      بينما نوع عنصر المصفوفة الساكن **قياديّ** (عدد/نصّ…) ⇒ الذراع
+                    //      يستحيل تطابقه بنيةً ⇒ فشلٌ ساكن (لا ARRAY_GET-كمؤشّر ⇒ لا Segfault).
+                    // (EN) Static element-type gate (Amelia): if an element pattern is
+                    //      composite but the array's static element type is a definite
+                    //      scalar, the arm can't match ⇒ static fail (no scalar-as-pointer).
+                    bool armDead = false;
+                    for (size_t e = 0; e < listPat->elements.size(); ++e)
+                    {
+                        const AST::PatternNode *elemPat = listPat->elements[e].get();
+                        const bool elemIsComposite =
+                            dynamic_cast<const Sad::AST::ListPattern *>(elemPat) ||
+                            dynamic_cast<const Sad::AST::StructPattern *>(elemPat);
+                        if (elemIsComposite && !compositeChildViable(elemPat, valueElementType))
+                        {
+                            failAlways("elemtype");
+                            armDead = true;
+                            break;
+                        }
+                        SadTypeKind elemType = inferChildType(elemPat);
+                        std::string elemReg = newTempRegister();
+                        SIRInstruction getInst(SIROpcode::ARRAY_GET);
+                        getInst.result = SIROperand::Register(elemReg, elemType);
+                        getInst.operands.push_back(SIROperand::Register(valueReg, valueType));
+                        getInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(e)));
+                        getInst.comment = "SC list: get element [" + std::to_string(e) + "]";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(getInst);
+
+                        handleChild(elemPat, elemReg, elemType);
+                    }
+
+                    // (AR) 3) نمط الباقي (آمن — الطول >= العناصر مُتحقَّق) — نفس مسار 068
+                    if (!armDead && listPat->has_rest && !listPat->rest_name.empty())
+                    {
+                        std::string restReg = newTempRegister();
+                        SIRInstruction sliceInst(SIROpcode::BUILTIN_ARRAY_SLICE);
+                        sliceInst.result = SIROperand::Register(restReg, SadTypeKind::Array);
+                        sliceInst.operands.push_back(SIROperand::Register(valueReg, valueType));
+                        sliceInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(listPat->elements.size())));
+                        sliceInst.operands.push_back(SIROperand::Register(lenReg, SadTypeKind::Integer));
+                        sliceInst.comment = "SC list: rest slice";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(sliceInst);
+
+                        VariableInfo restVarInfo;
+                        restVarInfo.name = listPat->rest_name;
+                        restVarInfo.type = SadTypeKind::Array;
+                        restVarInfo.registerName = restReg;
+                        restVarInfo.isGlobal = false;
+                        restVarInfo.isMutable = false;
+                        restVarInfo.scopeLevel = currentScopeLevel_;
+                        addVariable(restVarInfo);
+                    }
+                    return;
+                }
+
+                // ---- نمط البنية / Struct pattern ----
+                if (auto *structPat = dynamic_cast<const Sad::AST::StructPattern *>(pattern))
+                {
+                    // (AR) 0) حارس النوع الأعلى الساكن: قيمةٌ قياديّة مؤكَّدة ليست كائنًا
+                    //      ⇒ فشلٌ فوريّ قبل أيّ LOAD حقل (يمنع تحميل حقلٍ على عدد).
+                    // (EN) 0) Static top-type guard: a definite-scalar value is not an
+                    //      object ⇒ fail before any field LOAD.
+                    if (sadKindIsDefiniteScalar(valueType))
+                    {
+                        failAlways("structtype");
+                        return;
+                    }
+
+                    // (AR) فحص النوع إن وُجد ⇒ تفريع
+                    if (!structPat->typeName.empty())
+                    {
+                        std::string typeChk = newTempRegister();
+                        SIRInstruction typeInst;
+                        typeInst.opcode = SIROpcode::CALL;
+                        typeInst.result = SIROperand::Register(typeChk, SadTypeKind::Boolean);
+                        typeInst.operands.push_back(SIROperand::Function("__sad_instanceof"));
+                        typeInst.operands.push_back(SIROperand::Register(valueReg, valueType));
+                        typeInst.operands.push_back(SIROperand::ConstantString(structPat->typeName));
+                        typeInst.comment = "SC struct: type '" + structPat->typeName + "'";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(typeInst);
+                        branchOnCond(typeChk, "structtype");
+                    }
+
+                    for (const auto &fieldPair : structPat->fields)
+                    {
+                        const std::string &fieldName = fieldPair.first;
+                        const AST::PatternNode *fieldPat = fieldPair.second.get();
+
+                        // (AR) بوّابة حقل مركّب صارمة (تحصين ثانٍ بعد نقد Amelia، متّجه
+                        //      البنية داخل البنية): النوع المُعلَن للحقل غير متاح لنمط بنيةٍ
+                        //      غير مُنوَّع، فلا يمكن إثبات أنّ الحقل حاوية تشغيليًّا ⇒ ننزل
+                        //      أعمى فنتحطّم إن حمل الحقل قياديًّا (`كائن ج = 5`). لذا نفشل
+                        //      ساكنًا أيّ حقلٍ نمطُه مركّب ⇒ صفر تحطّم (ISSUE-070).
+                        // (EN) Strict composite-field gate: a field's declared type isn't
+                        //      available for an untyped struct pattern, so we can't prove it
+                        //      is a container ⇒ blind descent would crash if the field holds
+                        //      a scalar. Statically fail any composite field child ⇒ no crash.
+                        if (dynamic_cast<const Sad::AST::ListPattern *>(fieldPat) ||
+                            dynamic_cast<const Sad::AST::StructPattern *>(fieldPat))
+                        {
+                            failAlways("fieldcomposite");
+                            return;
+                        }
+
+                        SadTypeKind fieldType = inferChildType(fieldPat);
+                        std::string fieldReg = newTempRegister();
+                        SIRInstruction loadField(SIROpcode::LOAD);
+                        loadField.result = SIROperand::Register(fieldReg, fieldType);
+                        loadField.operands.push_back(SIROperand::Register(valueReg, valueType));
+                        loadField.operands.push_back(SIROperand::ConstantString(fieldName));
+                        loadField.comment = "SC struct: load field '" + fieldName + "'";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(loadField);
+
+                        handleChild(fieldPat, fieldReg, fieldType);
+                    }
+                    return;
+                }
+
+                // (AR) نمط غير مركّب على المستوى الأعلى — لا ينبغي الوصول (المتصل يحرس)
+                // (EN) Non-composite top-level — shouldn't reach (caller guards)
             }
 
         } // namespace SIR

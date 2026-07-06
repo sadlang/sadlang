@@ -1272,13 +1272,39 @@ namespace Sad
                  * @param matchValueType نوع القيمة المُطابقة
                  * @param caseIndex فهرس الحالة (للتشخيص)
                  * @param deferredExtractions مخرج: حقول ADT المؤجل استخراجها
+                 * @param failLabel (ISSUE-067) هدف القفز عند فشل المطابقة — يُمكّن قصر
+                 *        الدائرة للأنماط المركّبة المتداخلة (قائمة/بنية داخل قائمة/بنية).
+                 *        فارغ ⇒ المسار المسطّح التقليديّ (لا تفريع).
                  */
                 std::string buildMatchPatternCondition(
                     const AST::PatternNode *pattern,
                     const std::string &matchValueReg,
                     SadTypeKind matchValueType,
                     size_t caseIndex,
-                    std::vector<MatchDeferredField> &deferredExtractions);
+                    std::vector<MatchDeferredField> &deferredExtractions,
+                    const std::string &failLabel = "",
+                    SadTypeKind matchValueElementType = SadTypeKind::Void);
+
+                /**
+                 * @brief (AR) مُطابِق أنماط قاصر الدائرة (ISSUE-067) — يعالج الأنماط
+                 *        المركّبة المتداخلة بأمان: يفحص البنية (طول/نوع) ويتفرّع إلى
+                 *        failLabel عند الفشل، ثمّ يستخرج الأبناء (بعد التحقّق ⇒ آمن من
+                 *        تجاوز الحدود) ويربط المتغيّرات، متعاوِدًا للأنماط المركّبة.
+                 *        عند النجاح يترك currentBlock_ على كتلة استمرار.
+                 * @brief (EN) Short-circuiting nested pattern matcher (ISSUE-067).
+                 */
+                void emitPatternMatchShortCircuit(
+                    const AST::PatternNode *pattern,
+                    const std::string &valueReg,
+                    SadTypeKind valueType,
+                    const std::string &failLabel,
+                    SadTypeKind valueElementType = SadTypeKind::Void);
+
+                /**
+                 * @brief (AR) هل يحتوي النمط على ابنٍ مركّب (قائمة/بنية/نطاق/تعداد/بدائل/ربط)
+                 *        يتطلّب مسار قصر الدائرة؟ / (EN) Does pattern have a composite child?
+                 */
+                static bool patternHasCompositeChild(const AST::PatternNode *pattern);
 
                 /**
                  * @brief (AR) بناء باني صنف — مستخرج من buildClass (CW-05)

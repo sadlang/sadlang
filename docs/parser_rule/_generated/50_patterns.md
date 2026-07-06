@@ -6,7 +6,7 @@
 
 
 - **الطبقة:** `patterns` · **ملف المصدر:** `language-truth/grammar/50_patterns.yaml`
-- **الوصف:** أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق/قائمة/بنية/ربط/بدائل
+- **الوصف:** أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق (حصريّ وشامل)/عضو تعداد (unit وADT)/قائمة/بنية/ربط/بدائل
 - **عدد القواعد:** 6
 
 > **قراءة المخطّطات:** «📊 مخطّط البنية النحويّة» يُظهر تسلسل الرموز (تكرار «تكرار»، اختياري «تخطّي»، بدائل ◆). «مخطّط مسار الدوال» يُظهر دوال المحلل التي تُستدعى حتى بناء عقدة AST.
@@ -24,6 +24,7 @@ flowchart TD
   o1 --> o4
   o1 --> o3
   o1 --> o2
+  o2 --> o1
   o3 --> o1
   o4 --> o1
   o5 --> o1
@@ -54,7 +55,7 @@ Pattern = '_' | StructPattern | ListPattern
 1. [`ParserCore::parsePattern`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
 - **عقدة AST المُنتَجة:** `WildcardPattern | StructPattern | ListPattern | BindingPattern | OrPattern`
 - **يستدعي دوال:** [`parseStructPattern`](50_patterns.md#gr.pattern.struct)، [`parseListPattern`](50_patterns.md#gr.pattern.list)، [`parsePrimaryPattern`](50_patterns.md#gr.pattern.primary)
-- **مُستدعى من:** [`parseMatchStmt`](10_statements.md#gr.stmt.match)، [`parsePattern`](50_patterns.md#gr.pattern.pattern)، [`parseListPattern`](50_patterns.md#gr.pattern.list)، [`parseStructPattern`](50_patterns.md#gr.pattern.struct)، [`parsePattern`](50_patterns.md#gr.pattern.binding)
+- **مُستدعى من:** [`parseMatchStmt`](10_statements.md#gr.stmt.match)، [`parsePattern`](50_patterns.md#gr.pattern.pattern)، [`parsePrimaryPattern`](50_patterns.md#gr.pattern.primary)، [`parseListPattern`](50_patterns.md#gr.pattern.list)، [`parseStructPattern`](50_patterns.md#gr.pattern.struct)، [`parsePattern`](50_patterns.md#gr.pattern.binding)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -124,31 +125,35 @@ flowchart LR
 ### gr.pattern.primary — نمط أوّليّ <span dir="ltr">(PrimaryPattern)</span>
 
 - **الرقم التسلسليّ:** `ق-066` · **المعرّف الموحَّد:** `gr.pattern.primary` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** حرفيّ (يدعم السالب)، نطاق «1..10» ⇒ RangePattern، أو مُعرّف ⇒ VariablePattern (يربط القيمة)
+- **الوصف:** حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT)
 
 #### 📐 BNF
 ```bnf
-PrimaryPattern = [ '-' ] Number [ '..' [ '-' ] Number ]
-               | String | BoolLit | NullLit | Identifier ;
+PrimaryPattern = [ '-' ] Number [ ( '..' | '..=' ) [ '-' ] Number ]
+               | String | BoolLit | NullLit
+               | Identifier [ '.' Identifier [ '(' Pattern { ( ',' | '،' ) Pattern } ')' ] ] ;
 ```
 
 #### 🧩 تفصيل البدائل
-**1.** *حرفيّ / نطاق رقميّ:* `[ «-» ] ( «NUMBER_INTEGER» | «NUMBER_DOUBLE» ) [ «..» [ «-» ] ( «NUMBER_INTEGER» | «NUMBER_DOUBLE» ) ]`
+**1.** *حرفيّ / نطاق رقميّ (حصريّ «..» أو شامل «..=»):* `[ «-» ] ( «NUMBER_INTEGER» | «NUMBER_DOUBLE» ) [ «..» [ «=» ] [ «-» ] ( «NUMBER_INTEGER» | «NUMBER_DOUBLE» ) ]`
 **2.** *حرفيّ آخر:* `( «STRING_LITERAL» | «صحيح» | «خطأ» | «لاشيء» )`
-**3.** *متغيّر (ربط):* `«IDENTIFIER»`
+**3.** *متغيّر (ربط) أو عضو تعداد (مؤهَّل / جبريّ ADT):* `«IDENTIFIER» [ «.» «IDENTIFIER» [ «(» [ pattern { «،» pattern } ] «)» ] ]`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parsePrimaryPattern`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
-- **عقدة AST المُنتَجة:** `LiteralPattern | RangePattern | VariablePattern`
+- **عقدة AST المُنتَجة:** `LiteralPattern | RangePattern | VariablePattern | EnumVariantPattern`
+- **يستدعي دوال:** [`parsePattern`](50_patterns.md#gr.pattern.pattern)
 - **مُستدعى من:** [`parsePattern`](50_patterns.md#gr.pattern.pattern)، [`parsePattern`](50_patterns.md#gr.pattern.or)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
   f1["parsePrimaryPattern()"]
-  f2(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern"])
-  f1 --> f2
+  f2["parsePattern()"]
+  f1 -- "نمط" --> f2
+  f3(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  f1 --> f3
 ```
 
 #### 📊 مخطّط البنية النحويّة (Mermaid)
@@ -175,48 +180,90 @@ flowchart LR
   n11["«..»"]
   n12{"◇"}
   n13{"◇"}
-  n14["«-»"]
+  n14["«=»"]
   n12 --> n14
   n14 --> n13
   n12 -- "تخطّي" --> n13
   n11 --> n12
-  n15{"◆"}
-  n16{"◆"}
-  n17["«NUMBER_INTEGER»"]
+  n15{"◇"}
+  n16{"◇"}
+  n17["«-»"]
   n15 --> n17
   n17 --> n16
-  n18["«NUMBER_DOUBLE»"]
-  n15 --> n18
-  n18 --> n16
+  n15 -- "تخطّي" --> n16
   n13 --> n15
+  n18{"◆"}
+  n19{"◆"}
+  n20["«NUMBER_INTEGER»"]
+  n18 --> n20
+  n20 --> n19
+  n21["«NUMBER_DOUBLE»"]
+  n18 --> n21
+  n21 --> n19
+  n16 --> n18
   n9 --> n11
-  n16 --> n10
+  n19 --> n10
   n9 -- "تخطّي" --> n10
   n6 --> n9
-  n1 -- "حرفيّ / نطاق رقميّ" --> n2
-  n19(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern"])
-  n10 --> n19
-  n20{"◆"}
-  n21{"◆"}
-  n22["«STRING_LITERAL»"]
-  n20 --> n22
-  n22 --> n21
-  n23["«صحيح»"]
-  n20 --> n23
-  n23 --> n21
-  n24["«خطأ»"]
-  n20 --> n24
-  n24 --> n21
-  n25["«لاشيء»"]
-  n20 --> n25
-  n25 --> n21
-  n1 -- "حرفيّ آخر" --> n20
-  n26(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern"])
-  n21 --> n26
-  n27["«IDENTIFIER»"]
-  n1 -- "متغيّر (ربط)" --> n27
-  n28(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern"])
-  n27 --> n28
+  n1 -- "حرفيّ / نطاق رقميّ (حصريّ «..» أو شامل «..=»)" --> n2
+  n22(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  n10 --> n22
+  n23{"◆"}
+  n24{"◆"}
+  n25["«STRING_LITERAL»"]
+  n23 --> n25
+  n25 --> n24
+  n26["«صحيح»"]
+  n23 --> n26
+  n26 --> n24
+  n27["«خطأ»"]
+  n23 --> n27
+  n27 --> n24
+  n28["«لاشيء»"]
+  n23 --> n28
+  n28 --> n24
+  n1 -- "حرفيّ آخر" --> n23
+  n29(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  n24 --> n29
+  n30["«IDENTIFIER»"]
+  n31{"◇"}
+  n32{"◇"}
+  n33["«.»"]
+  n34["«IDENTIFIER»"]
+  n33 --> n34
+  n35{"◇"}
+  n36{"◇"}
+  n37["«(»"]
+  n38{"◇"}
+  n39{"◇"}
+  n40["pattern"]
+  n41{"◇"}
+  n42{"◇"}
+  n43["«،»"]
+  n44["pattern"]
+  n43 --> n44
+  n41 --> n43
+  n44 --> n42
+  n44 -- "تكرار" --> n43
+  n41 -- "صفر/أكثر" --> n42
+  n40 --> n41
+  n38 --> n40
+  n42 --> n39
+  n38 -- "تخطّي" --> n39
+  n37 --> n38
+  n45["«)»"]
+  n39 --> n45
+  n35 --> n37
+  n45 --> n36
+  n35 -- "تخطّي" --> n36
+  n34 --> n35
+  n31 --> n33
+  n36 --> n32
+  n31 -- "تخطّي" --> n32
+  n30 --> n31
+  n1 -- "متغيّر (ربط) أو عضو تعداد (مؤهَّل / جبريّ ADT)" --> n30
+  n46(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  n32 --> n46
 ```
 
 ---
@@ -225,15 +272,16 @@ flowchart LR
 ### gr.pattern.list — نمط قائمة <span dir="ltr">(ListPattern)</span>
 
 - **الرقم التسلسليّ:** `ق-067` · **المعرّف الموحَّد:** `gr.pattern.list` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** تفكيك المصفوفة «[أ، ب]»
+- **الوصف:** تفكيك المصفوفة «[أ، ب]»؛ قائمة فارغة «[]»؛ نمط الباقي الطرفيّ «*اسم» (OP_MULTIPLY) يربط ذيل العناصر (has_rest) ويجب أن يكون آخِر عنصر
 
 #### 📐 BNF
 ```bnf
-ListPattern = '[' [ Pattern { ( ',' | '،' ) Pattern } ] ']' ;
+ListPattern = '[' [ Pattern { ( ',' | '،' ) Pattern } [ ( ',' | '،' ) '*' Identifier ]
+                  | '*' Identifier ] ']' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«[» [ pattern { «،» pattern } ] «]»`
+- `«[» [ pattern { «،» pattern } [ [ «،» ] «*» «IDENTIFIER» ] ] «]»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -270,15 +318,31 @@ flowchart LR
   n9 -- "تكرار" --> n8
   n6 -- "صفر/أكثر" --> n7
   n5 --> n6
+  n10{"◇"}
+  n11{"◇"}
+  n12{"◇"}
+  n13{"◇"}
+  n14["«،»"]
+  n12 --> n14
+  n14 --> n13
+  n12 -- "تخطّي" --> n13
+  n15["«*»"]
+  n13 --> n15
+  n16["«IDENTIFIER»"]
+  n15 --> n16
+  n10 --> n12
+  n16 --> n11
+  n10 -- "تخطّي" --> n11
+  n7 --> n10
   n3 --> n5
-  n7 --> n4
+  n11 --> n4
   n3 -- "تخطّي" --> n4
   n2 --> n3
-  n10["«)»"]
-  n4 --> n10
+  n17["«)»"]
+  n4 --> n17
   n1 --> n2
-  n11(["⇒ ListPattern"])
-  n10 --> n11
+  n18(["⇒ ListPattern"])
+  n17 --> n18
 ```
 
 ---
@@ -287,15 +351,15 @@ flowchart LR
 ### gr.pattern.struct — نمط بنية <span dir="ltr">(StructPattern)</span>
 
 - **الرقم التسلسليّ:** `ق-068` · **المعرّف الموحَّد:** `gr.pattern.struct` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** تفكيك الكائن «{س: س}»
+- **الوصف:** تفكيك الكائن «{س: نمط}»؛ بنية فارغة «{}»؛ اختصار «{حقل}» بلا نقطتين ⇒ يربط الحقل باسمه (VariablePattern)
 
 #### 📐 BNF
 ```bnf
-StructPattern = '{' Identifier ':' Pattern { ( ',' | '،' ) Identifier ':' Pattern } '}' ;
+StructPattern = '{' [ Field { ( ',' | '،' ) Field } ] '}' ; Field = Identifier [ ':' Pattern ] ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«{» ( «IDENTIFIER» «:» pattern )+ «}»`
+- `«{» [ «IDENTIFIER» [ «:» pattern ] { «،» «IDENTIFIER» [ «:» pattern ] } ] «}»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -322,19 +386,43 @@ flowchart LR
   n3{"◇"}
   n4{"◇"}
   n5["«IDENTIFIER»"]
-  n6["«:»"]
-  n5 --> n6
-  n7["pattern"]
-  n6 --> n7
-  n3 --> n5
-  n7 --> n4
-  n7 -- "تكرار" --> n5
-  n2 --> n3
-  n8["«❳»"]
-  n4 --> n8
-  n1 --> n2
-  n9(["⇒ StructPattern"])
+  n6{"◇"}
+  n7{"◇"}
+  n8["«:»"]
+  n9["pattern"]
   n8 --> n9
+  n6 --> n8
+  n9 --> n7
+  n6 -- "تخطّي" --> n7
+  n5 --> n6
+  n10{"◇"}
+  n11{"◇"}
+  n12["«،»"]
+  n13["«IDENTIFIER»"]
+  n12 --> n13
+  n14{"◇"}
+  n15{"◇"}
+  n16["«:»"]
+  n17["pattern"]
+  n16 --> n17
+  n14 --> n16
+  n17 --> n15
+  n14 -- "تخطّي" --> n15
+  n13 --> n14
+  n10 --> n12
+  n15 --> n11
+  n15 -- "تكرار" --> n12
+  n10 -- "صفر/أكثر" --> n11
+  n7 --> n10
+  n3 --> n5
+  n11 --> n4
+  n3 -- "تخطّي" --> n4
+  n2 --> n3
+  n18["«❳»"]
+  n4 --> n18
+  n1 --> n2
+  n19(["⇒ StructPattern"])
+  n18 --> n19
 ```
 
 ---
@@ -386,7 +474,7 @@ flowchart LR
 ### gr.pattern.or — نمط بدائل <span dir="ltr">(OrPattern)</span>
 
 - **الرقم التسلسليّ:** `ق-070` · **المعرّف الموحَّد:** `gr.pattern.or` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** بدائل «1 | 2» (تستخدم OP_OR)
+- **الوصف:** بدائل «1 | 2» — الرمز المعياريّ «|» (OP_BITWISE_OR)؛ ويُقبل «||» (OP_OR) تساهلًا (ISSUE-033)
 
 #### 📐 BNF
 ```bnf
@@ -401,7 +489,7 @@ OrPattern = PrimaryPattern '|' PrimaryPattern { '|' PrimaryPattern } ;
 1. [`ParserCore::parsePattern`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
 - **عقدة AST المُنتَجة:** `OrPattern`
 - **يستدعي دوال:** [`parsePrimaryPattern`](50_patterns.md#gr.pattern.primary)
-- **روابط المعجم:** عوامل: «||»
+- **روابط المعجم:** عوامل: «|»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid

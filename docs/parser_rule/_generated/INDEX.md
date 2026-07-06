@@ -111,8 +111,8 @@ flowchart TD
 | ق-035 | [`gr.oop.trait`](30_oop.md#gr.oop.trait) | تصريح سمة | `TraitDecl` | `ParserCore::parseTraitDecl` |
 | ق-036 | [`gr.oop.impl`](30_oop.md#gr.oop.impl) | كتلة تنفيذ | `ImplDecl` | `ParserCore::parseImplDecl` |
 | ق-037 | [`gr.oop.extension`](30_oop.md#gr.oop.extension) | كتلة امتداد | `ExtensionDecl` | `ParserCore::parseExtensionDecl` |
-| ق-038 | [`gr.oop.new`](30_oop.md#gr.oop.new) | إنشاء كائن | `NewExpr` | `ParserCore::parseNewExpr` |
-| ق-039 | [`gr.oop.this_super`](30_oop.md#gr.oop.this_super) | هذا/الأساس | `ThisExpr \| SuperExpr` | `ParserCore::parseThisExpression` |
+| ق-038 | [`gr.oop.new`](30_oop.md#gr.oop.new) | إنشاء كائن | `NewExpr` | `ParserCore::parsePostfix` |
+| ق-039 | [`gr.oop.this_super`](30_oop.md#gr.oop.this_super) | هذا/الأساس | `ThisExpr \| SuperExpr` | `ParserCore::parsePrimary` |
 | ق-040 | [`gr.expr.expression`](40_expressions.md#gr.expr.expression) | تعبير | `—` | `ParserCore::parseExpression` |
 | ق-041 | [`gr.expr.pipeline`](40_expressions.md#gr.expr.pipeline) | أنبوب | `CallExpr` | `ParserCore::parsePipeline` |
 | ق-042 | [`gr.expr.assignment`](40_expressions.md#gr.expr.assignment) | إسناد | `AssignExpr \| MemberAssignExpr \| IndexAssignExpr \| WalrusExpr` | `ParserCore::parseAssignment` |
@@ -139,7 +139,7 @@ flowchart TD
 | ق-063 | [`gr.expr.array_literal`](40_expressions.md#gr.expr.array_literal) | مصفوفة حرفيّة | `ArrayExpr \| ListComprehensionExpr` | `ParserCore::parseArrayLiteral` |
 | ق-064 | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) | خريطة حرفيّة | `MapExpr \| DictComprehensionExpr \| SetComprehensionExpr` | `ParserCore::parseMapLiteral` |
 | ق-065 | [`gr.pattern.pattern`](50_patterns.md#gr.pattern.pattern) | نمط | `WildcardPattern \| StructPattern \| ListPattern \| BindingPattern \| OrPattern` | `ParserCore::parsePattern` |
-| ق-066 | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) | نمط أوّليّ | `LiteralPattern \| RangePattern \| VariablePattern` | `ParserCore::parsePrimaryPattern` |
+| ق-066 | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) | نمط أوّليّ | `LiteralPattern \| RangePattern \| VariablePattern \| EnumVariantPattern` | `ParserCore::parsePrimaryPattern` |
 | ق-067 | [`gr.pattern.list`](50_patterns.md#gr.pattern.list) | نمط قائمة | `ListPattern` | `ParserCore::parseListPattern` |
 | ق-068 | [`gr.pattern.struct`](50_patterns.md#gr.pattern.struct) | نمط بنية | `StructPattern` | `ParserCore::parseStructPattern` |
 | ق-069 | [`gr.pattern.binding`](50_patterns.md#gr.pattern.binding) | نمط ربط | `BindingPattern` | `ParserCore::parsePattern` |
@@ -218,7 +218,7 @@ flowchart TD
 | `ListComprehensionExpr` | [`gr.adv.list_comprehension`](60_advanced.md#gr.adv.list_comprehension) |
 | `ListPattern` | [`gr.pattern.list`](50_patterns.md#gr.pattern.list) |
 | `LiteralExpr \| VariableExpr \| TupleExpr \| ArrayExpr \| MapExpr \| ThisExpr \| SuperExpr \| AwaitExpr \| ErrorPropagateExpr \| TernaryExpr \| LambdaExpr \| CallExpr \| TemplateInstantiation` | [`gr.expr.primary`](40_expressions.md#gr.expr.primary) |
-| `LiteralPattern \| RangePattern \| VariablePattern` | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) |
+| `LiteralPattern \| RangePattern \| VariablePattern \| EnumVariantPattern` | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) |
 | `MacroDecl` | [`gr.adv.macro`](60_advanced.md#gr.adv.macro) |
 | `MapExpr \| DictComprehensionExpr \| SetComprehensionExpr` | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) |
 | `MatchStmt` | [`gr.stmt.match`](10_statements.md#gr.stmt.match) |

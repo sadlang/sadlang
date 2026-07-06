@@ -11,8 +11,8 @@ schema_version: "5.0"
 version: "1.0"
 layer: patterns
 
-description_ar: "أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق/قائمة/بنية/ربط/بدائل"
-description_en: "Match patterns — wildcard/literal/variable/range/list/struct/binding/or"
+description_ar: "أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق (حصريّ وشامل)/عضو تعداد (unit وADT)/قائمة/بنية/ربط/بدائل"
+description_en: "Match patterns — wildcard/literal/variable/range (excl+incl)/enum-variant (unit+ADT)/list/struct/binding/or"
 
 productions:
 
@@ -39,7 +39,7 @@ productions:
               - kind: alt
                 children:
                   - { kind: group, children: [ { kind: terminal, ref: AT_SIGN, value: "@" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
-                  - { kind: repeat1, children: [ { kind: terminal, ref: OP_OR, value: "|" }, { kind: nonterminal, ref: gr.pattern.primary } ] }
+                  - { kind: repeat1, children: [ { kind: terminal, ref: OP_BITWISE_OR, value: "|" }, { kind: nonterminal, ref: gr.pattern.primary } ] }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePattern" }
     ast_node: "WildcardPattern | StructPattern | ListPattern | BindingPattern | OrPattern"
@@ -51,10 +51,11 @@ productions:
   - id: gr.pattern.primary
     lhs: { nonterminal: PrimaryPattern, name_ar: "نمط أوّليّ", name_en: primary_pattern }
     ebnf: >
-      PrimaryPattern = [ '-' ] Number [ '..' [ '-' ] Number ]
-                     | String | BoolLit | NullLit | Identifier ;
+      PrimaryPattern = [ '-' ] Number [ ( '..' | '..=' ) [ '-' ] Number ]
+                     | String | BoolLit | NullLit
+                     | Identifier [ '.' Identifier [ '(' Pattern { ( ',' | '،' ) Pattern } ')' ] ] ;
     alternatives:
-      - label: "حرفيّ / نطاق رقميّ"
+      - label: "حرفيّ / نطاق رقميّ (حصريّ «..» أو شامل «..=»)"
         symbols:
           - { kind: optional, children: [ { kind: terminal, ref: OP_MINUS, value: "-" } ] }
           - kind: alt
@@ -64,6 +65,7 @@ productions:
           - kind: optional
             children:
               - { kind: terminal, ref: DOT_DOT, value: ".." }
+              - { kind: optional, children: [ { kind: terminal, ref: OP_ASSIGN, value: "=" } ] }
               - { kind: optional, children: [ { kind: terminal, ref: OP_MINUS, value: "-" } ] }
               - kind: alt
                 children:
@@ -77,20 +79,34 @@ productions:
               - { kind: terminal, ref: LITERAL_TRUE, value: "صحيح" }
               - { kind: terminal, ref: LITERAL_FALSE, value: "خطأ" }
               - { kind: terminal, ref: LITERAL_NULL, value: "لاشيء" }
-      - label: "متغيّر (ربط)"
+      - label: "متغيّر (ربط) أو عضو تعداد (مؤهَّل / جبريّ ADT)"
         symbols:
           - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: DOT, value: "." }
+              - { kind: terminal, ref: IDENTIFIER }
+              - kind: optional
+                children:
+                  - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+                  - kind: optional
+                    children:
+                      - { kind: nonterminal, ref: gr.pattern.pattern }
+                      - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+                  - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePrimaryPattern" }
-    ast_node: "LiteralPattern | RangePattern | VariablePattern"
-    description_ar: "حرفيّ (يدعم السالب)، نطاق «1..10» ⇒ RangePattern، أو مُعرّف ⇒ VariablePattern (يربط القيمة)"
+    ast_node: "LiteralPattern | RangePattern | VariablePattern | EnumVariantPattern"
+    description_ar: "حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }
 
   - id: gr.pattern.list
     lhs: { nonterminal: ListPattern, name_ar: "نمط قائمة", name_en: list_pattern }
-    ebnf: "ListPattern = '[' [ Pattern { ( ',' | '،' ) Pattern } ] ']' ;"
+    ebnf: >
+      ListPattern = '[' [ Pattern { ( ',' | '،' ) Pattern } [ ( ',' | '،' ) '*' Identifier ]
+                        | '*' Identifier ] ']' ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: BRACKET_LEFT, value: "[" }
@@ -98,32 +114,42 @@ productions:
             children:
               - { kind: nonterminal, ref: gr.pattern.pattern }
               - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+              - kind: optional
+                children:
+                  - { kind: optional, children: [ { kind: terminal, ref: OP_COMMA, value: "،" } ] }
+                  - { kind: terminal, ref: OP_MULTIPLY, value: "*" }
+                  - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: BRACKET_RIGHT, value: "]" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseListPattern" }
     ast_node: "ListPattern"
-    description_ar: "تفكيك المصفوفة «[أ، ب]»"
+    description_ar: "تفكيك المصفوفة «[أ، ب]»؛ قائمة فارغة «[]»؛ نمط الباقي الطرفيّ «*اسم» (OP_MULTIPLY) يربط ذيل العناصر (has_rest) ويجب أن يكون آخِر عنصر"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
 
   - id: gr.pattern.struct
     lhs: { nonterminal: StructPattern, name_ar: "نمط بنية", name_en: struct_pattern }
-    ebnf: "StructPattern = '{' Identifier ':' Pattern { ( ',' | '،' ) Identifier ':' Pattern } '}' ;"
+    ebnf: >
+      StructPattern = '{' [ Field { ( ',' | '،' ) Field } ] '}' ;
+      Field = Identifier [ ':' Pattern ] ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: BRACE_LEFT, value: "{" }
-          - kind: repeat1
-            separator: OP_COMMA
+          - kind: optional
             children:
               - { kind: terminal, ref: IDENTIFIER }
-              - { kind: terminal, ref: COLON, value: ":" }
-              - { kind: nonterminal, ref: gr.pattern.pattern }
+              - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+              - kind: repeat
+                children:
+                  - { kind: terminal, ref: OP_COMMA, value: "،" }
+                  - { kind: terminal, ref: IDENTIFIER }
+                  - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
           - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseStructPattern" }
     ast_node: "StructPattern"
-    description_ar: "تفكيك الكائن «{س: س}»"
+    description_ar: "تفكيك الكائن «{س: نمط}»؛ بنية فارغة «{}»؛ اختصار «{حقل}» بلا نقطتين ⇒ يربط الحقل باسمه (VariablePattern)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 2, interaction: 2 } }
@@ -152,13 +178,13 @@ productions:
           - { kind: nonterminal, ref: gr.pattern.primary }
           - kind: repeat1
             children:
-              - { kind: terminal, ref: OP_OR, value: "|" }
+              - { kind: terminal, ref: OP_BITWISE_OR, value: "|" }
               - { kind: nonterminal, ref: gr.pattern.primary }
-    references: { operators: ["op.logical_or"] }
+    references: { operators: ["op.bitwise_or"] }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePattern" }
     ast_node: "OrPattern"
-    description_ar: "بدائل «1 | 2» (تستخدم OP_OR)"
+    description_ar: "بدائل «1 | 2» — الرمز المعياريّ «|» (OP_BITWISE_OR)؛ ويُقبل «||» (OP_OR) تساهلًا (ISSUE-033)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 3, negative: 1, interaction: 2 } }
