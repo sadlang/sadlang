@@ -280,6 +280,101 @@ namespace Sad
                 }
 
                 // ========================================================================
+                // (AR) ISSUE-069/081: استخراج الحقول المؤجّلة (عناصر القائمة/حمولة التعداد)
+                //      وربطها في **النطاق الحاليّ**. يُستدعى في كتلة الحارس (قبل تقييمه) وفي
+                //      كتلة الجسم كليهما: الحارس المسطّح كان يُقيَّم قبل استخراج الجسم فلا يرى
+                //      «أ»/«ق» ⇒ تباعد (069 عناصر القائمة، 081 حمولة التعداد). كلتا الكتلتين
+                //      لا تُبلَغان إلّا بعد نجاح فحص المميّز/الطول (condReg=true؛ والجسم المحروس
+                //      بعد نجاح الحارس أيضًا) فالاستخراج آمن.
+                // (EN) ISSUE-069/081: emit deferred field extractions (list elements / ADT
+                //      payload) binding them in the CURRENT scope. Called in BOTH the guard
+                //      block (before evaluating the guard) and the body block: the flat-path
+                //      guard used to be evaluated before the body's extraction, so it never
+                //      saw «أ»/«ق» ⇒ divergence (069 list elements, 081 enum payload). Both
+                //      blocks are reached only after the tag/length check passes (condReg=true),
+                //      so the extraction is safe in either.
+                // ========================================================================
+                auto emitDeferredExtractions =
+                    [&](const std::vector<MatchDeferredField> &deferredFields)
+                {
+                    for (const auto &deferred : deferredFields)
+                    {
+                        if (deferred.enumName == Sad::Compiler::kListPatternSentinel)
+                        {
+                            std::string elemReg = b_.newTempRegister();
+                            SIRInstruction getInst;
+                            getInst.opcode = SIROpcode::ARRAY_GET;
+                            // (AR) ⚠️ نوعٌ مُصلَّب Integer — يطمس النصّ/المنطقيّ في المقارنة
+                            //      النازلة (ISSUE-082؛ يشمل عنصر القائمة والحمولة). الطباعة
+                            //      المباشرة تعمل عبر __is_ptr، لكنّ المقارنة النوعيّة لا.
+                            // (EN) ⚠️ Hardcoded Integer type — erases string/bool in downstream
+                            //      comparison (ISSUE-082; covers both list element and payload).
+                            getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
+                            getInst.operands.push_back(
+                                SIROperand::Register(matchValueReg, matchValueType));
+                            getInst.operands.push_back(
+                                SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
+                            getInst.comment = "Deferred list pattern: get element [" +
+                                              std::to_string(deferred.fieldIndex) + "] → " + deferred.varName;
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(getInst);
+
+                            VariableInfo elemVarInfo;
+                            elemVarInfo.name = deferred.varName;
+                            elemVarInfo.type = SadTypeKind::Integer;
+                            elemVarInfo.registerName = elemReg;
+                            elemVarInfo.isGlobal = false;
+                            elemVarInfo.isMutable = false;
+                            elemVarInfo.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(elemVarInfo);
+                        }
+                        else if (deferred.enumName == Sad::Compiler::kListPatternLiteralSentinel)
+                        {
+                            // (AR) مقارنة حرفية مؤجّلة — لا-عمل حاليًّا (condReg = فحص الطول فقط).
+                            //      ⚠️ دَينٌ معروف = ISSUE-083: العنصر الحرفيّ في المسار المسطّح
+                            //      غير مفحوص فيطابق النمط بالطول وحده (`[1، أ]` على `[9، 5]`
+                            //      يطابق زورًا). التنفيذ الكامل يلزمه مقارنة العنصر المؤجّلة.
+                            // (EN) Deferred list literal comparison — currently a no-op
+                            //      (condReg = length check only). ⚠️ Known debt = ISSUE-083:
+                            //      the flat-path literal element is unchecked, so the pattern
+                            //      matches by length alone (`[1, أ]` over `[9, 5]` matches
+                            //      falsely). Full impl needs a deferred element comparison.
+                            // TODO(FUTURE): إضافة مقارنة حرفية مؤجلة للمصفوفات (ISSUE-083)
+                        }
+                        else
+                        {
+                            std::string fieldReg = b_.newTempRegister();
+                            SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                            // (AR) ⚠️ نوعٌ مُصلَّب Integer — يطمس النصّ/المنطقيّ (ISSUE-082؛ انظر أعلاه)
+                            // (EN) ⚠️ Hardcoded Integer — erases string/bool (ISSUE-082; see above)
+                            getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                            getPayload.operands.push_back(
+                                SIROperand::Register(matchValueReg, matchValueType));
+                            getPayload.operands.push_back(
+                                SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
+                            // (AR) المعامل [2]: اسم التعداد للبحث عن البنية عبر حدود الدوال
+                            // (EN) Operand [2]: enum name for struct lookup across function boundaries
+                            getPayload.operands.push_back(
+                                SIROperand::ConstantString(deferred.enumName));
+                            getPayload.comment = "Deferred extract: field " +
+                                                 std::to_string(deferred.fieldIndex) + " (" + deferred.fieldName +
+                                                 ") → " + deferred.varName;
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(getPayload);
+
+                            VariableInfo fieldVarInfo;
+                            fieldVarInfo.name = deferred.varName;
+                            fieldVarInfo.type = SadTypeKind::Integer;
+                            fieldVarInfo.registerName = fieldReg;
+                            fieldVarInfo.isGlobal = false;
+                            fieldVarInfo.isMutable = false;
+                            fieldVarInfo.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(fieldVarInfo);
+                        }
+                    }
+                };
+
+                // ========================================================================
                 // (AR) الخطوة 5: توليد كود كل case
                 // (EN) Step 5: Generate code for each case
                 // ========================================================================
@@ -418,6 +513,23 @@ namespace Sad
                             }
                         }
 
+                        // (AR) ISSUE-069/081: استخرج الحقول المؤجّلة (عناصر القائمة/حمولة
+                        //      التعداد) في نطاق الحارس قبل تقييمه كي يراها؛ نظير ربط الجسم.
+                        //      كتلة الحارس تُبلَغ فقط بعد نجاح فحص المميّز/الطول ⇒ الاستخراج آمن.
+                        //      **الازدواج متعمَّد:** يُبثّ هنا (نطاق الحارس) ومجدَّدًا في كتلة
+                        //      الجسم بسجلّين مختلفين؛ نطاق الحارس يُغلَق (`exitScope`) قبل الجسم
+                        //      فلا يعبر سجلّ الحارس حدّ الكتلة، وإعادة الاستخراج في الجسم ضروريّة.
+                        // (EN) ISSUE-069/081: extract deferred fields (list elements / enum
+                        //      payload) into the guard scope before evaluating it so the guard
+                        //      sees them; mirrors the body binding. The guard block is reached
+                        //      only after the tag/length check passes ⇒ extraction is safe.
+                        //      **The double-emit is intentional:** emitted here (guard scope)
+                        //      and again in the body block with distinct registers; the guard
+                        //      scope is closed (`exitScope`) before the body, so the guard
+                        //      register never crosses the block boundary and re-extraction in
+                        //      the body is required.
+                        emitDeferredExtractions(deferredADTExtractions[i]);
+
                         auto guardResult = b_.buildExpression(caseClause.guard.get());
 
                         std::string guardCondReg = guardResult.registerName;
@@ -491,104 +603,17 @@ namespace Sad
                         b_.addVariable(bodyVar);
                     }
 
-                    // (AR) === استخراج حقول ADT المؤجلة ===
-                    //      هذه الحقول تم تأجيل استخراجها من كتلة الاختبار إلى هنا
-                    //      لأن كتلة الجسم تنفَّذ فقط عندما يتطابق المميّز (tag)
-                    //      مما يضمن أن الحقول صالحة وموجودة في البنية
-                    // (EN) === Deferred ADT field extraction ===
-                    //      These fields were deferred from testBlock to here
-                    //      because bodyBlock executes only when tag matches
-                    //      ensuring fields are valid and present in the struct
-                    if (!deferredADTExtractions[i].empty())
-                    {
-                        for (const auto &deferred : deferredADTExtractions[i])
-                        {
-                            if (deferred.enumName == Sad::Compiler::kListPatternSentinel)
-                            {
-                                // ============================================================
-                                // (AR) استخراج عنصر مصفوفة مؤجل — ربط متغير
-                                //      هذا الاستخراج تم تأجيله من كتلة الاختبار لأن
-                                //      array.get يسبب خطأ خارج الحدود إذا كانت المصفوفة
-                                //      فارغة ولكن النمط يتوقع عناصر. التأجيل يضمن أن
-                                //      الاستخراج يتم فقط بعد نجاح فحص الطول.
-                                // (EN) Deferred list element extraction — variable binding
-                                //      Deferred from test block because array.get would
-                                //      cause bounds error if array is empty but pattern
-                                //      expects elements. Deferral ensures extraction only
-                                //      after length check succeeds.
-                                // ============================================================
-                                std::string elemReg = b_.newTempRegister();
-                                SIRInstruction getInst;
-                                getInst.opcode = SIROpcode::ARRAY_GET;
-                                getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
-                                getInst.operands.push_back(
-                                    SIROperand::Register(matchValueReg, matchValueType));
-                                getInst.operands.push_back(
-                                    SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
-                                getInst.comment = "Deferred list pattern: get element [" +
-                                                  std::to_string(deferred.fieldIndex) + "] → " + deferred.varName;
-                                if (b_.currentBlock_)
-                                    b_.currentBlock_->addInstruction(getInst);
-
-                                // (AR) ربط المتغير بالعنصر المستخرج
-                                // (EN) Bind variable to extracted element
-                                VariableInfo elemVarInfo;
-                                elemVarInfo.name = deferred.varName;
-                                elemVarInfo.type = SadTypeKind::Integer;
-                                elemVarInfo.registerName = elemReg;
-                                elemVarInfo.isGlobal = false;
-                                elemVarInfo.isMutable = false;
-                                elemVarInfo.scopeLevel = b_.currentScopeLevel_;
-                                b_.addVariable(elemVarInfo);
-                            }
-                            else if (deferred.enumName == Sad::Compiler::kListPatternLiteralSentinel)
-                            {
-                                // ============================================================
-                                // (AR) استخراج عنصر مصفوفة مؤجل — مقارنة حرفية
-                                //      في الوضع الحالي، المقارنة الحرفية لا تُنفّذ فعلياً
-                                //      لأن condReg يعتمد على فحص الطول فقط.
-                                //      هذا يكفي لأن الأنماط الحرفية في المصفوفات نادرة
-                                //      والتنفيذ الكامل يتطلب إعادة هيكلة الكتل.
-                                // (EN) Deferred list literal comparison
-                                //      Currently a no-op: condReg uses length check only.
-                                //      Full implementation would require block restructuring.
-                                // ============================================================
-                                // TODO(FUTURE): إضافة مقارنة حرفية مؤجلة للمصفوفات
-                            }
-                            else
-                            {
-                                // (AR) استخراج حقول ADT (التعداد الجبري) — السلوك الأصلي
-                                // (EN) ADT field extraction — original behavior
-                                std::string fieldReg = b_.newTempRegister();
-                                SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                                getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
-                                getPayload.operands.push_back(
-                                    SIROperand::Register(matchValueReg, matchValueType));
-                                getPayload.operands.push_back(
-                                    SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
-                                // (AR) المعامل [2]: اسم التعداد للبحث عن البنية عبر حدود الدوال
-                                // (EN) Operand [2]: enum name for struct lookup across function boundaries
-                                getPayload.operands.push_back(
-                                    SIROperand::ConstantString(deferred.enumName));
-                                getPayload.comment = "Deferred extract: field " +
-                                                     std::to_string(deferred.fieldIndex) + " (" + deferred.fieldName +
-                                                     ") → " + deferred.varName;
-                                if (b_.currentBlock_)
-                                    b_.currentBlock_->addInstruction(getPayload);
-
-                                // (AR) ربط المتغير بقيمة الحقل المستخرج
-                                // (EN) Bind variable to extracted field value
-                                VariableInfo fieldVarInfo;
-                                fieldVarInfo.name = deferred.varName;
-                                fieldVarInfo.type = SadTypeKind::Integer;
-                                fieldVarInfo.registerName = fieldReg;
-                                fieldVarInfo.isGlobal = false;
-                                fieldVarInfo.isMutable = false;
-                                fieldVarInfo.scopeLevel = b_.currentScopeLevel_;
-                                b_.addVariable(fieldVarInfo);
-                            }
-                        }
-                    }
+                    // (AR) === استخراج حقول ADT/القائمة المؤجلة (كتلة الجسم) ===
+                    //      هذه الحقول تم تأجيل استخراجها من كتلة الاختبار إلى هنا لأن كتلة
+                    //      الجسم تنفَّذ فقط عندما يتطابق المميّز (tag)/الطول، مما يضمن صلاحية
+                    //      الحقول. تُستخرَج أيضًا في كتلة الحارس (إن وُجد) عبر نفس المُساعِد
+                    //      (ISSUE-069/081) بنطاقٍ منفصل.
+                    // (EN) === Deferred ADT/list field extraction (body block) ===
+                    //      Deferred from testBlock to here because bodyBlock executes only
+                    //      when the tag/length matches, ensuring fields are valid. Also
+                    //      extracted in the guard block (if any) via the same helper
+                    //      (ISSUE-069/081) in its own scope.
+                    emitDeferredExtractions(deferredADTExtractions[i]);
 
                     // ========================================================
                     // (AR) حارس صلابة (ISSUE-067): اربط أيّ متغيّر نمطٍ لم يُربَط
