@@ -15,6 +15,18 @@
 namespace Sad {
 namespace Errors {
 
+namespace {
+// (AR) مفتاح داخليّ يميّز نوع الرمز غير المعرّف (متغيّر/دالّة) لتوجيه الاقتراحات:
+//      اقتراح «استورد وحدة» منطقيّ لدالّة غير معرّفة (قد تكون من مكتبة غير مستوردة)
+//      لا لمتغيّر غير معرّف (حيث «عرّفه» هو الجواب الغالب). [تقليل ضجيج التلميحات]
+// (EN) Internal key marking the undefined-symbol kind (variable/function) to steer
+//      suggestions: an "import a module" hint fits an undefined FUNCTION (may be from
+//      an unimported library) but not a bare undefined VARIABLE (whose usual answer is
+//      "define it"). Showing import for every undefined symbol is misleading noise.
+constexpr const char* kUndefKindKey      = "undef_kind";
+constexpr const char* kUndefKindFunction = "function";
+} // namespace
+
 // ═══════════════════════════════════════════════════════════════════════
 //                    SmartSuggestion::format
 // ═══════════════════════════════════════════════════════════════════════
@@ -126,7 +138,15 @@ std::vector<SmartSuggestion> SuggestionEngine::generateFromErrorCode(
         category = SmartErrorCategory::ARABIC_ENCODING;
     else
         category = SmartErrorCategory::SYNTAX_ERROR;
-    
+
+    // (AR) مرّر نوع الرمز غير المعرّف (دالّة؟) كي يُقصَر اقتراح الاستيراد على الدوالّ.
+    // (EN) Thread the undefined-symbol kind (is it a function?) so the import hint is
+    //      restricted to functions, not bare undefined variables.
+    if (code == ErrorCode::SEM_UNDEFINED_FUNCTION) {
+        std::unordered_map<std::string, std::string> enriched = details;
+        enriched[kUndefKindKey] = kUndefKindFunction;
+        return generateSuggestions(category, codeStr, context, enriched);
+    }
     return generateSuggestions(category, codeStr, context, details);
 }
 
@@ -221,7 +241,15 @@ std::vector<SmartSuggestion> SuggestionEngine::generateUndefinedSymbolSuggestion
         suggestions.push_back(define);
     }
     
-    // اقتراح: استيراد وحدة
+    // (AR) اقتراح «استورد وحدة» للدوالّ غير المعرّفة فقط: قد تكون الدالّة من مكتبة لم
+    //      تُستورَد. أمّا المتغيّر غير المعرّف فجوابه الغالب «عرّفه»، وإظهار الاستيراد له
+    //      تلميحٌ عامّ مُضلِّل ينطبق على كلّ رمز غير معرّف بلا قيمة. [تقليل ضجيج التلميحات]
+    // (EN) Offer "import a module" only for undefined FUNCTIONS (may come from an
+    //      unimported library). For a bare undefined variable "define it" is the answer;
+    //      the generic import hint applies to every undefined symbol and adds no value.
+    const bool isFunction =
+        details.count(kUndefKindKey) && details.at(kUndefKindKey) == kUndefKindFunction;
+    if (isFunction)
     {
         SmartSuggestion import;
         import.title = "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x88\xD8\xB1\xD8\xAF \xD8\xA7\xD9\x84\xD9\x88\xD8\xAD\xD8\xAF\xD8\xA9 \xD8\xA7\xD9\x84\xD9\x85\xD8\xB7\xD9\x84\xD9\x88\xD8\xA8\xD8\xA9";

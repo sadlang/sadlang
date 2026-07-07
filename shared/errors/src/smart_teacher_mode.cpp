@@ -199,16 +199,30 @@ std::string TeacherMode::generateBasicExplanation(
     const std::unordered_map<std::string, std::string>& details
 ) {
     std::ostringstream oss;
-    if (errorCode.substr(0, 1) == "T" || errorCode.find("TYPE") != std::string::npos) {
+    // (AR) صنّف حسب الرمز: افحص الرموز الثلاثيّة الصريحة (TYPE/SYN/SEM/LEX/RUN) أوّلًا،
+    //      فكلٌّ من SYN (نحويّ) وSEM (دلاليّ) يبدأ بحرف S — لو فُحص الحرف الأوّل قبل
+    //      الرمز الكامل لَوُسِم كلّ خطأ نحويّ «دلاليًّا» خطأً (يصير فرع SYN ميّتًا).
+    //      الحرف المفرد (T/P/S) يبقى احتياطًا لرموز قديمة أحاديّة الحرف فقط.
+    // (EN) Classify by code: test the explicit 3-letter tags (TYPE/SYN/SEM/LEX/RUN)
+    //      FIRST, because both SYN (syntax) and SEM (semantic) start with 'S' — testing
+    //      the first letter before the full tag mislabels every syntax error as semantic
+    //      (the SYN branch becomes dead). Single-letter (T/P/S) is a legacy fallback only.
+    if (errorCode.find("TYPE") != std::string::npos) {
         oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD9\x81\xD9\x8A \xD8\xA7\xD9\x84\xD8\xA3\xD9\x86\xD9\x88\xD8\xA7\xD8\xB9.\n";
-    } else if (errorCode.substr(0, 1) == "S" || errorCode.find("SEM") != std::string::npos) {
-        oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD8\xAF\xD9\x84\xD8\xA7\xD9\x84\xD9\x8A.\n";
-    } else if (errorCode.substr(0, 1) == "P" || errorCode.find("SYN") != std::string::npos) {
+    } else if (errorCode.find("SYN") != std::string::npos) {
         oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD9\x86\xD8\xAD\xD9\x88\xD9\x8A.\n";
+    } else if (errorCode.find("SEM") != std::string::npos) {
+        oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD8\xAF\xD9\x84\xD8\xA7\xD9\x84\xD9\x8A.\n";
     } else if (errorCode.find("LEX") != std::string::npos) {
         oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD9\x85\xD8\xB9\xD8\xAC\xD9\x85\xD9\x8A.\n";
     } else if (errorCode.find("RUN") != std::string::npos) {
         oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD9\x88\xD9\x82\xD8\xAA \xD8\xA7\xD9\x84\xD8\xAA\xD8\xB4\xD8\xBA\xD9\x8A\xD9\x84.\n";
+    } else if (errorCode.substr(0, 1) == "T") {
+        oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD9\x81\xD9\x8A \xD8\xA7\xD9\x84\xD8\xA3\xD9\x86\xD9\x88\xD8\xA7\xD8\xB9.\n";
+    } else if (errorCode.substr(0, 1) == "P") {
+        oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD9\x86\xD8\xAD\xD9\x88\xD9\x8A.\n";
+    } else if (errorCode.substr(0, 1) == "S") {
+        oss << "\xF0\x9F\x94\x8D \xD9\x87\xD8\xB0\xD8\xA7 \xD8\xAE\xD8\xB7\xD8\xA3 \xD8\xAF\xD9\x84\xD8\xA7\xD9\x84\xD9\x8A.\n";
     }
     return oss.str();
 }

@@ -13,6 +13,7 @@
 #include "class_manager.h"
 #include <iostream>
 #include <sstream>
+#include <cstdlib> // (AR) std::getenv لحجب آثار الاسترداد «🔧» عن المستخدم
 
 namespace Sad
 {
@@ -294,14 +295,26 @@ namespace Sad
                         current_.getPosition().column,
                         current_.getPosition().offset,
                         current_.getPosition().length);
+                    // (AR) الرسالة تصف المشكلة للمستخدم (رمزٌ متوقَّع مفقود)، لا فعل الاسترداد
+                    //      الداخليّ («إدراج ')'») الذي يوحي خطأً بأنّ الأداة أصلحت الكود ثمّ
+                    //      تُبلّغ عنه خطأً في آنٍ (تناقض «تمّ الإدراج» ⇄ «❌ خطأ»). [تشخيص أنظف]
+                    // (EN) The message describes the problem to the user (an expected token is
+                    //      missing), not the internal recovery ACTION ("Inserted ')'") which
+                    //      misleadingly implies the tool fixed the code yet still reports an
+                    //      error (the "inserted" ⇄ "❌ error" contradiction).
                     Errors::ErrorManager::getInstance().reportError(
                         Errors::ErrorCode::SYN_UNCLOSED_BRACKET,
                         insLoc,
-                        result.action.description,
-                        result.action.descriptionEn);
+                        "\xD8\xAA\xD9\x88\xD9\x82\xD9\x91\xD8\xB9\xD8\xAA '" + expected + "' \xD9\x87\xD9\x86\xD8\xA7", // توقّعت '<expected>' هنا
+                        "Expected '" + expected + "' here");
                 }
-                std::cerr << "\n\xF0\x9F\x94\xA7 " << result.action.description
-                          << " | " << result.action.descriptionEn << "\n";
+                // (AR) طبع فعل الاسترداد «🔧» أثرٌ داخليّ للمطوّر: أظهره فقط عند التشخيص.
+                // (EN) The "🔧" recovery-action print is an internal dev trace: show it only when debugging.
+                if (std::getenv(Errors::kDiagStatsEnvVar) != nullptr)
+                {
+                    std::cerr << "\n\xF0\x9F\x94\xA7 " << result.action.description
+                              << " | " << result.action.descriptionEn << "\n";
+                }
                 return true;
 
             case Errors::RecoveryStrategyType::SYNC_TO_DELIMITER:
@@ -316,9 +329,14 @@ namespace Sad
                     std::string val = current_.getValue();
                     if (syncPoints.count(val) > 0)
                     {
-                        std::cerr << "\n\xF0\x9F\x94\xA7 " << result.action.description
-                                  << " (" << skipped << " tokens skipped)"
-                                  << " | " << result.action.descriptionEn << "\n";
+                        // (AR) أثر مزامنة داخليّ للمطوّر: أظهره فقط عند التشخيص. [تشخيص أنظف]
+                        // (EN) Internal sync trace for devs: show only when debugging.
+                        if (std::getenv(Errors::kDiagStatsEnvVar) != nullptr)
+                        {
+                            std::cerr << "\n\xF0\x9F\x94\xA7 " << result.action.description
+                                      << " (" << skipped << " tokens skipped)"
+                                      << " | " << result.action.descriptionEn << "\n";
+                        }
                         panicMode_ = false;
                         return true;
                     }

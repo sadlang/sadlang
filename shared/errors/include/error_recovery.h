@@ -16,6 +16,14 @@
 namespace Sad {
 namespace Errors {
 
+// (AR) متغيّر بيئة يُظهر آثار الاسترداد الداخليّة (إحصائيّات + أفعال «🔧») للمطوّر.
+//      الاسترداد آليّةُ مرونةٍ داخليّة للمحلّل لا شأن للمستخدم النهائيّ بها: التقرير
+//      التشخيصيّ النهائيّ يكفيه. اضبطه لأيّ قيمة لتفعيل الآثار عند تشخيص المحلّل.
+// (EN) Env var that surfaces internal recovery traces (stats + "🔧" actions) for devs.
+//      Recovery is an internal parser-resilience mechanism, not user-facing: the final
+//      diagnostic report suffices. Set it (any value) to enable traces when debugging.
+inline constexpr const char* kDiagStatsEnvVar = "SAD_DIAG_STATS";
+
 // ═══════════════════════════════════════════════════════════════════════
 //                    استراتيجيات الاسترداد | Recovery Strategies
 // ═══════════════════════════════════════════════════════════════════════

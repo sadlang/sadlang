@@ -18,8 +18,10 @@
 #include "parser_core.h"
 #include "advanced_expr_nodes.h"
 #include "directive_nodes.h"
+#include "error_recovery.h" // (AR) kDiagStatsEnvVar لحجب آثار الاسترداد عن المستخدم
 #include <iostream>
 #include <sstream>
+#include <cstdlib> // (AR) std::getenv
 
 namespace Sad
 {
@@ -303,9 +305,14 @@ namespace Sad
             // std::cout << "[parser_core_impl.cpp] انتهى parseProgram - عدد الجمل: "
             //           << statements.size() << "\n";
 
-            // (AR) عرض إحصائيات التعافي إذا حدثت استردادات
-            // (EN) Show recovery stats if any recoveries occurred
-            if (recoverySystem_.getRecoveryCount() > 0 || recoverySystem_.getFailedRecoveryCount() > 0)
+            // (AR) إحصائيّات التعافي تشخيصٌ داخليّ للمطوّر لا للمستخدم النهائيّ: التقرير
+            //      النهائيّ يعرض الأخطاء الفعليّة، أمّا «ناجح/فاشل» فيُربكه (يتناقض ظاهريًّا
+            //      مع «❌ خطأ»). أظهرها فقط عند ضبط متغيّر البيئة التشخيصيّ. [تشخيص أنظف]
+            // (EN) Recovery stats are internal dev diagnostics, not for the end user: the
+            //      final report shows the real errors, while "success/fail" confuses them
+            //      (seemingly contradicts "❌ error"). Emit only when the diag env var is set.
+            if ((recoverySystem_.getRecoveryCount() > 0 || recoverySystem_.getFailedRecoveryCount() > 0)
+                && std::getenv(Errors::kDiagStatsEnvVar) != nullptr)
             {
                 std::cerr << recoverySystem_.formatStats(true);
             }
