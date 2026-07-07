@@ -95,4 +95,33 @@ namespace Sad::Compiler
     inline constexpr const char *kRuntimeMapKeys = "__sad_map_keys";
     inline constexpr const char *kRuntimeMapValues = "__sad_map_values";
 
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) بادئة أسماء دوال بانِي متغيّرات التعداد الجبريّ (ADT). البانِي
+    //      المُولَّد `__adt_ctor_<تعداد>_<متغيّر>` (statement_types.cpp) يُنشئ
+    //      بنية {tag، حقول...} عبر ENUM_CONSTRUCT؛ يُستدعى عند `شكل.دائرة(..)`
+    //      ويُكشَف بهذه البادئة في التوزيع. ثابتٌ مسمّى تفاديًا للسلسلة الخام.
+    // (EN) Name prefix for generated ADT variant constructor functions. The
+    //      synthesized `__adt_ctor_<enum>_<variant>` (statement_types.cpp) builds a
+    //      {tag, fields...} struct via ENUM_CONSTRUCT; invoked at `Shape.Circle(..)`
+    //      and detected by this prefix during dispatch. Named to avoid a raw literal.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kAdtCtorPrefix = "__adt_ctor_";
+
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) سنتينلات حقل `MatchDeferredField::enumName` للتمييز بين نوع
+    //      الاستخراج المؤجّل في المطابقة: عنصر قائمة يُربَط بمتغيّر
+    //      (`__list_pattern`) أو يُقارَن حرفيًّا (`__list_pattern_literal`)؛
+    //      أيّ قيمةٍ أخرى = اسم تعدادٍ حقيقيّ لاستخراج حمولة ADT. ثوابت
+    //      مسمّاة تفاديًا للسلاسل الخام (تُقارَن في statement_match.cpp
+    //      وsir_builder_match_patterns.cpp).
+    // (EN) Sentinels for `MatchDeferredField::enumName` distinguishing the kind
+    //      of deferred match extraction: a list element bound to a variable
+    //      (`__list_pattern`) or compared as a literal (`__list_pattern_literal`);
+    //      any other value = a real enum name for ADT payload extraction. Named
+    //      constants to avoid raw literals (compared in statement_match.cpp and
+    //      sir_builder_match_patterns.cpp).
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kListPatternSentinel = "__list_pattern";
+    inline constexpr const char *kListPatternLiteralSentinel = "__list_pattern_literal";
+
 } // namespace Sad::Compiler

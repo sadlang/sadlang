@@ -140,7 +140,7 @@ namespace Sad
                                 //      حتى يمكن استدعاء شكل.نقطة() كدالة أو استخدامها في match
                                 // (EN) Also: register zero-arg constructor function
                                 //      So Shape.Point() works as function and in match patterns
-                                std::string ctorName = "__adt_ctor_" + enumDecl->name + "_" + variant.name;
+                                std::string ctorName = Sad::Compiler::kAdtCtorPrefix + enumDecl->name + "_" + variant.name;
 
                                 auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Struct);
                                 auto entryBlock = b_.createBasicBlock(ctorName + ".entry");
@@ -185,7 +185,7 @@ namespace Sad
                                 //      Example: Shape.Circle(radius) → __adt_ctor_Shape_Circle(radius)
                                 //      Function creates struct { __tag=0, __f0=radius }
 
-                                std::string ctorName = "__adt_ctor_" + enumDecl->name + "_" + variant.name;
+                                std::string ctorName = Sad::Compiler::kAdtCtorPrefix + enumDecl->name + "_" + variant.name;
 
                                 // (AR) إنشاء دالة SIR مع المعاملات
                                 // (EN) Create SIR function with parameters

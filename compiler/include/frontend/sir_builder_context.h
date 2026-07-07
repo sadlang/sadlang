@@ -290,6 +290,18 @@ namespace Sad
                 // (AR) قائمة الأخطاء (قاتلة — تمنع إنتاج الثنائيّ) / (EN) Error list (fatal)
                 std::vector<std::string> errors_;
 
+                // (AR) علَمٌ: هل الذراع الحاليّ ميتٌ ساكنًا؟ يضبطه failAlways داخل الدائرة
+                //      القصيرة (SC) عند فشلٍ بنيويّ غير مشروط، فيُصفَّر قبل كلّ ذراعٍ في
+                //      buildMatchStatement. يقرأه ربطُ المتغيّرات الصوريّ: لا نربط قيمةً
+                //      صوريّة (صفر) إلّا للذراع الميت ساكنًا — وإلّا لأخفينا ثغرةً صامتة
+                //      في ذراعٍ حيٍّ فقد ربط حمولته (نقد Amelia: تعداد داخل قائمة بلا حارس).
+                // (EN) Flag: is the current arm statically dead? Set by failAlways inside the
+                //      short-circuit (SC) on an unconditional structural fail; reset before each
+                //      arm in buildMatchStatement. Read by the dummy variable-binding pass: bind
+                //      a dummy (zero) ONLY for a statically-dead arm — otherwise we'd mask a
+                //      silent divergence in a LIVE arm that lost its payload binding.
+                bool matchArmStaticallyDead_ = false;
+
                 // (AR) قائمة التحذيرات (غير قاتلة — تُطبَع ولا تمنع البناء). قناة منفصلة عن
                 //      errors_ كي لا يُخلَط تحذيرٌ بخطأ فيفشل البناء خطأً أو ينجح خطأً (RFC:
                 //      فصل التحذيرات عن الأخطاء في بانِي SIR).

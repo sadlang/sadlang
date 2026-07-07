@@ -490,7 +490,7 @@ namespace Sad
                             deferred.varName = "__lit_" + std::to_string(e);
                             deferred.fieldIndex = e;
                             deferred.fieldName = elemLit->literal.toString();
-                            deferred.enumName = "__list_pattern_literal";
+                            deferred.enumName = Sad::Compiler::kListPatternLiteralSentinel;
                             deferredExtractions.push_back(deferred);
                         }
                         else if (auto *elemVar = dynamic_cast<const Sad::AST::VariablePattern *>(elemPat.get()))
@@ -505,7 +505,7 @@ namespace Sad
                             deferred.varName = elemVar->name;
                             deferred.fieldIndex = e;
                             deferred.fieldName = elemVar->name;
-                            deferred.enumName = "__list_pattern";
+                            deferred.enumName = Sad::Compiler::kListPatternSentinel;
                             deferredExtractions.push_back(deferred);
                         }
                         else if (dynamic_cast<const Sad::AST::WildcardPattern *>(elemPat.get()))
@@ -1242,6 +1242,11 @@ namespace Sad
                 //      so the caller's final branch still has a well-formed block.
                 auto failAlways = [&](const std::string &tag)
                 {
+                    // (AR) وسمُ الذراع ميتًا ساكنًا: هذا الفشل بنيويّ غير مشروط، فأيّ
+                    //      متغيّرٍ في نمطه لن يُربَط أبدًا وقت التشغيل ⇒ الربط الصوريّ آمن.
+                    // (EN) Mark the arm statically dead: this fail is unconditional/structural,
+                    //      so no pattern variable is ever bound at runtime ⇒ dummy bind is safe.
+                    matchArmStaticallyDead_ = true;
                     std::string f = newTempRegister();
                     SIRInstruction mv(SIROpcode::MOVE);
                     mv.result = SIROperand::Register(f, SadTypeKind::Boolean);
@@ -1279,11 +1284,77 @@ namespace Sad
                     else
                     {
                         // (AR) حرفيّ/نطاق/تعداد/بدائل/ربط ⇒ احسب شرطًا مسطّحًا ثمّ تفرّع.
-                        //      (ملاحظة: ربط حمولة تعداد متداخل لا يُنقَل هنا — حدّ موثّق)
                         // (EN) Literal/Range/Enum/Or/Binding ⇒ flat cond then branch.
                         std::vector<MatchDeferredField> d;
                         std::string c = buildMatchPatternCondition(childPat, childReg, childType, 0, d, "");
                         branchOnCond(c, "child");
+
+                        // (AR) ISSUE-078: نقلُ ربط حمولة تعدادٍ متداخلٍ في قائمة/بنية.
+                        //      المسطّح يملأ `d` بحقول الحمولة المؤجّلة (مثل «ق» في
+                        //      `[نتيجة.نجاح(ق)]`) لكنّها كانت تُهمَل ⇒ الذراع حيّ و«ق»
+                        //      غير مربوط ⇒ ربطٌ صوريّ «ق=0» صامت (تباعد عن المفسّر).
+                        //      بعد `branchOnCond` صرنا في كتلة النجاح (المميّز طابق ⇒
+                        //      الحمولة صالحة) الّتي تُهيمن على كتلة الجسم ⇒ نستخرج كلّ
+                        //      حقلٍ من `childReg` ونربطه — نظير الاستخراج الأعلى في
+                        //      buildMatchStatement لكنْ من سجلّ العنصر لا قيمة المطابقة.
+                        // (EN) ISSUE-078: thread a nested enum-in-list/struct payload
+                        //      binding. The flat path fills `d` with deferred payload
+                        //      fields (e.g. `ق` in `[نتيجة.نجاح(ق)]`) that were dropped ⇒
+                        //      a LIVE arm left `ق` unbound ⇒ silent dummy `ق=0` (divergence).
+                        //      After branchOnCond we are in the success block (tag matched ⇒
+                        //      payload valid) which dominates the body ⇒ extract each field
+                        //      from `childReg` and bind it — mirroring the top-level
+                        //      extraction in buildMatchStatement but from the element register.
+                        for (const auto &def : d)
+                        {
+                            // (AR) مُدخلات مصفوفة متداخلة داخل التعداد ⇒ عمقٌ أبعد (فجوة
+                            //      قائمة، ISSUE-070) لا يُعالَج هنا؛ نتخطّاها.
+                            // (EN) Nested list-inside-enum entries are a deeper gap
+                            //      (ISSUE-070) not handled here; skip their sentinels.
+                            if (def.enumName == Sad::Compiler::kListPatternSentinel ||
+                                def.enumName == Sad::Compiler::kListPatternLiteralSentinel)
+                                continue;
+                            // (AR) ⚠️ لا نتخطّى بـ`lookupVariable != null` (نقد Amelia الثاني
+                            //      لهذا الإصلاح): التخطّي يُبقي ربطًا بائتًا من ذراعٍ سابق أو
+                            //      يُظلِّل معاملًا خارجيًّا فيُقرأ الخطأ ⇒ تباعد صامت (سيناريو
+                            //      تظليل) أو سجلّ غير مُهيمِن عبر الأذرع (انهيار codegen). نربط
+                            //      **دائمًا** (يُظلِّل + يُعاد الربط لكلّ ذراع) نظير مسار ربط
+                            //      متغيّرات القائمة المتداخلة القائم — الحلقة «لكلّ ذراع: شرط
+                            //      ثمّ جسم» تضمن أنّ كلّ جسمٍ يقرأ سجلّ ذراعه المُهيمِن.
+                            // (EN) ⚠️ Do NOT skip on `lookupVariable != null` (Amelia's 2nd
+                            //      review of THIS fix): skipping keeps a stale binding from a
+                            //      previous arm or shadows an outer parameter ⇒ wrong read ⇒
+                            //      silent divergence (shadowing) or a non-dominating register
+                            //      across arms (codegen crash). Always bind (shadow + rebind per
+                            //      arm), mirroring the existing nested-list variable path — the
+                            //      "per arm: test then body" loop guarantees each body reads its
+                            //      own arm's dominating register.
+                            if (def.varName.empty())
+                                continue;
+                            std::string fieldReg = newTempRegister();
+                            SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                            getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                            getPayload.operands.push_back(SIROperand::Register(childReg, childType));
+                            getPayload.operands.push_back(
+                                SIROperand::ConstantI64(static_cast<int64_t>(def.fieldIndex)));
+                            // (AR) المعامل [2]: اسم التعداد للبحث عبر حدود الدوال
+                            // (EN) Operand [2]: enum name for struct lookup across boundaries
+                            getPayload.operands.push_back(SIROperand::ConstantString(def.enumName));
+                            getPayload.comment = "ISSUE-078 nested enum extract: field " +
+                                                 std::to_string(def.fieldIndex) + " (" + def.fieldName +
+                                                 ") → " + def.varName;
+                            if (currentBlock_)
+                                currentBlock_->addInstruction(getPayload);
+
+                            VariableInfo fieldVarInfo;
+                            fieldVarInfo.name = def.varName;
+                            fieldVarInfo.type = SadTypeKind::Integer;
+                            fieldVarInfo.registerName = fieldReg;
+                            fieldVarInfo.isGlobal = false;
+                            fieldVarInfo.isMutable = false;
+                            fieldVarInfo.scopeLevel = currentScopeLevel_;
+                            addVariable(fieldVarInfo);
+                        }
                     }
                 };
 

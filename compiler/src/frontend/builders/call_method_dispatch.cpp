@@ -131,6 +131,109 @@ namespace Sad
                     }
                 }
 
+                // ================================================================
+                // (AR) اعتراض مبكر: بانِي متغيّر تعداد جبريّ ببيانات عبر اسم التعداد
+                //      مثال: شكل.دائرة(5) — "شكل" اسم تعداد لا متغيّر؛ يُبنى عبر الدالة
+                //      المُولَّدة __adt_ctor_شكل_دائرة (بلا self). نعترضه هنا قبل
+                //      buildExpression على الكائن الذي يفشل بـ«Undefined variable شكل»
+                //      (المسار العادي يعالج بانِي ADT عند الخطوة 4، لكن بعد فوات بناء
+                //      الكائن الذي يسجّل خطأً زائفًا يُفشِل الترجمة).
+                // (EN) Early intercept: ADT data-variant constructor via enum name.
+                //      Example: شكل.دائرة(5) — "شكل" is an enum name, not a variable; it
+                //      is built via the generated __adt_ctor_... function (no self). We
+                //      intercept before buildExpression on the object, which would fail
+                //      with "Undefined variable" and abort the build even though the
+                //      later ADT-ctor path (Step 4) would emit the correct call.
+                // ================================================================
+                if (auto *enumVarExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
+                {
+                    if (b_.adtEnumTable_.find(enumVarExpr->name) != b_.adtEnumTable_.end())
+                    {
+                        std::string ctorKey = enumVarExpr->name + "." + methodCallExpr->methodName;
+                        auto ctorIt = b_.functionTable_.find(ctorKey);
+                        if (ctorIt != b_.functionTable_.end() &&
+                            ctorIt->second.name.find(Sad::Compiler::kAdtCtorPrefix) == 0)
+                        {
+                            // (AR) بناء الوسائط (بلا self) — نظير اعتراض الطريقة الساكنة
+                            // (EN) Build arguments (no self) — mirrors the static-method intercept
+                            std::vector<SIROperand> ctorArgs;
+                            for (const auto &arg : methodCallExpr->arguments)
+                            {
+                                auto argResult = b_.buildExpression(arg.get());
+                                if (argResult.isConstant && !argResult.constantValue.empty())
+                                {
+                                    if (argResult.type == SadTypeKind::String)
+                                        ctorArgs.push_back(SIROperand::ConstantString(argResult.constantValue));
+                                    else if (argResult.type == SadTypeKind::Float)
+                                        ctorArgs.push_back(SIROperand::ConstantF64(std::stod(argResult.constantValue)));
+                                    else
+                                    {
+                                        try
+                                        {
+                                            ctorArgs.push_back(SIROperand::ConstantI64(std::stoll(argResult.constantValue)));
+                                        }
+                                        catch (...)
+                                        {
+                                            ctorArgs.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    ctorArgs.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                                }
+                            }
+
+                            // (AR) حدّ معروف (نقد Amelia — ISSUE-076): استخراج حمولة ADT
+                            //      مُصلَّب على Integer (statement_match.cpp/expression_objects.cpp
+                            //      وENUM_GET_PAYLOAD)، فحمولةٌ عشريّة (Float) تُخزَّن بنمط بتات
+                            //      double ثمّ تُقرأ عددًا صحيحًا ⇒ Segfault وقت الاستخراج. نحجبها
+                            //      بخطأ ترجمةٍ واضح بدل فتح مسار تحطّم (المفسّر يدعمها؛ فجوة مترجم
+                            //      تحتاج تتبّع أنواع حقول الحمولة — عائلة ISSUE-070/075).
+                            // (EN) Known limit (Amelia's review — ISSUE-076): ADT payload
+                            //      extraction is hardcoded to Integer, so a decimal (Float)
+                            //      payload is stored as double bits then read as an integer ⇒
+                            //      Segfault at extraction. Reject with a clear compile error
+                            //      instead of opening a crash path (the interpreter supports it;
+                            //      a compiler fix needs payload field-type tracking).
+                            for (const auto &ctorArg : ctorArgs)
+                            {
+                                if (ctorArg.dataType == SadTypeKind::Float)
+                                {
+                                    b_.errors_.push_back(
+                                        "Error: ADT variant construction with a decimal (Float) payload is not yet supported by the compiler (ISSUE-076): " +
+                                        ctorKey);
+                                    return BuildResult();
+                                }
+                            }
+
+                            std::string ctorResultReg = b_.newTempRegister();
+                            SIRInstruction ctorCall(SIROpcode::CALL);
+                            ctorCall.result = SIROperand::Register(ctorResultReg, SadTypeKind::Struct);
+                            ctorCall.operands.push_back(SIROperand::Function(ctorIt->second.name));
+                            for (const auto &a : ctorArgs)
+                                ctorCall.operands.push_back(a);
+                            ctorCall.comment = "ADT constructor: " + ctorKey;
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(ctorCall);
+
+                            // (AR) نضع اسم التعداد صنفًا للنتيجة كي تعمل **المطابقة**
+                            //      (`طابق(ش)`) الّتي تفهرس على اسم التعداد في adtEnumTable_.
+                            //      ملاحظة: هذا لازمٌ غير كافٍ للوصول المباشر للحقل
+                            //      (`ش.نصف_القطر`) — className لا يُنشَر إلى classInstanceTypes_
+                            //      فيبقى الوصول المباشر فجوةً موثّقة (ISSUE-077)؛ المطابقة تعمل.
+                            // (EN) Tag the result's className with the enum name so **match**
+                            //      (`match(s)`) works — it keys on the enum name in adtEnumTable_.
+                            //      Note: necessary but NOT sufficient for direct field access
+                            //      (`s.radius`) — className isn't propagated to classInstanceTypes_,
+                            //      so direct access stays a documented gap (ISSUE-077); match works.
+                            BuildResult ctorRes(ctorResultReg, SadTypeKind::Struct);
+                            ctorRes.className = enumVarExpr->name;
+                            return ctorRes;
+                        }
+                    }
+                }
+
                 // (AR) الخطوة 1: بناء تعبير الكائن
                 // (EN) Step 1: Build object expression
                 auto objResult = b_.buildExpression(methodCallExpr->object.get());
@@ -764,7 +867,7 @@ namespace Sad
                     const auto &fInfo = ftIt->second;
                     // (AR) إذا كان الاسم الحقيقي يبدأ بـ __adt_ctor_ فهو باني ADT
                     // (EN) If real name starts with __adt_ctor_ it's an ADT constructor
-                    if (fInfo.name.find("__adt_ctor_") == 0)
+                    if (fInfo.name.find(Sad::Compiler::kAdtCtorPrefix) == 0)
                     {
                         callTargetName = fInfo.name;
                         isADTCtor = true;

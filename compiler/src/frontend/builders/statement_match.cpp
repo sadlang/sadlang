@@ -6,6 +6,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "sir_constants.h"
 #include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -17,6 +18,58 @@
 #include <iostream>
 #include <filesystem>
 #include <set>
+#include <vector>
+
+namespace
+{
+    // ========================================================================
+    // (AR) يجمع (تعاوديًّا) كلّ أسماء المتغيّرات التي يربطها نمطٌ ما، عبر كلّ
+    //      أنواع الأنماط المركّبة (قائمة/بنية/ربط/بدائل/تعداد). يُستعمَل لضمان
+    //      أنّ جسم الذراع يُترجَم حتى حين يفشل نمطٌ مركّب ساكنًا فلا تُستخرَج
+    //      متغيّراته (مثل `[[أ،ب]]` على قيمةٍ قياديّة — ISSUE-067).
+    // (EN) Recursively collect every variable name a pattern binds, across all
+    //      composite pattern kinds (list/struct/binding/or/enum). Used to keep the
+    //      arm body compilable even when a composite pattern fails statically and
+    //      its vars are never extracted (e.g. `[[a,b]]` over a scalar — ISSUE-067).
+    // ========================================================================
+    void collectPatternVarNames(const Sad::AST::Pattern *p,
+                                std::vector<std::string> &out)
+    {
+        if (!p)
+            return;
+        if (auto *v = dynamic_cast<const Sad::AST::VariablePattern *>(p))
+        {
+            out.push_back(v->name);
+        }
+        else if (auto *l = dynamic_cast<const Sad::AST::ListPattern *>(p))
+        {
+            for (const auto &e : l->elements)
+                collectPatternVarNames(e.get(), out);
+            if (l->has_rest && !l->rest_name.empty())
+                out.push_back(l->rest_name);
+        }
+        else if (auto *s = dynamic_cast<const Sad::AST::StructPattern *>(p))
+        {
+            for (const auto &f : s->fields)
+                collectPatternVarNames(f.second.get(), out);
+        }
+        else if (auto *b = dynamic_cast<const Sad::AST::BindingPattern *>(p))
+        {
+            out.push_back(b->name);
+            collectPatternVarNames(b->pattern.get(), out);
+        }
+        else if (auto *o = dynamic_cast<const Sad::AST::OrPattern *>(p))
+        {
+            for (const auto &a : o->alternatives)
+                collectPatternVarNames(a.get(), out);
+        }
+        else if (auto *en = dynamic_cast<const Sad::AST::EnumVariantPattern *>(p))
+        {
+            for (const auto &fp : en->fieldPatterns)
+                collectPatternVarNames(fp.get(), out);
+        }
+    }
+} // anonymous namespace
 
 namespace Sad
 {
@@ -260,6 +313,13 @@ namespace Sad
                         //      failure does not bypass the guard branch.
                         const std::string patternFailLabel =
                             caseClause.guard ? std::string() : nextLabel;
+                        // (AR) صفِّر علَم «الذراع ميت ساكنًا» قبل توليد الشرط؛ يضبطه
+                        //      failAlways داخل الدائرة القصيرة إن كان الفشل بنيويًّا
+                        //      غير مشروط. يقرأه ربطُ المتغيّرات الصوريّ أدناه.
+                        // (EN) Reset the "statically-dead arm" flag before generating the
+                        //      condition; failAlways sets it inside the short-circuit on an
+                        //      unconditional structural fail. Read by the dummy-binding pass below.
+                        b_.matchArmStaticallyDead_ = false;
                         condReg = b_.buildMatchPatternCondition(
                             caseClause.pattern.get(),
                             matchValueReg,
@@ -390,7 +450,7 @@ namespace Sad
                     {
                         for (const auto &deferred : deferredADTExtractions[i])
                         {
-                            if (deferred.enumName == "__list_pattern")
+                            if (deferred.enumName == Sad::Compiler::kListPatternSentinel)
                             {
                                 // ============================================================
                                 // (AR) استخراج عنصر مصفوفة مؤجل — ربط متغير
@@ -428,7 +488,7 @@ namespace Sad
                                 elemVarInfo.scopeLevel = b_.currentScopeLevel_;
                                 b_.addVariable(elemVarInfo);
                             }
-                            else if (deferred.enumName == "__list_pattern_literal")
+                            else if (deferred.enumName == Sad::Compiler::kListPatternLiteralSentinel)
                             {
                                 // ============================================================
                                 // (AR) استخراج عنصر مصفوفة مؤجل — مقارنة حرفية
@@ -474,6 +534,75 @@ namespace Sad
                                 fieldVarInfo.scopeLevel = b_.currentScopeLevel_;
                                 b_.addVariable(fieldVarInfo);
                             }
+                        }
+                    }
+
+                    // ========================================================
+                    // (AR) حارس صلابة (ISSUE-067): اربط أيّ متغيّر نمطٍ لم يُربَط
+                    //      بعدُ بقيمةٍ صوريّة. يحدث حين يفشل نمطٌ مركّب ساكنًا (مثل
+                    //      `[[أ،ب]]` على قيمةٍ قياديّة) فلا تُستخرَج متغيّراته المتداخلة؛
+                    //      الذراع حينئذٍ ميتٌ (قصر الدائرة تفرّع لـfailLabel قبل الوصول
+                    //      هنا) فالقيمة الصوريّة لا تُقرأ وقت التشغيل، لكنّها تُبقي جسم
+                    //      الذراع قابلًا للترجمة بدل خطأ «Undefined variable».
+                    //      لا نلمس المربوطة فعلًا (المسار الصالح يربطها قبل هذه النقطة).
+                    //
+                    //      ⚠️ **قصرٌ على الذراع الميت ساكنًا (نقدا Amelia):** لا يكفي
+                    //      «بلا guard». الربط الصوريّ آمنٌ فقط إن كان النمط قد فشل بنيويًّا
+                    //      وقت الترجمة (failAlways تفرّع إلى failLabel) فلا يُقرأ الصوريّ
+                    //      وقت التشغيل. لكنْ ذراعٌ حيٌّ فقد ربط حمولته (مثل تعدادٍ داخل
+                    //      قائمة `[نتيجة.نجاح(ق)]` بلا guard: المسطّح يطابق الطول ويترك
+                    //      «ق» غير مربوط دون قتل الذراع) ⇒ الصوريّ يُقرأ ⇒ «ق=0» صامتة
+                    //      وتباعد عن المفسّر. لذا نربط صوريًّا **فقط** إن ضبط failAlways
+                    //      علَم matchArmStaticallyDead_؛ وإلّا نتركها خطأ ترجمة صاخبًا
+                    //      («Undefined variable») بدل إخفاء التباعد. العلَم يشمل حالة
+                    //      guard تلقائيًّا (guard ⇒ لا قصر دائرة ⇒ لا failAlways ⇒ العلَم
+                    //      يبقى false)، فيُغني عن فحص `!guard` ويسدّ ثغرة بلا-guard معًا.
+                    // (EN) Robustness guard (ISSUE-067): bind any pattern variable still
+                    //      unbound to a dummy. Happens when a composite pattern fails
+                    //      statically (e.g. `[[a,b]]` over a scalar) so its nested vars are
+                    //      never extracted; the arm is then dead (short-circuit branched to
+                    //      failLabel before reaching here) so the dummy is never read at
+                    //      runtime, yet it keeps the arm body compilable instead of an
+                    //      "Undefined variable" error. Already-bound vars (viable path) are
+                    //      left untouched.
+                    //
+                    //      ⚠️ **Restricted to statically-dead arms (Amelia's 2 reviews):**
+                    //      "guard-less" is NOT enough. The dummy is only safe when the arm
+                    //      failed structurally at compile time (failAlways branched to
+                    //      failLabel), so it is never read at runtime. But a LIVE arm that
+                    //      lost its payload binding (e.g. enum-in-list `[نتيجة.نجاح(ق)]` with
+                    //      no guard: the flat path matches the length and leaves `ق` unbound
+                    //      WITHOUT killing the arm) would read the dummy ⇒ silent "ق=0" and
+                    //      divergence from the interpreter. So we dummy-bind ONLY when
+                    //      failAlways set matchArmStaticallyDead_; otherwise we leave a loud
+                    //      compile error ("Undefined variable"). The flag also covers the
+                    //      guard case for free (guard ⇒ no short-circuit ⇒ no failAlways ⇒
+                    //      flag stays false), subsuming the old `!guard` check.
+                    // ========================================================
+                    if (caseClause.pattern && b_.matchArmStaticallyDead_)
+                    {
+                        std::vector<std::string> patVarNames;
+                        collectPatternVarNames(caseClause.pattern.get(), patVarNames);
+                        for (const auto &vn : patVarNames)
+                        {
+                            if (vn.empty() || b_.lookupVariable(vn) != nullptr)
+                                continue;
+                            std::string dummyReg = b_.newTempRegister();
+                            SIRInstruction dummyMove(SIROpcode::MOVE);
+                            dummyMove.result = SIROperand::Register(dummyReg, SadTypeKind::Integer);
+                            dummyMove.operands = {SIROperand::ConstantI64(0)};
+                            dummyMove.comment = "ISSUE-067 dead-arm dummy bind: " + vn;
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(dummyMove);
+
+                            VariableInfo dummyVar;
+                            dummyVar.name = vn;
+                            dummyVar.type = SadTypeKind::Integer;
+                            dummyVar.registerName = dummyReg;
+                            dummyVar.isGlobal = false;
+                            dummyVar.isMutable = false;
+                            dummyVar.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(dummyVar);
                         }
                     }
 
