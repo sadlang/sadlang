@@ -566,6 +566,14 @@ namespace Sad
                                     SIROperand::Register(objResult.registerName, objResult.type));
                                 getPayload.operands.push_back(
                                     SIROperand::ConstantI64(static_cast<int64_t>(fieldIdx)));
+                                // (AR) المعامل [2]: اسم التعداد — للبحث عن البنية الصحيحة عبر
+                                //      حدود الدوال وعند تعدُّد التعدادات (ISSUE-077؛ اتّساق مع
+                                //      الاستخراج المؤجّل في المطابقة statement_match.cpp).
+                                // (EN) Operand [2]: enum name — for correct struct lookup across
+                                //      function boundaries and with multiple enums (ISSUE-077;
+                                //      mirrors the deferred extraction in statement_match.cpp).
+                                getPayload.operands.push_back(
+                                    SIROperand::ConstantString(objResult.className));
                                 getPayload.comment = "ADT field access: " + objResult.className +
                                                      "." + memberExpr->memberName + " (index=" + std::to_string(fieldIdx) + ")";
                                 b_.currentBlock_->addInstruction(getPayload);

@@ -1,0 +1,10 @@
+# @rule: gr.pattern.primary
+# @description: وصول حقل مباشر «ش.نق» على قيمة تعداد جبريّ مبنيّة «شكل.دائرة(7)» خارج المطابقة (ISSUE-077؛ فرع ADT في buildExprMember مع تمرير اسم التعداد لـENUM_GET_PAYLOAD)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+تعداد شكل
+    دائرة(نق)
+نهاية
+متغير ش = شكل.دائرة(7)
+اطبع_سطر(ش.نق)

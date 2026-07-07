@@ -283,6 +283,22 @@ namespace sad
                     diagnostics_.report_fatal("فشل توليد LLVM IR / Failed to generate LLVM IR");
                     return false;
                 }
+                // (AR) ملاحظة [ISSUE-073]: `generate()` قد يُبلّغ خطأً داخليًّا عبر reportError()
+                //      (يضبط hasErrors_) لكنّه يُرجع وحدةً غير فارغة، فيصير الخروج 0 زائفًا
+                //      (نجاح صامت لبرنامجٍ مكسور). بوّابةٌ هنا `if (llvm_codegen_->hasErrors())`
+                //      تُصلح هذا الصنف — **لكنّها كاشفة**: تُظهر علل codegen مُقنَّعة سابقة (5
+                //      اختبارات: yield/مولّدات + equality-range) كانت تُعَدّ ناجحةً زورًا. لذا
+                //      أُجِّلت لـPR مستقلّ (ISSUE-073) يُصلح تلك الخمس أيضًا، كي لا يُبعثَر نطاق
+                //      إصلاح وصول حقل ADT (ISSUE-077 مُصلَح أصلًا بفرع buildExprMember دون حاجةٍ
+                //      لهذه البوّابة — لا يُصدر خطأ codegen بعد الإصلاح).
+                // (EN) NOTE [ISSUE-073]: generate() may report an internal error via reportError()
+                //      (sets hasErrors_) yet return a non-null module ⇒ false exit 0 (silent
+                //      success for a broken program). A gate here `if (llvm_codegen_->hasErrors())`
+                //      fixes that class — but it is REVEALING: it surfaces 5 pre-existing masked
+                //      codegen bugs (yield/generators + equality-range) previously counted as
+                //      passing. Deferred to a dedicated PR (ISSUE-073) that also fixes those five,
+                //      so the ADT field-access fix (ISSUE-077, already fixed by the buildExprMember
+                //      branch — emits no codegen error post-fix) is not entangled with them.
                 // ================================================================
                 // (AR) الخطوة 2.5: تشغيل المحسِّن العربي
                 // ================================================================

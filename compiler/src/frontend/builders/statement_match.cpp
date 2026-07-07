@@ -303,16 +303,26 @@ namespace Sad
                     {
                         // (AR) توليد شرط النمط عبر دالة مساعدة — CW-05
                         // (EN) Generate pattern condition via helper — CW-05
-                        // (AR) ISSUE-067: تمرير nextLabel كهدف فشل يُمكّن قصر الدائرة
-                        //      للأنماط المركّبة المتداخلة. لكن حين وُجد guard على الذراع
-                        //      يجب ألّا يقفز فشل النمط مباشرة للتالي متجاوزًا الربط لـguard؛
-                        //      نُبقي المسار المسطّح في تلك الحالة (failLabel="").
-                        // (EN) ISSUE-067: pass nextLabel as fail target to enable
-                        //      short-circuit for nested composite patterns. When the arm
-                        //      has a guard, keep the flat path (failLabel="") so pattern
-                        //      failure does not bypass the guard branch.
-                        const std::string patternFailLabel =
-                            caseClause.guard ? std::string() : nextLabel;
+                        // (AR) ISSUE-067/075: تمرير nextLabel كهدف فشلٍ **دائمًا** يُمكّن قصر
+                        //      الدائرة للأنماط المركّبة المتداخلة حتّى مع وجود guard. حين يفشل
+                        //      النمط بنيويًّا يتفرّع قصر الدائرة إلى nextLabel متجاوزًا كتلة
+                        //      الحارس — وهذا **صحيحٌ دلاليًّا** (لا يُقيَّم حارسٌ لنمطٍ لم يطابق؛
+                        //      المفسّر يوافق). قصر الدائرة يربط متغيّرات النمط المتداخلة في
+                        //      كتلة النجاح المُهيمِنة على كتلتَي الحارس والجسم، فيراها الحارس.
+                        //      (كان سابقًا "" مع guard ⇒ مسارٌ مسطّح يُهمل الابن المركّب صامتًا
+                        //      فيبقى «أ» غير مربوطٍ فيفشل الحارس/الجسم = ISSUE-075.) للأنماط
+                        //      غير المركّبة، بوّابة التوجيه لا تُفعَّل ⇒ صفر تغيّر (المسطّح كما هو).
+                        // (EN) ISSUE-067/075: ALWAYS pass nextLabel as the fail target so the
+                        //      short-circuit enables for nested composite patterns even with a
+                        //      guard. A structural pattern failure branches to nextLabel, bypassing
+                        //      the guard block — which is semantically CORRECT (a guard is not
+                        //      evaluated for a pattern that didn't match; the interpreter agrees).
+                        //      Short-circuit binds nested pattern vars in the success block that
+                        //      dominates both the guard and body blocks, so the guard sees them.
+                        //      (Previously "" with a guard ⇒ a flat path that silently ignored the
+                        //      composite child, leaving «أ» unbound ⇒ guard/body failed = ISSUE-075.)
+                        //      For non-composite patterns the routing gate is inert ⇒ zero change.
+                        const std::string patternFailLabel = nextLabel;
                         // (AR) صفِّر علَم «الذراع ميت ساكنًا» قبل توليد الشرط؛ يضبطه
                         //      failAlways داخل الدائرة القصيرة إن كان الفشل بنيويًّا
                         //      غير مشروط. يقرأه ربطُ المتغيّرات الصوريّ أدناه.
@@ -363,6 +373,49 @@ namespace Sad
                             guardVar.isMutable = false;
                             guardVar.scopeLevel = b_.currentScopeLevel_;
                             b_.addVariable(guardVar);
+                        }
+
+                        // (AR) ISSUE-075: ربط صوريّ لمتغيّرات النمط للذراع الميت ساكنًا قبل
+                        //      تقييم الحارس. حين يفشل النمط بنيويًّا (مثل `[[أ،ب]]` على قياديّ)
+                        //      يضبط failAlways العلَم دون ربط «أ»، لكنّ كتلة الحارس تُبنى
+                        //      (وإن كانت ميتةً وقت التشغيل — قصر الدائرة تفرّع لـnextLabel) فيقرأ
+                        //      الحارس «أ» ⇒ خطأ ترجمة. نربط صوريًّا (يُقصَر على الميت ساكنًا عبر
+                        //      matchArmStaticallyDead_ كما في الجسم) كي يبقى الحارس قابلًا
+                        //      للترجمة؛ الصوريّة لا تُقرأ وقت التشغيل (الذراع ميت). نطاق الحارس
+                        //      يُغلَق قبل الجسم فلا يتسرّب هذا الربط إليه.
+                        // (EN) ISSUE-075: dummy-bind pattern variables for a statically-dead arm
+                        //      before evaluating the guard. On a structural pattern fail (e.g.
+                        //      `[[أ،ب]]` over a scalar) failAlways sets the flag without binding
+                        //      «أ», yet the guard block is still built (dead at runtime — the
+                        //      short-circuit branched to nextLabel) and reads «أ» ⇒ compile error.
+                        //      Dummy-bind (gated on matchArmStaticallyDead_ as in the body) so the
+                        //      guard stays compilable; the dummy is never read at runtime (arm is
+                        //      dead). The guard scope is closed before the body, so it doesn't leak.
+                        if (caseClause.pattern && b_.matchArmStaticallyDead_)
+                        {
+                            std::vector<std::string> guardVarNames;
+                            collectPatternVarNames(caseClause.pattern.get(), guardVarNames);
+                            for (const auto &vn : guardVarNames)
+                            {
+                                if (vn.empty() || b_.lookupVariable(vn) != nullptr)
+                                    continue;
+                                std::string dummyReg = b_.newTempRegister();
+                                SIRInstruction dummyMove(SIROpcode::MOVE);
+                                dummyMove.result = SIROperand::Register(dummyReg, SadTypeKind::Integer);
+                                dummyMove.operands = {SIROperand::ConstantI64(0)};
+                                dummyMove.comment = "ISSUE-075 dead-arm guard dummy bind: " + vn;
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(dummyMove);
+
+                                VariableInfo dummyVar;
+                                dummyVar.name = vn;
+                                dummyVar.type = SadTypeKind::Integer;
+                                dummyVar.registerName = dummyReg;
+                                dummyVar.isGlobal = false;
+                                dummyVar.isMutable = false;
+                                dummyVar.scopeLevel = b_.currentScopeLevel_;
+                                b_.addVariable(dummyVar);
+                            }
                         }
 
                         auto guardResult = b_.buildExpression(caseClause.guard.get());
@@ -554,9 +607,12 @@ namespace Sad
                     //      «ق» غير مربوط دون قتل الذراع) ⇒ الصوريّ يُقرأ ⇒ «ق=0» صامتة
                     //      وتباعد عن المفسّر. لذا نربط صوريًّا **فقط** إن ضبط failAlways
                     //      علَم matchArmStaticallyDead_؛ وإلّا نتركها خطأ ترجمة صاخبًا
-                    //      («Undefined variable») بدل إخفاء التباعد. العلَم يشمل حالة
-                    //      guard تلقائيًّا (guard ⇒ لا قصر دائرة ⇒ لا failAlways ⇒ العلَم
-                    //      يبقى false)، فيُغني عن فحص `!guard` ويسدّ ثغرة بلا-guard معًا.
+                    //      («Undefined variable») بدل إخفاء التباعد. **ملاحظة (بعد ISSUE-075):**
+                    //      العلَم يُضبَط الآن لأذرع guard المركّبة الميتة أيضًا (guard+مركّب صار
+                    //      يُفعّل قصر الدائرة، فـfailAlways قد يضبط العلَم لذراعٍ ميت)؛ الربط
+                    //      الصوريّ هنا (للجسم) وفي كتلة الحارس صحيحٌ لأنّ الذراع ميتٌ وقت
+                    //      التشغيل (SC تفرّع لـnextLabel) فلا تُقرأ الصوريّة. العلَم لا يُضبَط
+                    //      لذراعٍ حيّ (SC لا يستدعي failAlways) فلا يُخفى تباعدُ ذراعٍ حيّ.
                     // (EN) Robustness guard (ISSUE-067): bind any pattern variable still
                     //      unbound to a dummy. Happens when a composite pattern fails
                     //      statically (e.g. `[[a,b]]` over a scalar) so its nested vars are
@@ -575,9 +631,13 @@ namespace Sad
                     //      WITHOUT killing the arm) would read the dummy ⇒ silent "ق=0" and
                     //      divergence from the interpreter. So we dummy-bind ONLY when
                     //      failAlways set matchArmStaticallyDead_; otherwise we leave a loud
-                    //      compile error ("Undefined variable"). The flag also covers the
-                    //      guard case for free (guard ⇒ no short-circuit ⇒ no failAlways ⇒
-                    //      flag stays false), subsuming the old `!guard` check.
+                    //      compile error ("Undefined variable"). NOTE (post-ISSUE-075): the flag
+                    //      is now ALSO set for dead composite guard arms (guard+composite now
+                    //      routes to the short-circuit, so failAlways may set it for a dead arm);
+                    //      the dummy here (body) and in the guard block is correct because the arm
+                    //      is dead at runtime (SC branched to nextLabel), so it is never read. The
+                    //      flag is never set for a LIVE arm (SC doesn't call failAlways), so no
+                    //      live-arm divergence is masked.
                     // ========================================================
                     if (caseClause.pattern && b_.matchArmStaticallyDead_)
                     {

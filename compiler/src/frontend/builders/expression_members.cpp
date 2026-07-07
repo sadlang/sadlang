@@ -165,6 +165,58 @@ namespace Sad
                 }
 
                 // ================================================================
+                // (AR) الخطوة 1.4 [ISSUE-077]: وصول حقلٍ مباشر على قيمة تعداد جبريّ (ADT)
+                //      مبنيّة، مثل «ش.نق» حيث «متغير ش = شكل.دائرة(7)». صيغة «.اسم» تُنتج
+                //      MemberExpr فتصل إلى هذا الباني (لا buildMemberAccess)، الّذي كان يفتقر
+                //      لفرع ADT فيبعث LOAD صنفٍ عامًّا ⇒ «No class mapping» + خروج 0 صامت.
+                //      نشرُ className يعمل بعد #161 (classInstanceTypes_["ش"]="شكل" ⇒
+                //      objResult.className)، فنستعمله للبحث في adtEnumTable_ ونبعث
+                //      ENUM_GET_PAYLOAD **مع operand[2]=اسم التعداد** (نظير المطابقة). محروسٌ
+                //      بوجود التعداد ووجود الحقل ⇒ لا يمسّ الأصناف العاديّة ولا الصفوف.
+                // (EN) Step 1.4 [ISSUE-077]: direct field access on a constructed ADT enum
+                //      value, e.g. «ش.نق» where «ش = شكل.دائرة(7)». The «.name» syntax yields a
+                //      MemberExpr reaching THIS builder (not buildMemberAccess), which lacked an
+                //      ADT branch and emitted a generic class LOAD ⇒ «No class mapping» + silent
+                //      exit 0. className propagation works post-#161, so we use it to look up
+                //      adtEnumTable_ and emit ENUM_GET_PAYLOAD WITH operand[2]=enum name (mirrors
+                //      match). Guarded by enum-exists + field-exists ⇒ never touches plain
+                //      classes or tuples (they fall through unchanged).
+                // ================================================================
+                if (!objResult.className.empty() && !memberExpr->member.empty())
+                {
+                    auto adtIt = b_.adtEnumTable_.find(objResult.className);
+                    if (adtIt != b_.adtEnumTable_.end())
+                    {
+                        const ADTEnumInfo &adtInfo = adtIt->second;
+                        int fieldIdx = adtInfo.findFieldIndex(memberExpr->member);
+                        if (fieldIdx >= 0 && b_.currentBlock_)
+                        {
+                            std::string resultReg = b_.newTempRegister();
+                            SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                            getPayload.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                            getPayload.operands.push_back(
+                                SIROperand::Register(objResult.registerName, objResult.type));
+                            getPayload.operands.push_back(
+                                SIROperand::ConstantI64(static_cast<int64_t>(fieldIdx)));
+                            // (AR) المعامل [2]: اسم التعداد للبحث الصحيح عبر الحدود/التعدّد
+                            // (EN) Operand [2]: enum name for correct lookup across boundaries/multiplicity
+                            getPayload.operands.push_back(
+                                SIROperand::ConstantString(objResult.className));
+                            getPayload.comment = "ADT field access (MemberExpr): " + objResult.className +
+                                                 "." + memberExpr->member + " (index=" + std::to_string(fieldIdx) + ")";
+                            b_.currentBlock_->addInstruction(getPayload);
+
+                            BuildResult result(resultReg, SadTypeKind::Integer);
+                            result.className = objResult.className;
+                            result.isFieldAccess = true;
+                            return result;
+                        }
+                        // (AR) الحقل غير موجود في ADT ⇒ نسقط للمسار العاديّ
+                        // (EN) Field not found in ADT ⇒ fall through to regular path
+                    }
+                }
+
+                // ================================================================
                 // (AR) الخطوة 1.25: فحص وصول لحالة واحدية (Unit variant) في تعداد جبري
                 // (EN) Step 1.25: Check if accessing Unit variant of ADT enum
                 // ================================================================
