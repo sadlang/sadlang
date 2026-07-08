@@ -213,6 +213,24 @@ private:
      * @return السطر المقروء / Read line
      */
     std::string readLine();
+
+    /**
+     * @brief تصفير تشخيصات ErrorManager المفرد قبل تحليلٍ جديد
+     *        / Clear the singleton ErrorManager diagnostics before a fresh parse.
+     * @details بوّابة parser.hasErrors() تفوّض للمفرد العالميّ، فأيّ تشخيص خلّفه
+     *          سطرٌ/تحميلٌ سابق يسمّم التحليل التالي حتّى إعادة تشغيل العمليّة
+     *          (استرداد الصدَفة مكسور بدونه). يُستدعى عند **مدخل** كلّ مسار تحليل
+     *          (evaluate/loadFile) لا عند الخروج، كي يبقى getErrors() قادرًا على
+     *          قراءة تشخيص الإدخال الحاليّ بعد العودة. لا يمسّ متغيّرات المفسّر
+     *          (تعيش في interpreter_ لا في ErrorManager).
+     *          / The parser.hasErrors() gate delegates to the global singleton, so a
+     *          diagnostic a prior line/load left behind poisons the next parse until
+     *          the process restarts (shell recovery is broken without this). Called at
+     *          the ENTRY of each parse path (evaluate/loadFile), never on exit, so
+     *          getErrors() can still read the current input's diagnostics after return.
+     *          Does not touch interpreter variables (they live in interpreter_).
+     */
+    void resetDiagnostics();
     
 private:
     REPLConfig config_;                                         ///< الإعدادات / Configuration

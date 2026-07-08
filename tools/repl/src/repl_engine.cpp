@@ -331,10 +331,24 @@ namespace Sad
             return 0;
         }
 
+        // (AR) تصفير تشخيصات المفرد قبل كلّ تحليلٍ جديد. تفصيل السبب في إعلان الدالّة
+        //      (repl_engine.h). يُستدعى من evaluate و loadFile — نقطتا التحليل التفاعليّتان.
+        // (EN) Clear singleton diagnostics before each fresh parse. Rationale on the
+        //      declaration (repl_engine.h). Called by evaluate and loadFile — the two
+        //      interactive parse entry points.
+        void REPLEngine::resetDiagnostics()
+        {
+            Sad::Errors::ErrorManager::getInstance().clear();
+        }
+
         std::string REPLEngine::evaluate(const std::string &line)
         {
             try
             {
+                // (AR) استرداد الصدَفة: صفّر تشخيصات السطر السابق قبل تحليل هذا السطر.
+                // (EN) Shell recovery: clear the prior line's diagnostics before parsing this one.
+                resetDiagnostics();
+
                 // Tokenize and Parse / التحليل المعجمي والنحوي
                 Lexer::LexerCore lexer(line);
                 Parser::ParserCore parser(lexer);
@@ -450,6 +464,12 @@ namespace Sad
             //      from use-after-free (the interpreter holds pointers into their bodies).
             try
             {
+                // (AR) نفس بوّابة المفرد: صفّر كي لا يسمّم سطرٌ/تحميلٌ سابق هذا التحميل
+                //      (الأمر :load). عائلة العلّة نفسها التي في evaluate.
+                // (EN) Same singleton gate: clear so a prior line/load can't poison this
+                //      load (the :load command). Same bug family as evaluate.
+                resetDiagnostics();
+
                 Lexer::LexerCore lexer(*content);
                 Parser::ParserCore parser(lexer);
                 auto ast = parser.parseProgram();
