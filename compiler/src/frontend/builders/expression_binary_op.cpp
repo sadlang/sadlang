@@ -439,6 +439,23 @@ namespace Sad
                 {
                     resultType = SadTypeKind::Float;
                 }
+                // (AR) ISSUE-076/084 (ب″): معاملٌ ديناميّ (Any = حمولة ADT مجهولة النوع سكونيًّا،
+                //      إحالة أماميّة/تعارُض) ولا عشريّ/نصّ صريح ⇒ نتيجةٌ ديناميّة (Any). فيُصدِر
+                //      الخلفُ عمليّةً ثنائيّة ديناميّة تفحص وسم المعاملَين زمنَ التشغيل (عشريّ
+                //      مُعلَّب أم صحيح) وتُنتج نتيجةً موسومة يفكّها نص()/اطبع — كالمفسّر تمامًا.
+                //      المقارنات تُثبَّت Boolean لاحقًا؛ //،%،<<،>>،|،&،^ تُثبِّت Integer؛ **
+                //      تُعالَج أدناه. لا يمسّ هذا العمليّات الساكنة (لا انحدار في البوّابة).
+                // (EN) ISSUE-076/084 (ب″): a dynamic operand (Any = a statically-unknown ADT
+                //      payload, forward-ref/conflict) with no explicit float/string ⇒ a dynamic
+                //      (Any) result. The backend emits a dynamic binary op that inspects both
+                //      operands' tags at runtime (boxed float vs int) and produces a tagged result
+                //      that نص()/print decode — exactly like the interpreter. Comparisons are
+                //      forced Boolean later; //,%,<<,>>,|,&,^ force Integer; ** is handled below.
+                //      Does not touch static operands (no gate regression).
+                else if (leftResult.type == SadTypeKind::Any || rightResult.type == SadTypeKind::Any)
+                {
+                    resultType = SadTypeKind::Any;
+                }
 
                 // (AR) ====== إصلاح BF-04 (OE-039): مقارنة صارمة بين أنواع مختلفة ======
                 //      المفسر يُرجع `خطأ` عند `42 == "42"` (بمختلف الأنواع → غير متساويين).
@@ -552,19 +569,27 @@ namespace Sad
                     break;
 
                 case Lexer::TokenType::OP_FLOOR_DIVIDE:
-                    // (AR) قسمة صحيحة أرضية: دائماً I64 (// لا تنتج عشري)
-                    // (EN) Floor division: always I64 (// never produces float)
+                    // (AR) قسمة صحيحة أرضية: I64 عادةً؛ لكن معامِلٌ ديناميّ (Any) ⇒ نتيجةٌ
+                    //      ديناميّة (يفكّها الخلف زمنَ التشغيل) بدل تصليب Integer الذي يطمس وسم
+                    //      الحمولة (ISSUE-076/084). (EN) Floor division: I64 normally; but a dynamic
+                    //      (Any) operand ⇒ dynamic result (backend decodes at runtime) instead of
+                    //      pinning Integer which erases the payload tag (ISSUE-076/084).
                     opcode = SIROpcode::FLOOR_DIV_I64;
-                    resultType = SadTypeKind::Integer;
+                    if (resultType != SadTypeKind::Any)
+                        resultType = SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)" << std::endl;
 #endif
                     break;
 
                 case Lexer::TokenType::OP_MODULO:
-                    // (AR) باقي القسمة: MOD_I64 (لا يوجد للعشري)
+                    // (AR) باقي القسمة: MOD_I64. معامِلٌ ديناميّ (Any) ⇒ نتيجةٌ ديناميّة (يفكّها
+                    //      الخلف) بدل تصليب Integer الذي يطمس وسم الحمولة (ISSUE-076/084).
+                    // (EN) Modulo: MOD_I64. A dynamic (Any) operand ⇒ dynamic result (backend
+                    //      decodes) instead of pinning Integer which erases the tag (ISSUE-076/084).
                     opcode = SIROpcode::MOD_I64;
-                    resultType = SadTypeKind::Integer; // (AR) باقي القسمة دائماً عدد صحيح
+                    if (resultType != SadTypeKind::Any)
+                        resultType = SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;
 #endif
@@ -582,6 +607,13 @@ namespace Sad
                     opcode = SIROpcode::BUILTIN_POW;
                     // (AR) لا نُعدّل resultType — تركها كما حُدِّدت من المعاملين أعلاه
                     // (EN) Do NOT override resultType — keep what was inferred from operands above
+                    // (AR) ISSUE-076/084 (ب″): BUILTIN_POW لا يعالج نتيجة Any الديناميّة ⇒ ثبِّتها
+                    //      عشريّة (نظير معاملٍ عشريّ) بدل تسريب Any إلى مسارٍ لا يفكّ وسمها.
+                    // (EN) ISSUE-076/084 (ب″): BUILTIN_POW has no dynamic-Any result path ⇒ pin it
+                    //      to Float (as if a float operand) rather than leaking Any to a path that
+                    //      would not decode the tag.
+                    if (resultType == SadTypeKind::Any)
+                        resultType = SadTypeKind::Float;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية الأس (**) — resultType="
                               << (resultType == SadTypeKind::Float ? "Float" : "Integer") << std::endl;

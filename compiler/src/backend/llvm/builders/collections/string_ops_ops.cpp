@@ -26,7 +26,9 @@
 
 #include "llvm_codegen.h"
 #include "builders/collections/strings_codegen.h"
-#include "sir_constants.h" // (AR) kSadNullSentinel لوعي نوع() بـعدم زمن التشغيل
+#include "sir_constants.h"   // (AR) kSadNullSentinel لوعي نوع() بـعدم زمن التشغيل
+#include "sad_dyn_repr.h"     // (AR) ISSUE-076: نوع(%SadDyn) عبر الموزِّع dynTypeName
+#include "adt_payload_tags.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -71,7 +73,8 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
             {
-                return cg_.builder_->CreateGlobalStringPtr("مجهول", "typeof_unknown");
+                return cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Unknown), "typeof_unknown");
             }
 
             // (AR) اسم النوع من المصدر الموحَّد (types.yaml) عبر الدالة المولَّدة
@@ -97,6 +100,20 @@ namespace Sad
             // ================================================================
             llvm::Value *result = staticStr;
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
+
+            // (AR) === ISSUE-076 (حلّ %SadDyn الجذريّ): قيمةٌ ديناميّة ===
+            //      نوعُها الساكن Any ⇒ "أي"، لكنّ القيمة تحمل وسمَ نوعها الحقيقيّ زمنَ التشغيل.
+            //      نوزّع عبر dynTypeName فيعيد الاسم الصحيح (رقم/عشري/منطقي/نص) مطابقًا للمفسّر.
+            // (EN) === ISSUE-076 (%SadDyn root fix): a dynamic value ===
+            //      Its static type is Any ⇒ "أي", but the value carries its real kind tag at
+            //      runtime. Dispatch via dynTypeName to return the correct name matching نوع().
+            if (isSadDyn(val))
+            {
+                result = dynTypeName(cg_, val);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                return result;
+            }
             auto *i64Ty = cg_.getInt64Type();
             // (AR) القيمة قد تكون i64 مباشرة، أو مؤشّرًا يحمل بِتّات الحارس (اختياريّ
             //      ذو نوع داخليّ مرجعيّ مثل `نص؟` أُسنِد إليه `لاشيء` — NS-06 موجة 3).
@@ -113,8 +130,61 @@ namespace Sad
             {
                 llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     asI64, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel), "typeof.isnull");
-                llvm::Value *nullStr = cg_.builder_->CreateGlobalStringPtr("عدم", "typeof_null");
+                llvm::Value *nullStr = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Null), "typeof_null");
                 result = cg_.builder_->CreateSelect(isNull, nullStr, staticStr, "typeof.sel");
+            }
+
+            // ================================================================
+            // (AR) ISSUE-076/084: حمولة ADT عشريّة مجهولة النوع سكونيًّا (Any، إحالة أماميّة)
+            //      تحمل علَم __is_float من الاستخراج (نفس النطاق). عند وجوده نختار زمنَ التشغيل
+            //      اسم «عشري» بدل الاسم الساكن (Any) ⇒ يطابق نوع() في المفسّر. غياب العلَم ⇒
+            //      لا تغيير (القيم غير-ADT لا تحمله).
+            // (EN) ISSUE-076/084: a statically-unknown (Any, forward-ref) float ADT payload
+            //      carries the __is_float flag from extraction (same scope). When present, pick
+            //      the «عشري» name at runtime instead of the static (Any) name ⇒ matches the
+            //      interpreter's نوع(). Flag absent ⇒ no change (non-ADT values don't carry it).
+            auto isFloatIt = cg_.context_info_.namedValues.find(inst->operands[0].name + ".__is_float");
+            if (isFloatIt != cg_.context_info_.namedValues.end())
+            {
+                llvm::Value *floatName = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Float), "typeof_float");
+                result = cg_.builder_->CreateSelect(isFloatIt->second, floatName, result, "typeof.float.sel");
+            }
+
+            // ================================================================
+            // (AR) ISSUE-076/082/084 (Amelia #6): معامِلٌ ديناميّ Any (حمولةُ ADT عابرةٌ للدوال،
+            //      لا علَمَ __is_float لها هنا) ⇒ نفكّ الوسم زمنَ التشغيل لاختيار الاسم: 01 عشريّ
+            //      · 10 رقم · 11 منطقيّ · 00 نصّ (أسماء SoT عبر sadTypeKindArabicName). يُصلح
+            //      نوع(ص) على رابطٍ مُمرَّرٍ لدالة. نُبقي «عدم» للحارس.
+            // (EN) ISSUE-076/082/084 (Amelia #6): a dynamic Any operand (a payload passed across a
+            //      function, with no __is_float flag here) ⇒ decode the tag at runtime to pick the
+            //      name: 01 float · 10 int · 11 bool · 00 string (SoT names via sadTypeKindArabicName).
+            //      Fixes نوع(ص) on a binding passed to a function. Keep «عدم» for the sentinel.
+            if (inst->operands[0].dataType == SadTypeKind::Any && asI64)
+            {
+                llvm::Value *b63 = cg_.builder_->CreateAnd(
+                    asI64, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63), "typeof.b63");
+                llvm::Value *b62 = cg_.builder_->CreateAnd(
+                    asI64, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62), "typeof.b62");
+                llvm::Value *isHi = cg_.builder_->CreateICmpNE(b63, llvm::ConstantInt::get(i64Ty, 0), "typeof.hi");
+                llvm::Value *isLo = cg_.builder_->CreateICmpNE(b62, llvm::ConstantInt::get(i64Ty, 0), "typeof.lo");
+                llvm::Value *intName = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Integer), "typeof.int");
+                llvm::Value *floatName2 = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Float), "typeof.flt");
+                llvm::Value *boolName = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Boolean), "typeof.bool");
+                llvm::Value *strName = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::String), "typeof.str");
+                llvm::Value *nameHi = cg_.builder_->CreateSelect(isLo, boolName, intName, "typeof.hi.sel");
+                llvm::Value *nameLo = cg_.builder_->CreateSelect(isLo, floatName2, strName, "typeof.lo.sel");
+                llvm::Value *dynName = cg_.builder_->CreateSelect(isHi, nameHi, nameLo, "typeof.dyn");
+                llvm::Value *isNull2 = cg_.builder_->CreateICmpEQ(
+                    asI64, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel), "typeof.isnull2");
+                llvm::Value *nullStr2 = cg_.builder_->CreateGlobalStringPtr(
+                    ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Null), "typeof_null2");
+                result = cg_.builder_->CreateSelect(isNull2, nullStr2, dynName, "typeof.any.sel");
             }
 
             if (inst->result.has_value())

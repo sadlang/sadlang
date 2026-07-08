@@ -391,6 +391,34 @@ namespace Sad
                     //      correct fix needs a tagging redesign (type + 62-bit sign-extended value)
                     //      across write & read — deferred as architectural (see DISCOVERED_ISSUES).
                 }
+                // (AR) [ISSUE-082] عنصر قائمةٍ (غير-صفّ) عشريّ: الخانة i64 تحمل بتات
+                //      double (bitcast عند التخزين في emitArraySet)؛ نعيد bitcast لـdouble
+                //      حين النوع المُعلَن Float ليتطابق تمثيل السجلّ مع نوعه — وإلّا خطأ
+                //      مدقّق LLVM أو قيمة عدديّة خاطئة في المستهلك النازل. متماثلٌ مع
+                //      تخزين emitArraySet. الصفوف (tuple) خارج هذا (ISSUE-052 أعلاه).
+                // (EN) [ISSUE-082] Float (non-tuple) list element: the i64 slot holds
+                //      double bits (bitcast at store in emitArraySet); bitcast back to
+                //      double when the declared type is Float so the register matches its
+                //      type — else LLVM verifier error / wrong numeric value downstream.
+                //      Symmetric with emitArraySet. Tuples are excluded (ISSUE-052 above).
+                else if (inst->result.has_value() &&
+                         inst->result->dataType == SadTypeKind::Float)
+                {
+                    result = cg_.builder_->CreateBitCast(result, cg_.getDoubleType(), "arr.get.f2d");
+                }
+                // (AR) [ISSUE-082] عنصر منطقيّ (غير-صفّ): خُزِّن i1 مُمتدًّا بإشارة إلى i64
+                //      (صحيح→-1، خطأ→0، emitArraySet)؛ نعيده i1 قانونيًّا (Boolean=i1) عبر
+                //      مقارنةٍ بصفر، ليتطابق مع تمثيل المنطقيّ في المقارنة النازلة `ن == صحيح`.
+                // (EN) [ISSUE-082] Boolean (non-tuple) list element: stored as sign-extended
+                //      i1→i64 (true→-1, false→0, emitArraySet); read back as canonical i1
+                //      (Boolean=i1) via compare-nonzero, matching the bool representation in
+                //      the downstream comparison `ن == صحيح`.
+                else if (inst->result.has_value() &&
+                         inst->result->dataType == SadTypeKind::Boolean)
+                {
+                    result = cg_.builder_->CreateICmpNE(
+                        result, llvm::ConstantInt::get(cg_.getInt64Type(), 0), "arr.get.b2i1");
+                }
             }
 
             if (inst->result.has_value())

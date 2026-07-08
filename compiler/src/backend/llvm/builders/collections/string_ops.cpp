@@ -13,6 +13,7 @@
 #include <llvm/IR/DerivedTypes.h>
 
 #include "sir_constants.h"
+#include "adt_payload_tags.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -229,7 +230,9 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         auto *parentFunc = cg_.builder_->GetInsertBlock()->getParent();
                         auto *nullBB = llvm::BasicBlock::Create(*cg_.context_, "any.c.null", parentFunc);
                         auto *checkBB = llvm::BasicBlock::Create(*cg_.context_, "any.c.check", parentFunc);
+                        auto *ptrOrFloatBB = llvm::BasicBlock::Create(*cg_.context_, "any.c.pof", parentFunc);
                         auto *ptrBB_l = llvm::BasicBlock::Create(*cg_.context_, "any.c.ptr", parentFunc);
+                        auto *floatBB_l = llvm::BasicBlock::Create(*cg_.context_, "any.c.float", parentFunc);
                         auto *intOrBoolBB = llvm::BasicBlock::Create(*cg_.context_, "any.c.iob", parentFunc);
                         auto *boolBB_l = llvm::BasicBlock::Create(*cg_.context_, "any.c.bool", parentFunc);
                         auto *intBB_l = llvm::BasicBlock::Create(*cg_.context_, "any.c.int", parentFunc);
@@ -243,13 +246,23 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                             "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "any.c.nullstr"); // لاشيء
                         cg_.builder_->CreateBr(mergeBB);
 
-                        // (AR) فحص bit63
+                        // (AR) فحص bit63: مصفّر ⇒ مؤشّر/عشريّ (00/01)؛ مضبوط ⇒ صحيح/منطقيّ (10/11)
+                        // (EN) Check bit63: clear ⇒ pointer/float (00/01); set ⇒ int/bool (10/11)
                         cg_.builder_->SetInsertPoint(checkBB);
-                        llvm::Value *bit63Mask = llvm::ConstantInt::get(i64Ty_l, 1ULL << 63);
+                        llvm::Value *bit63Mask = llvm::ConstantInt::get(i64Ty_l, kAdtPayloadBit63);
                         llvm::Value *bit63 = cg_.builder_->CreateAnd(val, bit63Mask, "any.c.bit63");
-                        llvm::Value *isPtr = cg_.builder_->CreateICmpEQ(
-                            bit63, llvm::ConstantInt::get(i64Ty_l, 0), "any.c.isptr");
-                        cg_.builder_->CreateCondBr(isPtr, ptrBB_l, intOrBoolBB);
+                        llvm::Value *hiClear = cg_.builder_->CreateICmpEQ(
+                            bit63, llvm::ConstantInt::get(i64Ty_l, 0), "any.c.hiclear");
+                        cg_.builder_->CreateCondBr(hiClear, ptrOrFloatBB, intOrBoolBB);
+
+                        // (AR) ISSUE-076/084: تمييز النصّ (00) عن الصندوق العشريّ (01) عبر bit62
+                        // (EN) ISSUE-076/084: distinguish string (00) from boxed float (01) via bit62
+                        cg_.builder_->SetInsertPoint(ptrOrFloatBB);
+                        llvm::Value *bit62pf = cg_.builder_->CreateAnd(
+                            val, llvm::ConstantInt::get(i64Ty_l, kAdtPayloadBit62), "any.c.bit62pf");
+                        llvm::Value *isFloatPf = cg_.builder_->CreateICmpNE(
+                            bit62pf, llvm::ConstantInt::get(i64Ty_l, 0), "any.c.isfloat");
+                        cg_.builder_->CreateCondBr(isFloatPf, floatBB_l, ptrBB_l);
 
                         // (AR) مؤشر (نص)
                         cg_.builder_->SetInsertPoint(ptrBB_l);
@@ -258,6 +271,28 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                             strPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy_l)), "any.c.ptrnull");
                         llvm::Value *voidStr = cg_.builder_->CreateGlobalStringPtr("void", "any.c.void");
                         llvm::Value *safeStr = cg_.builder_->CreateSelect(ptrIsNull, voidStr, strPtr, "any.c.safe");
+                        cg_.builder_->CreateBr(mergeBB);
+
+                        // (AR) صندوق عشريّ (01): امسح bit62 ⇒ مؤشّر ⇒ حمّل double ⇒ نُنسّقه
+                        //      بـ__sad_format_double (نفس دقّة المفسّر) في مخزن مكدّس. ISSUE-076/084.
+                        // (EN) Boxed float (01): clear bit62 ⇒ pointer ⇒ load double ⇒ format it via
+                        //      __sad_format_double (interpreter precision) into a stack buffer.
+                        cg_.builder_->SetInsertPoint(floatBB_l);
+                        llvm::Value *fboxI64 = cg_.builder_->CreateAnd(
+                            val, llvm::ConstantInt::get(i64Ty_l, ~kAdtPayloadBit62), "any.c.fclear");
+                        llvm::Value *fboxPtr = cg_.builder_->CreateIntToPtr(fboxI64, ptrTy_l, "any.c.fptr");
+                        llvm::Value *fdbl = cg_.builder_->CreateLoad(
+                            llvm::Type::getDoubleTy(*cg_.context_), fboxPtr, "any.c.fload");
+                        // (AR) ISSUE-076 (Amelia #8): 512 لا 32 — %.6f لـDBL_MAX ~316 حرفًا يفيض.
+                        // (EN) ISSUE-076 (Amelia #8): 512 not 32 — %.6f for DBL_MAX ~316 chars overflows.
+                        llvm::Value *fbuf = cg_.builder_->CreateAlloca(
+                            llvm::Type::getInt8Ty(*cg_.context_),
+                            llvm::ConstantInt::get(i64Ty_l, 512), "any.c.fbuf");
+                        auto *fmtDblType = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_),
+                            {ptrTy_l, llvm::Type::getDoubleTy(*cg_.context_)}, false);
+                        auto fmtDblFn = cg_.module_->getOrInsertFunction("__sad_format_double", fmtDblType);
+                        cg_.builder_->CreateCall(fmtDblFn, {fbuf, fdbl});
                         cg_.builder_->CreateBr(mergeBB);
 
                         // (AR) فحص bit62 — منطقي أم رقم
@@ -296,11 +331,13 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         cg_.builder_->CreateCall(sprintfFunc, {numBuf, intFmt, cleanInt});
                         cg_.builder_->CreateBr(mergeBB);
 
-                        // (AR) دمج النتائج بـ PHI
+                        // (AR) دمج النتائج بـ PHI (5 مصادر: لاشيء/نصّ/عشريّ/منطقيّ/صحيح)
+                        // (EN) Merge results via PHI (5 sources: null/string/float/bool/int)
                         cg_.builder_->SetInsertPoint(mergeBB);
-                        auto *phi = cg_.builder_->CreatePHI(ptrTy_l, 4, "any.c.result");
+                        auto *phi = cg_.builder_->CreatePHI(ptrTy_l, 5, "any.c.result");
                         phi->addIncoming(nullStr, nullBB);
                         phi->addIncoming(safeStr, ptrBB_l);
+                        phi->addIncoming(fbuf, floatBB_l);
                         phi->addIncoming(boolStr, boolBB_l);
                         phi->addIncoming(numBuf, intBB_l);
                         return phi;
@@ -410,10 +447,13 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     // (AR) كتلة عادية: تحويل الرقم إلى نص
                     cg_.builder_->SetInsertPoint(normalBB);
 
-                    // Allocate a small buffer on stack
+                    // (AR) ISSUE-076 (Amelia #8): 512 — يخدم النصّ العدديّ والعشريّ (%.6f قد
+                    //      يبلغ ~316 حرفًا لـDBL_MAX عبر __sad_format_double فيفيض 32).
+                    // (EN) ISSUE-076 (Amelia #8): 512 — serves int + double text (%.6f can reach
+                    //      ~316 chars for DBL_MAX via __sad_format_double, overflowing 32).
                     llvm::Value *buf = cg_.builder_->CreateAlloca(
                         llvm::Type::getInt8Ty(*cg_.context_),
-                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 32),
+                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 512),
                         "strbuf");
 
                     if (cg_.freestanding_)
@@ -482,10 +522,11 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                 }
 
                 // (AR) للأنواع الأخرى (float/double): المسار العادي بدون فحص sentinel
-                // Allocate a small buffer on stack
+                // (AR) ISSUE-076 (Amelia #8): 512 لا 32 — %.6f لـDBL_MAX ~316 حرفًا يفيض.
+                // (EN) ISSUE-076 (Amelia #8): 512 not 32 — %.6f for DBL_MAX ~316 chars overflows.
                 llvm::Value *buf = cg_.builder_->CreateAlloca(
                     llvm::Type::getInt8Ty(*cg_.context_),
-                    llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 32),
+                    llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 512),
                     "strbuf");
                 if (ty->isDoubleTy())
                 {

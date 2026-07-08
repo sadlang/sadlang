@@ -16,6 +16,7 @@
 
 #include "llvm_type_mapper.h"
 #include "llvm_type_mapper_composite.h"
+#include "sad_dyn_repr.h"
 #include <stdexcept>
 
 namespace Sad
@@ -248,6 +249,13 @@ namespace Sad
                 // (AR) عدم: يُمثَّل بحارس i64 (kSadNullSentinel) — S-TS-P4 codegen
                 // (EN) null: represented as an i64 sentinel (kSadNullSentinel) — S-TS-P4 codegen
                 return getInt64Type();
+
+            case Compiler::SIR::SadTypeKind::Any:
+                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): الديناميّ نوعُه المميّز %SadDyn
+                //      ({i8 وسم، i64 حمولة}) لا i64، فيُميّزه المدقِّق عن المحدَّد.
+                // (EN) ISSUE-076 (%SadDyn root fix): the dynamic type lowers to the distinct
+                //      %SadDyn ({i8 kind, i64 payload}), not i64, so the verifier tells it apart.
+                return getSadDynType(context_);
 
             default:
                 // نوع غير معروف - افتراضي i64 / Unknown type - default i64

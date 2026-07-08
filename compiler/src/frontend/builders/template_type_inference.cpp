@@ -716,6 +716,31 @@ namespace Sad
                     return inferExprType(unary->operand.get());
                 }
 
+                // (AR) ISSUE-076/084 (ب″): وصولٌ مباشرٌ لحقل ADT (X.حقل حيث «حقل» اسمُ حقلٍ في
+                //      حالةٍ ضمن adtEnumTable_) ⇒ حمولةٌ ديناميّةٌ موسومة ⇒ Any، فيُرقّى معامِلُ
+                //      دالةٍ تتلقّاه إلى Any (يُوسَم عند الاستدعاء ويُفكّ عند الاستهلاك) ⇒ يُصلح
+                //      `ط(ش.نق)`. حتّى لو تصادف اسمُ حقلِ صنفٍ مع حقلِ ADT فالتوسيم يُدوِّر كلَّ
+                //      نوعٍ صحيحًا (صحيح↔10 · عشريّ↔صندوق · نصّ↔00 · منطقيّ↔11) فلا انحدار.
+                // (EN) ISSUE-076/084 (ب″): direct ADT field access (X.f where «f» is a field of a
+                //      variant in adtEnumTable_) ⇒ a tagged dynamic payload ⇒ Any, so a function
+                //      receiving it has its param widened to Any (tagged at the call, decoded at the
+                //      consumer) ⇒ fixes `ط(ش.نق)`. Even if a class field name collides with an ADT
+                //      field, tagging round-trips every type correctly (int↔10 · float↔box · string↔
+                //      00 · bool↔11) — no regression.
+                {
+                    std::string memberName;
+                    if (auto *mem = dynamic_cast<const Sad::AST::MemberExpr *>(expr))
+                        memberName = mem->member;
+                    else if (auto *ma = dynamic_cast<const Sad::AST::MemberAccessExpr *>(expr))
+                        memberName = ma->memberName;
+                    if (!memberName.empty())
+                    {
+                        for (const auto &kv : b_.adtEnumTable_)
+                            if (kv.second.findFieldIndex(memberName) >= 0)
+                                return SadTypeKind::Any;
+                    }
+                }
+
                 // (AR) افحص DataType من التعبير
                 // (EN) Check DataType from expression
                 auto dtype = expr->getTypeKind();

@@ -7,6 +7,7 @@
  */
 #include "builders/arithmetic/arithmetic_codegen.h"
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h" // (AR) ISSUE-076: موزِّع dynCompare للمعامِلات الديناميّة %SadDyn
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 
@@ -36,6 +37,20 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) === ISSUE-076 (حلّ %SadDyn الجذريّ): معامل ديناميّ ⇒ الموزِّع dynCompare ===
+            //      أيّ طرفٍ %SadDyn ⇒ وحّد الطرفين وقارِن عبر الموزِّع (عشريّ⇒fcmp، صحيح⇒icmp موقَّع).
+            //      يُغلق «الترتيب بين صندوقين عشريّين» بنيويًّا (لا مقارنة عناوين malloc).
+            // (EN) === ISSUE-076 (%SadDyn root fix): a dynamic operand ⇒ the dynCompare dispatcher ===
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                llvm::Value *dl = toDyn(cg_, left, inst->operands[0].dataType);
+                llvm::Value *dr = toDyn(cg_, right, inst->operands[1].dataType);
+                llvm::Value *dres = dynCompare(cg_, DynCmp::GT, dl, dr);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dres;
+                return dres;
+            }
+
             llvm::Type *leftTy = left->getType();
             llvm::Type *rightTy = right->getType();
 
@@ -57,11 +72,11 @@ namespace Sad
                 }
                 if (leftTy->isIntegerTy() && rightTy->isDoubleTy())
                 {
-                    left = cg_.builder_->CreateSIToFP(left, rightTy, "sitofp_l");
+                    left = coerceFloatOperandToDouble(inst->operands[0], left); // ISSUE-076/084 (ب″): فكّ تعليب Any / unbox Any
                 }
                 else if (leftTy->isDoubleTy() && rightTy->isIntegerTy())
                 {
-                    right = cg_.builder_->CreateSIToFP(right, leftTy, "sitofp_r");
+                    right = coerceFloatOperandToDouble(inst->operands[1], right); // ISSUE-076/084 (ب″): فكّ تعليب Any / unbox Any
                 }
                 else if (leftTy->isIntegerTy(1) && rightTy->isIntegerTy(64))
                 {
@@ -120,6 +135,18 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-076 (%SadDyn): معامل ديناميّ ⇒ الموزِّع dynCompare (عشريّ⇒fcmp، صحيح⇒icmp).
+            // (EN) ISSUE-076 (%SadDyn): a dynamic operand ⇒ the dynCompare dispatcher.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                llvm::Value *dl = toDyn(cg_, left, inst->operands[0].dataType);
+                llvm::Value *dr = toDyn(cg_, right, inst->operands[1].dataType);
+                llvm::Value *dres = dynCompare(cg_, DynCmp::GE, dl, dr);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dres;
+                return dres;
+            }
+
             llvm::Type *leftTy = left->getType();
             llvm::Type *rightTy = right->getType();
 
@@ -141,11 +168,11 @@ namespace Sad
                 }
                 if (leftTy->isIntegerTy() && rightTy->isDoubleTy())
                 {
-                    left = cg_.builder_->CreateSIToFP(left, rightTy, "sitofp_l");
+                    left = coerceFloatOperandToDouble(inst->operands[0], left); // ISSUE-076/084 (ب″): فكّ تعليب Any / unbox Any
                 }
                 else if (leftTy->isDoubleTy() && rightTy->isIntegerTy())
                 {
-                    right = cg_.builder_->CreateSIToFP(right, leftTy, "sitofp_r");
+                    right = coerceFloatOperandToDouble(inst->operands[1], right); // ISSUE-076/084 (ب″): فكّ تعليب Any / unbox Any
                 }
                 else if (leftTy->isIntegerTy(1) && rightTy->isIntegerTy(64))
                 {

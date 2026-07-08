@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include <string>
+#include <map>
 #include "sir_builder.h"
 #include "builders/template_builder.h"
 #include "module_nodes.h"
@@ -123,13 +124,53 @@ namespace Sad
                                               << "': I64 -> STRING" << std::endl;
 #endif
                                 }
-                                else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Float)
+                                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): توحيد int⊔float للمعامل.
+                                //      المعامل الافتراضيّ Integer ملتبِسٌ مع الصحيح الحقيقيّ، فنتتبّع
+                                //      الأنواع العدديّة المُشاهَدة عبر كلّ مواقع الاستدعاء (bit0=صحيح،
+                                //      bit1=عشريّ): إن اجتمعا ⇒ Any (يُخفَض %SadDyn) فيبقى
+                                //      `جمع(3،4)⇒7` و`جمع(2.5،1.5)⇒4.0`؛ عشريّ فقط ⇒ Float (سريعٌ
+                                //      أصيل)؛ صحيح فقط ⇒ Integer. مستقلٌّ عن ترتيب المواقع.
+                                // (EN) ISSUE-076 (%SadDyn root fix): int⊔float param unification. The
+                                //      default Integer is ambiguous with a real int, so track the
+                                //      numeric arg types seen across ALL call sites (bit0=int,
+                                //      bit1=float): both ⇒ Any (lowered to %SadDyn) so `جمع(3,4)⇒7`
+                                //      and `جمع(2.5,1.5)⇒4.0`; float-only ⇒ Float (native); int-only
+                                //      ⇒ Integer. Order-independent across call sites.
+                                else if ((argType == SadTypeKind::Float || argType == SadTypeKind::Integer) &&
+                                         (paramType == SadTypeKind::Integer ||
+                                          paramType == SadTypeKind::Float ||
+                                          paramType == SadTypeKind::Any))
                                 {
-                                    paramType = SadTypeKind::Float;
+                                    static std::map<std::string, int> s_numSeen;
+                                    const int kSawInt = 1;
+                                    const int kSawFloat = 2;
+                                    std::string key = funcName + "#" + std::to_string(i + paramOffset);
+                                    int &seen = s_numSeen[key];
+                                    seen |= (argType == SadTypeKind::Integer) ? kSawInt : kSawFloat;
+                                    if (seen == (kSawInt | kSawFloat))
+                                        paramType = SadTypeKind::Any;
+                                    else if (seen == kSawFloat && paramType == SadTypeKind::Integer)
+                                        paramType = SadTypeKind::Float;
+                                    // (AR) صحيح فقط ⇒ يبقى Integer / (EN) int-only ⇒ stays Integer
                                 }
                                 else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Boolean)
                                 {
                                     paramType = SadTypeKind::Boolean;
+                                }
+                                // (AR) ISSUE-076/084 (ب″): وسيطٌ ديناميّ (Any = حمولة ADT مجهولة
+                                //      النوع سكونيًّا) ⇒ رقِّ المعامل إلى Any، فيُبنى جسم الدالة
+                                //      عالمًا أنّ المعامل موسومٌ زمنَ التشغيل ⇒ حسابُه يفكّ التعليب
+                                //      (`زد(س)` حيث س عشريّ مُعلَّب). لا يُنقِص الدقّة: قيمةٌ صحيحة
+                                //      تبقى موسومة صحيحًا وتُفكّ صحيحًا (لا انحدار في البوّابة).
+                                // (EN) ISSUE-076/084 (ب″): a dynamic (Any = statically-unknown ADT
+                                //      payload) argument ⇒ widen the param to Any, so the function
+                                //      body is built knowing the param is runtime-tagged ⇒ its
+                                //      arithmetic unboxes (`زد(س)` where س is a boxed float). No loss:
+                                //      an integer value stays int-tagged and decodes as int (no gate
+                                //      regression).
+                                else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Any)
+                                {
+                                    paramType = SadTypeKind::Any;
                                 }
                                 // ═══════════════════════════════════════════════════════════
                                 // (AR) إصلاح: استنتاج نوع المصفوفة + نوع عناصرها
@@ -532,8 +573,61 @@ namespace Sad
                 if (auto *matchStmt = dynamic_cast<const Sad::AST::MatchStmt *>(stmt))
                 {
                     for (const auto &matchCase : matchStmt->cases)
+                    {
+                        // (AR) ISSUE-076/084 (ب″): سجّل متغيرات ربط نمط حالة ADT في نطاقٍ مؤقّت
+                        //      بنوعها (من adtEnumTable_ إن سُجِّل، وإلّا Any) قبل مسح الجسم، كي
+                        //      يستنتج inferExprType نوعها فيُرقّى معامِلُ دالةٍ تتلقّاها (`زد(س)`)
+                        //      إلى Any ⇒ يعمل حسابها في الخلف عبر فكّ التعليب الديناميّ (ISSUE-084:
+                        //      تمرير حمولة عشريّة إلى دالةٍ مساعِدة). النوع في Phase 1.7 غالبًا Unknown
+                        //      (لم يُبنَ موقع الإنشاء بعد) ⇒ Any — وهو المطلوب للمسار الديناميّ.
+                        // (EN) ISSUE-076/084 (ب″): register ADT variant-pattern binding variables in
+                        //      a temp scope with their type (from adtEnumTable_ if registered, else
+                        //      Any) before scanning the body, so inferExprType resolves them and a
+                        //      function receiving one (`زد(س)`) has its param widened to Any ⇒ its
+                        //      arithmetic uses the backend dynamic unbox path (ISSUE-084: passing a
+                        //      float payload to a helper). In Phase 1.7 the type is usually Unknown
+                        //      (the construction site isn't built yet) ⇒ Any — exactly what the
+                        //      dynamic path needs.
+                        bool pushed = false;
+                        if (auto *enumPat = dynamic_cast<const Sad::AST::EnumVariantPattern *>(matchCase.pattern.get()))
+                        {
+                            const ADTEnumInfo *adt = nullptr;
+                            auto adtIt = b_.adtEnumTable_.find(enumPat->enumName);
+                            if (adtIt != b_.adtEnumTable_.end())
+                                adt = &adtIt->second;
+                            b_.enterScope();
+                            pushed = true;
+                            for (size_t fi = 0; fi < enumPat->fieldPatterns.size(); ++fi)
+                            {
+                                if (auto *vp = dynamic_cast<const Sad::AST::VariablePattern *>(enumPat->fieldPatterns[fi].get()))
+                                {
+                                    SadTypeKind ft = SadTypeKind::Any;
+                                    if (adt)
+                                    {
+                                        for (const auto &v : adt->variants)
+                                        {
+                                            if (v.name == enumPat->variantName)
+                                            {
+                                                SadTypeKind reg = v.fieldTypeAt(fi);
+                                                if (reg != SadTypeKind::Unknown)
+                                                    ft = reg;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    VariableInfo bindInfo;
+                                    bindInfo.name = vp->name;
+                                    bindInfo.type = ft;
+                                    bindInfo.registerName = "%" + vp->name;
+                                    b_.addVariable(bindInfo);
+                                }
+                            }
+                        }
                         for (const auto &bodyStmt : matchCase.body)
                             scanCallSitesInStmt(bodyStmt.get());
+                        if (pushed)
+                            b_.exitScope();
+                    }
                     return;
                 }
             }

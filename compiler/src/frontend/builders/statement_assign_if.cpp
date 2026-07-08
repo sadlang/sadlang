@@ -195,6 +195,35 @@ namespace Sad
                     {
                         varInfo->type = valueResult.type;
                     }
+
+                    // ================================================================
+                    // (AR) [Fix #52 تكملة — ISSUE-082] حدّث أيضًا نوعَ عنصر المصفوفة عند
+                    //      إعادة الإسناد. Fix #52 أعلاه يُحدّث varInfo->type فقط؛ لكنّ إعادة
+                    //      إسناد مصفوفةٍ بمصفوفةٍ أخرى تُبقي `type=Array` ثابتًا فلا يُحدَّث
+                    //      elementType البائت. سيناريو الانهيار: `ز=["مرحبا"]` (elementType=
+                    //      String) ثمّ `ز=[9.5]` — يبقى String فيقرأ ARRAY_GET بتّاتِ العشريّ
+                    //      كمؤشّرٍ (فرع isNestedArray/String) ⇒ segfault في `اطبع_سطر(ز[0])`
+                    //      وفي مطابقة `عندما [ن] إذا ن == "س"` (STRING_CMP يفكّ مؤشّرًا قمامة).
+                    //      نُحدّث فقط عند نوعٍ معروف (≠Void) كي لا نطمس معلومةً صحيحة بمجهول —
+                    //      نظيرٌ حرفيٌّ لمسار التصريح (buildLocalVariable). المفسّر ديناميّ
+                    //      فيوافق دائمًا؛ هذا يُعيد التكافؤ الثنائيّ.
+                    // (EN) [Fix #52 follow-up — ISSUE-082] Also update the array element type
+                    //      on reassignment. Fix #52 above updates varInfo->type only; but
+                    //      reassigning an array with another array keeps `type=Array` constant,
+                    //      so the stale elementType is never refreshed. Crash scenario:
+                    //      `ز=["مرحبا"]` (elementType=String) then `ز=[9.5]` — stays String, so
+                    //      ARRAY_GET reads the float bits as a pointer (isNestedArray/String
+                    //      branch) ⇒ segfault in `print(ز[0])` and in a `عندما [ن] if ن == "س"`
+                    //      match (STRING_CMP dereferences a garbage pointer). Update only for a
+                    //      known type (≠Void) so a valid element type is never clobbered by an
+                    //      unknown — mirrors the declaration path (buildLocalVariable). The
+                    //      interpreter is dynamic and always agrees; this restores binary parity.
+                    // ================================================================
+                    if (valueResult.elementType != SadTypeKind::Void &&
+                        valueResult.elementType != varInfo->elementType)
+                    {
+                        varInfo->elementType = valueResult.elementType;
+                    }
                 }
 
                 // (AR) تتبع نوع الصنف عند إعادة التعيين بـ جديد()

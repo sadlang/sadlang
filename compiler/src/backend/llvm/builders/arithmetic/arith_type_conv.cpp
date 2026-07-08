@@ -21,6 +21,9 @@
 #include <fstream>
 #include "builders/arithmetic/arithmetic_codegen.h" // (Phase 7 Step 1)
 #include "llvm_codegen.h"
+#include "sir_constants.h"
+#include "adt_payload_tags.h"
+#include "sad_dyn_repr.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -177,6 +180,193 @@ namespace Sad
             return result;
         }
 
+        llvm::Value *ArithmeticCodeGen::coerceFloatOperandToDouble(const SIROperand &op, llvm::Value *v)
+        {
+            auto *dblTy = cg_.builder_->getDoubleTy();
+            if (!v || v->getType()->isDoubleTy())
+                return v;
+            // (AR) ISSUE-076: قيمة %SadDyn ⇒ استخرج double (Float⇒bitcast، غيره⇒sitofp) — بلا فروع.
+            // (EN) ISSUE-076: a %SadDyn value ⇒ extract a double (Float⇒bitcast, else⇒sitofp) — branchless.
+            if (isSadDyn(v))
+                return unpackDouble(cg_, v);
+            if (!v->getType()->isIntegerTy())
+                return v;
+
+            // (AR) معامل غير-Any: عدد صحيح صريح ⇒ SIToFP الرقميّ (سلوكٌ سابقٌ بلا انحدار).
+            // (EN) Non-Any operand: an explicit integer ⇒ numeric SIToFP (legacy, no regression).
+            if (op.dataType != SadTypeKind::Any)
+                return cg_.builder_->CreateSIToFP(v, dblTy, "i64tof64");
+
+            // (AR) ISSUE-076/084 (ب″): معامل Any = حمولة ADT موسومة (إحالة أماميّة/تعارُض).
+            //      فرعٌ زمنَ التشغيل على الوسم: 01 صندوق عشريّ ⇒ امسح bit62 ⇒ inttoptr ⇒ حمّل
+            //      double (فكّ التعليب)؛ غير ذلك (10 صحيح/00) ⇒ امسح bit63 ثمّ SIToFP. هكذا
+            //      يعمل `س + ك`/`س == ك` على حمولةٍ عشريّةٍ عابرةٍ للدوال دون قمامة sitofp.
+            // (EN) ISSUE-076/084 (ب″): an Any operand is a tagged ADT payload (forward-ref/
+            //      conflict). Runtime branch on the tag: 01 boxed float ⇒ clear bit62 ⇒ inttoptr ⇒
+            //      load double (unbox); else (10 int/00) ⇒ clear bit63 then SIToFP. So `s + k` /
+            //      `s == k` on a cross-function float payload works without sitofp garbage.
+            auto *i64Ty = cg_.getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Value *bit63 = cg_.builder_->CreateAnd(
+                v, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63), "coerce.b63");
+            llvm::Value *bit62 = cg_.builder_->CreateAnd(
+                v, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62), "coerce.b62");
+            llvm::Value *hiClear = cg_.builder_->CreateICmpEQ(
+                bit63, llvm::ConstantInt::get(i64Ty, 0), "coerce.hiclear");
+            llvm::Value *loSet = cg_.builder_->CreateICmpNE(
+                bit62, llvm::ConstantInt::get(i64Ty, 0), "coerce.loset");
+            llvm::Value *isFloatBox = cg_.builder_->CreateAnd(hiClear, loSet, "coerce.isfloat");
+
+            auto *parent = cg_.builder_->GetInsertBlock()->getParent();
+            auto *floatBB = llvm::BasicBlock::Create(*cg_.context_, "coerce.float", parent);
+            auto *intBB = llvm::BasicBlock::Create(*cg_.context_, "coerce.int", parent);
+            auto *mergeBB = llvm::BasicBlock::Create(*cg_.context_, "coerce.merge", parent);
+            cg_.builder_->CreateCondBr(isFloatBox, floatBB, intBB);
+
+            cg_.builder_->SetInsertPoint(floatBB);
+            llvm::Value *boxI64 = cg_.builder_->CreateAnd(
+                v, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit62), "coerce.fclear");
+            llvm::Value *boxPtr = cg_.builder_->CreateIntToPtr(boxI64, ptrTy, "coerce.fptr");
+            llvm::Value *fdbl = cg_.builder_->CreateLoad(dblTy, boxPtr, "coerce.fload");
+            cg_.builder_->CreateBr(mergeBB);
+
+            cg_.builder_->SetInsertPoint(intBB);
+            llvm::Value *cleanInt = cg_.builder_->CreateAnd(
+                v, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit63), "coerce.iclean");
+            llvm::Value *idbl = cg_.builder_->CreateSIToFP(cleanInt, dblTy, "coerce.i2f");
+            cg_.builder_->CreateBr(mergeBB);
+
+            cg_.builder_->SetInsertPoint(mergeBB);
+            auto *phi = cg_.builder_->CreatePHI(dblTy, 2, "coerce.dbl");
+            phi->addIncoming(fdbl, floatBB);
+            phi->addIncoming(idbl, intBB);
+            return phi;
+        }
+
+        void ArithmeticCodeGen::untagAnyIntCompareOperand(const SIROperand &op, llvm::Value *&v)
+        {
+            // (AR) معامل Any i64 (لم يُفكّ عشريًّا) ⇒ حمولةٌ موسومة صحيح(10)/منطقيّ(11)؛ امسح
+            //      البتّتين 63،62 لاستعادة القيمة الحقيقيّة قبل المقارنة الصحيحة. ISSUE-076/082/084.
+            // (EN) An Any i64 operand (not float-unboxed) ⇒ a tagged int(10)/bool(11) payload; clear
+            //      bits 63,62 to recover the real value before the integer compare. ISSUE-076/082/084.
+            if (op.dataType == SadTypeKind::Any && v && v->getType()->isIntegerTy(64))
+            {
+                v = cg_.builder_->CreateAnd(
+                    v, llvm::ConstantInt::get(cg_.getInt64Type(), ~kAdtPayloadTagMask), "cmp.any.untag");
+            }
+        }
+
+        llvm::Value *ArithmeticCodeGen::emitDynamicEqNe(const SIROperand &lop, const SIROperand &rop,
+                                                        llvm::Value *left, llvm::Value *right, bool isEq)
+        {
+            auto *i64Ty = cg_.getInt64Type();
+
+            // (AR) ISSUE-076 (حلّ %SadDyn): أيّ طرفٍ %SadDyn ⇒ وحّد الطرفين إلى %SadDyn وقارِن
+            //      عبر الموزِّع (عشريّ⇒fcmp، صحيح⇒icmp). يُغلق == بين صندوقين عشريّين بنيويًّا.
+            // (EN) ISSUE-076 (%SadDyn): either side %SadDyn ⇒ normalize both to %SadDyn and compare
+            //      via the dispatcher (float⇒fcmp, int⇒icmp). Structurally closes == between boxes.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                llvm::Value *l = toDyn(cg_, left, lop.dataType);
+                llvm::Value *r = toDyn(cg_, right, rop.dataType);
+                return dynCompare(cg_, isEq ? DynCmp::EQ : DynCmp::NE, l, r);
+            }
+
+            bool lAny = (lop.dataType == SadTypeKind::Any) && left->getType()->isIntegerTy(64);
+            bool rAny = (rop.dataType == SadTypeKind::Any) && right->getType()->isIntegerTy(64);
+
+            // (AR) لا معامل Any i64 ⇒ المسار الساكن المعتاد (double⇒FCMP، غيره⇒ICMP).
+            // (EN) No Any i64 operand ⇒ the usual static path (double⇒FCMP, else⇒ICMP).
+            if (!lAny && !rAny)
+            {
+                if (left->getType()->isDoubleTy() && right->getType()->isDoubleTy())
+                    return isEq ? cg_.builder_->CreateFCmpOEQ(left, right, "cmpeqtmp")
+                                : cg_.builder_->CreateFCmpONE(left, right, "cmpnetmp");
+                return isEq ? cg_.builder_->CreateICmpEQ(left, right, "cmpeqtmp")
+                            : cg_.builder_->CreateICmpNE(left, right, "cmpnetmp");
+            }
+
+            // (AR) معامل Any i64 ⇒ فرعٌ زمنَ التشغيل: أيّ طرفٍ صندوقٌ عشريّ (01 = bit63=0 و bit62=1)؟
+            // (EN) An Any i64 operand ⇒ runtime branch: is either side a boxed float (01)?
+            auto isFloatBox = [&](llvm::Value *v) -> llvm::Value *
+            {
+                llvm::Value *b63 = cg_.builder_->CreateAnd(
+                    v, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63), "eq.b63");
+                llvm::Value *b62 = cg_.builder_->CreateAnd(
+                    v, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62), "eq.b62");
+                return cg_.builder_->CreateAnd(
+                    cg_.builder_->CreateICmpEQ(b63, llvm::ConstantInt::get(i64Ty, 0), "eq.hiclear"),
+                    cg_.builder_->CreateICmpNE(b62, llvm::ConstantInt::get(i64Ty, 0), "eq.loset"),
+                    "eq.isfloat");
+            };
+            llvm::Value *lFB = lAny ? isFloatBox(left) : llvm::ConstantInt::getFalse(*cg_.context_);
+            llvm::Value *rFB = rAny ? isFloatBox(right) : llvm::ConstantInt::getFalse(*cg_.context_);
+            llvm::Value *eitherFB = cg_.builder_->CreateOr(lFB, rFB, "eq.either.float");
+
+            auto *parent = cg_.builder_->GetInsertBlock()->getParent();
+            auto *floatBB = llvm::BasicBlock::Create(*cg_.context_, "eq.float", parent);
+            auto *intBB = llvm::BasicBlock::Create(*cg_.context_, "eq.int", parent);
+            auto *mergeBB = llvm::BasicBlock::Create(*cg_.context_, "eq.merge", parent);
+            cg_.builder_->CreateCondBr(eitherFB, floatBB, intBB);
+
+            // (AR) فرع العشريّ: فكّ تعليب الطرفين (coerce يفكّ الصندوق أو يُرقّي الصحيح) ثمّ FCMP.
+            // (EN) Float branch: unbox both (coerce unboxes a box or promotes an int) then FCMP.
+            cg_.builder_->SetInsertPoint(floatBB);
+            llvm::Value *lD = coerceFloatOperandToDouble(lop, left);
+            llvm::Value *rD = coerceFloatOperandToDouble(rop, right);
+            llvm::Value *fr = isEq ? cg_.builder_->CreateFCmpOEQ(lD, rD, "eq.fcmp")
+                                   : cg_.builder_->CreateFCmpONE(lD, rD, "eq.fcmp");
+            cg_.builder_->CreateBr(mergeBB);
+            floatBB = cg_.builder_->GetInsertBlock();
+
+            // (AR) فرع الصحيح/المنطقيّ: فكّ وسم معامل Any (مسح البتّتين) ثمّ ICMP.
+            // (EN) Int/bool branch: untag the Any operand (clear both bits) then ICMP.
+            cg_.builder_->SetInsertPoint(intBB);
+            llvm::Value *lI = left;
+            llvm::Value *rI = right;
+            if (lAny)
+                lI = cg_.builder_->CreateAnd(left, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadTagMask), "eq.l.untag");
+            if (rAny)
+                rI = cg_.builder_->CreateAnd(right, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadTagMask), "eq.r.untag");
+            llvm::Value *ir = isEq ? cg_.builder_->CreateICmpEQ(lI, rI, "eq.icmp")
+                                   : cg_.builder_->CreateICmpNE(lI, rI, "eq.icmp");
+            cg_.builder_->CreateBr(mergeBB);
+            intBB = cg_.builder_->GetInsertBlock();
+
+            cg_.builder_->SetInsertPoint(mergeBB);
+            auto *phi = cg_.builder_->CreatePHI(cg_.getInt1Type(), 2, "eq.result");
+            phi->addIncoming(fr, floatBB);
+            phi->addIncoming(ir, intBB);
+            return phi;
+        }
+
+        llvm::Value *ArithmeticCodeGen::emitDynamicNumericBinOp(std::shared_ptr<SIRInstruction> inst)
+        {
+            // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): عمليّةٌ ثنائيّة نتيجتها ديناميّة (Any) ⇒
+            //      وحّد المعاملين إلى %SadDyn (تغليفٌ للمحسوس، تمريرٌ للـ%SadDyn) ثمّ فوّض إلى
+            //      موزِّع dynBinOp الذي يفحص وسم النوع زمنَ التشغيل: عشريّ⇒fadd/… والنتيجة Float؛
+            //      صحيح⇒add/… والنتيجة Int؛ %///⇒صحيح دائمًا. **بلا malloc** (insertvalue فقط).
+            //      يزول تعليبُ الصندوق وتسريبُه ونظامُ الأعلام الجانبيّة (النوع %SadDyn هو المعلومة).
+            // (EN) ISSUE-076 (%SadDyn root fix): a binary op whose result is dynamic (Any) ⇒
+            //      normalize both operands to %SadDyn (pack concretes, pass %SadDyn through) then
+            //      delegate to dynBinOp, which inspects the runtime kind tag: float⇒fadd/… with a
+            //      Float result; int⇒add/… with an Int result; %///⇒always integer. **No malloc**
+            //      (insertvalue only). The heap box, its leak, and the side flags are gone (the
+            //      %SadDyn type *is* the information).
+            llvm::Value *lv = resolveOperand(inst->operands[0]);
+            llvm::Value *rv = resolveOperand(inst->operands[1]);
+            if (!lv || !rv)
+                return nullptr;
+
+            llvm::Value *l = toDyn(cg_, lv, inst->operands[0].dataType);
+            llvm::Value *r = toDyn(cg_, rv, inst->operands[1].dataType);
+            llvm::Value *result = dynBinOp(cg_, inst->opcode, l, r);
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
         llvm::Value *ArithmeticCodeGen::emitI64ToString(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -187,6 +377,137 @@ namespace Sad
             llvm::Value *val = resolveOperand(inst->operands[0]);
             if (!val)
                 return nullptr;
+
+            // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): نص(%SadDyn) ⇒ موزِّع dynToString الذي يفحص
+            //      وسم النوع ويطابق المفسّر لكلّ نوع (صحيح/عشريّ/منطقيّ/نصّ/عدم). النوع %SadDyn هو
+            //      المعلومة — لا فكّ بتّاتٍ يدويّ.
+            // (EN) ISSUE-076 (%SadDyn root fix): نص(%SadDyn) ⇒ the dynToString dispatcher, which
+            //      inspects the kind tag and matches the interpreter per type (int/float/bool/str/
+            //      null). The %SadDyn type is the information — no manual bit decode.
+            if (isSadDyn(val))
+            {
+                llvm::Value *s = dynToString(cg_, val);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = s;
+                return s;
+            }
+
+            // ================================================================
+            // (AR) ISSUE-076/082/084 (ب″): معامل ديناميّ Any = حمولة ADT موسومة.
+            //      نص(Any) يُلوَّن I64_TO_STRING (لا مسار سلسلة ديناميّ)، فنفكّ الوسم رباعيًّا
+            //      هنا زمنَ التشغيل: 00 نصّ · 01 صندوق عشريّ · 10 صحيح · 11 منطقيّ. يعبر حدود
+            //      الدوال/الإرجاع حيث تضيع الأعلام. القيمة غير-Any (عدد صحيح صريح) لا تُفكّ.
+            // (EN) ISSUE-076/082/084 (ب″): a dynamic Any operand = a tagged ADT payload.
+            //      نص(Any) lowers to I64_TO_STRING (no dynamic string path), so decode the tag
+            //      4-way at runtime here: 00 string · 01 boxed float · 10 int · 11 bool. Works
+            //      across function/return boundaries where flags are lost. A non-Any (explicit
+            //      integer) operand is never decoded.
+            // ================================================================
+            if (inst->operands[0].dataType == SadTypeKind::Any &&
+                val->getType()->isIntegerTy(64) && !cg_.freestanding_)
+            {
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *dblTy = llvm::Type::getDoubleTy(*cg_.context_);
+
+                auto *mallocTy2 = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
+                auto mallocFn2 = cg_.module_->getOrInsertFunction("malloc", mallocTy2);
+                // (AR) ISSUE-076 (Amelia #8): 512 لا 64 — فرع العشريّ يكتب __sad_format_double
+                //      و%.6f لـDBL_MAX ~316 حرفًا يفيض. (EN) 512 not 64 — the float branch writes
+                //      __sad_format_double; %.6f for DBL_MAX ~316 chars overflows 64.
+                llvm::Value *dbuf = cg_.builder_->CreateCall(
+                    mallocFn2, {llvm::ConstantInt::get(i64Ty, 512)}, "any.tostr.buf");
+
+                auto *sprintfTy = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(*cg_.context_), {ptrTy, ptrTy}, true);
+                auto sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfTy);
+
+                auto *parentFunc = cg_.builder_->GetInsertBlock()->getParent();
+                auto *pofBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.pof", parentFunc);
+                auto *ptrBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.ptr", parentFunc);
+                auto *floatBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.float", parentFunc);
+                auto *iobBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.iob", parentFunc);
+                auto *boolBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.bool", parentFunc);
+                auto *intBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.int", parentFunc);
+                auto *mergeBB = llvm::BasicBlock::Create(*cg_.context_, "any.ts.merge", parentFunc);
+
+                // (AR) فحص bit63: مصفّر ⇒ نصّ/عشريّ (00/01)؛ مضبوط ⇒ صحيح/منطقيّ (10/11)
+                // (EN) bit63: clear ⇒ string/float (00/01); set ⇒ int/bool (10/11)
+                llvm::Value *bit63 = cg_.builder_->CreateAnd(
+                    val, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63), "any.ts.b63");
+                llvm::Value *hiClear = cg_.builder_->CreateICmpEQ(
+                    bit63, llvm::ConstantInt::get(i64Ty, 0), "any.ts.hiclear");
+                cg_.builder_->CreateCondBr(hiClear, pofBB, iobBB);
+
+                // (AR) 00 نصّ مقابل 01 صندوق عشريّ عبر bit62
+                cg_.builder_->SetInsertPoint(pofBB);
+                llvm::Value *bit62 = cg_.builder_->CreateAnd(
+                    val, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62), "any.ts.b62");
+                llvm::Value *isFloat = cg_.builder_->CreateICmpNE(
+                    bit62, llvm::ConstantInt::get(i64Ty, 0), "any.ts.isfloat");
+                cg_.builder_->CreateCondBr(isFloat, floatBB, ptrBB);
+
+                // (AR) 00 نصّ: inttoptr (مع حماية null ⇒ "void")
+                cg_.builder_->SetInsertPoint(ptrBB);
+                llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(val, ptrTy, "any.ts.str");
+                llvm::Value *ptrIsNull = cg_.builder_->CreateICmpEQ(
+                    strPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "any.ts.strnull");
+                llvm::Value *voidStr = cg_.builder_->CreateGlobalStringPtr("void", "any.ts.void");
+                llvm::Value *safeStr = cg_.builder_->CreateSelect(ptrIsNull, voidStr, strPtr, "any.ts.safe");
+                cg_.builder_->CreateBr(mergeBB);
+
+                // (AR) 01 صندوق عشريّ: امسح bit62 ⇒ مؤشّر ⇒ حمّل double ⇒ __sad_format_double
+                cg_.builder_->SetInsertPoint(floatBB);
+                llvm::Value *fboxI64 = cg_.builder_->CreateAnd(
+                    val, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit62), "any.ts.fclear");
+                llvm::Value *fboxPtr = cg_.builder_->CreateIntToPtr(fboxI64, ptrTy, "any.ts.fptr");
+                llvm::Value *fdbl = cg_.builder_->CreateLoad(dblTy, fboxPtr, "any.ts.fload");
+                auto *fmtDblTy = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_), {ptrTy, dblTy}, false);
+                auto fmtDblFn = cg_.module_->getOrInsertFunction("__sad_format_double", fmtDblTy);
+                cg_.builder_->CreateCall(fmtDblFn, {dbuf, fdbl});
+                cg_.builder_->CreateBr(mergeBB);
+
+                // (AR) bit63 مضبوط: 11 منطقيّ مقابل 10 صحيح عبر bit62
+                cg_.builder_->SetInsertPoint(iobBB);
+                llvm::Value *bit62b = cg_.builder_->CreateAnd(
+                    val, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62), "any.ts.b62b");
+                llvm::Value *isBool = cg_.builder_->CreateICmpNE(
+                    bit62b, llvm::ConstantInt::get(i64Ty, 0), "any.ts.isbool");
+                cg_.builder_->CreateCondBr(isBool, boolBB, intBB);
+
+                // (AR) 11 منطقيّ: امسح البتّتين ⇒ صحيح/خطأ
+                cg_.builder_->SetInsertPoint(boolBB);
+                llvm::Value *cleanBool = cg_.builder_->CreateAnd(
+                    val, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadTagMask), "any.ts.bclean");
+                llvm::Value *boolCond = cg_.builder_->CreateICmpNE(
+                    cleanBool, llvm::ConstantInt::get(i64Ty, 0), "any.ts.bcond");
+                llvm::Value *trueStr = cg_.builder_->CreateGlobalStringPtr(
+                    "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad", "any.ts.true"); // صحيح
+                llvm::Value *falseStr = cg_.builder_->CreateGlobalStringPtr(
+                    "\xd8\xae\xd8\xb7\xd8\xa3", "any.ts.false"); // خطأ
+                llvm::Value *boolStr = cg_.builder_->CreateSelect(boolCond, trueStr, falseStr, "any.ts.bstr");
+                cg_.builder_->CreateBr(mergeBB);
+
+                // (AR) 10 صحيح: امسح bit63 ⇒ sprintf %lld
+                cg_.builder_->SetInsertPoint(intBB);
+                llvm::Value *cleanInt = cg_.builder_->CreateAnd(
+                    val, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit63), "any.ts.iclean");
+                llvm::Value *ifmt = cg_.builder_->CreateGlobalStringPtr("%lld", "any.ts.ifmt");
+                cg_.builder_->CreateCall(sprintfFn, {dbuf, ifmt, cleanInt});
+                cg_.builder_->CreateBr(mergeBB);
+
+                // (AR) دمج (5 مصادر: نصّ/عشريّ/منطقيّ/صحيح — dbuf مشترك للعشريّ والصحيح)
+                cg_.builder_->SetInsertPoint(mergeBB);
+                auto *phi = cg_.builder_->CreatePHI(ptrTy, 4, "any.ts.result");
+                phi->addIncoming(safeStr, ptrBB);
+                phi->addIncoming(dbuf, floatBB);
+                phi->addIncoming(boolStr, boolBB);
+                phi->addIncoming(dbuf, intBB);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = phi;
+                return phi;
+            }
 
             // Allocate buffer: 21 bytes enough for i64 range + sign + null
             auto *mallocType = llvm::FunctionType::get(
@@ -241,14 +562,28 @@ namespace Sad
 
             if (!val->getType()->isDoubleTy())
             {
-                val = cg_.builder_->CreateSIToFP(val, cg_.getDoubleType(), "tof64");
+                // (AR) ISSUE-076/084: قيمةٌ عشريّة النوع لكنّها وصلت i64 (بِتّات double خام —
+                //      مثل عنصر مصفوفة عشريّة يُخزَّن bitcast(double→i64)). التأويل الصحيح
+                //      **bitcast** (نفس البِتّات) لا SIToFP (الذي يُفسّر البِتّات عددًا صحيحًا
+                //      فيُنتج قمامة ~4.6e18). المصادر غير-i64 (int32…) تبقى على SIToFP الرقميّ.
+                // (EN) ISSUE-076/084: a Float-typed value that arrived as i64 (raw double bits —
+                //      e.g. a float array element stored as bitcast(double→i64)). The correct
+                //      reinterpretation is **bitcast** (same bits), NOT SIToFP (which reads the
+                //      bits as an integer → garbage ~4.6e18). Non-i64 sources (int32…) keep the
+                //      numeric SIToFP path.
+                if (val->getType()->isIntegerTy(64))
+                    val = cg_.builder_->CreateBitCast(val, cg_.getDoubleType(), "bitsf64");
+                else
+                    val = cg_.builder_->CreateSIToFP(val, cg_.getDoubleType(), "tof64");
             }
 
             auto *mallocType = llvm::FunctionType::get(
                 llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
             auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            // (AR) ISSUE-076 (Amelia #8): 512 لا 64 — __sad_format_double بـ%.6f لـDBL_MAX ~316 حرفًا.
+            // (EN) ISSUE-076 (Amelia #8): 512 not 64 — __sad_format_double %.6f for DBL_MAX ~316 chars.
             llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc,
-                                                    {llvm::ConstantInt::get(cg_.getInt64Type(), 64)}, "f64str_buf");
+                                                    {llvm::ConstantInt::get(cg_.getInt64Type(), 512)}, "f64str_buf");
 
             if (cg_.freestanding_)
             {

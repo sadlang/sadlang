@@ -24,6 +24,7 @@
 #include <fstream>
 #include "builders/arithmetic/controlflow_codegen.h" // (Phase 7 Step 3)
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h"
 
 using namespace Sad::Compiler::SIR;
 using namespace Sad::Compiler; // (AR) للوصول لثوابت sir_constants.h
@@ -417,6 +418,18 @@ namespace Sad
                 }
             }
 
+            // ================================================================
+            // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): تمرير القيم لمعاملٍ ديناميّ %SadDyn يُدار
+            //      بعدم تطابق النوع (كبقيّة حلقة التحويل) لا بتوسيمٍ يدويّ: وسيطٌ محسوس لمعاملٍ
+            //      %SadDyn ⇒ toDyn (غلّف حسب نوع SIR للوسيط)؛ وسيطٌ %SadDyn لمعاملٍ محدَّد ⇒ فُكّ.
+            //      يزول قسم التوسيم البتّيّ + تعليب malloc(8) (لا تسريب).
+            // (EN) ISSUE-076 (%SadDyn root fix): passing values to a dynamic %SadDyn param is driven
+            //      by type mismatch (like the rest of the conversion loop), not manual tagging: a
+            //      concrete arg to a %SadDyn param ⇒ toDyn (pack per its SIR type); a %SadDyn arg to
+            //      a concrete param ⇒ unpack. The bit-tagging + malloc(8) box (leak) is gone.
+            // ================================================================
+            llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+
             for (size_t i = 0; i < args.size() && i < funcType->getNumParams(); ++i)
             {
                 llvm::Type *expectedType = funcType->getParamType(i);
@@ -424,7 +437,30 @@ namespace Sad
 
                 if (expectedType != actualType)
                 {
-                    if (expectedType->isIntegerTy(64) && actualType->isPointerTy())
+                    // (AR) معامل %SadDyn ووسيطٌ محسوس ⇒ غلّف حسب نوع SIR للوسيط
+                    // (EN) %SadDyn param, concrete arg ⇒ pack per the arg's SIR type
+                    if (expectedType == dynTy)
+                    {
+                        SadTypeKind argSir = ((i + 1) < inst->operands.size())
+                                                 ? inst->operands[i + 1].dataType
+                                                 : SadTypeKind::Integer;
+                        args[i] = toDyn(cg_, args[i], argSir);
+                    }
+                    // (AR) معامل محدَّد ووسيطٌ %SadDyn ⇒ فُكّ إلى نوع المعامل
+                    // (EN) concrete param, %SadDyn arg ⇒ unpack to the param type
+                    else if (actualType == dynTy)
+                    {
+                        if (expectedType->isDoubleTy())
+                            args[i] = unpackDouble(cg_, args[i]);
+                        else if (expectedType->isPointerTy())
+                            args[i] = unpackPtr(cg_, args[i]);
+                        else if (expectedType->isIntegerTy(1))
+                            args[i] = cg_.builder_->CreateTrunc(
+                                dynPayloadI64(cg_, args[i]), cg_.getInt1Type(), "arg.dyn.i1");
+                        else
+                            args[i] = dynPayloadI64(cg_, args[i]);
+                    }
+                    else if (expectedType->isIntegerTy(64) && actualType->isPointerTy())
                     {
                         // (AR) تحويل مؤشر → i64 (لتمرير كائنات للبناة)
                         // (EN) Convert ptr → i64 (for passing objects to constructors)

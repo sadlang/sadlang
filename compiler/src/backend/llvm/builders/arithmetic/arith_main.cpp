@@ -64,6 +64,13 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any) ⇒ معامِلٌ حمولةُ ADT مجهولةُ النوع.
+            //      نُفوّض لمسارٍ يفحص الوسم زمنَ التشغيل (عشريّ مُعلَّب/صحيح) ويُنتج نتيجةً موسومة.
+            // (EN) ISSUE-076/084 (ب″): a dynamic (Any) result ⇒ an operand is a statically-unknown
+            //      ADT payload. Delegate to the runtime-tag-dispatching dynamic path.
+            if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Any)
+                return emitDynamicNumericBinOp(inst);
+
             // الحصول على المعاملات باستخدام resolveOperand لدعم الثوابت والسجلات
             // Get operands using resolveOperand to support both constants and registers
             llvm::Value *left = resolveOperand(inst->operands[0]);
@@ -94,10 +101,12 @@ namespace Sad
             {
                 // (AR) تحويل i64 إلى double إذا لزم الأمر
                 // (EN) Coerce i64 operands to double for float operations
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
+                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
                 if (left->getType()->isIntegerTy())
-                    left = cg_.builder_->CreateSIToFP(left, cg_.builder_->getDoubleTy(), "i64tof64");
+                    left = coerceFloatOperandToDouble(inst->operands[0], left);
                 if (right->getType()->isIntegerTy())
-                    right = cg_.builder_->CreateSIToFP(right, cg_.builder_->getDoubleTy(), "i64tof64");
+                    right = coerceFloatOperandToDouble(inst->operands[1], right);
                 // Source: cg_.builder_ is defined at llvm_codegen.h:637
                 result = cg_.builder_->CreateFAdd(left, right, "addtmp");
             }
@@ -143,6 +152,11 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any) ⇒ مسارٌ ديناميّ يفحص الوسم زمنَ التشغيل.
+            // (EN) ISSUE-076/084 (ب″): a dynamic (Any) result ⇒ the runtime-tag-dispatching path.
+            if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Any)
+                return emitDynamicNumericBinOp(inst);
+
             llvm::Value *left = resolveOperand(inst->operands[0]);
             llvm::Value *right = resolveOperand(inst->operands[1]);
 
@@ -166,10 +180,12 @@ namespace Sad
             llvm::Value *result = nullptr;
             if (inst->opcode == SIROpcode::SUB_F64)
             {
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
+                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
                 if (left->getType()->isIntegerTy())
-                    left = cg_.builder_->CreateSIToFP(left, cg_.builder_->getDoubleTy(), "i64tof64");
+                    left = coerceFloatOperandToDouble(inst->operands[0], left);
                 if (right->getType()->isIntegerTy())
-                    right = cg_.builder_->CreateSIToFP(right, cg_.builder_->getDoubleTy(), "i64tof64");
+                    right = coerceFloatOperandToDouble(inst->operands[1], right);
                 result = cg_.builder_->CreateFSub(left, right, "subtmp");
             }
             else
@@ -210,6 +226,11 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any) ⇒ مسارٌ ديناميّ يفحص الوسم زمنَ التشغيل.
+            // (EN) ISSUE-076/084 (ب″): a dynamic (Any) result ⇒ the runtime-tag-dispatching path.
+            if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Any)
+                return emitDynamicNumericBinOp(inst);
+
             llvm::Value *left = resolveOperand(inst->operands[0]);
             llvm::Value *right = resolveOperand(inst->operands[1]);
 
@@ -233,10 +254,12 @@ namespace Sad
             llvm::Value *result = nullptr;
             if (inst->opcode == SIROpcode::MUL_F64)
             {
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
+                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
                 if (left->getType()->isIntegerTy())
-                    left = cg_.builder_->CreateSIToFP(left, cg_.builder_->getDoubleTy(), "i64tof64");
+                    left = coerceFloatOperandToDouble(inst->operands[0], left);
                 if (right->getType()->isIntegerTy())
-                    right = cg_.builder_->CreateSIToFP(right, cg_.builder_->getDoubleTy(), "i64tof64");
+                    right = coerceFloatOperandToDouble(inst->operands[1], right);
                 result = cg_.builder_->CreateFMul(left, right, "multmp");
             }
             else
@@ -277,6 +300,11 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any) ⇒ مسارٌ ديناميّ (يشمل // على حمولة).
+            // (EN) ISSUE-076/084 (ب″): a dynamic (Any) result ⇒ the dynamic path (incl. // on a payload).
+            if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Any)
+                return emitDynamicNumericBinOp(inst);
+
             llvm::Value *left = resolveOperand(inst->operands[0]);
             llvm::Value *right = resolveOperand(inst->operands[1]);
 
@@ -300,10 +328,12 @@ namespace Sad
             llvm::Value *result = nullptr;
             if (inst->opcode == SIROpcode::DIV_F64)
             {
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
+                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
                 if (left->getType()->isIntegerTy())
-                    left = cg_.builder_->CreateSIToFP(left, cg_.builder_->getDoubleTy(), "i64tof64");
+                    left = coerceFloatOperandToDouble(inst->operands[0], left);
                 if (right->getType()->isIntegerTy())
-                    right = cg_.builder_->CreateSIToFP(right, cg_.builder_->getDoubleTy(), "i64tof64");
+                    right = coerceFloatOperandToDouble(inst->operands[1], right);
                 result = cg_.builder_->CreateFDiv(left, right, "divtmp");
             }
             else if (inst->opcode == SIROpcode::FLOOR_DIV_I64)
@@ -353,6 +383,11 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "Mod"}});
                 return nullptr;
             }
+
+            // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any) ⇒ مسارٌ ديناميّ يفكّ وسم الحمولة.
+            // (EN) ISSUE-076/084 (ب″): a dynamic (Any) result ⇒ the dynamic path that decodes the tag.
+            if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Any)
+                return emitDynamicNumericBinOp(inst);
 
             llvm::Value *left = resolveOperand(inst->operands[0]);
             llvm::Value *right = resolveOperand(inst->operands[1]);

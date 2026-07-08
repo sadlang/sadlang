@@ -676,6 +676,48 @@ namespace Sad
                     {
                         for (const auto &caseClause : matchStmt->cases)
                         {
+                            // (AR) ISSUE-076/082/084 (ب″): سجّل متغيرات ربط نمط حالة ADT بنوعها
+                            //      المُستنتَج (من adtEnumTable_ إن سُجِّل من موقع إنشاء، وإلّا Any).
+                            //      حاسمٌ لاستنتاج نوع إرجاع دالةٍ تُرجع رابطًا (`ارجع س`): حمولةٌ
+                            //      مجهولة النوع سكونيًّا (إحالة أماميّة/تعارُض) ⇒ Any ⇒ يُبقيها
+                            //      الإرجاع قيمةً موسومة يفكّها نص()/اطبع زمنَ التشغيل بدل طمسها
+                            //      صحيحًا/عشريًّا (ISSUE-084: إرجاع حمولة عشريّة عبر حدود الدوال).
+                            // (EN) ISSUE-076/082/084 (ب″): register ADT variant-pattern binding
+                            //      variables with their inferred type (from adtEnumTable_ if
+                            //      registered at a construction site, else Any). Crucial for
+                            //      inferring the return type of a function returning a binding
+                            //      (`return s`): a statically-unknown payload (forward-ref/conflict)
+                            //      ⇒ Any ⇒ the return keeps it a tagged value that نص()/print decode
+                            //      at runtime instead of erasing it to int/float (ISSUE-084: returning
+                            //      a float payload across a function boundary).
+                            if (auto *enumPat = dynamic_cast<const Sad::AST::EnumVariantPattern *>(caseClause.pattern.get()))
+                            {
+                                const ADTEnumInfo *adt = nullptr;
+                                auto adtIt = b_.adtEnumTable_.find(enumPat->enumName);
+                                if (adtIt != b_.adtEnumTable_.end())
+                                    adt = &adtIt->second;
+                                for (size_t fi = 0; fi < enumPat->fieldPatterns.size(); ++fi)
+                                {
+                                    if (auto *vp = dynamic_cast<const Sad::AST::VariablePattern *>(enumPat->fieldPatterns[fi].get()))
+                                    {
+                                        SadTypeKind ft = SadTypeKind::Any;
+                                        if (adt)
+                                        {
+                                            for (const auto &v : adt->variants)
+                                            {
+                                                if (v.name == enumPat->variantName)
+                                                {
+                                                    SadTypeKind reg = v.fieldTypeAt(fi);
+                                                    if (reg != SadTypeKind::Unknown)
+                                                        ft = reg;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        localVarTypes[vp->name] = ft;
+                                    }
+                                }
+                            }
                             for (const auto &bodyStmt : caseClause.body)
                             {
                                 populateVarTypes(bodyStmt.get());
@@ -796,8 +838,19 @@ namespace Sad
                 {
                     if (unified == returnTypes[i])
                         continue;
-                    if ((unified == SadTypeKind::Integer && returnTypes[i] == SadTypeKind::Float) ||
-                        (unified == SadTypeKind::Float && returnTypes[i] == SadTypeKind::Integer))
+                    // (AR) ISSUE-076/084 (ب″): Any يسيطر — أيّ فرع إرجاعٍ ديناميّ (حمولة ADT
+                    //      مجهولة النوع) يجعل نوع الإرجاع Any، فتعبر القيمة موسومةً ويفكّها
+                    //      المستهلك زمنَ التشغيل بدل طمسها إلى صحيح/عشريّ في فرعٍ آخر.
+                    // (EN) ISSUE-076/084 (ب″): Any dominates — any dynamic return arm (a
+                    //      statically-unknown ADT payload) makes the return type Any, so the value
+                    //      crosses tagged and the consumer decodes it at runtime instead of being
+                    //      erased to int/float by another arm.
+                    if (unified == SadTypeKind::Any || returnTypes[i] == SadTypeKind::Any)
+                    {
+                        unified = SadTypeKind::Any;
+                    }
+                    else if ((unified == SadTypeKind::Integer && returnTypes[i] == SadTypeKind::Float) ||
+                             (unified == SadTypeKind::Float && returnTypes[i] == SadTypeKind::Integer))
                     {
                         unified = SadTypeKind::Float;
                     }

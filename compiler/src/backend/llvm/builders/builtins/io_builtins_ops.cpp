@@ -7,6 +7,8 @@
 #include "llvm_codegen.h"
 #include "sir_constants.h"
 #include "builders/builtins/io_builtins_codegen.h"
+#include "adt_payload_tags.h"
+#include "sad_dyn_repr.h"
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
@@ -251,6 +253,18 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         cg_.builder_->CreateCall(printfFunc, {fmt, v});
                     }
                 }
+                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): قيمةٌ ديناميّة %SadDyn ⇒ موزِّع dynToString
+                //      (يفحص وسم النوع ويطابق المفسّر) ثمّ اطبع %s. النوع %SadDyn هو المعلومة —
+                //      لا فكّ بتّاتٍ يدويّ ولا التباس بالصحيح.
+                // (EN) ISSUE-076 (%SadDyn root fix): a dynamic %SadDyn value ⇒ the dynToString
+                //      dispatcher (inspects the kind tag, matches the interpreter) then print %s.
+                //      The %SadDyn type is the information — no manual bit decode, no int confusion.
+                else if (isSadDyn(v))
+                {
+                    llvm::Value *s = dynToString(cg_, v);
+                    llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                    cg_.builder_->CreateCall(printfFunc, {fmt, s});
+                }
                 else if (v->getType()->isPointerTy())
                 {
                     // (AR) طباعة نص بدون سطر جديد تلقائي - SIR builder يضيف \n صراحة عند الحاجة
@@ -318,7 +332,9 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     auto *parentFunc = cg_.builder_->GetInsertBlock()->getParent();
                     auto *nullBB = llvm::BasicBlock::Create(*cg_.context_, "any.null", parentFunc);
                     auto *checkTagBB = llvm::BasicBlock::Create(*cg_.context_, "any.check_tag", parentFunc);
+                    auto *ptrOrFloatBB = llvm::BasicBlock::Create(*cg_.context_, "any.ptr_or_float", parentFunc);
                     auto *ptrBB = llvm::BasicBlock::Create(*cg_.context_, "any.ptr", parentFunc);
+                    auto *floatBB = llvm::BasicBlock::Create(*cg_.context_, "any.float", parentFunc);
                     auto *intOrBoolBB = llvm::BasicBlock::Create(*cg_.context_, "any.int_or_bool", parentFunc);
                     auto *boolBB = llvm::BasicBlock::Create(*cg_.context_, "any.bool", parentFunc);
                     auto *intBB = llvm::BasicBlock::Create(*cg_.context_, "any.int", parentFunc);
@@ -336,22 +352,54 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     }
                     cg_.builder_->CreateBr(mergeBB);
 
-                    // (AR) فحص bit63
+                    // (AR) فحص bit63: مضبوط ⇒ صحيح/منطقيّ (10/11)؛ مصفّر ⇒ مؤشّر/عشريّ (00/01)
+                    // (EN) Check bit63: set ⇒ int/bool (10/11); clear ⇒ pointer/float (00/01)
                     cg_.builder_->SetInsertPoint(checkTagBB);
                     {
-                        llvm::Value *bit63Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 63);
+                        llvm::Value *bit63Mask = llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63);
                         llvm::Value *bit63 = cg_.builder_->CreateAnd(v, bit63Mask, "any.bit63");
-                        llvm::Value *isPtr = cg_.builder_->CreateICmpEQ(
-                            bit63, llvm::ConstantInt::get(i64Ty, 0), "any.is_ptr");
-                        cg_.builder_->CreateCondBr(isPtr, ptrBB, intOrBoolBB);
+                        llvm::Value *hiClear = cg_.builder_->CreateICmpEQ(
+                            bit63, llvm::ConstantInt::get(i64Ty, 0), "any.hi_clear");
+                        cg_.builder_->CreateCondBr(hiClear, ptrOrFloatBB, intOrBoolBB);
                     }
 
-                    // (AR) مؤشر (نص) — bit63=0
+                    // (AR) ISSUE-076/084: تمييز النصّ (00) عن الصندوق العشريّ (01) عبر bit62
+                    // (EN) ISSUE-076/084: distinguish string (00) from boxed float (01) via bit62
+                    cg_.builder_->SetInsertPoint(ptrOrFloatBB);
+                    {
+                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62);
+                        llvm::Value *bit62 = cg_.builder_->CreateAnd(v, bit62Mask, "any.bit62.pf");
+                        llvm::Value *isFloat = cg_.builder_->CreateICmpNE(
+                            bit62, llvm::ConstantInt::get(i64Ty, 0), "any.is_float");
+                        cg_.builder_->CreateCondBr(isFloat, floatBB, ptrBB);
+                    }
+
+                    // (AR) مؤشر (نص) — 00
                     cg_.builder_->SetInsertPoint(ptrBB);
                     {
                         llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(v, ptrTy, "any.str.i2p");
                         llvm::Value *fmtS = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
                         cg_.builder_->CreateCall(printfFunc, {fmtS, strPtr});
+                    }
+                    cg_.builder_->CreateBr(mergeBB);
+
+                    // (AR) صندوق عشريّ (01) — امسح bit62 ⇒ مؤشّر الصندوق ⇒ حمّل الـdouble ⇒
+                    //      اطبع بـ__sad_print_double (نفس تنسيق المفسّر). ISSUE-076/084.
+                    // (EN) Boxed float (01) — clear bit62 ⇒ box pointer ⇒ load double ⇒ print via
+                    //      __sad_print_double (same format as the interpreter). ISSUE-076/084.
+                    cg_.builder_->SetInsertPoint(floatBB);
+                    {
+                        llvm::Value *boxI64 = cg_.builder_->CreateAnd(
+                            v, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit62), "any.float.clear");
+                        llvm::Value *boxPtr = cg_.builder_->CreateIntToPtr(boxI64, ptrTy, "any.float.ptr");
+                        llvm::Value *d = cg_.builder_->CreateLoad(
+                            llvm::Type::getDoubleTy(*cg_.context_), boxPtr, "any.float.load");
+                        llvm::FunctionType *printDoubleTy = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_),
+                            {llvm::Type::getDoubleTy(*cg_.context_)}, false);
+                        llvm::FunctionCallee printDoubleFn =
+                            cg_.module_->getOrInsertFunction("__sad_print_double", printDoubleTy);
+                        cg_.builder_->CreateCall(printDoubleFn, {d});
                     }
                     cg_.builder_->CreateBr(mergeBB);
 
@@ -416,22 +464,54 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                         // (AR) فك وسم 2-bit: مسح bit63 و bit62
-                        llvm::Value *clearMask = llvm::ConstantInt::get(i64Ty, ~(3ULL << 62));
+                        llvm::Value *clearMask = llvm::ConstantInt::get(i64Ty, ~kAdtPayloadTagMask);
                         llvm::Value *cleanVal = cg_.builder_->CreateAnd(v, clearMask, "tup.print.clean");
 
                         // (AR) فحص bit62 للتمييز بين رقم ومنطقي
-                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 62);
+                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62);
                         llvm::Value *bit62 = cg_.builder_->CreateAnd(v, bit62Mask, "tup.print.bit62");
                         llvm::Value *isBool = cg_.builder_->CreateICmpNE(
                             bit62, llvm::ConstantInt::get(i64Ty, 0), "tup.print.isbool");
 
+                        // (AR) ISSUE-076/084: علَم الصندوق العشريّ (إن ضُبِط من الاستخراج) يتقدّم
+                        //      على المؤشّر/الرقم/المنطقيّ. غيابه ⇒ ثابت false (لا فرع عشريّ).
+                        // (EN) ISSUE-076/084: the boxed-float flag (if set by extraction) takes
+                        //      precedence over ptr/int/bool. Absent ⇒ constant false (no float arm).
+                        auto isFloatIt = cg_.context_info_.namedValues.find(op.name + ".__is_float");
+                        llvm::Value *isFloat = (isFloatIt != cg_.context_info_.namedValues.end())
+                                                   ? isFloatIt->second
+                                                   : llvm::ConstantInt::getFalse(*cg_.context_);
+
                         auto *parentFunc = cg_.builder_->GetInsertBlock()->getParent();
+                        auto *floatBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.float", parentFunc);
+                        auto *notFloatBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.notfloat", parentFunc);
                         auto *ptrBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.ptr", parentFunc);
                         auto *nonPtrBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.nonptr", parentFunc);
                         auto *boolBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.bool", parentFunc);
                         auto *numBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.num", parentFunc);
                         auto *mergeBB = llvm::BasicBlock::Create(*cg_.context_, "tup.print.merge", parentFunc);
 
+                        cg_.builder_->CreateCondBr(isFloat, floatBB, notFloatBB);
+
+                        // (AR) صندوق عشريّ: امسح bit62 ⇒ مؤشّر ⇒ حمّل double ⇒ __sad_print_double
+                        // (EN) Boxed float: clear bit62 ⇒ pointer ⇒ load double ⇒ __sad_print_double
+                        cg_.builder_->SetInsertPoint(floatBB);
+                        {
+                            llvm::Value *boxI64 = cg_.builder_->CreateAnd(
+                                v, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit62), "tup.print.float.clear");
+                            llvm::Value *boxPtr = cg_.builder_->CreateIntToPtr(boxI64, ptrTy, "tup.print.float.ptr");
+                            llvm::Value *d = cg_.builder_->CreateLoad(
+                                llvm::Type::getDoubleTy(*cg_.context_), boxPtr, "tup.print.float.load");
+                            llvm::FunctionType *printDoubleTy = llvm::FunctionType::get(
+                                llvm::Type::getVoidTy(*cg_.context_),
+                                {llvm::Type::getDoubleTy(*cg_.context_)}, false);
+                            llvm::FunctionCallee printDoubleFn =
+                                cg_.module_->getOrInsertFunction("__sad_print_double", printDoubleTy);
+                            cg_.builder_->CreateCall(printDoubleFn, {d});
+                        }
+                        cg_.builder_->CreateBr(mergeBB);
+
+                        cg_.builder_->SetInsertPoint(notFloatBB);
                         cg_.builder_->CreateCondBr(isPtr, ptrBB, nonPtrBB);
 
                         // (AR) مسار المؤشر (نص): inttoptr → printf %s

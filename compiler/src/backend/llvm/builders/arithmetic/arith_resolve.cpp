@@ -6,6 +6,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -140,6 +141,13 @@ namespace Sad
                         // This is needed for passing objects to methods and constructors
                         if (allocaInst->getAllocatedType()->isStructTy())
                         {
+                            // (AR) ISSUE-076: خانة %SadDyn الديناميّة قيمةٌ (لا كائن) ⇒ حمّلها
+                            //      لتعبر بالقيمة؛ بقيّة البنى (كائنات) تُعاد كمؤشّر كما كان.
+                            // (EN) ISSUE-076: a %SadDyn dynamic slot is a value (not an object) ⇒ load
+                            //      it so it flows by value; other structs (objects) stay as pointers.
+                            if (allocaInst->getAllocatedType() == getSadDynType(*cg_.context_))
+                                return cg_.builder_->CreateLoad(
+                                    allocaInst->getAllocatedType(), allocaInst, operand.name + ".load");
                             return val; // Return struct pointer as-is
                         }
                         return cg_.builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, operand.name + ".load");

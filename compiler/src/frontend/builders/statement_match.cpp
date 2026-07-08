@@ -304,12 +304,24 @@ namespace Sad
                             std::string elemReg = b_.newTempRegister();
                             SIRInstruction getInst;
                             getInst.opcode = SIROpcode::ARRAY_GET;
-                            // (AR) ⚠️ نوعٌ مُصلَّب Integer — يطمس النصّ/المنطقيّ في المقارنة
-                            //      النازلة (ISSUE-082؛ يشمل عنصر القائمة والحمولة). الطباعة
-                            //      المباشرة تعمل عبر __is_ptr، لكنّ المقارنة النوعيّة لا.
-                            // (EN) ⚠️ Hardcoded Integer type — erases string/bool in downstream
-                            //      comparison (ISSUE-082; covers both list element and payload).
-                            getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
+                            // (AR) [ISSUE-082، مسار عنصر القائمة] نمرّر نوع عنصر المصفوفة
+                            //      المُتتبَّع سكونيًّا (`matchValueElementType`) بدل تصليب
+                            //      Integer، فالمقارنة النازلة `ن == "س"` ترى النوع الصحيح
+                            //      (نصّ ⇒ STRING_CMP محتوًى لا مقارنة بتّات مؤشّر). نظير المسار
+                            //      أ′ للحمولة وعامل `في` القائم. مصفوفة مختلطة/مجهولة
+                            //      (elementType=Void) ⇒ تراجُع Integer آمن (لا انحدار؛
+                            //      المختلطة عضو عائلة «لا وسوم نوع تشغيليّة» ISSUE-070/080).
+                            // (EN) [ISSUE-082, list-element path] Pass the statically-tracked
+                            //      array element type instead of hardcoding Integer, so the
+                            //      downstream comparison sees the real type (string ⇒ content
+                            //      STRING_CMP, not pointer-bit compare). Mirrors the payload a′
+                            //      path and the existing `في` operator. Mixed/unknown array
+                            //      (elementType=Void) ⇒ safe Integer fallback (no regression).
+                            SadTypeKind elemType =
+                                (matchValueElementType != SadTypeKind::Void)
+                                    ? matchValueElementType
+                                    : SadTypeKind::Integer;
+                            getInst.result = SIROperand::Register(elemReg, elemType);
                             getInst.operands.push_back(
                                 SIROperand::Register(matchValueReg, matchValueType));
                             getInst.operands.push_back(
@@ -321,7 +333,7 @@ namespace Sad
 
                             VariableInfo elemVarInfo;
                             elemVarInfo.name = deferred.varName;
-                            elemVarInfo.type = SadTypeKind::Integer;
+                            elemVarInfo.type = elemType;
                             elemVarInfo.registerName = elemReg;
                             elemVarInfo.isGlobal = false;
                             elemVarInfo.isMutable = false;
@@ -345,9 +357,21 @@ namespace Sad
                         {
                             std::string fieldReg = b_.newTempRegister();
                             SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                            // (AR) ⚠️ نوعٌ مُصلَّب Integer — يطمس النصّ/المنطقيّ (ISSUE-082؛ انظر أعلاه)
-                            // (EN) ⚠️ Hardcoded Integer — erases string/bool (ISSUE-082; see above)
-                            getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                            // (AR) ISSUE-076/082/084 (ب″): استخرج بالنوع المُستنتَج للحمولة
+                            //      (عشريّ/نصّ/منطقيّ/صحيح) إن سُجِّل من موقع الإنشاء (نفس النطاق)؛
+                            //      وإلّا **Any** (لا Integer): حمولةٌ مجهولة النوع سكونيًّا (إحالة
+                            //      أماميّة/تعارُض) يجب أن تسري قيمةً ديناميّة موسومة فيكشف المستهلك
+                            //      وسمها زمنَ التشغيل، بدل معاملتها صحيحًا صامتًا (قمامة/انهيار).
+                            // (EN) ISSUE-076/082/084 (ب″): extract with the inferred payload type
+                            //      (float/string/bool/int) if registered from a construction site
+                            //      (same scope); else **Any** (not Integer): a statically-unknown
+                            //      payload (forward-ref/conflict) must flow as a tagged dynamic
+                            //      value so the consumer detects its tag at runtime, instead of
+                            //      being silently treated as an integer (garbage/segfault).
+                            SadTypeKind payloadType = (deferred.fieldType != SadTypeKind::Unknown)
+                                                          ? deferred.fieldType
+                                                          : SadTypeKind::Any;
+                            getPayload.result = SIROperand::Register(fieldReg, payloadType);
                             getPayload.operands.push_back(
                                 SIROperand::Register(matchValueReg, matchValueType));
                             getPayload.operands.push_back(
@@ -364,7 +388,7 @@ namespace Sad
 
                             VariableInfo fieldVarInfo;
                             fieldVarInfo.name = deferred.varName;
-                            fieldVarInfo.type = SadTypeKind::Integer;
+                            fieldVarInfo.type = payloadType;
                             fieldVarInfo.registerName = fieldReg;
                             fieldVarInfo.isGlobal = false;
                             fieldVarInfo.isMutable = false;

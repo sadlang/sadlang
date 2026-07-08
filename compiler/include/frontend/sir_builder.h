@@ -217,6 +217,15 @@ namespace Sad
                 size_t fieldIndex;     ///< (AR) فهرس الحقل / (EN) Field index in variant
                 std::string fieldName; ///< (AR) اسم الحقل الأصلي / (EN) Original field name
                 std::string enumName;  ///< (AR) اسم التعداد / (EN) Enum name for lookup
+                /// (AR) نوع الحمولة المُستنتَج (ISSUE-076، المسار أ′) — يُحسَب عند إنشاء
+                ///      الحقل المؤجَّل من `adtEnumTable_[enum].variant.fieldTypeAt(idx)` حيث
+                ///      تتوفّر الحالة؛ يُمرَّر لـ`ENUM_GET_PAYLOAD` ليُستخرَج بالنوع الحقيقيّ
+                ///      (عشريّ/نصّ) بدل تصليب Integer. Unknown ⇒ مسار Integer القديم (تراجُع آمن).
+                /// (EN) Inferred payload type (ISSUE-076, path A′) — computed when the deferred
+                ///      field is created from `adtEnumTable_[enum].variant.fieldTypeAt(idx)` where
+                ///      the variant is known; passed to `ENUM_GET_PAYLOAD` to extract with the real
+                ///      type (float/string) instead of erased Integer. Unknown ⇒ old Integer path.
+                SadTypeKind fieldType = SadTypeKind::Unknown;
             };
 
             /**
@@ -437,9 +446,27 @@ namespace Sad
                 int64_t tag;                     ///< (AR) المميّز (discriminant) / (EN) Discriminant tag
                 std::vector<std::string> fields; ///< (AR) أسماء الحقول / (EN) Field names
 
+                /// (AR) أنواع حقول الحمولة — مُستنتَجة من نوع وسيط الباني وقت الإنشاء (ISSUE-076).
+                ///      موازٍ لـ`fields` بالطول؛ Unknown حتّى يُسجَّل من موقع إنشاءٍ فعليّ. يُمكّن
+                ///      استخراج الحمولة بنوعها الحقيقيّ (عشريّ/نصّ/منطقيّ) بدل تصليب Integer
+                ///      المطموس — نظير النموذج الديناميّ للمفسّر. لا وسم MSB ولا malloc.
+                /// (EN) Payload field types — inferred from the constructor argument type at
+                ///      construction (ISSUE-076). Parallel to `fields`; Unknown until registered
+                ///      from an actual construction site. Enables extracting the payload with its
+                ///      real type (float/string/bool) instead of the erased hardcoded Integer —
+                ///      mirroring the interpreter's dynamic model. No MSB tag, no malloc.
+                std::vector<SadTypeKind> fieldTypes;
+
                 /// (AR) هل هذه حالة بدون بيانات (Unit)؟
                 /// (EN) Is this a unit variant (no data)?
                 bool isUnit() const { return fields.empty(); }
+
+                /// (AR) نوع الحقل بالفهرس (Unknown إن لم يُسجَّل أو خارج المدى)
+                /// (EN) Field type by index (Unknown if unregistered or out of range)
+                SadTypeKind fieldTypeAt(size_t idx) const
+                {
+                    return idx < fieldTypes.size() ? fieldTypes[idx] : SadTypeKind::Unknown;
+                }
 
                 /// (AR) عدد الحقول
                 /// (EN) Number of fields
@@ -519,6 +546,23 @@ namespace Sad
                             return idx;
                     }
                     return -1;
+                }
+
+                /// (AR) نوع الحقل بالاسم — من أوّل حالة تحتويه (يوازي findFieldIndex).
+                ///      يُستخدم للوصول المباشر `ش.نق` ليُستخرَج بنوعه الحقيقيّ (ISSUE-076، أ′).
+                ///      Unknown إن لم يُوجَد أو لم يُسجَّل نوعه من موقع إنشاء.
+                /// (EN) Field type by name — from the first variant containing it (mirrors
+                ///      findFieldIndex). Used for direct access `s.r` to extract with the real
+                ///      type (ISSUE-076, A′). Unknown if not found or type unregistered.
+                SadTypeKind findFieldType(const std::string &fieldName) const
+                {
+                    for (const auto &v : variants)
+                    {
+                        int idx = v.findFieldIndex(fieldName);
+                        if (idx >= 0)
+                            return v.fieldTypeAt(static_cast<size_t>(idx));
+                    }
+                    return SadTypeKind::Unknown;
                 }
             };
 

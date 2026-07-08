@@ -14,6 +14,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/oop/classes_vtables_codegen.h"
+#include "sad_dyn_repr.h" // (AR) ISSUE-076: النوع الديناميّ %SadDyn لخانات حمولة ADT
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -148,6 +149,13 @@ namespace Sad
                         case SadTypeKind::String:
                         case SadTypeKind::Pointer:
                             fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
+                            break;
+                        case SadTypeKind::Any:
+                            // (AR) ISSUE-076 (%SadDyn): حقلٌ ديناميّ (حمولة ADT غير منمّطة) ⇒ خانة
+                            //      واصفة لذاتها %SadDyn = { i8 kind; i64 payload } بدل وسم البتّات.
+                            // (EN) ISSUE-076 (%SadDyn): a dynamic field (untyped ADT payload) ⇒ the
+                            //      self-describing slot %SadDyn = { i8 kind; i64 payload } (no bit-tagging).
+                            fieldTypes.push_back(getSadDynType(*cg_.context_));
                             break;
                         case SadTypeKind::Struct:
                         {

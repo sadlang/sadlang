@@ -883,6 +883,9 @@ namespace Sad
                                     deferred.fieldIndex = fi;
                                     deferred.fieldName = variantInfo->fields[fi];
                                     deferred.enumName = enumVarPat->enumName;
+                                    // (AR) ISSUE-076 (أ′): نوع الحمولة المُستنتَج من الحالة المعروفة هنا
+                                    // (EN) ISSUE-076 (A′): payload type inferred from the known variant here
+                                    deferred.fieldType = variantInfo->fieldTypeAt(fi);
                                     deferredExtractions.push_back(std::move(deferred));
                                 }
                                 else if (auto *litFieldPat = dynamic_cast<const Sad::AST::LiteralPattern *>(fieldPat.get()))
@@ -898,6 +901,15 @@ namespace Sad
                                     // (EN) Extract field from payload
                                     std::string fieldReg = newTempRegister();
                                     SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                                    // (AR) مسار مطابقة النمط **الحرفيّ** (`عندما ن.ق(5)`): يُقارَن الحقلُ
+                                    //      المُستخرَج بقيمةٍ حرفيّة تالية. نُبقيه Integer: الحرفيّ عددٌ صحيح
+                                    //      عادةً، وفكُّ %SadDyn لصحيحٍ (dynPayloadI64) يطابق الحرفيّ مباشرة.
+                                    //      (الربط `ن.ق(س)` يمرّ عبر مسارٍ آخر يُسنِد Any/المستنتَج.)
+                                    // (EN) The **literal** pattern path (`عندما ن.ق(5)`): the extracted
+                                    //      field is compared to a following literal. Keep it Integer: the
+                                    //      literal is usually an int and unpacking %SadDyn to i64
+                                    //      (dynPayloadI64) matches the literal directly. (Binding `ن.ق(س)`
+                                    //      goes through a different path that assigns Any/inferred.)
                                     getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
                                     getPayload.operands.push_back(
                                         SIROperand::Register(matchValueReg, matchValueType));
@@ -1333,7 +1345,9 @@ namespace Sad
                                 continue;
                             std::string fieldReg = newTempRegister();
                             SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                            getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                            // (AR) ISSUE-076 (%SadDyn): الحمولة ديناميّة ⇒ Any (لا Integer المثبَّت)
+                            // (EN) ISSUE-076 (%SadDyn): dynamic payload ⇒ Any (not hardcoded Integer)
+                            getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Any);
                             getPayload.operands.push_back(SIROperand::Register(childReg, childType));
                             getPayload.operands.push_back(
                                 SIROperand::ConstantI64(static_cast<int64_t>(def.fieldIndex)));

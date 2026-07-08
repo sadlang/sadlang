@@ -6,6 +6,8 @@
 
 #include "llvm_codegen.h"
 #include "builders/oop/enum_ops_codegen.h"
+#include "sad_dyn_repr.h"   // (AR) ISSUE-076: التمثيل الديناميّ المميّز %SadDyn (تخزين/استخراج حمولة ADT)
+#include "adt_payload_tags.h" // (AR) وسم قديم — مسارٌ ميّت لخانات %SadDyn، يُحذف في تنظيف ISSUE-076
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -85,14 +87,14 @@ namespace Sad
             else
             {
                 // (AR) إذا لم تُسجل البنية — ننشئ نوع مجهول بناءً على عدد الحقول
-                //      حقل 0 = i64 (tag)، الباقي = ptr
+                //      حقل 0 = i64 (tag)، الباقي = %SadDyn (ISSUE-076: حمولة واصفة لذاتها)
                 // (EN) If struct not registered — create anonymous type based on field count
-                //      field 0 = i64 (tag), rest = ptr
+                //      field 0 = i64 (tag), rest = %SadDyn (ISSUE-076: self-describing payload)
                 std::vector<llvm::Type *> fieldTypes;
                 fieldTypes.push_back(cg_.getInt64Type()); // __tag
                 for (size_t i = 2; i < inst->operands.size(); ++i)
                 {
-                    fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
+                    fieldTypes.push_back(getSadDynType(*cg_.context_));
                 }
                 structType = llvm::StructType::create(*cg_.context_, fieldTypes, structName);
                 cg_.context_info_.classStructTypes[structName] = structType;
@@ -133,9 +135,45 @@ namespace Sad
                         // (AR) تحويل القيمة إلى نوع الحقل إذا لزم الأمر
                         // (EN) Cast value to field type if necessary
                         llvm::Type *expectedType = structType->getElementType(fieldIdx);
+
+                        // (AR) === ISSUE-076 (حلّ %SadDyn الجذريّ): خانة حمولة ديناميّة ===
+                        //      نغلّف القيمة المحدَّدة (double/int/ptr/bool) إلى %SadDyn عبر toDyn
+                        //      (يشتقّ الوسم من نوع المعامل)؛ وإن كانت أصلًا %SadDyn (إعادة بناء من
+                        //      حمولةٍ مُستخرَجة) تُمرَّر كما هي. **لا malloc ولا وسم بتّات** ⇒ يزول
+                        //      تسريب الصناديق، ولا تصطدم بِتّة إشارة الـdouble بأيّ وسم. بعد التغليف
+                        //      يتطابق النوع مع الخانة فيُتخطّى مسار الوسم القديم أدناه (ميّت لـ%SadDyn).
+                        // (EN) === ISSUE-076 (%SadDyn root fix): a dynamic payload slot ===
+                        //      Pack the concrete value (double/int/ptr/bool) into %SadDyn via toDyn
+                        //      (derives the kind from the operand type); an already-%SadDyn value
+                        //      (re-construction from an extracted payload) passes through. NO malloc,
+                        //      NO bit-tagging ⇒ the box leak is gone and the double's sign bit never
+                        //      collides with a tag. After packing the type matches the slot, so the
+                        //      legacy tagging path below is skipped (dead for %SadDyn slots).
+                        if (expectedType == getSadDynType(*cg_.context_))
+                        {
+                            fieldVal = toDyn(cg_, fieldVal, inst->operands[i].dataType);
+                        }
+
                         if (fieldVal->getType() != expectedType)
                         {
-                            if (fieldVal->getType()->isIntegerTy() && expectedType->isPointerTy())
+                            if (inst->operands[i].dataType == SadTypeKind::Any &&
+                                fieldVal->getType()->isIntegerTy() && expectedType->isPointerTy())
+                            {
+                                // (AR) ISSUE-076/084 (ب″): معامل Any = حمولةٌ موسومةٌ مسبقًا
+                                //      (00 مؤشّر · 01 صندوق عشريّ · 10 صحيح · 11 منطقيّ) عائدةٌ من
+                                //      استخراجٍ سابق. **لا تُعِد الوسم** (وإلّا صار 01→11 فيُقرأ منطقيًّا
+                                //      أو يُشتقّ عنوانٌ فاسد ⇒ SIGSEGV عند إعادة البناء `ن.ق(س)`).
+                                //      نُمرّر البتّات كما هي (inttoptr): الصندوق العشريّ يبقى صندوقًا
+                                //      صالحًا بوسم 01 في البنية الجديدة، والصحيح يبقى 10 … إلخ.
+                                // (EN) ISSUE-076/084 (ب″): an Any operand is an already-tagged payload
+                                //      (00 ptr · 01 boxed float · 10 int · 11 bool) from a prior
+                                //      extraction. **Do NOT re-tag** (else 01→11 reads as bool, or a
+                                //      corrupt address is derived ⇒ SIGSEGV on re-construction `ن.ق(س)`).
+                                //      Pass the bits through (inttoptr): a boxed float stays a valid box
+                                //      tagged 01 in the new struct, an int stays 10, and so on.
+                                fieldVal = cg_.builder_->CreateIntToPtr(fieldVal, expectedType, "any.payload.i2p");
+                            }
+                            else if (fieldVal->getType()->isIntegerTy() && expectedType->isPointerTy())
                             {
                                 // (AR) MSB tagging: الأرقام تُعلّم بـ bit 63 = 1
                                 //      val → val | (1 << 63) → inttoptr
@@ -150,6 +188,35 @@ namespace Sad
                                     llvm::ConstantInt::get(cg_.getInt64Type(), static_cast<uint64_t>(1) << 63),
                                     "tag.msb");
                                 fieldVal = cg_.builder_->CreateIntToPtr(tagged, expectedType, "tag.i2p");
+                            }
+                            else if (fieldVal->getType()->isDoubleTy() && expectedType->isPointerTy())
+                            {
+                                // (AR) ISSUE-076/082/084 (ب″): حمولة عشريّة — **تُعلَّب**.
+                                //      نخصّص صندوق كومة (malloc(8))، نخزّن الـdouble فيه، ثمّ
+                                //      نضع مؤشّر الصندوق في الخانة موسومًا بـ01 (kAdtPayloadTagFloat).
+                                //      هكذا لا تصطدم بِتّة إشارة الـdouble ببتّات الوسم، والوسم 01
+                                //      يميّزه عن النصّ (00) فيمنع طباعة قمامة/انهيار عند القيم
+                                //      العشريّة الموجبة الصغيرة (bit63=0). ملاحظة تسريب: الصندوق
+                                //      لا يُحرَّر (نفس ملمح تسريب حمولة النصوص القائمة) — مقبول.
+                                // (EN) ISSUE-076/082/084 (ب″): decimal payload — **boxed**.
+                                //      malloc(8) a heap box, store the double into it, then place
+                                //      the box pointer in the slot tagged with 01
+                                //      (kAdtPayloadTagFloat). The double's sign bit lives inside the
+                                //      box and never collides with the tag; tag 01 distinguishes it
+                                //      from a string (00), preventing garbage/segfault on small
+                                //      positive floats (bit63=0). Leak note: the box is not freed
+                                //      (same leak profile as existing string payloads) — acceptable.
+                                auto *i64Ty = cg_.getInt64Type();
+                                auto *boxPtrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                                auto *boxMallocTy = llvm::FunctionType::get(boxPtrTy, {i64Ty}, false);
+                                auto boxMallocFn = cg_.module_->getOrInsertFunction("malloc", boxMallocTy);
+                                llvm::Value *box = cg_.builder_->CreateCall(
+                                    boxMallocFn, {llvm::ConstantInt::get(i64Ty, 8)}, "float.box");
+                                cg_.builder_->CreateStore(fieldVal, box);
+                                llvm::Value *boxI64 = cg_.builder_->CreatePtrToInt(box, i64Ty, "float.box.p2i");
+                                llvm::Value *tagged = cg_.builder_->CreateOr(
+                                    boxI64, llvm::ConstantInt::get(i64Ty, kAdtPayloadTagFloat), "float.box.tag");
+                                fieldVal = cg_.builder_->CreateIntToPtr(tagged, expectedType, "float.box.i2p");
                             }
                             else if (fieldVal->getType()->isPointerTy() && expectedType->isIntegerTy())
                             {
@@ -362,6 +429,47 @@ namespace Sad
 
             if (inst->result.has_value())
             {
+                // (AR) === ISSUE-076 (حلّ %SadDyn الجذريّ): خانة الحمولة نوعُها %SadDyn ===
+                //      إن كانت القيمة المحمَّلة %SadDyn (الحال المعتاد لحمولة ADT بعد الترحيل):
+                //        - نوع النتيجة محدَّد (Float/Integer/…) ⇒ فكٌّ أصيل (مسار سريع نفس-النطاق؛
+                //          كلّ مستهلكي النوع المحدَّد القائمين يعملون بلا تغيير)؛
+                //        - نوع النتيجة Any/مجهول ⇒ تبقى %SadDyn (تعبر الدوال والأذرع كقيمةٍ من
+                //          الدرجة الأولى، ويوزّع عليها المستهلكون عبر الوسم — لا فكَّ يدويًّا صامتًا).
+                // (EN) === ISSUE-076 (%SadDyn root fix): the payload slot is %SadDyn ===
+                //      If the loaded value is %SadDyn (the usual case for a migrated ADT payload):
+                //        - concrete result type (Float/Integer/…) ⇒ native unpack (same-scope fast
+                //          path; every existing concrete-typed consumer works unchanged);
+                //        - Any/unknown result type ⇒ stays %SadDyn (crosses functions/arms as a
+                //          first-class value; consumers dispatch on the tag — no silent manual unwrap).
+                if (isSadDyn(fieldVal))
+                {
+                    llvm::Value *out = fieldVal;
+                    switch (inst->result->dataType)
+                    {
+                    case SadTypeKind::Float:
+                        out = unpackDouble(cg_, fieldVal);
+                        break;
+                    case SadTypeKind::Integer:
+                        out = dynPayloadI64(cg_, fieldVal);
+                        break;
+                    case SadTypeKind::Boolean:
+                        out = cg_.builder_->CreateTrunc(
+                            dynPayloadI64(cg_, fieldVal), cg_.getInt1Type(), inst->result->name + ".bool");
+                        break;
+                    case SadTypeKind::String:
+                    case SadTypeKind::Pointer:
+                        out = unpackPtr(cg_, fieldVal);
+                        break;
+                    default:
+                        out = fieldVal; // (AR) Any ⇒ يبقى %SadDyn / (EN) Any ⇒ stays %SadDyn
+                        break;
+                    }
+                    cg_.context_info_.namedValues[inst->result->name] = out;
+                    return out;
+                }
+
+                // (AR) === مسار احتياطيّ قديم (خانة غير %SadDyn — بنية غير مُسجَّلة، نادر) ===
+                // (EN) === legacy fallback path (non-%SadDyn slot — unregistered struct, rare) ===
                 // (AR) تحويل القيمة إلى i64 إذا كانت ptr
                 // (EN) Convert value to i64 if ptr
                 if (fieldVal->getType()->isPointerTy())
@@ -370,35 +478,92 @@ namespace Sad
                                                         "payload." + std::to_string(fieldIndex) + ".toi64");
                 }
 
-                // (AR) === MSB pointer tagging: فك التعليم ===
-                //      الأرقام المُخزنة في ADT تُعلّم بـ bit 63=1 عند ENUM_CONSTRUCT
-                //      المؤشرات (نصوص) bit 63=0 (في userspace دائمًا)
-                //      هنا نفحص bit 63 ونعمل untag للأرقام ونحفظ flag للنصوص
-                // (EN) === MSB pointer tagging: untag ===
-                //      Integers stored in ADT are tagged with bit 63=1 at ENUM_CONSTRUCT
-                //      Pointers (strings) have bit 63=0 (always in userspace)
-                //      Here we check bit 63, untag integers, and save flag for strings
-                llvm::Value *msbMask = llvm::ConstantInt::get(cg_.getInt64Type(), static_cast<uint64_t>(1) << 63);
-                llvm::Value *msbBit = cg_.builder_->CreateAnd(fieldVal, msbMask, "tag.msb.bit");
+                auto *i64Ty = cg_.getInt64Type();
+                const std::string &resName = inst->result->name;
+
+                // (AR) === ISSUE-076/082/084 (ب″): مسار سريع ساكن للحمولة العشريّة المعروفة ===
+                //      النوع مُستنتَج Float (من موقع إنشاءٍ سُجِّل، نفس النطاق) ⇒ نفكّ التعليب:
+                //      نمسح البتّة 62 لاستعادة مؤشّر الصندوق، ثمّ نحمّل الـdouble الحقيقيّ. هكذا
+                //      تعمل كلّ مستهلكي double القائمين (حساب/مقارنة/طباعة) على قيمة أصيلة.
+                // (EN) === ISSUE-076/082/084 (ب″): static fast-path for a type-known float payload ===
+                //      Type inferred Float (from a registered same-scope construction site) ⇒ unbox:
+                //      clear bit62 to recover the box pointer, then load the real double. Every
+                //      existing double consumer (arith/compare/print) then works on a native value.
+                if (inst->result->dataType == SadTypeKind::Float)
+                {
+                    llvm::Value *boxI64 = cg_.builder_->CreateAnd(
+                        fieldVal, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit62),
+                        "payload." + std::to_string(fieldIndex) + ".float.box.clear");
+                    llvm::Value *boxPtr = cg_.builder_->CreateIntToPtr(
+                        boxI64, llvm::PointerType::getUnqual(*cg_.context_),
+                        "payload." + std::to_string(fieldIndex) + ".float.box.ptr");
+                    llvm::Value *asDouble = cg_.builder_->CreateLoad(
+                        llvm::Type::getDoubleTy(*cg_.context_), boxPtr,
+                        "payload." + std::to_string(fieldIndex) + ".float.box.load");
+                    cg_.context_info_.namedValues[resName] = asDouble;
+                    // (AR) أعلام: قيمة عشريّة أصيلة (ليست مؤشّرًا)
+                    // (EN) Flags: a native decimal value (not a pointer)
+                    cg_.context_info_.namedValues[resName + ".__is_ptr"] =
+                        llvm::ConstantInt::getFalse(*cg_.context_);
+                    cg_.context_info_.namedValues[resName + ".__is_float"] =
+                        llvm::ConstantInt::getTrue(*cg_.context_);
+                    return asDouble;
+                }
+
+                // (AR) === تصنيف زمن-التشغيل رباعيّ الاتّجاه على بتّتي الوسم (63،62) ===
+                //      يُستخدم للأنواع غير-العشريّة الساكنة (صحيح/نصّ/منطقيّ) وللنوع الديناميّ
+                //      Any (تراجُع Unknown — إحالة أماميّة/تعارُض). نحسب bit63/bit62 ونضبط
+                //      العلَمين اللذين يعتمد عليهما المستهلكون داخل النطاق:
+                //        __is_ptr   = (00) نصّ/مؤشّر    __is_float = (01) صندوق عشريّ
+                // (EN) === 4-way runtime classification on the two tag bits (63,62) ===
+                //      Used for static non-float types (int/string/bool) and for the dynamic Any
+                //      type (Unknown fallback — forward-ref/conflict). Compute bit63/bit62 and set
+                //      the runtime flags in-scope consumers rely on:
+                //        __is_ptr   = (00) string/pointer   __is_float = (01) boxed float
+                llvm::Value *bit63 = cg_.builder_->CreateAnd(
+                    fieldVal, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63), "tag.bit63");
+                llvm::Value *bit62 = cg_.builder_->CreateAnd(
+                    fieldVal, llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62), "tag.bit62");
                 llvm::Value *isInt = cg_.builder_->CreateICmpNE(
-                    msbBit, llvm::ConstantInt::get(cg_.getInt64Type(), 0), "is.tagged.int");
-                // (AR) فك التعليم: إذا رقم (MSB=1) → val & ~(1<<63) = إزالة العلامة
-                //      إذا مؤشر (MSB=0) → يبقى كما هو
-                // (EN) Untag: if integer (MSB=1) → val & ~(1<<63) = clear tag
-                //      if pointer (MSB=0) → stays as-is
+                    bit63, llvm::ConstantInt::get(i64Ty, 0), "is.tagged.hi"); // bit63 set ⇒ int(10)/bool(11)
+                llvm::Value *bit62Set = cg_.builder_->CreateICmpNE(
+                    bit62, llvm::ConstantInt::get(i64Ty, 0), "is.tagged.lo");
+                llvm::Value *isFloatBox = cg_.builder_->CreateAnd(
+                    cg_.builder_->CreateNot(isInt, "not.hi"), bit62Set, "is.float.box"); // 01
+                llvm::Value *isPtr = cg_.builder_->CreateAnd(
+                    cg_.builder_->CreateNot(isInt, "not.hi2"),
+                    cg_.builder_->CreateNot(bit62Set, "not.lo"), "is.ptr"); // 00
+
+                if (inst->result->dataType == SadTypeKind::Any)
+                {
+                    // (AR) الديناميّ (تراجُع Unknown): نُبقي القيمة موسومةً كما حُمِّلت — فهي
+                    //      التمثيل الأساسيّ الذي يعبر حدود الدوال/الإرجاع حيث تضيع الأعلام،
+                    //      فيفكّ المستهلك الوسم زمنَ التشغيل. الأعلام تخدم المستهلكين داخل النطاق.
+                    // (EN) Dynamic (Unknown fallback): keep the value tagged as loaded — it is the
+                    //      canonical representation that crosses function/return boundaries (where
+                    //      flags are lost) so the consumer decodes the tag at runtime. The flags
+                    //      serve in-scope consumers.
+                    cg_.context_info_.namedValues[resName] = fieldVal;
+                    cg_.context_info_.namedValues[resName + ".__is_ptr"] = isPtr;
+                    cg_.context_info_.namedValues[resName + ".__is_float"] = isFloatBox;
+                    return fieldVal;
+                }
+
+                // (AR) الأنواع الساكنة غير-العشريّة: صحيح ⇒ فكّ وسم bit63 (قيمة نظيفة للحساب)؛
+                //      نصّ/مؤشّر ⇒ يبقى كما هو. منطقيّ يبقي bit62 ليميّزه المستهلك. (المسار القديم)
+                // (EN) Static non-float types: integer ⇒ clear bit63 (clean value for arithmetic);
+                //      string/pointer ⇒ stays as-is. Bool keeps bit62 for the consumer. (legacy path)
                 llvm::Value *untagged = cg_.builder_->CreateAnd(
-                    fieldVal,
-                    llvm::ConstantInt::get(cg_.getInt64Type(), ~(static_cast<uint64_t>(1) << 63)),
-                    "untagged");
+                    fieldVal, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit63), "untagged");
                 llvm::Value *result = cg_.builder_->CreateSelect(
                     isInt, untagged, fieldVal, "payload.untagged");
 
-                cg_.context_info_.namedValues[inst->result->name] = result;
-
-                // (AR) حفظ flag: هل القيمة مؤشر (نص/كائن)؟
-                // (EN) Save flag: is value a pointer (string/object)?
-                llvm::Value *isPtr = cg_.builder_->CreateNot(isInt, "is.ptr");
-                cg_.context_info_.namedValues[inst->result->name + ".__is_ptr"] = isPtr;
+                cg_.context_info_.namedValues[resName] = result;
+                cg_.context_info_.namedValues[resName + ".__is_ptr"] = isPtr;
+                // (AR) لا صندوق عشريّ في المسار الساكن غير-العشريّ ⇒ العلَم false صراحةً
+                // (EN) No float box on the static non-float path ⇒ flag explicitly false
+                cg_.context_info_.namedValues[resName + ".__is_float"] =
+                    llvm::ConstantInt::getFalse(*cg_.context_);
             }
             return fieldVal;
         }

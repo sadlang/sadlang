@@ -184,26 +184,42 @@ namespace Sad
                                 }
                             }
 
-                            // (AR) حدّ معروف (نقد Amelia — ISSUE-076): استخراج حمولة ADT
-                            //      مُصلَّب على Integer (statement_match.cpp/expression_objects.cpp
-                            //      وENUM_GET_PAYLOAD)، فحمولةٌ عشريّة (Float) تُخزَّن بنمط بتات
-                            //      double ثمّ تُقرأ عددًا صحيحًا ⇒ Segfault وقت الاستخراج. نحجبها
-                            //      بخطأ ترجمةٍ واضح بدل فتح مسار تحطّم (المفسّر يدعمها؛ فجوة مترجم
-                            //      تحتاج تتبّع أنواع حقول الحمولة — عائلة ISSUE-070/075).
-                            // (EN) Known limit (Amelia's review — ISSUE-076): ADT payload
-                            //      extraction is hardcoded to Integer, so a decimal (Float)
-                            //      payload is stored as double bits then read as an integer ⇒
-                            //      Segfault at extraction. Reject with a clear compile error
-                            //      instead of opening a crash path (the interpreter supports it;
-                            //      a compiler fix needs payload field-type tracking).
-                            for (const auto &ctorArg : ctorArgs)
+                            // (AR) ISSUE-076 (المسار أ′): سجّل أنواع حقول الحمولة من أنواع
+                            //      وسائط الباني في adtEnumTable_ (الجدول العالميّ فيعبر حدود
+                            //      الدوال). يُمكّن استخراج الحمولة بنوعها الحقيقيّ (عشريّ/نصّ/
+                            //      منطقيّ) بدل تصليب Integer المطموس ⇒ يطابق النموذج الديناميّ
+                            //      للمفسّر على كلّ المستهلكين (حساب/مقارنة/طباعة). **تعارض:** لو
+                            //      سُجِّل نوعٌ مختلفٌ سابقًا لنفس الحقل (نفس الحالة أُنشئت بنوعين)
+                            //      ⇒ تراجُع آمن إلى Unknown (يسلك مسار Integer المطموس القديم بلا
+                            //      انحدار) بدل التزام نوعٍ قد يكذب في موقعٍ آخر.
+                            // (EN) ISSUE-076 (path A′): register payload field types from the
+                            //      constructor argument types into adtEnumTable_ (global table ⇒
+                            //      crosses function boundaries). Enables extracting the payload
+                            //      with its real type (float/string/bool) instead of the erased
+                            //      hardcoded Integer ⇒ matches the interpreter's dynamic model on
+                            //      every consumer (arith/compare/print). **Conflict:** if a
+                            //      different type was registered before for the same field (same
+                            //      variant built with two types) ⇒ safe fallback to Unknown (uses
+                            //      the old erased-Integer path, no regression) rather than commit
+                            //      to a type that may lie at another site.
                             {
-                                if (ctorArg.dataType == SadTypeKind::Float)
+                                auto &adtInfo = b_.adtEnumTable_[enumVarExpr->name];
+                                for (auto &variant : adtInfo.variants)
                                 {
-                                    b_.errors_.push_back(
-                                        "Error: ADT variant construction with a decimal (Float) payload is not yet supported by the compiler (ISSUE-076): " +
-                                        ctorKey);
-                                    return BuildResult();
+                                    if (variant.name != methodCallExpr->methodName)
+                                        continue;
+                                    if (variant.fieldTypes.size() < ctorArgs.size())
+                                        variant.fieldTypes.resize(ctorArgs.size(), SadTypeKind::Unknown);
+                                    for (size_t fi = 0; fi < ctorArgs.size(); ++fi)
+                                    {
+                                        SadTypeKind argTy = ctorArgs[fi].dataType;
+                                        SadTypeKind &slot = variant.fieldTypes[fi];
+                                        if (slot == SadTypeKind::Unknown)
+                                            slot = argTy;
+                                        else if (slot != argTy)
+                                            slot = SadTypeKind::Unknown; // (AR) تعارض ⇒ تراجُع آمن
+                                    }
+                                    break;
                                 }
                             }
 

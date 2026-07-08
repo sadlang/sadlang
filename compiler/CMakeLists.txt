@@ -132,6 +132,8 @@ endif()
 # Backend Library (LLVM)
 # ============================================================================
 if(LLVM_FOUND)
+ # (AR) ISSUE-076: يشمل sad_dyn_repr.cpp (تمثيل %SadDyn) عبر GLOB أدناه
+ # (EN) ISSUE-076: includes sad_dyn_repr.cpp (%SadDyn representation) via the GLOB below
  file(GLOB LLVM_BACKEND_SOURCES "src/backend/llvm/*.cpp")
  file(GLOB LLVM_BACKEND_HEADERS "include/backend/llvm/*.h")
  # (AR) Phase 7 — Step 1: ?? ????? backend/llvm/builders/ (sub-codegens)

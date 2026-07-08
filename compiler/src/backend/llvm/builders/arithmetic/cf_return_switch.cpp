@@ -6,6 +6,7 @@
  */
 #include "builders/arithmetic/controlflow_codegen.h"
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h"
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/BasicBlock.h>
@@ -112,7 +113,27 @@ namespace Sad
 
                 if (retType != retValue->getType())
                 {
-                    if (retType->isDoubleTy() && retValue->getType()->isIntegerTy())
+                    // (AR) ISSUE-076: نوع إرجاع %SadDyn وقيمةٌ محسوسة ⇒ غلّف (toDyn)؛ والعكس ⇒ فُكّ.
+                    // (EN) ISSUE-076: %SadDyn return type with a concrete value ⇒ pack (toDyn); the
+                    //      converse ⇒ unpack. Driven by type mismatch, like the rest of this chain.
+                    llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                    if (retType == dynTy && retValue->getType() != dynTy)
+                    {
+                        retValue = toDyn(cg_, retValue, operand.dataType);
+                    }
+                    else if (retValue->getType() == dynTy && retType != dynTy)
+                    {
+                        if (retType->isDoubleTy())
+                            retValue = unpackDouble(cg_, retValue);
+                        else if (retType->isPointerTy())
+                            retValue = unpackPtr(cg_, retValue);
+                        else if (retType->isIntegerTy(1))
+                            retValue = cg_.builder_->CreateTrunc(
+                                dynPayloadI64(cg_, retValue), llvm::Type::getInt1Ty(*cg_.context_), "ret_dyn_i1");
+                        else
+                            retValue = dynPayloadI64(cg_, retValue);
+                    }
+                    else if (retType->isDoubleTy() && retValue->getType()->isIntegerTy())
                     {
                         retValue = cg_.builder_->CreateSIToFP(retValue, retType, "ret_i2f");
                     }

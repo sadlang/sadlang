@@ -777,6 +777,54 @@ namespace Sad
                 // (EN) Before building function bodies, scan all function calls in the program
                 //      to update untyped parameter types (UNKNOWN → I64) to their actual types
                 //      based on the real arguments passed at call sites
+
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.65 (ISSUE-076/084): تسجيل مبكرٌ لأسماء حقول تعدادات ADT في
+                //      adtEnumTable_ قبل Phase 1.7 (بناء التعدادات الكامل في المرحلة 2أ، متأخّرًا).
+                //      يُمكّن inferExprType من تمييز الوصول المباشر `X.حقل` كحمولةٍ ديناميّة (Any)
+                //      فيُرقَّى معامِلُ دالةٍ تتلقّاه ⇒ يُصلح `ط(ش.نق)`. المرحلة 2أ ستستبدله بالكامل.
+                // (EN) Phase 1.65 (ISSUE-076/084): pre-register ADT enum field names into
+                //      adtEnumTable_ before Phase 1.7 (the full enum build is in Phase 2أ, later).
+                //      Lets inferExprType recognize direct access `X.f` as a dynamic (Any) payload,
+                //      widening a function param that receives it ⇒ fixes `ط(ش.نق)`. Phase 2أ later
+                //      overwrites this entry with the complete build.
+                {
+                    auto preRegisterEnum = [&](Sad::AST::EnumDecl *enumDecl)
+                    {
+                        // (AR) فقط تعدادات ADT (ذات حقول) — التعداد البسيط (ثوابت) لا يُسجَّل في
+                        //      adtEnumTable_ (وإلّا عُومِل خطأً كـADT ⇒ انهيار مطابقة الحالة الوحدة).
+                        // (EN) Only ADT enums (with fields) — a simple enum (constants) must not go
+                        //      into adtEnumTable_ (else it is mistaken for an ADT ⇒ unit-variant
+                        //      match crash).
+                        if (!enumDecl || !enumDecl->isADT() || adtEnumTable_.count(enumDecl->name))
+                            return;
+                        ADTEnumInfo adtInfo;
+                        adtInfo.name = enumDecl->name;
+                        adtInfo.structName = enumDecl->name;
+                        for (size_t i = 0; i < enumDecl->members.size(); ++i)
+                        {
+                            ADTVariantInfo variant;
+                            variant.name = enumDecl->members[i].name;
+                            variant.tag = static_cast<int64_t>(i);
+                            variant.fields = enumDecl->members[i].fields;
+                            variant.fieldTypes.assign(variant.fields.size(), SadTypeKind::Unknown);
+                            adtInfo.variants.push_back(std::move(variant));
+                        }
+                        adtEnumTable_[enumDecl->name] = std::move(adtInfo);
+                    };
+                    for (const auto &stmt : *program)
+                    {
+                        if (!stmt)
+                            continue;
+                        if (auto *ed = dynamic_cast<Sad::AST::EnumDecl *>(stmt.get()))
+                            preRegisterEnum(ed);
+                        else if (auto *exp = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
+                            preRegisterEnum(dynamic_cast<Sad::AST::EnumDecl *>(exp->declaration.get()));
+                        else if (auto *exps = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
+                            preRegisterEnum(dynamic_cast<Sad::AST::EnumDecl *>(exps->declaration.get()));
+                    }
+                }
+
                 inferParamTypesFromCallSites(program);
 
                 // ═══════════════════════════════════════════════════════════════════

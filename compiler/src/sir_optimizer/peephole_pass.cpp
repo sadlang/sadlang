@@ -239,6 +239,26 @@ namespace Sad
                 if (inst.operands.size() < 2)
                     return false;
 
+                // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any) ⇒ لا تبسيطَ إلى صفرٍ صحيح.
+                //      `س - س`/`س * 0` لعشريٍّ = 0.0 (موسومة)، لا 0 صحيح غير موسوم (يُقرأ null
+                //      ⇒ "void"). المسار الديناميّ في الخلف يُنتج النتيجة الموسومة الصحيحة.
+                // (EN) ISSUE-076/084 (ب″): a dynamic (Any) result ⇒ no fold to an integer zero.
+                //      `x - x`/`x * 0` for a float = 0.0 (tagged), not an untagged int 0 (which
+                //      decodes as null ⇒ "void"). The backend's dynamic path yields the correct
+                //      tagged result.
+                if (inst.hasResult() && inst.result->dataType == SIR::SadTypeKind::Any)
+                    return false;
+
+                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ ديناميّ (Any = %SadDyn) ⇒ لا تبسيط؛
+                //      المعامل بنيةٌ لا i64، والنتيجة قد تُستنتَج محدَّدةً بينما المعامل ديناميّ.
+                // (EN) ISSUE-076 (%SadDyn root fix): a dynamic operand (Any = %SadDyn) ⇒ no fold; the
+                //      operand is a struct, not i64, and the result may be inferred concrete while an
+                //      operand stays dynamic.
+                for (const auto &op : inst.operands)
+                    if (op.dataType == SIR::SadTypeKind::Any ||
+                        op.dataType == SIR::SadTypeKind::Unknown)
+                        return false;
+
                 const auto &left = inst.operands[0];
                 const auto &right = inst.operands[1];
 

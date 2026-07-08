@@ -69,6 +69,9 @@ namespace Sad
                             variant.name = member.name;
                             variant.tag = static_cast<int64_t>(i);
                             variant.fields = member.fields;
+                            // (AR) ISSUE-076: أنواع الحقول Unknown حتّى تُستنتَج من موقع الإنشاء
+                            // (EN) ISSUE-076: field types Unknown until inferred from a construction site
+                            variant.fieldTypes.assign(member.fields.size(), SadTypeKind::Unknown);
 
                             if (variant.fields.size() > adtInfo.maxFieldCount)
                             {
@@ -85,18 +88,23 @@ namespace Sad
 #endif
 
                         // (AR) الخطوة 2: إنشاء بنية SIR للـ tagged union
-                        //      البنية: { __tag: I64, __f0: PTR, __f1: PTR, ..., __fN: PTR }
+                        //      البنية: { __tag: I64, __f0: Any(%SadDyn), __f1: Any, ..., __fN: Any }
                         //      حيث N = maxFieldCount - 1
-                        //      نستخدم PTR لكل حقل لأن الحقول قد تحمل أي نوع
+                        //      (AR) ISSUE-076 (%SadDyn): حقول الحمولة **ديناميّة النوع جوهريًّا**
+                        //      (الحقل بلا تعليق نوع يقبل صحيحًا/عشريًّا/نصًّا/منطقيًّا)، فنُسجّلها Any
+                        //      لتُخفَض خانتُها إلى النوع الواصف لذاته %SadDyn بدل وسم البتّات القديم.
                         // (EN) Step 2: Create SIR struct for tagged union
-                        //      Struct: { __tag: I64, __f0: PTR, __f1: PTR, ..., __fN: PTR }
+                        //      Struct: { __tag: I64, __f0: Any(%SadDyn), __f1: Any, ..., __fN: Any }
                         //      where N = maxFieldCount - 1
-                        //      We use PTR for all fields since they can hold any type
+                        //      ISSUE-076 (%SadDyn): payload fields are **inherently dynamically typed**
+                        //      (an untyped field accepts int/float/string/bool), so we register them as
+                        //      Any so their slot lowers to the self-describing %SadDyn type instead of
+                        //      the old bit-tagging scheme.
                         auto sirClass = std::make_shared<SIRClass>(adtInfo.structName, "");
                         sirClass->addField("__tag", SadTypeKind::Integer);
                         for (size_t f = 0; f < adtInfo.maxFieldCount; ++f)
                         {
-                            sirClass->addField("__f" + std::to_string(f), SadTypeKind::Pointer);
+                            sirClass->addField("__f" + std::to_string(f), SadTypeKind::Any);
                         }
 
                         if (b_.module_)
@@ -192,7 +200,11 @@ namespace Sad
                                 auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Struct);
                                 for (size_t fi = 0; fi < variant.fields.size(); ++fi)
                                 {
-                                    SIRParameter param(variant.fields[fi], SadTypeKind::Pointer);
+                                    // (AR) ISSUE-076 (%SadDyn): معامل الباني ديناميّ ⇒ Any (%SadDyn)،
+                                    //      فيغلّف حدُّ الاستدعاء الوسيطَ (double/int/…) إلى %SadDyn.
+                                    // (EN) ISSUE-076 (%SadDyn): dynamic ctor param ⇒ Any (%SadDyn); the
+                                    //      call boundary packs the argument (double/int/…) into %SadDyn.
+                                    SIRParameter param(variant.fields[fi], SadTypeKind::Any);
                                     ctorFunc->addParameter(param);
                                 }
 
@@ -212,8 +224,10 @@ namespace Sad
                                 for (size_t fi = 0; fi < variant.fields.size(); ++fi)
                                 {
                                     std::string paramReg = "%" + variant.fields[fi];
+                                    // (AR) ISSUE-076 (%SadDyn): معامل الحمولة ديناميّ (Any) ⇒ يُخزَّن %SadDyn
+                                    // (EN) ISSUE-076 (%SadDyn): dynamic payload operand (Any) ⇒ stored as %SadDyn
                                     constructInst.operands.push_back(
-                                        SIROperand::Register(paramReg, SadTypeKind::Pointer));
+                                        SIROperand::Register(paramReg, SadTypeKind::Any));
                                 }
                                 constructInst.comment = "Tuple variant: " + fullName + "(" +
                                                         std::to_string(variant.fields.size()) + " fields)";
@@ -239,7 +253,8 @@ namespace Sad
                                 ctorInfo.sirFunction = ctorFunc;
                                 for (size_t fi = 0; fi < variant.fields.size(); ++fi)
                                 {
-                                    ctorInfo.parameters.push_back(SIRParameter(variant.fields[fi], SadTypeKind::Pointer));
+                                    // (AR) ISSUE-076 (%SadDyn): معامل الباني ديناميّ / (EN) dynamic ctor param
+                                    ctorInfo.parameters.push_back(SIRParameter(variant.fields[fi], SadTypeKind::Any));
                                 }
                                 b_.functionTable_[fullName] = ctorInfo;
                             }

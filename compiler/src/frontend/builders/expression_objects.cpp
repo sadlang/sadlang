@@ -555,13 +555,24 @@ namespace Sad
                         if (fieldIdx >= 0)
                         {
                             // (AR) وُجد الحقل — الاستخراج عبر ENUM_GET_PAYLOAD
+                            //      ISSUE-076/082/084 (ب″): بالنوع المُستنتَج إن سُجِّل (عشريّ/نصّ/
+                            //      صحيح)، وإلّا **Any** (لا Integer) — قيمة ديناميّة موسومة يكشفها
+                            //      المستهلك زمنَ التشغيل — نظير المسار التوأم expression_members.
                             // (EN) Found the field — extract via ENUM_GET_PAYLOAD
+                            //      ISSUE-076/082/084 (ب″): with the inferred type if registered
+                            //      (float/string/int), else **Any** (not Integer) — a tagged
+                            //      dynamic value the consumer detects at runtime — mirrors the twin
+                            //      path in expression_members.
+                            SadTypeKind fieldTy = adtInfo.findFieldType(memberExpr->memberName);
+                            SadTypeKind resultTy = (fieldTy != SadTypeKind::Unknown)
+                                                       ? fieldTy
+                                                       : SadTypeKind::Any;
                             std::string resultReg = b_.newTempRegister();
 
                             if (b_.currentBlock_)
                             {
                                 SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                                getPayload.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                                getPayload.result = SIROperand::Register(resultReg, resultTy);
                                 getPayload.operands.push_back(
                                     SIROperand::Register(objResult.registerName, objResult.type));
                                 getPayload.operands.push_back(
@@ -585,7 +596,7 @@ namespace Sad
                                       << " in ADT '" << objResult.className << "'" << std::endl;
 #endif
 
-                            BuildResult result(resultReg, SadTypeKind::Integer);
+                            BuildResult result(resultReg, resultTy);
                             result.className = objResult.className;
                             result.isFieldAccess = true;
                             return result;

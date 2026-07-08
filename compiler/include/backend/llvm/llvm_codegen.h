@@ -166,6 +166,14 @@ namespace Sad
             // جدول الدوال / Function table
             std::unordered_map<std::string, llvm::Function *> functions;
 
+            // (AR) أنواع SIR لمعاملات كل دالة (بالترتيب، شاملةً self للطرق). يُستخدم عند
+            //      الاستدعاء لتوسيم قيمةٍ محسوسة (صحيح/عشريّ/منطقيّ/نصّ) تُمرَّر لمعاملٍ
+            //      ديناميّ Any، فيتطابق تمثيل المُستدعي والمُستدعاة (ISSUE-076/084).
+            // (EN) Per-function SIR parameter types (in order, incl. self for methods). Used at
+            //      call sites to tag a concrete value (int/float/bool/string) passed to a dynamic
+            //      Any parameter, keeping caller/callee representations in agreement (ISSUE-076/084).
+            std::unordered_map<std::string, std::vector<SadTypeKind>> functionParamSirTypes;
+
             // جدول الكتل الأساسية / Basic block table
             std::unordered_map<std::string, llvm::BasicBlock *> basicBlocks;
 

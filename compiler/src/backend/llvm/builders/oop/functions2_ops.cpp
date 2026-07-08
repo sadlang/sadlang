@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h"
 #include "builders/oop/functions_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
@@ -130,6 +131,17 @@ namespace Sad
             case SadTypeKind::Function:
                 returnType = cg_.getInt64Type();
                 break;
+            // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): نوع الإرجاع Any = قيمة ديناميّة واصفة لذاتها
+            //      تُرجَع عبر حدود الدوال. تمثيلها %SadDyn (بنية {i8 وسم، i64 حمولة}) لا i64 خام،
+            //      فلا يقدر المستهلك على معاملتها معاملة صحيحٍ ملتبِس؛ يفكّها عبر موزِّع نوعيّ.
+            //      تُمرَّر بالقيمة (ABI مُثبَت: سجلّان).
+            // (EN) ISSUE-076 (%SadDyn root fix): an Any return type = a self-describing dynamic value
+            //      returned across a function boundary. Its representation is %SadDyn ({i8 kind, i64
+            //      payload}), NOT a raw i64, so a consumer cannot treat it as an ambiguous integer;
+            //      it is decoded via a typed dispatcher. Returned by value (ABI proven: 2 registers).
+            case SadTypeKind::Any:
+                returnType = getSadDynType(*cg_.context_);
+                break;
             default:
                 returnType = cg_.getVoidType();
                 break;
@@ -188,12 +200,31 @@ namespace Sad
                 case SadTypeKind::String:
                     paramType = cg_.getInt8PtrType();
                     break;
+                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ ديناميّ (Any = تعارض int⊔float أو
+                //      حمولة ADT مجهولة) ⇒ نوعه %SadDyn، فتعبر القيمةُ واصفةً لذاتها بلا التباس.
+                // (EN) ISSUE-076 (%SadDyn root fix): a dynamic param (Any = int⊔float conflict or an
+                //      unknown ADT payload) ⇒ %SadDyn type, so the value crosses self-describing.
+                case SadTypeKind::Any:
+                    paramType = getSadDynType(*cg_.context_);
+                    break;
                 default:
                     paramType = cg_.getInt64Type();
                     break;
                 }
 
                 paramTypes.push_back(paramType);
+            }
+
+            // (AR) ISSUE-076/084 (ب″): سجّل أنواع SIR للمعاملات (بالترتيب) كي يوسم موقعُ
+            //      الاستدعاء قيمةً محسوسة تُمرَّر لمعاملٍ ديناميّ Any (تطابق تمثيل الطرفين).
+            // (EN) ISSUE-076/084 (ب″): record the SIR param types (in order) so a call site can
+            //      tag a concrete value passed to a dynamic Any param (caller/callee agreement).
+            {
+                std::vector<SadTypeKind> sirParamTypes;
+                sirParamTypes.reserve(params.size());
+                for (const auto &param : params)
+                    sirParamTypes.push_back(param.type);
+                cg_.context_info_.functionParamSirTypes[sirFunc->name] = sirParamTypes;
             }
 
             // إنشاء نوع الدالة

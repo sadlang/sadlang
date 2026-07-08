@@ -5,6 +5,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -444,6 +445,14 @@ namespace Sad
                     // (AR) أنواع المؤشرات: النصوص ومؤشرات UI widgets
                     // (EN) Pointer types: strings and UI widget pointers
                     allocType = llvm::PointerType::getUnqual(*cg_.context_);
+                    break;
+                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): سجلّ ديناميّ (Any) ⇒ خانةٌ %SadDyn، فيُخزَّن
+                //      ويُحمَّل بنوعه المميّز بلا تلف (كان i64 يقتطع الحمولة لـ8 بايت ⇒ قمامة).
+                // (EN) ISSUE-076 (%SadDyn root fix): a dynamic (Any) register ⇒ a %SadDyn slot, so it
+                //      is stored/loaded by its distinct type without corruption (an i64 slot truncated
+                //      the 16-byte value to 8 bytes ⇒ garbage).
+                case SadTypeKind::Any:
+                    allocType = getSadDynType(*cg_.context_);
                     break;
                 default:
                     allocType = cg_.getInt64Type();

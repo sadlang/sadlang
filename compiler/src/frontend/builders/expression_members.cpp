@@ -191,9 +191,22 @@ namespace Sad
                         int fieldIdx = adtInfo.findFieldIndex(memberExpr->member);
                         if (fieldIdx >= 0 && b_.currentBlock_)
                         {
+                            // (AR) ISSUE-076/082/084 (ب″): استخرج بالنوع المُستنتَج للحقل
+                            //      (عشريّ/نصّ/صحيح) إن سُجِّل من موقع إنشاء؛ وإلّا **Any** (لا
+                            //      Integer) — قيمة ديناميّة موسومة يكشفها المستهلك زمنَ التشغيل.
+                            //      يُصلح الوصول المباشر بحمولةٍ عشريّة (كان يطبع بتّات double الخام).
+                            // (EN) ISSUE-076/082/084 (ب″): extract with the inferred field type
+                            //      (float/string/int) if registered from a construction site; else
+                            //      **Any** (not Integer) — a tagged dynamic value the consumer
+                            //      detects at runtime. Fixes direct access with a decimal payload
+                            //      (previously printed raw double bits).
+                            SadTypeKind fieldTy = adtInfo.findFieldType(memberExpr->member);
+                            SadTypeKind resultTy = (fieldTy != SadTypeKind::Unknown)
+                                                       ? fieldTy
+                                                       : SadTypeKind::Any;
                             std::string resultReg = b_.newTempRegister();
                             SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                            getPayload.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                            getPayload.result = SIROperand::Register(resultReg, resultTy);
                             getPayload.operands.push_back(
                                 SIROperand::Register(objResult.registerName, objResult.type));
                             getPayload.operands.push_back(
@@ -206,7 +219,7 @@ namespace Sad
                                                  "." + memberExpr->member + " (index=" + std::to_string(fieldIdx) + ")";
                             b_.currentBlock_->addInstruction(getPayload);
 
-                            BuildResult result(resultReg, SadTypeKind::Integer);
+                            BuildResult result(resultReg, resultTy);
                             result.className = objResult.className;
                             result.isFieldAccess = true;
                             return result;

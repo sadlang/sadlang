@@ -439,7 +439,11 @@ void __sad_format_double(char *buf, double value)
 /* (EN) Print double directly — called from generated code instead of printf("%g") */
 void __sad_print_double(double value)
 {
-    char buf[64];
+    /* (AR) ISSUE-076 (Amelia #8): %.6f قد يبلغ ~316 حرفًا لـDBL_MAX (غير أُسّيّ) —
+     *      64 يفيض. 512 آمن (>DBL_MAX_10_EXP+هامش). */
+    /* (EN) ISSUE-076 (Amelia #8): %.6f can reach ~316 chars for DBL_MAX (never
+     *      exponential) — 64 overflows. 512 is safe (>DBL_MAX_10_EXP + margin). */
+    char buf[512];
     __sad_format_double(buf, value);
     fputs(buf, stdout);
 }
@@ -881,7 +885,7 @@ void __sad_map_set_typed(long long map_i64, const char *key, long long val, int 
             {
                 double dv;
                 memcpy(&dv, &val, sizeof(double));
-                char buf[64];
+                char buf[512]; /* ISSUE-076 (Amelia #8): %.6f DBL_MAX ~316 chars */
                 __sad_format_double(buf, dv);
                 map->slots[ins].value = sad_strdup(buf);
             }
@@ -921,7 +925,7 @@ void __sad_map_set_typed(long long map_i64, const char *key, long long val, int 
             {
                 double dv;
                 memcpy(&dv, &val, sizeof(double));
-                char buf[64];
+                char buf[512]; /* ISSUE-076 (Amelia #8): %.6f DBL_MAX ~316 chars */
                 __sad_format_double(buf, dv);
                 map->slots[idx].value = sad_strdup(buf);
             }

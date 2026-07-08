@@ -97,19 +97,32 @@ bool StrengthReductionPass::processBlock(SIR::SIRBasicBlock* block) {
 // Strength Reduction Transforms / تحويلات تقليل القوة
 // ============================================================================
 
+// (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ قد يكون ديناميًّا زمنَ التوليد (%SadDyn، حمولةُ
+//      ADT) ⇒ لا تُحوّله إلى إزاحة/قناعٍ بتّيّ. نوعه Any أو Unknown هنا (فقدُ نوعٍ في تعبيرٍ ديناميّ)،
+//      و`shl/shr/and` على بنية %SadDyn = IR باطل ⇒ انهيار الخلفيّة. خلفيّة LLVM تُعيد تقليل القوّة
+//      للأعداد الصحيحة الحقيقيّة، فتخطّي التحويل هنا بلا خسارة أداء.
+// (EN) ISSUE-076 (%SadDyn root fix): an operand that may be dynamic at codegen (%SadDyn, an ADT
+//      payload) ⇒ do NOT reduce it to a shift/bit-mask. Its type is Any or Unknown here (type lost in
+//      a dynamic expression), and shl/shr/and on a %SadDyn struct = invalid IR ⇒ backend crash.
+//      LLVM's backend re-applies strength reduction for real integers, so skipping here costs nothing.
+static inline bool srMaybeDynamic(const SIR::SIROperand& op) {
+    return op.dataType == SIR::SadTypeKind::Any || op.dataType == SIR::SadTypeKind::Unknown;
+}
+
 bool StrengthReductionPass::tryReduceMultiply(SIR::SIRInstruction& inst) {
     if (inst.operands.size() < 2) return false;
-    
+
     // (AR) محاولة إيجاد المعامل الثابت (قوة 2)
     // (EN) Try to find the constant operand (power of 2)
     for (size_t i = 0; i < 2; ++i) {
         auto constVal = getIntConstant(inst.operands[i]);
         if (constVal && isPowerOfTwo(*constVal) && *constVal > 1) {
+            size_t otherIdx = 1 - i;
+            if (srMaybeDynamic(inst.operands[otherIdx])) return false; // ISSUE-076
             int shiftAmount = log2(*constVal);
-            
+
             // (AR) تحويل: x * (2^n) → x << n
             // (EN) Transform: x * (2^n) → x << n
-            size_t otherIdx = 1 - i;
             inst.opcode = SIR::SIROpcode::SHL;
             inst.operands[0] = inst.operands[otherIdx];
             inst.operands[1] = SIR::SIROperand::ConstantI64(shiftAmount);
@@ -130,8 +143,9 @@ bool StrengthReductionPass::tryReduceDivision(SIR::SIRInstruction& inst) {
     // (EN) Check if divisor is constant and power of 2
     auto constVal = getIntConstant(inst.operands[1]);
     if (constVal && isPowerOfTwo(*constVal) && *constVal > 1) {
+        if (srMaybeDynamic(inst.operands[0])) return false; // ISSUE-076 (%SadDyn)
         int shiftAmount = log2(*constVal);
-        
+
         // (AR) تحويل: x / (2^n) → x >> n (for unsigned/positive)
         // (EN) Transform: x / (2^n) → x >> n
         inst.opcode = SIR::SIROpcode::SHR;
@@ -152,6 +166,7 @@ bool StrengthReductionPass::tryReduceModulo(SIR::SIRInstruction& inst) {
     // (EN) Check if divisor is constant and power of 2
     auto constVal = getIntConstant(inst.operands[1]);
     if (constVal && isPowerOfTwo(*constVal) && *constVal > 1) {
+        if (srMaybeDynamic(inst.operands[0])) return false; // ISSUE-076 (%SadDyn)
         // (AR) تحويل: x % (2^n) → x & (2^n - 1)
         // (EN) Transform: x % (2^n) → x & (2^n - 1)
         inst.opcode = SIR::SIROpcode::AND;
@@ -172,7 +187,30 @@ bool StrengthReductionPass::tryReduceModulo(SIR::SIRInstruction& inst) {
 bool StrengthReductionPass::tryAlgebraicSimplification(SIR::SIRInstruction& inst) {
     if (inst.operands.size() < 2) return false;
     if (!inst.hasResult()) return false;
-    
+
+    // (AR) ISSUE-076/084 (ب″): نتيجةٌ ديناميّة (Any = حمولةُ ADT مجهولةُ النوع) ⇒ لا تبسيط
+    //      جبريّ صحيحيّ الدلالة. `س - س` لعشريٍّ = 0.0 (لا 0 الصحيح)، و`س * 0`=0.0، إلخ؛
+    //      هذه المطابقات تُنتج ثابتًا صحيحًا غير موسوم يُقرأ خطأً (مؤشّر null ⇒ "void").
+    //      نترك المسار الديناميّ في الخلف يحسبها بوسمها الصحيح زمنَ التشغيل.
+    // (EN) ISSUE-076/084 (ب″): a dynamic (Any = statically-unknown ADT payload) result ⇒ no
+    //      integer-semantics algebraic simplification. `x - x` for a float = 0.0 (not int 0),
+    //      `x * 0` = 0.0, etc.; these identities emit an untagged integer constant that decodes
+    //      wrongly (null pointer ⇒ "void"). Leave it to the backend's dynamic path to compute the
+    //      correctly-tagged result at runtime.
+    if (inst.result->dataType == SIR::SadTypeKind::Any) return false;
+
+    // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ ديناميّ (Any = %SadDyn، حمولةُ ADT) ⇒ لا
+    //      تقليلَ قوّةٍ صحيحيًّا. المعامل ليس i64 بل بنيةٌ واصفةٌ لذاتها، فتحويلُ «*2→<<1» أو
+    //      «+0→move» يُصدر عمليّة صحيحة على بنية = IR باطل ⇒ انهيار الخلفيّة. النتيجة قد تُستنتَج
+    //      محدَّدةً بينما المعامل ديناميّ، فلا يكفي فحصُ النتيجة وحده.
+    // (EN) ISSUE-076 (%SadDyn root fix): a dynamic operand (Any = %SadDyn, an ADT payload) ⇒ no
+    //      integer strength reduction. The operand is a self-describing struct, not i64, so
+    //      "*2→<<1" or "+0→move" emit an integer op on a struct = invalid IR ⇒ backend crash. The
+    //      result may be inferred concrete while an operand is dynamic, so guarding the result alone
+    //      is insufficient.
+    for (const auto &op : inst.operands)
+        if (srMaybeDynamic(op)) return false;
+
     auto c0 = getIntConstant(inst.operands[0]);
     auto c1 = getIntConstant(inst.operands[1]);
     
