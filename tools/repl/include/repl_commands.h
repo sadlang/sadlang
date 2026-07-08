@@ -24,7 +24,9 @@
 
 #pragma once
 
-#include "../../interpreter/include/core/interpreter_core.h"
+// (AR) مسار جذريّ (يُحلّ عبر ${CMAKE_SOURCE_DIR}) — ثابت رغم البنية غير المسطّحة
+// (EN) root-relative (resolved via ${CMAKE_SOURCE_DIR}) — stable under non-flat layout
+#include "interpreter/include/core/interpreter_core.h"
 #include "history_manager.h"
 #include <string>
 #include <functional>

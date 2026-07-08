@@ -22,14 +22,17 @@
 
 #include "lexer_core.h"
 #include "parser_core.h"
-// interpreter_core.h path updated
-#include "../../interpreter/include/core/interpreter_core.h"
+// (AR) مسار جذريّ (يُحلّ عبر ${CMAKE_SOURCE_DIR}) — ثابت رغم البنية غير المسطّحة
+// (EN) root-relative (resolved via ${CMAKE_SOURCE_DIR}) — stable under non-flat layout
+#include "interpreter/include/core/interpreter_core.h"
 #include "error_manager.h"
 #include "history_manager.h"
 #include "repl_commands.h"
+#include "repl_line_editor.h" // (AR) المُكمِّل + محرّر السطر (إدخال غنيّ اختياريّ) / (EN) completer + line editor (optional rich input)
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_set>
 
 namespace Sad {
 namespace REPL {
@@ -41,6 +44,7 @@ struct REPLConfig {
     bool enableColor = true;            ///< (AR) تفعيل الألوان / (EN) Enable colors
     bool enableHistory = true;          ///< (AR) تفعيل التاريخ / (EN) Enable history
     bool enableAutoComplete = true;     ///< (AR) تفعيل الإكمال التلقائي / (EN) Enable auto-completion
+    bool enableLineEditor = false;      ///< (AR) محرّر سطر تفاعليّ غنيّ (أسهم/Tab)، اختياريّ عبر --rich / (EN) rich interactive line editor, opt-in via --rich
     bool printResults = true;           ///< (AR) طباعة النتائج / (EN) Print results
     bool showPrompt = true;             ///< (AR) عرض موجه الأوامر / (EN) Show prompt
     size_t maxHistorySize = 1000;      ///< (AR) حجم التاريخ الأقصى / (EN) Max history size
@@ -154,12 +158,34 @@ private:
     void processCode(const std::string& code);
     
     /**
-     * @brief فحص إذا كان السطر غير مكتمل / Check if line is incomplete
-     * @param line السطر / Line
-     * @return true إذا كان غير مكتمل / true if incomplete
+     * @brief تنفيذ مخزن الأسطر المتعدّدة ثمّ تصفيره والعودة لحالة الجاهزيّة
+     *        / Execute the multiline buffer, then clear it and return to Ready
      */
-    bool isIncomplete(const std::string& line);
-    
+    void runMultilineBuffer();
+
+    /**
+     * @brief هل المصدر المتراكم يمثّل بنية غير مكتملة (كتلة مفتوحة تنتظر «نهاية»،
+     *        أو قوس ‎(‎/‏‎[‎ غير مغلق)؟ يُقطّع المصدر بالمعجم ويعدّ عمق الكتل بكلمات
+     *        الفتح/الإغلاق المأخوذة من SoT (KeywordTable::getKeywordsByRole).
+     *        / Is the accumulated source an incomplete construct (an open block
+     *        awaiting «نهاية», or an unbalanced ( / [ )? Tokenizes via the lexer
+     *        and counts block depth using SoT-sourced opener/closer keywords.
+     * @param src المصدر المتراكم / accumulated source
+     */
+    bool isBufferIncomplete(const std::string& src) const;
+
+    /**
+     * @brief استخراج مُعرّفات المستخدم (متغيّر/ثابت/دالة) لتغذية المُكمِّل
+     *        / Extract user identifiers (var/const/func) to feed the completer
+     * @param code الكود المُقيَّم / Evaluated code
+     */
+    void extractIdentifiers(const std::string& code);
+
+    /**
+     * @brief نصّ الموجّه الحاليّ (مع الألوان حسب الحالة) / Current prompt text (colored per state)
+     */
+    std::string promptText() const;
+
     /**
      * @brief طباعة الموجه / Print prompt
      */
@@ -196,8 +222,41 @@ private:
     std::unique_ptr<Interpreter::Interpreter> interpreter_;     ///< المفسر / Interpreter
     // Note: ErrorManager is singleton, accessed via getInstance()
     std::vector<std::string> multilineBuffer_;                  ///< مخزن متعدد الأسطر / Multiline buffer
-    int bracketDepth_;                                          ///< عمق الأقواس / Bracket depth
-    bool lastWasEmpty_;                                         ///< آخر سطر كان فارغ / Last was empty
+
+    // (AR) مرسى الأشجار: يُبقي كلّ شجرة AST مُحلَّلة (لكلّ سطر/ملفّ) حيّةً طوال الجلسة.
+    //      المفسّر الدائم يخزّن قيمًا مفهرَسة بعنوان عقدة AST (كاش الحرفيّات) ويحمل مؤشّرات
+    //      إلى أجسام الدوال/رموزها؛ لو حُرِّرت شجرة السطر بعد تنفيذه لأُعيد استخدام عناوين
+    //      عقدها في السطر التالي فتُقرأ قيمٌ بائتة (تلف السلاسل/الأرقام، انهيار الدوال).
+    //      إبقاؤها حيّة يمنع إعادة العناوين. إعادة تخصيص الـvector تنقل مؤشّرات الـStmtList
+    //      لا العُقَد الكوميّة، فالعناوين تبقى ثابتة. (ينمو مع الجلسة — مقبول تفاعليًّا؛
+    //      يُصفَّر بـ:reset عبر reset().)
+    // (EN) AST arena: keeps every parsed tree (per line/file) alive for the whole session.
+    //      The persistent interpreter memoizes values keyed by AST node address (literal cache)
+    //      and holds pointers into function bodies/tokens; freeing a line's tree after executing
+    //      it lets the next line reuse those node addresses, yielding stale reads (string/number
+    //      corruption, function crashes). Keeping them alive prevents address reuse. Vector
+    //      reallocation moves the StmtList pointers, not the heap nodes, so node addresses stay
+    //      stable. (Grows with the session — acceptable interactively; cleared on :reset.)
+    std::vector<AST::StmtList> astArena_;
+
+    // (AR) كلمات فتح/إغلاق الكتل مأخوذةً من SoT المعجم (لا قائمة مضمّنة) — لكشف
+    //      اكتمال الكتل متعدّدة الأسطر (دالة/صنف/إذا/... ... نهاية).
+    // (EN) block opener/closer keywords sourced from the lexicon SoT (no inline
+    //      list) — used to detect completeness of multiline blocks (… نهاية).
+    std::unordered_set<std::string> blockOpeners_;              ///< كلمات فتح الكتلة / block-opener spellings
+    std::unordered_set<std::string> blockClosers_;              ///< كلمات إغلاق الكتلة / block-closer spellings
+    std::unordered_set<std::string> blockContinuations_;        ///< كلمات بينيّة (وإلا/امسك/…) لتمييز else-if / inter-block keywords (else/catch/…) to spot else-if
+    // (AR) تهجئات «لامدا»: تُعالَج بنظرةٍ أماميّة في isBufferIncomplete (لا في المجموعة
+    //      العامّة) لأنّ صيغتها التعبيريّة «=> تعبير» لا تُغلَق بـ«نهاية» بينما الكتليّة تُغلَق.
+    // (EN) «لامدا» spellings: handled by a lookahead in isBufferIncomplete (not the generic
+    //      set) since its «=> expr» form needs no «نهاية» while its block form does.
+    std::unordered_set<std::string> lambdaWords_;               ///< تهجئات لامدا / lambda spellings
+
+    // (AR) إدخال غنيّ اختياريّ (opt-in عبر --rich، ويُفعَّل فقط على طرفيّة تفاعليّة)
+    // (EN) optional rich input (opt-in via --rich, enabled only on an interactive TTY)
+    std::unique_ptr<AutoCompleter> completer_;                  ///< المُكمِّل التلقائي / Auto-completer
+    std::unique_ptr<LineEditor> lineEditor_;                    ///< محرّر السطر التفاعليّ / Interactive line editor
+    bool useLineEditor_ = false;                                ///< هل نستعمل محرّر السطر فعلًا؟ / Actually use the line editor?
 };
 
 } // namespace REPL

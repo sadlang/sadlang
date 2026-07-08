@@ -221,7 +221,25 @@ if(TARGET sad-repl)
         PASS_REGULAR_EXPRESSION "sad-repl version"
         LABELS "hub;sad-repl;symmetry")
 
-    message(STATUS "✓ اختبارات الهب: مضاف 5 اختبارات لـ sad-repl")
+    # (AR) اختبار انحدار جلسة متعدّدة الجمل: يتحقّق أنّ REPL ينفّذ جلسةً كاملة بلا تلف
+    #      قيَم ولا انهيار (إصلاح «مرسى الأشجار» ضدّ use-after-free): أرقام متمايزة
+    #      (111/222)، تعريف دالّة واستدعاؤها (مربع(5)=25، كان ينهار)، صنف متعدّد الأسطر
+    #      (نقطة(42).س=42)، وكتلة else-if (الفرع الصحيح=800 لا 700).
+    # (EN) Multi-statement session regression: asserts the REPL runs a whole session with
+    #      no value corruption and no crash (the AST-arena fix against use-after-free):
+    #      distinct numbers (111/222), a function defined then called (مربع(5)=25, used to
+    #      crash), a multiline class (نقطة(42).س=42), and an else-if block (correct branch
+    #      = 800, not 700). The driver pipes the .ص session to stdin (non-interactive).
+    add_test(NAME HubRepl_Session
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_session_input.txt
+            -DEXPECT=111|222|25|42|800|18
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_Session PROPERTIES
+        LABELS "hub;sad-repl;regression")
+
+    message(STATUS "✓ اختبارات الهب: مضاف 6 اختبارات لـ sad-repl")
 else()
     message(STATUS "⚠ اختبارات الهب: تخطّي اختبارات sad-repl (الهدف غير موجود)")
 endif()

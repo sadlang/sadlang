@@ -105,7 +105,7 @@ namespace Sad
                 //      الجسر الموحَّد. هذا الاستدعاء يحلّ محل ~70 سطراً من
                 //      كود B-step3+B-step4 الذي كان منسوخاً هنا. نفس النقطة
                 //      تُستدعى الآن من VM launcher (`tools/compiler/main_simple.cpp`
-                //      فرع `useVM`) ومن REPL (`tools/repl/repl_engine.cpp`)،
+                //      فرع `useVM`) ومن REPL (`tools/repl/src/repl_engine.cpp`)،
                 //      لضمان سلوك موحَّد عبر جميع منفذات التشغيل.
                 //
                 //      راجع: shared/memory_gc/include/memory/gc/policy_bridge.h

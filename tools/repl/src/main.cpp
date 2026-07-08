@@ -33,7 +33,9 @@ void showHelp()
     std::cout << "  --no-color           تعطيل الألوان / Disable colors\n";
     std::cout << "  --no-history         تعطيل التاريخ / Disable history\n";
     std::cout << "  --history-file FILE  ملف التاريخ / History file\n";
-    std::cout << "  --load FILE          تحميل ملف عند البدء / Load file on start\n\n";
+    std::cout << "  --load FILE          تحميل ملف عند البدء / Load file on start\n";
+    std::cout << "  --rich               إدخال تفاعليّ غنيّ: أسهم/Tab/تحرير (طرفيّة فقط)\n";
+    std::cout << "                       Rich interactive input: arrows/Tab/editing (TTY only)\n\n";
 
     std::cout << "الأوامر الخاصة / Special Commands:\n";
     std::cout << "  :help / :مساعدة      عرض المساعدة / Show help\n";
@@ -48,7 +50,7 @@ void showHelp()
 
     std::cout << "أمثلة / Examples:\n";
     std::cout << "  >>> متغير س = 42\n";
-    std::cout << "  >>> دالة مربع(ع) { إرجاع ع * ع }\n";
+    std::cout << "  >>> دالة مربع(ع) ارجع ع * ع نهاية\n";
     std::cout << "  >>> مربع(10)\n";
     std::cout << "  100\n\n";
 }
@@ -96,6 +98,12 @@ int main(int argc, char *argv[])
         else if (arg == "--no-history")
         {
             config.enableHistory = false;
+        }
+        else if (arg == "--rich")
+        {
+            // (AR) تفعيل محرّر السطر التفاعليّ (يُطبَّق فقط على طرفيّة تفاعليّة)
+            // (EN) enable the interactive line editor (only takes effect on a TTY)
+            config.enableLineEditor = true;
         }
         else if (arg == "--history-file" && i + 1 < argc)
         {

@@ -1,19 +1,25 @@
 /**
  * =============================================================================
- * ملف: repl_enhanced.h
- * الوصف: REPL محسّن مع تنقل التاريخ وإكمال تلقائي وتحرير تفاعلي
- * (AR) @brief REPL محسّن مع دعم مفاتيح الأسهم وTab
- * (EN) @brief Enhanced REPL with arrow keys, Tab completion, interactive editing
- * المهمة: T306 - REPL improvements
+ * ملف: repl_line_editor.h
+ * الوصف: مكوّنات الإدخال الغنيّ لـREPL — إكمال تلقائي + محرّر سطر تفاعلي
+ * (AR) @brief مُكمِّل تلقائي (Tab) ومحرّر سطر (أسهم/Home/End) يستعملهما REPLEngine
+ * (EN) @brief Auto-completer (Tab) and interactive line editor (arrows/Home/End)
+ *      consumed by REPLEngine. No standalone REPL class — one unified engine.
  * =============================================================================
  */
 
 #pragma once
 
-#include "repl_engine.h"
+// (AR) لا نعتمد repl_engine.h (تفاديًا للتضمين الدائريّ) — نحتاج فقط HistoryManager
+// (EN) Do NOT depend on repl_engine.h (avoids a circular include) — only HistoryManager
+#include "history_manager.h"
 #include <string>
 #include <vector>
 #include <set>
+
+#ifndef _WIN32
+#include <termios.h>
+#endif
 
 namespace Sad {
 namespace REPL {
@@ -123,33 +129,11 @@ private:
 #endif
 };
 
-// =============================================================================
-// REPL المحسّن / Enhanced REPL
-// =============================================================================
-
-/**
- * (AR) REPL محسّن يستخدم محرر السطر التفاعلي بدلاً من std::getline
- * (EN) Enhanced REPL that uses interactive line editor instead of std::getline
- */
-class EnhancedREPL {
-public:
-    explicit EnhancedREPL(const REPLConfig& config = REPLConfig{});
-    ~EnhancedREPL();
-    
-    /**
-     * (AR) تشغيل REPL المحسّن
-     * (EN) Run enhanced REPL
-     */
-    int run();
-
-private:
-    REPLConfig config_;
-    std::unique_ptr<REPLEngine> engine_;
-    std::unique_ptr<AutoCompleter> completer_;
-    std::unique_ptr<LineEditor> editor_;
-    
-    void extractIdentifiers(const std::string& code);
-};
+// (AR) ملاحظة: أُزيل الصنف EnhancedREPL — دُمجت قدراته (المُكمِّل + محرّر السطر)
+//      في REPLEngine مباشرةً، فلا توجد نسختان من REPL. راجع repl_engine.{h,cpp}.
+// (EN) Note: the EnhancedREPL class was removed — its capabilities (completer +
+//      line editor) were folded directly into REPLEngine, so there is a single
+//      unified REPL, not two. See repl_engine.{h,cpp}.
 
 } // namespace REPL
 } // namespace Sad

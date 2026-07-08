@@ -1,14 +1,13 @@
 /**
  * =============================================================================
- * ملف: repl_enhanced.cpp
- * الوصف: تنفيذ REPL المحسّن — تحرير تفاعلي + إكمال تلقائي
- * (AR) @brief تنفيذ محرر السطر التفاعلي والإكمال التلقائي
- * (EN) @brief Interactive line editor and auto-completion implementation
- * المهمة: T306 - REPL improvements
+ * ملف: repl_line_editor.cpp
+ * الوصف: تنفيذ مكوّنات الإدخال الغنيّ — المُكمِّل التلقائي ومحرّر السطر التفاعلي
+ * (AR) @brief تنفيذ محرر السطر التفاعلي والإكمال التلقائي (يستعملهما REPLEngine)
+ * (EN) @brief Interactive line editor and auto-completion (consumed by REPLEngine)
  * =============================================================================
  */
 
-#include "repl_enhanced.h"
+#include "repl_line_editor.h"
 #include <iostream>
 #include <algorithm>
 
@@ -489,148 +488,6 @@ void LineEditor::disableRawMode() {
         rawModeEnabled_ = false;
     }
 #endif
-}
-
-// ============================================================================
-// EnhancedREPL — تنفيذ REPL المحسّن
-// ============================================================================
-
-EnhancedREPL::EnhancedREPL(const REPLConfig& config)
-    : config_(config)
-{
-    engine_ = std::make_unique<REPLEngine>(config);
-    completer_ = std::make_unique<AutoCompleter>();
-    
-    HistoryManager* histMgr = nullptr;
-    // Access engine's history through evaluate/reset
-    // We create our own history for line editor
-    auto hist = std::make_unique<HistoryManager>(
-        config.maxHistorySize, config.historyFile);
-    hist->load();
-    histMgr = hist.get();
-    
-    editor_ = std::make_unique<LineEditor>(histMgr, completer_.get());
-}
-
-EnhancedREPL::~EnhancedREPL() = default;
-
-int EnhancedREPL::run() {
-    // Print header
-    std::cout << "\033[1m\033[36m";
-    std::cout << "════════════════════════════════════════\n";
-    std::cout << "  لغة ص - REPL المحسّن v2.0\n";
-    std::cout << "  Enhanced REPL with Tab completion\n";
-    std::cout << "════════════════════════════════════════\n";
-    std::cout << "\033[0m\n";
-    
-    std::cout << "  \033[33mTab\033[0m  إكمال تلقائي    "
-              << "\033[33m↑↓\033[0m  تصفح التاريخ\n";
-    std::cout << "  \033[33m:help\033[0m  مساعدة         "
-              << "\033[33m:exit\033[0m  خروج\n\n";
-    
-    bool multiline = false;
-    std::vector<std::string> multilineBuffer;
-    
-    while (true) {
-        std::string prompt = multiline 
-            ? "\033[33m... \033[0m" 
-            : "\033[36m>>> \033[0m";
-        
-        std::string line = editor_->readLine(prompt);
-        
-        if (editor_->isEof()) {
-            break;
-        }
-        
-        // Extract user-defined identifiers for autocomplete
-        extractIdentifiers(line);
-        
-        if (multiline) {
-            if (line.empty()) {
-                // Execute multiline
-                std::string result = engine_->evaluateMultiline(multilineBuffer);
-                if (!result.empty()) {
-                    std::cout << "\033[32m" << result << "\033[0m\n";
-                }
-                multilineBuffer.clear();
-                multiline = false;
-                continue;
-            }
-            multilineBuffer.push_back(line);
-            continue;
-        }
-        
-        // Check for commands
-        if (!line.empty() && line[0] == ':') {
-            if (line == ":exit" || line == ":خروج" || 
-                line == ":quit" || line == ":إنهاء") {
-                break;
-            }
-            engine_->processCommand(line);
-            continue;
-        }
-        
-        if (line.empty()) continue;
-        
-        // Check if multiline is needed
-        bool incomplete = false;
-        std::string trimmed = line;
-        size_t firstNonSpace = trimmed.find_first_not_of(" \t");
-        if (firstNonSpace != std::string::npos)
-            trimmed = trimmed.substr(firstNonSpace);
-        
-        // Arabic keywords that start blocks
-        if (trimmed.find("دالة") == 0 || trimmed.find("صنف") == 0 ||
-            trimmed.find("إذا") == 0 || trimmed.find("بينما") == 0 ||
-            trimmed.find("لكل") == 0 || trimmed.find("طابق") == 0 ||
-            trimmed.find("حاول") == 0) {
-            incomplete = true;
-        }
-        
-        if (incomplete) {
-            multiline = true;
-            multilineBuffer.clear();
-            multilineBuffer.push_back(line);
-            continue;
-        }
-        
-        // Single-line evaluation
-        std::string result = engine_->evaluate(line);
-        if (!result.empty()) {
-            std::cout << "\033[32m" << result << "\033[0m\n";
-        }
-    }
-    
-    std::cout << "\033[32mوداعاً! 👋\033[0m\n";
-    return 0;
-}
-
-void EnhancedREPL::extractIdentifiers(const std::string& code) {
-    // Simple extraction: look for "متغير X" or "دالة X("
-    auto findAfter = [&](const std::string& keyword, const std::string& src) {
-        size_t pos = 0;
-        while ((pos = src.find(keyword, pos)) != std::string::npos) {
-            pos += keyword.size();
-            // Skip whitespace
-            while (pos < src.size() && (src[pos] == ' ' || src[pos] == '\t'))
-                pos++;
-            // Read identifier
-            size_t start = pos;
-            while (pos < src.size() && src[pos] != ' ' && src[pos] != '(' &&
-                   src[pos] != '=' && src[pos] != '\n' && src[pos] != '\t')
-                pos++;
-            if (pos > start) {
-                std::string ident = src.substr(start, pos - start);
-                if (!ident.empty()) {
-                    completer_->addUserIdentifier(ident);
-                }
-            }
-        }
-    };
-    
-    findAfter("متغير ", code);
-    findAfter("ثابت ", code);
-    findAfter("دالة ", code);
 }
 
 } // namespace REPL

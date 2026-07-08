@@ -7,21 +7,25 @@ cmake_minimum_required(VERSION 3.15)
 # REPL Target / هدف REPL
 # ========================================
 
-# (AR) ملاحظة: ملفّات التنفيذ (.cpp) موجودة الآن (main/repl_engine/history_manager/repl_commands)
-# (EN) Note: implementation files (.cpp) now exist — listed in REPL_SOURCES below
+# (AR) ملاحظة: بنية غير مسطّحة — المصادر في src/ والرؤوس في include/
+#      (تطابق عُرف المستودع: compiler/{src,include} وshared/*/include).
+# (EN) Note: non-flat layout — sources under src/, headers under include/
+#      (matches repo convention: compiler/{src,include} and shared/*/include).
 
 # (AR) جمع المصادر / (EN) Collect sources
 set(REPL_SOURCES
-    main.cpp
-    repl_engine.cpp
-    history_manager.cpp
-    repl_commands.cpp
+    src/main.cpp
+    src/repl_engine.cpp
+    src/history_manager.cpp
+    src/repl_commands.cpp
+    src/repl_line_editor.cpp
 )
 
 set(REPL_HEADERS
-    repl_engine.h
-    history_manager.h
-    repl_commands.h
+    include/repl_engine.h
+    include/history_manager.h
+    include/repl_commands.h
+    include/repl_line_editor.h
 )
 
 # (AR) إنشاء التنفيذي sad-repl / (EN) Create sad-repl executable
@@ -29,6 +33,9 @@ add_executable(sad-repl ${REPL_SOURCES} ${REPL_HEADERS})
 
 # (AR) مسارات التضمين / (EN) Include directories
 target_include_directories(sad-repl PRIVATE
+    # (AR) رؤوس الأداة الخاصّة (البنية غير المسطّحة) — تُتيح #include "repl_engine.h" من src/
+    # (EN) tool's own headers (non-flat layout) — lets src/ use #include "repl_engine.h"
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}
