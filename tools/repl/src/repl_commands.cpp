@@ -11,6 +11,7 @@
 #include "repl_engine.h"
 #include "repl_colors.h" // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
 #include "repl_sot_generated.h" // (AR) كتالوج «مصدر حقيقة الأدوات» — أخطاء/رسائل/أوامر REPL / (EN) Tool-SoT catalog
+#include "shell_executor.h"     // (AR) مُنفِّذ الأوامر الخارجيّة / (EN) external-command executor
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -136,6 +137,7 @@ CommandFunc REPLCommands::handlerFor(SoT::CommandHandler h)
         case SoT::CommandHandler::RESET:   return cmdReset;
         case SoT::CommandHandler::VARS:    return cmdVars;
         case SoT::CommandHandler::FUNCS:   return cmdFuncs;
+        case SoT::CommandHandler::RUN:     return cmdRun;
     }
     return nullptr;
 }
@@ -232,6 +234,31 @@ bool REPLCommands::cmdClear(REPLEngine* repl, const std::vector<std::string>& ar
 #else
     system("clear");
 #endif
+    return true;
+}
+
+// (AR) ‹:شغّل›/‹:run› — تشغيل برنامج خارجيّ متزامنًا (إرغونوميا الصدَفة). الوسائط argv
+//      (البرنامج ثمّ معطياته). عند فشل الإطلاق (غير موجود/غير تنفيذيّ) يُبلَّغ عبر كتالوج
+//      SoT (REPL011). يرث stdin/stdout/stderr فتظهر مخرجات البرنامج مباشرةً.
+// (EN) ‹:run› — run an external program synchronously (shell ergonomics). args = argv.
+//      On spawn failure, report via the SoT catalog; stdio is inherited.
+bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args)
+{
+    if (args.empty())
+    {
+        std::cout << usageLine(repl, "run") << std::endl;
+        return true;
+    }
+    std::cout.flush();
+    ShellResult r = runExternal(args);
+    if (!r.spawned)
+    {
+        std::cout << SoT::errorMessage(SoT::Error::RUN_FAILED, args[0]) << std::endl;
+        if (const auto* e = SoT::findError(SoT::Error::RUN_FAILED); e && e->hintAr)
+        {
+            std::cout << e->hintAr << SoT::kBilingualSeparator << e->hintEn << std::endl;
+        }
+    }
     return true;
 }
 

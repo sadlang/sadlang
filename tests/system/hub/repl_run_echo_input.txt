@@ -1,0 +1,2 @@
+:شغّل echo SADOS_RUN_OK
+:exit

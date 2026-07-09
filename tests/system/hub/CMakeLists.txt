@@ -239,7 +239,35 @@ if(TARGET sad-repl)
     set_tests_properties(HubRepl_Session PROPERTIES
         LABELS "hub;sad-repl;regression")
 
-    message(STATUS "✓ اختبارات الهب: مضاف 6 اختبارات لـ sad-repl")
+    # (AR) إرغونوميا الصدَفة: تشغيل برنامج خارجيّ عبر ‹:شغّل›. فشل الإطلاق (أمر مجهول)
+    #      محمول عبر المنصّات (يُبلَّغ باسم البرنامج في الخطأ) — يُتوقّع ظهور اسم الأمر.
+    # (EN) Shell ergonomics: run an external program via ‹:run›. Launch failure
+    #      (unknown command) is portable; the program name appears in the error.
+    add_test(NAME HubRepl_RunFail
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_run_fail_input.txt
+            -DEXPECT=__sados_no_such_cmd__
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_RunFail PROPERTIES
+        LABELS "hub;sad-repl;shell")
+
+    # (AR) نجاح التشغيل: ‹:شغّل echo …› يجب أن يُظهر مخرَج البرنامج. echo كثنائيّ خارجيّ
+    #      متوفّر على POSIX فقط (على ويندوز أمر صدَفة لا exe) ⇒ يُسجَّل خارج ويندوز.
+    # (EN) Run success: ‹:run echo …› must surface program output. echo-as-exe exists
+    #      on POSIX only (a shell builtin on Windows) => registered off-Windows.
+    if(NOT WIN32)
+        add_test(NAME HubRepl_RunEcho
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_run_echo_input.txt
+                -DEXPECT=SADOS_RUN_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunEcho PROPERTIES
+            LABELS "hub;sad-repl;shell")
+    endif()
+
+    message(STATUS "✓ اختبارات الهب: مضاف 8 اختبارات لـ sad-repl")
 else()
     message(STATUS "⚠ اختبارات الهب: تخطّي اختبارات sad-repl (الهدف غير موجود)")
 endif()

@@ -60,6 +60,11 @@ static const ErrorEntry kErrors[] = {
       "خطأ فادح", "Fatal error",
       nullptr, nullptr,
       true },
+    { Error::RUN_FAILED, "REPL011", Severity::Error,
+      "تعذّر تشغيل البرنامج", "Failed to run program",
+      "فشل التشغيل", "Run failed",
+      "تأكّد أنّ البرنامج موجود في مسار PATH وقابل للتنفيذ", "Ensure the program exists in PATH and is executable",
+      true },
 };
 static const std::size_t kErrorsCount = sizeof(kErrors) / sizeof(kErrors[0]);
 
@@ -151,6 +156,8 @@ const CommandEntry kCommands[] = {
       "عرض جميع المتغيّرات", "Show all variables", ":vars" },
     { CommandHandler::FUNCS, "funcs", "دوال",
       "عرض جميع الدوال", "Show all functions", ":funcs" },
+    { CommandHandler::RUN, "run", "شغّل",
+      "تشغيل برنامج خارجيّ", "Run an external program", ":run <program> [args...]" },
 };
 const std::size_t kCommandsCount = sizeof(kCommands) / sizeof(kCommands[0]);
 

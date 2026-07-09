@@ -91,3 +91,11 @@ commands:
       ar: "عرض جميع الدوال"
       en: "Show all functions"
     usage: ":funcs"
+
+  - handler: RUN
+    name: run
+    arabic_name: "شغّل"
+    description:
+      ar: "تشغيل برنامج خارجيّ"
+      en: "Run an external program"
+    usage: ":run <program> [args...]"

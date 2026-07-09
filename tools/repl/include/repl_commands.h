@@ -173,6 +173,12 @@ private:
      * @brief عرض الدوال / Show functions
      */
     static bool cmdFuncs(REPLEngine* repl, const std::vector<std::string>& args);
+
+    /**
+     * @brief (AR) ‹:شغّل›/‹:run› — تشغيل برنامج خارجيّ (إرغونوميا الصدَفة).
+     * @brief (EN) ‹:run› — run an external program (shell ergonomics).
+     */
+    static bool cmdRun(REPLEngine* repl, const std::vector<std::string>& args);
     
 private:
     REPLEngine* repl_;                          ///< محرك REPL / REPL engine

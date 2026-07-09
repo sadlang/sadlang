@@ -19,6 +19,7 @@ set(REPL_SOURCES
     src/history_manager.cpp
     src/repl_commands.cpp
     src/repl_line_editor.cpp
+    src/shell_executor.cpp
     # (AR) كتالوج «مصدر حقيقة الأدوات» المولَّد (مُلتزَم؛ يُوَلَّد بـ x.py gen) —
     #      أخطاء الأداة + رسائل واجهتها + أوامرها من language-truth/tools/repl/*.yaml.
     # (EN) Generated Tool-SoT catalog (committed; produced by x.py gen).
@@ -30,6 +31,7 @@ set(REPL_HEADERS
     include/history_manager.h
     include/repl_commands.h
     include/repl_line_editor.h
+    include/shell_executor.h
 )
 
 # (AR) إنشاء التنفيذي sad-repl / (EN) Create sad-repl executable

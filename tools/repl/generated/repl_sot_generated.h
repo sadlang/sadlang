@@ -34,7 +34,8 @@ enum class Error {
     EMPTY_EXPRESSION,
     UNKNOWN_OPTION,
     LOAD_FAILED,
-    FATAL
+    FATAL,
+    RUN_FAILED
 };
 
 enum class Severity { Error, Warning, Info };
@@ -108,7 +109,8 @@ enum class CommandHandler {
     HISTORY,
     RESET,
     VARS,
-    FUNCS
+    FUNCS,
+    RUN
 };
 
 struct CommandEntry {

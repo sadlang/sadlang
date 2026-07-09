@@ -135,3 +135,17 @@ errors:
       ar: "خطأ فادح"
       en: "Fatal error"
     has_detail: true
+
+  - code: RUN_FAILED
+    id: REPL011
+    severity: error
+    title:
+      ar: "تعذّر تشغيل البرنامج"
+      en: "Failed to run program"
+    brief:
+      ar: "فشل التشغيل"
+      en: "Run failed"
+    hint:
+      ar: "تأكّد أنّ البرنامج موجود في مسار PATH وقابل للتنفيذ"
+      en: "Ensure the program exists in PATH and is executable"
+    has_detail: true
