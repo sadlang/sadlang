@@ -1,0 +1,137 @@
+# بسم الله الرحمن الرحيم
+# errors.yaml — كتالوج أخطاء أداة REPL (خاصّ بالأداة، لا بلغة ص)
+# (AR) هذه أخطاء الأداة نفسها: فشل فتح ملفّ، أمر مجهول، خطأ داخليّ في الصدَفة…
+#      تختلف عن أخطاء اللغة (language-truth/errors/*.yaml) التي يُصدرها المفسّر/
+#      المترجم. كلّ خطأ ثنائيّ اللغة؛ {detail} تفصيلٌ يُملأ زمن التشغيل (اسم ملفّ،
+#      نصّ خطأ نحويّ من المحلّل، رسالة استثناء…). لا نصّ يُكتب يدوياً في C++.
+# (EN) The tool's OWN errors (file open failure, unknown command, shell-internal
+#      error) — distinct from language errors emitted by the interpreter/compiler.
+
+version: "1.0"
+tool: repl
+description_ar: "أخطاء أداة الصدَفة التفاعليّة REPL — مستقلّة عن أخطاء لغة ص"
+description_en: "REPL interactive-shell tool errors — independent of Sad language errors"
+
+errors:
+  - code: SYNTAX
+    id: REPL001
+    severity: error
+    title:
+      ar: "خطأ نحويّ"
+      en: "Syntax Error"
+    brief:
+      ar: "خطأ نحويّ"
+      en: "Syntax Error"
+    has_detail: true
+
+  - code: EVAL
+    id: REPL002
+    severity: error
+    title:
+      ar: "خطأ تنفيذ"
+      en: "Error"
+    brief:
+      ar: "خطأ"
+      en: "Error"
+    has_detail: true
+
+  - code: FILE_OPEN
+    id: REPL003
+    severity: error
+    title:
+      ar: "تعذّر فتح الملفّ"
+      en: "Failed to open file"
+    brief:
+      ar: "فشل فتح الملفّ"
+      en: "Failed to open file"
+    hint:
+      ar: "تأكّد من صحّة المسار ووجود الملفّ وصلاحيّة القراءة"
+      en: "Check the path exists and is readable"
+    has_detail: true
+
+  - code: INTERNAL
+    id: REPL004
+    severity: error
+    title:
+      ar: "خطأ داخليّ في الصدَفة"
+      en: "Internal shell error"
+    brief:
+      ar: "خطأ داخليّ"
+      en: "Internal error"
+    hint:
+      ar: "ليست علّة في برنامجك — يُرجى الإبلاغ عن سلوك الأداة"
+      en: "Not a bug in your program — please report the tool behavior"
+    has_detail: true
+
+  - code: UNKNOWN_COMMAND
+    id: REPL005
+    severity: error
+    title:
+      ar: "أمر غير معروف"
+      en: "Unknown command"
+    brief:
+      ar: "أمر غير معروف"
+      en: "Unknown command"
+    hint:
+      ar: "اكتب ':help' لعرض الأوامر المتاحة"
+      en: "Type ':help' to list available commands"
+    has_detail: true
+
+  - code: NOT_AN_EXPRESSION
+    id: REPL006
+    severity: error
+    title:
+      ar: "ليس تعبيراً يُقيَّم"
+      en: "Not an evaluable expression"
+    brief:
+      ar: "ليس تعبيراً يُقيَّم"
+      en: "Not an evaluable expression"
+    has_detail: false
+
+  - code: EMPTY_EXPRESSION
+    id: REPL007
+    severity: error
+    title:
+      ar: "تعبير فارغ"
+      en: "Empty expression"
+    brief:
+      ar: "تعبير فارغ"
+      en: "Empty expression"
+    has_detail: false
+
+  # ── أخطاء سطر الأوامر (CLI) — من نقطة الدخول main.cpp ──
+  - code: UNKNOWN_OPTION
+    id: REPL008
+    severity: error
+    title:
+      ar: "خيار غير معروف"
+      en: "Unknown option"
+    brief:
+      ar: "خيار غير معروف"
+      en: "Unknown option"
+    hint:
+      ar: "استخدم --help للمساعدة"
+      en: "Use --help for help"
+    has_detail: true
+
+  - code: LOAD_FAILED
+    id: REPL009
+    severity: error
+    title:
+      ar: "تعذّر تحميل الملفّ"
+      en: "Failed to load file"
+    brief:
+      ar: "فشل تحميل الملفّ"
+      en: "Failed to load file"
+    has_detail: true
+
+  - code: FATAL
+    id: REPL010
+    severity: error
+    title:
+      ar: "خطأ فادح"
+      en: "Fatal error"
+    brief:
+      ar: "خطأ فادح"
+      en: "Fatal error"
+    has_detail: true

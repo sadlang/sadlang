@@ -2,7 +2,7 @@
 ============================================================================
 (AR) test_xpy_codegen_guard.py — اختبارات حارس انجراف المصدر المولَّد
      (المرحلة 1 من sadlang-rfcs#10). يثبّت عقد `x.py gen --check`:
-       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (13 ملفًّا)، وكل مولّد موجود.
+       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (15 ملفًّا)، وكل مولّد موجود.
        - منطق القرار (تطبيع نهايات الأسطر) يتجاهل CRLF↔LF ويلتقط فرق المحتوى.
        - الحارس يمرّ على الشجرة النظيفة (تكامل: وسائط الجدول صحيحة + لا انحراف).
 (EN) Tests for the generated-source drift guard (Phase 1 of sadlang-rfcs#10).
@@ -50,6 +50,10 @@ EXPECTED_OUTPUTS = {
     "features/graphics/core/include/sad_ui/generated/event_vocab_generated.h",
     "features/graphics/core/include/sad_ui/generated/color_prelude_generated.h",
     "features/graphics/core/include/sad_ui/generated/color_table_generated.h",
+    # (AR) نظام «مصدر حقيقة الأدوات» — أوّل أداة sad-repl (كتالوج أخطاء/رسائل/أوامر).
+    # (EN) Tools' Source-of-Truth — first tool sad-repl (errors/messages/commands catalog).
+    "tools/repl/generated/repl_sot_generated.h",
+    "tools/repl/generated/repl_sot_generated.cpp",
 }
 
 

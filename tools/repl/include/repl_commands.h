@@ -28,6 +28,7 @@
 // (EN) root-relative (resolved via ${CMAKE_SOURCE_DIR}) — stable under non-flat layout
 #include "interpreter/include/core/interpreter_core.h"
 #include "history_manager.h"
+#include "repl_sot_generated.h" // (AR) كتالوج SoT — نوع CommandHandler لِـ handlerFor / (EN) SoT catalog for CommandHandler
 #include <string>
 #include <functional>
 #include <map>
@@ -109,9 +110,21 @@ private:
     
     /**
      * @brief تسجيل جميع الأوامر / Register all commands
+     * @note (AR) يُبنى من كتالوج SoT (commands.yaml) لا من حرفيّات مضمّنة.
      */
     void registerAllCommands();
-    
+
+    /**
+     * @brief ربط مفتاح معالِج SoT بدالّة C++ / Map a SoT handler key to its C++ function
+     */
+    static CommandFunc handlerFor(SoT::CommandHandler handler);
+
+    /**
+     * @brief سطر «الاستخدام» لأمرٍ (تسمية SoT + صيغة الاستعمال المسجَّلة)
+     *        / A command's usage line (SoT label + registered usage syntax)
+     */
+    static std::string usageLine(REPLEngine* repl, const std::string& name);
+
     // ========================================
     // معالجات الأوامر / Command Handlers
     // ========================================

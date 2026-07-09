@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/tools/tool_commands.schema.json",
+  "title": "Tool SoT — Commands / أوامر أداة (مصدر حقيقة)",
+  "description": "مخطط commands.yaml لأداةٍ تفاعليّة (مثل REPL). يصف الأوامر الخاصّة (اسمها الإنجليزيّ، مرادفها العربيّ، وصفها ثنائيّ اللغة، صيغة استعمالها). المعالِج (handler) يبقى في C++ ويُربَط بالاسم؛ أمّا البيانات الوصفيّة كلّها فمن هنا. أدوات غير تفاعليّة قد لا تملك هذا الملفّ.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "tool", "description_ar", "description_en", "commands"],
+  "properties": {
+    "version": { "type": "string" },
+    "tool": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/command" }
+    }
+  },
+  "$defs": {
+    "bilingual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ar", "en"],
+      "properties": {
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handler", "name", "arabic_name", "description", "usage"],
+      "properties": {
+        "handler": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$",
+          "description": "مفتاح C++ الرمزيّ الرابط للمعالِج (قيمة enum)، مثل HELP"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "description": "الاسم الإنجليزيّ (بلا ':')، مثل 'help'"
+        },
+        "arabic_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "المرادف العربيّ، مثل 'مساعدة'"
+        },
+        "description": { "$ref": "#/$defs/bilingual" },
+        "usage": {
+          "type": "string",
+          "minLength": 1,
+          "description": "صيغة الاستعمال، مثل ':type <expression>'"
+        }
+      }
+    }
+  }
+}

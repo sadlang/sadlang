@@ -19,6 +19,10 @@ set(REPL_SOURCES
     src/history_manager.cpp
     src/repl_commands.cpp
     src/repl_line_editor.cpp
+    # (AR) كتالوج «مصدر حقيقة الأدوات» المولَّد (مُلتزَم؛ يُوَلَّد بـ x.py gen) —
+    #      أخطاء الأداة + رسائل واجهتها + أوامرها من language-truth/tools/repl/*.yaml.
+    # (EN) Generated Tool-SoT catalog (committed; produced by x.py gen).
+    generated/repl_sot_generated.cpp
 )
 
 set(REPL_HEADERS
@@ -36,6 +40,9 @@ target_include_directories(sad-repl PRIVATE
     # (AR) رؤوس الأداة الخاصّة (البنية غير المسطّحة) — تُتيح #include "repl_engine.h" من src/
     # (EN) tool's own headers (non-flat layout) — lets src/ use #include "repl_engine.h"
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    # (AR) رأس كتالوج SoT المولَّد — يُتيح #include "repl_sot_generated.h"
+    # (EN) generated Tool-SoT catalog header — enables #include "repl_sot_generated.h"
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}

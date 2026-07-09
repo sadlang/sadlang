@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/tools/tool_meta.schema.json",
+  "title": "Tool SoT — Meta / هوية أداة (مصدر حقيقة)",
+  "description": "مخطط _meta.yaml لكل أداة تحت language-truth/tools/<tool>/. يصف هوية الأداة (اسمها، فضاء C++، بادئة رموزها، إصداره) وثوابت تنسيق الرسائل ثنائية اللغة. هذا النظام مستقلّ تماماً عن مصدر حقيقة اللغة (keywords/errors/…) — الأدوات لا توسّع لغة ص، بل تملك مصدر حقيقتها الخاصّ.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tool", "cpp_namespace", "prefix", "version", "description_ar", "description_en", "formatting"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "المعرّف القصير للأداة (يطابق اسم المجلّد)، مثل 'repl'"
+    },
+    "cpp_namespace": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_:]*$",
+      "description": "فضاء الأسماء C++ للكود المولَّد، مثل 'Sad::REPL::SoT'"
+    },
+    "prefix": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*$",
+      "description": "بادئة معرّفات الأخطاء النصّية، مثل 'REPL' ⇒ REPL001"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "إصدار الأداة (SemVer)، يُستهلَك في الترويسة والرسائل"
+    },
+    "display_name": {
+      "$ref": "#/$defs/bilingual",
+      "description": "الاسم المعروض للأداة (اختياري) — لترويسات الواجهة"
+    },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "formatting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bilingual_separator", "detail_separator"],
+      "properties": {
+        "bilingual_separator": {
+          "type": "string",
+          "description": "الفاصل بين النصّ العربيّ والإنجليزيّ عند الدمج على سطر، مثل ' / '"
+        },
+        "detail_separator": {
+          "type": "string",
+          "description": "الفاصل قبل تفصيل الرسالة (placeholder) عند الدمج، مثل ': '"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "bilingual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ar", "en"],
+      "properties": {
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -228,6 +228,27 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
+    {
+        # (AR) نظام «مصدر حقيقة الأدوات» (Tool SoT) — مستقلّ عن مصدر حقيقة اللغة.
+        #      أوّل أداة: sad-repl (أخطاء الأداة + رسائل واجهتها + أوامرها). الناتج
+        #      مُلتزَم داخل tools/repl/generated ويُجمَّع مباشرةً (بلا هدف CMake؛ حارس
+        #      الانجراف يكفي — كنمط ui_*). كلّ أداةٍ لاحقة تُضيف نطاقًا مماثلًا.
+        # (EN) Tools' Source-of-Truth system — independent of the language SoT. First
+        #      tool: sad-repl (tool errors + UI messages + commands). Output committed
+        #      under tools/repl/generated and compiled directly (no CMake target; the
+        #      drift guard suffices — like the ui_* domains). Each future tool adds a peer.
+        "name": "tool_repl",
+        "script": "gen_tool_sot.py",
+        "out_dir": "tools/repl/generated",
+        "outputs": ("repl_sot_generated.h", "repl_sot_generated.cpp"),
+        "args": lambda d: [
+            "--tool-dir", "language-truth/tools/repl",
+            "--schema-dir", "language-truth/tools/_schemas",
+            "--out-h", f"{d}/repl_sot_generated.h",
+            "--out-cpp", f"{d}/repl_sot_generated.cpp",
+            "--quiet",
+        ],
+    },
 )
 
 

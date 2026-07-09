@@ -10,6 +10,7 @@
 #include "repl_commands.h"
 #include "repl_engine.h"
 #include "repl_colors.h" // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
+#include "repl_sot_generated.h" // (AR) كتالوج «مصدر حقيقة الأدوات» — أخطاء/رسائل/أوامر REPL / (EN) Tool-SoT catalog
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -57,9 +58,13 @@ bool REPLCommands::process(const std::string& command)
     if (it != commands_.end()) {
         return it->second.handler(repl_, args);
     }
-    
-    std::cout << "أمر غير معروف / Unknown command: " << cmdName << std::endl;
-    std::cout << "اكتب ':help' للمساعدة / Type ':help' for help" << std::endl;
+
+    // (AR) رسالة «أمر غير معروف» وتلميحها من كتالوج SoT (لا حرفيّات مبعثرة).
+    // (EN) Unknown-command message + hint from the SoT catalog (no scattered literals).
+    std::cout << SoT::errorMessage(SoT::Error::UNKNOWN_COMMAND, cmdName) << std::endl;
+    if (const auto* e = SoT::findError(SoT::Error::UNKNOWN_COMMAND); e && e->hintAr) {
+        std::cout << e->hintAr << SoT::kBilingualSeparator << e->hintEn << std::endl;
+    }
     return true;
 }
 
@@ -115,57 +120,57 @@ void REPLCommands::registerCommand(const std::string& name,
     }
 }
 
+// (AR) يربط مفتاح المعالِج الرمزيّ (من SoT) بدالّة C++ الساكنة المقابلة. البيانات
+//      الوصفيّة (الأسماء/الأوصاف/الاستعمال) من الكتالوج؛ المنطق يبقى هنا.
+// (EN) Maps a symbolic handler key (from SoT) to its static C++ function. Metadata
+//      (names/descriptions/usage) comes from the catalog; the logic stays here.
+CommandFunc REPLCommands::handlerFor(SoT::CommandHandler h)
+{
+    switch (h) {
+        case SoT::CommandHandler::HELP:    return cmdHelp;
+        case SoT::CommandHandler::EXIT:    return cmdExit;
+        case SoT::CommandHandler::CLEAR:   return cmdClear;
+        case SoT::CommandHandler::TYPE:    return cmdType;
+        case SoT::CommandHandler::LOAD:    return cmdLoad;
+        case SoT::CommandHandler::HISTORY: return cmdHistory;
+        case SoT::CommandHandler::RESET:   return cmdReset;
+        case SoT::CommandHandler::VARS:    return cmdVars;
+        case SoT::CommandHandler::FUNCS:   return cmdFuncs;
+    }
+    return nullptr;
+}
+
+// (AR) سطر «الاستخدام» لأمرٍ ما: تسمية USAGE_LABEL ثنائيّة اللغة + صيغة الاستعمال
+//      المسجَّلة (من الكتالوج) — يُطبع عند نقص وسائط أمرٍ يتطلّبها.
+// (EN) A command's usage line: the bilingual USAGE_LABEL + its registered usage
+//      syntax (from the catalog) — printed when a required argument is missing.
+std::string REPLCommands::usageLine(REPLEngine* repl, const std::string& name)
+{
+    std::string usage;
+    if (const CommandInfo* info = repl->getCommands()->getCommandInfo(name)) {
+        usage = info->usage;
+    }
+    return SoT::messageBoth(SoT::Message::USAGE_LABEL) +
+           std::string(SoT::kDetailSeparator) + usage;
+}
+
 void REPLCommands::registerAllCommands()
 {
-    registerCommand("help", "مساعدة",
-        "عرض المساعدة / Show help",
-        ":help",
-        cmdHelp);
-    
-    registerCommand("exit", "خروج",
-        "الخروج من REPL / Exit REPL",
-        ":exit",
-        cmdExit);
-    
-    registerCommand("quit", "إنهاء",
-        "الخروج من REPL / Exit REPL",
-        ":quit",
-        cmdExit);
-    
-    registerCommand("clear", "مسح",
-        "مسح الشاشة / Clear screen",
-        ":clear",
-        cmdClear);
-    
-    registerCommand("type", "نوع",
-        "عرض نوع التعبير / Show expression type",
-        ":type <expression>",
-        cmdType);
-    
-    registerCommand("load", "حمل",
-        "تحميل وتنفيذ ملف / Load and execute file",
-        ":load <filename>",
-        cmdLoad);
-    
-    registerCommand("history", "تاريخ",
-        "عرض تاريخ الأوامر / Show command history",
-        ":history",
-        cmdHistory);
-    
-    registerCommand("reset", "إعادة",
-        "إعادة تعيين حالة REPL / Reset REPL state",
-        ":reset",
-        cmdReset);
-    
-    registerCommand("vars", "متغيرات",
-        "عرض جميع المتغيرات / Show all variables",
-        ":vars",
-        cmdVars);
-    
-    registerCommand("funcs", "دوال",
-        "عرض جميع الدوال / Show all functions",
-        ":funcs",
-        cmdFuncs);
+    // (AR) تُبنى الأوامر كلّها من كتالوج SoT (language-truth/tools/repl/commands.yaml)
+    //      بدل استدعاءات registerCommand المكتوبة يدوياً بحرفيّات مبعثرة. الوصف
+    //      المعروض يُركَّب ثنائيّ اللغة «ar / en» من فاصل الكتالوج نفسه.
+    // (EN) All commands are built from the SoT catalog instead of hand-written
+    //      registerCommand calls. The displayed description is composed bilingually.
+    for (std::size_t i = 0; i < SoT::kCommandsCount; ++i) {
+        const SoT::CommandEntry& c = SoT::kCommands[i];
+        CommandFunc fn = handlerFor(c.handler);
+        if (!fn) {
+            continue;
+        }
+        std::string description =
+            std::string(c.descAr) + SoT::kBilingualSeparator + c.descEn;
+        registerCommand(c.name, c.arabicName, description, c.usage, fn);
+    }
 }
 
 // ============================================================================
@@ -176,11 +181,12 @@ bool REPLCommands::cmdHelp(REPLEngine* repl, const std::vector<std::string>& arg
 {
     auto& config = repl->getConfig();
     
+    const std::string commandsHeader =
+        SoT::messageBoth(SoT::Message::COMMANDS_HEADER) + ":";
     if (config.enableColor) {
-        std::cout << BOLD << CYAN << "الأوامر المتاحة / Available Commands:" 
-                  << RESET << "\n\n";
+        std::cout << BOLD << CYAN << commandsHeader << RESET << "\n\n";
     } else {
-        std::cout << "الأوامر المتاحة / Available Commands:\n\n";
+        std::cout << commandsHeader << "\n\n";
     }
     
     auto commands = repl->getCommands()->getAllCommands();
@@ -232,7 +238,7 @@ bool REPLCommands::cmdClear(REPLEngine* repl, const std::vector<std::string>& ar
 bool REPLCommands::cmdType(REPLEngine* repl, const std::vector<std::string>& args)
 {
     if (args.empty()) {
-        std::cout << "الاستخدام / Usage: :type <expression>" << std::endl;
+        std::cout << usageLine(repl, "type") << std::endl;
         return true;
     }
     
@@ -261,10 +267,10 @@ bool REPLCommands::cmdType(REPLEngine* repl, const std::vector<std::string>& arg
 bool REPLCommands::cmdLoad(REPLEngine* repl, const std::vector<std::string>& args)
 {
     if (args.empty()) {
-        std::cout << "الاستخدام / Usage: :load <filename>" << std::endl;
+        std::cout << usageLine(repl, "load") << std::endl;
         return true;
     }
-    
+
     repl->loadFile(args[0]);
     return true;
 }
@@ -276,12 +282,13 @@ bool REPLCommands::cmdHistory(REPLEngine* repl, const std::vector<std::string>& 
     // (EN) ع-3: real listing from the history manager (was a "Coming soon" stub).
     HistoryManager* hist = repl->getHistory();
     if (!hist || hist->getAll().empty()) {
-        std::cout << "لا تاريخ بعد / No history yet." << std::endl;
+        std::cout << SoT::messageBoth(SoT::Message::NO_HISTORY) << std::endl;
         return true;
     }
 
     const auto& all = hist->getAll();
-    std::cout << "تاريخ الأوامر / Command History (" << all.size() << "):" << std::endl;
+    std::cout << SoT::messageBoth(SoT::Message::HISTORY_HEADER)
+              << " (" << all.size() << "):" << std::endl;
     for (size_t i = 0; i < all.size(); ++i) {
         std::cout << "  " << (i + 1) << "  " << all[i] << std::endl;
     }
@@ -301,19 +308,20 @@ bool REPLCommands::cmdVars(REPLEngine* repl, const std::vector<std::string>& arg
     // (EN) ع-3: real listing from the variable manager with each var's type and value.
     auto* interp = repl->getInterpreter();
     if (!interp) {
-        std::cout << "لا مفسّر / No interpreter." << std::endl;
+        std::cout << SoT::messageBoth(SoT::Message::NO_INTERPRETER) << std::endl;
         return true;
     }
 
     auto& vars = interp->getVariableManager();
     std::vector<std::string> names = vars.getVariableNames();
     if (names.empty()) {
-        std::cout << "لا متغيّرات معرّفة / No variables defined." << std::endl;
+        std::cout << SoT::messageBoth(SoT::Message::NO_VARS) << std::endl;
         return true;
     }
 
     std::sort(names.begin(), names.end());
-    std::cout << "المتغيّرات / Variables (" << names.size() << "):" << std::endl;
+    std::cout << SoT::messageBoth(SoT::Message::VARS_HEADER)
+              << " (" << names.size() << "):" << std::endl;
     for (const auto& name : names) {
         const Data::Value& value = vars.get(name);
         std::cout << "  " << name << " : "
@@ -334,7 +342,7 @@ bool REPLCommands::cmdFuncs(REPLEngine* repl, const std::vector<std::string>& ar
     //      lambda functions with their signatures.
     auto* interp = repl->getInterpreter();
     if (!interp) {
-        std::cout << "لا مفسّر / No interpreter." << std::endl;
+        std::cout << SoT::messageBoth(SoT::Message::NO_INTERPRETER) << std::endl;
         return true;
     }
 
@@ -352,11 +360,12 @@ bool REPLCommands::cmdFuncs(REPLEngine* repl, const std::vector<std::string>& ar
     }
 
     if (lines.empty()) {
-        std::cout << "لا دوال معرّفة من المستخدم / No user-defined functions." << std::endl;
+        std::cout << SoT::messageBoth(SoT::Message::NO_FUNCS) << std::endl;
         return true;
     }
 
-    std::cout << "الدوال / Functions (" << lines.size() << "):" << std::endl;
+    std::cout << SoT::messageBoth(SoT::Message::FUNCS_HEADER)
+              << " (" << lines.size() << "):" << std::endl;
     for (const auto& line : lines) {
         std::cout << "  " << line << std::endl;
     }

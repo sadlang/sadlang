@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/tools/tool_messages.schema.json",
+  "title": "Tool SoT — Messages / رسائل واجهة أداة (مصدر حقيقة)",
+  "description": "مخطط messages.yaml لكل أداة. يصف السلاسل النصّية غير-الخطئيّة الداخليّة للأداة (ترويسات، موجّهات إدخال، عناوين أقسام، رسائل وداع…) — كلّها ثنائيّة اللغة ومركزيّة بدل حرفيّات مبعثرة في C++. لا علاقة لها بلغة ص.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "tool", "description_ar", "description_en", "messages"],
+  "properties": {
+    "version": { "type": "string" },
+    "tool": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/message" }
+    }
+  },
+  "$defs": {
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "ar", "en"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$",
+          "description": "مفتاح C++ الرمزيّ (قيمة enum بعد ::)، مثل BANNER_TITLE"
+        },
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 },
+        "note": {
+          "type": "string",
+          "description": "تعليق توثيقيّ اختياريّ لموقع الاستخدام (لا يُولَّد)"
+        }
+      }
+    }
+  }
+}

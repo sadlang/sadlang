@@ -1,0 +1,122 @@
+# بسم الله الرحمن الرحيم
+# messages.yaml — رسائل واجهة أداة REPL غير-الخطئيّة (خاصّة بالأداة)
+# (AR) سلاسل الواجهة الداخليّة: ترويسة، تلميح مساعدة، وداع، عناوين أقسام…
+#      مركزيّة هنا بدل حرفيّاتٍ ثنائيّة اللغة مبعثرة في C++. لا علاقة لها بلغة ص.
+# (EN) The tool's non-error UI strings, centralized instead of scattered
+#      bilingual literals in C++. Unrelated to the Sad language.
+
+version: "1.0"
+tool: repl
+description_ar: "رسائل واجهة أداة REPL (ترويسة/تلميحات/عناوين أقسام)"
+description_en: "REPL tool UI messages (banner/hints/section headers)"
+
+messages:
+  - key: VERSION_LABEL
+    ar: "الإصدار"
+    en: "Version"
+    note: "يسبق رقم الإصدار في الترويسة"
+
+  - key: HELP_HINT
+    ar: "اكتب ':help' للمساعدة أو ':exit' للخروج"
+    en: "Type ':help' for help or ':exit' to quit"
+    note: "سطر إرشاديّ في الترويسة"
+
+  - key: GOODBYE
+    ar: "وداعاً!"
+    en: "Goodbye!"
+    note: "يُطبع عند الخروج"
+
+  - key: RESET_DONE
+    ar: "تم إعادة تعيين حالة REPL"
+    en: "REPL state reset."
+    note: "بعد الأمر :reset"
+
+  # (AR) ترويسات الأقسام بلا نقطتين ختاميّتين — يُلحِق C++ «:» أو « (عدد):».
+  - key: COMMANDS_HEADER
+    ar: "الأوامر المتاحة"
+    en: "Available Commands"
+    note: "ترويسة قائمة الأوامر في :help (يُلحَق «:»)"
+
+  - key: VARS_HEADER
+    ar: "المتغيّرات"
+    en: "Variables"
+    note: "ترويسة :vars (يُلحَق « (عدد):»)"
+
+  - key: FUNCS_HEADER
+    ar: "الدوال"
+    en: "Functions"
+    note: "ترويسة :funcs (يُلحَق « (عدد):»)"
+
+  - key: HISTORY_HEADER
+    ar: "تاريخ الأوامر"
+    en: "Command History"
+    note: "ترويسة :history (يُلحَق « (عدد):»)"
+
+  - key: USAGE_LABEL
+    ar: "الاستخدام"
+    en: "Usage"
+    note: "يسبق صيغة الاستعمال عند نقص وسائط أمر"
+
+  - key: NO_VARS
+    ar: "لا متغيّرات معرّفة"
+    en: "No variables defined."
+    note: "حالة :vars الفارغة"
+
+  - key: NO_FUNCS
+    ar: "لا دوال معرّفة من المستخدم"
+    en: "No user-defined functions."
+    note: "حالة :funcs الفارغة"
+
+  - key: NO_HISTORY
+    ar: "لا تاريخ بعد"
+    en: "No history yet."
+    note: "حالة :history الفارغة"
+
+  - key: NO_INTERPRETER
+    ar: "لا مفسّر"
+    en: "No interpreter."
+    note: "غياب المفسّر في :vars/:funcs"
+
+  # ── ترويسات وأوصاف سطر الأوامر (CLI) — تُستهلَك في main.cpp::showHelp ──
+  - key: CLI_OPTIONS_HEADER
+    ar: "الخيارات"
+    en: "Options"
+    note: "ترويسة قسم الخيارات في --help (يُلحَق «:»)"
+
+  - key: CLI_SPECIAL_COMMANDS_HEADER
+    ar: "الأوامر الخاصة"
+    en: "Special Commands"
+    note: "ترويسة قسم الأوامر في --help (تُرسَم من كتالوج الأوامر)"
+
+  - key: CLI_EXAMPLES_HEADER
+    ar: "أمثلة"
+    en: "Examples"
+    note: "ترويسة قسم الأمثلة في --help (يُلحَق «:»)"
+
+  - key: CLI_OPT_HELP
+    ar: "عرض هذه المساعدة"
+    en: "Show this help"
+
+  - key: CLI_OPT_VERSION
+    ar: "عرض رقم الإصدار"
+    en: "Show version"
+
+  - key: CLI_OPT_NO_COLOR
+    ar: "تعطيل الألوان"
+    en: "Disable colors"
+
+  - key: CLI_OPT_NO_HISTORY
+    ar: "تعطيل التاريخ"
+    en: "Disable history"
+
+  - key: CLI_OPT_HISTORY_FILE
+    ar: "ملف التاريخ"
+    en: "History file"
+
+  - key: CLI_OPT_LOAD
+    ar: "تحميل ملف عند البدء"
+    en: "Load file on start"
+
+  - key: CLI_OPT_RICH
+    ar: "إدخال تفاعليّ غنيّ: أسهم/Tab/تحرير (طرفيّة فقط)"
+    en: "Rich interactive input: arrows/Tab/editing (TTY only)"

@@ -9,6 +9,7 @@
 
 #include "repl_engine.h"
 #include "repl_colors.h"    // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
+#include "repl_sot_generated.h" // (AR) كتالوج «مصدر حقيقة الأدوات» — أخطاء/رسائل REPL / (EN) Tool-SoT catalog
 #include "statements.h"     // (AR) AST::ExprStmt لاستخراج تعبير :type / (EN) AST::ExprStmt for :type expression extraction
 #include "lexer_keywords.h" // (AR) استعلام كلمات فتح/إغلاق الكتل من SoT / (EN) query block opener/closer keywords from SoT
 #include <iostream>
@@ -318,18 +319,19 @@ namespace Sad
                 }
                 catch (const std::exception &e)
                 {
-                    printError(std::string("خطأ داخلي / Internal error: ") + e.what());
+                    printError(SoT::errorMessage(SoT::Error::INTERNAL, e.what()));
                     state_ = REPLState::Ready;
                 }
             }
 
+            const std::string goodbye = SoT::messageBoth(SoT::Message::GOODBYE);
             if (config_.enableColor)
             {
-                std::cout << GREEN << "وداعاً! Goodbye!" << RESET << std::endl;
+                std::cout << GREEN << goodbye << RESET << std::endl;
             }
             else
             {
-                std::cout << "وداعاً! Goodbye!" << std::endl;
+                std::cout << goodbye << std::endl;
             }
 
             return 0;
@@ -376,7 +378,7 @@ namespace Sad
                         errors += err;
                     }
                     lastResultIsError_ = true;
-                    return std::string("خطأ نحوي / Syntax Error: ") + errors;
+                    return SoT::errorMessage(SoT::Error::SYNTAX, errors);
                 }
 
                 if (ast.empty())
@@ -423,7 +425,7 @@ namespace Sad
                     if (!result.success)
                     {
                         lastResultIsError_ = true;
-                        return std::string("خطأ / Error: ") + result.errorMessage;
+                        return SoT::errorMessage(SoT::Error::EVAL, result.errorMessage);
                     }
                 }
 
@@ -439,7 +441,7 @@ namespace Sad
             catch (const std::exception &e)
             {
                 lastResultIsError_ = true;
-                return std::string("خطأ / Error: ") + e.what();
+                return SoT::errorMessage(SoT::Error::EVAL, e.what());
             }
         }
 
@@ -466,13 +468,13 @@ namespace Sad
                             errors += "\n";
                         errors += err;
                     }
-                    errorOut = std::string("خطأ نحوي / Syntax Error: ") + errors;
+                    errorOut = SoT::errorMessage(SoT::Error::SYNTAX, errors);
                     return false;
                 }
 
                 if (ast.empty())
                 {
-                    errorOut = "تعبير فارغ / Empty expression.";
+                    errorOut = SoT::errorMessage(SoT::Error::EMPTY_EXPRESSION);
                     return false;
                 }
 
@@ -488,7 +490,7 @@ namespace Sad
                 auto *exprStmt = dynamic_cast<AST::ExprStmt *>(live.front().get());
                 if (!exprStmt || !exprStmt->expression)
                 {
-                    errorOut = "ليس تعبيرًا يُقيَّم / Not an evaluable expression.";
+                    errorOut = SoT::errorMessage(SoT::Error::NOT_AN_EXPRESSION);
                     return false;
                 }
 
@@ -498,7 +500,7 @@ namespace Sad
             }
             catch (const std::exception &e)
             {
-                errorOut = std::string("خطأ / Error: ") + e.what();
+                errorOut = SoT::errorMessage(SoT::Error::EVAL, e.what());
                 return false;
             }
         }
@@ -526,7 +528,7 @@ namespace Sad
             auto content = sad::utf8::read_file(filename);
             if (!content)
             {
-                printError("فشل فتح الملف / Failed to open file: " + filename);
+                printError(SoT::errorMessage(SoT::Error::FILE_OPEN, filename));
                 return false;
             }
 
@@ -560,7 +562,7 @@ namespace Sad
                             errors += "\n";
                         errors += err;
                     }
-                    printError("خطأ نحوي / Syntax Error: " + errors);
+                    printError(SoT::errorMessage(SoT::Error::SYNTAX, errors));
                     return false;
                 }
 
@@ -574,7 +576,7 @@ namespace Sad
 
                 if (!result.success)
                 {
-                    printError("خطأ / Error: " + result.errorMessage);
+                    printError(SoT::errorMessage(SoT::Error::EVAL, result.errorMessage));
                     return false;
                 }
 
@@ -587,7 +589,7 @@ namespace Sad
             }
             catch (const std::exception &e)
             {
-                printError(std::string("خطأ / Error: ") + e.what());
+                printError(SoT::errorMessage(SoT::Error::EVAL, e.what()));
                 return false;
             }
         }
@@ -618,7 +620,7 @@ namespace Sad
             }
             state_ = REPLState::Ready;
 
-            std::cout << "تم إعادة تعيين حالة REPL / REPL state reset." << std::endl;
+            std::cout << SoT::messageBoth(SoT::Message::RESET_DONE) << std::endl;
         }
 
         bool REPLEngine::processLine(const std::string &line)
@@ -1049,34 +1051,42 @@ namespace Sad
 
         void REPLEngine::printHeader()
         {
+            // (AR) الترويسة كلّها من كتالوج SoT: اسم الأداة (سطرَي عربيّ/إنجليزيّ) +
+            //      سطر الإصدار (تسمية VERSION_LABEL + رقم الإصدار) + سطرَي تلميح المساعدة
+            //      (HELP_HINT بلغتَيه). خطّ الزينة «====» زخرفةٌ لا محتوى فيبقى محلّيًّا.
+            // (EN) The whole banner comes from the SoT catalog: tool name (AR/EN lines) +
+            //      version line (VERSION_LABEL + version) + two help-hint lines (HELP_HINT).
+            //      The «====» rule is decoration (no content), kept local.
+            static const char *const kRule =
+                "========================================";
+            const std::string versionLine =
+                SoT::messageBoth(SoT::Message::VERSION_LABEL) +
+                std::string(SoT::kDetailSeparator) + SoT::kVersion;
+
             if (config_.enableColor)
             {
                 std::cout << BOLD << CYAN;
-                std::cout << "========================================\n";
-                std::cout << "لغة ص - REPL\n";
-                std::cout << "Sad Language REPL\n";
-                std::cout << "الإصدار / Version: 1.0.0\n";
-                std::cout << "========================================\n";
+                std::cout << kRule << "\n";
+                std::cout << SoT::kDisplayNameAr << "\n";
+                std::cout << SoT::kDisplayNameEn << "\n";
+                std::cout << versionLine << "\n";
+                std::cout << kRule << "\n";
                 std::cout << RESET << std::endl;
 
-                std::cout << "اكتب " << YELLOW << "':help'" << RESET
-                          << " للمساعدة أو " << YELLOW << "':exit'" << RESET
-                          << " للخروج\n";
-                std::cout << "Type " << YELLOW << "':help'" << RESET
-                          << " for help or " << YELLOW << "':exit'" << RESET
-                          << " to quit\n"
+                std::cout << SoT::messageAr(SoT::Message::HELP_HINT) << "\n";
+                std::cout << SoT::messageEn(SoT::Message::HELP_HINT) << "\n"
                           << std::endl;
             }
             else
             {
-                std::cout << "========================================\n";
-                std::cout << "لغة ص - REPL\n";
-                std::cout << "Sad Language REPL\n";
-                std::cout << "الإصدار / Version: 1.0.0\n";
-                std::cout << "========================================\n\n";
+                std::cout << kRule << "\n";
+                std::cout << SoT::kDisplayNameAr << "\n";
+                std::cout << SoT::kDisplayNameEn << "\n";
+                std::cout << versionLine << "\n";
+                std::cout << kRule << "\n\n";
 
-                std::cout << "اكتب ':help' للمساعدة أو ':exit' للخروج\n";
-                std::cout << "Type ':help' for help or ':exit' to quit\n\n";
+                std::cout << SoT::messageAr(SoT::Message::HELP_HINT) << "\n";
+                std::cout << SoT::messageEn(SoT::Message::HELP_HINT) << "\n\n";
             }
         }
 
