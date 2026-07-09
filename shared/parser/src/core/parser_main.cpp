@@ -1388,7 +1388,10 @@ namespace Sad
 
                 if (!firstKey)
                 {
-                    std::cout << "Failed to parse key, treating as block\n";
+                    // (AR) أثر تشخيصيّ إلى stderr لا stdout: stdout قد يكون قناة آليّة نظيفة
+                    //      (مثل sad-check --json) فتلويثه يُفسد التحليل. (EN) diagnostic trace to
+                    //      stderr, never stdout — stdout may be a clean machine channel (JSON).
+                    std::cerr << "Failed to parse key, treating as block\n";
                     auto block = parseBlockStmt();
                     return block;
                 }
@@ -1437,7 +1440,9 @@ namespace Sad
                     }
 
                     // Regular map literal
-                    std::cout << "Regular map literal\n";
+                    // (AR) أثر تشخيصيّ إلى stderr لا stdout (يمنع تلويث قناة JSON الآليّة).
+                    // (EN) diagnostic trace to stderr, not stdout (keeps machine JSON clean).
+                    std::cerr << "Regular map literal\n";
                     std::vector<MapPair> pairs;
                     pairs.emplace_back(std::move(firstKey), std::move(firstValue));
 
@@ -1469,7 +1474,9 @@ namespace Sad
                 // No colon found - this must be a block statement with expression
                 // But we've already consumed { and parsed an expression
                 // This is problematic - we need to handle this as expression statement in block
-                std::cout << "No colon found, treating as block with expression statement\n";
+                // (AR) أثر تشخيصيّ إلى stderr لا stdout (انظر أعلاه) — يمنع تلويث قناة JSON.
+                // (EN) diagnostic trace to stderr, not stdout (see above) — keeps JSON clean.
+                std::cerr << "No colon found, treating as block with expression statement\n";
 
                 // We have an expression, make it an expression statement
                 auto exprStmt = std::make_unique<ExprStmt>(std::move(firstKey));

@@ -124,6 +124,11 @@ namespace
         size_t borrows = 0;
         size_t moves = 0;
         std::vector<Sad::Semantic::OwnershipError> errors;
+        // (AR) تشخيصات المحلّل المهيكلة (سطر/عمود/رمز/رسالة ثنائيّة) المُلتقَطة من
+        //      المدير المركزيّ بعد التحليل — تُصدَّر في --json ليستهلكها المحرّر.
+        // (EN) Structured parser diagnostics (line/col/code/bilingual) captured from
+        //      the central manager after parsing — emitted in --json for the editor.
+        std::vector<Sad::Errors::Diagnostic> diags;
 
         bool isClean() const { return readOk && parseOk && ownershipOk; }
     };
@@ -290,6 +295,12 @@ namespace
         Sad::Parser::ParserCore parser(lexer);
         auto program = parser.parseProgram();
 
+        // (AR) التقط تشخيصات المحلّل المهيكلة فورَ التحليل (المدير صُفِّر أعلاه لهذا الملفّ):
+        //      سطر/عمود/رمز خطأ/رسالة عربيّة+إنجليزيّة. نسخةٌ بالقيمة تبقى صالحة بعد الملفّ التالي.
+        // (EN) Capture structured parser diagnostics right after parsing (manager cleared for
+        //      this file above): line/col/code/bilingual. Value copy survives the next file.
+        r.diags = Sad::Errors::ErrorManager::getInstance().getAllDiagnostics();
+
         if (parser.hasErrors())
         {
             r.parseOk = false;
@@ -403,10 +414,44 @@ namespace
                     out += "\\t";
                     break;
                 default:
-                    out += ch;
+                    // (AR) محارف التحكّم الأخرى (<0x20) يجب تهريبها \uXXXX وإلّا كان JSON غير صالح
+                    //      (مثلًا لو تسرّب ESC ملوّن في رسالة مُحسّنة). البايتات ≥0x20 UTF-8 تمرّ كما هي.
+                    // (EN) Other control chars (<0x20) must be \uXXXX-escaped or the JSON is invalid
+                    //      (e.g. a stray colored ESC in an enhanced message). UTF-8 bytes ≥0x20 pass through.
+                    if (static_cast<unsigned char>(ch) < 0x20)
+                    {
+                        static const char *hex = "0123456789abcdef";
+                        out += "\\u00";
+                        out += hex[(static_cast<unsigned char>(ch) >> 4) & 0xF];
+                        out += hex[static_cast<unsigned char>(ch) & 0xF];
+                    }
+                    else
+                    {
+                        out += ch;
+                    }
                 }
             }
             return out;
+        };
+
+        // (AR) اسم الشدّة المستقرّ للاستهلاك الآليّ (يطابق DiagnosticSeverity في محرّر المحراب).
+        // (EN) Stable severity name for machine consumption (mirrors editor DiagnosticSeverity).
+        auto sevStr = [](Sad::Errors::DiagnosticSeverity s) -> const char *
+        {
+            switch (s)
+            {
+            case Sad::Errors::DiagnosticSeverity::ERROR:
+                return "error";
+            case Sad::Errors::DiagnosticSeverity::WARNING:
+                return "warning";
+            case Sad::Errors::DiagnosticSeverity::INFO:
+                return "info";
+            case Sad::Errors::DiagnosticSeverity::NOTE:
+                return "note";
+            case Sad::Errors::DiagnosticSeverity::HINT:
+                return "hint";
+            }
+            return "error";
         };
 
         os << "{\n  \"results\": [\n";
@@ -435,6 +480,51 @@ namespace
                 os << "        }";
             }
             if (!r.errors.empty())
+                os << "\n      ";
+            os << "],\n";
+
+            // (AR) مصفوفة تشخيصات موحَّدة يستهلكها المحرّر مباشرةً (تموّجات + لوحة مشاكل):
+            //      تشخيصات المحلّل المهيكلة (سطر/عمود/رمز/شدّة/رسالة ثنائيّة) + أخطاء الملكيّة
+            //      بموقعها. الحقول القديمة (errors/parseOk...) تبقى للتوافق الخلفيّ.
+            // (EN) Unified diagnostics array for direct editor consumption (squiggles +
+            //      problems panel): structured parser diagnostics (line/col/code/severity/
+            //      bilingual) + ownership errors with location. Legacy fields kept for
+            //      backward compatibility.
+            os << "      \"diagnostics\": [";
+            bool firstD = true;
+            for (const auto &d : r.diags)
+            {
+                const auto &loc = d.getLocation();
+                os << (firstD ? "\n" : ",\n");
+                firstD = false;
+                os << "        {\n";
+                os << "          \"severity\": \"" << sevStr(d.getSeverity()) << "\",\n";
+                os << "          \"code\": \"" << esc(Sad::Errors::getErrorCodeString(d.getCode())) << "\",\n";
+                os << "          \"line\": " << loc.line << ",\n";
+                os << "          \"column\": " << loc.column << ",\n";
+                os << "          \"length\": " << loc.length << ",\n";
+                os << "          \"source\": \"parser\",\n";
+                os << "          \"message\": \"" << esc(d.getMessage(Sad::Errors::Language::ENGLISH)) << "\",\n";
+                os << "          \"messageAr\": \"" << esc(d.getMessage(Sad::Errors::Language::ARABIC)) << "\"\n";
+                os << "        }";
+            }
+            for (const auto &e : r.errors)
+            {
+                os << (firstD ? "\n" : ",\n");
+                firstD = false;
+                os << "        {\n";
+                os << "          \"severity\": \"error\",\n";
+                os << "          \"code\": \"OWNERSHIP\",\n";
+                os << "          \"line\": " << e.errorLocation.line << ",\n";
+                os << "          \"column\": " << e.errorLocation.column << ",\n";
+                os << "          \"source\": \"ownership\",\n";
+                os << "          \"variable\": \"" << esc(e.variableName) << "\",\n";
+                os << "          \"message\": \"" << esc(e.message) << "\",\n";
+                os << "          \"messageAr\": \"" << esc(e.arabicMessage) << "\",\n";
+                os << "          \"suggestion\": \"" << esc(e.suggestion) << "\"\n";
+                os << "        }";
+            }
+            if (!firstD)
                 os << "\n      ";
             os << "]\n";
             os << "    }" << (i + 1 < results.size() ? "," : "") << "\n";
