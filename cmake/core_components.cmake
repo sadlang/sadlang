@@ -24,7 +24,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/CMakeLists.txt")
 endif()
 
 # نظام واجهات المستخدم / UI System
-if(EXISTS "${CMAKE_SOURCE_DIR}/features/graphics/CMakeLists.txt")
+if(SAD_ENABLE_GRAPHICS AND EXISTS "${CMAKE_SOURCE_DIR}/features/graphics/CMakeLists.txt")
     add_subdirectory(${CMAKE_SOURCE_DIR}/features/graphics ${CMAKE_BINARY_DIR}/features/graphics)
 endif()
 

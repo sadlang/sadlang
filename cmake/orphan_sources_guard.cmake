@@ -86,6 +86,16 @@ function(sad_check_orphan_sources)
         list(APPEND SAD_ORPHAN_EXCLUDE_PATTERNS "/compiler/src/backend/")
     endif()
 
+    # (AR) عند إطفاء الرسومات (بناء headless/initramfs)، مصادر جسر الواجهات
+    #      (INTERPRETER_UI_BRIDGE_SOURCES) لا تُضاف لأيّ هدف شرعًا فلا تُعدّ يتيمة.
+    # (EN) When graphics is OFF (headless/initramfs), the UI-bridge sources are
+    #      legitimately not added to any target, so they must not be flagged.
+    if(NOT SAD_ENABLE_GRAPHICS)
+        list(APPEND SAD_ORPHAN_EXCLUDE_PATTERNS
+            "/interpreter/src/ui/"
+            "/interpreter/src/visitors/expression_evaluator_ui\.cpp$")
+    endif()
+
     # (1) جمع جميع الـ targets ومصادرها
     _sad_collect_all_targets(_all_targets)
     set(_referenced_sources "")

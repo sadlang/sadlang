@@ -34,12 +34,16 @@ target_link_libraries(sad-run PRIVATE
     sad_http
     sad_websocket
     sad_mobile
-    sad_graphics_bridge       # (AR) م2-أ: طبقة جسر الواجهات (قبل sad_graphics لترتيب الرابط) / (EN) UI bridge before sad_graphics
-    sad_graphics
+    $<$<TARGET_EXISTS:sad_graphics_bridge>:sad_graphics_bridge>  # (AR) م2-أ: جسر الواجهات (headless: يتلاشى) / (EN) UI bridge (headless: drops)
+    $<$<TARGET_EXISTS:sad_graphics>:sad_graphics>
     sad_memory_policy   # (AR) Phase A2: سياسة الذاكرة الموحَّدة / (EN) Phase A2: unified memory policy
     sad_null_safety     # (AR) NS-01: نظام أمان null المشترك / (EN) NS-01: shared null-safety
     sad_program_rules   # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018) / (EN) unified main-function rule
 )
+
+# (AR) علَم headless لـsad-run (يُطابق sad-repl): يُسقط جسر SDL عند SAD_ENABLE_GRAPHICS=OFF
+# (EN) headless flag for sad-run (mirrors sad-repl): drops the SDL bridge when OFF
+target_compile_definitions(sad-run PRIVATE SAD_ENABLE_GRAPHICS=$<BOOL:${SAD_ENABLE_GRAPHICS}>)
 
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
 if(TARGET sad_profiler_lib)

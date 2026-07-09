@@ -67,6 +67,12 @@ option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
 option(ENABLE_DEBUG_LOGGING "تفعيل سجلّات التنقيح / Enable debug logging" OFF)
 option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" ON)
 option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
+# (AR) SAD_ENABLE_GRAPHICS=OFF: بناء headless (بلا SDL) لأنظمة مضمّنة/initramfs — يُسقط جسر
+#      الواجهات من sad-repl/sad-run. ملاحظة: اختبارات الواجهات (BUILD_TESTS) تتطلّب الرسومات.
+# (EN) SAD_ENABLE_GRAPHICS=OFF: headless build (no SDL) for embedded/initramfs — drops the UI
+#      bridge from sad-repl/sad-run. Note: UI tests (BUILD_TESTS) require graphics.
+option(SAD_ENABLE_GRAPHICS "بناء دعم الرسومات SDL / Build SDL graphics support" ON)
+option(SAD_STATIC_REPL "ربط sad-repl ساكنًا لأنظمة مضمّنة/initramfs / Static-link sad-repl" OFF)
 option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
 
 # ══════════════════════════════════════════════════════════════════════

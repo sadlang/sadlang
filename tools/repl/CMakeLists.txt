@@ -88,6 +88,19 @@ if(WIN32)
     target_compile_options(sad-repl PRIVATE /utf-8)
 endif()
 
+# (AR) علَم headless: يُسقط جسر SDL من REPL / (EN) headless flag drops the SDL bridge
+target_compile_definitions(sad-repl PRIVATE SAD_ENABLE_GRAPHICS=$<BOOL:${SAD_ENABLE_GRAPHICS}>)
+
+# (AR) ربط ساكن اختياريّ لأنظمة مضمّنة/initramfs: يُضمّن libstdc++/libgcc ساكنًا
+#      (يبقى glibc ديناميكيًّا). الربط الساكن الكامل (-static) محجوب حاليًّا بربط
+#      sad_core لـopenssl/sqlite بمسارات مطلقة — دَين موثّق (جعل تلك البُنى اختياريّة).
+# (EN) Optional static link for embedded/initramfs: statically embeds libstdc++/libgcc
+#      (glibc stays dynamic). Full -static is blocked by sad_core absolute-path
+#      openssl/sqlite links — documented debt (make those deps optional).
+if(SAD_STATIC_REPL AND NOT MSVC)
+    target_link_options(sad-repl PRIVATE -static-libgcc -static-libstdc++)
+endif()
+
 # ========================================
 # Installation / التثبيت
 # ========================================
