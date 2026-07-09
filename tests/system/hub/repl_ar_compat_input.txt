@@ -1,0 +1,2 @@
+:شغّل echo BACKWARD_OK
+:exit

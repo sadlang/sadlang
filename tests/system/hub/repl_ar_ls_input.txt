@@ -1,0 +1,4 @@
+:أنشئ_مجلّد /tmp/sadtest_als
+:المس /tmp/sadtest_als/ONLYFILE_AR
+:اسرد /tmp/sadtest_als
+:exit

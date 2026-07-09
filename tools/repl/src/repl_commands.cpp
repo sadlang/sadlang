@@ -158,6 +158,17 @@ bool REPLCommands::process(const std::string& command)
         return it->second.handler(repl_, args);
     }
 
+    // (AR) اسمٌ عربيّ صريح لأمر نواة (معجم الموزِّع)؟ نفّذه مباشرةً كأمرٍ خارجيّ — فيكتب المستخدم
+    //      ‹:اسرد /tmp› بدل ‹:شغّل ls /tmp›. نُعيد بناء الوسائط الخامّ لتبدأ بالاسم العربيّ نفسه
+    //      (المرحلة الأولى)، فيترجمه مترجم المراحل في cmdRun إلى exec. / (EN) an explicit Arabic
+    //      kernel-command name (dispatcher lexicon)? run it directly as an external command — the
+    //      user types ‹:اسرد /tmp› instead of ‹:شغّل ls /tmp›. Rebuild the raw args to begin with
+    //      the Arabic name (as the first stage's program) so cmdRun's stage translator maps it.
+    if (SoT::appletExec(cmdName) != nullptr) {
+        pendingRawArgs_ = pendingRawArgs_.empty() ? cmdName : (cmdName + " " + pendingRawArgs_);
+        return cmdRun(repl_, args);
+    }
+
     // (AR) رسالة «أمر غير معروف» وتلميحها من كتالوج SoT (لا حرفيّات مبعثرة).
     // (EN) Unknown-command message + hint from the SoT catalog (no scattered literals).
     std::cout << SoT::errorMessage(SoT::Error::UNKNOWN_COMMAND, cmdName) << std::endl;
@@ -174,12 +185,15 @@ bool REPLCommands::isCommand(const std::string& text) const
     }
     
     std::string cmd = text.substr(1);
-    size_t spacePos = cmd.find(' ');
+    size_t spacePos = cmd.find_first_of(" \t");
     if (spacePos != std::string::npos) {
         cmd = cmd.substr(0, spacePos);
     }
-    
-    return commands_.find(cmd) != commands_.end();
+
+    // (AR) أمرٌ مدمج أو اسمٌ عربيّ صريح لأمر نواة (معجم الموزِّع) ⇒ سطرُ صدَفةٍ لا تعبير ص.
+    // (EN) a built-in command or an explicit Arabic kernel-command name (dispatcher lexicon) ⇒
+    //      a shell line, not a ص expression.
+    return commands_.find(cmd) != commands_.end() || SoT::appletExec(cmd) != nullptr;
 }
 
 std::vector<CommandInfo> REPLCommands::getAllCommands() const
@@ -396,6 +410,28 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
     {
         std::cout << usageLine(repl, "run") << std::endl;
         return true;
+    }
+
+    // (AR) الموزِّع العربيّ: ترجم برنامجَ كلّ مرحلة (argv[0]) من اسمٍ عربيٍّ صريح إلى برنامج
+    //      التنفيذ الحقيقيّ قبل الإطلاق — فتُكتب الأوامر بالعربيّة الخالصة، وتعمل الأنابيب
+    //      والسلاسل العربيّة (‹اسرد | التقط ص›). اسمٌ غير مُعرَّف في المعجم يبقى كما هو (توافق
+    //      خلفيّ: ‹ls› الإنجليزيّ يمرّ مباشرةً إلى execvp). المعجم من مصدر حقيقة الأداة (SoT).
+    // (EN) Arabic dispatcher: translate each stage's program (argv[0]) from an explicit Arabic
+    //      name to its real exec before launching — so commands are written in pure Arabic and
+    //      Arabic pipes/chains work (‹اسرد | التقط ص›). An unregistered name is kept as-is
+    //      (backward compat: English ‹ls› flows straight to execvp). Lexicon from the tool SoT.
+    for (ShellSegment& seg : parsed.segments)
+    {
+        for (ShellStage& st : seg.stages)
+        {
+            if (!st.argv.empty())
+            {
+                if (const char* real = SoT::appletExec(st.argv[0]))
+                {
+                    st.argv[0] = real;
+                }
+            }
+        }
     }
 
     // (AR) هل يحوي مقطعٌ إعادة توجيه (إدخال/إخراج/خطأ)؟ / (EN) does a segment redirect?

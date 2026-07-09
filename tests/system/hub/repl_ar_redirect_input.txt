@@ -1,0 +1,3 @@
+:اطبع REDIR_AR_OK > /tmp/sadtest_ar.txt
+:اعرض /tmp/sadtest_ar.txt
+:exit

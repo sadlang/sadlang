@@ -133,6 +133,21 @@ struct CommandEntry {
 extern const CommandEntry kCommands[];
 extern const std::size_t kCommandsCount;
 
+// ── معجم الأوامر العربيّة / Arabic applet lexicon ──
+// (AR) اسمٌ عربيّ صريح → برنامج التنفيذ الحقيقيّ؛ يترجمه الموزِّع قبل execvp.
+// (EN) an explicit Arabic name → the real exec program; the dispatcher translates before execvp.
+struct AppletEntry {
+    const char *arabic;
+    const char *exec;
+};
+
+extern const AppletEntry kApplets[];
+extern const std::size_t kAppletsCount;
+
+/// (AR) يترجم اسمًا عربيًّا صريحًا إلى برنامج التنفيذ؛ nullptr إن لم يُعرَّف (فيبقى الاسم كما هو).
+/// (EN) translates an explicit Arabic name to its exec program; nullptr if undefined (kept as-is).
+const char *appletExec(std::string_view arabic);
+
 } // namespace SoT
 } // namespace REPL
 } // namespace Sad

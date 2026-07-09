@@ -76,13 +76,14 @@ def _load_and_validate(tool_dir: Path, schema_dir: Path, name: str,
 
 
 def _validate_cross(meta: dict, errors: dict | None, messages: dict | None,
-                    commands: dict | None) -> list[str]:
+                    commands: dict | None, applets: dict | None) -> list[str]:
     """(AR) تحقّقات دلاليّة تتجاوز المخطّط: تطابق tool، تفرّد الرموز، بادئة المعرّفات."""
     problems: list[str] = []
     tool = meta.get("tool", "")
     prefix = meta.get("prefix", "")
 
-    for label, data in (("errors", errors), ("messages", messages), ("commands", commands)):
+    for label, data in (("errors", errors), ("messages", messages),
+                        ("commands", commands), ("applets", applets)):
         if data is not None and data.get("tool") != tool:
             problems.append(
                 f"[tool] '{label}.yaml' tool='{data.get('tool')}' لا يطابق _meta.tool='{tool}'"
@@ -117,6 +118,16 @@ def _validate_cross(meta: dict, errors: dict | None, messages: dict | None,
                 if n in seen_name:
                     problems.append(f"[commands] تكرار اسم أمر '{n}'")
                 seen_name.add(n)
+
+    if applets is not None:
+        # (AR) الاسم العربيّ الصريح مفتاح الموزِّع ⇒ يجب تفرّده (لا يجوز اسمان لبرنامجين).
+        # (EN) the explicit Arabic name is the dispatcher key ⇒ must be unique.
+        seen_ar: set[str] = set()
+        for a in applets.get("applets", []):
+            ar = a.get("arabic", "")
+            if ar in seen_ar:
+                problems.append(f"[applets] تكرار اسم عربيّ '{ar}'")
+            seen_ar.add(ar)
 
     return problems
 
@@ -216,6 +227,23 @@ extern const CommandEntry kCommands[];
 extern const std::size_t kCommandsCount;
 """
 
+_HEADER_APPLETS = """
+// ── معجم الأوامر العربيّة / Arabic applet lexicon ──
+// (AR) اسمٌ عربيّ صريح → برنامج التنفيذ الحقيقيّ؛ يترجمه الموزِّع قبل execvp.
+// (EN) an explicit Arabic name → the real exec program; the dispatcher translates before execvp.
+struct AppletEntry {
+    const char *arabic;
+    const char *exec;
+};
+
+extern const AppletEntry kApplets[];
+extern const std::size_t kAppletsCount;
+
+/// (AR) يترجم اسمًا عربيًّا صريحًا إلى برنامج التنفيذ؛ nullptr إن لم يُعرَّف (فيبقى الاسم كما هو).
+/// (EN) translates an explicit Arabic name to its exec program; nullptr if undefined (kept as-is).
+const char *appletExec(std::string_view arabic);
+"""
+
 
 def _indent_enum(values: list[str]) -> str:
     return ",\n".join(f"    {v}" for v in values)
@@ -230,7 +258,7 @@ def _ns_wrap(namespace: str) -> tuple[str, str]:
 
 
 def emit_header(meta: dict, errors: dict | None, messages: dict | None,
-                commands: dict | None, out_name: str) -> str:
+                commands: dict | None, applets: dict | None, out_name: str) -> str:
     ns_open, ns_close = _ns_wrap(meta["cpp_namespace"])
     fmt = meta["formatting"]
     dname = meta.get("display_name") or {}
@@ -261,6 +289,9 @@ def emit_header(meta: dict, errors: dict | None, messages: dict | None,
             if h not in handlers:
                 handlers.append(h)
         parts.append(_HEADER_COMMANDS.format(handler_enum=_indent_enum(handlers)))
+
+    if applets is not None:
+        parts.append(_HEADER_APPLETS)
 
     parts.append("\n" + ns_close + "\n")
     return "".join(parts)
@@ -358,8 +389,29 @@ def _emit_command_table(commands: dict) -> str:
     )
 
 
+def _emit_applet_table(applets: dict) -> str:
+    rows = []
+    for a in applets["applets"]:
+        rows.append(
+            f"    {{ {cpp_string_literal(a['arabic'])}, {cpp_string_literal(a['exec'])} }},\n"
+        )
+    return (
+        "const AppletEntry kApplets[] = {\n"
+        + "".join(rows)
+        + "};\n"
+        "const std::size_t kAppletsCount = sizeof(kApplets) / sizeof(kApplets[0]);\n\n"
+        "const char *appletExec(std::string_view arabic) {\n"
+        "    for (std::size_t i = 0; i < kAppletsCount; ++i) {\n"
+        "        if (arabic == kApplets[i].arabic) return kApplets[i].exec;\n"
+        "    }\n"
+        "    return nullptr;\n"
+        "}\n\n"
+    )
+
+
 def emit_source(meta: dict, errors: dict | None, messages: dict | None,
-                commands: dict | None, header_name: str, out_name: str) -> str:
+                commands: dict | None, applets: dict | None,
+                header_name: str, out_name: str) -> str:
     ns_open, ns_close = _ns_wrap(meta["cpp_namespace"])
     parts = [
         "// بسم الله الرحمن الرحيم\n"
@@ -375,6 +427,8 @@ def emit_source(meta: dict, errors: dict | None, messages: dict | None,
         parts.append(_emit_message_table(messages))
     if commands is not None:
         parts.append(_emit_command_table(commands))
+    if applets is not None:
+        parts.append(_emit_applet_table(applets))
     parts.append(ns_close + "\n")
     return "".join(parts)
 
@@ -399,13 +453,15 @@ def main() -> int:
                                       "messages.yaml", "tool_messages.schema.json", required=False)
         commands = _load_and_validate(args.tool_dir, args.schema_dir,
                                       "commands.yaml", "tool_commands.schema.json", required=False)
+        applets = _load_and_validate(args.tool_dir, args.schema_dir,
+                                     "applets.yaml", "tool_applets.schema.json", required=False)
     except Exception as e:
         print(f"[gen_tool_sot] FATAL: فشل تحميل/تحقّق YAML: {e}", file=sys.stderr)
         if not args.quiet:
             traceback.print_exc(file=sys.stderr)
         return 2
 
-    problems = _validate_cross(meta, errors, messages, commands)
+    problems = _validate_cross(meta, errors, messages, commands, applets)
     if problems:
         print("[gen_tool_sot] فشل التحقّق الدلاليّ:", file=sys.stderr)
         for pr in problems:
@@ -413,8 +469,9 @@ def main() -> int:
         return 1
 
     header_name = args.out_h.name
-    h_text = emit_header(meta, errors, messages, commands, header_name)
-    c_text = emit_source(meta, errors, messages, commands, header_name, args.out_cpp.name)
+    h_text = emit_header(meta, errors, messages, commands, applets, header_name)
+    c_text = emit_source(meta, errors, messages, commands, applets,
+                         header_name, args.out_cpp.name)
 
     args.out_h.parent.mkdir(parents=True, exist_ok=True)
     args.out_cpp.parent.mkdir(parents=True, exist_ok=True)
@@ -425,9 +482,10 @@ def main() -> int:
         n_err = len(errors["errors"]) if errors else 0
         n_msg = len(messages["messages"]) if messages else 0
         n_cmd = len(commands["commands"]) if commands else 0
+        n_app = len(applets["applets"]) if applets else 0
         flag = "🔁" if (changed_h or changed_c) else "✓"
         print(f"[gen_tool_sot] {flag} {meta['tool']}: "
-              f"{n_err} أخطاء / {n_msg} رسائل / {n_cmd} أوامر → "
+              f"{n_err} أخطاء / {n_msg} رسائل / {n_cmd} أوامر / {n_app} آبلت → "
               f"{args.out_h.name} + {args.out_cpp.name}")
 
     return 0

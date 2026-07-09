@@ -587,6 +587,67 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_ChainInterruptAbort PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # ── الموزِّع العربيّ (اسم أمرٍ عربيّ صريح → exec) / Arabic dispatcher ──
+        # (AR) أمرٌ عربيّ مباشر: ‹:اطبع X› ⇒ echo X (توزيع على مستوى الأمر). / (EN) a direct
+        #      Arabic command: ‹:اطبع X› ⇒ echo X (command-level dispatch).
+        add_test(NAME HubRepl_ArabicEcho
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_ar_echo_input.txt
+                -DEXPECT=ARABIC_ECHO_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ArabicEcho PROPERTIES LABELS "hub;sad-repl;shell")
+
+        # (AR) أنبوب عربيّ: ‹اطبع hello | بدّل_محارف a-z A-Z› ⇒ HELLO (ترجمة argv[0] لكلّ مرحلة).
+        # (EN) Arabic pipe: ‹اطبع | بدّل_محارف› ⇒ HELLO (per-stage argv[0] translation).
+        add_test(NAME HubRepl_ArabicPipe
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_ar_pipe_input.txt
+                -DEXPECT=HELLO
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ArabicPipe PROPERTIES LABELS "hub;sad-repl;shell")
+
+        # (AR) سلسلة عربيّة: ‹:صحيح && اطبع CHAIN_AR_OK› ⇒ يعمل بعد نجاح (ترجمة في مقطعٍ لاحق).
+        # (EN) Arabic chain: ‹:صحيح && اطبع …› ⇒ runs after success (translation in a later segment).
+        add_test(NAME HubRepl_ArabicChain
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_ar_chain_input.txt
+                -DEXPECT=CHAIN_AR_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ArabicChain PROPERTIES LABELS "hub;sad-repl;shell")
+
+        # (AR) أمر عربيّ + توجيه + أمر عربيّ ثانٍ: ‹اطبع … > ملف› ثمّ ‹اعرض ملف› ⇒ ذهاب-إياب.
+        # (EN) Arabic command + redirect + second Arabic command: ‹اطبع … > f› then ‹اعرض f›.
+        add_test(NAME HubRepl_ArabicRedirect
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_ar_redirect_input.txt
+                -DEXPECT=REDIR_AR_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ArabicRedirect PROPERTIES LABELS "hub;sad-repl;shell")
+
+        # (AR) توافق خلفيّ: ‹:شغّل echo X› الإنجليزيّ ما زال يعمل (لا اسم عربيّ ⇒ يمرّ كما هو).
+        # (EN) backward compat: English ‹:شغّل echo X› still works (no Arabic key ⇒ passes as-is).
+        add_test(NAME HubRepl_ArabicCompat
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_ar_compat_input.txt
+                -DEXPECT=BACKWARD_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ArabicCompat PROPERTIES LABELS "hub;sad-repl;shell")
+
+        # (AR) تسلسل أوامر عربيّة: ‹أنشئ_مجلّد› ثمّ ‹المس› ثمّ ‹اسرد› ⇒ ظهور الملفّ (mkdir/touch/ls).
+        # (EN) a sequence of Arabic commands: ‹أنشئ_مجلّد›/‹المس›/‹اسرد› ⇒ the file appears.
+        add_test(NAME HubRepl_ArabicLs
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_ar_ls_input.txt
+                -DEXPECT=ONLYFILE_AR
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ArabicLs PROPERTIES LABELS "hub;sad-repl;shell")
     endif()
 
     # (AR) رابطٌ معلّق بلا طرف (‹echo x &&›) خطأ تحليلٍ محمول = مرحلةٌ فارغة. / (EN) a dangling

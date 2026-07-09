@@ -1,0 +1,2 @@
+:صحيح && اطبع CHAIN_AR_OK
+:exit

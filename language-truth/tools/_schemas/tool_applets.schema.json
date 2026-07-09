@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/tools/tool_applets.schema.json",
+  "title": "Tool SoT — Applets / معجم أوامر عربيّة (مصدر حقيقة)",
+  "description": "مخطط applets.yaml لصدَفةٍ تفاعليّة: معجم يربط اسمًا عربيًّا صريحًا (canonical، بلا مرادفات) ببرنامج التنفيذ الحقيقيّ (argv[0]). يترجمه الموزِّع العربيّ قبل fork/execvp فتُكتب الأوامر بالعربيّة الخالصة. مصدر حقيقة الأداة (لا لغة ص).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "tool", "description_ar", "description_en", "applets"],
+  "properties": {
+    "version": { "type": "string" },
+    "tool": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "applets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/applet" }
+    }
+  },
+  "$defs": {
+    "applet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arabic", "exec"],
+      "properties": {
+        "arabic": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\s:|&<>()$\"';\\\\]+$",
+          "description": "الاسم العربيّ الصريح (canonical): بلا مسافة/جدولة ولا محارف صدَفة (: | & < > ( ) $ \" ' ; \\) — كي يبقى رمزًا واحدًا يلتقطه الموزِّع ومحلّل الصدَفة معًا. مثل 'اسرد'، 'أنشئ_مجلّد'."
+        },
+        "exec": {
+          "type": "string",
+          "minLength": 1,
+          "description": "برنامج التنفيذ الحقيقيّ (argv[0])، مثل 'ls'"
+        }
+      }
+    }
+  }
+}
