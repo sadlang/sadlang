@@ -1,0 +1,4 @@
+:شغّل echo LINE1 > /tmp/sadtest_redir_app.txt
+:شغّل echo LINE2 >> /tmp/sadtest_redir_app.txt
+:شغّل cat /tmp/sadtest_redir_app.txt
+:exit

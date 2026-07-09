@@ -1,0 +1,3 @@
+:شغّل echo SADOS_ROUNDTRIP > /tmp/sadtest_redir_out.txt
+:شغّل cat /tmp/sadtest_redir_out.txt
+:exit

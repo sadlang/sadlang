@@ -200,32 +200,91 @@ ShellResult runExternal(const std::vector<std::string>& argv)
 #ifndef _WIN32
 namespace
 {
-// (AR) سجلّ فشل exec يُكتب عبر أنبوب self-pipe: أيّ مرحلة أخفقت ورقم خطئها.
-// (EN) exec-failure record written through the self-pipe: which stage failed and its errno.
+// (AR) نوع الإخفاق المُبلَّغ عبر self-pipe: تعذّر تنفيذ برنامج أم فتح ملفّ إعادة توجيه.
+// (EN) failure kind reported via the self-pipe: a program exec or a redirection-file open.
+enum class FailKind : int
+{
+    Exec = 0,
+    Redirect = 1
+};
+
+// (AR) أيّ ملفّ توجيهٍ أخفق (حين تحوي المرحلة إدخالًا وإخراجًا معًا) — لتبليغ الاسم الصحيح.
+// (EN) which redirection file failed (when a stage has both in and out) — for a correct name.
+enum class RedirWhich : int
+{
+    In = 0,
+    Out = 1
+};
+
+// (AR) سجلّ إخفاقٍ يُكتب عبر self-pipe: المرحلة، رقم الخطأ، نوعه، وأيّ ملفّ توجيهٍ أخفق (حين
+//      kind=Redirect). حجمه ثابت ≤ PIPE_BUF فالكتابة ذرّيّة. / (EN) a failure record written
+//      through the self-pipe: stage, errno, kind, and which redirection file failed (when
+//      kind=Redirect). Fixed size ≤ PIPE_BUF so the write is atomic.
 struct ExecFailure
 {
     int stage;
     int err;
+    int kind;  // FailKind
+    int which; // RedirWhich (ذو دلالة فقط حين kind=Redirect / meaningful only when Redirect)
 };
+
+// (AR) في الابن: يطبّق إعادة توجيه المرحلة (بعد توصيل الأنبوب فتفوز عليه). عند تعذّر فتح
+//      ملفٍّ يكتب سجلّ إخفاقٍ Redirect (مع تمييز in/out) ويخرج بـ127. الإخراج يُنشأ بـ0644.
+// (EN) In the child: apply the stage's redirection (after the pipe wiring so it wins). On an
+//      open failure, write a Redirect failure record (distinguishing in/out) and _exit(127).
+//      Output files are created with mode 0644.
+inline void applyRedirectionsOrDie(const ShellStage& st, int stageIdx, int reportFd)
+{
+    if (!st.inFile.empty())
+    {
+        int fd = open(st.inFile.c_str(), O_RDONLY);
+        if (fd < 0)
+        {
+            ExecFailure f{stageIdx, errno, static_cast<int>(FailKind::Redirect),
+                          static_cast<int>(RedirWhich::In)};
+            ssize_t w = write(reportFd, &f, sizeof(f));
+            (void)w;
+            _exit(127);
+        }
+        dup2(fd, STDIN_FILENO);
+        close(fd);
+    }
+    if (!st.outFile.empty())
+    {
+        int flags = O_WRONLY | O_CREAT | (st.appendOut ? O_APPEND : O_TRUNC);
+        int fd = open(st.outFile.c_str(), flags, 0644);
+        if (fd < 0)
+        {
+            ExecFailure f{stageIdx, errno, static_cast<int>(FailKind::Redirect),
+                          static_cast<int>(RedirWhich::Out)};
+            ssize_t w = write(reportFd, &f, sizeof(f));
+            (void)w;
+            _exit(127);
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+}
 } // namespace
 #endif
 
-ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
-                        std::string& failedProgram)
+ShellResult runPipeline(const std::vector<ShellStage>& stages, LaunchFailure& fail)
 {
     ShellResult res{false, -1, 0};
-    failedProgram.clear();
+    fail = LaunchFailure{};
 
     if (stages.empty())
     {
         res.errNo = EINVAL;
         return res;
     }
-    // (AR) مرحلة واحدة = أمر مفرد؛ فوّضه لمسار runExternal المُختبَر (صفر انحدار).
-    // (EN) a single stage is a plain command; delegate to the tested runExternal path.
-    if (stages.size() == 1)
+    // (AR) مرحلة واحدة بلا إعادة توجيه = أمر مفرد؛ فوّضه لمسار runExternal المُختبَر (صفر
+    //      انحدار). المرحلة المفردة ذات التوجيه تمرّ بالآليّة الكاملة (تفرع واحد + فتح ملفّ).
+    // (EN) a single stage with no redirection = a plain command; delegate to the tested
+    //      runExternal path. A single stage WITH redirection goes through the full machinery.
+    if (stages.size() == 1 && stages[0].inFile.empty() && stages[0].outFile.empty())
     {
-        return runExternal(stages[0]);
+        return runExternal(stages[0].argv);
     }
 
 #ifdef _WIN32
@@ -313,6 +372,11 @@ ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
                 dup2(pfd[1], STDOUT_FILENO);
             }
 
+            // (AR) إعادة توجيه المرحلة تُطبَّق بعد توصيل الأنبوب فتفوز عليه (كصدَفة: التوجيه
+            //      الصريح يغلب الأنبوب). قد تخرج هنا بـ127 إن تعذّر فتح ملفّ. / redirection
+            //      applied after pipe wiring so it wins; may _exit(127) if a file won't open.
+            applyRedirectionsOrDie(stages[k], static_cast<int>(k), efd[1]);
+
             // (AR) أغلِق كلّ الأوصاف الأصليّة بعد التكرار (لا نسرّبها للبرنامج) / close originals
             if (prevRead != -1)
             {
@@ -326,8 +390,8 @@ ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
             close(efd[0]);
 
             std::vector<char*> cargv;
-            cargv.reserve(stages[k].size() + 1);
-            for (const std::string& a : stages[k])
+            cargv.reserve(stages[k].argv.size() + 1);
+            for (const std::string& a : stages[k].argv)
             {
                 cargv.push_back(const_cast<char*>(a.c_str()));
             }
@@ -335,8 +399,8 @@ ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
 
             execvp(cargv[0], cargv.data());
 
-            ExecFailure fail{static_cast<int>(k), errno};
-            ssize_t wr = write(efd[1], &fail, sizeof(fail));
+            ExecFailure failRec{static_cast<int>(k), errno, static_cast<int>(FailKind::Exec), 0};
+            ssize_t wr = write(efd[1], &failRec, sizeof(failRec));
             (void)wr;
             _exit(127);
         }
@@ -368,7 +432,7 @@ ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
 
     // (AR) اقرأ سجلّات فشل exec (إن وُجدت). نحتفظ بأوّل مرحلةٍ أخفقت. read يُعاد عند EINTR.
     // (EN) read exec-failure records (if any); remember the first failing stage.
-    ExecFailure firstFail{-1, 0};
+    ExecFailure firstFail{-1, 0, 0, 0};
     for (;;)
     {
         ExecFailure rec;
@@ -422,9 +486,22 @@ ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
         res.spawned = false;
         res.errNo = firstFail.err;
         const std::size_t si = static_cast<std::size_t>(firstFail.stage);
-        if (si < stages.size() && !stages[si].empty())
+        if (firstFail.kind == static_cast<int>(FailKind::Redirect))
         {
-            failedProgram = stages[si][0];
+            // (AR) تعذّر فتح ملفّ إعادة توجيه: بلّغ باسم الملفّ المسؤول تحديدًا (in أم out)
+            //      — حين تحوي المرحلة كليهما لا يجوز افتراض الأوّل. / redirection open failed:
+            //      report the exact file (in vs out) — never assume the first when both exist.
+            fail.isRedirect = true;
+            if (si < stages.size())
+            {
+                fail.file = (firstFail.which == static_cast<int>(RedirWhich::In))
+                                ? stages[si].inFile
+                                : stages[si].outFile;
+            }
+        }
+        else if (si < stages.size() && !stages[si].argv.empty())
+        {
+            fail.program = stages[si].argv[0];
         }
         return res;
     }

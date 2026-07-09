@@ -80,6 +80,21 @@ static const ErrorEntry kErrors[] = {
       "الأنابيب غير مدعومة على هذا النظام", "Pipes are not supported on this platform",
       "أنابيب ‹|› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار", "‹|› pipes are supported on POSIX systems (Linux) only in this release",
       false },
+    { Error::REDIRECT_NO_TARGET, "REPL015", Severity::Error,
+      "إعادة توجيه بلا ملفّ هدف", "Redirection with no target file",
+      "إعادة توجيه بلا ملفّ هدف", "Redirection with no target file",
+      "لكلّ ‹<›/‹>›/‹>>› يجب اسمُ ملفٍّ بعده (مثال: :شغّل ls > قائمة.txt)", "Each ‹<›/‹>›/‹>>› needs a filename after it (e.g. :run ls > list.txt)",
+      false },
+    { Error::REDIRECT_FAILED, "REPL016", Severity::Error,
+      "تعذّر فتح ملفّ إعادة التوجيه", "Failed to open redirection file",
+      "فشل فتح ملفّ إعادة التوجيه", "Failed to open redirection file",
+      "تأكّد من صحّة المسار وصلاحيّات القراءة/الكتابة ووجود المجلّد", "Check the path, read/write permissions, and that the directory exists",
+      true },
+    { Error::REDIRECT_UNSUPPORTED, "REPL017", Severity::Error,
+      "إعادة التوجيه غير مدعومة على هذا النظام", "Redirection is not supported on this platform",
+      "إعادة التوجيه غير مدعومة على هذا النظام", "Redirection is not supported on this platform",
+      "إعادة التوجيه ‹<›/‹>›/‹>>› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار", "‹<›/‹>›/‹>>› redirection is supported on POSIX systems (Linux) only in this release",
+      false },
 };
 static const std::size_t kErrorsCount = sizeof(kErrors) / sizeof(kErrors[0]);
 
@@ -172,7 +187,7 @@ const CommandEntry kCommands[] = {
     { CommandHandler::FUNCS, "funcs", "دوال",
       "عرض جميع الدوال", "Show all functions", ":funcs" },
     { CommandHandler::RUN, "run", "شغّل",
-      "تشغيل برنامج خارجيّ", "Run an external program", ":run <program> [args...] [| program [args...]]..." },
+      "تشغيل برنامج خارجيّ", "Run an external program", ":run <program> [args...] [< in] [> out | >> out] [| program...]" },
 };
 const std::size_t kCommandsCount = sizeof(kCommands) / sizeof(kCommands[0]);
 

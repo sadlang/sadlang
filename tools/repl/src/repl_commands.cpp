@@ -266,12 +266,12 @@ static void printReplError(SoT::Error code, std::string_view detail = {})
 }
 
 // (AR) ‹:شغّل›/‹:run› — تشغيل برنامج خارجيّ متزامنًا (إرغونوميا الصدَفة). يُحلَّل السطر
-//      الخامّ محترمًا الاقتباس (‹"…"›/‹'…'›) والهروب (‹\›) والأنابيب (‹|›). أمرٌ مفرد ⇒
-//      runExternal؛ سلسلة أنابيب ⇒ runPipeline. أخطاء التحليل والإطلاق تُبلَّغ عبر كتالوج
-//      SoT. يرث stdin/stdout/stderr فتظهر مخرجات البرنامج مباشرةً.
+//      الخامّ محترمًا الاقتباس (‹"…"›/‹'…'›) والهروب (‹\›) والأنابيب (‹|›) وإعادة التوجيه
+//      (‹<›/‹>›/‹>>›). أمرٌ مفرد بلا توجيه ⇒ runExternal؛ غير ذلك ⇒ runPipeline. أخطاء
+//      التحليل والإطلاق تُبلَّغ عبر كتالوج SoT. يرث stdin/stdout/stderr ما لم يُعِد التوجيه.
 // (EN) ‹:run› — run an external command synchronously (shell ergonomics). The raw line is
-//      parsed honoring quotes, ‹\› escaping and ‹|› pipes. Single command ⇒ runExternal;
-//      a pipeline ⇒ runPipeline. Parse/launch errors are reported via the SoT catalog.
+//      parsed honoring quotes, ‹\› escaping, ‹|› pipes and ‹<›/‹>›/‹>>› redirection. A plain
+//      single command ⇒ runExternal; otherwise ⇒ runPipeline. Errors go via the SoT catalog.
 bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args)
 {
     (void)args; // (AR) نستعمل الوسائط الخامّ لا المقسّمة بالمسافات / raw args, not the whitespace split
@@ -291,6 +291,9 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         case ShellParseStatus::EmptyStage:
             printReplError(SoT::Error::SHELL_EMPTY_STAGE);
             return true;
+        case ShellParseStatus::RedirNoTarget:
+            printReplError(SoT::Error::REDIRECT_NO_TARGET);
+            return true;
         case ShellParseStatus::Ok:
             break;
     }
@@ -300,26 +303,54 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         return true;
     }
 
+    // (AR) هل تحوي أيّ مرحلة إعادة توجيه؟ / (EN) does any stage carry a redirection?
+    bool hasRedirect = false;
+    for (const ShellStage& st : parsed.stages)
+    {
+        if (!st.inFile.empty() || !st.outFile.empty())
+        {
+            hasRedirect = true;
+            break;
+        }
+    }
+
 #ifdef _WIN32
-    // (AR) أنابيب متعدّدة المراحل غير مدعومة على Windows في هذا الإصدار (POSIX فقط).
-    // (EN) multi-stage pipes are unsupported on Windows in this release (POSIX only).
+    // (AR) الأنابيب المتعدّدة وإعادة التوجيه غير مدعومة على Windows في هذا الإصدار (POSIX فقط).
+    // (EN) multi-stage pipes and redirection are unsupported on Windows in this release.
     if (parsed.stages.size() > 1)
     {
         printReplError(SoT::Error::PIPE_UNSUPPORTED);
         return true;
     }
+    if (hasRedirect)
+    {
+        printReplError(SoT::Error::REDIRECT_UNSUPPORTED);
+        return true;
+    }
 #endif
 
     std::cout.flush();
-    std::string failedProgram;
-    ShellResult r = (parsed.stages.size() == 1) ? runExternal(parsed.stages[0])
-                                                : runPipeline(parsed.stages, failedProgram);
+    // (AR) أمرٌ مفرد بلا توجيه ⇒ المسار المُختبَر runExternal؛ غير ذلك ⇒ runPipeline.
+    // (EN) plain single command ⇒ the tested runExternal path; otherwise ⇒ runPipeline.
+    const bool plainSingle = (parsed.stages.size() == 1 && !hasRedirect);
+    LaunchFailure fail;
+    ShellResult r = plainSingle ? runExternal(parsed.stages[0].argv)
+                                : runPipeline(parsed.stages, fail);
     if (!r.spawned)
     {
-        // (AR) اسم البرنامج المُخفِق: من المرحلة الفاشلة في السلسلة، أو أوّل برنامج للأمر المفرد.
-        // (EN) the failing program: the failed pipeline stage, or the single command's program.
-        const std::string& prog = !failedProgram.empty() ? failedProgram : parsed.stages[0][0];
-        printReplError(SoT::Error::RUN_FAILED, prog);
+        if (fail.isRedirect)
+        {
+            // (AR) تعذّر فتح ملفّ إعادة التوجيه / redirection file could not be opened
+            printReplError(SoT::Error::REDIRECT_FAILED, fail.file);
+        }
+        else
+        {
+            // (AR) اسم البرنامج المُخفِق: من المرحلة الفاشلة، أو أوّل برنامج للأمر المفرد.
+            // (EN) failing program: the failed stage, or the single command's program.
+            const std::string& prog =
+                !fail.program.empty() ? fail.program : parsed.stages[0].argv[0];
+            printReplError(SoT::Error::RUN_FAILED, prog);
+        }
     }
     return true;
 }

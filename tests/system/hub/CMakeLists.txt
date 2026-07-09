@@ -291,6 +291,53 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_RunQuoted PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # (AR) إعادة توجيه الإخراج ‹>›: يكتب echo إلى ملفّ ثمّ يقرؤه cat في نفس الجلسة —
+        #      ظهور النصّ في مخرَج cat يُثبت أنّ ‹>› كتب الملفّ فعلًا (ذهاب-إياب).
+        # (EN) output redirection ‹>›: echo writes a file, cat reads it back in the same
+        #      session; the text in cat's output proves ‹>› actually wrote the file.
+        add_test(NAME HubRepl_RunRedirOut
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_out_input.txt
+                -DEXPECT=SADOS_ROUNDTRIP
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirOut PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الإلحاق ‹>>›: ‹>› ثمّ ‹>>› ثمّ cat — بقاء LINE1 وإضافة LINE2 يُثبتان الإلحاق
+        #      (لا البتر). / (EN) append ‹>>›: keeping LINE1 and adding LINE2 proves append.
+        add_test(NAME HubRepl_RunRedirAppend
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_app_input.txt
+                -DEXPECT=LINE1|LINE2
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirAppend PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) إعادة توجيه الإدخال ‹<›: cat يقرأ من ملفٍّ عبر ‹<› فيظهر محتواه. / (EN) input
+        #      redirection ‹<›: cat reads a file via ‹<›, surfacing its content.
+        add_test(NAME HubRepl_RunRedirIn
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_in_input.txt
+                -DEXPECT=SADOS_IN
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirIn PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) توجيه + أنبوب: ‹echo | tr > ملف› — التوجيه على المرحلة الأخيرة يفوز على وراثة
+        #      stdout، فيُكتب الناتج المحوّل للملفّ. / (EN) pipe + redirect: ‹>› on the last stage
+        #      wins over inherited stdout, writing the transformed output to the file.
+        add_test(NAME HubRepl_RunRedirPipe
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_pipe_input.txt
+                -DEXPECT=SADPIPE
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirPipe PROPERTIES
+            LABELS "hub;sad-repl;shell")
     endif()
 
     # (AR) أخطاء التحليل محمولة (تحليلٌ محض، بلا إطلاق برنامج): اقتباسٌ غير مُغلَق
@@ -315,12 +362,23 @@ if(TARGET sad-repl)
     set_tests_properties(HubRepl_RunEmptyStage PROPERTIES
         LABELS "hub;sad-repl;shell")
 
-    # (AR) 9 اختبارات محمولة + 3 خاصّة بـPOSIX (echo/tr/printf) ⇒ 12 على POSIX، 9 على Windows.
-    # (EN) 9 portable + 3 POSIX-only (echo/tr/printf) ⇒ 12 on POSIX, 9 on Windows.
+    # (AR) إعادة توجيه بلا هدف (محمول، خطأ تحليل بلا إطلاق). / (EN) redirection with no target
+    #      (portable, a parse error with no launch).
+    add_test(NAME HubRepl_RunRedirNoTarget
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_notarget_input.txt
+            -DEXPECT=Redirection with no target file
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_RunRedirNoTarget PROPERTIES
+        LABELS "hub;sad-repl;shell")
+
+    # (AR) 10 محمولة + 7 خاصّة بـPOSIX (echo/tr/printf/توجيه) ⇒ 17 على POSIX، 10 على Windows.
+    # (EN) 10 portable + 7 POSIX-only (echo/tr/printf/redirect) ⇒ 17 on POSIX, 10 on Windows.
     if(WIN32)
-        message(STATUS "✓ اختبارات الهب: مضاف 9 اختبارات لـ sad-repl (Windows)")
+        message(STATUS "✓ اختبارات الهب: مضاف 10 اختبارات لـ sad-repl (Windows)")
     else()
-        message(STATUS "✓ اختبارات الهب: مضاف 12 اختبارًا لـ sad-repl (POSIX)")
+        message(STATUS "✓ اختبارات الهب: مضاف 17 اختبارًا لـ sad-repl (POSIX)")
     endif()
 else()
     message(STATUS "⚠ اختبارات الهب: تخطّي اختبارات sad-repl (الهدف غير موجود)")

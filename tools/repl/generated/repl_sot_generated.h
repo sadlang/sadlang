@@ -38,7 +38,10 @@ enum class Error {
     RUN_FAILED,
     SHELL_UNTERMINATED_QUOTE,
     SHELL_EMPTY_STAGE,
-    PIPE_UNSUPPORTED
+    PIPE_UNSUPPORTED,
+    REDIRECT_NO_TARGET,
+    REDIRECT_FAILED,
+    REDIRECT_UNSUPPORTED
 };
 
 enum class Severity { Error, Warning, Info };

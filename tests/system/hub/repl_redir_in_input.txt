@@ -1,0 +1,3 @@
+:شغّل echo SADOS_IN > /tmp/sadtest_redir_in.txt
+:شغّل cat < /tmp/sadtest_redir_in.txt
+:exit

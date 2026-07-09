@@ -98,4 +98,4 @@ commands:
     description:
       ar: "تشغيل برنامج خارجيّ"
       en: "Run an external program"
-    usage: ":run <program> [args...] [| program [args...]]..."
+    usage: ":run <program> [args...] [< in] [> out | >> out] [| program...]"

@@ -192,3 +192,46 @@ errors:
       ar: "أنابيب ‹|› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار"
       en: "‹|› pipes are supported on POSIX systems (Linux) only in this release"
     has_detail: false
+
+  # ── أخطاء إعادة التوجيه (< > >>) لأمر ‹:شغّل› ──
+  - code: REDIRECT_NO_TARGET
+    id: REPL015
+    severity: error
+    title:
+      ar: "إعادة توجيه بلا ملفّ هدف"
+      en: "Redirection with no target file"
+    brief:
+      ar: "إعادة توجيه بلا ملفّ هدف"
+      en: "Redirection with no target file"
+    hint:
+      ar: "لكلّ ‹<›/‹>›/‹>>› يجب اسمُ ملفٍّ بعده (مثال: :شغّل ls > قائمة.txt)"
+      en: "Each ‹<›/‹>›/‹>>› needs a filename after it (e.g. :run ls > list.txt)"
+    has_detail: false
+
+  - code: REDIRECT_FAILED
+    id: REPL016
+    severity: error
+    title:
+      ar: "تعذّر فتح ملفّ إعادة التوجيه"
+      en: "Failed to open redirection file"
+    brief:
+      ar: "فشل فتح ملفّ إعادة التوجيه"
+      en: "Failed to open redirection file"
+    hint:
+      ar: "تأكّد من صحّة المسار وصلاحيّات القراءة/الكتابة ووجود المجلّد"
+      en: "Check the path, read/write permissions, and that the directory exists"
+    has_detail: true
+
+  - code: REDIRECT_UNSUPPORTED
+    id: REPL017
+    severity: error
+    title:
+      ar: "إعادة التوجيه غير مدعومة على هذا النظام"
+      en: "Redirection is not supported on this platform"
+    brief:
+      ar: "إعادة التوجيه غير مدعومة على هذا النظام"
+      en: "Redirection is not supported on this platform"
+    hint:
+      ar: "إعادة التوجيه ‹<›/‹>›/‹>>› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار"
+      en: "‹<›/‹>›/‹>>› redirection is supported on POSIX systems (Linux) only in this release"
+    has_detail: false
