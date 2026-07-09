@@ -847,9 +847,6 @@ namespace sad
                 //    • TestDecl - اختبار
                 // ════════════════════════════════════════════════════════════════════
 
-                // نبدأ أيضاً بتحليل regex كخطة احتياطية لالتقاط ما قد يفوت المحلل
-                collect_symbols_from_ast(content, uri, result);
-
                 // ──── عبور العقد على مستوى البرنامج ────
                 if (!program.empty())
                 {
@@ -1672,6 +1669,11 @@ namespace sad
                     } // نهاية حلقة عبور عقد البرنامج
                 } // نهاية if (!program.empty())
 
+                // خطة احتياطية بـ regex لالتقاط ما قد يفوته عبور AST — تُشغَّل *بعد* العبور كي
+                // يعمل حارس already_exists في collect_symbols_from_ast كملء-فجوات لا كمصدر تكرار.
+                // (تشغيلها قبل العبور كان يجمع كل رمز علويّ مرّتين ⇒ تشخيص «تعريف مكرر» كاذب.)
+                collect_symbols_from_ast(content, uri, result);
+
                 // نجاح التحليل!
                 result.success = true;
             }
@@ -1854,6 +1856,7 @@ namespace sad
                         sym.name_range.start = {i, static_cast<int>(name_start)};
                         sym.name_range.end = {i, static_cast<int>(name_end)};
                         sym.documentation = extract_documentation(lines, i);
+                        sym.is_fallback = true; // مسح regex سطحيّ لا يميّز النطاق ⇒ يُستبعَد من كشف التكرار
                         result.symbols.push_back(sym);
                     }
                 }
@@ -1929,6 +1932,10 @@ namespace sad
                     }
                 }
 
+                // ملاحظة: رموز الخطة الاحتياطية (is_fallback) *لا* تُستبعَد هنا عمدًا — بخلاف كشف
+                // التكرار ص-ت١٠٢. عبور AST لا يجمع محليّات الأجسام، فالمحلّيّ غير المستخدَم يأتي من
+                // الاحتياطيّ وحده؛ استبعاده هنا يقتل كشف المحليّات غير المستخدَمة صامتًا. لا تُضِف
+                // فحص is_fallback إلى هذه الحلقة. [مراجعة Amelia]
                 for (const auto &sym : result.symbols)
                 {
                     if ((sym.kind == AnalyzedSymbolKind::Variable ||
@@ -1959,6 +1966,10 @@ namespace sad
                 std::unordered_map<std::string, std::vector<const AnalyzedSymbol *>> name_groups;
                 for (const auto &sym : result.symbols)
                 {
+                    // رموز الخطة الاحتياطية (regex) لا تُميّز النطاق فتُسنَد المحليّات خطأً للعمق 0؛
+                    // نستبعدها فيبقى الكشف معتمِدًا على معلومة نطاق AST الدقيقة وحدها. [مراجعة Amelia مهمّ ١]
+                    if (sym.is_fallback)
+                        continue;
                     if (sym.scope_depth == 0 &&
                         (sym.kind == AnalyzedSymbolKind::Function ||
                          sym.kind == AnalyzedSymbolKind::Class ||
