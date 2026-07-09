@@ -393,6 +393,67 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_EnvUnset PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # (AR) توجيه الخطأ ‹2›: برنامجٌ يكتب لـstderr يُوجَّه لملفٍّ ثمّ يقرؤه cat — ظهور النصّ
+        #      يُثبت أنّ ‹2›، لا ‹>›، التقط مجرى الخطأ (stdout لم يُلمَس). / (EN) stderr ‹2›: a
+        #      program writing to stderr is redirected to a file, then cat reads it — the text
+        #      proves ‹2› (not ‹>›) captured the error stream (stdout untouched).
+        add_test(NAME HubRepl_RunRedirErr
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_err_input.txt
+                -DEXPECT=SADOS_ERR
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirErr PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الدمج ‹&>›: الإخراج والخطأ معًا إلى ملفٍّ واحد — ظهور السطرين (OUT من stdout و
+        #      ERR من stderr) يُثبت أنّ الخطأ تبع الإخراج لوجهته. / (EN) combined ‹&>›: both
+        #      stdout and stderr to one file — both lines proving stderr followed stdout.
+        add_test(NAME HubRepl_RunRedirBoth
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_both_input.txt
+                -DEXPECT=OUT_LINE|ERR_LINE
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirBoth PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹2>&1› مع أنبوب: خطأُ المرحلة يُدمَج في إخراجها فيمرّ عبر الأنبوب لـcat — ظهور
+        #      النصّ يُثبت أنّ الخطأ صار يتبع stdout (الأنبوب). / (EN) ‹2>&1› with a pipe: the
+        #      stage's stderr merges into its stdout and flows through the pipe to cat.
+        add_test(NAME HubRepl_RunRedirErrToOut
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_err2out_input.txt
+                -DEXPECT=TOSTDOUT
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirErrToOut PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الإلحاق ‹2>>›: ‹2›› ثمّ ‹2>>› ثمّ cat — بقاء E1 وإضافة E2 يُثبتان إلحاق الخطأ
+        #      (لا البتر). / (EN) stderr append ‹2>>›: keeping E1 and adding E2 proves append.
+        add_test(NAME HubRepl_RunRedirErrAppend
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_errapp_input.txt
+                -DEXPECT=E1|E2
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirErrAppend PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الصيغة الملاصقة ‹2>ملف› (بلا فراغ): يجب أن يُتعرَّف المِقبض عند بداية الوسيط
+        #      فيُوجَّه الخطأ للملفّ — يحصّن تمييز «مِقبض عند البداية» عن «رقمٌ نصّيّ». / (EN)
+        #      adjacent ‹2>file› (no space): the fd prefix must be recognized at a token start,
+        #      redirecting stderr — hardens fd-at-start vs. a literal digit.
+        add_test(NAME HubRepl_RunRedirErrAdjacent
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_redir_erradj_input.txt
+                -DEXPECT=ADJ_ERR
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunRedirErrAdjacent PROPERTIES
+            LABELS "hub;sad-repl;shell")
     endif()
 
     # (AR) أخطاء التحليل محمولة (تحليلٌ محض، بلا إطلاق برنامج): اقتباسٌ غير مُغلَق

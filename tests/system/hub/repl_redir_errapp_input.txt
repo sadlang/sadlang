@@ -1,0 +1,4 @@
+:شغّل sh -c "echo E1 1>&2" 2> /tmp/sadtest_redir_errapp.txt
+:شغّل sh -c "echo E2 1>&2" 2>> /tmp/sadtest_redir_errapp.txt
+:شغّل cat /tmp/sadtest_redir_errapp.txt
+:exit

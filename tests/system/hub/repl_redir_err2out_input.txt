@@ -1,0 +1,2 @@
+:شغّل sh -c "echo TOSTDOUT 1>&2" 2>&1 | cat
+:exit

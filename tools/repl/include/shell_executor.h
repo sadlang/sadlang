@@ -44,8 +44,9 @@ struct LaunchFailure
 ShellResult runExternal(const std::vector<std::string>& argv);
 
 // (AR) يُشغّل سلسلة مراحل (بأنابيبها وإعادة توجيهها): stdout كلّ مرحلة يُوصَل بـstdin التالية؛
-//      أوّل مرحلة ترث stdin وآخرها stdout ما لم تُعِد المرحلة التوجيه صراحةً (‹<›/‹>›/‹>>›،
-//      تفوز على الأنبوب). كلّها تزامنيّة (لا جمود). رمز الخروج = المرحلة الأخيرة. عند تعذّر
+//      أوّل مرحلة ترث stdin وآخرها stdout ما لم تُعِد المرحلة التوجيه صراحةً (‹<›/‹>›/‹>>› +
+//      ‹2>›/‹2>>›/‹&>›/‹2>&1› للخطأ، تفوز على الأنبوب). كلّها تزامنيّة (لا جمود). رمز الخروج
+//      = المرحلة الأخيرة. عند تعذّر
 //      الإطلاق: spawned=false وتُملأ fail (تنفيذ برنامج أو فتح ملفّ توجيه). متاح على POSIX
 //      فقط؛ على Windows يُعيد spawned=false مع errNo=ENOSYS للمراحل المتعدّدة (يحرسه المستدعي).
 // (EN) Runs a chain of stages (pipes + redirections): each stage's stdout feeds the next's

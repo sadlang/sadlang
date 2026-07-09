@@ -213,7 +213,8 @@ enum class FailKind : int
 enum class RedirWhich : int
 {
     In = 0,
-    Out = 1
+    Out = 1,
+    Err = 2   // (AR) ملفّ ‹2>›/‹2>>› / the ‹2>›/‹2>>› stderr file
 };
 
 // (AR) سجلّ إخفاقٍ يُكتب عبر self-pipe: المرحلة، رقم الخطأ، نوعه، وأيّ ملفّ توجيهٍ أخفق (حين
@@ -264,6 +265,33 @@ inline void applyRedirectionsOrDie(const ShellStage& st, int stageIdx, int repor
         dup2(fd, STDOUT_FILENO);
         close(fd);
     }
+    // (AR) توجيه الخطأ لملفٍّ خاصّ (‹2›/‹2>>›) / stderr to its own file (‹2›/‹2>>›)
+    if (!st.errFile.empty())
+    {
+        int flags = O_WRONLY | O_CREAT | (st.appendErr ? O_APPEND : O_TRUNC);
+        int fd = open(st.errFile.c_str(), flags, 0644);
+        if (fd < 0)
+        {
+            ExecFailure f{stageIdx, errno, static_cast<int>(FailKind::Redirect),
+                          static_cast<int>(RedirWhich::Err)};
+            ssize_t w = write(reportFd, &f, sizeof(f));
+            (void)w;
+            _exit(127);
+        }
+        dup2(fd, STDERR_FILENO);
+        close(fd);
+    }
+    // (AR) ‹2>&1›/‹&>›: يتبع الخطأ الإخراجَ في وجهته النهائيّة — يُطبَّق بعد توجيه stdout فيُلحَق
+    //      بما استقرّ عليه (ملفّ أو أنبوب). حصريّ مع errFile بالبناء (يضبط أحدهما الآخرَ صِفرًا).
+    //      تبسيطٌ موثّق: ‹2>&1› يتبع الوجهةَ النهائيّة بصرف النظر عن ترتيب المُشغِّلات (لا ترتيب).
+    // (EN) ‹2>&1›/‹&>›: stderr follows stdout's *final* destination — applied after the stdout
+    //      redirect so it attaches to whatever stdout settled on (file or pipe). Mutually
+    //      exclusive with errFile by construction. Documented simplification: ‹2>&1› follows the
+    //      final destination regardless of operator order (no ordering is modeled).
+    if (st.errToOut)
+    {
+        dup2(STDOUT_FILENO, STDERR_FILENO);
+    }
 }
 } // namespace
 #endif
@@ -282,7 +310,8 @@ ShellResult runPipeline(const std::vector<ShellStage>& stages, LaunchFailure& fa
     //      انحدار). المرحلة المفردة ذات التوجيه تمرّ بالآليّة الكاملة (تفرع واحد + فتح ملفّ).
     // (EN) a single stage with no redirection = a plain command; delegate to the tested
     //      runExternal path. A single stage WITH redirection goes through the full machinery.
-    if (stages.size() == 1 && stages[0].inFile.empty() && stages[0].outFile.empty())
+    if (stages.size() == 1 && stages[0].inFile.empty() && stages[0].outFile.empty() &&
+        stages[0].errFile.empty() && !stages[0].errToOut)
     {
         return runExternal(stages[0].argv);
     }
@@ -494,9 +523,18 @@ ShellResult runPipeline(const std::vector<ShellStage>& stages, LaunchFailure& fa
             fail.isRedirect = true;
             if (si < stages.size())
             {
-                fail.file = (firstFail.which == static_cast<int>(RedirWhich::In))
-                                ? stages[si].inFile
-                                : stages[si].outFile;
+                if (firstFail.which == static_cast<int>(RedirWhich::In))
+                {
+                    fail.file = stages[si].inFile;
+                }
+                else if (firstFail.which == static_cast<int>(RedirWhich::Err))
+                {
+                    fail.file = stages[si].errFile;
+                }
+                else
+                {
+                    fail.file = stages[si].outFile;
+                }
             }
         }
         else if (si < stages.size() && !stages[si].argv.empty())

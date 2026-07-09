@@ -326,11 +326,13 @@ static void printReplError(SoT::Error code, std::string_view detail = {})
 
 // (AR) ‹:شغّل›/‹:run› — تشغيل برنامج خارجيّ متزامنًا (إرغونوميا الصدَفة). يُحلَّل السطر
 //      الخامّ محترمًا الاقتباس (‹"…"›/‹'…'›) والهروب (‹\›) والأنابيب (‹|›) وإعادة التوجيه
-//      (‹<›/‹>›/‹>>›). أمرٌ مفرد بلا توجيه ⇒ runExternal؛ غير ذلك ⇒ runPipeline. أخطاء
-//      التحليل والإطلاق تُبلَّغ عبر كتالوج SoT. يرث stdin/stdout/stderr ما لم يُعِد التوجيه.
+//      (‹<›/‹>›/‹>>› للإدخال/الإخراج، و‹2>›/‹2>>›/‹&>›/‹2>&1› للخطأ). أمرٌ مفرد بلا توجيه ⇒
+//      runExternal؛ غير ذلك ⇒ runPipeline. أخطاء التحليل والإطلاق تُبلَّغ عبر كتالوج SoT.
+//      يرث stdin/stdout/stderr ما لم يُعِد التوجيه.
 // (EN) ‹:run› — run an external command synchronously (shell ergonomics). The raw line is
-//      parsed honoring quotes, ‹\› escaping, ‹|› pipes and ‹<›/‹>›/‹>>› redirection. A plain
-//      single command ⇒ runExternal; otherwise ⇒ runPipeline. Errors go via the SoT catalog.
+//      parsed honoring quotes, ‹\› escaping, ‹|› pipes and redirection (‹<›/‹>›/‹>>› for
+//      stdin/stdout, ‹2>›/‹2>>›/‹&>›/‹2>&1› for stderr). A plain single command ⇒ runExternal;
+//      otherwise ⇒ runPipeline. Errors go via the SoT catalog.
 bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args)
 {
     (void)args; // (AR) نستعمل الوسائط الخامّ لا المقسّمة بالمسافات / raw args, not the whitespace split
@@ -362,11 +364,12 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         return true;
     }
 
-    // (AR) هل تحوي أيّ مرحلة إعادة توجيه؟ / (EN) does any stage carry a redirection?
+    // (AR) هل تحوي أيّ مرحلة إعادة توجيه (إدخال/إخراج/خطأ)؟ / (EN) does any stage redirect
+    //      (stdin/stdout/stderr)?
     bool hasRedirect = false;
     for (const ShellStage& st : parsed.stages)
     {
-        if (!st.inFile.empty() || !st.outFile.empty())
+        if (!st.inFile.empty() || !st.outFile.empty() || !st.errFile.empty() || st.errToOut)
         {
             hasRedirect = true;
             break;

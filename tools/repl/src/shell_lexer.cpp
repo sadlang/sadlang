@@ -1,8 +1,8 @@
 // بسم الله الرحمن الرحيم
 /**
  * @file shell_lexer.cpp
- * @brief (AR) تطبيق مُحلِّل سطر صدَفة ص (اقتباس + هروب + أنابيب + توجيه < > >> + توسيع $VAR).
- * @brief (EN) ص shell-line lexer (quotes + escaping + pipes + redirection + $VAR expansion).
+ * @brief (AR) تطبيق مُحلِّل سطر صدَفة ص (اقتباس + هروب + أنابيب + توجيه < > >> 2> 2>> &> 2>&1 + $VAR).
+ * @brief (EN) ص shell-line lexer (quotes + escaping + pipes + redirect < > >> 2> 2>> &> 2>&1 + $VAR).
  */
 #include "shell_lexer.h"
 
@@ -91,8 +91,82 @@ enum class Pending
     Arg,
     RedirIn,
     RedirOutTrunc,
-    RedirOutAppend
+    RedirOutAppend,
+    RedirErrTrunc,   ///< هدف ‹2>›  / ‹2>› target
+    RedirErrAppend   ///< هدف ‹2>>› / ‹2>>› target
 };
+
+// (AR) نوع مُشغِّل إعادة توجيهٍ مُطابَق عند موضعٍ ما. None = لا مُشغِّل هنا. / (EN) a matched
+//      redirection operator kind at a position. None = no operator here.
+enum class RedirKind
+{
+    None,
+    In,          ///< ‹<›
+    OutTrunc,    ///< ‹>›  أو ‹1>›
+    OutAppend,   ///< ‹>>› أو ‹1>>›
+    ErrTrunc,    ///< ‹2>›
+    ErrAppend,   ///< ‹2>>›
+    BothTrunc,   ///< ‹&>›  (الإخراج+الخطأ، بتر)
+    BothAppend,  ///< ‹&>>› (الإخراج+الخطأ، إلحاق)
+    ErrToOut     ///< ‹2>&1› (الخطأ يتبع الإخراج، بلا ملفّ هدف)
+};
+
+struct RedirMatch
+{
+    RedirKind kind;
+    int len;   ///< عدد البايتات المُستهلَكة / bytes consumed
+};
+
+// (AR) يتعرّف مُشغِّل إعادة توجيهٍ عند s[i]. الصيَغ المسبوقة برقم مِقبض (‹2>›/‹2>>›/‹2>&1›/‹1>›)
+//      أو بـ‹&› (‹&>›/‹&>>›) تُقبَل فقط عند بداية وسيط (atTokenStart) كي يبقى ‹echo 2 >f›
+//      و‹ls2>f› نصًّا لا توجيهَ خطأ (قاعدة الصدَفة: المِقبض يلاصق ‹>› بلا فراغ عند بداية كلمة).
+//      أمّا ‹<›/‹>›/‹>>› فتُطابَق في أيّ موضع (تُنهي الوسيط الجاري). / (EN) recognizes a
+//      redirection operator at s[i]. fd-prefixed forms (‹2>›/‹2>>›/‹2>&1›/‹1>›) and ‹&›-forms
+//      (‹&>›/‹&>>›) are accepted only at a token boundary (atTokenStart) so ‹echo 2 >f› and
+//      ‹ls2>f› stay text, not stderr redirection. Plain ‹<›/‹>›/‹>>› match anywhere (they end
+//      the current token).
+inline RedirMatch matchRedirOp(const std::string& s, std::size_t i, bool atTokenStart)
+{
+    const std::size_t n = s.size();
+    auto at = [&](std::size_t k) -> char { return k < n ? s[k] : '\0'; };
+    const char c = s[i];
+
+    if (atTokenStart)
+    {
+        // ‹&>›/‹&>>›
+        if (c == '&' && at(i + 1) == kRedirOut)
+        {
+            return at(i + 2) == kRedirOut ? RedirMatch{RedirKind::BothAppend, 3}
+                                          : RedirMatch{RedirKind::BothTrunc, 2};
+        }
+        // ‹2>&1›/‹2>>›/‹2>›
+        if (c == '2' && at(i + 1) == kRedirOut)
+        {
+            if (at(i + 2) == '&' && at(i + 3) == '1')
+            {
+                return RedirMatch{RedirKind::ErrToOut, 4};
+            }
+            return at(i + 2) == kRedirOut ? RedirMatch{RedirKind::ErrAppend, 3}
+                                          : RedirMatch{RedirKind::ErrTrunc, 2};
+        }
+        // ‹1>>›/‹1>› (مِقبض stdout الصريح) / explicit stdout fd
+        if (c == '1' && at(i + 1) == kRedirOut)
+        {
+            return at(i + 2) == kRedirOut ? RedirMatch{RedirKind::OutAppend, 3}
+                                          : RedirMatch{RedirKind::OutTrunc, 2};
+        }
+    }
+    if (c == kRedirIn)
+    {
+        return RedirMatch{RedirKind::In, 1};
+    }
+    if (c == kRedirOut)
+    {
+        return at(i + 1) == kRedirOut ? RedirMatch{RedirKind::OutAppend, 2}
+                                      : RedirMatch{RedirKind::OutTrunc, 1};
+    }
+    return RedirMatch{RedirKind::None, 0};
+}
 } // namespace
 
 std::string expandEnvVars(const std::string& text, const EnvResolver& env)
@@ -164,6 +238,18 @@ ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env)
                 curStage.outFile = curTok;
                 curStage.appendOut = true;
                 break;
+            case Pending::RedirErrTrunc:
+                // (AR) ملفُّ خطأٍ صريح يُلغي «الخطأ يتبع الإخراج» (حصريّة، آخرٌ يفوز).
+                // (EN) an explicit stderr file overrides errToOut (mutual exclusion, last wins).
+                curStage.errFile = curTok;
+                curStage.appendErr = false;
+                curStage.errToOut = false;
+                break;
+            case Pending::RedirErrAppend:
+                curStage.errFile = curTok;
+                curStage.appendErr = true;
+                curStage.errToOut = false;
+                break;
         }
         pending = Pending::Arg;
         curTok.clear();
@@ -216,7 +302,63 @@ ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env)
         }
 
         // ── الحالة العاديّة / Normal state ──
-        if (c == kEscape)
+        // (AR) جرّب مُشغِّل إعادة توجيه أوّلًا (يشمل الصيَغ المسبوقة بمِقبض/‹&›، فتُلتقَط قبل
+        //      أن تُعامَل ‹2›/‹&›/‹1› كحرفٍ عاديّ). التوسيع لا يُعاد فحصه هنا (أمانٌ بالبناء).
+        //      «بداية وسيط» تشترط أيضًا ألّا ننتظر هدفَ توجيهٍ سابق (pending==Arg): في موضع
+        //      الهدف يكون المِقبض اسمَ ملفٍّ حرفيًّا (‹>2>f› ⇒ الإخراج للملفّ «f»، لا خطأ).
+        // (EN) try a redirection operator first (covers fd/‹&›-prefixed forms before ‹2›/‹&›/‹1›
+        //      would be treated as a normal char). Expansions are never re-scanned here. A
+        //      "token start" also requires we are not awaiting a prior redirection target
+        //      (pending==Arg): in target position an fd digit is a literal filename byte
+        //      (‹>2>f› ⇒ stdout to file "f", not an error).
+        const bool atTokenStart = (!hasTok && pending == Pending::Arg);
+        RedirMatch rm = matchRedirOp(raw, i, atTokenStart);
+        if (rm.kind != RedirKind::None)
+        {
+            // (AR) مُشغِّلٌ بينما ننتظر هدفَ توجيهٍ سابق (بلا وسيطٍ بعد) = هدفٌ مفقود.
+            // (EN) an operator while awaiting a prior redirection target (no token yet) = missing.
+            if (pending != Pending::Arg && !hasTok)
+            {
+                result.status = ShellParseStatus::RedirNoTarget;
+                return result;
+            }
+            if (!endToken()) // (AR) أنهِ الوسيط الجاري ووجّهه لهدفه / finish & route current token
+            {
+                return result;
+            }
+            switch (rm.kind)
+            {
+                case RedirKind::In:        pending = Pending::RedirIn; break;
+                case RedirKind::OutTrunc:  pending = Pending::RedirOutTrunc; break;
+                case RedirKind::OutAppend: pending = Pending::RedirOutAppend; break;
+                case RedirKind::ErrTrunc:  pending = Pending::RedirErrTrunc; break;
+                case RedirKind::ErrAppend: pending = Pending::RedirErrAppend; break;
+                case RedirKind::BothTrunc:
+                    // (AR) ‹&>›: الخطأ يتبع الإخراج، والاسم التالي هدفُ stdout / stderr follows stdout
+                    curStage.errToOut = true;
+                    curStage.errFile.clear();
+                    curStage.appendErr = false;
+                    pending = Pending::RedirOutTrunc;
+                    break;
+                case RedirKind::BothAppend:
+                    curStage.errToOut = true;
+                    curStage.errFile.clear();
+                    curStage.appendErr = false;
+                    pending = Pending::RedirOutAppend;
+                    break;
+                case RedirKind::ErrToOut:
+                    // (AR) ‹2>&1›: بلا اسم هدف؛ الخطأ يتبع الإخراج، ويُلغي أيّ ملفّ خطأٍ سابق.
+                    // (EN) ‹2>&1›: no target name; stderr follows stdout, clears any prior stderr file.
+                    curStage.errToOut = true;
+                    curStage.errFile.clear();
+                    curStage.appendErr = false;
+                    pending = Pending::Arg;
+                    break;
+                case RedirKind::None: break; // (AR) لا يقع / unreachable
+            }
+            i += rm.len - 1; // (AR) حلقة for تزيد i / the for-loop's ++i consumes the last op char
+        }
+        else if (c == kEscape)
         {
             if (i + 1 < n)
             {
@@ -256,35 +398,6 @@ ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env)
             if (!val.empty())
             {
                 hasTok = true;
-            }
-        }
-        else if (c == kRedirIn || c == kRedirOut)
-        {
-            // (AR) مُشغِّل إعادة توجيه: أنهِ الوسيط الجاري أوّلًا. لكن إن كنّا ننتظر هدفًا
-            //      لإعادة توجيهٍ سابقة (pending != Arg وبلا وسيطٍ بعد) فهذا مُشغِّلٌ مكان الهدف = خطأ.
-            // (EN) a redirection operator: finish the current token first. If we were already
-            //      awaiting a target (pending != Arg with no token yet), an operator here = error.
-            if (pending != Pending::Arg && !hasTok)
-            {
-                result.status = ShellParseStatus::RedirNoTarget;
-                return result;
-            }
-            if (!endToken())
-            {
-                return result;
-            }
-            if (c == kRedirIn)
-            {
-                pending = Pending::RedirIn;
-            }
-            else if (i + 1 < n && raw[i + 1] == kRedirOut)
-            {
-                pending = Pending::RedirOutAppend; // ‹>>›
-                ++i;
-            }
-            else
-            {
-                pending = Pending::RedirOutTrunc;  // ‹>›
             }
         }
         else if (c == kPipe)
@@ -345,9 +458,10 @@ ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env)
     {
         result.stages.push_back(std::move(curStage));
     }
-    else if (!curStage.inFile.empty() || !curStage.outFile.empty())
+    else if (!curStage.inFile.empty() || !curStage.outFile.empty() ||
+             !curStage.errFile.empty() || curStage.errToOut)
     {
-        // (AR) إعادة توجيهٍ بلا برنامج (مثل «> ملف») / a redirection with no program
+        // (AR) إعادة توجيهٍ بلا برنامج (مثل «> ملف» أو «2> ملف») / a redirection with no program
         result.status = ShellParseStatus::EmptyStage;
         return result;
     }
