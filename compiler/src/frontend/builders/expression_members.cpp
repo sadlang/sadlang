@@ -8,6 +8,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "sir_constants.h" // (AR) [ISSUE-080] kAdtFieldDispatchSentinel
 #include "class_nodes.h"
 
 #include <iostream>
@@ -188,41 +189,19 @@ namespace Sad
                     if (adtIt != b_.adtEnumTable_.end())
                     {
                         const ADTEnumInfo &adtInfo = adtIt->second;
-                        int fieldIdx = adtInfo.findFieldIndex(memberExpr->member);
-                        if (fieldIdx >= 0 && b_.currentBlock_)
+                        // (AR) [ISSUE-080] الوصول المباشر بتوزيعٍ حسب وسم الحالة زمن التشغيل بدل
+                        //      فهرسٍ ثابتٍ من بحثٍ أحاديّ (findFieldIndex) يخطئ عند تصادم الأسماء
+                        //      عبر الحالات ويقرأ خانةً خاطئة صامتًا. الحارس: وجودُ الحقل في أيّ
+                        //      حالة (findFieldIndex العامّ ≥ 0) — والتوزيع يختار الخانة الصحيحة
+                        //      للحالة الفعليّة أو يُطلق trap. يشمل حمولة عشريّة/نصّيّة (%SadDyn).
+                        // (EN) [ISSUE-080] direct access via runtime variant-tag dispatch instead
+                        //      of a static index from a single-scan lookup (findFieldIndex) that is
+                        //      wrong on cross-variant name collisions and reads a wrong slot silently.
+                        //      Guard: field exists in some variant (enum-level findFieldIndex ≥ 0);
+                        //      dispatch picks the correct slot for the actual variant or traps.
+                        if (adtInfo.findFieldIndex(memberExpr->member) >= 0 && b_.currentBlock_)
                         {
-                            // (AR) ISSUE-076/082/084 (ب″): استخرج بالنوع المُستنتَج للحقل
-                            //      (عشريّ/نصّ/صحيح) إن سُجِّل من موقع إنشاء؛ وإلّا **Any** (لا
-                            //      Integer) — قيمة ديناميّة موسومة يكشفها المستهلك زمنَ التشغيل.
-                            //      يُصلح الوصول المباشر بحمولةٍ عشريّة (كان يطبع بتّات double الخام).
-                            // (EN) ISSUE-076/082/084 (ب″): extract with the inferred field type
-                            //      (float/string/int) if registered from a construction site; else
-                            //      **Any** (not Integer) — a tagged dynamic value the consumer
-                            //      detects at runtime. Fixes direct access with a decimal payload
-                            //      (previously printed raw double bits).
-                            SadTypeKind fieldTy = adtInfo.findFieldType(memberExpr->member);
-                            SadTypeKind resultTy = (fieldTy != SadTypeKind::Unknown)
-                                                       ? fieldTy
-                                                       : SadTypeKind::Any;
-                            std::string resultReg = b_.newTempRegister();
-                            SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                            getPayload.result = SIROperand::Register(resultReg, resultTy);
-                            getPayload.operands.push_back(
-                                SIROperand::Register(objResult.registerName, objResult.type));
-                            getPayload.operands.push_back(
-                                SIROperand::ConstantI64(static_cast<int64_t>(fieldIdx)));
-                            // (AR) المعامل [2]: اسم التعداد للبحث الصحيح عبر الحدود/التعدّد
-                            // (EN) Operand [2]: enum name for correct lookup across boundaries/multiplicity
-                            getPayload.operands.push_back(
-                                SIROperand::ConstantString(objResult.className));
-                            getPayload.comment = "ADT field access (MemberExpr): " + objResult.className +
-                                                 "." + memberExpr->member + " (index=" + std::to_string(fieldIdx) + ")";
-                            b_.currentBlock_->addInstruction(getPayload);
-
-                            BuildResult result(resultReg, resultTy);
-                            result.className = objResult.className;
-                            result.isFieldAccess = true;
-                            return result;
+                            return buildAdtFieldDispatch(objResult, memberExpr->member, adtInfo);
                         }
                         // (AR) الحقل غير موجود في ADT ⇒ نسقط للمسار العاديّ
                         // (EN) Field not found in ADT ⇒ fall through to regular path
@@ -368,6 +347,95 @@ namespace Sad
                     b_.classInstanceTypes_[resultReg] = memberClassName;
                 }
                 return memberResult;
+            }
+
+            // ============================================================================
+            // (AR) [ISSUE-080] buildAdtFieldDispatch — الوصول النقطيّ المباشر لحقل ADT
+            //      بتوزيعٍ حسب وسم الحالة زمن التشغيل. مشترَكٌ بين المسارَين التوأمَين.
+            // (EN) [ISSUE-080] buildAdtFieldDispatch — direct ADT field access with runtime
+            //      variant-tag dispatch. Shared by the twin paths.
+            // ============================================================================
+            BuildResult ExpressionBuilder::buildAdtFieldDispatch(const BuildResult &objResult,
+                                                                 const std::string &fieldName,
+                                                                 const ADTEnumInfo &adtInfo)
+            {
+                // (AR) اجمع (وسم الحالة، فهرس الحقل داخلها) لكلّ حالةٍ تحوي الحقل، وتتبّع
+                //      نوعَ الحقل المُسجَّل عبرها. إن اتّفقت كلّ الحالات الحاوية على نوعٍ
+                //      محسوسٍ واحدٍ معروف ⇒ نُخرِج النتيجة **محسوسة** بذلك النوع (يفكّها
+                //      الخلفيّ من %SadDyn عبر التبديل، كالمسار الساكن)، فيعمل مستهلكو القيمة
+                //      المحسوسة (فهرسة مصفوفة `م[ص.نق]`، حسابٌ مع معاملٍ محسوس `ص.نق*2`)
+                //      كما قبل ISSUE-080. إن اختلفت الأنواع أو جُهِل أحدها ⇒ **Any/%SadDyn**
+                //      (قيمة ديناميّة موسومة يوزّعها المستهلك بالوسم). تصادمُ فهرس الحقل
+                //      (علّة أ) يُحلّه التوزيع زمن-التشغيليّ في الحالتين معًا.
+                // (EN) Collect (variant tag, in-variant field index) for each variant with the
+                //      field, and track its registered field type across them. If every
+                //      containing variant agrees on one known concrete type ⇒ emit a **concrete**
+                //      result of that type (the backend unpacks it from %SadDyn via its switch,
+                //      like the static path), so concrete-value consumers (array index `م[ص.نق]`,
+                //      arithmetic with a concrete operand `ص.نق*2`) work as before ISSUE-080.
+                //      If types differ or any is unknown ⇒ **Any/%SadDyn** (a tagged dynamic
+                //      value the consumer dispatches on). The field-index collision (cause a) is
+                //      resolved by the runtime dispatch either way.
+                std::vector<std::pair<int64_t, int64_t>> dispatch;
+                SadTypeKind commonTy = SadTypeKind::Unknown;
+                bool firstContaining = true;
+                bool typesAgree = true;
+                for (const auto &v : adtInfo.variants)
+                {
+                    int idx = v.findFieldIndex(fieldName);
+                    if (idx >= 0)
+                    {
+                        dispatch.emplace_back(static_cast<int64_t>(v.tag), static_cast<int64_t>(idx));
+                        SadTypeKind ft = v.fieldTypeAt(static_cast<size_t>(idx));
+                        if (firstContaining)
+                        {
+                            commonTy = ft;
+                            firstContaining = false;
+                        }
+                        else if (ft != commonTy)
+                        {
+                            typesAgree = false;
+                        }
+                    }
+                }
+
+                std::string resultReg = b_.newTempRegister();
+                SadTypeKind resultTy = (typesAgree && commonTy != SadTypeKind::Unknown)
+                                           ? commonTy
+                                           : SadTypeKind::Any;
+
+                if (b_.currentBlock_)
+                {
+                    SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                    getPayload.result = SIROperand::Register(resultReg, resultTy);
+                    getPayload.operands.push_back(
+                        SIROperand::Register(objResult.registerName, objResult.type));
+                    // (AR) المعامل [1] = كاشف وضع التوزيع (بدل فهرسٍ ثابت)
+                    // (EN) Operand [1] = dispatch-mode sentinel (instead of a static index)
+                    getPayload.operands.push_back(
+                        SIROperand::ConstantI64(Sad::Compiler::kAdtFieldDispatchSentinel));
+                    // (AR) المعامل [2] = اسم التعداد (لبحث البنية في الخلفيّة، كالمسار الساكن)
+                    // (EN) Operand [2] = enum name (backend struct lookup, as in the static path)
+                    getPayload.operands.push_back(
+                        SIROperand::ConstantString(objResult.className));
+                    // (AR) المعامل [3] = عدد الأزواج، ثمّ أزواج (وسم، فهرس)
+                    // (EN) Operand [3] = pair count, then (tag, index) pairs
+                    getPayload.operands.push_back(
+                        SIROperand::ConstantI64(static_cast<int64_t>(dispatch.size())));
+                    for (const auto &p : dispatch)
+                    {
+                        getPayload.operands.push_back(SIROperand::ConstantI64(p.first));
+                        getPayload.operands.push_back(SIROperand::ConstantI64(p.second));
+                    }
+                    getPayload.comment = "ADT field dispatch: " + objResult.className + "." + fieldName +
+                                         " (variants=" + std::to_string(dispatch.size()) + ")";
+                    b_.currentBlock_->addInstruction(getPayload);
+                }
+
+                BuildResult result(resultReg, resultTy);
+                result.className = objResult.className;
+                result.isFieldAccess = true;
+                return result;
             }
 
             // ============================================================================

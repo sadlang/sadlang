@@ -7,6 +7,7 @@
 #include "llvm_codegen.h"
 #include "builders/oop/enum_ops_codegen.h"
 #include "sad_dyn_repr.h"   // (AR) ISSUE-076: التمثيل الديناميّ المميّز %SadDyn (تخزين/استخراج حمولة ADT)
+#include "sir_constants.h"  // (AR) ISSUE-080: kAdtFieldDispatchSentinel + رسالة trap الحالة الخاطئة
 #include "adt_payload_tags.h" // (AR) وسم قديم — مسارٌ ميّت لخانات %SadDyn، يُحذف في تنظيف ISSUE-076
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
@@ -400,8 +401,84 @@ namespace Sad
                 }
             }
 
-            llvm::Value *fieldVal;
-            if (structType && structFieldIdx < structType->getNumElements())
+            llvm::Value *fieldVal = nullptr;
+
+            // (AR) === [ISSUE-080] وضع التوزيع زمن-التشغيليّ ===
+            //      operand[1] == الكاشف ⇒ الوصول النقطيّ المباشر لا يعرف حالة القيمة سكونيًّا.
+            //      operand[3]=عدد الأزواج، ثمّ أزواج (وسم الحالة، فهرس الحقل داخلها). نقرأ الوسم
+            //      (الحقل 0) ونبني سلسلة اختيار: لكلّ زوجٍ نحمّل خانته (idx+1) ونطبّعها %SadDyn
+            //      عبر toDyn ونختار بالمطابقة؛ ونجمع matchedAny. حالةٌ لا تحوي الحقل (لا يطابق
+            //      وسمُها أيّ وسمٍ حاوٍ) ⇒ trap حتميّ (خروج ≠0) بدل قمامة صامتة (العلّة ب).
+            // (EN) === [ISSUE-080] runtime dispatch mode ===
+            //      operand[1] == sentinel ⇒ direct field access whose variant is unknown at compile
+            //      time. operand[3]=pair count, then (variant tag, in-variant index) pairs. Read the
+            //      tag (field 0) and build a select chain: for each pair load its slot (idx+1),
+            //      normalize to %SadDyn via toDyn, and select on the tag match; OR into matchedAny.
+            //      A variant lacking the field (no containing tag matched) ⇒ deterministic trap
+            //      (exit≠0) instead of silent garbage (cause b).
+            if (inst->operands[1].intValue == Sad::Compiler::kAdtFieldDispatchSentinel && structType)
+            {
+                llvm::Value *tagGEP = cg_.builder_->CreateStructGEP(structType, enumPtr, 0, "disp.tag.gep");
+                llvm::Value *tagVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), tagGEP, "disp.tag");
+                int64_t nPairs = (inst->operands.size() >= 4) ? inst->operands[3].intValue : 0;
+                llvm::Value *matchedAny = llvm::ConstantInt::getFalse(*cg_.context_);
+                llvm::Value *selected = nullptr;
+                for (int64_t k = 0; k < nPairs; ++k)
+                {
+                    size_t base = static_cast<size_t>(4 + 2 * k);
+                    if (base + 1 >= inst->operands.size())
+                        break;
+                    int64_t tagK = inst->operands[base].intValue;
+                    int64_t idxK = inst->operands[base + 1].intValue;
+                    unsigned sfi = static_cast<unsigned>(idxK + 1);
+                    if (sfi >= structType->getNumElements())
+                        continue;
+                    llvm::Value *eq = cg_.builder_->CreateICmpEQ(
+                        tagVal, llvm::ConstantInt::get(cg_.getInt64Type(), tagK), "disp.eq");
+                    matchedAny = cg_.builder_->CreateOr(matchedAny, eq, "disp.any");
+                    llvm::Value *slotGEP = cg_.builder_->CreateStructGEP(structType, enumPtr, sfi, "disp.slot.gep");
+                    llvm::Type *slotTy = structType->getElementType(sfi);
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(slotTy, slotGEP, "disp.slot.val");
+                    // (AR) طبّع لـ%SadDyn لتوحيد نوع فرعَي الاختيار (الخانات كلّها %SadDyn بعد
+                    //      ISSUE-076 فتمرّ كما هي؛ ويحمي هذا حال خانةٍ محسوسة نادرة).
+                    // (EN) Normalize to %SadDyn so select branches share a type (all slots are
+                    //      %SadDyn after ISSUE-076, passed through; guards a rare concrete slot too).
+                    llvm::Value *loadedDyn = toDyn(cg_, loaded, SadTypeKind::Any);
+                    selected = selected ? cg_.builder_->CreateSelect(eq, loadedDyn, selected, "disp.sel")
+                                        : loadedDyn;
+                }
+
+                // (AR) كتلة الـ trap عند حالةٍ لا تحوي الحقل / (EN) trap block on wrong variant
+                llvm::Function *parentFn = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *trapBB = llvm::BasicBlock::Create(*cg_.context_, "adt.field.wrongvar", parentFn);
+                llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg_.context_, "adt.field.ok", parentFn);
+                cg_.builder_->CreateCondBr(matchedAny, contBB, trapBB);
+
+                cg_.builder_->SetInsertPoint(trapBB);
+                {
+                    auto ptrTyTrap = llvm::PointerType::getUnqual(*cg_.context_);
+                    auto *printfType = llvm::FunctionType::get(
+                        llvm::Type::getInt32Ty(*cg_.context_), {ptrTyTrap}, true);
+                    auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                    llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
+                        Sad::Compiler::kAdtWrongVariantFieldMsg, "adt.wrongvar.fmt");
+                    llvm::Value *enumNameStr = cg_.builder_->CreateGlobalStringPtr(
+                        inst->operands[2].name, "adt.wrongvar.enum");
+                    cg_.builder_->CreateCall(printfFunc, {fmtStr, enumNameStr});
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                    auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                    cg_.builder_->CreateCall(exitFunc,
+                                             {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                    cg_.builder_->CreateUnreachable();
+                }
+                cg_.builder_->SetInsertPoint(contBB);
+
+                fieldVal = selected ? selected
+                                    : llvm::Constant::getNullValue(getSadDynType(*cg_.context_));
+            }
+
+            if (!fieldVal && structType && structFieldIdx < structType->getNumElements())
             {
                 // (AR) GEP + load للحقل المطلوب
                 // (EN) GEP + load for requested field
@@ -412,7 +489,7 @@ namespace Sad
                 fieldVal = cg_.builder_->CreateLoad(fieldType, fieldGEP,
                                                 "payload." + std::to_string(fieldIndex) + ".val");
             }
-            else
+            else if (!fieldVal)
             {
                 // (AR) نوع غير معروف — نفترض ptr
                 //      نحسب الإزاحة يدوياً: offset = (fieldIndex + 1) * 8

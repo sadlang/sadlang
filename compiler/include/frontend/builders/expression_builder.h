@@ -58,6 +58,7 @@ namespace Sad
         {
             class SIRBuilder;
             struct BuildResult;
+            struct ADTEnumInfo; // (AR) [ISSUE-080] لتوقيع buildAdtFieldDispatch / (EN) for buildAdtFieldDispatch signature
 
             /**
              * @brief (AR) بنّاء التعابير (30 method)
@@ -148,6 +149,22 @@ namespace Sad
                                                    std::string &outValuesReg,
                                                    SadTypeKind &outKeyType,
                                                    SadTypeKind &outValueType);
+
+                // (AR) [ISSUE-080] يبني الوصول النقطيّ المباشر لحقل ADT بتوزيعٍ حسب وسم
+                //      الحالة زمن التشغيل: يجمع (وسم، فهرس) لكلّ حالةٍ تحوي الحقل ويبثّ
+                //      ENUM_GET_PAYLOAD في «وضع التوزيع» (كاشفٌ kAdtFieldDispatchSentinel).
+                //      يُغلق تصادم الأسماء عبر الحالات (يقرأ الخانة الصحيحة) والوصول لحالةٍ
+                //      خاطئة (trap). مشترَكٌ بين المسارَين التوأمَين (buildExprMember /
+                //      buildMemberAccess) منعًا لتباعدهما. يفترض أنّ التعداد والحقل موجودان.
+                // (EN) [ISSUE-080] Builds direct ADT field access with runtime variant-tag
+                //      dispatch: collects (tag, index) for each variant containing the field
+                //      and emits ENUM_GET_PAYLOAD in «dispatch mode» (kAdtFieldDispatchSentinel).
+                //      Closes cross-variant name collision (reads the right slot) and wrong-
+                //      variant access (trap). Shared by the twin paths (buildExprMember /
+                //      buildMemberAccess) to prevent divergence. Assumes enum+field exist.
+                BuildResult buildAdtFieldDispatch(const BuildResult &objResult,
+                                                  const std::string &fieldName,
+                                                  const ADTEnumInfo &adtInfo);
 
                 SIRBuilder &b_;
             };

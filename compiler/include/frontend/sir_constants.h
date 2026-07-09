@@ -124,4 +124,33 @@ namespace Sad::Compiler
     inline constexpr const char *kListPatternSentinel = "__list_pattern";
     inline constexpr const char *kListPatternLiteralSentinel = "__list_pattern_literal";
 
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) [ISSUE-080] وسمُ «وضع التوزيع» في المعامل [1] من ENUM_GET_PAYLOAD:
+    //      الوصول النقطيّ المباشر `قيمة.حقل` على تعدادٍ جبريّ لا يعرف حالته
+    //      سكونيًّا، فبدل فهرسٍ ثابتٍ (بحثٍ أحاديّ يخطئ عند تصادم الأسماء عبر
+    //      الحالات) يمرّر هذا الحارس ثمّ لائحةَ أزواج (وسم الحالة، فهرس الحقل
+    //      داخلها)؛ تبني الخلفيّةُ توزيعًا زمن-تشغيليّ يقرأ الوسم ويختار الخانة
+    //      الصحيحة، وتُطلق trap عند حالةٍ لا تحوي الحقل. الفهارس الحقيقيّة ≥ 0
+    //      فالسالب حارسٌ آمن. (enum_ops.cpp / expression_members|objects.cpp)
+    // (EN) [ISSUE-080] «dispatch mode» marker in ENUM_GET_PAYLOAD operand[1]:
+    //      direct `value.field` access on an ADT whose variant is unknown at
+    //      compile time. Instead of a static index (single-scan lookup that is
+    //      wrong on cross-variant name collisions), this sentinel is followed by
+    //      a list of (variant tag, in-variant field index) pairs; the backend
+    //      builds a runtime dispatch that reads the tag, selects the correct
+    //      slot, and traps on a variant lacking the field. Real indices are ≥ 0
+    //      so a negative is a safe sentinel.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr int64_t kAdtFieldDispatchSentinel = -1;
+
+    // (AR) رسالة الـ trap عند وصول حقلٍ لحالةٍ لا تحويه (ISSUE-080، العلّة ب).
+    //      تطابقُ رسالة RUN005 البايتيّ للمفسّر غير عمليّ (ErrorManager كامل)؛
+    //      البديل توقّفٌ حتميّ بخروج ≠0 يمنع القمامة الصامتة. %s = اسم التعداد.
+    // (EN) Trap message when a field is accessed on a variant that lacks it
+    //      (ISSUE-080, cause b). Byte-matching the interpreter's RUN005 report is
+    //      impractical; the alternative is a deterministic exit≠0 halt that
+    //      prevents silent garbage. %s = enum name.
+    inline constexpr const char *kAdtWrongVariantFieldMsg =
+        "Error [RUN005]: ADT field access on a variant that does not contain the field (enum '%s')\n";
+
 } // namespace Sad::Compiler

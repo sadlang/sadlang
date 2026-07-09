@@ -550,56 +550,15 @@ namespace Sad
                         // (AR) هذا كائن ADT — نبحث عن الحقل بالاسم
                         // (EN) This is an ADT object — look up field by name
                         const ADTEnumInfo &adtInfo = adtIt->second;
-                        int fieldIdx = adtInfo.findFieldIndex(memberExpr->memberName);
-
-                        if (fieldIdx >= 0)
+                        // (AR) [ISSUE-080] توزيعٌ حسب وسم الحالة زمن التشغيل (المسار المشترك مع
+                        //      التوأم buildExprMember عبر buildAdtFieldDispatch) — يُغلق تصادم
+                        //      أسماء الحقول عبر الحالات والوصول لحالةٍ خاطئة (بدل الفهرس الأحاديّ).
+                        // (EN) [ISSUE-080] runtime variant-tag dispatch (shared with the twin
+                        //      buildExprMember via buildAdtFieldDispatch) — closes cross-variant
+                        //      field-name collision and wrong-variant access (vs the single index).
+                        if (adtInfo.findFieldIndex(memberExpr->memberName) >= 0 && b_.currentBlock_)
                         {
-                            // (AR) وُجد الحقل — الاستخراج عبر ENUM_GET_PAYLOAD
-                            //      ISSUE-076/082/084 (ب″): بالنوع المُستنتَج إن سُجِّل (عشريّ/نصّ/
-                            //      صحيح)، وإلّا **Any** (لا Integer) — قيمة ديناميّة موسومة يكشفها
-                            //      المستهلك زمنَ التشغيل — نظير المسار التوأم expression_members.
-                            // (EN) Found the field — extract via ENUM_GET_PAYLOAD
-                            //      ISSUE-076/082/084 (ب″): with the inferred type if registered
-                            //      (float/string/int), else **Any** (not Integer) — a tagged
-                            //      dynamic value the consumer detects at runtime — mirrors the twin
-                            //      path in expression_members.
-                            SadTypeKind fieldTy = adtInfo.findFieldType(memberExpr->memberName);
-                            SadTypeKind resultTy = (fieldTy != SadTypeKind::Unknown)
-                                                       ? fieldTy
-                                                       : SadTypeKind::Any;
-                            std::string resultReg = b_.newTempRegister();
-
-                            if (b_.currentBlock_)
-                            {
-                                SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                                getPayload.result = SIROperand::Register(resultReg, resultTy);
-                                getPayload.operands.push_back(
-                                    SIROperand::Register(objResult.registerName, objResult.type));
-                                getPayload.operands.push_back(
-                                    SIROperand::ConstantI64(static_cast<int64_t>(fieldIdx)));
-                                // (AR) المعامل [2]: اسم التعداد — للبحث عن البنية الصحيحة عبر
-                                //      حدود الدوال وعند تعدُّد التعدادات (ISSUE-077؛ اتّساق مع
-                                //      الاستخراج المؤجّل في المطابقة statement_match.cpp).
-                                // (EN) Operand [2]: enum name — for correct struct lookup across
-                                //      function boundaries and with multiple enums (ISSUE-077;
-                                //      mirrors the deferred extraction in statement_match.cpp).
-                                getPayload.operands.push_back(
-                                    SIROperand::ConstantString(objResult.className));
-                                getPayload.comment = "ADT field access: " + objResult.className +
-                                                     "." + memberExpr->memberName + " (index=" + std::to_string(fieldIdx) + ")";
-                                b_.currentBlock_->addInstruction(getPayload);
-                            }
-
-#ifndef NDEBUG
-                            std::cout << "[DEBUG] buildMemberAccess: ADT field '"
-                                      << memberExpr->memberName << "' at index " << fieldIdx
-                                      << " in ADT '" << objResult.className << "'" << std::endl;
-#endif
-
-                            BuildResult result(resultReg, resultTy);
-                            result.className = objResult.className;
-                            result.isFieldAccess = true;
-                            return result;
+                            return buildAdtFieldDispatch(objResult, memberExpr->memberName, adtInfo);
                         }
                         // (AR) الحقل غير موجود في ADT — نسقط إلى المسار العادي
                         // (EN) Field not found in ADT — fall through to regular path
