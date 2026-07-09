@@ -47,10 +47,13 @@ inline bool isNameStart(char c)
     return isAsciiAlpha(c) || c == '_' || (static_cast<unsigned char>(c) >= 0x80);
 }
 
-// (AR) عند s[i]=='$': يوسّع المرجع ويُقدّم i إلى ما بعده. الصيَغ: ‹${اسم}› (حتّى ‹}›) و‹$اسم›.
-//      ‹$› متبوعًا بغير بداية اسمٍ صالحة ⇒ ‹$› حرفيّ. متغيّرٌ غير مُعرَّف ⇒ سلسلة فارغة.
-// (EN) at s[i]=='$': expand the reference and advance i past it. Forms: ‹${name}› (until ‹}›)
-//      and ‹$name›. A ‹$› not followed by a valid name start ⇒ literal ‹$›. Unset var ⇒ empty.
+// (AR) عند s[i]=='$': يوسّع المرجع ويُقدّم i إلى ما بعده. الصيَغ: ‹${اسم}› (حتّى ‹}›)، و‹$اسم›،
+//      والوسيطان الخاصّان ‹$?› (رمز خروج آخر أمر) و‹$$› (مِقبض الصدَفة) — يُحلَّان عبر env
+//      باسمٍ خاصّ ‹?›/‹$›. ‹$› متبوعًا بغير ذلك ⇒ ‹$› حرفيّ. متغيّرٌ غير مُعرَّف ⇒ سلسلة فارغة.
+// (EN) at s[i]=='$': expand the reference and advance i past it. Forms: ‹${name}› (until ‹}›),
+//      ‹$name›, and the special params ‹$?› (last exit code) and ‹$$› (shell pid) — resolved
+//      via env under the special name ‹?›/‹$›. A ‹$› not followed by any of these ⇒ literal
+//      ‹$›. Unset var ⇒ empty string.
 std::string expandDollarRef(const std::string& s, std::size_t& i, const EnvResolver& env)
 {
     const std::size_t n = s.size();
@@ -64,9 +67,21 @@ std::string expandDollarRef(const std::string& s, std::size_t& i, const EnvResol
             i += 1;
             return std::string(1, kDollar);
         }
+        // (AR) بما أنّ ‹?›/‹$› يُمرَّران اسمًا للمُحلِّل، فإنّ ‹${?}›/‹${$}› كنيةٌ للوسيطين الخاصّين
+        //      (متّسقة وغير ضارّة). / since ‹?›/‹$› pass through as the name, ‹${?}›/‹${$}› alias
+        //      the special params (consistent and harmless).
         std::string name = s.substr(i + 2, close - (i + 2));
         i = close + 1;
         return env(name);
+    }
+    // (AR) الوسائط الخاصّة ‹$?›/‹$$›: يُمرَّر الرمز اسمًا للمُحلِّل (‹?›/‹$› ليسا اسمَي بيئةٍ
+    //      صالحين فلا يتصادمان). / (EN) special params ‹$?›/‹$$›: the symbol is passed as the
+    //      resolver name (‹?›/‹$› are not valid env names, so no clash).
+    if (i + 1 < n && (s[i + 1] == '?' || s[i + 1] == kDollar))
+    {
+        std::string special(1, s[i + 1]);
+        i += 2;
+        return env(special);
     }
     if (i + 1 < n && isNameStart(s[i + 1]))
     {

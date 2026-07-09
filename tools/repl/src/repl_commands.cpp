@@ -21,19 +21,42 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <process.h> // (AR) _getpid لـ‹$$› / (EN) _getpid for ‹$$›
 #else
+#include <unistd.h> // (AR) getpid لـ‹$$› / (EN) getpid for ‹$$›
 extern char** environ; // (AR) قائمة بيئة العمليّة (POSIX) لسرد ‹:بيئة› / (EN) process env list
 #endif
 
 namespace Sad {
 namespace REPL {
 
-// (AR) مُحلِّل البيئة الافتراضيّ: قيمة المتغيّر من بيئة العمليّة (فارغة إن لم يُعرَّف). يمرّره
-//      ‹:شغّل› للمُحلِّل، فما يضبطه ‹:بيئة› عبر setenv يظهر هنا ويرثه ما يُطلَق. / (EN) default
-//      resolver: a variable's value from the process env (empty if unset). ‹:run› passes it to
-//      the lexer, so whatever ‹:env› sets via setenv shows here and is inherited by launches.
-static std::string envResolve(const std::string& name)
+// (AR) مِقبض العمليّة الحاليّة (‹$$›) — دالّة نقيّة عبر المنصّة. / (EN) current process id (‹$$›).
+static long currentPid()
 {
+#ifdef _WIN32
+    return static_cast<long>(_getpid());
+#else
+    return static_cast<long>(getpid());
+#endif
+}
+
+// (AR) مُحلِّل المتغيّرات المربوط بمثيل REPL: يعالج الوسائط الخاصّة أوّلًا (‹$?› رمز خروج آخر
+//      ‹:شغّل›، ‹$$› مِقبض الصدَفة)، وإلّا فقيمة متغيّر البيئة (فارغة إن لم يُعرَّف). ربطُه بالمثيل
+//      (لا حالة عالميّة) يتيح ‹$?› قراءةَ lastRunExitCode_ الخاصّ بهذه الصدَفة. ‹?›/‹$› ليسا
+//      اسمَي بيئةٍ صالحين فلا يتصادمان مع getenv. / (EN) instance-bound variable resolver:
+//      special params first (‹$?› = last ‹:run› exit code, ‹$$› = shell pid), else the env
+//      var's value (empty if unset). Binding to the instance (no global state) lets ‹$?› read
+//      this shell's private lastRunExitCode_. ‹?›/‹$› are not valid env names, so no getenv clash.
+static std::string resolveVar(REPLEngine* repl, const std::string& name)
+{
+    if (name == "?")
+    {
+        return std::to_string(repl->getCommands()->lastExitCode());
+    }
+    if (name == "$")
+    {
+        return std::to_string(currentPid());
+    }
     const char* v = std::getenv(name.c_str());
     return v ? std::string(v) : std::string();
 }
@@ -343,7 +366,10 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         return true;
     }
 
-    ShellPipeline parsed = parseShellPipeline(raw, envResolve);
+    // (AR) مُحلِّلٌ مربوطٌ بهذا المثيل كي يوسّع ‹$?›/‹$$› إضافةً لمتغيّرات البيئة.
+    // (EN) resolver bound to this instance so ‹$?›/‹$$› expand alongside env vars.
+    auto resolver = [repl](const std::string& n) { return resolveVar(repl, n); };
+    ShellPipeline parsed = parseShellPipeline(raw, resolver);
     switch (parsed.status)
     {
         case ShellParseStatus::UnterminatedQuote:
@@ -414,6 +440,10 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
             printReplError(SoT::Error::RUN_FAILED, prog);
         }
     }
+    // (AR) خزّن رمز الخروج لـ‹$?›: رمز البرنامج إن أُطلق، أو 127 إن تعذّر الإطلاق (اصطلاح صدَفة
+    //      «الأمر غير موجود»). / (EN) record the exit code for ‹$?›: the program's code if
+    //      launched, else 127 (the shell "command not found" idiom for a launch failure).
+    repl->getCommands()->lastRunExitCode_ = r.spawned ? r.exitCode : 127;
     return true;
 }
 
@@ -461,7 +491,9 @@ bool REPLCommands::cmdEnv(REPLEngine* repl, const std::vector<std::string>& args
             printReplError(SoT::Error::ENV_INVALID_NAME, name);
             return true;
         }
-        std::cout << name << "=" << envResolve(name) << std::endl;
+        // (AR) اسمٌ صالح لا يكون ‹?›/‹$›، فالمُحلِّل المربوط يعادل بحث البيئة هنا. / a valid name is
+        //      never ‹?›/‹$›, so the bound resolver equals a plain env lookup here.
+        std::cout << name << "=" << resolveVar(repl, name) << std::endl;
         return true;
     }
 
@@ -478,7 +510,10 @@ bool REPLCommands::cmdEnv(REPLEngine* repl, const std::vector<std::string>& args
         printReplError(SoT::Error::ENV_INVALID_NAME, name);
         return true;
     }
-    std::string value = expandEnvVars(raw.substr(eq + 1), envResolve);
+    // (AR) القيمة تُوسَّع فيها ‹$VAR›/‹$?›/‹$$› (البناء التراكميّ: ‹:بيئة LAST=$?›).
+    // (EN) the value expands ‹$VAR›/‹$?›/‹$$› (cumulative build: ‹:env LAST=$?›).
+    std::string value = expandEnvVars(raw.substr(eq + 1),
+                                      [repl](const std::string& n) { return resolveVar(repl, n); });
     if (!setEnvVar(name, value))
     {
         printReplError(SoT::Error::ENV_INVALID_NAME, name);

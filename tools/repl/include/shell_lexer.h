@@ -85,16 +85,16 @@ struct ShellPipeline
 //      forms are also recognized: ‹2>›/‹2>>› (stderr to file), ‹&>›/‹&>>› (stdout+stderr to
 //      file), ‹2>&1› (stderr follows stdout); an fd digit in target position is a literal
 //      filename. Adjacent segments concatenate into one arg. Caller checks status before using
-//      stages. `env` يُوسِّع ‹$VAR›/‹${VAR}› خارج
-//      الاقتباس المفرد (‹'…'› حرفيّ)؛ متغيّرٌ غير مُعرَّف ⇒ سلسلة فارغة (لا تُعاد قسمتها بالمسافات).
-//      / `env` expands ‹$VAR›/‹${VAR}› outside single quotes (‹'…'› is literal); an unset var
-//      ⇒ empty string (no re-splitting of the expansion on whitespace).
+//      stages. `env` يُوسِّع ‹$VAR›/‹${VAR}› والوسيطين الخاصّين ‹$?›/‹$$› (يُمرَّران ‹?›/‹$›)
+//      خارج الاقتباس المفرد (‹'…'› حرفيّ)؛ متغيّرٌ غير مُعرَّف ⇒ سلسلة فارغة (لا تُعاد قسمتها).
+//      / `env` expands ‹$VAR›/‹${VAR}› plus the special params ‹$?›/‹$$› (passed as ‹?›/‹$›)
+//      outside single quotes (‹'…'› is literal); an unset var ⇒ empty string (no re-splitting).
 ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env);
 
-// (AR) يوسّع مراجع ‹$VAR›/‹${VAR}› في نصٍّ حرٍّ (بلا وعيٍ بالاقتباس) — لقيمة أمر ‹:بيئة›.
-//      اسم المتغيّر: حرفٌ/‹_›/بايت ≥0x80 (يدعم أسماء عربيّة) ثمّ أرقام/حروف/‹_›/≥0x80.
-// (EN) expands ‹$VAR›/‹${VAR}› references in free text (quote-agnostic) — for the ‹:env›
-//      value. A name is: letter/‹_›/byte ≥0x80 (Arabic names allowed) then alnum/‹_›/≥0x80.
+// (AR) يوسّع مراجع ‹$VAR›/‹${VAR}› (والوسيطين ‹$?›/‹$$›) في نصٍّ حرٍّ (بلا وعيٍ بالاقتباس) —
+//      لقيمة أمر ‹:بيئة›. اسم المتغيّر: حرفٌ/‹_›/بايت ≥0x80 (يدعم أسماء عربيّة) ثمّ أرقام/حروف/≥0x80.
+// (EN) expands ‹$VAR›/‹${VAR}› (and ‹$?›/‹$$›) references in free text (quote-agnostic) — for
+//      the ‹:env› value. A name is: letter/‹_›/byte ≥0x80 (Arabic allowed) then alnum/‹_›/≥0x80.
 std::string expandEnvVars(const std::string& text, const EnvResolver& env);
 
 } // namespace REPL

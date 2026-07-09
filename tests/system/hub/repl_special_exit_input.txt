@@ -1,0 +1,5 @@
+:شغّل sh -c "exit 5"
+:شغّل echo A=$?
+:شغّل sh -c "exit 0"
+:شغّل echo B=$?
+:exit

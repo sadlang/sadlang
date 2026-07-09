@@ -454,6 +454,64 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_RunRedirErrAdjacent PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹$?›: رمز خروج آخر ‹:شغّل›. ‹exit 5› ⇒ ‹A=5›، ثمّ ‹exit 0› ⇒ ‹B=0› — يُثبتان
+        #      التقاط الرمز غير الصفريّ وإعادةَ ضبطه بعد النجاح. / (EN) ‹$?›: last ‹:run› exit
+        #      code. ‹exit 5› ⇒ ‹A=5› then ‹exit 0› ⇒ ‹B=0› prove non-zero capture and reset.
+        add_test(NAME HubRepl_SpecialExitCode
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_special_exit_input.txt
+                -DEXPECT=A=5|B=0
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_SpecialExitCode PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹$?›=127 عند تعذّر الإطلاق (اصطلاح «الأمر غير موجود»). / (EN) ‹$?›=127 on a launch
+        #      failure (the "command not found" idiom).
+        add_test(NAME HubRepl_SpecialNotFound
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_special_notfound_input.txt
+                -DEXPECT=RC=127
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_SpecialNotFound PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹$$›: مِقبض الصدَفة عددٌ موجب — ‹test $$ -gt 0› يطبع العلامة فقط إن توسّع لعددٍ
+        #      موجب (لو فرغ لفشل التعبير). / (EN) ‹$$›: the shell pid is a positive integer —
+        #      ‹test $$ -gt 0› prints the marker only if it expanded to a positive number.
+        add_test(NAME HubRepl_SpecialPid
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_special_pid_input.txt
+                -DEXPECT=PID_POSITIVE
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_SpecialPid PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الاقتباس المفرد يمنع توسيع الوسائط الخاصّة: ‹'$?'› يبقى حرفيًّا. / (EN) single
+        #      quotes suppress special-param expansion: ‹'$?'› stays literal.
+        add_test(NAME HubRepl_SpecialSingleQuote
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_special_squote_input.txt
+                -DEXPECT=$?
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_SpecialSingleQuote PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) التلاصق: ‹$?› يتوسّع لرمزٍ ثمّ يبقى ما بعده حرفيًّا — ‹echo P=$?Q› بعد ‹exit 4›
+        #      ⇒ ‹P=4Q› (لا التهام جشع للحرف التالي). / (EN) adjacency: ‹$?› expands to just the
+        #      code, the following char stays literal — ‹P=$?Q› after ‹exit 4› ⇒ ‹P=4Q›.
+        add_test(NAME HubRepl_SpecialAdjacent
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_special_adjacent_input.txt
+                -DEXPECT=P=4Q
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_SpecialAdjacent PROPERTIES
+            LABELS "hub;sad-repl;shell")
     endif()
 
     # (AR) أخطاء التحليل محمولة (تحليلٌ محض، بلا إطلاق برنامج): اقتباسٌ غير مُغلَق

@@ -1,0 +1,3 @@
+:شغّل __sados_no_such_cmd__
+:شغّل echo RC=$?
+:exit

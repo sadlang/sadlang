@@ -93,6 +93,9 @@ public:
      */
     const CommandInfo* getCommandInfo(const std::string& name) const;
 
+    // (AR) رمز خروج آخر ‹:شغّل› (يقرؤه توسيع ‹$?›). / (EN) last ‹:run› exit code (read by ‹$?›).
+    int lastExitCode() const { return lastRunExitCode_; }
+
 private:
     /**
      * @brief تسجيل أمر / Register command
@@ -194,6 +197,11 @@ private:
     // (EN) the raw (unsplit) args of the current command — ‹:run› needs them to parse with
     //      quote/pipe semantics (unlike the whitespace-split args). Set in process().
     std::string pendingRawArgs_;
+    // (AR) رمز خروج آخر أمر ‹:شغّل› — يوسّعه ‹$?› (حالة صدَفة لكلّ مثيل REPL، لا عالميّة).
+    //      يُضبَط في نهاية cmdRun: رمز الخروج إن أُطلق، أو 127 إن تعذّر الإطلاق (اصطلاح صدَفة).
+    // (EN) exit code of the last ‹:run› — expanded by ‹$?› (per-REPL-instance shell state, not
+    //      global). Set at the end of cmdRun: the exit code if launched, else 127 (shell idiom).
+    int lastRunExitCode_ = 0;
 };
 
 } // namespace REPL

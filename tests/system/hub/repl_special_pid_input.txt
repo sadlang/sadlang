@@ -1,0 +1,2 @@
+:شغّل sh -c "test $$ -gt 0 && echo PID_POSITIVE"
+:exit
