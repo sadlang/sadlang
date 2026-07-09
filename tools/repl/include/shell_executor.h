@@ -21,9 +21,11 @@ namespace REPL
 //      (not found / permission); exitCode valid when spawned.
 struct ShellResult
 {
-    bool spawned;   ///< هل أُطلق البرنامج فعلًا / did the program actually launch
-    int  exitCode;  ///< رمز الخروج إن أُطلق / exit code when spawned
-    int  errNo;     ///< errno عند فشل الإطلاق / errno on launch failure
+    bool spawned;            ///< هل أُطلق البرنامج فعلًا / did the program actually launch
+    int  exitCode;           ///< رمز الخروج إن أُطلق / exit code when spawned
+    int  errNo;              ///< errno عند فشل الإطلاق / errno on launch failure
+    bool interrupted = false;///< قُتِل بـSIGINT/SIGQUIT (Ctrl-C) — يُجهض السلسلة كلّها / killed by
+                             ///< SIGINT/SIGQUIT (Ctrl-C) — aborts the whole conditional chain
 };
 
 // (AR) تفاصيل فشل الإطلاق في سلسلة (يملؤها runPipeline حين spawned=false): إمّا تعذّر

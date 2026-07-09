@@ -191,7 +191,12 @@ ShellResult runExternal(const std::vector<std::string>& argv)
     }
     else if (WIFSIGNALED(status))
     {
-        res.exitCode = 128 + WTERMSIG(status);
+        int sig = WTERMSIG(status);
+        res.exitCode = 128 + sig;
+        // (AR) قُتِل بـCtrl-C: إشارةٌ للمستدعي أن يُجهض السلسلة الشرطيّة كلّها (لا يُعامَل كفشلٍ
+        //      عاديّ يُفعّل ‹||›). / killed by Ctrl-C: signal the caller to abort the whole
+        //      conditional chain (not treated as an ordinary failure that would trigger ‹||›).
+        res.interrupted = (sig == SIGINT || sig == SIGQUIT);
     }
     return res;
 #endif
@@ -551,7 +556,11 @@ ShellResult runPipeline(const std::vector<ShellStage>& stages, LaunchFailure& fa
     }
     else if (WIFSIGNALED(lastStatus))
     {
-        res.exitCode = 128 + WTERMSIG(lastStatus);
+        int sig = WTERMSIG(lastStatus);
+        res.exitCode = 128 + sig;
+        // (AR) قُتِلت المرحلة الأخيرة بـCtrl-C ⇒ أجهِض السلسلة (Ctrl-C يصل مجموعة المقدّمة كلّها).
+        // (EN) last stage killed by Ctrl-C ⇒ abort the chain (Ctrl-C reaches the whole fg group).
+        res.interrupted = (sig == SIGINT || sig == SIGQUIT);
     }
     return res;
 #endif

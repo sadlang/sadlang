@@ -91,6 +91,45 @@ struct ShellPipeline
 //      outside single quotes (‹'…'› is literal); an unset var ⇒ empty string (no re-splitting).
 ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env);
 
+// (AR) رابطٌ شرطيّ يسبق مقطعًا في سلسلة أوامر: First = المقطع الأوّل (بلا رابط)؛ And = ‹&&›
+//      (شغّل إن نجح السابق)؛ Or = ‹||› (شغّل إن فشل السابق). / (EN) a conditional connector
+//      preceding a segment: First = leading segment (no connector); And = ‹&&› (run if the
+//      previous succeeded); Or = ‹||› (run if the previous failed).
+enum class ChainOp
+{
+    First,
+    And,
+    Or
+};
+
+// (AR) مقطعُ سلسلةٍ: الرابط الذي يسبقه ومراحلُ أنبوبه. / (EN) a chain segment: the connector
+//      before it and its pipeline stages.
+struct ShellSegment
+{
+    ChainOp op;
+    std::vector<ShellStage> stages;
+};
+
+// (AR) سطرُ أوامرَ كامل: مقاطعُ مفصولة بـ‹&&›/‹||›، وحالةُ التحليل. عند status != Ok تكون
+//      segments غير ذات دلالة. / (EN) a full command line: segments separated by ‹&&›/‹||›
+//      and the parse status. When status != Ok, segments is meaningless.
+struct ShellCommandLine
+{
+    std::vector<ShellSegment> segments;
+    ShellParseStatus status;
+};
+
+// (AR) يحلّل السطر الخام إلى سلسلة مقاطع مفصولة بروابط ‹&&›/‹||› (بوعيٍ بالاقتباس فلا يُقسَّم
+//      ‹&&›/‹||› داخل ‹"…"›/‹'…'›؛ ‹&&›/‹||› عبر ‹$VAR› لا يُقسِّم — أمانٌ بالبناء). كلّ مقطع
+//      يُحلَّل بـparseShellPipeline (فيرث كلّ دلالات الأنابيب/التوجيه/التوسيع). مقطعٌ فارغ في
+//      سلسلةٍ (‹a &&›, ‹&& a›) ⇒ EmptyStage. أوّل خطأ تحليلٍ في مقطعٍ يُوقِف ويُعاد. / (EN)
+//      parses the raw line into a chain of segments separated by ‹&&›/‹||› connectors
+//      (quote-aware: ‹&&›/‹||› inside ‹"…"›/‹'…'› do not split; ones arriving via ‹$VAR› do not
+//      split — injection-safe). Each segment is parsed by parseShellPipeline (inheriting all
+//      pipe/redirect/expansion semantics). An empty segment in a chain (‹a &&›, ‹&& a›) ⇒
+//      EmptyStage. The first per-segment parse error stops and is returned.
+ShellCommandLine parseCommandLine(const std::string& raw, const EnvResolver& env);
+
 // (AR) يوسّع مراجع ‹$VAR›/‹${VAR}› (والوسيطين ‹$?›/‹$$›) في نصٍّ حرٍّ (بلا وعيٍ بالاقتباس) —
 //      لقيمة أمر ‹:بيئة›. اسم المتغيّر: حرفٌ/‹_›/بايت ≥0x80 (يدعم أسماء عربيّة) ثمّ أرقام/حروف/≥0x80.
 // (EN) expands ‹$VAR›/‹${VAR}› (and ‹$?›/‹$$›) references in free text (quote-agnostic) — for

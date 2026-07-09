@@ -352,10 +352,13 @@ static void printReplError(SoT::Error code, std::string_view detail = {})
 //      (‹<›/‹>›/‹>>› للإدخال/الإخراج، و‹2>›/‹2>>›/‹&>›/‹2>&1› للخطأ). أمرٌ مفرد بلا توجيه ⇒
 //      runExternal؛ غير ذلك ⇒ runPipeline. أخطاء التحليل والإطلاق تُبلَّغ عبر كتالوج SoT.
 //      يرث stdin/stdout/stderr ما لم يُعِد التوجيه.
+//      وسلاسلَ شرطيّة (‹&&› شغّل إن نجح السابق، ‹||› إن فشل). كلّ مقطعٍ أمرٌ مفرد ⇒ runExternal،
+//      وإلّا runPipeline. أخطاء التحليل والإطلاق عبر كتالوج SoT.
 // (EN) ‹:run› — run an external command synchronously (shell ergonomics). The raw line is
-//      parsed honoring quotes, ‹\› escaping, ‹|› pipes and redirection (‹<›/‹>›/‹>>› for
-//      stdin/stdout, ‹2>›/‹2>>›/‹&>›/‹2>&1› for stderr). A plain single command ⇒ runExternal;
-//      otherwise ⇒ runPipeline. Errors go via the SoT catalog.
+//      parsed honoring quotes, ‹\› escaping, ‹|› pipes, redirection (‹<›/‹>›/‹>>› for
+//      stdin/stdout, ‹2>›/‹2>>›/‹&>›/‹2>&1› for stderr), and conditional chains (‹&&› run if the
+//      previous succeeded, ‹||› if it failed). Each segment: a plain single command ⇒
+//      runExternal; otherwise ⇒ runPipeline. Errors go via the SoT catalog.
 bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args)
 {
     (void)args; // (AR) نستعمل الوسائط الخامّ لا المقسّمة بالمسافات / raw args, not the whitespace split
@@ -366,10 +369,15 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         return true;
     }
 
-    // (AR) مُحلِّلٌ مربوطٌ بهذا المثيل كي يوسّع ‹$?›/‹$$› إضافةً لمتغيّرات البيئة.
-    // (EN) resolver bound to this instance so ‹$?›/‹$$› expand alongside env vars.
+    // (AR) مُحلِّلٌ مربوطٌ بهذا المثيل كي يوسّع ‹$?›/‹$$› إضافةً لمتغيّرات البيئة. ملاحظة: التوسيع
+    //      يقع مرّةً عند التحليل، فـ‹$?› داخل السلسلة يعكس الأمرَ السابق لا مقطعًا سابقًا في نفس
+    //      السطر (البوّابة ‹&&›/‹||› تستعمل رموز الخروج الحيّة، فالمنطق الشرطيّ سليم). / (EN)
+    //      resolver bound to this instance so ‹$?›/‹$$› expand alongside env vars. Note: expansion
+    //      happens once at parse time, so ‹$?› inside a chain reflects the previous command, not
+    //      an earlier segment on the same line (the ‹&&›/‹||› gating uses live exit codes, so the
+    //      conditional logic is correct).
     auto resolver = [repl](const std::string& n) { return resolveVar(repl, n); };
-    ShellPipeline parsed = parseShellPipeline(raw, resolver);
+    ShellCommandLine parsed = parseCommandLine(raw, resolver);
     switch (parsed.status)
     {
         case ShellParseStatus::UnterminatedQuote:
@@ -384,66 +392,103 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         case ShellParseStatus::Ok:
             break;
     }
-    if (parsed.stages.empty()) // (AR) دفاعيّ: خامّ بلا وسائط فعليّة / defensive: raw with no real args
+    if (parsed.segments.empty()) // (AR) دفاعيّ: خامّ بلا أمرٍ فعليّ / defensive: raw with no real command
     {
         std::cout << usageLine(repl, "run") << std::endl;
         return true;
     }
 
-    // (AR) هل تحوي أيّ مرحلة إعادة توجيه (إدخال/إخراج/خطأ)؟ / (EN) does any stage redirect
-    //      (stdin/stdout/stderr)?
-    bool hasRedirect = false;
-    for (const ShellStage& st : parsed.stages)
+    // (AR) هل يحوي مقطعٌ إعادة توجيه (إدخال/إخراج/خطأ)؟ / (EN) does a segment redirect?
+    auto segHasRedirect = [](const ShellSegment& seg)
     {
-        if (!st.inFile.empty() || !st.outFile.empty() || !st.errFile.empty() || st.errToOut)
+        for (const ShellStage& st : seg.stages)
         {
-            hasRedirect = true;
-            break;
+            if (!st.inFile.empty() || !st.outFile.empty() || !st.errFile.empty() || st.errToOut)
+            {
+                return true;
+            }
         }
-    }
+        return false;
+    };
 
 #ifdef _WIN32
-    // (AR) الأنابيب المتعدّدة وإعادة التوجيه غير مدعومة على Windows في هذا الإصدار (POSIX فقط).
-    // (EN) multi-stage pipes and redirection are unsupported on Windows in this release.
-    if (parsed.stages.size() > 1)
+    // (AR) الأنابيب المتعدّدة وإعادة التوجيه غير مدعومة على Windows (POSIX فقط)؛ لكنّ سلاسل
+    //      ‹&&›/‹||› من أوامر مفردة تعمل (تسلسل runExternal). / (EN) multi-stage pipes and
+    //      redirection are unsupported on Windows (POSIX only); but ‹&&›/‹||› chains of plain
+    //      single commands work (sequential runExternal).
+    for (const ShellSegment& seg : parsed.segments)
     {
-        printReplError(SoT::Error::PIPE_UNSUPPORTED);
-        return true;
-    }
-    if (hasRedirect)
-    {
-        printReplError(SoT::Error::REDIRECT_UNSUPPORTED);
-        return true;
+        if (seg.stages.size() > 1)
+        {
+            printReplError(SoT::Error::PIPE_UNSUPPORTED);
+            return true;
+        }
+        if (segHasRedirect(seg))
+        {
+            printReplError(SoT::Error::REDIRECT_UNSUPPORTED);
+            return true;
+        }
     }
 #endif
 
-    std::cout.flush();
-    // (AR) أمرٌ مفرد بلا توجيه ⇒ المسار المُختبَر runExternal؛ غير ذلك ⇒ runPipeline.
-    // (EN) plain single command ⇒ the tested runExternal path; otherwise ⇒ runPipeline.
-    const bool plainSingle = (parsed.stages.size() == 1 && !hasRedirect);
-    LaunchFailure fail;
-    ShellResult r = plainSingle ? runExternal(parsed.stages[0].argv)
-                                : runPipeline(parsed.stages, fail);
-    if (!r.spawned)
+    // (AR) نفّذ المقاطع يسارًا-يمينًا مع البوّابة الشرطيّة: ‹&&› يتخطّى إن فشل السابق، ‹||› يتخطّى
+    //      إن نجح. رمز الخروج المتتبَّع من آخر مقطعٍ نُفِّذ فعلًا (فشلُ الإطلاق = 127، ولا يوقف
+    //      السلسلة — كصدَفة). ‹$?› النهائيّ = رمز آخر منفَّذ. / (EN) run segments left-to-right with
+    //      conditional gating: ‹&&› skips if the previous failed, ‹||› skips if it succeeded. The
+    //      tracked exit code is the last actually-executed segment's (a launch failure = 127 and
+    //      does not abort the chain — shell-like). Final ‹$?› = the last executed segment's code.
+    int lastExit = 0; // (AR) المقطع الأوّل (First) يعمل دائمًا فلا يُقرأ هذا / the First segment
+                      //      always runs, so this seed is never gated on
+    for (const ShellSegment& seg : parsed.segments)
     {
-        if (fail.isRedirect)
+        if (seg.op == ChainOp::And && lastExit != 0)
         {
-            // (AR) تعذّر فتح ملفّ إعادة التوجيه / redirection file could not be opened
-            printReplError(SoT::Error::REDIRECT_FAILED, fail.file);
+            continue; // (AR) ‹&&›: السابق فشل ⇒ تخطَّ / previous failed ⇒ skip
+        }
+        if (seg.op == ChainOp::Or && lastExit == 0)
+        {
+            continue; // (AR) ‹||›: السابق نجح ⇒ تخطَّ / previous succeeded ⇒ skip
+        }
+
+        std::cout.flush();
+        // (AR) أمرٌ مفرد بلا توجيه ⇒ المسار المُختبَر runExternal؛ غير ذلك ⇒ runPipeline.
+        // (EN) plain single command ⇒ the tested runExternal path; otherwise ⇒ runPipeline.
+        const bool plainSingle = (seg.stages.size() == 1 && !segHasRedirect(seg));
+        LaunchFailure fail;
+        ShellResult r = plainSingle ? runExternal(seg.stages[0].argv)
+                                    : runPipeline(seg.stages, fail);
+        if (!r.spawned)
+        {
+            if (fail.isRedirect)
+            {
+                // (AR) تعذّر فتح ملفّ إعادة التوجيه / redirection file could not be opened
+                printReplError(SoT::Error::REDIRECT_FAILED, fail.file);
+            }
+            else
+            {
+                // (AR) اسم البرنامج المُخفِق: من المرحلة الفاشلة، أو أوّل برنامج للمقطع.
+                // (EN) failing program: the failed stage, or the segment's first program.
+                const std::string& prog =
+                    !fail.program.empty() ? fail.program : seg.stages[0].argv[0];
+                printReplError(SoT::Error::RUN_FAILED, prog);
+            }
+            lastExit = 127; // (AR) اصطلاح «الأمر غير موجود» / the "command not found" idiom
         }
         else
         {
-            // (AR) اسم البرنامج المُخفِق: من المرحلة الفاشلة، أو أوّل برنامج للأمر المفرد.
-            // (EN) failing program: the failed stage, or the single command's program.
-            const std::string& prog =
-                !fail.program.empty() ? fail.program : parsed.stages[0].argv[0];
-            printReplError(SoT::Error::RUN_FAILED, prog);
+            lastExit = r.exitCode;
+        }
+        // (AR) Ctrl-C أثناء مقطعٍ يُجهض السلسلة كلّها (كصدَفة: لا يُشغَّل ‹|| بديل› بعد مقاطعة).
+        //      رمز الخروج (130) محفوظ في lastExit ⇒ ‹$?› صحيح. / (EN) Ctrl-C during a segment
+        //      aborts the whole chain (shell-like: no ‹|| fallback› runs after an interrupt).
+        //      The exit code (130) is kept in lastExit ⇒ ‹$?› is correct.
+        if (r.interrupted)
+        {
+            break;
         }
     }
-    // (AR) خزّن رمز الخروج لـ‹$?›: رمز البرنامج إن أُطلق، أو 127 إن تعذّر الإطلاق (اصطلاح صدَفة
-    //      «الأمر غير موجود»). / (EN) record the exit code for ‹$?›: the program's code if
-    //      launched, else 127 (the shell "command not found" idiom for a launch failure).
-    repl->getCommands()->lastRunExitCode_ = r.spawned ? r.exitCode : 127;
+    // (AR) خزّن رمز الخروج النهائيّ للسلسلة لـ‹$?›. / (EN) record the chain's final exit code for ‹$?›.
+    repl->getCommands()->lastRunExitCode_ = lastExit;
     return true;
 }
 

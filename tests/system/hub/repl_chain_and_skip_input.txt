@@ -1,0 +1,2 @@
+:شغّل sh -c "exit 1" && echo AND_BAD || echo AND_SKIPPED
+:exit

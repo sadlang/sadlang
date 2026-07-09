@@ -490,5 +490,125 @@ ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env)
     return result;
 }
 
+ShellCommandLine parseCommandLine(const std::string& raw, const EnvResolver& env)
+{
+    ShellCommandLine result;
+    result.status = ShellParseStatus::Ok;
+
+    // (AR) الخطوة 1: قسمةٌ واعيةٌ بالاقتباس على ‹&&›/‹||› في المستوى الأعلى. لا نوسّع هنا؛
+    //      نتتبّع حالة الاقتباس/الهروب فقط كي نميّز الرابط الحقيقيّ من ‹&&›/‹||› داخل اقتباسٍ أو
+    //      قادمٍ عبر ‹$VAR› (الذي لا يُقسِّم — يُحلّه parseShellPipeline لاحقًا كنصّ). ‹&›/‹|› مفردًا
+    //      لا يُقسِّم (‹&›/‹&>› حرفيّ أو توجيه، و‹|› أنبوبُ مراحلَ داخل المقطع). / (EN) step 1:
+    //      quote-aware split on top-level ‹&&›/‹||›. No expansion here; we track only quote/escape
+    //      state to tell a real connector from ‹&&›/‹||› inside a quote or arriving via ‹$VAR›
+    //      (which does not split — parseShellPipeline later treats it as text). A lone ‹&›/‹|›
+    //      does not split (‹&›/‹&>› is literal/redirect, ‹|› pipes stages within the segment).
+    struct RawSeg
+    {
+        ChainOp op;
+        std::string text;
+    };
+    std::vector<RawSeg> rawSegs;
+    ChainOp curOp = ChainOp::First;
+    std::size_t segStart = 0;
+
+    enum class St
+    {
+        Normal,
+        InSingle,
+        InDouble
+    } st = St::Normal;
+
+    const std::size_t n = raw.size();
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        const char c = raw[i];
+
+        if (st == St::InSingle)
+        {
+            if (c == kSingleQuote)
+            {
+                st = St::Normal;
+            }
+            continue;
+        }
+        if (st == St::InDouble)
+        {
+            // (AR) نتخطّى المحرف المهروب (يكفي للقسمة تخطّي التالي) / skip the escaped char
+            if (c == kEscape && i + 1 < n)
+            {
+                ++i;
+            }
+            else if (c == kDoubleQuote)
+            {
+                st = St::Normal;
+            }
+            continue;
+        }
+
+        // ── Normal ──
+        if (c == kEscape)
+        {
+            if (i + 1 < n)
+            {
+                ++i; // (AR) ‹\c› — تخطَّ c فلا يُفسَّر رابطًا / skip c so it is not read as a connector
+            }
+        }
+        else if (c == kSingleQuote)
+        {
+            st = St::InSingle;
+        }
+        else if (c == kDoubleQuote)
+        {
+            st = St::InDouble;
+        }
+        else if (c == '&' && i + 1 < n && raw[i + 1] == '&')
+        {
+            rawSegs.push_back({curOp, raw.substr(segStart, i - segStart)});
+            curOp = ChainOp::And;
+            ++i; // (AR) استهلك ‹&› الثانية / consume the second ‹&›
+            segStart = i + 1;
+        }
+        else if (c == kPipe && i + 1 < n && raw[i + 1] == kPipe)
+        {
+            rawSegs.push_back({curOp, raw.substr(segStart, i - segStart)});
+            curOp = ChainOp::Or;
+            ++i; // (AR) استهلك ‹|› الثانية / consume the second ‹|›
+            segStart = i + 1;
+        }
+    }
+    rawSegs.push_back({curOp, raw.substr(segStart)}); // (AR) المقطع الأخير / trailing segment
+
+    // (AR) الخطوة 2: حلّل كلّ مقطعٍ بمُحلِّل الأنبوب. مقطعٌ فارغ في سلسلةٍ (رابطٌ بلا أمر) = خطأ.
+    // (EN) step 2: parse each segment with the pipeline lexer. An empty segment in a chain
+    //      (a connector with no command) is an error.
+    for (const RawSeg& rs : rawSegs)
+    {
+        ShellPipeline p = parseShellPipeline(rs.text, env);
+        if (p.status != ShellParseStatus::Ok)
+        {
+            result.status = p.status;
+            result.segments.clear();
+            return result;
+        }
+        if (p.stages.empty())
+        {
+            // (AR) مقطعٌ فارغ: في سلسلةٍ (أكثر من مقطع) خطأ ‹&&›/‹||› بلا طرف؛ إن كان المقطع
+            //      الوحيد فهو «لا أمر» (يعرض المستدعي الاستعمال عبر segments الفارغة). / an empty
+            //      segment: in a chain (more than one) it is a dangling ‹&&›/‹||›; a lone empty
+            //      means "no command" (caller shows usage via the empty segments).
+            if (rawSegs.size() > 1)
+            {
+                result.status = ShellParseStatus::EmptyStage;
+                result.segments.clear();
+                return result;
+            }
+            return result; // (AR) segments فارغة / segments left empty
+        }
+        result.segments.push_back({rs.op, std::move(p.stages)});
+    }
+    return result;
+}
+
 } // namespace REPL
 } // namespace Sad

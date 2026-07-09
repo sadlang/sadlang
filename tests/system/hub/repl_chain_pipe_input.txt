@@ -1,0 +1,2 @@
+:شغّل echo hello | tr a-z A-Z && echo PIPE_CHAIN_OK
+:exit

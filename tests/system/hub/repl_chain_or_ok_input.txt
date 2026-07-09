@@ -1,0 +1,2 @@
+:شغّل false || echo OR_RAN
+:exit

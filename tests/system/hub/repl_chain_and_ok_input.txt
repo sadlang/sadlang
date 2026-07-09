@@ -1,0 +1,2 @@
+:شغّل sh -c "exit 0" && echo AND_RAN
+:exit

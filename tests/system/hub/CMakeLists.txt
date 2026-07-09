@@ -512,7 +512,93 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_SpecialAdjacent PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹&&› يعمل بعد نجاح: ‹exit 0 && echo AND_RAN› ⇒ ظهور العلامة. / (EN) ‹&&› runs after
+        #      success: ‹exit 0 && echo AND_RAN› ⇒ the marker appears.
+        add_test(NAME HubRepl_ChainAndOk
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_and_ok_input.txt
+                -DEXPECT=AND_RAN
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ChainAndOk PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹&&› يتخطّى بعد فشل، و‹||› يعمل: ‹exit 1 && echo AND_BAD || echo AND_SKIPPED› ⇒
+        #      ‹AND_SKIPPED› فقط (لو عمل ‹&&› خطأً لطُبع AND_BAD وتخطّى ‹||›). / (EN) ‹&&› skips
+        #      after failure and ‹||› runs ⇒ ‹AND_SKIPPED› (a wrong ‹&&› run would print AND_BAD
+        #      and skip ‹||›, so this uniquely proves the skip).
+        add_test(NAME HubRepl_ChainAndSkip
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_and_skip_input.txt
+                -DEXPECT=AND_SKIPPED
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ChainAndSkip PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹||› يعمل بعد فشل: ‹false || echo OR_RAN› ⇒ ظهور العلامة. / (EN) ‹||› runs after
+        #      failure: ‹false || echo OR_RAN› ⇒ the marker appears.
+        add_test(NAME HubRepl_ChainOrOk
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_or_ok_input.txt
+                -DEXPECT=OR_RAN
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ChainOrOk PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) ‹||› يتخطّى بعد نجاح: ‹exit 0 || exit 9› ثمّ ‹$?› ⇒ ‹RC=0› (لو عمل ‹||› خطأً لصار
+        #      الرمز 9). / (EN) ‹||› skips after success: ‹exit 0 || exit 9› then ‹$?› ⇒ ‹RC=0› (a
+        #      wrong ‹||› run would make the code 9), uniquely proving the skip via the exit code.
+        add_test(NAME HubRepl_ChainOrSkip
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_or_skip_input.txt
+                -DEXPECT=RC=0
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ChainOrSkip PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) تكامل: أنبوبٌ كمقطعٍ ثمّ ‹&&›: ‹echo hello | tr a-z A-Z && echo PIPE_CHAIN_OK› ⇒
+        #      ‹HELLO› (الأنبوب) و‹PIPE_CHAIN_OK› (السلسلة بعد نجاحه). / (EN) integration: a pipe
+        #      as a segment then ‹&&› ⇒ ‹HELLO› (pipe) and ‹PIPE_CHAIN_OK› (chain after success).
+        add_test(NAME HubRepl_ChainWithPipe
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_pipe_input.txt
+                -DEXPECT=HELLO|PIPE_CHAIN_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ChainWithPipe PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) مقاطعة (Ctrl-C) تُجهض السلسلة كلّها: مقطعٌ يقتل نفسه بـSIGINT ثمّ ‹|| exit 3›؛
+        #      الصحيح يُجهض قبل الـ‹||› فيبقى الرمز 130 (128+SIGINT) ⇒ ‹RC=130›. لو عُومِلت
+        #      المقاطعة فشلًا عاديًّا لعمل ‹|| exit 3› وصار الرمز 3 — فـ‹RC=130› يُثبت الإجهاض.
+        # (EN) an interrupt (Ctrl-C) aborts the whole chain: a segment kills itself with SIGINT
+        #      then ‹|| exit 3›; correct behavior aborts before the ‹||› so the code stays 130
+        #      (128+SIGINT) ⇒ ‹RC=130›. Treating the interrupt as an ordinary failure would run
+        #      ‹|| exit 3› making the code 3 — so ‹RC=130› proves the abort.
+        add_test(NAME HubRepl_ChainInterruptAbort
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_interrupt_input.txt
+                -DEXPECT=RC=130
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_ChainInterruptAbort PROPERTIES
+            LABELS "hub;sad-repl;shell")
     endif()
+
+    # (AR) رابطٌ معلّق بلا طرف (‹echo x &&›) خطأ تحليلٍ محمول = مرحلةٌ فارغة. / (EN) a dangling
+    #      connector (‹echo x &&›) is a portable parse error = an empty stage.
+    add_test(NAME HubRepl_ChainDangling
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_chain_dangling_input.txt
+            -DEXPECT=Empty pipeline stage
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_ChainDangling PROPERTIES
+        LABELS "hub;sad-repl;shell")
 
     # (AR) أخطاء التحليل محمولة (تحليلٌ محض، بلا إطلاق برنامج): اقتباسٌ غير مُغلَق
     #      ومرحلةُ أنبوبٍ فارغة يجب أن يُبلَّغ عنهما عبر كتالوج SoT (الجزء الإنجليزيّ ASCII).
