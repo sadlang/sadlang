@@ -95,6 +95,11 @@ static const ErrorEntry kErrors[] = {
       "إعادة التوجيه غير مدعومة على هذا النظام", "Redirection is not supported on this platform",
       "إعادة التوجيه ‹<›/‹>›/‹>>› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار", "‹<›/‹>›/‹>>› redirection is supported on POSIX systems (Linux) only in this release",
       false },
+    { Error::ENV_INVALID_NAME, "REPL018", Severity::Error,
+      "اسم متغيّر بيئة غير صالح", "Invalid environment variable name",
+      "اسم متغيّر بيئة غير صالح", "Invalid environment variable name",
+      "يبدأ الاسم بحرفٍ أو ‹_› (أو حرفٍ عربيّ) ثمّ حروف/أرقام/‹_›، بلا مسافة أو ‹=›", "A name starts with a letter or ‹_› (or an Arabic letter) then letters/digits/‹_›, no space or ‹=›",
+      true },
 };
 static const std::size_t kErrorsCount = sizeof(kErrors) / sizeof(kErrors[0]);
 
@@ -188,6 +193,8 @@ const CommandEntry kCommands[] = {
       "عرض جميع الدوال", "Show all functions", ":funcs" },
     { CommandHandler::RUN, "run", "شغّل",
       "تشغيل برنامج خارجيّ", "Run an external program", ":run <program> [args...] [< in] [> out | >> out] [| program...]" },
+    { CommandHandler::ENV, "env", "بيئة",
+      "عرض متغيّرات البيئة أو ضبط متغيّر (يرثه ما تُشغّله)", "Show environment variables or set one (inherited by run programs)", ":env [NAME=VALUE]" },
 };
 const std::size_t kCommandsCount = sizeof(kCommands) / sizeof(kCommands[0]);
 

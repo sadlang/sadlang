@@ -1,0 +1,4 @@
+:بيئة V1=PLAIN_OK
+:بيئة V2=BRACED_OK
+:شغّل echo $V1 ${V2}
+:exit

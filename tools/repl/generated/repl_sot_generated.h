@@ -41,7 +41,8 @@ enum class Error {
     PIPE_UNSUPPORTED,
     REDIRECT_NO_TARGET,
     REDIRECT_FAILED,
-    REDIRECT_UNSUPPORTED
+    REDIRECT_UNSUPPORTED,
+    ENV_INVALID_NAME
 };
 
 enum class Severity { Error, Warning, Info };
@@ -116,7 +117,8 @@ enum class CommandHandler {
     RESET,
     VARS,
     FUNCS,
-    RUN
+    RUN,
+    ENV
 };
 
 struct CommandEntry {

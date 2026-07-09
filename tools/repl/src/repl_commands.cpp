@@ -12,20 +12,78 @@
 #include "repl_colors.h" // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
 #include "repl_sot_generated.h" // (AR) كتالوج «مصدر حقيقة الأدوات» — أخطاء/رسائل/أوامر REPL / (EN) Tool-SoT catalog
 #include "shell_executor.h"     // (AR) مُنفِّذ الأوامر الخارجيّة / (EN) external-command executor
-#include "shell_lexer.h"        // (AR) مُحلِّل سطر الصدَفة (اقتباس/أنابيب) / (EN) shell-line lexer
+#include "shell_lexer.h"        // (AR) مُحلِّل سطر الصدَفة (اقتباس/أنابيب/توسيع بيئة) / (EN) shell-line lexer
 #include <iostream>
 #include <sstream>
 #include <string_view>
 #include <algorithm>
+#include <cstdlib> // (AR) getenv/setenv/_putenv_s لمتغيّرات البيئة / (EN) env-var access
 
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <cstdlib>
+extern char** environ; // (AR) قائمة بيئة العمليّة (POSIX) لسرد ‹:بيئة› / (EN) process env list
 #endif
 
 namespace Sad {
 namespace REPL {
+
+// (AR) مُحلِّل البيئة الافتراضيّ: قيمة المتغيّر من بيئة العمليّة (فارغة إن لم يُعرَّف). يمرّره
+//      ‹:شغّل› للمُحلِّل، فما يضبطه ‹:بيئة› عبر setenv يظهر هنا ويرثه ما يُطلَق. / (EN) default
+//      resolver: a variable's value from the process env (empty if unset). ‹:run› passes it to
+//      the lexer, so whatever ‹:env› sets via setenv shows here and is inherited by launches.
+static std::string envResolve(const std::string& name)
+{
+    const char* v = std::getenv(name.c_str());
+    return v ? std::string(v) : std::string();
+}
+
+// (AR) اسم متغيّر بيئة صالح: يبدأ بحرف ASCII أو ‹_› أو بايت ≥0x80 (حرف عربيّ)، ثمّ حروف/
+//      أرقام/‹_›/≥0x80، بلا ‹=›. مطابقٌ لقاعدة الاسم في مُحلِّل التوسيع. / (EN) a valid env-var
+//      name: starts with an ASCII letter, ‹_›, or a byte ≥0x80 (Arabic), then alnum/‹_›/≥0x80;
+//      no ‹=›. Matches the name rule in the expansion lexer.
+static bool isValidEnvName(const std::string& name)
+{
+    if (name.empty())
+    {
+        return false;
+    }
+    auto isStart = [](unsigned char c)
+    { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c >= 0x80; };
+    auto isRest = [](unsigned char c)
+    {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+               c == '_' || c >= 0x80;
+    };
+    if (!isStart(static_cast<unsigned char>(name[0])))
+    {
+        return false;
+    }
+    for (std::size_t i = 1; i < name.size(); ++i)
+    {
+        if (!isRest(static_cast<unsigned char>(name[i])))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// (AR) يضبط متغيّر بيئةٍ للعمليّة (يرثه ما يُطلَق لاحقًا) — عبر الواجهة المنصّيّة.
+//      ⚠️ تباعد منصّة موثّق لقيمةٍ فارغة (‹:بيئة X=›): POSIX يضبط X مُعرَّفًا فارغًا، بينما
+//      Windows‏ (_putenv_s بقيمة فارغة) يحذف X. النظام الهدف (sad-os) لينكس، والحالة هامشيّة.
+// (EN) sets a process env var (inherited by later launches) via the platform API.
+//      ⚠️ documented platform divergence for an empty value (‹:env X=›): POSIX sets X to a
+//      defined-empty value, while Windows (_putenv_s with "") deletes X. The target OS
+//      (sad-os) is Linux and the case is a corner case.
+static bool setEnvVar(const std::string& name, const std::string& value)
+{
+#ifdef _WIN32
+    return _putenv_s(name.c_str(), value.c_str()) == 0;
+#else
+    return setenv(name.c_str(), value.c_str(), 1) == 0;
+#endif
+}
 
 // (AR) الثوابت مُعرَّفة مرّة واحدة في repl_colors.h (م-2: إزالة التكرار).
 // (EN) constants defined once in repl_colors.h (م-2: de-duplicated).
@@ -155,6 +213,7 @@ CommandFunc REPLCommands::handlerFor(SoT::CommandHandler h)
         case SoT::CommandHandler::VARS:    return cmdVars;
         case SoT::CommandHandler::FUNCS:   return cmdFuncs;
         case SoT::CommandHandler::RUN:     return cmdRun;
+        case SoT::CommandHandler::ENV:     return cmdEnv;
     }
     return nullptr;
 }
@@ -282,7 +341,7 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
         return true;
     }
 
-    ShellPipeline parsed = parseShellPipeline(raw);
+    ShellPipeline parsed = parseShellPipeline(raw, envResolve);
     switch (parsed.status)
     {
         case ShellParseStatus::UnterminatedQuote:
@@ -351,6 +410,75 @@ bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args
                 !fail.program.empty() ? fail.program : parsed.stages[0].argv[0];
             printReplError(SoT::Error::RUN_FAILED, prog);
         }
+    }
+    return true;
+}
+
+// (AR) ‹:بيئة›/‹:env› — بلا وسائط: يسرد كلّ متغيّرات البيئة. ‹NAME=VALUE›: يضبط متغيّرًا
+//      للعمليّة (يرثه ما يُطلَق لاحقًا عبر ‹:شغّل›)؛ القيمة تُوسَّع فيها ‹$VAR› فيُمكن البناء
+//      التراكميّ (‹:بيئة مسار=$PATH:/x›). ‹NAME› وحده: يعرض قيمته. اسمٌ غير صالح ⇒ خطأ SoT.
+// (EN) ‹:env› — no args: list all env vars. ‹NAME=VALUE›: set a process var (inherited by
+//      later ‹:run› launches); the value has ‹$VAR› expanded so it can build on itself
+//      (‹:env PATH2=$PATH:/x›). ‹NAME› alone: show its value. An invalid name ⇒ SoT error.
+bool REPLCommands::cmdEnv(REPLEngine* repl, const std::vector<std::string>& args)
+{
+    (void)args; // (AR) نستعمل الوسائط الخامّ (القيمة قد تحوي مسافات) / raw args (value may have spaces)
+    const std::string& raw = repl->getCommands()->pendingRawArgs_;
+
+    // (AR) بلا وسائط: سرد كلّ البيئة (KEY=VALUE لكلّ سطر) / no args: list the whole environment
+    if (raw.empty())
+    {
+#ifdef _WIN32
+        for (char** e = _environ; e && *e; ++e)
+        {
+            std::cout << *e << std::endl;
+        }
+#else
+        for (char** e = environ; e && *e; ++e)
+        {
+            std::cout << *e << std::endl;
+        }
+#endif
+        return true;
+    }
+
+    std::size_t eq = raw.find('=');
+    if (eq == std::string::npos)
+    {
+        // (AR) ‹:بيئة NAME› — اعرض قيمة المتغيّر (KEY=VALUE) / show a single var's value
+        std::string name = raw;
+        // (AR) قصّ الفراغ المحيط / trim surrounding whitespace
+        name.erase(0, name.find_first_not_of(" \t"));
+        if (auto p = name.find_last_not_of(" \t"); p != std::string::npos)
+        {
+            name.erase(p + 1);
+        }
+        if (!isValidEnvName(name))
+        {
+            printReplError(SoT::Error::ENV_INVALID_NAME, name);
+            return true;
+        }
+        std::cout << name << "=" << envResolve(name) << std::endl;
+        return true;
+    }
+
+    // (AR) ‹:بيئة NAME=VALUE› — اضبط. الاسم = ما قبل أوّل ‹=› (مقصوص)، والقيمة = ما بعده
+    //      (مع توسيع ‹$VAR› كي يُمكن البناء التراكميّ). / set NAME to VALUE (‹$VAR› expanded).
+    std::string name = raw.substr(0, eq);
+    name.erase(0, name.find_first_not_of(" \t"));
+    if (auto p = name.find_last_not_of(" \t"); p != std::string::npos)
+    {
+        name.erase(p + 1);
+    }
+    if (!isValidEnvName(name))
+    {
+        printReplError(SoT::Error::ENV_INVALID_NAME, name);
+        return true;
+    }
+    std::string value = expandEnvVars(raw.substr(eq + 1), envResolve);
+    if (!setEnvVar(name, value))
+    {
+        printReplError(SoT::Error::ENV_INVALID_NAME, name);
     }
     return true;
 }

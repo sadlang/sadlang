@@ -2,15 +2,16 @@
 /**
  * @file shell_lexer.h
  * @brief (AR) مُحلِّل سطر صدَفة ص لأمر ‹:شغّل› — تقسيم إلى مراحل أنبوب، كلّ مرحلة argv مع
- *        إعادة توجيه اختياريّة (‹<›/‹>›/‹>>›)، محترمًا الاقتباس والهروب. لا توسيع متغيّرات
- *        (شريحة لاحقة).
+ *        إعادة توجيه اختياريّة (‹<›/‹>›/‹>>›) وتوسيع متغيّرات (‹$VAR›/‹${VAR}›)، محترمًا
+ *        الاقتباس والهروب.
  * @brief (EN) Shell-line lexer for the ص ‹:run› command — splits into pipeline stages, each
- *        an argv with optional redirection (‹<›/‹>›/‹>>›), honoring quotes and escaping.
- *        No variable expansion (a later slice).
+ *        an argv with optional redirection (‹<›/‹>›/‹>>›) and variable expansion
+ *        (‹$VAR›/‹${VAR}›), honoring quotes and escaping.
  */
 #ifndef SAD_REPL_SHELL_LEXER_H
 #define SAD_REPL_SHELL_LEXER_H
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,12 @@ namespace Sad
 {
 namespace REPL
 {
+
+// (AR) مُحلِّل متغيّر بيئة: يُعطى اسم المتغيّر ويُعيد قيمته (سلسلة فارغة إن لم يُعرَّف). يفصل
+//      المُحلِّل عن مصدر البيئة (process environ) فيسهل اختباره. / (EN) an environment resolver:
+//      given a variable name, returns its value (empty if unset). Decouples the lexer from the
+//      process environ, easing testing.
+using EnvResolver = std::function<std::string(const std::string&)>;
 
 // (AR) حالة تحليل سطر الصدَفة. Ok = نجح؛ الباقي أخطاء تُترجَم لرموز كتالوج SoT.
 // (EN) Shell-line parse status. Ok = success; the rest map to SoT catalog error codes.
@@ -66,8 +73,17 @@ struct ShellPipeline
 //      whitespace/CR/LF split args; "…" literal with ‹\› escaping only ‹"›/‹\›; '…' fully
 //      literal; unquoted ‹\c› escapes c; unquoted ‹|› splits stages; unquoted ‹<›/‹>›/‹>>›
 //      redirect, the next token being the target; adjacent segments concatenate into one
-//      arg. Caller checks status before using stages.
-ShellPipeline parseShellPipeline(const std::string& raw);
+//      arg. Caller checks status before using stages. `env` يُوسِّع ‹$VAR›/‹${VAR}› خارج
+//      الاقتباس المفرد (‹'…'› حرفيّ)؛ متغيّرٌ غير مُعرَّف ⇒ سلسلة فارغة (لا تُعاد قسمتها بالمسافات).
+//      / `env` expands ‹$VAR›/‹${VAR}› outside single quotes (‹'…'› is literal); an unset var
+//      ⇒ empty string (no re-splitting of the expansion on whitespace).
+ShellPipeline parseShellPipeline(const std::string& raw, const EnvResolver& env);
+
+// (AR) يوسّع مراجع ‹$VAR›/‹${VAR}› في نصٍّ حرٍّ (بلا وعيٍ بالاقتباس) — لقيمة أمر ‹:بيئة›.
+//      اسم المتغيّر: حرفٌ/‹_›/بايت ≥0x80 (يدعم أسماء عربيّة) ثمّ أرقام/حروف/‹_›/≥0x80.
+// (EN) expands ‹$VAR›/‹${VAR}› references in free text (quote-agnostic) — for the ‹:env›
+//      value. A name is: letter/‹_›/byte ≥0x80 (Arabic names allowed) then alnum/‹_›/≥0x80.
+std::string expandEnvVars(const std::string& text, const EnvResolver& env);
 
 } // namespace REPL
 } // namespace Sad

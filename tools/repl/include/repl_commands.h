@@ -179,7 +179,13 @@ private:
      * @brief (EN) ‹:run› — run an external program (shell ergonomics).
      */
     static bool cmdRun(REPLEngine* repl, const std::vector<std::string>& args);
-    
+
+    /**
+     * @brief (AR) ‹:بيئة›/‹:env› — عرض متغيّرات البيئة أو ضبط متغيّر (يرثه ما يُشغَّل).
+     * @brief (EN) ‹:env› — show environment variables or set one (inherited by run programs).
+     */
+    static bool cmdEnv(REPLEngine* repl, const std::vector<std::string>& args);
+
 private:
     REPLEngine* repl_;                          ///< محرك REPL / REPL engine
     std::map<std::string, CommandInfo> commands_; ///< الأوامر / Commands

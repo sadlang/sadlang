@@ -1,0 +1,3 @@
+:بيئة CHILDVAR=INHERIT_OK
+:شغّل printenv CHILDVAR
+:exit

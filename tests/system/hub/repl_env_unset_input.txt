@@ -1,0 +1,2 @@
+:شغّل echo [${UNDEF_ZZ_QQ}]
+:exit

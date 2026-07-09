@@ -1,0 +1,3 @@
+:بيئة SQ=SHOULD_NOT_EXPAND
+:شغّل echo '$SQ'
+:exit

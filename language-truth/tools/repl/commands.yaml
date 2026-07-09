@@ -99,3 +99,11 @@ commands:
       ar: "تشغيل برنامج خارجيّ"
       en: "Run an external program"
     usage: ":run <program> [args...] [< in] [> out | >> out] [| program...]"
+
+  - handler: ENV
+    name: env
+    arabic_name: "بيئة"
+    description:
+      ar: "عرض متغيّرات البيئة أو ضبط متغيّر (يرثه ما تُشغّله)"
+      en: "Show environment variables or set one (inherited by run programs)"
+    usage: ":env [NAME=VALUE]"

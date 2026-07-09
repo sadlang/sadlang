@@ -338,6 +338,61 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_RunRedirPipe PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # (AR) توسيع متغيّرات: ‹:بيئة V=…› ثمّ ‹$V›/‹${V}› — ظهور القيمتين يُثبت كِلا الصيغتين.
+        # (EN) variable expansion: ‹:env V=…› then ‹$V›/‹${V}› — both values prove both forms.
+        add_test(NAME HubRepl_EnvExpand
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_env_expand_input.txt
+                -DEXPECT=PLAIN_OK|BRACED_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_EnvExpand PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الوراثة: ما يضبطه ‹:بيئة› يرثه ما يُطلَق — printenv (برنامج خارجيّ) يقرأه من بيئته.
+        # (EN) inheritance: what ‹:env› sets is inherited by launches — printenv reads it.
+        add_test(NAME HubRepl_EnvInherit
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_env_inherit_input.txt
+                -DEXPECT=INHERIT_OK
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_EnvInherit PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) الاقتباس المفرد يمنع التوسيع: ‹'$SQ'› يبقى حرفيًّا (‹$SQ› لا قيمته). / (EN) single
+        #      quotes suppress expansion: ‹'$SQ'› stays literal (‹$SQ›, not its value).
+        add_test(NAME HubRepl_EnvSingleQuote
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_env_singlequote_input.txt
+                -DEXPECT=$SQ
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_EnvSingleQuote PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) اسم متغيّر عربيّ: ‹:بيئة سين=…› ثمّ ‹${سين}› يُوسَّع (سيادة عربيّة). / (EN) Arabic
+        #      var name: ‹:env سين=…› then ‹${سين}› expands (Arabic-first sovereignty).
+        add_test(NAME HubRepl_EnvArabic
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_env_arabic_input.txt
+                -DEXPECT=عربي_ناجح
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_EnvArabic PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) متغيّر غير مُعرَّف يُوسَّع لفراغ: ‹echo [${غير_معرّف}]› ⇒ ‹[]›. / (EN) an unset var
+        #      expands to empty: ‹echo [${undef}]› ⇒ ‹[]›.
+        add_test(NAME HubRepl_EnvUnset
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_env_unset_input.txt
+                -DEXPECT=[]
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_EnvUnset PROPERTIES
+            LABELS "hub;sad-repl;shell")
     endif()
 
     # (AR) أخطاء التحليل محمولة (تحليلٌ محض، بلا إطلاق برنامج): اقتباسٌ غير مُغلَق
@@ -373,13 +428,22 @@ if(TARGET sad-repl)
     set_tests_properties(HubRepl_RunRedirNoTarget PROPERTIES
         LABELS "hub;sad-repl;shell")
 
-    # (AR) 10 محمولة + 7 خاصّة بـPOSIX (echo/tr/printf/توجيه) ⇒ 17 على POSIX، 10 على Windows.
-    # (EN) 10 portable + 7 POSIX-only (echo/tr/printf/redirect) ⇒ 17 on POSIX, 10 on Windows.
-    if(WIN32)
-        message(STATUS "✓ اختبارات الهب: مضاف 10 اختبارات لـ sad-repl (Windows)")
-    else()
-        message(STATUS "✓ اختبارات الهب: مضاف 17 اختبارًا لـ sad-repl (POSIX)")
-    endif()
+    # (AR) اسم متغيّر بيئة غير صالح (محمول، خطأ من ‹:بيئة› بلا إطلاق). / (EN) invalid env-var name
+    #      (portable, an ‹:env› error with no launch).
+    add_test(NAME HubRepl_EnvBadName
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_env_badname_input.txt
+            -DEXPECT=Invalid environment variable name
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_EnvBadName PROPERTIES
+        LABELS "hub;sad-repl;shell")
+
+    # (AR) اختبارات sad-repl: تشغيل + أنابيب + إعادة توجيه + متغيّرات بيئة. بعضها خاصّ بـPOSIX
+    #      (echo/tr/printf/printenv كثنائيّات + الأنابيب/التوجيه)، محروسٌ بـif(NOT WIN32) أعلاه.
+    # (EN) sad-repl tests: run + pipes + redirection + env vars. Some are POSIX-only
+    #      (echo/tr/printf/printenv as exes + pipes/redirection), guarded by if(NOT WIN32) above.
+    message(STATUS "✓ اختبارات الهب: أُضيفت اختبارات sad-repl (تشغيل/أنابيب/توجيه/بيئة)")
 else()
     message(STATUS "⚠ اختبارات الهب: تخطّي اختبارات sad-repl (الهدف غير موجود)")
 endif()
