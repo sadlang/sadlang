@@ -136,6 +136,44 @@ public:
      */
     REPLCommands* getCommands() const { return commands_.get(); }
 
+    /**
+     * @brief الحصول على المفسّر الدائم / Get the persistent interpreter
+     * @details يتيح للأوامر (:vars/:funcs) قراءة مدير المتغيّرات/الدوال مباشرةً.
+     *          / Lets commands (:vars/:funcs) read the variable/function managers directly.
+     */
+    Interpreter::Interpreter* getInterpreter() const { return interpreter_.get(); }
+
+    /**
+     * @brief الحصول على مدير التاريخ / Get the history manager
+     * @details يتيح لأمر :history سرد الأوامر السابقة. / Lets :history list prior commands.
+     */
+    HistoryManager* getHistory() const { return history_.get(); }
+
+    /**
+     * @brief هل كان ناتج آخر تقييم رسالة خطأ؟ / Was the last evaluate() result an error message?
+     * @details يُميّز مسار الطباعة الأخطاء (⇒ stderr أحمر) عن القيم (⇒ stdout)، بلا
+     *          استنتاجٍ نصّيّ هشّ من بادئة الرسالة. / Lets the print path route errors
+     *          (⇒ red stderr) apart from values (⇒ stdout), without fragile string sniffing.
+     */
+    bool lastResultIsError() const { return lastResultIsError_; }
+
+    /**
+     * @brief اسم نوع تعبيرٍ مفرد (لأمر :type) / Type name of a single expression (for :type)
+     * @details يقيّم التعبير **مباشرةً** عبر interpreter_->evaluateExpression لا كجملة، إذ
+     *          إنّ جملة التعبير المجرَّدة تُرجع Void فتُفقَد قيمتها؛ ثمّ يشتقّ الاسم من
+     *          getKind() + المُحوِّل القانونيّ sadTypeKindArabicName (المُشتقّ من SoT).
+     *          يُبقي شجرة التعبير في المرسى طوال الجلسة (كسائر الأشجار).
+     *          / Evaluates the expression DIRECTLY via interpreter_->evaluateExpression, not
+     *          as a statement — a bare expression statement returns Void, losing its value;
+     *          then derives the name from getKind() + the canonical (SoT-sourced)
+     *          sadTypeKindArabicName. Keeps the expression tree in the arena for the session.
+     * @param expr نصّ التعبير / expression source
+     * @param typeNameOut اسم النوع ثنائيّ اللغة عند النجاح / bilingual type name on success
+     * @param errorOut رسالة الخطأ عند الفشل / error message on failure
+     * @return true عند النجاح / true on success
+     */
+    bool exprTypeName(const std::string& expr, std::string& typeNameOut, std::string& errorOut);
+
 private:
     /**
      * @brief معالجة سطر إدخال / Process input line
@@ -235,6 +273,7 @@ private:
 private:
     REPLConfig config_;                                         ///< الإعدادات / Configuration
     REPLState state_;                                           ///< الحالة / State
+    bool lastResultIsError_ = false;                            ///< (AR) هل ناتج آخر evaluate خطأ؟ / (EN) was the last evaluate() result an error?
     std::unique_ptr<HistoryManager> history_;                   ///< مدير التاريخ / History manager
     std::unique_ptr<REPLCommands> commands_;                    ///< معالج الأوامر / Command handler
     std::unique_ptr<Interpreter::Interpreter> interpreter_;     ///< المفسر / Interpreter

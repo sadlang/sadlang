@@ -8,6 +8,8 @@
  */
 
 #include "repl_engine.h"
+#include "repl_colors.h"    // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
+#include "statements.h"     // (AR) AST::ExprStmt لاستخراج تعبير :type / (EN) AST::ExprStmt for :type expression extraction
 #include "lexer_keywords.h" // (AR) استعلام كلمات فتح/إغلاق الكتل من SoT / (EN) query block opener/closer keywords from SoT
 #include <iostream>
 #include <fstream>
@@ -85,14 +87,9 @@ namespace Sad
         // Color Codes / أكواد الألوان
         // ============================================================================
 
-        static const char *RESET = "\033[0m";
-        static const char *BOLD = "\033[1m";
-        static const char *RED = "\033[31m";
-        static const char *GREEN = "\033[32m";
-        static const char *YELLOW = "\033[33m";
-        static const char *BLUE = "\033[34m";
-        static const char *CYAN = "\033[36m";
-        static const char *MAGENTA = "\033[35m";
+        // (AR) الثوابت مُعرَّفة مرّة واحدة في repl_colors.h (م-2: إزالة التكرار).
+        // (EN) constants defined once in repl_colors.h (م-2: de-duplicated).
+        using namespace Colors;
 
         // ============================================================================
         // REPLEngine Implementation / تنفيذ REPLEngine
@@ -361,12 +358,14 @@ namespace Sad
                 Parser::ParserCore parser(lexer);
                 auto ast = parser.parseProgram();
 
-                if (ast.empty())
-                {
-                    return "";
-                }
-
-                // Check for parse errors / التحقق من أخطاء التحليل
+                // (AR) ع-1: افحص أخطاء التحليل **قبل** ast.empty() — فخطأٌ نحويّ قد يُنتج
+                //      شجرةً فارغة، فلو رجعنا "" عند الفراغ أوّلًا لابتُلع الخطأ صامتًا
+                //      (المستخدم يظنّ إدخاله الخاطئ صحيحًا فارغ النتيجة). loadFile يعتمد
+                //      الترتيب الصحيح أصلًا؛ هذا يوحّد المسارين.
+                // (EN) ع-1: check parse errors **before** ast.empty() — a syntax error may
+                //      yield an empty tree, so returning "" on empty first would swallow the
+                //      error silently (user thinks bad input was valid-and-empty). loadFile
+                //      already uses the correct order; this unifies both paths.
                 if (parser.hasErrors())
                 {
                     std::string errors;
@@ -376,7 +375,15 @@ namespace Sad
                             errors += "\n";
                         errors += err;
                     }
+                    lastResultIsError_ = true;
                     return std::string("خطأ نحوي / Syntax Error: ") + errors;
+                }
+
+                if (ast.empty())
+                {
+                    // (AR) لا خطأ لكن لا قيمة (مثل سطر تعليقٍ فقط). / (EN) No error but no value (e.g. comment-only line).
+                    lastResultIsError_ = false;
+                    return "";
                 }
 
                 // (AR) تنفيذ تدريجيّ عبر المفسّر الدائم: جملةً جملةً بـexecuteStatement،
@@ -415,10 +422,12 @@ namespace Sad
                     result = interpreter_->executeStatement(*stmt);
                     if (!result.success)
                     {
+                        lastResultIsError_ = true;
                         return std::string("خطأ / Error: ") + result.errorMessage;
                     }
                 }
 
+                lastResultIsError_ = false;
                 // Return result value if not void / إرجاع القيمة إن لم تكن فارغة
                 if (result.result.getKind() != Types::SadTypeKind::Void)
                 {
@@ -429,7 +438,68 @@ namespace Sad
             }
             catch (const std::exception &e)
             {
+                lastResultIsError_ = true;
                 return std::string("خطأ / Error: ") + e.what();
+            }
+        }
+
+        bool REPLEngine::exprTypeName(const std::string &expr,
+                                      std::string &typeNameOut,
+                                      std::string &errorOut)
+        {
+            try
+            {
+                // (AR) استرداد الصدَفة: صفّر تشخيصات ما سبق قبل تحليل هذا التعبير.
+                // (EN) Shell recovery: clear prior diagnostics before parsing this expression.
+                resetDiagnostics();
+
+                Lexer::LexerCore lexer(expr);
+                Parser::ParserCore parser(lexer);
+                auto ast = parser.parseProgram();
+
+                if (parser.hasErrors())
+                {
+                    std::string errors;
+                    for (const auto &err : parser.getErrors())
+                    {
+                        if (!errors.empty())
+                            errors += "\n";
+                        errors += err;
+                    }
+                    errorOut = std::string("خطأ نحوي / Syntax Error: ") + errors;
+                    return false;
+                }
+
+                if (ast.empty())
+                {
+                    errorOut = "تعبير فارغ / Empty expression.";
+                    return false;
+                }
+
+                // (AR) نتوقّع جملة تعبير مفردة. نُبقي شجرتها في المرسى (كسائر الأشجار) ثمّ
+                //      نقيّم تعبيرها **مباشرةً** عبر evaluateExpression — لا كجملة، إذ جملة
+                //      التعبير المجرَّدة تُرجع Void فتُفقَد قيمتها (ومعها نوعها).
+                // (EN) Expect a single expression statement. Keep its tree in the arena (like
+                //      all trees), then evaluate its expression DIRECTLY via evaluateExpression
+                //      — not as a statement, since a bare expression statement returns Void,
+                //      losing the value (and its type).
+                astArena_.push_back(std::move(ast));
+                AST::StmtList &live = astArena_.back();
+                auto *exprStmt = dynamic_cast<AST::ExprStmt *>(live.front().get());
+                if (!exprStmt || !exprStmt->expression)
+                {
+                    errorOut = "ليس تعبيرًا يُقيَّم / Not an evaluable expression.";
+                    return false;
+                }
+
+                Data::Value value = interpreter_->evaluateExpression(*exprStmt->expression);
+                typeNameOut = std::string(::Sad::Types::sadTypeKindArabicName(value.getKind())) + " / " + value.getTypeName();
+                return true;
+            }
+            catch (const std::exception &e)
+            {
+                errorOut = std::string("خطأ / Error: ") + e.what();
+                return false;
             }
         }
 
@@ -633,9 +703,22 @@ namespace Sad
             std::string result = evaluate(code);
             state_ = REPLState::Ready;
 
-            if (config_.printResults && !result.empty())
+            // (AR) م-1: ميّز الأخطاء (⇒ printError: stderr أحمر، دائمًا) عن القيم (⇒ stdout
+            //      عند printResults)، معتمِدًا علَم evaluate لا استنتاجًا نصّيًّا هشًّا من بادئة
+            //      الرسالة. كان الكلّ يُطبع على stdout بلا تمييز.
+            // (EN) م-1: distinguish errors (⇒ printError: red stderr, always) from values
+            //      (⇒ stdout when printResults), using evaluate's flag rather than fragile
+            //      string-sniffing. Previously everything went to stdout undistinguished.
+            if (!result.empty())
             {
-                std::cout << result << std::endl;
+                if (lastResultIsError_)
+                {
+                    printError(result);
+                }
+                else if (config_.printResults)
+                {
+                    std::cout << result << std::endl;
+                }
             }
 
             // (AR) غذِّ المُكمِّل بمُعرّفات المستخدم المُعرَّفة في هذا الكود
@@ -651,9 +734,17 @@ namespace Sad
             if (!multilineBuffer_.empty())
             {
                 std::string result = evaluateMultiline(multilineBuffer_);
-                if (config_.printResults && !result.empty())
+                // (AR) م-1: توجيه الأخطاء إلى stderr كما في processCode / (EN) route errors to stderr, as in processCode
+                if (!result.empty())
                 {
-                    std::cout << result << std::endl;
+                    if (lastResultIsError_)
+                    {
+                        printError(result);
+                    }
+                    else if (config_.printResults)
+                    {
+                        std::cout << result << std::endl;
+                    }
                 }
                 if (completer_)
                 {

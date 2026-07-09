@@ -9,6 +9,7 @@
 
 #include "repl_commands.h"
 #include "repl_engine.h"
+#include "repl_colors.h" // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -22,12 +23,9 @@
 namespace Sad {
 namespace REPL {
 
-// Color codes / أكواد الألوان (static to avoid multiple definition)
-static const char* RESET = "\033[0m";
-static const char* BOLD = "\033[1m";
-static const char* GREEN = "\033[32m";
-static const char* YELLOW = "\033[33m";
-static const char* CYAN = "\033[36m";
+// (AR) الثوابت مُعرَّفة مرّة واحدة في repl_colors.h (م-2: إزالة التكرار).
+// (EN) constants defined once in repl_colors.h (م-2: de-duplicated).
+using namespace Colors;
 
 REPLCommands::REPLCommands(REPLEngine* repl)
     : repl_(repl)
@@ -244,34 +242,19 @@ bool REPLCommands::cmdType(REPLEngine* repl, const std::vector<std::string>& arg
         if (i > 0) expr += " ";
         expr += args[i];
     }
-    
-    // Evaluate and get type / تقييم والحصول على النوع
-    std::string result = repl->evaluate(expr);
-    
-    // Simple type detection / كشف نوع بسيط
-    std::string type = "غير معروف / Unknown";
-    
-    if (result.find("Error") == std::string::npos) {
-        if (result == "true" || result == "false" || 
-            result == "صحيح" || result == "خطأ") {
-            type = "منطقي / Boolean";
-        } else if (result[0] == '"' || result[0] == '\'') {
-            type = "نص / String";
-        } else if (result[0] == '[') {
-            type = "مصفوفة / Array";
-        } else if (result[0] == '{') {
-            type = "كائن / Object";
-        } else if (result.find('.') != std::string::npos) {
-            type = "عشري / Float";
-        } else if (std::isdigit(result[0]) || result[0] == '-') {
-            type = "رقم / Number";
-        } else if (result.find("دالة") != std::string::npos || 
-                   result.find("function") != std::string::npos) {
-            type = "دالة / Function";
-        }
+
+    // (AR) ع-2: اقرأ النوع الحقيقيّ بتقييم المدخل **كتعبيرٍ** (لا كجملة) عبر exprTypeName —
+    //      إذ جملة التعبير المجرَّدة تُرجع Void فتُفقَد قيمتها ونوعُها. بلا isdigit على بايتات
+    //      UTF-8 (سلوك غير مُعرَّف) وبلا استدلالٍ نصّيّ هشّ من نصّ الناتج.
+    // (EN) ع-2: read the real type by evaluating the input AS AN EXPRESSION (not a statement)
+    //      via exprTypeName — a bare expression statement returns Void, losing its value and
+    //      type. No isdigit on UTF-8 bytes (UB), no fragile text inference.
+    std::string typeName, errorMsg;
+    if (repl->exprTypeName(expr, typeName, errorMsg)) {
+        std::cout << typeName << std::endl;
+    } else {
+        std::cerr << errorMsg << std::endl; // (AR) الخطأ إلى stderr / (EN) error to stderr
     }
-    
-    std::cout << type << std::endl;
     return true;
 }
 
@@ -288,10 +271,20 @@ bool REPLCommands::cmdLoad(REPLEngine* repl, const std::vector<std::string>& arg
 
 bool REPLCommands::cmdHistory(REPLEngine* repl, const std::vector<std::string>& args)
 {
-    // Note: This requires access to history manager
-    // For now, just print a message
-    std::cout << "تاريخ الأوامر / Command History:" << std::endl;
-    std::cout << "(سيتم تنفيذه قريباً / Coming soon)" << std::endl;
+    (void)args;
+    // (AR) ع-3: سرد فعليّ من مدير التاريخ (كان كعبًا «Coming soon»).
+    // (EN) ع-3: real listing from the history manager (was a "Coming soon" stub).
+    HistoryManager* hist = repl->getHistory();
+    if (!hist || hist->getAll().empty()) {
+        std::cout << "لا تاريخ بعد / No history yet." << std::endl;
+        return true;
+    }
+
+    const auto& all = hist->getAll();
+    std::cout << "تاريخ الأوامر / Command History (" << all.size() << "):" << std::endl;
+    for (size_t i = 0; i < all.size(); ++i) {
+        std::cout << "  " << (i + 1) << "  " << all[i] << std::endl;
+    }
     return true;
 }
 
@@ -303,15 +296,70 @@ bool REPLCommands::cmdReset(REPLEngine* repl, const std::vector<std::string>& ar
 
 bool REPLCommands::cmdVars(REPLEngine* repl, const std::vector<std::string>& args)
 {
-    std::cout << "المتغيرات / Variables:" << std::endl;
-    std::cout << "(سيتم تنفيذه قريباً / Coming soon)" << std::endl;
+    (void)args;
+    // (AR) ع-3: سرد فعليّ من مدير المتغيّرات مع نوع كلٍّ وقيمته (كان كعبًا «Coming soon»).
+    // (EN) ع-3: real listing from the variable manager with each var's type and value.
+    auto* interp = repl->getInterpreter();
+    if (!interp) {
+        std::cout << "لا مفسّر / No interpreter." << std::endl;
+        return true;
+    }
+
+    auto& vars = interp->getVariableManager();
+    std::vector<std::string> names = vars.getVariableNames();
+    if (names.empty()) {
+        std::cout << "لا متغيّرات معرّفة / No variables defined." << std::endl;
+        return true;
+    }
+
+    std::sort(names.begin(), names.end());
+    std::cout << "المتغيّرات / Variables (" << names.size() << "):" << std::endl;
+    for (const auto& name : names) {
+        const Data::Value& value = vars.get(name);
+        std::cout << "  " << name << " : "
+                  << ::Sad::Types::sadTypeKindArabicName(value.getKind())
+                  << " = " << value.toString() << std::endl;
+    }
     return true;
 }
 
 bool REPLCommands::cmdFuncs(REPLEngine* repl, const std::vector<std::string>& args)
 {
-    std::cout << "الدوال / Functions:" << std::endl;
-    std::cout << "(سيتم تنفيذه قريباً / Coming soon)" << std::endl;
+    (void)args;
+    // (AR) ع-3: سرد فعليّ لدوال المستخدم من مدير الدوال. نُرشِّح المدمجات (مئات مُسجَّلة
+    //      عبر registerBuiltinFunction) بمقارنة FunctionType، فنعرض المُعرَّفة من المستخدم
+    //      واللامدا فقط بتوقيعها.
+    // (EN) ع-3: real listing of user functions. We filter out builtins (hundreds registered
+    //      via registerBuiltinFunction) by FunctionType, showing only user-defined and
+    //      lambda functions with their signatures.
+    auto* interp = repl->getInterpreter();
+    if (!interp) {
+        std::cout << "لا مفسّر / No interpreter." << std::endl;
+        return true;
+    }
+
+    auto& funcs = interp->getFunctionManager();
+    std::vector<std::string> names = funcs.getFunctionNames();
+    std::sort(names.begin(), names.end());
+
+    std::vector<std::string> lines;
+    for (const auto& name : names) {
+        for (const auto& def : funcs.getFunctionOverloads(name)) {
+            if (def && def->getType() != Data::FunctionType::BUILT_IN) {
+                lines.push_back(def->getSignature());
+            }
+        }
+    }
+
+    if (lines.empty()) {
+        std::cout << "لا دوال معرّفة من المستخدم / No user-defined functions." << std::endl;
+        return true;
+    }
+
+    std::cout << "الدوال / Functions (" << lines.size() << "):" << std::endl;
+    for (const auto& line : lines) {
+        std::cout << "  " << line << std::endl;
+    }
     return true;
 }
 
