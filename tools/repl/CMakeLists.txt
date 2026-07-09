@@ -20,6 +20,7 @@ set(REPL_SOURCES
     src/repl_commands.cpp
     src/repl_line_editor.cpp
     src/shell_executor.cpp
+    src/shell_lexer.cpp
     # (AR) كتالوج «مصدر حقيقة الأدوات» المولَّد (مُلتزَم؛ يُوَلَّد بـ x.py gen) —
     #      أخطاء الأداة + رسائل واجهتها + أوامرها من language-truth/tools/repl/*.yaml.
     # (EN) Generated Tool-SoT catalog (committed; produced by x.py gen).
@@ -32,6 +33,7 @@ set(REPL_HEADERS
     include/repl_commands.h
     include/repl_line_editor.h
     include/shell_executor.h
+    include/shell_lexer.h
 )
 
 # (AR) إنشاء التنفيذي sad-repl / (EN) Create sad-repl executable

@@ -65,6 +65,21 @@ static const ErrorEntry kErrors[] = {
       "فشل التشغيل", "Run failed",
       "تأكّد أنّ البرنامج موجود في مسار PATH وقابل للتنفيذ", "Ensure the program exists in PATH and is executable",
       true },
+    { Error::SHELL_UNTERMINATED_QUOTE, "REPL012", Severity::Error,
+      "اقتباس غير مُغلَق", "Unterminated quote",
+      "اقتباس غير مُغلَق", "Unterminated quote",
+      "أغلِق علامة الاقتباس \" أو ' قبل نهاية السطر", "Close the \" or ' quote before the end of the line",
+      false },
+    { Error::SHELL_EMPTY_STAGE, "REPL013", Severity::Error,
+      "مرحلة أنبوب فارغة", "Empty pipeline stage",
+      "مرحلة أنبوب فارغة", "Empty pipeline stage",
+      "لكلّ | يجب أمرٌ قبله وبعده (مثال: :شغّل ls | grep س)", "Each | needs a command before and after it (e.g. :run ls | grep x)",
+      false },
+    { Error::PIPE_UNSUPPORTED, "REPL014", Severity::Error,
+      "الأنابيب غير مدعومة على هذا النظام", "Pipes are not supported on this platform",
+      "الأنابيب غير مدعومة على هذا النظام", "Pipes are not supported on this platform",
+      "أنابيب ‹|› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار", "‹|› pipes are supported on POSIX systems (Linux) only in this release",
+      false },
 };
 static const std::size_t kErrorsCount = sizeof(kErrors) / sizeof(kErrors[0]);
 
@@ -157,7 +172,7 @@ const CommandEntry kCommands[] = {
     { CommandHandler::FUNCS, "funcs", "دوال",
       "عرض جميع الدوال", "Show all functions", ":funcs" },
     { CommandHandler::RUN, "run", "شغّل",
-      "تشغيل برنامج خارجيّ", "Run an external program", ":run <program> [args...]" },
+      "تشغيل برنامج خارجيّ", "Run an external program", ":run <program> [args...] [| program [args...]]..." },
 };
 const std::size_t kCommandsCount = sizeof(kCommands) / sizeof(kCommands[0]);
 

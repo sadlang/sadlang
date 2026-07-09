@@ -1,0 +1,2 @@
+:شغّل echo sados_pipe | tr a-z A-Z
+:exit

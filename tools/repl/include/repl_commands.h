@@ -183,6 +183,11 @@ private:
 private:
     REPLEngine* repl_;                          ///< محرك REPL / REPL engine
     std::map<std::string, CommandInfo> commands_; ///< الأوامر / Commands
+    // (AR) الوسائط الخامّ (غير المقسّمة) للأمر الجاري — يحتاجها ‹:شغّل› لتحليلٍ يحترم
+    //      الاقتباس والأنابيب (بخلاف التقسيم البسيط بالمسافات في args). يُضبَط في process().
+    // (EN) the raw (unsplit) args of the current command — ‹:run› needs them to parse with
+    //      quote/pipe semantics (unlike the whitespace-split args). Set in process().
+    std::string pendingRawArgs_;
 };
 
 } // namespace REPL

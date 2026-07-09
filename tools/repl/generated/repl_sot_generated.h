@@ -35,7 +35,10 @@ enum class Error {
     UNKNOWN_OPTION,
     LOAD_FAILED,
     FATAL,
-    RUN_FAILED
+    RUN_FAILED,
+    SHELL_UNTERMINATED_QUOTE,
+    SHELL_EMPTY_STAGE,
+    PIPE_UNSUPPORTED
 };
 
 enum class Severity { Error, Warning, Info };

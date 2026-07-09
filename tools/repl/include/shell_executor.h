@@ -26,9 +26,22 @@ struct ShellResult
 };
 
 // (AR) يُشغّل argv (البرنامج + معطياته) متزامنًا، يرث stdin/stdout/stderr، وينتظر انتهاءه.
-//      لا أنابيب في هذه الشريحة (أمر مفرد). / (EN) Runs argv synchronously, inherits stdio,
-//      waits for completion. No pipes in this slice (single command).
+//      (أمر مفرد بلا أنابيب). / (EN) Runs argv synchronously, inherits stdio, waits for
+//      completion (single command, no pipes).
 ShellResult runExternal(const std::vector<std::string>& argv);
+
+// (AR) يُشغّل سلسلة أنبوب: stdout كلّ مرحلة يُوصَل بـstdin التالية؛ أوّل مرحلة ترث stdin
+//      وآخرها ترث stdout (كصدَفة). كلّ المراحل تعمل تزامنيّاً (لا جمود). رمز الخروج =
+//      رمز المرحلة الأخيرة (كصدَفة). عند تعذّر إطلاق مرحلةٍ ما: spawned=false و
+//      failedProgram = اسم برنامج تلك المرحلة. متاح على POSIX فقط؛ على Windows يُعيد
+//      spawned=false مع errNo=ENOSYS للمراحل المتعدّدة (يحرسه المستدعي مسبقاً).
+// (EN) Runs a pipeline: each stage's stdout feeds the next's stdin; the first inherits
+//      stdin and the last inherits stdout (shell-like). All stages run concurrently (no
+//      deadlock). Exit code = the last stage's (shell-like). On a stage that fails to
+//      launch: spawned=false and failedProgram = that stage's program. POSIX only; on
+//      Windows multi-stage returns spawned=false with errNo=ENOSYS (caller guards first).
+ShellResult runPipeline(const std::vector<std::vector<std::string>>& stages,
+                        std::string& failedProgram);
 
 } // namespace REPL
 } // namespace Sad

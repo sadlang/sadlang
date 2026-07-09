@@ -265,9 +265,63 @@ if(TARGET sad-repl)
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
         set_tests_properties(HubRepl_RunEcho PROPERTIES
             LABELS "hub;sad-repl;shell")
+
+        # (AR) أنبوب: stdout المرحلة الأولى (echo) يُغذّي stdin الثانية (tr) — التحويل إلى
+        #      أحرف كبيرة يُثبت أنّ tr عالج مخرَج echo عبر الأنبوب لا سطرًا خامًّا.
+        # (EN) pipe: stage-1 stdout (echo) feeds stage-2 stdin (tr); the uppercasing proves
+        #      tr processed echo's piped output. POSIX-only (tr as an external exe).
+        add_test(NAME HubRepl_RunPipe
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_run_pipe_input.txt
+                -DEXPECT=SADOS_PIPE
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunPipe PROPERTIES
+            LABELS "hub;sad-repl;shell")
+
+        # (AR) وسائط مقتبَسة: ‹printf [%s] "a b" c› — الاقتباس يُبقي «a b» وسيطًا واحدًا،
+        #      فيطبع printf ‹[a b][c]›. لو قُسِّم بالمسافات لطُبع ‹[a][b][c]› ⇒ ‹[a b]› يُثبت الاقتباس.
+        # (EN) quoted args: quoting keeps «a b» a single arg so printf emits ‹[a b][c]›;
+        #      a whitespace split would emit ‹[a][b][c]›, so ‹[a b]› proves quote handling.
+        add_test(NAME HubRepl_RunQuoted
+            COMMAND ${CMAKE_COMMAND}
+                -DREPL_BIN=$<TARGET_FILE:sad-repl>
+                -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_run_quoted_input.txt
+                -DEXPECT=[a b]
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+        set_tests_properties(HubRepl_RunQuoted PROPERTIES
+            LABELS "hub;sad-repl;shell")
     endif()
 
-    message(STATUS "✓ اختبارات الهب: مضاف 8 اختبارات لـ sad-repl")
+    # (AR) أخطاء التحليل محمولة (تحليلٌ محض، بلا إطلاق برنامج): اقتباسٌ غير مُغلَق
+    #      ومرحلةُ أنبوبٍ فارغة يجب أن يُبلَّغ عنهما عبر كتالوج SoT (الجزء الإنجليزيّ ASCII).
+    # (EN) parse errors are portable (pure parsing, no launch): an unterminated quote and
+    #      an empty pipeline stage must be reported via the SoT catalog (ASCII English part).
+    add_test(NAME HubRepl_RunBadQuote
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_run_badquote_input.txt
+            -DEXPECT=Unterminated quote
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_RunBadQuote PROPERTIES
+        LABELS "hub;sad-repl;shell")
+
+    add_test(NAME HubRepl_RunEmptyStage
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_run_emptystage_input.txt
+            -DEXPECT=Empty pipeline stage
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_RunEmptyStage PROPERTIES
+        LABELS "hub;sad-repl;shell")
+
+    # (AR) 9 اختبارات محمولة + 3 خاصّة بـPOSIX (echo/tr/printf) ⇒ 12 على POSIX، 9 على Windows.
+    # (EN) 9 portable + 3 POSIX-only (echo/tr/printf) ⇒ 12 on POSIX, 9 on Windows.
+    if(WIN32)
+        message(STATUS "✓ اختبارات الهب: مضاف 9 اختبارات لـ sad-repl (Windows)")
+    else()
+        message(STATUS "✓ اختبارات الهب: مضاف 12 اختبارًا لـ sad-repl (POSIX)")
+    endif()
 else()
     message(STATUS "⚠ اختبارات الهب: تخطّي اختبارات sad-repl (الهدف غير موجود)")
 endif()

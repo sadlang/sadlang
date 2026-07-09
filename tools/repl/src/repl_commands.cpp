@@ -12,8 +12,10 @@
 #include "repl_colors.h" // (AR) ثوابت ألوان ANSI مشتركة (م-2) / (EN) shared ANSI color constants (م-2)
 #include "repl_sot_generated.h" // (AR) كتالوج «مصدر حقيقة الأدوات» — أخطاء/رسائل/أوامر REPL / (EN) Tool-SoT catalog
 #include "shell_executor.h"     // (AR) مُنفِّذ الأوامر الخارجيّة / (EN) external-command executor
+#include "shell_lexer.h"        // (AR) مُحلِّل سطر الصدَفة (اقتباس/أنابيب) / (EN) shell-line lexer
 #include <iostream>
 #include <sstream>
+#include <string_view>
 #include <algorithm>
 
 #ifdef _WIN32
@@ -47,13 +49,28 @@ bool REPLCommands::process(const std::string& command)
     std::istringstream iss(cmd);
     std::string cmdName;
     iss >> cmdName;
-    
+
     std::vector<std::string> args;
     std::string arg;
     while (iss >> arg) {
         args.push_back(arg);
     }
-    
+
+    // (AR) التقط الوسائط الخامّ (كلّ ما بعد اسم الأمر، بلا تقسيم) — يحترم الاقتباس
+    //      والأنابيب في ‹:شغّل›. مستقلّ عن iss كي لا يفسد تقسيم args أعلاه.
+    // (EN) capture the raw args (everything after the command name, unsplit) so ‹:run›
+    //      can honor quotes/pipes. Computed from `cmd` independently of the args split.
+    pendingRawArgs_.clear();
+    if (size_t nameStart = cmd.find_first_not_of(" \t"); nameStart != std::string::npos) {
+        size_t nameEnd = cmd.find_first_of(" \t", nameStart);
+        if (nameEnd != std::string::npos) {
+            if (size_t argStart = cmd.find_first_not_of(" \t", nameEnd);
+                argStart != std::string::npos) {
+                pendingRawArgs_ = cmd.substr(argStart);
+            }
+        }
+    }
+
     // Find command / البحث عن الأمر
     auto it = commands_.find(cmdName);
     if (it != commands_.end()) {
@@ -237,27 +254,72 @@ bool REPLCommands::cmdClear(REPLEngine* repl, const std::vector<std::string>& ar
     return true;
 }
 
-// (AR) ‹:شغّل›/‹:run› — تشغيل برنامج خارجيّ متزامنًا (إرغونوميا الصدَفة). الوسائط argv
-//      (البرنامج ثمّ معطياته). عند فشل الإطلاق (غير موجود/غير تنفيذيّ) يُبلَّغ عبر كتالوج
-//      SoT (REPL011). يرث stdin/stdout/stderr فتظهر مخرجات البرنامج مباشرةً.
-// (EN) ‹:run› — run an external program synchronously (shell ergonomics). args = argv.
-//      On spawn failure, report via the SoT catalog; stdio is inherited.
+// (AR) يطبع رسالة خطأ من كتالوج SoT (الموجز ثمّ التلميح إن وُجد). detail اختياريّ.
+// (EN) prints an SoT-catalog error (brief then hint if present). detail is optional.
+static void printReplError(SoT::Error code, std::string_view detail = {})
+{
+    std::cout << SoT::errorMessage(code, detail) << std::endl;
+    if (const auto* e = SoT::findError(code); e && e->hintAr)
+    {
+        std::cout << e->hintAr << SoT::kBilingualSeparator << e->hintEn << std::endl;
+    }
+}
+
+// (AR) ‹:شغّل›/‹:run› — تشغيل برنامج خارجيّ متزامنًا (إرغونوميا الصدَفة). يُحلَّل السطر
+//      الخامّ محترمًا الاقتباس (‹"…"›/‹'…'›) والهروب (‹\›) والأنابيب (‹|›). أمرٌ مفرد ⇒
+//      runExternal؛ سلسلة أنابيب ⇒ runPipeline. أخطاء التحليل والإطلاق تُبلَّغ عبر كتالوج
+//      SoT. يرث stdin/stdout/stderr فتظهر مخرجات البرنامج مباشرةً.
+// (EN) ‹:run› — run an external command synchronously (shell ergonomics). The raw line is
+//      parsed honoring quotes, ‹\› escaping and ‹|› pipes. Single command ⇒ runExternal;
+//      a pipeline ⇒ runPipeline. Parse/launch errors are reported via the SoT catalog.
 bool REPLCommands::cmdRun(REPLEngine* repl, const std::vector<std::string>& args)
 {
-    if (args.empty())
+    (void)args; // (AR) نستعمل الوسائط الخامّ لا المقسّمة بالمسافات / raw args, not the whitespace split
+    const std::string& raw = repl->getCommands()->pendingRawArgs_;
+    if (raw.empty())
     {
         std::cout << usageLine(repl, "run") << std::endl;
         return true;
     }
+
+    ShellPipeline parsed = parseShellPipeline(raw);
+    switch (parsed.status)
+    {
+        case ShellParseStatus::UnterminatedQuote:
+            printReplError(SoT::Error::SHELL_UNTERMINATED_QUOTE);
+            return true;
+        case ShellParseStatus::EmptyStage:
+            printReplError(SoT::Error::SHELL_EMPTY_STAGE);
+            return true;
+        case ShellParseStatus::Ok:
+            break;
+    }
+    if (parsed.stages.empty()) // (AR) دفاعيّ: خامّ بلا وسائط فعليّة / defensive: raw with no real args
+    {
+        std::cout << usageLine(repl, "run") << std::endl;
+        return true;
+    }
+
+#ifdef _WIN32
+    // (AR) أنابيب متعدّدة المراحل غير مدعومة على Windows في هذا الإصدار (POSIX فقط).
+    // (EN) multi-stage pipes are unsupported on Windows in this release (POSIX only).
+    if (parsed.stages.size() > 1)
+    {
+        printReplError(SoT::Error::PIPE_UNSUPPORTED);
+        return true;
+    }
+#endif
+
     std::cout.flush();
-    ShellResult r = runExternal(args);
+    std::string failedProgram;
+    ShellResult r = (parsed.stages.size() == 1) ? runExternal(parsed.stages[0])
+                                                : runPipeline(parsed.stages, failedProgram);
     if (!r.spawned)
     {
-        std::cout << SoT::errorMessage(SoT::Error::RUN_FAILED, args[0]) << std::endl;
-        if (const auto* e = SoT::findError(SoT::Error::RUN_FAILED); e && e->hintAr)
-        {
-            std::cout << e->hintAr << SoT::kBilingualSeparator << e->hintEn << std::endl;
-        }
+        // (AR) اسم البرنامج المُخفِق: من المرحلة الفاشلة في السلسلة، أو أوّل برنامج للأمر المفرد.
+        // (EN) the failing program: the failed pipeline stage, or the single command's program.
+        const std::string& prog = !failedProgram.empty() ? failedProgram : parsed.stages[0][0];
+        printReplError(SoT::Error::RUN_FAILED, prog);
     }
     return true;
 }

@@ -149,3 +149,46 @@ errors:
       ar: "تأكّد أنّ البرنامج موجود في مسار PATH وقابل للتنفيذ"
       en: "Ensure the program exists in PATH and is executable"
     has_detail: true
+
+  # ── أخطاء تحليل سطر الصدَفة (اقتباسات/أنابيب) لأمر ‹:شغّل› ──
+  - code: SHELL_UNTERMINATED_QUOTE
+    id: REPL012
+    severity: error
+    title:
+      ar: "اقتباس غير مُغلَق"
+      en: "Unterminated quote"
+    brief:
+      ar: "اقتباس غير مُغلَق"
+      en: "Unterminated quote"
+    hint:
+      ar: "أغلِق علامة الاقتباس \" أو ' قبل نهاية السطر"
+      en: "Close the \" or ' quote before the end of the line"
+    has_detail: false
+
+  - code: SHELL_EMPTY_STAGE
+    id: REPL013
+    severity: error
+    title:
+      ar: "مرحلة أنبوب فارغة"
+      en: "Empty pipeline stage"
+    brief:
+      ar: "مرحلة أنبوب فارغة"
+      en: "Empty pipeline stage"
+    hint:
+      ar: "لكلّ | يجب أمرٌ قبله وبعده (مثال: :شغّل ls | grep س)"
+      en: "Each | needs a command before and after it (e.g. :run ls | grep x)"
+    has_detail: false
+
+  - code: PIPE_UNSUPPORTED
+    id: REPL014
+    severity: error
+    title:
+      ar: "الأنابيب غير مدعومة على هذا النظام"
+      en: "Pipes are not supported on this platform"
+    brief:
+      ar: "الأنابيب غير مدعومة على هذا النظام"
+      en: "Pipes are not supported on this platform"
+    hint:
+      ar: "أنابيب ‹|› مدعومة على أنظمة POSIX (لينكس) فقط في هذا الإصدار"
+      en: "‹|› pipes are supported on POSIX systems (Linux) only in this release"
+    has_detail: false

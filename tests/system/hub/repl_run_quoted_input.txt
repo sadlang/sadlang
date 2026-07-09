@@ -1,0 +1,2 @@
+:شغّل printf [%s] "a b" c
+:exit
