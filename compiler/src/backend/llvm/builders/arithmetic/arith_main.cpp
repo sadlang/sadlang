@@ -527,10 +527,22 @@ namespace Sad
                 llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
                     "خطأ [RUN056]: عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم\n", "na.fmt");
                 cg_.builder_->CreateCall(printfFunc, {msg});
-                auto *exitType = llvm::FunctionType::get(
-                    llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
-                auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
-                cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                if (cg_.freestanding_)
+                {
+                    // (AR) وضع حرّ: لا exit على المعدن — __sad_panic (weak، النواة تتجاوزه)
+                    // (EN) Freestanding: no exit on bare metal — __sad_panic (weak)
+                    auto *panicType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt64Ty(*cg_.context_)}, false);
+                    auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
+                    cg_.builder_->CreateCall(panicFunc, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1)});
+                }
+                else
+                {
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                    auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                    cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                }
                 cg_.builder_->CreateUnreachable();
 
                 // (AR) كتلة الاستمرار: القيمة حاضرة / (EN) Continue: value present

@@ -319,6 +319,12 @@ namespace Sad
                 // (EN) Module mode (skip __sad_main)
                 bool moduleMode_ = false;
 
+                // (AR) وضع الترجمة الحرّة (--freestanding) — تستشيره الواجهة الأماميّة
+                //      في بوّابة استيراد المدمجات (لا مكتبة قياسيّة تُستورد في هذا الوضع)
+                // (EN) Freestanding mode (--freestanding) — consulted by the frontend
+                //      builtin import gate (no stdlib to import in this mode)
+                bool freestandingMode_ = false;
+
                 // (AR) الوحدات التي تمت معالجتها / (EN) Processed modules
                 std::unordered_set<std::string> processedModules_;
 

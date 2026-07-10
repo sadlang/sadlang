@@ -775,12 +775,9 @@ namespace Sad
             // (AR) تصفير الذاكرة المخصصة
             // (EN) Zero-initialize allocated memory
             auto *sizeVal = cg_.builder_->CreateIntCast(dlSize, cg_.getInt64Type(), false);
-            auto *memsetType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_),
-                {llvm::PointerType::getUnqual(*cg_.context_), llvm::Type::getInt32Ty(*cg_.context_), cg_.getInt64Type()},
-                false);
-            auto memsetFunc = cg_.module_->getOrInsertFunction("memset", memsetType);
-            cg_.builder_->CreateCall(memsetFunc, {objPtr, llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0), sizeVal});
+            cg_.builder_->CreateMemSet(objPtr,
+                                   llvm::ConstantInt::get(llvm::Type::getInt8Ty(*cg_.context_), 0),
+                                   sizeVal, llvm::MaybeAlign(8));
 
             // ═══════════════════════════════════════════════════════════════════════
             // (AR) تهيئة حقول المصفوفات — إصلاح حرج لمنع انهيار null pointer

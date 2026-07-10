@@ -152,15 +152,9 @@ namespace Sad
             llvm::Value *rawPtr = cg_.builder_->CreateCall(mallocFunc, {dlSize}, className + "_new");
 
             // Zero-initialize the object
-            auto *memsetType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_),
-                {llvm::PointerType::getUnqual(*cg_.context_),
-                 llvm::Type::getInt32Ty(*cg_.context_), cg_.getInt64Type()},
-                false);
-            auto memsetFunc = cg_.module_->getOrInsertFunction("memset", memsetType);
-            cg_.builder_->CreateCall(memsetFunc, {rawPtr,
-                                              llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0),
-                                              dlSize});
+            cg_.builder_->CreateMemSet(rawPtr,
+                                   llvm::ConstantInt::get(llvm::Type::getInt8Ty(*cg_.context_), 0),
+                                   dlSize, llvm::MaybeAlign(8));
 
             // ═══════════════════════════════════════════════════════════════════════
             // (AR) تهيئة حقول المصفوفات — إصلاح حرج لمنع انهيار null pointer

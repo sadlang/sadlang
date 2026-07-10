@@ -465,11 +465,24 @@ namespace Sad
                     llvm::Value *enumNameStr = cg_.builder_->CreateGlobalStringPtr(
                         inst->operands[2].name, "adt.wrongvar.enum");
                     cg_.builder_->CreateCall(printfFunc, {fmtStr, enumNameStr});
-                    auto *exitType = llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
-                    auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
-                    cg_.builder_->CreateCall(exitFunc,
-                                             {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                    if (cg_.freestanding_)
+                    {
+                        // (AR) وضع حرّ: __sad_panic بدل exit (weak، النواة تتجاوزه)
+                        // (EN) Freestanding: __sad_panic instead of exit (weak)
+                        auto *panicType = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt64Ty(*cg_.context_)}, false);
+                        auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
+                        cg_.builder_->CreateCall(panicFunc,
+                                                 {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1)});
+                    }
+                    else
+                    {
+                        auto *exitType = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                        auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                        cg_.builder_->CreateCall(exitFunc,
+                                                 {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                    }
                     cg_.builder_->CreateUnreachable();
                 }
                 cg_.builder_->SetInsertPoint(contBB);

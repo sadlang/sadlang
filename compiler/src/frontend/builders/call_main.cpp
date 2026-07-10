@@ -680,6 +680,36 @@ namespace Sad
                     b_.templateFunctions_.find(funcName) == b_.templateFunctions_.end())
                 {
                     VariableInfo *varInfo = b_.lookupVariable(funcName);
+
+                    // ================================================================
+                    // (AR) سدّ السقوط الصامت: اسم ليس دالّة معرّفة ولا لامدا ولا قالبًا
+                    //      ولا متغيّر إغلاق ⇒ خطأ قاطع «دالة غير معرّفة». السلوك القديم
+                    //      كان يُصدر نداءً خارجيًّا void ويستبدل قيمته بـ i64 0 صامتًا —
+                    //      شيفرة فاسدة تمرّ بنجاح كاذب (اكتُشفت في نواة نظام النحلة).
+                    //      يُستثنى وضع الوحدة (--module): الربط المتأخّر عبر الوحدات مشروع.
+                    // (EN) Close the silent fallthrough: unknown name (not a function,
+                    //      lambda, template, or closure variable) is a hard error.
+                    //      Previously emitted a void extern call and substituted i64 0.
+                    //      Module mode (--module) keeps late cross-module binding.
+                    // ================================================================
+                    if (!varInfo && !b_.isModuleMode())
+                    {
+                        // (AR) العلاجات الثلاثة: عرّف الدالّة، أو صرّح «خارجي(...)»
+                        //      عند الاستدعاء مع «صدّر» عند التعريف في ملفّ آخر، أو
+                        //      استخدم --module للربط المتأخّر عبر الوحدات.
+                        // (EN) Three remedies: define it; or «خارجي» at the call with
+                        //      «صدّر» at the definition in another file; or --module
+                        //      for late cross-module linking.
+                        std::string undefMsg =
+                            "خطأ: استدعاء دالة غير معرّفة '" + funcName +
+                            "' — عرّفها، أو أعلنها «خارجي(...)» هنا مع «صدّر» عند تعريفها، "
+                            "أو استخدم --module للربط عبر الوحدات "
+                            "(undefined function call)";
+                        std::cerr << undefMsg << std::endl;
+                        b_.errors_.push_back(undefMsg);
+                        return BuildResult();
+                    }
+
                     if (varInfo)
                     {
 #ifndef NDEBUG

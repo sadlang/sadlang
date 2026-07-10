@@ -312,13 +312,12 @@ namespace Sad
             // (EN) Patch deferred vtable entries now that all functions are emitted
             patchClassVtables();
 
-            // التحقق من الوحدة (تحذير فقط، لا إيقاف)
-            // Verify module (warning only, don't stop)
+            // التحقق من الوحدة — فشل قاطع: IR غير سليم لا يمرّ إلى الخلفيّة أبدًا
+            // Verify module — hard failure: invalid IR must never reach the backend
             if (!verify())
             {
-                std::cerr << "[WARNING] Module verification failed, continuing anyway...\n";
-                // reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Module"}});
-                // return nullptr;
+                reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Module"}});
+                return nullptr;
             }
 
             // ================================================================

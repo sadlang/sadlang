@@ -563,6 +563,7 @@ namespace sad
             sir_builder_ = std::make_unique<SIRBuilder>();
             sir_builder_->setCurrentFilePath(file);
             sir_builder_->setModuleMode(options_.module_mode);
+            sir_builder_->setFreestanding(options_.freestanding);
             sir_module_ = sir_builder_->buildModule(&current_ast_);
 
             // (AR) سجّل تحذيرات بناء SIR (غير قاتلة) قبل الحكم على الأخطاء — تُسجَّل سواءٌ نجح

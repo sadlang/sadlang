@@ -391,6 +391,10 @@ namespace Sad
                     break;
                 }
             }
+            // (AR) بلّغ المشغّل: هذه الأعلام تُستهلك هنا فلا تصل محلّله الرئيسيّ
+            // (EN) Inform the driver: these flags are consumed here and never
+            //      reach its main CLI parser
+            result.noStdRequested = isNoStd;
 
             if (isNoStd)
             {

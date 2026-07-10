@@ -43,6 +43,14 @@ struct FlagParseResult {
     std::vector<std::string> errors;        // أخطاء التحليل
     std::vector<std::string> warnings;      // تحذيرات
     std::vector<std::string> remainingArgs; // الأعلام غير المعالجة
+
+    // (AR) هل طلب المستخدم وضع بلا-مكتبة-قياسية (--freestanding/--no-std/--نواة…)؟
+    //      المحلّل هنا هو مالك أسماء هذه الأعلام (مصدر حقيقتها) وهو يبتلعها،
+    //      فيرفع هذا المؤشّر ليُفعّل المشغّل وضع الترجمة الحرّة دون تكرار الأسماء.
+    // (EN) Did the user request no-std mode? This parser owns (and consumes) the
+    //      flag spellings, so it raises this indicator for the driver instead of
+    //      the driver re-listing flag strings.
+    bool noStdRequested = false;
 };
 
 /**

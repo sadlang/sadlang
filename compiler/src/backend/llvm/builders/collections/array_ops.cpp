@@ -215,10 +215,27 @@ namespace Sad
                 "Error: array index %lld out of bounds (length: %lld)\n", "bc.fmt");
             cg_.builder_->CreateCall(printfFunc, {fmtStr, index, len});
 
-            auto *exitType = llvm::FunctionType::get(
-                llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
-            auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
-            cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+            if (cg_.freestanding_)
+            {
+                // (AR) وضع حرّ: لا exit في نواة/معدن عارٍ — نستدعي __sad_panic
+                //      (تُبثّ نسخة weak_odr منه في emitFreestandingRuntime؛ وللنواة
+                //      تجاوزها بتعريف قويّ خاصّ بها). printf أعلاه هو نسخة الوضع
+                //      الحرّ (منفذ تسلسليّ) فالرسالة تصل قبل الإيقاف.
+                // (EN) Freestanding: no exit on bare metal — call __sad_panic
+                //      (weak_odr default emitted in emitFreestandingRuntime; a kernel
+                //      may override it with a strong definition).
+                auto *panicType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_), {i64Ty}, false);
+                auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
+                cg_.builder_->CreateCall(panicFunc, {llvm::ConstantInt::get(i64Ty, 1)});
+            }
+            else
+            {
+                auto *exitType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+            }
             cg_.builder_->CreateUnreachable();
 
             // (AR) كتلة الاستمرار: الفهرس ضمن النطاق

@@ -562,6 +562,38 @@ namespace sad
                                  options_.output_type != OutputType::LLVM_BC &&
                                  options_.output_type != OutputType::ASSEMBLY);
 
+            // ============================================================
+            // (AR) رفض صريح: صيغ الإخراج أحاديّة الوحدة (--emit-llvm/--emit-bc/-S)
+            //      تكتب كلّ ملفّ فوق نفس المخرج فتطمس سابقه بلا تشخيص.
+            //      كان هذا «نجاحًا كاذبًا» (خروج 0 مع فقدان N-1 وحدة).
+            //      الحلّ لمشروع متعدّد الملفّات: --module لكلّ ملفّ ثمّ اربط،
+            //      أو ادمج المصادر في ملفّ واحد قبل --emit-llvm.
+            // (EN) Explicit rejection: single-module output formats silently
+            //      overwrote the same output per file (N-1 modules lost, exit 0).
+            // ============================================================
+            {
+                size_t source_file_count = 0;
+                for (const auto &f : input_files)
+                {
+                    std::string ext = get_file_extension(f);
+                    if (ext != ".o" && ext != ".obj")
+                        source_file_count++;
+                }
+                bool single_module_format =
+                    options_.output_type == OutputType::LLVM_IR ||
+                    options_.output_type == OutputType::LLVM_BC ||
+                    options_.output_type == OutputType::ASSEMBLY;
+                if (source_file_count > 1 && single_module_format && !options_.module_mode)
+                {
+                    diagnostics_.report_error(
+                        "صيغة الإخراج أحاديّة الوحدة (--emit-llvm/--emit-bc/-S) تقبل ملفًّا مصدريًّا واحدًا فقط؛ "
+                        "مُرِّر " + std::to_string(source_file_count) + " ملفّات. "
+                        "استخدم --module لترجمة كلّ ملفّ مستقلًّا ثمّ اربط، أو ادمج المصادر في ملفّ واحد. "
+                        "(single-module output format accepts only one source file)");
+                    return false;
+                }
+            }
+
             // ====================================================================
             // (AR) مرحلة اكتشاف تبعيات الوحدات تلقائياً
             // ====================================================================
@@ -798,6 +830,23 @@ namespace sad
                 for (const auto &warn : memResult.warnings)
                     diagnostics_.report_warning(
                         "memory policy / سياسة الذاكرة: " + warn);
+
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) إصلاح جذريّ: العَلَم --freestanding/--no-std/--kernel مزدوج الغرض
+                //      — يضبط سياسة الذاكرة (بلا GC) ويجب أيضًا أن يفعّل وضع الترجمة
+                //      الحرّة في codegen. لكنّ معالج سياسة الذاكرة أعلاه يبتلع العَلَم
+                //      قبل المحلّل الرئيسيّ (CommandLineParser) فلا يصل
+                //      options_.freestanding أبدًا. نُعيد ربطه هنا من إعدادات السياسة.
+                //      (كان هذا يُبقي الوضع الحرّ معطّلًا صامتًا رغم تمرير العَلَم.)
+                // (EN) Root fix: --freestanding is dual-purpose (memory policy AND
+                //      codegen freestanding). The memory pre-parser consumes it before
+                //      the main CLI parser, so options_.freestanding never got set.
+                //      Re-propagate it here from the parsed policy.
+                // ═══════════════════════════════════════════════════════════════════
+                if (memResult.noStdRequested)
+                {
+                    options_.freestanding = true;
+                }
 
                 // (AR) parse() يتجاوز argv[0]، إذا اختلف العدد فقد استُهلك علم.
                 // (EN) parse() skips argv[0]; if size differs, at least one consumed.

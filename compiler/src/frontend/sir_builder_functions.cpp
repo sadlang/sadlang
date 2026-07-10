@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // sir_builder_functions.cpp - بناء الدوال والمتغيرات العامة
 // ============================================================================
 // (AR) هذا الملف يحتوي على:
@@ -19,6 +19,8 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "statements.h"
+#include "directive_nodes.h"
 #include "utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
@@ -31,6 +33,106 @@ namespace Sad
     {
         namespace SIR
         {
+            // ============================================================================
+            // (AR) مسح ساكن: هل يحتاج جسم الدالّة آلة التنظيف (مكدّس التأجيل + setjmp)؟
+            //      هذه الآلة تخدم جمل «أجّل» حصرًا (تشغيل المؤجَّلات عند انفلات استثناء).
+            //      توليدها بلا شرط لكلّ دالّة كان يكلّف تخصيصين ديناميّين + ‏setjmp لكلّ
+            //      نداء، ويجرّ رموز libc‏ (_setjmp/longjmp/malloc) في --freestanding.
+            //      المولّدات (اسحب) وكتل «أطلق» ومطابقة الأنماط تُعامَل تحفّظيًّا
+            //      كمحتاجة للآلة حفاظًا على سلوكها القائم.
+            // (EN) Static scan: does the function body need the defer-cleanup machinery
+            //      (defer stack + setjmp frame)? It only serves «أجّل» statements.
+            //      Unconditional emission cost 2 heap allocs + setjmp per call and
+            //      pulled libc symbols under --freestanding. Generators (yield),
+            //      go-blocks, and match statements are conservatively kept.
+            // ============================================================================
+            static bool stmtNeedsDeferMachinery(const ::Sad::AST::Statement *stmt)
+            {
+                if (!stmt)
+                    return false;
+                if (dynamic_cast<const ::Sad::AST::DeferStmt *>(stmt))
+                    return true;
+                // (AR) تحفّظ: المولّدات/الإطلاق/المطابقة تُبقي الآلة كما كانت
+                if (dynamic_cast<const ::Sad::AST::YieldStmt *>(stmt))
+                    return true;
+                if (dynamic_cast<const ::Sad::AST::MatchStmt *>(stmt))
+                    return true;
+                if (auto *goStmt = dynamic_cast<const ::Sad::AST::GoStmt *>(stmt))
+                {
+                    (void)goStmt;
+                    return true;
+                }
+                if (auto *blk = dynamic_cast<const ::Sad::AST::BlockStmt *>(stmt))
+                {
+                    for (const auto &s : blk->statements)
+                        if (stmtNeedsDeferMachinery(s.get()))
+                            return true;
+                    return false;
+                }
+                if (auto *ifs = dynamic_cast<const ::Sad::AST::IfStmt *>(stmt))
+                    return stmtNeedsDeferMachinery(ifs->thenBranch.get()) ||
+                           stmtNeedsDeferMachinery(ifs->elseBranch.get());
+                if (auto *whs = dynamic_cast<const ::Sad::AST::WhileStmt *>(stmt))
+                    return stmtNeedsDeferMachinery(whs->body.get());
+                if (auto *fst = dynamic_cast<const ::Sad::AST::ForStmt *>(stmt))
+                    return stmtNeedsDeferMachinery(fst->initializer.get()) ||
+                           stmtNeedsDeferMachinery(fst->body.get());
+                if (auto *frs = dynamic_cast<const ::Sad::AST::ForRangeStmt *>(stmt))
+                    return stmtNeedsDeferMachinery(frs->body.get());
+                if (auto *wst = dynamic_cast<const ::Sad::AST::WithStmt *>(stmt))
+                    return stmtNeedsDeferMachinery(wst->body.get());
+                // (AR) كتل التوجيهات @غير_آمن و@زمن_ترجمة تحمل جسمًا يُبنى فعليًّا؛
+                //      «أجّل» داخلها يجب أن يُبقي الآلة وإلّا انحدرت الدلالة صامتًا.
+                // (EN) Directive blocks (unsafe/comptime) carry a real built body;
+                //      «أجّل» inside must keep the machinery.
+                if (auto *usb = dynamic_cast<const ::Sad::AST::UnsafeBlockStmt *>(stmt))
+                {
+                    for (const auto &s : usb->body)
+                        if (stmtNeedsDeferMachinery(s.get()))
+                            return true;
+                    return false;
+                }
+                if (auto *cmb = dynamic_cast<const ::Sad::AST::ComptimeBlockStmt *>(stmt))
+                {
+                    for (const auto &s : cmb->body)
+                        if (stmtNeedsDeferMachinery(s.get()))
+                            return true;
+                    return false;
+                }
+                if (auto *tst = dynamic_cast<const ::Sad::AST::TryStmt *>(stmt))
+                {
+                    if (stmtNeedsDeferMachinery(tst->tryBlock.get()))
+                        return true;
+                    for (const auto &cc : tst->catchClauses)
+                        if (stmtNeedsDeferMachinery(cc.body.get()))
+                            return true;
+                    return stmtNeedsDeferMachinery(tst->finallyBlock.get());
+                }
+                if (auto *sws = dynamic_cast<const ::Sad::AST::SwitchStmt *>(stmt))
+                {
+                    for (const auto &cb : sws->cases)
+                        if (stmtNeedsDeferMachinery(cb.body.get()))
+                            return true;
+                    return stmtNeedsDeferMachinery(sws->defaultCase.get());
+                }
+                if (auto *sel = dynamic_cast<const ::Sad::AST::SelectStmt *>(stmt))
+                {
+                    for (const auto &sc : sel->cases)
+                    {
+                        if (!sc)
+                            continue;
+                        for (const auto &s : sc->body)
+                            if (stmtNeedsDeferMachinery(s.get()))
+                                return true;
+                    }
+                    for (const auto &s : sel->defaultBody)
+                        if (stmtNeedsDeferMachinery(s.get()))
+                            return true;
+                    return false;
+                }
+                return false;
+            }
+
             // ============================================================================
             // buildFunction - بناء دالة كاملة
             // ============================================================================
@@ -316,6 +418,31 @@ namespace Sad
                 auto savedDeferExecutedFlagReg = currentDeferExecutedFlagReg_;
                 bool savedCleanupHandlerState = currentFunctionCleanupHandlerActive_;
 
+                // (AR) الآلة تُبنى فقط عند الحاجة الفعليّة (انظر stmtNeedsDeferMachinery).
+                //      عند غيابها: يبقى currentDeferStackReg_ فارغًا، والذيل الموجود
+                //      أصلًا (المحروس بـ !currentDeferStackReg_.empty()) يتصرّف صحيحًا،
+                //      ويُبنى الجسم مباشرة في كتلة الدخول بلا برولوج.
+                // (EN) Machinery is emitted only when actually needed. When absent,
+                //      currentDeferStackReg_ stays empty and the existing guarded
+                //      epilogue paths behave correctly; the body builds straight
+                //      into the entry block with no prologue.
+                // (AR) قصر الإسقاط على الوضع الحرّ: هناك فقط تكلّف الآلة رموز libc
+                //      (_setjmp/malloc) غير المتوفّرة على المعدن. في الوضع المستضاف
+                //      نُبقيها دائمًا (سلوك مطابق لـdev بلا انحدار) — إسقاطها هناك كان
+                //      يغيّر مسار بناء قيمة الإرجاع الحسّاس (المحروس بـ
+                //      currentDeferStackReg_) فيُحدث تباينًا مترجم/مفسّر على بعض المنصّات.
+                // (EN) Restrict the skip to freestanding: only there does the machinery
+                //      pull libc symbols (_setjmp/malloc) absent on bare metal. In hosted
+                //      mode always keep it (dev-identical, no regression) — skipping it
+                //      altered the return-value build path (guarded by currentDeferStackReg_)
+                //      causing compiler/interpreter divergence on some platforms.
+                const bool needsDeferMachinery =
+                    freestandingMode_ ? stmtNeedsDeferMachinery(funcDecl->body.get()) : true;
+
+                std::shared_ptr<SIRBasicBlock> functionCleanupBlock;
+
+                if (needsDeferMachinery)
+                {
                 currentDeferStackReg_ = "%__defer_stack_" + std::to_string(nextLabel_++);
                 currentDeferExecutedFlagReg_ = "%__defer_done_" + std::to_string(nextLabel_++);
                 currentFunctionCleanupHandlerActive_ = true;
@@ -351,7 +478,7 @@ namespace Sad
                 std::string functionBodyLabel = newLabel("function_body");
                 std::string functionCleanupLabel = newLabel("function_defer_cleanup");
                 auto functionBodyBlock = createBasicBlock(functionBodyLabel);
-                auto functionCleanupBlock = createBasicBlock(functionCleanupLabel);
+                functionCleanupBlock = createBasicBlock(functionCleanupLabel);
                 currentFunction_->addBasicBlock(functionBodyBlock);
                 currentFunction_->addBasicBlock(functionCleanupBlock);
 
@@ -393,6 +520,17 @@ namespace Sad
                 }
 
                 currentBlock_ = functionBodyBlock;
+                }
+                else
+                {
+                    // (AR) لا «أجّل» في الجسم — لا مكدّس تأجيل ولا إطار setjmp:
+                    //      صفرُ تخصيصات وصفرُ رموز libc لهذه الدالّة.
+                    // (EN) No defer in body — no defer stack, no setjmp frame:
+                    //      zero allocations and zero libc symbols for this function.
+                    currentDeferStackReg_.clear();
+                    currentDeferExecutedFlagReg_.clear();
+                    currentFunctionCleanupHandlerActive_ = false;
+                }
 
                 // (AR) بناء جسم الدالة (declarations.h:46 - body: StmtPtr)
                 // (EN) Build function body
@@ -473,6 +611,10 @@ namespace Sad
 
                 auto bodyContinuationBlock = currentBlock_;
 
+                // (AR) كتلة التنظيف تُبنى فقط مع الآلة (لا آلة ⇒ لا كتلة تنظيف)
+                // (EN) Cleanup block only exists when the machinery was emitted
+                if (needsDeferMachinery && functionCleanupBlock)
+                {
                 currentBlock_ = functionCleanupBlock;
                 emitPopFunctionCleanupHandler();
                 emitRunDeferredClosures();
@@ -488,6 +630,7 @@ namespace Sad
                     auto deadBlock = createBasicBlock(deadLabel);
                     currentFunction_->addBasicBlock(deadBlock);
                     currentBlock_ = deadBlock;
+                }
                 }
 
                 currentBlock_ = bodyContinuationBlock;

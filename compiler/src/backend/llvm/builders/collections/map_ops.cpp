@@ -94,9 +94,7 @@ namespace Sad
                 llvm::Value *typesPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.types");
 
                 // (AR) تصفير keys بالكامل — null يعني خانة فارغة
-                auto *memsetType = llvm::FunctionType::get(ptrTy, {ptrTy, llvm::Type::getInt32Ty(*cg_.context_), i64Ty}, false);
-                auto memsetFunc = cg_.module_->getOrInsertFunction("memset", memsetType);
-                cg_.builder_->CreateCall(memsetFunc, {keysPtr, cg_.builder_->getInt32(0), arrBytes});
+                cg_.builder_->CreateMemSet(keysPtr, cg_.builder_->getInt8(0), arrBytes, llvm::MaybeAlign(8));
 
                 // (AR) تخزين الحقول في البنية: [0]=count, [1]=capacity, [2]=keys, [3]=values, [4]=types
                 llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,

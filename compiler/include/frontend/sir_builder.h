@@ -815,6 +815,15 @@ namespace Sad
                  * @param mode (AR) صحيح لتفعيل وضع الوحدة / (EN) true to enable module mode
                  */
                 void setModuleMode(bool mode) { moduleMode_ = mode; }
+                bool isModuleMode() const { return moduleMode_; }
+
+                /**
+                 * @brief (AR) وضع الترجمة الحرّة (--freestanding) — تستشيره بوّابة استيراد
+                 *        المدمجات (لا مكتبة قياسيّة تُستورد في هذا الوضع)
+                 * @brief (EN) Freestanding mode — consulted by the builtin import gate
+                 */
+                void setFreestanding(bool mode) { freestandingMode_ = mode; }
+                bool isFreestandingMode() const { return freestandingMode_; }
 
                 // ==================================================================
                 // بناء الجمل / Building Statements

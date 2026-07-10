@@ -134,6 +134,55 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     // 18. __sad_xtoa — Convert i64 to hex string in buffer (non-variadic)
     // ========================================================================
     emitFreestandingXtoa(i8Ty, i32Ty, i64Ty, ptrTy);
+
+    // ========================================================================
+    // 19. __sad_panic — Diagnostic halt (weak; kernels override with real halt)
+    // ========================================================================
+    emitFreestandingPanic(i64Ty, voidTy);
+}
+
+// (AR) تصريح مسبق — التعريف أدناه / (EN) Forward declaration — defined below
+static llvm::Function* getOrCreateFreestandingFunc(
+    llvm::Module* mod, llvm::LLVMContext& ctx,
+    const std::string& name, llvm::FunctionType* ft);
+
+// ============================================================================
+// 19. __sad_panic(code) — (AR) هلع تشخيصيّ للوضع الحرّ: يطبع الرمز عبر printf
+//     الحرّ (منفذ تسلسليّ) ثم يتوقّف في حلقة لا نهائيّة. weak_odr — النواة
+//     تتجاوزه بتعريف قويّ (cli/hlt مثلًا). يستبدل exit(1) في مسارات التشخيص.
+//     (EN) Freestanding diagnostic panic: print code via freestanding printf
+//     (serial port) then spin forever. weak_odr — kernels override with a
+//     strong definition (e.g., cli/hlt). Replaces exit(1) on diagnostic paths.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingPanic(llvm::Type* i64Ty, llvm::Type* voidTy) {
+    llvm::FunctionType* ft = llvm::FunctionType::get(voidTy, {i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "__sad_panic", ft);
+    if (!fn) return;
+    // (AR) عقد التجاوز: النواة قد توفّر تعريفًا قويًّا خاصًّا بها (cli/hlt). مواقع
+    //      النداء تُتبِع الاستدعاء بـ unreachable، فأيّ تجاوز يجب ألّا يعود أبدًا
+    //      (NoReturn جزء من العقد — تجاوزٌ يعود = سلوك غير معرّف بعد unreachable).
+    // (EN) Override contract: a kernel may supply its own strong definition
+    //      (cli/hlt). Call sites follow with unreachable, so any override MUST
+    //      NOT return (NoReturn is part of the contract).
+    fn->addFnAttr(llvm::Attribute::NoReturn);
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* halt  = llvm::BasicBlock::Create(*cg_.context_, "halt", fn);
+    cg_.builder_->SetInsertPoint(entry);
+
+    // (AR) الطباعة عبر printf الحرّ إن وُجد (يُبثّ قبلنا في emitFreestandingRuntime)
+    // (EN) Print via freestanding printf if present (emitted earlier in the runtime)
+    if (llvm::Function* pf = cg_.module_->getFunction("printf")) {
+        llvm::Value* fmt = cg_.builder_->CreateGlobalStringPtr(
+            "\n[SAD PANIC %lld]\n", "sad.panic.fmt");
+        cg_.builder_->CreateCall(pf, {fmt, fn->getArg(0)});
+    }
+    cg_.builder_->CreateBr(halt);
+
+    cg_.builder_->SetInsertPoint(halt);
+    cg_.builder_->CreateBr(halt);
+    cg_.builder_->restoreIP(savedIP);
 }
 
 // ============================================================================
@@ -691,8 +740,12 @@ void FreestandingCodeGen::emitFreestandingCalloc(llvm::Type* i64Ty, llvm::Type* 
     llvm::Function* mallocFn = cg_.module_->getFunction("malloc");
     llvm::Value* ptr = cg_.builder_->CreateCall(mallocFn, {total}, "ptr");
 
-    llvm::Function* memsetFn = cg_.module_->getFunction("memset");
-    cg_.builder_->CreateCall(memsetFn, {ptr, llvm::ConstantInt::get(i32Ty, 0), total});
+    // (AR) التصفير عبر llvm.memset intrinsic لا رمز @memset — يتفادى تعارض
+    //      التوقيع حين يعيد المصدر إعلان memset بتوقيع مختلف (خارجي memset).
+    // (EN) Zero via llvm.memset intrinsic, not the @memset symbol — avoids the
+    //      signature clash when source redeclares memset (خارجي memset).
+    (void)i32Ty;
+    cg_.builder_->CreateMemSet(ptr, cg_.builder_->getInt8(0), total, llvm::MaybeAlign(8));
 
     cg_.builder_->CreateRet(ptr);
     cg_.builder_->restoreIP(savedIP);

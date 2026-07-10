@@ -244,19 +244,33 @@ namespace Sad
             // (EN) In module mode: all locally-defined functions get InternalLinkage to avoid
             //      duplicate symbol conflicts. FFI-declared functions stay ExternalLinkage.
             //      In non-module mode: __sad_main needs ExternalLinkage as entry point.
+            // (AR) قاعدة الربط الموحّدة (كلّ الأوضاع، لا وضع الوحدة فقط):
+            //      دالّة محليّة ذات جسم، غير مُصدّرة (بلا «صدّر»)، ليست FFI، وليست
+            //      نقطة دخول (main/__sad_main) → InternalLinkage. هذا يمنع تصادم
+            //      الرموز عند ربط عدّة وحدات، ويسمح للمُحسِّن بإزالة الميت،
+            //      ولا يغيّر سلوك وحدة مفردة (الاختبارات تقارن stdout لا أسماء الرموز).
+            // (EN) Unified linkage rule (all modes): a locally-defined, non-exported,
+            //      non-FFI function that is not an entry point → InternalLinkage.
+            // (AR) في وضع الوحدة (--module): الدوال المحليّة غير المصدَّرة تُدوَّل
+            //      لتفادي تصادم الرموز عند ربط الوحدات. خارج وضع الوحدة نُبقيها
+            //      خارجيّة (سلوك مطابق لـdev): تدويلها هناك كان يكسر نداءات عبر
+            //      الملفّات في مسار «عدّة ملفّات ← exe» ويُحدث تباينًا على بعض
+            //      المنصّات. رفض تعدّد الملفّات مع --emit-llvm يعالج فجوة الطمس
+            //      الصامت مستقلًّا عن الربط الداخليّ.
+            // (EN) Module mode only: intern non-exported locals to avoid symbol
+            //      collisions across linked modules. Outside module mode keep external
+            //      (dev-identical) — internalizing broke cross-file calls in the
+            //      multi-file→exe path and diverged on some platforms. The --emit-llvm
+            //      multi-file rejection handles the silent-overwrite gap independently.
             llvm::GlobalValue::LinkageTypes linkage = llvm::Function::ExternalLinkage;
             if (cg_.moduleMode_)
             {
-                // (AR) تحقق: هل هذه دالة FFI (لديها linkName مختلف عن name)؟
-                // (EN) Check: is this an FFI function (has linkName different from name)?
                 bool isFFI = !sirFunc->linkName.empty() && sirFunc->linkName != sirFunc->getName();
-                // (AR) تحقق: هل لهذه الدالة جسم (تعريف)؟ التصريحات (declare) بدون جسم يجب أن تبقى ExternalLinkage
-                // (EN) Check: does this function have a body (definition)? Declarations without body must stay ExternalLinkage
                 bool hasBody = !sirFunc->basicBlocks.empty();
-                if (!isFFI && hasBody && !sirFunc->isExported)
+                const std::string &sfName = sirFunc->getName();
+                bool isEntryLike = (sfName == "main" || sfName == "__sad_main");
+                if (!isFFI && hasBody && !sirFunc->isExported && !isEntryLike)
                 {
-                    // (AR) دالة محلية غير مُصدّرة في وضع الوحدة → InternalLinkage
-                    // (EN) Locally-defined non-exported function in module mode → InternalLinkage
                     linkage = llvm::Function::InternalLinkage;
                 }
             }

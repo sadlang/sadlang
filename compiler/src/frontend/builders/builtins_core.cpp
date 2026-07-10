@@ -471,11 +471,21 @@ namespace Sad
 
                         if (!moduleFound)
                         {
-                            // (AR) الوحدة المطلوبة غير مستوردة — لا تعالج كدالة مضمنة
-                            //      ستُعالج كدالة مستخدم ← خطأ "دالة غير معرّفة" كما في المفسر
-                            // (EN) Required module not imported — don't handle as builtin
-                            //      Will be treated as user function → "undefined function" error like interpreter
-                            return std::nullopt;
+                            // (AR) في الوضع الحرّ (--freestanding) لا وجود لمكتبة قياسيّة
+                            //      تُستورد أصلًا؛ إقصاء المدمجة هنا كان يحوّلها نداءً مجهولًا
+                            //      يُفسد الشيفرة صامتًا (فجوة «رمز_حرف ⇒ i64 0»). نُبقي
+                            //      المدمجات متاحة بلا «استخدم» في هذا الوضع حصرًا.
+                            // (EN) In --freestanding there is no stdlib to import; rejecting
+                            //      the builtin here silently miscompiled it (char-code → i64 0).
+                            //      Keep builtins available without «استخدم» in this mode only.
+                            if (!b_.isFreestandingMode())
+                            {
+                                // (AR) الوحدة المطلوبة غير مستوردة — لا تعالج كدالة مضمنة
+                                //      ستُعالج كدالة مستخدم ← خطأ "دالة غير معرّفة" كما في المفسر
+                                // (EN) Required module not imported — don't handle as builtin
+                                //      Will be treated as user function → "undefined function" error like interpreter
+                                return std::nullopt;
+                            }
                         }
                     }
                 }
