@@ -306,3 +306,20 @@ errors:
   detailed:
     ar: وجود دالة رئيسية يجعل كود المستوى الأعلى ملتبساً.
     en: A main function makes top-level code ambiguous.
+- code: SEM_FREESTANDING_BUILTIN
+  id: SEM019
+  category: semantic
+  title:
+    ar: مدمجة غير متاحة في الوضع الحرّ
+    en: Builtin unavailable in freestanding mode
+  brief:
+    ar: الدالة المدمجة '{name}' غير متاحة في الوضع الحرّ (‎--freestanding‎) لأنها تعتمد على مكتبة قياسية غائبة (نظام ملفّات/دخل قياسيّ)
+    en: Built-in '{name}' is unavailable in freestanding mode (--freestanding); it relies on absent stdlib facilities (filesystem/stdin)
+  placeholders:
+  - name
+  fix_hint:
+    ar: 'في نواة/وضع حرّ استعمل بدائل مباشرة (منافذ/ذاكرة) بدل دوال المكتبة القياسية، أو أزل الاستدعاء.'
+    en: 'In a kernel/freestanding target use direct primitives (ports/memory) instead of stdlib calls, or drop the call.'
+  detailed:
+    ar: الوضع الحرّ (‎--freestanding‎) يولّد شيفرة مستقلّة بلا مكتبة قياسية (libc)؛ لا نظام ملفّات ولا دخل قياسيّ. دوال مثل قراءة/كتابة الملفّات والقراءة من الدخل تحتاج رموزًا (fopen/scanf...) غير موجودة، فكانت تفشل زمن الربط برسالة غامضة. هذا التشخيص المبكّر يوقفها زمن الترجمة برسالة واضحة تسمّي الدالة.
+    en: Freestanding (--freestanding) emits a self-contained target with no libc — no filesystem, no stdin. Builtins like file read/write or reading input need symbols (fopen/scanf...) that do not exist, so they used to fail at link time with an opaque error. This early diagnostic stops them at compile time with a clear, named message.

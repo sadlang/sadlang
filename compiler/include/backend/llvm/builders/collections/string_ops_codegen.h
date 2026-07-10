@@ -48,6 +48,15 @@ public:
     llvm::Value *emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitBuiltinStringContains(std::shared_ptr<SIRInstruction>);
+
+private:
+    // (AR) مساعد «تقسيم» الموحَّد: يُصدَر مرّة، بدلالة السلسلة الفرعيّة الكاملة
+    //      المطابِقة للمفسّر (str.find/substr)، ذاتيّ الاحتواء (malloc/memcpy/
+    //      strlen/realloc فقط) فيعمل مستضافًا وحرًّا معًا. يعيد @__sad_string_split.
+    // (EN) Unified split helper: substring semantics matching interpreter, self-
+    //      contained (only malloc/memcpy/strlen/realloc) so it works hosted AND
+    //      freestanding. Emitted once; returns @__sad_string_split.
+    llvm::Function *ensureStringSplitHelper();
 };
 
 }} // namespace Sad::LLVM

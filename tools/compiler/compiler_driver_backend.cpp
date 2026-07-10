@@ -283,6 +283,34 @@ namespace sad
                     diagnostics_.report_fatal("فشل توليد LLVM IR / Failed to generate LLVM IR");
                     return false;
                 }
+                // (AR) بوّابة الوضع الحرّ فقط: إن ضبط التوليد hasErrors_ (مثلاً
+                //      SEM019 لمدمجة غير آمنة حرًّا كـاقرأ_ملف) فأحبِط زمن الترجمة
+                //      بخروجٍ غير صفريّ بدل إصدار IR مكسور يفشل زمن الربط برسالة
+                //      غامضة (رمز غير معرَّف). مقصورة على --freestanding عمدًا كي لا
+                //      تكشف علل codegen المستضافة الخمس المؤجَّلة لـISSUE-073 (غير
+                //      حرّة). لا نؤلّف هنا نصًّا خامًّا: التشخيص القانونيّ (SEM019)
+                //      مصدره الوحيد كتالوج SoT وقد صاغه reportError وطبعه فعلًا؛
+                //      نُمرّره إلى محرّك تشخيص السائق ليكون عدّ «N error(s)» صادقًا
+                //      (وإلّا طُبع «0 error(s) generated» مضلِّلًا لأنّ أخطاء التوليد
+                //      في قناة مستقلّة عن error_count_).
+                // (EN) Freestanding-only gate: if codegen set hasErrors_ (e.g. the
+                //      SEM019 diagnostic for a freestanding-unsafe builtin) abort
+                //      with a non-zero exit instead of emitting broken IR that
+                //      fails opaquely at link. Scoped to --freestanding so it does
+                //      not surface the 5 hosted codegen bugs deferred to ISSUE-073.
+                //      No hand-written string here: the canonical SEM019 text's sole
+                //      source is the SoT catalog (built + already printed by
+                //      reportError). We forward those messages into the driver's
+                //      DiagnosticEngine so the "N error(s)" tally is honest — codegen
+                //      errors live in a channel separate from error_count_.
+                if (options_.freestanding && llvm_codegen_->hasErrors())
+                {
+                    for (const auto &codegen_error : llvm_codegen_->getErrors())
+                    {
+                        diagnostics_.report_error(codegen_error);
+                    }
+                    return false;
+                }
                 // (AR) ملاحظة [ISSUE-073]: `generate()` قد يُبلّغ خطأً داخليًّا عبر reportError()
                 //      (يضبط hasErrors_) لكنّه يُرجع وحدةً غير فارغة، فيصير الخروج 0 زائفًا
                 //      (نجاح صامت لبرنامجٍ مكسور). بوّابةٌ هنا `if (llvm_codegen_->hasErrors())`

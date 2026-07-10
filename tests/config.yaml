@@ -211,7 +211,15 @@ levels:
       - "P0_smoke"
       - "sections/01_أساسيات_اللغة"
       - "sections/02_الأنواع_المدمجة"
-    description: "اختبارات أساسية — اللغة والأنواع — كل PR"
+      # (AR) مكتبة قياسية — مدمجات ونصوص (تشمل «تقسيم»/«دمج») تحرس التكافؤ عند كل PR.
+      #      اقتُصر على الفرعين الأخضرين 100%؛ استُثني «02_رياضيات» (3 إخفاقات تباعد
+      #      سابقة) و«05_شبكة» (منصّي/تخطٍّ) لئلّا تُحمّرا بوّابة الـPR — دَينان موثّقان.
+      # (EN) Stdlib builtins + strings (incl. split/join) guard parity on every PR.
+      #      Only the two 100%-green subdirs; math (3 pre-existing diffs) and network
+      #      (platform/skip) are excluded to keep the PR gate green — documented debts.
+      - "sections/09_المكتبة_القياسية/01_مدمج"
+      - "sections/09_المكتبة_القياسية/03_نصوص"
+    description: "اختبارات أساسية — اللغة والأنواع + مدمجات/نصوص المكتبة — كل PR"
 
   # ══════════════════════════════════════════════════════
   # P2: P1 + OOP + مطابقة الأنماط + معالجة الأخطاء — Nightly
@@ -221,10 +229,14 @@ levels:
       - "P0_smoke"
       - "sections/01_أساسيات_اللغة"
       - "sections/02_الأنواع_المدمجة"
+      # (AR) مكتبة قياسية (مدمجات/نصوص) — تحفظ ثابت التداخل P1 ⊂ P2 بعد رفعها إلى P1.
+      # (EN) Stdlib (builtins/strings) — keeps the P1 ⊂ P2 invariant after promoting to P1.
+      - "sections/09_المكتبة_القياسية/01_مدمج"
+      - "sections/09_المكتبة_القياسية/03_نصوص"
       - "sections/03_البرمجة_الكائنية"
       - "sections/04_مطابقة_الأنماط"
       - "sections/05_معالجة_الأخطاء"
-    description: "اختبارات كاملة — OOP + patterns + errors — Nightly"
+    description: "اختبارات كاملة — OOP + patterns + errors + مدمجات/نصوص — Nightly"
 
   # ══════════════════════════════════════════════════════
   # P3: P2 + ميزات متقدمة + مكتبة قياسية — قبل الإصدار

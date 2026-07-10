@@ -27,6 +27,9 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include "sad_ui/ui_modifiers.h" // (AR) أسماء معدّلات SadUI (مُولَّد من language-truth) — لا literals
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (RUN_METHOD_NOT_FOUND)
+#include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
+#include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -607,6 +610,46 @@ namespace Sad
                     auto mapResult = b_.buildMapBuiltinMethodCall(objResult, methodName, args);
                     if (mapResult)
                         return *mapResult;
+
+                    // ════════════════════════════════════════════════════════════════
+                    // (AR) طريقة غير معروفة على نوعٍ مدمجٍ قيميّ (نص/مصفوفة/خريطة): كلّ
+                    //      طرقها المضمَّنة فُحِصت أعلاه، وليست مقبض واجهة (Pointer، يُعالَج
+                    //      أدناه) ولا مثيل صنف مستخدم (className فارغ). كان المسار يسقط
+                    //      لبناء نداء طريقة صنف بنوع إرجاع Unknown ⇒ تُنشئ الخلفية
+                    //      getNullValue على النوع Unknown (Constants.cpp:382) ⇒ انهيار
+                    //      LLVM. نُصدر بدلًا منه تشخيص RUN_METHOD_NOT_FOUND (نفس رسالة
+                    //      المفسّر: «الطريقة X غير موجودة في الصنف <نوع>») ونُسجّله في
+                    //      errors_ فيُفشِل السائق البناءَ نظيفًا قبل التوليد
+                    //      (compiler_driver_analysis: hasErrors()). حصريًّا للأنواع
+                    //      القيميّة المدمجة كي لا يمسّ مقابض الواجهة أو أصناف المستخدم.
+                    // (EN) Unknown method on a concrete builtin value type (string/
+                    //      array/map): all its builtin methods were tried above; it is
+                    //      not a widget handle (Pointer, handled below) nor a user-class
+                    //      instance (empty className). The path used to fall through to a
+                    //      class-method call with Unknown return type ⇒ the backend built
+                    //      getNullValue on Unknown ⇒ LLVM crash. Emit RUN_METHOD_NOT_FOUND
+                    //      instead (interpreter parity) and record it in errors_ so the
+                    //      driver fails the build cleanly before codegen.
+                    if (className.empty() &&
+                        (objResult.type == SadTypeKind::String ||
+                         objResult.type == SadTypeKind::Array ||
+                         objResult.type == SadTypeKind::Map))
+                    {
+                        Sad::Errors::RenderContext ctx;
+                        ctx.placeholders = {
+                            {"method", methodName},
+                            {"class", std::string(sirTypeToString(objResult.type))},
+                            {"suggestion_clause", ""},
+                            {"suggestion_clause_en", ""}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND, ctx));
+                        // (AR) نتيجة آمنة بنوعٍ محدَّد (لا Unknown) — البناء يُلغى عبر
+                        //      hasErrors() فلا تُستهلك، لكنّها تمنع أيّ انهيار لاحق.
+                        // (EN) Safe concrete-typed result (never Unknown); build aborts
+                        //      via hasErrors() so it's unused, but prevents any later crash.
+                        return BuildResult(b_.newTempRegister(), objResult.type);
+                    }
 
                     // ════════════════════════════════════════════════════════════════
                     // (AR) م.أ-3 (RFC sadlang-rfcs#10 / إغلاق P0-3): معدّل واجهة انسيابيّ.

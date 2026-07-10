@@ -41,6 +41,7 @@
 #include <iostream>
 #include <fstream>
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
+#include "builtin_registry.h" // (AR) أسماء المدمجات القانونيّة لبوّابة الوضع الحرّ
 
 // Source: llvm_codegen.h:103-108 - using declarations
 using namespace Sad::Compiler::SIR; // For SIRModule, SIRFunction, SIRBasicBlock, SIRInstruction, SadTypeKind
@@ -49,6 +50,43 @@ namespace Sad
 {
     namespace LLVM
     {
+
+        // ====================================================================
+        // (AR) بوّابة سلامة الوضع الحرّ — تصنيف المدمجات غير الآمنة:
+        //      مدمجات نظام الملفّات ودخل الطرفيّة تُصدر رموز libc (fopen/scanf...)
+        //      غائبة في --freestanding، فكانت تُترجَم بنجاح ثمّ تفشل زمن الربط
+        //      برسالة غامضة. هذا التصنيف يسمّي الدالّة القانونيّة (من SoT: Names)
+        //      ليُصدر التشخيص المبكّر SEM019 اسمًا واضحًا. سلسلة فارغة = آمنة.
+        //      ⚠️ قائمة منع محافِظة (لا سماح): ما ليس هنا يُترك كما هو (لا انحدار).
+        // (EN) Freestanding-safety classifier: filesystem/stdin builtins emit
+        //      libc symbols absent in --freestanding. Returns the canonical (SoT)
+        //      name for unsafe opcodes so SEM019 can name it; empty = safe.
+        //      Conservative deny-list: anything not listed is left untouched.
+        // ====================================================================
+        static std::string freestandingUnsafeBuiltinName(SIROpcode op)
+        {
+            namespace Nb = Sad::Builtins::Names::Basics;
+            namespace Nc = Sad::Builtins::Names::Core;
+            namespace Nio = Sad::Builtins::Names::CompilerIo;
+            switch (op)
+            {
+            case SIROpcode::BUILTIN_READ:            return std::string(Nc::READ);        // اقرأ (دخل قياسيّ)
+            // (AR) قراءة_سطر: دخل قياسيّ كـ«اقرأ» تمامًا، يُصدر scanf/getchar/strdup
+            //      (libc غائبة حرًّا) ⇒ يُبوَّب كي يعطي SEM019 نظيفًا لا فشل ربط غامضًا.
+            // (EN) read-line: stdin like «اقرأ»; emits scanf/getchar/strdup (libc,
+            //      absent freestanding) ⇒ gated for a clean SEM019, not an opaque link error.
+            case SIROpcode::BUILTIN_READ_LINE:       return std::string(Nio::IO_1);       // قراءة_سطر (دخل قياسيّ)
+            case SIROpcode::BUILTIN_FILE_READ:       return std::string(Nb::READ_FILE);
+            case SIROpcode::BUILTIN_FILE_WRITE:      return std::string(Nb::WRITE_FILE);
+            case SIROpcode::BUILTIN_FILE_APPEND:     return std::string(Nb::APPEND_FILE);
+            case SIROpcode::BUILTIN_FILE_DELETE:     return std::string(Nb::DELETE_FILE);
+            case SIROpcode::BUILTIN_FILE_COPY:       return std::string(Nb::COPY_FILE);
+            case SIROpcode::BUILTIN_FILE_MOVE:       return std::string(Nb::MOVE_FILE);
+            case SIROpcode::BUILTIN_FILE_CREATE_DIR: return std::string(Nb::MKDIR);
+            case SIROpcode::BUILTIN_FILE_LIST_DIR:   return std::string(Nb::LIST_DIR);
+            default:                                 return std::string();
+            }
+        }
 
         void LLVMCodeGen::emitFunctionParameters(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc)
         {
@@ -138,6 +176,36 @@ namespace Sad
             {
                 reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, {{"detail", "Null"}});
                 return nullptr;
+            }
+
+            // (AR) بوّابة الوضع الحرّ: أوقِف مدمجة غير آمنة (ملفّات/دخل قياسيّ) زمن
+            //      الترجمة بتشخيص واضح يسمّيها (SEM019) بدل تركها تُصدر رمز libc
+            //      غائبًا فيفشل الربط لاحقًا برسالة غامضة. توضع هنا (قبل الطبقات) كي
+            //      لا يُفسَّر إيقافها «opcode غير مدعوم» (سقوط عبر كلّ الطبقات).
+            //      نربط السجلّ الناتج بمؤشّر باطل فلا تتتالى «سجلّ غير معرَّف» على
+            //      مستهلكيه؛ والبناء يُحبَط عبر بوّابة hasErrors الحرّة في السائق.
+            // (EN) Freestanding gate: reject an unsafe (filesystem/stdin) builtin
+            //      at compile time with a named diagnostic (SEM019) instead of
+            //      emitting an absent libc symbol. Placed before the tiers so the
+            //      early-out isn't mistaken for "unsupported opcode". The result
+            //      register is bound to null to avoid cascading "undefined
+            //      register" errors; the build aborts via the driver's gate.
+            if (freestanding_)
+            {
+                std::string unsafeName = freestandingUnsafeBuiltinName(inst->opcode);
+                if (!unsafeName.empty())
+                {
+                    reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_BUILTIN,
+                                {{"name", unsafeName}});
+                    if (inst->result.has_value())
+                    {
+                        auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                        context_info_.namedValues[inst->result->name] =
+                            llvm::ConstantPointerNull::get(
+                                llvm::cast<llvm::PointerType>(ptrTy));
+                    }
+                    return nullptr;
+                }
             }
 
             // (AR) الطبقة الأولى: التعليمات الجوهرية

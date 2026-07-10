@@ -14,6 +14,10 @@
 
 #include "sir_constants.h"
 #include "adt_payload_tags.h"
+#include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
+
+#include <llvm/IR/Module.h>
+#include <llvm/IR/BasicBlock.h>
 
 using namespace Sad::Compiler::SIR;
 
@@ -27,6 +31,33 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         st->setBody({llvm::PointerType::get(llvm::Type::getInt8Ty(ctx), 0), llvm::Type::getInt64Ty(ctx), llvm::Type::getInt64Ty(ctx), llvm::Type::getInt32Ty(ctx)});
     }
     return st;
+}
+
+// ============================================================================
+// (AR) مُنشئ دالّة مساعِدة ذاتيّة الاحتواء لمدمج «تقسيم» — نمط الوضع الحرّ نفسه
+//      (WeakODR + no-builtins + NoInline + OptimizeNone): تُصدَر مرّة واحدة
+//      وتعمل مستضافةً (تُدمَج مع libc) وحرّةً (تُدمَج مع بدائيّات __sad) دون
+//      تضارب. يعيد nullptr إن كانت الدالّة معرَّفة أصلًا (منع إعادة الإصدار).
+// (EN) Self-contained helper builder for the split builtin, same shape as the
+//      freestanding primitives (WeakODR/no-builtins/noinline/optnone): emitted
+//      once, safe hosted and freestanding. Returns nullptr if already defined.
+// ============================================================================
+static llvm::Function *getOrCreateSplitHelper(
+    llvm::Module *mod, llvm::LLVMContext &ctx,
+    const std::string &name, llvm::FunctionType *ft)
+{
+    if (llvm::Function *existing = mod->getFunction(name))
+        if (!existing->isDeclaration())
+            return nullptr; // معرَّفة أصلًا / already has a body
+    llvm::Function *fn = mod->getFunction(name);
+    if (!fn)
+        fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, mod);
+    fn->setLinkage(llvm::Function::WeakODRLinkage);
+    fn->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+    fn->addFnAttr("no-builtins");
+    fn->addFnAttr(llvm::Attribute::NoInline);
+    fn->addFnAttr(llvm::Attribute::OptimizeNone);
+    return fn;
 }
 
 
@@ -854,9 +885,14 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             auto strcpyFunc = cg_.module_->getOrInsertFunction("strcpy", strcpyType);
             cg_.builder_->CreateCall(strcpyFunc, {buf, str});
 
-            // Simple approach: call _strupr or iterate with toupper
+            // (AR) تحويل الحالة عبر دالّة زمن التشغيل المحمولة sad_llvm_str_upper
+            //      (ASCII بايتيّ، تطابق مسار المفسّر الاحتياطيّ). كان _strupr رمز
+            //      MSVC غير قياسيّ يكسر الربط على Linux/macOS.
+            // (EN) Case-convert via the portable runtime sad_llvm_str_upper
+            //      (byte-wise ASCII, matching the interpreter fallback). _strupr
+            //      was a non-standard MSVC symbol that broke linking on Linux/macOS.
             auto *struprType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
-            auto struprFunc = cg_.module_->getOrInsertFunction("_strupr", struprType);
+            auto struprFunc = cg_.module_->getOrInsertFunction("sad_llvm_str_upper", struprType);
             cg_.builder_->CreateCall(struprFunc, {buf});
 
             if (inst->result.has_value())
@@ -892,8 +928,10 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             auto strcpyFunc = cg_.module_->getOrInsertFunction("strcpy", strcpyType);
             cg_.builder_->CreateCall(strcpyFunc, {buf, str});
 
+            // (AR) نظيرة الحالة الصغيرة عبر sad_llvm_str_lower المحمولة (بديل _strlwr).
+            // (EN) Lowercase counterpart via portable sad_llvm_str_lower (replaces _strlwr).
             auto *strlwrType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
-            auto strlwrFunc = cg_.module_->getOrInsertFunction("_strlwr", strlwrType);
+            auto strlwrFunc = cg_.module_->getOrInsertFunction("sad_llvm_str_lower", strlwrType);
             cg_.builder_->CreateCall(strlwrFunc, {buf});
 
             if (inst->result.has_value())
@@ -1188,8 +1226,15 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 
         llvm::Value *StringOpsCodeGen::emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst)
         {
-            // Split string by delimiter into a SadArray of string pointers
-            // Uses strtok-like approach: count delimiters, allocate array, copy tokens
+            // (AR) «تقسيم»/split: يفصل النصّ على الفاصل كسلسلة فرعيّة كاملة (مطابقًا
+            //      للمفسّر StringFunctions::split عبر str.find/substr) — يُبقي
+            //      الأجزاء الفارغة، يدعم الوسيط الثالث maxSplits، والفاصل الفارغ
+            //      يقسم بأحرف UTF-8. المنطق كلّه في @__sad_string_split الموحَّد
+            //      (يزيل تبعيّة strtok البايتيّة التي كانت تُهشّم الفواصل العربيّة).
+            // (EN) split: substring-delimiter semantics matching the interpreter
+            //      (keeps empties, honours maxSplits, empty delim → UTF-8 chars).
+            //      All logic in the unified @__sad_string_split (drops the
+            //      byte-wise strtok that shattered multibyte delimiters).
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
             llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
@@ -1197,97 +1242,326 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             if (!str || !delim)
                 return nullptr;
 
-            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i64Ty = cg_.getInt64Type();
-            auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
 
-            // Call runtime: sad_string_split(str, delim) -> SadArray*
-            // For now, create a SadArray with a single element (the original string)
-            // This is correct for the case when delimiter is not found
-            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            // (AR) الوسيط الثالث الاختياريّ maxSplits (‎-1 = بلا حدّ، الافتراض).
+            // (EN) Optional 3rd arg maxSplits (-1 = unlimited default).
+            llvm::Value *maxSplits = llvm::ConstantInt::get(i64Ty, -1);
+            if (inst->operands.size() >= 3)
+            {
+                if (llvm::Value *ms = cg_.resolveOperand(inst->operands[2]))
+                {
+                    if (ms->getType()->isIntegerTy())
+                    {
+                        maxSplits = cg_.builder_->CreateSExtOrTrunc(ms, i64Ty, "split.max");
+                    }
+                }
+            }
 
-            // Allocate SadArray struct
-            llvm::Value *arrSize = llvm::ConstantInt::get(i64Ty, 24); // 3 * i64
-            llvm::Value *arrPtr = cg_.builder_->CreateCall(mallocFunc, {arrSize}, "split.arr");
+            llvm::Function *splitFn = ensureStringSplitHelper();
+            if (!splitFn)
+                return nullptr;
 
-            // Allocate data buffer for 16 pointers initially
-            llvm::Value *dataSize = llvm::ConstantInt::get(i64Ty, 16 * 8);
-            llvm::Value *dataPtr = cg_.builder_->CreateCall(mallocFunc, {dataSize}, "split.data");
-
-            // Store array metadata: length=0, capacity=16, data=dataPtr
-            llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "split.len.gep");
-            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), lenGep);
-            llvm::Value *capGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, "split.cap.gep");
-            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 16), capGep);
-            llvm::Value *datGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "split.dat.gep");
-            cg_.builder_->CreateStore(dataPtr, datGep);
-
-            // Use strtok to tokenize: first make a copy of str (strtok modifies input)
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *srcLen = cg_.builder_->CreateCall(strlenFunc, {str}, "src.len");
-            llvm::Value *copySize = cg_.builder_->CreateAdd(srcLen, llvm::ConstantInt::get(i64Ty, 1));
-            llvm::Value *strCopy = cg_.builder_->CreateCall(mallocFunc, {copySize}, "str.copy");
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
-            auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {strCopy, str, copySize});
-
-            // Call strtok(strCopy, delim) in a loop
-            auto *strtokType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
-            auto strtokFunc = cg_.module_->getOrInsertFunction("strtok", strtokType);
-
-            // First call: strtok(strCopy, delim)
-            llvm::Value *firstTok = cg_.builder_->CreateCall(strtokFunc, {strCopy, delim}, "tok.first");
-
-            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
-            llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*cg_.context_, "split.loop", curFunc);
-            llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(*cg_.context_, "split.body", curFunc);
-            llvm::BasicBlock *doneBB = llvm::BasicBlock::Create(*cg_.context_, "split.done", curFunc);
-            cg_.builder_->CreateBr(loopBB);
-
-            cg_.builder_->SetInsertPoint(loopBB);
-            llvm::PHINode *tok = cg_.builder_->CreatePHI(ptrTy, 2, "tok");
-            tok->addIncoming(firstTok, loopBB->getSinglePredecessor());
-            llvm::PHINode *count = cg_.builder_->CreatePHI(i64Ty, 2, "count");
-            count->addIncoming(llvm::ConstantInt::get(i64Ty, 0), loopBB->getSinglePredecessor());
-
-            llvm::Value *tokNull = cg_.builder_->CreateICmpEQ(tok,
-                                                          llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "tok.null");
-            cg_.builder_->CreateCondBr(tokNull, doneBB, bodyBB);
-
-            cg_.builder_->SetInsertPoint(bodyBB);
-            // Store token pointer: data[count] = strdup(tok)
-            llvm::Value *tokLen = cg_.builder_->CreateCall(strlenFunc, {tok}, "tok.len");
-            llvm::Value *tokBufSz = cg_.builder_->CreateAdd(tokLen, llvm::ConstantInt::get(i64Ty, 1));
-            llvm::Value *tokCopy = cg_.builder_->CreateCall(mallocFunc, {tokBufSz}, "tok.copy");
-            cg_.builder_->CreateCall(memcpyFunc, {tokCopy, tok, tokBufSz});
-
-            llvm::Value *curData = cg_.builder_->CreateLoad(ptrTy, datGep, "cur.data");
-            // (AR) خطوة العنصر i64 (8) لتوحيد حجم خانة SadArray عبر الأهداف —
-            //      كانت ptrTy (=4 على i686) تخالف الجلب/التخصيص الموحَّد. التخزين
-            //      يبقى بقيمة مؤشّر (SAD_ARRAY_SLOT_BYTES).
-            // (EN) i64-stride element (8) for unified SadArray slots; store as ptr.
-            llvm::Value *elemPtr = cg_.builder_->CreateGEP(cg_.getInt64Type(), curData, {count}, "elem.ptr");
-            cg_.builder_->CreateStore(tokCopy, elemPtr);
-
-            llvm::Value *nextCount = cg_.builder_->CreateAdd(count, llvm::ConstantInt::get(i64Ty, 1));
-            // Next token: strtok(NULL, delim)
-            llvm::Value *nextTok = cg_.builder_->CreateCall(strtokFunc, {llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), delim}, "tok.next");
-            tok->addIncoming(nextTok, bodyBB);
-            count->addIncoming(nextCount, bodyBB);
-            cg_.builder_->CreateBr(loopBB);
-
-            cg_.builder_->SetInsertPoint(doneBB);
-            // Update length
-            cg_.builder_->CreateStore(count, lenGep);
+            llvm::Value *arrPtr =
+                cg_.builder_->CreateCall(splitFn, {str, delim, maxSplits}, "split.arr");
 
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = arrPtr;
             }
             return arrPtr;
+        }
+
+        // ============================================================================
+        // (AR) ensureStringSplitHelper — يُصدر (مرّة) عائلة دوال «تقسيم» ذاتيّة
+        //      الاحتواء ثمّ يعيد @__sad_string_split. تعتمد فقط على
+        //      malloc/memcpy/strlen/realloc (متوفّرة مستضافةً عبر libc، وحرّةً عبر
+        //      بدائيّات __sad المُصدَرة) فتتطابق دلالتها في الوضعين مع المفسّر.
+        //      العائلة: __sad_utf8_clen، __sad_strstr، __sad_substr_dup،
+        //      __sad_split_append، __sad_string_split.
+        // (EN) Emits (once) the self-contained split helper family and returns
+        //      @__sad_string_split. Depends only on malloc/memcpy/strlen/realloc.
+        // ============================================================================
+        llvm::Function *StringOpsCodeGen::ensureStringSplitHelper()
+        {
+            llvm::LLVMContext &ctx = *cg_.context_;
+            llvm::Module *mod = cg_.module_.get();
+            auto *ptrTy = llvm::PointerType::getUnqual(ctx);
+            auto *i64Ty = llvm::Type::getInt64Ty(ctx);
+            auto *i8Ty = llvm::Type::getInt8Ty(ctx);
+            auto *voidTy = llvm::Type::getVoidTy(ctx);
+            llvm::Value *nullP =
+                llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy));
+            auto ci64 = [&](long long v) { return llvm::ConstantInt::get(i64Ty, v); };
+            auto ci8 = [&](int v) { return llvm::ConstantInt::get(i8Ty, v); };
+
+            // (AR) البدائيّات الخارجيّة (libc مستضافةً / __sad حرًّا).
+            auto mallocF = mod->getOrInsertFunction(
+                "malloc", llvm::FunctionType::get(ptrTy, {i64Ty}, false));
+            auto reallocF = mod->getOrInsertFunction(
+                "realloc", llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty}, false));
+            auto memcpyF = mod->getOrInsertFunction(
+                "memcpy", llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false));
+            auto strlenF = mod->getOrInsertFunction(
+                "strlen", llvm::FunctionType::get(i64Ty, {ptrTy}, false));
+
+            auto savedIP = cg_.builder_->saveIP();
+            auto &B = *cg_.builder_;
+            auto mkBB = [&](const char *n, llvm::Function *f) {
+                return llvm::BasicBlock::Create(ctx, n, f);
+            };
+
+            // (AR) بنية SadArray القانونيّة نفسها (getArrayStructType) كي تتطابق
+            //      إزاحات StructGEP وحجم التخصيص تمامًا مع مُنشئ المصفوفات وقارئها
+            //      (emitArrayNew/emitArrayGet) على كلّ هدف. بنية محلّيّة {i64,i64,ptr}
+            //      توافق x86_64 صدفةً (0/8/16) لكنّها تنحرف على i686 (سعة@4/بيانات@12
+            //      قانونيًّا مقابل 8/16 محلّيًّا) ⇒ تلف كلّ وصول لعنصر — يناقض توحيد
+            //      الخانة على i686 نفسه.
+            // (EN) Use the canonical SadArray type so StructGEP offsets AND alloc
+            //      size match emitArrayNew/emitArrayGet on every target. A local
+            //      {i64,i64,ptr} matches x86_64 by luck but diverges on i686.
+            llvm::StructType *arrTy = getArrayStructType(ctx);
+            llvm::Value *arrAllocSz =
+                ci64((long long)mod->getDataLayout().getTypeAllocSize(arrTy).getFixedValue());
+            const unsigned SLOT = (unsigned)Sad::LLVM::SAD_ARRAY_SLOT_BYTES;
+
+            // ================================================================
+            // (1) __sad_utf8_clen(i8 lead) -> i64 — طول الحرف بالبايتات (1..4).
+            // ================================================================
+            if (llvm::Function *f = getOrCreateSplitHelper(
+                    mod, ctx, "__sad_utf8_clen",
+                    llvm::FunctionType::get(i64Ty, {i8Ty}, false)))
+            {
+                llvm::BasicBlock *e = mkBB("entry", f), *c2 = mkBB("c2", f),
+                                 *c3 = mkBB("c3", f), *c4 = mkBB("c4", f),
+                                 *r1 = mkBB("r1", f), *r2 = mkBB("r2", f),
+                                 *r3 = mkBB("r3", f), *r4 = mkBB("r4", f);
+                llvm::Value *lead = f->getArg(0);
+                B.SetInsertPoint(e);
+                llvm::Value *a1 = B.CreateAnd(lead, ci8(0x80));
+                B.CreateCondBr(B.CreateICmpEQ(a1, ci8(0)), r1, c2);
+                B.SetInsertPoint(c2);
+                llvm::Value *a2 = B.CreateAnd(lead, ci8(0xE0));
+                B.CreateCondBr(B.CreateICmpEQ(a2, ci8(0xC0)), r2, c3);
+                B.SetInsertPoint(c3);
+                llvm::Value *a3 = B.CreateAnd(lead, ci8(0xF0));
+                B.CreateCondBr(B.CreateICmpEQ(a3, ci8(0xE0)), r3, c4);
+                B.SetInsertPoint(c4);
+                llvm::Value *a4 = B.CreateAnd(lead, ci8(0xF8));
+                B.CreateCondBr(B.CreateICmpEQ(a4, ci8(0xF0)), r4, r1);
+                B.SetInsertPoint(r1); B.CreateRet(ci64(1));
+                B.SetInsertPoint(r2); B.CreateRet(ci64(2));
+                B.SetInsertPoint(r3); B.CreateRet(ci64(3));
+                B.SetInsertPoint(r4); B.CreateRet(ci64(4));
+            }
+            llvm::Function *utf8ClenF = mod->getFunction("__sad_utf8_clen");
+
+            // ================================================================
+            // (2) __sad_strstr(ptr h, ptr n) -> ptr — أوّل ورود لـ n في h أو null.
+            //     مطابقة السلسلة الفرعيّة كاملةً (تحترم حدود بايتات الفاصل).
+            // ================================================================
+            if (llvm::Function *f = getOrCreateSplitHelper(
+                    mod, ctx, "__sad_strstr",
+                    llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false)))
+            {
+                llvm::Value *h = f->getArg(0), *n = f->getArg(1);
+                llvm::BasicBlock *e = mkBB("entry", f), *cont = mkBB("cont", f),
+                                 *oInit = mkBB("outer.init", f), *outer = mkBB("outer", f),
+                                 *inner = mkBB("inner", f), *cmpc = mkBB("cmp", f),
+                                 *jNext = mkBB("j.next", f), *adv = mkBB("adv", f),
+                                 *found = mkBB("found", f), *retH = mkBB("ret.h", f),
+                                 *retN = mkBB("ret.null", f);
+                B.SetInsertPoint(e);
+                llvm::Value *nlen = B.CreateCall(strlenF, {n}, "nlen");
+                B.CreateCondBr(B.CreateICmpEQ(nlen, ci64(0)), retH, cont);
+                B.SetInsertPoint(cont);
+                llvm::Value *hlen = B.CreateCall(strlenF, {h}, "hlen");
+                B.CreateCondBr(B.CreateICmpULT(hlen, nlen), retN, oInit);
+                B.SetInsertPoint(oInit);
+                llvm::Value *lastStart = B.CreateSub(hlen, nlen, "last.start");
+                B.CreateBr(outer);
+                // outer: i in [0, lastStart]
+                B.SetInsertPoint(outer);
+                llvm::PHINode *i = B.CreatePHI(i64Ty, 2, "i");
+                i->addIncoming(ci64(0), oInit);
+                B.CreateCondBr(B.CreateICmpUGT(i, lastStart), retN, inner);
+                // inner: j in [0, nlen)
+                B.SetInsertPoint(inner);
+                llvm::PHINode *j = B.CreatePHI(i64Ty, 2, "j");
+                j->addIncoming(ci64(0), outer);
+                B.CreateCondBr(B.CreateICmpUGE(j, nlen), found, cmpc);
+                B.SetInsertPoint(cmpc);
+                llvm::Value *hIdx = B.CreateAdd(i, j, "h.idx");
+                llvm::Value *hc = B.CreateLoad(i8Ty, B.CreateGEP(i8Ty, h, hIdx), "hc");
+                llvm::Value *nc = B.CreateLoad(i8Ty, B.CreateGEP(i8Ty, n, j), "nc");
+                B.CreateCondBr(B.CreateICmpNE(hc, nc), adv, jNext);
+                B.SetInsertPoint(jNext);
+                j->addIncoming(B.CreateAdd(j, ci64(1)), jNext);
+                B.CreateBr(inner);
+                B.SetInsertPoint(found);
+                B.CreateRet(B.CreateGEP(i8Ty, h, i));
+                B.SetInsertPoint(adv);
+                i->addIncoming(B.CreateAdd(i, ci64(1)), adv);
+                B.CreateBr(outer);
+                B.SetInsertPoint(retH); B.CreateRet(h);
+                B.SetInsertPoint(retN); B.CreateRet(nullP);
+            }
+            llvm::Function *strstrF = mod->getFunction("__sad_strstr");
+
+            // ================================================================
+            // (3) __sad_substr_dup(ptr src, i64 start, i64 len) -> ptr نسخة
+            //     منتهية بصفر للمقطع src[start..start+len).
+            // ================================================================
+            if (llvm::Function *f = getOrCreateSplitHelper(
+                    mod, ctx, "__sad_substr_dup",
+                    llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, i64Ty}, false)))
+            {
+                llvm::Value *src = f->getArg(0), *start = f->getArg(1), *len = f->getArg(2);
+                llvm::BasicBlock *e = mkBB("entry", f);
+                B.SetInsertPoint(e);
+                llvm::Value *buf = B.CreateCall(mallocF, {B.CreateAdd(len, ci64(1))}, "buf");
+                llvm::Value *srcStart = B.CreateGEP(i8Ty, src, start, "src.start");
+                B.CreateCall(memcpyF, {buf, srcStart, len});
+                B.CreateStore(ci8(0), B.CreateGEP(i8Ty, buf, len));
+                B.CreateRet(buf);
+            }
+            llvm::Function *substrDupF = mod->getFunction("__sad_substr_dup");
+
+            // ================================================================
+            // (4) __sad_split_append(ptr arr, ptr s) -> void — يُلحق مؤشّر النصّ
+            //     بمصفوفة SadArray، مُنمّيًا البيانات (realloc ×2) عند الامتلاء.
+            //     خطوة الخانة SAD_ARRAY_SLOT_BYTES (موحَّدة عبر الأهداف، ث4).
+            // ================================================================
+            if (llvm::Function *f = getOrCreateSplitHelper(
+                    mod, ctx, "__sad_split_append",
+                    llvm::FunctionType::get(voidTy, {ptrTy, ptrTy}, false)))
+            {
+                llvm::Value *arr = f->getArg(0), *s = f->getArg(1);
+                llvm::BasicBlock *e = mkBB("entry", f), *grow = mkBB("grow", f),
+                                 *store = mkBB("store", f);
+                B.SetInsertPoint(e);
+                llvm::Value *lenP = B.CreateStructGEP(arrTy, arr, 0, "len.p");
+                llvm::Value *capP = B.CreateStructGEP(arrTy, arr, 1, "cap.p");
+                llvm::Value *datP = B.CreateStructGEP(arrTy, arr, 2, "dat.p");
+                llvm::Value *len = B.CreateLoad(i64Ty, lenP, "len");
+                llvm::Value *cap = B.CreateLoad(i64Ty, capP, "cap");
+                B.CreateCondBr(B.CreateICmpEQ(len, cap), grow, store);
+                B.SetInsertPoint(grow);
+                llvm::Value *oldData = B.CreateLoad(ptrTy, datP, "old.data");
+                llvm::Value *newCap = B.CreateMul(cap, ci64(2), "new.cap");
+                llvm::Value *newBytes = B.CreateMul(newCap, ci64(SLOT), "new.bytes");
+                llvm::Value *newData = B.CreateCall(reallocF, {oldData, newBytes}, "new.data");
+                B.CreateStore(newData, datP);
+                B.CreateStore(newCap, capP);
+                B.CreateBr(store);
+                B.SetInsertPoint(store);
+                llvm::Value *data = B.CreateLoad(ptrTy, datP, "data");
+                llvm::Value *len2 = B.CreateLoad(i64Ty, lenP, "len2");
+                // (AR) خطوة i64 (SAD_ARRAY_SLOT_BYTES) لتخزين مؤشّر النصّ في الخانة.
+                llvm::Value *slot = B.CreateGEP(i64Ty, data, len2, "slot");
+                B.CreateStore(s, slot);
+                B.CreateStore(B.CreateAdd(len2, ci64(1)), lenP);
+                B.CreateRetVoid();
+            }
+            llvm::Function *appendF = mod->getFunction("__sad_split_append");
+
+            // ================================================================
+            // (5) __sad_string_split(ptr str, ptr delim, i64 maxSplits) -> SadArray*
+            //     الدلالة الكاملة المطابِقة للمفسّر.
+            // ================================================================
+            llvm::Function *splitFn = getOrCreateSplitHelper(
+                mod, ctx, "__sad_string_split",
+                llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false));
+            if (splitFn)
+            {
+                llvm::Value *str = splitFn->getArg(0), *delim = splitFn->getArg(1),
+                            *maxSplits = splitFn->getArg(2);
+                llvm::BasicBlock *e = mkBB("entry", splitFn),
+                                 *whole = mkBB("whole", splitFn),
+                                 *notZero = mkBB("not.zero", splitFn),
+                                 *charLoop = mkBB("char.loop", splitFn),
+                                 *charBody = mkBB("char.body", splitFn),
+                                 *subInit = mkBB("sub.init", splitFn),
+                                 *subLoop = mkBB("sub.loop", splitFn),
+                                 *haveMatch = mkBB("have.match", splitFn),
+                                 *afterLoop = mkBB("after.loop", splitFn),
+                                 *doneBB = mkBB("done", splitFn);
+                B.SetInsertPoint(e);
+                // arr = malloc(sizeof SadArray); len=0, cap=8, data=malloc(8*SLOT)
+                llvm::Value *arr = B.CreateCall(mallocF, {arrAllocSz}, "arr");
+                llvm::Value *initCap = ci64(8);
+                llvm::Value *data0 =
+                    B.CreateCall(mallocF, {B.CreateMul(initCap, ci64(SLOT))}, "data0");
+                B.CreateStore(ci64(0), B.CreateStructGEP(arrTy, arr, 0));
+                B.CreateStore(initCap, B.CreateStructGEP(arrTy, arr, 1));
+                B.CreateStore(data0, B.CreateStructGEP(arrTy, arr, 2));
+                llvm::Value *strLen = B.CreateCall(strlenF, {str}, "str.len");
+                llvm::Value *delimLen = B.CreateCall(strlenF, {delim}, "delim.len");
+                // maxSplits==0 ⇒ النصّ كاملًا في عنصر واحد
+                B.CreateCondBr(B.CreateICmpEQ(maxSplits, ci64(0)), whole, notZero);
+                B.SetInsertPoint(whole);
+                B.CreateCall(appendF, {arr, B.CreateCall(substrDupF, {str, ci64(0), strLen})});
+                B.CreateBr(doneBB);
+                // فاصل فارغ ⇒ تقسيم بأحرف UTF-8
+                B.SetInsertPoint(notZero);
+                B.CreateCondBr(B.CreateICmpEQ(delimLen, ci64(0)), charLoop, subInit);
+                // ---- char.loop: i in [0, strLen) بخطوة طول الحرف ----
+                B.SetInsertPoint(charLoop);
+                llvm::PHINode *ci = B.CreatePHI(i64Ty, 2, "ci");
+                ci->addIncoming(ci64(0), notZero);
+                B.CreateCondBr(B.CreateICmpULT(ci, strLen), charBody, doneBB);
+                B.SetInsertPoint(charBody);
+                llvm::Value *lead = B.CreateLoad(i8Ty, B.CreateGEP(i8Ty, str, ci), "lead");
+                llvm::Value *clen = B.CreateCall(utf8ClenF, {lead}, "clen");
+                // clamp: useLen = min(clen, strLen - i)
+                llvm::Value *rem = B.CreateSub(strLen, ci, "rem");
+                llvm::Value *useLen =
+                    B.CreateSelect(B.CreateICmpULE(clen, rem), clen, rem, "use.len");
+                B.CreateCall(appendF, {arr, B.CreateCall(substrDupF, {str, ci, useLen})});
+                ci->addIncoming(B.CreateAdd(ci, useLen), charBody);
+                B.CreateBr(charLoop);
+                // ---- sub.init / sub.loop: تقسيم على سلسلة فرعيّة ----
+                B.SetInsertPoint(subInit);
+                // pos, splits عبر alloca (OptimizeNone ⇒ لا حاجة لـmem2reg)
+                llvm::IRBuilder<> entryB(e, e->getFirstInsertionPt());
+                llvm::Value *posA = entryB.CreateAlloca(i64Ty, nullptr, "pos.a");
+                llvm::Value *splA = entryB.CreateAlloca(i64Ty, nullptr, "spl.a");
+                B.CreateStore(ci64(0), posA);
+                B.CreateStore(ci64(0), splA);
+                B.CreateBr(subLoop);
+                B.SetInsertPoint(subLoop);
+                llvm::Value *pos = B.CreateLoad(i64Ty, posA, "pos");
+                llvm::Value *posPtr = B.CreateGEP(i8Ty, str, pos, "pos.ptr");
+                llvm::Value *found = B.CreateCall(strstrF, {posPtr, delim}, "found");
+                B.CreateCondBr(B.CreateICmpEQ(found, nullP), afterLoop, haveMatch);
+                B.SetInsertPoint(haveMatch);
+                // partLen = found - posPtr (فرق مؤشّرَي i8 ⇒ عدد بايتات)
+                llvm::Value *foundI = B.CreatePtrToInt(found, i64Ty, "found.i");
+                llvm::Value *posPtrI = B.CreatePtrToInt(posPtr, i64Ty, "pos.ptr.i");
+                llvm::Value *partLen = B.CreateSub(foundI, posPtrI, "part.len");
+                B.CreateCall(appendF, {arr, B.CreateCall(substrDupF, {str, pos, partLen})});
+                // pos = pos + partLen + delimLen ; splits++
+                llvm::Value *newPos =
+                    B.CreateAdd(B.CreateAdd(pos, partLen), delimLen, "new.pos");
+                B.CreateStore(newPos, posA);
+                llvm::Value *newSpl = B.CreateAdd(B.CreateLoad(i64Ty, splA), ci64(1), "new.spl");
+                B.CreateStore(newSpl, splA);
+                // break if maxSplits>0 && splits>=maxSplits
+                llvm::Value *maxPos = B.CreateICmpSGT(maxSplits, ci64(0));
+                llvm::Value *reached = B.CreateICmpSGE(newSpl, maxSplits);
+                B.CreateCondBr(B.CreateAnd(maxPos, reached), afterLoop, subLoop);
+                // ---- after.loop: الجزء الأخير str[pos..strLen) ----
+                B.SetInsertPoint(afterLoop);
+                llvm::Value *lastPos = B.CreateLoad(i64Ty, posA, "last.pos");
+                llvm::Value *lastLen = B.CreateSub(strLen, lastPos, "last.len");
+                B.CreateCall(appendF, {arr, B.CreateCall(substrDupF, {str, lastPos, lastLen})});
+                B.CreateBr(doneBB);
+                B.SetInsertPoint(doneBB);
+                B.CreateRet(arr);
+            }
+
+            cg_.builder_->restoreIP(savedIP);
+            return mod->getFunction("__sad_string_split");
         }
 
 

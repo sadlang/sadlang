@@ -46,6 +46,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>  /* SIZE_MAX — مطلوب صراحةً على clang/Linux (يتسرّب ضمنًا على MSVC) */
+#include <ctype.h>   /* toupper/tolower — لتحويل حالة الأحرف المحمول (بديل _strupr/_strlwr) */
 #include <time.h>
 
 #ifdef _WIN32
@@ -264,6 +265,42 @@ double sad_llvm_input_float(void)
         ;
 
     return val;
+}
+
+/* ============================================================================
+ * تحويل حالة الأحرف (ASCII) / ASCII case conversion
+ * ============================================================================ */
+
+/* (AR) تحويل الأحرف اللاتينيّة إلى كبيرة في المكان (ASCII، بايتيّ)، مطابقةً
+ *      لمسار المفسّر الاحتياطيّ std::toupper((unsigned char)c). البايتات العالية
+ *      (UTF-8 العربيّ) تبقى دون تغيير. يستدعيها الكود المُولَّد لـ«تحويل_كبير»
+ *      بدلاً من _strupr — رمز MSVC غير قياسيّ لا يُربَط على Linux/macOS.
+ * (EN) Convert Latin letters to uppercase in place (ASCII, byte-wise), matching
+ *      the interpreter fallback std::toupper((unsigned char)c). High bytes
+ *      (Arabic UTF-8) are left unchanged. Called by codegen for «تحويل_كبير»
+ *      instead of _strupr — a non-standard MSVC symbol absent on Linux/macOS. */
+char *sad_llvm_str_upper(char *s)
+{
+    if (s)
+    {
+        unsigned char *p;
+        for (p = (unsigned char *)s; *p; ++p)
+            *p = (unsigned char)toupper(*p);
+    }
+    return s;
+}
+
+/* (AR) نظيرة التحويل إلى صغيرة (بديل _strlwr المحمول).
+ * (EN) Lowercase counterpart (portable replacement for _strlwr). */
+char *sad_llvm_str_lower(char *s)
+{
+    if (s)
+    {
+        unsigned char *p;
+        for (p = (unsigned char *)s; *p; ++p)
+            *p = (unsigned char)tolower(*p);
+    }
+    return s;
 }
 
 /* ============================================================================

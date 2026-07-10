@@ -38,18 +38,41 @@ namespace Sad
     {
         llvm::Value *BuiltinFuncsCodeGen::emitBuiltinRead(std::shared_ptr<SIRInstruction> inst)
         {
-            // Read a line from stdin
+            // (AR) قراءة سطر من stdin عبر دالّة زمن التشغيل المحمولة sad_llvm_input
+            //      (تُترجَم أصيلًا لكلّ منصّة في sad_embedded_runtime.c فتستعمل stdin
+            //      الحقيقيّ وتجرّد '\n' مطابقةً لدلالة المفسّر). الإصدار السابق كان
+            //      يُصدر __acrt_iob_func — رمز CRT خاصّ بـMSVC يكسر الربط على
+            //      Linux/macOS. ننسخ المخزن الثابت الذي يعيده sad_llvm_input إلى
+            //      مخزن malloc جديد كي يملك كلّ نداء «اقرأ» مخزنًا متمايزًا (المخزن
+            //      الثابت مشترك، فتركُه يفسد قيمة قراءةٍ سابقة عند القراءة التالية).
+            // (EN) Read a line from stdin via the portable runtime function
+            //      sad_llvm_input (compiled natively per platform in
+            //      sad_embedded_runtime.c: uses the real stdin and strips '\n' to
+            //      match the interpreter). The previous version emitted
+            //      __acrt_iob_func — an MSVC-only CRT symbol that breaks linking on
+            //      Linux/macOS. We copy the static buffer sad_llvm_input returns
+            //      into a fresh malloc'd buffer so each «اقرأ» call owns a distinct
+            //      buffer (the static one is shared across calls).
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::FunctionType *mallocFT = llvm::FunctionType::get(i8p, {llvm::Type::getInt64Ty(*cg_.context_)}, false);
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+
+            llvm::FunctionType *inputFT = llvm::FunctionType::get(i8p, {}, false);
+            llvm::FunctionCallee inputFn = cg_.module_->getOrInsertFunction("sad_llvm_input", inputFT);
+            llvm::Value *line = cg_.builder_->CreateCall(inputFn, {}, "read.line");
+
+            llvm::FunctionType *strlenFT = llvm::FunctionType::get(i64Ty, {i8p}, false);
+            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction("strlen", strlenFT);
+            llvm::Value *len = cg_.builder_->CreateCall(strlenFn, {line}, "read.len");
+            llvm::Value *size = cg_.builder_->CreateAdd(len, llvm::ConstantInt::get(i64Ty, 1), "read.size");
+
+            llvm::FunctionType *mallocFT = llvm::FunctionType::get(i8p, {i64Ty}, false);
             llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocFT);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1024)}, "read.buf");
-            llvm::FunctionType *fgetsFT = llvm::FunctionType::get(i8p, {i8p, llvm::Type::getInt32Ty(*cg_.context_), i8p}, false);
-            llvm::FunctionCallee fgetsFn = cg_.module_->getOrInsertFunction("fgets", fgetsFT);
-            // Get stdin
-            llvm::FunctionType *stdinFT = llvm::FunctionType::get(i8p, {}, false);
-            llvm::FunctionCallee stdinFn = cg_.module_->getOrInsertFunction("__acrt_iob_func", llvm::FunctionType::get(i8p, {llvm::Type::getInt32Ty(*cg_.context_)}, false));
-            llvm::Value *stdinPtr = cg_.builder_->CreateCall(stdinFn, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0)}, "stdin.ptr");
-            cg_.builder_->CreateCall(fgetsFn, {buf, llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1024), stdinPtr});
+            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {size}, "read.buf");
+
+            llvm::FunctionType *strcpyFT = llvm::FunctionType::get(i8p, {i8p, i8p}, false);
+            llvm::FunctionCallee strcpyFn = cg_.module_->getOrInsertFunction("strcpy", strcpyFT);
+            cg_.builder_->CreateCall(strcpyFn, {buf, line});
+
             if (inst && inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = buf;
             return buf;

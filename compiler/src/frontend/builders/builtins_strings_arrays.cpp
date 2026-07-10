@@ -225,6 +225,12 @@ namespace Sad
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
+                    // (AR) الوسيط الثالث الاختياريّ maxSplits — يُمرَّر إن وُجد ليطابق
+                    //      المفسّر (StringFunctions::split يدعم حدًّا أقصى للتقسيمات).
+                    // (EN) Optional 3rd arg maxSplits — forwarded when present for
+                    //      parity with the interpreter's split(str, delim, maxSplits).
+                    if (argOperands.size() >= 3)
+                        inst.operands.push_back(argOperands[2]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
