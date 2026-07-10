@@ -1265,7 +1265,11 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             cg_.builder_->CreateCall(memcpyFunc, {tokCopy, tok, tokBufSz});
 
             llvm::Value *curData = cg_.builder_->CreateLoad(ptrTy, datGep, "cur.data");
-            llvm::Value *elemPtr = cg_.builder_->CreateGEP(ptrTy, curData, {count}, "elem.ptr");
+            // (AR) خطوة العنصر i64 (8) لتوحيد حجم خانة SadArray عبر الأهداف —
+            //      كانت ptrTy (=4 على i686) تخالف الجلب/التخصيص الموحَّد. التخزين
+            //      يبقى بقيمة مؤشّر (SAD_ARRAY_SLOT_BYTES).
+            // (EN) i64-stride element (8) for unified SadArray slots; store as ptr.
+            llvm::Value *elemPtr = cg_.builder_->CreateGEP(cg_.getInt64Type(), curData, {count}, "elem.ptr");
             cg_.builder_->CreateStore(tokCopy, elemPtr);
 
             llvm::Value *nextCount = cg_.builder_->CreateAdd(count, llvm::ConstantInt::get(i64Ty, 1));
@@ -1363,7 +1367,11 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
             cg_.builder_->CreateBr(concatBB);
 
             cg_.builder_->SetInsertPoint(concatBB);
-            llvm::Value *elemGep = cg_.builder_->CreateGEP(ptrTy, dataPtr, {idx}, "join.elem.gep");
+            // (AR) خطوة العنصر i64 (8) لتوحيد حجم خانة SadArray — كانت ptrTy
+            //      (=4 على i686) تقرأ مؤشّرًا فاسدًا من مصفوفة مخزَّنة بخطوة 8.
+            //      التحميل يبقى بنوع مؤشّر.
+            // (EN) i64-stride element (8) for unified SadArray slots; load as ptr.
+            llvm::Value *elemGep = cg_.builder_->CreateGEP(cg_.getInt64Type(), dataPtr, {idx}, "join.elem.gep");
             llvm::Value *elem = cg_.builder_->CreateLoad(ptrTy, elemGep, "join.elem");
             cg_.builder_->CreateCall(strcatFunc, {buf, elem});
 

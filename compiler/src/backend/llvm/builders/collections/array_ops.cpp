@@ -281,12 +281,13 @@ namespace Sad
             llvm::Value *capGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, "arr.cap.gep");
             cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt64Type(), capacity), capGep);
 
-            // Allocate data buffer: capacity * sizeof(ptr) bytes (pointer-width elements for nested array support)
-            // (AR) تخصيص مخزن البيانات: السعة × حجم المؤشر (لدعم المصفوفات المتداخلة)
-            auto *ptrSize = llvm::ConstantExpr::getSizeOf(llvm::PointerType::getUnqual(*cg_.context_));
+            // (AR) تخصيص مخزن البيانات: السعة × حجم الخانة الموحَّد (8 بايت) —
+            //      لا getSizeOf(ptr): على i686 المؤشّر 4 بينما الوصول للأرقام
+            //      يخطو i64 (8) ⇒ فيضان. انظر SAD_ARRAY_SLOT_BYTES.
+            // (EN) Data buffer: capacity × unified slot size (8) — not getSizeOf(ptr).
             llvm::Value *dataSize = cg_.builder_->CreateMul(
                 llvm::ConstantInt::get(cg_.getInt64Type(), capacity),
-                cg_.builder_->CreateIntCast(ptrSize, cg_.getInt64Type(), false), "arr.data.size");
+                llvm::ConstantInt::get(cg_.getInt64Type(), SAD_ARRAY_SLOT_BYTES), "arr.data.size");
             llvm::Value *dataPtr = cg_.builder_->CreateCall(mallocFunc, {dataSize}, "arr.data");
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
             cg_.builder_->CreateStore(dataPtr, dataGep);
@@ -362,10 +363,12 @@ namespace Sad
 
             if (isNestedArray)
             {
-                // (AR) العنصر مؤشر (مصفوفة متداخلة / نص / بنية)
-                // (EN) Element is a pointer (nested array / string / struct)
+                // (AR) العنصر مؤشر (مصفوفة متداخلة / نص / بنية). الخطوة i64 (8)
+                //      لتوحيد حجم الخانة عبر الأهداف (على i686 خطوة ptr=4 كانت
+                //      تخالف تخصيص/وصول الأرقام). التحميل يبقى بنوع مؤشّر.
+                // (EN) Pointer element; stride by i64 (8) for unified slots, load as ptr.
                 llvm::Value *elemPtr = cg_.builder_->CreateGEP(
-                    llvm::PointerType::getUnqual(*cg_.context_), dataPtr, {index}, "arr.elem.ptr");
+                    cg_.getInt64Type(), dataPtr, {index}, "arr.elem.ptr");
                 result = cg_.builder_->CreateLoad(
                     llvm::PointerType::getUnqual(*cg_.context_), elemPtr, "arr.get.ptr");
             }
@@ -545,10 +548,11 @@ namespace Sad
             }
             else if (isPointerValue)
             {
-                // (AR) تخزين مؤشر (مصفوفة متداخلة / نص / بنية)
-                // (EN) Store pointer (nested array / string / struct)
+                // (AR) تخزين مؤشر (مصفوفة متداخلة / نص / بنية). الخطوة i64 (8)
+                //      لتوحيد حجم الخانة عبر الأهداف. التخزين يبقى بقيمة مؤشّر.
+                // (EN) Store pointer element; stride by i64 (8) for unified slots.
                 llvm::Value *elemPtr = cg_.builder_->CreateGEP(
-                    llvm::PointerType::getUnqual(*cg_.context_), dataPtr, {index}, "arr.elem.ptr");
+                    cg_.getInt64Type(), dataPtr, {index}, "arr.elem.ptr");
                 cg_.builder_->CreateStore(value, elemPtr);
             }
             else
@@ -678,10 +682,10 @@ namespace Sad
             llvm::Value *newCapGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 1, "concat.new.cap.gep");
             cg_.builder_->CreateStore(totalLen, newCapGep);
 
-            // (AR) تخصيص مخزن البيانات: الطول × حجم المؤشر
-            // (EN) Allocate data buffer: total * sizeof(ptr)
-            auto *ptrSize = llvm::ConstantExpr::getSizeOf(ptrTy);
-            llvm::Value *ptrSize64 = cg_.builder_->CreateIntCast(ptrSize, i64Ty, false);
+            // (AR) تخصيص مخزن البيانات ونسخه: الطول × حجم الخانة الموحَّد (8) —
+            //      متّسق مع تخطيط خانات المصدر (SAD_ARRAY_SLOT_BYTES).
+            // (EN) Allocate & copy by unified slot size (8), matching source layout.
+            llvm::Value *ptrSize64 = llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES);
             llvm::Value *dataSize = cg_.builder_->CreateMul(totalLen, ptrSize64, "concat.data.size");
             llvm::Value *newData = cg_.builder_->CreateCall(mallocFn, {dataSize}, "concat.data");
             llvm::Value *newDataGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 2, "concat.new.data.gep");

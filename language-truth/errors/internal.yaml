@@ -179,6 +179,24 @@ errors:
       ar: بلغت تعليمة ({detail}) مولِّد الكود بنوع معامل يخالف قيدها. التحقّق من الأنواع يُفترض أن يمنع هذا قبل التوليد؛ وصوله يعني فجوة في فحص الأنواع.
       en: An instruction ({detail}) reached codegen with an operand type that violates its constraint. Type checking should prevent this before codegen; reaching here indicates a gap in type checking.
 
+  - code: INT_MODULE_VERIFY
+    id: INT011
+    category: internal
+    title:
+      ar: خطأ مترجم داخلي — فشل التحقّق من سلامة وحدة LLVM
+      en: Internal compiler error — LLVM module verification failed
+    brief:
+      ar: 'خطأ مترجم داخلي: وحدة LLVM المولَّدة غير سليمة ({detail}) — يُرجى الإبلاغ'
+      en: 'Internal compiler error: the generated LLVM module is invalid ({detail}) — please report'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر المترجم: شغّل الترجمة مع --emit-llvm ومرّر الناتج إلى llvm-as/opt -verify لرؤية التشخيص الكامل ({detail})، ثم تتبّع الباني الذي أصدر البنية المخالفة (تعارض توقيعات/أنواع غالباً). للمستخدم: علّة مترجم — أبلِغ.'
+      en: 'Compiler dev: run with --emit-llvm and feed the output to llvm-as/opt -verify for the full diagnostic ({detail}), then trace the builder that emitted the offending construct (usually signature/type conflicts). User: compiler bug — report.'
+    detailed:
+      ar: فشل مدقّق LLVM ‏(verifyModule) بعد اكتمال التوليد ({detail}) — الوحدة تحوي IR مخالفًا للمواصفة (مثل تعارض توقيعَي دالة أو أنواع معاملات). كان هذا الفشل يمرّ صامتًا قبل أن يُجعَل قاطعًا؛ وصوله يعني عيبًا في أحد البُناة لا في كود ص.
+      en: LLVM verifyModule failed after codegen completed ({detail}) — the module contains spec-violating IR (e.g., conflicting function signatures or operand types). This used to pass silently before being made fatal; reaching it indicates a defect in a builder, not in the ص code.
+
   - code: INT_INTERP_UNEXPECTED_TOKEN
     id: INT010
     category: internal

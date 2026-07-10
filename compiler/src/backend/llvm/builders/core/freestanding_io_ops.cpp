@@ -172,7 +172,6 @@ namespace Sad
 
             auto savedIP = cg_.builder_->saveIP();
             auto *dblTy = llvm::Type::getDoubleTy(*cg_.context_);
-            auto *i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
             auto *voidTy = llvm::Type::getVoidTy(*cg_.context_);
 
             // --- Basic blocks ---
@@ -216,13 +215,11 @@ namespace Sad
             auto putsFT = llvm::FunctionType::get(voidTy, {ptrTy}, false);
             auto putsFn = cg_.module_->getOrInsertFunction("__sad_serial_puts", putsFT);
 
-            // Inline asm for single char serial output
-            llvm::InlineAsm *outAsm = llvm::InlineAsm::get(
-                llvm::FunctionType::get(voidTy, {i16Ty, i8Ty}, false),
-                "outb %al, %dx",
-                "{dx},{al}",
-                true, false);
-            llvm::Value *port3F8 = llvm::ConstantInt::get(i16Ty, 0x3F8);
+            // (AR) إخراج البايت الواحد عبر البدائيّة المستقصية __sad_serial_putc
+            //      (تستقصي LSR قبل الكتابة) — لا outb مباشرًا بعد الآن
+            // (EN) Single-byte output via the polled __sad_serial_putc primitive
+            auto putcFT = llvm::FunctionType::get(voidTy, {i8Ty}, false);
+            auto putcFn = cg_.module_->getOrInsertFunction("__sad_serial_putc", putcFT);
 
             // === Entry ===
             cg_.builder_->SetInsertPoint(BB_entry);
@@ -259,7 +256,7 @@ namespace Sad
             { return llvm::ConstantInt::get(i8Ty, (uint8_t)v); };
             auto emitOutb = [&](llvm::Value *byte)
             {
-                cg_.builder_->CreateCall(outAsm, {port3F8, byte});
+                cg_.builder_->CreateCall(putcFn, {byte});
             };
 
             // === Main Loop ===

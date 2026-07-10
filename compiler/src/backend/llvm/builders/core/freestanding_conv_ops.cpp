@@ -61,6 +61,60 @@ namespace Sad
             return fn;
         }
 
+        // ============================================================================
+        // __sad_serial_putc — (AR) البدائيّة الموحَّدة لإخراج بايت واحد إلى COM1:
+        //     تستقصي مسجّل حالة الخطّ LSR ‏(0x3FD) حتى يفرغ المرسل (البتّ 0x20)
+        //     ثم تكتب إلى مسجّل البيانات (0x3F8). كلّ مخرجات وقت التشغيل الحرّ
+        //     (printf/puts/putint) تمرّ عبرها — الكتابة المباشرة بلا استقصاء كانت
+        //     تُسقط بايتات على عتاد حقيقيّ (FIFO ‏16550 = 16 بايت).
+        //     (EN) Unified single-byte serial output: poll LSR (0x3FD) for
+        //     TX-empty (bit 0x20) then write the data register (0x3F8). All
+        //     freestanding output funnels through this — direct unpolled writes
+        //     dropped bytes on real 16550 hardware.
+        // ============================================================================
+        void FreestandingCodeGen::emitFreestandingSerialPutc(
+            llvm::Type *i8Ty, llvm::Type *voidTy)
+        {
+            llvm::FunctionType *ft = llvm::FunctionType::get(voidTy, {i8Ty}, false);
+            llvm::Function *fn = getOrCreateFreestandingFunc(
+                cg_.module_.get(), *cg_.context_, "__sad_serial_putc", ft);
+            if (!fn)
+                return;
+
+            auto savedIP = cg_.builder_->saveIP();
+            llvm::Type *i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
+
+            llvm::BasicBlock *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            llvm::BasicBlock *wait = llvm::BasicBlock::Create(*cg_.context_, "wait_tx", fn);
+            llvm::BasicBlock *send = llvm::BasicBlock::Create(*cg_.context_, "send", fn);
+
+            cg_.builder_->SetInsertPoint(entry);
+            cg_.builder_->CreateBr(wait);
+
+            // (AR) حلقة الاستقصاء: inb(0x3FD) & 0x20 حتى يفرغ المرسل
+            cg_.builder_->SetInsertPoint(wait);
+            llvm::InlineAsm *inAsm = llvm::InlineAsm::get(
+                llvm::FunctionType::get(i8Ty, {i16Ty}, false),
+                "inb %dx, %al", "={al},{dx}", true, false);
+            llvm::Value *lsrPort = llvm::ConstantInt::get(i16Ty, 0x3FD);
+            llvm::Value *status = cg_.builder_->CreateCall(inAsm, {lsrPort}, "lsr");
+            llvm::Value *txBit = cg_.builder_->CreateAnd(
+                status, llvm::ConstantInt::get(i8Ty, 0x20), "tx.bit");
+            llvm::Value *txEmpty = cg_.builder_->CreateICmpNE(
+                txBit, llvm::ConstantInt::get(i8Ty, 0), "tx.empty");
+            cg_.builder_->CreateCondBr(txEmpty, send, wait);
+
+            cg_.builder_->SetInsertPoint(send);
+            llvm::InlineAsm *outAsm = llvm::InlineAsm::get(
+                llvm::FunctionType::get(voidTy, {i16Ty, i8Ty}, false),
+                "outb %al, %dx", "{dx},{al}", true, false);
+            llvm::Value *dataPort = llvm::ConstantInt::get(i16Ty, 0x3F8);
+            cg_.builder_->CreateCall(outAsm, {dataPort, fn->getArg(0)});
+            cg_.builder_->CreateRetVoid();
+
+            cg_.builder_->restoreIP(savedIP);
+        }
+
         void FreestandingCodeGen::emitFreestandingSerialPuts(
             llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy)
         {
@@ -72,7 +126,6 @@ namespace Sad
                 return;
 
             auto savedIP = cg_.builder_->saveIP();
-            llvm::Type *i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
 
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
             llvm::BasicBlock *loop = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
@@ -93,12 +146,10 @@ namespace Sad
             cg_.builder_->CreateCondBr(isEnd, done, send);
 
             cg_.builder_->SetInsertPoint(send);
-            llvm::InlineAsm *outAsm = llvm::InlineAsm::get(
-                llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_),
-                                        {i16Ty, i8Ty}, false),
-                "outb %al, %dx", "{dx},{al}", true, false);
-            llvm::Value *port = llvm::ConstantInt::get(i16Ty, 0x3F8);
-            cg_.builder_->CreateCall(outAsm, {port, ch});
+            // (AR) الإخراج عبر البدائيّة المستقصية — لا outb مباشر
+            // (EN) Output via the polled primitive — no direct outb
+            llvm::Function *putcFn = cg_.module_->getFunction("__sad_serial_putc");
+            cg_.builder_->CreateCall(putcFn, {ch});
 
             llvm::Value *nextIdx = cg_.builder_->CreateAdd(idx, llvm::ConstantInt::get(i64Ty, 1));
             idx->addIncoming(nextIdx, send);
@@ -125,7 +176,6 @@ namespace Sad
                 return;
 
             auto savedIP = cg_.builder_->saveIP();
-            llvm::Type *i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
 
             // Blocks
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
@@ -137,12 +187,9 @@ namespace Sad
             llvm::BasicBlock *outBody = llvm::BasicBlock::Create(*cg_.context_, "out_body", fn);
             llvm::BasicBlock *done = llvm::BasicBlock::Create(*cg_.context_, "done", fn);
 
-            // Inline asm for outb
-            llvm::InlineAsm *outAsm = llvm::InlineAsm::get(
-                llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_),
-                                        {i16Ty, i8Ty}, false),
-                "outb %al, %dx", "{dx},{al}", true, false);
-            llvm::Value *port = llvm::ConstantInt::get(i16Ty, 0x3F8);
+            // (AR) الإخراج عبر البدائيّة المستقصية — لا outb مباشر
+            // (EN) Output via the polled primitive — no direct outb
+            llvm::Function *putcFn = cg_.module_->getFunction("__sad_serial_putc");
 
             // Use a 21-byte stack buffer for digits (max 20 digits for int64 + null)
             cg_.builder_->SetInsertPoint(entry);
@@ -157,7 +204,7 @@ namespace Sad
 
             // Negative: output '-' and negate
             cg_.builder_->SetInsertPoint(isNegBB);
-            cg_.builder_->CreateCall(outAsm, {port, llvm::ConstantInt::get(i8Ty, '-')});
+            cg_.builder_->CreateCall(putcFn, {llvm::ConstantInt::get(i8Ty, '-')});
             llvm::Value *negVal = cg_.builder_->CreateNeg(val, "neg");
             cg_.builder_->CreateBr(posStart);
 
@@ -207,7 +254,7 @@ namespace Sad
             cg_.builder_->SetInsertPoint(outBody);
             llvm::Value *outSlot = cg_.builder_->CreateGEP(i8Ty, bufPtr, outIdx, "out.slot");
             llvm::Value *outCh = cg_.builder_->CreateLoad(i8Ty, outSlot, "out.ch");
-            cg_.builder_->CreateCall(outAsm, {port, outCh});
+            cg_.builder_->CreateCall(putcFn, {outCh});
             llvm::Value *prevIdx = cg_.builder_->CreateSub(outIdx, llvm::ConstantInt::get(i64Ty, 1));
             outIdx->addIncoming(prevIdx, outBody);
             cg_.builder_->CreateBr(outLoop);

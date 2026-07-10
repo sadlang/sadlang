@@ -19,6 +19,19 @@ namespace Sad
     namespace LLVM
     {
 
+        // (AR) حجم خانة عنصر المصفوفة/الصفّ بالبايت — ثابت ABI موحَّد عبر كلّ
+        //      الأهداف (i64 دائمًا). التمثيل الداخليّ SadArray هو
+        //      {i64 length, i64 capacity, ptr data} حيث data يشير إلى مصفوفة
+        //      خانات 8 بايت (i64 أو مؤشّر مصندَق في الأدنى). توحيد الخانة على 8
+        //      يزيل تناقض i686: كان التخصيص يستعمل getSizeOf(ptr) (=4 على i686)
+        //      بينما الوصول للأرقام يخطو i64 (=8) ⇒ فيضان خانات. على x86_64
+        //      القيمة 8 = getSizeOf(ptr) فالتوحيد مطابق للعنوان (صفر انحدار).
+        // (EN) Array/tuple element slot size in bytes — a unified ABI constant
+        //      across all targets (always i64=8). Unifying slots to 8 removes the
+        //      i686 divergence where allocation used getSizeOf(ptr)=4 but numeric
+        //      access strided by i64=8. On x86_64 (ptr=8) this is address-identical.
+        constexpr unsigned long long SAD_ARRAY_SLOT_BYTES = 8;
+
         class LLVMCodeGen;
         using SIRInstruction = Compiler::SIR::SIRInstruction;
 

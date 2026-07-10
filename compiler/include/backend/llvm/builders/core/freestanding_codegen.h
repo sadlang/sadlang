@@ -30,8 +30,10 @@ public:
     void emitFreestandingStrcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingStrcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingStrcat(llvm::Type *ptrTy);
+    void emitFreestandingStrtok(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingRealloc(llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingCalloc(llvm::Type *i64Ty, llvm::Type *ptrTy);
+    void emitFreestandingSerialPutc(llvm::Type *i8Ty, llvm::Type *voidTy);
     void emitFreestandingPrintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingSprintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingPow(llvm::Type *dblTy);

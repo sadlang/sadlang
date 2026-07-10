@@ -316,7 +316,7 @@ namespace Sad
             // Verify module — hard failure: invalid IR must never reach the backend
             if (!verify())
             {
-                reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Module"}});
+                reportError(::Sad::Errors::ErrorCode::INT_MODULE_VERIFY, {{"detail", "verifyModule"}});
                 return nullptr;
             }
 

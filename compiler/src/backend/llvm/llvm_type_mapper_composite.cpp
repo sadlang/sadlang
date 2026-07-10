@@ -255,19 +255,28 @@ llvm::Type* LLVMCompositeTypeMapper::mapCompositeType(std::shared_ptr<Type> sadT
 // ============================================================================
 
 /**
- * حساب حجم نوع LLVM بالبايتات
- * تقدير مبسّط — الحجم الدقيق يعتمد على DataLayout
+ * حساب حجم نوع LLVM بالبايتات — تقدير **محافظ لا يُقلّل الحجم أبدًا**
+ *
+ * (AR) يُستعمل لحجز حمولة الاتّحاد الموسوم (‎[N x i8]‎). التقليل يُفسد الذاكرة،
+ *      فالزيادة آمنة. لا نملك DataLayout هنا (المُخطِّط بلا وصول للوحدة)، لذا:
+ *      - المؤشّر = 8 (تقدير أقصى عبر الأهداف؛ زائد آمن على i686 حيث 4).
+ *      - البنى: نُحاذي كلّ حقل لحجمه الطبيعيّ ونُقرّب الإجمالي لأكبر محاذاة —
+ *        كان الجمع بلا حشو يُقلّل الحجم (عيب عبر كلّ الأهداف).
+ * (EN) Conservative, never-undersize size estimate for tagged-union payload
+ *      buffers ([N x i8]). No DataLayout access here, so pointer=8 (max across
+ *      targets, safe over-estimate on i686) and struct fields are naturally
+ *      aligned with the total rounded to the max alignment (the old unpadded
+ *      sum under-sized on all targets).
  */
 size_t LLVMCompositeTypeMapper::getTypeSizeInBytes(llvm::Type* type) const {
     if (!type) return 0;
-    
+
     if (type->isIntegerTy()) {
-        // حجم الأعداد الصحيحة = عدد البتات / 8
         return (type->getIntegerBitWidth() + 7) / 8;
     }
     if (type->isFloatTy()) return 4;
     if (type->isDoubleTy()) return 8;
-    if (type->isPointerTy()) return 8;  // 64-bit مؤشرات
+    if (type->isPointerTy()) return 8;  // تقدير أقصى آمن عبر الأهداف
     if (type->isArrayTy()) {
         auto* arrType = llvm::cast<llvm::ArrayType>(type);
         return arrType->getNumElements() * getTypeSizeInBytes(arrType->getElementType());
@@ -275,13 +284,25 @@ size_t LLVMCompositeTypeMapper::getTypeSizeInBytes(llvm::Type* type) const {
     if (type->isStructTy()) {
         auto* structType = llvm::cast<llvm::StructType>(type);
         size_t total = 0;
+        size_t maxAlign = 1;
         for (unsigned i = 0; i < structType->getNumElements(); ++i) {
-            total += getTypeSizeInBytes(structType->getElementType(i));
+            size_t fieldSize = getTypeSizeInBytes(structType->getElementType(i));
+            // (AR) محاذاة طبيعيّة للحقل (بحجمه محدودًا بـ8) قبل جمعه
+            // (EN) Naturally align the field (its size, capped at 8) before adding
+            size_t fieldAlign = fieldSize > 8 ? 8 : (fieldSize == 0 ? 1 : fieldSize);
+            if (fieldAlign > maxAlign) maxAlign = fieldAlign;
+            size_t misalign = total % fieldAlign;
+            if (misalign != 0) total += (fieldAlign - misalign);
+            total += fieldSize;
         }
+        // (AR) تقريب الإجمالي لأكبر محاذاة (ذيل البنية)
+        // (EN) Round the total up to the max alignment (struct tail padding)
+        size_t tail = total % maxAlign;
+        if (tail != 0) total += (maxAlign - tail);
         return total;
     }
-    
-    // نوع غير معروف — افتراضي 8 بايت
+
+    // نوع غير معروف — افتراضي 8 بايت (تقدير أقصى آمن)
     return 8;
 }
 

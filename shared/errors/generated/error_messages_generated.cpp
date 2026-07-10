@@ -719,6 +719,13 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr, nullptr,
       "لمطوّر المفسر: المُحلِّل (parser) سلّم لـtokenToValue رمزاً ({detail}) ليس حرفيّاً. تحقّق من أن بناء عقدة التعبير الحرفي يقتصر على أنواع الرموز الحرفية. للمستخدم: علّة مفسر — أبلِغ، وليست علّة في برنامجك.", "Interpreter dev: the parser handed tokenToValue a token ({detail}) that is not a literal. Ensure literal-expression node construction is restricted to literal token types. User: interpreter bug — report; not an error in your code.",
       nullptr },
+    { ErrorCode::INT_MODULE_VERIFY, "INT011", "internal",
+      "خطأ مترجم داخلي — فشل التحقّق من سلامة وحدة LLVM", "Internal compiler error — LLVM module verification failed",
+      "خطأ مترجم داخلي: وحدة LLVM المولَّدة غير سليمة ({detail}) — يُرجى الإبلاغ", "Internal compiler error: the generated LLVM module is invalid ({detail}) — please report",
+      "فشل مدقّق LLVM ‏(verifyModule) بعد اكتمال التوليد ({detail}) — الوحدة تحوي IR مخالفًا للمواصفة (مثل تعارض توقيعَي دالة أو أنواع معاملات). كان هذا الفشل يمرّ صامتًا قبل أن يُجعَل قاطعًا؛ وصوله يعني عيبًا في أحد البُناة لا في كود ص.", "LLVM verifyModule failed after codegen completed ({detail}) — the module contains spec-violating IR (e.g., conflicting function signatures or operand types). This used to pass silently before being made fatal; reaching it indicates a defect in a builder, not in the ص code.",
+      nullptr, nullptr,
+      "لمطوّر المترجم: شغّل الترجمة مع --emit-llvm ومرّر الناتج إلى llvm-as/opt -verify لرؤية التشخيص الكامل ({detail})، ثم تتبّع الباني الذي أصدر البنية المخالفة (تعارض توقيعات/أنواع غالباً). للمستخدم: علّة مترجم — أبلِغ.", "Compiler dev: run with --emit-llvm and feed the output to llvm-as/opt -verify for the full diagnostic ({detail}), then trace the builder that emitted the offending construct (usually signature/type conflicts). User: compiler bug — report.",
+      nullptr },
 };
 
 const std::size_t kErrorMessagesCount =

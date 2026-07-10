@@ -86,6 +86,11 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     emitFreestandingStrcat(ptrTy);
 
     // ========================================================================
+    // 8.5 strtok — تقطيع نصّ بحالة ساكنة (يستهلكه «تقسيم»/split حرًّا)
+    // ========================================================================
+    emitFreestandingStrtok(i8Ty, i64Ty, ptrTy);
+
+    // ========================================================================
     // 9. realloc — malloc + memcpy + free
     // ========================================================================
     emitFreestandingRealloc(i64Ty, ptrTy);
@@ -94,6 +99,12 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     // 10. calloc — malloc + memset
     // ========================================================================
     emitFreestandingCalloc(i64Ty, ptrTy);
+
+    // ========================================================================
+    // 10.5 __sad_serial_putc — Polled single-byte serial output (LSR wait)
+    //      (AR) يجب إصداره قبل printf/puts/putint — كلّها تمرّ عبره
+    // ========================================================================
+    emitFreestandingSerialPutc(i8Ty, voidTy);
 
     // ========================================================================
     // 11. printf — Serial port output (0x3F8)
@@ -180,7 +191,16 @@ void FreestandingCodeGen::emitFreestandingPanic(llvm::Type* i64Ty, llvm::Type* v
     }
     cg_.builder_->CreateBr(halt);
 
+    // (AR) التوقّف الافتراضيّ: cli ثم hlt في حلقة — الدوران الفارغ السابق كان
+    //      يواصل خدمة المقاطعات بعد الهلع ويحرق المعالج. (يبقى weak_odr —
+    //      النواة تتجاوزه بسياستها الخاصّة عند الحاجة.)
+    // (EN) Default halt: cli;hlt loop — the previous empty spin kept serving
+    //      interrupts after panic and burned the CPU. Still weak_odr.
     cg_.builder_->SetInsertPoint(halt);
+    llvm::InlineAsm* haltAsm = llvm::InlineAsm::get(
+        llvm::FunctionType::get(voidTy, {}, false),
+        "cli\n\thlt", "", true, false);
+    cg_.builder_->CreateCall(haltAsm, {});
     cg_.builder_->CreateBr(halt);
     cg_.builder_->restoreIP(savedIP);
 }
@@ -294,11 +314,25 @@ static llvm::Function* getOrCreateFreestandingFunc(
 // ============================================================================
 // 1. malloc — Bump allocator
 //    4MB static heap, 16-byte aligned allocation
+//
+// (AR) عقد المخصّص الحرّ (موثَّق — كان دَينًا):
+//   - المحاذاة: المؤشّر المعاد محاذى دائمًا إلى 16 بايت (يكفي أيّ نوع
+//     أساسيّ بما فيه fxsave لا — ذاك يتطلّب 16 وهي مضمونة هنا).
+//   - الترويسة: قبل كلّ مؤشّر معاد بـ16 بايت تُخزَّن ترويسة تحمل حجم
+//     الطلب (i64 في أوّلها والبقيّة حشو محاذاة) — يقرؤها realloc لنسخ
+//     الأصغر (لا over-read). free لا-عمليّة، فالترويسة لا تُستردّ أبدًا.
+//   - الفشل: تجاوز الكومة (4MB) يعيد null — المستهلكون العلويّون
+//     (المصفوفات/الخرائط) يهلعون عبر مساراتهم.
+// (EN) Freestanding allocator contract: 16-byte aligned results; a 16-byte
+//     header immediately before each returned pointer stores the request
+//     size (i64 + padding) so realloc can copy min(old,new); free is a
+//     no-op; heap exhaustion returns null.
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingMalloc(
     llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
 {
     constexpr uint64_t HEAP_SIZE = 4 * 1024 * 1024; // 4MB
+    constexpr uint64_t HEADER_SIZE = 16; // (AR) ترويسة الحجم — تحفظ محاذاة 16
 
     llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "malloc", ft);
@@ -335,10 +369,14 @@ void FreestandingCodeGen::emitFreestandingMalloc(
     llvm::Value* offset = cg_.builder_->CreateLoad(i64Ty, heapOff, "offset");
     llvm::Value* plus15 = cg_.builder_->CreateAdd(offset, llvm::ConstantInt::get(i64Ty, 15));
     llvm::Value* aligned = cg_.builder_->CreateAnd(plus15, llvm::ConstantInt::get(i64Ty, ~15ULL), "aligned");
-    llvm::Value* newOff = cg_.builder_->CreateAdd(aligned, size, "new_off");
+    // (AR) الحجز = ترويسة الحجم (16) + الطلب — الترويسة تسبق المؤشّر المعاد
+    // (EN) Reserve header (16) + request; header precedes the returned pointer
+    llvm::Value* withHdr = cg_.builder_->CreateAdd(aligned,
+        llvm::ConstantInt::get(i64Ty, HEADER_SIZE), "with_hdr");
+    llvm::Value* newOff = cg_.builder_->CreateAdd(withHdr, size, "new_off");
 
-    // (AR) فحص تجاوز الكومة
-    // (EN) Check heap overflow
+    // (AR) فحص تجاوز الكومة (بما يشمل الترويسة)
+    // (EN) Check heap overflow (header included)
     llvm::Value* overflow = cg_.builder_->CreateICmpUGT(newOff,
         llvm::ConstantInt::get(i64Ty, HEAP_SIZE), "overflow");
     cg_.builder_->CreateCondBr(overflow, oomBB, okBB);
@@ -350,8 +388,13 @@ void FreestandingCodeGen::emitFreestandingMalloc(
     // OK path
     cg_.builder_->SetInsertPoint(okBB);
     cg_.builder_->CreateStore(newOff, heapOff);
+    // (AR) كتابة حجم الطلب في الترويسة — يقرؤه realloc لنسخ الأصغر
+    // (EN) Store request size in the header — realloc reads it to copy min
+    llvm::Value* hdrPtr = cg_.builder_->CreateGEP(heapTy, heap,
+        {llvm::ConstantInt::get(i64Ty, 0), aligned}, "hdr_ptr");
+    cg_.builder_->CreateStore(size, hdrPtr);
     llvm::Value* ptr = cg_.builder_->CreateGEP(heapTy, heap,
-        {llvm::ConstantInt::get(i64Ty, 0), aligned}, "heap_ptr");
+        {llvm::ConstantInt::get(i64Ty, 0), withHdr}, "heap_ptr");
     cg_.builder_->CreateRet(ptr);
 
     cg_.builder_->restoreIP(savedIP);
@@ -677,6 +720,153 @@ void FreestandingCodeGen::emitFreestandingStrcat(llvm::Type* ptrTy) {
 }
 
 // ============================================================================
+// 8.5 strtok — (AR) تقطيع نصّ بمجموعة فواصل، بحالة ساكنة (نمط libc القياسيّ).
+//     يستهلكه المدمج «تقسيم»/split حرًّا؛ كان غيابه يُفشل الربط (رمز strtok
+//     غير معرَّف). ⚠️ حالة ساكنة عامّة (سياق نواة أحاديّ الخيط) — كنمط libc.
+//     يعتمد مساعدًا داخليًّا __sad_char_in_delim(c, delim) لفحص عضويّة الحرف.
+//     (EN) Standard stateful strtok for freestanding split; a global saveptr
+//     (single-threaded kernel, as libc). Uses a __sad_char_in_delim helper.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingStrtok(
+    llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+{
+    // --- المساعد: __sad_char_in_delim(i8 c, ptr delim) -> i1 ---
+    llvm::Type* i1Ty = llvm::Type::getInt1Ty(*cg_.context_);
+    llvm::FunctionType* helpFt = llvm::FunctionType::get(i1Ty, {i8Ty, ptrTy}, false);
+    llvm::Function* helper =
+        getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "__sad_char_in_delim", helpFt);
+    if (helper) {
+        auto savedIP = cg_.builder_->saveIP();
+        llvm::BasicBlock* he = llvm::BasicBlock::Create(*cg_.context_, "entry", helper);
+        llvm::BasicBlock* hl = llvm::BasicBlock::Create(*cg_.context_, "loop", helper);
+        llvm::BasicBlock* hMatch = llvm::BasicBlock::Create(*cg_.context_, "match", helper);
+        llvm::BasicBlock* hCont = llvm::BasicBlock::Create(*cg_.context_, "cont", helper);
+        llvm::BasicBlock* hNo = llvm::BasicBlock::Create(*cg_.context_, "no", helper);
+
+        cg_.builder_->SetInsertPoint(he);
+        llvm::Value* c = helper->getArg(0);
+        llvm::Value* delim = helper->getArg(1);
+        cg_.builder_->CreateBr(hl);
+
+        cg_.builder_->SetInsertPoint(hl);
+        llvm::PHINode* i = cg_.builder_->CreatePHI(i64Ty, 2, "i");
+        i->addIncoming(llvm::ConstantInt::get(i64Ty, 0), he);
+        llvm::Value* dptr = cg_.builder_->CreateGEP(i8Ty, delim, i);
+        llvm::Value* d = cg_.builder_->CreateLoad(i8Ty, dptr);
+        llvm::Value* dEnd = cg_.builder_->CreateICmpEQ(d, llvm::ConstantInt::get(i8Ty, 0));
+        cg_.builder_->CreateCondBr(dEnd, hNo, hCont); // نهاية delim ⇒ لا عضويّة
+
+        cg_.builder_->SetInsertPoint(hCont);
+        llvm::Value* nextI = cg_.builder_->CreateAdd(i, llvm::ConstantInt::get(i64Ty, 1), "next.i");
+        i->addIncoming(nextI, hCont);
+        llvm::Value* eq = cg_.builder_->CreateICmpEQ(d, c);
+        cg_.builder_->CreateCondBr(eq, hMatch, hl);
+
+        cg_.builder_->SetInsertPoint(hMatch);
+        cg_.builder_->CreateRet(llvm::ConstantInt::get(i1Ty, 1));
+        cg_.builder_->SetInsertPoint(hNo);
+        cg_.builder_->CreateRet(llvm::ConstantInt::get(i1Ty, 0));
+        cg_.builder_->restoreIP(savedIP);
+    }
+    // ملاحظة: getFunction يعيد المؤشّر حتى لو أُنشئ سابقًا (helper==nullptr عند التكرار)
+    llvm::Function* inDelim = cg_.module_->getFunction("__sad_char_in_delim");
+
+    // --- الحالة الساكنة: __sad_strtok_save (ptr) ---
+    llvm::Function* fn = getOrCreateFreestandingFunc(
+        cg_.module_.get(), *cg_.context_,
+        "strtok", llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false));
+    if (!fn) return;
+
+    llvm::GlobalVariable* save = cg_.module_->getGlobalVariable("__sad_strtok_save");
+    if (!save) {
+        save = new llvm::GlobalVariable(
+            *cg_.module_, ptrTy, false, llvm::GlobalValue::InternalLinkage,
+            llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+            "__sad_strtok_save");
+    }
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::Value* nullP = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy));
+
+    llvm::BasicBlock* entry   = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* useSave = llvm::BasicBlock::Create(*cg_.context_, "use_save", fn);
+    llvm::BasicBlock* useStr  = llvm::BasicBlock::Create(*cg_.context_, "use_str", fn);
+    llvm::BasicBlock* skip    = llvm::BasicBlock::Create(*cg_.context_, "skip", fn);   // تخطّي الفواصل البادئة
+    llvm::BasicBlock* skipChk = llvm::BasicBlock::Create(*cg_.context_, "skip_chk", fn);
+    llvm::BasicBlock* retNull = llvm::BasicBlock::Create(*cg_.context_, "ret_null", fn);
+    llvm::BasicBlock* scan    = llvm::BasicBlock::Create(*cg_.context_, "scan", fn);   // مسح جسم الرمز
+    llvm::BasicBlock* scanChk = llvm::BasicBlock::Create(*cg_.context_, "scan_chk", fn);
+    llvm::BasicBlock* atEnd   = llvm::BasicBlock::Create(*cg_.context_, "at_end", fn);
+    llvm::BasicBlock* atDelim = llvm::BasicBlock::Create(*cg_.context_, "at_delim", fn);
+
+    cg_.builder_->SetInsertPoint(entry);
+    llvm::Value* str = fn->getArg(0);
+    llvm::Value* delim = fn->getArg(1);
+    llvm::Value* strIsNull = cg_.builder_->CreateICmpEQ(str, nullP);
+    cg_.builder_->CreateCondBr(strIsNull, useSave, useStr);
+
+    cg_.builder_->SetInsertPoint(useSave);
+    llvm::Value* saved = cg_.builder_->CreateLoad(ptrTy, save, "saved");
+    cg_.builder_->CreateBr(skip);
+    cg_.builder_->SetInsertPoint(useStr);
+    cg_.builder_->CreateBr(skip);
+
+    // تخطّي الفواصل البادئة: while (*s && in_delim(*s)) s++
+    cg_.builder_->SetInsertPoint(skip);
+    llvm::PHINode* s = cg_.builder_->CreatePHI(ptrTy, 2, "s");
+    s->addIncoming(saved, useSave);
+    s->addIncoming(str, useStr);
+    llvm::Value* sc = cg_.builder_->CreateLoad(i8Ty, s, "sc");
+    llvm::Value* scEnd = cg_.builder_->CreateICmpEQ(sc, llvm::ConstantInt::get(i8Ty, 0));
+    cg_.builder_->CreateCondBr(scEnd, retNull, skipChk);
+
+    cg_.builder_->SetInsertPoint(skipChk);
+    llvm::Value* scIn = cg_.builder_->CreateCall(inDelim, {sc, delim}, "sc.in");
+    llvm::Value* sNext = cg_.builder_->CreateGEP(i8Ty, s, llvm::ConstantInt::get(i64Ty, 1), "s.next");
+    s->addIncoming(sNext, skipChk);
+    cg_.builder_->CreateCondBr(scIn, skip, scan); // فاصل ⇒ تابع التخطّي، وإلا ابدأ الرمز
+
+    // نهاية السلسلة كلّها فواصل ⇒ احفظ الموضع وأعِد null
+    cg_.builder_->SetInsertPoint(retNull);
+    cg_.builder_->CreateStore(s, save);
+    cg_.builder_->CreateRet(nullP);
+
+    // مسح جسم الرمز: token=s; while (*s && !in_delim(*s)) s++
+    cg_.builder_->SetInsertPoint(scan);
+    llvm::Value* token = s; // بداية الرمز (أوّل غير-فاصل)
+    cg_.builder_->CreateBr(scanChk);
+
+    cg_.builder_->SetInsertPoint(scanChk);
+    llvm::PHINode* t = cg_.builder_->CreatePHI(ptrTy, 2, "t");
+    t->addIncoming(token, scan);
+    llvm::Value* tc = cg_.builder_->CreateLoad(i8Ty, t, "tc");
+    llvm::Value* tcEnd = cg_.builder_->CreateICmpEQ(tc, llvm::ConstantInt::get(i8Ty, 0));
+    cg_.builder_->CreateCondBr(tcEnd, atEnd, atDelim);
+
+    cg_.builder_->SetInsertPoint(atDelim);
+    llvm::Value* tcIn = cg_.builder_->CreateCall(inDelim, {tc, delim}, "tc.in");
+    llvm::Value* tNext = cg_.builder_->CreateGEP(i8Ty, t, llvm::ConstantInt::get(i64Ty, 1), "t.next");
+    t->addIncoming(tNext, atDelim);
+    // فاصل ⇒ اقطع هنا (اكتب 0، احفظ t+1)؛ وإلا تابع المسح
+    llvm::BasicBlock* cut = llvm::BasicBlock::Create(*cg_.context_, "cut", fn);
+    cg_.builder_->CreateCondBr(tcIn, cut, scanChk);
+
+    // بلغنا نهاية السلسلة داخل الرمز ⇒ احفظ الموضع (t) وأعِد token
+    cg_.builder_->SetInsertPoint(atEnd);
+    cg_.builder_->CreateStore(t, save);
+    cg_.builder_->CreateRet(token);
+
+    // قطع عند فاصل: *t=0؛ save=t+1؛ أعِد token
+    cg_.builder_->SetInsertPoint(cut);
+    cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), t);
+    llvm::Value* afterCut = cg_.builder_->CreateGEP(i8Ty, t, llvm::ConstantInt::get(i64Ty, 1), "after.cut");
+    cg_.builder_->CreateStore(afterCut, save);
+    cg_.builder_->CreateRet(token);
+
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
 // 9. realloc — malloc new block, memcpy old data, free old block
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type* ptrTy) {
@@ -699,17 +889,29 @@ void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type*
     llvm::Function* mallocFn = cg_.module_->getFunction("malloc");
     llvm::Value* newPtr = cg_.builder_->CreateCall(mallocFn, {newSz}, "new.ptr");
 
-    // (AR) إذا كان المؤشر القديم غير null، انسخ البيانات
-    // (EN) If old pointer is non-null, copy data
-    llvm::Value* isNull = cg_.builder_->CreateICmpEQ(oldPtr,
-        llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)));
-    cg_.builder_->CreateCondBr(isNull, done, notNull);
+    // (AR) النسخ فقط إذا كان المؤشران غير فارغين (فشل malloc ⇒ إرجاع null بلا نسخ)
+    // (EN) Copy only when both pointers are non-null (malloc failure returns null)
+    llvm::Value* nullPtr = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy));
+    llvm::Value* oldIsNull = cg_.builder_->CreateICmpEQ(oldPtr, nullPtr, "old.is.null");
+    llvm::Value* newIsNull = cg_.builder_->CreateICmpEQ(newPtr, nullPtr, "new.is.null");
+    llvm::Value* skipCopy = cg_.builder_->CreateOr(oldIsNull, newIsNull, "skip.copy");
+    cg_.builder_->CreateCondBr(skipCopy, done, notNull);
 
     cg_.builder_->SetInsertPoint(notNull);
-    // (AR) نسخ الحجم الجديد (قد يكون أكثر من القديم لكن آمن للكومة)
-    // (EN) Copy new size bytes (may be more than old but safe for bump allocator)
+    // (AR) قراءة حجم الكتلة القديمة من ترويستها (تسبق المؤشّر بـ16 بايت —
+    //      انظر عقد malloc أعلاه) والنسخ بالأصغر بين القديم والجديد.
+    //      كان النسخ سابقًا بحجم الكتلة الجديدة ⇒ قراءة زائدة (over-read)
+    //      من ذيل الكتلة القديمة.
+    // (EN) Read old block size from its header (16 bytes before the pointer)
+    //      and copy min(old, new) — previously copied newSz (over-read).
+    llvm::Type* i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+    llvm::Value* hdrPtr = cg_.builder_->CreateGEP(i8Ty, oldPtr,
+        llvm::ConstantInt::get(i64Ty, -16), "old.hdr");
+    llvm::Value* oldSz = cg_.builder_->CreateLoad(i64Ty, hdrPtr, "old.size");
+    llvm::Value* newSmaller = cg_.builder_->CreateICmpULT(newSz, oldSz, "new.smaller");
+    llvm::Value* copySz = cg_.builder_->CreateSelect(newSmaller, newSz, oldSz, "copy.size");
     llvm::Function* memcpyFn = cg_.module_->getFunction("memcpy");
-    cg_.builder_->CreateCall(memcpyFn, {newPtr, oldPtr, newSz});
+    cg_.builder_->CreateCall(memcpyFn, {newPtr, oldPtr, copySz});
     llvm::Function* freeFn = cg_.module_->getFunction("free");
     cg_.builder_->CreateCall(freeFn, {oldPtr});
     cg_.builder_->CreateBr(done);

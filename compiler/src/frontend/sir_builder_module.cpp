@@ -414,6 +414,21 @@ namespace Sad
                             funcInfo.returnType =
                                 inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
                         }
+                        else if (funcDecl->returnType == Types::SadTypeKind::Unknown &&
+                                 !funcDecl->body)
+                        {
+                            // (AR) دالّة بلا جسم (خارجي/FFI) بلا نوع إرجاع صريح ⇒ Void —
+                            //      كان astTypeToSIRType(Unknown) يعيد Integer فيتباعد
+                            //      functionTable_ ‏(i64) عن SIRFunction ‏(Void) ويُصدر
+                            //      موضعُ النداء call i64 على declare void ‏(UB إن
+                            //      استُهلكت القيمة). نوع الإرجاع الصريح يسلك else أدناه.
+                            // (EN) Bodyless (extern/FFI) function with no explicit
+                            //      return type ⇒ Void — astTypeToSIRType(Unknown)
+                            //      returned Integer, splitting functionTable_ (i64)
+                            //      from SIRFunction (Void) and emitting call i64 on a
+                            //      declare void (UB if the value is consumed).
+                            funcInfo.returnType = SadTypeKind::Void;
+                        }
                         else
                         {
                             funcInfo.returnType = astTypeToSIRType(funcDecl->returnType);

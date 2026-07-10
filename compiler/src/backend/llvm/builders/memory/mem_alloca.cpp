@@ -22,6 +22,7 @@
 #include <fstream>
 #include <algorithm>
 #include "builders/memory/memory_codegen.h" // (Phase 7 Step 2)
+#include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
 #include "llvm_codegen.h"
 
 using namespace Sad::Compiler::SIR;
@@ -135,11 +136,12 @@ namespace Sad
                                     llvm::Value *capGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, fieldName + ".cap");
                                     cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 8), capGep);
 
-                                    // data = malloc(8 * sizeof(ptr))
-                                    auto *ptrSize = llvm::ConstantExpr::getSizeOf(ptrTy);
+                                    // (AR) data = malloc(السعة 8 × حجم الخانة الموحَّد 8) —
+                                    //      لا getSizeOf(ptr) (=4 على i686 يخالف خطوة i64)
+                                    // (EN) data = malloc(capacity 8 × unified slot 8), not getSizeOf(ptr)
                                     llvm::Value *dataSize = cg_.builder_->CreateMul(
                                         llvm::ConstantInt::get(i64Ty, 8),
-                                        cg_.builder_->CreateIntCast(ptrSize, i64Ty, false),
+                                        llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES),
                                         fieldName + ".datasz");
                                     llvm::Value *dataPtr = cg_.builder_->CreateCall(
                                         mallocFn, {dataSize}, fieldName + ".data");

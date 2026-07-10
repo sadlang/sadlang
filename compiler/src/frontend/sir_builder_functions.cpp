@@ -323,6 +323,20 @@ namespace Sad
                 // (EN) If no function body (builtin or declaration only), don't build body
                 if (!funcDecl->body)
                 {
+                    // (AR) مزامنة جدول الدوالّ مع نوع إرجاع SIRFunction الحقيقيّ —
+                    //      الخروج المبكّر هنا كان يتخطّى تسجيل النوع أدناه فيبقى
+                    //      مدخلُ الطور الأوّل (Integer الافتراضيّ) ويتباعد عن
+                    //      الإعلان المُصدَر (declare void) في مواضع النداء.
+                    // (EN) Sync the function table with the real SIRFunction return
+                    //      type — this early return used to skip the registration
+                    //      below, leaving phase-1's default (Integer) diverging from
+                    //      the emitted declaration at call sites.
+                    auto tableIt = functionTable_.find(funcDecl->name);
+                    if (tableIt != functionTable_.end())
+                    {
+                        tableIt->second.returnType = returnType;
+                        tableIt->second.sirFunction = sirFunction;
+                    }
                     module_->addFunction(sirFunction);
                     return;
                 }
