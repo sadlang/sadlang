@@ -72,7 +72,7 @@ VALID_CONFIGS = ("Debug", "Release", "RelWithDebInfo", "MinSizeRel")
 #      أدناه مشتقّات خالصة تبقى متعقَّبة في git (نمط Go `go generate`)، و
 #      `x.py gen --check` حارس انجراف يفشل إن لم تَعُد مطابقةً لِما يولّده YAML.
 #
-#      عشرة نطاقات مستقلّة (أشقّاء بلا اعتماد متبادل) فيُستدعى مولّد كلٍّ مباشرةً —
+#      اثنا عشر نطاقًا مستقلًّا (أشقّاء بلا اعتماد متبادل) فيُستدعى مولّد كلٍّ مباشرةً —
 #      لا حاجة إلى تهيئة CMake الثقيلة لبوّابة فحصٍ يجب أن تكون خفيفة. أربعةٌ منها
 #      (types/keywords/builtins/error_messages) تطابق هدف CMake `sad_all_codegen`
 #      (cmake/codegen.cmake)؛ ونطاقات الواجهة الستّة (ui_props/ui_modifiers +
@@ -83,7 +83,7 @@ VALID_CONFIGS = ("Debug", "Release", "RelWithDebInfo", "MinSizeRel")
 # (EN) Source-of-truth codegen domains — Phase 1 of sadlang-rfcs#10. The YAML in
 #      language-truth/ is the SINGLE source of truth; the generated files stay
 #      tracked in git (Go `go generate` pattern) and `x.py gen --check` is the
-#      drift guard. Nine independent siblings; each generator is invoked directly —
+#      drift guard. Twelve independent siblings; each generator is invoked directly —
 #      no heavy CMake configure for a check that must stay light. Four
 #      (types/keywords/builtins/error_messages) mirror CMake's `sad_all_codegen`;
 #      the five UI domains (ui_props/ui_modifiers + the ui_animations/ui_easings/
@@ -248,6 +248,55 @@ CODEGEN_DOMAINS = (
             "--out-cpp", f"{d}/repl_sot_generated.cpp",
             "--quiet",
         ],
+    },
+    {
+        # (AR) توثيق قواعد المحلّل المولَّد من language-truth/grammar/*.yaml —
+        #      Markdown مُلتزَم تحت docs/parser_rule/_generated (8 طبقات + فهرس).
+        #      كان للمولّد `--check` خاصّ خارج هذه البوّابة ⇒ خطر وثائق بائتة؛
+        #      بضمّه نطاقًا يعيد `gen` توليدَه ويمسك `gen --check` انحرافَه.
+        # (EN) Parser-grammar docs generated from language-truth/grammar/*.yaml —
+        #      committed Markdown under docs/parser_rule/_generated (8 layers +
+        #      INDEX). Its standalone --check lived outside this gate (stale-docs
+        #      risk); as a domain, `gen` regenerates and `gen --check` guards it.
+        "name": "parser_grammar_docs",
+        "script": "gen_parser_grammar_docs.py",
+        "out_dir": "docs/parser_rule/_generated",
+        "outputs": (
+            "INDEX.md",
+            "00_program.md",
+            "10_statements.md",
+            "20_declarations.md",
+            "30_oop.md",
+            "40_expressions.md",
+            "50_patterns.md",
+            "60_advanced.md",
+            "70_lexical.md",
+        ),
+        "args": lambda d: ["--out-dir", d, "--quiet"],
+    },
+)
+
+# (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —
+#      يكمّلون حارس الانجراف بفحوص اتّساق بين مصدر الحقيقة وبقيّة الشجرة:
+#        • token_catalog: تعداد KEYWORD_* في token.h ↔ كتالوج keywords.yaml
+#          (مع قائمة «دَين موروث» صريحة تنكمش فقط — انظر الحارس نفسه).
+#        • rules_matrix: سلامة وسوم @rule في tests/behavior/rules_matrix ↔ قواعد
+#          language-truth/grammar (بنمط --check لبقيّة المولّدات).
+#      كلّ حارس: سكربت في scripts/codegen/ يعيد rc=0 سليمًا وغير صفر عند الانجراف.
+# (EN) Pure check-only guards (no generated outputs) that run inside
+#      `x.py gen --check` only, complementing the drift guard with SoT-vs-tree
+#      consistency checks. Each guard is a scripts/codegen/ script returning
+#      rc=0 when clean, non-zero on drift.
+SOT_CHECK_GUARDS = (
+    {
+        "name": "token_catalog",
+        "script": "check_token_catalog.py",
+        "args": (),
+    },
+    {
+        "name": "rules_matrix",
+        "script": "gen_rules_matrix.py",
+        "args": ("--check",),
     },
 )
 
@@ -540,6 +589,22 @@ def _gen_check() -> None:
 
     _log("✓ المصدر المولَّد متزامن تمامًا مع language-truth/ "
          "/ generated sources are in sync with the YAML SoT.")
+
+    # (AR) حرّاس الفحص الخالصون (لا مخرجات): اتّساق مصدر الحقيقة مع بقيّة الشجرة.
+    # (EN) Pure check-only guards: SoT-vs-tree consistency (no generated outputs).
+    for guard in SOT_CHECK_GUARDS:
+        script = ROOT / "scripts" / "codegen" / guard["script"]
+        if not script.exists():
+            _fail(f"حارس مفقود / guard missing: {script}")
+        cmd = [sys.executable, str(script), *guard["args"]]
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        _log("» " + " ".join(cmd))
+        result = subprocess.run(cmd, cwd=ROOT, env=env)
+        if result.returncode != 0:
+            _fail(f"فشل حارس الاتّساق / consistency guard failed: {guard['name']}")
+
+    _log("✓ حرّاس الاتّساق كلّها خضراء / all SoT consistency guards passed.")
 
 
 def cmd_gen(args: argparse.Namespace) -> None:

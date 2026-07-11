@@ -12,6 +12,9 @@
 # الاستخدام / Usage:
 #   python scripts/codegen/gen_parser_grammar_docs.py            # يولّد
 #   python scripts/codegen/gen_parser_grammar_docs.py --check    # تحقّق CI (هل محدَّث؟)
+#   python scripts/codegen/gen_parser_grammar_docs.py --out-dir D  # يولّد إلى مجلّد بديل
+#       (AR) لتكامل حارس `x.py gen --check`: التوليد إلى مجلّد مؤقّت ثمّ المقارنة.
+#       (EN) For the `x.py gen --check` drift guard: emit into a temp dir, then diff.
 # ============================================================================
 
 import sys
@@ -508,39 +511,49 @@ def build_global_maps(layers_raw):
             "id2callers": id2callers, "id2prod": id2prod, "lex": load_lexicon()}
 
 
-def build():
+def build(out_dir=OUT_DIR):
     layers_raw = load_productions()
     gmaps = build_global_maps(layers_raw)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     outputs = {}
     index_layers = []
     seq = 1
     for fname, data in layers_raw:
         outname = fname.replace(".yaml", ".md")
         content, seq = render_layer(fname, data, seq, gmaps)
-        outputs[OUT_DIR / outname] = content
+        outputs[out_dir / outname] = content
         index_layers.append((fname, data, outname, len(data["productions"])))
     total = seq - 1
-    outputs[OUT_DIR / "INDEX.md"] = render_index(index_layers, total, gmaps)
+    outputs[out_dir / "INDEX.md"] = render_index(index_layers, total, gmaps)
     return outputs, total
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="تحقّق فقط: هل المخرجات محدَّثة؟ (CI)")
+    ap.add_argument("--out-dir", default=None,
+                    help="مجلّد الإخراج (الافتراضيّ docs/parser_rule/_generated) — "
+                         "لحارس x.py gen --check")
+    ap.add_argument("--quiet", action="store_true", help="بلا سطر نجاح (لتكامل x.py)")
     args = ap.parse_args()
-    outputs, total = build()
+    out_dir = pathlib.Path(args.out_dir) if args.out_dir else OUT_DIR
+    outputs, total = build(out_dir)
     if args.check:
         stale = [p.name for p, c in outputs.items()
                  if (p.read_text(encoding="utf-8") if p.exists() else None) != c]
         if stale:
             print("STALE (أعد التوليد):", ", ".join(stale))
             sys.exit(1)
-        print(f"OK — التوثيق محدَّث ({total} قاعدة).")
+        if not args.quiet:
+            print(f"OK — التوثيق محدَّث ({total} قاعدة).")
         return
     for path, content in outputs.items():
-        path.write_text(content, encoding="utf-8")
-    print(f"تم توليد {len(outputs)} ملفًا ({total} قاعدة) في {OUT_DIR.relative_to(REPO)}")
+        # (AR) LF صراحةً كسائر المولّدات (سياسة git: *.md text eol=lf) — فلا يلوّث
+        #      التوليدُ على ويندوز الشجرةَ بCRLF.
+        # (EN) Explicit LF like the other generators (git policy: *.md text eol=lf).
+        path.write_text(content, encoding="utf-8", newline="\n")
+    if not args.quiet:
+        print(f"تم توليد {len(outputs)} ملفًا ({total} قاعدة) في {out_dir}")
 
 
 if __name__ == "__main__":

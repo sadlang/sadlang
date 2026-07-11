@@ -3,13 +3,17 @@
 # (AR) الوصف: حارس انجراف المصدر المولَّد — المرحلة 1 من sadlang-rfcs#10.
 #             language-truth/*.yaml هو مصدر الحقيقة الوحيد؛ الملفّات المولَّدة
 #             تبقى متعقَّبة لكنّها مشتقّات خالصة. تفشل البوّابة إن لم تَعُد أيّ
-#             منها مطابقةً لِما يولّده YAML الحاليّ (النطاقات العشرة، 13 ملفًّا).
+#             منها مطابقةً لِما يولّده YAML الحاليّ (12 نطاقًا، 24 ملفًّا)، أو إن
+#             فشل أحد حرّاس الاتّساق الخالصين (كتالوج المفردات token_catalog +
+#             سلامة وسوم مصفوفة القواعد rules_matrix).
 #             نقطة الدخول الموحَّدة: `python x.py gen --check`.
 # (EN) Description: Generated-source drift guard — Phase 1 of sadlang-rfcs#10.
 #             language-truth/*.yaml is the SINGLE source of truth; generated
 #             files stay tracked but are pure derivations. The gate fails if any
-#             of them no longer matches what the current YAML generates (all 10
-#             domains, 13 files). Single entry point: `python x.py gen --check`.
+#             of them no longer matches what the current YAML generates (12
+#             domains, 24 files), or if a pure consistency guard fails
+#             (token_catalog + rules_matrix). Single entry point:
+#             `python x.py gen --check`.
 # ======================================================================
 # (AR) يُشغَّل عند تغيّر أيّ مدخَل توليد (YAML/مخطّط/مولّد/x.py) أو أيّ مخرَج مولَّد.
 # (EN) Runs when any codegen input (YAML/schema/generator/x.py) or any generated
@@ -24,11 +28,15 @@ on:
       - "language-truth/**"
       - "scripts/codegen/**"
       - "shared/lexer/generated/**"
+      - "shared/lexer/include/token.h"
       - "shared/types/generated/**"
       - "shared/builtins/generated/**"
       - "shared/errors/generated/**"
       - "shared/errors/include/error_codes.h"
       - "features/graphics/core/include/sad_ui/**"
+      - "docs/parser_rule/_generated/**"
+      - "tests/behavior/rules_matrix/**"
+      - "tools/repl/generated/**"
       - "x.py"
       - ".github/workflows/codegen-check.yml"
   pull_request:
@@ -37,11 +45,15 @@ on:
       - "language-truth/**"
       - "scripts/codegen/**"
       - "shared/lexer/generated/**"
+      - "shared/lexer/include/token.h"
       - "shared/types/generated/**"
       - "shared/builtins/generated/**"
       - "shared/errors/generated/**"
       - "shared/errors/include/error_codes.h"
       - "features/graphics/core/include/sad_ui/**"
+      - "docs/parser_rule/_generated/**"
+      - "tests/behavior/rules_matrix/**"
+      - "tools/repl/generated/**"
       - "x.py"
       - ".github/workflows/codegen-check.yml"
 
@@ -52,8 +64,10 @@ concurrency:
 
 jobs:
   # ======================================================================
-  # (AR) فحص التزامن: language-truth/*.yaml → 13 ملفًّا مولَّدًا، لا انجراف.
-  # (EN) Sync check: language-truth/*.yaml → 13 generated files — no drift.
+  # (AR) فحص التزامن: language-truth/*.yaml → 24 ملفًّا مولَّدًا، لا انجراف
+  #      + حرّاس الاتّساق الخالصون (token_catalog + rules_matrix).
+  # (EN) Sync check: language-truth/*.yaml → 24 generated files — no drift,
+  #      plus the pure consistency guards (token_catalog + rules_matrix).
   # ======================================================================
   codegen-sync:
     name: "🔑 فحص توليد الكود / Codegen Sync Check"
@@ -80,10 +94,13 @@ jobs:
         run: python -m pytest scripts/codegen/test_xpy_codegen_guard.py -q
 
       # ── (AR) البوّابة الواحدة: يعيد التوليد إلى مجلّد مؤقّت ويقارن بالمتعقَّب.
-      #         يفشل إن انحرف أيّ من النطاقات العشرة (types/keywords/builtins/errors/
-      #         ui_props/ui_modifiers/ui_animations/ui_easings/ui_events/ui_colors).
+      #         يفشل إن انحرف أيّ من النطاقات الاثني عشر (types/keywords/builtins/
+      #         errors/ui_*/tool_repl/parser_grammar_docs)، ثمّ يشغّل حرّاس
+      #         الاتّساق الخالصين: token_catalog (token.h ↔ keywords.yaml مع قائمة
+      #         دَين موروث تنكمش فقط) وrules_matrix --check (سلامة وسوم @rule).
       # (EN) The single gate: regenerates into a temp dir and compares against the
-      #      tracked files; fails if any of the 10 domains drifted.
+      #      tracked files; fails if any of the 12 domains drifted, then runs the
+      #      pure consistency guards (token_catalog + rules_matrix --check).
       - name: "🔍 حارس الانجراف / Drift guard — python x.py gen --check"
         run: python x.py gen --check
 

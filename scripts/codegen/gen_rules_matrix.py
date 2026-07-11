@@ -30,6 +30,7 @@
 
 ─── الاستخدام ──────────────────────────────────────────────────────────────────
     python scripts/codegen/gen_rules_matrix.py                 # تقرير الفجوات (لا يكتب)
+    python scripts/codegen/gen_rules_matrix.py --check           # حارس CI (سلامة مرجعيّة)
     python scripts/codegen/gen_rules_matrix.py --matrix-md PATH  # + تقرير مصفوفة مقروء
     python scripts/codegen/gen_rules_matrix.py --json PATH       # + أثر بناء JSON
     python scripts/codegen/gen_rules_matrix.py --scaffold --layer 50_patterns  # هيكلة طبقة
@@ -181,7 +182,12 @@ def _category_of(path: Path) -> str:
 def _extract_rule_ids(filepath: Path) -> list:
     ids: list = []
     try:
-        for i, line in enumerate(open(filepath, encoding="utf-8")):
+        # (AR) errors="replace": بايتات غير UTF-8 لا تُسقط الحارس بtraceback خام —
+        #      إن أصابت وسم @rule تحوّلت لقاعدة مجهولة فيشخّصها --check باسم الملفّ.
+        # (EN) errors="replace": non-UTF-8 bytes must not crash the guard with a raw
+        #      traceback; a corrupted @rule tag degrades to an unknown rule id that
+        #      --check then diagnoses with the offending file name.
+        for i, line in enumerate(open(filepath, encoding="utf-8", errors="replace")):
             if i >= 30:
                 break
             m = _RE_RULE_TAG.match(line.strip())
@@ -360,7 +366,56 @@ def write_matrix_md(productions: dict, counts: dict, required_pairs: set,
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════
-# ⑥ نقطة الدخول
+# ⑥ حارس CI (--check) — سلامة مرجعيّة بين اختبارات المصفوفة ومصدر الحقيقة
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+def run_check(productions: dict, records: list) -> int:
+    """(AR) وضع الحارس (بنمط بقيّة المولّدات، لبوّابة `x.py gen --check`) — لا يكتب شيئًا.
+        يفشل عند انجراف مرجعيّ بين tests/behavior/rules_matrix/ وlanguage-truth/grammar/:
+          ① وسم `# @rule:` يشير إلى معرّف قاعدة غير موجود في مصدر الحقيقة.
+          ② قاعدة موزِّعة مُعلنة هنا (DISPATCHER_RULES) اختفت من مصدر الحقيقة.
+          ③ مصدر الحقيقة فارغ (فشل تحميل — عطل بنيويّ لا فجوة تغطية).
+        ملحوظة: فجوات التغطية (أزواج/منفردة) **ليست** فشل حارس — هي دَين مقصود
+        يُتابَع عبر التقرير؛ الحارس يمنع الانجراف المرجعيّ فقط.
+    (EN) Non-mutating guard mode for the `x.py gen --check` gate: fails only on
+        referential drift (unknown @rule ids, vanished dispatchers, empty SoT) —
+        coverage gaps are tracked debt, not guard failures."""
+    if not productions:
+        print("❌ [rules_matrix --check] مصدر الحقيقة فارغ — لم تُحمَّل أيّ قاعدة من "
+              f"{GRAMMAR_DIR}", file=sys.stderr)
+        return 1
+
+    problems: list = []
+    ghost_dispatchers = sorted(d for d in DISPATCHER_RULES if d not in productions)
+    for d in ghost_dispatchers:
+        problems.append(f"قاعدة موزِّعة غير موجودة في مصدر الحقيقة: {d}")
+
+    unknown: dict = defaultdict(list)
+    for rec in records:
+        for rid in rec["rule_ids"]:
+            if rid not in productions:
+                unknown[rid].append(rec["rel"])
+    for rid in sorted(unknown):
+        files = unknown[rid]
+        sample = "، ".join(files[:3]) + (f" (+{len(files) - 3})" if len(files) > 3 else "")
+        problems.append(f"وسم @rule يشير إلى قاعدة مجهولة: {rid} — في: {sample}")
+
+    if problems:
+        print("❌ [rules_matrix --check] انجراف مرجعيّ بين اختبارات المصفوفة ومصدر الحقيقة:",
+              file=sys.stderr)
+        for p in problems:
+            print(f"   • {p}", file=sys.stderr)
+        print("   الإصلاح: صحّح وسوم @rule أو حدّث language-truth/grammar/ — "
+              "لا تُخفِ الفشل بحذف الوسم.", file=sys.stderr)
+        return 1
+
+    print(f"✓ [rules_matrix --check] سلامة مرجعيّة: {len(productions)} قاعدة · "
+          f"{len(records)} ملف اختبار · لا وسوم @rule مجهولة.")
+    return 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# ⑦ نقطة الدخول
 # ═══════════════════════════════════════════════════════════════════════════════════
 
 def main() -> int:
@@ -372,10 +427,16 @@ def main() -> int:
     ap.add_argument("--pairs", action="store_true", help="مع --scaffold: هيكلة أزواج التداخل أيضًا")
     ap.add_argument("--layer", help="حصر الهيكلة بطبقة (مثل 50_patterns)")
     ap.add_argument("--force", action="store_true", help="استبدال الهياكل القائمة")
+    ap.add_argument("--check", action="store_true",
+                    help="حارس CI: سلامة مرجعيّة بين @rule ومصدر الحقيقة (لا يكتب)")
     args = ap.parse_args()
 
     productions = load_productions()
     records = scan_tests()
+
+    if args.check:
+        return run_check(productions, records)
+
     required_pairs, containment, conest = build_required_pairs(productions)
     counts, covered_pairs = measure_coverage(productions, records)
     single_gaps, missing_pairs = analyze(productions, counts, required_pairs, covered_pairs)

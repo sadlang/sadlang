@@ -2,7 +2,8 @@
 ============================================================================
 (AR) test_xpy_codegen_guard.py — اختبارات حارس انجراف المصدر المولَّد
      (المرحلة 1 من sadlang-rfcs#10). يثبّت عقد `x.py gen --check`:
-       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (15 ملفًّا)، وكل مولّد موجود.
+       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (24 ملفًّا)، وكل مولّد موجود.
+       - جدول حرّاس الفحص الخالصين (SOT_CHECK_GUARDS) سكربتاته موجودة.
        - منطق القرار (تطبيع نهايات الأسطر) يتجاهل CRLF↔LF ويلتقط فرق المحتوى.
        - الحارس يمرّ على الشجرة النظيفة (تكامل: وسائط الجدول صحيحة + لا انحراف).
 (EN) Tests for the generated-source drift guard (Phase 1 of sadlang-rfcs#10).
@@ -54,6 +55,19 @@ EXPECTED_OUTPUTS = {
     # (EN) Tools' Source-of-Truth — first tool sad-repl (errors/messages/commands catalog).
     "tools/repl/generated/repl_sot_generated.h",
     "tools/repl/generated/repl_sot_generated.cpp",
+    # (AR) توثيق قواعد المحلّل — Markdown مولَّد من language-truth/grammar/*.yaml
+    #      (8 طبقات + فهرس)، مُلتزَم تحت docs/parser_rule/_generated.
+    # (EN) Parser-grammar docs — generated Markdown (8 layers + INDEX) committed
+    #      under docs/parser_rule/_generated.
+    "docs/parser_rule/_generated/INDEX.md",
+    "docs/parser_rule/_generated/00_program.md",
+    "docs/parser_rule/_generated/10_statements.md",
+    "docs/parser_rule/_generated/20_declarations.md",
+    "docs/parser_rule/_generated/30_oop.md",
+    "docs/parser_rule/_generated/40_expressions.md",
+    "docs/parser_rule/_generated/50_patterns.md",
+    "docs/parser_rule/_generated/60_advanced.md",
+    "docs/parser_rule/_generated/70_lexical.md",
 }
 
 
@@ -73,11 +87,24 @@ def test_every_domain_generator_script_exists():
 
 
 def test_every_domain_args_reference_only_its_outputs():
-    # (AR) وسائط كل نطاق يجب أن تذكر ملفّاته المولَّدة داخل مجلّد الإخراج المُمرَّر.
+    # (AR) وسائط كل نطاق يجب أن تذكر ملفّاته المولَّدة داخل مجلّد الإخراج المُمرَّر —
+    #      أو تمرّر مجلّد الإخراج كاملًا (نمط --out-dir حيث يشتقّ المولّد الأسماء
+    #      من مصدر الحقيقة نفسه، كنطاق parser_grammar_docs).
     for d in xpy.CODEGEN_DOMAINS:
-        rendered = " ".join(d["args"]("OUTDIR"))
+        args = d["args"]("OUTDIR")
+        if "OUTDIR" in args:  # (AR) نمط تمرير المجلّد كاملًا / whole-out-dir style
+            continue
+        rendered = " ".join(args)
         for fname in d["outputs"]:
             assert f"OUTDIR/{fname}" in rendered, f"{d['name']}: {fname} غير مُمرَّر"
+
+
+def test_every_check_guard_script_exists():
+    # (AR) حرّاس الفحص الخالصون (token_catalog/rules_matrix) سكربتاتهم موجودة.
+    # (EN) Pure check-only guards' scripts must exist.
+    for g in xpy.SOT_CHECK_GUARDS:
+        script = ROOT / "scripts" / "codegen" / g["script"]
+        assert script.exists(), f"حارس مفقود / missing guard: {script}"
 
 
 def test_norm_collapses_crlf_only():
