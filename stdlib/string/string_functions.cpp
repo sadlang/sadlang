@@ -14,17 +14,14 @@
 #include "sad_type_system.h"
 #include <algorithm>
 #include <sstream>
-#include <cctype>
 #include <stdexcept>
 
-#ifdef _WIN32
-#include <windows.h>
-// (AR) إلغاء ماكرو VOID الخاص بويندوز لتجنب التعارض
-// (EN) Undef Windows VOID macro to avoid conflict with ::Sad::Types::SadTypeKind::Void
-#ifdef VOID
-#undef VOID
-#endif
-#endif
+// (AR) لا تُدرَج windows.h هنا: تحويل الحالة (تحويل_كبير/تحويل_صغير) موحَّد على
+//      مسار ASCII البايتيّ الحتميّ عبر كلّ المنصّات (لا CharUpperW/CharLowerW).
+//      انظر toUpper/toLower أدناه لسبب هذا التوحيد.
+// (EN) windows.h is intentionally NOT included: case conversion
+//      (toUpper/toLower) is unified on the deterministic byte-wise ASCII path
+//      across all platforms (no CharUpperW/CharLowerW). See toUpper/toLower below.
 
 namespace Sad
 {
@@ -358,27 +355,28 @@ namespace Sad
                 validateArguments(args, 1, 1);
 
                 std::string str = args[0].toString();
-#ifdef _WIN32
-                // (AR) تحويل Unicode باستخدام Windows API
-                // (EN) Unicode conversion using Windows API
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-                if (wlen > 1)
-                {
-                    std::wstring wstr(wlen - 1, 0);
-                    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
-                    CharLowerW(&wstr[0]);
-                    int len = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-                    std::string result(len - 1, 0);
-                    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], len, nullptr, nullptr);
-                    return Data::Value(result);
-                }
-#endif
-                // (AR) احتياطي: تحويل ASCII فقط
-                // (EN) Fallback: ASCII-only conversion
+                // (AR) تحويل حالة موحَّد عبر المنصّات: ASCII بايتيّ حتميّ. البايتات
+                //      العالية (UTF-8 العربيّ/اللاتينيّ المُشكَّل) تبقى دون تغيير،
+                //      مطابقةً تمامًا لدالّة زمن التشغيل sad_llvm_str_lower في المترجم.
+                //      (سابقًا: CharLowerW على Windows فقط ⇒ لاحتميّة عبر المنصّات
+                //       وتباعُد عن المترجم للّاتينيّ المُشكَّل — أُزيل عمدًا).
+                // (EN) Cross-platform unified case fold: deterministic byte-wise
+                //      ASCII. High bytes (Arabic / accented-Latin UTF-8) are left
+                //      unchanged, matching the compiler runtime sad_llvm_str_lower
+                //      exactly. (Formerly CharLowerW on Windows only ⇒ cross-platform
+                //      non-determinism and compiler divergence — removed deliberately.)
+                // (AR) طيّ صريح على مدى ASCII فقط [A-Z]→[a-z]: مستقلّ عن setlocale
+                //      (LC_CTYPE) ⇒ لا يعتمد على سلوك tolower للبايتات العالية.
+                // (EN) Explicit ASCII-only fold [A-Z]→[a-z]: independent of setlocale
+                //      (LC_CTYPE) ⇒ never relies on tolower's high-byte behavior.
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
-                               [](unsigned char c)
-                               { return std::tolower(c); });
+                               [](unsigned char c) -> char
+                               {
+                                   return (c >= 'A' && c <= 'Z')
+                                              ? static_cast<char>(c + ('a' - 'A'))
+                                              : static_cast<char>(c);
+                               });
                 return Data::Value(result);
             }
 
@@ -393,27 +391,28 @@ namespace Sad
                 validateArguments(args, 1, 1);
 
                 std::string str = args[0].toString();
-#ifdef _WIN32
-                // (AR) تحويل Unicode باستخدام Windows API
-                // (EN) Unicode conversion using Windows API
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-                if (wlen > 1)
-                {
-                    std::wstring wstr(wlen - 1, 0);
-                    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
-                    CharUpperW(&wstr[0]);
-                    int len = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-                    std::string result(len - 1, 0);
-                    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], len, nullptr, nullptr);
-                    return Data::Value(result);
-                }
-#endif
-                // (AR) احتياطي: تحويل ASCII فقط
-                // (EN) Fallback: ASCII-only conversion
+                // (AR) تحويل حالة موحَّد عبر المنصّات: ASCII بايتيّ حتميّ. البايتات
+                //      العالية (UTF-8 العربيّ/اللاتينيّ المُشكَّل) تبقى دون تغيير،
+                //      مطابقةً تمامًا لدالّة زمن التشغيل sad_llvm_str_upper في المترجم.
+                //      (سابقًا: CharUpperW على Windows فقط ⇒ لاحتميّة عبر المنصّات
+                //       وتباعُد عن المترجم للّاتينيّ المُشكَّل — أُزيل عمدًا).
+                // (EN) Cross-platform unified case fold: deterministic byte-wise
+                //      ASCII. High bytes (Arabic / accented-Latin UTF-8) are left
+                //      unchanged, matching the compiler runtime sad_llvm_str_upper
+                //      exactly. (Formerly CharUpperW on Windows only ⇒ cross-platform
+                //      non-determinism and compiler divergence — removed deliberately.)
+                // (AR) طيّ صريح على مدى ASCII فقط [a-z]→[A-Z]: مستقلّ عن setlocale
+                //      (LC_CTYPE) ⇒ لا يعتمد على سلوك toupper للبايتات العالية.
+                // (EN) Explicit ASCII-only fold [a-z]→[A-Z]: independent of setlocale
+                //      (LC_CTYPE) ⇒ never relies on toupper's high-byte behavior.
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
-                               [](unsigned char c)
-                               { return std::toupper(c); });
+                               [](unsigned char c) -> char
+                               {
+                                   return (c >= 'a' && c <= 'z')
+                                              ? static_cast<char>(c - ('a' - 'A'))
+                                              : static_cast<char>(c);
+                               });
                 return Data::Value(result);
             }
 

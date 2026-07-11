@@ -46,8 +46,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>  /* SIZE_MAX — مطلوب صراحةً على clang/Linux (يتسرّب ضمنًا على MSVC) */
-#include <ctype.h>   /* toupper/tolower — لتحويل حالة الأحرف المحمول (بديل _strupr/_strlwr) */
 #include <time.h>
+/* (AR) لا <ctype.h>: تحويل الحالة يستعمل طيّ ASCII صريحًا [A-Z]↔[a-z] مستقلًّا عن
+ *      اللغة المحليّة (locale) — لا toupper/tolower (المعتمدَين على LC_CTYPE). */
 
 #ifdef _WIN32
 #include <windows.h>
@@ -271,34 +272,41 @@ double sad_llvm_input_float(void)
  * تحويل حالة الأحرف (ASCII) / ASCII case conversion
  * ============================================================================ */
 
-/* (AR) تحويل الأحرف اللاتينيّة إلى كبيرة في المكان (ASCII، بايتيّ)، مطابقةً
- *      لمسار المفسّر الاحتياطيّ std::toupper((unsigned char)c). البايتات العالية
- *      (UTF-8 العربيّ) تبقى دون تغيير. يستدعيها الكود المُولَّد لـ«تحويل_كبير»
+/* (AR) تحويل الأحرف اللاتينيّة إلى كبيرة في المكان: طيّ ASCII صريح [a-z]→[A-Z]
+ *      فقط، مستقلّ عن اللغة المحليّة (لا toupper/LC_CTYPE). البايتات العالية
+ *      (UTF-8 العربيّ/اللاتينيّ المُشكَّل) تبقى دون تغيير. مطابق بايتيًّا لمسار
+ *      المفسّر StringFunctions::toUpper. يستدعيه الكود المُولَّد لـ«تحويل_كبير»
  *      بدلاً من _strupr — رمز MSVC غير قياسيّ لا يُربَط على Linux/macOS.
- * (EN) Convert Latin letters to uppercase in place (ASCII, byte-wise), matching
- *      the interpreter fallback std::toupper((unsigned char)c). High bytes
- *      (Arabic UTF-8) are left unchanged. Called by codegen for «تحويل_كبير»
- *      instead of _strupr — a non-standard MSVC symbol absent on Linux/macOS. */
+ * (EN) Uppercase Latin letters in place: explicit ASCII-only fold [a-z]→[A-Z],
+ *      locale-independent (no toupper/LC_CTYPE). High bytes (Arabic / accented
+ *      Latin UTF-8) are left unchanged. Byte-identical to the interpreter
+ *      StringFunctions::toUpper. Called by codegen for «تحويل_كبير» instead of
+ *      _strupr — a non-standard MSVC symbol absent on Linux/macOS. */
 char *sad_llvm_str_upper(char *s)
 {
     if (s)
     {
         unsigned char *p;
         for (p = (unsigned char *)s; *p; ++p)
-            *p = (unsigned char)toupper(*p);
+            if (*p >= 'a' && *p <= 'z')
+                *p = (unsigned char)(*p - ('a' - 'A'));
     }
     return s;
 }
 
-/* (AR) نظيرة التحويل إلى صغيرة (بديل _strlwr المحمول).
- * (EN) Lowercase counterpart (portable replacement for _strlwr). */
+/* (AR) نظيرة التحويل إلى صغيرة: طيّ ASCII صريح [A-Z]→[a-z] مستقلّ عن اللغة
+ *      المحليّة (بديل _strlwr المحمول، مطابق لـ StringFunctions::toLower).
+ * (EN) Lowercase counterpart: explicit ASCII-only fold [A-Z]→[a-z],
+ *      locale-independent (portable replacement for _strlwr, matches
+ *      StringFunctions::toLower). */
 char *sad_llvm_str_lower(char *s)
 {
     if (s)
     {
         unsigned char *p;
         for (p = (unsigned char *)s; *p; ++p)
-            *p = (unsigned char)tolower(*p);
+            if (*p >= 'A' && *p <= 'Z')
+                *p = (unsigned char)(*p + ('a' - 'A'));
     }
     return s;
 }

@@ -17,13 +17,13 @@
 #include <algorithm>
 #include "sad_type_system.h"
 
-#ifdef _WIN32
-#include <windows.h>
-// Undefine Windows VOID macro to avoid conflict with ::Sad::Types::SadTypeKind::Void
-#ifdef VOID
-#undef VOID
-#endif
-#endif
+// (AR) لا windows.h هنا: تحويل الحالة (upper/lower) موحَّد على مسار ASCII
+//      البايتيّ الحتميّ عبر كلّ المنصّات (لا CharUpperW/CharLowerW) — مطابق
+//      لـ StringFunctions ولدوال زمن التشغيل sad_llvm_str_upper/lower في المترجم.
+// (EN) No windows.h here: upper/lower case folding is unified on the
+//      deterministic byte-wise ASCII path across all platforms (no
+//      CharUpperW/CharLowerW) — matching StringFunctions and the compiler runtime
+//      sad_llvm_str_upper/lower.
 // (AR) EM-CPP: حامل خطأ الكتالوج — مطلوب على كل المنصّات (Sad::Errors يُستعمل دون
 //      شرط منصّة). كان محبوسًا خطأً داخل كتلة _WIN32 فكسر بناء Linux.
 // (EN) Catalog error carrier — needed on all platforms; was wrongly trapped inside
@@ -248,23 +248,23 @@ namespace Sad
                 }
 
                 std::string str = args[0]->toString();
-#ifdef _WIN32
-                // (AR) استخدام Windows API لتحويل يونيكود صحيح (يشمل العربية واللاتينية)
-                // (EN) Use Windows API for correct Unicode case conversion
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-                if (wlen > 1)
-                {
-                    std::wstring wstr(wlen - 1, 0);
-                    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
-                    CharUpperW(&wstr[0]);
-                    int ulen = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-                    std::string result(ulen - 1, 0);
-                    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], ulen, nullptr, nullptr);
-                    return std::make_shared<Data::Value>(result);
-                }
-#endif
-                // (AR) احتياطي: ASCII فقط إذا لم يكن ويندوز
-                std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+                // (AR) تحويل حالة موحَّد عبر المنصّات: ASCII بايتيّ حتميّ. البايتات
+                //      العالية (UTF-8 العربيّ/اللاتينيّ المُشكَّل) تبقى دون تغيير،
+                //      مطابقةً لـ StringFunctions::toUpper و sad_llvm_str_upper.
+                //      (سابقًا: CharUpperW على Windows فقط ⇒ لاحتميّة — أُزيل عمدًا).
+                // (EN) Cross-platform unified case fold: deterministic byte-wise ASCII;
+                //      high bytes (Arabic / accented-Latin UTF-8) are left unchanged,
+                //      matching StringFunctions::toUpper and sad_llvm_str_upper.
+                //      (Formerly CharUpperW on Windows only ⇒ non-determinism — removed.)
+                //      طيّ صريح على مدى ASCII فقط [a-z]→[A-Z]، مستقلّ عن setlocale.
+                //      (EN) Explicit ASCII-only fold [a-z]→[A-Z], setlocale-independent.
+                std::transform(str.begin(), str.end(), str.begin(),
+                               [](unsigned char c) -> char
+                               {
+                                   return (c >= 'a' && c <= 'z')
+                                              ? static_cast<char>(c - ('a' - 'A'))
+                                              : static_cast<char>(c);
+                               });
                 return std::make_shared<Data::Value>(str);
             }
 
@@ -276,21 +276,23 @@ namespace Sad
                 }
 
                 std::string str = args[0]->toString();
-#ifdef _WIN32
-                // (AR) استخدام Windows API لتحويل يونيكود صحيح
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-                if (wlen > 1)
-                {
-                    std::wstring wstr(wlen - 1, 0);
-                    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
-                    CharLowerW(&wstr[0]);
-                    int ulen = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-                    std::string result(ulen - 1, 0);
-                    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], ulen, nullptr, nullptr);
-                    return std::make_shared<Data::Value>(result);
-                }
-#endif
-                std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+                // (AR) تحويل حالة موحَّد عبر المنصّات: ASCII بايتيّ حتميّ. البايتات
+                //      العالية (UTF-8 العربيّ/اللاتينيّ المُشكَّل) تبقى دون تغيير،
+                //      مطابقةً لـ StringFunctions::toLower و sad_llvm_str_lower.
+                //      (سابقًا: CharLowerW على Windows فقط ⇒ لاحتميّة — أُزيل عمدًا).
+                // (EN) Cross-platform unified case fold: deterministic byte-wise ASCII;
+                //      high bytes (Arabic / accented-Latin UTF-8) are left unchanged,
+                //      matching StringFunctions::toLower and sad_llvm_str_lower.
+                //      (Formerly CharLowerW on Windows only ⇒ non-determinism — removed.)
+                //      طيّ صريح على مدى ASCII فقط [A-Z]→[a-z]، مستقلّ عن setlocale.
+                //      (EN) Explicit ASCII-only fold [A-Z]→[a-z], setlocale-independent.
+                std::transform(str.begin(), str.end(), str.begin(),
+                               [](unsigned char c) -> char
+                               {
+                                   return (c >= 'A' && c <= 'Z')
+                                              ? static_cast<char>(c + ('a' - 'A'))
+                                              : static_cast<char>(c);
+                               });
                 return std::make_shared<Data::Value>(str);
             }
 

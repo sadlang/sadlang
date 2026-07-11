@@ -18,7 +18,6 @@
 #include "user_thrown.h"
 #include "runtime_throw.h"
 #include <algorithm>
-#include <cctype>
 #include <vector>
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
@@ -279,22 +278,40 @@ namespace Sad
                 return;
             }
             // TM::String::TO_LOWER
+            // (AR) طيّ ASCII صريح [A-Z]→[a-z] مستقلّ عن اللغة المحليّة — مطابق
+            //      بايتيًّا لمسار الدالّة StringFunctions::toLower ولزمن تشغيل
+            //      المترجم sad_llvm_str_lower (توحيد حتميّ عبر المنصّات؛ البايتات
+            //      العالية UTF-8 تبقى دون تغيير). لا std::tolower (LC_CTYPE).
+            // (EN) Explicit ASCII-only fold [A-Z]→[a-z], locale-independent —
+            //      byte-identical to StringFunctions::toLower and the compiler
+            //      runtime sad_llvm_str_lower (deterministic cross-platform
+            //      unification; high UTF-8 bytes untouched). No std::tolower.
             if (m == TM::String::TO_LOWER)
             {
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
-                               [](unsigned char c)
-                               { return std::tolower(c); });
+                               [](unsigned char c) -> char
+                               {
+                                   return (c >= 'A' && c <= 'Z')
+                                              ? static_cast<char>(c + ('a' - 'A'))
+                                              : static_cast<char>(c);
+                               });
                 lastResult_ = Value(result);
                 return;
             }
             // TM::String::TO_UPPER
+            // (AR) نظيرة الرفع: طيّ ASCII صريح [a-z]→[A-Z] — انظر تعليق TO_LOWER.
+            // (EN) Uppercase counterpart: explicit ASCII fold — see TO_LOWER note.
             if (m == TM::String::TO_UPPER)
             {
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
-                               [](unsigned char c)
-                               { return std::toupper(c); });
+                               [](unsigned char c) -> char
+                               {
+                                   return (c >= 'a' && c <= 'z')
+                                              ? static_cast<char>(c - ('a' - 'A'))
+                                              : static_cast<char>(c);
+                               });
                 lastResult_ = Value(result);
                 return;
             }

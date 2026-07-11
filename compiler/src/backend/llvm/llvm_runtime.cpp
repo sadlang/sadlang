@@ -710,7 +710,12 @@ void *sad_llvm_string_to_upper(void *str)
     char *upper_data = (char *)sad_llvm_alloc(s->length + 1);
     for (uint64_t i = 0; i < s->length; i++)
     {
-        upper_data[i] = toupper((unsigned char)s->data[i]);
+        // (AR) طيّ ASCII صريح [a-z]→[A-Z] مستقلّ عن اللغة المحليّة — مطابق
+        //      لـ sad_llvm_str_upper في زمن التشغيل المضمَّن (لا toupper/LC_CTYPE).
+        // (EN) Explicit locale-independent ASCII fold [a-z]→[A-Z] — matches
+        //      sad_llvm_str_upper in the embedded runtime (no toupper/LC_CTYPE).
+        unsigned char c = (unsigned char)s->data[i];
+        upper_data[i] = (c >= 'a' && c <= 'z') ? (char)(c - ('a' - 'A')) : (char)c;
     }
     upper_data[s->length] = '\0';
 
@@ -733,7 +738,12 @@ void *sad_llvm_string_to_lower(void *str)
     char *lower_data = (char *)sad_llvm_alloc(s->length + 1);
     for (uint64_t i = 0; i < s->length; i++)
     {
-        lower_data[i] = tolower((unsigned char)s->data[i]);
+        // (AR) طيّ ASCII صريح [A-Z]→[a-z] مستقلّ عن اللغة المحليّة — مطابق
+        //      لـ sad_llvm_str_lower في زمن التشغيل المضمَّن (لا tolower/LC_CTYPE).
+        // (EN) Explicit locale-independent ASCII fold [A-Z]→[a-z] — matches
+        //      sad_llvm_str_lower in the embedded runtime (no tolower/LC_CTYPE).
+        unsigned char c = (unsigned char)s->data[i];
+        lower_data[i] = (c >= 'A' && c <= 'Z') ? (char)(c + ('a' - 'A')) : (char)c;
     }
     lower_data[s->length] = '\0';
 
