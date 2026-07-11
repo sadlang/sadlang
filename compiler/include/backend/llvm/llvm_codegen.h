@@ -1416,6 +1416,44 @@ namespace Sad
             llvm::Constant *getNullPtr(llvm::Type *ptrType) { return types_->getNullPtr(ptrType); }
 
             // ========================================================================
+            // (AR) قيم الموزّع الإشاريّة (Sentinels) — فصل «عُولج» عن «opcode غير معروف»
+            //      الموزّع (emitInstruction) يفسّر nullptr «لم تتعرّف الطبقة على الـopcode
+            //      ⇒ جرّب التالية»، فمعالجٌ يبلّغ خطأً حقيقيًّا (أو ينجح بلا قيمة) ثمّ
+            //      يعيد nullptr كان يُسقط الموزّع عبر الطبقات فيطبع «Unsupported opcode»
+            //      بائتًا فوق الخطأ الأصليّ (النمط المثبَت قبل #185/#188).
+            // (EN) Dispatcher sentinels — separate "handled" from "unknown opcode".
+            //      The dispatcher treats nullptr as "tier didn't recognize the opcode ⇒
+            //      try the next tier", so a handler that reported a real error (or
+            //      succeeded with no value) and returned nullptr made the dispatcher
+            //      fall through and print a spurious "Unsupported opcode" on top of
+            //      the original diagnostic (the pattern fixed in #185/#188).
+            // ========================================================================
+
+            /// (AR) «عُولج بنجاح، لا قيمة ذات معنى» — للمدمجات بلا سجلّ نتيجة (اطبع/نم/اخرج).
+            /// (EN) "Handled successfully, no meaningful value" — for result-less builtins.
+            llvm::Value *builtinHandledSentinel()
+            {
+                return llvm::ConstantInt::get(getInt64Type(), 0);
+            }
+
+            /// (AR) «عُولج وأُبلغ خطأ حقيقيّ» — يربط سجلّ النتيجة (إن وُجد) بثابت صفريّ
+            ///      (نفس احتياط resolveOperand) فلا تتتالى «سجلّ غير معرَّف» على المستهلكين،
+            ///      ثمّ يعيد الإشارة فيتوقّف الموزّع بلا بلاغ opcode زائف. يُستدعى بعد reportError.
+            /// (EN) "Handled with a reported error" — binds the result register (if any)
+            ///      to a zero constant (resolveOperand's own fallback) to avoid cascading
+            ///      "undefined register" errors, then returns the sentinel so the
+            ///      dispatcher stops without a spurious opcode report. Call after reportError.
+            llvm::Value *builtinErrorSentinel(const std::shared_ptr<SIRInstruction> &inst)
+            {
+                if (inst && inst->result.has_value())
+                {
+                    context_info_.namedValues[inst->result->name] =
+                        llvm::ConstantInt::get(getInt64Type(), 0);
+                }
+                return builtinHandledSentinel();
+            }
+
+            // ========================================================================
             // Output / الإخراج
             // ========================================================================
 

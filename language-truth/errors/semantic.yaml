@@ -313,13 +313,13 @@ errors:
     ar: مدمجة غير متاحة في الوضع الحرّ
     en: Builtin unavailable in freestanding mode
   brief:
-    ar: الدالة المدمجة '{name}' غير متاحة في الوضع الحرّ (‎--freestanding‎) لأنها تعتمد على مكتبة قياسية غائبة (نظام ملفّات/دخل قياسيّ/تحكّم طرفيّة/عشوائيّة)
-    en: Built-in '{name}' is unavailable in freestanding mode (--freestanding); it relies on absent stdlib facilities (filesystem/stdin/terminal control/randomness)
+    ar: الدالة المدمجة '{name}' غير متاحة في الوضع الحرّ (‎--freestanding‎) لأنها تعتمد على مكتبة أو خدمة نظام غائبة (نظام ملفّات/دخل قياسيّ/تحكّم طرفيّة/عشوائيّة/نوم/إنهاء عمليّة/رياضيّات libm/فرز/وقت/أمن مستضاف)
+    en: Built-in '{name}' is unavailable in freestanding mode (--freestanding); it relies on an absent hosted library or OS service (filesystem/stdin/terminal control/randomness/sleep/process exit/libm math/sort/time/hosted security)
   placeholders:
   - name
   fix_hint:
-    ar: 'في نواة/وضع حرّ استعمل بدائل مباشرة (منافذ/ذاكرة) بدل دوال المكتبة القياسية، أو أزل الاستدعاء.'
-    en: 'In a kernel/freestanding target use direct primitives (ports/memory) instead of stdlib calls, or drop the call.'
+    ar: 'في نواة/وضع حرّ استعمل بدائل مباشرة (منافذ/ذاكرة/مؤقّتات عتاد) بدل دوال المكتبة القياسية، أو أزل الاستدعاء.'
+    en: 'In a kernel/freestanding target use direct primitives (ports/memory/hardware timers) instead of stdlib calls, or drop the call.'
   detailed:
-    ar: الوضع الحرّ (‎--freestanding‎) يولّد شيفرة مستقلّة بلا مكتبة قياسية (libc)؛ لا نظام ملفّات ولا دخل قياسيّ ولا تحكّم طرفيّة عبر الصدَفة ولا مصدر عشوائيّة. دوال مثل قراءة/كتابة الملفّات والقراءة من الدخل ومسح الشاشة والعشوائيّة تحتاج رموزًا (fopen/scanf/system/rand...) غير موجودة، فكانت تفشل زمن الربط برسالة غامضة. هذا التشخيص المبكّر يوقفها زمن الترجمة برسالة واضحة تسمّي الدالة.
-    en: Freestanding (--freestanding) emits a self-contained target with no libc — no filesystem, no stdin, no shell-based terminal control, no entropy source. Builtins like file read/write, reading input, clearing the screen, or randomness need symbols (fopen/scanf/system/rand...) that do not exist, so they used to fail at link time with an opaque error. This early diagnostic stops them at compile time with a clear, named message.
+    ar: الوضع الحرّ (‎--freestanding‎) يولّد شيفرة مستقلّة بلا مكتبة قياسية (libc) ولا نظام تشغيل؛ لا نظام ملفّات ولا دخل قياسيّ ولا تحكّم طرفيّة عبر الصدَفة ولا مصدر عشوائيّة ولا مؤقّتات نوم ولا إنهاء عمليّة ولا ساعة جدار ولا رياضيّات libm. دوال مثل قراءة/كتابة الملفّات والقراءة من الدخل ومسح الشاشة والعشوائيّة والنوم والخروج والجيب/اللوغاريتم والفرز والوقت تحتاج رموزًا (fopen/scanf/system/rand/sleep/exit/sin/qsort/time...) غير موجودة، فكانت تفشل زمن الربط برسالة غامضة. هذا التشخيص المبكّر يوقفها زمن الترجمة برسالة واضحة تسمّي الدالة.
+    en: Freestanding (--freestanding) emits a self-contained target with no libc and no OS — no filesystem, no stdin, no shell-based terminal control, no entropy source, no sleep timers, no process exit, no wall clock, no libm math. Builtins like file read/write, reading input, clearing the screen, randomness, sleeping, exiting, sine/log, sorting, or time need symbols (fopen/scanf/system/rand/sleep/exit/sin/qsort/time...) that do not exist, so they used to fail at link time with an opaque error. This early diagnostic stops them at compile time with a clear, named message.

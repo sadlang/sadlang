@@ -185,6 +185,15 @@ namespace Sad
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
                                     {{"detail", cFuncName}});
+                    // (AR) يبقى nullptr هنا عمدًا: مستدعو هذه المساعدة يميّزون به مسار
+                    //      الفشل (قيمة إشاريّة غير فارغة ستدخل PtrToInt/Select بنوع خاطئ).
+                    //      حارس الموزّع (reportedRealError في emitInstruction) يمنع بلاغ
+                    //      «Unsupported opcode» الزائف فوق هذا الخطأ.
+                    // (EN) Deliberately still nullptr: this helper's callers use it as
+                    //      the failure path (a non-null sentinel would flow into
+                    //      PtrToInt/Select with the wrong type). The dispatcher guard
+                    //      (reportedRealError in emitInstruction) suppresses the
+                    //      spurious "Unsupported opcode" on top of this error.
                     return nullptr;
                 }
 
@@ -378,6 +387,10 @@ namespace Sad
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
                                     {{"detail", cFuncName}});
+                    // (AR) nullptr مقصود (مسار فشل المساعدة) — حارس الموزّع يمنع بلاغ
+                    //      «Unsupported opcode» الزائف. انظر تعليق emitNetworkCall.
+                    // (EN) Deliberate nullptr (helper failure path) — the dispatcher
+                    //      guard suppresses the spurious report. See emitNetworkCall.
                     return nullptr;
                 }
 
@@ -390,6 +403,10 @@ namespace Sad
                     {
                         cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
                                         {{"detail", cFuncName}});
+                        // (AR) nullptr مقصود (مسار فشل المساعدة) — حارس الموزّع يمنع بلاغ
+                        //      «Unsupported opcode» الزائف. انظر تعليق emitNetworkCall.
+                        // (EN) Deliberate nullptr (helper failure path) — the dispatcher
+                        //      guard suppresses the spurious report. See emitNetworkCall.
                         return nullptr;
                     }
                     args.push_back(arg);

@@ -33,7 +33,9 @@ namespace Sad
             if (!inst || inst->operands.empty())
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ASSERT"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة توقف الموزّع بلا «Unsupported opcode» زائف.
+                // (EN) Real error reported — distinct sentinel stops the dispatcher fall-through.
+                return cg_.builtinErrorSentinel(inst);
             }
 
             llvm::Value *cond = cg_.resolveOperand(inst->operands[0]);
@@ -156,7 +158,9 @@ namespace Sad
             if (!inst || inst->operands.size() < 2 || inst->operands.size() % 2 != 0)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "PHI"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة بدل nullptr المُلبس (#185/#188).
+                // (EN) Real error reported — distinct sentinel instead of ambiguous nullptr.
+                return cg_.builtinErrorSentinel(inst);
             }
 
             // Determine phi type from result
@@ -241,7 +245,9 @@ namespace Sad
             if (!inst || inst->operands.empty())
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "is_type"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة بدل nullptr المُلبس (#185/#188).
+                // (EN) Real error reported — distinct sentinel instead of ambiguous nullptr.
+                return cg_.builtinErrorSentinel(inst);
             }
 
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
@@ -283,7 +289,9 @@ namespace Sad
             if (!inst || inst->operands.empty())
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "to_bool"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة بدل nullptr المُلبس (#185/#188).
+                // (EN) Real error reported — distinct sentinel instead of ambiguous nullptr.
+                return cg_.builtinErrorSentinel(inst);
             }
 
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
@@ -396,7 +404,10 @@ namespace Sad
             if (!inst || inst->operands.empty())
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "SUM"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة بدل nullptr المُلبس (النمط المثبَت هنا).
+                // (EN) Real error reported — distinct sentinel instead of the ambiguous
+                //      nullptr (the very pattern documented for this handler).
+                return cg_.builtinErrorSentinel(inst);
             }
 
             llvm::Value *arr = cg_.resolveOperand(inst->operands[0]);

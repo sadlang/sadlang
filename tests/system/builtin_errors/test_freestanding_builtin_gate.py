@@ -120,7 +120,105 @@ def test_assert_type_gated_freestanding():
     assert "تأكد_نوع" in out, "تشخيص SEM019 لا يسمّي «تأكد_نوع»:\n" + out
 
 
+# (AR) دفعة التبويب الشاملة (متابعة #188): كلّ مدمجة هنا تُصدر نداء رمز مستضاف
+#      (libc/‏OS/‏runtime مضمَّن) غائب مع ‎-nostdlib‎ — تُرفَض حرًّا بـ SEM019 يسمّيها.
+#      (الاسم القانونيّ من SoT، مصدر البرنامج المصغّر يذكر النداء فقط.)
+_GATED_BUILTINS = [
+    # (اسم قانونيّ، مصدر مصغّر، الرمز المستضاف الموثَّق)
+    ("نم", "نم(1)\n", "sad_rt_sleep_ms"),
+    # (AR) الوجه غير المتزامن لـ«نم» — opcode مستقلّ (ASYNC_SLEEP) بنفس رمز runtime،
+    #      فيُختبَر استقلالًا (إضافة مراجعة Amelia: كان مبوَّبًا بلا اختبار يمثّله).
+    ("نوم_غير_متزامن", "نوم_غير_متزامن(1)\n", "sad_rt_sleep_ms"),
+    ("اخرج", "اخرج(0)\n", "exit"),
+    # (AR) الموسّعات (لوغ/جتا/اقتطاع) تحتاج «استورد رياضيات» ليعرفها فاحص الدلالات.
+    ("لوغ", "استورد رياضيات\nمتغير س = لوغ(1)\nاطبع(س)\n", "log"),
+    # (AR) بقيّة عائلة libm المبوَّبة — كلّ opcode مبوَّب يُمثَّل باختبار يسمّيه
+    #      (إضافة مراجعة Amelia: لوغ2/لوغ10/المعكوسات كانت مبوَّبة بلا تمثيل).
+    ("لوغ2", "استورد رياضيات\nمتغير س = لوغ2(8)\nاطبع(س)\n", "log2"),
+    ("لوغ10", "استورد رياضيات\nمتغير س = لوغ10(100)\nاطبع(س)\n", "log10"),
+    ("جيب", "متغير س = جيب(1)\nاطبع(س)\n", "sin"),
+    ("جتا", "استورد رياضيات\nمتغير س = جتا(1)\nاطبع(س)\n", "cos"),
+    ("ظل", "متغير س = ظل(1)\nاطبع(س)\n", "tan"),
+    ("معكوس_جيب", "استورد رياضيات\nمتغير س = معكوس_جيب(0)\nاطبع(س)\n", "asin"),
+    ("معكوس_جتا", "استورد رياضيات\nمتغير س = معكوس_جتا(1)\nاطبع(س)\n", "acos"),
+    ("معكوس_ظل", "استورد رياضيات\nمتغير س = معكوس_ظل(0)\nاطبع(س)\n", "atan"),
+    ("أرضية", "متغير س = أرضية(1.5)\nاطبع(س)\n", "floor"),
+    ("سقف", "متغير س = سقف(1.2)\nاطبع(س)\n", "ceil"),
+    ("تقريب", "متغير س = تقريب(1.5)\nاطبع(س)\n", "round"),
+    ("اقتطاع", "استورد رياضيات\nمتغير س = اقتطاع(1.5)\nاطبع(س)\n", "trunc"),
+    # (AR) صيغة الطريقة م.رتب() — المدمجة «رتب(م)» تتطلّب استيراد وحدة مصفوفات.ص
+    #      (وفيها إشارات append/remove غير معرّفة تشوّش الاختبار)؛ الصيغتان تُخفضان
+    #      إلى BUILTIN_ARRAY_SORT نفسه (qsort).
+    ("رتب", "متغير م = [3, 1, 2]\nم.رتب()\nاطبع(م)\n", "qsort"),
+    ("الآن", "متغير س = الآن()\nاطبع(س)\n", "time"),
+    ("عشوائي_آمن", "متغير س = عشوائي_آمن(1, 10)\nاطبع(س)\n", "BCryptGenRandom"),
+    ("هاش", 'متغير س = هاش("نص")\nاطبع(س)\n', "sad_security_hash"),
+    ("شفر", 'متغير س = شفر("نص", "مفتاح")\nاطبع(س)\n', "sad_security_encrypt"),
+    ("فك_تشفير", 'متغير س = فك_تشفير("نص", "مفتاح")\nاطبع(س)\n', "sad_security_decrypt"),
+    ("نظف", 'متغير س = نظف("نص")\nاطبع(س)\n', "sad_security_sanitize"),
+    ("ترميز_64", 'متغير س = ترميز_64("نص")\nاطبع(س)\n', "sad_security_base64_encode"),
+]
+
+
+@pytest.mark.parametrize(
+    "name,source,hosted_symbol",
+    _GATED_BUILTINS,
+    ids=[name for name, _, _ in _GATED_BUILTINS],
+)
+def test_hosted_dependent_builtin_gated_freestanding(name, source, hosted_symbol):
+    """(AR) المدمجة تُصدر نداء رمز مستضاف غائب حرًّا — يجب أن تُرفَض حرًّا بتشخيص
+    SEM019 يسمّيها وخروج غير صفريّ (لا فشل ربط غامضًا لاحقًا)."""
+    code, out, _ = _compile(source, FREESTANDING)
+    assert code != 0, (
+        name + "() نجحت حرًّا رغم اعتمادها على " + hosted_symbol + " (سيفشل الربط غامضًا):\n" + out
+    )
+    assert SEM019 in out, "الرفض بلا تشخيص SEM019 قانونيّ:\n" + out
+    assert name in out, "تشخيص SEM019 لا يسمّي «" + name + "»:\n" + out
+
+
+@pytest.mark.parametrize(
+    "name,source,hosted_symbol",
+    _GATED_BUILTINS,
+    ids=[name for name, _, _ in _GATED_BUILTINS],
+)
+def test_hosted_dependent_builtin_builds_hosted(name, source, hosted_symbol):
+    """(AR) حارس ضدّ الإفراط: المدمجة نفسها تُبنى مستضافًا بنجاح وبلا أثر SEM019
+    وبلا بلاغ «Unsupported opcode» زائف (حارس الإشارة المميّزة)."""
+    code, out, _ = _compile(source)
+    assert code == 0, name + "() فشلت مستضافًا — تسريب بوّابة خارج الوضع الحرّ:\n" + out
+    assert SEM019 not in out, "SEM019 ظهر مستضافًا — تسريب بوّابة:\n" + out
+    assert "Unsupported opcode" not in out, (
+        "بلاغ «Unsupported opcode» زائف مستضافًا (انحدار القيمة الإشاريّة):\n" + out
+    )
+
+
 # ─────── 2) مسار حرّ سليم: عائلة التأكيد تستبدل abort بـ __sad_panic ───────
+
+
+def test_sqrt_freestanding_uses_intrinsic_not_libm():
+    """(AR) جذر() حرًّا: مسار حرّ أصيل (قرار «ب») — البناء ينجح وIR يستعمل
+    intrinsic ‏llvm.sqrt (تعليمة عتاد) بلا نداء رمز libm ‏sqrt خارجيّ."""
+    code, out, ir = _compile("متغير س = جذر(4)\nاطبع(س)\n", FREESTANDING)
+    assert code == 0, "جذر() فشلت حرًّا — إفراط في البوّابة (لها مسار intrinsic):\n" + out
+    assert "llvm.sqrt" in ir, "IR الحرّ لـ جذر() بلا intrinsic llvm.sqrt:\n" + out
+    assert "call double @sqrt(" not in ir, "IR الحرّ يستدعي رمز libm sqrt — سيفشل الربط على المعدن"
+
+
+def test_abs_freestanding_uses_intrinsic_not_libm():
+    """(AR) مطلق() حرًّا: مسار حرّ أصيل (قرار «ب») — البناء ينجح وIR يستعمل
+    intrinsic ‏llvm.fabs (مسح بتّ الإشارة) بلا نداء رمز libm ‏fabs خارجيّ."""
+    code, out, ir = _compile("متغير س = مطلق(0 - 3)\nاطبع(س)\n", FREESTANDING)
+    assert code == 0, "مطلق() فشلت حرًّا — إفراط في البوّابة (لها مسار intrinsic):\n" + out
+    assert "llvm.fabs" in ir, "IR الحرّ لـ مطلق() بلا intrinsic llvm.fabs:\n" + out
+    assert "call double @fabs(" not in ir, "IR الحرّ يستدعي رمز libm fabs — سيفشل الربط على المعدن"
+
+
+def test_pow_freestanding_uses_in_module_pow():
+    """(AR) أس() حرًّا: لا تُبوَّب — نسخة pow حرّة تُبثّ داخل الوحدة
+    (emitFreestandingPow) فلا رمز libm خارجيّ."""
+    code, out, ir = _compile("متغير س = أس(2, 3)\nاطبع(س)\n", FREESTANDING)
+    assert code == 0, "أس() فشلت حرًّا — إفراط في البوّابة (لها نسخة حرّة داخل الوحدة):\n" + out
+    assert "define" in ir and "@pow" in ir, "IR الحرّ لـ أس() بلا تعريف pow داخل الوحدة:\n" + out
 
 def test_assert_freestanding_uses_panic_not_abort():
     """(AR) تأكد(شرط) حرًّا يجب أن تُبنى (لا بوّابة — التأكيد مفهوم أصيل في النوى)

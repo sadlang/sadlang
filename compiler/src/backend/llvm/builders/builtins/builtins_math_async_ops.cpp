@@ -89,7 +89,11 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_rt_sleep_ms", ft);
             cg_.builder_->CreateCall(fn, {ms32});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت» — إرجاع nullptr كان يُسقط الموزّع عبر الطبقات
+            //      فيبلّغ «Unsupported opcode» بائتًا رغم إصدار النداء (نمط اطبع/#185).
+            // (EN) "Handled" sentinel — returning nullptr made the dispatcher fall
+            //      through and report a spurious "Unsupported opcode" (print/#185 pattern).
+            return cg_.builtinHandledSentinel();
         }
 
         llvm::Value *BuiltinFuncsCodeGen::emitBuiltinExit(std::shared_ptr<SIRInstruction> inst)
@@ -105,7 +109,21 @@ namespace Sad
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("exit", ft);
             cg_.builder_->CreateCall(fn, {code});
             cg_.builder_->CreateUnreachable();
-            return nullptr;
+            // (AR) كتلة استمرار ميتة بعد unreachable: أيّ تعليمات لاحقة في كتلة SIR
+            //      نفسها (كالإرجاع الضمنيّ) كانت ستُلحق بعد الفاصل فيفشل تحقّق الوحدة
+            //      (INT_MODULE_VERIFY). نمط «ذعر» نفسه (panic.cont).
+            // (EN) Dead continuation block after unreachable: later instructions of
+            //      the same SIR block (e.g., the implicit return) would otherwise be
+            //      appended after the terminator, failing module verification. Same
+            //      pattern as panic (panic.cont).
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg_.context_, "exit.cont", curFunc);
+            cg_.builder_->SetInsertPoint(contBB);
+            // (AR) قيمة إشاريّة «عُولجت» — إرجاع nullptr كان يُسقط الموزّع عبر الطبقات
+            //      فيبلّغ «Unsupported opcode» بائتًا رغم إصدار النداء (نمط اطبع/#185).
+            // (EN) "Handled" sentinel — returning nullptr made the dispatcher fall
+            //      through and report a spurious "Unsupported opcode" (print/#185 pattern).
+            return cg_.builtinHandledSentinel();
         }
 
         // ============================================================================

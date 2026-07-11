@@ -88,6 +88,9 @@ namespace Sad
             namespace Nio = Sad::Builtins::Names::CompilerIo;
             namespace Nm = Sad::Builtins::Names::Math;
             namespace Na = Sad::Builtins::Names::Assertions;
+            namespace Nar = Sad::Builtins::Names::Arrays;
+            namespace Nmap = Sad::Builtins::Names::Maps;
+            namespace Nasync = Sad::Builtins::Names::AsyncAdvanced;
             switch (op)
             {
             case SIROpcode::BUILTIN_READ:            return std::string(Nc::READ);        // اقرأ (دخل قياسيّ)
@@ -131,6 +134,77 @@ namespace Sad
             //      is inlined in-module). Gated until it gets an inlined
             //      freestanding path (its hosted semantics need fixing first).
             case SIROpcode::BUILTIN_SECURITY_ASSERT_TYPE: return std::string(Na::ASSERT_TYPE); // تأكد_نوع (runtime مستضاف)
+            // (AR) نم/نوم_غير_متزامن: مُصدراهما يستدعيان sad_rt_sleep_ms من runtime
+            //      الخيوط المستضاف (Win32/pthread) الذي لا يُربط مع ‎-nostdlib‎ ⇒ فشل
+            //      ربط غامض. النوم على المعدن العاري يحتاج مؤقّتًا عتاديًّا (PIT/HPET)
+            //      — قرار نواة لا رقعة توليد. يُبوَّبان.
+            // (EN) sleep/async-sleep: both emit sad_rt_sleep_ms from the hosted
+            //      threading runtime (never linked under -nostdlib) ⇒ opaque link
+            //      failure. Bare-metal sleep needs a hardware timer (kernel design,
+            //      not a codegen patch) ⇒ gated.
+            case SIROpcode::BUILTIN_SLEEP:           return std::string(Nio::IO_0);       // نم (runtime مستضاف)
+            case SIROpcode::ASYNC_SLEEP:             return std::string(Nasync::ASYNC_SLEEP); // نوم_غير_متزامن (runtime مستضاف)
+            // (AR) اخرج: يستدعي exit — دلالة «إنهاء عمليّة» مستضافة (نظام تشغيل يستلم
+            //      الرمز)؛ على المعدن العاري لا عمليّة أصلًا وexit رمز libc غائب.
+            //      الإيقاف الحرّ الصحيح (hlt/إيقاف طاقة) قرار نواة. يُبوَّب.
+            // (EN) exit: hosted process-termination semantics (an OS receives the
+            //      code); bare metal has no process and exit is an absent libc symbol.
+            //      The right freestanding halt is a kernel decision ⇒ gated.
+            case SIROpcode::BUILTIN_EXIT:            return std::string(Nb::EXIT_ALT);    // اخرج (إنهاء عمليّة مستضاف)
+            // (AR) عائلة libm: هذه المُصدرات تُصدر نداء مكتبة الرياضيّات المستضافة
+            //      (sin/cos/log/floor... — نداء رمز لا intrinsic؛ مؤكَّد بفحص المُصدرات)
+            //      الغائبة مع ‎-nostdlib‎ ⇒ فشل ربط غامض. libm حرّة (دقّة/مدى/جداول)
+            //      قرار بمستوى RFC لا رقعة توليد. ملاحظة: «جذر» و«مطلق» ليسا هنا —
+            //      مُصدراهما صارا intrinsics (llvm.sqrt/llvm.fabs تُخفَض لتعليمة عتاد
+            //      x87/SSE على x86 بلا رمز libm)، و«أس» له نسخة حرّة داخل الوحدة
+            //      (emitFreestandingPow) و«باقي» يُخفَض إلى MOD_I64 — لا تُبوَّب.
+            // (EN) libm family: these emitters issue hosted libm symbol calls (not
+            //      intrinsics; verified in the emitters), absent under -nostdlib. A
+            //      freestanding libm is RFC-level design. Note: sqrt/abs are now
+            //      llvm.sqrt/llvm.fabs intrinsics (hardware-lowered on x86), pow has
+            //      an in-module freestanding version (emitFreestandingPow), and fmod
+            //      lowers to MOD_I64 — none of those gated.
+            case SIROpcode::BUILTIN_LOG:             return std::string(Nm::LOG);         // لوغ (libm)
+            case SIROpcode::BUILTIN_LOG2:            return std::string(Nm::LOG2);        // لوغ2 (libm)
+            case SIROpcode::BUILTIN_LOG10:           return std::string(Nm::LOG10);       // لوغ10 (libm)
+            case SIROpcode::BUILTIN_SIN:             return std::string(Nm::SIN);         // جيب (libm)
+            case SIROpcode::BUILTIN_COS:             return std::string(Nm::COS);         // جتا (libm)
+            case SIROpcode::BUILTIN_TAN:             return std::string(Nm::TAN);         // ظل (libm)
+            case SIROpcode::BUILTIN_ASIN:            return std::string(Nm::ASIN);        // معكوس_جيب (libm)
+            case SIROpcode::BUILTIN_ACOS:            return std::string(Nm::ACOS);        // معكوس_جتا (libm)
+            case SIROpcode::BUILTIN_ATAN:            return std::string(Nm::ATAN);        // معكوس_ظل (libm)
+            case SIROpcode::BUILTIN_FLOOR:           return std::string(Nm::FLOOR);       // أرضية (libm)
+            case SIROpcode::BUILTIN_CEIL:            return std::string(Nm::CEIL);        // سقف (libm)
+            case SIROpcode::BUILTIN_ROUND:           return std::string(Nm::ROUND);       // تقريب (libm)
+            case SIROpcode::BUILTIN_TRUNC:           return std::string(Nm::TRUNCATE);    // اقتطاع (libm)
+            // (AR) رتب (المدمجة وطريقة .رتب): المُصدر يستدعي qsort — رمز libc غائب
+            //      حرًّا. فرز حرّ داخل الوحدة رقعة توليد غير رخيصة (حلقات مقارنة/تبديل
+            //      لكلّ نوع عنصر) ⇒ يُبوَّب حتّى تُنفَّذ نسخة حرّة مدروسة.
+            // (EN) sort (builtin + .sort method): the emitter calls qsort — an absent
+            //      libc symbol freestanding. An in-module freestanding sort is a
+            //      non-trivial codegen patch ⇒ gated until designed.
+            case SIROpcode::BUILTIN_ARRAY_SORT:      return std::string(Nar::SORT);       // رتب (qsort)
+            // (AR) الآن: يستدعي time(NULL) — رمز libc غائب حرًّا، ولا ساعة جدار على
+            //      المعدن بلا سائق RTC/PIT (قرار نواة). يُبوَّب.
+            // (EN) now/timestamp: calls time(NULL) — an absent libc symbol; bare metal
+            //      has no wall clock without an RTC/PIT driver (kernel design) ⇒ gated.
+            case SIROpcode::BUILTIN_SECURITY_TIMESTAMP: return std::string(Nmap::NOW);    // الآن (time)
+            // (AR) عشوائي_آمن: يستدعي BCryptGenRandom (خدمة نظام تشغيل) — غائبة حرًّا
+            //      بداهةً، ولا مصدر عشوائيّة معياريّ على المعدن (نفس ميثاق «عشوائي»).
+            // (EN) secure-random: calls BCryptGenRandom (an OS service) — absent
+            //      freestanding; no standard bare-metal entropy (same charter as rand).
+            case SIROpcode::BUILTIN_SECURITY_SECURE_RANDOM: return std::string(Na::SECURE_RANDOM); // عشوائي_آمن (خدمة OS)
+            // (AR) عائلة الأمن المستضافة: مُصدراتها تستدعي sad_security_* من runtime
+            //      المستضاف المضمَّن (sad_embedded_runtime.c) الذي لا يُربط مع
+            //      ‎-nostdlib‎ — علّة «تأكد_نوع» نفسها أعلاه. تُبوَّب حتّى تُضمَّن حرًّا.
+            // (EN) Hosted security family: emitters call sad_security_* helpers from
+            //      the hosted embedded runtime (never linked under -nostdlib) — same
+            //      failure mode as assert_type above. Gated until inlined freestanding.
+            case SIROpcode::BUILTIN_SECURITY_HASH:          return std::string(Na::HASH);          // هاش (runtime مستضاف)
+            case SIROpcode::BUILTIN_SECURITY_ENCRYPT:       return std::string(Na::ENCRYPT);       // شفر (runtime مستضاف)
+            case SIROpcode::BUILTIN_SECURITY_DECRYPT:       return std::string(Na::DECRYPT);       // فك_تشفير (runtime مستضاف)
+            case SIROpcode::BUILTIN_SECURITY_SANITIZE:      return std::string(Na::SANITIZE);      // نظف (runtime مستضاف)
+            case SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE: return std::string(Na::BASE64_ENCODE); // ترميز_64 (runtime مستضاف)
             default:                                 return std::string();
             }
         }
@@ -255,25 +329,50 @@ namespace Sad
                 }
             }
 
+            // (AR) حارس تمييز الإشارة (sentinel): بعض المعالجات تبلّغ خطأً حقيقيًّا ثمّ
+            //      تعيد nullptr (نفس قيمة «opcode غير معالَج ⇒ جرّب الطبقة التالية»)،
+            //      فكان الموزّع يسقط عبر الطبقات ويطبع «Unsupported opcode» مضلِّلًا
+            //      فوق الخطأ الأصليّ (النمط المثبَت في emitBuiltinSum/emitBuiltinClearScreen
+            //      قبل #185/#188). نلتقط عدد الأخطاء قبل التوزيع؛ إن عاد nullptr وقد
+            //      زاد العدد فالخطأ أُبلغ فعلًا — نتوقّف بلا بلاغ opcode زائف.
+            // (EN) Sentinel-disambiguation guard: some handlers report a real error
+            //      then return nullptr (the same value as "unhandled ⇒ try next
+            //      tier"), so the dispatcher fell through and printed a misleading
+            //      "Unsupported opcode" on top of the original error. Capture the
+            //      error count before dispatch; if a tier returns nullptr while the
+            //      count grew, a real error was reported — stop without the spurious
+            //      opcode report.
+            const size_t errorsBeforeDispatch = getErrors().size();
+            auto reportedRealError = [&]() -> bool
+            { return getErrors().size() > errorsBeforeDispatch; };
+
             // (AR) الطبقة الأولى: التعليمات الجوهرية
             // (EN) Tier 1: Core instructions
             if (llvm::Value *result = emitInstructionCore(inst))
                 return result;
+            if (reportedRealError())
+                return nullptr;
 
             // (AR) الطبقة الثانية: تعليمات المستوى المنخفض
             // (EN) Tier 2: Low-level instructions
             if (llvm::Value *result = emitInstructionLowlevel(inst))
                 return result;
+            if (reportedRealError())
+                return nullptr;
 
             // (AR) الطبقة الثالثة: تعليمات المنصات والتوجيهات
             // (EN) Tier 3: Platform and directive instructions
             if (llvm::Value *result = emitInstructionPlatform(inst))
                 return result;
+            if (reportedRealError())
+                return nullptr;
 
             // (AR) الطبقة الرابعة: تعليمات الشبكة (TCP/UDP، HTTP، عناوين)
             // (EN) Tier 4: Network instructions (TCP/UDP, HTTP, addresses)
             if (llvm::Value *result = emitNetworkBuiltin(inst))
                 return result;
+            if (reportedRealError())
+                return nullptr;
 
             // (AR) الطبقة الخامسة: تعليمات SIMD متجهات (Phase 3)
             //      تنتج <N x T> أصلية + intrinsics (fma, sqrt, vector.reduce)
@@ -281,6 +380,8 @@ namespace Sad
             //      Emits native <N x T> + intrinsics (fma, sqrt, vector.reduce)
             if (llvm::Value *result = emitInstructionSimd(inst))
                 return result;
+            if (reportedRealError())
+                return nullptr;
 
             // (AR) لا توجد طبقة تعرف هذا الـ opcode
             // (EN) No tier recognized this opcode

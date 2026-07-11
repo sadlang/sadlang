@@ -28,7 +28,9 @@ namespace LLVM {
             if (!inst || inst->operands.size() < 2)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "MIN"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة بدل nullptr المُلبس (#185/#188).
+                // (EN) Real error reported — distinct sentinel instead of ambiguous nullptr.
+                return cg_.builtinErrorSentinel(inst);
             }
             llvm::Value *a = cg_.resolveOperand(inst->operands[0]);
             llvm::Value *b = cg_.resolveOperand(inst->operands[1]);
@@ -65,7 +67,9 @@ namespace LLVM {
             if (!inst || inst->operands.size() < 2)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "MAX"}});
-                return nullptr;
+                // (AR) خطأ حقيقيّ أُبلغ — إشارة مميّزة بدل nullptr المُلبس (#185/#188).
+                // (EN) Real error reported — distinct sentinel instead of ambiguous nullptr.
+                return cg_.builtinErrorSentinel(inst);
             }
             llvm::Value *a = cg_.resolveOperand(inst->operands[0]);
             llvm::Value *b = cg_.resolveOperand(inst->operands[1]);
@@ -105,9 +109,16 @@ namespace LLVM {
             if (!arg)
                 return nullptr;
             llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : cg_.builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*cg_.context_));
-            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*cg_.context_), {llvm::Type::getDoubleTy(*cg_.context_)}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sqrt", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {dArg}, "sqrt.ret");
+            // (AR) مسار حرّ أصيل (SEM019 قرار «ب»): intrinsic ‏llvm.sqrt بدل نداء رمز
+            //      libm ‏sqrt — يُخفَض إلى تعليمة عتاد على x86 ‏(sqrtsd مع SSE2،
+            //      وإلّا fsqrt ‏x87) فلا رمز مكتبة مستضافة في الوضعين، ونفس ناتج
+            //      sqrt العدديّ (NaN للسالب؛ لغة ص لا تعتمد errno).
+            // (EN) Authentic freestanding path (SEM019 decision "b"): the llvm.sqrt
+            //      intrinsic instead of a hosted libm sqrt symbol — lowered to a
+            //      hardware instruction on x86 (sqrtsd under SSE2, x87 fsqrt
+            //      otherwise), so no hosted library symbol in either mode; same
+            //      numeric result (NaN for negatives; Sad doesn't rely on errno).
+            llvm::Value *result = cg_.builder_->CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, dArg, nullptr, "sqrt.ret");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -199,9 +210,14 @@ namespace LLVM {
             bool inputIsInt = arg->getType()->isIntegerTy();
 
             llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : cg_.builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*cg_.context_));
-            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*cg_.context_), {llvm::Type::getDoubleTy(*cg_.context_)}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("fabs", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {dArg}, "fabs.ret");
+            // (AR) مسار حرّ أصيل (SEM019 قرار «ب»): intrinsic ‏llvm.fabs بدل نداء رمز
+            //      libm ‏fabs — يُخفَض إلى مسح بتّ الإشارة/تعليمة عتاد (لا نداء مكتبة
+            //      أبدًا) فيصير «مطلق» آمنًا حرًّا بلا تبويب، بنفس الدلالة العدديّة.
+            // (EN) Authentic freestanding path (SEM019 decision "b"): the llvm.fabs
+            //      intrinsic instead of a hosted libm fabs symbol — lowered to a
+            //      sign-bit clear / hardware instruction (never a libcall), making
+            //      abs freestanding-safe with identical numeric semantics.
+            llvm::Value *result = cg_.builder_->CreateUnaryIntrinsic(llvm::Intrinsic::fabs, dArg, nullptr, "fabs.ret");
 
             // If input was integer, convert result back to i64
             if (inputIsInt)
