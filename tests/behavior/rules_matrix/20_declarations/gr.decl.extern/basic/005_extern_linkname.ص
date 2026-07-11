@@ -1,0 +1,8 @@
+# @rule: gr.decl.extern
+# @description: اسم ربط مقوّس بعد «خارجية» مع نوع إرجاع (RFC 0034)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: تم
+
+دالة خارجية("cos") عشري جيب_التمام(عشري)
+اطبع_سطر("تم")

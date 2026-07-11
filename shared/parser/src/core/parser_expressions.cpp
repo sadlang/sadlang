@@ -745,8 +745,20 @@ namespace Sad
          */
         ExprPtr ParserCore::parsePostfix()
         {
-            auto expr = parsePrimary();
+            return parsePostfixFrom(parsePrimary());
+        }
 
+        // ======================================================================
+        // (AR) يكمل سلسلة اللواحق (استدعاء/وصول عضو/فهرسة/ماكرو/جديد) انطلاقًا من
+        //      تعبير أوّليّ جاهز — يستعمله مستوى الجمل حين يكون الاسم قد استُهلك
+        //      فعلًا (كلمة ناعمة مثل «خارجية» في بداية جملة، RFC 0034).
+        // (EN) Continues the postfix chain (call/member/index/macro/new) from an
+        //      already-built primary — used by statement dispatch when the name
+        //      token was necessarily consumed first (soft keyword like 'خارجية'
+        //      at statement start, RFC 0034).
+        // ======================================================================
+        ExprPtr ParserCore::parsePostfixFrom(ExprPtr expr)
+        {
             while (true)
             {
                 // ═══════════════════════════════════════════════════════════════

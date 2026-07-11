@@ -535,23 +535,48 @@ StmtPtr ParserCore::parseExportDecl() {
     
     // Parse the declaration that follows 'صدّر'
     // We need to advance past the keyword and call the appropriate parser
-    if (match(TT::KEYWORD_EXTERN)) {
-        // صدّر خارجي دالة ... - Extern function declaration
-        // (AR) تحليل اسم الربط الاختياري: صدّر خارجي("اسم_الربط") دالة ...
+    // (AR) RFC 0034: «خارجي/خارجية» كلمة ناعمة — لا ندخل حاجز extern إلّا حين يكون
+    //      ما بعدها شكل الصيغة القديمة فعلًا ('دالة' أو '("رمز")'). غير ذلك تسقط
+    //      اللفظة لمسار «صدّر اسم» أدناه (إعادة تصدير دالة اسمها خارجية مثلًا).
+    // (EN) RFC 0034: 'خارجي/خارجية' is a soft keyword — enter the extern barrier only
+    //      when the continuation is actually legacy-shaped ('دالة' or '("sym")').
+    //      Otherwise the lexeme falls through to the export-name path below
+    //      (re-exporting a function named خارجية, for instance).
+    if (check(TT::KEYWORD_EXTERN) &&
+        (peekNext().getType() == TT::KEYWORD_FUNCTION ||
+         peekNext().getType() == TT::PAREN_LEFT)) {
+        advance(); // (AR) استهلاك 'خارجي'/'خارجية' / (EN) consume the extern lexeme
+        // (AR) '(' يليه غير نصّ ليس صيغة قديمة — رسالة دقيقة (استدعاء لا يُصدَّر).
+        // (EN) '(' + non-string is not the legacy form — accurate message (a call
+        //      expression is not exportable).
+        if (check(TT::PAREN_LEFT) && peekNext().getType() != TT::STRING_LITERAL) {
+            errorBilingual(
+                "خطأ نحوي: 'صدّر' يتبعها تصريح لا استدعاء — للتصدير الخارجيّ استخدم: صدّر دالة خارجية printf(نص)",
+                "Syntax error: 'صدّر' must be followed by a declaration, not a call — for an exported extern use: صدّر دالة خارجية printf(نص)");
+            return nullptr;
+        }
+        // (AR) RFC 0034: 'صدّر خارجي دالة' أُزيلت — الصيغة الجديدة 'صدّر دالة خارجية'
+        //      تمرّ عبر فرع KEYWORD_FUNCTION أدناه (parseFunctionDecl). حاجز توجيهيّ.
+        // (EN) RFC 0034: 'export extern function' removed — the new form
+        //      'صدّر دالة خارجية' flows through the KEYWORD_FUNCTION branch below.
+        errorBilingual(
+            "خطأ نحوي: 'صدّر خارجي دالة' أُزيلت. استخدم 'صدّر دالة خارجية' بدلاً منها.\n"
+            "💡 في العربية الصفة تأتي بعد الاسم وتطابقه في الجنس: صدّر دالة خارجية printf(نص)",
+            "Syntax error: 'export extern function' removed. Use 'صدّر دالة خارجية' instead.\n"
+            "💡 In Arabic, adjectives follow nouns and agree in gender: صدّر دالة خارجية printf(نص)");
+        // (AR) تعافٍ يمنع تعاقب الأخطاء: استهلاك '("رمز")' الاختياريّ ثم 'دالة' ثم التصريح.
+        // (EN) Cascade-preventing recovery: consume optional '("sym")', 'function', then decl.
         std::string ffiLinkName;
         if (check(TT::PAREN_LEFT)) {
             advance();
-            Token linkNameToken = consume(TT::STRING_LITERAL,
-                "(AR) خطأ نحوي: توقع نص حرفي لاسم الربط.\n"
-                "(EN) Syntax error: expected string literal for link name.");
-            ffiLinkName = linkNameToken.getValue();
-            consume(TT::PAREN_RIGHT,
-                "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
-                "(EN) Syntax error: expected ')' after link name.");
+            if (check(TT::STRING_LITERAL)) {
+                ffiLinkName = current_.getValue();
+                advance();
+            }
+            if (check(TT::PAREN_RIGHT))
+                advance();
         }
         if (!match(TT::KEYWORD_FUNCTION)) {
-            error("(AR) خطأ نحوي: توقع 'دالة' بعد 'صدّر خارجي'.\n"
-                  "(EN) Syntax error: expected 'function' after 'export extern'.");
             return nullptr;
         }
         declaration = parseExternFunctionDecl(ffiLinkName);
@@ -584,7 +609,12 @@ StmtPtr ParserCore::parseExportDecl() {
         // صدّر رقم س = ... - Type token, parse as variable declaration
         declaration = parseVarDecl();
     }
-    else if (check(TT::IDENTIFIER)) {
+    else if (check(TT::IDENTIFIER) || check(TT::KEYWORD_EXTERN)) {
+        // (AR) RFC 0034: KEYWORD_EXTERN هنا اسم ناعم حتمًا (بوّابة الحاجز أعلاه
+        //      التقطت الأشكال القديمة) — «صدّر خارجية» إعادة تصدير باسم مشروع.
+        // (EN) RFC 0034: KEYWORD_EXTERN here is necessarily a soft name (the
+        //      barrier gate above captured legacy shapes) — 'صدّر خارجية'
+        //      re-exports a legal name.
         // صدّر اسم = قيمة - Export alias assignment
         // (AR) دعم تصدير الأسماء المستعارة: صدّر اسم = وحدة.عضو
         // (EN) Support export alias: export name = module.member

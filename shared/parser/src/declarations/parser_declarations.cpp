@@ -61,13 +61,110 @@ namespace Sad
             bool isMain = false;
             Token name(TT::IDENTIFIER, "", Lexer::Position()); // (AR) تعريف name مسبقاً / (EN) Define name upfront
 
+            // ─────────────────────────────────────────────────────────────────────
+            // (AR) RFC 0034: 'دالة خارجية' — الصيغة المفردة الوحيدة لتصريح الربط الخارجيّ:
+            //      دالة خارجية [ ("اسم_الربط") ] [نوع] اسم(معاملات)
+            // (EN) RFC 0034: 'function extern' — the only single-decl extern form:
+            //      function extern [ ("link_name") ] [type] name(params)
+            // ─────────────────────────────────────────────────────────────────────
+            if (check(TT::KEYWORD_EXTERN))
+            {
+                Token externTok = current_;
+                advance(); // (AR) استهلاك 'خارجية'/'خارجي' / (EN) consume the extern lexeme
+
+                // (AR) تمييز: إن تلاها '(' وليس بعده نصّ حرفيّ فهي دالة *اسمها* خارجي/خارجية
+                //      (استعمال الكلمة الناعمة اسمًا — مشروع قبل RFC 0034 ويبقى) —
+                //      نُثبّت الاسم ونُكمل المسار العاديّ (سلسلة اختيار الاسم أدناه تتخطّى
+                //      الاسم المُثبَّت مسبقًا).
+                // (EN) Disambiguation: if followed by '(' whose next token is not a string
+                //      literal, this is a function *named* extern (soft-keyword-as-name,
+                //      legal before RFC 0034 and still legal) — pin the name and continue
+                //      down the regular path (the name-selection chain below skips a
+                //      pre-pinned name).
+                if (check(TT::PAREN_LEFT) && peekNext().getType() != TT::STRING_LITERAL)
+                {
+                    name = Token(TT::IDENTIFIER, externTok.getValue(), externTok.getPosition());
+                }
+                else
+                {
+                    // (AR) الصفة تطابق الموصوف جنسًا: 'دالة' مؤنّثة ⇒ 'خارجية' لا 'خارجي'.
+                    //      اللفظة الأصليّة محفوظة في قيمة الرمز، والمذكّر هو primaryWord في
+                    //      keywords.yaml — لا سلاسل خام.
+                    // (EN) Adjective agrees in gender: 'دالة' is feminine ⇒ 'خارجية' not
+                    //      'خارجي'. The original lexeme survives in the token value; the
+                    //      masculine form is the catalog's primaryWord — no raw literals.
+                    const auto *externEntry = Lexer::KeywordTable::getEntry(TT::KEYWORD_EXTERN);
+                    if (externEntry && externTok.getValue() == externEntry->primaryWord)
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: 'دالة خارجي' غير صحيحة — الصفة تطابق الموصوف في الجنس.\n"
+                            "💡 'دالة' مؤنّثة، فاستخدم 'دالة خارجية'.\n"
+                            "💡 مثال: دالة خارجية printf(نص)",
+                            "Syntax error: 'دالة خارجي' is invalid — the adjective must agree in gender.\n"
+                            "💡 'دالة' is feminine, so use 'دالة خارجية'.\n"
+                            "💡 Example: دالة خارجية printf(نص)");
+                    }
+
+                    if (is_async || is_generator)
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: لا يجوز جمع 'خارجية' مع 'غير_متزامن' أو 'مولد' — التصريح الخارجيّ بلا جسم.",
+                            "Syntax error: 'extern' cannot combine with 'async' or 'generator' — extern declarations have no body.");
+                    }
+                    if (!decorators.empty())
+                    {
+                        error("(AR) المُزخرِفات لا تُستخدم مع الدوال الخارجية. (EN) Decorators cannot be used with extern functions.");
+                    }
+
+                    // (AR) اسم الربط الاختياريّ: دالة خارجية("رمز") ...
+                    // (EN) Optional link name: function extern("sym") ...
+                    std::string ffiLinkName;
+                    if (check(TT::PAREN_LEFT))
+                    {
+                        advance(); // (AR) استهلاك '(' / (EN) consume '('
+                        Token linkNameToken = consume(TT::STRING_LITERAL,
+                                                      "(AR) خطأ نحوي: توقع نص حرفي لاسم الربط بين الأقواس.\n"
+                                                      "مثال: دالة خارجية(\"c_function_name\") ...\n"
+                                                      "(EN) Syntax error: expected string literal for link name inside parentheses.\n"
+                                                      "Example: function extern(\"c_function_name\") ...");
+                        ffiLinkName = linkNameToken.getValue();
+                        // (AR) نصّ فارغ ("") يُكافئ غياب اسم الربط فيربط بالاسم العربيّ صامتًا
+                        //      — التباس خطر، نرفضه صراحةً.
+                        // (EN) An empty string ("") silently degrades to name-based linking —
+                        //      a dangerous ambiguity; reject it explicitly.
+                        if (linkNameToken.getType() == TT::STRING_LITERAL && ffiLinkName.empty())
+                        {
+                            errorBilingual(
+                                "خطأ نحوي: اسم الربط لا يكون نصًّا فارغًا (\"\") — احذف القوسين أو ضع رمزًا فعليًّا.\n"
+                                "💡 مثال: دالة خارجية(\"cos\") عشري جيب_التمام(عشري)",
+                                "Syntax error: the link name cannot be an empty string (\"\") — drop the parentheses or provide a real symbol.\n"
+                                "💡 Example: دالة خارجية(\"cos\") عشري جيب_التمام(عشري)");
+                        }
+                        consume(TT::PAREN_RIGHT,
+                                "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
+                                "(EN) Syntax error: expected ')' after link name.");
+                    }
+
+                    auto externDecl = parseExternFunctionDecl(ffiLinkName);
+                    // (AR) التعليق التوثيقيّ التُقط أعلاه قبل تفويض التحليل — أعِد إرفاقه.
+                    // (EN) The doc comment was captured above before delegating — reattach it.
+                    if (auto *fd = dynamic_cast<AST::FunctionDecl *>(externDecl.get()))
+                    {
+                        if (fd->docComment.empty())
+                            fd->docComment = std::move(docComment);
+                    }
+                    return externDecl;
+                }
+            }
+
             // Check if next token is a type keyword or built-in type identifier (before function name)
             // (AR) التحقق إذا كان الرمز التالي هو نوع (قبل اسم الدالة)
             // BUT only if it's NOT followed by '(' — otherwise the type keyword IS the function name
             // (AR) النوع الداخليّ لنوع إرجاع اختياريّ T؟ (NS-06)
             // (EN) Inner type of an optional return type T? (NS-06)
             Types::SadTypeKind returnInner = Types::SadTypeKind::Unknown;
-            if (isTypeToken(current_.getType()) &&
+            if (name.getValue().empty() &&
+                isTypeToken(current_.getType()) &&
                 nextToken_.getType() != TT::PAREN_LEFT)
             {
                 returnType = parseType();
@@ -101,7 +198,12 @@ namespace Sad
 
             // (AR) التحقق إذا كانت الدالة الرئيسية (كلمة سياقية — لم تعد محجوزة)
             // (EN) Check if this is the main function (contextual — no longer reserved)
-            if (check(TT::KEYWORD_MAIN) || checkContextual(TT::KEYWORD_MAIN))
+            if (!name.getValue().empty())
+            {
+                // (AR) الاسم مُثبَّت مسبقًا (دالة اسمها خارجي/خارجية — تمييز RFC 0034 أعلاه)
+                // (EN) Name pre-pinned (function named extern — RFC 0034 disambiguation above)
+            }
+            else if (check(TT::KEYWORD_MAIN) || checkContextual(TT::KEYWORD_MAIN))
             {
                 // (AR) هذه هي الدالة الرئيسية - استخدام رمز KEYWORD_MAIN
                 // (EN) This is the main function - consume KEYWORD_MAIN token
@@ -447,11 +549,12 @@ namespace Sad
         }
 
         /**
-         * @brief (AR) يحلل تصريح دالة خارجية (خارجي دالة)
-         *        (EN) Parses external function declaration (extern function)
+         * @brief (AR) يحلل تصريح دالة خارجية (دالة خارجية) — بعد استهلاك الفاتحة
+         *        (EN) Parses external function declaration (function extern) — opener consumed
          *
-         * الصيغة / Syntax:
-         *   خارجي دالة [نوع] اسم_الدالة(معاملات)
+         * الصيغة / Syntax (RFC 0034):
+         *   دالة خارجية [("اسم_الربط")] [نوع] اسم_الدالة(معاملات)
+         *   وداخل كتلة الربط: دالة [نوع] اسم_الدالة(معاملات)
          *
          * @return (AR) مؤشر على عقدة تصريح الدالة الخارجية
          *         (EN) Pointer to external function declaration node
@@ -476,10 +579,10 @@ namespace Sad
             // (AR) توقع اسم الدالة
             // (EN) Expect function name
             Token name = consume(TT::IDENTIFIER,
-                                 "(AR) خطأ نحوي: بعد 'خارجي دالة' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
-                                 "مثال: خارجي دالة رقم clear_screen()\n"
-                                 "(EN) Syntax error: After 'extern function' (or return type) expected function name.\n"
-                                 "Example: extern function int clear_screen()");
+                                 "(AR) خطأ نحوي: بعد 'دالة خارجية' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
+                                 "مثال: دالة خارجية رقم clear_screen()\n"
+                                 "(EN) Syntax error: After 'function extern' (or return type) expected function name.\n"
+                                 "Example: دالة خارجية رقم clear_screen()");
 
             // (AR) تحليل قائمة المعاملات
             // (EN) Parse parameter list
@@ -491,18 +594,18 @@ namespace Sad
                     "(AR) خطأ نحوي: بعد قائمة المعاملات يجب أن يأتي قوس مغلق ')'.\n"
                     "(EN) Syntax error: After parameter list expected ')'.");
 
-            // (AR) نوع الإرجاع يُحدد فقط قبل اسم الدالة الخارجية: خارجي دالة رقم clear_screen()
+            // (AR) نوع الإرجاع يُحدد فقط قبل اسم الدالة الخارجية: دالة خارجية رقم clear_screen()
             // (EN) Return type specified only before extern function name
             if (check(TT::COLON) || check(TT::ARROW) || check(TT::KEYWORD_RETURNS))
             {
                 errorBilingual(
                     "خطأ نحوي: لا يمكن تحديد نوع الإرجاع بعد المعاملات.\n"
                     "ضع نوع الإرجاع قبل اسم الدالة.\n"
-                    "✅ صحيح: خارجي دالة رقم " +
+                    "✅ صحيح: دالة خارجية رقم " +
                         name.getValue() + "(...)",
                     "Syntax error: Cannot specify return type after parameters.\n"
                     "Place the return type before the function name.\n"
-                    "✅ Correct: extern function int " +
+                    "✅ Correct: دالة خارجية رقم " +
                         name.getValue() + "(...)");
             }
 
@@ -2528,7 +2631,26 @@ namespace Sad
                 {
                     // (AR) match() يستهلك 'دالة' — parseFunctionDecl يتوقع أنه مستهلك بالفعل
                     // (EN) match() consumes 'دالة' — parseFunctionDecl expects it already consumed
-                    methods.push_back(parseFunctionDecl());
+                    auto fn = parseFunctionDecl();
+                    // (AR) RFC 0034: 'دالة خارجية' صارت تُحلَّل داخل parseFunctionDecl،
+                    //      فقد تصل هنا عبر كتلة تنفيذ — التصريح الخارجيّ بلا جسم لا يصلح
+                    //      طريقةً (كان يُقبل صامتًا ويُستدعى كلا-شيء). نرفضه صراحةً.
+                    // (EN) RFC 0034: 'دالة خارجية' now parses inside parseFunctionDecl and
+                    //      can reach impl blocks — a body-less extern is not a method
+                    //      (was silently accepted and called as a no-op). Reject explicitly.
+                    auto *fnDecl = dynamic_cast<AST::FunctionDecl *>(fn.get());
+                    if (fnDecl && fnDecl->isExtern)
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل كتلة تنفيذ — التصريح الخارجيّ بلا جسم.\n"
+                            "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
+                            "Syntax error: 'دالة خارجية' cannot be declared inside an impl block — extern declarations have no body.\n"
+                            "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                    }
+                    else
+                    {
+                        methods.push_back(std::move(fn));
+                    }
                 }
                 else
                 {
@@ -2600,7 +2722,22 @@ namespace Sad
                 {
                     // (AR) match() يستهلك 'دالة' — parseFunctionDecl يتوقع أنه مستهلك بالفعل
                     // (EN) match() consumes 'دالة' — parseFunctionDecl expects it already consumed
-                    methods.push_back(parseFunctionDecl());
+                    auto fn = parseFunctionDecl();
+                    // (AR) RFC 0034: التصريح الخارجيّ بلا جسم لا يصلح طريقة امتداد — رفض صريح.
+                    // (EN) RFC 0034: a body-less extern is not an extension method — reject.
+                    auto *fnDecl = dynamic_cast<AST::FunctionDecl *>(fn.get());
+                    if (fnDecl && fnDecl->isExtern)
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل كتلة امتداد — التصريح الخارجيّ بلا جسم.\n"
+                            "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
+                            "Syntax error: 'دالة خارجية' cannot be declared inside an extension block — extern declarations have no body.\n"
+                            "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                    }
+                    else
+                    {
+                        methods.push_back(std::move(fn));
+                    }
                 }
                 else
                 {

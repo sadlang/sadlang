@@ -994,6 +994,18 @@ namespace Sad
             AST::ExprPtr parsePostfix();
 
             /**
+             * @brief (AR) يكمل سلسلة اللواحق انطلاقًا من تعبير أوّليّ جاهز — لمسار
+             *        الجمل حين تُستهلك كلمة ناعمة كاسم قبل معرفة أنّها تعبير (RFC 0034).
+             *        (EN) Continues the postfix chain from a pre-built primary — for
+             *        statement dispatch after a soft keyword was consumed as a name.
+             *
+             * @param expr (AR) التعبير الأوّليّ الجاهز / (EN) the pre-built primary
+             * @return (AR) مؤشر لعقدة تعبير الاستدعاء/الوصول.
+             *         (EN) Pointer to call/access expression node.
+             */
+            AST::ExprPtr parsePostfixFrom(AST::ExprPtr expr);
+
+            /**
              * @brief (AR) يحلل التعبيرات الأساسية (الأرقام، النصوص، المتغيرات، إلخ).
              *        (EN) Parses primary expressions (numbers, strings, variables, etc.).
              *

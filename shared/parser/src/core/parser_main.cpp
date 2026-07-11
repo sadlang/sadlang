@@ -492,27 +492,47 @@ namespace Sad
             // (AR) دعم الدوال الخارجية (External Functions / FFI)
             // (EN) External function support (FFI)
             // ======================================================================
-            if (match(TT::KEYWORD_EXTERN))
+            // (AR) RFC 0034: «خارجي/خارجية» كلمة ناعمة — لا ندخل مسار extern إلّا حين
+            //      يكون ما بعدها شكل extern فعلًا: نصّ ربط (كتلة)، أو 'دالة' (حاجز
+            //      legacy)، أو '(' (يُحسم بعد الاستهلاك: نصّ = حاجز legacy،
+            //      غير نصّ = استدعاء دالة *اسمها* خارجي/خارجية). أيّ تتمّة أخرى
+            //      ('='، '.'، '['، نهاية سطر...) تسقط لمسار جملة التعبير حيث يقبلها
+            //      parsePrimary اسمًا (isTokenUsableAsName) — يحفظ برامج المستخدم
+            //      المعرِّفة دالّةً باسم «خارجية» (ctest ‏test_throw_catch_comprehensive).
+            // (EN) RFC 0034: 'خارجي/خارجية' is a soft keyword — enter the extern path
+            //      only when the continuation is actually extern-shaped: a linkage
+            //      string (block), 'دالة' (legacy barrier), or '(' (resolved after
+            //      consuming: string = legacy barrier, non-string = a call to a
+            //      function *named* extern). Any other continuation falls through to
+            //      the expression-statement path, where parsePrimary accepts it as a
+            //      name — preserving user programs that define a function named
+            //      «خارجية» (ctest test_throw_catch_comprehensive).
+            if (check(TT::KEYWORD_EXTERN) &&
+                (peekNext().getType() == TT::STRING_LITERAL ||
+                 peekNext().getType() == TT::KEYWORD_FUNCTION ||
+                 peekNext().getType() == TT::PAREN_LEFT))
             {
+                Token externTok = current_;
+                advance(); // (AR) استهلاك 'خارجي'/'خارجية' / (EN) consume the extern lexeme
+
+                // (AR) '(' يليه غير نصّ ⇒ جملة استدعاء لدالة اسمها خارجي/خارجية —
+                //      نبني الاسم المستهلَك أوّليًّا ونكمل سلسلة اللواحق والتعبير.
+                // (EN) '(' followed by a non-string ⇒ a call statement to a function
+                //      named extern — rebuild the consumed name as a primary and
+                //      continue the postfix chain.
+                if (check(TT::PAREN_LEFT) && peekNext().getType() != TT::STRING_LITERAL)
+                {
+                    auto callee = std::make_unique<VariableExpr>(externTok.getValue(), externTok.getPosition());
+                    auto expr = parsePostfixFrom(std::move(callee));
+                    if (!expr)
+                        return nullptr;
+                    matchSemicolon();
+                    return std::make_unique<ExprStmt>(std::move(expr));
+                }
+
                 if (!decorators.empty())
                 {
                     error("(AR) المُزخرِفات لا تُستخدم مع الدوال الخارجية. (EN) Decorators cannot be used with extern functions.");
-                }
-                // (AR) تحليل اسم الربط الاختياري: خارجي("اسم_الربط") دالة ...
-                // (EN) Parse optional link name: extern("link_name") function ...
-                std::string ffiLinkName;
-                if (check(TT::PAREN_LEFT))
-                {
-                    advance(); // (AR) استهلاك '(' / (EN) consume '('
-                    Token linkNameToken = consume(TT::STRING_LITERAL,
-                                                  "(AR) خطأ نحوي: توقع نص حرفي لاسم الربط بين الأقواس.\n"
-                                                  "مثال: خارجي(\"c_function_name\") دالة ...\n"
-                                                  "(EN) Syntax error: expected string literal for link name inside parentheses.\n"
-                                                  "Example: extern(\"c_function_name\") function ...");
-                    ffiLinkName = linkNameToken.getValue();
-                    consume(TT::PAREN_RIGHT,
-                            "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
-                            "(EN) Syntax error: expected ')' after link name.");
                 }
                 // (AR) [ISSUE-041] كتلة ربط أجنبيّ بلغة بلا أقواس: خارجي "C" <تصاريح> نهاية
                 //      نُحوّلها لكتلة من تصاريح دوال خارجيّة (كلٌّ بلغة الربط نفسها). كان
@@ -521,8 +541,30 @@ namespace Sad
                 //      `extern "C" <decls> end`. Lower to a block of extern function decls
                 //      (all sharing the linkage). The parser used to expect 'function'
                 //      immediately and reject the block form (gr.adv.ffi_extern_block).
-                else if (check(TT::STRING_LITERAL))
+                if (check(TT::STRING_LITERAL))
                 {
+                    // (AR) RFC 0034: فاتحة الكتلة مذكّرة حصرًا — «خارجي "C"» لا «خارجية "C"»
+                    //      (لا موصوف مؤنّث هنا؛ SoT ‏gr.adv.ffi_extern_block ينصّ على المذكّر).
+                    //      اللفظة الأصليّة في previous() (استهلكها match أعلاه) والمذكّر هو
+                    //      primaryWord في الكتالوج — لا سلاسل خام. نُبلغ ثم نُكمل تحليل
+                    //      الكتلة تعافيًا لمنع تعاقب الأخطاء.
+                    // (EN) RFC 0034: the block opener is the masculine form only —
+                    //      'خارجي "C"', never the feminine alias (no feminine noun to agree
+                    //      with; SoT gr.adv.ffi_extern_block mandates the masculine). The
+                    //      original lexeme is in previous(); masculine = catalog primaryWord.
+                    //      Report, then keep parsing the block as recovery.
+                    {
+                        const auto *externEntry = Lexer::KeywordTable::getEntry(TT::KEYWORD_EXTERN);
+                        if (externEntry && previous().getValue() != externEntry->primaryWord)
+                        {
+                            errorBilingual(
+                                "خطأ نحوي: كتلة الربط تُفتح بالمذكّر '" + externEntry->primaryWord + "' لا '" + previous().getValue() + "' — لا موصوف مؤنّث هنا.\n"
+                                "💡 مثال: " + externEntry->primaryWord + " \"C\"\n    دالة printf(نص)\nنهاية",
+                                "Syntax error: the linkage block opens with the masculine '" + externEntry->primaryWord + "', not '" + previous().getValue() + "' — there is no feminine noun to agree with.\n"
+                                "💡 Example: " + externEntry->primaryWord + " \"C\"\n    دالة printf(نص)\nنهاية");
+                        }
+                    }
+                    std::string ffiLinkName;
                     // (AR) موقع نصّ الربط — يُستخدم كموقع عقدة الكتلة في التشخيصات.
                     // (EN) Linkage-string position — used as the block node's position in diagnostics.
                     auto blockPos = current_.getPosition();
@@ -555,11 +597,40 @@ namespace Sad
                             "(EN) Syntax error: expected 'نهاية' to close extern block.");
                     return std::make_unique<BlockStmt>(std::move(externBody), blockPos);
                 }
-                // (AR) توقع 'دالة' بعد 'خارجي' أو بعد 'خارجي("...")'
-                // (EN) Expect 'function' after 'extern' or after 'extern("...")'
+                // (AR) RFC 0034: الصيغتان المفردتان القديمتان 'خارجي دالة' و'خارجي("رمز") دالة'
+                //      أُزيلتا بلا توافق خلفيّ — حاجز خطأ توجيهيّ على نمط حاجز 'غير_متزامن دالة'.
+                //      بلوغ هذه النقطة يعني حتمًا 'دالة' أو '("رمز")' (بوّابة الدخول أعلاه
+                //      تُسقط كلّ تتمّة أخرى لمسار التعبير) — فرسالة الإزالة دقيقة دومًا.
+                // (EN) RFC 0034: legacy single-decl forms 'extern function' and
+                //      'extern("sym") function' removed — guidance barrier (async-style guard).
+                //      Reaching here necessarily means 'دالة' or '("sym")' (the entry gate
+                //      above routes every other continuation to the expression path), so
+                //      the removal message is always accurate.
+                errorBilingual(
+                    "خطأ نحوي: 'خارجي دالة' أُزيلت. استخدم 'دالة خارجية' بدلاً منها.\n"
+                    "💡 في العربية الصفة تأتي بعد الاسم وتطابقه في الجنس: دالة خارجية printf(نص)\n"
+                    "💡 مثال:\n    دالة خارجية printf(نص)\n    دالة خارجية(\"cos\") عشري جيب_التمام(عشري)",
+                    "Syntax error: 'extern function' removed. Use 'function extern' ('دالة خارجية') instead.\n"
+                    "💡 In Arabic, adjectives follow nouns and agree in gender: دالة خارجية printf(نص)\n"
+                    "💡 Example:\n    دالة خارجية printf(نص)\n    دالة خارجية(\"cos\") عشري جيب_التمام(عشري)");
+                // (AR) تعافٍ: استهلاك اسم الربط الاختياريّ '("رمز")' ثم 'دالة' ثم التصريح
+                //      نفسه — يمنع تعاقب أخطاء لاحقة كما يفعل حاجز 'غير_متزامن دالة'.
+                // (EN) Recovery: consume optional '("sym")' then 'function' then the decl
+                //      itself — prevents cascading errors (mirrors the async guard).
+                std::string ffiLinkName;
+                if (check(TT::PAREN_LEFT))
+                {
+                    advance(); // (AR) استهلاك '(' / (EN) consume '('
+                    if (check(TT::STRING_LITERAL))
+                    {
+                        ffiLinkName = current_.getValue();
+                        advance();
+                    }
+                    if (check(TT::PAREN_RIGHT))
+                        advance();
+                }
                 if (!match(TT::KEYWORD_FUNCTION))
                 {
-                    error("(AR) خطأ نحوي: توقع 'دالة' بعد 'خارجي'. (EN) Syntax error: expected 'function' after 'extern'.");
                     return nullptr;
                 }
                 return parseExternFunctionDecl(ffiLinkName);

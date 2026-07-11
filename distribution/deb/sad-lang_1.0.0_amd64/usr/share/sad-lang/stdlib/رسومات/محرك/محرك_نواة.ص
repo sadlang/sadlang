@@ -26,24 +26,24 @@
 # ملاحظة: استورد أحداث يتم في ملفات الاستخدام مباشرة لتجنب مشاكل التحميل
 
 # ─── دوال FFI من النواة (مُعرّفة في sad_lowlevel_rt.c) ───
-خارجي دالة sad_ll_fb_init(عرض: رقم, ارتفاع: رقم, عمق: رقم)
-خارجي دالة sad_ll_fb_set_pixel(س: رقم, ص: رقم, لون: رقم)
-خارجي دالة sad_ll_fb_draw_rect(س: رقم, ص: رقم, عرض: رقم, ارتفاع: رقم, لون: رقم)
-خارجي دالة sad_ll_fb_fill_rect(س: رقم, ص: رقم, عرض: رقم, ارتفاع: رقم, لون: رقم)
-خارجي دالة sad_ll_fb_draw_line(س1: رقم, ص1: رقم, س2: رقم, ص2: رقم, لون: رقم)
-خارجي دالة sad_ll_fb_clear(لون: رقم)
-خارجي دالة sad_ll_fb_clear_default()
+دالة خارجية sad_ll_fb_init(عرض: رقم, ارتفاع: رقم, عمق: رقم)
+دالة خارجية sad_ll_fb_set_pixel(س: رقم, ص: رقم, لون: رقم)
+دالة خارجية sad_ll_fb_draw_rect(س: رقم, ص: رقم, عرض: رقم, ارتفاع: رقم, لون: رقم)
+دالة خارجية sad_ll_fb_fill_rect(س: رقم, ص: رقم, عرض: رقم, ارتفاع: رقم, لون: رقم)
+دالة خارجية sad_ll_fb_draw_line(س1: رقم, ص1: رقم, س2: رقم, ص2: رقم, لون: رقم)
+دالة خارجية sad_ll_fb_clear(لون: رقم)
+دالة خارجية sad_ll_fb_clear_default()
 
 # ─── دوال FFI للأحداث (مُعرّفة في معالجات المقاطعات) ───
-خارجي دالة sad_ll_kb_has_event()
-خارجي دالة sad_ll_kb_get_scancode()
-خارجي دالة sad_ll_kb_get_key_state()
-خارجي دالة sad_ll_kb_get_modifiers()
-خارجي دالة sad_ll_mouse_has_event()
-خارجي دالة sad_ll_mouse_get_x()
-خارجي دالة sad_ll_mouse_get_y()
-خارجي دالة sad_ll_mouse_get_buttons()
-خارجي دالة sad_ll_mouse_get_event_type()
+دالة خارجية sad_ll_kb_has_event()
+دالة خارجية sad_ll_kb_get_scancode()
+دالة خارجية sad_ll_kb_get_key_state()
+دالة خارجية sad_ll_kb_get_modifiers()
+دالة خارجية sad_ll_mouse_has_event()
+دالة خارجية sad_ll_mouse_get_x()
+دالة خارجية sad_ll_mouse_get_y()
+دالة خارجية sad_ll_mouse_get_buttons()
+دالة خارجية sad_ll_mouse_get_event_type()
 
 # ===================================================================
 #          صنف محرك النواة

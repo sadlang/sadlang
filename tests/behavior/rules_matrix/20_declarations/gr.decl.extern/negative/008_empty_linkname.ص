@@ -1,0 +1,7 @@
+# @rule: gr.decl.extern
+# @description: اسم الربط لا يكون نصًّا فارغًا («("")» يكافئ غيابه صامتًا)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة خارجية("") رقم مسح()

@@ -21,12 +21,13 @@ flowchart TD
   o4["المعاملات<br/>parseFunctionDecl()"]
   o5["تصريح استيراد<br/>parseImportStmt()"]
   o6["تصريح تصدير<br/>parseExportStmt()"]
-  o7["تصريح خارجي<br/>parseExternFunctionDecl()"]
+  o7["تصريح خارجي<br/>parseFunctionDecl()"]
   o8["قائمة وسائط<br/>parseArgumentList()"]
   o1 --> o2
   o3 --> o2
   o3 --> o4
   o4 --> o2
+  o7 --> o2
   o7 --> o4
 ```
 
@@ -159,7 +160,7 @@ TypeRef = ('رقم' | 'عشري' | 'نص' | 'منطقي' | 'مصفوفة' | 'خ�
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseVarDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
 - **عقدة AST المُنتَجة:** `—`
-- **مُستدعى من:** [`parseVarDecl`](20_declarations.md#gr.decl.variable)، [`parseFunctionDecl`](20_declarations.md#gr.decl.function)، [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)
+- **مُستدعى من:** [`parseVarDecl`](20_declarations.md#gr.decl.variable)، [`parseFunctionDecl`](20_declarations.md#gr.decl.function)، [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)، [`parseFunctionDecl`](20_declarations.md#gr.decl.extern)، [`parseDeclaration`](60_advanced.md#gr.adv.ffi_extern_block)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -301,7 +302,7 @@ Parameters = Parameter { ',' Parameter } ;  Parameter = [ Type ] Identifier [ '=
 1. [`ParserCore::parseFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
 - **عقدة AST المُنتَجة:** `—`
 - **يستدعي دوال:** [`parseVarDecl`](20_declarations.md#gr.decl.type_ref)، [`parseExpression`](40_expressions.md#gr.expr.expression)
-- **مُستدعى من:** [`parseFunctionDecl`](20_declarations.md#gr.decl.function)، [`parseExternFunctionDecl`](20_declarations.md#gr.decl.extern)، [`parseMethodDeclaration`](30_oop.md#gr.oop.method)، [`parseConstructorDeclaration`](30_oop.md#gr.oop.constructor)، [`parseOperatorDecl`](30_oop.md#gr.oop.operator)، [`parseTraitDecl`](30_oop.md#gr.oop.trait)، [`parseLambda`](40_expressions.md#gr.expr.lambda)، [`parseMacroDecl`](60_advanced.md#gr.adv.macro)
+- **مُستدعى من:** [`parseFunctionDecl`](20_declarations.md#gr.decl.function)، [`parseFunctionDecl`](20_declarations.md#gr.decl.extern)، [`parseMethodDeclaration`](30_oop.md#gr.oop.method)، [`parseConstructorDeclaration`](30_oop.md#gr.oop.constructor)، [`parseOperatorDecl`](30_oop.md#gr.oop.operator)، [`parseTraitDecl`](30_oop.md#gr.oop.trait)، [`parseLambda`](40_expressions.md#gr.expr.lambda)، [`parseMacroDecl`](60_advanced.md#gr.adv.macro)، [`parseDeclaration`](60_advanced.md#gr.adv.ffi_extern_block)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -487,30 +488,30 @@ flowchart LR
 ### gr.decl.extern — تصريح خارجي <span dir="ltr">(ExternDeclaration)</span>
 
 - **الرقم التسلسليّ:** `ق-022` · **المعرّف الموحَّد:** `gr.decl.extern` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** ربط دالة خارجيّة (C/C++ ABI) عبر «خارجي دالة اسم(معاملات)» — **تصريح بلا جسم** (لا «نهاية»): يُعرّف التوقيع فقط ليُربط برمزٍ خارجيّ وقت الوصل. تفاصيل كتلة الربط وسمات الوصل في 60_advanced (gr.adv.ffi_*).
+- **الوصف:** ربط دالة خارجيّة (C/C++ ABI) عبر «دالة خارجية [("اسم_الربط")] [نوع] اسم(معاملات)» — **تصريح بلا جسم** (لا «نهاية»): يُعرّف التوقيع فقط ليُربط برمزٍ خارجيّ وقت الوصل. «خارجية» صفة مؤنّثة تطابق «دالة» (RFC 0034 — الصفة بعد الاسم وتطابقه جنسًا)؛ الصيغة القديمة «خارجي دالة» أُزيلت ويقابلها حاجز خطأ توجيهيّ. اسم الربط المقوّس الاختياريّ «("رمز")» يربط الاسم العربيّ برمز C مغاير. تفاصيل كتلة الربط «خارجي "C" … نهاية» وسمات الوصل في 60_advanced (gr.adv.ffi_*).
 
 #### 📐 BNF
 ```bnf
-ExternDeclaration = 'خارجي' 'دالة' Identifier '(' [ Parameters ] ')' ;
+ExternDeclaration = 'دالة' 'خارجية' [ '(' StringLiteral ')' ] [ Type ] Identifier '(' [ Parameters ] ')' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«خارجي» «دالة» «IDENTIFIER» «(» [ parameters ] «)»`
+- `«دالة» «خارجية» [ «(» «STRING_LITERAL» «)» ] [ type_ref ] «IDENTIFIER» «(» [ parameters ] «)»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
-1. [`ParserCore::parseExternFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
+1. [`ParserCore::parseFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
+2. [`ParserCore::parseExternFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
 - **عقدة AST المُنتَجة:** `FunctionDecl`
-- **يستدعي دوال:** [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)
-- **مُستدعى من:** [`parseDeclaration`](60_advanced.md#gr.adv.ffi_extern_block)
-- **روابط المعجم:** كلمات: «خارجي»، «دالة»
+- **يستدعي دوال:** [`parseVarDecl`](20_declarations.md#gr.decl.type_ref)
+- **روابط المعجم:** كلمات: «دالة»، «خارجي»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
-  f1["parseExternFunctionDecl()"]
-  f2["parseFunctionDecl()"]
-  f1 -- "المعاملات" --> f2
+  f1["parseFunctionDecl()"]
+  f2["parseVarDecl()"]
+  f1 -- "إشارة نوع" --> f2
   f3(["⇒ FunctionDecl"])
   f1 --> f3
 ```
@@ -519,31 +520,50 @@ flowchart TD
 ```mermaid
 flowchart LR
   n1(["تصريح خارجي"])
-  n2["«خارجي»"]
-  n3["«دالة»"]
+  n2["«دالة»"]
+  n3["«خارجية»"]
   n2 --> n3
-  n4["«IDENTIFIER»"]
+  n4{"◇"}
+  n5{"◇"}
+  n6["«(»"]
+  n7["«STRING_LITERAL»"]
+  n6 --> n7
+  n8["«)»"]
+  n7 --> n8
+  n4 --> n6
+  n8 --> n5
+  n4 -- "تخطّي" --> n5
   n3 --> n4
-  n5["«(»"]
-  n4 --> n5
-  n6{"◇"}
-  n7{"◇"}
-  n8["parameters"]
-  n6 --> n8
-  n8 --> n7
-  n6 -- "تخطّي" --> n7
-  n5 --> n6
-  n9["«)»"]
-  n7 --> n9
+  n9{"◇"}
+  n10{"◇"}
+  n11["type_ref"]
+  n9 --> n11
+  n11 --> n10
+  n9 -- "تخطّي" --> n10
+  n5 --> n9
+  n12["«IDENTIFIER»"]
+  n10 --> n12
+  n13["«(»"]
+  n12 --> n13
+  n14{"◇"}
+  n15{"◇"}
+  n16["parameters"]
+  n14 --> n16
+  n16 --> n15
+  n14 -- "تخطّي" --> n15
+  n13 --> n14
+  n17["«)»"]
+  n15 --> n17
   n1 --> n2
-  n10(["⇒ FunctionDecl"])
-  n9 --> n10
+  n18(["⇒ FunctionDecl"])
+  n17 --> n18
 ```
 
 #### مثال
 ```sad
-خارجي دالة printf(نص)
-خارجي دالة sqrt(عشري)
+دالة خارجية printf(نص)
+دالة خارجية("cos") عشري جيب_التمام(عشري)
+دالة خارجية رقم مدخل()
 ```
 
 ---

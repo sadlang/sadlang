@@ -52,7 +52,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "متغير", TokenType::KEYWORD_VAR, KeywordCategory::RESERVED, true, {}, {}, "var" },
         { "ثابت", TokenType::KEYWORD_CONST, KeywordCategory::RESERVED, true, {}, {}, "const" },
         { "ساكن", TokenType::KEYWORD_STATIC, KeywordCategory::RESERVED, true, {}, {}, "static" },
-        { "خارجي", TokenType::KEYWORD_EXTERN, KeywordCategory::RESERVED, true, {}, {}, "extern" },
+        { "خارجي", TokenType::KEYWORD_EXTERN, KeywordCategory::RESERVED, true, {"خارجية"}, {}, "extern" },
         { "صحيح", TokenType::LITERAL_TRUE, KeywordCategory::RESERVED, true, {}, {}, "true" },
         { "خطأ", TokenType::LITERAL_FALSE, KeywordCategory::RESERVED, true, {}, {}, "false" },
         { "لاشيء", TokenType::LITERAL_NULL, KeywordCategory::RESERVED, true, {}, {}, "null" },

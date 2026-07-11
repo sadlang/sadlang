@@ -1,0 +1,7 @@
+# @rule: gr.decl.extern
+# @description: «دالة خارجي» لحن — الصفة تطابق الموصوف جنسًا: «دالة خارجية» (RFC 0034)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+دالة خارجي طبع(نص)

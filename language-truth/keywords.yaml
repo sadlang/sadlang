@@ -79,7 +79,9 @@ categories:
       - { id: "KW-RES-034", subcategory: "variables", since: "1.0.0", word: "متغير",  tokenType: KEYWORD_VAR,    english: var }
       - { id: "KW-RES-035", subcategory: "variables", since: "1.0.0", word: "ثابت",   tokenType: KEYWORD_CONST,  english: const }
       - { id: "KW-RES-036", subcategory: "variables", since: "1.0.0", word: "ساكن",   tokenType: KEYWORD_STATIC, english: static }
-      - { id: "KW-RES-037", subcategory: "variables", since: "1.0.0", word: "خارجي",  tokenType: KEYWORD_EXTERN, english: extern }
+      # (AR) RFC 0034: «خارجية» صفة مؤنّثة تطابق «دالة» — الصيغة المفردة «دالة خارجية».
+      #      «خارجي» (المذكّر) يبقى لفاتحة كتلة الربط: خارجي "C" ... نهاية.
+      - { id: "KW-RES-037", subcategory: "variables", since: "1.0.0", word: "خارجي",  tokenType: KEYWORD_EXTERN, english: extern, aliases: ["خارجية"] }
 
       # ── القيم الحرفية (3) ──
       - { id: "KW-RES-038", subcategory: "literals", since: "1.0.0", word: "صحيح",   tokenType: LITERAL_TRUE,  english: "true" }

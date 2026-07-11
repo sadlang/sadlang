@@ -1,0 +1,9 @@
+# @rule: gr.decl.extern
+# @description: كتلة الربط تُفتح بالمذكّر «خارجي» — «خارجية "C"» لحن (لا موصوف مؤنّث)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+خارجية "C"
+	دالة طبع(نص)
+نهاية

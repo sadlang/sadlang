@@ -242,29 +242,40 @@ productions:
   # ── الربط الخارجي (FFI) ────────────────────────────────────────────────
   - id: gr.decl.extern
     lhs: { nonterminal: ExternDeclaration, name_ar: "تصريح خارجي", name_en: extern_declaration }
-    ebnf: "ExternDeclaration = 'خارجي' 'دالة' Identifier '(' [ Parameters ] ')' ;"
+    ebnf: "ExternDeclaration = 'دالة' 'خارجية' [ '(' StringLiteral ')' ] [ Type ] Identifier '(' [ Parameters ] ')' ;"
     alternatives:
       - symbols:
-          - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجي" }
           - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+          - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجية" }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: terminal, ref: STRING_LITERAL }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+          - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
           - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: PAREN_LEFT, value: "(" }
           - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.parameters } ] }
           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
-    references: { keywords: ["KW-RES-037", "KW-RES-001"] }
+    references: { keywords: ["KW-RES-001", "KW-RES-037"] }
     maps_to:
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExternFunctionDecl" }
     ast_node: "FunctionDecl"
     description_ar: >
-      ربط دالة خارجيّة (C/C++ ABI) عبر «خارجي دالة اسم(معاملات)» — **تصريح بلا جسم**
-      (لا «نهاية»): يُعرّف التوقيع فقط ليُربط برمزٍ خارجيّ وقت الوصل. تفاصيل كتلة الربط
-      وسمات الوصل في 60_advanced (gr.adv.ffi_*).
+      ربط دالة خارجيّة (C/C++ ABI) عبر «دالة خارجية [("اسم_الربط")] [نوع] اسم(معاملات)» —
+      **تصريح بلا جسم** (لا «نهاية»): يُعرّف التوقيع فقط ليُربط برمزٍ خارجيّ وقت الوصل.
+      «خارجية» صفة مؤنّثة تطابق «دالة» (RFC 0034 — الصفة بعد الاسم وتطابقه جنسًا)؛
+      الصيغة القديمة «خارجي دالة» أُزيلت ويقابلها حاجز خطأ توجيهيّ. اسم الربط المقوّس
+      الاختياريّ «("رمز")» يربط الاسم العربيّ برمز C مغاير. تفاصيل كتلة الربط
+      «خارجي "C" … نهاية» وسمات الوصل في 60_advanced (gr.adv.ffi_*).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: true, test_budget: { basic: 4, edge: 3, negative: 2, interaction: 1 }, notes_ar: "FFI قد لا يُنفَّذ مستقلاً بلا رمز خارجي" }
     example: |
-      خارجي دالة printf(نص)
-      خارجي دالة sqrt(عشري)
+      دالة خارجية printf(نص)
+      دالة خارجية("cos") عشري جيب_التمام(عشري)
+      دالة خارجية رقم مدخل()
 
   # ── قائمة الوسائط (مساعِدة) — يستهلكها استدعاء الدوال/الطرق/المُزخرِفات ──────
   - id: gr.decl.arg_list

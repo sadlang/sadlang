@@ -95,7 +95,7 @@ flowchart TD
 | ق-019 | [`gr.decl.parameters`](20_declarations.md#gr.decl.parameters) | المعاملات | `—` | `ParserCore::parseFunctionDecl` |
 | ق-020 | [`gr.decl.import`](20_declarations.md#gr.decl.import) | تصريح استيراد | `ImportStmt \| FromImportStmt` | `ParserCore::parseImportStmt` |
 | ق-021 | [`gr.decl.export`](20_declarations.md#gr.decl.export) | تصريح تصدير | `ExportStmt` | `ParserCore::parseExportStmt` |
-| ق-022 | [`gr.decl.extern`](20_declarations.md#gr.decl.extern) | تصريح خارجي | `FunctionDecl` | `ParserCore::parseExternFunctionDecl` |
+| ق-022 | [`gr.decl.extern`](20_declarations.md#gr.decl.extern) | تصريح خارجي | `FunctionDecl` | `ParserCore::parseFunctionDecl` |
 | ق-023 | [`gr.decl.arg_list`](20_declarations.md#gr.decl.arg_list) | قائمة وسائط | `—` | `ParserCore::parseArgumentList` |
 | ق-024 | [`gr.oop.class`](30_oop.md#gr.oop.class) | تصريح صنف | `ClassDecl` | `ParserCore::parseClassDecl` |
 | ق-025 | [`gr.oop.enum`](30_oop.md#gr.oop.enum) | تصريح تعداد | `EnumDecl` | `ParserCore::parseEnumDecl` |

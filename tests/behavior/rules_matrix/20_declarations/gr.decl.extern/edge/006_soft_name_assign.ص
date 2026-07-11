@@ -1,0 +1,8 @@
+# @rule: gr.decl.extern
+# @description: «خارجية» اسم متغيّر مشروع — إسناد واستعمال (RFC 0034)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير خارجية = 5
+اطبع_سطر(خارجية)

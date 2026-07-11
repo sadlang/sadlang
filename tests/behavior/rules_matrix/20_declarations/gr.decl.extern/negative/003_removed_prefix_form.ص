@@ -1,0 +1,7 @@
+# @rule: gr.decl.extern
+# @description: الصيغة القديمة «خارجي دالة» أُزيلت (RFC 0034) — حاجز توجيهيّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error
+
+خارجي دالة طبع(نص)

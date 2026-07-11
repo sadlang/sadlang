@@ -294,7 +294,18 @@ namespace Sad
                 if (match(TT::KEYWORD_FUNCTION))
                 {
                     auto method = parseFunctionDecl();
-                    if (method)
+                    // (AR) RFC 0034: التصريح الخارجيّ بلا جسم لا يصلح طريقة واجهة — رفض صريح.
+                    // (EN) RFC 0034: a body-less extern is not a UI method — reject.
+                    auto *fnDecl = dynamic_cast<AST::FunctionDecl *>(method.get());
+                    if (fnDecl && fnDecl->isExtern)
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل واجهة — التصريح الخارجيّ بلا جسم.\n"
+                            "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
+                            "Syntax error: 'دالة خارجية' cannot be declared inside a UI declaration — extern declarations have no body.\n"
+                            "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                    }
+                    else if (method)
                     {
                         uiDecl->methods.push_back(std::move(method));
                     }

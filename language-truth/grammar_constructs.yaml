@@ -190,8 +190,8 @@ constructs:
     name_ar: "ربط خارجي"
     name_en: extern_binding
     category: ffi
-    syntax: "خارجي دالة <اسم>(...)"
-    description_ar: "ربط دالة خارجية (C/C++ ABI)"
-    keywords_used: [خارجي]
+    syntax: "دالة خارجية [(\"اسم_الربط\")] [نوع] <اسم>(...)"
+    description_ar: "ربط دالة خارجية (C/C++ ABI) — «خارجية» صفة تتبع «دالة» (RFC 0034)"
+    keywords_used: [دالة, خارجية]
     since: "1.0.0"
     status: stable

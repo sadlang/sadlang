@@ -45,7 +45,6 @@ flowchart TD
   o3 --> o4
   o4 --> o1
   o5 --> o1
-  o19 --> o20
   o23 --> o24
   o24 --> o1
   o25 --> o26
@@ -1279,52 +1278,76 @@ flowchart LR
 ### gr.adv.ffi_extern_block — كتلة خارجي <span dir="ltr">(ExternBlock)</span>
 
 - **الرقم التسلسليّ:** `ق-089` · **المعرّف الموحَّد:** `gr.adv.ffi_extern_block` · **الحالة:** experimental · **منذ:** 1.0.0
-- **الوصف:** كتلة ربط أجنبيّ «خارجي \"C\" دالة ... نهاية» — تُغلق بـ«نهاية» اتّساقًا مع نمط الإغلاق العربيّ الموحَّد في لغة ص (لا الأقواس «{}»). يحلّلها ParserCore::parseDeclaration مباشرةً (لا مُحلّل فرعيّ)؛ تدعم C/C++/نظام كاتفاقيّات ربط.
+- **الوصف:** كتلة ربط أجنبيّ «خارجي \"C\" دالة ... نهاية» — تُغلق بـ«نهاية» اتّساقًا مع نمط الإغلاق العربيّ الموحَّد في لغة ص (لا الأقواس «{}»). التصاريح داخل الكتلة تبدأ بـ«دالة» مباشرةً **بلا تكرار «خارجي»** — اتفاقيّة الربط تُذكر مرّة على الفاتحة وتسري على كلّ التصاريح. الكتلة باقية بلا تغيير في RFC 0034 (المذكّر «خارجي» فاتحتها لأنّه اسم البنية لا صفة لـ«دالة»). يحلّلها ParserCore::parseDeclaration مباشرةً (لا مُحلّل فرعيّ)؛ تدعم C/C++/نظام كاتفاقيّات ربط.
 
 #### 📐 BNF
 ```bnf
-ExternBlock = Linkage { ExternFunction } 'نهاية' ;
+ExternBlock = 'خارجي' StringLiteral { 'دالة' [ Type ] Identifier '(' [ Parameters ] ')' } 'نهاية' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `ffi_linkage { extern } «نهاية»`
+- `«خارجي» «"C"» { «دالة» [ type_ref ] «IDENTIFIER» «(» [ parameters ] «)» } «نهاية»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseDeclaration`](../../../shared/parser/src/core/parser_main.cpp) — `shared/parser/src/core/parser_main.cpp`
 2. [`ParserCore::parseExternFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
 - **عقدة AST المُنتَجة:** `BlockStmt`
-- **يستدعي دوال:** [`parseExternFunctionDecl`](20_declarations.md#gr.decl.extern)
-- **روابط المعجم:** كلمات: «خارجي»
+- **يستدعي دوال:** [`parseVarDecl`](20_declarations.md#gr.decl.type_ref)، [`parseFunctionDecl`](20_declarations.md#gr.decl.parameters)
+- **روابط المعجم:** كلمات: «خارجي»، «دالة»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
 flowchart TD
   f1["parseDeclaration()"]
-  f2["parseExternFunctionDecl()"]
-  f1 -- "تصريح خارجي" --> f2
-  f3(["⇒ BlockStmt"])
-  f1 --> f3
+  f2["parseVarDecl()"]
+  f1 -- "إشارة نوع" --> f2
+  f3["parseFunctionDecl()"]
+  f1 -- "المعاملات" --> f3
+  f4(["⇒ BlockStmt"])
+  f1 --> f4
 ```
 
 #### 📊 مخطّط البنية النحويّة (Mermaid)
 ```mermaid
 flowchart LR
   n1(["كتلة خارجي"])
-  n2["ffi_linkage"]
-  n3{"◇"}
-  n4{"◇"}
-  n5["extern"]
-  n3 --> n5
-  n5 --> n4
-  n5 -- "تكرار" --> n5
-  n3 -- "صفر/أكثر" --> n4
+  n2["«خارجي»"]
+  n3["«'C'»"]
   n2 --> n3
-  n6["«نهاية»"]
-  n4 --> n6
-  n1 --> n2
-  n7(["⇒ BlockStmt"])
+  n4{"◇"}
+  n5{"◇"}
+  n6["«دالة»"]
+  n7{"◇"}
+  n8{"◇"}
+  n9["type_ref"]
+  n7 --> n9
+  n9 --> n8
+  n7 -- "تخطّي" --> n8
   n6 --> n7
+  n10["«IDENTIFIER»"]
+  n8 --> n10
+  n11["«(»"]
+  n10 --> n11
+  n12{"◇"}
+  n13{"◇"}
+  n14["parameters"]
+  n12 --> n14
+  n14 --> n13
+  n12 -- "تخطّي" --> n13
+  n11 --> n12
+  n15["«)»"]
+  n13 --> n15
+  n4 --> n6
+  n15 --> n5
+  n15 -- "تكرار" --> n6
+  n4 -- "صفر/أكثر" --> n5
+  n3 --> n4
+  n16["«نهاية»"]
+  n5 --> n16
+  n1 --> n2
+  n17(["⇒ BlockStmt"])
+  n16 --> n17
 ```
 
 ---
@@ -1333,21 +1356,22 @@ flowchart LR
 ### gr.adv.ffi_linkage — اتفاقيّة ربط <span dir="ltr">(Linkage)</span>
 
 - **الرقم التسلسليّ:** `ق-090` · **المعرّف الموحَّد:** `gr.adv.ffi_linkage` · **الحالة:** experimental · **منذ:** 1.0.0
-- **الوصف:** نوع الربط الأجنبيّ: C (افتراضيّ) أو C++ أو نظام (system)
+- **الوصف:** شكلا الربط الأجنبيّ (RFC 0034): **نصّ عارٍ** بعد «خارجي» يفتح كتلة ربط (خارجي "C" … نهاية — اتفاقيّة C افتراضيًّا أو C++/نظام)، بينما **النصّ المقوّس** بعد «خارجية» في الصيغة المفردة «دالة خارجية("رمز") …» هو اسم ربط الرمز الخارجيّ لدالة واحدة. العُريّ ⇒ كتلة؛ المقوّس ⇒ اسم ربط مفرد.
 
 #### 📐 BNF
 ```bnf
-Linkage = 'خارجي' [ '"C"' | '"C++"' | 'نظام' ] ;
+Linkage = 'خارجي' StringLiteral | 'خارجية' '(' StringLiteral ')' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«خارجي» [ «"C"» ]`
+**1.** `«خارجي» «"C"»`
+**2.** `«خارجية» «(» «STRING_LITERAL» «)»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseDeclaration`](../../../shared/parser/src/core/parser_main.cpp) — `shared/parser/src/core/parser_main.cpp`
+2. [`ParserCore::parseFunctionDecl`](../../../shared/parser/src/declarations/parser_declarations.cpp) — `shared/parser/src/declarations/parser_declarations.cpp`
 - **عقدة AST المُنتَجة:** `ExternLinkage`
-- **مُستدعى من:** [`parseDeclaration`](60_advanced.md#gr.adv.ffi_extern_block)
 - **روابط المعجم:** كلمات: «خارجي»
 
 ##### مخطّط مسار الدوال (حتى AST)
@@ -1363,16 +1387,21 @@ flowchart TD
 flowchart LR
   n1(["اتفاقيّة ربط"])
   n2["«خارجي»"]
-  n3{"◇"}
-  n4{"◇"}
-  n5["«'C'»"]
-  n3 --> n5
-  n5 --> n4
-  n3 -- "تخطّي" --> n4
+  n3["«'C'»"]
   n2 --> n3
   n1 --> n2
-  n6(["⇒ ExternLinkage"])
-  n4 --> n6
+  n4(["⇒ ExternLinkage"])
+  n3 --> n4
+  n5["«خارجية»"]
+  n6["«(»"]
+  n5 --> n6
+  n7["«STRING_LITERAL»"]
+  n6 --> n7
+  n8["«)»"]
+  n7 --> n8
+  n1 --> n5
+  n9(["⇒ ExternLinkage"])
+  n8 --> n9
 ```
 
 ---

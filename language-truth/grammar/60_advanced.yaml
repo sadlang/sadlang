@@ -438,20 +438,31 @@ productions:
 
   - id: gr.adv.ffi_extern_block
     lhs: { nonterminal: ExternBlock, name_ar: "كتلة خارجي", name_en: extern_block }
-    ebnf: "ExternBlock = Linkage { ExternFunction } 'نهاية' ;"
+    ebnf: "ExternBlock = 'خارجي' StringLiteral { 'دالة' [ Type ] Identifier '(' [ Parameters ] ')' } 'نهاية' ;"
     alternatives:
       - symbols:
-          - { kind: nonterminal, ref: gr.adv.ffi_linkage }
-          - { kind: repeat, children: [ { kind: nonterminal, ref: gr.decl.extern } ] }
+          - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجي" }
+          - { kind: terminal, ref: STRING_LITERAL, value: "\"C\"" }
+          - kind: repeat
+            children:
+              - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+              - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
+              - { kind: terminal, ref: IDENTIFIER }
+              - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+              - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.parameters } ] }
+              - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
           - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
-    references: { keywords: ["KW-RES-037"] }
+    references: { keywords: ["KW-RES-037", "KW-RES-001"] }
     maps_to:
       - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDeclaration" }
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExternFunctionDecl" }
     ast_node: "BlockStmt"
     description_ar: >
       كتلة ربط أجنبيّ «خارجي \"C\" دالة ... نهاية» — تُغلق بـ«نهاية» اتّساقًا مع نمط
-      الإغلاق العربيّ الموحَّد في لغة ص (لا الأقواس «{}»). يحلّلها ParserCore::parseDeclaration
+      الإغلاق العربيّ الموحَّد في لغة ص (لا الأقواس «{}»). التصاريح داخل الكتلة تبدأ
+      بـ«دالة» مباشرةً **بلا تكرار «خارجي»** — اتفاقيّة الربط تُذكر مرّة على الفاتحة
+      وتسري على كلّ التصاريح. الكتلة باقية بلا تغيير في RFC 0034 (المذكّر «خارجي»
+      فاتحتها لأنّه اسم البنية لا صفة لـ«دالة»). يحلّلها ParserCore::parseDeclaration
       مباشرةً (لا مُحلّل فرعيّ)؛ تدعم C/C++/نظام كاتفاقيّات ربط.
     since: "1.0.0"
     status: experimental
@@ -462,18 +473,26 @@ productions:
 
   - id: gr.adv.ffi_linkage
     lhs: { nonterminal: Linkage, name_ar: "اتفاقيّة ربط", name_en: linkage }
-    ebnf: "Linkage = 'خارجي' [ '\"C\"' | '\"C++\"' | 'نظام' ] ;"
+    ebnf: "Linkage = 'خارجي' StringLiteral | 'خارجية' '(' StringLiteral ')' ;"
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجي" }
-          - kind: optional
-            children:
-              - { kind: terminal, ref: STRING_LITERAL, value: "\"C\"" }
+          - { kind: terminal, ref: STRING_LITERAL, value: "\"C\"" }
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_EXTERN, value: "خارجية" }
+          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+          - { kind: terminal, ref: STRING_LITERAL }
+          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
     references: { keywords: ["KW-RES-037"] }
     maps_to:
       - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseDeclaration" }
+      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
     ast_node: "ExternLinkage"
-    description_ar: "نوع الربط الأجنبيّ: C (افتراضيّ) أو C++ أو نظام (system)"
+    description_ar: >
+      شكلا الربط الأجنبيّ (RFC 0034): **نصّ عارٍ** بعد «خارجي» يفتح كتلة ربط
+      (خارجي "C" … نهاية — اتفاقيّة C افتراضيًّا أو C++/نظام)، بينما **النصّ المقوّس**
+      بعد «خارجية» في الصيغة المفردة «دالة خارجية("رمز") …» هو اسم ربط الرمز الخارجيّ
+      لدالة واحدة. العُريّ ⇒ كتلة؛ المقوّس ⇒ اسم ربط مفرد.
     since: "1.0.0"
     status: experimental
     conformance: { compiler_optional: true, test_budget: { basic: 2, edge: 1, negative: 1, interaction: 0 } }

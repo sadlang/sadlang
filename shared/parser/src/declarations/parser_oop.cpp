@@ -237,13 +237,59 @@ namespace Sad
                 advance(); // consume 'غير_متزامنة' / 'غير_متزامن' (parsed but ignored for now)
             }
 
+            // ─────────────────────────────────────────────────────────────────
+            // (AR) RFC 0034: 'دالة خارجية' داخل جسم صنف — التصريح الخارجيّ بلا جسم
+            //      ولا «هذا»، فلا معنى له كطريقة. نرفضه برسالة واضحة بدل تعاقب
+            //      أخطاء مضلِّل («توقع نوع بيانات...»). أمّا طريقة *اسمها*
+            //      خارجي/خارجية ('(' يليها غير نصّ) فتبقى مشروعة كما قبل RFC 0034.
+            // (EN) RFC 0034: 'دالة خارجية' inside a class body — extern decls have no
+            //      body and no 'this'; reject with a clear message instead of a
+            //      misleading cascade. A method *named* خارجي/خارجية ('(' followed
+            //      by a non-string) stays legal as before RFC 0034.
+            // ─────────────────────────────────────────────────────────────────
+            bool namePinned = false;
+            if (check(TT::KEYWORD_EXTERN))
+            {
+                Token externTok = current_;
+                advance(); // (AR) استهلاك 'خارجية'/'خارجي' / (EN) consume the extern lexeme
+                if (check(TT::PAREN_LEFT) && peekNext().getType() != TT::STRING_LITERAL)
+                {
+                    nameToken = Token(TT::IDENTIFIER, externTok.getValue(), externTok.getPosition());
+                    namePinned = true;
+                }
+                else
+                {
+                    errorBilingual(
+                        "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل صنف — التصريح الخارجيّ بلا جسم ولا يرتبط بكائن.\n"
+                        "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
+                        "Syntax error: 'دالة خارجية' cannot be declared inside a class — extern declarations have no body and no receiver.\n"
+                        "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                    // (AR) تعافٍ: استهلاك '("رمز")' الاختياريّ ثم بقيّة التوقيع — يمنع التعاقب.
+                    // (EN) Recovery: consume optional '("sym")' then the rest of the signature.
+                    if (check(TT::PAREN_LEFT) && peekNext().getType() == TT::STRING_LITERAL)
+                    {
+                        advance(); // '('
+                        advance(); // "sym"
+                        if (check(TT::PAREN_RIGHT))
+                            advance();
+                    }
+                    parseExternFunctionDecl(std::string());
+                    return nullptr;
+                }
+            }
+
             // (AR) التمييز بين نوع الإرجاع واسم الطريقة:
             //      دالة نص احصل() — نص هو نوع الإرجاع لأن يليه معرّف "احصل"
             //      دالة نص()      — نص هو اسم الطريقة لأن يليه "("
             // (EN) Distinguish return type from method name:
             //      function string getName() — string is return type (followed by identifier)
             //      function text()           — text is method name (followed by "(")
-            if (isTypeToken(current_.getType()) && peekNext().getType() == TT::IDENTIFIER)
+            if (namePinned)
+            {
+                // (AR) الاسم مُثبَّت مسبقًا (طريقة اسمها خارجي/خارجية — تمييز RFC 0034 أعلاه)
+                // (EN) Name pre-pinned (method named extern — RFC 0034 disambiguation above)
+            }
+            else if (isTypeToken(current_.getType()) && peekNext().getType() == TT::IDENTIFIER)
             {
                 // Has return type: رقم احصل_الرصيد()
                 returnType = parseType();
