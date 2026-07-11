@@ -404,31 +404,37 @@ namespace Sad
             }
             else
             {
-                int l = left.toInt();
-                int r = right.toInt();
+                // (AR) الدقّة الكاملة 64-بت — كان toInt() (32-بت) يقتطع القيم الكبيرة
+                //      ويباعد المفسّر عن المترجم (i64). النوع اللغويّ «رقم» يبقى كما هو؛
+                //      هذا تصحيح للدقّة الداخليّة فقط.
+                // (EN) Full 64-bit precision — toInt() (32-bit) used to truncate large
+                //      values, diverging from the compiler (i64). Language type is
+                //      unchanged; this only fixes internal precision.
+                int64_t l = left.toInt64();
+                int64_t r = right.toInt64();
 
                 // (AR) حماية طفحان الأعداد الصحيحة — الترقية إلى double عند الطفحان
                 // (EN) Integer overflow protection — promote to double on overflow
-                auto safeAdd = [](int a, int b) -> Value
+                auto safeAdd = [](int64_t a, int64_t b) -> Value
                 {
-                    if ((b > 0 && a > INT_MAX - b) || (b < 0 && a < INT_MIN - b))
+                    if ((b > 0 && a > INT64_MAX - b) || (b < 0 && a < INT64_MIN - b))
                         return Value(static_cast<double>(a) + static_cast<double>(b));
                     return Value(a + b);
                 };
-                auto safeSub = [](int a, int b) -> Value
+                auto safeSub = [](int64_t a, int64_t b) -> Value
                 {
-                    if ((b < 0 && a > INT_MAX + b) || (b > 0 && a < INT_MIN + b))
+                    if ((b < 0 && a > INT64_MAX + b) || (b > 0 && a < INT64_MIN + b))
                         return Value(static_cast<double>(a) - static_cast<double>(b));
                     return Value(a - b);
                 };
-                auto safeMul = [](int a, int b) -> Value
+                auto safeMul = [](int64_t a, int64_t b) -> Value
                 {
                     if (a != 0 && b != 0)
                     {
-                        if ((a > 0 && b > 0 && a > INT_MAX / b) ||
-                            (a < 0 && b < 0 && a < INT_MAX / b) ||
-                            (a > 0 && b < 0 && b < INT_MIN / a) ||
-                            (a < 0 && b > 0 && a < INT_MIN / b))
+                        if ((a > 0 && b > 0 && a > INT64_MAX / b) ||
+                            (a < 0 && b < 0 && a < INT64_MAX / b) ||
+                            (a > 0 && b < 0 && b < INT64_MIN / a) ||
+                            (a < 0 && b > 0 && a < INT64_MIN / b))
                             return Value(static_cast<double>(a) * static_cast<double>(b));
                     }
                     return Value(a * b);
@@ -447,6 +453,10 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_DIVISION_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
+                    // (AR) حالة الطفحان الوحيدة في القسمة: INT64_MIN / -1 ⇒ ترقية إلى عشري
+                    // (EN) The only overflowing division: INT64_MIN / -1 ⇒ promote to double
+                    if (l == INT64_MIN && r == -1)
+                        return Value(-static_cast<double>(l));
                     // (AR) ترقية إلى عشري عند وجود باقي (7/2 → 3.5) — سلوك القسمة الحقيقية
                     // (EN) Promote to double when remainder exists (7/2 → 3.5) — true division
                     if (l % r != 0)
@@ -457,10 +467,12 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_FLOOR_DIVISION_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
+                    if (l == INT64_MIN && r == -1)
+                        return Value(-static_cast<double>(l));
                     // (AR) القسمة الصحيحة الأرضية: -7 // 2 → -4 (نحو سالب اللانهاية)
                     // (EN) Floor division: -7 // 2 → -4 (toward negative infinity)
                     {
-                        int q = l / r;
+                        int64_t q = l / r;
                         if ((l ^ r) < 0 && l % r != 0)
                             q -= 1;
                         return Value(q);
@@ -470,12 +482,20 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_MODULO_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
+                    // (AR) INT64_MIN % -1 سلوك غير محدَّد في C++ — النتيجة الرياضيّة صفر
+                    // (EN) INT64_MIN % -1 is UB in C++ — mathematical result is zero
+                    if (r == -1)
+                        return Value(static_cast<int64_t>(0));
                     return Value(l % r);
                 case TokenType::OP_POWER:
                 {
                     double result = std::pow(static_cast<double>(l), static_cast<double>(r));
-                    if (result >= static_cast<double>(INT_MIN) && result <= static_cast<double>(INT_MAX))
-                        return Value(static_cast<int>(result));
+                    // (AR) حدود int64 كعشري: الحدّ الأعلى 2^63 حصراً لأنّ INT64_MAX لا يُمثَّل بدقّة
+                    // (EN) int64 bounds as double: upper bound is 2^63 exclusive (INT64_MAX not exactly representable)
+                    constexpr double kInt64LowerBoundD = -9223372036854775808.0; // -2^63
+                    constexpr double kInt64UpperBoundD = 9223372036854775808.0;  // +2^63 (exclusive)
+                    if (result >= kInt64LowerBoundD && result < kInt64UpperBoundD)
+                        return Value(static_cast<int64_t>(result));
                     return Value(result);
                 }
                 default:

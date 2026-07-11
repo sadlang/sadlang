@@ -211,7 +211,9 @@ namespace Sad
             std::string numStr = json.substr(start, pos - start);
             if (isFloat)
                 return Data::Value(std::stod(numStr));
-            return Data::Value(std::stoi(numStr));
+            // (AR) stoll لا stoi — أعداد JSON فوق 32-بت كانت تُقتطع
+            // (EN) stoll not stoi — JSON integers beyond 32-bit used to truncate
+            return Data::Value(static_cast<int64_t>(std::stoll(numStr)));
         }
 
         // (AR) تحليل كائن JSON {مفتاح: قيمة, ...}

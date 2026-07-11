@@ -403,7 +403,7 @@ namespace Sad
             Data::Value::ArrayType allNames;  // (AR) كل أسماء العناصر
             Data::Value::ArrayType allValues; // (AR) كل قيم العناصر
             Data::Value::MapType reverseMap;  // (AR) خريطة عكسية: قيمة → اسم
-            int autoValue = 0;
+            int64_t autoValue = 0;
 
             for (auto &member : node.members)
             {
@@ -481,7 +481,7 @@ namespace Sad
                         memberVal = evaluateExpression(*member.value);
                         if (memberVal.isInteger())
                         {
-                            autoValue = memberVal.toInt() + 1;
+                            autoValue = memberVal.toInt64() + 1;
                         }
                     }
                     else

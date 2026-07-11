@@ -137,6 +137,30 @@ namespace Sad
             }
 
             // مقارنة الأعداد / Numeric comparison
+            // (AR) صحيح×صحيح: مقارنة دقيقة 64-بت — المرور عبر double يفقد الدقّة فوق 2^53
+            // (EN) Int×Int: exact 64-bit comparison — going through double loses precision above 2^53
+            if (left.isInteger() && right.isInteger())
+            {
+                int64_t l = left.toInt64();
+                int64_t r = right.toInt64();
+                switch (op)
+                {
+                case TokenType::OP_EQUAL:
+                    return Value(l == r);
+                case TokenType::OP_NOT_EQUAL:
+                    return Value(l != r);
+                case TokenType::OP_LESS:
+                    return Value(l < r);
+                case TokenType::OP_LESS_EQUAL:
+                    return Value(l <= r);
+                case TokenType::OP_GREATER:
+                    return Value(l > r);
+                case TokenType::OP_GREATER_EQUAL:
+                    return Value(l >= r);
+                default:
+                    break;
+                }
+            }
             if (left.isNumeric() && right.isNumeric())
             {
                 double l = left.toDouble();
@@ -408,8 +432,14 @@ namespace Sad
                 return Value(0);
             }
 
-            int l = left.toInt();
-            int r = right.toInt();
+            // (AR) العمليات البتّيّة بعرض 64-بت — مطابقةً لتمثيل «رقم» الداخليّ i64 في المحرّكين
+            // (EN) Bitwise ops at 64-bit width — matching the i64 internal Integer representation
+            int64_t l = left.toInt64();
+            int64_t r = right.toInt64();
+
+            // (AR) عرض النوع الصحيح بالبتّات — حدّ الإزاحة الآمنة في C++
+            // (EN) Integer bit width — safe shift limit in C++
+            constexpr int64_t kIntegerBitWidth = 64;
 
             switch (op)
             {
@@ -423,7 +453,7 @@ namespace Sad
             {
                 // (AR) حماية من إزاحة بقيم خطيرة (UB في C++)
                 // (EN) Protect against dangerous shift values (UB in C++)
-                if (r < 0 || r >= 32)
+                if (r < 0 || r >= kIntegerBitWidth)
                 {
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_OFFSET_OUT_OF_RANGE,
@@ -434,7 +464,7 @@ namespace Sad
             }
             case TokenType::OP_SHIFT_RIGHT:
             {
-                if (r < 0 || r >= 32)
+                if (r < 0 || r >= kIntegerBitWidth)
                 {
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_OFFSET_OUT_OF_RANGE,

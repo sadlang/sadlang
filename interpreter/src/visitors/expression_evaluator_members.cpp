@@ -696,10 +696,11 @@ namespace Sad
                     // (AR) تعديل مباشر — المصفوفة مخزّنة كـ shared_ptr
                     // (EN) Direct mutation — array is stored as shared_ptr
                     auto &arr = containerValue.toArrayMut();
-                    int idx = idxValue.toInt();
+                    // (AR) فهرس 64-بت — منع لفّ toInt() الصامت / (EN) 64-bit index — no silent toInt() wrap
+                    int64_t idx = idxValue.toInt64();
                     if (idx < 0)
-                        idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_members_size") + idx;
-                    if (idx >= 0 && idx < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_members_size"))
+                        idx = static_cast<int64_t>(arr.size()) + idx;
+                    if (idx >= 0 && idx < static_cast<int64_t>(arr.size()))
                     {
                         arr[idx] = value;
                     }

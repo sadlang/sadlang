@@ -750,24 +750,30 @@ namespace Sad
         void ExpressionEvaluator::visitRangeExpr(AST::RangeExpr &node)
         {
             node.start->accept(*this);
-            int startVal = lastResult_.toInt();
+            // (AR) حدود المدى بدقّة 64-بت — كان toInt() يقتطع فيباعد المفسّر عن المترجم
+            // (EN) Range bounds at 64-bit precision — toInt() truncated, diverging from the compiler
+            int64_t startVal = lastResult_.toInt64();
 
             node.end->accept(*this);
-            int endVal = lastResult_.toInt();
+            int64_t endVal = lastResult_.toInt64();
 
             Value::ArrayType arr;
+            // (AR) حساب الاتّساع بلا إشارة — الفرق الموقَّع يطفح (UB) عند حدود متباعدة جدًّا
+            // (EN) Unsigned span math — the signed difference overflows (UB) for far-apart bounds
             if (startVal <= endVal)
             {
-                arr.reserve(endVal - startVal + 1);
-                for (int i = startVal; i <= endVal; ++i)
+                arr.reserve(static_cast<size_t>(
+                    static_cast<uint64_t>(endVal) - static_cast<uint64_t>(startVal) + 1));
+                for (int64_t i = startVal; i <= endVal; ++i)
                 {
                     arr.push_back(Value(i));
                 }
             }
             else
             {
-                arr.reserve(startVal - endVal + 1);
-                for (int i = startVal; i >= endVal; --i)
+                arr.reserve(static_cast<size_t>(
+                    static_cast<uint64_t>(startVal) - static_cast<uint64_t>(endVal) + 1));
+                for (int64_t i = startVal; i >= endVal; --i)
                 {
                     arr.push_back(Value(i));
                 }

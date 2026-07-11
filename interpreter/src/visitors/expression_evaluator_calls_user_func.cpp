@@ -194,7 +194,9 @@ namespace Sad
                             }
                             else
                             {
-                                defaultVal = Data::Value(std::stoi(defaultStr));
+                                // (AR) stoll لا stoi — القيم الافتراضيّة الكبيرة كانت تُقتطع
+                                // (EN) stoll not stoi — large default values used to truncate
+                                defaultVal = Data::Value(static_cast<int64_t>(std::stoll(defaultStr)));
                             }
                         }
                         catch (...)

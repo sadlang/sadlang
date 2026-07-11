@@ -225,6 +225,12 @@ namespace Sad
                         ascending = false;
                     auto cmp = [](const Value &a, const Value &b) -> bool
                     {
+                        // (AR) صحيح×صحيح: مقارنة دقيقة 64-بت — العبور عبر double كان يخلط
+                        //      ترتيب القيم المتجاورة فوق 2^53
+                        // (EN) Int×Int: exact 64-bit comparison — the double path misordered
+                        //      adjacent values above 2^53
+                        if (a.isInteger() && b.isInteger())
+                            return a.toInt64() < b.toInt64();
                         if (a.isNumeric() && b.isNumeric())
                             return a.toDouble() < b.toDouble();
                         return a.toString() < b.toString();

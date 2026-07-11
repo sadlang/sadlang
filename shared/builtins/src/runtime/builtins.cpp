@@ -179,9 +179,11 @@ namespace Sad
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED);
                 }
 
-                int idx = index->toInt();
+                // (AR) فهرس 64-بت — كان toInt() يلفّ الفهارس الكبيرة إلى فهارس صالحة خاطئة
+                // (EN) 64-bit index — toInt() wrapped huge indices into wrong valid ones
+                int64_t idx = index->toInt64();
 
-                if (idx >= 0 && idx < (int)array->size())
+                if (idx >= 0 && idx < static_cast<int64_t>(array->size()))
                 {
                     // (AR) إزالة العنصر بالفهرس من المصفوفة مباشرةً
                     // (EN) Remove element at index from array directly
@@ -454,7 +456,8 @@ namespace Sad
 
                 if (args[0]->isInteger())
                 {
-                    return std::make_shared<Data::Value>(std::abs(args[0]->toInt()));
+                    // (AR) دقّة 64-بت كاملة — كان toInt() يقتطع / (EN) Full 64-bit precision
+                    return std::make_shared<Data::Value>(std::abs(args[0]->toInt64()));
                 }
 
                 if (args[0]->isDouble())
@@ -481,9 +484,14 @@ namespace Sad
                         if ((args[i]->isInteger() || args[i]->isDouble()) &&
                             (result.isInteger() || result.isDouble()))
                         {
-                            double currentVal = args[i]->isInteger() ? static_cast<double>(args[i]->toInt()) : args[i]->toDouble();
-                            double resultVal = result.isInteger() ? static_cast<double>(result.toInt()) : result.toDouble();
-                            if (currentVal > resultVal)
+                            // (AR) صحيح×صحيح: مقارنة دقيقة 64-بت؛ وإلّا عبر double
+                            // (EN) Int×Int: exact 64-bit comparison; otherwise via double
+                            bool greater;
+                            if (args[i]->isInteger() && result.isInteger())
+                                greater = args[i]->toInt64() > result.toInt64();
+                            else
+                                greater = args[i]->toDouble() > result.toDouble();
+                            if (greater)
                             {
                                 result = *args[i];
                             }
@@ -510,9 +518,12 @@ namespace Sad
                         if ((args[i]->isInteger() || args[i]->isDouble()) &&
                             (result.isInteger() || result.isDouble()))
                         {
-                            double currentVal = args[i]->isInteger() ? static_cast<double>(args[i]->toInt()) : args[i]->toDouble();
-                            double resultVal = result.isInteger() ? static_cast<double>(result.toInt()) : result.toDouble();
-                            if (currentVal < resultVal)
+                            bool less;
+                            if (args[i]->isInteger() && result.isInteger())
+                                less = args[i]->toInt64() < result.toInt64();
+                            else
+                                less = args[i]->toDouble() < result.toDouble();
+                            if (less)
                             {
                                 result = *args[i];
                             }
@@ -525,6 +536,9 @@ namespace Sad
 
             std::shared_ptr<Data::Value> sum(const std::vector<std::shared_ptr<Data::Value>> &args)
             {
+                // (AR) مجمّع صحيح 64-بت مستقلّ — المرور عبر double كان يفقد الدقّة فوق 2^53
+                // (EN) Separate 64-bit integer accumulator — double path lost precision above 2^53
+                int64_t intTotal = 0;
                 double total = 0.0;
                 bool hasDouble = false;
 
@@ -534,7 +548,18 @@ namespace Sad
                     {
                         if (arg->isInteger())
                         {
-                            total += arg->toInt();
+                            // (AR) حارس طفح الجمع i64 — عند الطفح نرقّي إلى عشري بدل UB صامت
+                            // (EN) i64 addition overflow guard — promote to double instead of silent UB
+                            int64_t v = arg->toInt64();
+                            if (!hasDouble &&
+                                ((v > 0 && intTotal > INT64_MAX - v) ||
+                                 (v < 0 && intTotal < INT64_MIN - v)))
+                            {
+                                hasDouble = true;
+                            }
+                            if (!hasDouble)
+                                intTotal += v;
+                            total += static_cast<double>(v);
                         }
                         else if (arg->isDouble())
                         {
@@ -548,7 +573,7 @@ namespace Sad
                 {
                     return std::make_shared<Data::Value>(total);
                 }
-                return std::make_shared<Data::Value>(static_cast<int>(total));
+                return std::make_shared<Data::Value>(intTotal);
             }
 
             std::shared_ptr<Data::Value> sqrt(const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -561,7 +586,7 @@ namespace Sad
                 double value = 0;
                 if (args[0]->isInteger())
                 {
-                    value = args[0]->toInt();
+                    value = static_cast<double>(args[0]->toInt64());
                 }
                 else if (args[0]->isDouble())
                 {
@@ -601,12 +626,12 @@ namespace Sad
 
                 if (args[0]->isInteger())
                 {
-                    return std::make_shared<Data::Value>(args[0]->toInt());
+                    return std::make_shared<Data::Value>(args[0]->toInt64());
                 }
 
                 if (args[0]->isDouble())
                 {
-                    return std::make_shared<Data::Value>((int)args[0]->toDouble());
+                    return std::make_shared<Data::Value>(static_cast<int64_t>(args[0]->toDouble()));
                 }
 
                 if (args[0]->isBoolean())
@@ -619,7 +644,9 @@ namespace Sad
                     const std::string &s = args[0]->toString();
                     try
                     {
-                        return std::make_shared<Data::Value>(std::stoi(s));
+                        // (AR) stoll لا stoi — قبول القيم فوق حدود 32-بت
+                        // (EN) stoll not stoi — accept values beyond 32-bit range
+                        return std::make_shared<Data::Value>(static_cast<int64_t>(std::stoll(s)));
                     }
                     catch (...)
                     {
@@ -644,7 +671,7 @@ namespace Sad
 
                 if (args[0]->isInteger())
                 {
-                    return std::make_shared<Data::Value>((double)args[0]->toInt());
+                    return std::make_shared<Data::Value>(static_cast<double>(args[0]->toInt64()));
                 }
 
                 if (args[0]->isBoolean())
@@ -708,29 +735,30 @@ namespace Sad
                     throw ::Sad::Errors::BuiltinError(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
 
-                int start = 0;
-                int stop = 0;
-                int step = 1;
+                // (AR) حدود المدى بدقّة 64-بت / (EN) 64-bit range bounds
+                int64_t start = 0;
+                int64_t stop = 0;
+                int64_t step = 1;
 
                 // (AR) تحليل المعاملات
                 // (EN) Parse arguments
                 if (args.size() == 1)
                 {
                     // range(stop)
-                    stop = args[0]->toInt();
+                    stop = args[0]->toInt64();
                 }
                 else if (args.size() == 2)
                 {
                     // range(start, stop)
-                    start = args[0]->toInt();
-                    stop = args[1]->toInt();
+                    start = args[0]->toInt64();
+                    stop = args[1]->toInt64();
                 }
                 else
                 {
                     // range(start, stop, step)
-                    start = args[0]->toInt();
-                    stop = args[1]->toInt();
-                    step = args[2]->toInt();
+                    start = args[0]->toInt64();
+                    stop = args[1]->toInt64();
+                    step = args[2]->toInt64();
 
                     // (AR) التحقق من أن step ليس صفراً
                     // (EN) Validate step is not zero
@@ -748,7 +776,7 @@ namespace Sad
                 {
                     // (AR) step موجب - من start إلى stop
                     // (EN) Positive step - from start to stop
-                    for (int i = start; i < stop; i += step)
+                    for (int64_t i = start; i < stop; i += step)
                     {
                         result.push_back(Data::Value(i));
                     }
@@ -757,7 +785,7 @@ namespace Sad
                 {
                     // (AR) step سالب - من start إلى stop بالعكس
                     // (EN) Negative step - from start to stop in reverse
-                    for (int i = start; i > stop; i += step)
+                    for (int64_t i = start; i > stop; i += step)
                     {
                         result.push_back(Data::Value(i));
                     }

@@ -58,9 +58,9 @@ Data::Value TypeFunctions::toInt(const std::vector<Data::Value>& args) {
     const Data::Value& value = args[0];
     
     try {
-        // التحويل المباشر باستخدام toInt المدمج
-        // Direct conversion using built-in toInt
-        int result = value.toInt();
+        // (AR) التحويل بدقّة 64-بت — كان toInt() يقتطع القيم الكبيرة
+        // (EN) 64-bit conversion — toInt() truncated large values
+        int64_t result = value.toInt64();
         return Data::Value(result);
     }
     catch (const std::exception& e) {

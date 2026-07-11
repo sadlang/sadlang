@@ -108,13 +108,13 @@ namespace Sad
                 // (AR) تحويل النوع إذا لزم الأمر / (EN) Type conversion if needed
                 if (node.type == Types::SadTypeKind::Integer && value.getKind() == Types::SadTypeKind::Float)
                 {
-                    // (AR) تحويل عشري → رقم صحيح / (EN) Convert double → integer
-                    value = Data::Value(static_cast<int>(value.toDouble()));
+                    // (AR) تحويل عشري → رقم صحيح (بدقّة 64-بت) / (EN) Convert double → integer (64-bit)
+                    value = Data::Value(static_cast<int64_t>(value.toDouble()));
                 }
                 else if (node.type == Types::SadTypeKind::Float && value.getKind() == Types::SadTypeKind::Integer)
                 {
                     // (AR) تحويل رقم صحيح → عشري / (EN) Convert integer → double
-                    value = Data::Value(static_cast<double>(value.toInt()));
+                    value = Data::Value(static_cast<double>(value.toInt64()));
                 }
 
                 // ═══════════════════════════════════════════════════════════

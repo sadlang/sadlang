@@ -132,7 +132,9 @@ namespace Sad
             case TokenType::OP_MINUS: // -x
                 if (operand.isInteger())
                 {
-                    lastResult_ = Value(-operand.toInt());
+                    // (AR) دقّة 64-بت كاملة — كان toInt() يقتطع القيم الكبيرة
+                    // (EN) Full 64-bit precision — toInt() truncated large values
+                    lastResult_ = Value(-operand.toInt64());
                 }
                 else if (operand.isDouble())
                 {
@@ -175,7 +177,7 @@ namespace Sad
                 Value newVal;
                 if (operand.isInteger())
                 {
-                    newVal = Value(operand.toInt() + 1);
+                    newVal = Value(operand.toInt64() + 1);
                 }
                 else if (operand.isDouble())
                 {
@@ -206,7 +208,7 @@ namespace Sad
                 Value newVal;
                 if (operand.isInteger())
                 {
-                    newVal = Value(operand.toInt() - 1);
+                    newVal = Value(operand.toInt64() - 1);
                 }
                 else if (operand.isDouble())
                 {
@@ -232,11 +234,11 @@ namespace Sad
 
             case TokenType::OP_BITWISE_NOT:
             { // ~x
-                // (AR) القلب البتّي: ~x يقلب جميع البتات
-                // (EN) Bitwise NOT: ~x flips all bits
+                // (AR) القلب البتّي: ~x يقلب جميع البتات — بعرض 64-بت مطابقةً لبقيّة العائلة البتّيّة
+                // (EN) Bitwise NOT: ~x flips all bits — 64-bit wide, matching the rest of the bitwise family
                 if (operand.isInteger())
                 {
-                    lastResult_ = Value(~operand.toInt());
+                    lastResult_ = Value(~operand.toInt64());
                 }
                 else
                 {
@@ -408,17 +410,19 @@ namespace Sad
                     return;
                 }
 
-                int idx = index.isInteger() ? index.toInt() : static_cast<int>(index.toDouble());
+                // (AR) فهرس 64-بت — كان toInt() يلفّ الفهارس الكبيرة إلى فهارس صالحة خاطئة بصمت
+                // (EN) 64-bit index — toInt() silently wrapped huge indices into wrong valid ones
+                int64_t idx = index.isInteger() ? index.toInt64() : static_cast<int64_t>(index.toDouble());
                 const Value::ArrayType &arr = obj.toArrayRef();
 
                 // (AR) دعم الفهرسة السالبة على نمط بايثون: -1 = آخر عنصر
                 // (EN) Support Python-style negative indexing: -1 = last element
                 if (idx < 0)
-                    idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size") + idx;
+                    idx = static_cast<int64_t>(arr.size()) + idx;
 
-                if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size"))
+                if (idx < 0 || idx >= static_cast<int64_t>(arr.size()))
                 {
-                    int sz = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size");
+                    int64_t sz = static_cast<int64_t>(arr.size());
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
                         node.position,
@@ -473,10 +477,10 @@ namespace Sad
                     chars.push_back(str.substr(i, charLen));
                     i += charLen;
                 }
-                int idx = index.toInt();
+                int64_t idx = index.toInt64();
                 if (idx < 0)
-                    idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size") + idx;
-                if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size"))
+                    idx = static_cast<int64_t>(chars.size()) + idx;
+                if (idx < 0 || idx >= static_cast<int64_t>(chars.size()))
                 {
                     ::Sad::Errors::throwRuntime(
                         ::Sad::Errors::ErrorCode::RUN_STRING_INDEX_OUT_OF_RANGE,
@@ -496,7 +500,7 @@ namespace Sad
                         {{"actual", index.getTypeName()}});
                 }
 
-                int idx = index.isInteger() ? index.toInt() : static_cast<int>(index.toDouble());
+                int64_t idx = index.isInteger() ? index.toInt64() : static_cast<int64_t>(index.toDouble());
                 const auto &tupleElements = obj.toTupleRef();
                 int sz = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(tupleElements.size(), "expression_evaluator_calls_size");
 
@@ -566,13 +570,27 @@ namespace Sad
             Value obj = lastResult_;
 
             // (AR) تقييم المؤشرات (إن وُجدت) / (EN) Evaluate indices (if present)
-            auto evalOptional = [&](ExprPtr &expr) -> int
+            auto evalOptional = [&](ExprPtr &expr) -> int64_t
             {
                 if (!expr)
                     return -1; // sentinel
                 expr->accept(*this);
                 Value v = lastResult_;
-                return v.isInteger() ? v.toInt() : static_cast<int>(v.toDouble());
+                return v.isInteger() ? v.toInt64() : static_cast<int64_t>(v.toDouble());
+            };
+            // (AR) حدود الشريحة بدقّة 64-بت ثمّ قصّها إلى [0، الحجم] — كان toInt() يلفّ الحدود
+            //      الضخمة إلى حدود صالحة خاطئة بصمت (م[1:2^32+1] كانت تُرجع [])
+            // (EN) Slice bounds at 64-bit then clamp into [0, size] — toInt() used to wrap huge
+            //      bounds into wrong valid ones silently (a[1:2^32+1] returned [])
+            auto clampBound = [](int64_t raw, int size) -> int
+            {
+                if (raw < 0)
+                    raw += size;
+                if (raw < 0)
+                    raw = 0;
+                if (raw > size)
+                    raw = size;
+                return static_cast<int>(raw);
             };
 
             if (obj.isArray())
@@ -584,32 +602,28 @@ namespace Sad
                 int start = 0;
                 if (node.start)
                 {
-                    node.start->accept(*this);
-                    start = lastResult_.isInteger() ? lastResult_.toInt() : static_cast<int>(lastResult_.toDouble());
-                    if (start < 0)
-                        start = std::max(0, size + start);
-                    if (start > size)
-                        start = size;
+                    start = clampBound(evalOptional(node.start), size);
                 }
 
                 // (AR) حساب النهاية / (EN) Compute end
                 int end = size;
                 if (node.end)
                 {
-                    node.end->accept(*this);
-                    end = lastResult_.isInteger() ? lastResult_.toInt() : static_cast<int>(lastResult_.toDouble());
-                    if (end < 0)
-                        end = std::max(0, size + end);
-                    if (end > size)
-                        end = size;
+                    end = clampBound(evalOptional(node.end), size);
                 }
 
                 // (AR) حساب الخطوة / (EN) Compute step
                 int step = 1;
                 if (node.step)
                 {
-                    node.step->accept(*this);
-                    step = lastResult_.isInteger() ? lastResult_.toInt() : static_cast<int>(lastResult_.toDouble());
+                    // (AR) خطوة 64-بت مقصوصة إلى حدود آمنة — أيّ |خطوة| > الحجم تكافئ الحجم+1
+                    // (EN) 64-bit step clamped to safe range — any |step| > size behaves as size+1
+                    int64_t step64 = evalOptional(node.step);
+                    if (step64 > size)
+                        step64 = static_cast<int64_t>(size) + 1;
+                    if (step64 < -static_cast<int64_t>(size))
+                        step64 = -static_cast<int64_t>(size) - 1;
+                    step = static_cast<int>(step64);
                     if (step == 0)
                     {
                         ::Sad::Errors::throwRuntime(
@@ -663,22 +677,12 @@ namespace Sad
                 int start = 0;
                 if (node.start)
                 {
-                    node.start->accept(*this);
-                    start = lastResult_.isInteger() ? lastResult_.toInt() : static_cast<int>(lastResult_.toDouble());
-                    if (start < 0)
-                        start = std::max(0, size + start);
-                    if (start > size)
-                        start = size;
+                    start = clampBound(evalOptional(node.start), size);
                 }
                 int end = size;
                 if (node.end)
                 {
-                    node.end->accept(*this);
-                    end = lastResult_.isInteger() ? lastResult_.toInt() : static_cast<int>(lastResult_.toDouble());
-                    if (end < 0)
-                        end = std::max(0, size + end);
-                    if (end > size)
-                        end = size;
+                    end = clampBound(evalOptional(node.end), size);
                 }
 
                 std::string result;

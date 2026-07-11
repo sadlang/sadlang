@@ -990,7 +990,7 @@ namespace Sad
                 {
                     return Value(toDouble() + other.toDouble());
                 }
-                int a = toInt(), b = other.toInt();
+                int64_t a = toInt64(), b = other.toInt64();
                 if (willAddOverflow(a, b))
                 {
                     // (AR) ترقية تلقائية إلى عشري عند الطفحان
@@ -1011,7 +1011,7 @@ namespace Sad
                 {
                     return Value(toDouble() - other.toDouble());
                 }
-                int a = toInt(), b = other.toInt();
+                int64_t a = toInt64(), b = other.toInt64();
                 if (willSubOverflow(a, b))
                 {
                     return Value(static_cast<double>(a) - static_cast<double>(b));
@@ -1032,7 +1032,7 @@ namespace Sad
             if (type_ == ::Sad::Types::SadTypeKind::Array && other.isNumeric())
             {
                 ArrayType arr = toArray();
-                int count = other.toInt();
+                int64_t count = other.toInt64();
                 if (count <= 0)
                     return Value(ArrayType{});
                 if (count > MAX_REPETITION)
@@ -1041,14 +1041,14 @@ namespace Sad
                 }
                 ArrayType result;
                 result.reserve(arr.size() * count);
-                for (int i = 0; i < count; ++i)
+                for (int64_t i = 0; i < count; ++i)
                     result.insert(result.end(), arr.begin(), arr.end());
                 return Value(result);
             }
             if (other.type_ == ::Sad::Types::SadTypeKind::Array && isNumeric())
             {
                 ArrayType arr = other.toArray();
-                int count = toInt();
+                int64_t count = toInt64();
                 if (count <= 0)
                     return Value(ArrayType{});
                 if (count > MAX_REPETITION)
@@ -1057,7 +1057,7 @@ namespace Sad
                 }
                 ArrayType result;
                 result.reserve(arr.size() * count);
-                for (int i = 0; i < count; ++i)
+                for (int64_t i = 0; i < count; ++i)
                     result.insert(result.end(), arr.begin(), arr.end());
                 return Value(result);
             }
@@ -1065,7 +1065,7 @@ namespace Sad
             if (type_ == ::Sad::Types::SadTypeKind::String && other.isNumeric())
             {
                 std::string s = toString();
-                int count = other.toInt();
+                int64_t count = other.toInt64();
                 if (count <= 0)
                     return Value(std::string(""));
                 if (count > MAX_REPETITION || s.size() * count > MAX_STRING_SIZE)
@@ -1074,14 +1074,14 @@ namespace Sad
                 }
                 std::string result;
                 result.reserve(s.size() * count);
-                for (int i = 0; i < count; ++i)
+                for (int64_t i = 0; i < count; ++i)
                     result += s;
                 return Value(result);
             }
             if (other.type_ == ::Sad::Types::SadTypeKind::String && isNumeric())
             {
                 std::string s = other.toString();
-                int count = toInt();
+                int64_t count = toInt64();
                 if (count <= 0)
                     return Value(std::string(""));
                 if (count > MAX_REPETITION || s.size() * count > MAX_STRING_SIZE)
@@ -1090,7 +1090,7 @@ namespace Sad
                 }
                 std::string result;
                 result.reserve(s.size() * count);
-                for (int i = 0; i < count; ++i)
+                for (int64_t i = 0; i < count; ++i)
                     result += s;
                 return Value(result);
             }
@@ -1101,7 +1101,7 @@ namespace Sad
                 {
                     return Value(toDouble() * other.toDouble());
                 }
-                int a = toInt(), b = other.toInt();
+                int64_t a = toInt64(), b = other.toInt64();
                 if (willMulOverflow(a, b))
                 {
                     return Value(static_cast<double>(a) * static_cast<double>(b));
@@ -1118,7 +1118,7 @@ namespace Sad
             if (isNumeric() && other.isNumeric())
             {
                 // (AR) التحقق من القسمة على صفر / (EN) Check for division by zero
-                if ((other.isInteger() && other.toInt() == 0) ||
+                if ((other.isInteger() && other.toInt64() == 0) ||
                     (other.isDouble() && other.toDouble() == 0.0))
                 {
                     throw std::runtime_error(
@@ -1129,7 +1129,14 @@ namespace Sad
                 {
                     return Value(toDouble() / other.toDouble());
                 }
-                return Value(toInt() / other.toInt());
+                {
+                    // (AR) قسمة بدقّة 64-بت + حماية INT64_MIN / -1 (طفحان)
+                    // (EN) 64-bit division + INT64_MIN / -1 overflow guard
+                    int64_t a = toInt64(), b = other.toInt64();
+                    if (a == INT64_MIN && b == -1)
+                        return Value(-static_cast<double>(a));
+                    return Value(a / b);
+                }
             }
 
             throwTypeMismatch("division (/)", other);
@@ -1142,13 +1149,17 @@ namespace Sad
             // (EN) Modulus works with integers and doubles
             if (isInteger() && other.isInteger())
             {
-                int otherInt = other.toInt();
+                int64_t otherInt = other.toInt64();
                 if (otherInt == 0)
                 {
                     throw std::runtime_error(
                         "(AR) خطأ: باقي القسمة على صفر. (EN) Error: Modulus by zero.");
                 }
-                return Value(toInt() % otherInt);
+                // (AR) INT64_MIN % -1 سلوك غير محدّد — النتيجة الرياضيّة صفر
+                // (EN) INT64_MIN % -1 is UB — mathematical result is zero
+                if (otherInt == -1)
+                    return Value(static_cast<int64_t>(0));
+                return Value(toInt64() % otherInt);
             }
 
             // (AR) دعم باقي القسمة للأعداد العشرية باستخدام fmod
@@ -1173,7 +1184,7 @@ namespace Sad
             // (AR) العكس الحسابي / (EN) Unary minus
             if (isInteger())
             {
-                return Value(-toInt());
+                return Value(-toInt64());
             }
             if (isDouble())
             {
@@ -1310,6 +1321,12 @@ namespace Sad
 
         Value Value::operator<(const Value &other) const
         {
+            // (AR) صحيح×صحيح: مقارنة دقيقة 64-بت — double يفقد الدقّة فوق 2^53
+            // (EN) Int×Int: exact 64-bit comparison — double loses precision above 2^53
+            if (isInteger() && other.isInteger())
+            {
+                return Value(toInt64() < other.toInt64());
+            }
             if (isNumeric() && other.isNumeric())
             {
                 return Value(toDouble() < other.toDouble());
@@ -1326,6 +1343,10 @@ namespace Sad
 
         Value Value::operator>(const Value &other) const
         {
+            if (isInteger() && other.isInteger())
+            {
+                return Value(toInt64() > other.toInt64());
+            }
             if (isNumeric() && other.isNumeric())
             {
                 return Value(toDouble() > other.toDouble());
@@ -1344,6 +1365,10 @@ namespace Sad
         {
             // (AR) تحسين الأداء: تجنب التقييم المزدوج
             // (EN) Performance: avoid double evaluation
+            if (isInteger() && other.isInteger())
+            {
+                return Value(toInt64() <= other.toInt64());
+            }
             if (isNumeric() && other.isNumeric())
             {
                 return Value(toDouble() <= other.toDouble());
@@ -1357,6 +1382,10 @@ namespace Sad
 
         Value Value::operator>=(const Value &other) const
         {
+            if (isInteger() && other.isInteger())
+            {
+                return Value(toInt64() >= other.toInt64());
+            }
             if (isNumeric() && other.isNumeric())
             {
                 return Value(toDouble() >= other.toDouble());

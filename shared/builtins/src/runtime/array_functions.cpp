@@ -58,7 +58,9 @@ namespace Sad
                 {
                     if (a.getKind() == Types::SadTypeKind::Integer)
                     {
-                        return a.toInt() < b.toInt();
+                        // (AR) مقارنة 64-بت — كان toInt() يقتطع فيُفسد ترتيب القيم الكبيرة
+                        // (EN) 64-bit comparison — toInt() truncated and misordered large values
+                        return a.toInt64() < b.toInt64();
                     }
                     if (a.getKind() == Types::SadTypeKind::Float)
                     {

@@ -368,8 +368,9 @@ namespace Sad
                 }
 
                 auto arr = objectValue.toArray();
-                int idx = indexValue.isInteger() ? indexValue.toInt() : static_cast<int>(indexValue.toDouble());
-                int size = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_members_assign_size");
+                // (AR) فهرس 64-بت — منع لفّ toInt() الصامت / (EN) 64-bit index — no silent toInt() wrap
+                int64_t idx = indexValue.isInteger() ? indexValue.toInt64() : static_cast<int64_t>(indexValue.toDouble());
+                int64_t size = static_cast<int64_t>(arr.size());
 
                 // دعم الفهارس السالبة: -1 = آخر عنصر، -2 = ما قبل الأخير...
                 if (idx < 0)
