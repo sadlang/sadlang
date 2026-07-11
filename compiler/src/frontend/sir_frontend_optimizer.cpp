@@ -214,10 +214,25 @@ namespace Sad
                     return true;
                 }
                 case SIROpcode::MOD_I64:
-                    if (rhs.intValue == 0)
+                {
+                    // (AR) قد يصل MOD_I64 بمعامل ثابت عشريّ (مثل «باقي(7.5، 2)») — قراءة intValue
+                    //      من ثابت Float تعطي 0 فيُطوى الباقي خطأً إلى 0. نقتطع العشريّ نحو الصفر
+                    //      أوّلًا، مطابقةً لتطبيع FPToSI في الخلف (emitMod) ولـtoInt في المفسّر.
+                    // (EN) MOD_I64 may receive a Float constant operand (e.g. "باقي(7.5، 2)") —
+                    //      reading intValue off a Float constant yields 0, mis-folding the
+                    //      remainder to 0. Truncate the float toward zero first, matching the
+                    //      backend's FPToSI normalization (emitMod) and the interpreter's toInt.
+                    const int64_t lhsI = (lhs.dataType == SadTypeKind::Float)
+                                             ? static_cast<int64_t>(lhs.floatValue)
+                                             : lhs.intValue;
+                    const int64_t rhsI = (rhs.dataType == SadTypeKind::Float)
+                                             ? static_cast<int64_t>(rhs.floatValue)
+                                             : rhs.intValue;
+                    if (rhsI == 0)
                         return false;
-                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue % rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantI64(lhsI % rhsI);
                     return true;
+                }
 
                 // Float arithmetic
                 case SIROpcode::ADD_F64:

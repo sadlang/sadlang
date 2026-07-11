@@ -413,7 +413,14 @@ namespace LLVM {
             llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : cg_.builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*cg_.context_));
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*cg_.context_), {llvm::Type::getDoubleTy(*cg_.context_)}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("trunc", ft);
-            llvm::Value *result = cg_.builder_->CreateFPToSI(cg_.builder_->CreateCall(fn, {dArg}, "trunc.ret"), llvm::Type::getInt64Ty(*cg_.context_));
+            // (AR) نُبقي النتيجة عشريّة (double) لمطابقة المفسّر (std::trunc يُرجع double).
+            //      كان الكود السابق يحوّلها إلى i64 بـFPToSI فيُطبع «3» بدل «3.0».
+            //      نوع نتيجة SIR = Float (من الواجهة الأماميّة) فيختار مسار الطباعة العشريّ.
+            // (EN) Keep the result as a double to match the interpreter (std::trunc returns a
+            //      double). The previous code FPToSI-cast it to i64, printing "3" instead of
+            //      "3.0". The SIR result type is Float (set in the frontend), so the print path
+            //      formats it as a decimal.
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {dArg}, "trunc.ret");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;

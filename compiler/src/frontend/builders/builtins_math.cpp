@@ -358,6 +358,39 @@ namespace Sad
                     }
 
                     std::string resultReg = b_.newTempRegister();
+
+                    // (AR) مطابقة المفسّر (MathFunctions::square): مدخلٌ صحيح ⇒ مربّعٌ صحيح عبر
+                    //      الضرب الصحيح (x*x)؛ مدخلٌ عشري ⇒ مربّعٌ عشري عبر BUILTIN_POW.
+                    //      السلوك السابق كان يُصلّب Float دائمًا فيُخرج «25.0» بدل «25» للمدخل
+                    //      الصحيح — تباعُدٌ عن المفسّر (الذي يُرجع صحيحًا للمدخل الصحيح).
+                    //      تباعُد متبقٍّ موثَّق: المفسّر يرتدّ إلى عشريّ حين يفيض الناتج عن int32
+                    //      (مربع(50000) ⇒ «2500000000.0»)، بينما هنا يبقى i64 (⇒ «2500000000») —
+                    //      لا يُحسم سكونيًّا لمدخل متغيّر.
+                    // (EN) Match interpreter (MathFunctions::square): integer input ⇒ integer
+                    //      square via integer multiply (x*x); float input ⇒ float square via
+                    //      BUILTIN_POW. The previous code always pinned Float, emitting "25.0"
+                    //      instead of "25" for integer input — a divergence from the interpreter.
+                    //      Documented residual divergence: the interpreter falls back to double
+                    //      when the result overflows int32 (مربع(50000) ⇒ "2500000000.0") while
+                    //      this stays i64 (⇒ "2500000000") — not statically decidable for a
+                    //      variable input.
+                    if (argResults[0].type == SadTypeKind::Integer)
+                    {
+                        SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                        SIRInstruction mulInst(SIROpcode::MUL_I64);
+                        mulInst.result = resultOp;
+                        mulInst.operands.push_back(argOperands[0]);
+                        mulInst.operands.push_back(argOperands[0]);
+                        if (b_.currentBlock_)
+                        {
+                            b_.currentBlock_->instructions.push_back(mulInst);
+                        }
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildFunctionCall: builtin مربع() [i64] -> " << resultReg << std::endl;
+#endif
+                        return BuildResult(resultReg, SadTypeKind::Integer);
+                    }
+
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction sqInst(SIROpcode::BUILTIN_POW);
@@ -630,36 +663,56 @@ namespace Sad
                     if (argResults.empty())
                     {
                         std::cerr << "[Error] دالة اقتطاع تتطلب معامل واحد" << std::endl;
-                        return BuildResult("", SadTypeKind::Integer);
+                        return BuildResult("", SadTypeKind::Float);
                     }
+                    // (AR) مطابقة المفسّر (AdvancedMath::trunc = std::trunc): النتيجة عددٌ عشريّ
+                    //      (قطعٌ نحو الصفر يُبقي النوع عشريًّا)، فـاقتطاع(3.7) ⇒ «3.0» لا «3».
+                    //      السلوك السابق كان يُصلّب Integer (FPToSI في الخلف) فيُخرج «3».
+                    // (EN) Match interpreter (AdvancedMath::trunc = std::trunc): result is a
+                    //      double (truncation toward zero keeps the float type), so trunc(3.7)
+                    //      ⇒ "3.0" not "3". The previous code pinned Integer (FPToSI in the
+                    //      backend), emitting "3".
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_TRUNC);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
-                // (AR) دالة باقي() - باقي القسمة العشرية (fmod)
-                // (EN) fmod() function - Floating-point remainder
+                // (AR) دالة باقي() - باقي القسمة الصحيحة
+                // (EN) mod() function - integer remainder
                 if (funcName == Bm::FMOD)
                 {
                     if (argResults.size() < 2)
                     {
                         std::cerr << "[Error] دالة باقي تتطلب معاملين (البسط والمقام)" << std::endl;
-                        return BuildResult("", SadTypeKind::Float);
+                        return BuildResult("", SadTypeKind::Integer);
                     }
+                    // (AR) مطابقة المفسّر (AdvancedMath::mod = a % b على عددين صحيحين): «باقي»
+                    //      باقٍ صحيح لا عشريّ. لذا نُصدر MOD_I64 (نظير عامل «%») الذي يطبّع
+                    //      المعاملات إلى i64 (اقتطاعٌ نحو الصفر مطابقٌ لـtoInt) ثم SRem، فتُطبع
+                    //      «1» لا «1.0». السلوك السابق (BUILTIN_FMOD = fmod عشريّ) كان يُخرج «1.0».
+                    //      تنبيه: هذا لا يعني تطابق «باقي» مع عامل «%» دلاليًّا — «%» في المفسّر
+                    //      يعمل fmod على العشريّين (7.5%2=1.5) بينما «باقي» يقتطع دومًا (باقي(7.5،2)=1).
+                    // (EN) Match interpreter (AdvancedMath::mod = a % b on two ints): "باقي" is an
+                    //      integer remainder, not a float one. Emit MOD_I64 (same opcode as the "%"
+                    //      operator) which normalizes operands to i64 (truncation toward zero, as
+                    //      toInt does) then SRem, printing "1" not "1.0". The previous behavior
+                    //      (BUILTIN_FMOD = float fmod) emitted "1.0". Note: this does NOT make
+                    //      "باقي" semantically identical to "%" — the interpreter's "%" does fmod
+                    //      on floats (7.5%2=1.5) while "باقي" always truncates (باقي(7.5،2)=1).
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
-                    SIRInstruction inst(SIROpcode::BUILTIN_FMOD);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIRInstruction inst(SIROpcode::MOD_I64);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Float);
+                    return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
                 // (AR) دالة حصر() - تقييد القيمة ضمن نطاق [حد_أدنى، حد_أعلى]
