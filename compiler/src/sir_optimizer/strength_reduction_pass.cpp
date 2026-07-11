@@ -109,8 +109,24 @@ static inline bool srMaybeDynamic(const SIR::SIROperand& op) {
     return op.dataType == SIR::SadTypeKind::Any || op.dataType == SIR::SadTypeKind::Unknown;
 }
 
+// (AR) Amelia (ISSUE-063): معاملٌ أو نتيجةٌ عشريّة ⇒ لا تقليلَ قوّةٍ بتّيًّا — الإزاحة/القناع
+//      على double (أو على بِتّاته المحمولة i64) يُنتج قمامة (7.5//2 كانت تصير lshr على البِتّات).
+// (EN) Amelia (ISSUE-063): a float operand or result ⇒ no bitwise strength reduction — a
+//      shift/mask on a double (or its raw i64 bits) yields garbage (7.5//2 became an lshr on
+//      the bits).
+static inline bool srHasFloat(const SIR::SIRInstruction& inst) {
+    if (inst.hasResult() && inst.result->dataType == SIR::SadTypeKind::Float)
+        return true;
+    for (const auto& op : inst.operands)
+        if (op.dataType == SIR::SadTypeKind::Float)
+            return true;
+    return false;
+}
+
 bool StrengthReductionPass::tryReduceMultiply(SIR::SIRInstruction& inst) {
     if (inst.operands.size() < 2) return false;
+    if (srHasFloat(inst)) return false; // Amelia (ISSUE-063)
+    if (inst.hasResult() && srMaybeDynamic(*inst.result)) return false; // Amelia (ISSUE-063)
 
     // (AR) محاولة إيجاد المعامل الثابت (قوة 2)
     // (EN) Try to find the constant operand (power of 2)
@@ -138,7 +154,19 @@ bool StrengthReductionPass::tryReduceMultiply(SIR::SIRInstruction& inst) {
 
 bool StrengthReductionPass::tryReduceDivision(SIR::SIRInstruction& inst) {
     if (inst.operands.size() < 2) return false;
-    
+    if (srHasFloat(inst)) return false;                                 // Amelia (ISSUE-063)
+    if (inst.hasResult() && srMaybeDynamic(*inst.result)) return false; // Amelia (ISSUE-063)
+
+    // (AR) Amelia (ISSUE-063): DIV_I64 (دلالة اقتطاعٍ نحو الصفر) لا تُكافئ أيَّ إزاحة على
+    //      السوالب: lshr يعطي قمامة (-7/2 كانت تطبع 9223372036854775804) وashr يعطي أرضيّة
+    //      (-4). نتقيّد بـFLOOR_DIV_I64 التي تكافئ ashr تمامًا (إزاحةٌ حسابيّة = أرضيّة)،
+    //      وخلفيّة LLVM تعيد تقليل قوّة sdiv الحقيقيّة بنفسها.
+    // (EN) Amelia (ISSUE-063): DIV_I64 (truncate-toward-zero semantics) matches NO shift for
+    //      negatives: lshr yields garbage (-7/2 printed 9223372036854775804) and ashr yields
+    //      floor (-4). Restrict to FLOOR_DIV_I64, which is exactly ashr (arithmetic shift =
+    //      floor); LLVM's backend re-derives the sdiv strength reduction itself.
+    if (inst.opcode != SIR::SIROpcode::FLOOR_DIV_I64) return false;
+
     // (AR) التحقق من أن القاسم ثابت وقوة 2
     // (EN) Check if divisor is constant and power of 2
     auto constVal = getIntConstant(inst.operands[1]);
@@ -146,37 +174,28 @@ bool StrengthReductionPass::tryReduceDivision(SIR::SIRInstruction& inst) {
         if (srMaybeDynamic(inst.operands[0])) return false; // ISSUE-076 (%SadDyn)
         int shiftAmount = log2(*constVal);
 
-        // (AR) تحويل: x / (2^n) → x >> n (for unsigned/positive)
-        // (EN) Transform: x / (2^n) → x >> n
-        inst.opcode = SIR::SIROpcode::SHR;
+        // (AR) تحويل: x // (2^n) → x >>> n (إزاحة حسابيّة = أرضيّة للسوالب أيضًا)
+        // (EN) Transform: x // (2^n) → x >>> n (arithmetic shift = floor, negatives included)
+        inst.opcode = SIR::SIROpcode::SAR;
         inst.operands[1] = SIR::SIROperand::ConstantI64(shiftAmount);
-        
+
         reductionCount_++;
         recordModification();
         return true;
     }
-    
+
     return false;
 }
 
 bool StrengthReductionPass::tryReduceModulo(SIR::SIRInstruction& inst) {
-    if (inst.operands.size() < 2) return false;
-    
-    // (AR) التحقق من أن القاسم ثابت وقوة 2
-    // (EN) Check if divisor is constant and power of 2
-    auto constVal = getIntConstant(inst.operands[1]);
-    if (constVal && isPowerOfTwo(*constVal) && *constVal > 1) {
-        if (srMaybeDynamic(inst.operands[0])) return false; // ISSUE-076 (%SadDyn)
-        // (AR) تحويل: x % (2^n) → x & (2^n - 1)
-        // (EN) Transform: x % (2^n) → x & (2^n - 1)
-        inst.opcode = SIR::SIROpcode::AND;
-        inst.operands[1] = SIR::SIROperand::ConstantI64(*constVal - 1);
-        
-        reductionCount_++;
-        recordModification();
-        return true;
-    }
-    
+    // (AR) Amelia (ISSUE-063): «x % (2^n) → x & (2^n-1)» صحيحة لغير السالب فقط — srem يحمل
+    //      إشارة المقسوم (-7 % 4 = -3) بينما القناع يعطي 1. لا سبيل لإثبات عدم السالبيّة
+    //      هنا، وخلفيّة LLVM تقلّل قوّة srem الحقيقيّة بنفسها ⇒ نعطّل التحويل.
+    // (EN) Amelia (ISSUE-063): "x % (2^n) → x & (2^n-1)" holds for non-negatives only — srem
+    //      carries the dividend's sign (-7 % 4 = -3) while the mask yields 1. Non-negativity
+    //      cannot be proven here, and LLVM's backend strength-reduces true srem itself ⇒
+    //      disable the transform.
+    (void)inst;
     return false;
 }
 
@@ -279,6 +298,11 @@ bool StrengthReductionPass::tryAlgebraicSimplification(SIR::SIRInstruction& inst
         // (AR) x / 1 → x
         case SIR::SIROpcode::DIV_I64:
         case SIR::SIROpcode::FLOOR_DIV_I64: {
+            // (AR) Amelia (ISSUE-063): معاملٌ عشريّ ⇒ ليست هويّة: 7.5//1 = floor = 7.0 لا 7.5،
+            //      وقسمة() تقتطع. اتركها للخلف.
+            // (EN) Amelia (ISSUE-063): a float operand ⇒ not an identity: 7.5//1 = floor = 7.0,
+            //      not 7.5, and قسمة() truncates. Leave to the backend.
+            if (srHasFloat(inst)) break;
             if (c1 && *c1 == 1) {
                 inst.opcode = SIR::SIROpcode::MOVE;
                 inst.operands = {inst.operands[0]};
@@ -363,7 +387,12 @@ int StrengthReductionPass::log2(int64_t value) const {
 std::optional<int64_t> StrengthReductionPass::getIntConstant(
     const SIR::SIROperand& operand) const
 {
-    if (operand.type == SIR::SIROperandType::CONSTANT) {
+    // (AR) Amelia (ISSUE-063): ثابتٌ صحيحُ النوع فقط — قراءة intValue من ثابت Float تُرجع
+    //      بِتّات double خامًا (بِتّات 2.0 = 2^62 «قوّة اثنين»! ⇒ إزاحة بمقدار 62).
+    // (EN) Amelia (ISSUE-063): Integer-typed constants only — reading intValue off a Float
+    //      constant returns raw double bits (bits(2.0) = 2^62, a "power of two"! ⇒ shift by 62).
+    if (operand.type == SIR::SIROperandType::CONSTANT &&
+        operand.dataType == SIR::SadTypeKind::Integer) {
         return operand.intValue;
     }
     return std::nullopt;

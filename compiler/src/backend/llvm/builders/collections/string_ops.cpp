@@ -14,6 +14,7 @@
 
 #include "sir_constants.h"
 #include "adt_payload_tags.h"
+#include "sad_dyn_repr.h" // (AR) ISSUE-063: dynToString لمعامل %SadDyn في السَلسلة / (EN) dynToString for a %SadDyn concat operand
 #include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
 
 #include <llvm/IR/Module.h>
@@ -100,6 +101,18 @@ static llvm::Function *getOrCreateSplitHelper(
             // If one is an integer, convert it to string using sprintf (or __sad_itoa in freestanding)
             auto ensureString = [&](llvm::Value *val, llvm::Type *ty, const SIROperand &op) -> llvm::Value *
             {
+                // (AR) ISSUE-063: قيمةٌ ديناميّة %SadDyn ⇒ الموزِّع dynToString (يفحص وسم
+                //      النوع ويطابق المفسّر لكلّ نوع). كانت تسقط من كلّ الفروع أدناه (ليست
+                //      مؤشّرًا ولا i64 ولا double) إلى مخزنٍ غير مهيَّأ ⇒ «نص + ديناميّ»
+                //      يُلحق فراغًا/قمامة.
+                // (EN) ISSUE-063: a dynamic %SadDyn value ⇒ the dynToString dispatcher
+                //      (inspects the kind tag, matching the interpreter per type). It used
+                //      to fall through every branch below (neither pointer, i64 nor double)
+                //      into an uninitialized buffer ⇒ "string + dynamic" appended
+                //      emptiness/garbage.
+                if (isSadDyn(val))
+                    return dynToString(cg_, val);
+
                 // (AR) تحويل المصفوفة إلى نص: "[عنصر1، عنصر2، ...]"
                 // (EN) Convert array to string representation
                 if (op.dataType == SadTypeKind::Array)

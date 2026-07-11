@@ -557,14 +557,24 @@ namespace Sad
                     break;
 
                 case Lexer::TokenType::OP_DIVIDE:
-                    // (AR) القسمة `/` تُنتج عشري دائماً (حسب مواصفات اللغة)
-                    //      استخدم `//` (FLOOR_DIV) للقسمة الصحيحة
-                    // (EN) Division `/` always produces float (per language spec)
-                    //      Use `//` (FLOOR_DIV) for integer division
+                    // (AR) ISSUE-063: دلالة المفسّر (المرجع) للقسمة `/`:
+                    //      صحيح/صحيح ⇒ صحيح عند انعدام الباقي (6/3=2) وعشريّ عند وجوده
+                    //      (7/2=3.5) — أي أنّ نوع النتيجة يتقرّر زمنَ التشغيل ⇒ نتيجةٌ
+                    //      ديناميّة (Any) يفكّها الخلف (dynBinOp يفحص الباقي ويَسِم النتيجة).
+                    //      معاملٌ عشريّ صريح ⇒ عشريّ ساكن (fdiv) كالمفسّر (useDouble).
+                    // (EN) ISSUE-063: interpreter (reference) semantics for `/`:
+                    //      int/int ⇒ int when the remainder is zero (6/3=2), float otherwise
+                    //      (7/2=3.5) — the result kind is runtime-dependent ⇒ a dynamic (Any)
+                    //      result decoded by the backend (dynBinOp checks the remainder and
+                    //      tags the result). An explicit float operand ⇒ static Float (fdiv),
+                    //      matching the interpreter's useDouble path.
                     opcode = SIROpcode::DIV_F64;
-                    resultType = SadTypeKind::Float;
+                    if (resultType != SadTypeKind::Float)
+                        resultType = SadTypeKind::Any;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/) → دائماً F64" << std::endl;
+                    std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/) → "
+                              << (resultType == SadTypeKind::Float ? "F64" : "ديناميكية (باقي زمن التشغيل)")
+                              << std::endl;
 #endif
                     break;
 
@@ -574,8 +584,15 @@ namespace Sad
                     //      الحمولة (ISSUE-076/084). (EN) Floor division: I64 normally; but a dynamic
                     //      (Any) operand ⇒ dynamic result (backend decodes at runtime) instead of
                     //      pinning Integer which erases the payload tag (ISSUE-076/084).
+                    // (AR) Amelia (ISSUE-063): معاملٌ عشريّ ⇒ نتيجةٌ عشريّة floor(fdiv)
+                    //      كالمفسّر (7.5//2=3.0، −7.5//2=−4.0) — مرآةُ إصلاح `%`؛ التصليبُ
+                    //      Integer كان يقتطع (3) ويناقض الطيَّ الواعي بالنوع (3.0).
+                    // (EN) Amelia (ISSUE-063): a float operand ⇒ Float result floor(fdiv)
+                    //      like the interpreter (7.5//2=3.0, -7.5//2=-4.0) — mirror of the `%`
+                    //      fix; pinning Integer truncated (3), contradicting the type-aware
+                    //      folding (3.0).
                     opcode = SIROpcode::FLOOR_DIV_I64;
-                    if (resultType != SadTypeKind::Any)
+                    if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
                         resultType = SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)" << std::endl;
@@ -585,10 +602,14 @@ namespace Sad
                 case Lexer::TokenType::OP_MODULO:
                     // (AR) باقي القسمة: MOD_I64. معامِلٌ ديناميّ (Any) ⇒ نتيجةٌ ديناميّة (يفكّها
                     //      الخلف) بدل تصليب Integer الذي يطمس وسم الحمولة (ISSUE-076/084).
+                    //      ISSUE-063: معاملٌ عشريّ ⇒ نتيجةٌ عشريّة (fmod كالمفسّر: 7.5%2=1.5)
+                    //      بدل تصليب Integer الذي كان يقتطع فيعطي 1 (srem عبر التطبيع).
                     // (EN) Modulo: MOD_I64. A dynamic (Any) operand ⇒ dynamic result (backend
                     //      decodes) instead of pinning Integer which erases the tag (ISSUE-076/084).
+                    //      ISSUE-063: a float operand ⇒ Float result (fmod like the interpreter:
+                    //      7.5%2=1.5) instead of pinning Integer (srem-via-truncation gave 1).
                     opcode = SIROpcode::MOD_I64;
-                    if (resultType != SadTypeKind::Any)
+                    if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
                         resultType = SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;

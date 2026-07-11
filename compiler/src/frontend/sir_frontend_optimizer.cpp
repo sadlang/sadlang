@@ -186,25 +186,87 @@ namespace Sad
                 auto lhs = resolveConstant(inst.operands[0], constants);
                 auto rhs = resolveConstant(inst.operands[1], constants);
 
+                // (AR) ISSUE-063: وعيٌ نوعيّ موحَّد للطيّ الحسابيّ — دلالة المفسّر (المرجع):
+                //      معاملٌ عشريّ ⇒ العمليّة عشريّة (useDouble)؛ قراءة intValue من ثابت
+                //      Float (أو العكس) كانت تعطي 0 فتُفسِد الطيّ. القسمة `/` على صحيحين:
+                //      صحيح عند انعدام الباقي وعشريّ عند وجوده؛ و`%` على عشريّ ⇒ fmod.
+                // (EN) ISSUE-063: unified type-aware arithmetic folding — interpreter
+                //      (reference) semantics: a float operand ⇒ float operation (useDouble);
+                //      reading intValue off a Float constant (or vice versa) yielded 0 and
+                //      mis-folded. `/` on two ints: int iff the remainder is zero, float
+                //      otherwise; `%` with a float operand ⇒ fmod.
+                const bool lhsIsFloat = (lhs.dataType == SadTypeKind::Float);
+                const bool rhsIsFloat = (rhs.dataType == SadTypeKind::Float);
+                const bool anyFloat = lhsIsFloat || rhsIsFloat;
+                const double lhsD = lhsIsFloat ? lhs.floatValue : static_cast<double>(lhs.intValue);
+                const double rhsD = rhsIsFloat ? rhs.floatValue : static_cast<double>(rhs.intValue);
+                // (AR) Amelia (ISSUE-063): نوع نتيجة التعليمة يحكم دلالة الطيّ — نتيجةٌ Integer
+                //      (مثل «باقي()» المدمجة) تُطوى بدلالة الاقتطاع (نظير FPToSI في الخلف)،
+                //      لا بدلالة fmod/floor العشريّة الخاصّة بـ`%`/`//` ذات النتيجة Float/Any.
+                //      طيُّ ثابتٍ عشريٍّ في نتيجةٍ صحيحة يُفسد نوعَ السجلّ لدى المستهلكين.
+                // (EN) Amelia (ISSUE-063): the instruction's RESULT type governs fold semantics —
+                //      an Integer result (e.g. the باقي() builtin) folds with truncation semantics
+                //      (mirroring the backend's FPToSI), not the float fmod/floor semantics of
+                //      `%`/`//` whose results are typed Float/Any. Folding a float constant into
+                //      an Integer-typed result corrupts the register type for consumers.
+                const bool intResult =
+                    inst.result.has_value() && inst.result->dataType == SadTypeKind::Integer;
+
                 switch (inst.opcode)
                 {
-                // Integer arithmetic
+                // Integer arithmetic (float-aware / بوعي عشريّ)
                 case SIROpcode::ADD_I64:
-                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue + rhs.intValue);
+                    if (anyFloat)
+                    {
+                        if (intResult)
+                            return false; // (AR) اتركها للخلف / (EN) leave to backend
+                        constants[resultName] = SIROperand::ConstantF64(lhsD + rhsD);
+                    }
+                    else
+                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue + rhs.intValue);
                     return true;
                 case SIROpcode::SUB_I64:
-                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue - rhs.intValue);
+                    if (anyFloat)
+                    {
+                        if (intResult)
+                            return false;
+                        constants[resultName] = SIROperand::ConstantF64(lhsD - rhsD);
+                    }
+                    else
+                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue - rhs.intValue);
                     return true;
                 case SIROpcode::MUL_I64:
-                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue * rhs.intValue);
+                    if (anyFloat)
+                    {
+                        if (intResult)
+                            return false;
+                        constants[resultName] = SIROperand::ConstantF64(lhsD * rhsD);
+                    }
+                    else
+                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue * rhs.intValue);
                     return true;
                 case SIROpcode::DIV_I64:
+                    if (anyFloat)
+                        return false; // (AR) قسمة صحيحة بمعامل عشريّ — اتركها للخلف / (EN) leave to backend
                     if (rhs.intValue == 0)
                         return false;
                     constants[resultName] = SIROperand::ConstantI64(lhs.intValue / rhs.intValue);
                     return true;
                 case SIROpcode::FLOOR_DIV_I64:
                 {
+                    if (anyFloat)
+                    {
+                        // (AR) نتيجةٌ صحيحة (مدمجات) ⇒ لا طيَّ عشريًّا — الخلف يقتطع (FPToSI)
+                        // (EN) An Integer result (builtins) ⇒ no float fold — backend truncates
+                        if (intResult)
+                            return false;
+                        // (AR) المفسّر: عشريّ ⇒ floor(fdiv) بنتيجة عشريّة (7.5//2=3.0)
+                        // (EN) Interpreter: float ⇒ floor(fdiv) with a float result
+                        if (rhsD == 0.0)
+                            return false;
+                        constants[resultName] = SIROperand::ConstantF64(std::floor(lhsD / rhsD));
+                        return true;
+                    }
                     if (rhs.intValue == 0)
                         return false;
                     int64_t q = lhs.intValue / rhs.intValue;
@@ -215,59 +277,104 @@ namespace Sad
                 }
                 case SIROpcode::MOD_I64:
                 {
-                    // (AR) قد يصل MOD_I64 بمعامل ثابت عشريّ (مثل «باقي(7.5، 2)») — قراءة intValue
-                    //      من ثابت Float تعطي 0 فيُطوى الباقي خطأً إلى 0. نقتطع العشريّ نحو الصفر
-                    //      أوّلًا، مطابقةً لتطبيع FPToSI في الخلف (emitMod) ولـtoInt في المفسّر.
-                    // (EN) MOD_I64 may receive a Float constant operand (e.g. "باقي(7.5، 2)") —
-                    //      reading intValue off a Float constant yields 0, mis-folding the
-                    //      remainder to 0. Truncate the float toward zero first, matching the
-                    //      backend's FPToSI normalization (emitMod) and the interpreter's toInt.
-                    const int64_t lhsI = (lhs.dataType == SadTypeKind::Float)
-                                             ? static_cast<int64_t>(lhs.floatValue)
-                                             : lhs.intValue;
-                    const int64_t rhsI = (rhs.dataType == SadTypeKind::Float)
-                                             ? static_cast<int64_t>(rhs.floatValue)
-                                             : rhs.intValue;
-                    if (rhsI == 0)
+                    // (AR) ISSUE-063: معاملٌ عشريّ ⇒ fmod بنتيجة عشريّة (7.5%2=1.5) —
+                    //      مطابقةً للمفسّر وللمسار الديناميكيّ frem (كان يُقتطَع إلى srem).
+                    // (EN) ISSUE-063: a float operand ⇒ fmod with a float result (7.5%2=1.5),
+                    //      matching the interpreter and the dynamic frem path (was truncated
+                    //      to srem).
+                    if (anyFloat)
+                    {
+                        // (AR) Amelia: نتيجةٌ صحيحة («باقي()» المدمجة) ⇒ دلالة الاقتطاع (نظير
+                        //      FPToSI+srem في الخلف وtoInt في المفسّر): باقي(7.5، 2) = 1 لا 1.5.
+                        // (EN) Amelia: an Integer result (the باقي() builtin) ⇒ truncation
+                        //      semantics (mirroring the backend's FPToSI+srem and the
+                        //      interpreter's toInt): باقي(7.5، 2) = 1, not 1.5.
+                        if (intResult)
+                        {
+                            const int64_t lhsI = lhsIsFloat ? static_cast<int64_t>(lhs.floatValue)
+                                                            : lhs.intValue;
+                            const int64_t rhsI = rhsIsFloat ? static_cast<int64_t>(rhs.floatValue)
+                                                            : rhs.intValue;
+                            if (rhsI == 0)
+                                return false;
+                            constants[resultName] = SIROperand::ConstantI64(lhsI % rhsI);
+                            return true;
+                        }
+                        if (rhsD == 0.0)
+                            return false;
+                        constants[resultName] = SIROperand::ConstantF64(std::fmod(lhsD, rhsD));
+                        return true;
+                    }
+                    if (rhs.intValue == 0)
                         return false;
-                    constants[resultName] = SIROperand::ConstantI64(lhsI % rhsI);
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue % rhs.intValue);
                     return true;
                 }
 
-                // Float arithmetic
+                // Float arithmetic (int-constant-aware / بوعي الثوابت الصحيحة)
                 case SIROpcode::ADD_F64:
-                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue + rhs.floatValue);
+                    constants[resultName] = SIROperand::ConstantF64(lhsD + rhsD);
                     return true;
                 case SIROpcode::SUB_F64:
-                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue - rhs.floatValue);
+                    constants[resultName] = SIROperand::ConstantF64(lhsD - rhsD);
                     return true;
                 case SIROpcode::MUL_F64:
-                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue * rhs.floatValue);
+                    constants[resultName] = SIROperand::ConstantF64(lhsD * rhsD);
                     return true;
                 case SIROpcode::DIV_F64:
-                    if (rhs.floatValue == 0.0)
+                {
+                    // (AR) ISSUE-063: القسمة `/` على ثابتين صحيحين — صحيح عند انعدام الباقي
+                    //      (6/3⇒2) وعشريّ عند وجوده (7/2⇒3.5)؛ معاملٌ عشريّ ⇒ عشريّ دائمًا.
+                    // (EN) ISSUE-063: `/` on two integer constants — int iff the remainder is
+                    //      zero (6/3⇒2), float otherwise (7/2⇒3.5); a float operand ⇒ float.
+                    if (!anyFloat)
+                    {
+                        if (rhs.intValue == 0)
+                            return false;
+                        if (lhs.intValue % rhs.intValue == 0)
+                            constants[resultName] = SIROperand::ConstantI64(lhs.intValue / rhs.intValue);
+                        else
+                            constants[resultName] = SIROperand::ConstantF64(
+                                static_cast<double>(lhs.intValue) / static_cast<double>(rhs.intValue));
+                        return true;
+                    }
+                    if (rhsD == 0.0)
                         return false;
-                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue / rhs.floatValue);
+                    constants[resultName] = SIROperand::ConstantF64(lhsD / rhsD);
                     return true;
+                }
 
-                // Comparisons (integer)
+                // (AR) Amelia (ISSUE-063): مقارناتٌ بوعيٍ نوعيّ — قراءة intValue من ثابت Float
+                //      تقارن بِتّات double كأعدادٍ صحيحة: «6/2 == 3.0» كانت تُطوى خطأً (3 ≠
+                //      بِتّات 3.0)، و«6/3 == 2» كانت مكسورة قبل ISSUE-063 من الجهة المقابلة.
+                //      معاملٌ عشريّ ⇒ قارن القيمتين double (نظير useDouble في المفسّر).
+                // (EN) Amelia (ISSUE-063): type-aware comparisons — reading intValue off a Float
+                //      constant compares raw double bits as integers: "6/2 == 3.0" folded wrong
+                //      (3 ≠ bits(3.0)), and "6/3 == 2" was broken the other way before ISSUE-063.
+                //      A float operand ⇒ compare as doubles (mirror the interpreter's useDouble).
                 case SIROpcode::EQ:
-                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue == rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantBool(
+                        anyFloat ? (lhsD == rhsD) : (lhs.intValue == rhs.intValue));
                     return true;
                 case SIROpcode::NE:
-                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue != rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantBool(
+                        anyFloat ? (lhsD != rhsD) : (lhs.intValue != rhs.intValue));
                     return true;
                 case SIROpcode::LT:
-                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue < rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantBool(
+                        anyFloat ? (lhsD < rhsD) : (lhs.intValue < rhs.intValue));
                     return true;
                 case SIROpcode::LE:
-                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue <= rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantBool(
+                        anyFloat ? (lhsD <= rhsD) : (lhs.intValue <= rhs.intValue));
                     return true;
                 case SIROpcode::GT:
-                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue > rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantBool(
+                        anyFloat ? (lhsD > rhsD) : (lhs.intValue > rhs.intValue));
                     return true;
                 case SIROpcode::GE:
-                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue >= rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantBool(
+                        anyFloat ? (lhsD >= rhsD) : (lhs.intValue >= rhs.intValue));
                     return true;
 
                 // Bitwise (integer) — مع حفظ النوع المنطقي

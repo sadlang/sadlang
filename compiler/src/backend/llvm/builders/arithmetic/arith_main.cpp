@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include <llvm/IR/Intrinsics.h>
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -338,13 +339,51 @@ namespace Sad
             }
             else if (inst->opcode == SIROpcode::FLOOR_DIV_I64)
             {
-                // (AR) القسمة الصحيحة الأرضية: sdiv دائماً (// لا ينتج عشري)
-                // (EN) Floor division: always sdiv (// never produces float)
-                if (left->getType()->isDoubleTy())
-                    left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "f64toi64.l");
-                if (right->getType()->isDoubleTy())
-                    right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
-                result = cg_.builder_->CreateSDiv(left, right, "floordivtmp");
+                // (AR) Amelia (ISSUE-063): نتيجةٌ عشريّة ساكنة (معاملٌ عشريّ) ⇒ floor(fdiv)
+                //      على double كالمفسّر (7.5//2=3.0، -7.5//2=-4.0) — مرآةُ مسار `%` العشريّ
+                //      في emitMod؛ كان FPToSI يقتطع ثمّ sdiv فيتناقض مع الطيّ والمفسّر.
+                // (EN) Amelia (ISSUE-063): a static Float result (a float operand) ⇒ floor(fdiv)
+                //      on doubles like the interpreter (7.5//2=3.0, -7.5//2=-4.0) — mirror of
+                //      emitMod's float path; FPToSI-then-sdiv contradicted folding + interpreter.
+                if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Float)
+                {
+                    auto toDouble = [&](const SIROperand &op, llvm::Value *v) -> llvm::Value *
+                    {
+                        if (v->getType()->isDoubleTy())
+                            return v;
+                        // (AR) قيمةٌ عشريّة النوع وصلت i64 = بِتّات double خام ⇒ bitcast لا sitofp
+                        // (EN) A Float-typed value arriving as i64 = raw double bits ⇒ bitcast
+                        if (op.dataType == SadTypeKind::Float && v->getType()->isIntegerTy(64))
+                            return cg_.builder_->CreateBitCast(v, cg_.getDoubleType(), "fdiv.bitsf64");
+                        return coerceFloatOperandToDouble(op, v);
+                    };
+                    left = toDouble(inst->operands[0], left);
+                    right = toDouble(inst->operands[1], right);
+                    llvm::Value *q = cg_.builder_->CreateFDiv(left, right, "ffloordiv.q");
+                    llvm::Function *floorFn = llvm::Intrinsic::getDeclaration(
+                        cg_.module_.get(), llvm::Intrinsic::floor, {cg_.getDoubleType()});
+                    result = cg_.builder_->CreateCall(floorFn, {q}, "ffloordivtmp");
+                }
+                else
+                {
+                    // (AR) القسمة الصحيحة الأرضية على i64 — مع تسويةٍ أرضيّة للسالب
+                    //      (-7//2=-4 كالمفسّر) بدل اقتطاع sdiv نحو الصفر (-3).
+                    // (EN) Integer floor division on i64 — with a floor adjustment for negatives
+                    //      (-7//2=-4 like the interpreter) instead of sdiv truncation toward 0 (-3).
+                    if (left->getType()->isDoubleTy())
+                        left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "f64toi64.l");
+                    if (right->getType()->isDoubleTy())
+                        right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
+                    llvm::Value *q = cg_.builder_->CreateSDiv(left, right, "floordivtmp");
+                    llvm::Value *rem = cg_.builder_->CreateSRem(left, right, "floordiv.rem");
+                    llvm::Value *zero64 = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                    llvm::Value *signsDiffer = cg_.builder_->CreateICmpSLT(
+                        cg_.builder_->CreateXor(left, right, "floordiv.sx"), zero64, "floordiv.sd");
+                    llvm::Value *inexact = cg_.builder_->CreateICmpNE(rem, zero64, "floordiv.ix");
+                    llvm::Value *needAdj = cg_.builder_->CreateAnd(signsDiffer, inexact, "floordiv.na");
+                    llvm::Value *adj = cg_.builder_->CreateZExt(needAdj, cg_.getInt64Type(), "floordiv.adj");
+                    result = cg_.builder_->CreateSub(q, adj, "floordivadj");
+                }
             }
             else
             {
@@ -408,8 +447,37 @@ namespace Sad
                 left = cg_.builder_->CreateZExt(left, cg_.getInt64Type(), "i1toi64.l");
             if (right->getType()->isIntegerTy(1))
                 right = cg_.builder_->CreateZExt(right, cg_.getInt64Type(), "i1toi64.r");
-            // (AR) عملية الباقي تعمل فقط على الأعداد الصحيحة — تحويل double إلى i64
-            // (EN) Modulo operates only on integers — convert double to i64
+            // (AR) ISSUE-063: نتيجةٌ عشريّة ساكنة (معاملٌ عشريّ) ⇒ frem (fmod) على double —
+            //      مطابقةً للمفسّر (7.5 % 2 = 1.5) وللمسار الديناميكيّ (dynBinOp). كان المسار
+            //      الساكن يقتطع إلى i64 ثمّ srem فيعطي 1 (تناقضٌ داخليّ مع الديناميكيّ).
+            // (EN) ISSUE-063: a static Float result (a float operand) ⇒ frem (fmod) on
+            //      doubles — matching the interpreter (7.5 % 2 = 1.5) and the dynamic path
+            //      (dynBinOp). The static path used to truncate to i64 then srem, yielding 1
+            //      (internally inconsistent with the dynamic path).
+            if (inst->result.has_value() && inst->result->dataType == SadTypeKind::Float)
+            {
+                auto toDouble = [&](const SIROperand &op, llvm::Value *v) -> llvm::Value *
+                {
+                    if (v->getType()->isDoubleTy())
+                        return v;
+                    // (AR) قيمةٌ عشريّة النوع وصلت i64 = بِتّات double خام ⇒ bitcast لا sitofp
+                    // (EN) A Float-typed value arriving as i64 = raw double bits ⇒ bitcast
+                    if (op.dataType == SadTypeKind::Float && v->getType()->isIntegerTy(64))
+                        return cg_.builder_->CreateBitCast(v, cg_.getDoubleType(), "mod.bitsf64");
+                    return coerceFloatOperandToDouble(op, v);
+                };
+                left = toDouble(inst->operands[0], left);
+                right = toDouble(inst->operands[1], right);
+                llvm::Value *fresult = cg_.builder_->CreateFRem(left, right, "fmodtmp");
+                if (inst->result.has_value())
+                {
+                    cg_.context_info_.namedValues[inst->result->name] = fresult;
+                }
+                return fresult;
+            }
+
+            // (AR) عملية الباقي الصحيحة — تحويل double إلى i64
+            // (EN) Integer modulo — convert double to i64
             if (left->getType()->isDoubleTy())
                 left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "f64toi64.l");
             if (right->getType()->isDoubleTy())

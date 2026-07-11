@@ -49,6 +49,9 @@ private:
     // Helper methods
     std::optional<int64_t> getIntegerConstant(const SIR::SIROperand& operand);
     std::optional<double> getFloatConstant(const SIR::SIROperand& operand);
+    // (AR) ISSUE-063: هل المعامل عشريّ (نوعًا، أو نصًّا عشريًّا، أو من جدول الثوابت العشريّة)؟
+    // (EN) ISSUE-063: is the operand a float (by type, float-literal text, or the float table)?
+    bool isFloatOperand(const SIR::SIROperand& operand);
     
     void replaceWithConstant(SIR::SIRInstruction& inst, int64_t value);
     void replaceWithConstant(SIR::SIRInstruction& inst, double value);

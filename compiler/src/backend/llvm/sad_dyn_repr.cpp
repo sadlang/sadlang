@@ -240,8 +240,28 @@ namespace Sad
             //      (eitherF) rI holds raw double bits (0 for divisor 0.0) ⇒ the discarded sdiv
             //      traps. Substitute divisor 1 on the float branch only; the true integer path
             //      keeps rI intact (integer-division semantics preserved).
+            // (AR) Amelia (ISSUE-063): توسيع الحارس — إلى جانب الفرع العشريّ، القاسمُ
+            //      الصحيح صفر (sdiv/srem ⇒ #DE انهيار) وINT64_MIN/-1 (فيض sdiv ⇒ #DE أيضًا)
+            //      يستبدلان القاسمَ 1؛ ثمّ تُفرَض النتيجة 0 لحالة القسمة على صفر (سياسة
+            //      المسار الساكن المترجم نفسها — المفسّر يرمي RUN001/RUN009، تباعدٌ موثَّق).
+            // (EN) Amelia (ISSUE-063): widen the guard — besides the float branch, an integer
+            //      zero divisor (sdiv/srem ⇒ #DE crash) and INT64_MIN/-1 (sdiv overflow ⇒ #DE
+            //      too) substitute divisor 1; the div-by-zero case then forces result 0 (same
+            //      policy as the compiled static path — the interpreter throws RUN001/RUN009,
+            //      a documented divergence).
+            llvm::Value *dynZero64 = llvm::ConstantInt::get(i64, 0);
+            llvm::Value *intDivZero = b.CreateAnd(
+                b.CreateNot(eitherF, "dyn.not.f"),
+                b.CreateICmpEQ(rI, dynZero64, "dyn.rz"), "dyn.idivz");
+            llvm::Value *minOverflow = b.CreateAnd(
+                b.CreateICmpEQ(lI, llvm::ConstantInt::get(
+                                       i64, llvm::APInt::getSignedMinValue(64)), "dyn.lmin"),
+                b.CreateICmpEQ(rI, llvm::ConstantInt::getSigned(i64, -1), "dyn.rneg1"),
+                "dyn.minov");
+            llvm::Value *unsafeDivisor = b.CreateOr(
+                eitherF, b.CreateOr(intDivZero, minOverflow, "dyn.iunsafe"), "dyn.unsafe");
             llvm::Value *safeRI = b.CreateSelect(
-                eitherF, llvm::ConstantInt::get(i64, 1), rI, "dyn.safe.divisor");
+                unsafeDivisor, llvm::ConstantInt::get(i64, 1), rI, "dyn.safe.divisor");
 
             // (AR) نحسب النتيجتين العشريّة والصحيحة ثمّ نختار زمنَ التشغيل حسب الوسم؛ يطابق
             //      المفسّر: عشريّ ⇒ fadd/… (و% ⇒ frem أي fmod، // ⇒ floor(fdiv))؛ صحيح ⇒ add/…
@@ -251,6 +271,11 @@ namespace Sad
             //      int ⇒ add/… (% ⇒ srem, // ⇒ sdiv). Int operands read the payload directly (clean).
             llvm::Value *fRes = nullptr;
             llvm::Value *iRes = nullptr;
+            // (AR) ISSUE-063: وسمُ النتيجة قد يتجاوز eitherF لبعض العمليّات (القسمة `/`
+            //      على صحيحين بباقٍ ⇒ عشريّ) — يبدأ بـeitherF وتعدّله الحالة عند الحاجة.
+            // (EN) ISSUE-063: the result kind may exceed eitherF for some ops (`/` on two
+            //      ints with a remainder ⇒ float) — starts as eitherF, cases may extend it.
+            llvm::Value *isFloatRes = eitherF;
 
             switch (op)
             {
@@ -271,14 +296,33 @@ namespace Sad
                 break;
             case SIROpcode::DIV_I64:
             case SIROpcode::DIV_F64:
+            {
+                // (AR) ISSUE-063: دلالة المفسّر للقسمة `/` على صحيحين: صحيح عند انعدام
+                //      الباقي (6/3=2) وعشريّ عند وجوده (7/2=3.5). نحسب srem؛ على الفرع
+                //      العشريّ safeRI=1 ⇒ الباقي 0 ولا أثر (يحسم eitherF). fdiv(lD,rD)
+                //      صحيحٌ في الحالتين لأنّ unpackDouble يرقّي الحمولة الصحيحة sitofp.
+                // (EN) ISSUE-063: interpreter semantics for `/` on two ints: int when the
+                //      remainder is zero (6/3=2), float otherwise (7/2=3.5). Compute srem;
+                //      on the float branch safeRI=1 ⇒ remainder 0, no effect (eitherF wins).
+                //      fdiv(lD,rD) is correct either way since unpackDouble sitofp-promotes
+                //      integer payloads.
                 fRes = b.CreateFDiv(lD, rD, "dyn.fdiv");
                 iRes = b.CreateSDiv(lI, safeRI, "dyn.idiv");
+                // (AR) قسمة صحيحة على صفر ⇒ 0 (سياسة المسار الساكن) / (EN) int /0 ⇒ 0
+                iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.idiv.z");
+                llvm::Value *rem = b.CreateSRem(lI, safeRI, "dyn.div.rem");
+                llvm::Value *inexact = b.CreateICmpNE(
+                    rem, llvm::ConstantInt::get(i64, 0), "dyn.div.inexact");
+                isFloatRes = b.CreateOr(eitherF, inexact, "dyn.div.isf");
                 break;
+            }
             case SIROpcode::MOD_I64:
                 // (AR) % : عشريّ ⇒ frem (fmod، مثل المفسّر 7.5%2=1.5)؛ صحيح ⇒ srem.
                 // (EN) % : float ⇒ frem (fmod, like the interpreter 7.5%2=1.5); int ⇒ srem.
                 fRes = b.CreateFRem(lD, rD, "dyn.frem");
                 iRes = b.CreateSRem(lI, safeRI, "dyn.srem");
+                // (AR) باقٍ على صفر ⇒ 0 (سياسة المسار الساكن) / (EN) int %0 ⇒ 0
+                iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.srem.z");
                 break;
             case SIROpcode::FLOOR_DIV_I64:
             {
@@ -288,7 +332,19 @@ namespace Sad
                 llvm::Function *floorFn = llvm::Intrinsic::getDeclaration(
                     cg.module_.get(), llvm::Intrinsic::floor, {dbl});
                 fRes = b.CreateCall(floorFn, {q}, "dyn.floor");
-                iRes = b.CreateSDiv(lI, safeRI, "dyn.sdiv");
+                // (AR) Amelia (ISSUE-063): تسويةٌ أرضيّة للفرع الصحيح (-7//2=-4 كالمفسّر)
+                //      بدل اقتطاع sdiv نحو الصفر (-3)؛ وقاسمٌ صفر ⇒ 0.
+                // (EN) Amelia (ISSUE-063): floor adjustment on the integer branch
+                //      (-7//2=-4 like the interpreter) instead of sdiv truncation (-3);
+                //      zero divisor ⇒ 0.
+                llvm::Value *iq = b.CreateSDiv(lI, safeRI, "dyn.sdiv");
+                llvm::Value *irem = b.CreateSRem(lI, safeRI, "dyn.sdiv.rem");
+                llvm::Value *signsDiffer = b.CreateICmpSLT(
+                    b.CreateXor(lI, safeRI, "dyn.fd.sx"), dynZero64, "dyn.fd.sd");
+                llvm::Value *inexactI = b.CreateICmpNE(irem, dynZero64, "dyn.fd.ix");
+                llvm::Value *needAdj = b.CreateAnd(signsDiffer, inexactI, "dyn.fd.na");
+                iRes = b.CreateSub(iq, b.CreateZExt(needAdj, i64, "dyn.fd.adj"), "dyn.fd.q");
+                iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.fd.z");
                 break;
             }
             default:
@@ -298,10 +354,10 @@ namespace Sad
             }
 
             llvm::Value *resKind = b.CreateSelect(
-                eitherF, llvm::ConstantInt::get(i8, DynKind::Float),
+                isFloatRes, llvm::ConstantInt::get(i8, DynKind::Float),
                 llvm::ConstantInt::get(i8, DynKind::Int), "dyn.res.kind");
             llvm::Value *fBits = b.CreateBitCast(fRes, i64, "dyn.res.fbits");
-            llvm::Value *resPayload = b.CreateSelect(eitherF, fBits, iRes, "dyn.res.payload");
+            llvm::Value *resPayload = b.CreateSelect(isFloatRes, fBits, iRes, "dyn.res.payload");
             return makeDyn(cg, resKind, resPayload);
         }
 

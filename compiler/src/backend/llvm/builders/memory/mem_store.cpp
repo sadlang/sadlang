@@ -20,6 +20,7 @@
 #include <iostream>
 #include <fstream>
 #include "builders/memory/memory_codegen.h" // (Phase 7 Step 2)
+#include "sad_dyn_repr.h" // (AR) ISSUE-063: ترقية الخانات إلى %SadDyn وتعليب المحسوس / (EN) ISSUE-063: %SadDyn slot promotion + packing
 #include "llvm_codegen.h"
 
 using namespace Sad::Compiler::SIR;
@@ -448,6 +449,79 @@ namespace Sad
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", std::string("Operands not found for store: value=") + valueOp.name + ", ptr=" + ptrName}});
                     return nullptr;
+                }
+            }
+
+            // ================================================================
+            // (AR) ISSUE-063: مواءمة %SadDyn مع الخانات (قبل أنماط الترقية القديمة):
+            //      1) قيمة %SadDyn في خانةٍ غير-%SadDyn ⇒ رقِّ الخانة إلى %SadDyn
+            //         (نظير ترقية double في Fix #46) — كان CreateStore يكتب هيكل
+            //         16 بايت في خانة i64 ⇒ IR فاسد ⇒ انهيار (قسمة `/` ديناميّة
+            //         مخزَّنة في متغيّرٍ علويّ).
+            //      2) قيمة محسوسة في خانة %SadDyn ⇒ علّبها (toDyn) قبل التخزين.
+            // (EN) ISSUE-063: reconcile %SadDyn with slots (before the legacy promotion
+            //      patterns): 1) a %SadDyn value into a non-%SadDyn slot ⇒ promote the
+            //      slot to %SadDyn (mirror of the Fix #46 double promotion) — CreateStore
+            //      used to write a 16-byte struct into an i64 slot ⇒ invalid IR ⇒ crash
+            //      (a dynamic `/` result stored into a top-level variable). 2) a concrete
+            //      value into a %SadDyn slot ⇒ pack it (toDyn) before storing.
+            // ================================================================
+            if (value && ptr)
+            {
+                llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                llvm::Type *slotTy = nullptr;
+                if (auto *ai = llvm::dyn_cast<llvm::AllocaInst>(ptr))
+                    slotTy = ai->getAllocatedType();
+                else if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(ptr))
+                    slotTy = g->getValueType();
+
+                if (slotTy && isSadDyn(value) && slotTy != dynTy)
+                {
+                    if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(ptr))
+                    {
+                        // (AR) ترقية متغيّر عامّ إلى %SadDyn: جديدٌ بنفس الاسم + ترحيل القيمة
+                        // (EN) Promote a global to %SadDyn: new global + migrate the old value
+                        std::string globalName = g->getName().str();
+                        auto *newGV = new llvm::GlobalVariable(
+                            *cg_.module_, dynTy, false,
+                            llvm::GlobalValue::InternalLinkage,
+                            llvm::ConstantAggregateZero::get(dynTy),
+                            globalName + ".dyn");
+                        llvm::Value *oldVal = cg_.builder_->CreateLoad(slotTy, g, "old.glob.val");
+                        cg_.builder_->CreateStore(
+                            toDyn(cg_, oldVal, SadTypeKind::Unknown), newGV);
+                        for (auto &kv : cg_.context_info_.globalValues)
+                            if (kv.second == g)
+                                kv.second = newGV;
+                        for (auto &kv : cg_.context_info_.namedValues)
+                            if (kv.second == g)
+                                kv.second = newGV;
+                        ptr = newGV;
+                    }
+                    else if (auto *ai = llvm::dyn_cast<llvm::AllocaInst>(ptr))
+                    {
+                        // (AR) ترقية alloca إلى %SadDyn (نظير ترقية double/متجه)
+                        // (EN) Promote the alloca to %SadDyn (mirror of double/vector promotion)
+                        llvm::Function *currentFunc = cg_.builder_->GetInsertBlock()->getParent();
+                        llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(),
+                                                       currentFunc->getEntryBlock().begin());
+                        std::string allocaName = ai->getName().str();
+                        llvm::AllocaInst *newAlloca = entryBuilder.CreateAlloca(
+                            dynTy, nullptr, allocaName + ".dyn");
+                        llvm::Value *oldVal = cg_.builder_->CreateLoad(slotTy, ai, "old.slot.val");
+                        cg_.builder_->CreateStore(
+                            toDyn(cg_, oldVal, SadTypeKind::Unknown), newAlloca);
+                        for (auto &kv : cg_.context_info_.namedValues)
+                            if (kv.second == ai)
+                                kv.second = newAlloca;
+                        ptr = newAlloca;
+                    }
+                }
+                else if (slotTy == dynTy && !isSadDyn(value))
+                {
+                    // (AR) محسوسٌ في خانة %SadDyn ⇒ تعليبٌ بنوع SIR الساكن
+                    // (EN) A concrete value into a %SadDyn slot ⇒ pack by its static SIR type
+                    value = toDyn(cg_, value, valueOp.dataType);
                 }
             }
 

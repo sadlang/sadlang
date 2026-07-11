@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <limits>
 #include <climits>
+#include <cstdint> // (AR) ISSUE-063: حساب مربع() بـint64_t / (EN) ISSUE-063: int64_t square()
 #include <random>
 
 namespace Sad
@@ -275,16 +276,23 @@ namespace Sad
                 double num = toDouble(args[0]);
                 double result = num * num;
 
-                // (AR) إرجاع رقم صحيح إذا كان المدخل رقم صحيح والنتيجة تناسب int
-                // (EN) Return integer if input was integer and result fits in int
+                // (AR) ISSUE-063: صحيح×صحيح=صحيح ما دام يسَع 64-بت — كان الحساب int32
+                //      فيرتدّ «مربع(50000)» إلى double ويطبع «2500000000.0» بينما الدلالة
+                //      المقصودة (والمترجم) صحيح i64. نحسب بـint64 ونرتدّ إلى double فقط
+                //      عند فيض i64 الحقيقيّ.
+                // (EN) ISSUE-063: int×int=int as long as it fits 64-bit — the old int32
+                //      arithmetic made square(50000) fall back to double ("2500000000.0")
+                //      while the intended (and compiler) semantics is an i64 integer.
+                //      Compute in int64 and only fall back to double on true i64 overflow.
                 if (args[0].getKind() == Types::SadTypeKind::Integer)
                 {
-                    int intNum = args[0].toInt();
-                    long long intResult = static_cast<long long>(intNum) * intNum;
-                    if (intResult <= std::numeric_limits<int>::max() &&
-                        intResult >= std::numeric_limits<int>::min())
+                    // (AR) أكبر قاعدة يسَع مربّعُها في i64 = floor(sqrt(INT64_MAX))
+                    // (EN) Largest base whose square fits in i64 = floor(sqrt(INT64_MAX))
+                    static constexpr int64_t kMaxInt64SquareBase = 3037000499LL;
+                    const int64_t intNum = args[0].toInt64();
+                    if (intNum >= -kMaxInt64SquareBase && intNum <= kMaxInt64SquareBase)
                     {
-                        return Data::Value(static_cast<int>(intResult));
+                        return Data::Value(intNum * intNum);
                     }
                 }
 

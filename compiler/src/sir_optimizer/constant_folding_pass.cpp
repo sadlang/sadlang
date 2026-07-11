@@ -178,6 +178,85 @@ namespace Sad
                 const auto &leftOp = inst.operands[0];
                 const auto &rightOp = inst.operands[1];
 
+                using SIR::SIROpcode;
+
+                // (AR) ISSUE-063: معاملٌ عشريّ على opcode «صحيح» (يحدث مع المسارات
+                //      الديناميّة Any ومع «باقي(7.5، 2)») — دلالة المفسّر: العمليّة تصير
+                //      عشريّة (fmod لـ%، floor(fdiv) لـ//). كان stoll يقتطع «7.500000» إلى
+                //      7 بصمتٍ فيُطوى 7.5%2 إلى 1 بدل 1.5.
+                // (EN) ISSUE-063: a float operand on an "integer" opcode (dynamic Any paths,
+                //      or «باقي(7.5، 2)») — interpreter semantics: the operation becomes a
+                //      float one (fmod for %, floor(fdiv) for //). stoll used to silently
+                //      truncate "7.500000" to 7, folding 7.5%2 to 1 instead of 1.5.
+                if (isFloatOperand(leftOp) || isFloatOperand(rightOp))
+                {
+                    // (AR) Amelia (ISSUE-063): نوع نتيجة التعليمة يحكم دلالة الطيّ — نتيجةٌ
+                    //      Integer (مثل «باقي()» المدمجة) تُطوى بالاقتطاع (نظير FPToSI+srem في
+                    //      الخلف) لا بـfmod/floor العشريّة؛ وطيُّ ثابتٍ عشريٍّ في سجلٍّ نتيجتُه
+                    //      Integer يُفسد نوعَه لدى المستهلكين (باتت تُطبع بِتّاتٍ خامًا).
+                    // (EN) Amelia (ISSUE-063): the instruction's RESULT type governs fold
+                    //      semantics — an Integer result (e.g. the باقي() builtin) folds with
+                    //      truncation (mirroring the backend's FPToSI+srem), not float
+                    //      fmod/floor; folding a float constant into an Integer-typed register
+                    //      corrupts its type for consumers (raw bits get printed).
+                    if (inst.result.has_value() &&
+                        inst.result->dataType == SIR::SadTypeKind::Integer)
+                    {
+                        if (inst.opcode == SIROpcode::MOD_I64)
+                        {
+                            std::optional<double> leftD = getFloatConstant(leftOp);
+                            std::optional<double> rightD = getFloatConstant(rightOp);
+                            if (!leftD || !rightD)
+                                return false;
+                            const int64_t lhsI = static_cast<int64_t>(*leftD);
+                            const int64_t rhsI = static_cast<int64_t>(*rightD);
+                            if (rhsI == 0)
+                                return false;
+                            replaceWithConstant(inst, lhsI % rhsI);
+                            return true;
+                        }
+                        // (AR) بقيّة العمليّات: اتركها للخلف (يقتطع) / (EN) leave to backend
+                        return false;
+                    }
+
+                    std::optional<double> leftD = getFloatConstant(leftOp);
+                    std::optional<double> rightD = getFloatConstant(rightOp);
+                    if (!leftD || !rightD)
+                    {
+                        return false;
+                    }
+
+                    double fresult = 0.0;
+                    switch (inst.opcode)
+                    {
+                    case SIROpcode::ADD_I64:
+                        fresult = *leftD + *rightD;
+                        break;
+                    case SIROpcode::SUB_I64:
+                        fresult = *leftD - *rightD;
+                        break;
+                    case SIROpcode::MUL_I64:
+                        fresult = *leftD * *rightD;
+                        break;
+                    case SIROpcode::FLOOR_DIV_I64:
+                        if (*rightD == 0.0)
+                            return false;
+                        fresult = std::floor(*leftD / *rightD);
+                        break;
+                    case SIROpcode::MOD_I64:
+                        if (*rightD == 0.0)
+                            return false;
+                        fresult = std::fmod(*leftD, *rightD);
+                        break;
+                    default:
+                        // (AR) DIV_I64 بمعامل عشريّ — اتركها للخلف / (EN) leave to backend
+                        return false;
+                    }
+
+                    replaceWithConstant(inst, fresult);
+                    return true;
+                }
+
                 // Check if both operands are constants
                 std::optional<int64_t> leftVal = getIntegerConstant(leftOp);
                 std::optional<int64_t> rightVal = getIntegerConstant(rightOp);
@@ -188,7 +267,6 @@ namespace Sad
                 }
 
                 int64_t result = 0;
-                using SIR::SIROpcode;
 
                 switch (inst.opcode)
                 {
@@ -268,10 +346,26 @@ namespace Sad
                     result = *leftVal * *rightVal;
                     break;
                 case SIROpcode::DIV_F64:
+                {
                     if (*rightVal == 0.0)
                         return false; // Avoid division by zero
+                    // (AR) ISSUE-063: القسمة `/` على ثابتين صحيحين — دلالة المفسّر: صحيح عند
+                    //      انعدام الباقي (6/3⇒2) وعشريّ عند وجوده (7/2⇒3.5).
+                    // (EN) ISSUE-063: `/` on two integer constants — interpreter semantics:
+                    //      int iff the remainder is zero (6/3⇒2), float otherwise (7/2⇒3.5).
+                    if (!isFloatOperand(leftOp) && !isFloatOperand(rightOp))
+                    {
+                        std::optional<int64_t> leftI = getIntegerConstant(leftOp);
+                        std::optional<int64_t> rightI = getIntegerConstant(rightOp);
+                        if (leftI && rightI && *rightI != 0 && (*leftI % *rightI == 0))
+                        {
+                            replaceWithConstant(inst, *leftI / *rightI);
+                            return true;
+                        }
+                    }
                     result = *leftVal / *rightVal;
                     break;
+                }
                 default:
                     return false;
                 }
@@ -295,11 +389,20 @@ namespace Sad
                 const auto &leftOp = inst.operands[0];
                 const auto &rightOp = inst.operands[1];
 
+                // (AR) Amelia (ISSUE-063): معاملٌ عشريّ ⇒ تجاوزِ المقارنةَ الصحيحة —
+                //      getIntegerConstant يقتطع «3.500000» إلى 3 بصمت فيطوي «7/2 == 3.6»
+                //      إلى صحيح. الفرع العشريّ أدناه يقارن double كاملًا (نظير useDouble).
+                // (EN) Amelia (ISSUE-063): a float operand ⇒ skip the integer comparison —
+                //      getIntegerConstant silently truncates "3.500000" to 3, folding
+                //      "7/2 == 3.6" to true. The float branch below compares full doubles
+                //      (mirroring the interpreter's useDouble).
+                const bool cmpHasFloat = isFloatOperand(leftOp) || isFloatOperand(rightOp);
+
                 // Try integer comparison first
                 std::optional<int64_t> leftInt = getIntegerConstant(leftOp);
                 std::optional<int64_t> rightInt = getIntegerConstant(rightOp);
 
-                if (leftInt && rightInt)
+                if (leftInt && rightInt && !cmpHasFloat)
                 {
                     bool result = false;
                     using SIR::SIROpcode;
@@ -515,6 +618,24 @@ namespace Sad
                 return std::nullopt;
             }
 
+            bool ConstantFoldingPass::isFloatOperand(const SIR::SIROperand &operand)
+            {
+                // (AR) ISSUE-063: عشريّ نوعًا، أو ثابتٌ نصّه يحمل فاصلة عشريّة (يقتطعه stoll
+                //      بصمت)، أو سجّله الطيّ السابق في جدول الثوابت العشريّة.
+                // (EN) ISSUE-063: float by dataType, a constant whose text carries a decimal
+                //      point (silently truncated by stoll), or recorded in the float table.
+                if (operand.dataType == SIR::SadTypeKind::Float)
+                {
+                    return true;
+                }
+                if (operand.type == SIR::SIROperandType::CONSTANT)
+                {
+                    return operand.name.find('.') != std::string::npos;
+                }
+                return floatConstants_.count(operand.name) > 0 &&
+                       intConstants_.count(operand.name) == 0;
+            }
+
             std::optional<double> ConstantFoldingPass::getFloatConstant(const SIR::SIROperand &operand)
             {
                 if (operand.type == SIR::SIROperandType::CONSTANT)
@@ -609,23 +730,39 @@ namespace Sad
                     const auto &operand = inst.operands[0];
                     if (operand.type == SIR::SIROperandType::CONSTANT)
                     {
-                        try
-                        {
-                            // Try integer first
-                            int64_t intVal = std::stoll(operand.name);
-                            intConstants_[inst.result->name] = intVal;
-                        }
-                        catch (...)
+                        // (AR) ISSUE-063: كان stoll يُنجَح على «3.500000» فيسجّل الثابت
+                        //      العشريّ صحيحًا مقتطَعًا (3) في جدول الصحيحين — نميّز العشريّ
+                        //      أوّلًا (نوعًا أو نصًّا) ثمّ نسجّله في جدوله الصحيح.
+                        // (EN) ISSUE-063: stoll used to succeed on "3.500000", recording the
+                        //      float constant as a truncated integer (3) in the int table —
+                        //      classify floats first (by type or text) into the right table.
+                        if (isFloatOperand(operand))
                         {
                             try
                             {
-                                // Try float
-                                double floatVal = std::stod(operand.name);
-                                floatConstants_[inst.result->name] = floatVal;
+                                floatConstants_[inst.result->name] = std::stod(operand.name);
                             }
                             catch (...)
                             {
                                 // Not a numeric constant
+                            }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                intConstants_[inst.result->name] = std::stoll(operand.name);
+                            }
+                            catch (...)
+                            {
+                                try
+                                {
+                                    floatConstants_[inst.result->name] = std::stod(operand.name);
+                                }
+                                catch (...)
+                                {
+                                    // Not a numeric constant
+                                }
                             }
                         }
                     }

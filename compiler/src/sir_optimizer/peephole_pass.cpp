@@ -125,6 +125,21 @@ namespace Sad
                 if (inst.operands.size() < 2)
                     return false;
 
+                // (AR) Amelia (ISSUE-063): نتيجةٌ ديناميّة (Any) أو معاملٌ ديناميّ ⇒ لا تبسيطَ هويّة.
+                //      `س/1 → س` يستبدل نتيجةً موسومة (%SadDyn ينتجها الخلف) بسجلٍّ صحيحٍ خام،
+                //      فيقرأ PRINT المعاملَ Any غيرَ موسوم ⇒ "(null)". نفس حارس
+                //      tryZeroSimplification (ISSUE-076/084 ب″).
+                // (EN) Amelia (ISSUE-063): a dynamic (Any) result or operand ⇒ no identity fold.
+                //      `x/1 → x` replaces a tagged result (the backend emits %SadDyn) with a raw
+                //      integer register, so PRINT reads the Any operand untagged ⇒ "(null)".
+                //      Same guard as tryZeroSimplification (ISSUE-076/084 b″).
+                if (inst.hasResult() && inst.result->dataType == SIR::SadTypeKind::Any)
+                    return false;
+                for (const auto &op : inst.operands)
+                    if (op.dataType == SIR::SadTypeKind::Any ||
+                        op.dataType == SIR::SadTypeKind::Unknown)
+                        return false;
+
                 const auto &left = inst.operands[0];
                 const auto &right = inst.operands[1];
 
@@ -174,12 +189,25 @@ namespace Sad
                 case SIROpcode::DIV_I64:
                 case SIROpcode::DIV_F64:
                 case SIROpcode::FLOOR_DIV_I64:
-                    if (isOneConstant(right))
+                {
+                    // (AR) Amelia (ISSUE-063): //1 و«قسمة()» ليستا هويّةً لمعاملٍ عشريّ:
+                    //      7.5//1 = floor = 7.0 لا 7.5 (وقسمة() تقتطع). القسمة الحقيقيّة
+                    //      DIV_F64 وحدها هويّةٌ صحيحة للعشريّ.
+                    // (EN) Amelia (ISSUE-063): //1 and قسمة() are not identities for a float
+                    //      operand: 7.5//1 = floor = 7.0, not 7.5 (and قسمة() truncates).
+                    //      Only true division DIV_F64 is a float identity.
+                    const bool floatUnsafe =
+                        inst.opcode != SIROpcode::DIV_F64 &&
+                        ((inst.hasResult() && inst.result->dataType == SIR::SadTypeKind::Float) ||
+                         left.dataType == SIR::SadTypeKind::Float ||
+                         right.dataType == SIR::SadTypeKind::Float);
+                    if (!floatUnsafe && isOneConstant(right))
                     {
                         replaceWithOperand(inst, left);
                         return true;
                     }
                     break;
+                }
 
                 // x | 0 → x, 0 | x → x
                 case SIROpcode::OR:

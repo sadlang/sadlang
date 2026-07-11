@@ -581,10 +581,14 @@ namespace Sad
                 {
                     SadTypeKind leftType = inferExprType(bin->left.get());
                     SadTypeKind rightType = inferExprType(bin->right.get());
-                    // (AR) القسمة `/` تنتج عدداً عشرياً دائماً (حسب مواصفة اللغة)
-                    // (EN) Division `/` always produces float (per language spec)
+                    // (AR) ISSUE-063: دلالة المفسّر للقسمة `/`: معاملٌ عشريّ ⇒ عشريّ؛
+                    //      صحيح/صحيح ⇒ يتقرّر زمنَ التشغيل ⇒ نوعٌ ديناميّ (Any).
+                    // (EN) ISSUE-063: interpreter `/` semantics: a float operand ⇒ Float;
+                    //      int/int ⇒ runtime-dependent ⇒ dynamic (Any).
                     if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
-                        return SadTypeKind::Float;
+                        return (leftType == SadTypeKind::Float || rightType == SadTypeKind::Float)
+                                   ? SadTypeKind::Float
+                                   : SadTypeKind::Any;
                     if (leftType == SadTypeKind::String || rightType == SadTypeKind::String)
                         return SadTypeKind::String;
                     if (leftType == SadTypeKind::Float || rightType == SadTypeKind::Float)

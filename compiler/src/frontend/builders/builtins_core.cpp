@@ -119,7 +119,15 @@ namespace Sad
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
 
                     SIROpcode convOpcode = SIROpcode::STRING_TO_I64;
-                    if (argResults[0].type == SadTypeKind::Float)
+                    // (AR) ISSUE-063: وسيطٌ ديناميّ (Any = %SadDyn/حمولة موسومة) ⇒ F64_TO_I64
+                    //      الذي يفكّ الوسم زمنَ التشغيل — كان يسقط إلى STRING_TO_I64 (atoll)
+                    //      فيمرّر %SadDyn لمؤشّر نصّ ⇒ IR فاسد (verifyModule).
+                    // (EN) ISSUE-063: a dynamic argument (Any = %SadDyn/tagged payload) ⇒
+                    //      F64_TO_I64, which decodes the tag at runtime — it used to fall into
+                    //      STRING_TO_I64 (atoll), passing %SadDyn as a string pointer ⇒
+                    //      invalid IR (verifyModule).
+                    if (argResults[0].type == SadTypeKind::Float ||
+                        argResults[0].type == SadTypeKind::Any)
                     {
                         convOpcode = SIROpcode::F64_TO_I64;
                     }
@@ -163,7 +171,16 @@ namespace Sad
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIROpcode convOpcode = SIROpcode::STRING_TO_F64;
-                    if (argResults[0].type == SadTypeKind::Integer || argResults[0].type == SadTypeKind::Boolean)
+                    // (AR) ISSUE-063: وسيطٌ ديناميّ (Any = %SadDyn/حمولة موسومة) ⇒ I64_TO_F64
+                    //      الذي يفكّ الوسم زمنَ التشغيل (coerceFloatOperandToDouble) — كان يسقط
+                    //      إلى STRING_TO_F64 فيقرأ الحمولةَ مؤشّرَ نصٍّ ويُنتج قمامة/فراغًا.
+                    // (EN) ISSUE-063: a dynamic argument (Any = %SadDyn/tagged payload) ⇒
+                    //      I64_TO_F64, which decodes the tag at runtime
+                    //      (coerceFloatOperandToDouble) — it used to fall into STRING_TO_F64,
+                    //      reading the payload as a string pointer producing garbage/emptiness.
+                    if (argResults[0].type == SadTypeKind::Integer ||
+                        argResults[0].type == SadTypeKind::Boolean ||
+                        argResults[0].type == SadTypeKind::Any)
                     {
                         convOpcode = SIROpcode::I64_TO_F64;
                     }

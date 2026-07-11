@@ -158,10 +158,16 @@ namespace Sad
                         default:
                             break;
                         }
-                        // (AR) القسمة `/` تُنتج عشري دائماً (حسب مواصفات اللغة)
-                        // (EN) Division `/` always produces float (per language spec)
+                        // (AR) ISSUE-063: دلالة المفسّر للقسمة `/`: معاملٌ عشريّ ⇒ عشريّ؛
+                        //      صحيح/صحيح ⇒ يتقرّر زمنَ التشغيل (صحيح بلا باقٍ، عشريّ مع باقٍ)
+                        //      ⇒ نوعٌ ديناميّ (Any = %SadDyn عبر حدود الدوال).
+                        // (EN) ISSUE-063: interpreter semantics for `/`: a float operand ⇒
+                        //      Float; int/int ⇒ runtime-dependent (int iff no remainder) ⇒
+                        //      dynamic (Any = %SadDyn across function boundaries).
                         if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
-                            return SadTypeKind::Float;
+                            return (left == SadTypeKind::Float || right == SadTypeKind::Float)
+                                       ? SadTypeKind::Float
+                                       : SadTypeKind::Any;
                         // (AR) إذا كان الطرفان نصاً أو أحدهما، النتيجة نص (جمع نصوص)
                         if (left == SadTypeKind::String || right == SadTypeKind::String)
                             return SadTypeKind::String;

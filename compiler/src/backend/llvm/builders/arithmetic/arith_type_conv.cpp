@@ -68,6 +68,16 @@ namespace Sad
             {
                 result = val; // Already double
             }
+            // (AR) ISSUE-063: قيمةٌ ديناميّة (%SadDyn) أو معامل Any (حمولة موسومة) ⇒ فكّ
+            //      عبر coerceFloatOperandToDouble (عشريّ⇒bitcast/فكّ صندوق، صحيح⇒sitofp)
+            //      بدل sitofp الأعمى الذي يقرأ بِتّات double كعددٍ صحيح فيُنتج قمامة.
+            // (EN) ISSUE-063: a dynamic (%SadDyn) value or an Any operand (tagged payload)
+            //      ⇒ decode via coerceFloatOperandToDouble (float⇒bitcast/unbox, int⇒sitofp)
+            //      instead of a blind sitofp that reads raw double bits as an integer.
+            else if (isSadDyn(val) || inst->operands[0].dataType == SadTypeKind::Any)
+            {
+                result = coerceFloatOperandToDouble(inst->operands[0], val);
+            }
             else if (val->getType()->isIntegerTy(1))
             {
                 // bool → i64 → f64
@@ -98,7 +108,18 @@ namespace Sad
                 return nullptr;
 
             llvm::Value *result;
-            if (val->getType()->isIntegerTy())
+            // (AR) ISSUE-063: قيمةٌ ديناميّة (%SadDyn) ⇒ فكّ إلى double (unpackDouble عبر
+            //      coerceFloatOperandToDouble) ثمّ FPToSI — كان FPToSI يُطبَّق على هيكل
+            //      %SadDyn مباشرة ⇒ IR فاسد (verifyModule).
+            // (EN) ISSUE-063: a dynamic (%SadDyn) value ⇒ decode to double (unpackDouble via
+            //      coerceFloatOperandToDouble) then FPToSI — FPToSI used to be applied to the
+            //      raw %SadDyn struct ⇒ invalid IR (verifyModule).
+            if (isSadDyn(val))
+            {
+                llvm::Value *asDbl = coerceFloatOperandToDouble(inst->operands[0], val);
+                result = cg_.builder_->CreateFPToSI(asDbl, cg_.getInt64Type(), "f64toi64");
+            }
+            else if (val->getType()->isIntegerTy())
             {
                 result = val; // Already integer
             }
