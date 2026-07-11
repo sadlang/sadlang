@@ -58,6 +58,22 @@ namespace Sad
         //      بنجاح ثمّ تفشل زمن الربط برسالة غامضة. هذا التصنيف يسمّي الدالّة
         //      القانونيّة (من SoT: Names) ليُصدر التشخيص المبكّر SEM019 اسمًا واضحًا.
         //      ملاحظة: «اطبع» آمنة حرًّا (تُوجَّه لمنافذ) فلا تُبوَّب. سلسلة فارغة = آمنة.
+        //      عمدًا لم يُبوَّب أيضًا (بالدليل):
+        //      - BUILTIN_DEBUG (تنقيح): مُصدره (emitBuiltinDebug) يستدعي printf فقط،
+        //        وحرًّا تُحقَن نسخة printf تسلسليّة داخل الوحدة (emitFreestandingPrintf
+        //        تدعم ‎%lld/%s/%g‎ المستعملة فيه) ⇒ مساره الحرّ سليم بلا رمز libc
+        //        خارجيّ. فوق ذلك الواجهة الأماميّة لا تُنتج هذا الـopcode اليوم
+        //        (لا اسم SoT له أصلًا).
+        //      - BUILTIN_ASSERT (تأكيد؛ opcode بلا مُنتِج — «تأكد» تُخفَض إلى
+        //        BUILTIN_SECURITY_ASSERT) وعائلة التأكيدات الحيّة SECURITY_ASSERT/
+        //        PANIC/ASSERT_EQUAL/ASSERT_GREATER: التأكيد مفهوم أصيل في النوى،
+        //        ومساره الحرّ سليم بعد توجيه abort (رمز libc غائب حرًّا) إلى
+        //        __sad_panic (weak؛ النواة تتجاوزه) — انظر builtin_funcs_ops.cpp
+        //        وsecurity_builtins_ops.cpp. (مسار ASSERT_EQUAL النصّيّ يضمَّن حرًّا
+        //        بـstrcmp داخل الوحدة بدل رمز runtime المستضاف.)
+        //      استثناء من العائلة: BUILTIN_SECURITY_ASSERT_TYPE (تأكد_نوع) **يُبوَّب**
+        //      أدناه — مُصدره يستدعي sad_security_assert_type من runtime المستضاف
+        //      (sad_embedded_runtime.c) الذي لا يُربط مع ‎-nostdlib‎ ⇒ فشل ربط غامض.
         //      ⚠️ قائمة منع محافِظة (لا سماح): ما ليس هنا يُترك كما هو (لا انحدار).
         // (EN) Freestanding-safety classifier: filesystem/stdin and terminal-control
         //      /output builtins emit libc symbols (fopen/scanf/system...) absent in
@@ -70,6 +86,8 @@ namespace Sad
             namespace Nb = Sad::Builtins::Names::Basics;
             namespace Nc = Sad::Builtins::Names::Core;
             namespace Nio = Sad::Builtins::Names::CompilerIo;
+            namespace Nm = Sad::Builtins::Names::Math;
+            namespace Na = Sad::Builtins::Names::Assertions;
             switch (op)
             {
             case SIROpcode::BUILTIN_READ:            return std::string(Nc::READ);        // اقرأ (دخل قياسيّ)
@@ -93,6 +111,26 @@ namespace Sad
             case SIROpcode::BUILTIN_FILE_MOVE:       return std::string(Nb::MOVE_FILE);
             case SIROpcode::BUILTIN_FILE_CREATE_DIR: return std::string(Nb::MKDIR);
             case SIROpcode::BUILTIN_FILE_LIST_DIR:   return std::string(Nb::LIST_DIR);
+            // (AR) عشوائي: مُصدره (emitBuiltinRandom) يستدعي rand() — رمز libc غائب
+            //      حرًّا فيكسر الربط برسالة غامضة، ولا مصدر عشوائيّة طبيعيّ على المعدن
+            //      العاري (مولّد حرّ ببذرة/حالة/عتاد = قرار تصميم بمستوى RFC لا رقعة
+            //      توليد). يُبوَّب كي يعطي SEM019 نظيفًا يسمّيها زمن الترجمة.
+            // (EN) random: its emitter (emitBuiltinRandom) calls rand() — a libc
+            //      symbol absent freestanding, breaking the link opaquely; bare metal
+            //      has no natural entropy source (a freestanding PRNG with a seeding
+            //      policy is RFC-level design, not a codegen patch) ⇒ gated.
+            case SIROpcode::BUILTIN_RANDOM:          return std::string(Nm::RANDOM);      // عشوائي (عشوائيّة مستضافة)
+            // (AR) تأكد_نوع: مُصدره يستدعي sad_security_assert_type — دالّة من runtime
+            //      المستضاف المضمَّن (sad_embedded_runtime.c) لا رمز libc، والوضع الحرّ
+            //      يربط بـ‎-nostdlib‎ بلا هذا الـruntime ⇒ فشل ربط غامض (بخلاف بقيّة
+            //      عائلة التأكيد المضمّنة داخل الوحدة). يُبوَّب حتّى يملك مسارًا حرًّا
+            //      مضمَّنًا (يتطلّب أوّلًا إصلاح دلالته المستضافة — انظر تقرير المراجعة).
+            // (EN) assert_type: its emitter calls sad_security_assert_type — a hosted
+            //      embedded-runtime helper (not libc) that -nostdlib never links ⇒
+            //      opaque link failure (unlike the rest of the assert family, which
+            //      is inlined in-module). Gated until it gets an inlined
+            //      freestanding path (its hosted semantics need fixing first).
+            case SIROpcode::BUILTIN_SECURITY_ASSERT_TYPE: return std::string(Na::ASSERT_TYPE); // تأكد_نوع (runtime مستضاف)
             default:                                 return std::string();
             }
         }

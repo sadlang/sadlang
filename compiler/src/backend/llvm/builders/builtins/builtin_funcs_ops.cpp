@@ -67,11 +67,35 @@ namespace Sad
                 msg = "Assertion failed: " + inst->operands[1].name;
             }
             llvm::Value *msgStr = cg_.builder_->CreateGlobalStringPtr(msg + "\n", "assert.msg");
+            // (AR) الرسالة أعلاه آمنة حرًّا: printf تُحقَن نسخته التسلسليّة داخل
+            //      الوحدة في --freestanding (emitFreestandingPrintf) فلا رمز libc.
+            // (EN) The printf above is freestanding-safe: an in-module serial printf
+            //      is injected under --freestanding (emitFreestandingPrintf).
             cg_.builder_->CreateCall(printfFunc, {msgStr});
 
-            auto *abortType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
-            auto abortFunc = cg_.module_->getOrInsertFunction("abort", abortType);
-            cg_.builder_->CreateCall(abortFunc, {});
+            if (cg_.freestanding_)
+            {
+                // (AR) وضع حرّ: abort رمز libc غائب على المعدن — نستدعي __sad_panic
+                //      (weak_odr، NoReturn؛ تُبثّ نسخته في emitFreestandingRuntime
+                //      وللنواة تجاوزها بتعريف قويّ). النمط نفسه المتّبع في
+                //      arith_main.cpp/array_ops.cpp لاستبدال exit.
+                // (EN) Freestanding: abort is an absent libc symbol on bare metal —
+                //      call __sad_panic (weak_odr, NoReturn; emitted by
+                //      emitFreestandingRuntime, overridable by the kernel). Same
+                //      pattern as the exit replacement in arith_main.cpp/array_ops.cpp.
+                auto *panicType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_),
+                    {llvm::Type::getInt64Ty(*cg_.context_)}, false);
+                auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
+                cg_.builder_->CreateCall(panicFunc,
+                                         {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1)});
+            }
+            else
+            {
+                auto *abortType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
+                auto abortFunc = cg_.module_->getOrInsertFunction("abort", abortType);
+                cg_.builder_->CreateCall(abortFunc, {});
+            }
             cg_.builder_->CreateUnreachable();
 
             // Continue block
@@ -80,6 +104,15 @@ namespace Sad
             return llvm::ConstantInt::get(cg_.getInt64Type(), 0);
         }
 
+        // (AR) تنقيح: يستدعي printf فقط — آمن حرًّا بلا تبويب SEM019 لأنّ نسخة printf
+        //      تسلسليّة تُحقَن داخل الوحدة في --freestanding (emitFreestandingPrintf
+        //      تدعم المحدِّدات المستعملة هنا: ‎%lld/%s/%g‎). ملاحظة وصوليّة: الواجهة
+        //      الأماميّة لا تُنتج BUILTIN_DEBUG اليوم (لا اسم SoT له).
+        // (EN) debug-print: printf-only — freestanding-safe without an SEM019 gate
+        //      because an in-module serial printf is injected under --freestanding
+        //      (emitFreestandingPrintf supports the specifiers used here:
+        //      %lld/%s/%g). Reachability note: the frontend does not currently
+        //      produce BUILTIN_DEBUG (it has no SoT name).
         llvm::Value *BuiltinFuncsCodeGen::emitBuiltinDebug(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())

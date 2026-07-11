@@ -15,6 +15,42 @@
 
 namespace Sad { namespace LLVM {
 
+        // ====================================================================
+        // (AR) توقُّف فشل التأكيد/الهلع (تأكد/ذعر/تأكد_مساواة/تأكد_أكبر):
+        //      مستضافًا abort()؛ وحرًّا abort رمز libc غائب على المعدن العاري ⇒
+        //      __sad_panic (weak_odr، NoReturn؛ تُبثّ نسخته الافتراضيّة في
+        //      emitFreestandingRuntime وللنواة تجاوزها بتعريف قويّ) — النمط نفسه
+        //      المتّبع لاستبدال exit في arith_main.cpp/array_ops.cpp. التأكيد مفهوم
+        //      أصيل في النوى فمساره الحرّ سليم ولا يُبوَّب في SEM019.
+        //      يُصدر unreachable الختاميّ أيضًا.
+        // (EN) Assertion-failure/panic halt: hosted → abort(); freestanding →
+        //      abort is an absent libc symbol on bare metal, so call __sad_panic
+        //      (weak_odr, NoReturn, kernel-overridable; default emitted by
+        //      emitFreestandingRuntime) — same pattern as the exit replacement in
+        //      arith_main.cpp/array_ops.cpp. Asserts are a native kernel concept,
+        //      hence a sound freestanding path instead of an SEM019 gate.
+        //      Also emits the trailing unreachable.
+        // ====================================================================
+        static void emitAbortOrFreestandingPanic(LLVMCodeGen &cg)
+        {
+            if (cg.freestanding_)
+            {
+                auto *i64Ty = llvm::Type::getInt64Ty(*cg.context_);
+                auto *panicFT = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg.context_), {i64Ty}, false);
+                auto panicFn = cg.module_->getOrInsertFunction("__sad_panic", panicFT);
+                cg.builder_->CreateCall(panicFn, {llvm::ConstantInt::get(i64Ty, 1)});
+            }
+            else
+            {
+                auto *abortFT = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg.context_), {}, false);
+                auto abortFn = cg.module_->getOrInsertFunction("abort", abortFT);
+                cg.builder_->CreateCall(abortFn, {});
+            }
+            cg.builder_->CreateUnreachable();
+        }
+
         llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinSecurityAssert(std::shared_ptr<SIRInstruction> inst)
         {
             // Security assert - check condition and abort if false
@@ -47,12 +83,17 @@ namespace Sad { namespace LLVM {
             llvm::BasicBlock *passBB = llvm::BasicBlock::Create(*cg_.context_, "sec.pass", curFunc);
             cg_.builder_->CreateCondBr(condBool, passBB, failBB);
             cg_.builder_->SetInsertPoint(failBB);
-            llvm::FunctionType *abortFT = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
-            llvm::FunctionCallee abortFn = cg_.module_->getOrInsertFunction("abort", abortFT);
-            cg_.builder_->CreateCall(abortFn, {});
-            cg_.builder_->CreateUnreachable();
+            emitAbortOrFreestandingPanic(cg_);
             cg_.builder_->SetInsertPoint(passBB);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت» — إرجاع nullptr كان يُسقط الموزّع عبر بقيّة
+            //      الطبقات فيطبع «Unsupported opcode:200» بائتًا رغم إصدار الكود
+            //      (مستضافًا يُبتلَع؛ وحرًّا تُفشِله بوّابة hasErrors خطأً). التعليمة بلا
+            //      سجلّ نتيجة فلا مستهلك للقيمة. نفس نمط «اطبع»/«مسح_الشاشة» (#185).
+            // (EN) "Handled" sentinel — returning nullptr made the dispatcher fall
+            //      through the tiers and print a spurious "Unsupported opcode:200"
+            //      (swallowed hosted; wrongly fatal under the freestanding hasErrors
+            //      gate). No result register consumes this. Same pattern as #185.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
 
@@ -105,11 +146,21 @@ namespace Sad { namespace LLVM {
 
         llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinSecurityPanic(std::shared_ptr<SIRInstruction> inst)
         {
-            llvm::FunctionType *abortFT = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
-            llvm::FunctionCallee abortFn = cg_.module_->getOrInsertFunction("abort", abortFT);
-            cg_.builder_->CreateCall(abortFn, {});
-            cg_.builder_->CreateUnreachable();
-            return nullptr;
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            emitAbortOrFreestandingPanic(cg_);
+            // (AR) كتلة استمرار ميتة بعد unreachable: أيّ تعليمات لاحقة في كتلة SIR
+            //      نفسها (كالإرجاع الضمنيّ) كانت ستُلحق بعد unreachable في الكتلة
+            //      ذاتها فيفشل تحقّق الوحدة (INT_MODULE_VERIFY). نمط «تأكد» نفسه.
+            // (EN) Dead continuation block after unreachable: later instructions of
+            //      the same SIR block (e.g., the implicit return) would otherwise be
+            //      appended after the terminator, failing module verification.
+            llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg_.context_, "panic.cont", curFunc);
+            cg_.builder_->SetInsertPoint(contBB);
+            // (AR) قيمة إشاريّة «عُولجت» — نفس نمط «اطبع»/«مسح_الشاشة» (#185): إرجاع
+            //      nullptr يُسقط الموزّع عبر الطبقات ويطبع «Unsupported opcode» بائتًا
+            //      (قاتلًا حرًّا عبر بوّابة hasErrors).
+            // (EN) "Handled" sentinel — same pattern as print/clear-screen (#185).
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
 
@@ -200,7 +251,13 @@ namespace Sad { namespace LLVM {
                 }
             }
             // Compile-time type safety is the primary mechanism
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت» — إرجاع nullptr كان يُسقط الموزّع عبر الطبقات
+            //      فيبلّغ INT «وصلت بعدد معاملات غير متوقَّع (Unsupported opcode:207)»
+            //      زائفًا رغم إصدار النداء (مؤكَّد تجريبيًّا). نمط «اطبع»/«مسح_الشاشة» (#185).
+            // (EN) "Handled" sentinel — returning nullptr made the dispatcher fall
+            //      through and report a spurious INT arity/opcode error although the
+            //      call was emitted (verified live). Print/clear-screen pattern (#185).
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
 
@@ -216,11 +273,50 @@ namespace Sad { namespace LLVM {
             // Check types: if both are pointers (strings), use string comparison
             if (a->getType()->isPointerTy() && b->getType()->isPointerTy())
             {
-                llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-                llvm::FunctionType *ft = llvm::FunctionType::get(
-                    llvm::Type::getVoidTy(*cg_.context_), {i8Ptr, i8Ptr}, false);
-                llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_assert_equal_str", ft);
-                cg_.builder_->CreateCall(fn, {a, b});
+                if (cg_.freestanding_)
+                {
+                    // (AR) وضع حرّ: sad_security_assert_equal_str يعيش في runtime
+                    //      المستضاف (sad_embedded_runtime.c) الذي لا يُربط مع
+                    //      ‎-nostdlib‎ ⇒ كان فشل ربط غامضًا. نضمّن المقارنة:
+                    //      فشل = (أ==null) أو (ب==null) أو strcmp≠0 ⇒ __sad_panic.
+                    //      strcmp آمنة حرًّا — نسختها تُبثّ داخل الوحدة في
+                    //      emitFreestandingRuntime (رقم 6).
+                    // (EN) Freestanding: sad_security_assert_equal_str lives in the
+                    //      hosted embedded runtime (not linked under -nostdlib) —
+                    //      an opaque link failure. Inline instead:
+                    //      fail = (a==null) || (b==null) || strcmp(a,b)!=0 → panic.
+                    //      strcmp is freestanding-safe (in-module, runtime item 6).
+                    auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                    auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                    llvm::FunctionType *cmpFT = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
+                    llvm::FunctionCallee cmpFn = cg_.module_->getOrInsertFunction("strcmp", cmpFT);
+                    llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *cmpBB = llvm::BasicBlock::Create(*cg_.context_, "aeq.str.cmp", curFunc);
+                    llvm::BasicBlock *failBB = llvm::BasicBlock::Create(*cg_.context_, "aeq.str.fail", curFunc);
+                    llvm::BasicBlock *passBB = llvm::BasicBlock::Create(*cg_.context_, "aeq.str.pass", curFunc);
+                    llvm::Value *aNull = cg_.builder_->CreateICmpEQ(
+                        a, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(a->getType())), "aeq.str.anull");
+                    llvm::Value *bNull = cg_.builder_->CreateICmpEQ(
+                        b, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(b->getType())), "aeq.str.bnull");
+                    llvm::Value *anyNull = cg_.builder_->CreateOr(aNull, bNull, "aeq.str.null");
+                    cg_.builder_->CreateCondBr(anyNull, failBB, cmpBB);
+                    cg_.builder_->SetInsertPoint(cmpBB);
+                    llvm::Value *cmp = cg_.builder_->CreateCall(cmpFn, {a, b}, "aeq.str.res");
+                    llvm::Value *ne = cg_.builder_->CreateICmpNE(
+                        cmp, llvm::ConstantInt::get(i32Ty, 0), "aeq.str.ne");
+                    cg_.builder_->CreateCondBr(ne, failBB, passBB);
+                    cg_.builder_->SetInsertPoint(failBB);
+                    emitAbortOrFreestandingPanic(cg_);
+                    cg_.builder_->SetInsertPoint(passBB);
+                }
+                else
+                {
+                    llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+                    llvm::FunctionType *ft = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*cg_.context_), {i8Ptr, i8Ptr}, false);
+                    llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_assert_equal_str", ft);
+                    cg_.builder_->CreateCall(fn, {a, b});
+                }
             }
             else
             {
@@ -244,13 +340,12 @@ namespace Sad { namespace LLVM {
                 llvm::BasicBlock *passBB = llvm::BasicBlock::Create(*cg_.context_, "aeq.pass", curFunc);
                 cg_.builder_->CreateCondBr(cmp, passBB, failBB);
                 cg_.builder_->SetInsertPoint(failBB);
-                llvm::FunctionType *abortFT = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
-                llvm::FunctionCallee abortFn = cg_.module_->getOrInsertFunction("abort", abortFT);
-                cg_.builder_->CreateCall(abortFn, {});
-                cg_.builder_->CreateUnreachable();
+                emitAbortOrFreestandingPanic(cg_);
                 cg_.builder_->SetInsertPoint(passBB);
             }
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت» — نمط «اطبع»/«مسح_الشاشة» (#185)؛ لا سجلّ نتيجة.
+            // (EN) "Handled" sentinel — print/clear-screen pattern (#185); no result register.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
 
@@ -282,12 +377,11 @@ namespace Sad { namespace LLVM {
             llvm::BasicBlock *passBB = llvm::BasicBlock::Create(*cg_.context_, "agt.pass", curFunc);
             cg_.builder_->CreateCondBr(cmp, passBB, failBB);
             cg_.builder_->SetInsertPoint(failBB);
-            llvm::FunctionType *abortFT = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
-            llvm::FunctionCallee abortFn = cg_.module_->getOrInsertFunction("abort", abortFT);
-            cg_.builder_->CreateCall(abortFn, {});
-            cg_.builder_->CreateUnreachable();
+            emitAbortOrFreestandingPanic(cg_);
             cg_.builder_->SetInsertPoint(passBB);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت» — نمط «اطبع»/«مسح_الشاشة» (#185)؛ لا سجلّ نتيجة.
+            // (EN) "Handled" sentinel — print/clear-screen pattern (#185); no result register.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
 
