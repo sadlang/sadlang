@@ -20,6 +20,13 @@
 
 #include "lsp_engine.h"
 #include "arabic_utils.h"
+// (AR) كلمات فتح الكتل مشتقّة من المعجم المُولَّد (مصدر الحقيقة) عبر نقطة
+//      الاشتقاق الموحَّدة sot_vocab — بدل قائمة مهرَّدة كانت تتباعد عنه
+//      (10 كلمات مقابل 24 في المعجم: نقصت اختبر/اختر/امتداد/باني/خاصية...).
+// (EN) Block-opener words derived from the generated lexicon (SoT) via the
+//      shared derivation point (sot_vocab), replacing a drifted hand list
+//      (10 vs 24 in the lexicon).
+#include "sot_vocab.h"
 
 namespace sad {
 namespace lsp {
@@ -27,24 +34,8 @@ namespace lsp {
 // ══════════════════════════════════════════════════════════════════════════════
 //  ثوابت الكلمات المفتاحية (UTF-8)
 // ══════════════════════════════════════════════════════════════════════════════
-static const std::string KW_FUNC     = "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9"; // دالة
-static const std::string KW_CLASS    = "\xd8\xb5\xd9\x86\xd9\x81";         // صنف
-static const std::string KW_IF       = "\xd8\xa5\xd8\xb0\xd8\xa7";         // إذا
-static const std::string KW_WHILE    = "\xd8\xa8\xd9\x8a\xd9\x86\xd9\x85\xd8\xa7"; // بينما
-static const std::string KW_FOR      = "\xd9\x84\xd9\x83\xd9\x84";         // لكل
-static const std::string KW_TRY      = "\xd8\xad\xd8\xa7\xd9\x88\xd9\x84"; // حاول
 static const std::string KW_END      = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // نهاية
 static const std::string KW_IMPORT   = "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x88\xd8\xb1\xd8\xaf"; // استورد
-static const std::string KW_MATCH    = "\xd8\xb7\xd8\xa7\xd8\xa8\xd9\x82"; // طابق
-static const std::string KW_ENUM     = "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf"; // تعداد
-static const std::string KW_STRUCT   = "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9"; // بنية
-static const std::string KW_TRAIT    = "\xd8\xb3\xd9\x85\xd8\xa9";         // سمة
-
-/// الكلمات المفتاحية التي تفتح كتلة "نهاية"
-static const std::vector<std::string> BLOCK_KEYWORDS = {
-    KW_FUNC, KW_CLASS, KW_IF, KW_WHILE, KW_FOR,
-    KW_TRY, KW_MATCH, KW_ENUM, KW_STRUCT, KW_TRAIT
-};
 
 /// هل السطر يبدأ بكلمة مفتاحية تفتح كتلة؟ (فحص بداية السطر فقط)
 static std::string find_block_keyword_at_start(const std::string& line) {
@@ -55,7 +46,7 @@ static std::string find_block_keyword_at_start(const std::string& line) {
     if (start >= line.size()) return "";
 
     std::string trimmed = line.substr(start);
-    for (const auto& kw : BLOCK_KEYWORDS) {
+    for (const auto& kw : vocab::block_opener_words()) {
         if (trimmed.find(kw) == 0) {
             // نتأكد أن الكلمة ليست جزءاً من كلمة أطول
             if (trimmed.size() == kw.size() ||

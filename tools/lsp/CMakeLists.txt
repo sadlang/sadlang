@@ -77,6 +77,7 @@ add_library(sad_lsp_engine STATIC
     src/core/scope_tracker.cpp
     src/core/arabic_utils.cpp
     src/core/uri_utils.cpp
+    src/core/sot_vocab.cpp
 
     # ══════════════════════════════════════════════════════════════════════════
     # المميّزات (features) — كل ميزة LSP في ملف مستقل، مصنّفة حسب الغرض

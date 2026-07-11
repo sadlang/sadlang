@@ -21,7 +21,12 @@
 
 #include "sad_test.h"
 #include "lsp_engine.h"
+// (AR) حرّاس مصدر الحقيقة: سجلّ المدمجات المُولَّد + مفردات المعجم المشتقّة.
+// (EN) SoT guards: the generated builtin registry + derived lexicon vocabulary.
+#include "builtin_registry.h"
+#include "sot_vocab.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -261,6 +266,43 @@ TEST(LspCompletion, لا_يختلق_نوع_معامل_للمدمجة) {
         ASSERT_TRUE(item.documentation.value.find(u8": أي") == std::string::npos);
     }
     ASSERT_TRUE(saw_print);
+}
+
+// حارس مصدر الحقيقة: سجلّ المدمجات المُولَّد الذي يستهلكه الخادم يجب أن يكون
+// غير فارغ وبحجم الكتالوج المعقول (>1000 مدخل من language-truth/builtins/*.yaml).
+// انكماشه فجأة (عودة تهريد/عطب توليد) يسقط هنا قبل أن يظهر كتحذيرات كاذبة.
+TEST(LspSotGuards, سجل_المدمجات_المولد_بحجم_الكتالوج) {
+    ASSERT_FALSE(Sad::Builtins::ALL_BUILTINS.empty());
+    ASSERT_GT(Sad::Builtins::ALL_BUILTINS.size(), 1000u);
+}
+
+// حارس مصدر الحقيقة: كلمات فتح الكتل المشتقّة من المعجم (sot_vocab) يجب أن
+// تغطّي الدور كاملًا (24 كلمة اليوم + بدائل إملائيّة مثل «اذا») لا قائمة مهرَّدة
+// ناقصة (كانت 9/10 فقط في فحص التوازن والطيّ).
+TEST(LspSotGuards, كلمات_فتح_الكتل_مشتقة_كاملة_من_المعجم) {
+    const auto& openers = sad::lsp::vocab::block_opener_words();
+    ASSERT_GE(openers.size(), 24u);
+
+    // كلمات كانت غائبة عن القوائم المهرَّدة القديمة + بديل إملائيّ من المعجم.
+    const char* must_have[] = {u8"سمة", u8"اختبر", u8"باني", u8"اذا"};
+    for (const char* w : must_have) {
+        ASSERT_TRUE(std::find(openers.begin(), openers.end(), std::string(w)) !=
+                    openers.end());
+    }
+}
+
+// حارس مصدر الحقيقة: مفردات فحص التوازن الخاصّة — كلمات القالب (غلاف بلا
+// «نهاية» خاصّة به)، مُدرِكا الخاصّيّة «احصل»/«عيّن» (يفتح كلٌّ كتلة)، ولامدا —
+// يجب أن تُشتقّ غير فارغة من المعجم المُولَّد (فراغها = عطب توليد/تغيّر tokenType).
+TEST(LspSotGuards, مفردات_التوازن_الخاصة_مشتقة_من_المعجم) {
+    const auto& tmpl = sad::lsp::vocab::template_words();
+    const auto& accessors = sad::lsp::vocab::accessor_block_words();
+    const auto& lambdas = sad::lsp::vocab::lambda_words();
+    ASSERT_FALSE(tmpl.empty());
+    ASSERT_GE(accessors.size(), 2u); // احصل + عيّن (وبدائلهما)
+    ASSERT_FALSE(lambdas.empty());
+    ASSERT_TRUE(std::find(tmpl.begin(), tmpl.end(), std::string(u8"قالب")) !=
+                tmpl.end());
 }
 
 // حارس انحدار: تلميح الكلمات المفتاحية كان مهرَّدًا بمفاتيح خاطئة لا تطابق المعجم

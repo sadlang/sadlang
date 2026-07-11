@@ -21,13 +21,11 @@
 #include "lsp_engine.h"
 #include "arabic_utils.h"
 #include "lexer_keywords.h"
-// (AR) CW-06: تضمين صريح لمعجم الكلمات المُولَّد — نستعمل
-//      Sad::Lexer::Generated::allEntries() مباشرةً لاشتقاق block_openers،
-//      فلا نعتمد على وصوله ضمنيًّا عبر lexer_keywords.h.
-// (EN) CW-06: explicit include of the generated lexicon; allEntries() is used directly.
-//      (AR) keywords_generated.h في shared/lexer/generated؛ يُضمَّن نظيفًا عبر
-//           مسار التضمين لا بمسار نسبيّ هشّ (مطابق لـsemantic_tokens_provider).
-#include "keywords_generated.h"
+// (AR) كلمات فتح الكتل مشتقّة من المعجم المُولَّد عبر نقطة الاشتقاق الموحَّدة
+//      (sot_vocab) المشتركة مع الطيّ وفحص توازن الكتل.
+// (EN) Block-opener words derived from the generated lexicon via the shared
+//      derivation point (sot_vocab), shared with folding and block balancing.
+#include "sot_vocab.h"
 // (AR) CW-06: سجلّ طرق الأنواع المُولَّد من مصدر الحقيقة (ALL_TYPE_METHODS)
 //      لإكمال أعضاء الأنواع المدمجة بعد النقطة.
 // (EN) CW-06: generated type-method registry (ALL_TYPE_METHODS) for member completion.
@@ -288,22 +286,11 @@ static bool is_inside_class_body(const std::string& content, int current_line) {
     std::string kw_class = "\xd8\xb5\xd9\x86\xd9\x81"; // صنف
     std::string kw_end = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // نهاية
     // (AR) كلمات فتح الكتل (تُغلق بـ«نهاية») — مشتقّة من مصدر الحقيقة عبر دور
-    //      «block_opener» في المعجم المُولَّد، بدل تهريد قائمة تتباعد عنه (كانت
-    //      10 فقط مقابل 24 في المعجم: نقصت اختبر/اختر/امتداد/باني/خاصية/رئيسية...).
-    // (EN) Block-opening keywords derived from the SoT lexicon (role=block_opener),
-    //      replacing a hand-maintained list that drifted (10 vs 24).
-    static const std::vector<std::string> block_openers = [] {
-        std::vector<std::string> openers;
-        for (const auto& entry : Sad::Lexer::Generated::allEntries()) {
-            for (const auto& role : entry.roles) {
-                if (role == "block_opener") {
-                    openers.push_back(entry.primaryWord);
-                    break;
-                }
-            }
-        }
-        return openers;
-    }();
+    //      «block_opener» في المعجم المُولَّد، من نقطة الاشتقاق الموحَّدة
+    //      (sot_vocab) المشتركة مع الطيّ وفحص توازن الكتل — لا تهريد يتباعد.
+    // (EN) Block-opening keywords derived from the SoT lexicon (role=block_opener)
+    //      via the shared derivation point (sot_vocab) — no drifting hand lists.
+    const std::vector<std::string>& block_openers = vocab::block_opener_words();
 
     // نمسح من السطر الحالي للأعلى ونتتبع عمق الكتل
     int block_depth = 0;

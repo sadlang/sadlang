@@ -69,6 +69,7 @@
 #include "lsp_engine.h"            // تعريفات المحرك الأساسي وكل الأنواع
 #include "arabic_utils.h"          // أدوات النص العربي (تطبيع، بحث ضبابي، تقسيم أسطر)
 #include "builtin_registry.h"      // سجلّ المدمجات المُولَّد من مصدر الحقيقة (isKnownBuiltin)
+#include "sot_vocab.h"             // كلمات فتح الكتل المشتقّة من المعجم المُولَّد (block_opener)
 #include "known_issues_detector.h" // كاشف المشاكل المعروفة الموثقة
 
 // ── مكونات المحلل الحقيقية للغة ص ──
@@ -2259,21 +2260,57 @@ namespace sad
                 int block_closers = 0;
                 int last_opener_line = -1;
 
-                // الكلمات التي تفتح كتلة (بـ UTF-8)
-                // دالة, صنف, إذا, بينما, لكل, حاول, طابق, تعداد, بنية, سمة, اختبر
-                static const std::vector<std::string> opener_keywords = {
-                    "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9",         // دالة
-                    "\xd8\xb5\xd9\x86\xd9\x81",                 // صنف
-                    "\xd8\xa5\xd8\xb0\xd8\xa7",                 // إذا
-                    "\xd8\xa8\xd9\x8a\xd9\x86\xd9\x85\xd8\xa7", // بينما
-                    "\xd9\x84\xd9\x83\xd9\x84",                 // لكل
-                    "\xd8\xad\xd8\xa7\xd9\x88\xd9\x84",         // حاول
-                    "\xd8\xb7\xd8\xa7\xd8\xa8\xd9\x82",         // طابق
-                    "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf", // تعداد
-                    "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9",         // بنية
-                };
+                // (AR) الكلمات التي تفتح كتلة (تُغلَق بـ«نهاية») — مشتقّة من مصدر
+                //      الحقيقة عبر دور «block_opener» في المعجم المُولَّد (نقطة
+                //      الاشتقاق الموحَّدة sot_vocab)، بدل قائمة مهرَّدة تباعدت عنه
+                //      (9 كلمات مقابل 24: نقصت سمة/اختبر/فضاء/باني/خاصية... ⇒
+                //      تحذير ص-ن٢٠٢ «نهاية زائدة» كاذب على كتل مشروعة).
+                // (EN) Block-opening keywords derived from the SoT lexicon
+                //      (role=block_opener) via the shared derivation point
+                //      (sot_vocab), replacing a drifted hand list (9 vs 24 ⇒
+                //      false ص-ن٢٠٢ "extra نهاية" warnings on valid blocks).
+                const std::vector<std::string> &opener_keywords =
+                    vocab::block_opener_words();
+                const std::vector<std::string> &template_kws = vocab::template_words();
+                const std::vector<std::string> &accessor_kws = vocab::accessor_block_words();
+                const std::vector<std::string> &lambda_kws = vocab::lambda_words();
                 // نهاية = \xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9
                 static const std::string nihaya = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9";
+
+                // (AR) تكافؤ علامات الاقتباس قبل موضع — لتجاهل ما بداخل السلاسل.
+                // (EN) Quote parity before a position — to skip string contents.
+                auto quotes_before = [](const std::string &s, size_t pos) {
+                    int q = 0;
+                    for (size_t j = 0; j < pos && j < s.size(); j++)
+                        if (s[j] == '"')
+                            q++;
+                    return q;
+                };
+                // (AR) حدّ كلمة بعديّ: نهاية السطر أو فاصل — وإلّا فالكلمة بادئة
+                //      معرّف أطول (مثل «عقدة» تبدأ بـ«عقد»).
+                // (EN) Trailing word boundary: EOL or a separator, else the word
+                //      is a prefix of a longer identifier (e.g. «عقدة»).
+                auto boundary_after = [](const std::string &s, size_t pos) {
+                    if (pos >= s.size())
+                        return true;
+                    char c = s[pos];
+                    return c == ' ' || c == '\t' || c == '(' || c == ')' ||
+                           c == '\r' || c == '#';
+                };
+                // (AR) حدّ كلمة قبليّ: ما قبلها ليس حرف معرّف (بايت عربيّ متّصل
+                //      أو حرف/رقم لاتينيّ أو «_»).
+                // (EN) Leading word boundary: preceding char is not an identifier
+                //      char (Arabic continuation byte, latin alnum, or '_').
+                auto boundary_before = [](const std::string &s, size_t pos) {
+                    if (pos == 0)
+                        return true;
+                    unsigned char prev = static_cast<unsigned char>(s[pos - 1]);
+                    if (prev >= 0x80)
+                        return false;
+                    return !((prev >= 'A' && prev <= 'Z') ||
+                             (prev >= 'a' && prev <= 'z') ||
+                             (prev >= '0' && prev <= '9') || prev == '_');
+                };
 
                 for (int i = 0; i < static_cast<int>(lines.size()); i++)
                 {
@@ -2287,37 +2324,138 @@ namespace sad
                     if (!trimmed.empty() && trimmed[0] == '#')
                         continue;
 
-                    for (const auto &kw : opener_keywords)
+                    // عد نهاية (فقط لو هي الكلمة الوحيدة في السطر أو بعد مسافات)
+                    if (trimmed.find(nihaya) == 0 &&
+                        boundary_after(trimmed, nihaya.size()))
                     {
-                        if (trimmed.find(kw) == 0)
+                        block_closers++;
+                        continue;
+                    }
+
+                    // (AR) اقتطاع التعليق الذيليّ (خارج السلاسل) قبل المسح.
+                    // (EN) Strip a trailing comment (outside strings) first.
+                    std::string code = trimmed;
+                    for (size_t j = 0; j < code.size(); j++)
+                    {
+                        if (code[j] == '#' && quotes_before(code, j) % 2 == 0)
                         {
-                            // تحقق أنها ليست داخل نص مقتبس
-                            size_t kw_pos = line.find(kw);
-                            int quotes = 0;
-                            for (size_t j = 0; j < kw_pos; j++)
-                            {
-                                if (line[j] == '"')
-                                    quotes++;
-                            }
-                            if (quotes % 2 == 0)
-                            {
-                                block_openers++;
-                                last_opener_line = i;
-                            }
+                            code = code.substr(0, j);
                             break;
                         }
                     }
 
-                    // عد نهاية (فقط لو هي الكلمة الوحيدة في السطر أو بعد مسافات)
-                    if (trimmed == nihaya || trimmed.find(nihaya) == 0)
+                    int line_openers = 0;
+
+                    // (AR) غلاف القالب لا يستهلك «نهاية» خاصّة به (TemplateDecl =
+                    //      'قالب' TemplateParams (FunctionDecl|ClassDecl) — النهاية
+                    //      يملكها التصريح الملفوف) ⇒ نتخطّى «قالب <...>» ونَعُدّ
+                    //      التصريح الملفوف إن جاء على السطر نفسه.
+                    // (EN) A template wrapper owns no «نهاية» of its own; skip
+                    //      «قالب <...>» and count the wrapped declaration when it
+                    //      sits on the same line.
+                    for (const auto &tw : template_kws)
                     {
-                        size_t after = nihaya.size();
-                        if (trimmed.size() == after ||
-                            trimmed[after] == ' ' || trimmed[after] == '\t' ||
-                            trimmed[after] == '#' || trimmed[after] == '\r')
+                        if (code.find(tw) == 0 && boundary_after(code, tw.size()))
                         {
-                            block_closers++;
+                            size_t gt = code.find('>');
+                            code = (gt == std::string::npos) ? std::string()
+                                                             : code.substr(gt + 1);
+                            size_t ns = code.find_first_not_of(" \t");
+                            code = (ns == std::string::npos) ? std::string()
+                                                             : code.substr(ns);
+                            break;
                         }
+                    }
+
+                    // فاتح كتلة في بداية السطر: أدوار block_opener من المعجم +
+                    // مُدرِكا الخاصّيّة السياقيّان «احصل»/«عيّن» (يفتح كلٌّ منهما
+                    // كتلة «نهاية» رغم غياب الدور عنهما في المعجم). لامدا تُعالَج
+                    // في المسح الوسطيّ أدناه لأنّ لها صيغة سهم تعبيريّة بلا كتلة.
+                    bool start_is_lambda = false;
+                    for (const auto &lw : lambda_kws)
+                        if (code.find(lw) == 0 && boundary_after(code, lw.size()))
+                        {
+                            start_is_lambda = true;
+                            break;
+                        }
+                    if (!start_is_lambda)
+                    {
+                        bool counted = false;
+                        for (const auto &kw : opener_keywords)
+                        {
+                            if (code.find(kw) == 0 && boundary_after(code, kw.size()))
+                            {
+                                line_openers++;
+                                counted = true;
+                                break;
+                            }
+                        }
+                        if (!counted)
+                            for (const auto &kw : accessor_kws)
+                                if (code.find(kw) == 0 &&
+                                    boundary_after(code, kw.size()))
+                                {
+                                    line_openers++;
+                                    break;
+                                }
+                    }
+
+                    // (AR) لامدا في أيّ موضع من السطر: تفتح كتلة «نهاية» إلّا في
+                    //      صيغة السهم التعبيريّة «=> تعبير» على السطر نفسه
+                    //      (Lambda = 'لامدا' '(' P ')' ( '=>' Expr | Block 'نهاية' )).
+                    // (EN) A lambda anywhere on the line opens a «نهاية» block
+                    //      except in its same-line arrow-expression form.
+                    for (const auto &lw : lambda_kws)
+                    {
+                        size_t p = 0;
+                        while ((p = code.find(lw, p)) != std::string::npos)
+                        {
+                            if (boundary_before(code, p) &&
+                                boundary_after(code, p + lw.size()) &&
+                                quotes_before(code, p) % 2 == 0)
+                            {
+                                size_t ar = code.find("=>", p);
+                                bool arrow_expr = false;
+                                if (ar != std::string::npos)
+                                {
+                                    size_t rest =
+                                        code.find_first_not_of(" \t\r", ar + 2);
+                                    arrow_expr = (rest != std::string::npos);
+                                }
+                                if (!arrow_expr)
+                                    line_openers++;
+                            }
+                            p += lw.size();
+                        }
+                    }
+
+                    // (AR) «نهاية» مضمّنة (غير بداية السطر) تُغلق فاتحًا من السطر
+                    //      نفسه فقط — صيغ السطر الواحد مثل «دالة هوية(س) ارجع س
+                    //      نهاية» و«احصل() ارجع 1 نهاية» — ولا تُحتسب عالميًّا كي
+                    //      لا تبتلع «نهاية» واردة في سلاسل أو أسماء.
+                    // (EN) Inline «نهاية» closes only same-line openers (one-liner
+                    //      forms); never counted globally.
+                    if (line_openers > 0)
+                    {
+                        int inline_closers = 0;
+                        size_t p = 1;
+                        while ((p = code.find(nihaya, p)) != std::string::npos)
+                        {
+                            if (boundary_before(code, p) &&
+                                boundary_after(code, p + nihaya.size()) &&
+                                quotes_before(code, p) % 2 == 0)
+                                inline_closers++;
+                            p += nihaya.size();
+                        }
+                        line_openers -= (inline_closers < line_openers
+                                             ? inline_closers
+                                             : line_openers);
+                    }
+
+                    if (line_openers > 0)
+                    {
+                        block_openers += line_openers;
+                        last_opener_line = i;
                     }
                 }
 
