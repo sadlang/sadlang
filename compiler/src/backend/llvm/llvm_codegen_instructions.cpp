@@ -53,15 +53,17 @@ namespace Sad
 
         // ====================================================================
         // (AR) بوّابة سلامة الوضع الحرّ — تصنيف المدمجات غير الآمنة:
-        //      مدمجات نظام الملفّات ودخل الطرفيّة تُصدر رموز libc (fopen/scanf...)
-        //      غائبة في --freestanding، فكانت تُترجَم بنجاح ثمّ تفشل زمن الربط
-        //      برسالة غامضة. هذا التصنيف يسمّي الدالّة القانونيّة (من SoT: Names)
-        //      ليُصدر التشخيص المبكّر SEM019 اسمًا واضحًا. سلسلة فارغة = آمنة.
+        //      مدمجات نظام الملفّات ودخل الطرفيّة والتحكّم الطرفيّ/الإخراج تُصدر رموز
+        //      libc (fopen/scanf/system...) غائبة في --freestanding، فكانت تُترجَم
+        //      بنجاح ثمّ تفشل زمن الربط برسالة غامضة. هذا التصنيف يسمّي الدالّة
+        //      القانونيّة (من SoT: Names) ليُصدر التشخيص المبكّر SEM019 اسمًا واضحًا.
+        //      ملاحظة: «اطبع» آمنة حرًّا (تُوجَّه لمنافذ) فلا تُبوَّب. سلسلة فارغة = آمنة.
         //      ⚠️ قائمة منع محافِظة (لا سماح): ما ليس هنا يُترك كما هو (لا انحدار).
-        // (EN) Freestanding-safety classifier: filesystem/stdin builtins emit
-        //      libc symbols absent in --freestanding. Returns the canonical (SoT)
-        //      name for unsafe opcodes so SEM019 can name it; empty = safe.
-        //      Conservative deny-list: anything not listed is left untouched.
+        // (EN) Freestanding-safety classifier: filesystem/stdin and terminal-control
+        //      /output builtins emit libc symbols (fopen/scanf/system...) absent in
+        //      --freestanding. Returns the canonical (SoT) name for unsafe opcodes so
+        //      SEM019 can name it. Note: «print» is freestanding-safe (routed to ports)
+        //      and is not gated. Empty = safe; conservative deny-list.
         // ====================================================================
         static std::string freestandingUnsafeBuiltinName(SIROpcode op)
         {
@@ -76,6 +78,13 @@ namespace Sad
             // (EN) read-line: stdin like «اقرأ»; emits scanf/getchar/strdup (libc,
             //      absent freestanding) ⇒ gated for a clean SEM019, not an opaque link error.
             case SIROpcode::BUILTIN_READ_LINE:       return std::string(Nio::IO_1);       // قراءة_سطر (دخل قياسيّ)
+            // (AR) مسح_الشاشة: تحكّم طرفيّة يُصدر نداء system("cls"/"clear") — رمز
+            //      libc غائب حرًّا فيكسر الربط تمامًا كمدمجات الملفّات/الدخل. توسعةً
+            //      لميثاق البوّابة نحو الإخراج/الطرفيّة، يُبوَّب كي يعطي SEM019 نظيفًا.
+            // (EN) clear-screen: terminal control emitting system("cls"/"clear") — a
+            //      libc symbol absent freestanding, breaking the link exactly like the
+            //      file/stdin builtins. Extends the gate's charter to output/terminal.
+            case SIROpcode::BUILTIN_CLEAR_SCREEN:    return std::string(Nio::IO_2);       // مسح_الشاشة (تحكّم طرفيّة)
             case SIROpcode::BUILTIN_FILE_READ:       return std::string(Nb::READ_FILE);
             case SIROpcode::BUILTIN_FILE_WRITE:      return std::string(Nb::WRITE_FILE);
             case SIROpcode::BUILTIN_FILE_APPEND:     return std::string(Nb::APPEND_FILE);

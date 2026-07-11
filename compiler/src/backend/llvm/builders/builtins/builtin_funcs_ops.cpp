@@ -344,7 +344,15 @@ namespace Sad
 #endif
 
             cg_.builder_->CreateCall(systemFn, {cmd});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت» — إرجاع nullptr كان يُسقط الموزّع عبر بقيّة
+            //      الطبقات فيطبع «Unsupported opcode» بائتًا رغم إصدار النداء (تعليمة
+            //      SIR هنا بلا سجلّ نتيجة فلا مستهلك للقيمة). نفس نمط «اطبع»
+            //      (io_builtins_ops.cpp).
+            // (EN) "Handled" sentinel — returning nullptr made the dispatcher fall
+            //      through the remaining tiers and print a spurious "Unsupported
+            //      opcode" despite the call being emitted (the SIR instruction has no
+            //      result register, so nothing consumes this). Same pattern as print.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *BuiltinFuncsCodeGen::emitBuiltinSum(std::shared_ptr<SIRInstruction> inst)
