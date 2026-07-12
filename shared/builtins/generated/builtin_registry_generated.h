@@ -2575,16 +2575,14 @@ namespace Sad
                     inline constexpr std::string_view CLEAR = "امسح";
                     // (AR) عد العناصر التي تطابق شرطاً
                     inline constexpr std::string_view COUNT = "عد";
-                    // (AR) إضافة عنصر للمصفوفة
-                    inline constexpr std::string_view METHOD = "اضف";
                     // (AR) حذف وإرجاع آخر عنصر
-                    inline constexpr std::string_view METHOD_1 = "احذف_الأخير";
+                    inline constexpr std::string_view METHOD = "احذف_الأخير";
                     // (AR) عكس ترتيب العناصر
-                    inline constexpr std::string_view METHOD_2 = "اعكس";
+                    inline constexpr std::string_view METHOD_1 = "اعكس";
                     // (AR) أول عنصر
-                    inline constexpr std::string_view METHOD_3 = "الأول";
+                    inline constexpr std::string_view METHOD_2 = "الأول";
                     // (AR) آخر عنصر
-                    inline constexpr std::string_view METHOD_4 = "الأخير";
+                    inline constexpr std::string_view METHOD_3 = "الأخير";
                     // (AR) ادخل
                     inline constexpr std::string_view INSERT_ALT = "ادخل";
                     // (AR) نظف
@@ -2840,7 +2838,7 @@ namespace Sad
             TargetType targetType;       /// (AR) نوع الكائن المستهدف / (EN) Target type
         };
 
-        inline constexpr std::array<TypeMethodEntry, 32> TYPE_METHOD_BUILTINS = {{
+        inline constexpr std::array<TypeMethodEntry, 31> TYPE_METHOD_BUILTINS = {{
             // ─── طرق المصفوفات ───
             {"رتب", TargetType::ARRAY},
             {"يحتوي", TargetType::ARRAY},
@@ -2853,7 +2851,6 @@ namespace Sad
             {"فارغة", TargetType::ARRAY},
             {"الطول", TargetType::ARRAY},
             {"مسطح", TargetType::ARRAY},
-            {"اضف", TargetType::ARRAY},
             {"احذف_الأخير", TargetType::ARRAY},
             {"اعكس", TargetType::ARRAY},
             {"الأول", TargetType::ARRAY},
@@ -2878,7 +2875,7 @@ namespace Sad
             {"عين", TargetType::MAP},
         }};
 
-        static_assert(TYPE_METHOD_BUILTINS.size() == 32, "TYPE_METHOD count mismatch");
+        static_assert(TYPE_METHOD_BUILTINS.size() == 31, "TYPE_METHOD count mismatch");
 
 
         // ════════════════════════════════════════════════════════════
@@ -4115,8 +4112,8 @@ namespace Sad
             std::string_view descriptionAr; /// (AR) وصف عربيّ (تحويم/إكمال)
         };
 
-        inline constexpr std::array<TypeMethodMeta, 115> ALL_TYPE_METHODS = {{
-            // ─── مصفوفة (57) ───
+        inline constexpr std::array<TypeMethodMeta, 114> ALL_TYPE_METHODS = {{
+            // ─── مصفوفة (56) ───
             {"مصفوفة", "أضف", "push", "إضافة عنصر للنهاية"},
             {"مصفوفة", "أزل", "remove", "إزالة عنصر بالقيمة"},
             {"مصفوفة", "احذف", "delete", "حذف عنصر بالفهرس"},
@@ -4152,7 +4149,6 @@ namespace Sad
             {"مصفوفة", "متوسط", "average", "متوسط عناصر المصفوفة"},
             {"مصفوفة", "امسح", "clear", "مسح جميع العناصر"},
             {"مصفوفة", "عد", "count", "عد العناصر التي تطابق شرطاً"},
-            {"مصفوفة", "اضف", "اضف", "إضافة عنصر للمصفوفة"},
             {"مصفوفة", "احذف_الأخير", "احذف_الأخير", "حذف وإرجاع آخر عنصر"},
             {"مصفوفة", "اعكس", "اعكس", "عكس ترتيب العناصر"},
             {"مصفوفة", "الأول", "الأول", "أول عنصر"},
@@ -4240,7 +4236,7 @@ namespace Sad
             {"مستقبل", "عين", "set", "تعيين النتيجة من goroutine"},
         }};
 
-        static_assert(ALL_TYPE_METHODS.size() == 115, "ALL_TYPE_METHODS count mismatch");
+        static_assert(ALL_TYPE_METHODS.size() == 114, "ALL_TYPE_METHODS count mismatch");
 
     } // namespace Builtins
 } // namespace Sad

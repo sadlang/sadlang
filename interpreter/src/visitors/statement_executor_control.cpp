@@ -597,9 +597,18 @@ namespace Sad
                         // (EN) Try evaluating expression — if tryReceive returns a value
                         Data::Value result = evaluateExpression(*selectCase->channelExpr);
 
-                        // (AR) إذا كانت النتيجة ليست لاشيء، فالقناة جاهزة
-                        // (EN) If result is not null, channel is ready
-                        if (result.getKind() != Types::SadTypeKind::Void)
+                        // (AR) القناة جاهزة فقط إذا أعاد حاول_استقبل قيمةً فعليّة —
+                        //      لا فراغ (Void) ولا عدم (Null). القناة الفارغة تُرجع
+                        //      makeNull() (عدم)، فبدون استثناء عدم كانت select تلتقط
+                        //      قناةً فارغة خطأً (تباعُد 059). يطابق مقارنة المترجم
+                        //      «try_recv != null-sentinel».
+                        // (EN) A channel is ready only if try_recv returned a real
+                        //      value — neither Void nor Null. An empty channel yields
+                        //      makeNull() (Null); without excluding Null, select wrongly
+                        //      picked an empty channel (059 divergence). Matches the
+                        //      compiler's «try_recv != null-sentinel» check.
+                        if (result.getKind() != Types::SadTypeKind::Void &&
+                            result.getKind() != Types::SadTypeKind::Null)
                         {
                             // (AR) ربط المتغير إذا وُجد
                             if (!selectCase->bindVar.empty())

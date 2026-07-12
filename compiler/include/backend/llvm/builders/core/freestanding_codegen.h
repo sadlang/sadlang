@@ -42,6 +42,18 @@ public:
     void emitFreestandingFtoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingXtoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingPanic(llvm::Type *i64Ty, llvm::Type *voidTy);
+    // (AR) مقسِّمات 64-بت البرمجيّة — libgcc/compiler-rt غائبة على i686 الحرّ،
+    //      فالخلفيّة تُخفِّض «قسمة/باقي i64» إلى استدعاء __udivdi3/__umoddi3/
+    //      __divdi3/__moddi3. نوفّرها بخوارزميّة قسمة مطوّلة ثنائيّة (بلا udiv i64
+    //      حتّى لا تتكرّر ذاتيًّا على i686) + مغلِّفات إشارة.
+    // (EN) Software 64-bit dividers — libgcc/compiler-rt are absent on freestanding
+    //      i686, so the backend lowers «i64 div/rem» to __udivdi3/__umoddi3/
+    //      __divdi3/__moddi3 calls. Provide them via binary long-division (no i64
+    //      udiv, to avoid self-recursion on i686) + sign wrappers.
+    void emitFreestandingUdivdi3(llvm::Type *i64Ty);
+    void emitFreestandingUmoddi3(llvm::Type *i64Ty);
+    void emitFreestandingDivdi3(llvm::Type *i64Ty);
+    void emitFreestandingModdi3(llvm::Type *i64Ty);
 };
 
 }} // namespace Sad::LLVM

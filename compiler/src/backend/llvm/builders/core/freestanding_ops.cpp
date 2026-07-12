@@ -145,6 +145,18 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     // 19. __sad_panic — Diagnostic halt (weak; kernels override with real halt)
     // ========================================================================
     emitFreestandingPanic(i64Ty, voidTy);
+
+    // ========================================================================
+    // 20. __udivdi3 / __umoddi3 / __divdi3 / __moddi3 — Software 64-bit division
+    //     (AR) على i686 الحرّ لا libgcc، فالخلفيّة تُخفِّض «قسمة/باقي i64» إلى هذه
+    //          الرموز. يجب إصدار __udivdi3 أوّلًا (تعتمد عليه البقيّة).
+    //     (EN) On freestanding i686 there is no libgcc, so the backend lowers i64
+    //          div/rem to these symbols. Emit __udivdi3 first (the rest call it).
+    // ========================================================================
+    emitFreestandingUdivdi3(i64Ty);
+    emitFreestandingUmoddi3(i64Ty);
+    emitFreestandingDivdi3(i64Ty);
+    emitFreestandingModdi3(i64Ty);
 }
 
 // (AR) تصريح مسبق — التعريف أدناه / (EN) Forward declaration — defined below
@@ -801,6 +813,153 @@ void FreestandingCodeGen::emitFreestandingCalloc(llvm::Type* i64Ty, llvm::Type* 
     cg_.builder_->restoreIP(savedIP);
 }
 
+
+// ============================================================================
+// 20. __udivdi3(n, d) — Unsigned 64-bit division via binary long division.
+//     (AR) خوارزمية القسمة المطوّلة الثنائيّة: تمرّ على 64 بتًّا من الأعلى للأدنى،
+//          تُدخِل كلّ بتّ في الباقي وتطرح المقسوم-عليه عند التجاوز. تستعمل فقط
+//          إزاحات/جمع/طرح/مقارنات i64 (تُخفَّض ضمنيًّا على i686 — لا udiv i64 —
+//          فلا تتكرّر ذاتيًّا). قسمة على صفر: سلوك غير معرّف (كالعتاد) لكنّها تنتهي.
+//     (EN) Binary long division: iterate 64 bits MSB→LSB, shift each bit into the
+//          remainder and subtract the divisor on overflow. Uses only i64 shifts/
+//          add/sub/compares (lowered inline on i686 — no i64 udiv — hence no
+//          self-recursion). Division by zero is UB (like hardware) but terminates.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingUdivdi3(llvm::Type* i64Ty) {
+    llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {i64Ty, i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "__udivdi3", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* loop  = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
+    llvm::BasicBlock* exit  = llvm::BasicBlock::Create(*cg_.context_, "exit", fn);
+
+    llvm::Value* n = fn->getArg(0);
+    llvm::Value* d = fn->getArg(1);
+    llvm::Constant* zero = llvm::ConstantInt::get(i64Ty, 0);
+    llvm::Constant* one  = llvm::ConstantInt::get(i64Ty, 1);
+    llvm::Constant* i63  = llvm::ConstantInt::get(i64Ty, 63);
+
+    cg_.builder_->SetInsertPoint(entry);
+    cg_.builder_->CreateBr(loop);
+
+    // (AR) الحلقة: i من 63 إلى 0، q الحاصل، r الباقي الجاري
+    cg_.builder_->SetInsertPoint(loop);
+    llvm::PHINode* i = cg_.builder_->CreatePHI(i64Ty, 2, "i");
+    llvm::PHINode* q = cg_.builder_->CreatePHI(i64Ty, 2, "q");
+    llvm::PHINode* r = cg_.builder_->CreatePHI(i64Ty, 2, "r");
+    i->addIncoming(i63, entry);
+    q->addIncoming(zero, entry);
+    r->addIncoming(zero, entry);
+
+    llvm::Value* sh     = cg_.builder_->CreateLShr(n, i, "sh");        // n >> i
+    llvm::Value* bit    = cg_.builder_->CreateAnd(sh, one, "bit");     // & 1
+    llvm::Value* rshl   = cg_.builder_->CreateShl(r, one, "rshl");     // r << 1
+    llvm::Value* r1     = cg_.builder_->CreateOr(rshl, bit, "r1");     // | bit
+    llvm::Value* ge     = cg_.builder_->CreateICmpUGE(r1, d, "ge");    // r1 >= d
+    llvm::Value* rsub   = cg_.builder_->CreateSub(r1, d, "rsub");      // r1 - d
+    llvm::Value* onebit = cg_.builder_->CreateShl(one, i, "onebit");   // 1 << i
+    llvm::Value* qset   = cg_.builder_->CreateOr(q, onebit, "qset");   // q | (1<<i)
+    llvm::Value* r2     = cg_.builder_->CreateSelect(ge, rsub, r1, "r2");
+    llvm::Value* q2     = cg_.builder_->CreateSelect(ge, qset, q, "q2");
+    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(i, zero, "isZero");
+    llvm::Value* inext  = cg_.builder_->CreateSub(i, one, "inext");
+    i->addIncoming(inext, loop);
+    q->addIncoming(q2, loop);
+    r->addIncoming(r2, loop);
+    cg_.builder_->CreateCondBr(isZero, exit, loop);
+
+    // (AR) exit مسبوقة حصريًّا بـ loop، فـ q2 يهيمن عليها (SSA سليم)
+    cg_.builder_->SetInsertPoint(exit);
+    cg_.builder_->CreateRet(q2);
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
+// 21. __umoddi3(n, d) — Unsigned 64-bit remainder = n - (n / d) * d.
+//     (AR) ضرب i64 يُخفَّض ضمنيًّا على i686 (لا __muldi3)، فلا حاجة لحلقة ثانية.
+//     (EN) i64 mul lowers inline on i686 (no __muldi3), so no second loop needed.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingUmoddi3(llvm::Type* i64Ty) {
+    llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {i64Ty, i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "__umoddi3", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    cg_.builder_->SetInsertPoint(entry);
+
+    llvm::Value* n = fn->getArg(0);
+    llvm::Value* d = fn->getArg(1);
+    llvm::Function* udiv = cg_.module_->getFunction("__udivdi3");
+    if (!udiv) { cg_.builder_->restoreIP(savedIP); return; }
+    llvm::Value* q   = cg_.builder_->CreateCall(udiv, {n, d}, "q");
+    llvm::Value* qd  = cg_.builder_->CreateMul(q, d, "qd");
+    llvm::Value* rem = cg_.builder_->CreateSub(n, qd, "rem");
+    cg_.builder_->CreateRet(rem);
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
+// 22. __divdi3(a, b) — Signed 64-bit division via unsigned core + sign fold.
+//     (AR) sa/sb أقنعة الإشارة (ashr 63)؛ القيم المطلقة (a^sa)-sa؛ إشارة الحاصل
+//          sa^sb. لا يستعمل sdiv/udiv i64 مباشرةً (يستدعي __udivdi3 البرمجيّ).
+//     (EN) sa/sb are sign masks (ashr 63); abs = (a^sa)-sa; quotient sign sa^sb.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingDivdi3(llvm::Type* i64Ty) {
+    llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {i64Ty, i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "__divdi3", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    cg_.builder_->SetInsertPoint(entry);
+
+    llvm::Value* a = fn->getArg(0);
+    llvm::Value* b = fn->getArg(1);
+    llvm::Constant* c63 = llvm::ConstantInt::get(i64Ty, 63);
+    llvm::Value* sa = cg_.builder_->CreateAShr(a, c63, "sa");
+    llvm::Value* sb = cg_.builder_->CreateAShr(b, c63, "sb");
+    llvm::Value* ua = cg_.builder_->CreateSub(cg_.builder_->CreateXor(a, sa), sa, "ua");
+    llvm::Value* ub = cg_.builder_->CreateSub(cg_.builder_->CreateXor(b, sb), sb, "ub");
+    llvm::Function* udiv = cg_.module_->getFunction("__udivdi3");
+    if (!udiv) { cg_.builder_->restoreIP(savedIP); return; }
+    llvm::Value* uq = cg_.builder_->CreateCall(udiv, {ua, ub}, "uq");
+    llvm::Value* s  = cg_.builder_->CreateXor(sa, sb, "s");
+    llvm::Value* res = cg_.builder_->CreateSub(cg_.builder_->CreateXor(uq, s), s, "res");
+    cg_.builder_->CreateRet(res);
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
+// 23. __moddi3(a, b) — Signed 64-bit remainder; sign follows the dividend.
+//     (AR) الباقي الموقَّع يأخذ إشارة المقسوم (sa): (|a| % |b|) ثمّ (^sa)-sa.
+//     (EN) Signed remainder takes the dividend sign (sa): (|a| % |b|) then (^sa)-sa.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingModdi3(llvm::Type* i64Ty) {
+    llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {i64Ty, i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "__moddi3", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    cg_.builder_->SetInsertPoint(entry);
+
+    llvm::Value* a = fn->getArg(0);
+    llvm::Value* b = fn->getArg(1);
+    llvm::Constant* c63 = llvm::ConstantInt::get(i64Ty, 63);
+    llvm::Value* sa = cg_.builder_->CreateAShr(a, c63, "sa");
+    llvm::Value* sb = cg_.builder_->CreateAShr(b, c63, "sb");
+    llvm::Value* ua = cg_.builder_->CreateSub(cg_.builder_->CreateXor(a, sa), sa, "ua");
+    llvm::Value* ub = cg_.builder_->CreateSub(cg_.builder_->CreateXor(b, sb), sb, "ub");
+    llvm::Function* umod = cg_.module_->getFunction("__umoddi3");
+    if (!umod) { cg_.builder_->restoreIP(savedIP); return; }
+    llvm::Value* ur = cg_.builder_->CreateCall(umod, {ua, ub}, "ur");
+    llvm::Value* res = cg_.builder_->CreateSub(cg_.builder_->CreateXor(ur, sa), sa, "res");
+    cg_.builder_->CreateRet(res);
+    cg_.builder_->restoreIP(savedIP);
+}
 
 } // namespace LLVM
 } // namespace Sad

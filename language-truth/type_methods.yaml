@@ -758,15 +758,6 @@ methods:
   in_lookup_array: false
   require_import: false
 - target: مصفوفة
-  method: اضف
-  method_en: اضف
-  description_ar: إضافة عنصر للمصفوفة
-  since: 1.0.0
-  status: stable
-  target_type: ARRAY
-  in_lookup_array: true
-  require_import: false
-- target: مصفوفة
   method: احذف_الأخير
   method_en: احذف_الأخير
   description_ar: حذف وإرجاع آخر عنصر
