@@ -220,7 +220,16 @@ levels:
       - "sections/09_المكتبة_القياسية/01_مدمج"
       - "sections/09_المكتبة_القياسية/02_رياضيات"
       - "sections/09_المكتبة_القياسية/03_نصوص"
-    description: "اختبارات أساسية — اللغة والأنواع + مدمجات/نصوص/رياضيات المكتبة — كل PR"
+      # (AR) تكامل — برامج كاملة وOOP مركّب + قفلا إغلاقات SadUI (130/131). رُقّي إلى P1
+      #      بعد إصلاح دَينَيه: حقن بيئة الالتقاط في callUserFunction بالمفسّر (كان بانِي
+      #      الصفحة المؤجَّل يُسقطها ⇒ SEM001) وتصويب لحن «اضف/اول» المبتور الهمزة في
+      #      061/115 إلى القانونيّ في SoT «أضف/أول» — القسم كلّه أخضر تكافؤًا.
+      # (EN) Integration — full programs + SadUI closure regression locks (130/131).
+      #      Promoted to P1 after fixing its two debts: capture-env injection in the
+      #      interpreter's callUserFunction (deferred page builders dropped it ⇒ SEM001)
+      #      and the hamza-less اضف/اول lint in 061/115 (canonical SoT: أضف/أول).
+      - "sections/12_تكامل"
+    description: "اختبارات أساسية — اللغة والأنواع + مدمجات/نصوص/رياضيات المكتبة + تكامل — كل PR"
 
   # ══════════════════════════════════════════════════════
   # P2: P1 + OOP + مطابقة الأنماط + معالجة الأخطاء — Nightly
@@ -238,7 +247,10 @@ levels:
       - "sections/03_البرمجة_الكائنية"
       - "sections/04_مطابقة_الأنماط"
       - "sections/05_معالجة_الأخطاء"
-    description: "اختبارات كاملة — OOP + patterns + errors + مدمجات/نصوص — Nightly"
+      # (AR) تكامل — يحفظ ثابت التداخل P1 ⊂ P2 بعد ترقيته إلى P1.
+      # (EN) Integration — keeps the P1 ⊂ P2 invariant after its promotion to P1.
+      - "sections/12_تكامل"
+    description: "اختبارات كاملة — OOP + patterns + errors + مدمجات/نصوص + تكامل — Nightly"
 
   # ══════════════════════════════════════════════════════
   # P3: P2 + ميزات متقدمة + مكتبة قياسية — قبل الإصدار
@@ -256,6 +268,9 @@ levels:
       - "sections/08_ميزات_متقدمة"
       - "sections/09_المكتبة_القياسية"
       - "sections/10_الاستيراد"
+      # (AR) تكامل — يحفظ ثابت التداخل P1 ⊂ P2 ⊂ P3 بعد ترقيته إلى P1.
+      # (EN) Integration — keeps the P1 ⊂ P2 ⊂ P3 invariant after its promotion to P1.
+      - "sections/12_تكامل"
     description: "اختبارات شاملة — كل الميزات — قبل الإصدار"
 
   # ══════════════════════════════════════════════════════

@@ -8,6 +8,7 @@
  */
 
 #include <string>
+#include <unordered_map>
 #include "interpreter_core.h"
 #include "declarations.h"
 #include "statements.h"
@@ -728,6 +729,22 @@ namespace Sad
             // ─── (EN) Create new scope for function ───
             variableManager_->enterScope(Data::ScopeType::FUNCTION, funcName);
 
+            // ─── (AR) حقن المتغيرات الملتقطة (للإغلاقات/لامدا) — تكافؤ مع مسار
+            //     المُقيِّم executeUserFunctionBody: بدونها يفقد ثانك الواجهات
+            //     (بانِي الصفحة/عين_الحالة/ردود النداء) بيئةَ اللامدا الملتقطة
+            //     فينفجر SEM001 «متغيّر غير معرَّف» وقت إعادة البناء. تُحقَن قبل
+            //     المعاملات كي تَحجُبها المعاملاتُ المتجانسةُ الاسم (نظير المُقيِّم). ───
+            // ─── (EN) Inject captured variables (closures/lambdas) — parity with
+            //     the evaluator path executeUserFunctionBody; injected before the
+            //     parameters so same-named parameters shadow them. ───
+            if (func->hasCaptures())
+            {
+                for (const auto &[capName, capVal] : func->getCaptures())
+                {
+                    variableManager_->define(capName, capVal);
+                }
+            }
+
             // ─── (AR) تعريف المعاملات كمتغيرات محلية ───
             // ─── (EN) Define parameters as local variables ───
             const auto &params = func->getParameters();
@@ -812,6 +829,22 @@ namespace Sad
                 // (EN) Ensure scope is popped even on error
                 variableManager_->exitScope();
                 throw;
+            }
+
+            // ─── (AR) تحديث المتغيرات الملتقطة بعد التنفيذ (تكافؤ مع مسار المُقيِّم):
+            //     تعديل الإغلاق لمتغيّرٍ ملتقطٍ (عدّاد في ردّ نداء) يبقى للاستدعاء
+            //     التالي — يُقرأ قبل إسقاط النطاق حيث ما زالت القيم مرئيّة. ───
+            // ─── (EN) Write updated captures back after execution (parity with the
+            //     evaluator path) so closure-mutated state persists across calls. ───
+            if (func->hasCaptures())
+            {
+                std::unordered_map<std::string, Data::Value> updatedCaptures;
+                for (const auto &[capName, capVal] : func->getCaptures())
+                {
+                    const Data::Value *currentVal = variableManager_->tryGet(capName);
+                    updatedCaptures[capName] = currentVal ? *currentVal : capVal;
+                }
+                func->setCaptures(updatedCaptures);
             }
 
             // ─── (AR) إزالة نطاق الدالة ───
