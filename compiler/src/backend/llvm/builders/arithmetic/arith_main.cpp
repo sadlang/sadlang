@@ -155,11 +155,15 @@ namespace Sad
             {
                 // (AR) تحويل i64 إلى double إذا لزم الأمر
                 // (EN) Coerce i64 operands to double for float operations
-                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
-                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
-                if (left->getType()->isIntegerTy())
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب أيّ معامل غير-double (صحيح/صندوق Any/%SadDyn
+                //      بنيويّ = حمولة ADT مربوطة) قبل العمليّة العشريّة. الحارس القديم isIntegerTy
+                //      تخطّى %SadDyn ⇒ FAdd على بنية خام ⇒ فشل verifyModule.
+                // (EN) ISSUE-076/084 (ب″): unbox any non-double operand (integer/Any box/structural
+                //      %SadDyn = a pattern-bound ADT payload) before the float op. The old isIntegerTy
+                //      guard skipped %SadDyn ⇒ FAdd on a raw struct ⇒ verifyModule failure.
+                if (!left->getType()->isDoubleTy())
                     left = coerceFloatOperandToDouble(inst->operands[0], left);
-                if (right->getType()->isIntegerTy())
+                if (!right->getType()->isDoubleTy())
                     right = coerceFloatOperandToDouble(inst->operands[1], right);
                 // Source: cg_.builder_ is defined at llvm_codegen.h:637
                 result = cg_.builder_->CreateFAdd(left, right, "addtmp");
@@ -265,11 +269,15 @@ namespace Sad
             llvm::Value *result = nullptr;
             if (inst->opcode == SIROpcode::SUB_F64)
             {
-                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
-                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
-                if (left->getType()->isIntegerTy())
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب أيّ معامل غير-double (صحيح/صندوق Any/%SadDyn
+                //      بنيويّ = حمولة ADT مربوطة) قبل العمليّة العشريّة. الحارس القديم isIntegerTy
+                //      تخطّى %SadDyn ⇒ FSub على بنية خام ⇒ فشل verifyModule.
+                // (EN) ISSUE-076/084 (ب″): unbox any non-double operand (integer/Any box/structural
+                //      %SadDyn = a pattern-bound ADT payload) before the float op. The old isIntegerTy
+                //      guard skipped %SadDyn ⇒ FSub on a raw struct ⇒ verifyModule failure.
+                if (!left->getType()->isDoubleTy())
                     left = coerceFloatOperandToDouble(inst->operands[0], left);
-                if (right->getType()->isIntegerTy())
+                if (!right->getType()->isDoubleTy())
                     right = coerceFloatOperandToDouble(inst->operands[1], right);
                 result = cg_.builder_->CreateFSub(left, right, "subtmp");
             }
@@ -370,11 +378,18 @@ namespace Sad
             llvm::Value *result = nullptr;
             if (inst->opcode == SIROpcode::MUL_F64)
             {
-                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
-                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
-                if (left->getType()->isIntegerTy())
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب أيّ معامل غير-double قبل العمليّة العشريّة —
+                //      صحيحٌ (sitofp) أو صندوق Any مُرمَّز i64 أو قيمة %SadDyn بنيويّة (حمولة ADT
+                //      مربوطة بمطابقة نمط). الحارس القديم isIntegerTy تخطّى %SadDyn (بنية لا i64)
+                //      فيصل خام إلى FMul ⇒ «operands not of the same type» في verifyModule.
+                // (EN) ISSUE-076/084 (ب″): unbox any non-double operand before the float op —
+                //      an integer (sitofp), an i64-tagged Any box, or a structural %SadDyn value
+                //      (a pattern-bound ADT payload). The old isIntegerTy guard skipped %SadDyn
+                //      (a struct, not i64), so it reached FMul raw ⇒ verifyModule "operands not
+                //      of the same type". coerceFloatOperandToDouble unboxes %SadDyn via unpackDouble.
+                if (!left->getType()->isDoubleTy())
                     left = coerceFloatOperandToDouble(inst->operands[0], left);
-                if (right->getType()->isIntegerTy())
+                if (!right->getType()->isDoubleTy())
                     right = coerceFloatOperandToDouble(inst->operands[1], right);
                 result = cg_.builder_->CreateFMul(left, right, "multmp");
             }
@@ -475,11 +490,15 @@ namespace Sad
             llvm::Value *result = nullptr;
             if (inst->opcode == SIROpcode::DIV_F64)
             {
-                // (AR) ISSUE-076/084 (ب″): فكّ تعليب معامل Any (صندوق عشريّ) قبل العمليّة العشريّة
-                // (EN) ISSUE-076/084 (ب″): unbox an Any operand (boxed float) before the float op
-                if (left->getType()->isIntegerTy())
+                // (AR) ISSUE-076/084 (ب″): فكّ تعليب أيّ معامل غير-double (صحيح/صندوق Any/%SadDyn
+                //      بنيويّ = حمولة ADT مربوطة) قبل العمليّة العشريّة. الحارس القديم isIntegerTy
+                //      تخطّى %SadDyn ⇒ FDiv على بنية خام ⇒ فشل verifyModule.
+                // (EN) ISSUE-076/084 (ب″): unbox any non-double operand (integer/Any box/structural
+                //      %SadDyn = a pattern-bound ADT payload) before the float op. The old isIntegerTy
+                //      guard skipped %SadDyn ⇒ FDiv on a raw struct ⇒ verifyModule failure.
+                if (!left->getType()->isDoubleTy())
                     left = coerceFloatOperandToDouble(inst->operands[0], left);
-                if (right->getType()->isIntegerTy())
+                if (!right->getType()->isDoubleTy())
                     right = coerceFloatOperandToDouble(inst->operands[1], right);
                 result = cg_.builder_->CreateFDiv(left, right, "divtmp");
             }

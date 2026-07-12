@@ -30,27 +30,25 @@ namespace Sad
 #endif
                     if (goStmt->expression)
                     {
-                        // (AR) أطلق تعبير — نبني التعبير كاستدعاء دالة
-                        // (EN) go expression — build expression as function call
-                        auto exprResult = b_.buildExpression(goStmt->expression.get());
-
-                        // (AR) إصلاح: بعض تعابير الاستدعاء ذات نوع void لا تُنتج register صالح.
-                        //      في هذه الحالة التعبير نفسه يكون قد أضاف تعليماته بالفعل،
-                        //      لذلك لا نولّد ASYNC_SPAWN بسجل غير معرّف.
-                        // (EN) Fix: some void call expressions do not produce a valid register.
-                        //      In that case, expression lowering already emitted instructions,
-                        //      so avoid emitting ASYNC_SPAWN with an undefined register.
-                        if (!exprResult.registerName.empty())
-                        {
-                            std::string resultReg = b_.newTempRegister();
-                            SIRInstruction spawnInst(SIROpcode::ASYNC_SPAWN);
-                            spawnInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
-                            spawnInst.operands.push_back(
-                                SIROperand::Register(exprResult.registerName, exprResult.type));
-                            spawnInst.comment = "go expression → ASYNC_SPAWN";
-                            if (b_.currentBlock_)
-                                b_.currentBlock_->instructions.push_back(spawnInst);
-                        }
+                        // (AR) أطلق تعبير — نبني التعبير (استدعاء دالة/لامدا). التنفيذ الخلفي
+                        //      الحالي لعمل «أطلق» متزامن (كما في مسار go-block أدناه)، وبناء
+                        //      التعبير هنا يُصدر الاستدعاء فينفّذه فعليًّا.
+                        //      إصلاح جذري (0xC0000005): لا نُصدر ASYNC_SPAWN على *سجل نتيجة*
+                        //      الاستدعاء — فنتيجة نداء void تُحلّ إلى مؤشّر null، فيولّد الخلفيّ
+                        //      sad_rt_thread_spawn(null, null) الذي يُطلق خيط OS حقيقيًّا بدالة
+                        //      بداية null/قمامة ⇒ انهيار وصول غير حتميّ. العمل نُفّذ متزامنًا
+                        //      بالفعل، مطابقةً لمسار go-block أدناه.
+                        // (EN) go expression — build the expression (function/lambda call).
+                        //      The current backend runs go-work synchronously (like the
+                        //      go-block path below); building the expression already emits and
+                        //      performs the call.
+                        //      Root fix (0xC0000005): do NOT emit ASYNC_SPAWN on the call's
+                        //      *result* register — a void call's result resolves to a null
+                        //      pointer, so the backend emits sad_rt_thread_spawn(null, null),
+                        //      spawning a real OS thread whose start routine is null/garbage →
+                        //      non-deterministic access violation. The work is already done
+                        //      synchronously, mirroring the go-block path below.
+                        b_.buildExpression(goStmt->expression.get());
                     }
                     else if (goStmt->blockBody)
                     {
