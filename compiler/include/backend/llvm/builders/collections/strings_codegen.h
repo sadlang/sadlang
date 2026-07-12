@@ -31,6 +31,14 @@ public:
     //      with string elements (%s); mallocs its own buffer (variable length) and returns it —
     //      the caller frees it.
     void ensureArrayToStringStrHelper();
+    // (AR) نظير عشريّ: يبني «[س0, س1, ...]» حيث كلّ خانة تحمل بتّات double
+    //      (bitcast(double→i64) عند التخزين). يفكّها bitcast⇒__sad_format_double
+    //      (أو __sad_ftoa حرًّا) ⇒ يطابق تمثيل المفسّر. يخصّص مخزنه ويُعيده —
+    //      المستدعي يحرّره. / (EN) Float variant: builds "[x0, x1, ...]" where each
+    //      slot holds double bits (bitcast(double→i64) at store); decoded via
+    //      bitcast⇒__sad_format_double (or __sad_ftoa freestanding). Mallocs its own
+    //      buffer and returns it — the caller frees it.
+    void ensureArrayToStringFloatHelper();
     // (AR) يبني «{"م0": ق0، "م1": ق1، …}» من خريطة (مفاتيح مقتبسة، قيم حسب النوع:
     //      نصّ %s، رقم %lld، منطقيّ صحيح/خطأ). يخصّص مخزنه ويُعيده — المستدعي يحرّره.
     // (EN) Builds "{"k0": v0, …}" from a map (quoted keys; values by type tag: string

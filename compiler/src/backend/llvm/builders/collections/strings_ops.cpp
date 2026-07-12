@@ -428,6 +428,128 @@ namespace Sad
         }
 
         // ================================================================
+        // (AR) نظير عشريّ: i8* __sad_array_to_string_float(i64 len, i8* data)
+        //      كلّ خانة i64 تحمل بتّات double (bitcast(double→i64) عند التخزين، ISSUE-082).
+        //      يبني «[س0, س1, ...]»: لكلّ عنصر bitcast(i64→double) ثمّ __sad_format_double
+        //      (أو __sad_ftoa حرًّا) ⇒ يطابق تمثيل المفسّر، ثمّ strlen لتقدّم الموضع.
+        //      يخصّص مخزنه (طول×ميزانيّة + قوسان) ويُعيده — المستدعي يحرّره.
+        // (EN) Float variant of array-to-string. Each i64 slot holds double bits
+        //      (bitcast at store, ISSUE-082). Builds "[x0, x1, ...]": per element
+        //      bitcast(i64→double) then __sad_format_double (or __sad_ftoa freestanding),
+        //      then strlen to advance. Mallocs its own buffer and returns it — caller frees.
+        // ================================================================
+        void StringsCodeGen::ensureArrayToStringFloatHelper()
+        {
+            llvm::Function *existing = cg_.module_->getFunction("__sad_array_to_string_float");
+            if (existing && !existing->empty())
+                return;
+
+            auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            auto dblTy = llvm::Type::getDoubleTy(*cg_.context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            // (AR) ميزانيّة كلّ عنصر: %.6f لـDBL_MAX ~317 حرفًا + «, » ⇒ 340 آمنة.
+            // (EN) per-element budget: DBL_MAX %.6f ~317 chars + ", " ⇒ 340 is safe.
+            constexpr int64_t kFloatElemBudget = 340;
+            constexpr int64_t kBracketsAndNull = 4; // '[' ']' '\0' + هامش
+
+            llvm::FunctionType *fnTy = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
+            llvm::Function *fn = llvm::Function::Create(
+                fnTy, llvm::Function::InternalLinkage, "__sad_array_to_string_float", cg_.module_.get());
+            llvm::Argument *lenArg = fn->getArg(0);
+            llvm::Argument *dataArg = fn->getArg(1);
+            lenArg->setName("len");
+            dataArg->setName("data");
+
+            llvm::BasicBlock *savedBB = cg_.builder_->GetInsertBlock();
+            llvm::BasicBlock::iterator savedPoint = cg_.builder_->GetInsertPoint();
+
+            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction(
+                "malloc", llvm::FunctionType::get(ptrTy, {i64Ty}, false));
+            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction(
+                "strlen", llvm::FunctionType::get(i64Ty, {ptrTy}, false));
+            llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction(
+                "sprintf", llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true));
+            // (AR) منسّق العشريّ: حرًّا __sad_ftoa؛ وإلّا __sad_format_double (نفس منسّق القياسيّ)
+            // (EN) float formatter: __sad_ftoa freestanding, else __sad_format_double (scalar's own)
+            llvm::FunctionCallee fmtFn = cg_.freestanding_
+                ? cg_.module_->getOrInsertFunction(
+                      "__sad_ftoa", llvm::FunctionType::get(i32Ty, {ptrTy, dblTy}, false))
+                : cg_.module_->getOrInsertFunction(
+                      "__sad_format_double",
+                      llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy, dblTy}, false));
+
+            llvm::BasicBlock *entryBB = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            llvm::BasicBlock *chkBB = llvm::BasicBlock::Create(*cg_.context_, "loop.check", fn);
+            llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(*cg_.context_, "loop.body", fn);
+            llvm::BasicBlock *commaBB = llvm::BasicBlock::Create(*cg_.context_, "comma.write", fn);
+            llvm::BasicBlock *elemBB = llvm::BasicBlock::Create(*cg_.context_, "elem.write", fn);
+            llvm::BasicBlock *endBB = llvm::BasicBlock::Create(*cg_.context_, "loop.end", fn);
+
+            // (AR) entry: buf = malloc(len*budget + 4)؛ buf[0]='[' / (EN) alloc + open bracket
+            cg_.builder_->SetInsertPoint(entryBB);
+            llvm::Value *bufSz = cg_.builder_->CreateAdd(
+                cg_.builder_->CreateMul(lenArg, llvm::ConstantInt::get(i64Ty, kFloatElemBudget)),
+                llvm::ConstantInt::get(i64Ty, kBracketsAndNull), "f2s.bufsz");
+            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufSz}, "f2s.buf");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), buf);
+            cg_.builder_->CreateBr(chkBB);
+
+            // (AR) loop.check: i<len ? / (EN)
+            cg_.builder_->SetInsertPoint(chkBB);
+            llvm::PHINode *iPhi = cg_.builder_->CreatePHI(i64Ty, 2, "i");
+            llvm::PHINode *posPhi = cg_.builder_->CreatePHI(i64Ty, 2, "pos");
+            iPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entryBB);
+            posPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 1), entryBB);
+            llvm::Value *cmp = cg_.builder_->CreateICmpSLT(iPhi, lenArg, "i.lt.len");
+            cg_.builder_->CreateCondBr(cmp, bodyBB, endBB);
+
+            // (AR) loop.body: فاصلة قبل غير الأوّل / (EN) comma before non-first
+            cg_.builder_->SetInsertPoint(bodyBB);
+            llvm::Value *needComma = cg_.builder_->CreateICmpSGT(iPhi, llvm::ConstantInt::get(i64Ty, 0), "need.comma");
+            cg_.builder_->CreateCondBr(needComma, commaBB, elemBB);
+
+            cg_.builder_->SetInsertPoint(commaBB);
+            llvm::Value *commaFmt = cg_.builder_->CreateGlobalStringPtr(", ", "f2s.comma");
+            llvm::Value *commaDst = cg_.builder_->CreateGEP(i8Ty, buf, posPhi, "f2s.comma.dst");
+            llvm::Value *commaN = cg_.builder_->CreateCall(sprintfFn, {commaDst, commaFmt}, "f2s.comma.n");
+            llvm::Value *posAfterComma = cg_.builder_->CreateAdd(
+                posPhi, cg_.builder_->CreateSExt(commaN, i64Ty), "pos.after.comma");
+            cg_.builder_->CreateBr(elemBB);
+
+            // (AR) elem.write: bitcast(slot)→double ⇒ منسّق ⇒ strlen لتقدّم / (EN)
+            cg_.builder_->SetInsertPoint(elemBB);
+            llvm::PHINode *elemPos = cg_.builder_->CreatePHI(i64Ty, 2, "elem.pos");
+            elemPos->addIncoming(posPhi, bodyBB);
+            elemPos->addIncoming(posAfterComma, commaBB);
+            llvm::Value *elemGep = cg_.builder_->CreateGEP(i64Ty, dataArg, iPhi, "f2s.elem.gep");
+            llvm::Value *elemI64 = cg_.builder_->CreateLoad(i64Ty, elemGep, "f2s.elem.i64");
+            llvm::Value *elemD = cg_.builder_->CreateBitCast(elemI64, dblTy, "f2s.elem.d");
+            llvm::Value *elemDst = cg_.builder_->CreateGEP(i8Ty, buf, elemPos, "f2s.elem.dst");
+            cg_.builder_->CreateCall(fmtFn, {elemDst, elemD});
+            llvm::Value *wrote = cg_.builder_->CreateCall(strlenFn, {elemDst}, "f2s.elem.len");
+            llvm::Value *newPos = cg_.builder_->CreateAdd(elemPos, wrote, "f2s.new.pos");
+            llvm::Value *nextI = cg_.builder_->CreateAdd(iPhi, llvm::ConstantInt::get(i64Ty, 1), "next.i");
+            iPhi->addIncoming(nextI, elemBB);
+            posPhi->addIncoming(newPos, elemBB);
+            cg_.builder_->CreateBr(chkBB);
+
+            // (AR) loop.end: ']' ثمّ '\0' / (EN) close bracket + null
+            cg_.builder_->SetInsertPoint(endBB);
+            llvm::Value *closePtr = cg_.builder_->CreateGEP(i8Ty, buf, posPhi, "f2s.close");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, ']'), closePtr);
+            llvm::Value *nullPos = cg_.builder_->CreateAdd(posPhi, llvm::ConstantInt::get(i64Ty, 1), "f2s.nullpos");
+            llvm::Value *nullP = cg_.builder_->CreateGEP(i8Ty, buf, nullPos, "f2s.nullptr");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), nullP);
+            cg_.builder_->CreateRet(buf);
+
+            if (savedBB)
+                cg_.builder_->SetInsertPoint(savedBB, savedPoint);
+        }
+
+        // ================================================================
         // (AR) i8* __sad_map_to_string(i8* map)
         //      يبني «{"م0": ق0، "م1": ق1، …}» من خريطة {count,capacity,keys*,values*,types*}.
         //      المفاتيح مقتبسة (نصوص دائمًا)؛ القيم حسب وسم النوع (0=نص %s، 1=رقم %lld،

@@ -222,6 +222,27 @@ namespace Sad
                         return argResults[0];
                     }
 
+                    // (AR) نص(مصفوفة): يُلوَّن ARRAY_TO_STRING الذي يوزّع في الخلفيّة على
+                    //      مساعِد التحويل نصًّا حسب نوع العنصر (نصّ⇒%s، عشريّ⇒bitcast+
+                    //      __sad_format_double، غيرها⇒%lld). دون هذا كان يُلوَّن I64_TO_STRING
+                    //      على مؤشّر المصفوفة ⇒ طباعة عنوان خام (عائلة ISSUE-080).
+                    // (EN) نص(array): lower to ARRAY_TO_STRING; the backend dispatches by
+                    //      element type (string⇒%s, float⇒bitcast+__sad_format_double, else
+                    //      ⇒%lld). Without this it lowered to I64_TO_STRING on the array
+                    //      pointer ⇒ a raw address (ISSUE-080 family).
+                    if (argResults[0].type == SadTypeKind::Array)
+                    {
+                        std::string arrStrReg = b_.newTempRegister();
+                        SIRInstruction atsInst(SIROpcode::ARRAY_TO_STRING);
+                        atsInst.result = SIROperand::Register(arrStrReg, SadTypeKind::String);
+                        SIROperand arrOp = argOperands[0];
+                        arrOp.elementType = argResults[0].elementType;
+                        atsInst.operands.push_back(arrOp);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(atsInst);
+                        return BuildResult(arrStrReg, SadTypeKind::String);
+                    }
+
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
 

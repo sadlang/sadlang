@@ -736,15 +736,50 @@ namespace Sad
             auto i64Ty = cg_.getInt64Type();
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-            // Ensure helper function exists
-            cg_.ensureArrayToStringHelper();
-
             // Load array length and data from SadArray struct
             llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
             llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "ats.len.gep");
             llvm::Value *arrLen = cg_.builder_->CreateLoad(i64Ty, lenGep, "ats.len");
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "ats.data.gep");
             llvm::Value *dataPtr = cg_.builder_->CreateLoad(ptrTy, dataGep, "ats.data");
+
+            // ================================================================
+            // (AR) توزيعٌ حسب نوع العنصر المعروف ساكنًا (ISSUE-080): العناصر النصّيّة
+            //      تحمل مؤشّرات (%s)، والعشريّة بتّات double (bitcast⇒__sad_format_double)،
+            //      وغيرها تُنسَّق %lld. النصّيّ والعشريّ يخصّصان مخزنهما (طول متغيّر) ويُعيدانه.
+            //      المصفوفة المختلطة النوع تبقى elementType=Void ⇒ المسار العدديّ (%lld) —
+            //      تعليب عناصرها الديناميّة بـ%SadDyn مؤجَّل (الخيار أ، ISSUE-082/084).
+            // (EN) Dispatch by the statically-known element type (ISSUE-080): string
+            //      elements hold pointers (%s), float elements hold double bits
+            //      (bitcast⇒__sad_format_double), else format as %lld. String/float
+            //      variants malloc their own (variable-length) buffer and return it.
+            //      Heterogeneous arrays stay elementType=Void ⇒ the integer (%lld) path;
+            //      boxing their dynamic elements as %SadDyn is deferred (option A).
+            // ================================================================
+            const Compiler::SIR::SadTypeKind elemTy = inst->operands[0].elementType;
+            if (elemTy == Compiler::SIR::SadTypeKind::String)
+            {
+                cg_.ensureArrayToStringStrHelper();
+                llvm::FunctionType *strHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
+                llvm::FunctionCallee strHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_str", strHelperType);
+                llvm::Value *sResult = cg_.builder_->CreateCall(strHelperFn, {arrLen, dataPtr}, "ats.sresult");
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = sResult;
+                return sResult;
+            }
+            if (elemTy == Compiler::SIR::SadTypeKind::Float)
+            {
+                cg_.ensureArrayToStringFloatHelper();
+                llvm::FunctionType *fHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
+                llvm::FunctionCallee fHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_float", fHelperType);
+                llvm::Value *fResult = cg_.builder_->CreateCall(fHelperFn, {arrLen, dataPtr}, "ats.fresult");
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = fResult;
+                return fResult;
+            }
+
+            // Ensure helper function exists
+            cg_.ensureArrayToStringHelper();
 
             // Allocate buffer: len * 34 + 4 bytes
             llvm::Value *bufLen = cg_.builder_->CreateAdd(

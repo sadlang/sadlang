@@ -231,6 +231,21 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
                         cg_.builder_->CreateCall(freeFn, {strResult}); // (AR) المساعِد النصّيّ يخصّص، فنحرّر ناتجه
                     }
+                    // (AR) عناصر عشريّة ⇒ نظير __sad_array_to_string_float (bitcast خانة⇒double
+                    //      ثمّ __sad_format_double) ⇒ «[1.5, 2.5]» بدل بتّات double خام بـ%lld
+                    //      (ISSUE-080). يخصّص مخزنه فنحرّره. المتجانسة فقط (elementType=Float).
+                    // (EN) Float elements ⇒ the __sad_array_to_string_float variant (bitcast slot
+                    //      ⇒double then __sad_format_double) ⇒ "[1.5, 2.5]" instead of raw double
+                    //      bits via %lld (ISSUE-080). Mallocs, so we free it. Homogeneous only.
+                    else if (op.elementType == SadTypeKind::Float)
+                    {
+                        cg_.ensureArrayToStringFloatHelper();
+                        llvm::FunctionType *fHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
+                        llvm::FunctionCallee fHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_float", fHelperType);
+                        llvm::Value *fResult = cg_.builder_->CreateCall(fHelperFn, {arrLen, dataPtr}, "print.arr.fstr");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, fResult});
+                        cg_.builder_->CreateCall(freeFn, {fResult});
+                    }
                     else
                     {
                         // (AR) المسار العدديّ الأصليّ: مخزن مُقدَّر (طول*34+4) + __sad_array_to_string.
