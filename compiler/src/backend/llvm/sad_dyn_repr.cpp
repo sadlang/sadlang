@@ -552,7 +552,15 @@ namespace Sad
                 llvm::Value *rem = b.CreateSRem(lI, safeRI, "dyn.div.rem");
                 llvm::Value *inexact = b.CreateICmpNE(
                     rem, llvm::ConstantInt::get(i64, 0), "dyn.div.inexact");
-                isFloatRes = b.CreateOr(eitherF, inexact, "dyn.div.isf");
+                // (AR) INT64_MIN / -1 يفيض i64 ⇒ المفسّر (المرجع) يرقّيه إلى عشريّ
+                //      (-(double)INT64_MIN = 9223372036854775808.0). fRes = fdiv(lD,rD) يحسبه
+                //      أصلًا؛ نضمّ minOverflow لوسم النتيجة عشريّةً بدل إرجاع INT64_MIN صحيحًا.
+                // (EN) INT64_MIN / -1 overflows i64 ⇒ the interpreter (reference) promotes it
+                //      to a float (-(double)INT64_MIN = 9223372036854775808.0). fRes = fdiv(lD,rD)
+                //      already yields it; OR in minOverflow to tag the result float instead of
+                //      returning the wrapped integer INT64_MIN.
+                isFloatRes = b.CreateOr(b.CreateOr(eitherF, inexact, "dyn.div.isf0"),
+                                        minOverflow, "dyn.div.isf");
                 break;
             }
             case SIROpcode::MOD_I64:
@@ -584,6 +592,12 @@ namespace Sad
                 llvm::Value *needAdj = b.CreateAnd(signsDiffer, inexactI, "dyn.fd.na");
                 iRes = b.CreateSub(iq, b.CreateZExt(needAdj, i64, "dyn.fd.adj"), "dyn.fd.q");
                 iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.fd.z");
+                // (AR) INT64_MIN // -1 يفيض ⇒ المفسّر يرقّيه إلى عشريّ (9223372036854775808.0)
+                //      كالقسمة `/`. fRes = floor(fdiv(lD,rD)) يحسبه؛ نضمّ minOverflow لوسمه عشريًّا.
+                // (EN) INT64_MIN // -1 overflows ⇒ the interpreter promotes to float
+                //      (9223372036854775808.0) like `/`. fRes = floor(fdiv(lD,rD)) yields it;
+                //      OR in minOverflow to tag the result float.
+                isFloatRes = b.CreateOr(eitherF, minOverflow, "dyn.fd.isf");
                 break;
             }
             default:

@@ -408,8 +408,15 @@ namespace Sad
                     constants[resultName] = SIROperand::ConstantI64(lhs.intValue << rhs.intValue);
                     return true;
                 case SIROpcode::SHR:
+                    // (AR) إزاحة يمنى حسابيّة (int64_t موقَّع) — عامل `>>` في المفسّر (المرجع)
+                    //      إزاحةٌ حسابيّة تحفظ الإشارة (-8 >> 1 = -4)، والخلفيّة تُصدر AShr.
+                    //      كان cast لـuint64_t يطوي إزاحةً منطقيّة فيباعد الطيَّ عن زمن التشغيل.
+                    // (EN) Signed (int64_t) arithmetic right shift — the interpreter (reference)
+                    //      `>>` is a sign-preserving arithmetic shift (-8 >> 1 = -4) and the
+                    //      backend emits AShr. The uint64_t cast folded a logical shift, diverging
+                    //      the fold from runtime.
                     constants[resultName] = SIROperand::ConstantI64(
-                        static_cast<int64_t>(static_cast<uint64_t>(lhs.intValue) >> rhs.intValue));
+                        lhs.intValue >> rhs.intValue);
                     return true;
 
                 default:

@@ -591,9 +591,21 @@ namespace Sad
                     //      like the interpreter (7.5//2=3.0, -7.5//2=-4.0) — mirror of the `%`
                     //      fix; pinning Integer truncated (3), contradicting the type-aware
                     //      folding (3.0).
+                    // (AR) دلالة المفسّر (المرجع) للقسمة الأرضيّة `//` على صحيحين: صحيحٌ
+                    //      عادةً، لكنّ INT64_MIN // -1 يفيض i64 فيرقّيه المفسّر إلى عشريّ
+                    //      (9223372036854775808.0) — أي أنّ نوع النتيجة يتقرّر زمنَ التشغيل
+                    //      ⇒ نتيجةٌ ديناميّة (Any) يفكّها الخلف (dynBinOp يَسِمها عند الفيض)،
+                    //      نظيرَ `/` تمامًا. كان تصليبُ Integer يُسقِط التنفيذ (sdiv فيض ⇒ #DE).
+                    //      معاملٌ عشريّ ⇒ عشريّ ساكن floor(fdiv) كالمفسّر (7.5//2=3.0).
+                    // (EN) Interpreter (reference) `//` semantics on two ints: usually int, but
+                    //      INT64_MIN // -1 overflows i64 ⇒ the interpreter promotes to float
+                    //      (9223372036854775808.0) — the result kind is runtime-dependent ⇒ a
+                    //      dynamic (Any) result decoded by the backend (dynBinOp tags it on
+                    //      overflow), exactly mirroring `/`. Pinning Integer crashed (sdiv
+                    //      overflow ⇒ #DE). A float operand ⇒ static Float floor(fdiv) (7.5//2=3.0).
                     opcode = SIROpcode::FLOOR_DIV_I64;
-                    if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
-                        resultType = SadTypeKind::Integer;
+                    if (resultType != SadTypeKind::Float)
+                        resultType = SadTypeKind::Any;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)" << std::endl;
 #endif

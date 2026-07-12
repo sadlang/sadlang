@@ -541,7 +541,13 @@ namespace Sad
                     result = *leftVal << *rightVal;
                     break;
                 case SIROpcode::SHR:
-                    result = static_cast<uint64_t>(*leftVal) >> *rightVal;
+                    // (AR) إزاحة يمنى حسابيّة (int64_t موقَّع) لا منطقيّة — يطابق المفسّر
+                    //      والخلفيّة (AShr): -8 >> 1 = -4. كان cast لـuint64_t يطوي إزاحةً
+                    //      منطقيّة فيعطي عددًا موجبًا ضخمًا للسالب ⇒ تباعُد مع زمن التشغيل.
+                    // (EN) Signed (int64_t) arithmetic right shift, not logical — matches the
+                    //      interpreter and backend (AShr): -8 >> 1 = -4. The uint64_t cast
+                    //      folded a logical shift ⇒ a huge positive for negatives ⇒ divergence.
+                    result = *leftVal >> *rightVal;
                     break;
                 default:
                     return false;

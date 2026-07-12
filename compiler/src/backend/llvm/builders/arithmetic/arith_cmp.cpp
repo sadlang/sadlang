@@ -162,7 +162,14 @@ namespace Sad
             if (right->getType()->isDoubleTy())
                 right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "shr.r.f2i");
 
-            llvm::Value *result = cg_.builder_->CreateLShr(left, right, "shrtmp");
+            // (AR) إزاحة يمنى حسابيّة (AShr) لا منطقيّة (LShr) — المفسّر (المرجع) يستخدم
+            //      `int64_t >> r` أي إزاحةً حسابيّةً تحفظ الإشارة (‏-8 >> 1 = -4). كان LShr
+            //      يُدخِل أصفارًا في البتّ الأعلى فيعطي عددًا موجبًا ضخمًا للسالب ⇒ تباعُد.
+            // (EN) Arithmetic (AShr) not logical (LShr) right shift — the interpreter
+            //      (reference) uses signed `int64_t >> r`, i.e. a sign-preserving arithmetic
+            //      shift (-8 >> 1 = -4). LShr shifted in zeros at the top ⇒ a huge positive
+            //      for negatives ⇒ divergence.
+            llvm::Value *result = cg_.builder_->CreateAShr(left, right, "shrtmp");
 
             if (inst->result.has_value())
             {
