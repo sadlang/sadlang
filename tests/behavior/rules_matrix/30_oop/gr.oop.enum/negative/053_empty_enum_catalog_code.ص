@@ -1,0 +1,8 @@
+# @rule: gr.oop.enum
+# @description: التعداد الفارغ يُبلَّغ برمز الكتالوج المركزي SYN018 (بنية فارغة)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SYN018
+
+تعداد لون
+نهاية

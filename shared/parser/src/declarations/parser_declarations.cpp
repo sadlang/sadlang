@@ -96,20 +96,12 @@ namespace Sad
                     const auto *externEntry = Lexer::KeywordTable::getEntry(TT::KEYWORD_EXTERN);
                     if (externEntry && externTok.getValue() == externEntry->primaryWord)
                     {
-                        errorBilingual(
-                            "خطأ نحوي: 'دالة خارجي' غير صحيحة — الصفة تطابق الموصوف في الجنس.\n"
-                            "💡 'دالة' مؤنّثة، فاستخدم 'دالة خارجية'.\n"
-                            "💡 مثال: دالة خارجية printf(نص)",
-                            "Syntax error: 'دالة خارجي' is invalid — the adjective must agree in gender.\n"
-                            "💡 'دالة' is feminine, so use 'دالة خارجية'.\n"
-                            "💡 Example: دالة خارجية printf(نص)");
+                        errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_GENDER, {{"wrong", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::KEYWORD_EXTERN)}, {"right", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN)}, {"note_ar", "'" + kw(TT::KEYWORD_FUNCTION) + "' مؤنّثة فتلزمها الصفة المؤنّثة '" + kwAlias(TT::KEYWORD_EXTERN) + "'. مثال: " + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}, {"note_en", "'" + kw(TT::KEYWORD_FUNCTION) + "' is feminine, so it takes the feminine adjective '" + kwAlias(TT::KEYWORD_EXTERN) + "'. Example: " + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
                     }
 
                     if (is_async || is_generator)
                     {
-                        errorBilingual(
-                            "خطأ نحوي: لا يجوز جمع 'خارجية' مع 'غير_متزامن' أو 'مولد' — التصريح الخارجيّ بلا جسم.",
-                            "Syntax error: 'extern' cannot combine with 'async' or 'generator' — extern declarations have no body.");
+                        errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "تصريح الدالة الخارجية (لا يُجمع مع '" + kw(TT::KEYWORD_ASYNC) + "' أو '" + kw(TT::KEYWORD_GENERATOR) + "' — التصريح الخارجيّ بلا جسم)"}, {"construct_en", "extern function declaration (cannot combine with '" + kw(TT::KEYWORD_ASYNC) + "' or '" + kw(TT::KEYWORD_GENERATOR) + "' — extern declarations have no body)"}, {"form", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
                     }
                     if (!decorators.empty())
                     {
@@ -134,11 +126,7 @@ namespace Sad
                         //      a dangerous ambiguity; reject it explicitly.
                         if (linkNameToken.getType() == TT::STRING_LITERAL && ffiLinkName.empty())
                         {
-                            errorBilingual(
-                                "خطأ نحوي: اسم الربط لا يكون نصًّا فارغًا (\"\") — احذف القوسين أو ضع رمزًا فعليًّا.\n"
-                                "💡 مثال: دالة خارجية(\"cos\") عشري جيب_التمام(عشري)",
-                                "Syntax error: the link name cannot be an empty string (\"\") — drop the parentheses or provide a real symbol.\n"
-                                "💡 Example: دالة خارجية(\"cos\") عشري جيب_التمام(عشري)");
+                            errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "اسم الربط الخارجيّ (لا يكون نصًّا فارغًا \"\" — احذف القوسين أو ضع رمزًا فعليًّا)"}, {"construct_en", "extern link name (cannot be an empty string \"\" — drop the parentheses or provide a real symbol)"}, {"form", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "(\"cos\") " + kw(TT::TYPE_DOUBLE) + " جيب_التمام(" + kw(TT::TYPE_DOUBLE) + ")"}});
                         }
                         consume(TT::PAREN_RIGHT,
                                 "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
@@ -259,25 +247,13 @@ namespace Sad
                 if (peekNext().getType() == TT::PAREN_LEFT)
                 {
                     std::string suggestedName = name.getValue() + "_" + current_.getValue();
-                    errorBilingual(
-                        "اسم الدالة '" + name.getValue() + " " + current_.getValue() +
-                            "' يحتوي على مسافة. أسماء الدوال لا يمكن أن تحتوي على مسافات.\n"
-                            "💡 استخدم شرطة سفلية '_' بدلاً من المسافة: دالة " +
-                            suggestedName + "(...)",
-                        "Function name '" + name.getValue() + " " + current_.getValue() +
-                            "' contains a space. Function names cannot contain spaces.\n"
-                            "💡 Use underscore '_' instead: function " +
-                            suggestedName + "(...)");
+                    errorCatalog(Errors::ErrorCode::SYN_NAME_HAS_SPACE, {{"what_ar", "الدالة"}, {"what_en", "function"}, {"name", name.getValue() + " " + current_.getValue()}, {"suggested", kw(TT::KEYWORD_FUNCTION) + " " + suggestedName + "(...)"}});
                     return nullptr;
                 }
                 // (AR) نمط: دالة كلمة1 كلمة2 كلمة3... → اسم متعدد الكلمات
                 if (peekNext().getType() == TT::IDENTIFIER && peekNext().getPosition().line == name.getPosition().line)
                 {
-                    errorBilingual(
-                        "اسم الدالة لا يمكن أن يحتوي على مسافات. وُجدت معرّفات متعددة بعد '" + name.getValue() + "'.\n"
-                                                                                                               "💡 استخدم شرطة سفلية '_' للربط بين الكلمات.",
-                        "Function name cannot contain spaces. Found multiple identifiers after '" + name.getValue() + "'.\n"
-                                                                                                                      "💡 Use underscores '_' to connect words.");
+                    errorCatalog(Errors::ErrorCode::SYN_NAME_HAS_SPACE, {{"what_ar", "الدالة"}, {"what_en", "function"}, {"name", name.getValue() + " ..."}, {"suggested", name.getValue() + "_..."}});
                     return nullptr;
                 }
             }
@@ -314,19 +290,7 @@ namespace Sad
             // (EN) Removed forms: `:`, `->`, `ترجع` after parameters
             if (check(TT::COLON) || check(TT::ARROW) || check(TT::KEYWORD_RETURNS))
             {
-                errorBilingual(
-                    "خطأ نحوي: لا يمكن تحديد نوع الإرجاع بعد المعاملات.\n"
-                    "ضع نوع الإرجاع قبل اسم الدالة.\n"
-                    "❌ خطأ: دالة " +
-                        name.getValue() + "(...) : رقم\n"
-                                          "✅ صحيح: دالة رقم " +
-                        name.getValue() + "(...)",
-                    "Syntax error: Cannot specify return type after parameters.\n"
-                    "Place the return type before the function name.\n"
-                    "❌ Wrong: function " +
-                        name.getValue() + "(...) : int\n"
-                                          "✅ Correct: function int " +
-                        name.getValue() + "(...)");
+                errorCatalog(Errors::ErrorCode::SYN_RETURN_TYPE_AFTER_PARAMS, {{"right_form", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::TYPE_INTEGER) + " " + name.getValue() + "(...)"}});
             }
 
             // (AR) التحقق من صحة توقيع الدالة الرئيسية
@@ -598,15 +562,11 @@ namespace Sad
             // (EN) Return type specified only before extern function name
             if (check(TT::COLON) || check(TT::ARROW) || check(TT::KEYWORD_RETURNS))
             {
-                errorBilingual(
-                    "خطأ نحوي: لا يمكن تحديد نوع الإرجاع بعد المعاملات.\n"
-                    "ضع نوع الإرجاع قبل اسم الدالة.\n"
-                    "✅ صحيح: دالة خارجية رقم " +
-                        name.getValue() + "(...)",
-                    "Syntax error: Cannot specify return type after parameters.\n"
-                    "Place the return type before the function name.\n"
-                    "✅ Correct: دالة خارجية رقم " +
-                        name.getValue() + "(...)");
+                // (AR) RFC 0034: الصيغة المعتمدة «دالة خارجية [نوع] اسم(...)» —
+                //      الصفة المؤنّثة هي البديل الأوّل في معجم SoT (لا سلاسل خام).
+                // (EN) RFC 0034: canonical form is 'function extern [type] name(...)' —
+                //      the feminine adjective is the SoT lexicon's first alias.
+                errorCatalog(Errors::ErrorCode::SYN_RETURN_TYPE_AFTER_PARAMS, {{"right_form", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " " + kw(TT::TYPE_INTEGER) + " " + name.getValue() + "(...)"}});
             }
 
             // (AR) إنشاء عقدة تصريح الدالة الخارجية (بدون جسم)
@@ -660,9 +620,7 @@ namespace Sad
             }
             else
             {
-                errorBilingual(
-                    "توقع اسم الصنف بعد 'صنف'.",
-                    "Expected class name after 'class'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الصنف"}, {"what_en", "class"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_CLASS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_CLASS) + "'"}});
                 return nullptr;
             }
             std::string className = nameToken.getValue();
@@ -692,15 +650,7 @@ namespace Sad
                         peekNext().getType() == TT::KEYWORD_PROTECTED)
                     {
                         std::string suggestedName = className + "_" + nextId.getValue();
-                        errorBilingual(
-                            "اسم الصنف '" + className + " " + nextId.getValue() +
-                                "' يحتوي على مسافة. أسماء الأصناف لا يمكن أن تحتوي على مسافات.\n"
-                                "💡 استخدم شرطة سفلية '_' بدلاً من المسافة: صنف " +
-                                suggestedName,
-                            "Class name '" + className + " " + nextId.getValue() +
-                                "' contains a space. Class names cannot contain spaces.\n"
-                                "💡 Use underscore '_' instead: class " +
-                                suggestedName);
+                        errorCatalog(Errors::ErrorCode::SYN_NAME_HAS_SPACE, {{"what_ar", "الصنف"}, {"what_en", "class"}, {"name", className + " " + nextId.getValue()}, {"suggested", kw(TT::KEYWORD_CLASS) + " " + suggestedName}});
                         return nullptr;
                     }
                 }
@@ -792,19 +742,7 @@ namespace Sad
                         (nextTT == TT::IDENTIFIER && (peekNext().getValue() == "خاصية" ||
                                                       peekNext().getValue() == "عامل" || peekNext().getValue() == "هدم")))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: في لغة ص، الصفة تأتي بعد الموصوف.\n"
-                            "❌ خطأ: " +
-                                modName + " دالة ...\n"
-                                          "✅ صحيح: دالة " +
-                                modName + " ...\n"
-                                          "💡 المعدلات (عام/خاص/محمي/ساكن/مجرد) تأتي بعد الكلمة المفتاحية (دالة/باني/خاصية/متغير/...)",
-                            "Syntax error: In Sad language, adjectives come after nouns.\n"
-                            "❌ Wrong: " +
-                                modName + " function ...\n"
-                                          "✅ Correct: function " +
-                                modName + " ...\n"
-                                          "💡 Modifiers (public/private/protected/static/abstract) come after keyword (function/constructor/property/var/...)");
+                        errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_ORDER, {{"wrong", modName + " " + kw(TT::KEYWORD_FUNCTION) + " ..."}, {"right", kw(TT::KEYWORD_FUNCTION) + " " + modName + " ..."}});
                         // (AR) محاولة استرداد: نبتلع كل المعدلات القديمة ونحللها بالصيغة الجديدة
                         bool recStatic = false, recVirtual = false, recAbstract = false;
                         AccessModifier recAccess = parseModifiers(recStatic, recVirtual, recAbstract);
@@ -823,26 +761,14 @@ namespace Sad
                         if (isTypeToken(current_.getType()) ||
                             (check(TT::IDENTIFIER) && isClassName(current_.getValue())))
                         {
-                            errorBilingual(
-                                "خطأ نحوي: المعدلات تأتي بعد الكلمة المفتاحية.\n"
-                                "❌ خطأ: " +
-                                    modName + " نص اسم\n"
-                                              "✅ للحقول استخدم: متغير " +
-                                    modName + " اسم = قيمة",
-                                "Syntax error: Modifiers come after keyword.\n"
-                                "❌ Wrong: " +
-                                    modName + " string name\n"
-                                              "✅ For fields use: var " +
-                                    modName + " name = value");
+                            errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_ORDER, {{"wrong", modName + " " + kw(TT::TYPE_STRING) + " اسم"}, {"right", kw(TT::KEYWORD_VAR) + " " + modName + " اسم = قيمة"}});
                             auto field = parseFieldDeclaration(recAccess, recStatic);
                             if (field)
                                 members.push_back(std::move(field));
                             continue;
                         }
                         // (AR) غير معروف — نعطي خطأ عام
-                        errorBilingual(
-                            "خطأ نحوي: معدل '" + modName + "' في مكان غير متوقع.",
-                            "Syntax error: modifier '" + modName + "' in unexpected position.");
+                        errorCatalog(Errors::ErrorCode::SYN_UNEXPECTED_TOKEN, {{"found", modName}, {"expected", "تصريح يقبل هذا المعدِّل (a declaration accepting this modifier)"}});
                         advance();
                         continue;
                     }
@@ -901,11 +827,7 @@ namespace Sad
                 if (check(TT::KEYWORD_ASYNC) ||
                     (check(TT::IDENTIFIER) && checkContextual(TT::KEYWORD_ASYNC)))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: 'غير_متزامن دالة' أُزيلت. استخدم 'دالة غير_متزامن' بدلاً منها.\n"
-                        "💡 مثال: دالة غير_متزامن جلب()",
-                        "Syntax error: 'async function' removed. Use 'function async' instead.\n"
-                        "💡 Example: دالة غير_متزامن fetch()");
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_ASYNC) + " " + kw(TT::KEYWORD_FUNCTION)}, {"new", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::KEYWORD_ASYNC)}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::KEYWORD_ASYNC) + " جلب()"}});
                     advance(); // consume 'غير_متزامن'
                     // (AR) محاولة استرداد — نحلل كدالة عادية غير متزامنة
                     if (check(TT::KEYWORD_FUNCTION))
@@ -1241,9 +1163,7 @@ namespace Sad
                     (peekNext().getType() == TT::OP_ASSIGN || peekNext().getType() == TT::COLON))
                 {
                     Token fieldName = current_;
-                    errorBilingual(
-                        "خطأ: تعريف الحقل '" + fieldName.getValue() + "' يحتاج كلمة 'متغير'. مثال: متغير " + fieldName.getValue() + " = قيمة",
-                        "Error: Field '" + fieldName.getValue() + "' requires 'var' keyword. Example: var " + fieldName.getValue() + " = value");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_VAR)}, {"ctx_ar", "قبل تعريف الحقل '" + fieldName.getValue() + "'"}, {"ctx_en", "before the field '" + fieldName.getValue() + "' definition"}});
                     // (AR) تخطي الحقل لمنع الحلقة اللانهائية
                     advance(); // skip name
                     if (match(TT::COLON))
@@ -1349,9 +1269,7 @@ namespace Sad
                     {
                         if (!check(TT::IDENTIFIER))
                         {
-                            errorBilingual(
-                                "توقع اسم متغير داخل تفكيك الصف.",
-                                "Expected variable name inside tuple destructuring.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "داخل تفكيك الصف"}, {"ctx_en", "inside tuple destructuring"}});
                             return nullptr;
                         }
                         names.push_back(current_.getValue());
@@ -1361,17 +1279,13 @@ namespace Sad
 
                 if (!match(TT::PAREN_RIGHT))
                 {
-                    errorBilingual(
-                        "توقع ')' بعد أسماء المتغيرات في تفكيك الصف.",
-                        "Expected ')' after variable names in tuple destructuring.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد أسماء المتغيرات في تفكيك الصف"}, {"ctx_en", "after the variable names in tuple destructuring"}});
                     return nullptr;
                 }
 
                 if (!match(TT::OP_ASSIGN))
                 {
-                    errorBilingual(
-                        "توقع '=' بعد ')' في تفكيك الصف.",
-                        "Expected '=' after ')' in tuple destructuring.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "="}, {"ctx_ar", "بعد ')' في تفكيك الصف"}, {"ctx_en", "after ')' in tuple destructuring"}});
                     return nullptr;
                 }
 
@@ -1410,9 +1324,7 @@ namespace Sad
                 {
                     // Missing identifier after type specification
                     // (AR) معرّف مفقود بعد تحديد النوع
-                    errorBilingual(
-                        "توقع اسم متغير بعد تحديد النوع. اسم المتغير يجب أن يكون معرّف صحيح.",
-                        "Expected variable name after type specification. Variable name must be a valid identifier.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "بعد تحديد النوع"}, {"ctx_en", "after the type specification"}});
                     return nullptr;
                 }
 
@@ -1444,9 +1356,7 @@ namespace Sad
                     // (AR) تحقق مما إذا كان معرّف يتبع اسم الصنف
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "توقع اسم متغير من نوع الصنف '" + className + "'. اسم المتغير يجب أن يكون معرّف صحيح.",
-                            "Expected variable name of class type '" + className + "'. Variable name must be a valid identifier.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "من نوع الصنف '" + className + "'"}, {"ctx_en", "of class type '" + className + "'"}});
                         return nullptr;
                     }
 
@@ -1470,27 +1380,13 @@ namespace Sad
                         if (peekNext().getType() == TT::OP_ASSIGN)
                         {
                             std::string suggestedName = name.getValue() + "_" + current_.getValue();
-                            errorBilingual(
-                                "اسم المتغير '" + name.getValue() + " " + current_.getValue() +
-                                    "' يحتوي على مسافة. أسماء المتغيرات لا يمكن أن تحتوي على مسافات.\n"
-                                    "💡 استخدم شرطة سفلية '_' بدلاً من المسافة: متغير " +
-                                    suggestedName + " = ...",
-                                "Variable name '" + name.getValue() + " " + current_.getValue() +
-                                    "' contains a space. Variable names cannot contain spaces.\n"
-                                    "💡 Use underscore '_' instead: var " +
-                                    suggestedName + " = ...");
+                            errorCatalog(Errors::ErrorCode::SYN_NAME_HAS_SPACE, {{"what_ar", "المتغير"}, {"what_en", "variable"}, {"name", name.getValue() + " " + current_.getValue()}, {"suggested", kw(TT::KEYWORD_VAR) + " " + suggestedName + " = ..."}});
                             return nullptr;
                         }
                         // (AR) نمط: معرّف معرّف معرّف... → اسم متعدد الكلمات
                         if (peekNext().getType() == TT::IDENTIFIER && peekNext().getPosition().line == name.getPosition().line)
                         {
-                            errorBilingual(
-                                "اسم المتغير لا يمكن أن يحتوي على مسافات. وُجدت معرّفات متعددة بعد '" + name.getValue() + "'.\n"
-                                                                                                                        "💡 استخدم شرطة سفلية '_' للربط بين الكلمات: " +
-                                    name.getValue() + "_" + current_.getValue() + "_...",
-                                "Variable name cannot contain spaces. Found multiple identifiers after '" + name.getValue() + "'.\n"
-                                                                                                                              "💡 Use underscores '_' to connect words: " +
-                                    name.getValue() + "_" + current_.getValue() + "_...");
+                            errorCatalog(Errors::ErrorCode::SYN_NAME_HAS_SPACE, {{"what_ar", "المتغير"}, {"what_en", "variable"}, {"name", name.getValue() + " ..."}, {"suggested", name.getValue() + "_" + current_.getValue() + "_..."}});
                             return nullptr;
                         }
                     }
@@ -1507,9 +1403,7 @@ namespace Sad
                         // (AR) تحقق مما إذا تم تحليل النوع بنجاح
                         if (annotatedType == Types::SadTypeKind::Unknown)
                         {
-                            errorBilingual(
-                                "نوع غير صحيح أو غير معروف بعد ':' في تصريح المتغير '" + name.getValue() + "'.",
-                                "Invalid or unknown type after ':' in variable declaration '" + name.getValue() + "'.");
+                            errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "النوع بعد ':' في تصريح المتغير '" + name.getValue() + "'"}, {"what_en", "type after ':' in the declaration of '" + name.getValue() + "'"}, {"found", current_.getValue()}, {"allowed", kw(TT::TYPE_INTEGER) + "، " + kw(TT::TYPE_DOUBLE) + "، " + kw(TT::TYPE_STRING) + "، " + kw(TT::TYPE_BOOLEAN) + "، ..."}});
                             return nullptr;
                         }
 
@@ -1544,66 +1438,54 @@ namespace Sad
                 // (AR) لا رمز نوع ولا معرّف - هذا خطأ
                 Token currentToken = peek();
 
-                // Check what kind of token we got instead
-                // (AR) تحقق من نوع الرمز الذي حصلنا عليه بدلاً من ذلك
-                std::string errorMsg_ar = "صيغة تصريح متغير غير صحيحة.";
-                std::string errorMsg_en = "Invalid variable declaration syntax.";
-
-                // Provide more helpful error messages based on what we found
-                // (AR) قدّم رسائل خطأ أكثر فائدة بناءً على ما وجدنا
+                // Provide more helpful error messages based on what we found — via the central catalog
+                // (AR) قدّم رسائل خطأ أكثر فائدة بناءً على ما وجدنا — عبر الكتالوج المركزي
                 if (currentToken.getType() == TT::NUMBER_INTEGER || currentToken.getType() == TT::NUMBER_DOUBLE)
                 {
                     // (AR) رقم بعد متغير: متغير 42 = ...
-                    errorMsg_ar = "لا يمكن استخدام رقم '" + currentToken.getValue() + "' كاسم متغير.\n"
-                                                                                      "💡 أسماء المتغيرات يجب أن تبدأ بحرف أو شرطة سفلية '_'.\n"
-                                                                                      "مثال: متغير عدد = " +
-                                  currentToken.getValue();
-                    errorMsg_en = "Cannot use number '" + currentToken.getValue() + "' as variable name.\n"
-                                                                                    "💡 Variable names must start with a letter or underscore '_'.\n"
-                                                                                    "Example: var count = " +
-                                  currentToken.getValue();
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME,
+                                 {{"what_ar", "متغير"},
+                                  {"what_en", "variable"},
+                                  {"ctx_ar", "لا رقمًا — لا يمكن استخدام '" + currentToken.getValue() + "' اسمًا"},
+                                  {"ctx_en", "not a number — cannot use '" + currentToken.getValue() + "' as a name"}});
                 }
                 else if (currentToken.getType() == TT::STRING_LITERAL)
                 {
                     // (AR) نص بعد متغير: متغير "اسم" = ...
-                    errorMsg_ar = "لا يمكن استخدام نص كاسم متغير.\n"
-                                  "💡 أسماء المتغيرات يجب أن تكون معرّفات (بدون علامات اقتباس).\n"
-                                  "مثال: متغير اسم = \"قيمة\"";
-                    errorMsg_en = "Cannot use a string literal as variable name.\n"
-                                  "💡 Variable names must be identifiers (without quotes).\n"
-                                  "Example: var name = \"value\"";
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME,
+                                 {{"what_ar", "متغير"},
+                                  {"what_en", "variable"},
+                                  {"ctx_ar", "لا نصًا حرفيًا — المعرّف يُكتب بلا علامتي اقتباس"},
+                                  {"ctx_en", "not a string literal — identifiers are written without quotes"}});
                 }
                 else if (currentToken.isKeyword() || currentToken.getType() == TT::LITERAL_TRUE ||
                          currentToken.getType() == TT::LITERAL_FALSE || currentToken.getType() == TT::LITERAL_NULL)
                 {
                     // (AR) كلمة محجوزة بعد متغير: متغير إذا = ...
-                    errorMsg_ar = "لا يمكن استخدام الكلمة المحجوزة '" + currentToken.getValue() + "' كاسم متغير.\n"
-                                                                                                  "💡 اختر اسماً آخر للمتغير. الكلمات المحجوزة مثل 'إذا'، 'بينما'، 'دالة' لا يمكن استخدامها كأسماء.";
-                    errorMsg_en = "Cannot use reserved keyword '" + currentToken.getValue() + "' as variable name.\n"
-                                                                                              "💡 Choose a different name. Reserved keywords like 'if', 'while', 'function' cannot be used as names.";
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME,
+                                 {{"what_ar", "متغير"},
+                                  {"what_en", "variable"},
+                                  {"ctx_ar", "لا كلمة محجوزة — '" + currentToken.getValue() + "' لا تصلح اسمًا"},
+                                  {"ctx_en", "not a reserved keyword — '" + currentToken.getValue() + "' cannot be a name"}});
                 }
                 else if (currentToken.getType() == TT::OP_ASSIGN)
                 {
                     // (AR) = مباشرة بعد متغير: متغير = ...
-                    errorMsg_ar = "تصريح متغير بدون اسم. يجب تحديد اسم للمتغير قبل '='.\n"
-                                  "💡 مثال: متغير س = 10";
-                    errorMsg_en = "Variable declaration without name. Must specify name before '='.\n"
-                                  "💡 Example: var x = 10";
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME,
+                                 {{"what_ar", "متغير"},
+                                  {"what_en", "variable"},
+                                  {"ctx_ar", "قبل '=' — التصريح بلا اسم"},
+                                  {"ctx_en", "before '=' — the declaration has no name"}});
                 }
-                else if (currentToken.getType() == TT::SEMICOLON || currentToken.getType() == TT::ARABIC_SEMICOLON)
+                else
                 {
-                    errorMsg_ar = "لا يمكن تصريح متغير بدون اسم أو نوع.";
-                    errorMsg_en = "Cannot declare variable without name or type.";
+                    // (AR) فاصلة منقوطة/أقواس/غير ذلك: صيغة تصريح غير صحيحة
+                    // (EN) Semicolon/braces/other: invalid declaration form
+                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM,
+                                 {{"construct_ar", "تصريح المتغير"},
+                                  {"construct_en", "variable declaration"},
+                                  {"form", kw(TT::KEYWORD_VAR) + " اسم = قيمة"}});
                 }
-                else if (currentToken.getType() == TT::BRACE_LEFT || currentToken.getType() == TT::BRACE_RIGHT)
-                {
-                    errorMsg_ar = "لا يمكن تصريح متغير في هذا الموقع. هل قصدت البحث عن شيء آخر؟";
-                    errorMsg_en = "Cannot declare variable at this location. Did you mean something else?";
-                }
-
-                errorBilingual(
-                    errorMsg_ar,
-                    errorMsg_en);
                 return nullptr;
             }
 
@@ -1620,9 +1502,7 @@ namespace Sad
                 // (AR) تحقق مما إذا كان تحليل التعبير ناجحاً
                 if (!initializer)
                 {
-                    errorBilingual(
-                        "تعبير غير صحيح في قيمة تهيئة المتغير '" + name.getValue() + "'. تأكد من أن التعبير صحيح.",
-                        "Invalid expression in variable initializer for '" + name.getValue() + "'. Ensure the expression is correct.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في قيمة تهيئة المتغير '" + name.getValue() + "'"}, {"ctx_en", "(valid) in the initializer of variable '" + name.getValue() + "'"}});
                     return nullptr;
                 }
             }
@@ -1687,11 +1567,7 @@ namespace Sad
                     }
                     else
                     {
-                        errorBilingual(
-                            "توقع اسم متغير بعد الفاصلة في تصريح المتغيرات المتعددة.\n"
-                            "💡 مثال: متغير س = 1 ، ص = 2 ، ع = 3",
-                            "Expected variable name after comma in multi-variable declaration.\n"
-                            "💡 Example: var x = 1 , y = 2 , z = 3");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "بعد الفاصلة في تصريح المتغيرات المتعددة"}, {"ctx_en", "after the comma in a multi-variable declaration"}});
                         break;
                     }
 
@@ -1707,9 +1583,7 @@ namespace Sad
                             nextInnerKind = lastOptionalInner_;
                         if (nextType == Types::SadTypeKind::Unknown)
                         {
-                            errorBilingual(
-                                "نوع غير صحيح بعد ':' في تصريح المتغير '" + nextName.getValue() + "'.",
-                                "Invalid type after ':' in variable declaration '" + nextName.getValue() + "'.");
+                            errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "النوع بعد ':' في تصريح المتغير '" + nextName.getValue() + "'"}, {"what_en", "type after ':' in the declaration of '" + nextName.getValue() + "'"}, {"found", current_.getValue()}, {"allowed", kw(TT::TYPE_INTEGER) + "، " + kw(TT::TYPE_DOUBLE) + "، " + kw(TT::TYPE_STRING) + "، " + kw(TT::TYPE_BOOLEAN) + "، ..."}});
                         }
                     }
 
@@ -1720,9 +1594,7 @@ namespace Sad
                         nextInit = parseExpression();
                         if (!nextInit)
                         {
-                            errorBilingual(
-                                "تعبير غير صحيح في قيمة تهيئة المتغير '" + nextName.getValue() + "'.",
-                                "Invalid expression in variable initializer for '" + nextName.getValue() + "'.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في قيمة تهيئة المتغير '" + nextName.getValue() + "'"}, {"ctx_en", "(valid) in the initializer of variable '" + nextName.getValue() + "'"}});
                             break;
                         }
                     }
@@ -1775,9 +1647,7 @@ namespace Sad
             // (AR) توقع اسم Enum
             if (!check(TT::IDENTIFIER))
             {
-                errorBilingual(
-                    "خطأ: توقعت اسم Enum بعد كلمة 'تعداد'. مثال: تعداد اللون",
-                    "Error: expected enum name after 'enum' keyword. Example: enum Color");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "التعداد"}, {"what_en", "enum"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_ENUM) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_ENUM) + "'"}});
                 return nullptr;
             }
             Token name = peek();
@@ -1787,19 +1657,7 @@ namespace Sad
             // (EN) Supports: enum name ... end (braces {} removed)
             if (check(TT::BRACE_LEFT))
             {
-                errorBilingual(
-                    "خطأ نحوي: لا يمكن استخدام '{}' مع التعداد.\n"
-                    "استخدم 'نهاية' بدلاً من ذلك.\n"
-                    "❌ خطأ: تعداد " +
-                        name.getValue() + " { ... }\n"
-                                          "✅ صحيح: تعداد " +
-                        name.getValue() + "\n    ...\nنهاية",
-                    "Syntax error: Cannot use '{}' with enum.\n"
-                    "Use 'نهاية' (end) instead.\n"
-                    "❌ Wrong: enum " +
-                        name.getValue() + " { ... }\n"
-                                          "✅ Correct: enum " +
-                        name.getValue() + "\n    ...\nend");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_ENUM) + " { ... }"}, {"new", kw(TT::KEYWORD_END)}, {"example", kw(TT::KEYWORD_ENUM) + " " + name.getValue() + "\n ...\n" + kw(TT::KEYWORD_END)}});
             }
 
             // Parse enum members
@@ -1815,9 +1673,7 @@ namespace Sad
             // Check for empty enum
             if (isEnumEnd())
             {
-                errorBilingual(
-                    "خطأ: تعداد فارغ. يجب أن يحتوي التعداد على عضو واحد على الأقل.",
-                    "Error: empty enum. Enum must have at least one member.");
+                errorCatalog(Errors::ErrorCode::SYN_EMPTY_CONSTRUCT, {{"construct_ar", "التعداد"}, {"construct_en", "enum"}, {"required_ar", "عضو واحد"}, {"required_en", "one member"}});
                 advance(); // consume } or نهاية
                 return nullptr;
             }
@@ -1886,9 +1742,7 @@ namespace Sad
                 //      Example: خطأ, صحيح, نص, خارجي — all valid member names
                 if (!isValidEnumMember())
                 {
-                    errorBilingual(
-                        "خطأ: توقعت اسم عضو في التعداد.",
-                        "Error: expected member name in enum.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "عضو التعداد"}, {"what_en", "enum member"}, {"ctx_ar", "داخل التعداد"}, {"ctx_en", "inside the enum"}});
                     return nullptr;
                 }
                 Token memberName = peek();
@@ -1912,11 +1766,7 @@ namespace Sad
                         // (AR) الحقل الأول / (EN) First field
                         if (!check(TT::IDENTIFIER) && !isValidEnumMember())
                         {
-                            errorBilingual(
-                                "خطأ: توقعت اسم حقل داخل أقواس التعداد الجبري.\n"
-                                "مثال: دائرة(نصف_القطر) أو مستطيل(عرض، ارتفاع)",
-                                "Error: expected field name inside ADT enum parentheses.\n"
-                                "Example: Circle(radius) or Rectangle(width, height)");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "داخل أقواس التعداد الجبري — مثال: دائرة(نصف_القطر)"}, {"ctx_en", "inside the ADT enum parentheses — e.g., Circle(radius)"}});
                             return nullptr;
                         }
                         adtFields.push_back(peek().getValue());
@@ -1929,9 +1779,7 @@ namespace Sad
                             advance(); // (AR) استهلاك الفاصلة / (EN) consume comma
                             if (!check(TT::IDENTIFIER) && !isValidEnumMember())
                             {
-                                errorBilingual(
-                                    "خطأ: توقعت اسم حقل بعد الفاصلة في التعداد الجبري.",
-                                    "Error: expected field name after comma in ADT enum.");
+                                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "بعد الفاصلة في التعداد الجبري"}, {"ctx_en", "after the comma in an ADT enum"}});
                                 return nullptr;
                             }
                             adtFields.push_back(peek().getValue());
@@ -1942,9 +1790,7 @@ namespace Sad
                     // (AR) استهلاك ')' / (EN) consume ')'
                     if (!check(TT::PAREN_RIGHT))
                     {
-                        errorBilingual(
-                            "خطأ: توقعت ')' لإغلاق حقول التعداد الجبري.",
-                            "Error: expected ')' to close ADT enum fields.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "لإغلاق حقول التعداد الجبري"}, {"ctx_en", "to close the ADT enum fields"}});
                         return nullptr;
                     }
                     advance();
@@ -1956,9 +1802,7 @@ namespace Sad
                     value = parseExpression();
                     if (!value)
                     {
-                        errorBilingual(
-                            "خطأ: قيمة عضو Enum غير صحيحة. يجب أن تكون القيمة تعبيراً صحيحاً.",
-                            "Error: invalid enum member value. Value must be a valid expression.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في قيمة عضو التعداد"}, {"ctx_en", "(valid) in the enum member value"}});
                         return nullptr;
                     }
                 }
@@ -1989,9 +1833,7 @@ namespace Sad
 
             if (!isEnumEnd())
             {
-                errorBilingual(
-                    "خطأ: لم يتم إغلاق التعداد. توقعت 'نهاية' في النهاية.",
-                    "Error: enum not closed. Expected 'end' at end.");
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة التعداد"}, {"construct_en", "enum block"}, {"closer", kw(TT::KEYWORD_END)}});
                 return nullptr;
             }
 
@@ -2021,9 +1863,7 @@ namespace Sad
             // (AR) اسم البنية / (EN) Struct name
             if (!check(TT::IDENTIFIER))
             {
-                errorBilingual(
-                    "خطأ: توقعت اسم البنية بعد كلمة 'بنية'. مثال: بنية نقطة",
-                    "Error: expected struct name after 'struct' keyword. Example: struct Point");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "البنية"}, {"what_en", "struct"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_STRUCT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_STRUCT) + "'"}});
                 return nullptr;
             }
             Token name = peek();
@@ -2037,19 +1877,7 @@ namespace Sad
             // (EN) Supports: struct name ... end (braces {} removed)
             if (check(TT::BRACE_LEFT))
             {
-                errorBilingual(
-                    "خطأ نحوي: لا يمكن استخدام '{}' مع البنية.\n"
-                    "استخدم 'نهاية' بدلاً من ذلك.\n"
-                    "❌ خطأ: بنية " +
-                        name.getValue() + " { ... }\n"
-                                          "✅ صحيح: بنية " +
-                        name.getValue() + "\n    ...\nنهاية",
-                    "Syntax error: Cannot use '{}' with struct.\n"
-                    "Use 'نهاية' (end) instead.\n"
-                    "❌ Wrong: struct " +
-                        name.getValue() + " { ... }\n"
-                                          "✅ Correct: struct " +
-                        name.getValue() + "\n    ...\nend");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_STRUCT) + " { ... }"}, {"new", kw(TT::KEYWORD_END)}, {"example", kw(TT::KEYWORD_STRUCT) + " " + name.getValue() + "\n ...\n" + kw(TT::KEYWORD_END)}});
             }
 
             std::vector<StructField> fields;
@@ -2079,17 +1907,7 @@ namespace Sad
                     auto nextTT = peekNext().getType();
                     if (nextTT == TT::KEYWORD_CONSTRUCTOR || nextTT == TT::KEYWORD_FUNCTION)
                     {
-                        errorBilingual(
-                            "خطأ نحوي: في لغة ص، الصفة تأتي بعد الموصوف.\n"
-                            "❌ خطأ: " +
-                                modName + " باني/دالة ...\n"
-                                          "✅ صحيح: باني/دالة " +
-                                modName + " ...",
-                            "Syntax error: In Sad, adjectives come after nouns.\n"
-                            "❌ Wrong: " +
-                                modName + " constructor/function ...\n"
-                                          "✅ Correct: constructor/function " +
-                                modName + " ...");
+                        errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_ORDER, {{"wrong", modName + " " + kw(TT::KEYWORD_CONSTRUCTOR) + "/" + kw(TT::KEYWORD_FUNCTION) + " ..."}, {"right", kw(TT::KEYWORD_CONSTRUCTOR) + "/" + kw(TT::KEYWORD_FUNCTION) + " " + modName + " ..."}});
                     }
                     // (AR) ابتلاع المعدل للاسترداد
                     if (check(TT::KEYWORD_PUBLIC))
@@ -2190,9 +2008,7 @@ namespace Sad
 
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت اسم حقل في البنية.",
-                        "Error: expected field name in struct.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "داخل البنية"}, {"ctx_en", "inside the struct"}});
                     advance();
                     continue;
                 }
@@ -2215,9 +2031,7 @@ namespace Sad
 
             if (!isStructEnd())
             {
-                errorBilingual(
-                    "خطأ: لم يتم إغلاق البنية. توقعت 'نهاية'.",
-                    "Error: struct not closed. Expected 'end'.");
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة البنية"}, {"construct_en", "struct block"}, {"closer", kw(TT::KEYWORD_END)}});
                 return nullptr;
             }
 
@@ -2434,9 +2248,7 @@ namespace Sad
             auto declaration = parseDeclaration();
             if (!declaration)
             {
-                errorBilingual(
-                    "خطأ: فشل تحليل التصريح المُصدّر. يجب أن يتبع 'صدّر' تصريح صحيح (دالة، صنف، إلخ).",
-                    "Error: failed to parse export declaration. 'export' must be followed by a valid declaration (function, class, etc.).");
+                errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "التصريح المُصدَّر"}, {"construct_en", "exported declaration"}, {"form", kw(TT::KEYWORD_EXPORT) + " " + kw(TT::KEYWORD_FUNCTION) + " ... | " + kw(TT::KEYWORD_EXPORT) + " " + kw(TT::KEYWORD_CLASS) + " ..."}});
                 return nullptr;
             }
 
@@ -2641,11 +2453,7 @@ namespace Sad
                     auto *fnDecl = dynamic_cast<AST::FunctionDecl *>(fn.get());
                     if (fnDecl && fnDecl->isExtern)
                     {
-                        errorBilingual(
-                            "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل كتلة تنفيذ — التصريح الخارجيّ بلا جسم.\n"
-                            "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
-                            "Syntax error: 'دالة خارجية' cannot be declared inside an impl block — extern declarations have no body.\n"
-                            "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                        errorCatalog(Errors::ErrorCode::SYN_DECL_NOT_ALLOWED_HERE, {{"decl_ar", "التصريح الخارجيّ '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "' (بلا جسم)"}, {"decl_en", "the body-less extern declaration '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "'"}, {"where_ar", "كتلة تنفيذ"}, {"where_en", "an impl block"}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
                     }
                     else
                     {
@@ -2728,11 +2536,7 @@ namespace Sad
                     auto *fnDecl = dynamic_cast<AST::FunctionDecl *>(fn.get());
                     if (fnDecl && fnDecl->isExtern)
                     {
-                        errorBilingual(
-                            "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل كتلة امتداد — التصريح الخارجيّ بلا جسم.\n"
-                            "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
-                            "Syntax error: 'دالة خارجية' cannot be declared inside an extension block — extern declarations have no body.\n"
-                            "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                        errorCatalog(Errors::ErrorCode::SYN_DECL_NOT_ALLOWED_HERE, {{"decl_ar", "التصريح الخارجيّ '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "' (بلا جسم)"}, {"decl_en", "the body-less extern declaration '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "'"}, {"where_ar", "كتلة امتداد"}, {"where_en", "an extension block"}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
                     }
                     else
                     {

@@ -58,9 +58,7 @@ namespace Sad
 
                 if (!right)
                 {
-                    errorBilingual(
-                        "خطأ: توقعت تعبير بعد '|>'.",
-                        "Error: expected expression after '|>'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '|>'"}, {"ctx_en", "after '|>'"}});
                     return nullptr;
                 }
 
@@ -118,9 +116,7 @@ namespace Sad
                         walrus.getPosition());
                 }
 
-                errorBilingual(
-                    "خطأ: عامل Walrus (:=) يتطلب اسم متغير على اليسار",
-                    "Error: Walrus operator (:=) requires variable name on left");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "على يسار عامل ':='"}, {"ctx_en", "on the left of the ':=' operator"}});
             }
 
             // Check for assignment operator
@@ -172,9 +168,7 @@ namespace Sad
                         equals.getPosition());
                 }
 
-                errorBilingual(
-                    "خطأ: هدف الإسناد غير صالح - يجب أن يكون معرّفاً أو حقل كائن أو فهرس مصفوفة",
-                    "Error: invalid assignment target - must be identifier, object field, or array index");
+                errorCatalog(Errors::ErrorCode::SYN_INVALID_ASSIGNMENT, {{"target", current_.getValue()}});
             }
 
             // ========================================================================
@@ -357,9 +351,7 @@ namespace Sad
                     }
                 }
 
-                errorBilingual(
-                    "خطأ: هدف الإسناد المركب غير صالح - يجب أن يكون متغيراً أو حقل كائن أو عنصر مصفوفة",
-                    "Error: invalid compound assignment target - must be variable, object field, or array index");
+                errorCatalog(Errors::ErrorCode::SYN_INVALID_ASSIGNMENT, {{"target", current_.getValue()}});
             }
 
             return expr;
@@ -1187,9 +1179,7 @@ namespace Sad
                 // (AR) توقع 'وإلا'
                 if (!match(TT::KEYWORD_ELSE))
                 {
-                    errorBilingual(
-                        "خطأ: توقع 'وإلا' في تعبير إذا.",
-                        "Error: expected 'else' in if-expression.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_ELSE)}, {"ctx_ar", "في تعبير '" + kw(TT::KEYWORD_IF) + "'"}, {"ctx_en", "in an '" + kw(TT::KEYWORD_IF) + "' expression"}});
                     return nullptr;
                 }
 
@@ -1208,9 +1198,7 @@ namespace Sad
                 auto expr = parseTernary(); // (AR) تحليل تعبير ذو أولوية أعلى / (EN) Parse higher precedence expression
                 if (!expr)
                 {
-                    errorBilingual(
-                        "خطأ نحوي: يجب أن يتبع 'انتظر' بتعبير.",
-                        "Syntax error: 'await' must be followed by an expression.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '" + kw(TT::KEYWORD_AWAIT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_AWAIT) + "'"}});
                     return nullptr;
                 }
                 return std::make_unique<AwaitExpr>(std::move(expr), awaitToken.getPosition());
@@ -1231,9 +1219,7 @@ namespace Sad
                 auto expr = parseTernary(); // (AR) تحليل التعبير الداخلي / (EN) Parse inner expression
                 if (!expr)
                 {
-                    errorBilingual(
-                        "خطأ نحوي: يجب أن يتبع 'انشر' بتعبير يُرجع نتيجة أو اختياري.",
-                        "Syntax error: 'انشر' (propagate) must be followed by an expression returning Result or Option.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '" + kw(TT::KEYWORD_PROPAGATE) + "' (تعبير يُرجع نتيجة أو اختياريًا)"}, {"ctx_en", "after '" + kw(TT::KEYWORD_PROPAGATE) + "' (an expression returning Result or Option)"}});
                     return nullptr;
                 }
                 return std::make_unique<ErrorPropagateExpr>(std::move(expr), propagateToken.getPosition());
@@ -1381,9 +1367,7 @@ namespace Sad
                 auto innerExpr = parseBitwiseXor();
                 if (!match(TT::OP_BITWISE_OR))
                 {
-                    errorBilingual(
-                        "خطأ: توقع '|' لإغلاق تعبير القيمة المطلقة.",
-                        "Error: expected closing '|' for absolute value expression.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "|"}, {"ctx_ar", "لإغلاق تعبير القيمة المطلقة"}, {"ctx_en", "to close the absolute-value expression"}});
                 }
                 // (AR) تحويل |x| إلى استدعاء «مطلق(x)» — الدالة المضمَّنة العربيّة العاملة في
                 //      المحرّكين (ISSUE-039). الاسم اللاتينيّ «abs» غير مُسجَّل في المفسّر ومكسور
@@ -1486,9 +1470,7 @@ namespace Sad
                 // (AR) تحقق إذا تم تحليل التعبير بنجاح
                 if (!expr)
                 {
-                    errorBilingual(
-                        "تعبير غير صحيح بين الأقواس. تأكد من أن التعبير يحتوي على قيم أو عمليات صحيحة.",
-                        "Invalid expression in parentheses. Make sure the expression contains valid values or operations.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا بين الأقواس ( )"}, {"ctx_en", "(valid) inside parentheses ( )"}});
                     return nullptr;
                 }
 
@@ -1516,9 +1498,7 @@ namespace Sad
                         auto elem = parseExpression();
                         if (!elem)
                         {
-                            errorBilingual(
-                                "خطأ نحوي: توقعت تعبيراً بعد الفاصلة في الصف.",
-                                "Syntax error: expected expression after comma in tuple.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد الفاصلة في الصف"}, {"ctx_en", "after the comma in a tuple"}});
                             return nullptr;
                         }
                         elements.push_back(std::move(elem));
@@ -1549,9 +1529,7 @@ namespace Sad
                     }
                     else
                     {
-                        errorBilingual(
-                            "خطأ: معامل الدالة السهمية يجب أن يكون اسم متغير.",
-                            "Error: arrow function parameter must be an identifier.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "في معامل الدالة السهمية"}, {"ctx_en", "in an arrow-function parameter"}});
                         return nullptr;
                     }
                 }
@@ -1566,9 +1544,7 @@ namespace Sad
                 auto result = parseArrayLiteral();
                 if (!result)
                 {
-                    errorBilingual(
-                        "خطأ في تحليل مصفوفة حرفية. تأكد من صيغة المصفوفة: [عنصر1، عنصر2، ...] أو استيعاب: [لكل س في مصدر أنتج تعبير]",
-                        "Error parsing array literal. Make sure array syntax is correct: [elem1, elem2, ...] or comprehension: [لكل var في iterable أنتج expr]");
+                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "المصفوفة الحرفية"}, {"construct_en", "array literal"}, {"form", "[عنصر1، عنصر2، ...] | [" + kw(TT::KEYWORD_FOR) + " س " + kw(TT::KEYWORD_IN) + " مصدر " + kw(TT::KEYWORD_YIELD) + " تعبير]"}});
                     return nullptr;
                 }
                 return result;
@@ -1581,9 +1557,7 @@ namespace Sad
                 auto result = parseMapLiteral();
                 if (!result)
                 {
-                    errorBilingual(
-                        "خطأ في تحليل خريطة حرفية. تأكد من صيغة الخريطة: {مفتاح: قيمة، ...}",
-                        "Error parsing map literal. Make sure map syntax is correct: {key: value, ...}");
+                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "الخريطة الحرفية"}, {"construct_en", "map literal"}, {"form", "{مفتاح: قيمة، ...}"}});
                     return nullptr;
                 }
                 return result;
@@ -1613,48 +1587,52 @@ namespace Sad
             // Provide more specific error message based on what we found
             // (AR) قدم رسالة خطأ أكثر تحديداً بناءً على ما وجدنا
             Token current = peek();
-            std::string errorMsg_ar = "خطأ نحوي: توقعت تعبيراً (رقم، نص، معرّف، إلخ).";
-            std::string errorMsg_en = "Syntax error: expected expression (number, string, identifier, etc.).";
 
-            // Provide specific guidance based on the token type
-            // (AR) قدم توجيهات محددة بناءً على نوع الرمز
+            // Provide specific guidance based on the token type — via the central catalog
+            // (AR) قدم توجيهات محددة بناءً على نوع الرمز — عبر الكتالوج المركزي
             switch (current.getType())
             {
             case TT::END_OF_FILE:
-                errorMsg_ar = "خطأ: نهاية ملف غير متوقعة - تعبير غير مكتمل.";
-                errorMsg_en = "Error: unexpected end of file - incomplete expression.";
+                errorCatalog(Errors::ErrorCode::SYN_UNEXPECTED_EOF);
                 break;
             case TT::SEMICOLON:
-                errorMsg_ar = "خطأ: فاصلة منقوطة بدون تعبير سابق. هل نسيت التعبير قبلها؟";
-                errorMsg_en = "Error: semicolon without preceding expression. Did you forget the expression?";
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "قبل الفاصلة المنقوطة"},
+                              {"ctx_en", "before the semicolon"}});
                 break;
             case TT::KEYWORD_END:
-                errorMsg_ar = "خطأ: توقعت تعبيراً قبل كلمة 'نهاية'.";
-                errorMsg_en = "Error: expected expression before 'end' keyword.";
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "قبل كلمة '" + kw(TT::KEYWORD_END) + "'"},
+                              {"ctx_en", "before the '" + kw(TT::KEYWORD_END) + "' keyword"}});
                 break;
             case TT::BRACE_RIGHT:
-                errorMsg_ar = "خطأ: قوس معقوف إغلاق بدون تعبير. هل نسيت العنصر الأخير؟";
-                errorMsg_en = "Error: closing brace without expression. Did you forget the last element?";
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "قبل '}' — هل نسيت العنصر الأخير؟"},
+                              {"ctx_en", "before '}' — did you forget the last element?"}});
                 break;
             case TT::BRACKET_RIGHT:
-                errorMsg_ar = "خطأ: قوس مربع إغلاق بدون عنصر. هل نسيت العنصر الأخير؟";
-                errorMsg_en = "Error: closing bracket without element. Did you forget the last element?";
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "قبل ']' — هل نسيت العنصر الأخير؟"},
+                              {"ctx_en", "before ']' — did you forget the last element?"}});
                 break;
             case TT::PAREN_RIGHT:
-                errorMsg_ar = "خطأ: قوس إغلاق بدون تعبير. هل نسيت الوسيط أو التعبير؟";
-                errorMsg_en = "Error: closing parenthesis without expression. Did you forget the argument or expression?";
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "قبل ')' — هل نسيت الوسيط أو التعبير؟"},
+                              {"ctx_en", "before ')' — did you forget the argument or expression?"}});
                 break;
             case TT::COMMA:
-                errorMsg_ar = "خطأ: فاصلة بدون عنصر سابق. هل نسيت عنصراً أو معامل؟";
-                errorMsg_en = "Error: comma without preceding element. Did you forget an element or argument?";
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "قبل الفاصلة — هل نسيت عنصراً أو معاملاً؟"},
+                              {"ctx_en", "before the comma — did you forget an element or argument?"}});
                 break;
             default:
-                errorMsg_ar = "خطأ نحوي: رمز غير متوقع '" + current.getValue() + "' في موضع تعبير.";
-                errorMsg_en = "Syntax error: unexpected token '" + current.getValue() + "' in expression position.";
+                // (AR) SYN009 بسياق لكل لغة — لا مزج ar/en في placeholder واحد
+                // (EN) SYN009 with per-language ctx — no ar/en mash in one placeholder
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
+                             {{"ctx_ar", "(رقم، نص، معرّف، إلخ) في هذا الموضع"},
+                              {"ctx_en", "(number, string, identifier, etc.) at this position"}});
                 break;
             }
-
-            errorBilingual(errorMsg_ar, errorMsg_en);
 
             // (AR) استهلاك الرمز غير الصالح لمنع الحلقة اللانهائية
             // (EN) Consume the invalid token to prevent infinite loop
@@ -1689,9 +1667,7 @@ namespace Sad
             // (EN) Parenthesized params required: lambda(params) or lambda()
             if (!check(TT::PAREN_LEFT))
             {
-                errorBilingual(
-                    "خطأ: يجب استخدام أقواس حول معاملات لامدا. مثال: لامدا(x) => x + 1",
-                    "Error: Lambda parameters must be in parentheses. Example: lambda(x) => x + 1");
+                errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "معاملات لامدا (يلزم وضعها بين قوسين)"}, {"construct_en", "lambda parameters (parentheses required)"}, {"form", kw(TT::KEYWORD_LAMBDA) + "(س) => س + 1"}});
                 return nullptr;
             }
 
@@ -1735,9 +1711,7 @@ namespace Sad
                 auto body = parseExpression();
                 if (!body)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل جسم لامدا بعد '=>'.",
-                        "Error: failed to parse lambda body after '=>'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "في جسم لامدا بعد '=>'"}, {"ctx_en", "in the lambda body after '=>'"}});
                     return nullptr;
                 }
                 // (AR) استهلاك 'نهاية' الاختيارية بعد تعبير السهم فقط إذا كانت
@@ -1832,9 +1806,7 @@ namespace Sad
 
                     if (braceDepth != 0)
                     {
-                        errorBilingual(
-                            "خطأ: قوس غير مُغلق في f-string. تأكد من إغلاق جميع الأقواس {...}",
-                            "Error: unclosed brace in f-string. Make sure all braces {...} are closed.");
+                        errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "الأقواس المعقوفة داخل f-string"}, {"construct_en", "brace inside f-string"}, {"closer", "}"}});
                         return nullptr;
                     }
 
@@ -1948,9 +1920,7 @@ namespace Sad
             // (AR) نتوقع اسم المُزخرِف
             if (!check(TT::IDENTIFIER))
             {
-                errorBilingual(
-                    "خطأ: توقعت اسم المُزخرِف بعد @. مثال: @property أو @staticmethod",
-                    "Error: expected decorator name after @. Example: @property or @staticmethod");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "المُزخرِف"}, {"what_en", "decorator"}, {"ctx_ar", "بعد '@'"}, {"ctx_en", "after '@'"}});
                 return nullptr;
             }
             Token decoratorName = peek();
@@ -1973,18 +1943,14 @@ namespace Sad
                     args = parseArgumentList();
                     if (args.empty() && !check(TT::PAREN_RIGHT))
                     {
-                        errorBilingual(
-                            "خطأ: فشل تحليل وسائط المُزخرِف.",
-                            "Error: failed to parse decorator arguments.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "في وسائط المُزخرِف"}, {"ctx_en", "in the decorator arguments"}});
                         return nullptr;
                     }
                 }
 
                 if (!check(TT::PAREN_RIGHT))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت ')' بعد وسائط المُزخرِف. هل نسيت إغلاق الأقواس؟",
-                        "Error: expected ')' after decorator arguments. Did you forget to close the parenthesis?");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد وسائط المُزخرِف"}, {"ctx_en", "after the decorator arguments"}});
                     return nullptr;
                 }
                 consume(TT::PAREN_RIGHT, "");

@@ -62,6 +62,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <map>
 #include <unordered_set>
 
 namespace Sad
@@ -1359,44 +1360,43 @@ namespace Sad
             void error(const std::string &message);
 
             /**
-             * @brief (AR) يسجل خطأ مع رسالة ثنائية اللغة وطباعة الكود المصدري.
-             *        (EN) Records error with bilingual message and prints source code.
-             *
-             * @param message_ar (AR) رسالة الخطأ بالعربية.
-             * @param message_en (EN) Error message in English.
-             * @param showCode (AR) عرض الكود المصدري (افتراضي: true).
-             *                 (EN) Show source code (default: true).
+             * @brief (AR) وسائط سياق قوالب كتالوج الأخطاء المركزي ({key} → قيمة).
+             *        (EN) Placeholder arguments for central error-catalog templates.
              */
-            void errorBilingual(const std::string &message_ar,
-                                const std::string &message_en);
+            using CatalogArgs = std::map<std::string, std::string>;
 
             /**
-             * @brief (AR) يُنشئ رسالة خطأ لرمز غير متوقع مع التوقع.
-             *        (EN) Creates error message for unexpected token with expectation.
-             *
-             * @param expected_ar (AR) الرمز المتوقع بالعربية.
-             * @param expected_en (EN) Expected token in English.
-             * @param context_ar (AR) السياق بالعربية (مثال: "في جملة if").
-             * @param context_en (EN) Context in English (e.g., "in if statement").
+             * @brief (AR) التهجئة الرئيسية لكلمة مفتاحية من معجم SoT (لا سلاسل خام).
+             *        (EN) Primary spelling of a keyword from the SoT lexicon (no raw strings).
              */
-            void errorExpectedToken(const std::string &expected_ar,
-                                    const std::string &expected_en,
-                                    const std::string &context_ar = "",
-                                    const std::string &context_en = "");
+            static std::string kw(Lexer::TokenType type);
 
             /**
-             * @brief (AR) يُنشئ رسالة خطأ لجملة غير مكتملة.
-             *        (EN) Creates error message for incomplete statement.
-             *
-             * @param statement_ar (AR) نوع الجملة بالعربية.
-             * @param statement_en (EN) Statement type in English.
-             * @param missing_ar (AR) العنصر الناقص بالعربية.
-             * @param missing_en (EN) Missing element in English.
+             * @brief (AR) التهجئة البديلة الأولى لكلمة مفتاحية من معجم SoT (مثل صيغة
+             *        التأنيث «خارجية» لـKEYWORD_EXTERN وفق RFC 0034)، مع السقوط إلى
+             *        التهجئة الرئيسية إن لم توجد بدائل (لا سلاسل خام).
+             *        (EN) First alias spelling of a keyword from the SoT lexicon (e.g.
+             *        the feminine 'خارجية' for KEYWORD_EXTERN per RFC 0034), falling
+             *        back to the primary spelling when no aliases exist (no raw strings).
              */
-            void errorIncompleteStatement(const std::string &statement_ar,
-                                          const std::string &statement_en,
-                                          const std::string &missing_ar,
-                                          const std::string &missing_en);
+            static std::string kwAlias(Lexer::TokenType type);
+
+            /**
+             * @brief (AR) يسجل خطأً نحوياً عبر كتالوج الأخطاء المركزي (بديل errorBilingual):
+             *        يبني الرسالتين ar/en من قالب الكتالوج ويطبعهما فوراً مع رمز الخطأ الظاهر.
+             *        (EN) Reports a syntax error via the central error catalog (errorBilingual
+             *        replacement): renders ar/en from the template and prints immediately
+             *        with a visible error code.
+             */
+            void errorCatalog(Errors::ErrorCode code, CatalogArgs placeholders = {});
+
+            /**
+             * @brief (AR) نظير errorExpectedToken عبر الكتالوج: محروس بوضع الهلع، يسجل بلا
+             *        طباعة فورية (نفس سلوك errorExpectedToken القديم).
+             *        (EN) Catalog counterpart of errorExpectedToken: panic-guarded, records
+             *        without immediate printing (same behavior as legacy errorExpectedToken).
+             */
+            void errorCatalogExpected(Errors::ErrorCode code, CatalogArgs placeholders = {});
 
             /**
              * @brief (AR) يحاول التعافي من خطأ التحليل بالانتقال للجملة التالية.

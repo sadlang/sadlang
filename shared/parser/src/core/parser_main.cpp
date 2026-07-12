@@ -279,9 +279,7 @@ namespace Sad
                               << ", Column: " << current_.getPosition().column << "\n";
                     std::cerr << "========================================\n\n";
 
-                    errorBilingual(
-                        "خطأ غير معروف أثناء التحليل النحوي",
-                        "Unknown error during syntactic analysis");
+                    errorCatalog(Errors::ErrorCode::SYN_PARSE_UNKNOWN_ERROR);
                     synchronize();
                 }
             }
@@ -409,9 +407,7 @@ namespace Sad
                 {
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم سمة داخل [[ ]].",
-                            "Syntax error: expected attribute name inside [[ ]].");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "السمة"}, {"what_en", "attribute"}, {"ctx_ar", "داخل [[ ]]"}, {"ctx_en", "inside [[ ]]"}});
                         break;
                     }
                     std::string attrName = current_.getValue();
@@ -429,9 +425,7 @@ namespace Sad
                         }
                         if (!match(TT::PAREN_RIGHT))
                         {
-                            errorBilingual(
-                                "خطأ نحوي: توقعت ')' بعد معامل السمة.",
-                                "Syntax error: expected ')' after attribute argument.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد معامل السمة"}, {"ctx_en", "after the attribute argument"}});
                             break;
                         }
                         attrName += "(" + argStr + ")";
@@ -443,15 +437,11 @@ namespace Sad
                 }
                 if (!match(TT::BRACKET_RIGHT))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت ']' لإغلاق قائمة السمات.",
-                        "Syntax error: expected ']' to close attribute list.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "]"}, {"ctx_ar", "لإغلاق قائمة السمات"}, {"ctx_en", "to close the attribute list"}});
                 }
                 if (!match(TT::BRACKET_RIGHT))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت ']' ثانية لإكمال [[...]].",
-                        "Syntax error: expected second ']' to complete [[...]].");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "]"}, {"ctx_ar", "ثانيةً لإكمال [[...]]"}, {"ctx_en", "again to complete [[...]]"}});
                 }
             }
 
@@ -557,11 +547,7 @@ namespace Sad
                         const auto *externEntry = Lexer::KeywordTable::getEntry(TT::KEYWORD_EXTERN);
                         if (externEntry && previous().getValue() != externEntry->primaryWord)
                         {
-                            errorBilingual(
-                                "خطأ نحوي: كتلة الربط تُفتح بالمذكّر '" + externEntry->primaryWord + "' لا '" + previous().getValue() + "' — لا موصوف مؤنّث هنا.\n"
-                                "💡 مثال: " + externEntry->primaryWord + " \"C\"\n    دالة printf(نص)\nنهاية",
-                                "Syntax error: the linkage block opens with the masculine '" + externEntry->primaryWord + "', not '" + previous().getValue() + "' — there is no feminine noun to agree with.\n"
-                                "💡 Example: " + externEntry->primaryWord + " \"C\"\n    دالة printf(نص)\nنهاية");
+                            errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_GENDER, {{"wrong", previous().getValue() + " \"C\""}, {"right", externEntry->primaryWord + " \"C\""}, {"note_ar", "كتلة الربط تُفتح بالمذكّر '" + externEntry->primaryWord + "' — لا موصوف مؤنّث هنا. مثال: " + externEntry->primaryWord + " \"C\"\n    " + kw(TT::KEYWORD_FUNCTION) + " printf(" + kw(TT::TYPE_STRING) + ")\n" + kw(TT::KEYWORD_END)}, {"note_en", "the linkage block opens with the masculine '" + externEntry->primaryWord + "' — there is no feminine noun to agree with. Example: " + externEntry->primaryWord + " \"C\"\n    " + kw(TT::KEYWORD_FUNCTION) + " printf(" + kw(TT::TYPE_STRING) + ")\n" + kw(TT::KEYWORD_END)}});
                         }
                     }
                     std::string ffiLinkName;
@@ -606,13 +592,7 @@ namespace Sad
                 //      Reaching here necessarily means 'دالة' or '("sym")' (the entry gate
                 //      above routes every other continuation to the expression path), so
                 //      the removal message is always accurate.
-                errorBilingual(
-                    "خطأ نحوي: 'خارجي دالة' أُزيلت. استخدم 'دالة خارجية' بدلاً منها.\n"
-                    "💡 في العربية الصفة تأتي بعد الاسم وتطابقه في الجنس: دالة خارجية printf(نص)\n"
-                    "💡 مثال:\n    دالة خارجية printf(نص)\n    دالة خارجية(\"cos\") عشري جيب_التمام(عشري)",
-                    "Syntax error: 'extern function' removed. Use 'function extern' ('دالة خارجية') instead.\n"
-                    "💡 In Arabic, adjectives follow nouns and agree in gender: دالة خارجية printf(نص)\n"
-                    "💡 Example:\n    دالة خارجية printf(نص)\n    دالة خارجية(\"cos\") عشري جيب_التمام(عشري)");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_EXTERN) + " " + kw(TT::KEYWORD_FUNCTION)}, {"new", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN)}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")\n" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "(\"cos\") " + kw(TT::TYPE_DOUBLE) + " جيب_التمام(" + kw(TT::TYPE_DOUBLE) + ")"}});
                 // (AR) تعافٍ: استهلاك اسم الربط الاختياريّ '("رمز")' ثم 'دالة' ثم التصريح
                 //      نفسه — يمنع تعاقب أخطاء لاحقة كما يفعل حاجز 'غير_متزامن دالة'.
                 // (EN) Recovery: consume optional '("sym")' then 'function' then the decl
@@ -641,13 +621,7 @@ namespace Sad
             if (match(TT::KEYWORD_ASYNC) ||
                 (checkContextual(TT::KEYWORD_ASYNC) && peekNext().getType() == TT::KEYWORD_FUNCTION))
             {
-                errorBilingual(
-                    "خطأ نحوي: 'غير_متزامن دالة' أُزيلت. استخدم 'دالة غير_متزامن' بدلاً منها.\n"
-                    "💡 في العربية الصفة تأتي بعد الاسم: دالة غير_متزامن جلب()\n"
-                    "💡 مثال:\n    دالة غير_متزامن جلب(رابط: نص)\n        ...\n    نهاية",
-                    "Syntax error: 'async function' removed. Use 'function async' instead.\n"
-                    "💡 In Arabic, adjectives follow nouns: دالة غير_متزامن name()\n"
-                    "💡 Example:\n    دالة غير_متزامن fetch(url: نص)\n        ...\n    نهاية");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_ASYNC) + " " + kw(TT::KEYWORD_FUNCTION)}, {"new", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::KEYWORD_ASYNC)}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::KEYWORD_ASYNC) + " جلب(رابط: " + kw(TT::TYPE_STRING) + ")\n ...\n" + kw(TT::KEYWORD_END)}});
                 if (checkContextual(TT::KEYWORD_ASYNC))
                     advance();
                 if (!check(TT::KEYWORD_FUNCTION))
@@ -670,9 +644,7 @@ namespace Sad
                     advance(); // consume contextual
                 if (!match(TT::KEYWORD_FUNCTION))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت 'دالة' بعد 'مولد'.",
-                        "Syntax error: Expected 'دالة' after 'مولد'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FUNCTION)}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_GENERATOR) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_GENERATOR) + "'"}});
                     return nullptr;
                 }
                 auto __fd = parseFunctionDecl(std::move(decorators), false, true);
@@ -688,11 +660,7 @@ namespace Sad
                 if (match(TT::KEYWORD_GENERATOR) ||
                     (checkContextual(TT::KEYWORD_GENERATOR)))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: 'دالة مولد' أُزيلت. استخدم 'مولد دالة' بدلاً منها.\n"
-                        "💡 مثال: مولد دالة عدّاد()\n    أنتج 1\n    أنتج 2\nنهاية",
-                        "Syntax error: 'function generator' removed. Use 'generator function' instead.\n"
-                        "💡 Example: مولد دالة counter()\n    yield 1\n    yield 2\nend");
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_FUNCTION) + " " + kw(TT::KEYWORD_GENERATOR)}, {"new", kw(TT::KEYWORD_GENERATOR) + " " + kw(TT::KEYWORD_FUNCTION)}, {"example", kw(TT::KEYWORD_GENERATOR) + " " + kw(TT::KEYWORD_FUNCTION) + " عدّاد()\n " + kw(TT::KEYWORD_YIELD) + " 1\n " + kw(TT::KEYWORD_YIELD) + " 2\n" + kw(TT::KEYWORD_END)}});
                     if (checkContextual(TT::KEYWORD_GENERATOR))
                         advance();
                     auto __fd = parseFunctionDecl(std::move(decorators), false, true);
@@ -738,15 +706,7 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_ABSTRACT))
             {
-                errorBilingual(
-                    "خطأ نحوي: 'مجرد صنف' أُزيلت. في لغة ص، الصفة تأتي بعد الموصوف.\n"
-                    "❌ خطأ: مجرد صنف اسم\n"
-                    "✅ صحيح: صنف مجرد اسم\n"
-                    "💡 صنف مجرد محكم اسم (لصنف مجرد ومحكم معاً)",
-                    "Syntax error: 'مجرد صنف' removed. In Sad, adjectives follow nouns.\n"
-                    "❌ Wrong: مجرد صنف Name\n"
-                    "✅ Correct: صنف مجرد Name\n"
-                    "💡 صنف مجرد محكم Name (for abstract + sealed)");
+                errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_ORDER, {{"wrong", kw(TT::KEYWORD_ABSTRACT) + " " + kw(TT::KEYWORD_CLASS)}, {"right", kw(TT::KEYWORD_CLASS) + " " + kw(TT::KEYWORD_ABSTRACT)}});
                 // (AR) محاولة استرداد: نبتلع 'محكم' إن وجدت ثم 'صنف'
                 bool isAlsoSealed = false;
                 if (checkContextual(TT::KEYWORD_SEALED))
@@ -777,15 +737,7 @@ namespace Sad
             // ═══════════════════════════════════════════════════════════════════
             if (checkContextual(TT::KEYWORD_SEALED))
             {
-                errorBilingual(
-                    "خطأ نحوي: 'محكم صنف' أُزيلت. في لغة ص، الصفة تأتي بعد الموصوف.\n"
-                    "❌ خطأ: محكم صنف اسم\n"
-                    "✅ صحيح: صنف محكم اسم\n"
-                    "💡 صنف محكم مجرد اسم (لصنف محكم ومجرد معاً)",
-                    "Syntax error: 'محكم صنف' removed. In Sad, adjectives follow nouns.\n"
-                    "❌ Wrong: محكم صنف Name\n"
-                    "✅ Correct: صنف محكم Name\n"
-                    "💡 صنف محكم مجرد Name (for sealed + abstract)");
+                errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_ORDER, {{"wrong", kw(TT::KEYWORD_SEALED) + " " + kw(TT::KEYWORD_CLASS)}, {"right", kw(TT::KEYWORD_CLASS) + " " + kw(TT::KEYWORD_SEALED)}});
                 advance(); // (AR) استهلاك 'محكم'
                 bool isAlsoAbstract = false;
                 if (match(TT::KEYWORD_ABSTRACT))
@@ -794,9 +746,7 @@ namespace Sad
                 }
                 if (!match(TT::KEYWORD_CLASS))
                 {
-                    errorBilingual(
-                        "توقع 'صنف' بعد 'محكم'.",
-                        "Expected 'صنف' (class) after 'محكم' (sealed).");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_CLASS)}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_SEALED) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_SEALED) + "'"}});
                 }
                 auto classDecl = parseClassDecl();
                 if (auto *cd = dynamic_cast<AST::ClassDecl *>(classDecl.get()))
@@ -942,26 +892,20 @@ namespace Sad
                 // (EN) Now current token is the alias name
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت اسم النوع المستعار بعد 'نوع'.",
-                        "Syntax error: expected alias name after 'نوع'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "النوع المستعار"}, {"what_en", "type alias"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_TYPENAME) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_TYPENAME) + "'"}});
                     return nullptr;
                 }
                 Token aliasName = current_;
                 advance(); // (AR) استهلاك اسم المستعار
                 if (!match(TT::OP_ASSIGN))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت '=' بعد اسم النوع المستعار.",
-                        "Syntax error: expected '=' after type alias name.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "="}, {"ctx_ar", "بعد اسم النوع المستعار"}, {"ctx_en", "after the type alias name"}});
                     return nullptr;
                 }
                 auto target = parseExpression();
                 if (!target)
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت تعبيراً بعد '=' في تصريح الاسم المستعار للنوع.",
-                        "Syntax error: expected expression after '=' in type alias declaration.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '=' في تصريح الاسم المستعار للنوع"}, {"ctx_en", "after '=' in a type-alias declaration"}});
                     return nullptr;
                 }
                 return std::make_unique<TypeAliasDecl>(
@@ -1262,19 +1206,7 @@ namespace Sad
                 }
 
                 // Show detailed error message in both languages
-                errorBilingual(
-                    "(AR) خطأ نحوي: رمز غير متوقع '" + tokenVal + "' (" + tokenDesc + ") في بداية جملة أو تصريح.\n" +
-                        "   تحقق من الكود - قد يكون هناك:\n" +
-                        "   - فاصل منقوط أو فاصل غير ضروري\n" +
-                        "   - قوس إغلاق بدون قوس فتح\n" +
-                        "   - جملة ناقصة أو غير صحيحة\n" +
-                        "   السطر: " + std::to_string(current_.getPosition().line),
-                    "(EN) Syntax error: unexpected token '" + tokenVal + "' (" + tokenDesc + ") at statement start.\n" +
-                        "   Check your code - there might be:\n" +
-                        "   - unnecessary semicolon or separator\n" +
-                        "   - closing bracket/brace without opening\n" +
-                        "   - incomplete or malformed statement\n" +
-                        "   Line: " + std::to_string(current_.getPosition().line));
+                errorCatalog(Errors::ErrorCode::SYN_UNEXPECTED_TOKEN, {{"found", tokenVal + " (" + tokenDesc + ")"}, {"expected", "بداية جملة أو تصريح (statement/declaration start)"}});
                 synchronize();
                 return nullptr;
             }
@@ -1359,9 +1291,7 @@ namespace Sad
             // (AR) رسالة خطأ لـ 'اعطِ' المُزالة
             if (checkContextual(TT::KEYWORD_GIVE_DEPRECATED))
             {
-                errorBilingual(
-                    "خطأ نحوي: 'اعطِ' أُزيلت. استخدم 'أنتج' بدلاً منها.",
-                    "Syntax error: 'اعطِ' removed. Use 'أنتج' instead.");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_GIVE_DEPRECATED)}, {"new", kw(TT::KEYWORD_YIELD)}, {"example", kw(TT::KEYWORD_YIELD) + " 1"}});
                 advance();
                 return parseYieldStmt();
             }
@@ -1477,7 +1407,7 @@ namespace Sad
 
                     if (!firstValue)
                     {
-                        errorExpectedToken("تعبير قيمة", "value expression", "بعد ':' في list comprehension", "after ':' in list comprehension");
+                        errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(قيمة) بعد ':' في استيعاب القائمة"}, {"ctx_en", "(value) after ':' in a list comprehension"}});
                         return nullptr;
                     }
 
@@ -1526,9 +1456,7 @@ namespace Sad
                         auto key = parseTernary();
                         if (!check(TT::COLON) && !check(TT::OP_ASSIGN))
                         {
-                            errorBilingual(
-                                "خطأ: توقعت ':' أو '=' بعد مفتاح الخريطة.",
-                                "Error: expected ':' or '=' after map key.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ":"}, {"ctx_ar", "بعد مفتاح الخريطة (أو '=')"}, {"ctx_en", "after the map key (or '=')"}});
                             return nullptr;
                         }
                         advance(); // consume ':' or '='

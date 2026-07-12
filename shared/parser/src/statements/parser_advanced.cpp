@@ -54,9 +54,7 @@ namespace Sad
                 // (AR) اسم متغيّر الحلقة / (EN) loop variable name
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت اسم متغيّر بعد 'لكل' في استيعاب القائمة. الصيغة: [لكل س في مصدر أنتج تعبير]",
-                        "Error: expected variable name after 'لكل' in list comprehension. Format: [لكل var في iterable أنتج expr]");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_FOR) + "' في استيعاب القائمة"}, {"ctx_en", "after '" + kw(TT::KEYWORD_FOR) + "' in a list comprehension"}});
                     return nullptr;
                 }
                 Token var = peek();
@@ -71,9 +69,7 @@ namespace Sad
                 {
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ: توقعت اسم متغيّر القيمة بعد '،' في استيعاب القائمة. الصيغة: [لكل مفتاح، قيمة في خريطة أنتج تعبير]",
-                            "Error: expected value variable name after ',' in list comprehension. Format: [لكل key, value في map أنتج expr]");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير القيمة"}, {"what_en", "value variable"}, {"ctx_ar", "بعد '،' في استيعاب القائمة"}, {"ctx_en", "after ',' in a list comprehension"}});
                         return nullptr;
                     }
                     listValueVar = peek().getValue();
@@ -83,9 +79,7 @@ namespace Sad
                 // (AR) توقّع 'في' / (EN) expect 'في'
                 if (!check(TT::KEYWORD_IN))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت 'في' بعد اسم المتغيّر في استيعاب القائمة. الصيغة: [لكل س في مصدر أنتج تعبير]",
-                        "Error: expected 'في' after variable name in list comprehension. Format: [لكل var في iterable أنتج expr]");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_IN)}, {"ctx_ar", "بعد اسم المتغير في استيعاب القائمة"}, {"ctx_en", "after the variable name in a list comprehension"}});
                     return nullptr;
                 }
                 advance();
@@ -94,9 +88,7 @@ namespace Sad
                 auto iterable = parseExpression();
                 if (!iterable)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل المصدر القابل للتكرار بعد 'في' في استيعاب القائمة.",
-                        "Error: failed to parse iterable after 'في' in list comprehension.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "قابلاً للتكرار بعد '" + kw(TT::KEYWORD_IN) + "' في استيعاب القائمة"}, {"ctx_en", "(iterable) after '" + kw(TT::KEYWORD_IN) + "' in a list comprehension"}});
                     return nullptr;
                 }
 
@@ -107,9 +99,7 @@ namespace Sad
                     condition = parseExpression();
                     if (!condition)
                     {
-                        errorBilingual(
-                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في استيعاب القائمة.",
-                            "Error: invalid condition expression after 'إذا' in list comprehension.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "شرطيًا صالحًا بعد '" + kw(TT::KEYWORD_IF) + "' في استيعاب القائمة"}, {"ctx_en", "(valid condition) after '" + kw(TT::KEYWORD_IF) + "' in a list comprehension"}});
                         return nullptr;
                     }
                 }
@@ -118,9 +108,7 @@ namespace Sad
                 // (EN) 'أنتج' separates the loop head from the output expression
                 if (!match(TT::KEYWORD_YIELD) && !matchContextual(TT::KEYWORD_YIELD))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت 'أنتج' قبل تعبير الناتج في استيعاب القائمة. الصيغة: [لكل س في مصدر أنتج تعبير]",
-                        "Error: expected 'أنتج' before the output expression in list comprehension. Format: [لكل var في iterable أنتج expr]");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_YIELD)}, {"ctx_ar", "قبل تعبير الناتج في استيعاب القائمة"}, {"ctx_en", "before the output expression in a list comprehension"}});
                     return nullptr;
                 }
 
@@ -128,9 +116,7 @@ namespace Sad
                 auto elemExpr = parseExpression();
                 if (!elemExpr)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل تعبير الناتج بعد 'أنتج' في استيعاب القائمة.",
-                        "Error: failed to parse output expression after 'أنتج' in list comprehension.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "للناتج بعد '" + kw(TT::KEYWORD_YIELD) + "' في استيعاب القائمة"}, {"ctx_en", "(output) after '" + kw(TT::KEYWORD_YIELD) + "' in a list comprehension"}});
                     return nullptr;
                 }
 
@@ -139,9 +125,7 @@ namespace Sad
                     // (AR) محاولة التعافي: إدراج ']' المفقودة / (EN) recover missing ']'
                     if (!tryRecoverFromError(TT::BRACKET_RIGHT, "list comprehension"))
                     {
-                        errorBilingual(
-                            "خطأ: توقعت ']' في نهاية استيعاب القائمة. الصيغة: [لكل س في مصدر إذا شرط أنتج تعبير]",
-                            "Error: expected ']' at end of list comprehension. Format: [لكل var في iterable إذا cond أنتج expr]");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "]"}, {"ctx_ar", "في نهاية استيعاب القائمة"}, {"ctx_en", "at the end of a list comprehension"}});
                         return nullptr;
                     }
                 }
@@ -167,9 +151,7 @@ namespace Sad
             auto firstExpr = parseExpression();
             if (!firstExpr)
             {
-                errorBilingual(
-                    "خطأ: لم يتم تحليل التعبير الأول في المصفوفة. تأكد من أن التعبير صحيح.",
-                    "Error: failed to parse first expression in array. Make sure the expression is valid.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في أول عنصر من المصفوفة"}, {"ctx_en", "(valid) as the first array element"}});
                 return nullptr;
             }
 
@@ -190,9 +172,7 @@ namespace Sad
                 auto elem = parseExpression();
                 if (!elem)
                 {
-                    errorBilingual(
-                        "خطأ: تعبير عنصر غير صحيح في المصفوفة. تأكد من صيغة العنصر.",
-                        "Error: invalid element expression in array. Make sure element syntax is correct.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في عنصر المصفوفة"}, {"ctx_en", "(valid) in an array element"}});
                     return nullptr;
                 }
                 elements.push_back(std::move(elem));
@@ -209,9 +189,7 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(
-                        "خطأ: لم يتم إغلاق المصفوفة. توقعت ']'. هل نسيت إغلاق القوس المربع؟",
-                        "Error: array not closed. Expected ']'. Did you forget to close the bracket?");
+                    errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "المصفوفة"}, {"construct_en", "array"}, {"closer", "]"}});
                     return nullptr;
                 }
             }
@@ -250,9 +228,7 @@ namespace Sad
                 auto spreadExpr = parseTernary();
                 if (!spreadExpr)
                 {
-                    errorBilingual(
-                        "خطأ: توقعت تعبيراً بعد '...' في الخريطة.",
-                        "Error: expected expression after '...' in map.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '...' في الخريطة"}, {"ctx_en", "after '...' in a map"}});
                     return nullptr;
                 }
 
@@ -303,9 +279,7 @@ namespace Sad
                 // (AR) متغيّر الحلقة / (EN) loop variable
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت اسم متغيّر بعد 'لكل' في الاستيعاب. الصيغة: {لكل س في مصدر أنتج تعبير}",
-                        "Error: expected variable name after 'لكل' in comprehension. Format: {لكل var في iterable أنتج expr}");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_FOR) + "' في الاستيعاب"}, {"ctx_en", "after '" + kw(TT::KEYWORD_FOR) + "' in a comprehension"}});
                     return nullptr;
                 }
                 Token loopVar = peek();
@@ -318,9 +292,7 @@ namespace Sad
                 {
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ: توقعت اسم متغيّر القيمة بعد '،' في الاستيعاب. الصيغة: {لكل مفتاح، قيمة في خريطة أنتج تعبير}",
-                            "Error: expected value variable name after ',' in comprehension. Format: {لكل key, value في map أنتج expr}");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير القيمة"}, {"what_en", "value variable"}, {"ctx_ar", "بعد '،' في الاستيعاب"}, {"ctx_en", "after ',' in a comprehension"}});
                         return nullptr;
                     }
                     compValueVar = peek().getValue();
@@ -330,9 +302,7 @@ namespace Sad
                 // (AR) توقّع 'في' / (EN) expect 'في'
                 if (!check(TT::KEYWORD_IN))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت 'في' بعد متغيّر الحلقة في الاستيعاب. الصيغة: {لكل س في مصدر أنتج تعبير}",
-                        "Error: expected 'في' after loop variable in comprehension. Format: {لكل var في iterable أنتج expr}");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_IN)}, {"ctx_ar", "بعد متغير الحلقة في الاستيعاب"}, {"ctx_en", "after the loop variable in a comprehension"}});
                     return nullptr;
                 }
                 advance();
@@ -341,9 +311,7 @@ namespace Sad
                 auto iterable = parseExpression();
                 if (!iterable)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل المصدر القابل للتكرار في الاستيعاب.",
-                        "Error: failed to parse iterable in comprehension.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "قابلاً للتكرار في الاستيعاب"}, {"ctx_en", "(iterable) in a comprehension"}});
                     return nullptr;
                 }
 
@@ -354,9 +322,7 @@ namespace Sad
                     condition = parseExpression();
                     if (!condition)
                     {
-                        errorBilingual(
-                            "خطأ: تعبير شرط غير صحيح بعد 'إذا' في الاستيعاب.",
-                            "Error: invalid condition expression after 'إذا' in comprehension.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "شرطيًا صالحًا بعد '" + kw(TT::KEYWORD_IF) + "' في الاستيعاب"}, {"ctx_en", "(valid condition) after '" + kw(TT::KEYWORD_IF) + "' in a comprehension"}});
                         return nullptr;
                     }
                 }
@@ -364,9 +330,7 @@ namespace Sad
                 // (AR) 'أنتج' تفصل رأس الحلقة عن الناتج / (EN) 'أنتج' separates loop head from output
                 if (!match(TT::KEYWORD_YIELD) && !matchContextual(TT::KEYWORD_YIELD))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت 'أنتج' قبل الناتج في الاستيعاب. الصيغة: {لكل س في مصدر أنتج تعبير} أو {لكل س في مصدر أنتج مفتاح: قيمة}",
-                        "Error: expected 'أنتج' before the output in comprehension. Format: {لكل var في iterable أنتج expr} or {... أنتج key: value}");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_YIELD)}, {"ctx_ar", "قبل الناتج في الاستيعاب"}, {"ctx_en", "before the output in a comprehension"}});
                     return nullptr;
                 }
 
@@ -375,9 +339,7 @@ namespace Sad
                 auto firstOut = parseTernary();
                 if (!firstOut)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل الناتج بعد 'أنتج' في الاستيعاب.",
-                        "Error: failed to parse output after 'أنتج' in comprehension.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "للناتج بعد '" + kw(TT::KEYWORD_YIELD) + "' في الاستيعاب"}, {"ctx_en", "(output) after '" + kw(TT::KEYWORD_YIELD) + "' in a comprehension"}});
                     return nullptr;
                 }
 
@@ -389,9 +351,7 @@ namespace Sad
                     auto valueExpr = parseExpression();
                     if (!valueExpr)
                     {
-                        errorBilingual(
-                            "خطأ: فشل تحليل قيمة القاموس بعد ':' في الاستيعاب.",
-                            "Error: failed to parse dict value after ':' in comprehension.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "لقيمة القاموس بعد ':' في الاستيعاب"}, {"ctx_en", "(dict value) after ':' in a comprehension"}});
                         return nullptr;
                     }
 
@@ -399,9 +359,7 @@ namespace Sad
                     {
                         if (!tryRecoverFromError(TT::BRACE_RIGHT, "dict comprehension"))
                         {
-                            errorBilingual(
-                                "خطأ: توقعت '}' في نهاية استيعاب القاموس.",
-                                "Error: expected '}' at end of dict comprehension.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "}"}, {"ctx_ar", "في نهاية استيعاب القاموس"}, {"ctx_en", "at the end of a dict comprehension"}});
                             return nullptr;
                         }
                     }
@@ -425,9 +383,7 @@ namespace Sad
                 // (AR) استيعاب مجموعة / (EN) set comprehension
                 if (!check(TT::BRACE_RIGHT))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت '}' في نهاية استيعاب المجموعة.",
-                        "Error: expected '}' at end of set comprehension.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "}"}, {"ctx_ar", "في نهاية استيعاب المجموعة"}, {"ctx_en", "at the end of a set comprehension"}});
                     return nullptr;
                 }
                 consume(TT::BRACE_RIGHT, "");
@@ -446,9 +402,7 @@ namespace Sad
             auto firstKey = parseTernary();
             if (!firstKey)
             {
-                errorBilingual(
-                    "خطأ: فشل تحليل التعبير - تعبير غير صحيح.",
-                    "Error: failed to parse expression - invalid expression.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في هذا الموضع"}, {"ctx_en", "(valid) at this position"}});
                 return nullptr;
             }
 
@@ -458,9 +412,7 @@ namespace Sad
             //      here is always a plain map key — it must be followed by ':' or '='.
             if (!check(TT::COLON) && !check(TT::OP_ASSIGN))
             {
-                errorBilingual(
-                    "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}. للاستيعاب استخدم: {لكل س في مصدر أنتج تعبير}",
-                    "Error: expected ':' after map key. Format: {key: value, ...}. For a comprehension use: {لكل var في iterable أنتج expr}");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ":"}, {"ctx_ar", "بعد مفتاح الخريطة"}, {"ctx_en", "after the map key"}});
                 return nullptr;
             }
             advance(); // consume ':' or '='
@@ -470,9 +422,7 @@ namespace Sad
             auto firstValue = parseTernary();
             if (!firstValue)
             {
-                errorBilingual(
-                    "خطأ: فشل تحليل قيمة الخريطة - تعبير غير صحيح. تأكد من أن القيمة صحيحة.",
-                    "Error: failed to parse map value - invalid expression. Make sure the value is valid.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا لقيمة الخريطة"}, {"ctx_en", "(valid map value)"}});
                 return nullptr;
             }
 
@@ -500,9 +450,7 @@ namespace Sad
                     auto spreadExpr = parseTernary();
                     if (!spreadExpr)
                     {
-                        errorBilingual(
-                            "خطأ: توقعت تعبيراً بعد '...' في الخريطة.",
-                            "Error: expected expression after '...' in map.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '...' في الخريطة"}, {"ctx_en", "after '...' in a map"}});
                         return nullptr;
                     }
                     pairs.emplace_back(std::move(spreadExpr)); // spread: key=nullptr
@@ -514,17 +462,13 @@ namespace Sad
                 auto key = parseTernary();
                 if (!key)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل مفتاح إضافي في الخريطة.",
-                        "Error: failed to parse additional key in map.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "لمفتاح إضافي في الخريطة"}, {"ctx_en", "(additional map key)"}});
                     return nullptr;
                 }
 
                 if (!check(TT::COLON) && !check(TT::OP_ASSIGN))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت ':' بعد مفتاح الخريطة. هل نسيت الفاصلة قبل المفتاح التالي؟",
-                        "Error: expected ':' after map key. Did you forget the colon before the value?");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ":"}, {"ctx_ar", "بعد مفتاح الخريطة — هل نسيت الفاصلة قبل المفتاح التالي؟"}, {"ctx_en", "after the map key — did you forget the comma before the next key?"}});
                     return nullptr;
                 }
                 advance(); // consume ':' or '='
@@ -532,9 +476,7 @@ namespace Sad
                 auto value = parseExpression();
                 if (!value)
                 {
-                    errorBilingual(
-                        "خطأ: فشل تحليل قيمة إضافية في الخريطة.",
-                        "Error: failed to parse additional value in map.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "لقيمة إضافية في الخريطة"}, {"ctx_en", "(additional map value)"}});
                     return nullptr;
                 }
 
@@ -547,9 +489,7 @@ namespace Sad
                 // (EN) Try recovery: insert missing '}'
                 if (!tryRecoverFromError(TT::BRACE_RIGHT, "map literal"))
                 {
-                    errorBilingual(
-                        "خطأ: لم يتم إغلاق الخريطة. توقعت '}'. هل نسيت إغلاق الأقواس المعقوفة؟",
-                        "Error: map not closed. Expected '}'. Did you forget to close the braces?");
+                    errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "الخريطة"}, {"construct_en", "map"}, {"closer", "}"}});
                     return nullptr;
                 }
             }
@@ -584,9 +524,7 @@ namespace Sad
 
             if (!value)
             {
-                errorBilingual(
-                    "خطأ: توقعت تعبير بعد 'match'",
-                    "Error: Expected expression after 'match'");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '" + kw(TT::KEYWORD_MATCH) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_MATCH) + "'"}});
                 return nullptr;
             }
 
@@ -594,11 +532,7 @@ namespace Sad
             // (EN) Brace syntax removed — use 'نهاية' only
             if (check(TT::BRACE_LEFT))
             {
-                errorBilingual(
-                    "خطأ نحوي: صيغة {} أُزيلت من 'طابق'. استخدم 'نهاية' بدلاً منها.\n"
-                    "💡 مثال:\n    طابق (قيمة)\n        عندما 1: ...\n    نهاية",
-                    "Syntax error: {} syntax removed from 'match'. Use 'نهاية' instead.\n"
-                    "💡 Example:\n    match (value)\n        when 1: ...\n    end");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_MATCH) + " { ... }"}, {"new", kw(TT::KEYWORD_END)}, {"example", kw(TT::KEYWORD_MATCH) + " (قيمة)\n " + kw(TT::KEYWORD_WHEN) + " 1: ...\n" + kw(TT::KEYWORD_END)}});
             }
 
             // Parse case clauses
@@ -660,18 +594,14 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(
-                        "خطأ: توقعت 'حالة' أو 'عندما' أو 'افتراضي' أو 'نهاية'",
-                        "Error: Expected 'case', 'when', 'default', or 'end'");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_WHEN)}, {"ctx_ar", "أو '" + kw(TT::KEYWORD_CASE) + "' أو '" + kw(TT::KEYWORD_DEFAULT) + "' أو '" + kw(TT::KEYWORD_END) + "' داخل '" + kw(TT::KEYWORD_MATCH) + "'"}, {"ctx_en", "or '" + kw(TT::KEYWORD_CASE) + "' or '" + kw(TT::KEYWORD_DEFAULT) + "' or '" + kw(TT::KEYWORD_END) + "' inside '" + kw(TT::KEYWORD_MATCH) + "'"}});
                     return nullptr;
                 }
             }
 
             if (cases.empty())
             {
-                errorBilingual(
-                    "خطأ: جملة match يجب أن تحتوي على فرع case واحد على الأقل",
-                    "Error: Match statement must have at least one case clause");
+                errorCatalog(Errors::ErrorCode::SYN_EMPTY_CONSTRUCT, {{"construct_ar", "جملة '" + kw(TT::KEYWORD_MATCH) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_MATCH) + "' statement"}, {"required_ar", "فرع '" + kw(TT::KEYWORD_WHEN) + "' واحد"}, {"required_en", "one '" + kw(TT::KEYWORD_WHEN) + "' clause"}});
                 return nullptr;
             }
 
@@ -679,9 +609,7 @@ namespace Sad
             // (AR) توقع إنهاء: 'نهاية'
             if (!match(TT::KEYWORD_END))
             {
-                errorBilingual(
-                    "خطأ: توقعت 'نهاية' في نهاية جملة طابق",
-                    "Error: Expected 'end' at end of match statement");
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "جملة '" + kw(TT::KEYWORD_MATCH) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_MATCH) + "' statement"}, {"closer", kw(TT::KEYWORD_END)}});
                 return nullptr;
             }
 
@@ -701,9 +629,7 @@ namespace Sad
             // (AR) استهلاك 'عندما' فقط
             if (!match(TT::KEYWORD_WHEN))
             {
-                errorBilingual(
-                    "خطأ: توقعت 'عندما'",
-                    "Error: Expected 'عندما' (when)");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_WHEN)}, {"ctx_ar", "في هذا الموضع"}, {"ctx_en", "at this position"}});
                 return AST::CaseClause(nullptr, nullptr, {});
             }
 
@@ -713,9 +639,7 @@ namespace Sad
 
             if (!pattern)
             {
-                errorBilingual(
-                    "خطأ: توقعت نمط بعد 'case'",
-                    "Error: Expected pattern after 'case'");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(نمطًا) بعد '" + kw(TT::KEYWORD_CASE) + "'"}, {"ctx_en", "(pattern) after '" + kw(TT::KEYWORD_CASE) + "'"}});
                 return AST::CaseClause(nullptr, nullptr, {});
             }
 
@@ -728,9 +652,7 @@ namespace Sad
 
                 if (!guard)
                 {
-                    errorBilingual(
-                        "خطأ: توقعت تعبير بعد 'if' في guard",
-                        "Error: Expected expression after 'if' in guard");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '" + kw(TT::KEYWORD_IF) + "' في الحارس"}, {"ctx_en", "after '" + kw(TT::KEYWORD_IF) + "' in a guard"}});
                 }
             }
 
@@ -843,9 +765,7 @@ namespace Sad
                     }
                     else
                     {
-                        errorBilingual(
-                            "خطأ: توقعت نمط بعد '||'",
-                            "Error: Expected pattern after '||'");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(نمطًا) بعد '||'"}, {"ctx_en", "(pattern) after '||'"}});
                         break;
                     }
                 }
@@ -897,9 +817,7 @@ namespace Sad
                 {
                     // (AR) لم يكن رقماً بعد الناقص — خطأ نحوي
                     // (EN) Not a number after minus — syntax error
-                    errorBilingual(
-                        "خطأ: توقعت رقماً بعد '-' في نمط طابق",
-                        "Error: Expected number after '-' in match pattern");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(رقمًا) بعد '-' في نمط '" + kw(TT::KEYWORD_MATCH) + "'"}, {"ctx_en", "(number) after '-' in a '" + kw(TT::KEYWORD_MATCH) + "' pattern"}});
                     return nullptr;
                 }
 
@@ -922,9 +840,7 @@ namespace Sad
                     auto [endOk, endValue] = parseSignedNumber();
                     if (!endOk)
                     {
-                        errorBilingual(
-                            "خطأ: توقعت رقم بعد '..' في نمط النطاق",
-                            "Error: Expected number after '..' in range pattern");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(رقمًا) بعد '..' في نمط النطاق"}, {"ctx_en", "(number) after '..' in a range pattern"}});
                         return nullptr;
                     }
 
@@ -995,9 +911,7 @@ namespace Sad
                     }
                     else
                     {
-                        errorBilingual(
-                            "خطأ: توقعت اسم عضو بعد '.' في نمط التعداد",
-                            "Error: Expected variant name after '.' in enum pattern");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "عضو التعداد"}, {"what_en", "enum variant"}, {"ctx_ar", "بعد '.' في نمط التعداد"}, {"ctx_en", "after '.' in an enum pattern"}});
                         return nullptr;
                     }
 
@@ -1034,9 +948,7 @@ namespace Sad
 
                         if (!check(TT::PAREN_RIGHT))
                         {
-                            errorBilingual(
-                                "خطأ: توقعت ')' لإغلاق أنماط التعداد الجبري",
-                                "Error: Expected ')' to close ADT enum variant patterns");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "لإغلاق أنماط التعداد الجبري"}, {"ctx_en", "to close the ADT enum variant patterns"}});
                             return nullptr;
                         }
                         advance(); // (AR) استهلاك ')' / (EN) consume ')'
@@ -1058,9 +970,7 @@ namespace Sad
                 return std::make_unique<AST::VariablePattern>(token.getValue());
             }
 
-            errorBilingual(
-                "خطأ: توقعت نمط (رقم، نص، متغير، أو '_')",
-                "Error: Expected pattern (number, string, variable, or '_')");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(نمطًا: رقم، نص، متغير، أو '_')"}, {"ctx_en", "(pattern: number, string, variable, or '_')"}});
             return nullptr;
         }
 
@@ -1072,9 +982,7 @@ namespace Sad
         {
             if (!match(TT::BRACKET_LEFT))
             {
-                errorBilingual(
-                    "خطأ: توقعت '[' لبداية نمط القائمة",
-                    "Error: Expected '[' for list pattern");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "["}, {"ctx_ar", "لبداية نمط القائمة"}, {"ctx_en", "to start a list pattern"}});
                 return nullptr;
             }
 
@@ -1102,9 +1010,7 @@ namespace Sad
 
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ: توقعت اسم متغير بعد '*' في نمط القائمة",
-                            "Error: Expected variable name after '*' in list pattern");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "بعد '*' في نمط القائمة"}, {"ctx_en", "after '*' in a list pattern"}});
                         return nullptr;
                     }
 
@@ -1136,9 +1042,7 @@ namespace Sad
 
             if (!match(TT::BRACKET_RIGHT))
             {
-                errorBilingual(
-                    "خطأ: توقعت ']' في نهاية نمط القائمة",
-                    "Error: Expected ']' at end of list pattern");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "]"}, {"ctx_ar", "في نهاية نمط القائمة"}, {"ctx_en", "at the end of a list pattern"}});
                 return nullptr;
             }
 
@@ -1156,9 +1060,7 @@ namespace Sad
         {
             if (!match(TT::BRACE_LEFT))
             {
-                errorBilingual(
-                    "خطأ: توقعت '{' لبداية نمط البنية",
-                    "Error: Expected '{' for struct pattern");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "{"}, {"ctx_ar", "لبداية نمط البنية"}, {"ctx_en", "to start a struct pattern"}});
                 return nullptr;
             }
 
@@ -1180,9 +1082,7 @@ namespace Sad
                 // (AR) اسم الحقل
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ: توقعت اسم حقل في نمط البنية",
-                        "Error: Expected field name in struct pattern");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "في نمط البنية"}, {"ctx_en", "in a struct pattern"}});
                     return nullptr;
                 }
 
@@ -1214,9 +1114,7 @@ namespace Sad
 
             if (!match(TT::BRACE_RIGHT))
             {
-                errorBilingual(
-                    "خطأ: توقعت '}' في نهاية نمط البنية",
-                    "Error: Expected '}' at end of struct pattern");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "}"}, {"ctx_ar", "في نهاية نمط البنية"}, {"ctx_en", "at the end of a struct pattern"}});
                 return nullptr;
             }
 
@@ -1245,9 +1143,7 @@ namespace Sad
             // (AR) توقع '<' / (EN) Expect '<'
             if (!match(TT::OP_LESS))
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت '<' بعد 'قالب'",
-                    "Syntax error: Expected '<' after 'template'");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "<"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_TEMPLATE) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_TEMPLATE) + "'"}});
                 return params;
             }
 
@@ -1274,9 +1170,7 @@ namespace Sad
                     // (AR) توقع اسم نوع الثابت — يأتي كـ IDENTIFIER (رقم/عشري/نص/منطقي)
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم نوع بعد 'ثابت' في معامل القالب",
-                            "Syntax error: Expected type name after 'const' in template parameter");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "النوع"}, {"what_en", "type"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_CONST) + "' في معامل القالب"}, {"ctx_en", "after '" + kw(TT::KEYWORD_CONST) + "' in a template parameter"}});
                         break;
                     }
                     std::string constTypeName = current_.getValue();
@@ -1284,9 +1178,7 @@ namespace Sad
 
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم المعامل الثابت",
-                            "Syntax error: Expected const parameter name");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "المعامل الثابت"}, {"what_en", "const parameter"}, {"ctx_ar", "في معاملات القالب"}, {"ctx_en", "in the template parameters"}});
                         break;
                     }
                     std::string paramName = current_.getValue();
@@ -1308,9 +1200,7 @@ namespace Sad
                     if (!match(TT::KEYWORD_TYPENAME) &&
                         !matchContextual(TT::KEYWORD_TYPENAME))
                     { // نوع
-                        errorBilingual(
-                            "خطأ نحوي: توقعت 'نوع' في معامل القالب",
-                            "Syntax error: Expected 'typename' in template parameter");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_TYPENAME)}, {"ctx_ar", "في معامل القالب"}, {"ctx_en", "in a template parameter"}});
                         break;
                     }
 
@@ -1318,9 +1208,7 @@ namespace Sad
                     // (EN) Expect parameter name (e.g., T)
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم معامل النوع",
-                            "Syntax error: Expected type parameter name");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "معامل النوع"}, {"what_en", "type parameter"}, {"ctx_ar", "في القالب"}, {"ctx_en", "in a template"}});
                         break;
                     }
 
@@ -1338,9 +1226,7 @@ namespace Sad
                         {
                             if (!check(TT::IDENTIFIER))
                             {
-                                errorBilingual(
-                                    "خطأ نحوي: توقعت اسم القيد بعد ':'",
-                                    "Syntax error: Expected constraint name after ':'");
+                                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "القيد"}, {"what_en", "constraint"}, {"ctx_ar", "بعد ':'"}, {"ctx_en", "after ':'"}});
                                 break;
                             }
                             constraintsList.push_back(current_.getValue());
@@ -1356,9 +1242,7 @@ namespace Sad
             // (AR) توقع '>' / (EN) Expect '>'
             if (!match(TT::OP_GREATER))
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت '>' لإنهاء معاملات القالب",
-                    "Syntax error: Expected '>' to close template parameters");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ">"}, {"ctx_ar", "لإنهاء معاملات القالب"}, {"ctx_en", "to close the template parameters"}});
             }
 
             return params;
@@ -1390,9 +1274,7 @@ namespace Sad
 
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت اسم معامل النوع في جملة 'حيث'",
-                        "Syntax error: Expected type parameter name in 'where' clause");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "معامل النوع"}, {"what_en", "type parameter"}, {"ctx_ar", "في جملة '" + kw(TT::KEYWORD_WHERE) + "'"}, {"ctx_en", "in a '" + kw(TT::KEYWORD_WHERE) + "' clause"}});
                     break;
                 }
 
@@ -1405,9 +1287,7 @@ namespace Sad
                 {
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم النوع المرتبط بعد '.'",
-                            "Syntax error: Expected associated type name after '.'");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "النوع المرتبط"}, {"what_en", "associated type"}, {"ctx_ar", "بعد '.'"}, {"ctx_en", "after '.'"}});
                         break;
                     }
                     item.associatedPath = current_.getValue();
@@ -1417,9 +1297,7 @@ namespace Sad
                 // (AR) توقع ':' / (EN) Expect ':'
                 if (!match(TT::COLON))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت ':' بعد اسم المعامل في جملة 'حيث'",
-                        "Syntax error: Expected ':' after type parameter in 'where' clause");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ":"}, {"ctx_ar", "بعد اسم المعامل في جملة '" + kw(TT::KEYWORD_WHERE) + "'"}, {"ctx_en", "after the parameter name in a '" + kw(TT::KEYWORD_WHERE) + "' clause"}});
                     break;
                 }
 
@@ -1429,9 +1307,7 @@ namespace Sad
                 {
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم القيد في جملة 'حيث'",
-                            "Syntax error: Expected constraint name in 'where' clause");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "القيد"}, {"what_en", "constraint"}, {"ctx_ar", "في جملة '" + kw(TT::KEYWORD_WHERE) + "'"}, {"ctx_en", "in a '" + kw(TT::KEYWORD_WHERE) + "' clause"}});
                         break;
                     }
                     item.constraints.push_back(current_.getValue());
@@ -1468,9 +1344,7 @@ namespace Sad
 
             if (typeParams.empty())
             {
-                errorBilingual(
-                    "خطأ نحوي: القالب يحتاج إلى معامل نوع واحد على الأقل",
-                    "Syntax error: Template requires at least one type parameter");
+                errorCatalog(Errors::ErrorCode::SYN_EMPTY_CONSTRUCT, {{"construct_ar", "القالب"}, {"construct_en", "template"}, {"required_ar", "معامل نوع واحد"}, {"required_en", "one type parameter"}});
                 return nullptr;
             }
 
@@ -1485,9 +1359,7 @@ namespace Sad
                 // (EN) Expect function name
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت اسم الدالة بعد 'دالة'",
-                        "Syntax error: Expected function name after 'function'");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الدالة"}, {"what_en", "function"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_FUNCTION) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_FUNCTION) + "'"}});
                     return nullptr;
                 }
 
@@ -1504,9 +1376,7 @@ namespace Sad
                 // (EN) Parse parameters
                 if (!match(TT::PAREN_LEFT))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت '(' بعد اسم الدالة",
-                        "Syntax error: Expected '(' after function name");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "("}, {"ctx_ar", "بعد اسم الدالة"}, {"ctx_en", "after the function name"}});
                     return nullptr;
                 }
 
@@ -1519,9 +1389,7 @@ namespace Sad
                         // (EN) Parse single parameter: name: type
                         if (!check(TT::IDENTIFIER) && !isTypeToken(current_.getType()))
                         {
-                            errorBilingual(
-                                "خطأ نحوي: توقعت اسم أو نوع المعامل",
-                                "Syntax error: Expected parameter name or type");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "المعامل أو نوعه"}, {"what_en", "parameter (or its type)"}, {"ctx_ar", "في قائمة المعاملات"}, {"ctx_en", "in the parameter list"}});
                             break;
                         }
 
@@ -1593,9 +1461,7 @@ namespace Sad
 
                 if (!match(TT::PAREN_RIGHT))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت ')' بعد معاملات الدالة",
-                        "Syntax error: Expected ')' after function parameters");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد معاملات الدالة"}, {"ctx_en", "after the function parameters"}});
                     return nullptr;
                 }
 
@@ -1733,9 +1599,7 @@ namespace Sad
                 // (EN) Expect class name
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت اسم الصنف بعد 'صنف'",
-                        "Syntax error: Expected class name after 'class'");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الصنف"}, {"what_en", "class"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_CLASS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_CLASS) + "'"}});
                     return nullptr;
                 }
 
@@ -1755,9 +1619,7 @@ namespace Sad
                     {
                         if (!check(TT::IDENTIFIER))
                         {
-                            errorBilingual(
-                                "خطأ نحوي: توقعت اسم الصنف الأب",
-                                "Syntax error: Expected base class name");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الصنف الأب"}, {"what_en", "base class"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_INHERITS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_INHERITS) + "'"}});
                             break;
                         }
                         baseClasses.push_back(current_.getValue());
@@ -1819,17 +1681,7 @@ namespace Sad
                             (nextTT == TT::IDENTIFIER && (peekNext().getValue() == "خاصية" ||
                                                           peekNext().getValue() == "عامل" || peekNext().getValue() == "هدم")))
                         {
-                            errorBilingual(
-                                "خطأ نحوي: في لغة ص، الصفة تأتي بعد الموصوف.\n"
-                                "❌ خطأ: " +
-                                    modName + " دالة ...\n"
-                                              "✅ صحيح: دالة " +
-                                    modName + " ...",
-                                "Syntax error: In Sad, adjectives come after nouns.\n"
-                                "❌ Wrong: " +
-                                    modName + " function ...\n"
-                                              "✅ Correct: function " +
-                                    modName + " ...");
+                            errorCatalog(Errors::ErrorCode::SYN_ADJECTIVE_ORDER, {{"wrong", modName + " " + kw(TT::KEYWORD_FUNCTION) + " ..."}, {"right", kw(TT::KEYWORD_FUNCTION) + " " + modName + " ..."}});
                         }
                         // (AR) ابتلاع المعدلات القديمة للاسترداد
                         access = parseModifiers(isStatic, isVirtual, isAbstract);
@@ -2059,9 +1911,7 @@ namespace Sad
                     }
                     if (!match(TT::BRACE_RIGHT))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت '}' لإنهاء الصنف",
-                            "Syntax error: Expected '}' to close class");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "}"}, {"ctx_ar", "لإنهاء الصنف"}, {"ctx_en", "to close the class"}});
                     }
                 }
                 else
@@ -2078,9 +1928,7 @@ namespace Sad
                     }
                     if (!match(TT::KEYWORD_END))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت 'نهاية' لإنهاء الصنف",
-                            "Syntax error: Expected 'end' to close class");
+                        errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة الصنف"}, {"construct_en", "class block"}, {"closer", kw(TT::KEYWORD_END)}});
                     }
                 }
 
@@ -2097,9 +1945,7 @@ namespace Sad
             }
             else
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت 'دالة' أو 'صنف' بعد معاملات القالب",
-                    "Syntax error: Expected 'function' or 'class' after template parameters");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FUNCTION)}, {"ctx_ar", "أو '" + kw(TT::KEYWORD_CLASS) + "' بعد معاملات القالب"}, {"ctx_en", "or '" + kw(TT::KEYWORD_CLASS) + "' after the template parameters"}});
                 return nullptr;
             }
         }
@@ -2125,9 +1971,7 @@ namespace Sad
             // (EN) Expect namespace name
             if (!check(TT::IDENTIFIER))
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت اسم فضاء الأسماء",
-                    "Syntax error: Expected namespace name");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "فضاء الأسماء"}, {"what_en", "namespace"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_NAMESPACE) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_NAMESPACE) + "'"}});
                 return nullptr;
             }
 
@@ -2142,11 +1986,7 @@ namespace Sad
             // (EN) Brace syntax removed — use 'نهاية' only
             if (check(TT::BRACE_LEFT))
             {
-                errorBilingual(
-                    "خطأ نحوي: صيغة {} أُزيلت من 'فضاء'. استخدم 'نهاية' بدلاً منها.\n"
-                    "💡 مثال:\n    فضاء اسم\n        ...\n    نهاية",
-                    "Syntax error: {} syntax removed from 'namespace'. Use 'نهاية' instead.\n"
-                    "💡 Example:\n    namespace name\n        ...\n    end");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_NAMESPACE) + " { ... }"}, {"new", kw(TT::KEYWORD_END)}, {"example", kw(TT::KEYWORD_NAMESPACE) + " اسم\n ...\n" + kw(TT::KEYWORD_END)}});
             }
 
             {
@@ -2165,9 +2005,7 @@ namespace Sad
                 if (!match(TT::KEYWORD_END_NAMESPACE) && !match(TT::KEYWORD_END) &&
                     !matchContextual(TT::KEYWORD_END_NAMESPACE))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت 'نهاية' لإنهاء فضاء الأسماء",
-                        "Syntax error: Expected 'end' to close namespace");
+                    errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "فضاء الأسماء"}, {"construct_en", "namespace"}, {"closer", kw(TT::KEYWORD_END)}});
                 }
             }
 
@@ -2272,9 +2110,7 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت ']' بعد '['",
-                        "Syntax error: Expected ']' after '['");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "]"}, {"ctx_ar", "بعد '['"}, {"ctx_en", "after '['"}});
                     return nullptr;
                 }
                 break;
@@ -2286,9 +2122,7 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت ')' بعد '('",
-                        "Syntax error: Expected ')' after '('");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد '('"}, {"ctx_en", "after '('"}});
                     return nullptr;
                 }
                 break;
@@ -2304,15 +2138,11 @@ namespace Sad
                     break;
                 }
                 // (AR) مُعرّف غير معروف كعامل
-                errorBilingual(
-                    "خطأ نحوي: اسم عامل تحويل غير معروف '" + name + "'. العوامل المتاحة: نص، رقم، منطقي",
-                    "Syntax error: Unknown conversion operator '" + name + "'. Available: نص, رقم, منطقي");
+                errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "عامل التحويل"}, {"what_en", "conversion operator"}, {"found", name}, {"allowed", kw(TT::TYPE_STRING) + "، " + kw(TT::TYPE_INTEGER) + "، " + kw(TT::TYPE_BOOLEAN)}});
                 return nullptr;
             }
             default:
-                errorBilingual(
-                    "خطأ نحوي: رمز عامل غير معروف",
-                    "Syntax error: Unknown operator symbol");
+                errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "رمز العامل"}, {"what_en", "operator symbol"}, {"found", current_.getValue()}, {"allowed", "+ - * / == != < > <= >= [] ()"}});
                 return nullptr;
             }
 
@@ -2326,9 +2156,7 @@ namespace Sad
             // (EN) Parse parameters
             if (!match(TT::PAREN_LEFT))
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت '(' بعد رمز العامل",
-                    "Syntax error: Expected '(' after operator symbol");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "("}, {"ctx_ar", "بعد رمز العامل"}, {"ctx_en", "after the operator symbol"}});
                 return nullptr;
             }
 
@@ -2339,9 +2167,7 @@ namespace Sad
                 {
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت اسم المعامل",
-                            "Syntax error: Expected parameter name");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "المعامل"}, {"what_en", "parameter"}, {"ctx_ar", "في قائمة معاملات العامل"}, {"ctx_en", "in the operator parameter list"}});
                         break;
                     }
 
@@ -2370,9 +2196,7 @@ namespace Sad
 
             if (!match(TT::PAREN_RIGHT))
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت ')' بعد معاملات العامل",
-                    "Syntax error: Expected ')' after operator parameters");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد معاملات العامل"}, {"ctx_en", "after the operator parameters"}});
                 return nullptr;
             }
 
@@ -2411,13 +2235,7 @@ namespace Sad
             // (EN) If arrow -> is used, give error message
             if (check(TT::ARROW))
             {
-                errorBilingual(
-                    "❌ صيغة '->' لنوع الإرجاع أُزيلت.\n"
-                    "   ✅ الصحيح: عامل +(آخر: نوع) نوع_الإرجاع\n"
-                    "   ❌ الخطأ:  عامل +(آخر: نوع) -> نوع_الإرجاع",
-                    "❌ Arrow '->' return type syntax has been removed.\n"
-                    "   ✅ Correct: عامل +(other: type) return_type\n"
-                    "   ❌ Wrong:   عامل +(other: type) -> return_type");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "-> نوع_الإرجاع"}, {"new", "نوع الإرجاع بعد الأقواس مباشرة"}, {"example", kw(TT::KEYWORD_OPERATOR) + " +(آخر: نوع) نوع_الإرجاع"}});
             }
 
             // (AR) تحليل جسم العامل

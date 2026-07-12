@@ -143,11 +143,7 @@ namespace Sad
             // (EN) Parenthesized form removed — for x in collection (no parens)
             if (check(TT::PAREN_LEFT))
             {
-                errorBilingual(
-                    "خطأ نحوي: صيغة الأقواس أُزيلت من 'لكل'. استخدم بدون أقواس.\n"
-                    "💡 مثال: لكل عنصر في مجموعة",
-                    "Syntax error: Parenthesized form removed from 'for'. Use without parens.\n"
-                    "💡 Example: for item in collection");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_FOR) + " (...)"}, {"new", kw(TT::KEYWORD_FOR) + " ... " + kw(TT::KEYWORD_IN) + " ... (بلا أقواس)"}, {"example", kw(TT::KEYWORD_FOR) + " عنصر " + kw(TT::KEYWORD_IN) + " مجموعة"}});
             }
 
             // (AR) تحليل متغير الحلقة — يسمح بالمعرّفات وكلمات الأنواع والكلمات المفتاحية كأسماء
@@ -217,7 +213,7 @@ namespace Sad
                 }
                 else
                 {
-                    errorExpectedToken("كلمة 'الى'", "keyword 'الى' (to)", "في حلقة من..الى", "in from..to loop");
+                    errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_TO)}, {"ctx_ar", "في حلقة " + kw(TT::KEYWORD_FROM) + ".." + kw(TT::KEYWORD_TO)}, {"ctx_en", "in a " + kw(TT::KEYWORD_FROM) + ".." + kw(TT::KEYWORD_TO) + " loop"}});
                 }
                 auto endExpr = parseExpression();
                 // (AR) إنشاء تعبير نطاق: بداية..نهاية
@@ -226,7 +222,7 @@ namespace Sad
             }
             else
             {
-                errorExpectedToken("كلمة 'في' أو 'من'", "keyword 'في' or 'من'", "في حلقة for", "in for loop");
+                errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_IN)}, {"ctx_ar", "أو '" + kw(TT::KEYWORD_FROM) + "' في حلقة '" + kw(TT::KEYWORD_FOR) + "'"}, {"ctx_en", "or '" + kw(TT::KEYWORD_FROM) + "' in a '" + kw(TT::KEYWORD_FOR) + "' loop"}});
                 collection = nullptr;
             }
 
@@ -382,9 +378,7 @@ namespace Sad
                 // (AR) رسالة خطأ إذا استُخدمت 'نهاية_استخدام'
                 if (checkContextual(TT::KEYWORD_END_WITH))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: 'نهاية_استخدام' أُزيلت. استخدم 'نهاية' بدلاً منها.",
-                        "Syntax error: 'نهاية_استخدام' removed. Use 'نهاية' instead.");
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_END_WITH)}, {"new", kw(TT::KEYWORD_END)}, {"example", kw(TT::KEYWORD_END)}});
                     advance();
                     break;
                 }
@@ -494,9 +488,7 @@ namespace Sad
 
                 if (!match(TT::KEYWORD_END))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت 'نهاية' لإنهاء كتلة أجّل.",
-                        "Syntax error: Expected 'نهاية' to close defer block.");
+                    errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة '" + kw(TT::KEYWORD_DEFER) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_DEFER) + "' block"}, {"closer", kw(TT::KEYWORD_END)}});
                     return nullptr;
                 }
 
@@ -511,9 +503,7 @@ namespace Sad
                 StmtPtr stmt = parseStatement();
                 if (!stmt)
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت جملة بعد 'أجّل'.",
-                        "Syntax error: Expected statement after 'defer'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(جملة) بعد '" + kw(TT::KEYWORD_DEFER) + "'"}, {"ctx_en", "(statement) after '" + kw(TT::KEYWORD_DEFER) + "'"}});
                     return nullptr;
                 }
                 return std::make_unique<DeferStmt>(std::move(stmt), keyword.getPosition());
@@ -579,9 +569,7 @@ namespace Sad
 
                 if (!match(TT::KEYWORD_END))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت 'نهاية' لإنهاء كتلة أطلق.",
-                        "Syntax error: Expected 'نهاية' to close go block.");
+                    errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة '" + kw(TT::KEYWORD_GO) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_GO) + "' block"}, {"closer", kw(TT::KEYWORD_END)}});
                     return nullptr;
                 }
 
@@ -596,9 +584,7 @@ namespace Sad
                 ExprPtr expr = parseExpression();
                 if (!expr)
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت تعبيراً (استدعاء دالة أو لامدا) بعد 'أطلق'.",
-                        "Syntax error: Expected expression (function call or lambda) after 'go'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(استدعاء دالة أو لامدا) بعد '" + kw(TT::KEYWORD_GO) + "'"}, {"ctx_en", "(function call or lambda) after '" + kw(TT::KEYWORD_GO) + "'"}});
                     return nullptr;
                 }
                 return std::make_unique<GoStmt>(std::move(expr), keyword.getPosition());
@@ -656,9 +642,7 @@ namespace Sad
                     // (EN) Check for colon after expression
                     if (!match(TT::COLON))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت ':' بعد تعبير القناة في اختر.",
-                            "Syntax error: Expected ':' after channel expression in select.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ":"}, {"ctx_ar", "بعد تعبير القناة في '" + kw(TT::KEYWORD_SELECT) + "'"}, {"ctx_en", "after the channel expression in '" + kw(TT::KEYWORD_SELECT) + "'"}});
                         return nullptr;
                     }
 
@@ -688,9 +672,7 @@ namespace Sad
                     // (AR) تحقق من النقطتين (:)
                     if (!match(TT::COLON))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقعت ':' بعد 'افتراضي' في اختر.",
-                            "Syntax error: Expected ':' after 'default' in select.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ":"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_DEFAULT) + "' في '" + kw(TT::KEYWORD_SELECT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_DEFAULT) + "' in '" + kw(TT::KEYWORD_SELECT) + "'"}});
                         return nullptr;
                     }
 
@@ -706,18 +688,14 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت 'عندما' أو 'افتراضي' داخل جملة اختر.",
-                        "Syntax error: Expected 'عندما' or 'افتراضي' inside select statement.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_WHEN)}, {"ctx_ar", "أو '" + kw(TT::KEYWORD_DEFAULT) + "' داخل جملة '" + kw(TT::KEYWORD_SELECT) + "'"}, {"ctx_en", "or '" + kw(TT::KEYWORD_DEFAULT) + "' inside a '" + kw(TT::KEYWORD_SELECT) + "' statement"}});
                     advance(); // تخطي الرمز غير المتوقع
                 }
             }
 
             if (!match(TT::KEYWORD_END))
             {
-                errorBilingual(
-                    "خطأ نحوي: توقعت 'نهاية' لإنهاء جملة اختر.",
-                    "Syntax error: Expected 'نهاية' to close select statement.");
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "جملة '" + kw(TT::KEYWORD_SELECT) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_SELECT) + "' statement"}, {"closer", kw(TT::KEYWORD_END)}});
                 return nullptr;
             }
 
@@ -1136,9 +1114,7 @@ namespace Sad
                 {
                     // Error: expected case or default
                     // (AR) خطأ: توقع عندما أو افتراضي
-                    errorBilingual(
-                        "توقع 'عندما' أو 'افتراضي' في جملة حالة.",
-                        "Expected 'when' or 'default' in switch statement.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_WHEN)}, {"ctx_ar", "أو '" + kw(TT::KEYWORD_DEFAULT) + "' في جملة '" + kw(TT::KEYWORD_CASE) + "'"}, {"ctx_en", "or '" + kw(TT::KEYWORD_DEFAULT) + "' in a '" + kw(TT::KEYWORD_CASE) + "' statement"}});
                     return nullptr;
                 }
             }
@@ -1169,9 +1145,7 @@ namespace Sad
             // (AR) تحقق من فشل تحليل التعبير
             if (!expr)
             {
-                errorBilingual(
-                    "خطأ نحوي: لا يمكن تحليل جملة التعبير. تأكد من صحة التعبير أو التصريح.",
-                    "Syntax error: cannot parse expression statement. Make sure the expression or declaration is valid.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "صالحًا في جملة التعبير"}, {"ctx_en", "(valid) in the expression statement"}});
                 return nullptr;
             }
 

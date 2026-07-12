@@ -271,11 +271,7 @@ namespace Sad
                     // (AR) قراءة نوع الحالة
                     if (!check(TT::IDENTIFIER))
                     {
-                        errorBilingual(
-                            "خطأ نحوي: توقع نوع الحالة بعد '@' داخل واجهة.\n"
-                            "الأنواع المسموحة: @حالة, @ربط, @بيئة, @محسوب",
-                            "Syntax error: expected state kind after '@' inside واجهة.\n"
-                            "Allowed: @حالة, @ربط, @بيئة, @محسوب");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع الحالة"}, {"what_en", "state kind"}, {"ctx_ar", "بعد '@' داخل '" + kw(TT::KEYWORD_UI_DECL) + "' — الأنواع المسموحة: @حالة, @ربط, @بيئة, @محسوب"}, {"ctx_en", "after '@' inside '" + kw(TT::KEYWORD_UI_DECL) + "' — allowed: @حالة, @ربط, @بيئة, @محسوب"}});
                         break;
                     }
 
@@ -299,11 +295,7 @@ namespace Sad
                     auto *fnDecl = dynamic_cast<AST::FunctionDecl *>(method.get());
                     if (fnDecl && fnDecl->isExtern)
                     {
-                        errorBilingual(
-                            "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل واجهة — التصريح الخارجيّ بلا جسم.\n"
-                            "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
-                            "Syntax error: 'دالة خارجية' cannot be declared inside a UI declaration — extern declarations have no body.\n"
-                            "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                        errorCatalog(Errors::ErrorCode::SYN_DECL_NOT_ALLOWED_HERE, {{"decl_ar", "التصريح الخارجيّ '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "' (بلا جسم)"}, {"decl_en", "the body-less extern declaration '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "'"}, {"where_ar", "واجهة"}, {"where_en", "a UI declaration"}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
                     }
                     else if (method)
                     {
@@ -313,13 +305,7 @@ namespace Sad
                 }
 
                 // ── (AR) أي شيء آخر هو خطأ ──
-                errorBilingual(
-                    "خطأ نحوي: داخل 'واجهة' يُسمح فقط بتصريحات @حالة/@ربط/@بيئة/@محسوب ودوال.\n"
-                    "الرمز غير المتوقع: '" +
-                        current_.getValue() + "'",
-                    "Syntax error: inside 'واجهة' only @state declarations and functions are allowed.\n"
-                    "Unexpected token: '" +
-                        current_.getValue() + "'");
+                errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "العنصر داخل '" + kw(TT::KEYWORD_UI_DECL) + "'"}, {"what_en", "element inside '" + kw(TT::KEYWORD_UI_DECL) + "'"}, {"found", current_.getValue()}, {"allowed", "@حالة, @ربط, @بيئة, @محسوب, " + kw(TT::KEYWORD_FUNCTION)}});
                 advance(); // (AR) تخطي الرمز المشكل / (EN) skip problematic token
             }
 
@@ -371,11 +357,7 @@ namespace Sad
             }
             else
             {
-                errorBilingual(
-                    "خطأ نحوي: نوع حالة غير معروف '@" + stateKind + "'.\n"
-                                                                    "الأنواع المسموحة: @حالة, @ربط, @بيئة, @محسوب",
-                    "Syntax error: unknown state kind '@" + stateKind + "'.\n"
-                                                                        "Allowed: @حالة, @ربط, @بيئة, @محسوب");
+                errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "نوع الحالة"}, {"what_en", "state kind"}, {"found", "@" + stateKind}, {"allowed", "@حالة, @ربط, @بيئة, @محسوب"}});
                 return nullptr;
             }
 
@@ -408,9 +390,7 @@ namespace Sad
             // (EN) @computed requires an initializer expression
             if (kind == UIStateKind::COMPUTED && !initializer)
             {
-                errorBilingual(
-                    "خطأ نحوي: '@محسوب' يتطلب تعبيراً: @محسوب " + nameToken.getValue() + " = تعبير",
-                    "Syntax error: '@محسوب' requires an expression: @محسوب " + nameToken.getValue() + " = expression");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "في '@محسوب " + nameToken.getValue() + "' — الصيغة: @محسوب " + nameToken.getValue() + " = تعبير"}, {"ctx_en", "in '@محسوب " + nameToken.getValue() + "' — form: @محسوب " + nameToken.getValue() + " = expression"}});
             }
 
             return std::make_unique<UIStateDecl>(kind, nameToken.getValue(), typeName,
@@ -544,9 +524,7 @@ namespace Sad
 
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقع اسم معدّل بعد '.' في سلسلة المعدّلات.",
-                        "Syntax error: expected modifier name after '.' in modifier chain.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "المعدِّل"}, {"what_en", "modifier"}, {"ctx_ar", "بعد '.' في سلسلة المعدِّلات"}, {"ctx_en", "after '.' in a modifier chain"}});
                     break;
                 }
 
@@ -935,9 +913,7 @@ namespace Sad
                 // ── (AR) اسم المتغير التكراري / (EN) Iterator variable name ──
                 if (!check(TT::IDENTIFIER))
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقع اسم متغير بعد 'لكل' في حلقة الرسم.",
-                        "Syntax error: expected variable name after 'لكل' in rendering loop.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "متغير"}, {"what_en", "variable"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_FOR) + "' في حلقة الرسم"}, {"ctx_en", "after '" + kw(TT::KEYWORD_FOR) + "' in a rendering loop"}});
                 }
                 std::string iterName = current_.getValue();
                 advance(); // (AR) استهلاك اسم المتغير

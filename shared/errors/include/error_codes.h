@@ -83,6 +83,24 @@ namespace Sad
             SYN_INVALID_ASSIGNMENT, ///< SYN008: (AR) إسناد غير صالح
                                     ///< (EN) Invalid assignment
 
+            // (AR) SYN009+ — رموز ترحيل عائلة المحلّل من errorBilingual إلى الكتالوج المركزي
+            // (EN) SYN009+ — parser-family migration codes (errorBilingual → central catalog)
+            SYN_EXPECTED_EXPRESSION,      ///< SYN009: (AR) تعبير متوقّع مفقود / (EN) Expected expression missing
+            SYN_EXPECTED_NAME,            ///< SYN010: (AR) اسم متوقّع مفقود / (EN) Expected name missing
+            SYN_EXPECTED_KEYWORD,         ///< SYN011: (AR) كلمة مفتاحية متوقّعة مفقودة / (EN) Expected keyword missing
+            SYN_EXPECTED_SYMBOL,          ///< SYN012: (AR) رمز متوقّع مفقود / (EN) Expected symbol missing
+            SYN_UNCLOSED_CONSTRUCT,       ///< SYN013: (AR) بنية غير مغلقة / (EN) Unclosed construct
+            SYN_REMOVED_SYNTAX,           ///< SYN014: (AR) صيغة أُزيلت من اللغة / (EN) Removed syntax
+            SYN_ADJECTIVE_ORDER,          ///< SYN015: (AR) ترتيب الصفة والموصوف / (EN) Adjective order
+            SYN_NAME_HAS_SPACE,           ///< SYN016: (AR) اسم يحتوي على مسافة / (EN) Name contains a space
+            SYN_RETURN_TYPE_AFTER_PARAMS, ///< SYN017: (AR) نوع الإرجاع بعد المعاملات / (EN) Return type after parameters
+            SYN_EMPTY_CONSTRUCT,          ///< SYN018: (AR) بنية فارغة / (EN) Empty construct
+            SYN_UNKNOWN_ELEMENT,          ///< SYN019: (AR) عنصر غير معروف / (EN) Unknown element
+            SYN_INVALID_CONSTRUCT_FORM,   ///< SYN020: (AR) بنية مخالفة للصيغة / (EN) Construct violates expected form
+            SYN_PARSE_UNKNOWN_ERROR,      ///< SYN021: (AR) خطأ تحليل غير معروف / (EN) Unknown parse error
+            SYN_ADJECTIVE_GENDER,         ///< SYN022: (AR) مطابقة الصفة للموصوف جنسًا / (EN) Adjective gender agreement
+            SYN_DECL_NOT_ALLOWED_HERE,    ///< SYN023: (AR) تصريح غير مسموح في هذا السياق / (EN) Declaration not allowed in this context
+
             // ====================================================================
             // (AR) أخطاء دلالية / (EN) Semantic Errors
             // Range: SEM001 - SEM099

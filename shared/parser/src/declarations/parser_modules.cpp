@@ -550,20 +550,14 @@ StmtPtr ParserCore::parseExportDecl() {
         // (EN) '(' + non-string is not the legacy form — accurate message (a call
         //      expression is not exportable).
         if (check(TT::PAREN_LEFT) && peekNext().getType() != TT::STRING_LITERAL) {
-            errorBilingual(
-                "خطأ نحوي: 'صدّر' يتبعها تصريح لا استدعاء — للتصدير الخارجيّ استخدم: صدّر دالة خارجية printf(نص)",
-                "Syntax error: 'صدّر' must be followed by a declaration, not a call — for an exported extern use: صدّر دالة خارجية printf(نص)");
+            errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "التصريح المُصدَّر ('" + kw(TT::KEYWORD_EXPORT) + "' يتبعها تصريح لا استدعاء)"}, {"construct_en", "exported declaration ('" + kw(TT::KEYWORD_EXPORT) + "' must be followed by a declaration, not a call)"}, {"form", kw(TT::KEYWORD_EXPORT) + " " + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
             return nullptr;
         }
         // (AR) RFC 0034: 'صدّر خارجي دالة' أُزيلت — الصيغة الجديدة 'صدّر دالة خارجية'
         //      تمرّ عبر فرع KEYWORD_FUNCTION أدناه (parseFunctionDecl). حاجز توجيهيّ.
         // (EN) RFC 0034: 'export extern function' removed — the new form
         //      'صدّر دالة خارجية' flows through the KEYWORD_FUNCTION branch below.
-        errorBilingual(
-            "خطأ نحوي: 'صدّر خارجي دالة' أُزيلت. استخدم 'صدّر دالة خارجية' بدلاً منها.\n"
-            "💡 في العربية الصفة تأتي بعد الاسم وتطابقه في الجنس: صدّر دالة خارجية printf(نص)",
-            "Syntax error: 'export extern function' removed. Use 'صدّر دالة خارجية' instead.\n"
-            "💡 In Arabic, adjectives follow nouns and agree in gender: صدّر دالة خارجية printf(نص)");
+        errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_EXPORT) + " " + kw(TT::KEYWORD_EXTERN) + " " + kw(TT::KEYWORD_FUNCTION)}, {"new", kw(TT::KEYWORD_EXPORT) + " " + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN)}, {"example", kw(TT::KEYWORD_EXPORT) + " " + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
         // (AR) تعافٍ يمنع تعاقب الأخطاء: استهلاك '("رمز")' الاختياريّ ثم 'دالة' ثم التصريح.
         // (EN) Cascade-preventing recovery: consume optional '("sym")', 'function', then decl.
         std::string ffiLinkName;

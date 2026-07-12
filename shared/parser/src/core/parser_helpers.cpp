@@ -741,11 +741,13 @@ namespace Sad
                 addFixIt = true;
                 break;
             case TT::KEYWORD_END:
-                expected_ar = "كلمة 'نهاية'";
-                expected_en = "keyword 'نهاية' (end)";
-                fixText = "نهاية";
-                fixDesc_ar = "أضف 'نهاية' لإغلاق الكتلة";
-                fixDesc_en = "Add 'نهاية' to close block";
+                // (AR) التهجئة من معجم SoT — لا سلاسل خام لكلمات المعجم
+                // (EN) Spelling from the SoT lexicon — no raw keyword literals
+                expected_ar = "كلمة '" + kw(TT::KEYWORD_END) + "'";
+                expected_en = "keyword '" + kw(TT::KEYWORD_END) + "' (end)";
+                fixText = kw(TT::KEYWORD_END);
+                fixDesc_ar = "أضف '" + kw(TT::KEYWORD_END) + "' لإغلاق الكتلة";
+                fixDesc_en = "Add '" + kw(TT::KEYWORD_END) + "' to close block";
                 addFixIt = true;
                 break;
             case TT::IDENTIFIER:
@@ -778,8 +780,6 @@ namespace Sad
                 // (EN) Create automatic message
                 std::string msg_ar = "خطأ نحوي: توقعت " + expected_ar +
                                      "، لكن وجدت '" + current_.getValue() + "'";
-                std::string msg_en = "Syntax error: expected " + expected_en +
-                                     ", but found '" + current_.getValue() + "'";
 
                 if (addFixIt)
                 {
@@ -787,7 +787,11 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(msg_ar, msg_en);
+                    // (AR) عبر الكتالوج المركزي: SYN001 مع {expected}/{found}
+                    // (EN) Via the central catalog: SYN001 with {expected}/{found}
+                    errorCatalog(Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
+                                 {{"found", current_.getValue()},
+                                  {"expected", expected_ar + " / " + expected_en}});
                 }
             }
 
@@ -996,16 +1000,40 @@ namespace Sad
         }
 
         /**
-         * @brief (AR) يسجل خطأ مع رسالة ثنائية اللغة وطباعة الكود المصدري.
-         *        (EN) Records error with bilingual message and prints source code.
+         * @brief (AR) التهجئة الرئيسية لكلمة مفتاحية من معجم SoT (keywords.yaml).
+         *        (EN) Primary spelling of a keyword from the SoT lexicon (keywords.yaml).
          */
-        void ParserCore::errorBilingual(const std::string &message_ar,
-                                        const std::string &message_en)
+        std::string ParserCore::kw(TokenType type)
         {
-            // (AR) لا نتجاهل الأخطاء حتى في panic mode - نعرضها دائماً
-            // (EN) Don't ignore errors even in panic mode - always display them
-            // if (panicMode_) return;  // REMOVED: We want to see ALL errors
+            const auto *entry = Lexer::KeywordTable::getEntry(type);
+            return entry ? entry->primaryWord : std::string("?");
+        }
 
+        /**
+         * @brief (AR) التهجئة البديلة الأولى من معجم SoT (صيغة التأنيث للصفات، مثل
+         *        «خارجية» لـKEYWORD_EXTERN وفق RFC 0034) أو الرئيسية إن غابت البدائل.
+         *        (EN) First alias spelling from the SoT lexicon (feminine adjective
+         *        form, e.g. 'خارجية' for KEYWORD_EXTERN per RFC 0034), falling back
+         *        to the primary spelling when no aliases exist.
+         */
+        std::string ParserCore::kwAlias(TokenType type)
+        {
+            const auto *entry = Lexer::KeywordTable::getEntry(type);
+            if (!entry)
+                return std::string("?");
+            return entry->aliases.empty() ? entry->primaryWord : entry->aliases.front();
+        }
+
+        /**
+         * @brief (AR) يسجل خطأً نحوياً عبر كتالوج الأخطاء المركزي: يبني ar/en من قالب
+         *        الكتالوج (مع 💡 تلميح الإصلاح إن وُجد) ويطبع فوراً برمز خطأ ظاهر،
+         *        بنفس سلوك errorBilingual (يرفع panicMode ويطبع دائماً).
+         *        (EN) Reports a syntax error via the central catalog: renders ar/en from
+         *        the template (with 💡 fix hint when present) and prints immediately with
+         *        a visible error code, mirroring errorBilingual behavior.
+         */
+        void ParserCore::errorCatalog(Errors::ErrorCode code, CatalogArgs placeholders)
+        {
             panicMode_ = true;
 
             Errors::SourceLocation loc(
@@ -1015,12 +1043,33 @@ namespace Sad
                 current_.getPosition().offset,
                 current_.getPosition().length);
 
-            // (AR) إضافة معلومات السياق لرسالة الخطأ
-            // (EN) Add context information to error message
-            std::string enhanced_ar = "⛔ " + message_ar;
-            std::string enhanced_en = "⛔ " + message_en;
+            Errors::RenderContext rctx(loc);
+            rctx.placeholders = std::move(placeholders);
 
-            // إضافة معلومات عن الرمز الحالي والموقع
+            auto &em = Errors::ErrorManager::getInstance();
+            const auto rendered = Errors::ErrorCatalog::instance().render(
+                code, em.getExplanationLevel(), Errors::Language::BOTH, rctx);
+
+            // (AR) الرسالة المسجَّلة مركزياً بلا بادئة [SYNxxx] — المقرِّر الذكيّ يطبع
+            //      الرمز في ترويسته أصلاً، فالبادئة هنا تعني طباعته مرتين.
+            // (EN) Centrally recorded message carries no [SYNxxx] prefix — the smart
+            //      reporter already prints the code in its heading (avoid doubling).
+            std::string message_ar = rendered.messageAr;
+            std::string message_en = rendered.messageEn;
+            if (rendered.fixHintAr && !rendered.fixHintAr->empty())
+                message_ar += "\n   💡 " + *rendered.fixHintAr;
+            if (rendered.fixHintEn && !rendered.fixHintEn->empty())
+                message_en += "\n   💡 " + *rendered.fixHintEn;
+
+            // (AR) نفس إخراج errorBilingual: موقع + الرمز الحالي ثم طباعة فورية وتسجيل
+            //      (الطباعة الفورية وحدها تحمل بادئة [SYNxxx] الظاهرة)
+            // (EN) Same output shape as errorBilingual: location + current token, then
+            //      immediate print and central registration (only the immediate print
+            //      carries the visible [SYNxxx] prefix)
+            const std::string codeStr = Errors::getErrorCodeString(code);
+            std::string enhanced_ar = "⛔ [" + codeStr + "] " + message_ar;
+            std::string enhanced_en = "⛔ [" + codeStr + "] " + message_en;
+
             enhanced_ar += "\n   📍 الموقع: السطر " + std::to_string(loc.line) +
                            "، العمود " + std::to_string(loc.column);
             enhanced_en += "\n   📍 Location: line " + std::to_string(loc.line) +
@@ -1037,14 +1086,8 @@ namespace Sad
                 enhanced_en += "\n   🔎 Current token: <end of file>";
             }
 
-            Errors::ErrorManager::getInstance().reportError(
-                Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
-                loc,
-                message_ar,
-                message_en);
+            em.reportError(code, loc, message_ar, message_en);
 
-            // (AR) طباعة الخطأ فوراً للمستخدم مع التفاصيل
-            // (EN) Print error immediately for user with details
             std::cerr << "\n"
                       << enhanced_ar << "\n"
                       << enhanced_en << "\n"
@@ -1052,13 +1095,12 @@ namespace Sad
         }
 
         /**
-         * @brief (AR) يُنشئ رسالة خطأ لرمز غير متوقع مع التوقع.
-         *        (EN) Creates error message for unexpected token with expectation.
+         * @brief (AR) نظير errorExpectedToken عبر الكتالوج: محروس بوضع الهلع ويسجل
+         *        مركزياً بلا طباعة فورية (نفس السلوك القديم).
+         *        (EN) Catalog counterpart of errorExpectedToken: panic-guarded and
+         *        records centrally without immediate printing (legacy behavior).
          */
-        void ParserCore::errorExpectedToken(const std::string &expected_ar,
-                                            const std::string &expected_en,
-                                            const std::string &context_ar,
-                                            const std::string &context_en)
+        void ParserCore::errorCatalogExpected(Errors::ErrorCode code, CatalogArgs placeholders)
         {
             if (panicMode_)
                 return;
@@ -1071,65 +1113,23 @@ namespace Sad
                 current_.getPosition().offset,
                 current_.getPosition().length);
 
-            // (AR) بناء رسالة الخطأ
-            // (EN) Build error message
-            std::string msg_ar = "خطأ نحوي: توقعت " + expected_ar;
-            std::string msg_en = "Syntax error: expected " + expected_en;
+            Errors::RenderContext rctx(loc);
+            rctx.placeholders = std::move(placeholders);
 
-            if (!context_ar.empty())
-            {
-                msg_ar += " " + context_ar;
-                msg_en += " " + context_en;
-            }
+            auto &em = Errors::ErrorManager::getInstance();
+            const auto rendered = Errors::ErrorCatalog::instance().render(
+                code, em.getExplanationLevel(), Errors::Language::BOTH, rctx);
 
-            msg_ar += "، لكن وجدت '" + current_.getValue() + "'";
-            msg_en += ", but found '" + current_.getValue() + "'";
+            // (AR) بلا بادئة [SYNxxx]: هذه الرسالة تظهر حصراً في التقرير الذكيّ الذي
+            //      يطبع الرمز في ترويسته (تفادي الطباعة المزدوجة).
+            // (EN) No [SYNxxx] prefix: this message surfaces only in the smart report,
+            //      whose heading already prints the code (avoid doubling).
+            std::string message_ar = rendered.messageAr +
+                                     "، لكن وجدت '" + current_.getValue() + "'";
+            std::string message_en = rendered.messageEn +
+                                     ", but found '" + current_.getValue() + "'";
 
-            // (AR) إضافة معلومات عن الموقع
-            // (EN) Add location information
-            msg_ar += " في السطر " + std::to_string(loc.line) +
-                      "، العمود " + std::to_string(loc.column);
-            msg_en += " at line " + std::to_string(loc.line) +
-                      ", column " + std::to_string(loc.column);
-
-            Errors::ErrorManager::getInstance().reportError(
-                Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
-                loc,
-                msg_ar,
-                msg_en);
-        }
-
-        /**
-         * @brief (AR) يُنشئ رسالة خطأ لجملة غير مكتملة.
-         *        (EN) Creates error message for incomplete statement.
-         */
-        void ParserCore::errorIncompleteStatement(const std::string &statement_ar,
-                                                  const std::string &statement_en,
-                                                  const std::string &missing_ar,
-                                                  const std::string &missing_en)
-        {
-            if (panicMode_)
-                return;
-            panicMode_ = true;
-
-            Errors::SourceLocation loc(
-                filename_.empty() ? "<source>" : filename_,
-                current_.getPosition().line,
-                current_.getPosition().column,
-                current_.getPosition().offset,
-                current_.getPosition().length);
-
-            std::string msg_ar = "خطأ: " + statement_ar + " غير مكتملة - ينقصها " + missing_ar;
-            std::string msg_en = "Error: incomplete " + statement_en + " - missing " + missing_en;
-
-            msg_ar += " في السطر " + std::to_string(loc.line);
-            msg_en += " at line " + std::to_string(loc.line);
-
-            Errors::ErrorManager::getInstance().reportError(
-                Errors::ErrorCode::SYN_UNEXPECTED_TOKEN, // استخدام كود موجود
-                loc,
-                msg_ar,
-                msg_en);
+            em.reportError(code, loc, message_ar, message_en);
         }
 
         /**

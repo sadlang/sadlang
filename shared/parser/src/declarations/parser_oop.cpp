@@ -259,11 +259,7 @@ namespace Sad
                 }
                 else
                 {
-                    errorBilingual(
-                        "خطأ نحوي: 'دالة خارجية' لا تُعرَّف داخل صنف — التصريح الخارجيّ بلا جسم ولا يرتبط بكائن.\n"
-                        "💡 انقل التصريح إلى المستوى الأعلى: دالة خارجية printf(نص)",
-                        "Syntax error: 'دالة خارجية' cannot be declared inside a class — extern declarations have no body and no receiver.\n"
-                        "💡 Move the declaration to the top level: دالة خارجية printf(نص)");
+                    errorCatalog(Errors::ErrorCode::SYN_DECL_NOT_ALLOWED_HERE, {{"decl_ar", "التصريح الخارجيّ '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "' (بلا جسم ولا يرتبط بكائن)"}, {"decl_en", "the extern declaration '" + kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "' (no body, no receiver)"}, {"where_ar", "صنف"}, {"where_en", "a class"}, {"example", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + " printf(" + kw(TT::TYPE_STRING) + ")"}});
                     // (AR) تعافٍ: استهلاك '("رمز")' الاختياريّ ثم بقيّة التوقيع — يمنع التعاقب.
                     // (EN) Recovery: consume optional '("sym")' then the rest of the signature.
                     if (check(TT::PAREN_LEFT) && peekNext().getType() == TT::STRING_LITERAL)
