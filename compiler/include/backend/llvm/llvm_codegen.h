@@ -179,6 +179,19 @@ namespace Sad
             // جدول الكتل الأساسية / Basic block table
             std::unordered_map<std::string, llvm::BasicBlock *> basicBlocks;
 
+            // (AR) جدول «كتلة الخروج الفعليّة» لكلّ كتلة SIR: الكتلة الحيّة في LLVM بعد
+            //      خفض تعليمات الكتلة. قد تُقسَّم الكتلة أثناء الخفض (فحص حدود المصفوفة
+            //      يولّد set.bc.ok، تحويل %SadDyn يولّد فروعًا…)، فيصير سلفُ الدمج الفعليّ
+            //      كتلةً غير التي تحمل اسم SIR. تستهلكها emitPhi لتسجيل الوارد من السلف
+            //      الصحيح، وإلّا «PHI node entries do not match predecessors».
+            // (EN) Per-SIR-block «effective exit block»: the live LLVM block after the
+            //      block's instructions are lowered. A block may split mid-lowering (array
+            //      bounds check emits set.bc.ok, %SadDyn coercion emits branches…), so the
+            //      true predecessor of a merge is a block other than the SIR-named one.
+            //      emitPhi consults this to record the incoming from the correct
+            //      predecessor; otherwise «PHI node entries do not match predecessors».
+            std::unordered_map<std::string, llvm::BasicBlock *> basicBlockExits;
+
             // جدول القيم الثابتة / Constant values table
             std::unordered_map<std::string, llvm::Constant *> constants;
 

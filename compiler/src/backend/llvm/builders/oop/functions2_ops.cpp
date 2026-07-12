@@ -531,6 +531,9 @@ namespace Sad
             // Phase 1: Create all basic blocks FIRST (before parameters)
             // Source: cg_.context_info_.basicBlocks is at llvm_codegen.h:619
             cg_.context_info_.basicBlocks.clear();
+            // (AR) جدول كتل الخروج الفعليّة يُمسح مع كلّ دالة جديدة (خرائط لكلّ دالة).
+            // (EN) Effective-exit table is per-function; clear with each new function.
+            cg_.context_info_.basicBlockExits.clear();
 
             // ========================================================================
             // FIX: Pre-scan all instructions to discover referenced labels
@@ -678,6 +681,15 @@ namespace Sad
                     auto instPtr = std::make_shared<SIRInstruction>(inst);
                     cg_.emitInstruction(instPtr);
                 }
+
+                // (AR) سجّل كتلة الخروج الفعليّة لهذه الكتلة: قد تكون انقسمت أثناء الخفض
+                //      (فحص حدود، فروع %SadDyn…) فتصبح الكتلة الحيّة غير llvmBlock. تستهلكها
+                //      emitPhi لتحديد السلف الصحيح لوارد PHI.
+                // (EN) Record this block's effective exit block: it may have split during
+                //      lowering (bounds checks, %SadDyn branches…), so the live block differs
+                //      from llvmBlock. emitPhi uses it to resolve the correct PHI predecessor.
+                if (llvm::BasicBlock *exitBB = cg_.builder_->GetInsertBlock())
+                    cg_.context_info_.basicBlockExits[blockName] = exitBB;
             }
 
             // ========================================================================

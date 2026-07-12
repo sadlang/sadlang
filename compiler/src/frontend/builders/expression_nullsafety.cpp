@@ -246,6 +246,18 @@ namespace Sad
                     b_.currentFunction_->addBasicBlock(rightBlock);
                 b_.currentBlock_ = rightBlock;
                 auto rightResult = buildExpression(nullCoalExpr->right.get());
+                // (AR) قد يُولّد بناءُ الأيمن كتلًا فرعيّة (مصفوفة/خريطة/كائن يُصدر
+                //      فحوص حدود بكتلٍ مثل set.bc.ok)، فتصير الكتلة الحاليّة هي سلفَ
+                //      الدمج الفعليّ لا rightBlock الأصليّة. نلتقطها لنُصدر منها القفزَ
+                //      إلى الدمج ولنُسجّلها واردًا في PHI — وإلّا فشل «PHI node entries
+                //      do not match predecessors» في «لاشيء ؟؟ [1،2]».
+                // (EN) Building the right may spawn sub-blocks (array/map/object emit
+                //      bounds checks with blocks like set.bc.ok), so the current block —
+                //      not the original rightBlock — is the true predecessor of merge.
+                //      Capture it to branch to merge from it and record it as the PHI
+                //      incoming; otherwise «PHI node entries do not match predecessors»
+                //      fires for «لاشيء ؟؟ [1،2]».
+                auto rightEndBlock = b_.currentBlock_ ? b_.currentBlock_ : rightBlock;
                 SadTypeKind resultType = leftResult.type;
                 // (AR) [ISSUE-046] حين يكون الأيسر «لاشيء» حرفيًّا (Null) فالنتيجة تأتي
                 //      من الأيمن دائمًا؛ نعتمد نوع الأيمن كي لا يُعامَل بديلٌ منطقيّ/عشريّ
@@ -268,7 +280,18 @@ namespace Sad
                 }
 
                 // (AR) توحيد فرع اليسار إلى resultType عند الحاجة قبل القفز إلى الدمج.
-                // (EN) Normalize left branch to resultType when needed before jumping to merge.
+                //      الأيسر هنا «لاشيء/فراغ» (فرعٌ ميت: النتيجة تأتي من الأيمن حين
+                //      يتباين النوعان)، لكن عقدة PHI في الخفض إلى LLVM تشترط تطابق نوع
+                //      كلّ وارد مع نوعها الموحَّد. Null يُخفَض إلى i64 بينما Boolean→i1
+                //      وFloat→double، فمرور سجلّ الأيسر (i64) دون توحيد يُنتج
+                //      «Module verification failed». نُدرِج تحويلًا صريحًا لكلّ نوعٍ.
+                // (EN) Normalize the left branch to resultType before jumping to merge.
+                //      The left here is null/void (a dead branch: the result comes from the
+                //      right when the two types diverge), yet the LLVM PHI requires every
+                //      incoming value's type to match its unified type. Null lowers to i64
+                //      while Boolean→i1 and Float→double, so feeding the raw i64 left
+                //      register unconverted yields «Module verification failed». Emit an
+                //      explicit conversion per target type.
                 if (leftResult.type != resultType && b_.currentBlock_)
                 {
                     b_.currentBlock_ = leftBlock;
@@ -285,6 +308,28 @@ namespace Sad
                         b_.currentBlock_->addInstruction(castInst);
                         leftReg = leftCastReg;
                     }
+                    else if (resultType == SadTypeKind::Boolean)
+                    {
+                        // (AR) i64 (حارس العدم) → i1 عبر I64_TO_BOOL كي يطابق نوع PHI.
+                        // (EN) i64 (null sentinel) → i1 via I64_TO_BOOL to match the PHI type.
+                        std::string leftCastReg = b_.newTempRegister();
+                        SIRInstruction castInst(SIROpcode::I64_TO_BOOL);
+                        castInst.result = SIROperand::Register(leftCastReg, SadTypeKind::Boolean);
+                        castInst.operands.push_back(SIROperand::Register(leftReg, leftResult.type));
+                        b_.currentBlock_->addInstruction(castInst);
+                        leftReg = leftCastReg;
+                    }
+                    else if (resultType == SadTypeKind::Float && leftResult.type != SadTypeKind::Float)
+                    {
+                        // (AR) i64 → double عبر I64_TO_F64 كي يطابق نوع PHI العشريّ.
+                        // (EN) i64 → double via I64_TO_F64 to match the float PHI type.
+                        std::string leftCastReg = b_.newTempRegister();
+                        SIRInstruction castInst(SIROpcode::I64_TO_F64);
+                        castInst.result = SIROperand::Register(leftCastReg, SadTypeKind::Float);
+                        castInst.operands.push_back(SIROperand::Register(leftReg, leftResult.type));
+                        b_.currentBlock_->addInstruction(castInst);
+                        leftReg = leftCastReg;
+                    }
                 }
                 if (leftBlock)
                 {
@@ -292,7 +337,7 @@ namespace Sad
                     b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
-                b_.currentBlock_ = rightBlock;
+                b_.currentBlock_ = rightEndBlock;
                 std::string rightReg = rightResult.registerName;
                 if (rightResult.isConstant && b_.currentBlock_)
                 {
@@ -338,10 +383,15 @@ namespace Sad
                     b_.currentFunction_->addBasicBlock(mergeBlock);
                 b_.currentBlock_ = mergeBlock;
                 std::string phiReg = b_.newTempRegister();
+                // (AR) الوارد الأيمن من الكتلة الحاليّة الفعليّة (rightEndBlock) لا
+                //      rightLabel الأصليّة، احترازًا من الكتل الفرعيّة التي يولّدها الأيمن.
+                // (EN) Right incoming comes from the actual current block (rightEndBlock),
+                //      not the original rightLabel, to account for right-spawned sub-blocks.
+                std::string rightPredLabel = rightEndBlock ? rightEndBlock->name : rightLabel;
                 SIRInstruction phiInst = SIRInstruction::Phi(
                     SIROperand::Register(phiReg, resultType),
                     {{SIROperand::Register(leftReg, resultType), SIROperand::Label(leftLabel)},
-                     {SIROperand::Register(rightReg, resultType), SIROperand::Label(rightLabel)}});
+                     {SIROperand::Register(rightReg, resultType), SIROperand::Label(rightPredLabel)}});
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(phiInst);
 

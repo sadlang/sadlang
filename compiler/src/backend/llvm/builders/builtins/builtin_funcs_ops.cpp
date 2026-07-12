@@ -151,6 +151,44 @@ namespace Sad
         }
 
         // ============================================================================
+        // (AR) هل يُخفَّض هذا النوع إلى مؤشّر (i8*) في الخلفية؟
+        //      يوازي mapSIRType: كلّ الأنواع المركّبة/الكائنيّة/الوظيفيّة/المرجعيّة
+        //      تُمثَّل مؤشّرًا لبنية وقت التشغيل. لا يشمل Any (يُخفَّض إلى %SadDyn بنيةً).
+        // (EN) Does this kind lower to a pointer (i8*) in the backend?
+        //      Mirrors mapSIRType: every composite/OOP/callable/reference kind is a
+        //      pointer to a runtime struct. Excludes Any (lowers to the %SadDyn struct).
+        // ============================================================================
+        static bool isPointerLoweredKind(SadTypeKind kind)
+        {
+            switch (kind)
+            {
+            case SadTypeKind::String:
+            case SadTypeKind::Pointer:
+            case SadTypeKind::Array:
+            case SadTypeKind::Map:
+            case SadTypeKind::Tuple:
+            case SadTypeKind::Slice:
+            case SadTypeKind::Class:
+            case SadTypeKind::Struct:
+            case SadTypeKind::Enum:
+            case SadTypeKind::Trait:
+            case SadTypeKind::Function:
+            case SadTypeKind::Closure:
+            case SadTypeKind::Reference:
+            case SadTypeKind::MutableRef:
+            case SadTypeKind::Error:
+            case SadTypeKind::Widget:
+            case SadTypeKind::Window:
+            case SadTypeKind::Event:
+            case SadTypeKind::Future:
+            case SadTypeKind::Generator:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        // ============================================================================
         // emitPhi - عقدة فاي / Phi node (SSA form)
         // ============================================================================
         llvm::Value *BuiltinFuncsCodeGen::emitPhi(std::shared_ptr<SIRInstruction> inst)
@@ -171,7 +209,18 @@ namespace Sad
                     phiType = llvm::Type::getDoubleTy(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::Boolean)
                     phiType = llvm::Type::getInt1Ty(*cg_.context_);
-                else if (inst->result->dataType == SadTypeKind::String || inst->result->dataType == SadTypeKind::Pointer)
+                // (AR) الأنواع المُخفَّضة إلى مؤشّر (i8*): نصّ/مؤشّر إضافةً إلى كلّ
+                //      الأنواع المركّبة والكائنيّة والوظيفيّة (مصفوفة/خريطة/صف/شريحة/
+                //      صنف/بنية/تعداد/دالة/إغلاق/مرجع/خطأ/…). كانت تسقط سابقًا إلى i64
+                //      الافتراضيّ، فينشأ PHI بنوع i64 بينما وارده الحيّ مؤشّرٌ حقيقيّ ⇒
+                //      «PHI node operands are not the same type» في ‏?? مثل «لاشيء ؟؟ [1،2]».
+                // (EN) Pointer-lowered kinds (i8*): string/pointer plus every composite,
+                //      OOP and callable kind (array/map/tuple/slice/class/struct/enum/
+                //      function/closure/reference/error/…). These previously fell to the
+                //      i64 default, yielding an i64 PHI whose live incoming is a real
+                //      pointer ⇒ «PHI node operands are not the same type» for `?`
+                //      forms such as «لاشيء ؟؟ [1،2]».
+                else if (isPointerLoweredKind(inst->result->dataType))
                     phiType = llvm::PointerType::getUnqual(*cg_.context_);
             }
 
@@ -183,14 +232,28 @@ namespace Sad
             {
                 const std::string &bbName = inst->operands[i + 1].name;
 
-                // Find the basic block by name
+                // (AR) السلف الفعليّ قد يكون كتلةً منقسمة عن bbName (فحص حدود المصفوفة
+                //      يحوّل نهاية الكتلة إلى set.bc.ok). نُفضّل «كتلة الخروج الفعليّة»
+                //      المسجَّلة أثناء الخفض؛ وإلّا نبحث بالاسم كسابق عهده.
+                // (EN) The real predecessor may be a block split off from bbName (array
+                //      bounds check moves the block's tail into set.bc.ok). Prefer the
+                //      recorded «effective exit block»; else fall back to name lookup.
                 llvm::BasicBlock *bb = nullptr;
-                for (auto &block : *func)
+                auto exitIt = cg_.context_info_.basicBlockExits.find(bbName);
+                if (exitIt != cg_.context_info_.basicBlockExits.end())
                 {
-                    if (block.getName() == bbName)
+                    bb = exitIt->second;
+                }
+                else
+                {
+                    // Find the basic block by name
+                    for (auto &block : *func)
                     {
-                        bb = &block;
-                        break;
+                        if (block.getName() == bbName)
+                        {
+                            bb = &block;
+                            break;
+                        }
                     }
                 }
                 if (bb)
@@ -211,6 +274,27 @@ namespace Sad
                             cg_.builder_->SetInsertPoint(bb);
                         }
                         val = cg_.resolveOperand(inst->operands[i]);
+
+                        // (AR) توحيد نوع الوارد مع نوع PHI داخل السَّلَف نفسه. الفرع
+                        //      الميت في ‏?? يحمل حارس العدم (i64) بينما نوع PHI مؤشّر،
+                        //      والعكس قد يَرِد؛ نُدرِج inttoptr/ptrtoint هنا (لا في كتلة
+                        //      الدمج) حفاظًا على قاعدة الهيمنة. تحويل مؤشّر↔مؤشّر لاغٍ مع
+                        //      المؤشّرات الشفّافة لكنّه يصون الصلاحية إن اختلفت الأنواع.
+                        // (EN) Reconcile the incoming's type with the PHI type inside the
+                        //      predecessor itself. A dead `?` branch carries the i64 null
+                        //      sentinel while the PHI type is a pointer (and vice versa);
+                        //      emit inttoptr/ptrtoint here (not in the merge block) to keep
+                        //      dominance intact. ptr↔ptr is a no-op with opaque pointers but
+                        //      preserves validity should the types differ.
+                        if (val && val->getType() != phiType)
+                        {
+                            if (phiType->isPointerTy() && val->getType()->isIntegerTy())
+                                val = cg_.builder_->CreateIntToPtr(val, phiType, "phi.i2p");
+                            else if (phiType->isIntegerTy() && val->getType()->isPointerTy())
+                                val = cg_.builder_->CreatePtrToInt(val, phiType, "phi.p2i");
+                            else if (phiType->isPointerTy() && val->getType()->isPointerTy())
+                                val = cg_.builder_->CreateBitCast(val, phiType, "phi.p2p");
+                        }
                     }
 
                     if (!val)

@@ -508,11 +508,46 @@ namespace Sad
                 bool changed = false;
                 auto &blocks = func.basicBlocks;
 
+                // (AR) اجمع أسماء الكتل المشار إليها كسلفٍ في عُقَد PHI. حذفُ كتلةٍ فارغة
+                //      تُوجِّه (forwarding) وهي سلفُ PHI يكسر العقدة: يُعاد توجيه فرعها إلى
+                //      الوجهة لكنّ وسم الوارد في PHI يبقى على الاسم المحذوف ⇒ «PHINode should
+                //      have one entry for each predecessor». مثاله ‏«أ ؟؟ ب» بمتغيّرات:
+                //      nc_right فارغة (مرجع المتغيّر لا يُصدر تعليمة) فتُحذف ويبطل الـPHI.
+                //      نستثنيها من الطيّ صونًا للعقدة (كتلة فارغة بفرعٍ صالحة في LLVM).
+                // (EN) Collect block names referenced as predecessors by PHI nodes. Removing
+                //      an empty forwarding block that is a PHI predecessor breaks the node: its
+                //      branch is redirected to the target but the PHI's incoming label still
+                //      names the deleted block ⇒ «PHINode should have one entry for each
+                //      predecessor». E.g. «أ ؟؟ ب» with variables: nc_right is empty (a variable
+                //      ref emits no instruction) so it gets deleted and the PHI is invalidated.
+                //      Exclude such blocks from folding to preserve the node (an empty block
+                //      with a branch is valid LLVM).
+                std::unordered_set<std::string> phiPredecessors;
+                for (const auto &block : blocks)
+                {
+                    if (!block)
+                        continue;
+                    for (const auto &inst : block->instructions)
+                    {
+                        if (inst.opcode != SIROpcode::PHI)
+                            continue;
+                        for (const auto &op : inst.operands)
+                        {
+                            if (op.type == SIROperandType::LABEL)
+                                phiPredecessors.insert(op.name);
+                        }
+                    }
+                }
+
                 // Find empty blocks (only have an unconditional branch)
                 std::unordered_map<std::string, std::string> redirects;
                 for (const auto &block : blocks)
                 {
                     if (!block)
+                        continue;
+                    // (AR) لا تطوِ كتلةً هي سلفٌ لعقدة PHI (يكسر الوسم أعلاه).
+                    // (EN) Never fold a block that is a PHI predecessor (breaks the label above).
+                    if (phiPredecessors.count(block->name) > 0)
                         continue;
                     const auto &insts = block->instructions;
                     if (insts.size() == 1 && insts[0].opcode == SIROpcode::BR &&
