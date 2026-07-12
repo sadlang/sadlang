@@ -296,6 +296,16 @@ namespace Sad
             // Store SIR module reference for class info access
             sirModule_ = sirModule;
 
+            // (AR) ISSUE-063: المسح المسبق لديناميّة الخانات — يقرّر خانات %SadDyn
+            //      (محلّيّة/عامّة/حقول/أنواع إرجاع) قبل أيّ إصدار، فيُغني عن الترقية
+            //      أثناء التدفّق المعطوبة فرعيًّا. يجب أن يسبق preprocessClasses لأنّه
+            //      قد يرفع أنواع حقول SIR إلى Any.
+            // (EN) ISSUE-063: the dyn-slot pre-scan — decides %SadDyn slots (locals/
+            //      globals/fields/return types) before any emission, superseding the
+            //      branch-broken mid-flow promotion. Must precede preprocessClasses
+            //      since it may raise SIR field types to Any.
+            collectDynSlots(sirModule);
+
             // معالجة الأصناف وإنشاء أنواع الهياكل
             // Pre-process classes and create struct types
             preprocessClasses(sirModule);

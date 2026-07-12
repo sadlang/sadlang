@@ -226,6 +226,22 @@ namespace Sad
                                     llvm::Value *fieldGep = cg_.builder_->CreateStructGEP(
                                         structType, rawPtr, fieldIdx2 + 1, fieldName + ".default_init");
 
+                                    // (AR) ISSUE-063: خانة الحقل قد تكون %SadDyn (رفعها المسحُ
+                                    //      المسبق) ⇒ القيمة الابتدائيّة تُعلَّب (toDyn) بدل كتابة
+                                    //      بتّاتها الخام فوق حقلَي {وسم، حمولة}.
+                                    // (EN) ISSUE-063: the field slot may be %SadDyn (raised by the
+                                    //      pre-scan) ⇒ pack the default value (toDyn) instead of
+                                    //      writing its raw bits over the {kind, payload} pair.
+                                    llvm::Type *fieldSlotTy =
+                                        structType->getElementType(fieldIdx2 + 1);
+                                    llvm::StructType *dynSlotTy = getSadDynType(*cg_.context_);
+                                    auto storeDefault = [&](llvm::Value *cv, SadTypeKind kind)
+                                    {
+                                        if (fieldSlotTy == dynSlotTy)
+                                            cv = toDyn(cg_, cv, kind);
+                                        cg_.builder_->CreateStore(cv, fieldGep);
+                                    };
+
                                     switch (defaultType)
                                     {
                                     case SadTypeKind::Integer:
@@ -238,8 +254,9 @@ namespace Sad
                                         catch (...)
                                         {
                                         }
-                                        cg_.builder_->CreateStore(
-                                            llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), intVal), fieldGep);
+                                        storeDefault(
+                                            llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), intVal),
+                                            SadTypeKind::Integer);
                                         break;
                                     }
                                     case SadTypeKind::Float:
@@ -252,16 +269,18 @@ namespace Sad
                                         catch (...)
                                         {
                                         }
-                                        cg_.builder_->CreateStore(
-                                            llvm::ConstantFP::get(llvm::Type::getDoubleTy(*cg_.context_), dblVal), fieldGep);
+                                        storeDefault(
+                                            llvm::ConstantFP::get(llvm::Type::getDoubleTy(*cg_.context_), dblVal),
+                                            SadTypeKind::Float);
                                         break;
                                     }
                                     case SadTypeKind::Boolean:
                                     {
                                         bool boolVal = (defaultVal == "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD" ||
                                                         defaultVal == "true" || defaultVal == "1");
-                                        cg_.builder_->CreateStore(
-                                            llvm::ConstantInt::get(llvm::Type::getInt1Ty(*cg_.context_), boolVal ? 1 : 0), fieldGep);
+                                        storeDefault(
+                                            llvm::ConstantInt::get(llvm::Type::getInt1Ty(*cg_.context_), boolVal ? 1 : 0),
+                                            SadTypeKind::Boolean);
                                         break;
                                     }
                                     case SadTypeKind::String:
@@ -273,7 +292,7 @@ namespace Sad
                                         //      literals); store the pointer directly instead of calling
                                         //      the UNDEFINED sad_string_new_cstr (caused undefined symbol).
                                         auto *strConst = cg_.builder_->CreateGlobalStringPtr(defaultVal, fieldName + ".defstr");
-                                        cg_.builder_->CreateStore(strConst, fieldGep);
+                                        storeDefault(strConst, SadTypeKind::String);
                                         break;
                                     }
                                     default:
@@ -459,6 +478,21 @@ namespace Sad
                 default:
                     allocType = cg_.getInt64Type();
                     break;
+                }
+
+                // (AR) ISSUE-063: المسح المسبق قرّر أنّ هذه الخانة ستحمل قيمًا ديناميّة
+                //      (تخزينُ Any لاحق، ولو داخل فرعٍ أو حلقة) ⇒ خصّصها %SadDyn منذ
+                //      كتلة الدخول. هذا يُغني عن ترقية منتصف التدفّق التي كانت تفقد
+                //      القيمة على الفرع غير المسلوك وتُبقي قراءات الحلقة على خانة بائتة.
+                // (EN) ISSUE-063: the pre-scan decided this slot will hold dynamic values
+                //      (a later Any store, possibly inside a branch/loop) ⇒ allocate it as
+                //      %SadDyn from the entry block, superseding the mid-flow promotion
+                //      that lost the value on untaken branches and left loop reads stale.
+                {
+                    llvm::BasicBlock *insBB = cg_.builder_->GetInsertBlock();
+                    llvm::Function *curF = insBB ? insBB->getParent() : nullptr;
+                    if (curF && cg_.isDynSlot(curF->getName().str(), regName))
+                        allocType = getSadDynType(*cg_.context_);
                 }
             }
 

@@ -96,6 +96,12 @@ namespace Sad
         llvm::Value *unpackDouble(LLVMCodeGen &cg, llvm::Value *dyn);
         /// (AR) استخرِج مؤشّرًا: inttoptr(الحمولة) / (EN) inttoptr(payload)
         llvm::Value *unpackPtr(LLVMCodeGen &cg, llvm::Value *dyn);
+        /// (AR) ISSUE-063: استخرِج i64 بدقّة: عشريّ⇒fptosi(bitcast(الحمولة))؛ غيره⇒الحمولة
+        ///      كما هي (دقّة الصحيح 64-بت محفوظة — لا مرور عبر double). بلا فروع (select).
+        /// (EN) ISSUE-063: extract an i64 precisely: Float⇒fptosi(bitcast(payload)); else⇒
+        ///      the raw payload (64-bit int precision preserved — no double round-trip).
+        ///      Branchless (select).
+        llvm::Value *unpackI64(LLVMCodeGen &cg, llvm::Value *dyn);
 
         // ====================================================================
         // (AR) الموزِّعات (تُبنى مرّة، لكلّ المستهلكين) / (EN) dispatchers (built once, all consumers)

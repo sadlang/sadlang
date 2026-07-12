@@ -7,6 +7,7 @@
 #include "llvm_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+#include "sad_dyn_repr.h" // (AR) ISSUE-063: حمولة %SadDyn عند خانات المصفوفة / (EN) %SadDyn payload at array slots
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -135,6 +136,14 @@ namespace Sad
                 return index;
 
             auto i64Ty = cg_.getInt64Type();
+
+            // (AR) ISSUE-063: فهرسٌ %SadDyn (خانة رقّاها المسحُ المسبق) ⇒ فكّ i64 دقيق
+            //      قبل مقارنات/حسابات الفهرسة — كان ICmpSLT على بنية ⇒ IR فاسد.
+            // (EN) ISSUE-063: a %SadDyn index (pre-scan-promoted slot) ⇒ precise i64
+            //      unpack before the indexing compares/arithmetic — ICmpSLT on a struct
+            //      was invalid IR.
+            if (isSadDyn(index))
+                index = unpackI64(cg_, index);
 
             // (AR) التحقق: هل الفهرس سالب؟
             // (EN) Check: is index negative?
@@ -470,6 +479,24 @@ namespace Sad
             llvm::Value *value = cg_.resolveOperand(inst->operands[2]);
             if (!arrPtr || !index || !value)
                 return nullptr;
+
+            // ================================================================
+            // (AR) ISSUE-063: قيمة %SadDyn بخانة مصفوفة ⇒ خزّن الحمولة i64 (بتّاتها
+            //      تطابق أعراف الخانة لكلّ وسم: صحيح⇒i64 خام، عشريّ⇒بتّات double،
+            //      نصّ⇒بتّات المؤشّر) بدل كتابة بنية 16 بايت خامًا (IR فاسد).
+            //      ⚠️ يبقى الوسمُ نفسه غير قابلٍ للتخزين في خانة 8 بايت — استرجاعُ
+            //      النوع الديناميّ من عنصر مصفوفة يحتاج تعليبَ عناصر (عائلة
+            //      ISSUE-070/080/082، «الخيار أ» المؤجَّل معماريًّا).
+            // (EN) ISSUE-063: a %SadDyn value into an array slot ⇒ store the i64
+            //      payload (its bits match the slot conventions per kind: Int⇒raw
+            //      i64, Float⇒double bits, Str⇒pointer bits) instead of writing the
+            //      16-byte struct raw (invalid IR). ⚠️ The kind itself still cannot
+            //      live in an 8-byte slot — recovering the dynamic type from an array
+            //      element needs boxed elements (ISSUE-070/080/082 family, the
+            //      architecturally-deferred "option A").
+            // ================================================================
+            if (isSadDyn(value))
+                value = dynPayloadI64(cg_, value);
 
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper

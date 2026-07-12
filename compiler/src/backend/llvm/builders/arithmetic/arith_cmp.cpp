@@ -78,6 +78,15 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-063: معامل %SadDyn (خانة رقّاها المسحُ المسبق) ⇒ فكّ i64 دقيق
+            //      (عشريّ⇒fptosi، صحيح⇒الحمولة) — كان CreateShl على بنية ⇒ IR فاسد.
+            // (EN) ISSUE-063: a %SadDyn operand (pre-scan-promoted slot) ⇒ precise i64
+            //      unpack (Float⇒fptosi, Int⇒payload) — CreateShl on a struct was invalid IR.
+            if (isSadDyn(left))
+                left = unpackI64(cg_, left);
+            if (isSadDyn(right))
+                right = unpackI64(cg_, right);
+
             // (AR) تطبيع الأنواع: تحويل ptr→i64 و i1→i64 و double→i64
             // (EN) Type normalization: convert ptr→i64 and i1→i64 and double→i64
             if (left->getType()->isPointerTy())
@@ -130,6 +139,13 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
             }
+
+            // (AR) ISSUE-063: معامل %SadDyn ⇒ فكّ i64 دقيق (مرآة emitShl)
+            // (EN) ISSUE-063: a %SadDyn operand ⇒ precise i64 unpack (mirror of emitShl)
+            if (isSadDyn(left))
+                left = unpackI64(cg_, left);
+            if (isSadDyn(right))
+                right = unpackI64(cg_, right);
 
             // (AR) تطبيع الأنواع: تحويل ptr→i64 و i1→i64 و double→i64
             // (EN) Type normalization: convert ptr→i64 and i1→i64 and double→i64

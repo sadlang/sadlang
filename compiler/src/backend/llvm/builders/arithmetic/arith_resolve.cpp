@@ -117,6 +117,14 @@ namespace Sad
                             // (EN) Global variable stores string pointer as i64 — load and convert to ptr
                             llvm::Value *loaded = cg_.builder_->CreateLoad(
                                 gv->getValueType(), gv, operand.name + ".gload");
+                            // (AR) ISSUE-063: خانة عامّة %SadDyn (رقّاها المسحُ المسبق) —
+                            //      أعدها كما هي (واصفة لذاتها)؛ كان inttoptr على بنية ⇒
+                            //      «IntToPtr source must be an integral» وفشل verifyModule.
+                            // (EN) ISSUE-063: a %SadDyn global slot (promoted by the pre-scan)
+                            //      — return it as-is (self-describing); inttoptr on a struct
+                            //      used to fail verifyModule ("source must be an integral").
+                            if (isSadDyn(loaded))
+                                return loaded;
                             return cg_.builder_->CreateIntToPtr(loaded,
                                                             llvm::PointerType::getUnqual(*cg_.context_), operand.name + ".strptr");
                         }

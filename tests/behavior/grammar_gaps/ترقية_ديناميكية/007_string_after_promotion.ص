@@ -1,0 +1,10 @@
+# @rule: gr.stmt.assign
+# @gap: ISSUE-063
+# @priority: P1
+# @description: كاشف — إعادة إسناد نصّ إلى متغيّر مرقًّى %SadDyn: يجب التعليب Str والطباعة نصًّا (كان يفشل verifyModule)
+# @requires: اطبع_سطر
+# @expected: 1.5\nمرحبا
+متغير س = 3 / 2
+اطبع_سطر(س)
+س = "مرحبا"
+اطبع_سطر(س)

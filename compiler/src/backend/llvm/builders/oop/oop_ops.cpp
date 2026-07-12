@@ -8,6 +8,7 @@
 #include "llvm_codegen.h"
 #include "builders/oop/oop_ops_codegen.h"
 #include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
+#include "sad_dyn_repr.h" // (AR) ISSUE-063: تعليب/فكّ %SadDyn عند حقول الأصناف / (EN) %SadDyn pack/unpack at class fields
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -757,6 +758,24 @@ namespace Sad
                     if (setter->arg_size() >= 2)
                     {
                         llvm::Type *expectedValTy = setter->getFunctionType()->getParamType(1);
+                        // (AR) ISSUE-063: مواءمة %SadDyn مع توقيع الـsetter (تعليب/فكّ)
+                        // (EN) ISSUE-063: reconcile %SadDyn with the setter signature (pack/unpack)
+                        {
+                            llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                            if (expectedValTy == dynTy && !isSadDyn(valueArg))
+                            {
+                                valueArg = toDyn(cg_, valueArg, inst->operands[2].dataType);
+                            }
+                            else if (expectedValTy != dynTy && isSadDyn(valueArg))
+                            {
+                                if (expectedValTy->isDoubleTy())
+                                    valueArg = unpackDouble(cg_, valueArg);
+                                else if (expectedValTy->isPointerTy())
+                                    valueArg = unpackPtr(cg_, valueArg);
+                                else
+                                    valueArg = dynPayloadI64(cg_, valueArg);
+                            }
+                        }
                         llvm::Type *actualValTy = valueArg->getType();
                         if (expectedValTy != actualValTy)
                         {
@@ -915,6 +934,40 @@ namespace Sad
             // GEP + Store
             llvm::Value *gep = cg_.builder_->CreateStructGEP(structType, actualObj, structIndex,
                                                          fieldName + "_gep");
+
+            // ================================================================
+            // (AR) ISSUE-063: مواءمة القيمة مع نوع خانة الحقل:
+            //      1) خانة %SadDyn وقيمة محسوسة ⇒ تعليب (toDyn) بنوع SIR الساكن؛
+            //      2) قيمة %SadDyn وخانة محسوسة ⇒ فكّ حسب نوع الخانة (double⇒unpackDouble،
+            //         ptr⇒unpackPtr، i64⇒الحمولة) — كان CreateStore يكتب 16 بايت خامًا
+            //         فوق خانة 8 بايت ⇒ إفساد ذاكرة الكائن.
+            // (EN) ISSUE-063: reconcile the value with the field slot type:
+            //      1) %SadDyn slot + concrete value ⇒ pack (toDyn) by its static SIR type;
+            //      2) %SadDyn value + concrete slot ⇒ unpack per slot type (double⇒
+            //         unpackDouble, ptr⇒unpackPtr, i64⇒payload) — CreateStore used to
+            //         write 16 raw bytes over an 8-byte slot ⇒ object memory corruption.
+            // ================================================================
+            {
+                llvm::Type *fieldSlotTy = structType->getElementType(structIndex);
+                llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                if (fieldSlotTy == dynTy && !isSadDyn(value))
+                {
+                    value = toDyn(cg_, value, inst->operands[2].dataType);
+                }
+                else if (fieldSlotTy != dynTy && isSadDyn(value))
+                {
+                    if (fieldSlotTy->isDoubleTy())
+                        value = unpackDouble(cg_, value);
+                    else if (fieldSlotTy->isPointerTy())
+                        value = unpackPtr(cg_, value);
+                    else if (fieldSlotTy->isIntegerTy(1))
+                        value = cg_.builder_->CreateTrunc(
+                            dynPayloadI64(cg_, value), llvm::Type::getInt1Ty(*cg_.context_),
+                            fieldName + ".dyn.i1");
+                    else
+                        value = dynPayloadI64(cg_, value);
+                }
+            }
             cg_.builder_->CreateStore(value, gep);
 
             return value;

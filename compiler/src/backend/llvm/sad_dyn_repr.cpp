@@ -24,6 +24,230 @@ namespace Sad
         // (AR) اسم النوع المميّز — مصدرٌ واحد / (EN) the distinct type name — single source
         static const char *kSadDynTypeName = "SadDyn";
 
+        // ====================================================================
+        // (AR) ISSUE-063: المسح المسبق لديناميّة الخانات — انظر توثيق llvm_codegen.h
+        // (EN) ISSUE-063: the dyn-slot pre-scan — see the llvm_codegen.h docs
+        // ====================================================================
+        namespace
+        {
+            // (AR) تطبيع اسم الخانة: السجلّات تبدأ بـ% والعامّة لا / (EN) strip the % register prefix
+            std::string cleanSlotName(const std::string &n)
+            {
+                return (!n.empty() && n[0] == '%') ? n.substr(1) : n;
+            }
+
+            // (AR) تجريد علامات التنصيص عن اسم الحقل / (EN) strip quotes off a field name
+            std::string cleanFieldName(std::string f)
+            {
+                if (!f.empty() && f.front() == '"')
+                    f = f.substr(1);
+                if (!f.empty() && f.back() == '"')
+                    f = f.substr(0, f.size() - 1);
+                return f;
+            }
+
+            // (AR) حدّ التقارب الأعلى للمسح (تلوّثٌ عبر الدوال متسلسل) — عمليًّا يتقارب في ≤3
+            // (EN) fixpoint upper bound (cross-function taint chains) — converges in ≤3 in practice
+            constexpr int kDynScanMaxIterations = 8;
+        } // namespace
+
+        bool LLVMCodeGen::isDynSlot(const std::string &funcName, const std::string &slotName) const
+        {
+            std::string n = cleanSlotName(slotName);
+            if (dynGlobalSlots_.count(n))
+                return true;
+            auto it = dynLocalSlots_.find(funcName);
+            return it != dynLocalSlots_.end() && it->second.count(n) != 0;
+        }
+
+        void LLVMCodeGen::collectDynSlots(std::shared_ptr<SIRModule> sirModule)
+        {
+            dynGlobalSlots_.clear();
+            dynLocalSlots_.clear();
+            if (!sirModule)
+                return;
+
+            // (AR) أسماء المتغيّرات العامّة + العامّ المصرَّح Any أصلًا (المستوى الأعلى)
+            // (EN) global names + globals the frontend already declared Any (top level)
+            std::set<std::string> globalNames;
+            for (const auto &g : sirModule->getGlobalVariables())
+            {
+                if (!g)
+                    continue;
+                globalNames.insert(g->name);
+                if (g->type == SadTypeKind::Any)
+                    dynGlobalSlots_.insert(g->name);
+            }
+
+            // (AR) الدوال التي تُرجع ديناميًّا (تتقارب عبر الدورات) / (EN) dyn-returning functions
+            std::map<std::string, bool> dynReturnFuncs;
+            for (const auto &fn : sirModule->getFunctions())
+                if (fn)
+                    dynReturnFuncs[fn->getName()] = (fn->returnType == SadTypeKind::Any);
+
+            bool changed = true;
+            for (int iter = 0; changed && iter < kDynScanMaxIterations; ++iter)
+            {
+                changed = false;
+                for (const auto &fn : sirModule->getFunctions())
+                {
+                    if (!fn)
+                        continue;
+                    std::set<std::string> &localDyn = dynLocalSlots_[fn->getName()];
+
+                    // (AR) سجلّاتٌ قيمتها ديناميّة زمنَ التشغيل (مسح أماميّ داخل الدالّة)
+                    // (EN) registers whose runtime value is dynamic (forward scan within the function)
+                    std::set<std::string> dynRegs;
+                    // (AR) أنواع القيم المخزَّنة لكلّ خانة — لقاعدة مزيج نصّ/عدد
+                    // (EN) stored value kinds per slot — for the text/number mix rule
+                    std::map<std::string, std::set<SadTypeKind>> slotStoredKinds;
+
+                    auto isDynSlotName = [&](const std::string &raw)
+                    {
+                        std::string n = cleanSlotName(raw);
+                        return localDyn.count(n) != 0 || dynGlobalSlots_.count(n) != 0;
+                    };
+                    // (AR) قيمةُ معامل ديناميّة؟ Any ساكنًا، أو سجلّ ملوَّث، أو خانةٌ-كقيمة
+                    //      ديناميّة (resolveOperand يحمّل الخانة تلقائيًّا)
+                    // (EN) dynamic operand value? statically Any, a tainted register, or a
+                    //      dyn slot used as a value (resolveOperand auto-loads slots)
+                    auto valueIsDyn = [&](const SIROperand &op)
+                    {
+                        if (op.dataType == SadTypeKind::Any)
+                            return true;
+                        if (op.type != SIROperandType::REGISTER)
+                            return false;
+                        return dynRegs.count(op.name) != 0 || isDynSlotName(op.name);
+                    };
+                    auto markSlotDyn = [&](const std::string &raw)
+                    {
+                        std::string n = cleanSlotName(raw);
+                        if (globalNames.count(n))
+                            changed = dynGlobalSlots_.insert(n).second || changed;
+                        changed = localDyn.insert(n).second || changed;
+                    };
+
+                    for (const auto &bb : fn->getBasicBlocks())
+                    {
+                        if (!bb)
+                            continue;
+                        for (const auto &inst : bb->instructions)
+                        {
+                            // (AR) 1) تلويث السجلّات / (EN) 1) register tainting
+                            if (inst.result.has_value())
+                            {
+                                bool resDyn = (inst.result->dataType == SadTypeKind::Any);
+                                if (!resDyn && !inst.operands.empty())
+                                {
+                                    switch (inst.opcode)
+                                    {
+                                    case SIROpcode::LOAD:
+                                        resDyn = isDynSlotName(inst.operands[0].name);
+                                        break;
+                                    case SIROpcode::MOVE:
+                                        resDyn = valueIsDyn(inst.operands[0]);
+                                        break;
+                                    case SIROpcode::CALL:
+                                    {
+                                        auto cit = dynReturnFuncs.find(inst.operands[0].name);
+                                        resDyn = (cit != dynReturnFuncs.end() && cit->second);
+                                        break;
+                                    }
+                                    default:
+                                        break;
+                                    }
+                                }
+                                if (resDyn)
+                                    dynRegs.insert(inst.result->name);
+                            }
+
+                            // (AR) 2) تخزينٌ بخانة (معاملان): ديناميّ ⇒ خانة %SadDyn؛
+                            //         وجمعُ أنواع المخزون لقاعدة مزيج نصّ/عشريّ (دَين 5)
+                            // (EN) 2) 2-operand STORE: dynamic ⇒ %SadDyn slot; also collect
+                            //         stored kinds for the string/float mix rule (debt 5)
+                            if (inst.opcode == SIROpcode::STORE && inst.operands.size() == 2)
+                            {
+                                const std::string slot = cleanSlotName(inst.operands[1].name);
+                                if (valueIsDyn(inst.operands[0]))
+                                {
+                                    markSlotDyn(slot);
+                                }
+                                else
+                                {
+                                    // (AR) قاعدة المزيج: نجمع النصّيّ والعدديّ فقط (isNumericKind من SoT الأنواع)
+                                    // (EN) mix rule: track only string and numeric kinds (SoT isNumericKind)
+                                    SadTypeKind k = inst.operands[0].dataType;
+                                    if (k == SadTypeKind::String || ::Sad::Types::isNumericKind(k))
+                                    {
+                                        auto &kinds = slotStoredKinds[slot];
+                                        kinds.insert(k);
+                                        // (AR) مزيجُ نصٍّ وعشريّ بخانةٍ واحدة: ترقية double
+                                        //      القديمة تُنتج inttoptr(double) ⇒ فشل verifyModule
+                                        // (EN) string+float mixed in one slot: the legacy double
+                                        //      promotion yields inttoptr(double) ⇒ verifyModule failure
+                                        if (kinds.count(SadTypeKind::String) &&
+                                            kinds.count(SadTypeKind::Float))
+                                            markSlotDyn(slot);
+                                    }
+                                }
+                            }
+
+                            // (AR) 3) تخزينٌ بحقل: OBJECT_SET (القيمة [2]) أو STORE ثلاثيّ
+                            //         (القيمة [0] والحقل [2]) ⇒ رفعُ نوع الحقل إلى Any عند
+                            //         الديناميّ أو المخالف للمعلَن (عشريّ/نصّ بحقل صحيح)
+                            // (EN) 3) field stores: OBJECT_SET (value [2]) or 3-operand STORE
+                            //         (value [0], field [2]) ⇒ raise the SIR field type to Any
+                            //         for dynamic or declared-mismatching values
+                            const bool isObjSet = (inst.opcode == SIROpcode::OBJECT_SET &&
+                                                   inst.operands.size() >= 3);
+                            const bool isMemberStore = (inst.opcode == SIROpcode::STORE &&
+                                                        inst.operands.size() >= 3);
+                            if (isObjSet || isMemberStore)
+                            {
+                                const SIROperand &valOp = isObjSet ? inst.operands[2] : inst.operands[0];
+                                const std::string fieldName = cleanFieldName(
+                                    isObjSet ? inst.operands[1].name : inst.operands[2].name);
+                                const SadTypeKind v = valOp.dataType;
+                                const bool dynVal = valueIsDyn(valOp);
+                                for (const auto &cls : sirModule->getClasses())
+                                {
+                                    if (!cls)
+                                        continue;
+                                    auto fit = cls->fields_.find(fieldName);
+                                    if (fit == cls->fields_.end() || fit->second == SadTypeKind::Any)
+                                        continue;
+                                    const SadTypeKind d = fit->second;
+                                    const bool mismatch =
+                                        (v == SadTypeKind::Float && d == SadTypeKind::Integer) ||
+                                        (v == SadTypeKind::String &&
+                                         (d == SadTypeKind::Integer || d == SadTypeKind::Float));
+                                    if (dynVal || mismatch)
+                                    {
+                                        fit->second = SadTypeKind::Any;
+                                        changed = true;
+                                    }
+                                }
+                            }
+
+                            // (AR) 4) إرجاعُ قيمةٍ ديناميّة ⇒ نوع إرجاع الدالّة Any (%SadDyn)
+                            //         — كان dynPayloadI64 يقتطع الوسم عند حدود الدالّة
+                            // (EN) 4) returning a dynamic value ⇒ Any (%SadDyn) return type —
+                            //         dynPayloadI64 used to strip the kind at the boundary
+                            if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
+                                fn->returnType != SadTypeKind::Any &&
+                                fn->returnType != SadTypeKind::Void &&
+                                valueIsDyn(inst.operands[0]))
+                            {
+                                fn->returnType = SadTypeKind::Any;
+                                dynReturnFuncs[fn->getName()] = true;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         llvm::StructType *getSadDynType(llvm::LLVMContext &ctx)
         {
             // (AR) أعِد النوع المسمّى إن وُجد (يضمن هويّة واحدة عبر الوحدة كلّها)
@@ -201,6 +425,21 @@ namespace Sad
         {
             auto *ptrTy = llvm::PointerType::getUnqual(*cg.context_);
             return cg.builder_->CreateIntToPtr(dynPayloadI64(cg, dyn), ptrTy, "dyn.ptr");
+        }
+
+        llvm::Value *unpackI64(LLVMCodeGen &cg, llvm::Value *dyn)
+        {
+            auto &b = *cg.builder_;
+            auto &ctx = *cg.context_;
+            auto *i8 = llvm::Type::getInt8Ty(ctx);
+            auto *i64 = llvm::Type::getInt64Ty(ctx);
+            auto *dbl = llvm::Type::getDoubleTy(ctx);
+            llvm::Value *payload = dynPayloadI64(cg, dyn);
+            llvm::Value *isF = b.CreateICmpEQ(
+                dynKindByte(cg, dyn), llvm::ConstantInt::get(i8, DynKind::Float), "dyn.i.isf");
+            llvm::Value *fromF = b.CreateFPToSI(
+                b.CreateBitCast(payload, dbl, "dyn.i.fbc"), i64, "dyn.i.f2i");
+            return b.CreateSelect(isF, fromF, payload, "dyn.i64");
         }
 
         // ====================================================================

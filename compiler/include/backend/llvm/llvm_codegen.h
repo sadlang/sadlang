@@ -51,8 +51,10 @@
 #ifndef SAD_LLVM_CODEGEN_H
 #define SAD_LLVM_CODEGEN_H
 
+#include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -344,6 +346,37 @@ namespace Sad
              * @return وحدة LLVM الناتجة / Resulting LLVM module
              */
             std::unique_ptr<llvm::Module> generate(std::shared_ptr<SIRModule> sirModule);
+
+            // ========================================================================
+            // (AR) ISSUE-063 (عائلة الترقية الديناميّة %SadDyn): مسحٌ مسبق لوحدة SIR يقرّر
+            //      «ديناميّةَ» الخانات قبل الإصدار — بدل الترقية أثناء التدفّق (التي كانت
+            //      تُهاجر القيمة داخل فرعٍ قد لا يُسلك ⇒ فقدان القيمة، وتُبقي قراءات الحلقة
+            //      على الخانة القديمة ⇒ تعليق، وتفصم النسخة العامّة عن المحلّيّة):
+            //      1) خاناتٌ محلّيّة/عامّة تُخزَّن فيها قيمةٌ ديناميّة (Any) أو مزيجُ
+            //         نصّ/عشريّ ⇒ تُخصَّص %SadDyn منذ كتلة الدخول.
+            //      2) حقول أصنافٍ تُخزَّن فيها قيمٌ ديناميّة أو من نوعٍ مخالفٍ للمعلَن ⇒
+            //         يُرفَع نوع الحقل في SIR إلى Any (فيصير %SadDyn في الهيكل).
+            //      3) دوالٌ تُرجع قيمًا ديناميّة ⇒ يُرفَع نوع إرجاعها إلى Any.
+            // (EN) ISSUE-063 (%SadDyn promotion family): a pre-scan over the SIR module that
+            //      decides slot dyn-ness BEFORE emission — replacing the mid-flow promotion
+            //      (which migrated the value inside a possibly-untaken branch ⇒ value loss,
+            //      left loop reads on the stale slot ⇒ hang, and split the global from its
+            //      local view): 1) local/global slots ever stored a dynamic (Any) value or a
+            //      string/float mix ⇒ allocated as %SadDyn from the entry block; 2) class
+            //      fields stored dynamic/mismatched values ⇒ SIR field type raised to Any
+            //      (⇒ %SadDyn struct slot); 3) functions returning dynamic values ⇒ return
+            //      type raised to Any.
+            // ========================================================================
+            void collectDynSlots(std::shared_ptr<SIRModule> sirModule);
+
+            /// (AR) هل هذه الخانة (محلّيًّا في funcName أو عامّةً) قرّرها المسحُ ديناميّةً؟
+            /// (EN) did the pre-scan decide this slot (locally in funcName, or globally) is dynamic?
+            bool isDynSlot(const std::string &funcName, const std::string &slotName) const;
+
+            /// (AR) أسماء المتغيّرات العامّة الديناميّة (بلا بادئة %) / (EN) dynamic global slot names (no % prefix)
+            std::set<std::string> dynGlobalSlots_;
+            /// (AR) الخانات المحلّيّة الديناميّة لكلّ دالّة / (EN) dynamic local slots per function
+            std::map<std::string, std::set<std::string>> dynLocalSlots_;
 
             /**
              * الحصول على الوحدة الحالية

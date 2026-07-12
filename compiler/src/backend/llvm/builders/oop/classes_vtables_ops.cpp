@@ -264,6 +264,78 @@ namespace Sad
                 SadTypeKind varType = globalVar->getType();
                 bool isConstant = globalVar->getIsConstant();
 
+                // ================================================================
+                // (AR) ISSUE-063: متغيّرٌ عامّ قرّره المسحُ المسبق ديناميًّا (أو صرّحت به
+                //      الواجهة Any) ⇒ يُنشأ %SadDyn من البداية بهويّته العامّة الوحيدة —
+                //      كانت ترقيةُ منتصف التدفّق تُنشئ «name.dyn» جديدًا داخل __sad_main
+                //      فتنفصم نسخةُ الدوال (المُصدَرة على القديم) عن نسخة المستوى الأعلى.
+                //      الصفر الابتدائيّ = {وسم عدم، 0} — تخزينُ التهيئة في __sad_main
+                //      يعلّبه قبل أوّل قراءة.
+                // (EN) ISSUE-063: a global the pre-scan (or the frontend, via Any) decided
+                //      is dynamic ⇒ created as %SadDyn from the start under its single
+                //      global identity — the mid-flow promotion used to mint a fresh
+                //      "name.dyn" inside __sad_main, splitting functions (emitted against
+                //      the old global) from the top level. Zero-init = {Null kind, 0};
+                //      the __sad_main init store packs it before the first read.
+                // ================================================================
+                if (cg_.dynGlobalSlots_.count(varName) || varType == SadTypeKind::Any)
+                {
+                    llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    auto *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+
+                    // (AR) قيمة أولى معلَّبة ثابتًا حسب النوع المعلَن (إن وُجدت) وإلّا {عدم، 0}
+                    // (EN) constant-packed initializer per the declared type (if any), else {Null, 0}
+                    llvm::Constant *dynInit = llvm::ConstantAggregateZero::get(dynTy);
+                    if (!globalVar->initialValue.empty())
+                    {
+                        try
+                        {
+                            uint8_t kind = DynKind::Null;
+                            llvm::Constant *payload = llvm::ConstantInt::get(i64Ty, 0);
+                            switch (varType)
+                            {
+                            case SadTypeKind::Integer:
+                                kind = DynKind::Int;
+                                payload = llvm::ConstantInt::get(
+                                    i64Ty, std::stoll(globalVar->initialValue), true);
+                                break;
+                            case SadTypeKind::Float:
+                            {
+                                kind = DynKind::Float;
+                                llvm::APFloat apf(std::stod(globalVar->initialValue));
+                                payload = llvm::ConstantInt::get(
+                                    i64Ty, apf.bitcastToAPInt().getZExtValue());
+                                break;
+                            }
+                            case SadTypeKind::Boolean:
+                                kind = DynKind::Bool;
+                                payload = llvm::ConstantInt::get(
+                                    i64Ty, std::stoll(globalVar->initialValue) != 0 ? 1 : 0);
+                                break;
+                            default:
+                                break;
+                            }
+                            if (kind != DynKind::Null)
+                                dynInit = llvm::ConstantStruct::get(
+                                    dynTy, {llvm::ConstantInt::get(i8Ty, kind), payload});
+                        }
+                        catch (...)
+                        {
+                            dynInit = llvm::ConstantAggregateZero::get(dynTy);
+                        }
+                    }
+
+                    auto *dynGV = new llvm::GlobalVariable(
+                        *cg_.module_, dynTy, false,
+                        llvm::GlobalValue::InternalLinkage,
+                        dynInit,
+                        varName);
+                    cg_.context_info_.namedValues[varName] = dynGV;
+                    cg_.context_info_.globalValues[varName] = dynGV;
+                    continue;
+                }
+
                 // تحويل النوع إلى LLVM
                 // Convert type to LLVM
                 llvm::Type *llvmType = nullptr;

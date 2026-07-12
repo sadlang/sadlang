@@ -43,6 +43,7 @@
 #include <fstream>
 #include "builders/arithmetic/arithmetic_codegen.h" // (Phase 7 Step 1)
 #include "sir_constants.h"                            // (AR) kSadNullSentinel (NS-05)
+#include "sad_dyn_repr.h" // (AR) ISSUE-063: حارس المعامل %SadDyn بالمسارات الساكنة / (EN) %SadDyn operand guard on static paths
 #include "llvm_codegen.h"
 
 // Source: llvm_codegen.h:103-108 - using declarations
@@ -52,6 +53,27 @@ namespace Sad
 {
     namespace LLVM
     {
+        namespace
+        {
+            // (AR) ISSUE-063: حارسٌ للمسارات الحسابيّة الساكنة — معاملٌ %SadDyn وصل رغم أنّ
+            //      نوع نتيجة SIR ليس Any (نوعٌ أماميّ بائت، كقراءة خانة رقّاها المسحُ المسبق)
+            //      ⇒ فوّض إلى الموزِّع الديناميّ dynBinOp بدل CreateAdd على بنية (IR فاسد).
+            // (EN) ISSUE-063: guard for the static arithmetic paths — a %SadDyn operand
+            //      arrived although the SIR result type is not Any (a stale frontend type,
+            //      e.g. a read of a pre-scan-promoted slot) ⇒ delegate to the dynBinOp
+            //      dispatcher instead of CreateAdd on a struct (invalid IR).
+            llvm::Value *dispatchDynOperands(LLVMCodeGen &cg,
+                                             const std::shared_ptr<SIRInstruction> &inst,
+                                             llvm::Value *left, llvm::Value *right)
+            {
+                llvm::Value *dl = toDyn(cg, left, inst->operands[0].dataType);
+                llvm::Value *dr = toDyn(cg, right, inst->operands[1].dataType);
+                llvm::Value *res = dynBinOp(cg, inst->opcode, dl, dr);
+                if (inst->result.has_value())
+                    cg.context_info_.namedValues[inst->result->name] = res;
+                return res;
+            }
+        } // namespace
 
         llvm::Value *ArithmeticCodeGen::emitAdd(std::shared_ptr<SIRInstruction> inst)
         {
@@ -81,6 +103,37 @@ namespace Sad
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
+            }
+
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
             }
 
             // (AR) تطبيع الأنواع: ptr→i64 و i1→i64 لضمان توافق العمليات الثنائية
@@ -167,6 +220,37 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
+            }
+
             // (AR) تطبيع الأنواع: ptr→i64 و i1→i64
             // (EN) Normalize types: ptr→i64 and i1→i64
             if (left->getType()->isPointerTy())
@@ -241,6 +325,37 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
+            }
+
             // (AR) تطبيع الأنواع: ptr→i64 و i1→i64
             // (EN) Normalize types: ptr→i64 and i1→i64
             if (left->getType()->isPointerTy())
@@ -313,6 +428,37 @@ namespace Sad
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
+            }
+
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
             }
 
             // (AR) تطبيع الأنواع: ptr→i64 و i1→i64
@@ -437,6 +583,37 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
+            }
+
             // (AR) تطبيع الأنواع: ptr→i64 و i1→i64 و double→i64
             // (EN) Normalize types: ptr→i64, i1→i64, double→i64 (mod is always integer)
             if (left->getType()->isPointerTy())
@@ -518,6 +695,20 @@ namespace Sad
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operand"}});
                 return nullptr;
+            }
+
+            // (AR) ISSUE-063: نفيُ قيمةٍ %SadDyn ⇒ 0 − قيمة عبر الموزِّع الديناميّ
+            //      (يحفظ الوسم: صحيح يبقى صحيحًا وعشريّ عشريًّا) بدل CreateNeg على بنية.
+            // (EN) ISSUE-063: negating a %SadDyn value ⇒ 0 − value via the dynamic
+            //      dispatcher (kind-preserving) instead of CreateNeg on a struct.
+            if (isSadDyn(operand))
+            {
+                llvm::Value *dynZero = packDyn(
+                    cg_, llvm::ConstantInt::get(cg_.getInt64Type(), 0), DynKind::Int);
+                llvm::Value *dynRes = dynBinOp(cg_, SIROpcode::SUB_I64, dynZero, operand);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dynRes;
+                return dynRes;
             }
 
             llvm::Value *result;
@@ -653,6 +844,37 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
+            }
+
             // (AR) تطبيع الأنواع: تحويل ptr→i64 و i1→i64 و double→i64
             // (EN) Type normalization: convert ptr→i64 and i1→i64 and double→i64
             if (left->getType()->isPointerTy())
@@ -706,6 +928,37 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
+            }
+
             // (AR) تطبيع الأنواع: تحويل ptr→i64 و i1→i64 و double→i64
             // (EN) Type normalization: convert ptr→i64 and i1→i64 and double→i64
             if (left->getType()->isPointerTy())
@@ -757,6 +1010,37 @@ namespace Sad
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "Operands"}});
                 return nullptr;
+            }
+
+            // (AR) ISSUE-063: معاملٌ %SadDyn بمسارٍ ساكن (نوع SIR أماميّ بائت) ⇒ الحسابيّات
+            //      تُفوَّض للموزِّع الديناميّ، والمنطقيّات/البتّيّات تفكّ الحمولة i64.
+            // (EN) ISSUE-063: a %SadDyn operand on a static path (stale frontend SIR type) ⇒
+            //      arithmetic delegates to the dynamic dispatcher; logical/bitwise ops
+            //      unpack the i64 payload.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                switch (inst->opcode)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                    return dispatchDynOperands(cg_, inst, left, right);
+                default:
+                    // (AR) منطقيّات/بتّيّات: فكّ i64 دقيق (عشريّ⇒fptosi، صحيح⇒الحمولة)
+                    // (EN) logical/bitwise: precise i64 unpack (Float⇒fptosi, Int⇒payload)
+                    if (isSadDyn(left))
+                        left = unpackI64(cg_, left);
+                    if (isSadDyn(right))
+                        right = unpackI64(cg_, right);
+                    break;
+                }
             }
 
             // (AR) تطبيع الأنواع: تحويل ptr→i64 و i1→i64 و double→i64

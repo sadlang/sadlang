@@ -55,6 +55,15 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     llvm::Value *v = cg_.resolveOperand(op);
                     if (!v)
                         continue;
+                    // (AR) ISSUE-063: %SadDyn أوّلًا قبل فروع dataType (النوع الأماميّ قد
+                    //      يكون بائتًا) — dynToString حرّ المكتبة (يستدعي __sad_itoa/ftoa).
+                    // (EN) ISSUE-063: %SadDyn first, before the dataType branches (the
+                    //      frontend type may be stale) — dynToString is freestanding-safe.
+                    if (isSadDyn(v))
+                    {
+                        cg_.builder_->CreateCall(putsFn, {dynToString(cg_, v)});
+                        continue;
+                    }
                     // (AR) القيم المنطقية: طباعة "صحيح"/"خطأ" في الوضع المستقل
                     // (EN) Boolean values: print "صحيح"/"خطأ" in freestanding mode
                     if (op.dataType == SadTypeKind::Boolean)
@@ -118,6 +127,27 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                 llvm::Value *v = cg_.resolveOperand(op);
                 if (!v)
                     continue;
+
+                // ================================================================
+                // (AR) ISSUE-063: قيمة %SadDyn تُحسَم أوّلًا وقبل فروع dataType —
+                //      نوع SIR الأماميّ قد يكون بائتًا (منطقيّ/مصفوفة/خريطة) بينما
+                //      القيمة فعليًّا %SadDyn (خانة رقّاها المسحُ المسبق)، وكانت فروع
+                //      dataType تُصدر ICmp/IntToPtr على بنية ⇒ IR فاسد. النوع %SadDyn
+                //      هو المعلومة — الموزِّع dynToString يطابق المفسّر لكلّ وسم.
+                // (EN) ISSUE-063: a %SadDyn value is dispatched FIRST, before the
+                //      dataType-driven branches — the frontend SIR type may be stale
+                //      (bool/array/map) while the value is actually %SadDyn (a slot
+                //      the pre-scan promoted); those branches used to emit ICmp/
+                //      IntToPtr on a struct ⇒ invalid IR. The %SadDyn type IS the
+                //      information — dynToString matches the interpreter per kind.
+                // ================================================================
+                if (isSadDyn(v))
+                {
+                    llvm::Value *dynStr = dynToString(cg_, v);
+                    llvm::Value *dynFmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                    cg_.builder_->CreateCall(printfFunc, {dynFmt, dynStr});
+                    continue;
+                }
 
                 // (AR) القيم المنطقية: طباعة "صحيح"/"خطأ" بدلاً من 1/0
                 // (EN) Boolean values: print "صحيح"/"خطأ" instead of 1/0
