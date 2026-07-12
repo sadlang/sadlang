@@ -717,6 +717,24 @@ static llvm::Function *getOrCreateSplitHelper(
                 return nullptr;
             }
 
+            // (AR) م1ب ISSUE-076: معامل %SadDyn (نتيجة «؟.» نصّيّة مثلًا) ⇒ فوّض للموزِّع
+            //      dynCompare (وسم Str ⇒ strcmp بالمحتوى؛ غيره ⇒ عدديّ). STRING_CMP دلالتُه
+            //      «متساويان؟» فيطابق DynCmp::EQ. بلا هذا كان الوسمُ البتّيّ يعمل «and %SadDyn, i64»
+            //      ⇒ فشل verifyModule (نوعان مختلفان).
+            // (EN) م1ب ISSUE-076: a %SadDyn operand (e.g. a «؟.» string result) ⇒ delegate to the
+            //      dynCompare dispatcher (Str tag ⇒ strcmp by content; else numeric). STRING_CMP means
+            //      «are they equal?», matching DynCmp::EQ. Without this the bit-tag did «and %SadDyn, i64»
+            //      ⇒ verifyModule failure (mismatched types).
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                llvm::Value *dl = toDyn(cg_, left, inst->operands[0].dataType);
+                llvm::Value *dr = toDyn(cg_, right, inst->operands[1].dataType);
+                llvm::Value *dres = dynCompare(cg_, DynCmp::EQ, dl, dr);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dres;
+                return dres;
+            }
+
             // (AR) حماية ضد null sentinel وقيم tagged:
             //      القيم المستقبلة من القنوات قد تحمل null sentinel أو أرقام مُعلّمة
             //      (bit63=1). استدعاء strcmp على هذه القيم يسبب ACCESS_VIOLATION.

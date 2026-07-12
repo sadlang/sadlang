@@ -6,6 +6,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/builtins/builtin_funcs_codegen.h"
+#include "sad_dyn_repr.h" // (AR) spike ISSUE-076: getSadDynType/isSadDyn/toDyn لـ%SadDyn PHI
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -205,7 +206,16 @@ namespace Sad
             llvm::Type *phiType = cg_.getInt64Type(); // default
             if (inst->result.has_value())
             {
-                if (inst->result->dataType == SadTypeKind::Float)
+                // (AR) spike ISSUE-076: نتيجة Any ⇒ PHI بنوع %SadDyn (قيمة موسومة ذاتيّة الوصف).
+                //      تُمكّن «؟. النصّية» من دمج فرع النصّ (Str) مع فرع العدم (Null) بلا تثبيتٍ
+                //      على i64. لا مستهلك حاليّ يُصدر PHI بنوع Any ⇒ خامدة لسائر المسارات (؟؟/القنوات).
+                // (EN) spike ISSUE-076: an Any result ⇒ a %SadDyn PHI (self-describing tagged value).
+                //      Lets «؟. string» merge the string (Str) branch with the null (Null) branch
+                //      without pinning to i64. No current consumer emits an Any-typed PHI ⇒ inert for
+                //      all other paths (?? / channels).
+                if (inst->result->dataType == SadTypeKind::Any)
+                    phiType = getSadDynType(*cg_.context_);
+                else if (inst->result->dataType == SadTypeKind::Float)
                     phiType = llvm::Type::getDoubleTy(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::Boolean)
                     phiType = llvm::Type::getInt1Ty(*cg_.context_);
@@ -286,6 +296,13 @@ namespace Sad
                         //      emit inttoptr/ptrtoint here (not in the merge block) to keep
                         //      dominance intact. ptr↔ptr is a no-op with opaque pointers but
                         //      preserves validity should the types differ.
+                        // (AR) spike ISSUE-076: PHI بنوع %SadDyn ⇒ علّب كلّ وارد بوسمه عبر toDyn
+                        //      (نصّ⇒Str، عدم⇒Null) داخل السَّلَف نفسه — فيصير نوعه مطابقًا لنوع الـPHI.
+                        // (EN) spike ISSUE-076: a %SadDyn PHI ⇒ box each incoming per its kind via
+                        //      toDyn (String⇒Str, Null⇒Null) inside its predecessor to match the PHI.
+                        if (val && !isSadDyn(val) && phiType == getSadDynType(*cg_.context_))
+                            val = toDyn(cg_, val, inst->operands[i].dataType);
+
                         if (val && val->getType() != phiType)
                         {
                             if (phiType->isPointerTy() && val->getType()->isIntegerTy())

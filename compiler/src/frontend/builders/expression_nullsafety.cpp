@@ -52,6 +52,29 @@ namespace Sad
                     return BuildResult(nullReg, SadTypeKind::Integer);
                 }
 
+                // (AR) spike ISSUE-076: استنتِج نوع العضو من صنف الكائن (مرآة buildExprMember).
+                //      فقط للعضو النصّيّ نُخرِج قيمةً موسومة %SadDyn (نوع Any) بدل تثبيت i64، كي
+                //      تطبعها الطباعةُ نصًّا لا مؤشّرًا. سائر الأنواع تبقى على المسار الحاليّ (i64).
+                // (EN) spike ISSUE-076: infer the member type from the object's class (mirrors
+                //      buildExprMember). Only for a String member do we produce a tagged %SadDyn
+                //      (Any-typed) value instead of pinning to i64, so print renders a string not a
+                //      pointer. All other member kinds keep the current path (i64).
+                SadTypeKind memberType = SadTypeKind::Integer;
+                if (!objResult.className.empty() && b_.module_)
+                {
+                    auto sirClass = b_.module_->getClass(objResult.className);
+                    if (sirClass)
+                    {
+                        auto fieldIt = sirClass->fields_.find(optChainExpr->member);
+                        if (fieldIt != sirClass->fields_.end())
+                            memberType = fieldIt->second;
+                    }
+                }
+                const bool useDyn = (memberType == SadTypeKind::String);
+                const SadTypeKind accessType = useDyn ? SadTypeKind::String : SadTypeKind::Integer;
+                const SadTypeKind nullIncomingType = useDyn ? SadTypeKind::Null : SadTypeKind::Integer;
+                const SadTypeKind resultType = useDyn ? SadTypeKind::Any : SadTypeKind::Integer;
+
                 // (AR) إنشاء الكتل: فحص null → وصول العضو / null
                 // (EN) Create blocks: null check → member access / null
                 std::string accessLabel = b_.newLabel("optchain_access");
@@ -95,7 +118,7 @@ namespace Sad
                 {
                     SIRInstruction loadInst;
                     loadInst.opcode = SIROpcode::LOAD;
-                    loadInst.result = SIROperand::Register(memberReg, SadTypeKind::Integer);
+                    loadInst.result = SIROperand::Register(memberReg, accessType);
                     loadInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     loadInst.operands.push_back(SIROperand::ConstantString(optChainExpr->member));
                     loadInst.comment = "optional chain member: " + optChainExpr->member;
@@ -128,13 +151,13 @@ namespace Sad
                 b_.currentBlock_ = mergeBlock;
                 std::string phiReg = b_.newTempRegister();
                 SIRInstruction phiInst = SIRInstruction::Phi(
-                    SIROperand::Register(phiReg, SadTypeKind::Integer),
-                    {{SIROperand::Register(memberReg, SadTypeKind::Integer), SIROperand::Label(accessLabel)},
-                     {SIROperand::Register(nullReg, SadTypeKind::Integer), SIROperand::Label(nullLabel)}});
+                    SIROperand::Register(phiReg, resultType),
+                    {{SIROperand::Register(memberReg, accessType), SIROperand::Label(accessLabel)},
+                     {SIROperand::Register(nullReg, nullIncomingType), SIROperand::Label(nullLabel)}});
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(phiInst);
 
-                return BuildResult(phiReg, SadTypeKind::Integer);
+                return BuildResult(phiReg, resultType);
             }
 
             // ============================================================================

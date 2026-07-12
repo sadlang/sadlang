@@ -617,6 +617,58 @@ namespace Sad
         llvm::Value *dynCompare(LLVMCodeGen &cg, DynCmp cmp, llvm::Value *l, llvm::Value *r)
         {
             auto &b = *cg.builder_;
+            auto &ctx = *cg.context_;
+            auto *i8 = llvm::Type::getInt8Ty(ctx);
+            auto *i1 = llvm::Type::getInt1Ty(ctx);
+            auto *i32 = llvm::Type::getInt32Ty(ctx);
+            auto *ptrTy = llvm::PointerType::getUnqual(ctx);
+
+            // (AR) م1ب ISSUE-076: كلا المعامِلين نصّ (وسم Str) ⇒ قارِن بالمحتوى عبر strcmp لا
+            //      الحمولةَ (المؤشّرات — عناوين malloc تختلف لنصّين متطابقين). فرعٌ زمنَ التشغيل
+            //      لأنّ strcmp غير آمن على حمولةٍ غير مؤشّريّة (صحيح/عشريّ). يخدم كامل عائلة %SadDyn:
+            //      EQ/NE (عبر emitDynamicEqNe) وLT/LE/GT/GE (عبر emitCmpLt…) يوحّدان الطرفين هنا.
+            // (EN) م1ب ISSUE-076: both operands are strings (Str tag) ⇒ compare by content via strcmp,
+            //      not the payload (pointers — distinct malloc addresses for equal strings). A runtime
+            //      branch since strcmp is unsafe on a non-pointer payload (int/float). Serves the whole
+            //      %SadDyn family: EQ/NE (via emitDynamicEqNe) and LT/LE/GT/GE (via emitCmpLt…) unify here.
+            llvm::Value *strK = llvm::ConstantInt::get(i8, DynKind::Str);
+            llvm::Value *bothStr = b.CreateAnd(
+                b.CreateICmpEQ(dynKindByte(cg, l), strK, "dyn.cmp.lstr"),
+                b.CreateICmpEQ(dynKindByte(cg, r), strK, "dyn.cmp.rstr"),
+                "dyn.cmp.bothstr");
+
+            auto *parent = b.GetInsertBlock()->getParent();
+            auto *strBB = llvm::BasicBlock::Create(ctx, "dyn.cmp.str", parent);
+            auto *numBB = llvm::BasicBlock::Create(ctx, "dyn.cmp.num", parent);
+            auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.cmp.merge", parent);
+            b.CreateCondBr(bothStr, strBB, numBB);
+
+            // (AR) فرع النصّ: strcmp(المحتوى، المحتوى) ثمّ قارِن الناتج بالصفر حسب المُقارِن
+            //      (نفس اصطلاح strcmp المستعمل في emitCmpEq للنصوص العاديّة). / (EN) String branch:
+            //      strcmp(content, content), then compare the result to zero per the operator.
+            b.SetInsertPoint(strBB);
+            llvm::Value *lp = unpackPtr(cg, l);
+            llvm::Value *rp = unpackPtr(cg, r);
+            auto *strcmpTy = llvm::FunctionType::get(i32, {ptrTy, ptrTy}, false);
+            auto strcmpFn = cg.module_->getOrInsertFunction("strcmp", strcmpTy);
+            llvm::Value *sc = b.CreateCall(strcmpFn, {lp, rp}, "dyn.cmp.strcmp");
+            llvm::Value *z32 = llvm::ConstantInt::get(i32, 0);
+            llvm::Value *strRes = nullptr;
+            switch (cmp)
+            {
+            case DynCmp::EQ: strRes = b.CreateICmpEQ(sc, z32, "dyn.cmp.seq"); break;
+            case DynCmp::NE: strRes = b.CreateICmpNE(sc, z32, "dyn.cmp.sne"); break;
+            case DynCmp::LT: strRes = b.CreateICmpSLT(sc, z32, "dyn.cmp.slt"); break;
+            case DynCmp::LE: strRes = b.CreateICmpSLE(sc, z32, "dyn.cmp.sle"); break;
+            case DynCmp::GT: strRes = b.CreateICmpSGT(sc, z32, "dyn.cmp.sgt"); break;
+            case DynCmp::GE: strRes = b.CreateICmpSGE(sc, z32, "dyn.cmp.sge"); break;
+            }
+            b.CreateBr(mergeBB);
+            strBB = b.GetInsertBlock();
+
+            // (AR) فرع العدد (المنطق الأصليّ محفوظًا حرفيًّا): عشريّ⇒fcmp، صحيح⇒icmp موقَّع على الحمولة.
+            // (EN) Numeric branch (original logic preserved verbatim): float⇒fcmp, int⇒signed icmp on payload.
+            b.SetInsertPoint(numBB);
             llvm::Value *eitherF = b.CreateOr(isFloatKind(cg, l), isFloatKind(cg, r), "dyn.cmp.either.f");
             llvm::Value *lD = unpackDouble(cg, l);
             llvm::Value *rD = unpackDouble(cg, r);
@@ -652,7 +704,16 @@ namespace Sad
                 iRes = b.CreateICmpSGE(lI, rI, "dyn.ige");
                 break;
             }
-            return b.CreateSelect(eitherF, fRes, iRes, "dyn.cmp.res");
+            llvm::Value *numRes = b.CreateSelect(eitherF, fRes, iRes, "dyn.cmp.res");
+            b.CreateBr(mergeBB);
+            numBB = b.GetInsertBlock();
+
+            // (AR) الدمج: النتيجة من فرع النصّ أو العدد. / (EN) Merge: result from the string or numeric branch.
+            b.SetInsertPoint(mergeBB);
+            auto *phi = b.CreatePHI(i1, 2, "dyn.cmp.merge.res");
+            phi->addIncoming(strRes, strBB);
+            phi->addIncoming(numRes, numBB);
+            return phi;
         }
 
         llvm::Value *dynToString(LLVMCodeGen &cg, llvm::Value *dyn)
