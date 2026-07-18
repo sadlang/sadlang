@@ -77,6 +77,10 @@ const char* sad_ll_dma_report(void);
 // 15g. وحدة الشاشة / Framebuffer
 // ============================================================================
 void     sad_ll_fb_init(int64_t width, int64_t height, int64_t bpp);
+// (AR) ف-١: ربط مخزن الإطار بعنوانه الحقيقيّ من المُقلِع (بدل البركة البرمجيّة).
+// (EN) F-1: bind framebuffer to its real bootloader-provided address (not the pool).
+void     sad_ll_fb_init_addr(int64_t addr, int64_t width, int64_t height,
+                             int64_t pitch, int64_t bpp);
 void     sad_ll_fb_set_pixel(int64_t x, int64_t y, int64_t color);
 void     sad_ll_fb_draw_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t color);
 void     sad_ll_fb_fill_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t color);

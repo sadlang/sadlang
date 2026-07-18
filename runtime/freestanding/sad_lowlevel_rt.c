@@ -257,11 +257,21 @@ static int dma_initialized   = 0;
 static int dma_transfer_count = 0;
 
 // --- Framebuffer ---
+#define FB_BITS_PER_BYTE   8
+#define FB_DEFAULT_BPP     32
 static uint32_t* fb_base    = 0;
 static int64_t   fb_width   = 0;
 static int64_t   fb_height  = 0;
-static int64_t   fb_bpp     = 32;
+static int64_t   fb_bpp     = FB_DEFAULT_BPP;
+static int64_t   fb_pitch   = 0;   // bytes per row (stride); may exceed width*bytesPerPixel on real HW
 static int       fb_initialized = 0;
+
+// (AR) مؤشّر البكسل بدلالة الخطوة (pitch) بالبايت — يعمل للبركة والعتاد الحقيقيّ سواء.
+// (EN) Pixel pointer via byte pitch — works for both the software pool and real hardware.
+static inline uint32_t* fb_pixel_ptr(int64_t x, int64_t y) {
+    int64_t bytes_per_pixel = fb_bpp / FB_BITS_PER_BYTE;
+    return (uint32_t*)((uint8_t*)fb_base + y * fb_pitch + x * bytes_per_pixel);
+}
 
 // --- ACPI ---
 static int acpi_initialized = 0;
@@ -739,11 +749,14 @@ void sad_ll_fb_init(int64_t width, int64_t height, int64_t bpp) {
     fb_width  = width;
     fb_height = height;
     fb_bpp    = bpp;
+    // (AR) البركة البرمجيّة: خطوة الصفّ = العرض × بايتات البكسل (لا حشو).
+    // (EN) Software pool path: row stride = width * bytesPerPixel (no padding).
+    fb_pitch  = width * (bpp / FB_BITS_PER_BYTE);
     // In a real kernel, fb_base would come from the bootloader's framebuffer info
-    // or from setting up a VGA/VESA mode. For freestanding, the user should
-    // set fb_base via the boot info or MMIO address.
-    // Default: use a portion of our physical pool as a software buffer.
-    uint64_t fb_size = (uint64_t)(width * height * (bpp / 8));
+    // or from setting up a VGA/VESA mode. For a visible display on real hardware,
+    // call sad_ll_fb_init_addr() with the linear framebuffer address instead.
+    // Default: use a portion of our physical pool as a software buffer (host-testable).
+    uint64_t fb_size = (uint64_t)(width * height * (bpp / FB_BITS_PER_BYTE));
     uint64_t aligned = (phys_pool_offset + 4095) & ~4095ULL;
     if (aligned + fb_size <= PHYS_ALLOC_POOL_SIZE) {
         fb_base = (uint32_t*)(phys_pool + aligned);
@@ -752,10 +765,27 @@ void sad_ll_fb_init(int64_t width, int64_t height, int64_t bpp) {
     fb_initialized = 1;
 }
 
+// (AR) ف-١: ربط مخزن الإطار بعنوانه الحقيقيّ من مُقلِع النظام (UEFI GOP / VESA / multiboot2).
+//      يوجّه fb_base إلى العنوان الخطّيّ الممرَّر بدل البركة البرمجيّة، فتظهر البكسلات
+//      على الشاشة. الخطوة (pitch) بالبايت؛ إن مُرِّرت صفرًا تُحسَب من العرض والعمق.
+// (EN) F-1: bind the framebuffer to its real address from the bootloader (UEFI GOP /
+//      VESA / multiboot2). Points fb_base at the given linear address instead of the
+//      software pool, so pixels reach the screen. Pitch is in bytes; if zero it is
+//      derived from width and bpp.
+void sad_ll_fb_init_addr(int64_t addr, int64_t width, int64_t height,
+                         int64_t pitch, int64_t bpp) {
+    fb_base   = (uint32_t*)(uintptr_t)addr;
+    fb_width  = width;
+    fb_height = height;
+    fb_bpp    = bpp;
+    fb_pitch  = (pitch > 0) ? pitch : width * (bpp / FB_BITS_PER_BYTE);
+    fb_initialized = (fb_base != 0);
+}
+
 void sad_ll_fb_set_pixel(int64_t x, int64_t y, int64_t color) {
     if (!fb_initialized || !fb_base) return;
     if (x < 0 || x >= fb_width || y < 0 || y >= fb_height) return;
-    fb_base[y * fb_width + x] = (uint32_t)color;
+    *fb_pixel_ptr(x, y) = (uint32_t)color;
 }
 
 void sad_ll_fb_draw_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t color) {
@@ -764,17 +794,17 @@ void sad_ll_fb_draw_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t col
     // Top and bottom edges
     for (int64_t i = x; i < x + w; i++) {
         if (i >= 0 && i < fb_width) {
-            if (y >= 0 && y < fb_height) fb_base[y * fb_width + i] = c;
+            if (y >= 0 && y < fb_height) *fb_pixel_ptr(i, y) = c;
             if (y + h - 1 >= 0 && y + h - 1 < fb_height)
-                fb_base[(y + h - 1) * fb_width + i] = c;
+                *fb_pixel_ptr(i, y + h - 1) = c;
         }
     }
     // Left and right edges
     for (int64_t j = y; j < y + h; j++) {
         if (j >= 0 && j < fb_height) {
-            if (x >= 0 && x < fb_width) fb_base[j * fb_width + x] = c;
+            if (x >= 0 && x < fb_width) *fb_pixel_ptr(x, j) = c;
             if (x + w - 1 >= 0 && x + w - 1 < fb_width)
-                fb_base[j * fb_width + (x + w - 1)] = c;
+                *fb_pixel_ptr(x + w - 1, j) = c;
         }
     }
 }
@@ -786,7 +816,7 @@ void sad_ll_fb_fill_rect(int64_t x, int64_t y, int64_t w, int64_t h, int64_t col
         if (j < 0 || j >= fb_height) continue;
         for (int64_t i = x; i < x + w; i++) {
             if (i < 0 || i >= fb_width) continue;
-            fb_base[j * fb_width + i] = c;
+            *fb_pixel_ptr(i, j) = c;
         }
     }
 }
@@ -806,7 +836,7 @@ void sad_ll_fb_draw_line(int64_t x1, int64_t y1, int64_t x2, int64_t y2, int64_t
 
     while (1) {
         if (x1 >= 0 && x1 < fb_width && y1 >= 0 && y1 < fb_height)
-            fb_base[y1 * fb_width + x1] = c;
+            *fb_pixel_ptr(x1, y1) = c;
         if (x1 == x2 && y1 == y2) break;
         int64_t e2 = 2 * err;
         if (e2 > -dy) { err -= dy; x1 += sx; }
@@ -828,7 +858,7 @@ void sad_ll_fb_draw_string(int64_t x, int64_t y, int64_t str_ptr) {
                     y + row >= 0 && y + row < fb_height) {
                     // Simple pattern: fill based on ASCII value bits
                     if (((uint8_t)*str >> (row % 8)) & 1) {
-                        fb_base[(y + row) * fb_width + cx + col] = 0xFFFFFF;
+                        *fb_pixel_ptr(cx + col, y + row) = 0xFFFFFF;
                     }
                 }
             }
@@ -841,9 +871,11 @@ void sad_ll_fb_draw_string(int64_t x, int64_t y, int64_t str_ptr) {
 void sad_ll_fb_clear(int64_t color) {
     if (!fb_initialized || !fb_base) return;
     uint32_t c = (uint32_t)color;
-    int64_t total = fb_width * fb_height;
-    for (int64_t i = 0; i < total; i++)
-        fb_base[i] = c;
+    // (AR) المسح صفًّا صفًّا بدلالة الخطوة، لا خطّيًّا، ليصحّ مع الحشو العتاديّ.
+    // (EN) Clear row-by-row via pitch (not linearly) so hardware padding is honoured.
+    for (int64_t j = 0; j < fb_height; j++)
+        for (int64_t i = 0; i < fb_width; i++)
+            *fb_pixel_ptr(i, j) = c;
 }
 
 void sad_ll_fb_clear_default(void) {
@@ -864,6 +896,9 @@ const char* sad_ll_fb_report(void) {
         int_to_str(fb_bpp, tmp);
         rt_strcat(report_buf, tmp);
         rt_strcat(report_buf, "bpp");
+        rt_strcat(report_buf, " | Pitch: ");
+        int_to_str(fb_pitch, tmp);
+        rt_strcat(report_buf, tmp);
         rt_strcat(report_buf, " | Base: ");
         hex_to_str((uint64_t)fb_base, tmp);
         rt_strcat(report_buf, tmp);
