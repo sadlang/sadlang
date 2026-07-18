@@ -338,7 +338,6 @@ namespace Sad
             if (sirFunc->isCoroutine)
             {
                 llvmFunc->addFnAttr(llvm::Attribute::PresplitCoroutine);
-                std::cerr << "[CORO] Added presplitcoroutine to '" << funcName << "'" << std::endl;
             }
 
             // ═══════════════════════════════════════════════════════════════════

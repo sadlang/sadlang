@@ -13,6 +13,7 @@
  */
 
 #include "memory/policy/memory_mode_flag.h"
+#include "cli_flags_generated.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -36,221 +37,114 @@ namespace Sad
 
         MemoryModeFlag::~MemoryModeFlag() = default;
 
+
+        // (AR) الاسم القانونيّ لعلمٍ من المصدر الوحيد — لا سلاسل حرّة في الكود.
+        static const char *canonicalMemoryFlag(::sad::cli::FlagAction action)
+        {
+            for (std::size_t i = 0; i < ::sad::cli::kFlagCount; ++i)
+            {
+                if (::sad::cli::kFlags[i].action == action)
+                {
+                    return ::sad::cli::kFlags[i].canonical;
+                }
+            }
+            return "";
+        }
+
         void MemoryModeFlag::initializeFlags()
         {
-            // ==========================================================================
-            // تعريفات الأعلام
-            // ==========================================================================
+            // ══════════════════════════════════════════════════════════════════════
+            // (AR) تُبنى الأعلام كلّها من المصدر الوحيد (cli_flags_generated.h):
+            //      عائلة `memory`. اسم عربيّ قانونيّ وحيد لكلّ مفهوم — لا مرادفات
+            //      ولا اختصارات ولا توافق خلفيّ (أُلغيت 18 مرادفًا: --gc/--no-std/
+            //      --freestanding/--kernel/--production/-p/--learn/-l/--auto/-a/…).
+            //      الأسماء تأتي من الجدول؛ السلوك وحده يبقى هنا (switch على الإجراء).
+            // (EN) All flags are built from the single source of truth (memory family).
+            //      One canonical Arabic name per concept — no aliases, no back-compat.
+            //      Names come from the table; only behavior lives here.
+            // ══════════════════════════════════════════════════════════════════════
+            using A = ::sad::cli::FlagAction;
 
-            flagDefinitions_ = {
-                // أعلام الوضع الرئيسي
-                // (AR) ملاحظة: --تطوير/--development/--dev/-d و --مختلط/--hybrid/--mixed
-                //      أُزيلت نهائياً في Phase E-3 توحيد الأعلام الثلاثة. استخدم --gc بديلاً.
-                // (EN) Note: --تطوير/--development/--dev/-d and --مختلط/--hybrid/--mixed
-                //      are removed in Phase E-3 unified flags. Use --gc instead.
-                {"إنتاج",
-                 "production",
-                 "p",
-                 "وضع الإنتاج مع نظام ملكية صارم (كـ Rust)",
-                 false,
-                 ""},
-                {"تعلم",
-                 "learn",
-                 "l",
-                 "وضع التعلم: رسائل تعليمية مفصلة عن إدارة الذاكرة",
-                 false,
-                 ""},
-                {"تلقائي",
-                 "auto",
-                 "a",
-                 "اكتشاف تلقائي لأفضل وضع بناءً على حجم المشروع",
-                 false,
-                 ""},
+            flagDefinitions_.clear();
+            flagHandlers_.clear();
 
-                // (AR) أعلام GC: --gc وحده يفعّل وضع gcDefaults (لا يستهلك قيمة).
-                //      استخدم --gc=<strategy> أو --gc-strategy <s> لضبط الاستراتيجية.
-                // (EN) GC flags: bare --gc enables gcDefaults mode (consumes no value).
-                //      Use --gc=<strategy> or --gc-strategy <s> to set strategy.
+            for (std::size_t i = 0; i < ::sad::cli::kFlagCount; ++i)
+            {
+                const auto &spec = ::sad::cli::kFlags[i];
+                if (!spec.for_memory)
                 {
-                    "gc",
-                    "gc",
-                    "",
-                    "وضع GC الافتراضي (جامع قمامة + ملكية معطَّلة)",
-                    false,
-                    ""},
-                {"gc-strategy",
-                 "gc-strategy",
-                 "",
-                 "استراتيجية جامع القمامة: none|refcount|atomic|tracing|incremental",
-                 true,
-                 "refcount"},
-
-                // أعلام الملكية
-                // (AR) ملاحظة (إصلاح S-TS): أُزيل الاسم المختصر "o" — كان يتعارض مع علم
-                //      الإخراج العام "-o" في مترجم sadc فيبتلعه ويمنع كتابة التنفيذيّ.
-                //      مستوى الملكية يُستخدَم عبر --ownership / --ملكية فقط.
-                // (EN) Fix (S-TS): removed short alias "o" — it collided with the universal
-                //      output flag "-o" of the sadc compiler, swallowing it and its value so
-                //      no executable was written. Use --ownership / --ملكية only.
-                {
-                    "ملكية",
-                    "ownership",
-                    "",
-                    "مستوى فحص الملكية: off|warnings|strict|ultra",
-                    true,
-                    "warnings"},
-
-                // أعلام إضافية
-                {
-                    "اقتراحات",
-                    "suggestions",
-                    "s",
-                    "تفعيل اقتراحات تحويل الملكية",
-                    false,
-                    ""},
-                {"كشف_دورات",
-                 "detect-cycles",
-                 "",
-                 "تفعيل كشف دورات المراجع",
-                 false,
-                 ""},
-                {"حد_ذاكرة",
-                 "gc-memory-limit",
-                 "",
-                 "حد ذاكرة GC بالميغابايت",
-                 true,
-                 "1024"},
-                {"تصحيح",
-                 "debug-memory",
-                 "",
-                 "تفعيل رسائل تصحيح الذاكرة",
-                 false,
-                 ""}};
-
-            // ==========================================================================
-            // معالجات الأعلام
-            // ==========================================================================
-
-            // أعلام الوضع
-            auto modeHandler = [this](MemoryModeSettings &s, const std::string &v)
-            {
-                handleModeFlag(s, v);
-            };
-
-            // (AR) أعلام وضع GC الافتراضي (--gc = كان --dev)
-            // (EN) GC mode flags (--gc replaces deprecated --dev)
-            flagHandlers_["--gc-mode"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s = MemoryModeSettings::gcDefaults();
-            };
-            // (AR) ملاحظة Phase E-3: أُزيلت معالجات --تطوير/--development/--dev/-d نهائياً.
-            //      استخدم --gc بديلاً. أي استخدام لها سيُرفض كعَلَم غير معروف.
-            // (EN) Phase E-3 cleanup: removed handlers for --تطوير/--development/--dev/-d.
-            //      Use --gc instead. Any usage will be rejected as unknown flag.
-
-            flagHandlers_["--إنتاج"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s = MemoryModeSettings::productionDefaults();
-            };
-            flagHandlers_["--production"] = flagHandlers_["--إنتاج"];
-            flagHandlers_["--prod"] = flagHandlers_["--إنتاج"];
-            flagHandlers_["--release"] = flagHandlers_["--إنتاج"];
-            flagHandlers_["-p"] = flagHandlers_["--إنتاج"];
-
-            // (AR) ملاحظة Phase E-3: أُزيلت معالجات --مختلط/--hybrid/--mixed نهائياً.
-            //      استخدم --gc أو --learn بدلاً. أي استخدام سيُرفض كعَلَم غير معروف.
-            // (EN) Phase E-3 cleanup: removed handlers for --مختلط/--hybrid/--mixed.
-            //      Use --gc or --learn instead. Any usage will be rejected as unknown flag.
-
-            flagHandlers_["--تعلم"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s = MemoryModeSettings::learningDefaults();
-            };
-            flagHandlers_["--learn"] = flagHandlers_["--تعلم"];
-            flagHandlers_["--learning"] = flagHandlers_["--تعلم"];
-            flagHandlers_["-l"] = flagHandlers_["--تعلم"];
-
-            flagHandlers_["--تلقائي"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s.mode = MemoryMode::Auto;
-            };
-            flagHandlers_["--auto"] = flagHandlers_["--تلقائي"];
-            flagHandlers_["-a"] = flagHandlers_["--تلقائي"];
-
-            // (AR) أعلام GC: --gc بدون قيمة = gcDefaults() (وضع التطوير الكامل
-            //      مع OwnershipMode::Disabled). --gc=<strategy> أو --gc-strategy <s>
-            //      يضبط استراتيجية GC فقط دون تغيير الوضع.
-            // (EN) GC flags: bare --gc => gcDefaults() (full dev mode with
-            //      OwnershipMode::Disabled). --gc=<strategy> or --gc-strategy <s>
-            //      tweaks GC strategy only without changing the mode.
-            flagHandlers_["--gc"] = [this](MemoryModeSettings &s, const std::string &v)
-            {
-                if (v.empty())
-                {
-                    s = MemoryModeSettings::gcDefaults();
+                    continue;
                 }
-                else
+
+                const bool hasValue = (spec.kind == ::sad::cli::FlagKind::Value);
+
+                // (AR) التعريف (للمساعدة وللبحث عن قيمة في الوسيط التالي).
+                //      لا اسم إنجليزيّ ولا مختصر: الاسم القانونيّ وحده.
+                FlagDefinition def;
+                def.longNameArabic = std::string(spec.canonical).substr(2); // بلا "--"
+                def.longNameEnglish = def.longNameArabic;
+                def.shortName = "";
+                def.description = spec.desc_ar;
+                def.hasValue = hasValue;
+                def.defaultValue = spec.value_hint;
+                flagDefinitions_.push_back(def);
+
+                const A action = spec.action;
+                flagHandlers_[spec.canonical] =
+                    [this, action](MemoryModeSettings &s, const std::string &v)
                 {
-                    handleGCFlag(s, v);
-                }
-            };
-            flagHandlers_["--gc-strategy"] = [this](MemoryModeSettings &s, const std::string &v)
-            {
-                handleGCFlag(s, v);
-            };
-
-            // أعلام الملكية
-            flagHandlers_["--ملكية"] = [this](MemoryModeSettings &s, const std::string &v)
-            {
-                handleOwnershipFlag(s, v);
-            };
-            flagHandlers_["--ownership"] = flagHandlers_["--ملكية"];
-            // (AR) إصلاح S-TS: لا تُسجّل "-o" للملكية — تتعارض مع علم الإخراج العام في sadc.
-            // (EN) Fix S-TS: do NOT register "-o" for ownership — collides with sadc's output flag.
-
-            // أعلام إضافية
-            flagHandlers_["--اقتراحات"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s.enableOwnershipSuggestions = true;
-            };
-            flagHandlers_["--suggestions"] = flagHandlers_["--اقتراحات"];
-            flagHandlers_["-s"] = flagHandlers_["--اقتراحات"];
-
-            flagHandlers_["--كشف_دورات"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s.enableCycleDetection = true;
-            };
-            flagHandlers_["--detect-cycles"] = flagHandlers_["--كشف_دورات"];
-
-            flagHandlers_["--حد_ذاكرة"] = [](MemoryModeSettings &s, const std::string &v)
-            {
-                try
-                {
-                    s.gcMemoryLimitMB = std::stoul(v);
-                }
-                catch (...)
-                {
-                    // تجاهل القيم غير الصالحة
-                }
-            };
-            flagHandlers_["--gc-memory-limit"] = flagHandlers_["--حد_ذاكرة"];
-
-            flagHandlers_["--تصحيح"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s.debugMode = true;
-            };
-            flagHandlers_["--debug-memory"] = flagHandlers_["--تصحيح"];
-
-            // (AR) علم بلا مكتبة قياسية → فرض وضع النواة (بلا GC، ملكية صارمة)
-            // (EN) No-std flag → force kernel mode (no GC, strict ownership)
-            flagHandlers_["--بلا-مكتبة-قياسية"] = [](MemoryModeSettings &s, const std::string &)
-            {
-                s = MemoryModeSettings::kernelDefaults();
-            };
-            flagHandlers_["--no-std"] = flagHandlers_["--بلا-مكتبة-قياسية"];
-            flagHandlers_["--freestanding"] = flagHandlers_["--بلا-مكتبة-قياسية"];
-            flagHandlers_["--kernel"] = flagHandlers_["--بلا-مكتبة-قياسية"];
-            flagHandlers_["--نواة"] = flagHandlers_["--بلا-مكتبة-قياسية"];
+                    switch (action)
+                    {
+                    case A::Freestanding:
+                        s = MemoryModeSettings::kernelDefaults();
+                        break;
+                    case A::Gc:
+                        if (v.empty())
+                        {
+                            s = MemoryModeSettings::gcDefaults();
+                        }
+                        else
+                        {
+                            handleGCFlag(s, v);
+                        }
+                        break;
+                    case A::Ownership:
+                        handleOwnershipFlag(s, v);
+                        break;
+                    case A::ProductionMode:
+                        s = MemoryModeSettings::productionDefaults();
+                        break;
+                    case A::LearningMode:
+                        s = MemoryModeSettings::learningDefaults();
+                        break;
+                    case A::AutoMode:
+                        s.mode = MemoryMode::Auto;
+                        break;
+                    case A::Suggestions:
+                        s.enableOwnershipSuggestions = true;
+                        break;
+                    case A::DetectCycles:
+                        s.enableCycleDetection = true;
+                        break;
+                    case A::MemoryLimit:
+                        try
+                        {
+                            s.gcMemoryLimitMB = std::stoul(v);
+                        }
+                        catch (...)
+                        {
+                            // (AR) قيمة غير صالحة تُتجاهَل (سلوك موروث).
+                        }
+                        break;
+                    case A::DebugMemory:
+                        s.debugMode = true;
+                        break;
+                    default:
+                        // (AR) علم عائلته memory بلا سلوك هنا ⇒ عيب في المصدر الوحيد.
+                        break;
+                    }
+                };
+            }
         }
 
         // =============================================================================
@@ -336,25 +230,13 @@ namespace Sad
                 auto it = flagHandlers_.find(baseArg);
                 if (it != flagHandlers_.end())
                 {
-                    // إذا كان العلم يحتاج قيمة ولم نجدها بعد '='
-                    if (value.empty())
-                    {
-                        // فحص العلم التالي كقيمة
-                        for (const auto &def : flagDefinitions_)
-                        {
-                            if (baseArg == "--" + def.longNameArabic ||
-                                baseArg == "--" + def.longNameEnglish ||
-                                baseArg == "-" + def.shortName)
-                            {
-                                if (def.hasValue && i + 1 < args.size())
-                                {
-                                    value = args[++i];
-                                }
-                                break;
-                            }
-                        }
-                    }
-
+                    // (AR) القيمة تُمرَّر حصريًّا بصيغة «الاسم=قيمة» (كما في محلِّل
+                    //      المترجم ووفق دلالة المصدر الوحيد). لا نبتلع الوسيط التالي:
+                    //      الصيغة المجرّدة لعلمٍ قيميّ (مثل --جامع) لها معنًى قائم
+                    //      بذاته (قيمة فارغة)، فابتلاع الوسيط التالي كان يلتهم اسم
+                    //      الملفّ المصدر (انحدار). (EN) Values come only via name=value,
+                    //      matching the compiler parser; never consume the next arg,
+                    //      so bare value-flags keep their standalone meaning.
                     try
                     {
                         it->second(result.settings, value);
@@ -384,8 +266,7 @@ namespace Sad
             bool isNoStd = false;
             for (const auto &arg : args)
             {
-                if (arg == "--بلا-مكتبة-قياسية" || arg == "--no-std" ||
-                    arg == "--freestanding" || arg == "--kernel" || arg == "--نواة")
+                if (arg == canonicalMemoryFlag(::sad::cli::FlagAction::Freestanding))
                 {
                     isNoStd = true;
                     break;
@@ -453,101 +334,44 @@ namespace Sad
 
         std::string MemoryModeFlag::generateHelp(bool arabic) const
         {
+            // (AR) تُولَّد أعلام الذاكرة من المصدر الوحيد (عائلة memory): اسم عربيّ
+            //      قانونيّ وحيد لكلّ مفهوم — بلا مرادفات ولا سلاسل حرّة.
+            // (EN) Memory flags are generated from the single source of truth (memory
+            //      family): one canonical Arabic name each — no aliases, no free strings.
             std::ostringstream help;
-
-            if (arabic)
+            help << "\n";
+            for (std::size_t i = 0; i < ::sad::cli::kFlagCount; ++i)
             {
-                help << "\n";
-                help << "╔═══════════════════════════════════════════════════════════════════════════════╗\n";
-                help << "║                      أعلام وضع الذاكرة في لغة ص                               ║\n";
-                help << "╚═══════════════════════════════════════════════════════════════════════════════╝\n";
-                help << "\n";
-                help << "  الأوضاع الرئيسية:\n";
-                help << "  ─────────────────\n";
-                help << "    --gc, --تطوير, --dev     وضع GC الافتراضي: جامع قمامة تلقائي (ملكية معطَّلة)\n";
-                help << "                             مناسب للمبتدئين والتجارب السريعة\n";
-                help << "\n";
-                help << "    --إنتاج, --prod, -p      وضع الإنتاج: ملكية صارمة (كـ Rust)\n";
-                help << "                             أقصى أداء مع أمان كامل في وقت الترجمة\n";
-                help << "\n";
-                help << "    --تعلم, --learn, -l      وضع التعلم: رسائل تعليمية مفصلة\n";
-                help << "                             للتعلم التدريجي عن إدارة الذاكرة\n";
-                help << "\n";
-                help << "    --تلقائي, --auto, -a     اكتشاف تلقائي لأفضل وضع\n";
-                help << "\n";
-                help << "  خيارات متقدمة:\n";
-                help << "  ─────────────────\n";
-                help << "    --gc=STRATEGY            استراتيجية GC:\n";
-                help << "                               none     - بدون GC (ملكية صرفة)\n";
-                help << "                               refcount - عدّ مراجع (افتراضي للتطوير)\n";
-                help << "                               atomic   - عدّ مراجع ذري (للمتزامن)\n";
-                help << "                               tracing  - تتبع (Mark & Sweep)\n";
-                help << "                               incremental - تدريجي\n";
-                help << "\n";
-                help << "    --ملكية=LEVEL            مستوى فحص الملكية:\n";
-                help << "                               off      - إيقاف الفحص\n";
-                help << "                               warnings - تحذيرات فقط (افتراضي)\n";
-                help << "                               strict   - صارم (أخطاء)\n";
-                help << "                               ultra    - صارم جداً (كـ Rust)\n";
-                help << "\n";
-                help << "    --اقتراحات, -s           تفعيل اقتراحات تحويل الملكية\n";
-                help << "    --كشف_دورات              تفعيل كشف دورات المراجع\n";
-                help << "    --حد_ذاكرة=MB            حد ذاكرة GC (افتراضي: 1024)\n";
-                help << "    --تصحيح                  رسائل تصحيح الذاكرة\n";
-                help << "\n";
-                help << "  متغيرات البيئة:\n";
-                help << "  ─────────────────\n";
-                help << "    SAD_MEMORY_MODE          الوضع: gc|prod|learn|auto\n";
-                help << "    SAD_GC_STRATEGY          استراتيجية GC\n";
-                help << "    SAD_OWNERSHIP_LEVEL      مستوى الملكية\n";
-                help << "\n";
-                help << "  أمثلة:\n";
-                help << "  ─────────────────\n";
-                help << "    sadc --gc برنامجي.s                  # ترجمة بوضع GC الافتراضي\n";
-                help << "    sadc --إنتاج --gc=none برنامجي.s    # ترجمة للإنتاج بدون GC\n";
-                help << "    sadc --تعلم --اقتراحات برنامجي.s    # تعلم مع اقتراحات\n";
-                help << "\n";
+                const auto &spec = ::sad::cli::kFlags[i];
+                if (!spec.for_memory)
+                {
+                    continue;
+                }
+                std::string name = spec.canonical;
+                if (spec.kind == ::sad::cli::FlagKind::Value && spec.value_hint[0] != '\0')
+                {
+                    name += "=<";
+                    name += spec.value_hint;
+                    name += ">";
+                }
+                help << "    " << name << "\n"
+                     << "        " << (arabic ? spec.desc_ar : spec.desc_en) << "\n";
             }
-            else
-            {
-                help << "\n";
-                help << "╔═══════════════════════════════════════════════════════════════════════════════╗\n";
-                help << "║                       Sad Language Memory Mode Flags                          ║\n";
-                help << "╚═══════════════════════════════════════════════════════════════════════════════╝\n";
-                help << "\n";
-                help << "  Main Modes:\n";
-                help << "  ───────────\n";
-                help << "    --gc                      GC mode: automatic GC, no ownership checks (default)\n";
-                help << "    --production, --prod, -p  Production mode: strict ownership (like Rust)\n";
-                help << "    --learn, -l               Learning mode: detailed educational messages\n";
-                help << "    --auto, -a                Auto-detect best mode\n";
-                help << "\n";
-                help << "  Advanced Options:\n";
-                help << "  ─────────────────\n";
-                help << "    --gc=STRATEGY             GC strategy: none|refcount|atomic|tracing|incremental\n";
-                help << "    --ownership=LEVEL         Ownership level: off|warnings|strict|ultra\n";
-                help << "    --suggestions, -s         Enable ownership suggestions\n";
-                help << "    --detect-cycles           Enable reference cycle detection\n";
-                help << "    --gc-memory-limit=MB      GC memory limit (default: 1024)\n";
-                help << "    --debug-memory            Enable memory debug messages\n";
-                help << "\n";
-            }
-
+            help << "\n";
             return help.str();
         }
 
         std::string MemoryModeFlag::generateShortHelp(bool arabic) const
         {
+            // (AR) أسماء قانونيّة من المصدر الوحيد. (EN) Canonical names from the SoT.
+            const std::string gc = canonicalMemoryFlag(::sad::cli::FlagAction::Gc);
+            const std::string prod = canonicalMemoryFlag(::sad::cli::FlagAction::ProductionMode);
+            const std::string learn = canonicalMemoryFlag(::sad::cli::FlagAction::LearningMode);
             if (arabic)
             {
-                return "الاستخدام: sadc [--gc|--إنتاج|--تعلم] [خيارات] ملف.s\n"
-                       "استخدم --مساعدة_ذاكرة لمزيد من المعلومات";
+                return "الاستخدام: sad-build [" + gc + "|" + prod + "|" + learn + "] [خيارات] ملف.ص";
             }
-            else
-            {
-                return "Usage: sadc [--gc|--prod|--learn] [options] file.s\n"
-                       "Use --memory-help for more information";
-            }
+            return "Usage: sad-build [" + gc + "|" + prod + "|" + learn + "] [options] file.ص";
         }
 
         void MemoryModeFlag::printHelp(bool arabic) const

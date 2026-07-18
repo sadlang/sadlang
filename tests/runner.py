@@ -18,6 +18,8 @@
     python runner.py --file 001_hello.ص       # تشغيل ملف واحد
     python runner.py --verbose                # طباعة تفاصيل
     python runner.py --report                 # إنشاء تقرير JSON
+    python runner.py --freestanding           # (اختياريّ) تدقيق فجوات الوضع الحرّ --حرّ
+    python runner.py --freestanding --report  # + تقرير JSON بالفجوات
 ═══════════════════════════════════════════════════════════════════════════════════
 """
 
@@ -362,6 +364,190 @@ def classify_flakiness(sad_exe: Path, test_files: list, n: int, timeout: int) ->
             outs.add(out)
         (flaky if len(outs) > 1 else deterministic).append(str(tf))
     return {"runs": n, "flaky": flaky, "deterministic": deterministic}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# الجزء ③-ب: تدقيق الوضع الحرّ (اختياريّ) — كشف فجوات الكود تحت --حرّ
+# Part ③-b: Freestanding-mode audit (optional) — surface codegen gaps under --حرّ
+# ═══════════════════════════════════════════════════════════════════════════════════
+#
+# (AR) وضعٌ اختياريّ (يُفعَّل بـ --الوضع-الحرّ / --freestanding) لا يشارك في التنفيذ
+#      المزدوج الإلزاميّ. لكلّ ملف .ص نُصدِر تمثيل LLVM مرّتين عبر المترجم:
+#        عاديّ:  sad-build ملف.ص --أظهر-llvm
+#        حرّ:    sad-build ملف.ص --حرّ --أظهر-llvm
+#      إصدار LLVM (لا ربط) يعزل فجوات توليد الكود عن قيود الربط/نقطة الدخول في
+#      النواة. التصنيف:
+#        سليم   : نجح الإصداران — لا فجوة.
+#        فجوة   : نجح العاديّ وفشل الحرّ — فجوة خاصّة بالوضع الحرّ (المقصد).
+#        غير مدعوم: فشل الإصداران — قيد سابق لا علاقة له بالوضع الحرّ.
+#        شاذّ   : فشل العاديّ ونجح الحرّ — يُبلَّغ للاطّلاع.
+# (EN) Optional mode (not part of the mandatory dual run). For each .ص file we emit
+#      LLVM IR twice (normal vs --حرّ). Emitting IR (no link) isolates codegen gaps
+#      from kernel link/entry constraints. A "gap" = normal OK but freestanding fails.
+
+FREESTANDING_FLAG = "--حرّ"
+EMIT_LLVM_FLAG = "--أظهر-llvm"
+# (AR) وسم تشخيص SEM019 (المصدر: بوّابة سلامة الوضع الحرّ) — رفضٌ مقصود لا فجوة.
+#      مطابقٌ حرفيًّا لِما يؤكّده حارس test_freestanding_builtin_gate.py.
+# (EN) SEM019 diagnostic marker — an intended freestanding rejection, NOT a codegen
+#      gap. Kept identical to what the freestanding gate test asserts.
+SEM019_MARKER = "غير متاحة في الوضع الحرّ"
+
+
+def emit_llvm_probe(sadc_exe: Path, test_file: Path, temp_dir: Path,
+                    timeout: int, freestanding: bool) -> tuple[bool, str]:
+    """(AR) يُصدِر LLVM IR لملفٍ (بلا ربط). يعيد (نجَح، رسالة_الخطأ_المختصرة).
+    (EN) Emit LLVM IR for a file (no link). Returns (ok, short_error)."""
+    # (AR) uuid كامل لتفادي تصادم عيد-الميلاد تحت توازٍ كثيف (كلّ مسبار مجلّده).
+    work_dir = temp_dir / ("fs_" + uuid.uuid4().hex)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    out_ll = (work_dir / (test_file.stem + ".ll")).resolve()
+    cmd = [str(Path(sadc_exe).resolve()), str(Path(test_file).resolve()), EMIT_LLVM_FLAG]
+    if freestanding:
+        cmd.append(FREESTANDING_FLAG)
+    cmd += ["-o", str(out_ll)]
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout,
+            encoding="utf-8", errors="replace", cwd=str(work_dir),
+        )
+        if result.returncode != 0:
+            msg = (result.stderr or result.stdout or "").strip()
+            return False, msg[:400]
+        if not out_ll.exists():
+            return False, "لم يُنتج ملف LLVM"
+        return True, ""
+    except subprocess.TimeoutExpired:
+        return False, "TIMEOUT"
+    except Exception as e:  # noqa: BLE001
+        return False, str(e)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def audit_one_freestanding(sadc_exe: Path, test_file: Path, temp_dir: Path,
+                           timeout: int) -> dict:
+    """(AR) يدقّق ملفًّا واحدًا ويصنّفه:
+        ok          : نجح الإصداران.
+        gap         : عاديّ نجح · حرّ فشل بخطأ **غير** SEM019 ⇒ فجوة توليد حقيقيّة.
+        intended    : عاديّ نجح · حرّ رُفض بـ SEM019 ⇒ قيدٌ مقصود لا عيب.
+        unsupported : فشل الإصداران ⇒ خارج نطاق الوضع الحرّ.
+        anomaly     : عاديّ فشل · حرّ نجح.
+        inconclusive: مهلة على أيّ مسبار ⇒ لا حكم.
+    (EN) Classify one file; a real 'gap' is a non-SEM019 freestanding failure."""
+    normal_ok, normal_err = emit_llvm_probe(sadc_exe, test_file, temp_dir, timeout, freestanding=False)
+    free_ok, free_err = emit_llvm_probe(sadc_exe, test_file, temp_dir, timeout, freestanding=True)
+    if normal_err == "TIMEOUT" or free_err == "TIMEOUT":
+        category = "inconclusive"
+    elif normal_ok and free_ok:
+        category = "ok"
+    elif normal_ok and not free_ok:
+        # (AR) رفض SEM019 مقصود ⇒ «قيد»؛ أيّ فشل آخر (ICE/verify) ⇒ «فجوة» حقيقيّة.
+        category = "intended" if SEM019_MARKER in free_err else "gap"
+    elif not normal_ok and not free_ok:
+        category = "unsupported"
+    else:
+        category = "anomaly"
+    return {
+        "file": str(test_file),
+        "category": category,
+        "normal_ok": normal_ok,
+        "free_ok": free_ok,
+        "error": free_err if category in ("gap", "inconclusive") else "",
+    }
+
+
+def run_freestanding_audit(sadc_exe: Path, test_files: list, temp_dir: Path,
+                           timeout: int, max_parallel: int, use_colors: bool,
+                           verbose: bool) -> dict:
+    """(AR) يشغّل تدقيق الوضع الحرّ عبر كلّ الملفّات ويطبع تقرير الفجوات.
+    (EN) Run the freestanding audit over all files and print a gap report."""
+    b = _BOLD if use_colors else ""
+    r = _RESET if use_colors else ""
+    g = _GREEN if use_colors else ""
+    rd = _RED if use_colors else ""
+    y = _YELLOW if use_colors else ""
+
+    # (AR) استبعاد الاختبارات السالبة (@expect_error) وما يتخطّى المترجم — مصمَّمة
+    #      لتفشل الترجمة عاديًّا، فتُضخّم «غير مدعوم» بلا صلة بالوضع الحرّ.
+    # (EN) Exclude negative (@expect_error) and compiler-skipped tests — designed to
+    #      fail normal compilation, so they'd inflate "unsupported" spuriously.
+    audit_files: list[Path] = []
+    excluded = 0
+    for tf in test_files:
+        meta = parse_metadata(tf)
+        if meta.expect_error or meta.skip_compiler:
+            excluded += 1
+            continue
+        audit_files.append(tf)
+
+    print(f"\n{b}═══ تدقيق الوضع الحرّ ({FREESTANDING_FLAG}) — كشف فجوات الكود ═══{r}")
+    print(f"  مترجم: {sadc_exe.name}")
+    print(f"  ملفات:  {len(audit_files)}  (استُبعد {excluded} اختبارًا سالبًا/متخطّيًا للمترجم)")
+    print(f"  الطريقة: إصدار LLVM عاديّ مقابل {FREESTANDING_FLAG} (بلا ربط)\n")
+
+    audited: list[dict] = []
+    if max_parallel > 1 and len(audit_files) > 1:
+        with ThreadPoolExecutor(max_workers=max_parallel) as executor:
+            futures = {
+                executor.submit(audit_one_freestanding, sadc_exe, tf, temp_dir, timeout): tf
+                for tf in audit_files
+            }
+            for future in as_completed(futures):
+                audited.append(future.result())
+    else:
+        for tf in audit_files:
+            audited.append(audit_one_freestanding(sadc_exe, tf, temp_dir, timeout))
+    audited.sort(key=lambda x: x["file"])
+
+    gaps = [a for a in audited if a["category"] == "gap"]
+    intended = [a for a in audited if a["category"] == "intended"]
+    unsupported = [a for a in audited if a["category"] == "unsupported"]
+    anomalies = [a for a in audited if a["category"] == "anomaly"]
+    inconclusive = [a for a in audited if a["category"] == "inconclusive"]
+    ok = [a for a in audited if a["category"] == "ok"]
+    normal_success = sum(1 for a in audited if a["normal_ok"])
+
+    # (AR) حارس مصداقيّة: إن لم ينجح أيّ مسبار عاديّ، فالمترجم على الأرجح بلا LLVM
+    #      (لا تُطبَع «لا فجوات» مطمئنةً بينما لم يُصدَّر شيء أصلًا).
+    # (EN) Credibility guard: zero normal successes ⇒ compiler likely lacks LLVM;
+    #      don't print a reassuring "no gaps" when nothing was emitted at all.
+    if audited and normal_success == 0:
+        print(f"{rd}{b}⚠️ فشل إصدار LLVM العاديّ لكلّ الملفّات — المترجم على الأرجح "
+              f"بلا دعم LLVM. التدقيق غير ذي دلالة.{r}\n")
+    elif gaps:
+        print(f"{rd}{b}الفجوات الحقيقيّة (نجح عاديًّا · فشل حرًّا بخطأ غير SEM019): {len(gaps)}{r}")
+        for a in gaps:
+            print(f"  {rd}✗{r} {Path(a['file']).name}")
+            if verbose and a["error"]:
+                first_line = a["error"].splitlines()[0] if a["error"] else ""
+                print(f"      {y}↳ {first_line}{r}")
+    else:
+        print(f"{g}{b}لا فجوات توليد حقيقيّة: كلّ إخفاق حرّ هو رفض SEM019 مقصود.{r}")
+
+    print()
+    print(f"{b}الملخّص:{r}")
+    print(f"  {g}سليم:          {len(ok)}{r}")
+    print(f"  {rd}فجوة حقيقيّة:   {len(gaps)}{r}")
+    print(f"  {y}قيد مقصود:     {len(intended)}{r}  (رفض SEM019 — سلوك مصمَّم لا عيب)")
+    print(f"  {y}غير مدعوم:     {len(unsupported)}{r}  (فشل عاديًّا أيضًا — خارج النطاق)")
+    if anomalies:
+        print(f"  {y}شاذّ:           {len(anomalies)}{r}  (فشل عاديًّا · نجح حرًّا)")
+    if inconclusive:
+        print(f"  {y}بلا حكم:       {len(inconclusive)}{r}  (مهلة على أحد المسبارين)")
+
+    return {
+        "flag": FREESTANDING_FLAG,
+        "total": len(audited),
+        "excluded": excluded,
+        "normal_success": normal_success,
+        "ok": [a["file"] for a in ok],
+        "gaps": [{"file": a["file"], "error": a["error"]} for a in gaps],
+        "intended": [a["file"] for a in intended],
+        "unsupported": [a["file"] for a in unsupported],
+        "anomalies": [a["file"] for a in anomalies],
+        "inconclusive": [{"file": a["file"], "error": a["error"]} for a in inconclusive],
+    }
 
 
 def run_single_test(
@@ -980,6 +1166,12 @@ def main():
         default=2.0,
         help="نسبة التجاوز المقبولة (الافتراضي: 2.0 = ضعف المرجع)",
     )
+    parser.add_argument(
+        "--freestanding", "--الوضع-الحرّ",
+        dest="freestanding",
+        action="store_true",
+        help="(اختياريّ) تدقيق الوضع الحرّ: يكشف فجوات الكود عند --حرّ (إصدار LLVM عاديّ مقابل حرّ). لا يشارك في التنفيذ المزدوج الإلزاميّ.",
+    )
     args = parser.parse_args()
 
     # (AR) تحديد جذر المشروع
@@ -1151,6 +1343,27 @@ def main():
             with open(out_path, "w", encoding="utf-8") as fh:
                 json.dump(res, fh, ensure_ascii=False, indent=2)
             print(f"\n📄 التقرير: {out_path}")
+        sys.exit(0)
+
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) وضع تدقيق الوضع الحرّ --الوضع-الحرّ (اختياريّ، مستقلّ عن التنفيذ المزدوج)
+    # (EN) Freestanding-audit mode (optional, standalone from the dual run)
+    # ═══════════════════════════════════════════════════════════════
+    if args.freestanding:
+        if sadc_exe is None:
+            print("❌ تدقيق الوضع الحرّ يتطلّب المترجم (sad-build) — غير متاح.")
+            sys.exit(2)
+        audit = run_freestanding_audit(
+            sadc_exe, test_files, temp_dir, timeout, max_parallel, use_colors, verbose,
+        )
+        if args.report:
+            out_path = project_root / "build" / "_freestanding_audit.json"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_path, "w", encoding="utf-8") as fh:
+                json.dump(audit, fh, ensure_ascii=False, indent=2)
+            print(f"\n📄 التقرير: {out_path}")
+        # (AR) وضع تشخيصيّ لا بوّابة: يخرج 0 دائمًا كي لا يكسر CI (المقصد كشفٌ لا فرض).
+        # (EN) Diagnostic, not a gate: always exit 0 so it never breaks CI.
         sys.exit(0)
 
     # (AR) الطباعة الأولية

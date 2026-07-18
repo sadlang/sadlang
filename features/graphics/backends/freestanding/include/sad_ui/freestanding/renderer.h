@@ -30,7 +30,8 @@
  *   ✓ Alpha blending برمجي
  *   ✓ خطوط ودوائر ومستطيلات وتدرجات
  *   ✓ قص (clipping)
- *   ✓ دعم النصوص العربية (RTL) عبر خط نقطي
+ *   ✓ دعم النصوص العربية: تشكيل سياقيّ + عكس مدًى بسيط (arabic_shaper) قبل الرسم
+ *     والقياس — لا UAX#9 كاملًا (حدّ معلَن في arabic_shaper.h)
  *
  * حقوق النشر (c) 2024-2026 فريق لغة ص
  * مرخص تحت رخصة MIT
@@ -108,6 +109,12 @@ namespace sad
 
                 /// الحروف (مفهرسة بنقطة Unicode)
                 std::vector<BitmapGlyph> glyphs;
+
+                /// (AR) ملكيّة بيانات الغليفات المحمَّلة من ملفّ (خطوط PSF):
+                /// مؤشّرات BitmapGlyph::bitmap خام، والخطوط المدمجة تشير لمصفوفات
+                /// ساكنة فلا تحتاج ملكيّة — أمّا المحمَّل من ملفّ فبياناته تعيش هنا،
+                /// وshared_ptr يُبقي نسخ BitmapFont (‏loadBitmapFont) آمنًا رخيصًا.
+                std::shared_ptr<const std::vector<uint8_t>> ownedGlyphData;
 
                 /// البحث عن حرف بنقطة Unicode
                 const BitmapGlyph *findGlyph(uint32_t codepoint) const;
@@ -279,6 +286,18 @@ namespace sad
                 /// تحديث منطقة فقط (بدلاً من الشاشة كلها)
                 void swapRegion(int x, int y, int w, int h);
 
+                /**
+                 * @brief (AR) عدّاد غليفات أشكال العرض العربيّة (FE70–FEFF) المرسومة فعلًا
+                 *
+                 * يتقدّم داخل مسار الرسم الحقيقيّ (drawBitmapChar) فقط حين يوجد الغليف
+                 * في الخطّ ويُرسم — لا عند مربّع الاستبدال. تعتمده اختبارات الإثبات
+                 * الحيّة (fb_demo «نص») بدل إعادة حساب مستقلّة قد تنحرف عن الرسم.
+                 */
+                uint32_t presentationGlyphsDrawn() const { return presentationGlyphsDrawn_; }
+
+                /// (AR) تصفير عدّاد غليفات أشكال العرض (قبل إطار القياس)
+                void resetPresentationGlyphCount() { presentationGlyphsDrawn_ = 0; }
+
             private:
                 // ─── الحالة الداخلية ─────────────────────────
 
@@ -299,6 +318,9 @@ namespace sad
                 // ─── الخط ────────────────────────────────────
 
                 std::unique_ptr<BitmapFont> currentFont_;
+
+                /// (AR) غليفات FE70–FEFF المرسومة فعلًا (راجع presentationGlyphsDrawn)
+                uint32_t presentationGlyphsDrawn_ = 0;
 
                 // ─── عمليات الذاكرة ──────────────────────────
 
@@ -404,6 +426,30 @@ namespace sad
                 /// الحصول على المُصيّر المستقل مباشرة (للعمليات الخاصة)
                 FreestandingRenderer *getFreestandingRenderer() { return renderer_.get(); }
 
+                // ════════════════════════════════════════════════════════════════════════
+                // التفاعل (evdev وغيره): اختبار الإصابة + مؤشّر فأرة مرسوم برمجيًّا
+                // ════════════════════════════════════════════════════════════════════════
+
+                /**
+                 * @brief (AR) العنصر التفاعليّ تحت النقطة (x, y) — أو nullptr
+                 * @brief (EN) Interactive element under (x, y) — or nullptr
+                 *
+                 * نفس دلالة hitTest في backends/desktop (الأبناء من الأعلى للأسفل،
+                 * والعقدة تُعاد إن كان لها أحداث أو كانت من الأنواع التفاعليّة)
+                 * عدا تعويض إزاحة التمرير: المُصيّر المستقلّ لا يتتبّع إزاحات تمرير
+                 * بعد — عناصر التمرير خارج نطاق الوضع المستقلّ حاليًّا (حدّ مُعلَن).
+                 */
+                const IRNode *hitTest(float x, float y) const;
+
+                /**
+                 * @brief (AR) تعيين موقع مؤشّر الفأرة المرسوم فوق الإطار
+                 * لا يطلب إعادة رسم بنفسه — المستهلك يستدعي invalidate() عند الحركة.
+                 */
+                void setCursorPosition(float x, float y);
+
+                /// (AR) إظهار/إخفاء مؤشّر الفأرة المرسوم (مُطفأ افتراضيًّا — رسم ثابت بلا مؤشّر)
+                void setCursorVisible(bool visible);
+
             private:
                 std::unique_ptr<FreestandingRenderer> renderer_;
                 std::unique_ptr<LayoutEngine> layoutEngine_;
@@ -416,8 +462,21 @@ namespace sad
                 int width_ = 0;
                 int height_ = 0;
 
+                // ─── مؤشّر الفأرة المرسوم (تفاعل evdev) ───
+                float cursorX_ = 0.0f;
+                float cursorY_ = 0.0f;
+                bool cursorVisible_ = false;
+
                 void updateLayout();
                 void renderFrame();
+
+                /// (AR) اختبار الإصابة العودي (نفس خوارزميّة backends/desktop بلا تمرير)
+                static const IRNode *hitTestNode(const IRNode *node,
+                                                 const LayoutResult *layout,
+                                                 float x, float y);
+
+                /// (AR) رسم مؤشّر الفأرة فوق الإطار (قبل endFrame كي يدخل المخزن المزدوج)
+                void drawCursorOverlay();
             };
 
         } // namespace freestanding

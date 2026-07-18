@@ -196,6 +196,17 @@ namespace Sad
                         varInfo->type = valueResult.type;
                     }
 
+                    // (AR) حدّث وسم «مرجع دالّة مولّدة» عند إعادة الإسناد (بلا شرط، ليُصفَّر
+                    //      أيضًا حين يُعاد الإسناد لغير مولّد): يمنع اتّجاهَي الانهيار —
+                    //      سلبيّ كاذب (`د = عد` بعد عاديّة ⇒ لا CONSUME) وإيجابيّ كاذب
+                    //      (وسم مولّد بائت بعد إسناد عاديّ ⇒ CONSUME على غير مقبض).
+                    // (EN) Update the generator-func-ref tag on reassignment (unconditional,
+                    //      so it also RESETS when reassigned to a non-generator): prevents both
+                    //      crash directions — false negative (`d = count` after a plain fn ⇒ no
+                    //      CONSUME) and false positive (stale generator tag after a plain
+                    //      reassignment ⇒ CONSUME on a non-handle).
+                    varInfo->isGeneratorFuncRef = valueResult.isGeneratorFuncRef;
+
                     // ================================================================
                     // (AR) [Fix #52 تكملة — ISSUE-082] حدّث أيضًا نوعَ عنصر المصفوفة عند
                     //      إعادة الإسناد. Fix #52 أعلاه يُحدّث varInfo->type فقط؛ لكنّ إعادة
@@ -405,6 +416,9 @@ namespace Sad
                     {
                         varInfo.closureLambdaName = initResult.closureLambdaName;
                     }
+                    // (AR) تتبّع مرجع الدالّة المولّدة (لإصدار CONSUME عند الاستدعاء غير المباشر)
+                    // (EN) Track generator func-ref (to emit CONSUME on indirect call)
+                    varInfo.isGeneratorFuncRef = initResult.isGeneratorFuncRef;
 
                     // (AR) تتبع نوع الصنف إذا كان التعبير جديد ClassName()
                     // (EN) Track class type if expression is new ClassName()

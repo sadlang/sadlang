@@ -189,6 +189,14 @@ private:
      */
     static bool cmdEnv(REPLEngine* repl, const std::vector<std::string>& args);
 
+    /**
+     * @brief (AR) ‹:اذهب›/‹:cd› — تغيير مجلّد عمل الصدَفة نفسها (لا يصلح آبلتًا خارجيًّا:
+     *        chdir في عمليّة ابنٍ لا يمسّ الأب). بلا وسيط ⇒ HOME؛ ويحدّث PWD بعد النجاح.
+     *        / (EN) ‹:cd› — change the shell's own working directory (cannot be an external
+     *        applet: a child's chdir never affects the parent). No arg ⇒ HOME; updates PWD.
+     */
+    static bool cmdCd(REPLEngine* repl, const std::vector<std::string>& args);
+
 private:
     REPLEngine* repl_;                          ///< محرك REPL / REPL engine
     std::map<std::string, CommandInfo> commands_; ///< الأوامر / Commands

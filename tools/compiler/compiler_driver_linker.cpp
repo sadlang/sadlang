@@ -35,6 +35,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
+#include "cli_flags_generated.h"
 
 // Windows API for paths
 #ifdef _WIN32
@@ -207,7 +208,10 @@ namespace sad
                 {
                     std::cout << u8"  \u26a0 [freestanding] \u062a\u062d\u0630\u064a\u0631: \u0644\u0627 \u064a\u0648\u062c\u062f \u0633\u0643\u0631\u064a\u0628\u062a \u0631\u0627\u0628\u0637 (-T).\n"
                               << u8"     \u0633\u064a\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0631\u0627\u0628\u0637 \u0627\u0644\u062a\u062e\u0637\u064a\u0637 \u0627\u0644\u0627\u0641\u062a\u0631\u0627\u0636\u064a.\n"
-                              << u8"     \u0627\u0633\u062a\u062e\u062f\u0645 --linker-script=<\u0645\u0633\u0627\u0631> \u0644\u062a\u062d\u062f\u064a\u062f \u062a\u062e\u0637\u064a\u0637 \u0627\u0644\u0630\u0627\u0643\u0631\u0629.\n";
+                              << u8"     \u0627\u0633\u062a\u062e\u062f\u0645 "
+                              << canonical_flag(
+                                     static_cast<std::uint16_t>(::sad::cli::FlagAction::LinkerScript))
+                              << u8"=<\u0645\u0633\u0627\u0631> \u0644\u062a\u062d\u062f\u064a\u062f \u062a\u062e\u0637\u064a\u0637 \u0627\u0644\u0630\u0627\u0643\u0631\u0629.\n";
                 }
             }
             else

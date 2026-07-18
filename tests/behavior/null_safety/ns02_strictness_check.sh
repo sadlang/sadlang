@@ -5,9 +5,9 @@
 # (AR) المُشغّل القياسيّ (runner.py) يقارن stdout بلا أعلام، فلا يستطيع تغطية
 #      اختلاف السلوك حسب علم الذاكرة. هذا السكربت يؤكّد الصرامة الثلاثيّة لحالة P9
 #      (إسناد «لاشيء» حرفيًّا لنوع غير اختياري) في **المفسّر والمترجم** معًا:
-#        --learn (افتراضيّ) → تحذير على stderr + خروج 0 (التنفيذ يكمل)
-#        --gc               → صامت (لا تحذير أمان null)
-#        --prod             → خطأ قاتل (خروج ≠ 0 / فشل البناء)
+#        --تعلم (افتراضيّ) → تحذير على stderr + خروج 0 (التنفيذ يكمل)
+#        --جامع               → صامت (لا تحذير أمان null)
+#        --إنتاج             → خطأ قاتل (خروج ≠ 0 / فشل البناء)
 #
 # (EN) Asserts the three NS-02 strictness levels for the P9 case across both
 #      engines (interpreter + compiler), which runner.py cannot cover (no flags).
@@ -29,24 +29,24 @@ check() { # وصف ، شرط(0=نجاح)
 }
 
 echo "== المفسّر (sad-run) =="
-# --learn: تحذير على stderr + خروج 0
-err=$("$RUN" --learn "$SRC" 2>&1 1>/dev/null); rc=$?
+# --تعلم: تحذير على stderr + خروج 0
+err=$("$RUN" --تعلم "$SRC" 2>&1 1>/dev/null); rc=$?
 echo "$err" | grep -q "اختياري"; check "learn: تحذير P9 يظهر" $?
 check "learn: الخروج 0 (يكمل)" $([ $rc -eq 0 ] && echo 0 || echo 1)
-# --gc: لا تحذير أمان null
-err=$("$RUN" --gc "$SRC" 2>&1 1>/dev/null)
+# --جامع: لا تحذير أمان null
+err=$("$RUN" --جامع "$SRC" 2>&1 1>/dev/null)
 echo "$err" | grep -q "اختياري"; g=$?; check "gc: لا تحذير أمان null" $([ $g -ne 0 ] && echo 0 || echo 1)
-# --prod: خطأ قاتل (خروج ≠ 0)
-"$RUN" --prod "$SRC" >/dev/null 2>&1; rc=$?
+# --إنتاج: خطأ قاتل (خروج ≠ 0)
+"$RUN" --إنتاج "$SRC" >/dev/null 2>&1; rc=$?
 check "prod: خطأ قاتل (خروج ≠ 0)" $([ $rc -ne 0 ] && echo 0 || echo 1)
 
 echo "== المترجم (sad-build) =="
 if [ -x "$BUILD" ]; then
   out="$TMP/p9.exe"
-  # --learn: يبني بنجاح (خروج 0)
-  "$BUILD" --learn "$SRC" -o "$out" >/dev/null 2>&1; check "learn: البناء ينجح" $?
-  # --prod: يفشل البناء (خروج ≠ 0 أو رسالة خطأ)
-  perr=$("$BUILD" --prod "$SRC" -o "$out" 2>&1);
+  # --تعلم: يبني بنجاح (خروج 0)
+  "$BUILD" --تعلم "$SRC" -o "$out" >/dev/null 2>&1; check "learn: البناء ينجح" $?
+  # --إنتاج: يفشل البناء (خروج ≠ 0 أو رسالة خطأ)
+  perr=$("$BUILD" --إنتاج "$SRC" -o "$out" 2>&1);
   echo "$perr" | grep -qiE "error|خطأ"; check "prod: البناء يبلّغ خطأ P9" $?
 else
   echo "  (تخطّي المترجم — sad-build.exe غير موجود)"

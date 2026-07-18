@@ -251,11 +251,6 @@ namespace Sad
                 {
                     return buildExprSetComp(setCompExpr);
                 }
-                if (auto genExpr = dynamic_cast<Sad::AST::GeneratorExpr *>(expr))
-                {
-                    return buildExprGenerator(genExpr);
-                }
-
                 // ========================================================================
                 // (AR) DecoratorExpr - مُزخرف: @decorator
                 // (EN) Decorator expression: @decorator

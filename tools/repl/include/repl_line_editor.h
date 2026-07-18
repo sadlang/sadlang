@@ -41,6 +41,29 @@ public:
      * (EN) Get completion suggestions for a prefix
      */
     std::vector<std::string> complete(const std::string& prefix) const;
+
+    /**
+     * (AR) إكمال سياقيّ: يقرأ سطر التحرير كاملًا ليختار مصدر المرشّحين —
+     *      (١) كلمة أولى تبدأ بـ«:» ⇒ أوامر REPL (إنجليزيّ+عربيّ من SoT::kCommands)
+     *          وأسماء الموزِّع العربيّة (SoT::kApplets — تعمل مباشرةً بعد «:»)؛
+     *      (٢) وسيط أوّل بعد أمر التشغيل (:run/:شغّل) ⇒ أسماء applets العربيّة؛
+     *      (٣) كلمة تبدو مسارًا (تبدأ بـ«/» أو «./») ⇒ إكمال ملفّات (POSIX فقط)؛
+     *      (٤) خلاف ذلك ⇒ قوائم اللغة القائمة (complete أعلاه).
+     *      المصادر مراجع حيّة لكتالوج SoT المولَّد — لا قوائم منسوخة يدويًّا.
+     * (EN) Context-aware completion: inspects the whole edit line to pick the
+     *      candidate source — ':' commands (SoT::kCommands en+ar) + Arabic
+     *      dispatcher names (SoT::kApplets) for the first word; Arabic applet
+     *      names as the first argument of the run command; file paths (POSIX
+     *      opendir) for words starting with '/' or './'; otherwise the existing
+     *      language lists. Sources are live references to the generated SoT
+     *      catalog — no hand-copied lists.
+     * @param buffer    سطر التحرير كاملًا / the full edit buffer
+     * @param wordStart بداية الكلمة الجارية (بايت) / current word start (byte)
+     * @param prefix    الكلمة الجارية حتى المؤشّر / current word up to cursor
+     */
+    std::vector<std::string> completeInContext(const std::string& buffer,
+                                               size_t wordStart,
+                                               const std::string& prefix) const;
     
     /**
      * (AR) إضافة مُعرّف مستخدم (متغير أو دالة عرّفها المستخدم)
@@ -63,6 +86,14 @@ private:
     void initKeywords();
     void initBuiltins();
     void initTypes();
+
+    // (AR) مصادر الإكمال السياقيّ (مراجع SoT حيّة + نظام الملفّات) — راجع completeInContext.
+    // (EN) Context completion sources (live SoT references + filesystem) — see completeInContext.
+    void completeColonCommands(const std::string& prefix,
+                               std::vector<std::string>& out) const;
+    void completeAppletNames(const std::string& prefix,
+                             std::vector<std::string>& out) const;
+    static std::vector<std::string> completeFilePaths(const std::string& prefix);
 };
 
 // =============================================================================

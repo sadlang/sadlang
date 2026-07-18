@@ -132,9 +132,9 @@ def run_doc_gen(exe: Path, case: TestCase, out_path: Path) -> tuple[bool, str, f
     """(AR) يُشغّل sad أو sadc مع وسائط استخراج التوثيق ويعيد (نجاح، خطأ، زمن)."""
     cmd = [str(exe)]
     if case.kind == "project":
-        cmd.append(f"--docs-project={case.input_path}")
-    cmd.append(f"--docs-format={case.fmt}")
-    cmd.append(f"--docs-out={out_path}")
+        cmd.append(f"--وثّق-مشروع={case.input_path}")
+    cmd.append(f"--صيغة-التوثيق={case.fmt}")
+    cmd.append(f"--وثّق-إلى={out_path}")
     cmd.extend(case.extra_args)
     if case.kind == "single":
         cmd.append(str(case.input_path))
@@ -258,7 +258,7 @@ def discover_cases(skip_pdf: bool, name_filter: Optional[str]) -> List[TestCase]
                 continue
             cases.append(TestCase(
                 name=name, kind="project", input_path=zoo, fmt=fmt,
-                extra_args=["--docs-exclude=internal.ص"],
+                extra_args=["--استثنِ=internal.ص"],
             ))
 
     return cases

@@ -1,0 +1,715 @@
+# cli_flags.yaml — أعلام سطر أوامر مترجم لغة ص (المصدر الوحيد للحقيقة)
+# ============================================================================
+# (AR) هذا الملفّ هو المصدر الوحيد لأعلام المترجم الطويلة (--). لكلّ علم اسم
+#      عربيّ قانونيّ وحيد، بلا مرادفات ولا توافق خلفيّ. يُولَّد منه الهيدر
+#      tools/compiler/generated/cli_flags_generated.h عبر gen_cli_flags.py،
+#      ويُحرَس بـ x.py gen --check.
+# (EN) Single source of truth for the compiler's long (--) flags. Each flag has
+#      ONE canonical Arabic name — no aliases, no backward compatibility.
+# ----------------------------------------------------------------------------
+# (AR) الأعلام القياسيّة القصيرة الموروثة من سلسلة الأدوات (-o -c -S -g -O* -L
+#      -l -Werror -T -h) ليست هنا: تبقى أعرافًا في المحلِّل، ليست جزءًا من هذا
+#      المصدر (قرار المالك: النطاق = الأعلام الطويلة فقط).
+# ============================================================================
+
+version: "1.0"
+description_ar: "أعلام المترجم الطويلة — أسماء عربيّة قانونيّة وحيدة"
+description_en: "Compiler long flags — single canonical Arabic names"
+
+# kind:
+#   bool  → علم منطقيّ يُطابَق تطابقًا تامًّا (مثل --حرّ)
+#   value → علم قيميّ: يُطابَق تامًّا (قيمة فارغة) أو بصيغة الاسم=قيمة
+# action: وسم C++ (PascalCase) يميّز السلوك في مُوزِّع المحلِّل (switch).
+
+flags:
+
+  # ─── الوضع الحرّ / Freestanding ───────────────────────────────────────────
+  # (AR) «--حرّ» يُدار حصريًّا في ماسح سياسة الذاكرة المسبق (يفرض وضع النواة
+  #      ويُعاد ربطه إلى options.freestanding في الواجهة الأماميّة)، فلا يُسجَّل
+  #      هنا كي لا يوجد في مكانين. باقي أعلام الوضع الحرّ (توليديّة) أدناه.
+  - id: flag.no_main
+    canonical: "--بلا-رئيسية"
+    kind: bool
+    engines: [compiler]
+    action: NoMain
+    sets: no_main
+    desc_ar: "تعطيل نقطة الدخول الافتراضية main (لتعريف _start مخصّص)"
+    desc_en: "Disable default main() entry point"
+
+  - id: flag.abort_on_panic
+    canonical: "--إجهاض-عند-الذعر"
+    kind: bool
+    engines: [compiler]
+    action: AbortOnPanic
+    sets: abort_on_panic
+    desc_ar: "الإجهاض عند الذعر بدل فكّ المكدّس (بلا استثناءات C++)"
+    desc_en: "Abort on panic instead of stack unwinding"
+
+  - id: flag.allow_alloc
+    canonical: "--اسمح-بالتخصيص"
+    kind: bool
+    engines: [compiler]
+    action: AllowAlloc
+    sets: allow_freestanding_alloc
+    desc_ar: "السماح بالتخصيص الديناميكي في الوضع الحرّ (يتطلّب مُخصِّصًا مخصّصًا)"
+    desc_en: "Allow dynamic allocation in freestanding mode"
+
+  - id: flag.linker_script
+    canonical: "--سكربت-الرابط"
+    kind: value
+    engines: [compiler]
+    action: LinkerScript
+    sets: linker_script
+    value_hint: "ملفّ.ld"
+    desc_ar: "مسار سكربت الرابط (.ld) لتعريف تخطيط الذاكرة"
+    desc_en: "Linker script path (.ld) for memory layout"
+
+  - id: flag.entry_point
+    canonical: "--نقطة-الدخول"
+    kind: value
+    engines: [compiler]
+    action: EntryPoint
+    sets: freestanding_entry
+    value_hint: "اسم_الدالة"
+    desc_ar: "اسم دالة نقطة الدخول المخصّصة"
+    desc_en: "Custom entry point function name"
+
+  # ─── الوحدة والربط / Module & Link ────────────────────────────────────────
+  - id: flag.module
+    canonical: "--وحدة"
+    kind: bool
+    engines: [compiler]
+    action: ModuleMode
+    sets: module_mode
+    desc_ar: "وضع الوحدة: يُعامَل الملفّ كمكتبة بلا نقطة دخول"
+    desc_en: "Module mode: treat file as a library without entry point"
+
+  - id: flag.static
+    canonical: "--ساكن"
+    kind: bool
+    engines: [compiler]
+    action: LinkStatic
+    sets: link_static
+    desc_ar: "ربط ساكن للمكتبات"
+    desc_en: "Static linking"
+
+  - id: flag.shared
+    canonical: "--مشترك"
+    kind: bool
+    engines: [compiler]
+    action: OutShared
+    sets: output_type=SHARED_LIBRARY
+    desc_ar: "إخراج مكتبة مشتركة"
+    desc_en: "Emit a shared library"
+
+  # ─── تحسين الربط / LTO ────────────────────────────────────────────────────
+  - id: flag.lto
+    canonical: "--تحسين-الربط"
+    kind: value
+    engines: [compiler]
+    action: Lto
+    sets: enable_lto_full/enable_lto_thin
+    value_hint: "كامل|نحيف"
+    desc_ar: "تحسين وقت الربط؛ بلا قيمة=كامل، أو =نحيف لبناء أسرع"
+    desc_en: "Link-time optimization; bare=full, or =thin for faster builds"
+
+  - id: flag.no_lto
+    canonical: "--بلا-تحسين-ربط"
+    kind: bool
+    engines: [compiler]
+    action: LtoNone
+    sets: enable_lto_full/enable_lto_thin
+    desc_ar: "تعطيل تحسين وقت الربط"
+    desc_en: "Disable link-time optimization"
+
+  # ─── الهدف / Target ───────────────────────────────────────────────────────
+  - id: flag.target
+    canonical: "--هدف"
+    kind: value
+    engines: [compiler]
+    action: Target
+    sets: target
+    value_hint: "ثالوث-الهدف"
+    desc_ar: "ثالوث الهدف (مثل x86_64-unknown-none-elf)"
+    desc_en: "Target triple"
+
+  # ─── مخرجات وسيطة / Emit ──────────────────────────────────────────────────
+  - id: flag.emit_llvm
+    canonical: "--أظهر-llvm"
+    kind: bool
+    engines: [compiler]
+    action: EmitLlvm
+    sets: output_type=LLVM_IR
+    desc_ar: "إظهار تمثيل LLVM الوسيط النصّيّ"
+    desc_en: "Emit textual LLVM IR"
+
+  - id: flag.emit_bc
+    canonical: "--أظهر-bc"
+    kind: bool
+    engines: [compiler]
+    action: EmitBc
+    sets: output_type=LLVM_BC
+    desc_ar: "إظهار bitcode الخاصّ بـ LLVM"
+    desc_en: "Emit LLVM bitcode"
+
+  - id: flag.emit_ast
+    canonical: "--أظهر-الشجرة"
+    kind: bool
+    engines: [compiler]
+    action: EmitAst
+    sets: emit_ast
+    desc_ar: "إظهار شجرة النحو المجرّدة (AST)"
+    desc_en: "Emit the abstract syntax tree"
+
+  - id: flag.emit_ast_json
+    canonical: "--أظهر-الشجرة-json"
+    kind: bool
+    engines: [compiler]
+    action: EmitAstJson
+    sets: emit_ast_json
+    desc_ar: "إظهار شجرة النحو المجرّدة بصيغة JSON"
+    desc_en: "Emit the AST as JSON"
+
+  - id: flag.emit_sir
+    canonical: "--أظهر-sir"
+    kind: bool
+    engines: [compiler]
+    action: EmitSir
+    sets: emit_sir
+    desc_ar: "إظهار التمثيل الوسيط للغة ص (SIR)"
+    desc_en: "Emit Sad IR (SIR)"
+
+  - id: flag.time_passes
+    canonical: "--توقيت-المراحل"
+    kind: bool
+    engines: [compiler]
+    action: TimePasses
+    sets: time_passes
+    desc_ar: "قياس زمن مراحل الترجمة"
+    desc_en: "Time compilation passes"
+
+  # ─── الشرح والإخراج / Explain & Output language ──────────────────────────
+  - id: flag.explain
+    canonical: "--اشرح"
+    kind: value
+    engines: [compiler, interpreter]
+    action: Explain
+    sets: explain_level
+    value_hint: "مستوى"
+    desc_ar: "شرح الأخطاء؛ بلا قيمة=مفصّل، أو =مستوى محدّد"
+    desc_en: "Explain errors; bare=detailed, or =level"
+
+  - id: flag.output_language
+    canonical: "--لغة"
+    kind: value
+    engines: [compiler, interpreter]
+    action: OutputLanguage
+    sets: output_language
+    value_hint: "ar|en"
+    desc_ar: "لغة رسائل المترجم"
+    desc_en: "Compiler messages language"
+
+  # ─── الألوان / Colors ─────────────────────────────────────────────────────
+  - id: flag.color
+    canonical: "--ألوان"
+    kind: bool
+    engines: [compiler]
+    action: ColorOn
+    sets: color_diagnostics=true
+    desc_ar: "تلوين التشخيصات"
+    desc_en: "Colorize diagnostics"
+
+  - id: flag.no_color
+    canonical: "--بلا-ألوان"
+    kind: bool
+    engines: [compiler]
+    action: ColorOff
+    sets: color_diagnostics=false
+    desc_ar: "تعطيل تلوين التشخيصات"
+    desc_en: "Disable colorized diagnostics"
+
+  # ─── الإسهاب / Verbose ────────────────────────────────────────────────────
+  - id: flag.verbose
+    canonical: "--مُسهب"
+    kind: bool
+    engines: [compiler]
+    action: Verbose
+    sets: verbose
+    desc_ar: "إخراج مُسهب"
+    desc_en: "Verbose output"
+
+  # ─── فحص الاستعارة / Borrow check ─────────────────────────────────────────
+  - id: flag.borrow_check
+    canonical: "--فحص-الاستعارة"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: BorrowCheckOn
+    sets: enable_borrow_check=true
+    desc_ar: "تفعيل فاحص الملكية والاستعارة"
+    desc_en: "Enable the ownership & borrow checker"
+
+  - id: flag.no_borrow_check
+    canonical: "--بلا-فحص-استعارة"
+    kind: bool
+    engines: [compiler]
+    action: BorrowCheckOff
+    sets: enable_borrow_check=false
+    desc_ar: "تعطيل فاحص الملكية والاستعارة"
+    desc_en: "Disable the borrow checker"
+
+  - id: flag.debug_borrow
+    canonical: "--تنقيح-الاستعارة"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: DebugBorrow
+    sets: debug_borrow_check
+    desc_ar: "إخراج تنقيح فاحص الاستعارة"
+    desc_en: "Debug borrow-checker output"
+
+  - id: flag.borrow_arabic
+    canonical: "--استعارة-عربية"
+    kind: bool
+    engines: [compiler]
+    action: BorrowMsgArabic
+    sets: arabic_borrow_messages=true
+    desc_ar: "رسائل فاحص الاستعارة بالعربيّة"
+    desc_en: "Borrow-checker messages in Arabic"
+
+  - id: flag.borrow_english
+    canonical: "--استعارة-إنجليزية"
+    kind: bool
+    engines: [compiler]
+    action: BorrowMsgEnglish
+    sets: arabic_borrow_messages=false
+    desc_ar: "رسائل فاحص الاستعارة بالإنجليزيّة"
+    desc_en: "Borrow-checker messages in English"
+
+  # ─── فحص الأنواع / Type check ──────────────────────────────────────────────
+  - id: flag.type_check
+    canonical: "--فحص-الأنواع"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: TypeCheckOn
+    sets: enable_type_check=true
+    desc_ar: "تفعيل فحص الأنواع المتقدّم"
+    desc_en: "Enable advanced type checking"
+
+  # (AR) خاصّ بالمترجم: المفسّر لا يُفعّل فحص الأنواع افتراضيًّا فتعطيلُه بلا معنًى،
+  #      ولا معالج له في sad-run ⇒ نحصره بالمترجم كي لا يُعلَن ولا يُنفَّذ.
+  # (EN) Compiler-only: the interpreter doesn't enable type-checking by default, so
+  #      disabling is meaningless and sad-run has no handler ⇒ scope to compiler.
+  - id: flag.no_type_check
+    canonical: "--بلا-فحص-أنواع"
+    kind: bool
+    engines: [compiler]
+    action: TypeCheckOff
+    sets: enable_type_check=false
+    desc_ar: "تعطيل فحص الأنواع المتقدّم"
+    desc_en: "Disable advanced type checking"
+
+  - id: flag.debug_types
+    canonical: "--تنقيح-الأنواع"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: DebugTypes
+    sets: debug_type_check
+    desc_ar: "إخراج تنقيح فاحص الأنواع"
+    desc_en: "Debug type-checker output"
+
+  - id: flag.strict_types
+    canonical: "--أنواع-صارمة"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: StrictTypes
+    sets: strict_type_check
+    desc_ar: "وضع صارم لفحص الأنواع"
+    desc_en: "Strict type-checking mode"
+
+  # ─── الواجهات الرسومية / UI ────────────────────────────────────────────────
+  - id: flag.ui
+    canonical: "--واجهات"
+    kind: bool
+    engines: [compiler]
+    action: EmitUi
+    sets: emit_ui
+    desc_ar: "تفعيل وضع توليد الواجهات الرسومية"
+    desc_en: "Enable UI code generation"
+
+  - id: flag.platform
+    canonical: "--منصة"
+    kind: value
+    engines: [compiler]
+    action: UiPlatform
+    sets: ui_platform
+    value_hint: "desktop|android|ios|web"
+    desc_ar: "منصّة الواجهة الهدف (يُفعِّل وضع الواجهات)"
+    desc_en: "Target UI platform (enables UI mode)"
+
+  - id: flag.desktop
+    canonical: "--سطح-المكتب"
+    kind: bool
+    engines: [compiler]
+    action: PlatformDesktop
+    sets: ui_platform=desktop
+    desc_ar: "واجهة سطح المكتب"
+    desc_en: "Desktop UI platform"
+
+  - id: flag.android
+    canonical: "--أندرويد"
+    kind: bool
+    engines: [compiler]
+    action: PlatformAndroid
+    sets: ui_platform=android
+    note: "يضبط الهدف تلقائيًّا إلى aarch64-linux-android إن لم يُحدَّد هدف آخر"
+    desc_ar: "واجهة أندرويد (يضبط الهدف تلقائيًّا)"
+    desc_en: "Android UI platform (auto-sets target)"
+
+  - id: flag.ios
+    canonical: "--ايفون"
+    kind: bool
+    engines: [compiler]
+    action: PlatformIos
+    sets: ui_platform=ios
+    desc_ar: "واجهة iOS"
+    desc_en: "iOS UI platform"
+
+  - id: flag.web
+    canonical: "--ويب"
+    kind: bool
+    engines: [compiler]
+    action: PlatformWeb
+    sets: ui_platform=web
+    desc_ar: "واجهة الويب"
+    desc_en: "Web UI platform"
+
+  # ─── التوثيق / Docs ────────────────────────────────────────────────────────
+  - id: flag.docs
+    canonical: "--وثّق"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: EmitDocs
+    sets: emit_docs
+    desc_ar: "استخراج توثيق Markdown من الشجرة (طباعة على المخرَج القياسيّ)"
+    desc_en: "Extract Markdown documentation (to stdout)"
+
+  - id: flag.docs_out
+    canonical: "--وثّق-إلى"
+    kind: value
+    engines: [compiler, interpreter]
+    action: DocsOut
+    sets: docs_output_path
+    value_hint: "ملفّ"
+    desc_ar: "كتابة التوثيق إلى ملفّ"
+    desc_en: "Write documentation to a file"
+
+  - id: flag.docs_project
+    canonical: "--وثّق-مشروع"
+    kind: value
+    engines: [compiler, interpreter]
+    action: DocsProject
+    sets: docs_project_dir
+    value_hint: "مجلّد"
+    desc_ar: "توثيق مشروع متعدّد الملفّات"
+    desc_en: "Document a multi-file project"
+
+  - id: flag.docs_project_name
+    canonical: "--اسم-المشروع"
+    kind: value
+    engines: [compiler, interpreter]
+    action: DocsProjectName
+    sets: docs_project_name
+    value_hint: "اسم"
+    desc_ar: "اسم المشروع المعروض في عنوان التوثيق"
+    desc_en: "Project name shown in docs title"
+
+  - id: flag.docs_format
+    canonical: "--صيغة-التوثيق"
+    kind: value
+    engines: [compiler, interpreter]
+    action: DocsFormat
+    sets: docs_format
+    value_hint: "markdown|json|html"
+    desc_ar: "صيغة إخراج التوثيق"
+    desc_en: "Documentation output format"
+
+  - id: flag.docs_exclude
+    canonical: "--استثنِ"
+    kind: value
+    engines: [compiler, interpreter]
+    action: DocsExclude
+    sets: docs_excludes
+    value_hint: "مسار"
+    desc_ar: "استثناء مسار من التوثيق (يمكن تكراره)"
+    desc_en: "Exclude a path from docs (repeatable)"
+
+  # ─── المساعدة والإصدار / Help & Version ────────────────────────────────────
+  # (AR) يبقى -h القصير عرفًا في المحلِّل؛ الاسم الطويل القانونيّ عربيّ وحيد.
+  - id: flag.help
+    canonical: "--مساعدة"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: HelpRequested
+    sets: help_requested
+    desc_ar: "عرض المساعدة"
+    desc_en: "Show help"
+
+  - id: flag.version
+    canonical: "--إصدار"
+    kind: bool
+    engines: [compiler, interpreter]
+    action: VersionRequested
+    sets: version_requested
+    desc_ar: "عرض إصدار المترجم"
+    desc_en: "Show compiler version"
+
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) عائلة سياسة الذاكرة — يستهلكها الماسح المسبق (shared/memory_policy) قبل
+#      محلِّل كلّ محرّك، فتعمل في sad-build وsad-run معًا. اسم عربيّ قانونيّ وحيد
+#      لكلّ مفهوم؛ أُلغيت 18 مرادفًا إنجليزيًّا/مختصرًا بلا توافق خلفيّ.
+# ════════════════════════════════════════════════════════════════════════════
+
+  - id: flag.freestanding
+    canonical: "--حرّ"
+    kind: bool
+    engines: [memory]
+    action: Freestanding
+    sets: kernelDefaults + noStdRequested
+    desc_ar: "الوضع الحرّ: بلا مكتبة قياسية (يفرض وضع النواة: بلا جامع، ملكية صارمة)"
+    desc_en: "Freestanding: no standard library (forces kernel mode)"
+
+  - id: flag.gc
+    canonical: "--جامع"
+    kind: value
+    engines: [memory]
+    action: Gc
+    sets: gcDefaults / gcStrategy
+    value_hint: "استراتيجية"
+    desc_ar: "جامع القمامة؛ بلا قيمة=وضع الجمع الكامل، أو =استراتيجية"
+    desc_en: "Garbage collector; bare=full GC mode, or =strategy"
+
+  - id: flag.ownership
+    canonical: "--ملكية"
+    kind: value
+    engines: [memory]
+    action: Ownership
+    sets: ownershipMode
+    value_hint: "off|warnings|strict|ultra"
+    desc_ar: "مستوى فحص الملكية"
+    desc_en: "Ownership checking level"
+
+  - id: flag.production_mode
+    canonical: "--إنتاج"
+    kind: bool
+    engines: [memory]
+    action: ProductionMode
+    sets: productionDefaults
+    desc_ar: "وضع الإنتاج: ملكية صارمة (بلا جامع)"
+    desc_en: "Production mode: strict ownership (no GC)"
+
+  - id: flag.learning_mode
+    canonical: "--تعلم"
+    kind: bool
+    engines: [memory]
+    action: LearningMode
+    sets: learningDefaults
+    desc_ar: "وضع التعلّم: رسائل تعليمية مفصّلة عن إدارة الذاكرة"
+    desc_en: "Learning mode: detailed educational memory messages"
+
+  - id: flag.auto_mode
+    canonical: "--تلقائي"
+    kind: bool
+    engines: [memory]
+    action: AutoMode
+    sets: MemoryMode::Auto
+    desc_ar: "اكتشاف تلقائيّ لأفضل وضع ذاكرة"
+    desc_en: "Auto-detect the best memory mode"
+
+  - id: flag.suggestions
+    canonical: "--اقتراحات"
+    kind: bool
+    engines: [memory]
+    action: Suggestions
+    sets: enableOwnershipSuggestions
+    desc_ar: "تفعيل اقتراحات تحويل الملكية"
+    desc_en: "Enable ownership conversion suggestions"
+
+  - id: flag.detect_cycles
+    canonical: "--كشف-دورات"
+    kind: bool
+    engines: [memory]
+    action: DetectCycles
+    sets: enableCycleDetection
+    desc_ar: "تفعيل كشف دورات المراجع"
+    desc_en: "Enable reference-cycle detection"
+
+  - id: flag.memory_limit
+    canonical: "--حد-الذاكرة"
+    kind: value
+    engines: [memory]
+    action: MemoryLimit
+    sets: gcMemoryLimitMB
+    value_hint: "ميغابايت"
+    desc_ar: "حدّ ذاكرة الجامع بالميغابايت"
+    desc_en: "GC memory limit in megabytes"
+
+  - id: flag.debug_memory
+    canonical: "--تصحيح-الذاكرة"
+    kind: bool
+    engines: [memory]
+    action: DebugMemory
+    sets: debugMode
+    desc_ar: "تفعيل رسائل تصحيح الذاكرة"
+    desc_en: "Enable memory debug messages"
+
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) أعلام خاصّة بالمفسّر (sad-run) — أمان، تنميط، إعادة تحميل، تنقيح.
+# ════════════════════════════════════════════════════════════════════════════
+
+  - id: flag.security
+    canonical: "--أمان"
+    kind: bool
+    engines: [interpreter]
+    action: Security
+    sets: enableSecurity
+    desc_ar: "تفعيل فاحص الأمان"
+    desc_en: "Enable the security checker"
+
+  - id: flag.debug_security
+    canonical: "--تنقيح-الأمان"
+    kind: bool
+    engines: [interpreter]
+    action: DebugSecurity
+    sets: debugSecurity
+    desc_ar: "إخراج تنقيح فاحص الأمان (يُفعّل الفحص)"
+    desc_en: "Debug security checker output (enables checking)"
+
+  - id: flag.strict_security
+    canonical: "--أمان-صارم"
+    kind: bool
+    engines: [interpreter]
+    action: StrictSecurity
+    sets: strictSecurity
+    desc_ar: "وضع صارم لفحص الأمان"
+    desc_en: "Strict security-checking mode"
+
+  - id: flag.debug
+    canonical: "--تنقيح"
+    kind: bool
+    engines: [interpreter]
+    action: DebugMode
+    sets: enableDebug
+    desc_ar: "تفعيل وضع التنقيح"
+    desc_en: "Enable debug mode"
+
+  - id: flag.debug_server
+    canonical: "--خادم-التنقيح"
+    kind: bool
+    engines: [interpreter]
+    action: DebugServer
+    sets: useDebugServer
+    desc_ar: "تشغيل خادم التنقيح"
+    desc_en: "Run the debug server"
+
+  - id: flag.opt_stats
+    canonical: "--إحصاء-التحسين"
+    kind: bool
+    engines: [interpreter]
+    action: OptStats
+    sets: showOptStats
+    desc_ar: "عرض إحصاءات التحسين"
+    desc_en: "Show optimization statistics"
+
+  - id: flag.profile
+    canonical: "--تنميط"
+    kind: bool
+    engines: [interpreter]
+    action: Profile
+    sets: enableProfile
+    desc_ar: "تفعيل مصحّح الأداء (التنميط)"
+    desc_en: "Enable the profiler"
+
+  - id: flag.profile_format
+    canonical: "--صيغة-التنميط"
+    kind: value
+    engines: [interpreter]
+    action: ProfileFormat
+    sets: profileFormat
+    value_hint: "صيغة"
+    desc_ar: "صيغة إخراج التنميط"
+    desc_en: "Profiler output format"
+
+  - id: flag.profile_output
+    canonical: "--مخرج-التنميط"
+    kind: value
+    engines: [interpreter]
+    action: ProfileOutput
+    sets: profileOutput
+    value_hint: "ملفّ"
+    desc_ar: "ملفّ إخراج التنميط"
+    desc_en: "Profiler output file"
+
+  - id: flag.profile_top
+    canonical: "--أعلى-التنميط"
+    kind: value
+    engines: [interpreter]
+    action: ProfileTop
+    sets: profileTop
+    value_hint: "عدد"
+    desc_ar: "عدد أعلى الدوالّ في تقرير التنميط"
+    desc_en: "Top-N functions in the profile report"
+
+  - id: flag.hot_reload
+    canonical: "--مراقبة"
+    kind: bool
+    engines: [interpreter]
+    action: HotReload
+    sets: enableHotReload
+    desc_ar: "إعادة التحميل الساخن (مراقبة الملفّ)"
+    desc_en: "Hot reload (watch the file)"
+
+# ============================================================================
+# (AR) أعلام قصيرة قياسيّة موروثة من سلسلة الأدوات (clang/gcc/الرابط). ليست
+#      أعلامًا عربيّة قانونيّة (قرار المالك: النطاق = الأعلام الطويلة)، لكنّ
+#      أسماءها تُولَّد ثوابتَ كي لا تبقى سلاسل حرّة في الكود.
+# ============================================================================
+short_flags:
+  - { const: OptO0, name: "-O0", desc_ar: "بلا تحسين", desc_en: "No optimization" }
+  - { const: OptO1, name: "-O1", desc_ar: "تحسين أساسيّ", desc_en: "Basic optimization" }
+  - { const: OptO2, name: "-O2", desc_ar: "تحسين عاديّ (افتراضيّ)", desc_en: "Standard optimization (default)" }
+  - { const: OptO3, name: "-O3", desc_ar: "تحسين أقصى", desc_en: "Aggressive optimization" }
+  - { const: OptOs, name: "-Os", desc_ar: "تحسين الحجم", desc_en: "Size optimization" }
+  - { const: OptOz, name: "-Oz", desc_ar: "تحسين الحجم الأقصى", desc_en: "Aggressive size optimization" }
+  - { const: CompileOnly, name: "-c", desc_ar: "ترجمة فقط (بلا ربط)", desc_en: "Compile only (no linking)" }
+  - { const: EmitAsm, name: "-S", desc_ar: "إنتاج تجميعة", desc_en: "Emit assembly" }
+  - { const: DebugInfo, name: "-g", desc_ar: "معلومات تنقيح", desc_en: "Generate debug info" }
+  - { const: VerboseShort, name: "-v", desc_ar: "إخراج مُسهب", desc_en: "Verbose output" }
+  - { const: WarningsAsErrors, name: "-Werror", desc_ar: "التحذيرات كأخطاء", desc_en: "Treat warnings as errors" }
+  - { const: LibPathPrefix, name: "-L", desc_ar: "مسار بحث المكتبات (بادئة)", desc_en: "Library search path (prefix)" }
+  - { const: LibNamePrefix, name: "-l", desc_ar: "ربط مكتبة (بادئة)", desc_en: "Link library (prefix)" }
+  - { const: OutputFile, name: "-o", desc_ar: "ملفّ الإخراج (يبتلع الوسيط التالي)", desc_en: "Output file (consumes next arg)" }
+  - { const: TargetShort, name: "-T", desc_ar: "ثالوث الهدف (يبتلع الوسيط التالي)", desc_en: "Target triple (consumes next arg)" }
+  - { const: HelpShort, name: "-h", desc_ar: "عرض المساعدة", desc_en: "Show help" }
+
+# ============================================================================
+# (AR) قيم قانونيّة للأعلام القيميّة — ثوابت مولَّدة بدل السلاسل الحرّة.
+# ============================================================================
+value_constants:
+  - { const: LtoFull, value: "كامل", note: "قيمة --تحسين-الربط (وهي أيضًا الصيغة المجرّدة)" }
+  - { const: LtoThin, value: "نحيف", note: "قيمة --تحسين-الربط" }
+  - { const: ExplainDefault, value: "detailed", note: "مستوى --اشرح عند الصيغة المجرّدة" }
+  - { const: PlatformDesktop, value: "desktop", note: "قيمة --منصة / علم --سطح-المكتب" }
+  - { const: PlatformAndroid, value: "android", note: "قيمة --منصة / علم --أندرويد" }
+  - { const: PlatformIos, value: "ios", note: "قيمة --منصة / علم --ايفون" }
+  - { const: PlatformWeb, value: "web", note: "قيمة --منصة / علم --ويب" }
+  - { const: AndroidTargetTriple, value: "aarch64-linux-android24", note: "الهدف التلقائيّ عند --أندرويد" }
+
+# ============================================================================
+# (AR) نصوص تشخيصات المحلِّل — ثوابت مولَّدة (لا سلاسل حرّة في الكود).
+# ============================================================================
+messages:
+  - { const: RequiresValue, text: " — يتطلّب قيمة / requires a value" }
+  - { const: UnknownValue, text: ": قيمة غير معروفة / unknown value: " }
+  - { const: InvalidTargetTriple, text: "ثالوث هدف غير صالح / invalid target triple: " }
+  - { const: UnknownOptionPrefix, text: "خيار غير معروف / unknown option: " }
+  - { const: RequiresArgument, text: " — يتطلّب وسيطًا / requires an argument" }
+  - { const: UnimplementedAction, text: ": إجراء غير مُنفَّذ في الموزِّع / unimplemented flag action" }

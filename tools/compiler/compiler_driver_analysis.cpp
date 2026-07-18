@@ -21,6 +21,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
+#include "cli_flags_generated.h"
 
 // UTF-8 utilities for Arabic filename support
 #include "utf8_utils.h"
@@ -321,7 +322,10 @@ namespace sad
                             std::cout << (له_معالج_تخصيص_عربي || له_معالج_تخصيص_إنجليزي
                                               ? u8"  \u2705 "
                                               : u8"  \u274c ")
-                                      << u8"#[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635] (\u0645\u0637\u0644\u0648\u0628 \u0645\u0639 --allow-alloc)\n";
+                                      << u8"#[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635] (\u0645\u0637\u0644\u0648\u0628 \u0645\u0639 "
+                                      << canonical_flag(
+                                             static_cast<std::uint16_t>(::sad::cli::FlagAction::AllowAlloc))
+                                      << u8")\n";
                         }
                         // معالج المقاطعة
                         if (له_معالج_مقاطعة_عربي || له_معالج_مقاطعة_إنجليزي)
@@ -343,7 +347,10 @@ namespace sad
                         if (options_.allow_freestanding_alloc &&
                             !له_معالج_تخصيص_عربي && !له_معالج_تخصيص_إنجليزي)
                         {
-                            std::cout << u8"  \u26a0 [freestanding] \u062a\u062d\u0630\u064a\u0631: --allow-alloc \u0645\u0641\u0639\u0651\u0644 \u0644\u0643\u0646 \u0644\u0627 \u064a\u0648\u062c\u062f #[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635]\n"
+                            std::cout << u8"  \u26a0 [freestanding] \u062a\u062d\u0630\u064a\u0631: "
+                                      << canonical_flag(
+                                             static_cast<std::uint16_t>(::sad::cli::FlagAction::AllowAlloc))
+                                      << u8" \u0645\u0641\u0639\u0651\u0644 \u0644\u0643\u0646 \u0644\u0627 \u064a\u0648\u062c\u062f #[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635]\n"
                                       << u8"     \u0627\u0644\u0644\u062d\u0627\u0638\u0629: \u0627\u0635\u0641 \u062f\u0627\u0644\u0629 \u0628\u0640 #[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635] \u0644\u0645\u0639\u0627\u0644\u062c\u0629 \u0641\u0634\u0644 \u0627\u0644\u062a\u062e\u0635\u064a\u0635.\n";
                         }
 

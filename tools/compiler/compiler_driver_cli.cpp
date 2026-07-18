@@ -12,14 +12,48 @@
 
 #include "compiler_driver.h"
 #include "utf8_utils.h"
+#include "cli_flags_generated.h" // (AR) المصدر الوحيد لأعلام المترجم الطويلة
 
 #include <iostream>
 #include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <string>
 
 namespace sad
 {
     namespace driver
     {
+        // (AR) اسم مستعار: جدول الأعلام المولَّد يعيش في sad::compiler::cli_gen.
+        namespace cli_gen = ::sad::cli;
+
+        // (AR) اختصارات للأعلام القصيرة القياسيّة — كلّها من المصدر الوحيد المولَّد.
+        namespace
+        {
+            constexpr const char *SF_O0 = cli_gen::short_flags::OptO0;
+            constexpr const char *SF_O1 = cli_gen::short_flags::OptO1;
+            constexpr const char *SF_O2 = cli_gen::short_flags::OptO2;
+            constexpr const char *SF_O3 = cli_gen::short_flags::OptO3;
+            constexpr const char *SF_OS = cli_gen::short_flags::OptOs;
+            constexpr const char *SF_OZ = cli_gen::short_flags::OptOz;
+            constexpr const char *SF_C = cli_gen::short_flags::CompileOnly;
+            constexpr const char *SF_S = cli_gen::short_flags::EmitAsm;
+            constexpr const char *SF_G = cli_gen::short_flags::DebugInfo;
+            constexpr const char *SF_V = cli_gen::short_flags::VerboseShort;
+            constexpr const char *SF_WERROR = cli_gen::short_flags::WarningsAsErrors;
+            constexpr const char *SF_LIBPATH = cli_gen::short_flags::LibPathPrefix;
+            constexpr const char *SF_LIBNAME = cli_gen::short_flags::LibNamePrefix;
+            constexpr const char *SF_OUT = cli_gen::short_flags::OutputFile;
+            constexpr const char *SF_TARGET = cli_gen::short_flags::TargetShort;
+            constexpr const char *SF_HELP = cli_gen::short_flags::HelpShort;
+
+            // (AR) مطابقة بادئة بدلالة ثابت مولَّد (لا أطوال سحريّة في الكود).
+            bool starts_with(const std::string &arg, const char *prefix)
+            {
+                const std::size_t n = std::strlen(prefix);
+                return arg.size() >= n && arg.compare(0, n, prefix) == 0;
+            }
+        } // namespace
 
         void CompilerDriver::print_version(std::ostream &os)
         {
@@ -55,7 +89,7 @@ namespace sad
             os << "  sadc program.ص -c -o program.o      "
                << colors::CYAN << "# Compile to object file\n"
                << colors::RESET;
-            os << "  sadc program.ص --emit-llvm -o prog.ll "
+            os << "  sadc program.ص --أظهر-llvm -o prog.ll "
                << colors::CYAN << "# Emit LLVM IR\n"
                << colors::RESET;
             os << "  sadc *.o -o program                 "
@@ -63,98 +97,34 @@ namespace sad
                << colors::RESET;
 
             os << "Options / الخيارات:\n";
-            os << "  -o <file>              " << "Output file / ملف الإخراج\n";
-            os << "  -c                     " << "Compile only (no linking) / ترجمة فقط\n";
-            os << "  -S                     " << "Generate assembly / إنتاج assembly\n";
-            os << "  --emit-llvm            " << "Emit LLVM IR / إخراج LLVM IR\n";
-            os << "  --emit-bc              " << "Emit LLVM bitcode / إخراج LLVM bitcode\n";
+            os << "  (AR) أعلام قصيرة قياسيّة / standard short flags:\n";
+            for (std::size_t i = 0; i < cli_gen::kShortFlagCount; ++i)
+            {
+                const auto &sf = cli_gen::kShortFlags[i];
+                os << "    " << sf.name << "   " << sf.desc_ar << " / " << sf.desc_en << "\n";
+            }
             os << "\n";
-
-            os << "Optimization / التحسين:\n";
-            os << "  -O0                    " << "No optimization / بدون تحسين\n";
-            os << "  -O1                    " << "Basic optimization / تحسين أساسي\n";
-            os << "  -O2                    " << "Standard optimization (default) / تحسين عادي\n";
-            os << "  -O3                    " << "Aggressive optimization / تحسين قصوى\n";
-            os << "  -Os                    " << "Size optimization / تحسين الحجم\n";
-            os << "  --lto, --lto=full      " << "Full Link-Time Optimization / تحسين كامل وقت الربط\n";
-            os << "  --lto=thin             " << "ThinLTO (faster builds) / ThinLTO (بناء أسرع)\n";
-            os << "\n";
-
-            os << "Debug / التنقيح:\n";
-            os << "  -g                     " << "Generate debug info / معلومات التنقيح\n";
-            os << "  --emit-ast             " << "Print AST / طباعة AST\n";
-            os << "  --emit-ast-json        " << "Print AST as JSON, halt before codegen / طباعة AST بصيغة JSON آليّة (توقّف قبل التوليد)\n";
-            os << "  --emit-sir             " << "Print SIR / طباعة SIR\n";
-            os << "  --time-passes          " << "Time each compilation pass / توقيت المراحل\n";
-            os << "\n";
-
-            os << "Documentation / التوثيق:\n";
-            os << "  --docs                 " << "Extract Markdown docs to stdout / استخراج التوثيق إلى stdout\n";
-            os << "  --وثّق                  " << "Arabic alias of --docs / مرادف عربي\n";
-            os << "  --docs-out=<file>      " << "Write extracted docs to file / كتابة التوثيق إلى ملف\n";
-            os << "  --docs-project=<dir>   " << "Recursively document all .ص files in dir / توثيق مشروع كامل\n";
-            os << "  --docs-project-name=<name>  " << "Project title for project docs / اسم المشروع في التوثيق\n";
-            os << "  --docs-format=<fmt>    " << "Output format: markdown|json|html / صيغة الإخراج\n";
-            os << "  --docs-exclude=<sub>   " << "Exclude files containing substring (repeatable) / استبعاد ملفات\n";
-            os << "\n";
-
-            os << "Error explanation / شرح الأخطاء (Phase E-3):\n";
-            os << "  --explain[=<level>]    " << "brief|normal|detailed|teacher (default: detailed)\n";
-            os << "  --lang=<lang>          " << "ar|en|both — message language / لغة الرسائل\n";
-            os << "\n";
-
-            os << "Target / الهدف:\n";
-            os << "  --target=<triple>      " << "Target platform / المنصة المستهدفة\n";
-            os << "  --freestanding         " << "Freestanding (no OS) / مستقل بلا نظام تشغيل\n";
-            os << "\n";
-
-            os << "Freestanding / وضع بلا مكتبة قياسية:\n";
-            os << "  --freestanding         " << "Full bare-metal mode / وضع bare-metal كامل\n";
-            os << "                         " << "(مكافئ لـ --no-std)\n";
-            os << "  --no-std               " << "Same as --freestanding / نفس --freestanding\n";
-            os << "  --no-main              " << "No default main() entry / تعطيل main الافتراضية\n";
-            os << "  --abort-on-panic       " << "Abort instead of unwind / إيقاف عند الذعر\n";
-            os << "  --linker-script=<f>    " << "Use linker script (.ld) / سكريبت رابط\n";
-            os << "  --entry-point=<name>   " << "Custom entry point name / اسم نقطة الدخول\n";
-            os << "  --allow-alloc          " << "Allow heap allocation / السماح بالتخصيص الديناميكي\n";
-            os << "\n";
-            os << "  مثال نواة بسيطة / Minimal kernel example:\n";
-            os << "    sadc --freestanding --no-main --abort-on-panic \\\n";
-            os << "         --linker-script=kernel.ld kernel.ص -o kernel.elf\n";
-            os << "\n";
-
-            os << "Linking / الربط:\n";
-            os << "  -L<path>               " << "Add library search path / مسار المكتبات\n";
-            os << "  -l<lib>                " << "Link with library / ربط مكتبة\n";
-            os << "  --static               " << "Static linking / ربط ثابت\n";
-            os << "  -T<script>             " << "Use linker script / استخدام linker script\n";
-            os << "\n";
-
-            os << "Other / أخرى:\n";
-            os << "  -v, --verbose          " << "Verbose output / إخراج مفصل\n";
-            os << "  -h, --help             " << "Show this help / عرض المساعدة\n";
-            os << "  --version              " << "Show version / عرض الإصدار\n";
-            os << "  -Werror                " << "Treat warnings as errors / التحذيرات كأخطاء\n";
-            os << "  --color                " << "Use colored output / استخدام ألوان\n";
-            os << "  --no-color             " << "Disable colored output / تعطيل الألوان\n";
-            os << "\n";
-
-            os << "Ownership & Borrow Checking / نظام الملكية والاستعارة:\n";
-            os << "  --borrow-check         " << "Enable borrow checking (default) / تفعيل فحص الاستعارة\n";
-            os << "  --فحص-الاستعارة         " << "فحص الاستعارة (عربي)\n";
-            os << "  --no-borrow-check      " << "Disable borrow checking / تعطيل فحص الاستعارة\n";
-            os << "  --debug-borrow         " << "Debug borrow checker output / تنقيح فحص الاستعارة\n";
-            os << "  --arabic-borrow        " << "Arabic borrow error messages / رسائل عربية\n";
-            os << "  --english-borrow       " << "English borrow error messages / رسائل إنجليزية\n";
-            os << "\n";
-
-            os << "Type Checking / فحص الأنواع المتقدم:\n";
-            os << "  --type-check           " << "Enable type checking (default) / تفعيل فحص الأنواع\n";
-            os << "  --فحص-الأنواع           " << "فحص الأنواع (عربي)\n";
-            os << "  --no-type-check        " << "Disable type checking / تعطيل فحص الأنواع\n";
-            os << "  --debug-types          " << "Debug type checker output / تنقيح فحص الأنواع\n";
-            os << "  --strict-types         " << "Strict type checking mode / وضع صارم للأنواع\n";
-            os << "  --أنواع-صارمة          " << "وضع صارم للأنواع (عربي)\n";
+            os << "  (AR) أعلام طويلة — أسماء عربيّة قانونيّة وحيدة (بلا مرادفات):\n";
+            os << "  (EN) long flags — single canonical Arabic names (no aliases):\n";
+            for (std::size_t i = 0; i < cli_gen::kFlagCount; ++i)
+            {
+                const auto &spec = cli_gen::kFlags[i];
+                // (AR) اعرض ما يقبله المترجم فقط: أعلامه + أعلام الذاكرة (يبتلعها
+                //      الماسح المسبق فتعمل مع sad-build فعليًّا).
+                if (!spec.for_compiler && !spec.for_memory)
+                {
+                    continue;
+                }
+                std::string name = spec.canonical;
+                if (spec.kind == cli_gen::FlagKind::Value && spec.value_hint[0] != '\0')
+                {
+                    name += "=<";
+                    name += spec.value_hint;
+                    name += ">";
+                }
+                os << "    " << name << "\n";
+                os << "        " << spec.desc_ar << " / " << spec.desc_en << "\n";
+            }
         }
 
         // ============================================================================
@@ -171,16 +141,12 @@ namespace sad
             {
                 std::string arg = argv_[i];
 
-                // Check for help/version
-                if (arg == "-h" || arg == "--help")
+                // (AR) -h القصير القياسيّ يبقى؛ الأسماء الطويلة (--مساعدة/--إصدار)
+                //      تُدار عبر المصدر الوحيد في parse_option ثمّ نتوقّف هنا.
+                // (EN) Short -h stays; long --مساعدة/--إصدار flow through the SoT table.
+                if (arg == SF_HELP)
                 {
                     help_requested_ = true;
-                    return true;
-                }
-
-                if (arg == "--version")
-                {
-                    version_requested_ = true;
                     return true;
                 }
 
@@ -192,16 +158,22 @@ namespace sad
                         return false;
                     }
 
+                    // (AR) توقّف فور طلب المساعدة/الإصدار عبر الجدول (--مساعدة/--إصدار)
+                    if (help_requested_ || version_requested_)
+                    {
+                        return true;
+                    }
+
                     // Some options take a value (next argument)
-                    if (arg == "-o" || arg == "-T")
+                    if (arg == SF_OUT || arg == SF_TARGET)
                     {
                         if (i + 1 < argc_)
                         {
-                            if (arg == "-o")
+                            if (arg == SF_OUT)
                             {
                                 options.output_file = argv_[++i];
                             }
-                            else if (arg == "-T")
+                            else if (arg == SF_TARGET)
                             {
                                 // (AR) -T تحدد الهدف (target triple) — مثل --target=
                                 // (EN) -T sets target triple — same as --target=
@@ -213,14 +185,15 @@ namespace sad
                                 }
                                 else
                                 {
-                                    diag.report_error("invalid target triple: " + triple_str);
+                                    diag.report_error(
+                                        std::string(cli_gen::messages::InvalidTargetTriple) + triple_str);
                                     return false;
                                 }
                             }
                         }
                         else
                         {
-                            diag.report_error("option '" + arg + "' requires an argument");
+                            diag.report_error(arg + cli_gen::messages::RequiresArgument);
                             return false;
                         }
                     }
@@ -238,378 +211,266 @@ namespace sad
         bool CommandLineParser::parse_option(const std::string &arg, CompilerOptions &options,
                                              DiagnosticEngine &diag)
         {
-            // Optimization levels
-            if (arg == "-O0")
+            // ─── (AR) أعلام قصيرة قياسيّة موروثة من سلسلة الأدوات (ليست في المصدر الوحيد) ───
+            // (EN) Standard short toolchain flags — kept verbatim, not part of the SoT.
+            if (arg == SF_O0) { options.opt_level = OptimizationLevel::O0; return true; }
+            if (arg == SF_O1) { options.opt_level = OptimizationLevel::O1; return true; }
+            if (arg == SF_O2) { options.opt_level = OptimizationLevel::O2; return true; }
+            if (arg == SF_O3) { options.opt_level = OptimizationLevel::O3; return true; }
+            if (arg == SF_OS) { options.opt_level = OptimizationLevel::Os; return true; }
+            if (arg == SF_OZ) { options.opt_level = OptimizationLevel::Oz; return true; }
+            if (arg == SF_C) { options.output_type = OutputType::OBJECT_FILE; return true; }
+            if (arg == SF_S) { options.output_type = OutputType::ASSEMBLY; return true; }
+            if (arg == SF_G) { options.debug_info = true; return true; }
+            if (arg == SF_V) { options.verbose = true; return true; }
+            if (arg == SF_WERROR) { options.warnings_as_errors = true; return true; }
+            if (starts_with(arg, SF_LIBPATH))
             {
-                options.opt_level = OptimizationLevel::O0;
+                options.library_paths.push_back(arg.substr(std::strlen(SF_LIBPATH)));
+                return true;
             }
-            else if (arg == "-O1")
+            if (starts_with(arg, SF_LIBNAME))
             {
-                options.opt_level = OptimizationLevel::O1;
-            }
-            else if (arg == "-O2")
-            {
-                options.opt_level = OptimizationLevel::O2;
-            }
-            else if (arg == "-O3")
-            {
-                options.opt_level = OptimizationLevel::O3;
-            }
-            else if (arg == "-Os")
-            {
-                options.opt_level = OptimizationLevel::Os;
-            }
-            else if (arg == "-Oz")
-            {
-                options.opt_level = OptimizationLevel::Oz;
+                options.libraries.push_back(arg.substr(std::strlen(SF_LIBNAME)));
+                return true;
             }
 
-            // ─── Link-Time Optimization ───
-            // (AR) --lto أو --lto=full → FullLTO
-            //      --lto=thin → ThinLTO (بناء أسرع)
-            // (EN) --lto / --lto=full → FullLTO; --lto=thin → ThinLTO
-            else if (arg == "--lto" || arg == "--lto=full")
+            // ─── (AR) الأعلام الطويلة من المصدر الوحيد (بلا مرادفات ولا توافق خلفيّ) ───
+            // (EN) Long flags from the single source of truth — no aliases, no back-compat.
+            for (std::size_t k = 0; k < cli_gen::kFlagCount; ++k)
             {
-                options.enable_lto_full = true;
-                options.enable_lto_thin = false;
-            }
-            else if (arg == "--lto=thin")
-            {
-                options.enable_lto_thin = true;
-                options.enable_lto_full = false;
-            }
-            else if (arg == "--no-lto")
-            {
-                options.enable_lto_full = false;
-                options.enable_lto_thin = false;
-            }
-
-            // Output types
-            else if (arg == "-c")
-            {
-                options.output_type = OutputType::OBJECT_FILE;
-            }
-            else if (arg == "-S")
-            {
-                options.output_type = OutputType::ASSEMBLY;
-            }
-            else if (arg == "--emit-llvm")
-            {
-                options.output_type = OutputType::LLVM_IR;
-            }
-            else if (arg == "--emit-bc")
-            {
-                options.output_type = OutputType::LLVM_BC;
-            }
-            else if (arg == "--shared")
-            {
-                options.output_type = OutputType::SHARED_LIBRARY;
-            }
-
-            // Debug
-            else if (arg == "-g")
-            {
-                options.debug_info = true;
-            }
-            else if (arg == "--emit-ast")
-            {
-                options.emit_ast = true;
-            }
-            else if (arg == "--emit-ast-json")
-            {
-                options.emit_ast_json = true;
-            }
-            else if (arg == "--emit-sir")
-            {
-                options.emit_sir = true;
-            }
-            else if (arg == "--time-passes")
-            {
-                options.time_passes = true;
-            }
-            // ────────────────────────────────────────────────────────────────────
-            // (AR) استخراج التوثيق Markdown من شجرة AST
-            //      --docs                 → طباعة على stdout
-            //      --وثّق                  → مرادف عربي
-            //      --docs-out=<ملف>       → كتابة إلى ملف
-            // (EN) Extract Markdown documentation from AST
-            //      --docs                 → print to stdout
-            //      --وثّق                  → Arabic alias
-            //      --docs-out=<file>      → write to file
-            // ────────────────────────────────────────────────────────────────────
-            else if (arg == "--docs" || arg == u8"--وثّق")
-            {
-                options.emit_docs = true;
-            }
-            else if (arg.size() >= 11 && arg.substr(0, 11) == "--docs-out=")
-            {
-                options.emit_docs = true;
-                options.docs_output_path = arg.substr(11);
-            }
-            // (AR) --docs-project=<dir> توثيق مشروع متعدد الملفات
-            // (EN) --docs-project=<dir> multi-file project documentation
-            else if (arg.size() >= 15 && arg.substr(0, 15) == "--docs-project=")
-            {
-                options.emit_docs = true;
-                options.docs_project_dir = arg.substr(15);
-            }
-            // (AR) --docs-project-name=<name> اسم المشروع المعروض في العنوان
-            else if (arg.size() >= 20 && arg.substr(0, 20) == "--docs-project-name=")
-            {
-                options.docs_project_name = arg.substr(20);
-            }
-            // (AR) --docs-format=markdown|json|html
-            else if (arg.size() >= 14 && arg.substr(0, 14) == "--docs-format=")
-            {
-                options.emit_docs = true;
-                options.docs_format = arg.substr(14);
-            }
-            // (AR) --docs-exclude=<sub> — يمكن تكراره
-            else if (arg.size() >= 15 && arg.substr(0, 15) == "--docs-exclude=")
-            {
-                options.docs_excludes.push_back(arg.substr(15));
-            }
-            // (AR) Phase E-3: --explain[=<level>] و --lang=<lang>
-            // (EN) Phase E-3: --explain[=<level>] and --lang=<lang>
-            else if (arg.size() >= 10 && arg.substr(0, 10) == "--explain=")
-            {
-                options.explain_level = arg.substr(10);
-            }
-            else if (arg == "--explain")
-            {
-                options.explain_level = "detailed";
-            }
-            else if (arg.size() >= 7 && arg.substr(0, 7) == "--lang=")
-            {
-                options.output_language = arg.substr(7);
-            }
-
-            // Target
-            else if (arg.size() >= 9 && arg.substr(0, 9) == "--target=")
-            {
-                std::string triple_str = arg.substr(9);
-                auto triple_opt = TargetTriple::parse(triple_str);
-                if (triple_opt)
+                const auto &spec = cli_gen::kFlags[k];
+                // (AR) أعلام المفسّر/الذاكرة ليست للمترجم: أعلام الذاكرة يبتلعها
+                //      الماسح المسبق، وأعلام المفسّر خيارٌ غير معروف هنا (بحقّ).
+                // (EN) Interpreter/memory flags aren't the compiler's: memory ones are
+                //      consumed by the pre-scanner; interpreter ones are unknown here.
+                if (!spec.for_compiler)
                 {
-                    options.target = *triple_opt;
+                    continue;
+                }
+                const std::string name = spec.canonical;
+                const auto act = static_cast<std::uint16_t>(spec.action);
+                if (arg == name)
+                {
+                    return dispatch_flag(act, name, "", options, diag);
+                }
+                if (spec.kind == cli_gen::FlagKind::Value)
+                {
+                    const std::string prefix = name + "=";
+                    if (arg.size() > prefix.size() && arg.compare(0, prefix.size(), prefix) == 0)
+                    {
+                        return dispatch_flag(act, name, arg.substr(prefix.size()), options, diag);
+                    }
+                }
+            }
+
+            // ─── (AR) خيار غير معروف (خلا -o/-T اللذين يبتلعان الوسيط التالي في parse) ───
+            // (AR) خطأ لا تحذير: بعد إلغاء كلّ المرادفات والتوافق الخلفيّ، لا بدّ أن
+            //      يفشل الاستعمال القديم بصوتٍ عالٍ — وإلّا صار كلّ علم بائت فشلًا
+            //      صامتًا (يُنتج مخرجًا خاطئًا بدل أن يتوقّف).
+            // (EN) Error, not warning: with all aliases/back-compat removed, stale
+            //      flags must fail loudly instead of silently producing wrong output.
+            if (arg != SF_OUT && arg != SF_TARGET)
+            {
+                diag.report_error(std::string(cli_gen::messages::UnknownOptionPrefix) + arg);
+                return false;
+            }
+            return true;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) مُوزِّع الأعلام: يُنفّذ الإجراء الموسوم في المصدر الوحيد
+        //      (cli_flags_generated.h). كلّ الأسماء تأتي من الجدول؛ رسائل الخطأ
+        //      تستعمل الاسم القانونيّ المُمرَّر (لا سلاسل أسماء حرّة في الكود).
+        // (EN) Flag dispatcher: runs the tagged action from the generated SoT table.
+        // ════════════════════════════════════════════════════════════════════
+        bool CommandLineParser::dispatch_flag(std::uint16_t action, const std::string &canonical,
+                                              const std::string &value, CompilerOptions &options,
+                                              DiagnosticEngine &diag)
+        {
+            using A = cli_gen::FlagAction;
+            const auto requireValue = [&]() -> bool {
+                diag.report_error(canonical + cli_gen::messages::RequiresValue);
+                return false;
+            };
+
+            switch (static_cast<A>(action))
+            {
+            // ─── الوضع الحرّ ───
+            // (AR) «--حرّ» يُدار في ماسح الذاكرة المسبق ويُعاد ربطه في الواجهة
+            //      الأماميّة؛ لذا لا حالة له هنا. الباقي أعلام توليديّة.
+            case A::NoMain: options.no_main = true; return true;
+            case A::AbortOnPanic: options.abort_on_panic = true; return true;
+            case A::AllowAlloc: options.allow_freestanding_alloc = true; return true;
+            case A::LinkerScript:
+                if (value.empty()) return requireValue();
+                options.linker_script = value; return true;
+            case A::EntryPoint:
+                if (value.empty()) return requireValue();
+                options.freestanding_entry = value; return true;
+
+            // ─── الوحدة والربط ───
+            case A::ModuleMode: options.module_mode = true; return true;
+            case A::LinkStatic: options.link_static = true; return true;
+            case A::OutShared: options.output_type = OutputType::SHARED_LIBRARY; return true;
+            case A::Lto:
+                if (value.empty() || value == cli_gen::values::LtoFull)
+                {
+                    options.enable_lto_full = true;
+                    options.enable_lto_thin = false;
+                }
+                else if (value == cli_gen::values::LtoThin)
+                {
+                    options.enable_lto_thin = true;
+                    options.enable_lto_full = false;
                 }
                 else
                 {
-                    diag.report_error("invalid target triple: " + triple_str);
+                    diag.report_error(canonical + cli_gen::messages::UnknownValue + value);
                     return false;
                 }
-            }
-            else if (arg == "--freestanding")
-            {
-                // ────────────────────────────────────────────────────────────────────
-                // (AR) تفعيل وضع bare-metal الكامل:
-                //   - يُعطِّل جميع مكتبات C/C++ القياسية
-                //   - يُلزم وجود معالج ذعر مخصص
-                //   - يُلزم وجود نقطة دخول مخصصة
-                //   - يُضيف -nostdlib -nostartfiles -nodefaultlibs للرابط
-                //
-                // (EN) Enable full bare-metal mode:
-                //   - Disables all C/C++ standard libraries
-                //   - Requires custom panic handler
-                //   - Requires custom entry point
-                //   - Adds -nostdlib -nostartfiles -nodefaultlibs to linker
-                // ────────────────────────────────────────────────────────────────────
-                options.freestanding = true;
-            }
-            else if (arg == "--no-std" || arg == "--nostd")
-            {
-                // (AR) مرادف لـ --freestanding
-                // (EN) Alias for --freestanding
-                options.freestanding = true;
-            }
-            else if (arg == "--no-main" || arg == "--nomain")
-            {
-                // (AR) تعطيل نقطة الدخول الافتراضية main()
-                //      يُستخدم مع --freestanding لتعريف _start المخصص
-                // (EN) Disable default main() entry point
-                options.no_main = true;
-            }
-            else if (arg == "--abort-on-panic")
-            {
-                // (AR) إيقاف عند الذعر بدلاً من stack unwinding
-                //      مناسب لأنظمة لا تدعم C++ exceptions
-                // (EN) Abort on panic instead of stack unwinding
-                options.abort_on_panic = true;
-            }
-            else if (arg.size() >= 16 && arg.substr(0, 16) == "--linker-script=")
-            {
-                // (AR) مسار سكريبت الرابط (.ld) لتعريف تخطيط الذاكرة
-                //      مثال: --linker-script=kernel.ld
-                // (EN) Linker script path (.ld) to define memory layout
-                options.linker_script = arg.substr(16);
-            }
-            else if (arg.size() >= 14 && arg.substr(0, 14) == "--entry-point=")
-            {
-                // (AR) اسم دالة نقطة الدخول المخصصة
-                //      مثال: --entry-point=kernel_main
-                // (EN) Custom entry point function name
-                options.freestanding_entry = arg.substr(14);
-            }
-            else if (arg == "--allow-alloc")
-            {
-                // (AR) السماح بالتخصيص الديناميكي في وضع freestanding
-                //      يتطلب تسجيل مُخصّص مخصص (#[معالج_تخصيص])
-                // (EN) Allow dynamic allocation in freestanding (requires custom allocator)
-                options.allow_freestanding_alloc = true;
-            }
-            else if (arg == "--module" || arg == "--وحدة")
-            {
-                // (AR) وضع الوحدة: يُعامل الملف كمكتبة بدون نقطة دخول
-                //      يتخطى إنشاء __sad_main ودالة main wrapper
-                //      مناسب لتجميع ملفات مكتبة في مشاريع متعددة الملفات
-                // (EN) Module mode: treat file as library, skip __sad_main and main wrapper
-                options.module_mode = true;
+                return true;
+            case A::LtoNone:
+                options.enable_lto_full = false;
+                options.enable_lto_thin = false;
+                return true;
 
-                // ─── ربط المكتبات ───────────────────────────────────────────────────────
-                // (AR) خيارات الرابط (Linker): مسارات المكتبات وأسماؤها ونوع الربط
-                // (EN) Linker options: library paths, library names, and link type
-            }
-            else if (arg.size() >= 2 && arg.substr(0, 2) == "-L")
+            // ─── الهدف ───
+            case A::Target:
             {
-                options.library_paths.push_back(arg.substr(2));
+                if (value.empty()) return requireValue();
+                auto triple_opt = TargetTriple::parse(value);
+                if (!triple_opt)
+                {
+                    diag.report_error(std::string(cli_gen::messages::InvalidTargetTriple) + value);
+                    return false;
+                }
+                options.target = *triple_opt;
+                return true;
             }
-            else if (arg.size() >= 2 && arg.substr(0, 2) == "-l")
-            {
-                options.libraries.push_back(arg.substr(2));
-            }
-            else if (arg == "--static")
-            {
-                options.link_static = true;
 
-                // ─── خيارات متنوعة أخرى ─────────────────────────────────────────────────
-                // (AR) خيارات عامة: الإسهاب، التحذيرات كأخطاء، والألوان
-                // (EN) General options: verbosity, warnings-as-errors, color output
-            }
-            else if (arg == "-v" || arg == "--verbose")
-            {
-                options.verbose = true;
-            }
-            else if (arg == "-Werror")
-            {
-                options.warnings_as_errors = true;
-            }
-            else if (arg == "--color")
-            {
-                options.color_diagnostics = true;
-            }
-            else if (arg == "--no-color")
-            {
+            // ─── مخرجات وسيطة ───
+            case A::EmitLlvm: options.output_type = OutputType::LLVM_IR; return true;
+            case A::EmitBc: options.output_type = OutputType::LLVM_BC; return true;
+            case A::EmitAst: options.emit_ast = true; return true;
+            case A::EmitAstJson: options.emit_ast_json = true; return true;
+            case A::EmitSir: options.emit_sir = true; return true;
+            case A::TimePasses: options.time_passes = true; return true;
+
+            // ─── الشرح واللغة ───
+            case A::Explain:
+                options.explain_level =
+                    value.empty() ? std::string(cli_gen::values::ExplainDefault) : value;
+                return true;
+            case A::OutputLanguage:
+                if (value.empty()) return requireValue();
+                options.output_language = value; return true;
+
+            // ─── الألوان والإسهاب ───
+            case A::ColorOn: options.color_diagnostics = true; return true;
+            case A::ColorOff:
                 options.color_diagnostics = false;
                 colors::disable_colors();
+                return true;
+            case A::Verbose: options.verbose = true; return true;
 
-                // ─── خيارات نظام الملكية والاستعارة ────────────────────────────────────
-                // (AR) التحكم في فحص الملكية والاستعارة (Ownership & Borrow Checker)
-                // (EN) Ownership & Borrow Check options
-            }
-            else if (arg == "--borrow-check" || arg == "--فحص-الاستعارة" || arg == "--ملكية")
-            {
-                options.enable_borrow_check = true;
-            }
-            else if (arg == "--no-borrow-check" || arg == "--بدون-فحص-استعارة")
-            {
-                options.enable_borrow_check = false;
-            }
-            else if (arg == "--debug-borrow" || arg == "--تنقيح-الاستعارة")
-            {
-                options.debug_borrow_check = true;
-            }
-            else if (arg == "--arabic-borrow" || arg == "--رسائل-عربية")
-            {
-                options.arabic_borrow_messages = true;
-            }
-            else if (arg == "--english-borrow")
-            {
-                options.arabic_borrow_messages = false;
-            }
+            // ─── فحص الاستعارة ───
+            case A::BorrowCheckOn: options.enable_borrow_check = true; return true;
+            case A::BorrowCheckOff: options.enable_borrow_check = false; return true;
+            case A::DebugBorrow: options.debug_borrow_check = true; return true;
+            case A::BorrowMsgArabic: options.arabic_borrow_messages = true; return true;
+            case A::BorrowMsgEnglish: options.arabic_borrow_messages = false; return true;
 
-            // (AR) خيارات فحص الأنواع المتقدم / Type Check options
-            else if (arg == "--type-check" || arg == "--فحص-الأنواع")
-            {
-                options.enable_type_check = true;
-            }
-            else if (arg == "--no-type-check" || arg == "--بدون-فحص-أنواع")
-            {
-                options.enable_type_check = false;
-            }
-            else if (arg == "--debug-types" || arg == "--تنقيح-الأنواع")
-            {
-                options.debug_type_check = true;
-            }
-            else if (arg == "--strict-types" || arg == "--أنواع-صارمة")
-            {
-                options.strict_type_check = true;
-            }
+            // ─── فحص الأنواع ───
+            case A::TypeCheckOn: options.enable_type_check = true; return true;
+            case A::TypeCheckOff: options.enable_type_check = false; return true;
+            case A::DebugTypes: options.debug_type_check = true; return true;
+            case A::StrictTypes: options.strict_type_check = true; return true;
 
-            // ─── خيارات خط أنابيب الواجهات الرسومية / UI Pipeline options ───────
-            // (AR) --ui/--واجهات: تفعيل وضع توليد الواجهات (سطح مكتب، اندرويد، iOS، ويب)
-            // (EN) --ui: Enable UI code generation mode
-            else if (arg == "--ui" || arg == "--واجهات")
-            {
+            // ─── الواجهات الرسومية ───
+            case A::EmitUi: options.emit_ui = true; return true;
+            case A::UiPlatform:
+                if (value.empty()) return requireValue();
                 options.emit_ui = true;
-            }
-            // --platform=<name> / --منصة=<name>
-            else if (arg.size() >= 11 && arg.substr(0, 11) == "--platform=")
-            {
-                options.ui_platform = arg.substr(11);
+                options.ui_platform = value;
+                return true;
+            case A::PlatformDesktop:
                 options.emit_ui = true;
-            }
-            else if (arg.size() > 2 && arg.find("--منصة=") == 0)
-            {
-                auto eqPos = arg.find('=');
-                if (eqPos != std::string::npos)
-                {
-                    options.ui_platform = arg.substr(eqPos + 1);
-                    options.emit_ui = true;
-                }
-            }
-            // Shorthand platform flags
-            else if (arg == "--desktop" || arg == "--سطح-المكتب")
-            {
+                options.ui_platform = cli_gen::values::PlatformDesktop;
+                return true;
+            case A::PlatformAndroid:
                 options.emit_ui = true;
-                options.ui_platform = "desktop";
-            }
-            else if (arg == "--android" || arg == "--اندرويد")
-            {
-                options.emit_ui = true;
-                options.ui_platform = "android";
-                // ────────────────────────────────────────────────────────────────
-                // (AR) عند تفعيل وضع أندرويد، نعيّن الهدف تلقائياً إلى ARM64
-                //      إذا لم يُحدَّد هدف آخر يدوياً بـ --target=
-                // (EN) When Android mode is activated, auto-set target to ARM64
-                //      if no other target was manually specified via --target=
-                // ────────────────────────────────────────────────────────────────
+                options.ui_platform = cli_gen::values::PlatformAndroid;
+                // (AR) عند تفعيل أندرويد نضبط الهدف تلقائيًّا إن لم يُحدَّد هدف أندرويد.
                 if (!options.target.is_android())
                 {
-                    auto android_triple = TargetTriple::parse("aarch64-linux-android" + std::to_string(24));
+                    auto android_triple = TargetTriple::parse(cli_gen::values::AndroidTargetTriple);
                     if (android_triple)
                     {
                         options.target = *android_triple;
                     }
                 }
-            }
-            else if (arg == "--ios" || arg == "--ايفون")
-            {
+                return true;
+            case A::PlatformIos:
                 options.emit_ui = true;
-                options.ui_platform = "ios";
-            }
-            else if (arg == "--web" || arg == "--ويب")
-            {
+                options.ui_platform = cli_gen::values::PlatformIos;
+                return true;
+            case A::PlatformWeb:
                 options.emit_ui = true;
-                options.ui_platform = "web";
-            }
+                options.ui_platform = cli_gen::values::PlatformWeb;
+                return true;
 
-            // Unknown option
-            else if (arg != "-o" && arg != "-T")
+            // ─── التوثيق ───
+            case A::EmitDocs: options.emit_docs = true; return true;
+            case A::DocsOut:
+                if (value.empty()) return requireValue();
+                options.emit_docs = true;
+                options.docs_output_path = value;
+                return true;
+            case A::DocsProject:
+                if (value.empty()) return requireValue();
+                options.emit_docs = true;
+                options.docs_project_dir = value;
+                return true;
+            case A::DocsProjectName:
+                if (value.empty()) return requireValue();
+                options.docs_project_name = value;
+                return true;
+            case A::DocsFormat:
+                if (value.empty()) return requireValue();
+                options.emit_docs = true;
+                options.docs_format = value;
+                return true;
+            case A::DocsExclude:
+                if (value.empty()) return requireValue();
+                options.docs_excludes.push_back(value);
+                return true;
+
+            // ─── المساعدة والإصدار ───
+            case A::HelpRequested: help_requested_ = true; return true;
+            case A::VersionRequested: version_requested_ = true; return true;
+
+            // (AR) حارس: إجراء في المصدر الوحيد بلا حالة هنا ⇒ فشل صريح، لا قبول
+            //      صامت لعلمٍ لا يفعل شيئًا.
+            // (EN) Guard: an SoT action with no case here fails loudly instead of
+            //      silently accepting a no-op flag.
+            default:
+                diag.report_error(canonical + cli_gen::messages::UnimplementedAction);
+                return false;
+            }
+        }
+
+        const char *canonical_flag(std::uint16_t action)
+        {
+            const auto act = static_cast<cli_gen::FlagAction>(action);
+            for (std::size_t i = 0; i < cli_gen::kFlagCount; ++i)
             {
-                diag.report_warning("unknown option: " + arg + " / خيار غير معروف");
+                if (cli_gen::kFlags[i].action == act)
+                {
+                    return cli_gen::kFlags[i].canonical;
+                }
             }
-
-            return true;
+            return "";
         }
 
         // ============================================================================

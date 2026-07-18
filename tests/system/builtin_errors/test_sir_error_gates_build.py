@@ -40,7 +40,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 # (AR) راية «واجهة أماميّة فقط»: تبني SIR (حيث البوّابة) وتتوقّف قبل التوليد/الربط.
-EMIT_SIR = "--emit-sir"
+EMIT_SIR = "--أظهر-sir"
 
 
 def _frontend(source: str) -> tuple[int, str]:

@@ -775,9 +775,31 @@ namespace sad
             bool parse_option(const std::string &arg, CompilerOptions &options,
                               DiagnosticEngine &diag);
 
+            // ────────────────────────────────────────────────────────────────
+            // (AR) مُوزِّع الأعلام الطويلة: يُنفّذ الإجراء الموسوم في جدول
+            //      cli_flags_generated.h (المصدر الوحيد). القيمة فارغة للأعلام
+            //      المنطقيّة أو الصيغة المجرّدة للأعلام القيميّة.
+            // (EN) Long-flag dispatcher: executes the tagged action from the
+            //      generated single-source table. `value` is empty for bool
+            //      flags or the bare form of value flags.
+            // ────────────────────────────────────────────────────────────────
+            bool dispatch_flag(std::uint16_t action, const std::string &canonical,
+                               const std::string &value, CompilerOptions &options,
+                               DiagnosticEngine &diag);
+
             OptimizationLevel parse_opt_level(const std::string &arg);
             OutputType parse_output_type(const std::string &arg);
         };
+
+        // ============================================================================
+        // (AR) الاسم القانونيّ لعلمٍ ما، مقروءًا من المصدر الوحيد المولَّد
+        //      (cli_flags_generated.h). تستعمله رسائل التشخيص كي لا ترشد المستخدم
+        //      إلى أعلام ميتة ولا تُثبِّت أسماءها كسلاسل حرّة.
+        // (EN) Canonical name of a flag, read from the generated SoT. Diagnostics use
+        //      it so they never point users at dead flags nor hardcode flag names.
+        // (AR) الوسيط رقم الإجراء (FlagAction) — يُمرَّر كعدد لفكّ الارتباط بالهيدر.
+        // ============================================================================
+        const char *canonical_flag(std::uint16_t action);
 
         // ============================================================================
         // Utility Functions / دوال مساعدة

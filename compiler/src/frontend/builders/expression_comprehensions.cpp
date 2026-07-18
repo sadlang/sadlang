@@ -86,6 +86,166 @@ namespace Sad
                 outKeyType = SadTypeKind::String;
             }
 
+            ExpressionBuilder::ComprehensionSource
+            ExpressionBuilder::prepareComprehensionSource(Sad::AST::Expression *iterable,
+                                                          const std::string &valueVar)
+            {
+                ComprehensionSource src;
+
+                // (AR) كشف مُكرِّر المدى (مثل `لكل س في 1..5`): نخفضه حسابيًّا بلا تجسيد
+                //      مصفوفة، تمامًا كحلقة for-range التي لا تبني قيمة مدى. بدونه كان
+                //      يُبنى المدى صفًّا [بداية، نهاية] فيُكرَّر كعنصرين بدل التوسيع.
+                // (EN) Detect a range iterable (e.g. `for x in 1..5`): lower it
+                //      arithmetically with no materialized array, exactly like the
+                //      for-range loop which never builds a range value. Without this the
+                //      range was built as a 2-tuple and iterated as two elements.
+                auto *rangeIter = dynamic_cast<Sad::AST::RangeExpr *>(iterable);
+                if (rangeIter)
+                {
+                    src.isRange = true;
+
+                    // (AR) تجسيد حدّي المدى في سجلّين (قد يكونان ثابتين كـ 1..5)
+                    // (EN) Materialize both range bounds into registers (may be constants)
+                    auto materializeInt = [&](Sad::AST::Expression *e) -> std::string
+                    {
+                        auto res = buildExpression(e);
+                        if (res.isConstant)
+                        {
+                            std::string reg = b_.newTempRegister();
+                            SIRInstruction mv(SIROpcode::MOVE);
+                            mv.result = SIROperand::Register(reg, SadTypeKind::Integer);
+                            try
+                            {
+                                mv.operands.push_back(SIROperand::ConstantI64(std::stoll(res.constantValue)));
+                            }
+                            catch (const std::exception &)
+                            {
+                                mv.operands.push_back(SIROperand::ConstantI64(0));
+                            }
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(mv);
+                            return reg;
+                        }
+                        return res.registerName;
+                    };
+
+                    src.startReg = materializeInt(rangeIter->start.get());
+                    std::string endReg = materializeInt(rangeIter->end.get());
+
+                    // (AR) اتّجاه المدى شامل الطرفين بلا تفريعات (يطابق for-range تصاعدًا
+                    //      وتنازلًا، لثوابت أو متغيّرات): فرق = نهاية − بداية؛ قناع الإشارة =
+                    //      فرق >> 63 (‏0 موجبًا، ‏−1 سالبًا)؛ |فرق| = (فرق ⊕ قناع) − قناع؛
+                    //      الطول = |فرق| + 1؛ الخطوة = 1 + (قناع << 1) ⇒ +1 تصاعدًا و−1 تنازلًا.
+                    // (EN) Branchless inclusive range direction (matches for-range, ascending
+                    //      or descending, constant or variable): diff = end − start; sign mask =
+                    //      diff >> 63 (0 if ≥0, −1 if <0); |diff| = (diff ⊕ mask) − mask;
+                    //      length = |diff| + 1; step = 1 + (mask << 1) ⇒ +1 up, −1 down.
+                    std::string diffReg = b_.newTempRegister();
+                    std::string maskReg = b_.newTempRegister();
+                    std::string xorReg = b_.newTempRegister();
+                    std::string absReg = b_.newTempRegister();
+                    std::string shiftReg = b_.newTempRegister();
+                    src.lenReg = b_.newTempRegister();
+                    src.stepReg = b_.newTempRegister();
+                    if (b_.currentBlock_)
+                    {
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::SUB_I64,
+                            SIROperand::Register(diffReg, SadTypeKind::Integer),
+                            SIROperand::Register(endReg, SadTypeKind::Integer),
+                            SIROperand::Register(src.startReg, SadTypeKind::Integer)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::SAR,
+                            SIROperand::Register(maskReg, SadTypeKind::Integer),
+                            SIROperand::Register(diffReg, SadTypeKind::Integer),
+                            SIROperand::ConstantI64(63)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::XOR,
+                            SIROperand::Register(xorReg, SadTypeKind::Integer),
+                            SIROperand::Register(diffReg, SadTypeKind::Integer),
+                            SIROperand::Register(maskReg, SadTypeKind::Integer)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::SUB_I64,
+                            SIROperand::Register(absReg, SadTypeKind::Integer),
+                            SIROperand::Register(xorReg, SadTypeKind::Integer),
+                            SIROperand::Register(maskReg, SadTypeKind::Integer)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::ADD_I64,
+                            SIROperand::Register(src.lenReg, SadTypeKind::Integer),
+                            SIROperand::Register(absReg, SadTypeKind::Integer),
+                            SIROperand::ConstantI64(1)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::SHL,
+                            SIROperand::Register(shiftReg, SadTypeKind::Integer),
+                            SIROperand::Register(maskReg, SadTypeKind::Integer),
+                            SIROperand::ConstantI64(1)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::ADD_I64,
+                            SIROperand::Register(src.stepReg, SadTypeKind::Integer),
+                            SIROperand::ConstantI64(1),
+                            SIROperand::Register(shiftReg, SadTypeKind::Integer)));
+                    }
+                    return src;
+                }
+
+                // (AR) المسار العاديّ: مصفوفة/خريطة
+                // (EN) Normal path: array/map
+                auto iterResult = buildExpression(iterable);
+                lowerMapComprehensionIterable(iterResult, valueVar,
+                                              src.mapValuesReg, src.keyElemType, src.valueVarType);
+                src.iterRegName = iterResult.registerName;
+                src.iterType = iterResult.type;
+                return src;
+            }
+
+            std::string ExpressionBuilder::comprehensionSourceLength(const ComprehensionSource &src)
+            {
+                if (src.isRange)
+                    return src.lenReg;
+
+                std::string lenReg = b_.newTempRegister();
+                SIRInstruction callLen(SIROpcode::ARRAY_LEN);
+                callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
+                callLen.operands.push_back(SIROperand::Register(src.iterRegName, src.iterType));
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(callLen);
+                return lenReg;
+            }
+
+            std::string ExpressionBuilder::comprehensionSourceElement(const ComprehensionSource &src,
+                                                                      const std::string &curIdxReg)
+            {
+                std::string elemReg = b_.newTempRegister();
+                if (src.isRange)
+                {
+                    // (AR) القيمة = بداية + العدّاد × الخطوة (±1) ⇒ تصاعد أو تنازل
+                    // (EN) value = start + counter × step (±1) ⇒ ascending or descending
+                    std::string scaledReg = b_.newTempRegister();
+                    if (b_.currentBlock_)
+                    {
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::MUL_I64,
+                            SIROperand::Register(scaledReg, SadTypeKind::Integer),
+                            SIROperand::Register(curIdxReg, SadTypeKind::Integer),
+                            SIROperand::Register(src.stepReg, SadTypeKind::Integer)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Binary(
+                            SIROpcode::ADD_I64,
+                            SIROperand::Register(elemReg, SadTypeKind::Integer),
+                            SIROperand::Register(src.startReg, SadTypeKind::Integer),
+                            SIROperand::Register(scaledReg, SadTypeKind::Integer)));
+                    }
+                    return elemReg;
+                }
+
+                SIRInstruction loadElem(SIROpcode::ARRAY_GET);
+                loadElem.result = SIROperand::Register(elemReg, src.keyElemType);
+                loadElem.operands.push_back(SIROperand::Register(src.iterRegName, src.iterType));
+                loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(loadElem);
+                return elemReg;
+            }
+
             BuildResult ExpressionBuilder::buildExprListComp(AST::ListComprehensionExpr *listCompExpr)
             {
 #ifndef NDEBUG
@@ -109,17 +269,13 @@ namespace Sad
                     b_.currentBlock_->addInstruction(allocInst);
                 }
 
-                // (AR) بناء التعبير القابل للتكرار
-                // (EN) Build iterable expression
-                auto iterResult = buildExpression(listCompExpr->iterable.get());
-
-                // (AR) تهيئة تكرار الخريطة (يستبدل المصدر بمفاتيحها ويُصدِر قيمها إن طُلب فكّ زوج)
-                // (EN) Prepare map iteration (replaces source with keys, emits values if pair-unpacking)
-                std::string mapValuesReg;
-                SadTypeKind keyElemType = SadTypeKind::Integer;
-                SadTypeKind valueVarType = SadTypeKind::Integer;
-                lowerMapComprehensionIterable(iterResult, listCompExpr->valueVariable,
-                                              mapValuesReg, keyElemType, valueVarType);
+                // (AR) تهيئة مصدر التكرار (مدى ⇒ حسابيّ، أو مصفوفة/خريطة) عبر المساعِد المشترك.
+                // (EN) Prepare the iteration source (range ⇒ arithmetic, or array/map) via the shared helper.
+                ComprehensionSource src = prepareComprehensionSource(
+                    listCompExpr->iterable.get(), listCompExpr->valueVariable);
+                std::string mapValuesReg = src.mapValuesReg;
+                SadTypeKind keyElemType = src.keyElemType;
+                SadTypeKind valueVarType = src.valueVarType;
 
                 // (AR) إنشاء حلقة للتكرار (تُترجم إلى حلقة عداد)
                 // (EN) Create iteration loop (lowered to counter loop)
@@ -169,14 +325,9 @@ namespace Sad
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(loadIdx);
 
-                // (AR) طول القابل للتكرار عبر ARRAY_LEN المُلوَّن في الخلفية (بدل CALL لرمز runtime)
-                // (EN) Iterable length via backend-lowered ARRAY_LEN (instead of a runtime-symbol CALL)
-                std::string lenReg = b_.newTempRegister();
-                SIRInstruction callLen(SIROpcode::ARRAY_LEN);
-                callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(callLen);
+                // (AR) طول القابل للتكرار (المدى: محسوب مسبقًا؛ وإلّا ARRAY_LEN) عبر المساعِد.
+                // (EN) Iterable length (range: precomputed; else ARRAY_LEN) via the helper.
+                std::string lenReg = comprehensionSourceLength(src);
 
                 std::string cmpReg = b_.newTempRegister();
                 if (b_.currentBlock_)
@@ -200,15 +351,9 @@ namespace Sad
 
                 b_.enterScope();
 
-                // (AR) تحميل العنصر الحالي وتسجيل متغير الحلقة
-                // (EN) Load current element and register loop variable
-                std::string elemReg = b_.newTempRegister();
-                SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-                loadElem.result = SIROperand::Register(elemReg, keyElemType);
-                loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(loadElem);
+                // (AR) العنصر الحالي (المدى: بداية+عدّاد×خطوة؛ وإلّا ARRAY_GET) عبر المساعِد.
+                // (EN) Current element (range: start+counter×step; else ARRAY_GET) via the helper.
+                std::string elemReg = comprehensionSourceElement(src, curIdxReg);
 
                 VariableInfo loopVar;
                 loopVar.name = listCompExpr->variable;
@@ -355,17 +500,13 @@ namespace Sad
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(allocInst);
 
-                // (AR) بناء التعبير القابل للتكرار
-                // (EN) Build iterable expression
-                auto iterResult = buildExpression(dictCompExpr->iterable.get());
-
-                // (AR) تهيئة تكرار الخريطة (مفاتيح + قيم إن طُلب فكّ زوج)
-                // (EN) Prepare map iteration (keys + values if pair-unpacking)
-                std::string mapValuesReg;
-                SadTypeKind keyElemType = SadTypeKind::Integer;
-                SadTypeKind valueVarType = SadTypeKind::Integer;
-                lowerMapComprehensionIterable(iterResult, dictCompExpr->valueVariable,
-                                              mapValuesReg, keyElemType, valueVarType);
+                // (AR) تهيئة مصدر التكرار (مدى ⇒ حسابيّ، أو مصفوفة/خريطة) عبر المساعِد المشترك.
+                // (EN) Prepare the iteration source (range ⇒ arithmetic, or array/map) via the shared helper.
+                ComprehensionSource src = prepareComprehensionSource(
+                    dictCompExpr->iterable.get(), dictCompExpr->valueVariable);
+                std::string mapValuesReg = src.mapValuesReg;
+                SadTypeKind keyElemType = src.keyElemType;
+                SadTypeKind valueVarType = src.valueVarType;
 
                 // (AR) تخصيص عداد الحلقة
                 // (EN) Allocate loop counter
@@ -413,12 +554,7 @@ namespace Sad
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(loadIdx);
 
-                std::string lenReg = b_.newTempRegister();
-                SIRInstruction callLen(SIROpcode::ARRAY_LEN);
-                callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(callLen);
+                std::string lenReg = comprehensionSourceLength(src);
 
                 std::string cmpReg = b_.newTempRegister();
                 if (b_.currentBlock_)
@@ -442,15 +578,9 @@ namespace Sad
 
                 b_.enterScope();
 
-                // (AR) تحميل العنصر وتسجيل متغير الحلقة
-                // (EN) Load element and register loop variable
-                std::string elemReg = b_.newTempRegister();
-                SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-                loadElem.result = SIROperand::Register(elemReg, keyElemType);
-                loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(loadElem);
+                // (AR) تحميل العنصر وتسجيل متغير الحلقة (المدى: حسابيّ؛ وإلّا ARRAY_GET) عبر المساعِد.
+                // (EN) Load element and register loop variable (range: arithmetic; else ARRAY_GET) via helper.
+                std::string elemReg = comprehensionSourceElement(src, curIdxReg);
 
                 VariableInfo loopVar;
                 loopVar.name = dictCompExpr->variable;

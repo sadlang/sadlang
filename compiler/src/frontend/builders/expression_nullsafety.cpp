@@ -52,14 +52,26 @@ namespace Sad
                     return BuildResult(nullReg, SadTypeKind::Integer);
                 }
 
-                // (AR) spike ISSUE-076: استنتِج نوع العضو من صنف الكائن (مرآة buildExprMember).
-                //      فقط للعضو النصّيّ نُخرِج قيمةً موسومة %SadDyn (نوع Any) بدل تثبيت i64، كي
-                //      تطبعها الطباعةُ نصًّا لا مؤشّرًا. سائر الأنواع تبقى على المسار الحاليّ (i64).
-                // (EN) spike ISSUE-076: infer the member type from the object's class (mirrors
-                //      buildExprMember). Only for a String member do we produce a tagged %SadDyn
-                //      (Any-typed) value instead of pinning to i64, so print renders a string not a
-                //      pointer. All other member kinds keep the current path (i64).
-                SadTypeKind memberType = SadTypeKind::Integer;
+                // (AR) م2 ISSUE-076: استنتِج نوع العضو من صنف الكائن (مرآة buildExprMember)
+                //      وعمّم المسار الموسوم %SadDyn (نوع Any) ليشمل الأعضاء القياسيّة كلّها:
+                //      نصّ (م1) + عدد/عشريّ/منطقيّ (م2). القيمة تُحمَّل بنوعها الصحيح (double/i1/i64)
+                //      ثمّ يُعلّبها emitPhi عبر toDyn، فتطبعها dynToString وتقارنها dynCompare وتحسبها
+                //      dynBinOp مطابقةً للمفسّر (طباعة/==/ضمّ/حساب) وتُرجِع «لاشيء» على الكائن الفارغ.
+                //      قبل م2 كان العضو العشريّ/المنطقيّ يُثبَّت i64 فيتضارب نوعُ LOAD (double/i1) مع
+                //      PHI‏ i64 ⇒ فشل verifyModule (لا تنفيذيّ). الافتراض Unknown (لا Integer): التعليب
+                //      يُفعَّل فقط عند استنتاجٍ موجَبٍ لنوعٍ قياسيّ، فالأعضاء الكائنيّة/المصفوفيّة تبقى
+                //      على المسار الموروث (i64) بلا انحدار.
+                // (EN) م2 ISSUE-076: infer the member type from the object's class (mirrors
+                //      buildExprMember) and generalize the tagged %SadDyn (Any) path to ALL scalar
+                //      members: string (م1) + int/float/bool (م2). The value is loaded with its
+                //      correct type (double/i1/i64), then emitPhi boxes it via toDyn, so dynToString/
+                //      dynCompare/dynBinOp render/compare/compute it exactly like the interpreter
+                //      (print/==/concat/arith) and return «لاشيء» on a null object. Before م2 a
+                //      float/bool member was pinned to i64, so the LOAD type (double/i1) clashed with
+                //      the i64 PHI ⇒ verifyModule failure (no executable). Default is Unknown (not
+                //      Integer): boxing engages only on a positive scalar inference, so object/array
+                //      members keep the legacy i64 path (no regression).
+                SadTypeKind memberType = SadTypeKind::Unknown;
                 if (!objResult.className.empty() && b_.module_)
                 {
                     auto sirClass = b_.module_->getClass(objResult.className);
@@ -70,8 +82,11 @@ namespace Sad
                             memberType = fieldIt->second;
                     }
                 }
-                const bool useDyn = (memberType == SadTypeKind::String);
-                const SadTypeKind accessType = useDyn ? SadTypeKind::String : SadTypeKind::Integer;
+                const bool useDyn = (memberType == SadTypeKind::String ||
+                                     memberType == SadTypeKind::Integer ||
+                                     memberType == SadTypeKind::Float ||
+                                     memberType == SadTypeKind::Boolean);
+                const SadTypeKind accessType = useDyn ? memberType : SadTypeKind::Integer;
                 const SadTypeKind nullIncomingType = useDyn ? SadTypeKind::Null : SadTypeKind::Integer;
                 const SadTypeKind resultType = useDyn ? SadTypeKind::Any : SadTypeKind::Integer;
 

@@ -15,6 +15,7 @@
  */
 
 #include "sad_ui/freestanding/renderer.h"
+#include "sad_ui/freestanding/arabic_shaper.h"
 
 #include <cstring>
 #include <cmath>
@@ -138,10 +139,14 @@ namespace sad
                     return;
 
                 uint32_t color = colorToARGB(clearColor);
-                uint32_t totalPixels = fb_.width * fb_.height;
+                // (AR) المسح بخطوة السطر الكاملة لا العرض فقط: حين pitch > width*4
+                //      (حشو أسطر لدى بعض أجهزة fbdev) كان الملء المتواصل بعدد
+                //      width*height ينحرف عن بداية كلّ سطر تدريجيًّا — إصلاح جذريّ
+                //      يوحّد التخطيط مع فهرسة putPixel (القائمة على pitch أصلًا):
+                uint32_t totalWords = (fb_.pitch / sizeof(uint32_t)) * fb_.height;
 
                 // مسح الشاشة باللون المحدد
-                memOps_.fill32(drawTarget_, color, totalPixels);
+                memOps_.fill32(drawTarget_, color, totalWords);
 
                 // إلغاء القص
                 clipRect_.active = false;
@@ -164,8 +169,11 @@ namespace sad
                 if (!fb_.address || !fb_.backBuffer)
                     return;
 
-                uint32_t totalPixels = fb_.width * fb_.height;
-                memOps_.copy32(fb_.address, fb_.backBuffer, totalPixels);
+                // (AR) النسخ بخطوة السطر الكاملة (نفس علّة beginFrame): المخزن الخلفيّ
+                //      مُخصَّص بتخطيط الجهاز نفسه، فالنسخ المتواصل بطول pitch×height
+                //      صحيح بايتًا ببايت حتى مع حشو أسطر:
+                uint32_t totalWords = (fb_.pitch / sizeof(uint32_t)) * fb_.height;
+                memOps_.copy32(fb_.address, fb_.backBuffer, totalWords);
             }
 
             void FreestandingRenderer::swapRegion(int x, int y, int w, int h)
@@ -195,10 +203,22 @@ namespace sad
 
             inline uint32_t FreestandingRenderer::colorToARGB(const Color &c) const
             {
-                return (static_cast<uint32_t>(c.a) << 24) |
-                       (static_cast<uint32_t>(c.r) << 16) |
-                       (static_cast<uint32_t>(c.g) << 8) |
-                       static_cast<uint32_t>(c.b);
+                // (AR) عقد Color في النواة (node.h): مكوّنات عائمة 0.0–1.0. التحويل
+                //      السابق كان يقصّ العائم مباشرة إلى عدد صحيح (1.0 ⇒ 1 من 255!)
+                //      فتخرج كلّ ألوان شجرة IR شبه سوداء وشبه شفّافة — إصلاح جذريّ:
+                //      قصّ إلى [0,1] ثم تدريج إلى 0–255 بتقريب:
+                auto to255 = [](float v) -> uint32_t
+                {
+                    if (v <= 0.0f)
+                        return 0u;
+                    if (v >= 1.0f)
+                        return 255u;
+                    return static_cast<uint32_t>(v * 255.0f + 0.5f);
+                };
+                return (to255(c.a) << 24) |
+                       (to255(c.r) << 16) |
+                       (to255(c.g) << 8) |
+                       to255(c.b);
             }
 
             inline uint32_t FreestandingRenderer::alphaBlend(uint32_t bg, uint32_t fg) const
@@ -740,6 +760,11 @@ namespace sad
                     }
                 }
 
+                // (AR) عدّاد الإثبات: غليف شكل عرض عربيّ رُسم فعلًا من الخطّ
+                // (لا يُحتسب مربّع الاستبدال أعلاه — الفرع الآخر يعود قبل الوصول هنا):
+                if (arabic::isPresentationFormB(codepoint))
+                    ++presentationGlyphsDrawn_;
+
                 return static_cast<int>(glyph->advance * scale);
             }
 
@@ -765,15 +790,24 @@ namespace sad
                 float totalWidth = 0;
                 float lineHeight = currentFont_->lineHeight * scale;
 
+                // (AR) مرحلة التشكيل العربيّ: فكّ UTF-8 إلى نقاط منطقيّة ثمّ
+                // shape() (أشكال سياقيّة + لام-ألف + عكس المدى) — النقاط غير
+                // العربيّة تمرّ كما هي فلا أثر على النصوص اللاتينيّة:
                 const char *ptr = text.c_str();
                 const char *end = ptr + text.size();
-
+                std::vector<uint32_t> logical;
+                logical.reserve(text.size());
                 while (ptr < end)
                 {
                     uint32_t cp = decodeUTF8(ptr, end);
                     if (cp == 0)
                         break;
+                    logical.push_back(cp);
+                }
+                const std::vector<uint32_t> shaped = arabic::shape(logical);
 
+                for (uint32_t cp : shaped)
+                {
                     if (cp == '\n')
                     {
                         y += lineHeight;
@@ -810,15 +844,23 @@ namespace sad
                 int lines = 1;
                 float lineHeight = currentFont_->lineHeight * scale;
 
+                // (AR) نفس مرحلة التشكيل المطبَّقة في drawText — فيعكس القياس
+                // الليغاتورات والأشكال تلقائيًّا وتصحّ محاذاة core اليمنى بلا لمسه:
                 const char *ptr = text.c_str();
                 const char *end = ptr + text.size();
-
+                std::vector<uint32_t> logical;
+                logical.reserve(text.size());
                 while (ptr < end)
                 {
                     uint32_t cp = decodeUTF8(ptr, end);
                     if (cp == 0)
                         break;
+                    logical.push_back(cp);
+                }
+                const std::vector<uint32_t> shaped = arabic::shape(logical);
 
+                for (uint32_t cp : shaped)
+                {
                     if (cp == '\n')
                     {
                         maxWidth = std::max(maxWidth, width);
@@ -1016,7 +1058,97 @@ namespace sad
                 {
                     renderer_->render(contentRoot_, layoutResult_);
                 }
+                // مؤشّر الفأرة يُرسم قبل endFrame كي يُنسَخ مع الإطار للمخزن الأماميّ:
+                if (cursorVisible_)
+                {
+                    drawCursorOverlay();
+                }
                 renderer_->endFrame();
+            }
+
+            // ═══════════════════════════════════════════════════════════════════════════════
+            // التفاعل: اختبار الإصابة + مؤشّر الفأرة المرسوم
+            // ═══════════════════════════════════════════════════════════════════════════════
+
+            namespace
+            {
+                // ─── معايير رسم مؤشّر الفأرة (ثوابت مسمّاة) ───
+                constexpr float CURSOR_SIZE_PX = 12.0f;      ///< ضلع مربّع المؤشّر
+                constexpr float CURSOR_OUTLINE_PX = 2.0f;    ///< سماكة إطاره الداكن
+                constexpr Color CURSOR_FILL_COLOR = {1.0f, 1.0f, 1.0f, 1.0f};    ///< أبيض
+                constexpr Color CURSOR_OUTLINE_COLOR = {0.0f, 0.0f, 0.0f, 1.0f}; ///< أسود
+            } // namespace
+
+            const IRNode *FreestandingWindow::hitTest(float x, float y) const
+            {
+                if (!contentRoot_ || !layoutResult_)
+                    return nullptr;
+                return hitTestNode(contentRoot_.get(), layoutResult_.get(), x, y);
+            }
+
+            const IRNode *FreestandingWindow::hitTestNode(const IRNode *node,
+                                                          const LayoutResult *layout,
+                                                          float x, float y)
+            {
+                if (!node || !layout)
+                    return nullptr;
+
+                const auto &rect = layout->rect;
+                const bool inside = (x >= rect.x && x < rect.x + rect.width &&
+                                     y >= rect.y && y < rect.y + rect.height);
+                if (!inside)
+                    return nullptr;
+
+                // الأبناء من الأخير للأوّل (الأعلى رسمًا يفوز) — نفس دلالة desktop:
+                for (int i = static_cast<int>(layout->children.size()) - 1; i >= 0; --i)
+                {
+                    if (i < static_cast<int>(node->childCount()))
+                    {
+                        const IRNode *hit = hitTestNode(node->getChildren()[i].get(),
+                                                        layout->children[i].get(), x, y);
+                        if (hit)
+                            return hit;
+                    }
+                }
+
+                // العقدة تفاعليّة إن حملت أحداثًا صريحة:
+                if (!node->getEvents().empty())
+                    return node;
+
+                // أو كانت من الأنواع التفاعليّة بطبيعتها (نفس قائمة desktop):
+                const auto nodeType = node->getType();
+                if (nodeType == UINodeType::Toggle || nodeType == UINodeType::Checkbox ||
+                    nodeType == UINodeType::Slider || nodeType == UINodeType::Button)
+                {
+                    return node;
+                }
+
+                return nullptr;
+            }
+
+            void FreestandingWindow::setCursorPosition(float x, float y)
+            {
+                cursorX_ = x;
+                cursorY_ = y;
+            }
+
+            void FreestandingWindow::setCursorVisible(bool visible)
+            {
+                cursorVisible_ = visible;
+                needsRedraw_ = true;
+            }
+
+            void FreestandingWindow::drawCursorOverlay()
+            {
+                // أيّ قصّ متبقٍّ من رسم الشجرة يُلغى — المؤشّر فوق كلّ شيء:
+                renderer_->clearClipRect();
+                // مربّع أبيض بإطار أسود: مرئيّ على الخلفيّتين الفاتحة والداكنة معًا.
+                renderer_->drawFilledRect(cursorX_, cursorY_,
+                                          CURSOR_SIZE_PX, CURSOR_SIZE_PX,
+                                          CURSOR_FILL_COLOR);
+                renderer_->drawRectOutline(cursorX_, cursorY_,
+                                           CURSOR_SIZE_PX, CURSOR_SIZE_PX,
+                                           CURSOR_OUTLINE_COLOR, CURSOR_OUTLINE_PX);
             }
 
         } // namespace freestanding

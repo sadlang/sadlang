@@ -236,6 +236,21 @@ errors:
       en: "‹<›/‹>›/‹>>› redirection is supported on POSIX systems (Linux) only in this release"
     has_detail: false
 
+  # ── خطأ تغيير المجلّد لأمر ‹:اذهب› ──
+  - code: CD_FAILED
+    id: REPL019
+    severity: error
+    title:
+      ar: "تعذّر الانتقال إلى المجلّد"
+      en: "Failed to change directory"
+    brief:
+      ar: "فشل الانتقال"
+      en: "Change directory failed"
+    hint:
+      ar: "تأكّد أنّ المجلّد موجود وأنّ لديك صلاحيّة الدخول إليه"
+      en: "Ensure the directory exists and you have permission to enter it"
+    has_detail: true
+
   # ── خطأ متغيّرات البيئة لأمر ‹:بيئة› ──
   - code: ENV_INVALID_NAME
     id: REPL018

@@ -23,6 +23,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
+#include "cli_flags_generated.h"
 #include "error_manager.h"
 #include "explanation_level.h"
 // (AR) محلل أعلام سياسة الذاكرة (--gc/--learn/--prod) لتوحيد سلوك الأخطاء
@@ -276,8 +277,8 @@ namespace sad
             if (isProjPdf && options_.docs_output_path.empty())
             {
                 diagnostics_.report_fatal(
-                    "PDF export requires --docs-out=<file.pdf> / "
-                    "تصدير PDF يتطلب --docs-out");
+                    std::string("PDF export requires / تصدير PDF يتطلب ") +
+                    canonical_flag(static_cast<std::uint16_t>(::sad::cli::FlagAction::DocsOut)) + "=<file.pdf>");
                 return false;
             }
 
@@ -388,7 +389,11 @@ namespace sad
                     if (isPdf)
                     {
                         diagnostics_.report_fatal(
-                            "--docs-format=pdf requires --docs-out / يتطلب pdf مساراً");
+                            std::string(canonical_flag(
+                                static_cast<std::uint16_t>(::sad::cli::FlagAction::DocsFormat))) +
+                            "=pdf requires / يتطلب " +
+                            canonical_flag(
+                                static_cast<std::uint16_t>(::sad::cli::FlagAction::DocsOut)));
                         return false;
                     }
                     std::cout << md;
@@ -586,9 +591,14 @@ namespace sad
                 if (source_file_count > 1 && single_module_format && !options_.module_mode)
                 {
                     diagnostics_.report_error(
-                        "صيغة الإخراج أحاديّة الوحدة (--emit-llvm/--emit-bc/-S) تقبل ملفًّا مصدريًّا واحدًا فقط؛ "
-                        "مُرِّر " + std::to_string(source_file_count) + " ملفّات. "
-                        "استخدم --module لترجمة كلّ ملفّ مستقلًّا ثمّ اربط، أو ادمج المصادر في ملفّ واحد. "
+                        std::string("صيغة الإخراج أحاديّة الوحدة (") +
+                        canonical_flag(static_cast<std::uint16_t>(::sad::cli::FlagAction::EmitLlvm)) + "/" +
+                        canonical_flag(static_cast<std::uint16_t>(::sad::cli::FlagAction::EmitBc)) + "/" +
+                        ::sad::cli::short_flags::EmitAsm +
+                        ") تقبل ملفًّا مصدريًّا واحدًا فقط؛ مُرِّر " +
+                        std::to_string(source_file_count) + " ملفّات. استخدم " +
+                        canonical_flag(static_cast<std::uint16_t>(::sad::cli::FlagAction::ModuleMode)) +
+                        " لترجمة كلّ ملفّ مستقلًّا ثمّ اربط، أو ادمج المصادر في ملفّ واحد. "
                         "(single-module output format accepts only one source file)");
                     return false;
                 }
@@ -873,6 +883,11 @@ namespace sad
 
             if (!parser.parse(options_, diagnostics_))
             {
+                // (AR) اطبع سبب الفشل: تشخيصات المحلِّل تُراكَم ولا تُطبع تلقائيًّا،
+                //      فكان فشل سطر الأوامر يخرج بـ1 صامتًا بلا رسالة.
+                // (EN) Print why: CLI diagnostics accumulate and are not auto-printed,
+                //      so a bad flag used to exit(1) silently with no message.
+                diagnostics_.print_diagnostics(std::cerr, options_.color_diagnostics);
                 return false;
             }
 

@@ -27,6 +27,10 @@ add_library(sad_memory_policy STATIC ${SAD_MEMORY_POLICY_SOURCES})
 
 target_include_directories(sad_memory_policy PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    # (AR) المصدر الوحيد لأعلام CLI المولَّدة (cli_flags_generated.h) — يستهلكه
+    #      الماسح المسبق لسياسة الذاكرة كما يستهلكه محلِّلا المحرّكين.
+    # (EN) Shared generated CLI-flags SoT, consumed by the memory pre-scanner.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cli/include
 )
 
 if(MSVC)

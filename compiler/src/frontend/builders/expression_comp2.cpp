@@ -27,17 +27,13 @@ namespace Sad
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(allocInst);
 
-                // (AR) بناء التعبير القابل للتكرار
-                // (EN) Build iterable expression
-                auto iterResult = buildExpression(setCompExpr->iterable.get());
-
-                // (AR) تهيئة تكرار الخريطة (مفاتيح + قيم إن طُلب فكّ زوج)
-                // (EN) Prepare map iteration (keys + values if pair-unpacking)
-                std::string mapValuesReg;
-                SadTypeKind keyElemType = SadTypeKind::Integer;
-                SadTypeKind valueVarType = SadTypeKind::Integer;
-                lowerMapComprehensionIterable(iterResult, setCompExpr->valueVariable,
-                                              mapValuesReg, keyElemType, valueVarType);
+                // (AR) تهيئة مصدر التكرار (مدى ⇒ حسابيّ، أو مصفوفة/خريطة) عبر المساعِد المشترك.
+                // (EN) Prepare the iteration source (range ⇒ arithmetic, or array/map) via the shared helper.
+                ComprehensionSource src = prepareComprehensionSource(
+                    setCompExpr->iterable.get(), setCompExpr->valueVariable);
+                std::string mapValuesReg = src.mapValuesReg;
+                SadTypeKind keyElemType = src.keyElemType;
+                SadTypeKind valueVarType = src.valueVarType;
 
                 // (AR) تخصيص عداد الحلقة
                 // (EN) Allocate loop counter
@@ -108,12 +104,7 @@ namespace Sad
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(loadIdx);
 
-                std::string lenReg = b_.newTempRegister();
-                SIRInstruction callLen(SIROpcode::ARRAY_LEN);
-                callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(callLen);
+                std::string lenReg = comprehensionSourceLength(src);
 
                 std::string cmpReg = b_.newTempRegister();
                 if (b_.currentBlock_)
@@ -137,13 +128,9 @@ namespace Sad
 
                 b_.enterScope();
 
-                std::string elemReg = b_.newTempRegister();
-                SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-                loadElem.result = SIROperand::Register(elemReg, keyElemType);
-                loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(loadElem);
+                // (AR) العنصر الحالي (المدى: حسابيّ؛ وإلّا ARRAY_GET) عبر المساعِد المشترك.
+                // (EN) Current element (range: arithmetic; else ARRAY_GET) via the shared helper.
+                std::string elemReg = comprehensionSourceElement(src, curIdxReg);
 
                 VariableInfo loopVar;
                 loopVar.name = setCompExpr->variable;
@@ -402,187 +389,6 @@ namespace Sad
                 BuildResult setResult(resultSetReg, SadTypeKind::Array);
                 setResult.elementType = elemExprResult.type;
                 return setResult;
-            }
-
-            // ============================================================================
-            // buildExprGenerator
-            // ============================================================================
-            BuildResult ExpressionBuilder::buildExprGenerator(AST::GeneratorExpr *genExpr)
-            {
-#ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found GeneratorExpr" << std::endl;
-#endif
-
-                // (AR) المولّد يُقيَّم بشكل كامل كمصفوفة (مثل المفسر)
-                // (EN) Generator eagerly evaluated as array (matching interpreter)
-                std::string resultArrReg = b_.newTempRegister();
-                SIRInstruction allocInst;
-                allocInst.opcode = SIROpcode::ALLOC;
-                allocInst.result = SIROperand::Register(resultArrReg, SadTypeKind::Array);
-                allocInst.operands.push_back(SIROperand::ConstantI64(0));
-                allocInst.comment = "generator expression result";
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(allocInst);
-
-                auto iterResult = buildExpression(genExpr->iterable.get());
-
-                std::string idxReg = b_.newTempRegister();
-                SIRInstruction allocIdx;
-                allocIdx.opcode = SIROpcode::ALLOC;
-                allocIdx.result = SIROperand::Register(idxReg, SadTypeKind::Integer);
-                allocIdx.operands.push_back(SIROperand::ConstantI64(1));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(allocIdx);
-
-                SIRInstruction storeZero;
-                storeZero.opcode = SIROpcode::STORE;
-                storeZero.operands.push_back(SIROperand::ConstantI64(0));
-                storeZero.operands.push_back(SIROperand::Register(idxReg, SadTypeKind::Integer));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(storeZero);
-
-                std::string condLabel = b_.newLabel("gen_cond");
-                std::string bodyLabel = b_.newLabel("gen_body");
-                std::string exitLabel = b_.newLabel("gen_exit");
-
-                auto condBlock = b_.createBasicBlock(condLabel);
-                auto bodyBlock = b_.createBasicBlock(bodyLabel);
-                auto exitBlock = b_.createBasicBlock(exitLabel);
-
-                if (b_.currentBlock_)
-                {
-                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
-                }
-
-                if (b_.currentFunction_)
-                    b_.currentFunction_->addBasicBlock(condBlock);
-                b_.currentBlock_ = condBlock;
-
-                std::string curIdxReg = b_.newTempRegister();
-                SIRInstruction loadIdx;
-                loadIdx.opcode = SIROpcode::LOAD;
-                loadIdx.result = SIROperand::Register(curIdxReg, SadTypeKind::Integer);
-                loadIdx.operands.push_back(SIROperand::Register(idxReg, SadTypeKind::Integer));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(loadIdx);
-
-                std::string lenReg = b_.newTempRegister();
-                SIRInstruction callLen;
-                callLen.opcode = SIROpcode::CALL;
-                callLen.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
-                callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(callLen);
-
-                std::string cmpReg = b_.newTempRegister();
-                if (b_.currentBlock_)
-                {
-                    b_.currentBlock_->addInstruction(SIRInstruction::Binary(
-                        SIROpcode::LT,
-                        SIROperand::Register(cmpReg, SadTypeKind::Boolean),
-                        SIROperand::Register(curIdxReg, SadTypeKind::Integer),
-                        SIROperand::Register(lenReg, SadTypeKind::Integer)));
-                    b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
-                        SIROperand::Register(cmpReg, SadTypeKind::Boolean),
-                        SIROperand::Label(bodyLabel),
-                        SIROperand::Label(exitLabel)));
-                }
-
-                if (b_.currentFunction_)
-                    b_.currentFunction_->addBasicBlock(bodyBlock);
-                b_.currentBlock_ = bodyBlock;
-
-                b_.enterScope();
-
-                std::string elemReg = b_.newTempRegister();
-                SIRInstruction loadElem;
-                loadElem.opcode = SIROpcode::LOAD;
-                loadElem.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
-                loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-                loadElem.operands.push_back(SIROperand::Register(curIdxReg, SadTypeKind::Integer));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(loadElem);
-
-                VariableInfo loopVar;
-                loopVar.name = genExpr->variable;
-                loopVar.type = SadTypeKind::Integer;
-                loopVar.registerName = elemReg;
-                loopVar.isMutable = false;
-                loopVar.scopeLevel = b_.currentScopeLevel_;
-                b_.addVariable(loopVar);
-
-                bool hasCondition = (genExpr->condition != nullptr);
-                std::string storeLabel, incLabel;
-
-                if (hasCondition)
-                {
-                    storeLabel = b_.newLabel("gen_store");
-                    incLabel = b_.newLabel("gen_inc");
-
-                    auto condResult = buildExpression(genExpr->condition.get());
-                    auto storeBlock2 = b_.createBasicBlock(storeLabel);
-                    auto incBlock = b_.createBasicBlock(incLabel);
-
-                    if (b_.currentBlock_)
-                    {
-                        b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
-                            SIROperand::Register(condResult.registerName, SadTypeKind::Boolean),
-                            SIROperand::Label(storeLabel),
-                            SIROperand::Label(incLabel)));
-                    }
-
-                    if (b_.currentFunction_)
-                        b_.currentFunction_->addBasicBlock(storeBlock2);
-                    b_.currentBlock_ = storeBlock2;
-                }
-
-                auto elemExprResult = buildExpression(genExpr->element.get());
-
-                SIRInstruction appendInst;
-                appendInst.opcode = SIROpcode::CALL;
-                appendInst.operands.push_back(SIROperand::ConstantString("__sad_array_push"));
-                appendInst.operands.push_back(SIROperand::Register(resultArrReg, SadTypeKind::Array));
-                appendInst.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
-                if (b_.currentBlock_)
-                    b_.currentBlock_->addInstruction(appendInst);
-
-                if (hasCondition)
-                {
-                    if (b_.currentBlock_)
-                    {
-                        b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(incLabel)));
-                    }
-                    auto incBlock2 = b_.createBasicBlock(incLabel);
-                    if (b_.currentFunction_)
-                        b_.currentFunction_->addBasicBlock(incBlock2);
-                    b_.currentBlock_ = incBlock2;
-                }
-
-                std::string nextIdxReg = b_.newTempRegister();
-                if (b_.currentBlock_)
-                {
-                    b_.currentBlock_->addInstruction(SIRInstruction::Binary(
-                        SIROpcode::ADD_I64,
-                        SIROperand::Register(nextIdxReg, SadTypeKind::Integer),
-                        SIROperand::Register(curIdxReg, SadTypeKind::Integer),
-                        SIROperand::ConstantI64(1)));
-
-                    SIRInstruction storeIdx;
-                    storeIdx.opcode = SIROpcode::STORE;
-                    storeIdx.operands.push_back(SIROperand::Register(nextIdxReg, SadTypeKind::Integer));
-                    storeIdx.operands.push_back(SIROperand::Register(idxReg, SadTypeKind::Integer));
-                    b_.currentBlock_->addInstruction(storeIdx);
-                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
-                }
-
-                b_.exitScope();
-
-                if (b_.currentFunction_)
-                    b_.currentFunction_->addBasicBlock(exitBlock);
-                b_.currentBlock_ = exitBlock;
-
-                return BuildResult(resultArrReg, SadTypeKind::Array);
             }
 
         } // namespace SIR

@@ -140,7 +140,7 @@ int BuildCommand::execute(const ParsedOptions& options) {
     if (options.has("emit") || options.has("أصدر")) {
         std::string emit = options.has("emit") ? options.get("emit") : options.get("أصدر");
         if (emit == "llvm-ir" || emit == "llvm") {
-            cmd << " --emit-llvm";
+            cmd << " --أظهر-llvm";
         } else if (emit == "asm" || emit == "تجميع") {
             cmd << " -S";
         } else if (emit == "obj" || emit == "كائن") {
@@ -157,15 +157,15 @@ int BuildCommand::execute(const ParsedOptions& options) {
     // (AR) الربط الثابت
     // (EN) Static linking
     if (options.has("static") || options.has("ثابت")) {
-        cmd << " --static";
+        cmd << " --ساكن";
     }
-    
+
     // (AR) المنصة الهدف
     // (EN) Target triple
     if (options.has("target")) {
-        cmd << " --target=" << options.get("target");
+        cmd << " --هدف=" << options.get("target");
     } else if (options.has("هدف")) {
-        cmd << " --target=" << options.get("هدف");
+        cmd << " --هدف=" << options.get("هدف");
     }
     
     std::string full_cmd = cmd.str();

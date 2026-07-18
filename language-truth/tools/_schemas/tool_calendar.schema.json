@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/tools/tool_calendar.schema.json",
+  "title": "Tool SoT — Calendar / تقويم عربيّ (مصدر حقيقة)",
+  "description": "مخطط calendar.yaml لصدَفةٍ تفاعليّة: أسماء الأيّام السبعة العربيّة (مرتّبة بترتيب tm_wday: 0=الأحد…6=السبت) + اسم آبلت التاريخ القانونيّ + صيغة سطر العرض. التوسّع للأشهر/الهجريّ/الأرقام قرار مالك معلَّق — لا يُوسَّع المخطّط قبله. مصدر حقيقة الأداة (لا لغة ص).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "tool", "description_ar", "description_en", "date_applet", "line_format", "weekdays"],
+  "properties": {
+    "version": { "type": "string" },
+    "tool": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 },
+    "date_applet": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s:|&<>()$\"';\\\\]+$",
+      "description": "الاسم العربيّ القانونيّ لآبلت التاريخ (نفس قواعد اسم الآبلت: رمز واحد بلا مسافات/محارف صدَفة). يتحقّق المولِّد من وجوده في applets.yaml وعدم تصادمه مع commands.yaml"
+    },
+    "line_format": {
+      "type": "string",
+      "minLength": 1,
+      "description": "صيغة printf لسطر العرض: %s واحد (اسم اليوم) ثمّ ستّة تحويلات عدديّة (سنة، شهر، يوم، ساعة، دقيقة، ثانية) — يتحقّق المولِّد من العدد والترتيب"
+    },
+    "weekdays": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "أسماء الأيّام السبعة مرتّبة بترتيب tm_wday في POSIX: الفهرس 0 = الأحد … 6 = السبت"
+    }
+  }
+}

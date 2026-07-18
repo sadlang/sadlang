@@ -274,6 +274,42 @@ CODEGEN_DOMAINS = (
         ),
         "args": lambda d: ["--out-dir", d, "--quiet"],
     },
+    {
+        # (AR) أعلام مترجم لغة ص الطويلة (--) — المصدر الوحيد للحقيقة. اسم عربيّ
+        #      قانونيّ وحيد لكلّ علم، بلا مرادفات ولا توافق خلفيّ. يُولَّد جدول
+        #      constexpr مُلتزَم يستهلكه المحلِّل بدل السلاسل الحرّة (يسدّ خرق «لا
+        #      نصّ في الكود» في طبقة الـCLI؛ الأعلام القصيرة القياسيّة تبقى عرفًا).
+        # (EN) Compiler long (--) flags — single source of truth. One canonical
+        #      Arabic name per flag, no aliases, no backward compat. Emits a
+        #      committed constexpr table the driver consumes instead of raw strings.
+        "name": "cli_flags",
+        "script": "gen_cli_flags.py",
+        "out_dir": "shared/cli/include",
+        "outputs": ("cli_flags_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/cli_flags.yaml",
+            "--schema", "language-truth/_schemas/cli_flags.schema.json",
+            "--header", f"{d}/cli_flags_generated.h",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) توثيق Markdown لأعلام سطر الأوامر — مولَّد من المصدر الوحيد نفسه،
+        #      مجموعًا حسب المحرّك المستهلِك. بضمّه نطاقًا يمسك `gen --check`
+        #      انحرافَه فلا يصير بائتًا عند تعديل الأعلام.
+        # (EN) CLI-flags Markdown docs generated from the same SoT, grouped by
+        #      consuming engine. As a domain, `gen --check` guards it against drift.
+        "name": "cli_flags_docs",
+        "script": "gen_cli_flags_docs.py",
+        "out_dir": "docs/cli_flags/_generated",
+        "outputs": ("cli_flags.ar.md",),
+        "args": lambda d: [
+            "--yaml", "language-truth/cli_flags.yaml",
+            "--schema", "language-truth/_schemas/cli_flags.schema.json",
+            "--out-dir", d,
+            "--quiet",
+        ],
+    },
 )
 
 # (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —

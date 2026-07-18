@@ -2,8 +2,8 @@
 // repl_sot_generated.h — كتالوج «مصدر حقيقة الأدوات» المولَّد آلياً / auto-generated Tool-SoT catalog
 // (AR) ⚠️ لا تُعدِّل يدوياً — عدِّل language-truth/tools/repl/*.yaml ثمّ أعد التوليد (x.py gen).
 // (EN) ⚠️ DO NOT EDIT — modify language-truth/tools/repl/*.yaml then rebuild (x.py gen).
-// (AR) المصدر: _meta.yaml + errors.yaml + messages.yaml + commands.yaml
-// (EN) Source: _meta.yaml + errors.yaml + messages.yaml + commands.yaml
+// (AR) المصدر: _meta.yaml + errors.yaml + messages.yaml + commands.yaml + applets.yaml + calendar.yaml
+// (EN) Source: _meta.yaml + errors.yaml + messages.yaml + commands.yaml + applets.yaml + calendar.yaml
 
 #pragma once
 
@@ -42,6 +42,7 @@ enum class Error {
     REDIRECT_NO_TARGET,
     REDIRECT_FAILED,
     REDIRECT_UNSUPPORTED,
+    CD_FAILED,
     ENV_INVALID_NAME
 };
 
@@ -78,6 +79,8 @@ enum class Message {
     FUNCS_HEADER,
     HISTORY_HEADER,
     USAGE_LABEL,
+    HELP_DELEGATE_LABEL,
+    HELP_NO_DESC,
     NO_VARS,
     NO_FUNCS,
     NO_HISTORY,
@@ -118,7 +121,8 @@ enum class CommandHandler {
     VARS,
     FUNCS,
     RUN,
-    ENV
+    ENV,
+    CD
 };
 
 struct CommandEntry {
@@ -135,10 +139,16 @@ extern const std::size_t kCommandsCount;
 
 // ── معجم الأوامر العربيّة / Arabic applet lexicon ──
 // (AR) اسمٌ عربيّ صريح → برنامج التنفيذ الحقيقيّ؛ يترجمه الموزِّع قبل execvp.
+//      descAr (تعريب ١٠ — شريحة الإغلاق): وصف عربيّ فصيح بسطر واحد يعرضه
+//      «:مساعدة اسم» — غير فارغ دائمًا: التغطية اكتملت 272/272 والمخطّط يفرض
+//      «وصف» لكلّ آبلت (بقي النوع مؤشّرًا والمستهلكون يدافعون عن nullptr عمقًا).
 // (EN) an explicit Arabic name → the real exec program; the dispatcher translates before execvp.
+//      descAr: one-line Arabic help description shown by «:مساعدة name» — always
+//      non-null now: full coverage reached and the schema requires it (consumers keep null-guards as defense).
 struct AppletEntry {
     const char *arabic;
     const char *exec;
+    const char *descAr;
 };
 
 extern const AppletEntry kApplets[];
@@ -147,6 +157,32 @@ extern const std::size_t kAppletsCount;
 /// (AR) يترجم اسمًا عربيًّا صريحًا إلى برنامج التنفيذ؛ nullptr إن لم يُعرَّف (فيبقى الاسم كما هو).
 /// (EN) translates an explicit Arabic name to its exec program; nullptr if undefined (kept as-is).
 const char *appletExec(std::string_view arabic);
+
+/// (AR) يعيد مدخل المعجم كاملًا لاسمٍ عربيّ صريح (لقراءة descAr)؛ nullptr إن لم يُعرَّف.
+/// (EN) full lexicon entry for an explicit Arabic name (to read descAr); nullptr if undefined.
+const AppletEntry *findApplet(std::string_view arabic);
+
+// ── التقويم / Calendar ──
+// (AR) الشريحة الأولى من «تعريب ٨»: أسماء الأيّام السبعة فقط (calendar.yaml).
+//      التوسّع (أشهر/هجريّ/أرقام مشرقيّة/منطقة زمنيّة) قرار مالك معلَّق — لا يُوسَّع هنا.
+// (EN) First slice: the seven Arabic weekday names only; months/Hijri are pending owner decisions.
+
+/// (AR) الاسم العربيّ القانونيّ لآبلت التاريخ — يلتقطه الموزِّع بلا وسائط كأمر داخليّ.
+/// (EN) canonical Arabic date-applet name — intercepted argument-less as a builtin.
+inline constexpr const char *kDateAppletArabic = "التاريخ";
+
+/// (AR) صيغة printf لسطر التاريخ العربيّ: %s اسم اليوم ثمّ سنة/شهر/يوم/ساعة/دقيقة/ثانية.
+/// (EN) printf format of the Arabic date line: %s weekday then y/m/d h:m:s integers.
+inline constexpr const char *kDateLineFormat = "%s %04d-%02d-%02d، الساعة %02d:%02d:%02d";
+
+/// (AR) أسماء الأيّام مرتّبة بترتيب tm_wday في POSIX: 0=الأحد … 6=السبت.
+/// (EN) weekday names ordered by POSIX tm_wday: 0=Sunday … 6=Saturday.
+extern const char *const kWeekdays[];
+extern const std::size_t kWeekdaysCount;
+
+/// (AR) اسم اليوم لفهرس tm_wday؛ nullptr خارج المدى [0،6].
+/// (EN) weekday name for a tm_wday index; nullptr outside [0,6].
+const char *weekdayName(int tmWday);
 
 } // namespace SoT
 } // namespace REPL

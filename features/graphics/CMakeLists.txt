@@ -127,6 +127,11 @@ option(SAD_UI_ENABLE_FREESTANDING "تفعيل خلفية الوضع المستق
 set(SAD_UI_FREESTANDING_SOURCES
     backends/freestanding/src/renderer.cpp
     backends/freestanding/src/builtin_font.cpp
+    # (AR) تشكيل عربيّ متعدّد المنصّات — يعتمده renderer.cpp (يُترجَم في كلّ المنصّات).
+    #      linuxfb/psf_font/evdev لينكس-خاصّة تبنيها sad-os خارجيًّا فلا تُدرَج هنا.
+    # (EN) Cross-platform Arabic shaper — required by renderer.cpp (built on all
+    #      platforms). linuxfb/psf_font/evdev are Linux-only (built by sad-os).
+    backends/freestanding/src/arabic_shaper.cpp
 )
 
 # العناصر

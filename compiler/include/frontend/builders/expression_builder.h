@@ -95,7 +95,6 @@ namespace Sad
 
                 BuildResult buildExprSetComp(Sad::AST::SetComprehensionExpr *expr);
 
-                BuildResult buildExprGenerator(Sad::AST::GeneratorExpr *expr);
 
                 BuildResult buildExprLambda(Sad::AST::LambdaExpr *expr);
 
@@ -149,6 +148,51 @@ namespace Sad
                                                    std::string &outValuesReg,
                                                    SadTypeKind &outKeyType,
                                                    SadTypeKind &outValueType);
+
+                // (AR) مصدر تكرار استيعابٍ محسوم: إمّا مدى (يُخفَّض حسابيًّا: بداية+عدّاد×خطوة)
+                //      أو مصفوفة/خريطة (ARRAY_LEN/ARRAY_GET). يوحّد كشف المدى ودعمه بين
+                //      استيعابات القوائم/الخرائط/المجموعات كي لا تتباعد.
+                // (EN) A resolved comprehension iteration source: either a range (lowered
+                //      arithmetically: start + counter × step) or an array/map
+                //      (ARRAY_LEN/ARRAY_GET). Unifies range detection/support across the
+                //      list/dict/set comprehensions so they cannot diverge.
+                struct ComprehensionSource
+                {
+                    bool isRange = false;
+                    // (AR) مسار المدى / (EN) range path
+                    std::string startReg;
+                    std::string stepReg;
+                    std::string lenReg;
+                    // (AR) مسار المصفوفة/الخريطة / (EN) array/map path
+                    std::string iterRegName;
+                    SadTypeKind iterType = SadTypeKind::Array;
+                    std::string mapValuesReg;
+                    SadTypeKind keyElemType = SadTypeKind::Integer;
+                    SadTypeKind valueVarType = SadTypeKind::Integer;
+                };
+
+                // (AR) يُهيّئ مصدر تكرار الاستيعاب في كتلة ما-قبل-الحلقة الحاليّة: يكشف
+                //      RangeExpr فيبثّ حدوده وخطوته وطوله لابتفريعيًّا؛ وإلّا يبني المصدر
+                //      ويُهيّئ تكرار الخريطة. يُستدعى قبل كتل الحلقة.
+                // (EN) Prepares the comprehension iteration source in the current loop
+                //      preheader: detects a RangeExpr and emits its bounds/step/length
+                //      branchlessly; otherwise builds the source and prepares map
+                //      iteration. Call before the loop blocks.
+                ComprehensionSource prepareComprehensionSource(Sad::AST::Expression *iterable,
+                                                               const std::string &valueVar);
+
+                // (AR) يعيد سجلّ طول المصدر (المدى: محسوب مسبقًا؛ وإلّا ARRAY_LEN). يبثّ في
+                //      الكتلة الحاليّة (كتلة الشرط عادةً).
+                // (EN) Returns the source length register (range: precomputed; else
+                //      ARRAY_LEN). Emits into the current block (usually the cond block).
+                std::string comprehensionSourceLength(const ComprehensionSource &src);
+
+                // (AR) يعيد سجلّ العنصر عند العدّاد (المدى: بداية+عدّاد×خطوة؛ وإلّا ARRAY_GET).
+                //      يبثّ في الكتلة الحاليّة (كتلة الجسم).
+                // (EN) Returns the element register at the counter (range: start +
+                //      counter × step; else ARRAY_GET). Emits into the current block (body).
+                std::string comprehensionSourceElement(const ComprehensionSource &src,
+                                                       const std::string &curIdxReg);
 
                 // (AR) [ISSUE-080] يبني الوصول النقطيّ المباشر لحقل ADT بتوزيعٍ حسب وسم
                 //      الحالة زمن التشغيل: يجمع (وسم، فهرس) لكلّ حالةٍ تحوي الحقل ويبثّ

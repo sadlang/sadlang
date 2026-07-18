@@ -112,8 +112,6 @@ namespace Sad
             // (EN) Save handle in context for use in await and return
             cg_.context_info_.namedValues["__coro_hdl"] = coroHdl;
             cg_.context_info_.namedValues["__coro_promise"] = promise;
-
-            std::cerr << "[CORO] Preamble emitted for '" << sirFunc->getName() << "'" << std::endl;
         }
 
         void CoroutinesCodeGen::emitCoroutineEpilogue()
@@ -186,8 +184,6 @@ namespace Sad
             cg_.context_info_.coroCleanupBB = nullptr;
             cg_.context_info_.coroSuspendBB = nullptr;
             cg_.context_info_.coroFinalBB = nullptr;
-
-            std::cerr << "[CORO] Epilogue emitted" << std::endl;
         }
 
         llvm::Value *CoroutinesCodeGen::emitCoroSuspend(std::shared_ptr<SIRInstruction> inst)
@@ -424,8 +420,17 @@ namespace Sad
             cg_.builder_->SetInsertPoint(resumeBB);
             cg_.context_info_.currentBlock = resumeBB;
 
-            std::cerr << "[GEN] Emitted GENERATOR_YIELD #" << suspId << std::endl;
-            return nullptr;
+            // (AR) أنتج تعليمة بلا نتيجة (statement). لكن الموزّع المتدرّج يعتبر
+            //      nullptr إشارةَ «غير معالَج ⇒ جرّب الطبقة التالية»، فكان يسقط عبر
+            //      كلّ الطبقات ويبلّغ «Unsupported opcode:275» زائفًا فوق توليدٍ ناجح
+            //      (نفس عرف emitEnvStore الذي يعيد قيمةً غير فارغة إشارةَ نجاح). نعيد
+            //      قيمة التعليق (susp) غير الفارغة إشارةَ «عولِج بنجاح».
+            // (EN) Yield is a void statement, but the tiered dispatcher reads nullptr
+            //      as "unhandled ⇒ try next tier", so it fell through every tier and
+            //      spuriously reported "Unsupported opcode:275" over a successful emit
+            //      (mirroring emitEnvStore, which returns a non-null value to signal
+            //      success). Return the non-null suspend value as the handled sentinel.
+            return susp;
         }
 
         // ============================================================================
@@ -609,7 +614,6 @@ namespace Sad
                 cg_.context_info_.namedValues[inst->result->name] = arrAsI64;
             }
 
-            std::cerr << "[GEN] Emitted GENERATOR_CONSUME" << std::endl;
             return arrAsI64;
         }
     } // namespace LLVM

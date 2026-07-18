@@ -5,9 +5,9 @@
 # (AR) المُشغّل القياسيّ (runner.py) يقارن stdout بلا أعلام، فلا يغطّي اختلاف
 #      السلوك حسب علم الذاكرة. هذا السكربت يؤكّد صرامة NS-04 الثلاثية لحالة
 #      الوصول الخام (`م.الطول` على `نص؟`) في **المفسّر والمترجم** معًا:
-#        --learn (افتراضيّ) → تحذير على stderr + خروج 0 (التنفيذ/البناء يكمل)
-#        --gc               → صامت (لا تحذير أمان null)
-#        --prod             → خطأ قاتل (خروج ≠ 0 / فشل البناء) [D11]
+#        --تعلم (افتراضيّ) → تحذير على stderr + خروج 0 (التنفيذ/البناء يكمل)
+#        --جامع               → صامت (لا تحذير أمان null)
+#        --إنتاج             → خطأ قاتل (خروج ≠ 0 / فشل البناء) [D11]
 #      ويؤكّد **عدم** الرصد للوصول الآمن `؟.` (لا إيجابيّ كاذب).
 #
 # (EN) Asserts the three NS-04 strictness levels for raw-access on optionals
@@ -34,24 +34,24 @@ check() { # وصف ، شرط(0=نجاح)
 }
 
 echo "== المفسّر (sad-run) =="
-err=$("$RUN" --learn "$RAW" 2>&1 1>/dev/null); rc=$?
+err=$("$RUN" --تعلم "$RAW" 2>&1 1>/dev/null); rc=$?
 echo "$err" | grep -q "غير آمن"; check "learn: تحذير NS-04 يظهر" $?
 check "learn: الخروج 0 (يكمل)" $([ $rc -eq 0 ] && echo 0 || echo 1)
-err=$("$RUN" --gc "$RAW" 2>&1 1>/dev/null)
+err=$("$RUN" --جامع "$RAW" 2>&1 1>/dev/null)
 echo "$err" | grep -q "غير آمن"; g=$?; check "gc: لا تحذير" $([ $g -ne 0 ] && echo 0 || echo 1)
-"$RUN" --prod "$RAW" >/dev/null 2>&1; rc=$?
+"$RUN" --إنتاج "$RAW" >/dev/null 2>&1; rc=$?
 check "prod: خطأ قاتل (خروج ≠ 0)" $([ $rc -ne 0 ] && echo 0 || echo 1)
-# (AR) لا إيجابيّ كاذب على الوصول الآمن حتى في --prod
-"$RUN" --prod "$SAFE" >/dev/null 2>&1; rc=$?
+# (AR) لا إيجابيّ كاذب على الوصول الآمن حتى في --إنتاج
+"$RUN" --إنتاج "$SAFE" >/dev/null 2>&1; rc=$?
 check "safe: '؟.' لا يُرصَد (prod خروج 0)" $([ $rc -eq 0 ] && echo 0 || echo 1)
 
 echo "== المترجم (sad-build) =="
 if [ -x "$BUILD" ]; then
   out="$TMP/raw.exe"
-  "$BUILD" --learn "$RAW" -o "$out" >/dev/null 2>&1; check "learn: البناء ينجح" $?
-  perr=$("$BUILD" --prod "$RAW" -o "$out" 2>&1)
+  "$BUILD" --تعلم "$RAW" -o "$out" >/dev/null 2>&1; check "learn: البناء ينجح" $?
+  perr=$("$BUILD" --إنتاج "$RAW" -o "$out" 2>&1)
   echo "$perr" | grep -qiE "error|خطأ|غير آمن"; check "prod: البناء يبلّغ خطأ NS-04" $?
-  "$BUILD" --prod "$SAFE" -o "$out" >/dev/null 2>&1; check "safe: '؟.' يبني في prod" $?
+  "$BUILD" --إنتاج "$SAFE" -o "$out" >/dev/null 2>&1; check "safe: '؟.' يبني في prod" $?
 else
   echo "  (تخطّي المترجم — sad-build.exe غير موجود)"
 fi

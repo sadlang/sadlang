@@ -55,6 +55,10 @@ EXPECTED_OUTPUTS = {
     # (EN) Tools' Source-of-Truth — first tool sad-repl (errors/messages/commands catalog).
     "tools/repl/generated/repl_sot_generated.h",
     "tools/repl/generated/repl_sot_generated.cpp",
+    # (AR) أعلام واجهة الأوامر — مصدر حقيقة cli_flags.yaml ⇒ رأس C++ + وثيقة عربيّة.
+    # (EN) CLI flags — cli_flags.yaml source-of-truth ⇒ C++ header + Arabic doc.
+    "shared/cli/include/cli_flags_generated.h",
+    "docs/cli_flags/_generated/cli_flags.ar.md",
     # (AR) توثيق قواعد المحلّل — Markdown مولَّد من language-truth/grammar/*.yaml
     #      (8 طبقات + فهرس)، مُلتزَم تحت docs/parser_rule/_generated.
     # (EN) Parser-grammar docs — generated Markdown (8 layers + INDEX) committed

@@ -185,6 +185,7 @@ namespace Sad
                 bool isFieldAccess = false;    ///< (AR) نتيجة وصول لحقل OOP (لا تحتاج LOAD إضافي) / (EN) OOP field access result (no extra LOAD needed)
                 bool isDirectValue = false;    ///< (AR) قيمة مباشرة (نتيجة CALL/CLOSURE_CALL) لا تحتاج LOAD إضافي / (EN) Direct value (CALL/CLOSURE_CALL result) — no extra LOAD needed
                 std::string closureLambdaName; ///< (AR) اسم __lambda_X المرتبط عند إسناد لامدا / (EN) Associated __lambda_X name for lambda assignment
+                bool isGeneratorFuncRef = false; ///< (AR) مرجع دالّة مولّدة (يُصدِر CONSUME عند الاستدعاء غير المباشر) / (EN) Reference to a generator function (emits CONSUME on indirect call)
 
                 /**
                  * @brief (AR) منشئ افتراضي
@@ -273,6 +274,17 @@ namespace Sad
                 //      Used in Step 3.5 to determine CLOSURE_CALL return type
                 // ================================================================
                 std::string closureLambdaName; ///< (AR) اسم __lambda_X المرتبط / (EN) Associated __lambda_X name
+
+                // (AR) هل المتغيّر مرجعُ دالّةٍ مولّدة (مثل `متغير د = عد` حيث عد مولّد)؟
+                //      يُستعمل عند الاستدعاء غير المباشر `د()` لإصدار GENERATOR_CONSUME
+                //      (وإلّا يبقى المقبض خامًا فينهار التكرار). يطابق المفسّر الذي يجمع
+                //      قيم المولّد في مصفوفة عند الاستدعاء.
+                // (EN) Does this variable hold a reference to a generator function (e.g.
+                //      `var d = count` where count is a generator)? Used at the indirect
+                //      call `d()` to emit GENERATOR_CONSUME (else the raw handle leaks and
+                //      iteration crashes). Matches the interpreter which collects the
+                //      generator's yields into an array at call time.
+                bool isGeneratorFuncRef = false;
 
                 /**
                  * @brief (AR) منشئ افتراضي
@@ -1507,12 +1519,6 @@ namespace Sad
                 BuildResult buildExprSetComp(Sad::AST::SetComprehensionExpr *expr)
                 {
                     return expressions_->buildExprSetComp(expr);
-                }
-
-                /// @brief (AR) بناء تعبير GeneratorExpr / (EN) Build GeneratorExpr
-                BuildResult buildExprGenerator(Sad::AST::GeneratorExpr *expr)
-                {
-                    return expressions_->buildExprGenerator(expr);
                 }
 
                 /// @brief (AR) بناء تعبير InlineAsmExpr / (EN) Build InlineAsmExpr

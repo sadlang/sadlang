@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/cli_flags.schema.json",
+  "title": "CLI Flags Schema (V5)",
+  "description": "مخطط JSON لأعلام المترجم الطويلة — cli_flags.yaml. يفرض اسمًا عربيًّا قانونيًّا وحيدًا لكلّ علم ويمنع المرادفات بنيويًّا.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "flags"],
+  "properties": {
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+    "description_ar": { "type": "string" },
+    "description_en": { "type": "string" },
+    "short_flags": {
+      "type": "array",
+      "description": "أعلام قصيرة قياسيّة موروثة من سلسلة الأدوات — ليست أعلامًا عربيّة قانونيّة، لكنّ أسماءها تُولَّد كثوابت كي لا تبقى سلاسل حرّة في الكود",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["const", "name", "desc_ar", "desc_en"],
+        "properties": {
+          "const": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+          "name": { "type": "string", "pattern": "^-[^-].*$" },
+          "desc_ar": { "type": "string", "minLength": 1 },
+          "desc_en": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "value_constants": {
+      "type": "array",
+      "description": "قيم قانونيّة للأعلام القيميّة (كامل/نحيف/desktop/…) — تُولَّد ثوابت مسمّاة",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["const", "value"],
+        "properties": {
+          "const": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+          "value": { "type": "string", "minLength": 1 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "description": "نصوص تشخيصات المحلِّل — تُولَّد ثوابت مسمّاة (لا سلاسل حرّة في الكود)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["const", "text"],
+        "properties": {
+          "const": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+          "text": { "type": "string", "minLength": 1 },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "flags": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "canonical", "kind", "action", "engines", "desc_ar", "desc_en"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^flag\\.[a-z][a-z0-9_]*$",
+            "description": "معرّف فريد: flag.<snake_case>"
+          },
+          "engines": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "مَن يستهلك العلم: المترجم (sad-build)، المفسّر (sad-run)، أو ماسح سياسة الذاكرة المسبق (يعمل في المحرّكين)",
+            "items": { "type": "string", "enum": ["compiler", "interpreter", "memory"] }
+          },
+          "canonical": {
+            "type": "string",
+            "pattern": "^--[^ =]*[\\u0600-\\u06FF][^ =]*$",
+            "description": "الاسم العربيّ القانونيّ الوحيد؛ يبدأ بـ -- بلا فراغات ولا = (القيمة تُمرَّر بصيغة الاسم=قيمة)، ويجب أن يحوي حرفًا عربيًّا واحدًا على الأقلّ (يمنع عودة اسم إنجليزيّ خالص كـ --gc، ويسمح بلاحقة تقنيّة كـ --أظهر-llvm)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["bool", "value"]
+          },
+          "action": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9]*$",
+            "description": "وسم C++ (PascalCase) يميّز السلوك في مُوزِّع المحلِّل"
+          },
+          "sets": {
+            "type": "string",
+            "description": "حقل CompilerOptions المتأثّر (توثيقيّ فقط)"
+          },
+          "value_hint": {
+            "type": "string",
+            "description": "تلميح شكل القيمة لأعلام value (للمساعدة)"
+          },
+          "note": { "type": "string" },
+          "desc_ar": { "type": "string", "minLength": 1 },
+          "desc_en": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

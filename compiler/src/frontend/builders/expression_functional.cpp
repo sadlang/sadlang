@@ -450,47 +450,87 @@ namespace Sad
                 auto startResult = buildExpression(rangeExpr->start.get());
                 auto endResult = buildExpression(rangeExpr->end.get());
 
-                // (AR) تمثيل المدى كخريطة بسيطة تحتوي على بداية ونهاية
-                // (EN) Represent range as a simple struct with start and end
+                // (AR) تجسيد الثابت في سجلّ قبل التخزين (start/end قد يكونان ثابتين
+                //      كـ 1..10). يطابق عرف materializeResult في باني الصفوف/الخرائط.
+                // (EN) Materialize a constant into a register before storing (start/end
+                //      may be constants as in 1..10). Mirrors the tuple/map builders'
+                //      materializeResult convention.
+                auto materialize = [&](BuildResult &res) -> SIROperand
+                {
+                    if (res.isConstant)
+                    {
+                        std::string reg = b_.newTempRegister();
+                        res.registerName = reg;
+                        SIRInstruction moveInst(SIROpcode::MOVE);
+                        moveInst.result = SIROperand::Register(reg, res.type);
+                        if (res.type == SadTypeKind::String)
+                            moveInst.operands.push_back(SIROperand::ConstantString(res.constantValue));
+                        else if (res.type == SadTypeKind::Float)
+                            moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(res.constantValue)));
+                        else if (res.type == SadTypeKind::Boolean)
+                            moveInst.operands.push_back(SIROperand::ConstantBool(res.constantValue == "true" || res.constantValue == "1"));
+                        else
+                        {
+                            try
+                            {
+                                moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(res.constantValue)));
+                            }
+                            catch (const std::exception &)
+                            {
+                                moveInst.operands.push_back(SIROperand::ConstantI64(0));
+                            }
+                        }
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(moveInst);
+                        res.isConstant = false;
+                    }
+                    return SIROperand::Register(res.registerName, res.type);
+                };
+
+                SIROperand startOp = materialize(startResult);
+                SIROperand endOp = materialize(endResult);
+
+                // (AR) تمثيل المدى القيميّ المستقلّ كصفٍّ من عنصرين [بداية، نهاية].
+                //      الصفوف مدعومة كاملًا حرًّا (لا تخطيط أصناف)، بخلاف التمثيل
+                //      السابق (ALLOC + STORE بأسماء حقول) الذي كان يفشل حرًّا بـ
+                //      «No class mapping». حلقات «لكل في مدى» لا تمرّ هنا (تعالج
+                //      RangeExpr مباشرةً)، وما من مستهلك يقرأ start/end بالاسم.
+                // (EN) Represent a standalone range value as a 2-element tuple
+                //      [start, end]. Tuples are fully supported freestanding (no class
+                //      mapping), unlike the prior ALLOC + named-field STORE form that
+                //      failed freestanding with "No class mapping". For-range loops
+                //      never reach here (they lower RangeExpr directly), and no
+                //      consumer reads start/end by name.
                 std::string rangeReg = b_.newTempRegister();
                 SIRInstruction allocInst;
-                allocInst.opcode = SIROpcode::ALLOC;
-                allocInst.result = SIROperand::Register(rangeReg, SadTypeKind::Struct);
+                allocInst.opcode = SIROpcode::TUPLE_NEW;
+                allocInst.result = SIROperand::Register(rangeReg, SadTypeKind::Tuple);
                 allocInst.operands.push_back(SIROperand::ConstantI64(2));
-                allocInst.comment = "range alloc";
+                allocInst.operands.push_back(SIROperand::ConstantI64(2)); // (AR) طول ابتدائي=2 لتجاوز فحص الحدود
+                allocInst.comment = "range tuple [start, end]";
 
                 if (b_.currentBlock_)
-                {
                     b_.currentBlock_->addInstruction(allocInst);
-                }
 
-                // (AR) تخزين البداية
-                // (EN) Store start
-                SIRInstruction storeStartInst;
-                storeStartInst.opcode = SIROpcode::STORE;
-                storeStartInst.operands.push_back(SIROperand::Register(startResult.registerName, startResult.type));
-                storeStartInst.operands.push_back(SIROperand::Register(rangeReg, SadTypeKind::Struct));
-                storeStartInst.operands.push_back(SIROperand::ConstantString("start"));
-
+                // (AR) تخزين البداية في الخانة 0 والنهاية في الخانة 1
+                // (EN) Store start at slot 0, end at slot 1
+                SIRInstruction setStartInst(SIROpcode::ARRAY_SET);
+                setStartInst.operands.push_back(SIROperand::Register(rangeReg, SadTypeKind::Tuple));
+                setStartInst.operands.push_back(SIROperand::ConstantI64(0));
+                setStartInst.operands.push_back(startOp);
+                setStartInst.comment = "range[0] = start";
                 if (b_.currentBlock_)
-                {
-                    b_.currentBlock_->addInstruction(storeStartInst);
-                }
+                    b_.currentBlock_->addInstruction(setStartInst);
 
-                // (AR) تخزين النهاية
-                // (EN) Store end
-                SIRInstruction storeEndInst;
-                storeEndInst.opcode = SIROpcode::STORE;
-                storeEndInst.operands.push_back(SIROperand::Register(endResult.registerName, endResult.type));
-                storeEndInst.operands.push_back(SIROperand::Register(rangeReg, SadTypeKind::Struct));
-                storeEndInst.operands.push_back(SIROperand::ConstantString("end"));
-
+                SIRInstruction setEndInst(SIROpcode::ARRAY_SET);
+                setEndInst.operands.push_back(SIROperand::Register(rangeReg, SadTypeKind::Tuple));
+                setEndInst.operands.push_back(SIROperand::ConstantI64(1));
+                setEndInst.operands.push_back(endOp);
+                setEndInst.comment = "range[1] = end";
                 if (b_.currentBlock_)
-                {
-                    b_.currentBlock_->addInstruction(storeEndInst);
-                }
+                    b_.currentBlock_->addInstruction(setEndInst);
 
-                return BuildResult(rangeReg, SadTypeKind::Struct);
+                return BuildResult(rangeReg, SadTypeKind::Tuple);
             }
 
             // ============================================================================

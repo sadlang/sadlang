@@ -17,15 +17,24 @@
 #include <sstream>
 #include <string_view>
 #include <algorithm>
+#include <cstdio>  // (AR) snprintf لسطر «التاريخ» العربيّ / (EN) snprintf for the Arabic date line
 #include <cstdlib> // (AR) getenv/setenv/_putenv_s لمتغيّرات البيئة / (EN) env-var access
+#include <ctime>   // (AR) time/localtime لمكوّنات «التاريخ» الرقميّة / (EN) numeric date components
 
 #ifdef _WIN32
 #include <windows.h>
 #include <process.h> // (AR) _getpid لـ‹$$› / (EN) _getpid for ‹$$›
 #else
-#include <unistd.h> // (AR) getpid لـ‹$$› / (EN) getpid for ‹$$›
+#include <unistd.h> // (AR) getpid لـ‹$$› + chdir/getcwd لـ‹:اذهب› / (EN) getpid for ‹$$›, chdir/getcwd for ‹:cd›
 extern char** environ; // (AR) قائمة بيئة العمليّة (POSIX) لسرد ‹:بيئة› / (EN) process env list
 #endif
+// (AR) يُضمَّن عمدًا بعد <unistd.h> العالميّ أعلاه (نفس فخّ repl_engine.cpp الموثَّق):
+//      utf8_utils.h يُضمّن <unistd.h> داخل نطاق أسماءٍ على غير ويندوز، فتقديمه يبتلع
+//      getpid/chdir/getcwd في sad::utf8 ويكسر البناء على لينكس.
+// (EN) Included AFTER the global <unistd.h> on purpose (same documented repl_engine.cpp
+//      trap): utf8_utils.h pulls <unistd.h> inside a namespace on non-Windows, so placing
+//      it first swallows getpid/chdir/getcwd into sad::utf8 and breaks the Linux build.
+#include "utf8_utils.h" // (AR) to_wstring/from_wstring لمسارات ويندوز العربيّة (‹:اذهب›) / (EN) wide-path helpers for Arabic Windows paths (‹:cd›)
 
 namespace Sad {
 namespace REPL {
@@ -108,6 +117,51 @@ static bool setEnvVar(const std::string& name, const std::string& value)
 #endif
 }
 
+// (AR) «التاريخ» بلا وسائط (تعريب ٨ — الشريحة الأولى): سطر عربيّ التسميات مبنيّ من
+//      مكوّنات struct tm الرقميّة عبر localtime — **لا strftime %A/%B** (محليّة C
+//      تجعلهما إنجليزيّين دومًا، والقياس الحيّ في مذكّرة التصميم أثبت أنّ LANG بلا أثر).
+//      اسم اليوم من جدول SoT المولَّد (calendar.yaml)، والصيغة كلّها من SoT — صفر
+//      حرفيّات منطقيّة هنا. الأشهر رقميّة والأرقام غربيّة حتى قرارات المالك المعلَّقة.
+//      يعيد false عند تعذّر القراءة (فيفوّض المستدعي للمسار الخارجيّ بدل إخفاء العطل).
+// (EN) argument-less «التاريخ»: Arabic-labeled line from numeric localtime components
+//      (never strftime %A/%B — C locale keeps them English). Day name and format come
+//      from the generated calendar SoT; zero logical literals. Returns false if the
+//      clock cannot be read (caller falls back to the external path — no silent hide).
+static bool printArabicDateLine()
+{
+    std::time_t now = std::time(nullptr);
+    std::tm tmv{};
+#ifdef _WIN32
+    if (localtime_s(&tmv, &now) != 0)
+    {
+        return false;
+    }
+#else
+    if (localtime_r(&now, &tmv) == nullptr)
+    {
+        return false;
+    }
+#endif
+    const char* day = SoT::weekdayName(tmv.tm_wday);
+    if (day == nullptr)
+    {
+        return false;
+    }
+    // (AR) صيغة SoT: %s اسم اليوم ثمّ سنة/شهر/يوم/ساعة/دقيقة/ثانية — عقدها يحرسه
+    //      المولِّد ساكنًا (gen_tool_sot: %s واحد + ستّة أعداد) فلا انفجار تنسيق.
+    // (EN) SoT format contract (one %s + six ints) is statically enforced by the generator.
+    char line[192];
+    int n = std::snprintf(line, sizeof(line), SoT::kDateLineFormat, day,
+                          tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday,
+                          tmv.tm_hour, tmv.tm_min, tmv.tm_sec);
+    if (n <= 0 || static_cast<std::size_t>(n) >= sizeof(line))
+    {
+        return false;
+    }
+    std::cout << line << std::endl;
+    return true;
+}
+
 // (AR) الثوابت مُعرَّفة مرّة واحدة في repl_colors.h (م-2: إزالة التكرار).
 // (EN) constants defined once in repl_colors.h (م-2: de-duplicated).
 using namespace Colors;
@@ -165,6 +219,24 @@ bool REPLCommands::process(const std::string& command)
     //      user types ‹:اسرد /tmp› instead of ‹:شغّل ls /tmp›. Rebuild the raw args to begin with
     //      the Arabic name (as the first stage's program) so cmdRun's stage translator maps it.
     if (SoT::appletExec(cmdName) != nullptr) {
+        // (AR) تعريب ٨ (الشريحة الأولى): «التاريخ» **بلا وسائط** أمرٌ داخليّ يعرض سطرًا
+        //      عربيّ التسميات من SoT التقويم. موضع الالتقاط هنا (فرع الموزِّع قبل إعادة
+        //      بناء الوسائط الخامّ) هو الأنظف: (١) لا يمسّ «تاريخ» بلا أل التعريف —
+        //      أمر history قائم يلتقطه commands_ أعلاه قبل هذا الفرع أصلًا؛ (٢) أيّ
+        //      وسائط (‹:التاريخ -s …›/‹+FMT›) تسقط للمسار الخارجيّ كما هي فلا ينكسر
+        //      ضبط الساعة؛ (٣) exec ‏‹date› الإنجليزيّ الخامّ عبر ‹:شغّل› يبقى متاحًا
+        //      للتوافق. حارس التصادم الساكن في المولِّد يثبت وصول كلٍّ لوجهته.
+        //      حافّة: فشل قراءة الساعة يفوّض للمسار الخارجيّ (لا إخفاء عطل).
+        // (EN) argument-less «التاريخ» is a builtin rendering the Arabic date line from
+        //      the calendar SoT. Interception here (dispatcher branch, before rebuilding
+        //      raw args) never touches the history command «تاريخ» (matched by commands_
+        //      above), keeps every argumented form (-s/+FMT) on the external path, and
+        //      leaves raw English ‹date› via ‹:run› untouched. On a clock-read failure
+        //      it falls through to the external path (no silent masking).
+        if (cmdName == SoT::kDateAppletArabic && pendingRawArgs_.empty() &&
+            printArabicDateLine()) {
+            return true;
+        }
         pendingRawArgs_ = pendingRawArgs_.empty() ? cmdName : (cmdName + " " + pendingRawArgs_);
         return cmdRun(repl_, args);
     }
@@ -251,6 +323,7 @@ CommandFunc REPLCommands::handlerFor(SoT::CommandHandler h)
         case SoT::CommandHandler::FUNCS:   return cmdFuncs;
         case SoT::CommandHandler::RUN:     return cmdRun;
         case SoT::CommandHandler::ENV:     return cmdEnv;
+        case SoT::CommandHandler::CD:      return cmdCd;
     }
     return nullptr;
 }
@@ -292,8 +365,66 @@ void REPLCommands::registerAllCommands()
 // Command Handlers / معالجات الأوامر
 // ============================================================================
 
+// (AR) تصريح مسبق: مُعرَّفة أدناه قرب أوامر الصدَفة، ويحتاجها مسار «:مساعدة <اسم>».
+// (EN) forward declaration: defined below near the shell commands; the help-by-name path needs it.
+static void printReplError(SoT::Error code, std::string_view detail);
+
+// (AR) قناة التفويض الإنجليزيّة المعلَنة (تعريب ١٠): مساعدة busybox بنيويًّا إنجليزيّة
+//      (LOCALE_SUPPORT=n)، فلا نلفّها ولا نترجمها — سطرُ تفويضٍ صريح يدلّ عليها.
+//      ثوابت مسمّاة (لا حرفيّات منطقيّة مبعثرة في جسد المعالج).
+// (EN) the declared English delegation channel: busybox help is structurally English,
+//      so we point to it explicitly instead of wrapping/translating it. Named constants.
+static constexpr const char* kEnglishHelpFlag = "--help";
+static constexpr const char* kShellCommandPrefix = ":";
+
 bool REPLCommands::cmdHelp(REPLEngine* repl, const std::vector<std::string>& args)
 {
+    // (AR) «:مساعدة <اسم>» (تعريب ١٠ — الشريحة ١): وسيطٌ واحد يُفسَّر اسمًا —
+    //      (١) أمر REPL (إنجليزيّ/عربيّ) ⇒ وصفه الثنائيّ وصيغته من كتالوج commands.yaml؛
+    //      (٢) اسم آبلت عربيّ صريح ⇒ سطر الوصف العربيّ من معجم SoT (applets.yaml) +
+    //          سطر التفويض «التفصيل الإنجليزيّ: :اسم --help»؛ آبلت بلا وصفٍ بعدُ ⇒
+    //          رسالة صريحة (HELP_NO_DESC) + سطر التفويض — لا صمت؛
+    //      (٣) اسم مجهول ⇒ خطأ الكتالوج UNKNOWN_COMMAND.
+    //      بلا وسائط: الكتالوج القائم أدناه كما هو حرفيًّا (لا تغيير في السلوك).
+    // (EN) «:help <name>»: a REPL command shows its bilingual catalog entry; an Arabic
+    //      applet shows its Arabic SoT description (or an explicit "no description yet")
+    //      plus the English --help delegation line; an unknown name is a catalog error.
+    //      Without arguments the existing catalog listing below is untouched.
+    if (!args.empty()) {
+        // (AR) يُقبل الاسم بنقطتيه أو بدونهما («:مساعدة :اسرد» = «:مساعدة اسرد»).
+        //      حدّ معلَن (هامش أميليا 2026-07-17): ما بعد الوسيط الأوّل يُتجاهَل —
+        //      «:مساعدة اسرد اعرض» يعرض مساعدة «اسرد» فقط (وسيط واحد لكلّ نداء).
+        // (EN) accept the name with or without its leading colon. Declared limit:
+        //      anything past args[0] is ignored — one name per invocation.
+        std::string name = args[0];
+        if (!name.empty() && name[0] == kShellCommandPrefix[0]) {
+            name = name.substr(1);
+        }
+        if (const CommandInfo* info = repl->getCommands()->getCommandInfo(name)) {
+            std::cout << kShellCommandPrefix << info->name;
+            if (!info->arabicName.empty() && info->arabicName != info->name) {
+                std::cout << SoT::kBilingualSeparator << kShellCommandPrefix
+                          << info->arabicName;
+            }
+            std::cout << "\n  " << info->description << "\n  "
+                      << usageLine(repl, name) << std::endl;
+            return true;
+        }
+        if (const SoT::AppletEntry* applet = SoT::findApplet(name)) {
+            if (applet->descAr != nullptr) {
+                std::cout << applet->descAr << std::endl;
+            } else {
+                std::cout << SoT::messageAr(SoT::Message::HELP_NO_DESC) << std::endl;
+            }
+            std::cout << SoT::messageAr(SoT::Message::HELP_DELEGATE_LABEL)
+                      << SoT::kDetailSeparator << kShellCommandPrefix
+                      << applet->arabic << " " << kEnglishHelpFlag << std::endl;
+            return true;
+        }
+        printReplError(SoT::Error::UNKNOWN_COMMAND, name);
+        return true;
+    }
+
     auto& config = repl->getConfig();
     
     const std::string commandsHeader =
@@ -599,6 +730,82 @@ bool REPLCommands::cmdEnv(REPLEngine* repl, const std::vector<std::string>& args
     {
         printReplError(SoT::Error::ENV_INVALID_NAME, name);
     }
+    return true;
+}
+
+// (AR) ‹:اذهب›/‹:cd› — تغيير مجلّد عمل الصدَفة نفسها. لا يصلح آبلتًا خارجيًّا (chdir في
+//      عمليّة ابنٍ لا يمسّ الأب) فهو أمرٌ مدمج بالضرورة. المسار يُؤخَذ من الوسائط الخامّ
+//      (يحترم المسافات في أسماء المجلّدات العربيّة) مع توسيع ‹$VAR›. بلا وسيط ⇒ HOME.
+//      بعد النجاح يُحدَّث PWD (فترثه العمليّات المُطلَقة عبر ‹:شغّل› ويقرؤه ‹$PWD›).
+// (EN) ‹:cd› — change the shell's OWN working directory. Impossible as an external applet
+//      (a child's chdir never affects the parent), so it must be a builtin. The path comes
+//      from the raw args (honors spaces in Arabic directory names) with ‹$VAR› expansion.
+//      No arg ⇒ HOME. On success PWD is updated (inherited by ‹:run› children, read by ‹$PWD›).
+bool REPLCommands::cmdCd(REPLEngine* repl, const std::vector<std::string>& args)
+{
+    (void)args; // (AR) نستعمل الوسائط الخامّ (المسار قد يحوي مسافات) / raw args (path may have spaces)
+    std::string path = repl->getCommands()->pendingRawArgs_;
+    // (AR) قصّ الفراغ المحيط / trim surrounding whitespace
+    path.erase(0, path.find_first_not_of(" \t"));
+    if (auto p = path.find_last_not_of(" \t"); p != std::string::npos)
+    {
+        path.erase(p + 1);
+    }
+    if (path.empty())
+    {
+        path = resolveVar(repl, "HOME");
+        if (path.empty())
+        {
+            // (AR) لا وسيط ولا HOME — لا وجهة معلومة / no arg and no HOME — nowhere to go
+            std::cout << usageLine(repl, "cd") << std::endl;
+            return true;
+        }
+    }
+    else
+    {
+        // (AR) توسيع ‹$VAR› في المسار (مثل ‹:اذهب $HOME/مشاريع›) / expand ‹$VAR› in the path
+        path = expandEnvVars(path,
+                             [repl](const std::string& n) { return resolveVar(repl, n); });
+    }
+
+    // (AR) على ويندوز: الواجهات العريضة (W) حصرًا — نسخ ANSI (A) تفسّر UTF-8 بترميز صفحة
+    //      النظام فتشوّه المسارات العربيّة (رصدتها مراجعة أميليا قبل أيّ استخدام فعليّ).
+    // (EN) On Windows: wide (W) APIs only — the ANSI (A) variants decode via the system
+    //      code page and mangle Arabic UTF-8 paths (caught in review before any real use).
+#ifdef _WIN32
+    const bool ok = SetCurrentDirectoryW(sad::utf8::to_wstring(path).c_str()) != 0;
+#else
+    const bool ok = ::chdir(path.c_str()) == 0;
+#endif
+    if (!ok)
+    {
+        printReplError(SoT::Error::CD_FAILED, path);
+        return true;
+    }
+
+    // (AR) حدِّث PWD بالمسار المطلق الفعليّ (getcwd يطوي ‹..› والروابط النسبيّة). فشل
+    //      الاستعلام بعد نجاح الانتقال حافّة نادرة تُبقي PWD السابق — مقبولة موثَّقة.
+    // (EN) refresh PWD with the real absolute path (getcwd folds ‹..›/relative links). A
+    //      query failure after a successful chdir leaves the old PWD — rare, documented.
+#ifdef _WIN32
+    // (AR) استعلام الطول أوّلًا (0) بدل MAX_PATH الثابت — لا قصّ للمسارات الطويلة.
+    // (EN) query the needed length first (0) instead of a fixed MAX_PATH — no truncation.
+    if (DWORD n = GetCurrentDirectoryW(0, nullptr); n != 0)
+    {
+        std::wstring wcwd(n, L'\0');
+        if (GetCurrentDirectoryW(n, wcwd.data()) != 0)
+        {
+            wcwd.resize(wcslen(wcwd.c_str()));
+            setEnvVar("PWD", sad::utf8::from_wstring(wcwd));
+        }
+    }
+#else
+    if (char* cwd = ::getcwd(nullptr, 0))
+    {
+        setEnvVar("PWD", cwd);
+        std::free(cwd);
+    }
+#endif
     return true;
 }
 

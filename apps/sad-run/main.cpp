@@ -30,6 +30,7 @@
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
 
+#include "cli_flags_generated.h" // (AR) المصدر الوحيد لأعلام الأدوات
 #include "utf8_utils.h"
 #include "profiler_core.h"                  // (AR) مصحح الأداء / (EN) Profiler
 #include "profiler_hooks.h"                 // (AR) خطافات المصحح / (EN) Profiler hooks
@@ -59,57 +60,43 @@ void print_help(const char *program_name)
               << "الاستخدام / Usage: " << program_name << " <ملف.ص>\n\n"
               << "الأوامر / Commands:\n"
               << "  <ملف.ص>       تنفيذ ملف / Execute file\n"
-              << "  --help, -h    عرض المساعدة / Show help\n"
-              << "  --version, -v عرض الإصدار / Show version\n"
-              << "  --ownership   تفعيل نظام الملكية / Enable ownership system\n"
-              << "  --ملكية       تفعيل نظام الملكية (عربي) / Enable ownership (Arabic)\n"
               << "\n"
               << "  أوامر فرعية / Subcommands:\n"
               << "  new/جديد  build/بناء  run/شغّل  test/اختبر  format/نسّق  check/تحقق\n"
               << "  doc/وثّق  add/أضف  publish/انشر  mobile/هاتف  help/مساعدة  version/نسخة\n"
               << "\n"
-              << "  أوضاع الذاكرة الموحَّدة (Phase E-3) / Unified memory modes:\n"
-              << "  --gc             وضع GC: جامع قمامة + ملكية معطَّلة (افتراضي) / GC mode: GC + no ownership checks (default)\n"
-              << "  --prod, --إنتاج  وضع الإنتاج: ملكية صارمة بدون GC / Prod mode: strict ownership, no GC\n"
-              << "  --learn, --تعلم  وضع التعلم: شرح الانتهاكات بدون توقف / Learn mode: explain, don't block\n"
-              << "  --auto, --تلقائي وضع تلقائي بحسب البيئة / Auto-detect mode\n"
-              << "  --gc=<strategy>          استراتيجية GC: tracing|refcount|none / GC strategy\n"
-              << "  --ملكية=<level>          مستوى الملكية: disabled|warnings|strict|ultra\n"
-              << "  --no-std, --نواة         وضع بلا مكتبة قياسية / No-std / freestanding mode\n"
-              << "\n"
-              << "  أعلام التحليل / Analysis flags:\n"
-              << "  --type-check, --فحص-أنواع       فحص الأنواع / Type checking\n"
-              << "  --debug-types, --تنقيح-أنواع    تتبّع فحص الأنواع / Trace type checking\n"
-              << "  --strict-types, --أنواع-صارمة   فحص أنواع صارم / Strict type checking\n"
-              << "  --security, --أمان              فحوص الأمان / Security checks\n"
-              << "  --debug-security, --تنقيح-أمان  تتبّع فحوص الأمان / Trace security checks\n"
-              << "  --strict-security, --أمان-صارم  فحوص أمان صارمة / Strict security checks\n"
-              << "  --debug-ownership, --تتبع-ملكية تتبّع نظام الملكية / Trace ownership checks\n"
-              << "  --debug                         وضع تنقيح المفسر / Interpreter debug mode\n"
-              << "  --opt-stats                     إحصاءات التحسين (يفعّل وضع التنقيح) / Optimization stats (enables debug mode)\n"
-              << "\n"
-              << "  --debug-server خادم التصحيح (DAP) / Debug server mode (DAP)\n"
-              << "  --profile     تنميط الأداء / Profile performance\n"
-              << "  --تنميط       تنميط الأداء (عربي) / Profile performance (Arabic)\n"
-              << "  --profile-format=<fmt>    صيغة التقرير: text|json|html|flame|csv / Report format\n"
-              << "  --profile-output=<f>      حفظ التقرير في ملف بدل stdout / Save report to file instead of stdout\n"
-              << "  --profile-top=<n>         أعلى n دالة في التقرير (افتراضي 20) / Top n functions (default 20)\n"
-              << "  --hot-reload  إعادة التحميل الساخن / Hot reload mode\n"
-              << "  --مراقبة      مراقبة التغييرات (عربي) / Watch mode (Arabic)\n"
-              << "  --docs        توليد توثيق Markdown من شجرة AST / Generate Markdown docs from AST\n"
-              << "  --وثّق        توليد التوثيق (عربي) / Generate documentation (Arabic)\n"
-              << "  --docs-out=<f> حفظ التوثيق في ملف بدل stdout / Save docs to file instead of stdout\n"
-              << "  --docs-project=<dir>      توثيق مشروع كامل (تكراري) / Document an entire project recursively\n"
-              << "  --docs-project-name=<n>   اسم المشروع المعروض / Display name for the project\n"
-              << "  --docs-format=<fmt>       صيغة الإخراج: markdown|json|html|pdf / Output format (pdf requires --docs-out)\n"
-              << "  --docs-exclude=<sub>      استبعاد ملفات (مطابقة سلسلة فرعية، قابل للتكرار) / Exclude files (substring, repeatable)\n"
-              << "\n"
-              << "  أعلام شرح الخطأ ولغة الإخراج (Phase E-3) / Error explanation & output language:\n"
-              << "  --explain[=<level>]   مستوى الشرح: brief|normal|detailed|teacher (افتراضي detailed) / Explanation level\n"
-              << "  --lang=<lang>         لغة الرسائل: ar|en|both / Message language\n"
-              << "\n"
+              // ─────────────────────────────────────────────────────────────
+              // (AR) الأعلام الطويلة تُولَّد من المصدر الوحيد (cli_flags_generated.h):
+              //      أعلام المفسّر + عائلة الذاكرة (يبتلعها الماسح المسبق فتعمل
+              //      في sad-run). اسم عربيّ قانونيّ وحيد لكلّ علم — بلا مرادفات.
+              // (EN) Long flags generated from the shared SoT: interpreter flags +
+              //      the memory family (consumed by the pre-scanner). One canonical
+              //      Arabic name each — no aliases.
+              // ─────────────────────────────────────────────────────────────
+              << "  أعلام طويلة — أسماء عربيّة قانونيّة وحيدة (بلا مرادفات):\n"
+              << "  long flags — single canonical Arabic names (no aliases):\n";
+    for (std::size_t i = 0; i < sad::cli::kFlagCount; ++i)
+    {
+        const auto &spec = sad::cli::kFlags[i];
+        // (AR) اعرض ما يقبله المفسّر فقط: أعلامه + أعلام الذاكرة.
+        // (EN) Show only what the interpreter accepts: its flags + memory family.
+        if (!spec.for_interpreter && !spec.for_memory)
+        {
+            continue;
+        }
+        std::string name = spec.canonical;
+        if (spec.kind == sad::cli::FlagKind::Value && spec.value_hint[0] != '\0')
+        {
+            name += "=<";
+            name += spec.value_hint;
+            name += ">";
+        }
+        std::cout << "    " << name << "\n"
+                  << "        " << spec.desc_ar << " / " << spec.desc_en << "\n";
+    }
+    std::cout << "\n"
               << "  توليد الواجهات الرسومية يتم عبر المترجم / UI generation lives in the compiler:\n"
-              << "    sad-build --ui/--واجهات <ملف.ص>\n"
+              << "    sad-build --واجهات <ملف.ص>\n"
               << std::endl;
 }
 
@@ -127,6 +114,34 @@ std::string read_file(const std::string &filename)
     std::stringstream buffer;
     buffer << file.rdbuf();
     return buffer.str();
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) مساعدان يقرآن أسماء الأعلام من المصدر الوحيد المولَّد — لا سلاسل حرّة.
+//      sadCanonical: الاسم القانونيّ لإجراءٍ ما.
+//      sadValueOf  : يطابق «الاسم=قيمة» ويستخرج القيمة.
+// (EN) Helpers reading flag names from the generated SoT — no raw literals.
+// ════════════════════════════════════════════════════════════════════════════
+static const char *sadCanonical(sad::cli::FlagAction action)
+{
+    for (std::size_t i = 0; i < sad::cli::kFlagCount; ++i)
+    {
+        if (sad::cli::kFlags[i].action == action)
+            return sad::cli::kFlags[i].canonical;
+    }
+    return "";
+}
+
+static bool sadValueOf(const std::string &arg, sad::cli::FlagAction action, std::string &out)
+{
+    const std::string prefix = std::string(sadCanonical(action)) + "=";
+    if (arg.size() > prefix.size() && arg.compare(0, prefix.size(), prefix) == 0)
+    {
+        out = arg.substr(prefix.size());
+        return true;
+    }
+    return false;
 }
 
 int main(int argc, char *argv[])
@@ -169,14 +184,17 @@ int main(int argc, char *argv[])
 
     std::string arg = argv[1];
 
-    // Check for help/version
-    if (arg == "--help" || arg == "-h")
+    // (AR) المساعدة/الإصدار: الاسم العربيّ القانونيّ من المصدر الوحيد، مع بقاء
+    //      -h القصير القياسيّ عرفًا. (EN) Help/version: canonical Arabic name from
+    //      the SoT; the standard short -h stays as a convention.
+    if (arg == sadCanonical(sad::cli::FlagAction::HelpRequested) ||
+        arg == sad::cli::short_flags::HelpShort)
     {
         print_help(argv[0]);
         return 0;
     }
 
-    if (arg == "--version" || arg == "-v")
+    if (arg == sadCanonical(sad::cli::FlagAction::VersionRequested))
     {
         std::cout << "sad version 1.0.0-beta.1\n";
         return 0;
@@ -296,130 +314,155 @@ int main(int argc, char *argv[])
         for (int i = 1; i < argc; ++i)
         {
             std::string a = argv[i];
-            if (a == "--ownership" || a == "--\xD9\x85\xD9\x84\xD9\x83\xD9\x8A\xD8\xA9")
+            std::string val;
+            // ────────────────────────────────────────────────────────────────
+            // (AR) أعلام المفسّر: أسماء عربيّة قانونيّة وحيدة من المصدر الوحيد
+            //      (cli_flags_generated.h) — بلا مرادفات ولا توافق خلفيّ. توحّدت
+            //      الملكية مع فاحص الاستعارة (--فحص-الاستعارة/--تنقيح-الاستعارة).
+            // (EN) Interpreter flags: single canonical Arabic names from the shared
+            //      SoT — no aliases. Ownership unified with the borrow checker.
+            // ────────────────────────────────────────────────────────────────
+            if (a == sadCanonical(sad::cli::FlagAction::BorrowCheckOn))
             {
                 enableOwnership = true;
             }
-            else if (a == "--debug-ownership" || a == "--\xD8\xAA\xD8\xAA\xD8\xA8\xD8\xB9-\xD9\x85\xD9\x84\xD9\x83\xD9\x8A\xD8\xA9")
+            else if (a == sadCanonical(sad::cli::FlagAction::DebugBorrow))
             {
                 enableOwnership = true;
                 debugOwnership = true;
             }
-            else if (a == "--type-check" || a == "--\xD9\x81\xD8\xAD\xD8\xB5-\xD8\xA3\xD9\x86\xD9\x88\xD8\xA7\xD8\xB9")
+            else if (a == sadCanonical(sad::cli::FlagAction::TypeCheckOn))
             {
                 enableTypeCheck = true;
             }
-            else if (a == "--debug-types" || a == "--\xD8\xAA\xD9\x86\xD9\x82\xD9\x8A\xD8\xAD-\xD8\xA3\xD9\x86\xD9\x88\xD8\xA7\xD8\xB9")
+            else if (a == sadCanonical(sad::cli::FlagAction::DebugTypes))
             {
                 enableTypeCheck = true;
                 debugTypeCheck = true;
             }
-            else if (a == "--strict-types" || a == "--\xD8\xA3\xD9\x86\xD9\x88\xD8\xA7\xD8\xB9-\xD8\xB5\xD8\xA7\xD8\xB1\xD9\x85\xD8\xA9")
+            else if (a == sadCanonical(sad::cli::FlagAction::StrictTypes))
             {
                 enableTypeCheck = true;
                 strictTypeCheck = true;
             }
-            else if (a == "--security" || a == "--\xD8\xA3\xD9\x85\xD8\xA7\xD9\x86")
+            else if (a == sadCanonical(sad::cli::FlagAction::Security))
             {
                 enableSecurity = true;
             }
-            else if (a == "--debug-security" || a == "--\xD8\xAA\xD9\x86\xD9\x82\xD9\x8A\xD8\xAD-\xD8\xA3\xD9\x85\xD8\xA7\xD9\x86")
+            else if (a == sadCanonical(sad::cli::FlagAction::DebugSecurity))
             {
                 enableSecurity = true;
                 debugSecurity = true;
             }
-            else if (a == "--strict-security" || a == "--\xD8\xA3\xD9\x85\xD8\xA7\xD9\x86-\xD8\xB5\xD8\xA7\xD8\xB1\xD9\x85")
+            else if (a == sadCanonical(sad::cli::FlagAction::StrictSecurity))
             {
                 enableSecurity = true;
                 strictSecurity = true;
             }
-            else if (a == "--debug")
+            else if (a == sadCanonical(sad::cli::FlagAction::DebugMode))
             {
                 enableDebug = true;
             }
-            else if (a == "--opt-stats" || a == "-v")
+            else if (a == sadCanonical(sad::cli::FlagAction::OptStats))
             {
                 showOptStats = true;
             }
-            else if (a == "--debug-server")
+            else if (a == sadCanonical(sad::cli::FlagAction::DebugServer))
             {
                 useDebugServer = true;
             }
-            else if (a == "--profile" || a == "--\xD8\xAA\xD9\x86\xD9\x85\xD9\x8A\xD8\xB7" /* --تنميط */)
+            else if (a == sadCanonical(sad::cli::FlagAction::Profile))
             {
                 enableProfile = true;
             }
-            else if (a == "--hot-reload" || a == "--\xD9\x85\xD8\xB1\xD8\xA7\xD9\x82\xD8\xA8\xD8\xA9" /* --مراقبة */)
+            else if (a == sadCanonical(sad::cli::FlagAction::HotReload))
             {
                 enableHotReload = true;
             }
-            else if (a.rfind("--profile-format=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::ProfileFormat, val))
             {
-                profileFormat = a.substr(17);
+                profileFormat = val;
             }
-            else if (a.rfind("--profile-output=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::ProfileOutput, val))
             {
-                profileOutput = a.substr(17);
+                profileOutput = val;
             }
-            else if (a.rfind("--profile-top=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::ProfileTop, val))
             {
                 try
                 {
-                    profileTop = std::stoi(a.substr(14));
+                    profileTop = std::stoi(val);
                 }
                 catch (...)
                 {
                 }
             }
-            // (AR) --docs أو نسخته العربية --وثّق (UTF-8: D9 88 D8 AB D9 91 D9 82)
-            // (EN) --docs or its Arabic alias --وثّق
-            else if (a == "--docs" || a == "--\xD9\x88\xD8\xAB\xD9\x91\xD9\x82")
+            // ────────────────────────────────────────────────────────────────
+            // (AR) أعلام التوثيق/الشرح/اللغة: أسماء عربيّة قانونيّة وحيدة من
+            //      المصدر الوحيد (cli_flags_generated.h) — بلا مرادفات ولا
+            //      توافق خلفيّ، ومطابِقة حرفيًّا لأسماء المترجم (sad-build).
+            // (EN) Docs/explain/lang flags: single canonical Arabic names from the
+            //      shared SoT — identical to the compiler's, no aliases.
+            // ────────────────────────────────────────────────────────────────
+            else if (a == sadCanonical(sad::cli::FlagAction::EmitDocs))
             {
                 emitDocs = true;
             }
-            else if (a.rfind("--docs-out=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::DocsOut, val))
             {
                 emitDocs = true;
-                docsOutput = a.substr(11);
+                docsOutput = val;
             }
-            // (AR) --docs-project=<dir> توثيق مشروع كامل
-            // (EN) --docs-project=<dir> document an entire project recursively
-            else if (a.rfind("--docs-project=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::DocsProject, val))
             {
                 emitDocs = true;
-                docsProject = a.substr(15);
+                docsProject = val;
             }
-            else if (a.rfind("--docs-project-name=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::DocsProjectName, val))
             {
-                docsProjectName = a.substr(20);
+                docsProjectName = val;
             }
-            // (AR) --docs-format=markdown|json|html / (EN) output format selector
-            else if (a.rfind("--docs-format=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::DocsFormat, val))
             {
-                docsFormat = a.substr(14);
+                docsFormat = val;
                 emitDocs = true;
             }
-            // (AR) --docs-exclude=<sub> — يمكن تكراره
-            // (EN) --docs-exclude=<sub> — may be repeated
-            else if (a.rfind("--docs-exclude=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::DocsExclude, val))
             {
-                docsExcludes.push_back(a.substr(15));
+                docsExcludes.push_back(val);
             }
-            // (AR) المرحلة 3 — --explain=<level> و --lang=<lang>
-            // (EN) Phase 3 — --explain=<level> and --lang=<lang>
-            else if (a.rfind("--explain=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::Explain, val))
             {
-                explainLevelStr = a.substr(10);
+                explainLevelStr = val;
             }
-            else if (a == "--explain")
+            else if (a == sadCanonical(sad::cli::FlagAction::Explain))
             {
-                explainLevelStr = "detailed";
+                explainLevelStr = sad::cli::values::ExplainDefault;
             }
-            else if (a.rfind("--lang=", 0) == 0)
+            else if (sadValueOf(a, sad::cli::FlagAction::OutputLanguage, val))
             {
-                langStr = a.substr(7);
+                langStr = val;
             }
-            else if (a[0] != '-')
+            else if (a == sadCanonical(sad::cli::FlagAction::HelpRequested) ||
+                     a == sad::cli::short_flags::HelpShort)
+            {
+                print_help(argv[0]);
+                return 0;
+            }
+            else if (a == sadCanonical(sad::cli::FlagAction::VersionRequested))
+            {
+                std::cout << "sad version 1.0.0-beta.1\n";
+                return 0;
+            }
+            else if (!a.empty() && a[0] == '-')
+            {
+                // (AR) فشل عالٍ لا صامت: أيّ علمٍ مجهول يُرفَض (كالمترجم) بدل تجاهله —
+                //      يُنهي التوافق الخلفيّ الصامت للأسماء المحذوفة. (EN) Fail loud,
+                //      not silent: reject any unknown flag like the compiler does.
+                std::cerr << sad::cli::messages::UnknownOptionPrefix << a << "\n";
+                return 1;
+            }
+            else
             {
                 filename = a;
             }

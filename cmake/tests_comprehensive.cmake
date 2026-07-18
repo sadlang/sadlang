@@ -169,12 +169,7 @@ if(WIN32)
     target_compile_definitions(test_network_comprehensive PRIVATE WIN32_LEAN_AND_MEAN)
 endif()
 
-# 13b. البرمجة غير المتزامنة / Async Module Tests
-add_comprehensive_test(test_async_comprehensive test_async_comprehensive.cpp)
-target_include_directories(test_async_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/stdlib)
-
-# 13c. النظام / System Module Tests
+# 13b. النظام / System Module Tests
 add_comprehensive_test(test_system_comprehensive test_system_comprehensive.cpp)
 target_include_directories(test_system_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/stdlib)

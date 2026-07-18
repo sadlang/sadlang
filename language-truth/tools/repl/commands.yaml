@@ -107,3 +107,11 @@ commands:
       ar: "عرض متغيّرات البيئة أو ضبط متغيّر (يرثه ما تُشغّله)"
       en: "Show environment variables or set one (inherited by run programs)"
     usage: ":env [NAME=VALUE]"
+
+  - handler: CD
+    name: cd
+    arabic_name: "اذهب"
+    description:
+      ar: "الانتقال إلى مجلّد (بلا وسيط: إلى البيت HOME) — يغيّر مجلّد الصدَفة نفسها ويحدّث PWD"
+      en: "Change directory (no arg: to HOME) — changes the shell's own cwd and updates PWD"
+    usage: ":cd [dir]"

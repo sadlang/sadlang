@@ -779,6 +779,29 @@ namespace Sad
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(closureCallInst);
 
+                        // (AR) استدعاء غير مباشر لمرجع دالّة مولّدة (`متغير د = عد` ثمّ `د()`):
+                        //      CLOSURE_CALL أعاد مقبض المولّد الخام؛ نستهلكه في مصفوفة عبر
+                        //      GENERATOR_CONSUME تمامًا كالاستدعاء المباشر، وإلّا يُعامَل المقبض
+                        //      كمصفوفة زيفًا فينهار التكرار. النوع Array ليطابق `نوع()` المفسّرَ.
+                        // (EN) Indirect call of a generator func-ref (`var d = count` then `d()`):
+                        //      CLOSURE_CALL returned the raw generator handle; consume it into an
+                        //      array via GENERATOR_CONSUME just like a direct call, else the handle
+                        //      is falsely treated as an array and iteration crashes. Type Array to
+                        //      match the interpreter's `نوع()`.
+                        if (varInfo->isGeneratorFuncRef)
+                        {
+                            std::string consumeReg = b_.newTempRegister();
+                            SIRInstruction consumeInst(SIROpcode::GENERATOR_CONSUME);
+                            consumeInst.result = SIROperand::Register(consumeReg, SadTypeKind::Array);
+                            consumeInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Pointer));
+                            consumeInst.comment = "consume generator yields (indirect)";
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(consumeInst);
+                            BuildResult genResult(consumeReg, SadTypeKind::Array);
+                            genResult.isDirectValue = true;
+                            return genResult;
+                        }
+
                         BuildResult closureResult(resultReg, closureRetType);
                         closureResult.isDirectValue = true;
                         return closureResult;
@@ -990,12 +1013,21 @@ namespace Sad
                     std::cerr << "[GEN] Emitting GENERATOR_CONSUME for generator '" << funcName << "'" << std::endl;
 #endif
 
-                    // (AR) CALL أعاد المقبض (PTR) — الآن نستهلكه
-                    // (EN) CALL returned the handle (PTR) — now consume it
+                    // (AR) CALL أعاد المقبض (PTR) — الآن نستهلكه في مصفوفة. نوع الناتج
+                    //      Array لا Integer: المستهلك يجمع القيم في مصفوفة (تنفيذ فوريّ)،
+                    //      فيطابق `نوع()` المفسّرَ الذي يُرجع «مصفوفة» لمقبض المولّد — كان
+                    //      Integer يُظهره «رقم» فيكسر التكافؤ المزدوج على نوع(). القيمة
+                    //      (بِتّات المصفوفة كـi64) لا تتغيّر؛ فقط الوسم النوعيّ.
+                    // (EN) CALL returned the handle (PTR); now consume it into an array. The
+                    //      result type is Array not Integer: the consumer collects yields into
+                    //      an array (eager), so `نوع()` matches the interpreter's «مصفوفة» for
+                    //      a generator handle — Integer reported «رقم», breaking dual
+                    //      equivalence on typeof. The value (array bits as i64) is unchanged;
+                    //      only the type tag.
                     std::string consumeReg = b_.newTempRegister();
                     SIRInstruction consumeInst;
                     consumeInst.opcode = SIROpcode::GENERATOR_CONSUME;
-                    consumeInst.result = SIROperand::Register(consumeReg, SadTypeKind::Integer);
+                    consumeInst.result = SIROperand::Register(consumeReg, SadTypeKind::Array);
                     consumeInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Pointer));
                     consumeInst.comment = "consume generator yields";
 
@@ -1004,7 +1036,7 @@ namespace Sad
                         b_.currentBlock_->addInstruction(consumeInst);
                     }
 
-                    return BuildResult(consumeReg, SadTypeKind::Integer);
+                    return BuildResult(consumeReg, SadTypeKind::Array);
                 }
 
 #ifndef NDEBUG
