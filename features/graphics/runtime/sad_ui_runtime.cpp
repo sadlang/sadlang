@@ -31,6 +31,13 @@
 #include <sad_ui/window_control.h> // (م-تحكّم) عنوان/إغلاق النافذة عبر المتحكّم المشترك
 #include <sad_ui/web/html_codegen.h> // (م-تحكّم) توليد_ويب عبر مولّد HTML المكتبيّ
 #include <sad_ui/types.h>
+// (AR) SoT مفاتيح الخصائص (props::PADDING…) — هيدر مولَّد ذاتيّ الاكتفاء بلا اعتماد
+//      خلفيّة، يُضمَّن دون قيد كي تراه كتّاب المفاتيح المستضافون (sad_set_padding)
+//      لا الفرع الحرّ وحده — نظير تضمينه غير المشروط في core/src/types.cpp.
+// (EN) SoT property keys (props::PADDING…) — self-contained generated header, included
+//      unconditionally so hosted key writers (sad_set_padding) see it too, not only the
+//      freestanding branch — mirroring the unconditional include in core/src/types.cpp.
+#include <sad_ui/prop_keys.h>
 
 #ifdef SAD_UI_USE_SDL2
 #include <sad_ui/desktop/renderer.h>
@@ -42,7 +49,6 @@
 // (EN) Freestanding branch (fb0/evdev): the SDL2 alternative on Linux without X11.
 #if defined(SAD_UI_FREESTANDING) && defined(__linux__)
 #include <sad_ui/freestanding/app_runner.h>
-#include <sad_ui/prop_keys.h>
 #endif
 
 #include <string>
@@ -775,14 +781,28 @@ void sad_set_spacing(SadWidget widget, float spacing) {
     setFloatProperty(w, "\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb9\xd8\xaf", spacing);  // تباعد
 }
 
+// (AR) عين_الحشوة(عنصر, فوق, يمين, تحت, يسار) — الوسائط فيزيائيّة (top/right/bottom/left).
+//   يُكتب المفتاح القانونيّ من SoT (props::PADDING_*) لا سلاسل خام — إغلاقًا لتباعُد
+//   قديم: كان يكتب «حشو_يمين/يسار» (بلا تاء، فيزيائيّ) بينما منتِج DSL يكتب
+//   «حشوة_بداية/نهاية» (بالتاء، منطقيّ). التحويل فيزيائيّ⇒منطقيّ يتبع اتّفاقيّة
+//   layout.h الموثَّقة (start = يمين، end = يسار): right⇒START، left⇒END. عموديًّا
+//   top/bottom منطقيّ ثابت. تنبيه دَين: هذا المسار ميّت حاليًّا — layout.cpp يقرأ
+//   props::PADDING الأساس فقط ولا يقرأ أيّ مفتاح اتّجاهيّ؛ التوحيد يزيل التباعُد
+//   النصّيّ لا يفعّل سلوكًا.
+// (EN) sad_set_padding physical params (top/right/bottom/left). Writes SoT canonical
+//   keys (props::PADDING_*) — closes an old drift where it wrote «حشو_يمين/يسار»
+//   (no taa, physical) while the DSL producer writes «حشوة_بداية/نهاية» (logical).
+//   Physical⇒logical per layout.h (start=right, end=left): right⇒START, left⇒END.
+//   Debt: this path is dead — layout.cpp reads only base props::PADDING, never a
+//   directional key; unifying removes textual drift, it does not activate behaviour.
 void sad_set_padding(SadWidget widget, float top, float right,
                      float bottom, float left) {
     auto* w = toWidget(widget);
     if (!w) return;
-    setFloatProperty(w, "\xd8\xad\xd8\xb4\xd9\x88_\xd8\xa3\xd8\xb9\xd9\x84\xd9\x89", top);      // حشو_أعلى
-    setFloatProperty(w, "\xd8\xad\xd8\xb4\xd9\x88_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86", right);    // حشو_يمين
-    setFloatProperty(w, "\xd8\xad\xd8\xb4\xd9\x88_\xd8\xa3\xd8\xb3\xd9\x81\xd9\x84", bottom);    // حشو_أسفل
-    setFloatProperty(w, "\xd8\xad\xd8\xb4\xd9\x88_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1", left);     // حشو_يسار
+    setFloatProperty(w, sad::ui::props::PADDING_TOP, top);       // حشوة_أعلى
+    setFloatProperty(w, sad::ui::props::PADDING_START, right);   // حشوة_بداية (start=يمين، layout.h)
+    setFloatProperty(w, sad::ui::props::PADDING_BOTTOM, bottom); // حشوة_أسفل
+    setFloatProperty(w, sad::ui::props::PADDING_END, left);      // حشوة_نهاية (end=يسار، layout.h)
 }
 
 void sad_set_alignment(SadWidget widget, int32_t mainAxis, int32_t crossAxis) {

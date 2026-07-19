@@ -272,10 +272,10 @@ namespace sad
                 {ModifierType::MaxHeight, "أقصى_ارتفاع"},
                 // ─── المسافات ─────────────
                 {ModifierType::Padding, props::PADDING}, // SoT: القانونيّ «حشوة»
-                {ModifierType::PaddingTop, "حشوة_أعلى"},
-                {ModifierType::PaddingBottom, "حشوة_أسفل"},
-                {ModifierType::PaddingStart, "حشوة_بداية"},
-                {ModifierType::PaddingEnd, "حشوة_نهاية"},
+                {ModifierType::PaddingTop, props::PADDING_TOP},       // SoT «حشوة_أعلى»
+                {ModifierType::PaddingBottom, props::PADDING_BOTTOM}, // SoT «حشوة_أسفل»
+                {ModifierType::PaddingStart, props::PADDING_START},   // SoT «حشوة_بداية» (منطقيّ RTL)
+                {ModifierType::PaddingEnd, props::PADDING_END},       // SoT «حشوة_نهاية» (منطقيّ RTL)
                 {ModifierType::Margin, "هامش"},
                 // ─── الحدود ───────────────
                 {ModifierType::Border, "حد"},

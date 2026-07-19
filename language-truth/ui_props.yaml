@@ -104,6 +104,41 @@ keys:
     description_ar: الحشو الداخليّ للحاوية (بالبكسل) — إزاحة الأبناء داخل حدود العنصر
     description_en: Inner padding (px) for a container — inset of children within bounds
 
+  # (AR) الحشو الاتّجاهيّ للحاوية — القانونيّ منطقيّ (أعلى/أسفل عموديّ ثابت، بداية/نهاية
+  #      أفقيّ واعٍ بالـRTL: start=يمين، end=يسار كما يوثّق layout.h). هذه المفاتيح هي
+  #      ما يُنتجه منتِج معدّلات DSL (types.cpp ⇒ ir_builder) في IRNode — فالقانونيّ =
+  #      ما يكتبه DSL، نظير PADDING الأساس. تنبيه دَين: لا مستهلك يقرؤها بعدُ (layout.cpp
+  #      يقرأ PADDING الأساس فقط) — التوحيد يزيل التباعُد النصّيّ لا يخترع مستهلكًا.
+  # (EN) Directional container padding — canonical is logical (top/bottom fixed vertical;
+  #      start/end RTL-aware horizontal: start=right, end=left per layout.h). These are the
+  #      keys the DSL modifier producer (types.cpp ⇒ ir_builder) writes into IRNode, so
+  #      canonical = what the DSL emits, mirroring base PADDING. Debt note: no consumer
+  #      reads them yet (layout.cpp reads only base PADDING) — unifying removes textual
+  #      drift, it does not invent a consumer.
+  - id: PADDING_TOP
+    canonical: حشوة_أعلى
+    value_type: عدد
+    description_ar: الحشو العلويّ للحاوية (بالبكسل) — منطقيّ عموديّ ثابت
+    description_en: Top padding (px) for a container — fixed vertical
+
+  - id: PADDING_BOTTOM
+    canonical: حشوة_أسفل
+    value_type: عدد
+    description_ar: الحشو السفليّ للحاوية (بالبكسل) — منطقيّ عموديّ ثابت
+    description_en: Bottom padding (px) for a container — fixed vertical
+
+  - id: PADDING_START
+    canonical: حشوة_بداية
+    value_type: عدد
+    description_ar: حشو جهة البداية (بالبكسل) — منطقيّ واعٍ بالـRTL (start=يمين)
+    description_en: Start-side padding (px) — RTL-aware logical (start=right)
+
+  - id: PADDING_END
+    canonical: حشوة_نهاية
+    value_type: عدد
+    description_ar: حشو جهة النهاية (بالبكسل) — منطقيّ واعٍ بالـRTL (end=يسار)
+    description_en: End-side padding (px) — RTL-aware logical (end=left)
+
   # (AR) مفتاح احتياطيّ لاتينيّ يُنتجه مسار UINode (ir_builder: primaryArg ⇒ "text").
   #      يقرؤه المُرسِّم كبديل فقط؛ ليس مفتاحًا قانونيًّا يكتبه مطوّر ص.
   - id: TEXT_LATIN

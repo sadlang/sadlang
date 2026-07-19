@@ -280,6 +280,30 @@ target_link_libraries(test_ui_render_displaylist PRIVATE sad_graphics)
 target_include_directories(test_ui_render_displaylist PRIVATE
     ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
 
+# 14f. اختبار المُشكِّل العربيّ للوضع الحرّ — حارس انحدار لـ arabic_shaper (٩ حالات)
+# (AR) C++ خالص مستضاف: يجمع arabic_shaper.cpp + الاختبار مباشرةً بلا SDL2/fb0/عتاد،
+#      فيُبنى على كلّ منصّات CI. كان يُشغَّل يدويًّا فقط عبر «بناء-عرض-fb.sh» — الآن
+#      مربوط بـCTest (وسم Unit) كي يشغّله CI حارسًا للانحدار (فشل ذرّيّ: خروج ≠ 0).
+# (EN) Pure hosted C++: compiles arabic_shaper.cpp + the test directly (no SDL2/fb0/
+#      hardware), so it builds on every CI platform. Previously only run by hand via
+#      «بناء-عرض-fb.sh»; now wired into CTest (Unit label) as a CI regression guard.
+add_executable(test_arabic_shaper_freestanding
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/freestanding/tools/arabic_shaper_test.cpp
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/freestanding/src/arabic_shaper.cpp)
+target_include_directories(test_arabic_shaper_freestanding PRIVATE
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/freestanding/include)
+target_compile_features(test_arabic_shaper_freestanding PRIVATE cxx_std_17)
+if(MSVC)
+    target_compile_options(test_arabic_shaper_freestanding PRIVATE /W3 /utf-8 /FS)
+else()
+    target_compile_options(test_arabic_shaper_freestanding PRIVATE -Wall -Wextra)
+endif()
+add_test(NAME "Comprehensive_test_arabic_shaper_freestanding"
+         COMMAND test_arabic_shaper_freestanding)
+set_tests_properties("Comprehensive_test_arabic_shaper_freestanding"
+    PROPERTIES TIMEOUT 60 LABELS "Unit")
+message(STATUS "  ✅ test_arabic_shaper_freestanding")
+
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
 # ──────────────────────────────────────────────────────────────────────

@@ -52,6 +52,14 @@ namespace sad
             inline constexpr const char *HEIGHT = "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9";
             // (AR) الحشو الداخليّ للحاوية (بالبكسل) — إزاحة الأبناء داخل حدود العنصر — «حشوة».
             inline constexpr const char *PADDING = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9";
+            // (AR) الحشو العلويّ للحاوية (بالبكسل) — منطقيّ عموديّ ثابت — «حشوة_أعلى».
+            inline constexpr const char *PADDING_TOP = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9_\xd8\xa3\xd8\xb9\xd9\x84\xd9\x89";
+            // (AR) الحشو السفليّ للحاوية (بالبكسل) — منطقيّ عموديّ ثابت — «حشوة_أسفل».
+            inline constexpr const char *PADDING_BOTTOM = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9_\xd8\xa3\xd8\xb3\xd9\x81\xd9\x84";
+            // (AR) حشو جهة البداية (بالبكسل) — منطقيّ واعٍ بالـRTL (start=يمين) — «حشوة_بداية».
+            inline constexpr const char *PADDING_START = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9_\xd8\xa8\xd8\xaf\xd8\xa7\xd9\x8a\xd8\xa9";
+            // (AR) حشو جهة النهاية (بالبكسل) — منطقيّ واعٍ بالـRTL (end=يسار) — «حشوة_نهاية».
+            inline constexpr const char *PADDING_END = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9";
             // (AR) بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط — «text».
             inline constexpr const char *TEXT_LATIN = "text";
         } // namespace props
