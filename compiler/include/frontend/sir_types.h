@@ -453,9 +453,9 @@ namespace Sad
                 BUILTIN_SECURITY_VERIFY,         ///< تحقق / Verify - returns bool
                 BUILTIN_SECURITY_IS_SAFE,        ///< آمن / Is safe - returns bool
                 BUILTIN_SECURITY_PANIC,          ///< ذعر / Panic - halt with message
-                BUILTIN_SECURITY_HASH,           ///< هاش / Hash - FNV-1a hash
-                BUILTIN_SECURITY_ENCRYPT,        ///< شفّر / Encrypt - XOR encryption
-                BUILTIN_SECURITY_DECRYPT,        ///< فك_تشفير / Decrypt - XOR decryption
+                BUILTIN_SECURITY_HASH,           ///< هاش / Hash - SHA-256 hex string
+                BUILTIN_SECURITY_ENCRYPT,        ///< شفّر / Encrypt - SHA-256-CTR stream cipher
+                BUILTIN_SECURITY_DECRYPT,        ///< فك_تشفير / Decrypt - SHA-256-CTR stream cipher
                 BUILTIN_SECURITY_ASSERT_TYPE,    ///< تأكد_نوع / Assert type
                 BUILTIN_SECURITY_ASSERT_EQUAL,   ///< تأكد_مساواة / Assert equal
                 BUILTIN_SECURITY_ASSERT_GREATER, ///< تأكد_أكبر / Assert greater

@@ -172,10 +172,10 @@ namespace Sad { namespace LLVM {
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
             if (!val)
                 return nullptr;
-            // Call runtime sad_security_hash(const char*) -> int64_t
-            llvm::FunctionType *ft = llvm::FunctionType::get(
-                llvm::Type::getInt64Ty(*cg_.context_),
-                {llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo()}, false);
+            // Call runtime sad_security_hash(const char*) -> char* (SHA-256 hex string,
+            // matching the interpreter and the documented SoT contract — language-truth/stdlib/functions.yaml)
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_hash", ft);
             llvm::Value *result = cg_.builder_->CreateCall(fn, {val}, "hash.ret");
             if (inst->result.has_value())

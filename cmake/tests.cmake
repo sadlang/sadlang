@@ -421,16 +421,6 @@ if(BUILD_TESTS AND SAD_ENABLE_NETWORK_TESTS AND TARGET sad_http AND GTest_FOUND)
     add_subdirectory(tests/system/network/http)
 endif()
 
-# اختبارات التشفير / Cryptography Tests
-if(OPENSSL_FOUND)
-    add_executable(crypto_tests tests/unit/stdlib/test_crypto_module.cpp)
-    target_include_directories(crypto_tests PRIVATE
-        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
-    target_link_libraries(crypto_tests PRIVATE
-        sad_core GTest::gtest GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
-    set_target_properties(crypto_tests PROPERTIES
-        OUTPUT_NAME "crypto_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
-endif()
 
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات الوحدات الإضافية / Additional Module Tests (Sprint 1 — ريم)

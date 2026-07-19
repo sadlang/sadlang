@@ -128,16 +128,17 @@ namespace Sad
                     return BuildResult("", SadTypeKind::Void);
                 }
 
-                // 5. هاش / hash - حساب هاش FNV-1a للنص
+                // 5. هاش / hash - حساب هاش SHA-256 للنص كسلسلة ست عشرية (يطابق المفسّر +
+                //    التوثيق الرسميّ في language-truth/stdlib/functions.yaml)
                 if (funcName == Bn::Assertions::HASH)
                 {
                     if (argResults.empty())
                     {
                         std::cerr << "[خطأ] دالة هاش تتطلب معامل واحد (النص)" << std::endl;
-                        return BuildResult("", SadTypeKind::Integer);
+                        return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_HASH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -146,10 +147,10 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-                // 6. شفّر / encrypt - تشفير XOR
+                // 6. شفّر / encrypt - تشفير-تيار SHA-256-CTR (يطابق المفسّر)
                 if (funcName == Bn::Assertions::ENCRYPT)
                 {
                     if (argResults.size() < 2)
@@ -171,7 +172,7 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-                // 7. فك_تشفير / decrypt - فك تشفير XOR
+                // 7. فك_تشفير / decrypt - فك تشفير-تيار SHA-256-CTR (يطابق المفسّر)
                 if (funcName == Bn::Assertions::DECRYPT)
                 {
                     if (argResults.size() < 2)

@@ -216,17 +216,6 @@ else()
     endif()
 endif()
 
-# OpenSSL (اختياري) / OpenSSL (optional)
-find_package(OpenSSL QUIET)
-if(OPENSSL_FOUND)
-    target_link_libraries(sad_builtins PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-    target_include_directories(sad_builtins PRIVATE ${OPENSSL_INCLUDE_DIR})
-    target_compile_definitions(sad_builtins PRIVATE HAS_OPENSSL)
-    message(STATUS "✓ OpenSSL: مفعّل / Enabled")
-else()
-    message(STATUS "⚠ OpenSSL: غير موجود / Not found")
-endif()
-
 set_target_properties(sad_interp PROPERTIES
     OUTPUT_NAME "sad_interp"
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}

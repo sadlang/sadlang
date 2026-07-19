@@ -264,7 +264,6 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/stdlib/database
     ${SAD_ROOT_DIR}/stdlib/json
     ${SAD_ROOT_DIR}/stdlib/xml
-    ${SAD_ROOT_DIR}/stdlib/crypto
     ${SAD_ROOT_DIR}/stdlib/system
     ${SAD_ROOT_DIR}/stdlib/low_level/include
     ${SAD_ROOT_DIR}/compiler/include

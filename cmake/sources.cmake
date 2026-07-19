@@ -202,8 +202,6 @@ set(STDLIB_SOURCES
     stdlib/database/database_module.cpp
     stdlib/json/json_module.cpp
     stdlib/xml/xml_module.cpp
-    stdlib/crypto/crypto_module.cpp
-    # stdlib/crypto/crypto_builtins.cpp  # (AR) معطّل — يستخدم نظام include مختلف عن sad_interp
     stdlib/system/system_functions.cpp
 )
 
@@ -365,7 +363,6 @@ set(SAD_BUILTINS_LIB_SOURCES
     stdlib/database/database_module.cpp
     stdlib/json/json_module.cpp
     stdlib/xml/xml_module.cpp
-    stdlib/crypto/crypto_module.cpp
     stdlib/system/system_functions.cpp
 )
 

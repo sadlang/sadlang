@@ -261,10 +261,8 @@ Source: "..\..\stdlib\math\*";       DestDir: "{app}\stdlib\math";       Flags: 
 Source: "..\..\stdlib\string\*";     DestDir: "{app}\stdlib\string";     Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\network\*";    DestDir: "{app}\stdlib\network";    Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\database\*";   DestDir: "{app}\stdlib\database";   Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
-Source: "..\..\stdlib\crypto\*";     DestDir: "{app}\stdlib\crypto";     Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\http\*";       DestDir: "{app}\stdlib\http";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\json\*";       DestDir: "{app}\stdlib\json";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
-Source: "..\..\stdlib\async\*";      DestDir: "{app}\stdlib\async";      Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\filesystem\*"; DestDir: "{app}\stdlib\filesystem"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\system\*";     DestDir: "{app}\stdlib\system";     Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 Source: "..\..\stdlib\ui\*";         DestDir: "{app}\stdlib\ui";         Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
