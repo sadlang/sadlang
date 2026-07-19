@@ -343,6 +343,73 @@ target_compile_definitions(sad_graphics PUBLIC
     SAD_UI_HYBRID_ROUTING  # تفعيل التوجيه الهجين
 )
 
+# ══════════════════════════════════════════════════════════════════════════════
+# مكتبة الوضع الحرّ الكاملة (fb0/evdev) — بلا SDL2 / Full freestanding lib (no SDL2)
+# ──────────────────────────────────────────────────────────────────────────────
+# (AR) نظير sad_graphics لكن بخلفيّة الوضع الحرّ الكاملة (linuxfb/evdev/psf/app_runner)
+#      وبتعريف SAD_UI_FREESTANDING دون SAD_UI_USE_SDL2 — فلا يستورد الثنائيّ SDL2.
+#      المصادر اللينكسيّة (linuxfb/evdev/app_runner) محروسة بـ__linux__ فتُترجَم
+#      فارغةً على غير لينكس ⇒ الهدف يُضاف بأمان في كلّ المنصّات (إضافة غير كاسرة).
+#      يستهلكه ربطُ sad-build عند «--حرّ» (بديل sad_graphics+SDL2). النواة والعناصر
+#      backend-agnostic فتُعاد ترجمتها هنا بلا SDL2.
+# (EN) Freestanding twin of sad_graphics: full fb0/evdev backend, SAD_UI_FREESTANDING
+#      and NO SAD_UI_USE_SDL2 ⇒ binary never imports SDL2. Linux sources are guarded
+#      by __linux__ (compile empty elsewhere) so the target is portable/additive.
+# ══════════════════════════════════════════════════════════════════════════════
+option(SAD_UI_ENABLE_FREESTANDING_LIB
+    "بناء مكتبة الوضع الحرّ الكاملة sad_graphics_freestanding / Build full freestanding lib" ON)
+
+if(SAD_UI_ENABLE_FREESTANDING_LIB)
+    set(SAD_UI_FREESTANDING_FULL_SOURCES
+        backends/freestanding/src/renderer.cpp
+        backends/freestanding/src/builtin_font.cpp
+        backends/freestanding/src/arabic_shaper.cpp
+        backends/freestanding/src/linuxfb.cpp
+        backends/freestanding/src/evdev_input.cpp
+        backends/freestanding/src/psf_font.cpp
+        backends/freestanding/src/app_runner.cpp
+    )
+
+    # (AR) خلفيّة الويب مطلوبة لأنّ جسر وقت التشغيل (sad_ui_runtime) يصدّر
+    #      «توليد_ويب» (HtmlCodegen) في الـABI — توليد نصّيّ backend-agnostic.
+    add_library(sad_graphics_freestanding STATIC
+        ${SAD_UI_CORE_SOURCES}
+        ${SAD_UI_WIDGETS_SOURCES}
+        ${SAD_UI_WEB_SOURCES}
+        ${SAD_UI_FREESTANDING_FULL_SOURCES}
+    )
+
+    target_include_directories(sad_graphics_freestanding
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/core/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/backends/freestanding/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/backends/web/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/widgets/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/widgets/data/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/widgets/media/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/widgets/animation/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/widgets/controls/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/widgets/navigation_v2/include
+            ${CMAKE_SOURCE_DIR}/features/graphics/third_party
+    )
+
+    target_compile_features(sad_graphics_freestanding PUBLIC cxx_std_17)
+
+    # (AR) SAD_UI_FREESTANDING يُفعّل فرع fb0/evdev في sad_app_run؛ لا SAD_UI_USE_SDL2.
+    target_compile_definitions(sad_graphics_freestanding PUBLIC
+        SAD_UI_FREESTANDING
+        SAD_UI_HYBRID_ROUTING
+    )
+
+    if(MSVC)
+        target_compile_options(sad_graphics_freestanding PRIVATE /utf-8 /wd4819 /FS)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(sad_graphics_freestanding PRIVATE -finput-charset=UTF-8)
+    endif()
+
+    message(STATUS "  [sad_graphics_freestanding] ✓ مكتبة الوضع الحرّ الكاملة (fb0/evdev، بلا SDL2)")
+endif()
+
 # ── رسالة تأكيد ──────────────────────────────────────────────────
 
 message(STATUS "  [sad_graphics] نظام واجهات ص — ${CMAKE_CURRENT_SOURCE_DIR}")

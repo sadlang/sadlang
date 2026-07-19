@@ -149,15 +149,26 @@ namespace sad
             //      sad_button/sad_text/sad_column (P0-3/A-4 closure).
             bool found_ui = false;
 
+            // (AR) الوضع الحرّ (--حرّ): نستهدف خلفيّة fb0/evdev لا SDL2. نكشف/نربط
+            //      المتغيّر الحرّ (sad_graphics_runtime_freestanding + sad_graphics_freestanding)
+            //      ولا نُدخِل SDL2 إطلاقًا، فلا يستورد الثنائيّ SDL2.
+            // (EN) Freestanding mode (--حرّ): target fb0/evdev, not SDL2. Detect/link the
+            //      freestanding variant and never pull SDL2 in.
+            const bool freestanding = options_.freestanding;
+            const char *const ui_runtime_lib =
+                freestanding ? "sad_graphics_runtime_freestanding" : "sad_graphics_runtime";
+            const char *const ui_graphics_lib =
+                freestanding ? "sad_graphics_freestanding" : "sad_graphics";
+
             for (const auto &candidate : candidates)
             {
                 const auto normalized = std::filesystem::absolute(candidate).lexically_normal();
                 const bool has_http = has_library_file_in_dir(normalized, "sad_http");
                 const bool has_network = has_library_file_in_dir(normalized, "sad_network");
                 const bool has_websocket = has_library_file_in_dir(normalized, "sad_websocket");
-                // (AR) نكشف sad_graphics_runtime؛ sad_graphics مُجمَّعة معها في نفس مجلّد المكتبات.
-                // (EN) Detect sad_graphics_runtime; sad_graphics is co-located in the same lib dir.
-                const bool has_ui = has_library_file_in_dir(normalized, "sad_graphics_runtime");
+                // (AR) نكشف جسر وقت التشغيل (الحرّ أو المستضاف)؛ مكتبة الرسم مُجمَّعة معه.
+                // (EN) Detect the UI runtime bridge (freestanding or hosted); its graphics lib is co-located.
+                const bool has_ui = has_library_file_in_dir(normalized, ui_runtime_lib);
 
                 if (!has_http && !has_network && !has_websocket && !has_ui)
                 {
@@ -192,10 +203,15 @@ namespace sad
             //      The linker drops unreferenced members, so non-UI programs are unaffected.
             if (found_ui)
             {
-                append_unique_value(libraries, "sad_graphics_runtime");
-                append_unique_value(libraries, "sad_graphics");
+                // (AR) الترتيب مهمّ — جسر وقت التشغيل قبل مكتبة الرسم (يعتمد عليها).
+                append_unique_value(libraries, ui_runtime_lib);
+                append_unique_value(libraries, ui_graphics_lib);
 
+                // (AR) الوضع الحرّ لا يربط SDL2 إطلاقًا (خلفيّة fb0/evdev ذاتيّة الاكتفاء).
+                // (EN) Freestanding never links SDL2 (self-contained fb0/evdev backend).
 #ifdef _WIN32
+                if (!freestanding)
+                {
                 // (AR) sad_graphics مُصرَّفة مع SDL2 (SAD_UI_USE_SDL2)، ووحدة ترجمة الجسر
                 //      sad_ui_runtime.cpp تشير للراسم فتُدخِل رموز SDL_*/TTF_* عبوريًّا
                 //      حتى في المسار بلا رأس. نربط SDL2 وSDL2_ttf المُورَّدتين.
@@ -235,6 +251,7 @@ namespace sad
                     std::cerr << "  تحذير: لم يُعثر على SDL2_ttf.lib (x64) تحت " << third_party.string() << "\n";
                     std::cerr << "  Warning: SDL2_ttf.lib (x64) not found under " << third_party.string() << "\n";
                 }
+                } // if (!freestanding)
 #endif
             }
 

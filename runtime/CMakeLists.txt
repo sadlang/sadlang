@@ -95,6 +95,34 @@ else()
 endif()
 
 # ============================================================================
+# UI Runtime (Freestanding) — جسر وقت التشغيل بخلفيّة fb0/evdev بلا SDL2
+# (AR) نفس sad_ui_runtime.cpp مُصرَّفًا بـSAD_UI_FREESTANDING (لا SAD_UI_USE_SDL2)
+#      ومربوطًا بـsad_graphics_freestanding — فيسلك sad_app_run فرعَ fb0/evdev.
+#      يستهلكه ربطُ sad-build عند «--حرّ» (بديل sad_graphics_runtime + SDL2).
+# (EN) The same bridge TU built with SAD_UI_FREESTANDING and linked to
+#      sad_graphics_freestanding ⇒ sad_app_run takes the fb0/evdev branch.
+# ============================================================================
+if(TARGET sad_graphics_freestanding)
+    add_library(sad_graphics_runtime_freestanding STATIC
+        ${CMAKE_SOURCE_DIR}/features/graphics/runtime/sad_ui_runtime.cpp)
+    target_include_directories(sad_graphics_runtime_freestanding
+        PUBLIC
+            ${CMAKE_SOURCE_DIR}/features/graphics/runtime
+            ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+            ${CMAKE_SOURCE_DIR}/features/graphics/backends/freestanding/include
+            ${CMAKE_SOURCE_DIR}/features/graphics/backends/web/include
+            ${CMAKE_SOURCE_DIR}/features/graphics/third_party
+    )
+    # (AR) SAD_UI_FREESTANDING يُفعّل فرع fb0/evdev في sad_app_run؛ لا SDL2.
+    target_compile_definitions(sad_graphics_runtime_freestanding PUBLIC SAD_UI_FREESTANDING)
+    target_link_libraries(sad_graphics_runtime_freestanding PUBLIC sad_graphics_freestanding)
+    if(MSVC)
+        target_compile_options(sad_graphics_runtime_freestanding PRIVATE /utf-8 /wd4819 /FS)
+    endif()
+    message(STATUS "  [sad_graphics_runtime_freestanding] ✓ جسر وقت التشغيل الحرّ (fb0/evdev، بلا SDL2)")
+endif()
+
+# ============================================================================
 # Freestanding Low-Level Runtime — مكتبة وقت التشغيل بلا نظام تشغيل
 # (AR) تُبنى فقط عند الطلب. تحتوي على تنفيذات sad_ll_* لوضع --freestanding
 # (EN) Built only on request. Contains sad_ll_* implementations for --freestanding mode

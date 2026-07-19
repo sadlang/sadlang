@@ -37,9 +37,18 @@
 #include <sad_ui/desktop/window.h>
 #endif
 
+// (AR) الفرع الحرّ (fb0/evdev): جسر تشغيل التطبيق المستقلّ — بديل SDL2 على لينكس
+//      بلا X11. آليّة الحلقة كاملةً في المكتبة (app_runner)؛ هذا الجسر يربط فقط.
+// (EN) Freestanding branch (fb0/evdev): the SDL2 alternative on Linux without X11.
+#if defined(SAD_UI_FREESTANDING) && defined(__linux__)
+#include <sad_ui/freestanding/app_runner.h>
+#include <sad_ui/prop_keys.h>
+#endif
+
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstdint>
 #include <cstring>
 #include <cstdlib> // (م-تحكّم) malloc لنسخة نصّ توليد_ويب المملوكة للمستدعي
 #include <iostream>
@@ -127,6 +136,24 @@ static SadWidgetImpl* createWidget(UINodeType type) {
 
 static SadWidgetImpl* toWidget(SadWidget w) {
     return static_cast<SadWidgetImpl*>(w);
+}
+
+/* ── تحصين فشل-مُغلق (تحصين أميليا): هل المؤشّر عنصرٌ مُسجَّل فعلًا؟ ──
+ * (AR) باني الحاويات في المترجم يُصدر sad_add_child لكلّ وسيطٍ نوعه Pointer، وحارس
+ *      النوع Pointer أضعف من isWidgetBuilder في المفسّر: قد يمرّر مؤشّرًا غير-عنصر
+ *      (كائن صنف / &x). دوال إدارة الشجرة تمرّره عبر toWidget (static_cast أعمى)
+ *      فتقرأ حقول عنصرٍ من مؤشّرٍ ليس عنصرًا ⇒ UB/إفساد ذاكرة. نتحقّق أنّ المؤشّر
+ *      مُسجَّل في g_widgets (نظير createWidget) قبل أيّ استعمال — وإلّا تجاهل آمن
+ *      (نظير تجاهل المفسّر لغير-العنصر). O(n) مقبولٌ لأحجام UI الصغيرة، ويبطل الـUB
+ *      نهائيًّا للمحرّكين (المُستضاف والحرّ) دون حاجة لنوع «عنصر» في SIR.
+ * (EN) Fail-closed guard: verify the pointer is a registered widget in g_widgets
+ *      before the blind static_cast in toWidget — else ignore safely. */
+static bool isRegisteredWidget(const void* p) {
+    if (!p) return false;
+    for (const auto& up : g_widgets) {
+        if (up.get() == p) return true;
+    }
+    return false;
 }
 
 static SadAppImpl* toApp(SadApp a) {
@@ -654,10 +681,13 @@ void sad_prop_join_commit(SadWidget w, const char* name) {
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 void sad_add_child(SadWidget parent, SadWidget child) {
+    // (AR) تحصين فشل-مُغلق: تجاهل آمن إن لم يكن الأب أو الابن عنصرًا مُسجَّلًا
+    //      (مؤشّر غير-عنصر من باني الحاويات) — قبل static_cast الأعمى.
+    if (!isRegisteredWidget(parent) || !isRegisteredWidget(child)) return;
     auto* p = toWidget(parent);
     auto* c = toWidget(child);
     if (!p || !c) return;
-    
+
     c->parent = p;
     p->children.push_back(c);
     
@@ -667,6 +697,8 @@ void sad_add_child(SadWidget parent, SadWidget child) {
 }
 
 void sad_remove_child(SadWidget parent, SadWidget child) {
+    // (AR) تحصين فشل-مُغلق (نظير sad_add_child): تجاهل آمن لغير-العنصر المُسجَّل.
+    if (!isRegisteredWidget(parent) || !isRegisteredWidget(child)) return;
     auto* p = toWidget(parent);
     auto* c = toWidget(child);
     if (!p || !c) return;
@@ -679,6 +711,8 @@ void sad_remove_child(SadWidget parent, SadWidget child) {
 }
 
 void sad_clear_children(SadWidget widget) {
+    // (AR) تحصين فشل-مُغلق: تجاهل آمن إن لم يكن مؤشّرًا لعنصرٍ مُسجَّل.
+    if (!isRegisteredWidget(widget)) return;
     auto* w = toWidget(widget);
     if (!w) return;
     
@@ -846,12 +880,13 @@ void sad_app_render(SadApp app) {
     a->renderer->endFrame();
 }
 
-#ifdef SAD_UI_USE_SDL2
+#if defined(SAD_UI_USE_SDL2) || (defined(SAD_UI_FREESTANDING) && defined(__linux__))
 /* ─── إرسال حدثٍ من النافذة إلى ردود النداء المُترجَمة (م-أ3ر/الإرسال) ───
  * (AR) النافذة (المكتبة) تكتشف العنصر المُصاب (hit-test داخليّ) وتستدعي هذا الجسر
  *      بنوع الحدث والعقدة؛ نبحث عن SadWidgetImpl صاحب العقدة ونستدعي ربط عند_*
  *      المطابق للنوع (stringToIREventType من القلب فالمطابقة دقيقة)، وإلّا onTap
- *      المصنعيّ لحدث النقر. (لا نُكرّر الإرسال: الربط له الأولويّة على onTap.) */
+ *      المصنعيّ لحدث النقر. (لا نُكرّر الإرسال: الربط له الأولويّة على onTap.)
+ *      مشترك بين الجسر المستضاف (SDL2) والجسر الحرّ (fb0/evdev). */
 static void dispatchCompiledEvent(const IRNode* node, IREventType type) {
     if (!node) return;
     // (AR) قيد أداء: مسحٌ خطّيّ O(n) على g_widgets لكلّ حدث؛ مقبولٌ لأحجام UI
@@ -1036,7 +1071,69 @@ char* sad_generate_web(SadWidget root, const char* title) {
  *      وhit-test وإرسال الأحداث؛ نوصّل callback يُرسِل إلى ردود النداء المُترجَمة.
  *      كلّ المنطق الرسوميّ في المكتبة؛ هذا الجسر يربط فقط. */
 void sad_app_run(SadWidget root) {
-#ifdef SAD_UI_USE_SDL2
+#if defined(SAD_UI_FREESTANDING) && defined(__linux__)
+    // ─── الفرع الحرّ (fb0/evdev): بديل SDL2 على لينكس بلا X11 ───
+    // (AR) نفس ABI جسر SDL2: نمرّر شجرة IR نفسها إلى آليّة الحلقة الحرّة المشتركة
+    //      (fs::runFreestandingApp)، ونوصّل إرسال الأحداث لردود النداء المُترجَمة
+    //      (dispatchCompiledEvent) — فلا SDL2 في الثنائيّ إطلاقًا.
+    auto* impl = toWidget(root);
+    if (!impl || !impl->irNode) return;
+
+    // (م1-ب) سجّل الجذر كصفحة ابتدائيّة في مكدّس التنقّل (نظير الفرع المستضاف)،
+    //        ونستهلك dirty الابتدائيّ لأنّ المحتوى يُضبَط في buildRoot أدناه.
+    { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root;
+      navStack.replace(e); navStack.takeDirty(); }
+
+    sad::ui::freestanding::FreestandingAppConfig cfg;
+    // (AR) خطّ العرض وجهاز الإطار عبر البيئة (يمرّرهما /init في sad-os): غيابهما
+    //      ⇒ الخطّ المدمج و/dev/fb0. أسماء المتغيّرات عقدٌ مع مُشغِّل sad-os.
+    if (const char* f = std::getenv("SAD_UI_FB_FONT")) cfg.fontPath = f;
+    if (const char* d = std::getenv("SAD_UI_FB_DEVICE")) cfg.devicePath = d;
+
+    // بناء الجذر: نُرجع شجرة IR نفسها؛ وإن لم يحدّد البرنامج أبعاد الجذر نملؤها
+    // بأبعاد الشاشة (نظير جذر سطح المكتب الذي يملأ الشاشة) كي يمتدّ التخطيط.
+    cfg.buildRoot = [impl](std::uint32_t w, std::uint32_t h)
+        -> std::shared_ptr<IRNode>
+    {
+        if (!impl->irNode->findProperty(sad::ui::props::WIDTH))
+            impl->irNode->setProperty(sad::ui::props::WIDTH, static_cast<double>(w));
+        if (!impl->irNode->findProperty(sad::ui::props::HEIGHT))
+            impl->irNode->setProperty(sad::ui::props::HEIGHT, static_cast<double>(h));
+        return impl->irNode;
+    };
+    // إرسال النقر إلى ردود النداء المُترجَمة (بالعقدة لا بالتعبير النصّيّ):
+    cfg.onEvent = [](IREventType type, const std::string& /*expr*/,
+                     const IRNode* node)
+    { dispatchCompiledEvent(node, type); };
+    // مفتاح الخروج: F2/Escape (اتّفاقيّة الخروج من التطبيقات الحرّة):
+    cfg.onKey = [](sad::ui::UnifiedKeyCode code) -> bool
+    {
+        return code == sad::ui::UnifiedKeyCode::F2 ||
+               code == sad::ui::UnifiedKeyCode::Escape;
+    };
+    // كلّ دورة: تبديل المحتوى إن غيّر ردّ نداءٍ الصفحة الحاليّة (تنقّل حيّ) —
+    // نظير setTimerUpdateCallback في الفرع المستضاف.
+    cfg.onIterate = [](sad::ui::freestanding::AppLoopContext& ctx) -> bool
+    {
+        auto& navStack = sad::ui::nav();
+        if (navStack.takeDirty())
+        {
+            auto* pimpl = toWidget(navStack.buildCurrent());
+            if (pimpl && pimpl->irNode)
+            {
+                ctx.window.setContent(pimpl->irNode);
+                ctx.window.invalidate();
+            }
+        }
+        return true;
+    };
+
+    std::string err;
+    sad::ui::freestanding::runFreestandingApp(cfg, &err);
+    // بعد إغلاق النافذة: صفّر مكدّس التنقّل والمتحكّم (نظير الفرع المستضاف).
+    sad::ui::nav().reset();
+    sad::ui::windowController().reset();
+#elif defined(SAD_UI_USE_SDL2)
     auto* impl = toWidget(root);
     if (!impl || !impl->irNode) return;
     sad::ui::desktop::DesktopWindow window;

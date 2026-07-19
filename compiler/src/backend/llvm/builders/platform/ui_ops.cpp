@@ -65,6 +65,20 @@ static llvm::Value* emitUIRuntimeCall(
     return builder->CreateCall(fn, argValues, funcName + "_result");
 }
 
+// (AR) تحصين نوع معاملات إدارة الشجرة (add/remove/clear child): باني الحاويات
+//      يُصدر sad_add_child لكلّ وسيطٍ نوعه Pointer في SIR، لكنّ بعض تلك القيم تُلوَّن
+//      قيمةً عدديّة في LLVM (مثل &عدد ⇒ ptrtoint i64). تمريرها لدالّةٍ معامِلها ptr
+//      يُفشل verifyModule. نُكرِهها إلى ptr (inttoptr) فيصحّ التوقيع؛ والقيمة الناتجة
+//      (عنوانٌ ليس عنصرًا) يتجاهلها حارس sad_add_child وقت التشغيل (غير مُسجَّل في
+//      g_widgets) بأمان — فلا verifyModule ولا UB. العناصر الحقيقيّة أصلًا ptr (لا أثر).
+static llvm::Value* coerceUiChildToPtr(LLVMCodeGen& cg, llvm::Value* v, llvm::Type* ptrTy) {
+    if (!v) return v;
+    llvm::Type* t = v->getType();
+    if (t->isPointerTy()) return v;
+    if (t->isIntegerTy()) return cg.getBuilder()->CreateIntToPtr(v, ptrTy);
+    return v; // أنواع أخرى نادرة تُترك؛ verifyModule يبقى الحارس النهائيّ
+}
+
 // (AR) تصريح مُسبَق: حوّل معاملًا عدديًّا إلى float بأمان (التعريف أدناه). يُستعمَل
 //      في مصانع/ضوابط عدديّة فوق سطر تعريفه، فيلزم التصريح المُسبَق.
 // (EN) Forward declaration of the safe numeric→f32 cast (defined below);
@@ -466,23 +480,23 @@ llvm::Value* UICodeGen::emitUiDialog(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiAddChild(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
-    llvm::Value* parent = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* child = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* parent = coerceUiChildToPtr(cg_, cg_.resolveOperand(inst->operands[0]), ptrTy);
+    llvm::Value* child = coerceUiChildToPtr(cg_, cg_.resolveOperand(inst->operands[1]), ptrTy);
     return emitUIRuntimeCall(cg_, "sad_add_child", voidTy, {ptrTy, ptrTy}, {parent, child});
 }
 
 llvm::Value* UICodeGen::emitUiRemoveChild(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
-    llvm::Value* parent = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* child = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* parent = coerceUiChildToPtr(cg_, cg_.resolveOperand(inst->operands[0]), ptrTy);
+    llvm::Value* child = coerceUiChildToPtr(cg_, cg_.resolveOperand(inst->operands[1]), ptrTy);
     return emitUIRuntimeCall(cg_, "sad_remove_child", voidTy, {ptrTy, ptrTy}, {parent, child});
 }
 
 llvm::Value* UICodeGen::emitUiClearChildren(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
-    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* widget = coerceUiChildToPtr(cg_, cg_.resolveOperand(inst->operands[0]), ptrTy);
     return emitUIRuntimeCall(cg_, "sad_clear_children", voidTy, {ptrTy}, {widget});
 }
 

@@ -52,15 +52,12 @@
 
 #ifdef __linux__
 
+#include "sad_ui/freestanding/app_runner.h"
 #include "sad_ui/freestanding/linuxfb.h"
 #include "sad_ui/freestanding/renderer.h"
-#include "sad_ui/freestanding/evdev_input.h"
-#include "sad_ui/freestanding/psf_font.h"
 #include "sad_ui/ir.h"
 #include "sad_ui/prop_keys.h"
-#include "sad_ui/mouse_processor.h"
 
-#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -69,19 +66,15 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 
 #include <sys/wait.h>
 #include <unistd.h>
 
 namespace
 {
-    using sad::ui::EventData;
     using sad::ui::IREvent;
     using sad::ui::IREventType;
     using sad::ui::IRNode;
-    using sad::ui::MouseButton;
-    using sad::ui::MouseEventProcessor;
     using sad::ui::UINodeType;
     using sad::ui::UnifiedKeyCode;
     namespace fs = sad::ui::freestanding;
@@ -174,10 +167,6 @@ namespace
     constexpr double ROOT_SPACING = 48.0;
     constexpr double BODY_PADDING = 64.0;
 
-    /// (AR) خطوة استقصاء الحلقة الدائمة (evdev + فحص الساعة) — الرسم نفسه لا
-    /// يقع إلّا عند invalidate (خطر الأداء ٢ في المذكّرة)
-    constexpr int POLL_INTERVAL_MS = 50;
-
     /// (AR) صيغة الساعة (قرار ق٤: HH:MM أرقام غربيّة — يتوارث تعريب ٨)
     constexpr const char *CLOCK_FORMAT = "%02d:%02d";
 
@@ -185,13 +174,6 @@ namespace
     {
         std::cout << MARKER_FAIL_PREFIX << reason << std::endl;
         return 1;
-    }
-
-    uint32_t monotonicMs()
-    {
-        using namespace std::chrono;
-        return static_cast<uint32_t>(
-            duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
     }
 
     /// (AR) اسم المضيف من واجهة النواة (سطر واحد مشذَّب) — فشل ناعم بالبديل
@@ -391,141 +373,105 @@ namespace
     }
 
     /**
-     * @brief (AR) حلقة سطح المكتب الدائمة: evdev + ساعة حيّة + إطلاق تطبيق + خروج للصدَفة
-     * @return رمز خروج العمليّة (EXIT_CODE_SHELL عند الخروج المقصود للصدَفة)
+     * @brief (AR) حلقة سطح المكتب: تبني السياسة (شجرة السطح + ساعة حيّة + إطلاق
+     *        تطبيق + علامات الاختبار + الخروج) فوق آليّة الحلقة الحرّة المشتركة
+     *        (fs::runFreestandingApp) — الجسر رفيع لا يكرّر منطق fb0/evdev/العرض.
+     * @return رمز خروج العمليّة (EXIT_CODE_SHELL / EXIT_CODE_SHUTDOWN / 1 عند الفشل).
      */
-    int runDesktop(fs::FreestandingWindow &window,
-                   fs::linuxfb::LinuxFbDevice &fbDev,
-                   const std::string &fontPath,
+    int runDesktop(const std::string &fontPath, const std::string &devicePath,
                    const std::string &appLaunchPath)
     {
-        const uint32_t w = fbDev.config.width;
-        const uint32_t h = fbDev.config.height;
-        fs::FreestandingRenderer *renderer = window.getFreestandingRenderer();
-
-        // خطّ العرض العربيّ (PSF بأشكال العرض) — سقوط ناعم للمدمج عند الفشل:
-        if (!fontPath.empty())
-        {
-            fs::BitmapFont psfFont;
-            std::string fontError;
-            if (fs::psf::loadPsfFont(fontPath, psfFont, fontError))
-            {
-                renderer->loadBitmapFont(psfFont);
-                std::cout << MSG_FONT_LOADED_PREFIX << fontPath << std::endl;
-            }
-            else
-            {
-                // فشل ناعم: نبقى على الخطّ المدمج (المحمَّل في main) ونعلن السبب
-                std::cout << MSG_FONT_FALLBACK_PREFIX << fontError << std::endl;
-            }
-        }
-
+        // ─── حالة السطح المشتركة بين ردود النداء (تُبنى في buildRoot) ───
         const std::string hostname = readHostname();
+        DesktopTree tree;
         int minuteStamp = -1;
-        const std::string initialClock = clockText(&minuteStamp);
 
-        DesktopTree tree =
-            buildDesktopTree(w, h, topBarText(initialClock, hostname), appLaunchPath);
-        window.setContent(tree.root);
+        // (AR) أعلام تُرفع من ردود النداء وتُستهلَك في onIterate (تحكّم نظيف — لا
+        //      fork داخل مسار المعالجة، ولا إيقاف للحلقة إلّا من onIterate):
+        bool exitRequested = false;     ///< زرّ الطرفيّة أو الإطفاء طلب الخروج
+        bool shutdownRequested = false; ///< الإطفاء تحديدًا (الرمز 8 لا 7)
+        bool pendingLaunch = false;     ///< نقرة ‹العرض التجريبيّ› (إطلاق مؤجّل)
+        bool desktopFail = false;       ///< فشل إعادة رسم بعد عودة التطبيق
+        std::string desktopFailMsg;
 
-        // ─── مصدر evdev — فشل-مُغلق إن لم يُفتح أيّ جهاز إدخال ───
-        fs::evdev::EvdevInputSource input;
-        if (!input.open(w, h))
-            return fail(input.error);
+        fs::FreestandingAppConfig cfg;
+        cfg.fontPath = fontPath;
+        cfg.devicePath = devicePath;
+        cfg.resetGlyphCountOnReady = true; // بوّابة [4م] تقيس غليفات الإطار الأوّل
 
-        bool running = true;
-        // (AR) رفعُ العلَم من ردّ نداء الحدث فقط؛ الإطلاق الفعليّ في الحلقة (تحكّم نظيف
-        // — لا fork داخل مسار المعالجة):
-        bool pendingLaunch = false;
-        // (AR) طلب الإطفاء (الشريحة ٣): يُميّز سبب مغادرة الحلقة عن خروج الطرفيّة —
-        // بعد الحلقة يُترجَم إلى الرمز 8 (بدل 7) فيواصل init مسار الإطفاء:
-        bool shutdownRequested = false;
-
-        // ─── المعالِج الموحَّد للفأرة (طرفيّة = خروج، عرض = إطلاق، إطفاء = رمز 8) ───
-        MouseEventProcessor mouseProc;
-        mouseProc.setHitTestCallback(
-            [&window](float x, float y) -> const IRNode *
-            { return window.hitTest(x, y); });
-        mouseProc.setGetTimeMsCallback([]() -> uint32_t
-                                       { return monotonicMs(); });
-        mouseProc.setInvalidateCallback([&window]()
-                                        { window.invalidate(); });
-        mouseProc.setFireEventCallback(
-            [&](IREventType type, const std::string &expr,
-                const IRNode * /*node*/, const EventData & /*data*/)
-            {
-                if (type == IREventType::OnTap && expr == EXPR_EXIT_TO_SHELL)
-                    running = false;
-                else if (type == IREventType::OnTap && expr == EXPR_LAUNCH_DEMO)
-                    pendingLaunch = true;
-                else if (type == IREventType::OnTap && expr == EXPR_SHUTDOWN)
-                {
-                    running = false;
-                    shutdownRequested = true;
-                }
-            });
-
-        // ─── ربط evdev: فأرة (مؤشّر مرسوم) + مفتاح F2 = خروج للصدَفة ───
-        input.setMouseMoveCallback(
-            [&](float x, float y, const sad::ui::MouseButtonState &buttons)
-            {
-                window.setCursorPosition(x, y);
-                mouseProc.onMouseMove(x, y, buttons);
-                window.invalidate(); // المؤشّر تحرّك ⇒ رسم عند التغيّر
-            });
-        input.setMouseButtonCallback(
-            [&](MouseButton button, bool pressed, float x, float y)
-            {
-                if (pressed)
-                    mouseProc.onMouseDown(button, x, y);
-                else
-                    mouseProc.onMouseUp(button, x, y);
-            });
-        input.setKeyCallback(
-            [&](UnifiedKeyCode code, const std::string & /*name*/, bool pressed)
-            {
-                // مفتاح الخروج الموثَّق (المذكّرة ٣.٢): F2 ⇒ الصدَفة النصّيّة
-                if (pressed && code == UnifiedKeyCode::F2)
-                    running = false;
-            });
-
-        window.setCursorPosition(input.pointerX(), input.pointerY());
-        window.setCursorVisible(true);
-
-        // إطار القياس الأوّل: تصفير عدّاد الغليفات ثمّ رسم وإعلان الجاهزيّة
-        // (بوّابة [4م] تنتظر العلامتين قبل أيّ sendkey — التلقائيّة هي المُثبَتة):
-        renderer->resetPresentationGlyphCount();
-        window.invalidate();
-        if (!window.runOneFrame())
-            return fail("فشل رسم أوّل إطار لسطح المكتب");
-        std::cout << MARKER_OK_PREFIX << " " << w << "x" << h << std::endl;
-        std::cout << MARKER_GLYPHS_PREFIX << " "
-                  << renderer->presentationGlyphsDrawn() << std::endl;
-
-        // ─── الحلقة الدائمة: بلا مهلة — رسم عند التغيّر فقط ───
-        while (running)
+        // خطّ العرض العربيّ: علامتا التشخيص (نفس عقد fb-demo):
+        cfg.onFontResult = [](bool loaded, const std::string &detail)
         {
-            input.poll();
+            if (loaded)
+                std::cout << MSG_FONT_LOADED_PREFIX << detail << std::endl;
+            else
+                std::cout << MSG_FONT_FALLBACK_PREFIX << detail << std::endl;
+        };
 
-            // إطلاق تطبيق معلَّق (رُفع علَمه من نقرة زرّ ‹العرض التجريبيّ›): fork/exec/انتظار
-            // ثمّ تفريغ الإدخال المتراكم وإعادة رسم كاملة لاستعادة السطح (الشريحة ٢):
+        // بناء شجرة السطح بالأبعاد الفعليّة (ساعة ابتدائيّة + اسم مضيف + أزرار):
+        cfg.buildRoot = [&](uint32_t w, uint32_t h) -> std::shared_ptr<IRNode>
+        {
+            const std::string initialClock = clockText(&minuteStamp);
+            tree = buildDesktopTree(w, h, topBarText(initialClock, hostname),
+                                    appLaunchPath);
+            return tree.root;
+        };
+
+        // بعد الإطار الأوّل: علامتا الجاهزيّة [4م] (OK ثمّ عدّاد الغليفات):
+        cfg.onReady = [](const fs::AppLoopContext &ctx)
+        {
+            fs::FreestandingRenderer *renderer = ctx.window.getFreestandingRenderer();
+            std::cout << MARKER_OK_PREFIX << " " << ctx.width << "x" << ctx.height
+                      << std::endl;
+            std::cout << MARKER_GLYPHS_PREFIX << " "
+                      << renderer->presentationGlyphsDrawn() << std::endl;
+        };
+
+        // إرسال حدث النقر ⇒ رفع العلَم المناسب (لا إيقاف مباشر للحلقة):
+        cfg.onEvent = [&](IREventType type, const std::string &expr,
+                          const IRNode * /*node*/)
+        {
+            if (type != IREventType::OnTap)
+                return;
+            if (expr == EXPR_EXIT_TO_SHELL)
+                exitRequested = true;
+            else if (expr == EXPR_LAUNCH_DEMO)
+                pendingLaunch = true;
+            else if (expr == EXPR_SHUTDOWN)
+            {
+                exitRequested = true;
+                shutdownRequested = true;
+            }
+        };
+
+        // مفتاح الخروج الموثَّق (المذكّرة ٣.٢): F2 ⇒ الصدَفة النصّيّة (إيقاف الحلقة):
+        cfg.onKey = [](UnifiedKeyCode code) -> bool
+        { return code == UnifiedKeyCode::F2; };
+
+        // كلّ دورة: إطلاق مؤجّل ⇒ ساعة حيّة ⇒ إيقاف إن طُلب الخروج (زرّ):
+        cfg.onIterate = [&](fs::AppLoopContext &ctx) -> bool
+        {
+            // إطلاق تطبيق معلَّق (نقرة ‹العرض التجريبيّ›): fork/exec/انتظار ثمّ
+            // تفريغ الإدخال المتراكم وإعادة رسم كاملة لاستعادة السطح (الشريحة ٢):
             if (pendingLaunch)
             {
                 pendingLaunch = false;
                 if (launchDesktopApp(appLaunchPath))
                 {
-                    // تفريغ ما تراكم في طابور evdev أثناء تشغيل الابن — منع إعادة تشغيل
-                    // نقرة قديمة معلَّقة (الخطر ٤ في المذكّرة):
-                    input.drainPending();
-                    // إعادة رسم كاملة فوق ما رسمه التطبيق على /dev/fb0 ثمّ إعلان الاستئناف:
-                    renderer->resetPresentationGlyphCount();
-                    window.invalidate();
-                    if (!window.runOneFrame())
-                        return fail("فشلت إعادة رسم سطح المكتب بعد خروج التطبيق");
+                    ctx.input.drainPending(); // منع إعادة تشغيل نقرة قديمة (الخطر ٤)
+                    fs::FreestandingRenderer *r = ctx.window.getFreestandingRenderer();
+                    r->resetPresentationGlyphCount();
+                    ctx.window.invalidate();
+                    if (!ctx.window.runOneFrame())
+                    {
+                        desktopFail = true;
+                        desktopFailMsg = "فشلت إعادة رسم سطح المكتب بعد خروج التطبيق";
+                        return false;
+                    }
                     std::cout << MARKER_RESUMED << std::endl;
                     std::cout.flush();
                 }
-                continue; // دورة نظيفة (تجاوز فحص الساعة/الرسم المزدوج لهذه الدورة)
+                return !exitRequested; // دورة نظيفة (تجاوز فحص الساعة لهذه الدورة)
             }
 
             // الساعة الحيّة: invalidate واحدة عند تغيّر الدقيقة لا كلّ دورة:
@@ -536,13 +482,19 @@ namespace
                 minuteStamp = nowStamp;
                 tree.topBarLabel->setProperty(sad::ui::props::TEXT,
                                               topBarText(nowClock, hostname));
-                window.invalidate();
+                ctx.window.invalidate();
             }
 
-            if (!window.runOneFrame())
-                return fail("انقطعت حلقة إطارات سطح المكتب");
-            std::this_thread::sleep_for(std::chrono::milliseconds(POLL_INTERVAL_MS));
-        }
+            return !exitRequested;
+        };
+
+        // ─── تشغيل الحلقة المشتركة ───
+        std::string runError;
+        const int rc = fs::runFreestandingApp(cfg, &runError);
+        if (desktopFail)
+            return fail(desktopFailMsg);
+        if (rc != 0)
+            return fail(runError);
 
         // طلب إطفاء صريح (زرّ ‹إطفاء› — الشريحة ٣): خروج بالرمز 8 ⇒ الصدَفة الفرعيّة
         // تخرج بلا sad-repl فيواصل init مسار الإطفاء النظيف القائم (تعريب ٢٦):
@@ -552,7 +504,7 @@ namespace
             return EXIT_CODE_SHUTDOWN;
         }
 
-        // خروج مقصود للصدَفة النصّيّة — التسليم النظيف عقدُ init:
+        // خروج مقصود للصدَفة النصّيّة (زرّ الطرفيّة أو F2) — التسليم النظيف عقدُ init:
         std::cout << MARKER_SHELL_EXIT << std::endl;
         return EXIT_CODE_SHELL;
     }
@@ -574,33 +526,8 @@ int main(int argc, char **argv)
     if (const char *envApp = std::getenv(ENV_APP_PATH))
         appLaunchPath = envApp;
 
-    fs::linuxfb::LinuxFbDevice fbDev;
-    if (!fs::linuxfb::openFramebufferDevice(fbDev, devicePath))
-        return fail(fbDev.error);
-
-    fs::FreestandingWindow window;
-    if (!window.initializeFramebuffer(fbDev.config))
-    {
-        fs::linuxfb::closeFramebufferDevice(fbDev);
-        return fail("فشلت تهيئة المُصيّر المستقلّ على إعدادات الجهاز");
-    }
-    // الخطّ المدمج أوّلًا (لاتينيّ/أساس) — خطّ PSF يعلوه داخل runDesktop:
-    window.getFreestandingRenderer()->loadBuiltinFont();
-
-    sad::ui::PlatformWindowOptions winOpts;
-    winOpts.width = static_cast<int>(fbDev.config.width);
-    winOpts.height = static_cast<int>(fbDev.config.height);
-    if (!window.create(winOpts))
-    {
-        fs::linuxfb::closeFramebufferDevice(fbDev);
-        return fail("فشل إنشاء نافذة الوضع المستقلّ");
-    }
-
-    const int rc = runDesktop(window, fbDev, fontPath, appLaunchPath);
-
-    window.destroy();
-    fs::linuxfb::closeFramebufferDevice(fbDev);
-    return rc;
+    // الجسر رفيع: كلّ آليّة fb0/evdev/العرض في fs::runFreestandingApp عبر runDesktop.
+    return runDesktop(fontPath, devicePath, appLaunchPath);
 }
 
 #else // !__linux__
