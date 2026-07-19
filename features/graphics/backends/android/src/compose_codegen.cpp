@@ -1604,7 +1604,7 @@ namespace sad
 
                 for (const auto &prop : node.getProperties())
                 {
-                    if (prop.key == "حشوة" || prop.key == "حشو")
+                    if (prop.key == props::PADDING) // SoT «حشوة»
                     {
                         if (auto *v = std::get_if<double>(&prop.value))
                             mod << ".padding(" << *v << ".dp)";

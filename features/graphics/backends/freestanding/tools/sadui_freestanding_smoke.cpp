@@ -8,6 +8,7 @@
 // ليس جزءا من اللغة او الـSoT.
 
 #include "sad_ui_runtime.h"
+#include "sad_ui/prop_keys.h" // (AR) SoT: مفتاح الحشو القانونيّ props::PADDING = «حشوة»
 
 #include <cstdio>
 
@@ -35,7 +36,7 @@ int main(void)
     SadWidget root = sad_column();
     sad_set_prop_str(root, "لون_خلفية", COLOR_BG);
     sad_set_prop_num(root, "تباعد", 48.0);
-    sad_set_prop_num(root, "حشو", 64.0);
+    sad_set_prop_num(root, sad::ui::props::PADDING, 64.0); // SoT «حشوة»
 
     SadWidget bar = sad_app_bar(TITLE);
     sad_add_child(root, bar);

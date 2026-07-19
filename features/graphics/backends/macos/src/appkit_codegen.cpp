@@ -1126,7 +1126,7 @@ std::string AppKitCodegen::generateModifiers(const IRNode& node) const {
     std::ostringstream mod;
 
     for (const auto& prop : node.getProperties()) {
-        if (prop.key == "حشوة" || prop.key == "حشو") {
+        if (prop.key == props::PADDING) { // SoT «حشوة»
             if (auto* v = std::get_if<double>(&prop.value))
                 mod << "view.edgeInsets = NSEdgeInsetsMake(" << *v << ", " << *v << ", " << *v << ", " << *v << ")\n";
             else if (auto* vi = std::get_if<int64_t>(&prop.value))

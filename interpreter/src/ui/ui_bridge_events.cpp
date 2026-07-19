@@ -15,6 +15,7 @@
 
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/prop_keys.h" // (AR) SoT مفتاح الحشو (props::PADDING = «حشوة») — هيدر ثوابت ذاتيّ الاكتفاء، بلا اعتماد ربط (حارس الطبقات يفحص روابط CMake لا التضمين)
 #include "sad_ui/nav.h" // (م1-د) مكدّس التنقّل المشترك — لا تدُس الصفحة المُنتقَل إليها
 #include "sad_ui/window_control.h" // (م-تحكّم) عنوان/إغلاق النافذة عبر المتحكّم المشترك (SoT موحَّد)
 
@@ -265,7 +266,7 @@ namespace Sad
                                     {
                                         if (prop.key == "\xd8\xb9\xd8\xb1\xd8\xb6" ||                         // عرض
                                             prop.key == "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9" || // ارتفاع
-                                            prop.key == "\xd8\xad\xd8\xb4\xd9\x88" ||                         // حشو
+                                            prop.key == sad::ui::props::PADDING ||                            // SoT «حشوة»
                                             prop.key == "\xd9\x87\xd8\xa7\xd9\x85\xd8\xb4" ||                 // هامش
                                             prop.key == "width" || prop.key == "height" ||
                                             prop.key == "padding" || prop.key == "margin" ||

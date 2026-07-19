@@ -145,6 +145,20 @@ namespace sad
                         return e != nullptr && e->joining != Joining::None;
                     }
 
+                    /// (AR) علامة تشكيل/حركة عربيّة تُركَّب فوق/تحت الحرف السابق
+                    /// (فتحة/ضمّة/كسرة/تنوين/سكون/شدّة/مدّة/ألف خنجريّة …). هذه
+                    /// النقاط لا عرض تقدُّميّ لها (advance=0 في التنضيد الصحيح) والخطّ
+                    /// النقطيّ لا يموضِعها فوقيًّا — تموضعها دَين FreeType المعلَن.
+                    bool isCombiningMark(uint32_t cp)
+                    {
+                        return (cp >= 0x064B && cp <= 0x065F) || // الحركات + التنوين + علامات
+                               (cp == 0x0670) ||                  // ألف خنجريّة فوقيّة
+                               (cp >= 0x06D6 && cp <= 0x06DC) ||  // علامات وقف/تجويد
+                               (cp >= 0x06DF && cp <= 0x06E4) ||
+                               (cp == 0x06E7 || cp == 0x06E8) ||
+                               (cp >= 0x06EA && cp <= 0x06ED);
+                    }
+
                     /// (AR) نقطة عربيّة عرضيًّا؟ (الكتلة الأساس أو مقطعا أشكال العرض)
                     bool isArabicDisplay(uint32_t cp)
                     {
@@ -155,8 +169,21 @@ namespace sad
 
                 } // namespace
 
-                std::vector<uint32_t> shape(const std::vector<uint32_t> &codepoints)
+                std::vector<uint32_t> shape(const std::vector<uint32_t> &codepointsIn)
                 {
+                    // ── المرحلة 0: شفافيّة الحركات (تحسين التشكيل) ──
+                    // تُسقَط علامات التشكيل قبل المرحلة 1 كي لا تكسر اتّصال الحرفين
+                    // اللذين تفصل بينهما: قبل هذا كانت الحركة (مثلًا شدّة «ـّ» بين ي وة
+                    // في «الطرفيّة») تُرى «سابقًا/لاحقًا» لا يتّصل فتنكسر السلسلة ويرتدّ
+                    // الحرفان إلى شكلٍ منفصل. الخطّ النقطيّ لا يموضِع الحركات فوقيًّا
+                    // (advance لها 0 في التنضيد الصحيح) فإسقاطها هو السلوك الأمين لهذا
+                    // المسار؛ تموضعها الفوقيّ دَين FreeType المعلَن (المسار المتّجه).
+                    std::vector<uint32_t> codepoints;
+                    codepoints.reserve(codepointsIn.size());
+                    for (uint32_t cp : codepointsIn)
+                        if (!isCombiningMark(cp))
+                            codepoints.push_back(cp);
+
                     const std::size_t n = codepoints.size();
                     std::vector<uint32_t> out;
                     out.reserve(n);

@@ -850,6 +850,8 @@ namespace sad
                         {
                             auto sz = measureText(*text, fontSize);
                             textX = rect.x + rect.width - sz.first - 16;
+                            if (textX < rect.x)
+                                textX = rect.x; // لا تتجاوز حافّة العنصر يسارًا (منع قصّ العنوان)
                         }
                         drawText(*text, textX, rect.y + rect.height / 2 - fontSize / 2,
                                  textColor, fontSize);

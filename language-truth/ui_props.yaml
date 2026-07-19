@@ -95,6 +95,15 @@ keys:
     description_ar: الارتفاع الثابت (بالبكسل) لصندوق المقاس
     description_en: Fixed height (px) for the sized box
 
+  # (AR) الحشو الداخليّ للحاوية (عمود/صفّ/شبكة…) — معدّل «.حشوة(N)» يصير مفتاح IR
+  #      يقرؤه محرّك التخطيط (layout.cpp) لإزاحة الأبناء داخليًّا. القانونيّ «حشوة»
+  #      (بالتاء المربوطة، وهو ما يُنتجه types.cpp للمعدّل) — لا مرادف «حشو».
+  - id: PADDING
+    canonical: حشوة
+    value_type: عدد
+    description_ar: الحشو الداخليّ للحاوية (بالبكسل) — إزاحة الأبناء داخل حدود العنصر
+    description_en: Inner padding (px) for a container — inset of children within bounds
+
   # (AR) مفتاح احتياطيّ لاتينيّ يُنتجه مسار UINode (ir_builder: primaryArg ⇒ "text").
   #      يقرؤه المُرسِّم كبديل فقط؛ ليس مفتاحًا قانونيًّا يكتبه مطوّر ص.
   - id: TEXT_LATIN

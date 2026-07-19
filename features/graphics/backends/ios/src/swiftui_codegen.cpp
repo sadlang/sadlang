@@ -1402,7 +1402,7 @@ namespace sad
                         else if (auto *vi = std::get_if<int64_t>(&prop.value))
                             out << i << ".font(.system(size: " << *vi << "))\n";
                     }
-                    else if (prop.key == "حشوة" || prop.key == "حشو")
+                    else if (prop.key == props::PADDING) // SoT «حشوة»
                     {
                         if (auto *v = std::get_if<double>(&prop.value))
                             out << i << ".padding(" << *v << ")\n";

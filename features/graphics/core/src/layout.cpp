@@ -22,6 +22,7 @@
 
 #include "sad_ui/layout.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/prop_keys.h" // (AR) SoT مفتاح الحشو (props::PADDING = «حشوة»)
 
 #include <algorithm>
 #include <numeric>
@@ -157,7 +158,7 @@ MeasuredSize LayoutEngine::measureColumn(
     }
 
     // قراءة الحشو (padding)
-    const auto* paddingProp = node.findProperty("حشو");
+    const auto* paddingProp = node.findProperty(props::PADDING); // SoT: «حشوة»
     float padding = 0.0f;
     if (paddingProp) {
         if (auto* v = std::get_if<double>(&paddingProp->value))
@@ -215,7 +216,7 @@ MeasuredSize LayoutEngine::measureRow(
     }
 
     // قراءة الحشو (padding)
-    const auto* paddingProp = node.findProperty("حشو");
+    const auto* paddingProp = node.findProperty(props::PADDING); // SoT: «حشوة»
     float padding = 0.0f;
     if (paddingProp) {
         if (auto* v = std::get_if<double>(&paddingProp->value))
@@ -351,7 +352,7 @@ MeasuredSize LayoutEngine::measureGrid(
         else if (auto* vi = std::get_if<int64_t>(&spacingProp->value)) spacing = static_cast<float>(*vi);
     }
 
-    const auto* paddingProp = node.findProperty("حشو");
+    const auto* paddingProp = node.findProperty(props::PADDING); // SoT: «حشوة»
     float padding = 0.0f;
     if (paddingProp) {
         if (auto* v = std::get_if<double>(&paddingProp->value)) padding = static_cast<float>(*v);
@@ -462,7 +463,7 @@ MeasuredSize LayoutEngine::measureScrollView(
             spacing = static_cast<float>(*vi);
     }
 
-    const auto* paddingProp = node.findProperty("حشو");
+    const auto* paddingProp = node.findProperty(props::PADDING); // SoT: «حشوة»
     float padding = 0.0f;
     if (paddingProp) {
         if (auto* v = std::get_if<double>(&paddingProp->value))
@@ -519,7 +520,7 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
     }
 
     // قراءة الحشو (padding) — إزاحة داخلية للأبناء
-    const auto* paddingProp = node.findProperty("حشو");
+    const auto* paddingProp = node.findProperty(props::PADDING); // SoT: «حشوة»
     float padding = 0.0f;
     if (paddingProp) {
         if (auto* v = std::get_if<double>(&paddingProp->value))

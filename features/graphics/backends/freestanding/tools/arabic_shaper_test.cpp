@@ -102,6 +102,19 @@ namespace
           0x0644, 0x063A, 0x0629, 0x0020, 0x0635},
          {0xFEB9, 0x0020, 0xFE94, 0xFED0, 0xFEDF, 0x0020,
           0xFEE1, 0xFEFC, 0xFEB3}},
+        // ── شفافيّة الحركات (تحسين التشكيل) ──
+        // «يّة» = ي + شدّة(0651) + ة: قبل التحسين كانت الشدّة تكسر الاتّصال
+        //   فتخرج ي وة منفصلتين [FE93 0651 FEF1]. بعده تُسقَط الشدّة ويتّصل
+        //   الحرفان: ي ابتدائيّة FEF3 + ة نهائيّة FE94 ⇒ عكس ⇒ [FE94 FEF3].
+        {"harakat-transparent-yah-ta",
+         {0x064A, 0x0651, 0x0629},
+         {0xFE94, 0xFEF3}},
+        // «مُحَمَّد» مشكَّلة بالكامل ⇒ تُسقَط كلّ الحركات وتتّصل م ح م د:
+        //   م ابتدائيّة FEE3، ح وسطيّة FEA4، م وسطيّة FEE4، د نهائيّة FEAA ⇒
+        //   عكس المدى ⇒ [FEAA FEE4 FEA4 FEE3].
+        {"harakat-transparent-muhammad",
+         {0x0645, 0x064F, 0x062D, 0x064E, 0x0645, 0x064E, 0x0651, 0x062F},
+         {0xFEAA, 0xFEE4, 0xFEA4, 0xFEE3}},
     };
 
     void dump(const char *label, const std::vector<uint32_t> &v)

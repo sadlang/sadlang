@@ -117,7 +117,7 @@ namespace
     constexpr const char *PROP_BG_COLOR = "لون_خلفية";
     constexpr const char *PROP_TEXT_COLOR = "لون";
     constexpr const char *PROP_FONT_SIZE = "حجم_خط";
-    constexpr const char *PROP_PADDING = "حشو";
+    constexpr const char *PROP_PADDING = sad::ui::props::PADDING; // SoT: القانونيّ «حشوة»
     constexpr const char *PROP_SPACING = "تباعد";
     constexpr const char *PROP_BTN_TEXT = "نص";
 

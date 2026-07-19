@@ -50,6 +50,8 @@ namespace sad
             inline constexpr const char *WIDTH = "\xd8\xb9\xd8\xb1\xd8\xb6";
             // (AR) الارتفاع الثابت (بالبكسل) لصندوق المقاس — «ارتفاع».
             inline constexpr const char *HEIGHT = "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9";
+            // (AR) الحشو الداخليّ للحاوية (بالبكسل) — إزاحة الأبناء داخل حدود العنصر — «حشوة».
+            inline constexpr const char *PADDING = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9";
             // (AR) بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط — «text».
             inline constexpr const char *TEXT_LATIN = "text";
         } // namespace props

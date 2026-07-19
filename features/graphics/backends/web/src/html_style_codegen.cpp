@@ -13,6 +13,7 @@
 
 #include "sad_ui/web/html_codegen.h"
 #include "sad_ui/color_utils.h"
+#include "sad_ui/prop_keys.h" // (AR) SoT مفاتيح الخصائص (props::PADDING = «حشوة»)
 #include <optional>
 
 namespace sad {
@@ -122,7 +123,7 @@ std::string HtmlCodegen::generateInlineStyle(const IRNode& node) const {
                 if (!hasStyle) { style << " style=\""; hasStyle = true; }
                 style << "font-size: " << *v << "px; ";
             }
-        } else if (prop.key == "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9" || prop.key == "\xd8\xad\xd8\xb4\xd9\x88") { // حشوة أو حشو
+        } else if (prop.key == props::PADDING) { // SoT «حشوة»
             if (auto v = getNumericValue(prop)) {
                 if (!hasStyle) { style << " style=\""; hasStyle = true; }
                 style << "padding: " << *v << "px; ";

@@ -14,6 +14,7 @@
  */
 
 #include "sad_ui/types.h"
+#include "sad_ui/prop_keys.h" // (AR) SoT مفاتيح الخصائص المولَّد (props::PADDING …)
 #include "sad_ui/text_normalize.h" // (AR) تجريد التشكيل من اسم الحدث قبل المطابقة
 // (AR) قائمة X-macro لأنواع الأحداث مولَّدة من language-truth/ui_events.yaml.
 #include "sad_ui/generated/event_vocab_generated.h"
@@ -270,7 +271,7 @@ namespace sad
                 {ModifierType::MaxWidth, "أقصى_عرض"},
                 {ModifierType::MaxHeight, "أقصى_ارتفاع"},
                 // ─── المسافات ─────────────
-                {ModifierType::Padding, "حشوة"},
+                {ModifierType::Padding, props::PADDING}, // SoT: القانونيّ «حشوة»
                 {ModifierType::PaddingTop, "حشوة_أعلى"},
                 {ModifierType::PaddingBottom, "حشوة_أسفل"},
                 {ModifierType::PaddingStart, "حشوة_بداية"},
