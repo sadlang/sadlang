@@ -214,6 +214,7 @@ namespace Sad
             case SIROpcode::BUILTIN_CRYPTO_BLAKE3_KEYED_HASH: return std::string(Ncr::BLAKE3_KEYED_HASH); // هاش_مفتاح (runtime مستضاف)
             case SIROpcode::BUILTIN_CRYPTO_KDF_PBKDF2:        return std::string(Ncr::KDF_PBKDF2);        // اشتق_مفتاح_مرور (runtime مستضاف)
             case SIROpcode::BUILTIN_CRYPTO_KDF_HKDF:          return std::string(Ncr::KDF_HKDF);          // اشتق_مفتاح (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_KDF_ARGON2ID:      return std::string(Ncr::KDF_ARGON2ID);      // أرجون2 (runtime مستضاف)
             default:                                 return std::string();
             }
         }

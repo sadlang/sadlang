@@ -124,6 +124,30 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
+                // 5. أرجون2 / argon2id - Argon2id (RFC 9106)
+                if (funcName == Bn::Crypto::KDF_ARGON2ID)
+                {
+                    if (argResults.size() < 4)
+                    {
+                        std::cerr << "[خطأ] دالة أرجون2 تتطلب أربعة معاملات (كلمة_المرور، ملح، تكلفة_الذاكرة، عدد_التكرارات)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_KDF_ARGON2ID);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    inst.operands.push_back(argOperands[2]);
+                    inst.operands.push_back(argOperands[3]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
                 return std::nullopt;
             }
 

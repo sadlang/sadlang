@@ -867,6 +867,350 @@ const char *sad_kdf_hkdf(const char *secret, const char *salt, const char *info,
     free(okm);
     return out;
 }
+)";
+                rt_file << R"(
+/* ============================================================================
+ * أرجون2 / Argon2id (RFC 9106), parallelism fixed at 1 — memory-hard password
+ * hashing. Built on a self-implemented BLAKE2b (RFC 7693), independent of
+ * SHA-256 above. Verified byte-for-byte against libargon2 (argon2-cffi)
+ * across varying memory cost, iterations, and input lengths before merge.
+ * ============================================================================ */
+static const unsigned long long SAD_B2B_IV[8] = {
+    0x6A09E667F3BCC908ULL, 0xBB67AE8584CAA73BULL, 0x3C6EF372FE94F82BULL, 0xA54FF53A5F1D36F1ULL,
+    0x510E527FADE682D1ULL, 0x9B05688C2B3E6C1FULL, 0x1F83D9ABFB41BD6BULL, 0x5BE0CD19137E2179ULL};
+
+static const unsigned char SAD_B2B_SIGMA[12][16] = {
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+    {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3},
+    {11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4},
+    {7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8},
+    {9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13},
+    {2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9},
+    {12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11},
+    {13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10},
+    {6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5},
+    {10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0},
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+    {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3}};
+
+static unsigned long long sad_rotr64(unsigned long long x, int n) { return (x >> n) | (x << (64 - n)); }
+
+typedef struct {
+    unsigned long long h[8];
+    unsigned long long t[2];
+    unsigned char buf[128];
+    size_t buflen;
+    size_t outlen;
+} sad_b2b_state;
+
+static void sad_b2b_g(unsigned long long *v, int a, int b, int c, int d, unsigned long long x, unsigned long long y) {
+    v[a] = v[a] + v[b] + x; v[d] = sad_rotr64(v[d] ^ v[a], 32);
+    v[c] = v[c] + v[d];     v[b] = sad_rotr64(v[b] ^ v[c], 24);
+    v[a] = v[a] + v[b] + y; v[d] = sad_rotr64(v[d] ^ v[a], 16);
+    v[c] = v[c] + v[d];     v[b] = sad_rotr64(v[b] ^ v[c], 63);
+}
+
+static void sad_b2b_compress(sad_b2b_state *s, const unsigned char block[128], int last) {
+    unsigned long long m[16], v[16];
+    int i, j;
+    for (i = 0; i < 16; ++i) {
+        m[i] = 0;
+        for (j = 0; j < 8; ++j)
+            m[i] |= ((unsigned long long)block[i * 8 + j]) << (8 * j);
+    }
+    for (i = 0; i < 8; ++i) v[i] = s->h[i];
+    for (i = 0; i < 8; ++i) v[8 + i] = SAD_B2B_IV[i];
+    v[12] ^= s->t[0];
+    v[13] ^= s->t[1];
+    if (last) v[14] = ~v[14];
+    for (i = 0; i < 12; ++i) {
+        const unsigned char *sg = SAD_B2B_SIGMA[i];
+        sad_b2b_g(v, 0, 4, 8, 12, m[sg[0]], m[sg[1]]);
+        sad_b2b_g(v, 1, 5, 9, 13, m[sg[2]], m[sg[3]]);
+        sad_b2b_g(v, 2, 6, 10, 14, m[sg[4]], m[sg[5]]);
+        sad_b2b_g(v, 3, 7, 11, 15, m[sg[6]], m[sg[7]]);
+        sad_b2b_g(v, 0, 5, 10, 15, m[sg[8]], m[sg[9]]);
+        sad_b2b_g(v, 1, 6, 11, 12, m[sg[10]], m[sg[11]]);
+        sad_b2b_g(v, 2, 7, 8, 13, m[sg[12]], m[sg[13]]);
+        sad_b2b_g(v, 3, 4, 9, 14, m[sg[14]], m[sg[15]]);
+    }
+    for (i = 0; i < 8; ++i) s->h[i] ^= v[i] ^ v[i + 8];
+}
+
+static void sad_b2b_init(sad_b2b_state *s, size_t outlen) {
+    memset(s, 0, sizeof(*s));
+    memcpy(s->h, SAD_B2B_IV, sizeof(s->h));
+    s->h[0] ^= 0x01010000ULL ^ (unsigned long long)outlen;
+    s->outlen = outlen;
+}
+
+static void sad_b2b_update(sad_b2b_state *s, const unsigned char *data, size_t len) {
+    size_t i;
+    for (i = 0; i < len; ++i) {
+        if (s->buflen == 128) {
+            s->t[0] += 128;
+            if (s->t[0] < 128) s->t[1]++;
+            sad_b2b_compress(s, s->buf, 0);
+            s->buflen = 0;
+        }
+        s->buf[s->buflen++] = data[i];
+    }
+}
+
+static void sad_b2b_final(sad_b2b_state *s, unsigned char *out) {
+    size_t i;
+    s->t[0] += s->buflen;
+    if (s->t[0] < s->buflen) s->t[1]++;
+    while (s->buflen < 128) s->buf[s->buflen++] = 0;
+    sad_b2b_compress(s, s->buf, 1);
+    for (i = 0; i < s->outlen; ++i)
+        out[i] = (unsigned char)(s->h[i / 8] >> (8 * (i % 8)));
+}
+
+static void sad_blake2b(unsigned char *out, size_t outlen, const unsigned char *in, size_t inlen) {
+    sad_b2b_state s;
+    sad_b2b_init(&s, outlen);
+    sad_b2b_update(&s, in, inlen);
+    sad_b2b_final(&s, out);
+}
+
+static void sad_argon2_hprime(unsigned char *out, size_t outlen, const unsigned char *in, size_t inlen) {
+    unsigned char le_len[4];
+    le_len[0] = (unsigned char)outlen; le_len[1] = (unsigned char)(outlen >> 8);
+    le_len[2] = (unsigned char)(outlen >> 16); le_len[3] = (unsigned char)(outlen >> 24);
+    if (outlen <= 64) {
+        sad_b2b_state s;
+        sad_b2b_init(&s, outlen);
+        sad_b2b_update(&s, le_len, 4);
+        sad_b2b_update(&s, in, inlen);
+        sad_b2b_final(&s, out);
+        return;
+    }
+    {
+        unsigned char v[64];
+        sad_b2b_state s;
+        size_t produced;
+        sad_b2b_init(&s, 64);
+        sad_b2b_update(&s, le_len, 4);
+        sad_b2b_update(&s, in, inlen);
+        sad_b2b_final(&s, v);
+        memcpy(out, v, 32);
+        produced = 32;
+        while (outlen - produced > 64) {
+            sad_blake2b(v, 64, v, 64);
+            memcpy(out + produced, v, 32);
+            produced += 32;
+        }
+        sad_blake2b(v, outlen - produced, v, 64);
+        memcpy(out + produced, v, outlen - produced);
+    }
+}
+)";
+                rt_file << R"(
+#define SAD_ARGON2_QWORDS_IN_BLOCK 128
+#define SAD_ARGON2_BLOCK_SIZE (SAD_ARGON2_QWORDS_IN_BLOCK * 8)
+#define SAD_ARGON2_SYNC_POINTS 4
+
+typedef struct { unsigned long long v[SAD_ARGON2_QWORDS_IN_BLOCK]; } sad_argon2_block_t;
+
+static void sad_argon2_block_xor(sad_argon2_block_t *dst, const sad_argon2_block_t *a, const sad_argon2_block_t *b) {
+    int i;
+    for (i = 0; i < SAD_ARGON2_QWORDS_IN_BLOCK; ++i) dst->v[i] = a->v[i] ^ b->v[i];
+}
+
+static void sad_argon2_p(unsigned long long *v) {
+    int i;
+    static const int perm[8][4] = {
+        {0, 4, 8, 12}, {1, 5, 9, 13}, {2, 6, 10, 14}, {3, 7, 11, 15}, {0, 5, 10, 15}, {1, 6, 11, 12}, {2, 7, 8, 13}, {3, 4, 9, 14}};
+    for (i = 0; i < 8; ++i) {
+        int a = perm[i][0], b = perm[i][1], c = perm[i][2], d = perm[i][3];
+        v[a] = v[a] + v[b] + 2ULL * (unsigned long long)(unsigned int)v[a] * (unsigned long long)(unsigned int)v[b];
+        v[d] = sad_rotr64(v[d] ^ v[a], 32);
+        v[c] = v[c] + v[d] + 2ULL * (unsigned long long)(unsigned int)v[c] * (unsigned long long)(unsigned int)v[d];
+        v[b] = sad_rotr64(v[b] ^ v[c], 24);
+        v[a] = v[a] + v[b] + 2ULL * (unsigned long long)(unsigned int)v[a] * (unsigned long long)(unsigned int)v[b];
+        v[d] = sad_rotr64(v[d] ^ v[a], 16);
+        v[c] = v[c] + v[d] + 2ULL * (unsigned long long)(unsigned int)v[c] * (unsigned long long)(unsigned int)v[d];
+        v[b] = sad_rotr64(v[b] ^ v[c], 63);
+    }
+}
+
+static void sad_argon2_fill_block(const sad_argon2_block_t *x, const sad_argon2_block_t *y, sad_argon2_block_t *out,
+                                   int with_xor, const sad_argon2_block_t *prev_out) {
+    sad_argon2_block_t r, q, newval;
+    int i, m;
+    sad_argon2_block_xor(&r, x, y);
+    q = r;
+    for (i = 0; i < 8; ++i) sad_argon2_p(&q.v[16 * i]);
+    for (i = 0; i < 8; ++i) {
+        unsigned long long col[16];
+        for (m = 0; m < 8; ++m) {
+            col[2 * m] = q.v[2 * i + 16 * m];
+            col[2 * m + 1] = q.v[2 * i + 16 * m + 1];
+        }
+        sad_argon2_p(col);
+        for (m = 0; m < 8; ++m) {
+            q.v[2 * i + 16 * m] = col[2 * m];
+            q.v[2 * i + 16 * m + 1] = col[2 * m + 1];
+        }
+    }
+    for (i = 0; i < SAD_ARGON2_QWORDS_IN_BLOCK; ++i) newval.v[i] = q.v[i] ^ r.v[i];
+    if (with_xor)
+        for (i = 0; i < SAD_ARGON2_QWORDS_IN_BLOCK; ++i) newval.v[i] ^= prev_out->v[i];
+    *out = newval;
+}
+
+typedef struct { unsigned long long pass, lane, slice, m_prime, t_prime, type, counter; } sad_argon2_addr_input_t;
+
+static void sad_argon2_gen_addr_block(sad_argon2_block_t *addr, const sad_argon2_addr_input_t *ai) {
+    sad_argon2_block_t zero, in, tmp;
+    memset(&zero, 0, sizeof(sad_argon2_block_t));
+    memset(&in, 0, sizeof(sad_argon2_block_t));
+    in.v[0] = ai->pass; in.v[1] = ai->lane; in.v[2] = ai->slice;
+    in.v[3] = ai->m_prime; in.v[4] = ai->t_prime; in.v[5] = ai->type; in.v[6] = ai->counter;
+    sad_argon2_fill_block(&zero, &in, &tmp, 0, NULL);
+    sad_argon2_fill_block(&zero, &tmp, addr, 0, NULL);
+}
+
+static unsigned int sad_argon2_index_alpha(unsigned int pass, unsigned int slice, unsigned int seg_len, unsigned int index,
+                                            unsigned long long rand64, unsigned int lane_len) {
+    unsigned long long reference_area_size;
+    unsigned long long rel;
+    unsigned int start_position;
+    if (pass == 0) {
+        if (slice == 0) reference_area_size = index - 1;
+        else reference_area_size = (unsigned long long)slice * seg_len + index - 1;
+    } else {
+        reference_area_size = (unsigned long long)lane_len - seg_len + index - 1;
+    }
+    rel = rand64 & 0xFFFFFFFFULL;
+    rel = (rel * rel) >> 32;
+    rel = reference_area_size - 1 - ((reference_area_size * rel) >> 32);
+    start_position = 0;
+    if (pass != 0)
+        start_position = (slice == SAD_ARGON2_SYNC_POINTS - 1) ? 0 : (slice + 1) * seg_len;
+    return (unsigned int)((start_position + rel) % lane_len);
+}
+
+const char *sad_kdf_argon2id(const char *password, const char *salt, long long memory_cost_kib, long long iterations) {
+    unsigned int m_cost, t_cost;
+    size_t pwlen, saltlen;
+    unsigned int lanes = 1;
+    unsigned int m_prime, lane_len, seg_len;
+    unsigned char h0[64];
+    sad_argon2_block_t *B;
+    unsigned int pass, slice;
+    char *out;
+    size_t i;
+
+    if (!password) password = "";
+    if (!salt) salt = "";
+    pwlen = strlen(password);
+    saltlen = strlen(salt);
+
+    if (memory_cost_kib < 8) {
+        fprintf(stderr, "[sad] خطأ: تكلفة ذاكرة أرجون2 يجب أن تكون 8 كيلوبايت على الأقلّ\n");
+        return "";
+    }
+    if (iterations <= 0) {
+        fprintf(stderr, "[sad] خطأ: عدد تكرارات أرجون2 يجب أن يكون أكبر من صفر\n");
+        return "";
+    }
+    if (saltlen < 8) {
+        fprintf(stderr, "[sad] خطأ: ملح أرجون2 يجب أن يكون 8 بايت على الأقلّ\n");
+        return "";
+    }
+
+    m_cost = (unsigned int)memory_cost_kib;
+    t_cost = (unsigned int)iterations;
+    m_prime = (m_cost / 4) * 4;
+    if (m_prime < 2 * SAD_ARGON2_SYNC_POINTS * lanes) m_prime = 2 * SAD_ARGON2_SYNC_POINTS * lanes;
+    lane_len = m_prime / lanes;
+    seg_len = lane_len / SAD_ARGON2_SYNC_POINTS;
+
+    {
+        unsigned char buf[4];
+        sad_b2b_state s;
+        sad_b2b_init(&s, 64);
+#define SAD_ARGON2_PUT32(val) \
+    buf[0] = (unsigned char)(val); buf[1] = (unsigned char)((val) >> 8); \
+    buf[2] = (unsigned char)((val) >> 16); buf[3] = (unsigned char)((val) >> 24); \
+    sad_b2b_update(&s, buf, 4)
+        SAD_ARGON2_PUT32(lanes);
+        SAD_ARGON2_PUT32(32u);
+        SAD_ARGON2_PUT32(m_cost); /* RFC 9106 §3.2 H0 uses the raw memory cost, not the rounded-down m' */
+        SAD_ARGON2_PUT32(t_cost);
+        SAD_ARGON2_PUT32(0x13u);
+        SAD_ARGON2_PUT32(2u);
+        SAD_ARGON2_PUT32((unsigned int)pwlen);
+        sad_b2b_update(&s, (const unsigned char *)password, pwlen);
+        SAD_ARGON2_PUT32((unsigned int)saltlen);
+        sad_b2b_update(&s, (const unsigned char *)salt, saltlen);
+        SAD_ARGON2_PUT32(0u);
+        SAD_ARGON2_PUT32(0u);
+        sad_b2b_final(&s, h0);
+#undef SAD_ARGON2_PUT32
+    }
+
+    B = (sad_argon2_block_t *)malloc((size_t)m_prime * sizeof(sad_argon2_block_t));
+    if (!B) return "";
+
+    {
+        unsigned char seed[72];
+        memcpy(seed, h0, 64);
+        memset(seed + 64, 0, 8);
+        sad_argon2_hprime((unsigned char *)&B[0], SAD_ARGON2_BLOCK_SIZE, seed, 72);
+        seed[64] = 1;
+        sad_argon2_hprime((unsigned char *)&B[1], SAD_ARGON2_BLOCK_SIZE, seed, 72);
+    }
+
+    for (pass = 0; pass < t_cost; ++pass) {
+        for (slice = 0; slice < SAD_ARGON2_SYNC_POINTS; ++slice) {
+            int data_independent = (pass == 0 && slice < SAD_ARGON2_SYNC_POINTS / 2) ? 1 : 0;
+            sad_argon2_block_t addr_block;
+            sad_argon2_addr_input_t ai;
+            unsigned int start_index = (pass == 0 && slice == 0) ? 2 : 0;
+            unsigned int j;
+            ai.pass = pass; ai.lane = 0; ai.slice = slice;
+            ai.m_prime = m_prime; ai.t_prime = t_cost; ai.type = 2; ai.counter = 0;
+
+            for (j = 0; j < seg_len; ++j) {
+                unsigned int pos_in_lane, curr_index, prev_index;
+                unsigned long long rand64;
+                unsigned int ref_index;
+                int with_xor;
+
+                if (data_independent && j % SAD_ARGON2_QWORDS_IN_BLOCK == 0) {
+                    ai.counter++;
+                    sad_argon2_gen_addr_block(&addr_block, &ai);
+                }
+                if (j < start_index) continue;
+
+                pos_in_lane = slice * seg_len + j;
+                curr_index = pos_in_lane;
+                prev_index = (pos_in_lane == 0) ? (lane_len - 1) : (curr_index - 1);
+
+                if (data_independent) rand64 = addr_block.v[j % SAD_ARGON2_QWORDS_IN_BLOCK];
+                else rand64 = B[prev_index].v[0];
+
+                ref_index = sad_argon2_index_alpha(pass, slice, seg_len, j, rand64, lane_len);
+                with_xor = (pass != 0);
+                sad_argon2_fill_block(&B[prev_index], &B[ref_index], &B[curr_index], with_xor, &B[curr_index]);
+            }
+        }
+    }
+
+    {
+        unsigned char tag[32];
+        sad_argon2_hprime(tag, 32, (unsigned char *)&B[lane_len - 1], SAD_ARGON2_BLOCK_SIZE);
+        free(B);
+        out = (char *)malloc(65);
+        if (!out) return "";
+        for (i = 0; i < 32; ++i) snprintf(out + i * 2, 3, "%02x", tag[i]);
+        out[64] = '\0';
+        return out;
+    }
+}
 
 long long sad_security_timestamp(void) {
     return (long long)time(NULL);

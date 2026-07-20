@@ -528,6 +528,354 @@ namespace Sad
                 hkdf_expand(prk, reinterpret_cast<const uint8_t *>(info.data()), info.size(), okm.data(), (size_t)length);
                 return to_hex(okm.data(), okm.size());
             }
+
+            // ════════════════════════════════════════════════════════════
+            // (AR) أرجون2id (RFC 9106)، التوازي ثابت على 1 — مبنيّ فوق
+            // BLAKE2b (RFC 7693) مستقلّ عن SHA-256 أعلاه. مطابق حرفيًّا
+            // لنظير المترجم في sad_embedded_runtime.c، ومُتحقَّق بايتًا
+            // بايت مقابل libargon2 (عبر argon2-cffi) قبل الدمج.
+            // ════════════════════════════════════════════════════════════
+            constexpr uint64_t B2B_IV[8] = {
+                0x6A09E667F3BCC908ULL, 0xBB67AE8584CAA73BULL, 0x3C6EF372FE94F82BULL, 0xA54FF53A5F1D36F1ULL,
+                0x510E527FADE682D1ULL, 0x9B05688C2B3E6C1FULL, 0x1F83D9ABFB41BD6BULL, 0x5BE0CD19137E2179ULL};
+
+            constexpr uint8_t B2B_SIGMA[12][16] = {
+                {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+                {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3},
+                {11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4},
+                {7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8},
+                {9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13},
+                {2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9},
+                {12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11},
+                {13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10},
+                {6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5},
+                {10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0},
+                {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+                {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3}};
+
+            inline uint64_t rotr64(uint64_t x, int n) { return (x >> n) | (x << (64 - n)); }
+
+            struct Blake2bState
+            {
+                uint64_t h[8];
+                uint64_t t[2] = {0, 0};
+                uint8_t buf[128];
+                size_t buflen = 0;
+                size_t outlen;
+            };
+
+            inline void b2b_g(uint64_t *v, int a, int b, int c, int d, uint64_t x, uint64_t y)
+            {
+                v[a] = v[a] + v[b] + x;
+                v[d] = rotr64(v[d] ^ v[a], 32);
+                v[c] = v[c] + v[d];
+                v[b] = rotr64(v[b] ^ v[c], 24);
+                v[a] = v[a] + v[b] + y;
+                v[d] = rotr64(v[d] ^ v[a], 16);
+                v[c] = v[c] + v[d];
+                v[b] = rotr64(v[b] ^ v[c], 63);
+            }
+
+            inline void b2b_compress(Blake2bState &s, const uint8_t block[128], bool last)
+            {
+                uint64_t m[16], v[16];
+                for (int i = 0; i < 16; ++i)
+                {
+                    m[i] = 0;
+                    for (int j = 0; j < 8; ++j)
+                        m[i] |= ((uint64_t)block[i * 8 + j]) << (8 * j);
+                }
+                for (int i = 0; i < 8; ++i)
+                    v[i] = s.h[i];
+                for (int i = 0; i < 8; ++i)
+                    v[8 + i] = B2B_IV[i];
+                v[12] ^= s.t[0];
+                v[13] ^= s.t[1];
+                if (last)
+                    v[14] = ~v[14];
+                for (int i = 0; i < 12; ++i)
+                {
+                    const uint8_t *sg = B2B_SIGMA[i];
+                    b2b_g(v, 0, 4, 8, 12, m[sg[0]], m[sg[1]]);
+                    b2b_g(v, 1, 5, 9, 13, m[sg[2]], m[sg[3]]);
+                    b2b_g(v, 2, 6, 10, 14, m[sg[4]], m[sg[5]]);
+                    b2b_g(v, 3, 7, 11, 15, m[sg[6]], m[sg[7]]);
+                    b2b_g(v, 0, 5, 10, 15, m[sg[8]], m[sg[9]]);
+                    b2b_g(v, 1, 6, 11, 12, m[sg[10]], m[sg[11]]);
+                    b2b_g(v, 2, 7, 8, 13, m[sg[12]], m[sg[13]]);
+                    b2b_g(v, 3, 4, 9, 14, m[sg[14]], m[sg[15]]);
+                }
+                for (int i = 0; i < 8; ++i)
+                    s.h[i] ^= v[i] ^ v[i + 8];
+            }
+
+            inline void b2b_init(Blake2bState &s, size_t outlen)
+            {
+                std::memcpy(s.h, B2B_IV, sizeof(s.h));
+                s.h[0] ^= 0x01010000ULL ^ (uint64_t)outlen;
+                s.t[0] = s.t[1] = 0;
+                s.buflen = 0;
+                s.outlen = outlen;
+            }
+
+            inline void b2b_update(Blake2bState &s, const uint8_t *data, size_t len)
+            {
+                for (size_t i = 0; i < len; ++i)
+                {
+                    if (s.buflen == 128)
+                    {
+                        s.t[0] += 128;
+                        if (s.t[0] < 128)
+                            s.t[1]++;
+                        b2b_compress(s, s.buf, false);
+                        s.buflen = 0;
+                    }
+                    s.buf[s.buflen++] = data[i];
+                }
+            }
+
+            inline void b2b_final(Blake2bState &s, uint8_t *out)
+            {
+                s.t[0] += s.buflen;
+                if (s.t[0] < s.buflen)
+                    s.t[1]++;
+                while (s.buflen < 128)
+                    s.buf[s.buflen++] = 0;
+                b2b_compress(s, s.buf, true);
+                for (size_t i = 0; i < s.outlen; ++i)
+                    out[i] = (uint8_t)(s.h[i / 8] >> (8 * (i % 8)));
+            }
+
+            inline void blake2b(uint8_t *out, size_t outlen, const uint8_t *in, size_t inlen)
+            {
+                Blake2bState s;
+                b2b_init(s, outlen);
+                b2b_update(s, in, inlen);
+                b2b_final(s, out);
+            }
+
+            inline void argon2_hprime(uint8_t *out, size_t outlen, const uint8_t *in, size_t inlen)
+            {
+                uint8_t le_len[4] = {(uint8_t)outlen, (uint8_t)(outlen >> 8), (uint8_t)(outlen >> 16), (uint8_t)(outlen >> 24)};
+                if (outlen <= 64)
+                {
+                    Blake2bState s;
+                    b2b_init(s, outlen);
+                    b2b_update(s, le_len, 4);
+                    b2b_update(s, in, inlen);
+                    b2b_final(s, out);
+                    return;
+                }
+                uint8_t v[64];
+                Blake2bState s;
+                b2b_init(s, 64);
+                b2b_update(s, le_len, 4);
+                b2b_update(s, in, inlen);
+                b2b_final(s, v);
+                std::memcpy(out, v, 32);
+                size_t produced = 32;
+                while (outlen - produced > 64)
+                {
+                    blake2b(v, 64, v, 64);
+                    std::memcpy(out + produced, v, 32);
+                    produced += 32;
+                }
+                blake2b(v, outlen - produced, v, 64);
+                std::memcpy(out + produced, v, outlen - produced);
+            }
+
+            constexpr int ARGON2_QWORDS_IN_BLOCK = 128;
+            constexpr int ARGON2_BLOCK_SIZE = ARGON2_QWORDS_IN_BLOCK * 8;
+            constexpr int ARGON2_SYNC_POINTS = 4;
+
+            struct Argon2Block
+            {
+                uint64_t v[ARGON2_QWORDS_IN_BLOCK];
+            };
+
+            inline void argon2_block_xor(Argon2Block &dst, const Argon2Block &a, const Argon2Block &b)
+            {
+                for (int i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i)
+                    dst.v[i] = a.v[i] ^ b.v[i];
+            }
+
+            inline void argon2_p(uint64_t *v)
+            {
+                static constexpr int perm[8][4] = {
+                    {0, 4, 8, 12}, {1, 5, 9, 13}, {2, 6, 10, 14}, {3, 7, 11, 15}, {0, 5, 10, 15}, {1, 6, 11, 12}, {2, 7, 8, 13}, {3, 4, 9, 14}};
+                for (int i = 0; i < 8; ++i)
+                {
+                    int a = perm[i][0], b = perm[i][1], c = perm[i][2], d = perm[i][3];
+                    v[a] = v[a] + v[b] + 2ULL * (uint64_t)(uint32_t)v[a] * (uint64_t)(uint32_t)v[b];
+                    v[d] = rotr64(v[d] ^ v[a], 32);
+                    v[c] = v[c] + v[d] + 2ULL * (uint64_t)(uint32_t)v[c] * (uint64_t)(uint32_t)v[d];
+                    v[b] = rotr64(v[b] ^ v[c], 24);
+                    v[a] = v[a] + v[b] + 2ULL * (uint64_t)(uint32_t)v[a] * (uint64_t)(uint32_t)v[b];
+                    v[d] = rotr64(v[d] ^ v[a], 16);
+                    v[c] = v[c] + v[d] + 2ULL * (uint64_t)(uint32_t)v[c] * (uint64_t)(uint32_t)v[d];
+                    v[b] = rotr64(v[b] ^ v[c], 63);
+                }
+            }
+
+            inline void argon2_fill_block(const Argon2Block &x, const Argon2Block &y, Argon2Block &out,
+                                           bool with_xor, const Argon2Block &prev_out)
+            {
+                Argon2Block r, q, newval;
+                argon2_block_xor(r, x, y);
+                q = r;
+                for (int i = 0; i < 8; ++i)
+                    argon2_p(&q.v[16 * i]);
+                for (int i = 0; i < 8; ++i)
+                {
+                    uint64_t col[16];
+                    for (int m = 0; m < 8; ++m)
+                    {
+                        col[2 * m] = q.v[2 * i + 16 * m];
+                        col[2 * m + 1] = q.v[2 * i + 16 * m + 1];
+                    }
+                    argon2_p(col);
+                    for (int m = 0; m < 8; ++m)
+                    {
+                        q.v[2 * i + 16 * m] = col[2 * m];
+                        q.v[2 * i + 16 * m + 1] = col[2 * m + 1];
+                    }
+                }
+                for (int i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i)
+                    newval.v[i] = q.v[i] ^ r.v[i];
+                if (with_xor)
+                    for (int i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i)
+                        newval.v[i] ^= prev_out.v[i];
+                out = newval;
+            }
+
+            struct Argon2AddrInput
+            {
+                uint64_t pass, lane, slice, m_prime, t_prime, type, counter;
+            };
+
+            inline void argon2_gen_addr_block(Argon2Block &addr, const Argon2AddrInput &ai)
+            {
+                Argon2Block zero{}, in{}, tmp;
+                in.v[0] = ai.pass;
+                in.v[1] = ai.lane;
+                in.v[2] = ai.slice;
+                in.v[3] = ai.m_prime;
+                in.v[4] = ai.t_prime;
+                in.v[5] = ai.type;
+                in.v[6] = ai.counter;
+                argon2_fill_block(zero, in, tmp, false, zero);
+                argon2_fill_block(zero, tmp, addr, false, zero);
+            }
+
+            // RFC 9106 §3.4 indexing, restricted to parallelism = 1 (always same-lane).
+            inline uint32_t argon2_index_alpha(uint32_t pass, uint32_t slice, uint32_t seg_len, uint32_t index,
+                                                uint64_t rand64, uint32_t lane_len)
+            {
+                uint64_t reference_area_size;
+                if (pass == 0)
+                    reference_area_size = (slice == 0) ? (index - 1) : ((uint64_t)slice * seg_len + index - 1);
+                else
+                    reference_area_size = (uint64_t)lane_len - seg_len + index - 1;
+
+                uint64_t rel = rand64 & 0xFFFFFFFFULL;
+                rel = (rel * rel) >> 32;
+                rel = reference_area_size - 1 - ((reference_area_size * rel) >> 32);
+
+                uint32_t start_position = 0;
+                if (pass != 0)
+                    start_position = (slice == ARGON2_SYNC_POINTS - 1) ? 0 : (slice + 1) * seg_len;
+
+                return (uint32_t)((start_position + rel) % lane_len);
+            }
+
+            // أرجون2 / Argon2id (RFC 9106), التوازي ثابت على 1 عمدًا (يبسّط
+            // التنفيذ، يتجنّب تعقيد التزامن متعدّد الخيوط).
+            inline std::string argon2id_hex(const std::string &password, const std::string &salt,
+                                             long long memory_cost_kib, long long iterations)
+            {
+                const uint32_t lanes = 1;
+                uint32_t m_cost = (uint32_t)memory_cost_kib;
+                uint32_t t_cost = (uint32_t)iterations;
+                uint32_t m_prime = (m_cost / 4) * 4;
+                if (m_prime < 2 * ARGON2_SYNC_POINTS * lanes)
+                    m_prime = 2 * ARGON2_SYNC_POINTS * lanes;
+                uint32_t lane_len = m_prime / lanes;
+                uint32_t seg_len = lane_len / ARGON2_SYNC_POINTS;
+
+                uint8_t h0[64];
+                {
+                    uint8_t buf[4];
+                    Blake2bState s;
+                    b2b_init(s, 64);
+                    auto put32 = [&](uint32_t val)
+                    {
+                        buf[0] = (uint8_t)val;
+                        buf[1] = (uint8_t)(val >> 8);
+                        buf[2] = (uint8_t)(val >> 16);
+                        buf[3] = (uint8_t)(val >> 24);
+                        b2b_update(s, buf, 4);
+                    };
+                    put32(lanes);
+                    put32(32u);
+                    put32(m_cost); // RFC 9106 §3.2 H0 uses the raw memory cost, not the rounded-down m'
+                    put32(t_cost);
+                    put32(0x13u);
+                    put32(2u);
+                    put32((uint32_t)password.size());
+                    b2b_update(s, reinterpret_cast<const uint8_t *>(password.data()), password.size());
+                    put32((uint32_t)salt.size());
+                    b2b_update(s, reinterpret_cast<const uint8_t *>(salt.data()), salt.size());
+                    put32(0u);
+                    put32(0u);
+                    b2b_final(s, h0);
+                }
+
+                std::vector<Argon2Block> B(m_prime);
+
+                {
+                    uint8_t seed[72];
+                    std::memcpy(seed, h0, 64);
+                    std::memset(seed + 64, 0, 8);
+                    argon2_hprime((uint8_t *)&B[0], ARGON2_BLOCK_SIZE, seed, 72);
+                    seed[64] = 1;
+                    argon2_hprime((uint8_t *)&B[1], ARGON2_BLOCK_SIZE, seed, 72);
+                }
+
+                for (uint32_t pass = 0; pass < t_cost; ++pass)
+                {
+                    for (uint32_t slice = 0; slice < ARGON2_SYNC_POINTS; ++slice)
+                    {
+                        bool data_independent = (pass == 0 && slice < ARGON2_SYNC_POINTS / 2);
+                        Argon2Block addr_block{};
+                        Argon2AddrInput ai{pass, 0, slice, m_prime, t_cost, 2, 0};
+                        uint32_t start_index = (pass == 0 && slice == 0) ? 2 : 0;
+
+                        for (uint32_t j = 0; j < seg_len; ++j)
+                        {
+                            if (data_independent && j % ARGON2_QWORDS_IN_BLOCK == 0)
+                            {
+                                ai.counter++;
+                                argon2_gen_addr_block(addr_block, ai);
+                            }
+                            if (j < start_index)
+                                continue;
+
+                            uint32_t pos_in_lane = slice * seg_len + j;
+                            uint32_t curr_index = pos_in_lane;
+                            uint32_t prev_index = (pos_in_lane == 0) ? (lane_len - 1) : (curr_index - 1);
+
+                            uint64_t rand64 = data_independent ? addr_block.v[j % ARGON2_QWORDS_IN_BLOCK] : B[prev_index].v[0];
+                            uint32_t ref_index = argon2_index_alpha(pass, slice, seg_len, j, rand64, lane_len);
+                            bool with_xor = (pass != 0);
+                            argon2_fill_block(B[prev_index], B[ref_index], B[curr_index], with_xor, B[curr_index]);
+                        }
+                    }
+                }
+
+                uint8_t tag[32];
+                argon2_hprime(tag, 32, (uint8_t *)&B[lane_len - 1], ARGON2_BLOCK_SIZE);
+                return to_hex(tag, 32);
+            }
         } // namespace CryptoDetail
 
         void registerBuiltinsCrypto(Interpreter &interpreter)
@@ -588,6 +936,26 @@ namespace Sad
                 return std::make_shared<Data::Value>(CryptoDetail::hkdf_hex(secret, salt, info, length));
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bcr::KDF_HKDF), hkdf_func);
+
+            // أرجون2 / argon2id — اشتقاق مفتاح صعب الحساب ذاكرةً وزمنًا (RFC 9106)
+            auto argon2id_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
+            {
+                const auto &args = ctx.args();
+                if (args.size() < 4)
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                std::string password = args[0]->toString();
+                std::string salt = args[1]->toString();
+                long long memory_cost_kib = args[2]->toInt();
+                long long iterations = args[3]->toInt();
+                if (memory_cost_kib < 8)
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                if (iterations <= 0)
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                if (salt.size() < 8)
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                return std::make_shared<Data::Value>(CryptoDetail::argon2id_hex(password, salt, memory_cost_kib, iterations));
+            };
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bcr::KDF_ARGON2ID), argon2id_func);
         }
     } // namespace Interpreter
 } // namespace Sad

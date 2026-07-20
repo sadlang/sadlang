@@ -557,4 +557,26 @@ namespace Sad { namespace LLVM {
             return result;
         }
 
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoKdfArgon2id(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 4)
+                return nullptr;
+            llvm::Value *password = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *salt = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *memoryCostKib = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *iterations = cg_.resolveOperand(inst->operands[3]);
+            if (!password || !salt || !memoryCostKib || !iterations)
+                return nullptr;
+            // Call runtime sad_kdf_argon2id(const char*, const char*, long long, long long) -> char*
+            // (Argon2id, RFC 9106, parallelism fixed at 1 — hex string, 32-byte fixed output)
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i64Ty, i64Ty}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_argon2id", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {password, salt, memoryCostKib, iterations}, "argon2id.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
 }} // namespace Sad::LLVM
