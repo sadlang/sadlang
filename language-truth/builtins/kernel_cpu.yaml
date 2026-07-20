@@ -82,7 +82,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_10
-  canonical: منفذ_اقرأ16
+  canonical: اقرأ_منفذ16
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -90,12 +90,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: منفذ_اقرأ16
+  description_ar: اقرأ_منفذ16
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_11
-  canonical: منفذ_اكتب16
+  canonical: اكتب_منفذ16
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -103,12 +103,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: منفذ_اكتب16
+  description_ar: اكتب_منفذ16
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_12
-  canonical: منفذ_اقرأ32
+  canonical: اقرأ_منفذ32
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -116,12 +116,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: منفذ_اقرأ32
+  description_ar: اقرأ_منفذ32
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_13
-  canonical: منفذ_اكتب32
+  canonical: اكتب_منفذ32
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -129,7 +129,7 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: منفذ_اكتب32
+  description_ar: اكتب_منفذ32
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
@@ -654,7 +654,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_8
-  canonical: منفذ_اقرأ
+  canonical: اقرأ_منفذ
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -662,12 +662,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: منفذ_اقرأ
+  description_ar: اقرأ_منفذ
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_9
-  canonical: منفذ_اكتب
+  canonical: اكتب_منفذ
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -675,12 +675,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: منفذ_اكتب
+  description_ar: اكتب_منفذ
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_24
-  canonical: ذاكرة_اقرأ
+  canonical: اقرأ_ذاكرة
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -688,12 +688,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اقرأ
+  description_ar: اقرأ_ذاكرة
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_25
-  canonical: ذاكرة_اكتب
+  canonical: اكتب_ذاكرة
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -701,7 +701,7 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اكتب
+  description_ar: اكتب_ذاكرة
   description_en: kernel cpu function
   params: []
   lookup_table: name_only

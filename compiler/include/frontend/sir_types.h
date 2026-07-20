@@ -391,20 +391,20 @@ namespace Sad
                 //      and direct hardware/CPU interaction
 
                 INLINE_ASM,            ///< (AR) تجميع مضمّن / (EN) Inline assembly
-                BUILTIN_PORT_WRITE,    ///< (AR) منفذ_اكتب — كتابة بايت على منفذ I/O / (EN) Port write (outb)
-                BUILTIN_PORT_READ,     ///< (AR) منفذ_اقرأ — قراءة بايت من منفذ I/O / (EN) Port read (inb)
-                BUILTIN_PORT_WRITE_16, ///< (AR) منفذ_اكتب16 — كتابة كلمة (16 بت) / (EN) Port write 16-bit (outw)
-                BUILTIN_PORT_READ_16,  ///< (AR) منفذ_اقرأ16 — قراءة كلمة (16 بت) / (EN) Port read 16-bit (inw)
-                BUILTIN_PORT_WRITE_32, ///< (AR) منفذ_اكتب32 — كتابة كلمة مزدوجة (32 بت) / (EN) Port write 32-bit (outl)
-                BUILTIN_PORT_READ_32,  ///< (AR) منفذ_اقرأ32 — قراءة كلمة مزدوجة (32 بت) / (EN) Port read 32-bit (inl)
-                BUILTIN_MEM_WRITE_8,   ///< (AR) ذاكرة_اكتب — كتابة بايت في عنوان ذاكرة / (EN) Memory write byte (poke)
-                BUILTIN_MEM_READ_8,    ///< (AR) ذاكرة_اقرأ — قراءة بايت من عنوان ذاكرة / (EN) Memory read byte (peek)
-                BUILTIN_MEM_WRITE_16,  ///< (AR) ذاكرة_اكتب16 / (EN) Memory write 16-bit
-                BUILTIN_MEM_READ_16,   ///< (AR) ذاكرة_اقرأ16 / (EN) Memory read 16-bit
-                BUILTIN_MEM_WRITE_32,  ///< (AR) ذاكرة_اكتب32 / (EN) Memory write 32-bit
-                BUILTIN_MEM_READ_32,   ///< (AR) ذاكرة_اقرأ32 / (EN) Memory read 32-bit
-                BUILTIN_MEM_WRITE_64,  ///< (AR) ذاكرة_اكتب64 / (EN) Memory write 64-bit
-                BUILTIN_MEM_READ_64,   ///< (AR) ذاكرة_اقرأ64 / (EN) Memory read 64-bit
+                BUILTIN_PORT_WRITE,    ///< (AR) اكتب_منفذ — كتابة بايت على منفذ I/O / (EN) Port write (outb)
+                BUILTIN_PORT_READ,     ///< (AR) اقرأ_منفذ — قراءة بايت من منفذ I/O / (EN) Port read (inb)
+                BUILTIN_PORT_WRITE_16, ///< (AR) اكتب_منفذ16 — كتابة كلمة (16 بت) / (EN) Port write 16-bit (outw)
+                BUILTIN_PORT_READ_16,  ///< (AR) اقرأ_منفذ16 — قراءة كلمة (16 بت) / (EN) Port read 16-bit (inw)
+                BUILTIN_PORT_WRITE_32, ///< (AR) اكتب_منفذ32 — كتابة كلمة مزدوجة (32 بت) / (EN) Port write 32-bit (outl)
+                BUILTIN_PORT_READ_32,  ///< (AR) اقرأ_منفذ32 — قراءة كلمة مزدوجة (32 بت) / (EN) Port read 32-bit (inl)
+                BUILTIN_MEM_WRITE_8,   ///< (AR) اكتب_ذاكرة — كتابة بايت في عنوان ذاكرة / (EN) Memory write byte (poke)
+                BUILTIN_MEM_READ_8,    ///< (AR) اقرأ_ذاكرة — قراءة بايت من عنوان ذاكرة / (EN) Memory read byte (peek)
+                BUILTIN_MEM_WRITE_16,  ///< (AR) اكتب_ذاكرة16 / (EN) Memory write 16-bit
+                BUILTIN_MEM_READ_16,   ///< (AR) اقرأ_ذاكرة16 / (EN) Memory read 16-bit
+                BUILTIN_MEM_WRITE_32,  ///< (AR) اكتب_ذاكرة32 / (EN) Memory write 32-bit
+                BUILTIN_MEM_READ_32,   ///< (AR) اقرأ_ذاكرة32 / (EN) Memory read 32-bit
+                BUILTIN_MEM_WRITE_64,  ///< (AR) اكتب_ذاكرة64 / (EN) Memory write 64-bit
+                BUILTIN_MEM_READ_64,   ///< (AR) اقرأ_ذاكرة64 / (EN) Memory read 64-bit
                 BUILTIN_INTERRUPT,     ///< (AR) مقاطعة — إطلاق مقاطعة برمجية / (EN) Software interrupt (int N)
                 BUILTIN_HALT,          ///< (AR) توقف — إيقاف المعالج / (EN) Halt CPU (hlt)
                 BUILTIN_CLI,           ///< (AR) تعطيل_مقاطعات — تعطيل المقاطعات / (EN) Clear interrupt flag (cli)
@@ -412,8 +412,8 @@ namespace Sad
                 BUILTIN_ADDR_OF,       ///< (AR) عنوان — الحصول على عنوان متغير / (EN) Address-of operator
                 BUILTIN_MEM_COPY,      ///< (AR) انسخ_ذاكرة — نسخ كتلة ذاكرة / (EN) Memory block copy
                 BUILTIN_MEM_SET,       ///< (AR) املأ_ذاكرة — ملء كتلة ذاكرة بقيمة / (EN) Memory block fill
-                BUILTIN_MEM_FILL_32,   ///< (AR) ذاكرة_املأ32 — ملء بكلمات 32-بت (REP STOSD) / (EN) Fill 32-bit words
-                BUILTIN_MEM_COPY_32,   ///< (AR) ذاكرة_انسخ32 — نسخ كلمات 32-بت (REP MOVSD) / (EN) Copy 32-bit words
+                BUILTIN_MEM_FILL_32,   ///< (AR) املأ_ذاكرة32 — ملء بكلمات 32-بت (REP STOSD) / (EN) Fill 32-bit words
+                BUILTIN_MEM_COPY_32,   ///< (AR) انسخ_ذاكرة32 — نسخ كلمات 32-بت (REP MOVSD) / (EN) Copy 32-bit words
                 BUILTIN_VGA_WRITE,     ///< (AR) شاشة_اكتب — كتابة حرف في ذاكرة VGA / (EN) Write char to VGA memory
                 BUILTIN_VGA_CLEAR,     ///< (AR) شاشة_امسح — مسح شاشة VGA / (EN) Clear VGA screen
 

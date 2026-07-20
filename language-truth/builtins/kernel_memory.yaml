@@ -82,7 +82,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MEM_6
-  canonical: ذاكرة_انسخ
+  canonical: انسخ_ذاكرة
   namespace: KernelMemory
   category: MODULE_FUNCTION
   require_import: true
@@ -90,7 +90,7 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_انسخ
+  description_ar: انسخ_ذاكرة
   description_en: kernel memory function
   params: []
   lookup_table: name_only

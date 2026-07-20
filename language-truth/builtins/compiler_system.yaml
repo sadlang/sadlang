@@ -4,7 +4,7 @@ description_ar: دوال مترجم CompilerMem (8 دالة)
 description_en: Compiler builtins CompilerMem (8)
 functions:
 - cpp_id: MEM_0
-  canonical: ذاكرة_اكتب16
+  canonical: اكتب_ذاكرة16
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -12,12 +12,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اكتب16
+  description_ar: اكتب_ذاكرة16
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_1
-  canonical: ذاكرة_اكتب32
+  canonical: اكتب_ذاكرة32
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -25,12 +25,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اكتب32
+  description_ar: اكتب_ذاكرة32
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_2
-  canonical: ذاكرة_اكتب64
+  canonical: اكتب_ذاكرة64
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -38,12 +38,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اكتب64
+  description_ar: اكتب_ذاكرة64
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_3
-  canonical: ذاكرة_اقرأ16
+  canonical: اقرأ_ذاكرة16
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -51,12 +51,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اقرأ16
+  description_ar: اقرأ_ذاكرة16
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_4
-  canonical: ذاكرة_اقرأ32
+  canonical: اقرأ_ذاكرة32
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -64,12 +64,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اقرأ32
+  description_ar: اقرأ_ذاكرة32
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_5
-  canonical: ذاكرة_اقرأ64
+  canonical: اقرأ_ذاكرة64
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -77,12 +77,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_اقرأ64
+  description_ar: اقرأ_ذاكرة64
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_6
-  canonical: ذاكرة_املأ32
+  canonical: املأ_ذاكرة32
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -90,12 +90,12 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_املأ32
+  description_ar: املأ_ذاكرة32
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only
 - cpp_id: MEM_7
-  canonical: ذاكرة_انسخ32
+  canonical: انسخ_ذاكرة32
   namespace: CompilerMem
   category: MODULE_FUNCTION
   require_import: true
@@ -103,7 +103,7 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: ذاكرة_انسخ32
+  description_ar: انسخ_ذاكرة32
   description_en: compiler builtin (builtins_system)
   params: []
   lookup_table: name_only

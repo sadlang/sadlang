@@ -1633,14 +1633,14 @@ namespace Sad
                 inline constexpr std::string_view CPU_6 = "معالج_اكتب_msr";
                 // (AR) ابطل_صفحة
                 inline constexpr std::string_view CPU_7 = "ابطل_صفحة";
-                // (AR) منفذ_اقرأ16
-                inline constexpr std::string_view CPU_10 = "منفذ_اقرأ16";
-                // (AR) منفذ_اكتب16
-                inline constexpr std::string_view CPU_11 = "منفذ_اكتب16";
-                // (AR) منفذ_اقرأ32
-                inline constexpr std::string_view CPU_12 = "منفذ_اقرأ32";
-                // (AR) منفذ_اكتب32
-                inline constexpr std::string_view CPU_13 = "منفذ_اكتب32";
+                // (AR) اقرأ_منفذ16
+                inline constexpr std::string_view CPU_10 = "اقرأ_منفذ16";
+                // (AR) اكتب_منفذ16
+                inline constexpr std::string_view CPU_11 = "اكتب_منفذ16";
+                // (AR) اقرأ_منفذ32
+                inline constexpr std::string_view CPU_12 = "اقرأ_منفذ32";
+                // (AR) اكتب_منفذ32
+                inline constexpr std::string_view CPU_13 = "اكتب_منفذ32";
                 // (AR) بت_و
                 inline constexpr std::string_view CPU_14 = "بت_و";
                 // (AR) بت_أو
@@ -1721,14 +1721,14 @@ namespace Sad
                 inline constexpr std::string_view CPU_3 = "تعطيل_مقاطعات";
                 // (AR) تفعيل_مقاطعات
                 inline constexpr std::string_view CPU_4 = "تفعيل_مقاطعات";
-                // (AR) منفذ_اقرأ
-                inline constexpr std::string_view CPU_8 = "منفذ_اقرأ";
-                // (AR) منفذ_اكتب
-                inline constexpr std::string_view CPU_9 = "منفذ_اكتب";
-                // (AR) ذاكرة_اقرأ
-                inline constexpr std::string_view CPU_24 = "ذاكرة_اقرأ";
-                // (AR) ذاكرة_اكتب
-                inline constexpr std::string_view CPU_25 = "ذاكرة_اكتب";
+                // (AR) اقرأ_منفذ
+                inline constexpr std::string_view CPU_8 = "اقرأ_منفذ";
+                // (AR) اكتب_منفذ
+                inline constexpr std::string_view CPU_9 = "اكتب_منفذ";
+                // (AR) اقرأ_ذاكرة
+                inline constexpr std::string_view CPU_24 = "اقرأ_ذاكرة";
+                // (AR) اكتب_ذاكرة
+                inline constexpr std::string_view CPU_25 = "اكتب_ذاكرة";
             }
 
             // ─────────── KernelGpu ───────────
@@ -1801,8 +1801,8 @@ namespace Sad
                 inline constexpr std::string_view MEM_4 = "ذاكرة_ذروة";
                 // (AR) ذاكرة_صفر
                 inline constexpr std::string_view MEM_5 = "ذاكرة_صفر";
-                // (AR) ذاكرة_انسخ
-                inline constexpr std::string_view MEM_6 = "ذاكرة_انسخ";
+                // (AR) انسخ_ذاكرة
+                inline constexpr std::string_view MEM_6 = "انسخ_ذاكرة";
                 // (AR) ذاكرة_أعد_حجم
                 inline constexpr std::string_view MEM_7 = "ذاكرة_أعد_حجم";
                 // (AR) ذاكرة_محاذاة
@@ -2243,22 +2243,22 @@ namespace Sad
             // ─────────── CompilerMem ───────────
             namespace CompilerMem
             {
-                // (AR) ذاكرة_اكتب16
-                inline constexpr std::string_view MEM_0 = "ذاكرة_اكتب16";
-                // (AR) ذاكرة_اكتب32
-                inline constexpr std::string_view MEM_1 = "ذاكرة_اكتب32";
-                // (AR) ذاكرة_اكتب64
-                inline constexpr std::string_view MEM_2 = "ذاكرة_اكتب64";
-                // (AR) ذاكرة_اقرأ16
-                inline constexpr std::string_view MEM_3 = "ذاكرة_اقرأ16";
-                // (AR) ذاكرة_اقرأ32
-                inline constexpr std::string_view MEM_4 = "ذاكرة_اقرأ32";
-                // (AR) ذاكرة_اقرأ64
-                inline constexpr std::string_view MEM_5 = "ذاكرة_اقرأ64";
-                // (AR) ذاكرة_املأ32
-                inline constexpr std::string_view MEM_6 = "ذاكرة_املأ32";
-                // (AR) ذاكرة_انسخ32
-                inline constexpr std::string_view MEM_7 = "ذاكرة_انسخ32";
+                // (AR) اكتب_ذاكرة16
+                inline constexpr std::string_view MEM_0 = "اكتب_ذاكرة16";
+                // (AR) اكتب_ذاكرة32
+                inline constexpr std::string_view MEM_1 = "اكتب_ذاكرة32";
+                // (AR) اكتب_ذاكرة64
+                inline constexpr std::string_view MEM_2 = "اكتب_ذاكرة64";
+                // (AR) اقرأ_ذاكرة16
+                inline constexpr std::string_view MEM_3 = "اقرأ_ذاكرة16";
+                // (AR) اقرأ_ذاكرة32
+                inline constexpr std::string_view MEM_4 = "اقرأ_ذاكرة32";
+                // (AR) اقرأ_ذاكرة64
+                inline constexpr std::string_view MEM_5 = "اقرأ_ذاكرة64";
+                // (AR) املأ_ذاكرة32
+                inline constexpr std::string_view MEM_6 = "املأ_ذاكرة32";
+                // (AR) انسخ_ذاكرة32
+                inline constexpr std::string_view MEM_7 = "انسخ_ذاكرة32";
             }
 
             // ─────────── CompilerEmbed ───────────
@@ -3690,10 +3690,10 @@ namespace Sad
             {Names::KernelCpu::CPU_5, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "معالج_اقرأ_msr", "", ""},
             {Names::KernelCpu::CPU_6, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "معالج_اكتب_msr", "", ""},
             {Names::KernelCpu::CPU_7, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "ابطل_صفحة", "", ""},
-            {Names::KernelCpu::CPU_10, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منفذ_اقرأ16", "", ""},
-            {Names::KernelCpu::CPU_11, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منفذ_اكتب16", "", ""},
-            {Names::KernelCpu::CPU_12, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منفذ_اقرأ32", "", ""},
-            {Names::KernelCpu::CPU_13, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منفذ_اكتب32", "", ""},
+            {Names::KernelCpu::CPU_10, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اقرأ_منفذ16", "", ""},
+            {Names::KernelCpu::CPU_11, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اكتب_منفذ16", "", ""},
+            {Names::KernelCpu::CPU_12, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اقرأ_منفذ32", "", ""},
+            {Names::KernelCpu::CPU_13, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اكتب_منفذ32", "", ""},
             {Names::KernelCpu::CPU_14, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_و", "", ""},
             {Names::KernelCpu::CPU_15, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_أو", "", ""},
             {Names::KernelCpu::CPU_16, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_حصري", "", ""},
@@ -3734,10 +3734,10 @@ namespace Sad
             {Names::KernelCpu::CPU_53, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منخفض_تقرير", "", ""},
             {Names::KernelCpu::CPU_3, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "تعطيل_مقاطعات", "", ""},
             {Names::KernelCpu::CPU_4, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "تفعيل_مقاطعات", "", ""},
-            {Names::KernelCpu::CPU_8, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منفذ_اقرأ", "", ""},
-            {Names::KernelCpu::CPU_9, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "منفذ_اكتب", "", ""},
-            {Names::KernelCpu::CPU_24, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اقرأ", "", ""},
-            {Names::KernelCpu::CPU_25, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اكتب", "", ""},
+            {Names::KernelCpu::CPU_8, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اقرأ_منفذ", "", ""},
+            {Names::KernelCpu::CPU_9, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اكتب_منفذ", "", ""},
+            {Names::KernelCpu::CPU_24, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اقرأ_ذاكرة", "", ""},
+            {Names::KernelCpu::CPU_25, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اكتب_ذاكرة", "", ""},
             // ─── KernelGpu (25) ───
             {Names::KernelGpu::GPU_0, "KernelGpu", "MODULE_FUNCTION", "NONE", true, "شاشة_تهيئة_يدوي", "", ""},
             {Names::KernelGpu::GPU_1, "KernelGpu", "MODULE_FUNCTION", "NONE", true, "شاشة_تعيين_وضع", "", ""},
@@ -3771,7 +3771,7 @@ namespace Sad
             {Names::KernelMemory::MEM_3, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_حجم", "", ""},
             {Names::KernelMemory::MEM_4, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_ذروة", "", ""},
             {Names::KernelMemory::MEM_5, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_صفر", "", ""},
-            {Names::KernelMemory::MEM_6, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_انسخ", "", ""},
+            {Names::KernelMemory::MEM_6, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "انسخ_ذاكرة", "", ""},
             {Names::KernelMemory::MEM_7, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_أعد_حجم", "", ""},
             {Names::KernelMemory::MEM_8, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_محاذاة", "", ""},
             {Names::KernelMemory::MEM_9, "KernelMemory", "MODULE_FUNCTION", "NONE", true, "ذاكرة_تسرب", "", ""},
@@ -3977,14 +3977,14 @@ namespace Sad
             {Names::CompilerSimd::SIMD_4, "CompilerSimd", "MODULE_FUNCTION", "NONE", true, "متجه_عنصر", "", ""},
             {Names::CompilerSimd::SIMD_5, "CompilerSimd", "MODULE_FUNCTION", "NONE", true, "متجه_ضع", "", ""},
             // ─── CompilerMem (8) ───
-            {Names::CompilerMem::MEM_0, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اكتب16", "", ""},
-            {Names::CompilerMem::MEM_1, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اكتب32", "", ""},
-            {Names::CompilerMem::MEM_2, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اكتب64", "", ""},
-            {Names::CompilerMem::MEM_3, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اقرأ16", "", ""},
-            {Names::CompilerMem::MEM_4, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اقرأ32", "", ""},
-            {Names::CompilerMem::MEM_5, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_اقرأ64", "", ""},
-            {Names::CompilerMem::MEM_6, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_املأ32", "", ""},
-            {Names::CompilerMem::MEM_7, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "ذاكرة_انسخ32", "", ""},
+            {Names::CompilerMem::MEM_0, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "اكتب_ذاكرة16", "", ""},
+            {Names::CompilerMem::MEM_1, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "اكتب_ذاكرة32", "", ""},
+            {Names::CompilerMem::MEM_2, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "اكتب_ذاكرة64", "", ""},
+            {Names::CompilerMem::MEM_3, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "اقرأ_ذاكرة16", "", ""},
+            {Names::CompilerMem::MEM_4, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "اقرأ_ذاكرة32", "", ""},
+            {Names::CompilerMem::MEM_5, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "اقرأ_ذاكرة64", "", ""},
+            {Names::CompilerMem::MEM_6, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "املأ_ذاكرة32", "", ""},
+            {Names::CompilerMem::MEM_7, "CompilerMem", "MODULE_FUNCTION", "NONE", true, "انسخ_ذاكرة32", "", ""},
             // ─── CompilerEmbed (6) ───
             {Names::CompilerEmbed::EMBED_0, "CompilerEmbed", "MODULE_FUNCTION", "NONE", true, "تسلسلي_هيئ", "", ""},
             {Names::CompilerEmbed::EMBED_1, "CompilerEmbed", "MODULE_FUNCTION", "NONE", true, "تسلسلي_ارسل", "", ""},

@@ -412,7 +412,7 @@ namespace Sad
         }
 
         // ============================================================================
-        // ذاكرة_املأ32 — ملء بكلمات 32-بت عبر REP STOSD
+        // املأ_ذاكرة32 — ملء بكلمات 32-بت عبر REP STOSD
         // mem_fill32(dest, value, count) — fill memory with 32-bit words using REP STOSD
         // ============================================================================
         llvm::Value *HardwareFFICodeGen::emitMemFill32(std::shared_ptr<SIRInstruction> inst)
@@ -465,7 +465,7 @@ namespace Sad
         }
 
         // ============================================================================
-        // ذاكرة_انسخ32 — نسخ كلمات 32-بت (آمن لـ MMIO)
+        // انسخ_ذاكرة32 — نسخ كلمات 32-بت (آمن لـ MMIO)
         // mem_copy32(dest, src, count) — copy count 32-bit words
         // Uses @llvm.memcpy with 4-byte alignment. LLVM chooses the optimal
         // lowering (rep movsb/q, SIMD, etc.) which works correctly for both

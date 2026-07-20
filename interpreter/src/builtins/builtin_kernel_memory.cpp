@@ -142,7 +142,7 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         fm.registerBuiltinFunction(std::string(Kmem::MEM_5), f); // ذاكرة_صفر
     }
 
-    // (7) ذاكرة_انسخ / memory_copy (stub)
+    // (7) انسخ_ذاكرة / memory_copy (stub)
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
@@ -151,7 +151,7 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             // Stub: in real impl would copy memory
             return std::make_shared<Data::Value>(true);
         };
-        fm.registerBuiltinFunction(std::string(Kmem::MEM_6), f); // ذاكرة_انسخ
+        fm.registerBuiltinFunction(std::string(Kmem::MEM_6), f); // انسخ_ذاكرة
     }
 
     // (8) ذاكرة_أعد_حجم / memory_resize

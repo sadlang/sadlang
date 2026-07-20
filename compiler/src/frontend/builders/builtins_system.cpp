@@ -61,7 +61,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة منفذ_اكتب تتطلب معاملين: رقم المنفذ والقيمة" << std::endl;
+                        std::cerr << "[خطأ] دالة اكتب_منفذ تتطلب معاملين: رقم المنفذ والقيمة" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE);
@@ -70,12 +70,12 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin منفذ_اكتب()" << std::endl;
+                    std::cout << "[DEBUG] builtin اكتب_منفذ()" << std::endl;
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
 
-                // (AR) منفذ_اكتب16 / منفذ_اكتب32
+                // (AR) اكتب_منفذ16 / اكتب_منفذ32
                 if (funcName == Bn::KernelCpu::CPU_11)
                 {
                     if (argResults.size() < 2)
@@ -100,14 +100,14 @@ namespace Sad
                 }
 
                 // ──────────────────────────────────────────────
-                // (AR) منفذ_اقرأ(منفذ) — قراءة بايت من منفذ I/O
+                // (AR) اقرأ_منفذ(منفذ) — قراءة بايت من منفذ I/O
                 // (EN) port_read(port) — read byte from I/O port (inb)
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::KernelCpu::CPU_8)
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] دالة منفذ_اقرأ تتطلب معامل واحد: رقم المنفذ" << std::endl;
+                        std::cerr << "[خطأ] دالة اقرأ_منفذ تتطلب معامل واحد: رقم المنفذ" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -118,12 +118,12 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin منفذ_اقرأ() -> " << resultReg << std::endl;
+                    std::cout << "[DEBUG] builtin اقرأ_منفذ() -> " << resultReg << std::endl;
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) منفذ_اقرأ16 / منفذ_اقرأ32
+                // (AR) اقرأ_منفذ16 / اقرأ_منفذ32
                 if (funcName == Bn::KernelCpu::CPU_10)
                 {
                     if (argResults.empty())
@@ -150,7 +150,7 @@ namespace Sad
                 }
 
                 // ──────────────────────────────────────────────
-                // (AR) ذاكرة_اكتب(عنوان، قيمة) — كتابة بايت في عنوان ذاكرة محدد
+                // (AR) اكتب_ذاكرة(عنوان، قيمة) — كتابة بايت في عنوان ذاكرة محدد
                 // (EN) mem_write(address, value) — write byte to memory address (poke)
                 // (AR) يستخدم في: الكتابة على ذاكرة VGA (0xB8000)، جداول المقاطعات
                 // ──────────────────────────────────────────────
@@ -158,7 +158,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة ذاكرة_اكتب تتطلب معاملين: العنوان والقيمة" << std::endl;
+                        std::cerr << "[خطأ] دالة اكتب_ذاكرة تتطلب معاملين: العنوان والقيمة" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_8);
@@ -167,12 +167,12 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin ذاكرة_اكتب()" << std::endl;
+                    std::cout << "[DEBUG] builtin اكتب_ذاكرة()" << std::endl;
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
 
-                // (AR) ذاكرة_اكتب16 / ذاكرة_اكتب32 / ذاكرة_اكتب64
+                // (AR) اكتب_ذاكرة16 / اكتب_ذاكرة32 / اكتب_ذاكرة64
                 if (funcName == Bn::CompilerMem::MEM_0)
                 {
                     if (argResults.size() < 2)
@@ -208,14 +208,14 @@ namespace Sad
                 }
 
                 // ──────────────────────────────────────────────
-                // (AR) ذاكرة_اقرأ(عنوان) — قراءة بايت من عنوان ذاكرة محدد
+                // (AR) اقرأ_ذاكرة(عنوان) — قراءة بايت من عنوان ذاكرة محدد
                 // (EN) mem_read(address) — read byte from memory address (peek)
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::KernelCpu::CPU_24)
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] دالة ذاكرة_اقرأ تتطلب معامل واحد: العنوان" << std::endl;
+                        std::cerr << "[خطأ] دالة اقرأ_ذاكرة تتطلب معامل واحد: العنوان" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -226,12 +226,12 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin ذاكرة_اقرأ() -> " << resultReg << std::endl;
+                    std::cout << "[DEBUG] builtin اقرأ_ذاكرة() -> " << resultReg << std::endl;
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
-                // (AR) ذاكرة_اقرأ16 / ذاكرة_اقرأ32 / ذاكرة_اقرأ64
+                // (AR) اقرأ_ذاكرة16 / اقرأ_ذاكرة32 / اقرأ_ذاكرة64
                 if (funcName == Bn::CompilerMem::MEM_3)
                 {
                     if (argResults.empty())
@@ -423,14 +423,14 @@ namespace Sad
                 }
 
                 // ──────────────────────────────────────────────
-                // (AR) ذاكرة_املأ32(عنوان، قيمة، عدد) — ملء بكلمات 32-بت (REP STOSD)
+                // (AR) املأ_ذاكرة32(عنوان، قيمة، عدد) — ملء بكلمات 32-بت (REP STOSD)
                 // (EN) mem_fill32(dest, value, count) — fill 32-bit words using REP STOSD
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::CompilerMem::MEM_6)
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] دالة ذاكرة_املأ32 تتطلب 3 معاملات: عنوان، قيمة، عدد" << std::endl;
+                        std::cerr << "[خطأ] دالة املأ_ذاكرة32 تتطلب 3 معاملات: عنوان، قيمة، عدد" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_FILL_32);
@@ -442,14 +442,14 @@ namespace Sad
                 }
 
                 // ──────────────────────────────────────────────
-                // (AR) ذاكرة_انسخ32(وجهة، مصدر، عدد) — نسخ كلمات 32-بت (REP MOVSD)
+                // (AR) انسخ_ذاكرة32(وجهة، مصدر، عدد) — نسخ كلمات 32-بت (REP MOVSD)
                 // (EN) mem_copy32(dest, src, count) — copy 32-bit words using REP MOVSD
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::CompilerMem::MEM_7)
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] دالة ذاكرة_انسخ32 تتطلب 3 معاملات: وجهة، مصدر، عدد" << std::endl;
+                        std::cerr << "[خطأ] دالة انسخ_ذاكرة32 تتطلب 3 معاملات: وجهة، مصدر، عدد" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY_32);
