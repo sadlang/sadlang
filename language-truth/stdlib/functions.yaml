@@ -1,7 +1,7 @@
 version: '1.0'
 description_ar: دوال المكتبة القياسية في لغة ص
 description_en: Standard library functions for Sad language
-total: 191
+total: 193
 functions:
 - cpp_id: PRINT
   canonical: اطبع
@@ -460,12 +460,36 @@ functions:
 - cpp_id: HASH
   canonical: هاش
   namespace: Assertions
-  description_ar: إرجاع هاش SHA-256 لقيمة ما كنص ست عشري
-  description_en: Return SHA-256 hash of a value as a hex string
+  description_ar: إرجاع هاش SHA-256 لقيمة ما كنص ست عشري (64 حرفًا) — مطابق بين المفسّر والمترجم
+  description_en: Return the SHA-256 hash of a value as a 64-character hex string — identical across the interpreter and compiler
   since: 0.1.0
   stability: stable
   examples:
   - code: اطبع_سطر(هاش("مرحبا"))
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: ENCRYPT
+  canonical: شفر
+  namespace: Assertions
+  description_ar: تشفير نصّ بمفتاح عبر تدفق SHA-256-CTR — للاستخدام الخفيف فقط، وليس بديلًا عن AES-GCM لبيانات حسّاسة
+  description_en: Encrypt text with a key via a SHA-256-CTR stream cipher — lightweight use only, not a substitute for AES-GCM on sensitive data
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: شفّر("سرّي", "مفتاحي")
+    runnable: true
+  source_file: stdlib_assertions.yaml
+  module: assertions
+- cpp_id: DECRYPT
+  canonical: فك_تشفير
+  namespace: Assertions
+  description_ar: فكّ تشفير ناتج «شفر» بنفس المفتاح
+  description_en: Decrypt output produced by «شفر»/ENCRYPT with the same key
+  since: 0.1.0
+  stability: stable
+  examples:
+  - code: فك_تشفير(شفّر("سرّي", "مفتاحي"), "مفتاحي")
     runnable: true
   source_file: stdlib_assertions.yaml
   module: assertions

@@ -307,7 +307,7 @@ namespace Sad
                 inline constexpr std::string_view ASSERT_TRUE = "تأكد_صحيح";
                 // (AR) يجب خطأ
                 inline constexpr std::string_view ASSERT_FALSE = "تأكد_خطأ";
-                // (AR) هاش القيمة
+                // (AR) هاش SHA-256 (FIPS 180-4) لنصّ، يُعاد كسلسلة ست عشرية من 64 حرفًا. التنفيذ مطابق حرفيًّا بين المفسّر (interpreter/src/builtins/builtin_module_assertions.cpp) والمترجم (tools/compiler/runtime/sad_embedded_runtime.c، دالّة sad_security_hash) — نفس المدخل يُنتج نفس الهاش عبر كلا المحرّكين.
                 inline constexpr std::string_view HASH = "هاش";
                 // (AR) فحص آمن
                 inline constexpr std::string_view SAFE_CHECK = "آمن";
@@ -323,9 +323,9 @@ namespace Sad
                 inline constexpr std::string_view ASSERT_GT = "تأكد_أكبر";
                 // (AR) تأكد النوع
                 inline constexpr std::string_view ASSERT_TYPE = "تأكد_نوع";
-                // (AR) تشفير
+                // (AR) تشفير نصّ بمفتاح عبر تدفق SHA-256-CTR (SHA-256(مفتاح‖nonce‖عدّاد) كتيار مفاتيح XOR مع النصّ). يُولَّد nonce عشوائيّ 8 بايت لكل استدعاء ويُضمَّن في مقدّمة الناتج (8 بايت + النصّ المشفَّر)، والكلّ مُرمَّز ست عشريًّا. التنفيذ مطابق حرفيًّا بين المفسّر والمترجم (tools/compiler/runtime/sad_embedded_runtime.c، sad_security_encrypt) — ما يُشفَّر بأحد المحرِّكين يُفكّ بالآخر (تبادليّة كاملة). طول المفتاح غير محدود. ⚠️ للاستخدام الخفيف فقط — ليس بديلًا عن معايير معتمَدة كـAES-GCM لحماية بيانات حسّاسة حقًّا (لا مصادقة/AEAD، ولا nonce مُولَّد بمولّد عشوائيّ مُعتمَد تشفيريًّا).
                 inline constexpr std::string_view ENCRYPT = "شفر";
-                // (AR) فك تشفير
+                // (AR) فكّ تشفير ناتج «شفر» — يقرأ nonce الـ8 بايت من مقدّمة السلسلة الست عشرية، ثمّ يعيد توليد تيار مفاتيح SHA-256-CTR بنفس المفتاح لاستعادة النصّ الأصليّ. ⚠️ مسار الخطأ عند إدخال ست عشريّ غير صالح (طول فرديّ/أقصر من 16 حرفًا/رموز غير ست عشرية) **متباعد حاليًّا بين المحرِّكين**: المفسّر يرمي استثناءً قابلًا للالتقاط بـ`حاول`/`امسك`؛ المترجم يطبع رسالة على stderr ويُعيد المدخل كما هو دون رمي استثناء لغويّ — فجوة توحيد معروفة غير مُغلَقة بعد (راجع RISK.md لقسم 09_المكتبة_القياسية/04_تشفير). المسار السعيد (فكّ تشفير ناتج صحيح من «شفر») مطابق حرفيًّا بين المحرِّكين.
                 inline constexpr std::string_view DECRYPT = "فك_تشفير";
                 // (AR) تنظيف مدخلات
                 inline constexpr std::string_view SANITIZE = "نظف";
@@ -3059,7 +3059,7 @@ namespace Sad
             {Names::Assertions::ASSERT_NEQ, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "يجب ألا يتساوى", "", ""},
             {Names::Assertions::ASSERT_TRUE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "يجب صحيحاً", "", ""},
             {Names::Assertions::ASSERT_FALSE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "يجب خطأ", "", ""},
-            {Names::Assertions::HASH, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "هاش القيمة", "", ""},
+            {Names::Assertions::HASH, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "هاش SHA-256 (FIPS 180-4) لنصّ، يُعاد كسلسلة ست عشرية من 64 حرفًا. التنفيذ مطابق حرفيًّا بين المفسّر (interpreter/src/builtins/builtin_module_assertions.cpp) والمترجم (tools/compiler/runtime/sad_embedded_runtime.c، دالّة sad_security_hash) — نفس المدخل يُنتج نفس الهاش عبر كلا المحرّكين.", "نص — القيمة المراد حساب هاشها (تُحوَّل إلى نصّ عبر toString إن لم تكن نصًّا أصلًا)", ""},
             {Names::Assertions::SAFE_CHECK, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "فحص آمن", "", ""},
             {Names::Assertions::PANIC, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "ذعر وإنهاء", "", ""},
             {Names::Assertions::ASSERT_NULL, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تأكد أنه null", "", ""},
@@ -3067,8 +3067,8 @@ namespace Sad
             {Names::Assertions::ASSERT_LT, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تأكد أصغر", "", ""},
             {Names::Assertions::ASSERT_GT, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تأكد أكبر", "", ""},
             {Names::Assertions::ASSERT_TYPE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تأكد النوع", "", ""},
-            {Names::Assertions::ENCRYPT, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تشفير", "", ""},
-            {Names::Assertions::DECRYPT, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "فك تشفير", "", ""},
+            {Names::Assertions::ENCRYPT, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تشفير نصّ بمفتاح عبر تدفق SHA-256-CTR (SHA-256(مفتاح‖nonce‖عدّاد) كتيار مفاتيح XOR مع النصّ). يُولَّد nonce عشوائيّ 8 بايت لكل استدعاء ويُضمَّن في مقدّمة الناتج (8 بايت + النصّ المشفَّر)، والكلّ مُرمَّز ست عشريًّا. التنفيذ مطابق حرفيًّا بين المفسّر والمترجم (tools/compiler/runtime/sad_embedded_runtime.c، sad_security_encrypt) — ما يُشفَّر بأحد المحرِّكين يُفكّ بالآخر (تبادليّة كاملة). طول المفتاح غير محدود. ⚠️ للاستخدام الخفيف فقط — ليس بديلًا عن معايير معتمَدة كـAES-GCM لحماية بيانات حسّاسة حقًّا (لا مصادقة/AEAD، ولا nonce مُولَّد بمولّد عشوائيّ مُعتمَد تشفيريًّا).", "نص — النصّ الأصليّ المراد تشفيره، مفتاح — مفتاح التشفير (أيّ طول)", ""},
+            {Names::Assertions::DECRYPT, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "فكّ تشفير ناتج «شفر» — يقرأ nonce الـ8 بايت من مقدّمة السلسلة الست عشرية، ثمّ يعيد توليد تيار مفاتيح SHA-256-CTR بنفس المفتاح لاستعادة النصّ الأصليّ. ⚠️ مسار الخطأ عند إدخال ست عشريّ غير صالح (طول فرديّ/أقصر من 16 حرفًا/رموز غير ست عشرية) **متباعد حاليًّا بين المحرِّكين**: المفسّر يرمي استثناءً قابلًا للالتقاط بـ`حاول`/`امسك`؛ المترجم يطبع رسالة على stderr ويُعيد المدخل كما هو دون رمي استثناء لغويّ — فجوة توحيد معروفة غير مُغلَقة بعد (راجع RISK.md لقسم 09_المكتبة_القياسية/04_تشفير). المسار السعيد (فكّ تشفير ناتج صحيح من «شفر») مطابق حرفيًّا بين المحرِّكين.", "نص_مشفر — الناتج الست عشريّ من «شفر»، مفتاح — نفس المفتاح المُستخدَم في التشفير", ""},
             {Names::Assertions::SANITIZE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تنظيف مدخلات", "", ""},
             {Names::Assertions::SECURE_RANDOM, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "عشوائي آمن", "", ""},
             {Names::Assertions::BASE64_ENCODE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "ترميز Base64", "", ""},
