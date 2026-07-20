@@ -471,6 +471,10 @@ namespace Sad
                 auto securityResult = buildBuiltinSystem_Security(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (securityResult) return securityResult;
 
+                // Crypto module functions (BLAKE3 hash, keyed hash)
+                auto cryptoResult = buildBuiltinSystem_Crypto(funcName, isUserDefinedFunction, argResults, argOperands);
+                if (cryptoResult) return cryptoResult;
+
                 // FFI functions (printf, malloc, fopen, etc.)
                 auto ffiResult = buildBuiltinSystem_FFI(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (ffiResult) return ffiResult;

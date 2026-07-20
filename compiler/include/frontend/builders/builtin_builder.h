@@ -71,6 +71,7 @@ namespace Sad
                 std::optional<BuildResult> buildBuiltinSystem_OsSystem(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 
                 std::optional<BuildResult> buildBuiltinSystem_Security(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinSystem_Crypto(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 
                 std::optional<BuildResult> buildBuiltinCallSimd(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 

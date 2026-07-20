@@ -228,6 +228,10 @@ namespace Sad
                 return cg_.emitBuiltinSecuritySecureRandom(inst);
             case SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE:
                 return cg_.emitBuiltinSecurityBase64Encode(inst);
+            case SIROpcode::BUILTIN_CRYPTO_BLAKE3_HASH:
+                return cg_.emitBuiltinCryptoBlake3Hash(inst);
+            case SIROpcode::BUILTIN_CRYPTO_BLAKE3_KEYED_HASH:
+                return cg_.emitBuiltinCryptoBlake3KeyedHash(inst);
 
             // ===== FFI (20) =====
             case SIROpcode::FFI_PRINTF:

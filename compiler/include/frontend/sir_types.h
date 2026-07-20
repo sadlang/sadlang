@@ -465,6 +465,12 @@ namespace Sad
                 BUILTIN_SECURITY_BASE64_ENCODE,  ///< ترميز_64 / Base64 encode
 
                 // ==========================================
+                // 12ب. وحدة تشفير — Crypto module builtins (BLAKE3)
+                // ==========================================
+                BUILTIN_CRYPTO_BLAKE3_HASH,       ///< بلايك3 / BLAKE3 hash - hex string
+                BUILTIN_CRYPTO_BLAKE3_KEYED_HASH, ///< هاش_مفتاح / BLAKE3 keyed hash (MAC) - hex string
+
+                // ==========================================
                 // 13. التكامل مع C/C++ — FFI Functions (15)
                 // ==========================================
                 // (AR) هذا القسم يضيف دوال التكامل مع لغة C/C++

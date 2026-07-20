@@ -88,6 +88,7 @@ namespace Sad
             namespace Nio = Sad::Builtins::Names::CompilerIo;
             namespace Nm = Sad::Builtins::Names::Math;
             namespace Na = Sad::Builtins::Names::Assertions;
+            namespace Ncr = Sad::Builtins::Names::Crypto;
             namespace Nar = Sad::Builtins::Names::Arrays;
             namespace Nmap = Sad::Builtins::Names::Maps;
             namespace Nasync = Sad::Builtins::Names::AsyncAdvanced;
@@ -205,6 +206,12 @@ namespace Sad
             case SIROpcode::BUILTIN_SECURITY_DECRYPT:       return std::string(Na::DECRYPT);       // فك_تشفير (runtime مستضاف)
             case SIROpcode::BUILTIN_SECURITY_SANITIZE:      return std::string(Na::SANITIZE);      // نظف (runtime مستضاف)
             case SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE: return std::string(Na::BASE64_ENCODE); // ترميز_64 (runtime مستضاف)
+            // (AR) نفس بوّابة عائلة الأمن المستضافة أعلاه — بلايك3/هاش_مفتاح
+            //      يستدعيان sad_blake3_* من نفس runtime المستضاف المضمَّن.
+            // (EN) Same hosted-runtime gate as the security family above —
+            //      BLAKE3 functions call into the same embedded runtime.
+            case SIROpcode::BUILTIN_CRYPTO_BLAKE3_HASH:       return std::string(Ncr::BLAKE3_HASH);       // بلايك3 (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_BLAKE3_KEYED_HASH: return std::string(Ncr::BLAKE3_KEYED_HASH); // هاش_مفتاح (runtime مستضاف)
             default:                                 return std::string();
             }
         }

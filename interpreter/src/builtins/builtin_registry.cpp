@@ -49,6 +49,7 @@ namespace Sad
         static const std::string kModMath       = std::string(Builtins::getCanonicalModuleName(ModuleId::MATH));
         static const std::string kModBasics     = std::string(Builtins::getCanonicalModuleName(ModuleId::BASICS));
         static const std::string kModAssertions = std::string(Builtins::getCanonicalModuleName(ModuleId::ASSERTIONS));
+        static const std::string kModCrypto     = std::string(Builtins::getCanonicalModuleName(ModuleId::CRYPTO));
         static const std::string kModMaps       = std::string(Builtins::getCanonicalModuleName(ModuleId::MAPS));
         static const std::string kModAsync      = std::string(Builtins::getCanonicalModuleName(ModuleId::ASYNC));
         static const std::string kModPlatform   = std::string(Builtins::getCanonicalModuleName(ModuleId::PLATFORM));
@@ -63,6 +64,7 @@ namespace Sad
         extern void registerBuiltinsBasics(Interpreter &interpreter);
         extern void registerBuiltinsMath(Interpreter &interpreter);
         extern void registerBuiltinsAssertions(Interpreter &interpreter);
+        extern void registerBuiltinsCrypto(Interpreter &interpreter);
         extern void registerBuiltinsAsync(Interpreter &interpreter);
         extern void registerBuiltinsMaps(Interpreter &interpreter);
         extern void registerBuiltinsKernelCPU(Interpreter &interpreter);
@@ -262,6 +264,8 @@ namespace Sad
                 {"نظّف", kModAssertions},
                 {"عشوائي_آمن", kModAssertions},
                 {"ترميز_64", kModAssertions},
+                {"بلايك3", kModCrypto},
+                {"هاش_مفتاح", kModCrypto},
                 {"طباعة_تنسيق", kModAssertions},
                 {"حجز", kModAssertions},
                 {"حرر", kModAssertions},
@@ -749,13 +753,14 @@ namespace Sad
                                      },
                                      {}});
 
-            // ─── تشفير / Crypto (Part 7 crypto functions) — SHA-256, تشفير/فك_تشفير ───
+            // ─── تشفير / Crypto (Part 7 crypto + Part 41 BLAKE3) — SHA-256, تشفير/فك_تشفير، بلايك3 ───
             registry.registerModule({"\xd8\xaa\xd8\xb4\xd9\x81\xd9\x8a\xd8\xb1", // تشفير
-                                     "SHA-256\xd8\x8c \xd8\xaa\xd8\xb4\xd9\x81\xd9\x8a\xd8\xb1 CTR\xd8\x8c \xd9\x87\xd8\xa7\xd8\xb4",
-                                     // SHA-256، تشفير CTR، هاش
+                                     "SHA-256\xd8\x8c \xd8\xaa\xd8\xb4\xd9\x81\xd9\x8a\xd8\xb1 CTR\xd8\x8c \xd9\x87\xd8\xa7\xd8\xb4\xd8\x8c BLAKE3",
+                                     // SHA-256، تشفير CTR، هاش، BLAKE3
                                      [](Interpreter &interp)
                                      {
                                          registerBuiltinsAssertions(interp); // SHA-256, encrypt/decrypt, hash
+                                         registerBuiltinsCrypto(interp);     // BLAKE3, keyed hash
                                      },
                                      {}});
 

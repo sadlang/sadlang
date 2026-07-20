@@ -1963,6 +1963,10 @@ namespace Sad
                 {
                     return builtins_->buildBuiltinSystem_Security(funcName, isUserDefinedFunction, argResults, argOperands);
                 }
+                std::optional<BuildResult> buildBuiltinSystem_Crypto(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                {
+                    return builtins_->buildBuiltinSystem_Crypto(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 std::optional<BuildResult> buildBuiltinSystem_FFI(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
                 {

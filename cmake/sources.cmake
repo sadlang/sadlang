@@ -66,6 +66,7 @@ set(INTERPRETER_SOURCES
     interpreter/src/builtins/builtin_module_basics.cpp
     interpreter/src/builtins/builtin_module_math.cpp
     interpreter/src/builtins/builtin_module_assertions.cpp
+    interpreter/src/builtins/builtin_module_crypto.cpp
     interpreter/src/builtins/builtin_module_async.cpp
     interpreter/src/builtins/builtin_module_maps.cpp
     interpreter/src/builtins/builtin_module_maps_core.cpp

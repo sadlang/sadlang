@@ -335,6 +335,15 @@ namespace Sad
                 inline constexpr std::string_view BASE64_ENCODE = "ترميز_64";
             }
 
+            // ─────────── وحدة تشفير ───────────
+            namespace Crypto
+            {
+                // (AR) يُرجع هاش BLAKE3 لنصّ كسلسلة ست عشريّة من 64 حرفًا (256 بت). BLAKE3 أحدث وأسرع من SHA-256 (المستعمَل في هاش)، وذاتيّ التنفيذ بالكامل (بلا OpenSSL) فيعمل على هدف الوضع الحرّ كذلك. التنفيذ مطابق حرفيًّا بين المفسّر (interpreter/src/builtins/builtin_module_crypto.cpp) والمترجم (tools/compiler/runtime/sad_embedded_runtime.c، دالّة sad_blake3_hash) — نفس المدخل يُنتج نفس الهاش عبر كلا المحرّكين. مُتحقَّق مقابل شعاعات BLAKE3 الرسميّة (test_vectors.json من مستودع BLAKE3-team) لمجموعة أطوال مدخلات تغطّي المسارات الحرجة (كتلة واحدة/عدّة كتل/عدّة قطع في شجرة Merkle الداخليّة).
+                inline constexpr std::string_view BLAKE3_HASH = "بلايك3";
+                // (AR) مصادقة رسالة (Message Authentication) عبر نمط BLAKE3 المُفتاح (keyed mode) الرسميّ — أحدث وأبسط من بناء HMAC التقليديّ (لا يحتاج BLAKE3 حماية HMAC من هجمات امتداد الطول length-extension، فالنمط المُفتاح جزء أصيل من تصميم الخوارزميّة). المفتاح: إن كان طوله 32 بايت يُستعمَل مباشرة؛ غير ذلك يُشتقّ منه مفتاح 32 بايت عبر بلايك3(مفتاح) أوّلًا. يُرجع سلسلة ست عشريّة من 64 حرفًا. مطابق حرفيًّا بين المفسّر والمترجم.
+                inline constexpr std::string_view BLAKE3_KEYED_HASH = "هاش_مفتاح";
+            }
+
             // ─────────── وحدة خرائط ───────────
             namespace Maps
             {
@@ -2947,7 +2956,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1074> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1076> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3072,6 +3081,9 @@ namespace Sad
             {Names::Assertions::SANITIZE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "تنظيف مدخلات", "", ""},
             {Names::Assertions::SECURE_RANDOM, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "يُرجع عددًا صحيحًا عشوائيًّا ضمن المدى [الحدّ_الأدنى، الحدّ_الأقصى] (كلاهما شامل)، مصدره CSPRNG حقيقيّ لنظام التشغيل — BCryptGenRandom على Windows، /dev/urandom على Linux/macOS — لا مولِّد أرقام شبه عشوائيّ عاديّ (rand()/srand()). مطابق بين المفسّر والمترجم منذ توحيد جولة توسيع مكتبة التشفير (المرحلة ٠). مناسب لتوليد nonces/رموز جلسة/مفاتيح مؤقّتة؛ ليس توليدًا لمفاتيح تشفير طويلة الأمد بحدّ ذاته (استعمل اشتقاق مفتاح مخصَّص لذلك عند توفّره).", "الحدّ_الأدنى — أصغر قيمة ممكنة للناتج (شاملة).، الحدّ_الأقصى — أكبر قيمة ممكنة للناتج (شاملة).", ""},
             {Names::Assertions::BASE64_ENCODE, "Assertions", "MODULE_FUNCTION", "ASSERTIONS", true, "ترميز Base64", "", ""},
+            // ─── Crypto (2) ───
+            {Names::Crypto::BLAKE3_HASH, "Crypto", "MODULE_FUNCTION", "CRYPTO", true, "يُرجع هاش BLAKE3 لنصّ كسلسلة ست عشريّة من 64 حرفًا (256 بت). BLAKE3 أحدث وأسرع من SHA-256 (المستعمَل في هاش)، وذاتيّ التنفيذ بالكامل (بلا OpenSSL) فيعمل على هدف الوضع الحرّ كذلك. التنفيذ مطابق حرفيًّا بين المفسّر (interpreter/src/builtins/builtin_module_crypto.cpp) والمترجم (tools/compiler/runtime/sad_embedded_runtime.c، دالّة sad_blake3_hash) — نفس المدخل يُنتج نفس الهاش عبر كلا المحرّكين. مُتحقَّق مقابل شعاعات BLAKE3 الرسميّة (test_vectors.json من مستودع BLAKE3-team) لمجموعة أطوال مدخلات تغطّي المسارات الحرجة (كتلة واحدة/عدّة كتل/عدّة قطع في شجرة Merkle الداخليّة).", "نص — القيمة المراد حساب هاشها (تُحوَّل إلى نصّ عبر toString إن لم تكن نصًّا أصلًا).", ""},
+            {Names::Crypto::BLAKE3_KEYED_HASH, "Crypto", "MODULE_FUNCTION", "CRYPTO", true, "مصادقة رسالة (Message Authentication) عبر نمط BLAKE3 المُفتاح (keyed mode) الرسميّ — أحدث وأبسط من بناء HMAC التقليديّ (لا يحتاج BLAKE3 حماية HMAC من هجمات امتداد الطول length-extension، فالنمط المُفتاح جزء أصيل من تصميم الخوارزميّة). المفتاح: إن كان طوله 32 بايت يُستعمَل مباشرة؛ غير ذلك يُشتقّ منه مفتاح 32 بايت عبر بلايك3(مفتاح) أوّلًا. يُرجع سلسلة ست عشريّة من 64 حرفًا. مطابق حرفيًّا بين المفسّر والمترجم.", "نص — الرسالة المراد مصادقتها.، مفتاح — المفتاح السرّيّ (أيّ طول؛ يُشتقّ منه مفتاح 32 بايت عند الحاجة).", ""},
             // ─── Maps (90) ───
             {Names::Maps::JSON_PARSE, "Maps", "MODULE_FUNCTION", "MAPS", true, "تحليل JSON", "", ""},
             {Names::Maps::JSON_STRINGIFY, "Maps", "MODULE_FUNCTION", "MAPS", true, "تحويل لـ JSON", "", ""},
@@ -4076,7 +4088,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", true, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1074, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1076, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

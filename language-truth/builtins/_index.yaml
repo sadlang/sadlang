@@ -9,6 +9,7 @@ files:
 - arrays.yaml
 - basics.yaml
 - assertions.yaml
+- crypto.yaml
 - maps.yaml
 - sockets.yaml
 - http_client.yaml

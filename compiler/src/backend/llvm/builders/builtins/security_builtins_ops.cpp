@@ -472,4 +472,42 @@ namespace Sad { namespace LLVM {
 
 
 
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoBlake3Hash(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
+            if (!val)
+                return nullptr;
+            // Call runtime sad_blake3_hash(const char*) -> char* (BLAKE3 hex string,
+            // matching the interpreter — interpreter/src/builtins/builtin_module_crypto.cpp)
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_blake3_hash", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {val}, "blake3.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+
+
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoBlake3KeyedHash(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *data = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *key = cg_.resolveOperand(inst->operands[1]);
+            if (!data || !key)
+                return nullptr;
+            // Call runtime sad_blake3_keyed_hash(const char*, const char*) -> char*
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_blake3_keyed_hash", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {data, key}, "blake3_keyed.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
 }} // namespace Sad::LLVM

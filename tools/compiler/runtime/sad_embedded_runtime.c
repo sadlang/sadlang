@@ -699,6 +699,364 @@ const char *sad_security_hash(const char *str)
     return out;
 }
 
+/* ============================================================================
+ * BLAKE3 (وحدة تشفير: بلايك3/هاش_مفتاح) — تنفيذ مرجعيّ محمول (بلا SIMD/تعدّد
+ * خيوط)، مطابق حرفيًّا لنظير المفسّر
+ * (interpreter/src/builtins/builtin_module_crypto.cpp). كلاهما تحقّق بنجاح
+ * مقابل شعاعات BLAKE3 الرسميّة (test_vectors.json من مستودع BLAKE3-team)
+ * قبل الدمج.
+ * ============================================================================ */
+static const unsigned int sad_blake3_iv[8] = {
+    0x6A09E667u, 0xBB67AE85u, 0x3C6EF372u, 0xA54FF53Au,
+    0x510E527Fu, 0x9B05688Cu, 0x1F83D9ABu, 0x5BE0CD19u};
+static const int sad_blake3_msg_perm[16] = {2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8};
+
+#define SAD_BLAKE3_CHUNK_START 1u
+#define SAD_BLAKE3_CHUNK_END   2u
+#define SAD_BLAKE3_PARENT      4u
+#define SAD_BLAKE3_ROOT        8u
+#define SAD_BLAKE3_KEYED_HASH  16u
+#define SAD_BLAKE3_BLOCK_LEN 64
+#define SAD_BLAKE3_CHUNK_LEN 1024
+
+static unsigned int sad_blake3_rotr32(unsigned int x, int n) { return (x >> n) | (x << (32 - n)); }
+
+static void sad_blake3_g(unsigned int *st, int a, int b, int c, int d, unsigned int mx, unsigned int my)
+{
+    st[a] = st[a] + st[b] + mx;
+    st[d] = sad_blake3_rotr32(st[d] ^ st[a], 16);
+    st[c] = st[c] + st[d];
+    st[b] = sad_blake3_rotr32(st[b] ^ st[c], 12);
+    st[a] = st[a] + st[b] + my;
+    st[d] = sad_blake3_rotr32(st[d] ^ st[a], 8);
+    st[c] = st[c] + st[d];
+    st[b] = sad_blake3_rotr32(st[b] ^ st[c], 7);
+}
+
+static void sad_blake3_round(unsigned int *st, const unsigned int *m)
+{
+    sad_blake3_g(st, 0, 4, 8, 12, m[0], m[1]);
+    sad_blake3_g(st, 1, 5, 9, 13, m[2], m[3]);
+    sad_blake3_g(st, 2, 6, 10, 14, m[4], m[5]);
+    sad_blake3_g(st, 3, 7, 11, 15, m[6], m[7]);
+    sad_blake3_g(st, 0, 5, 10, 15, m[8], m[9]);
+    sad_blake3_g(st, 1, 6, 11, 12, m[10], m[11]);
+    sad_blake3_g(st, 2, 7, 8, 13, m[12], m[13]);
+    sad_blake3_g(st, 3, 4, 9, 14, m[14], m[15]);
+}
+
+static void sad_blake3_permute(unsigned int *m)
+{
+    unsigned int t[16];
+    int i;
+    for (i = 0; i < 16; ++i)
+        t[i] = m[sad_blake3_msg_perm[i]];
+    memcpy(m, t, sizeof(t));
+}
+
+/* out يجب أن يتّسع لـ16 unsigned int */
+static void sad_blake3_compress(const unsigned int cv[8], const unsigned int block_words[16],
+                                 unsigned long long counter, unsigned int block_len,
+                                 unsigned int flags, unsigned int out[16])
+{
+    unsigned int st[16];
+    unsigned int m[16];
+    int r;
+    memcpy(st, cv, 8 * sizeof(unsigned int));
+    memcpy(st + 8, sad_blake3_iv, 4 * sizeof(unsigned int));
+    st[12] = (unsigned int)(counter & 0xFFFFFFFFu);
+    st[13] = (unsigned int)(counter >> 32);
+    st[14] = block_len;
+    st[15] = flags;
+    memcpy(m, block_words, 16 * sizeof(unsigned int));
+    for (r = 0; r < 7; ++r)
+    {
+        sad_blake3_round(st, m);
+        if (r < 6)
+            sad_blake3_permute(m);
+    }
+    for (r = 0; r < 8; ++r)
+    {
+        out[r] = st[r] ^ st[r + 8];
+        out[r + 8] = st[r + 8] ^ cv[r];
+    }
+}
+
+static void sad_blake3_words_from_bytes(const unsigned char *b, size_t len, unsigned int out[16])
+{
+    unsigned char buf[64];
+    int i;
+    memset(buf, 0, 64);
+    if (len)
+        memcpy(buf, b, len);
+    for (i = 0; i < 16; ++i)
+        out[i] = (unsigned int)buf[i * 4] | ((unsigned int)buf[i * 4 + 1] << 8) |
+                 ((unsigned int)buf[i * 4 + 2] << 16) | ((unsigned int)buf[i * 4 + 3] << 24);
+}
+
+typedef struct
+{
+    unsigned int cv[8];
+    unsigned long long chunk_counter;
+    unsigned char block[SAD_BLAKE3_BLOCK_LEN];
+    size_t block_len;
+    int blocks_compressed;
+    unsigned int flags;
+} SadBlake3ChunkState;
+
+static void sad_blake3_chunk_init(SadBlake3ChunkState *cs, const unsigned int key[8],
+                                   unsigned long long counter, unsigned int flags)
+{
+    memcpy(cs->cv, key, 8 * sizeof(unsigned int));
+    cs->chunk_counter = counter;
+    cs->block_len = 0;
+    cs->blocks_compressed = 0;
+    cs->flags = flags;
+}
+
+static size_t sad_blake3_chunk_len(const SadBlake3ChunkState *cs)
+{
+    return (size_t)SAD_BLAKE3_BLOCK_LEN * cs->blocks_compressed + cs->block_len;
+}
+
+static unsigned int sad_blake3_chunk_start_flag(const SadBlake3ChunkState *cs)
+{
+    return cs->blocks_compressed == 0 ? SAD_BLAKE3_CHUNK_START : 0;
+}
+
+static void sad_blake3_chunk_update(SadBlake3ChunkState *cs, const unsigned char *data, size_t len)
+{
+    while (len > 0)
+    {
+        size_t take;
+        if (cs->block_len == SAD_BLAKE3_BLOCK_LEN)
+        {
+            unsigned int block_words[16];
+            unsigned int out[16];
+            sad_blake3_words_from_bytes(cs->block, SAD_BLAKE3_BLOCK_LEN, block_words);
+            sad_blake3_compress(cs->cv, block_words, cs->chunk_counter, SAD_BLAKE3_BLOCK_LEN,
+                                 cs->flags | sad_blake3_chunk_start_flag(cs), out);
+            memcpy(cs->cv, out, 8 * sizeof(unsigned int));
+            cs->blocks_compressed++;
+            cs->block_len = 0;
+        }
+        take = (size_t)SAD_BLAKE3_BLOCK_LEN - cs->block_len;
+        if (take > len)
+            take = len;
+        memcpy(cs->block + cs->block_len, data, take);
+        cs->block_len += take;
+        data += take;
+        len -= take;
+    }
+}
+
+typedef struct
+{
+    unsigned int input_cv[8];
+    unsigned int block_words[16];
+    unsigned long long counter;
+    unsigned int block_len;
+    unsigned int flags;
+} SadBlake3Output;
+
+static void sad_blake3_chunk_output(const SadBlake3ChunkState *cs, SadBlake3Output *out)
+{
+    memcpy(out->input_cv, cs->cv, 8 * sizeof(unsigned int));
+    sad_blake3_words_from_bytes(cs->block, cs->block_len, out->block_words);
+    out->counter = cs->chunk_counter;
+    out->block_len = (unsigned int)cs->block_len;
+    out->flags = cs->flags | sad_blake3_chunk_start_flag(cs) | SAD_BLAKE3_CHUNK_END;
+}
+
+static void sad_blake3_output_cv(const SadBlake3Output *o, unsigned int cv[8])
+{
+    unsigned int out[16];
+    sad_blake3_compress(o->input_cv, o->block_words, o->counter, o->block_len, o->flags, out);
+    memcpy(cv, out, 8 * sizeof(unsigned int));
+}
+
+static void sad_blake3_output_root_bytes(const SadBlake3Output *o, unsigned char *out, size_t out_len)
+{
+    unsigned long long block_counter = 0;
+    size_t written = 0;
+    while (written < out_len)
+    {
+        unsigned int words[16];
+        int i;
+        sad_blake3_compress(o->input_cv, o->block_words, block_counter, o->block_len,
+                             o->flags | SAD_BLAKE3_ROOT, words);
+        for (i = 0; i < 16 && written < out_len; ++i)
+        {
+            unsigned char b[4];
+            size_t n = 4;
+            b[0] = (unsigned char)words[i]; b[1] = (unsigned char)(words[i] >> 8);
+            b[2] = (unsigned char)(words[i] >> 16); b[3] = (unsigned char)(words[i] >> 24);
+            if (n > out_len - written)
+                n = out_len - written;
+            memcpy(out + written, b, n);
+            written += n;
+        }
+        block_counter++;
+    }
+}
+
+static void sad_blake3_parent_output(const unsigned int left_cv[8], const unsigned int right_cv[8],
+                                      const unsigned int key[8], unsigned int flags, SadBlake3Output *out)
+{
+    memcpy(out->input_cv, key, 8 * sizeof(unsigned int));
+    memcpy(out->block_words, left_cv, 8 * sizeof(unsigned int));
+    memcpy(out->block_words + 8, right_cv, 8 * sizeof(unsigned int));
+    out->counter = 0;
+    out->block_len = SAD_BLAKE3_BLOCK_LEN;
+    out->flags = flags | SAD_BLAKE3_PARENT;
+}
+
+typedef struct
+{
+    unsigned int key[8];
+    SadBlake3ChunkState chunk_state;
+    unsigned int cv_stack[54][8];
+    int cv_stack_len;
+    unsigned int flags;
+} SadBlake3Hasher;
+
+static void sad_blake3_hasher_init_internal(SadBlake3Hasher *h, const unsigned int key[8], unsigned int flags)
+{
+    memcpy(h->key, key, 8 * sizeof(unsigned int));
+    sad_blake3_chunk_init(&h->chunk_state, key, 0, flags);
+    h->cv_stack_len = 0;
+    h->flags = flags;
+}
+
+static void sad_blake3_hasher_init(SadBlake3Hasher *h) { sad_blake3_hasher_init_internal(h, sad_blake3_iv, 0); }
+
+static void sad_blake3_hasher_init_keyed(SadBlake3Hasher *h, const unsigned char key[32])
+{
+    unsigned int key_words[8];
+    int i;
+    for (i = 0; i < 8; ++i)
+        key_words[i] = (unsigned int)key[i * 4] | ((unsigned int)key[i * 4 + 1] << 8) |
+                       ((unsigned int)key[i * 4 + 2] << 16) | ((unsigned int)key[i * 4 + 3] << 24);
+    sad_blake3_hasher_init_internal(h, key_words, SAD_BLAKE3_KEYED_HASH);
+}
+
+static void sad_blake3_hasher_add_chunk_cv(SadBlake3Hasher *h, unsigned int new_cv[8],
+                                            unsigned long long total_chunks)
+{
+    while ((total_chunks & 1) == 0)
+    {
+        unsigned int left[8];
+        SadBlake3Output po;
+        h->cv_stack_len--;
+        memcpy(left, h->cv_stack[h->cv_stack_len], 8 * sizeof(unsigned int));
+        sad_blake3_parent_output(left, new_cv, h->key, h->flags, &po);
+        sad_blake3_output_cv(&po, new_cv);
+        total_chunks >>= 1;
+    }
+    memcpy(h->cv_stack[h->cv_stack_len], new_cv, 8 * sizeof(unsigned int));
+    h->cv_stack_len++;
+}
+
+static void sad_blake3_hasher_update(SadBlake3Hasher *h, const unsigned char *data, size_t len)
+{
+    while (len > 0)
+    {
+        size_t take;
+        if (sad_blake3_chunk_len(&h->chunk_state) == (size_t)SAD_BLAKE3_CHUNK_LEN)
+        {
+            SadBlake3Output co;
+            unsigned int chunk_cv[8];
+            unsigned long long total_chunks;
+            sad_blake3_chunk_output(&h->chunk_state, &co);
+            sad_blake3_output_cv(&co, chunk_cv);
+            total_chunks = h->chunk_state.chunk_counter + 1;
+            sad_blake3_hasher_add_chunk_cv(h, chunk_cv, total_chunks);
+            sad_blake3_chunk_init(&h->chunk_state, h->key, total_chunks, h->flags);
+        }
+        take = (size_t)SAD_BLAKE3_CHUNK_LEN - sad_blake3_chunk_len(&h->chunk_state);
+        if (take > len)
+            take = len;
+        sad_blake3_chunk_update(&h->chunk_state, data, take);
+        data += take;
+        len -= take;
+    }
+}
+
+static void sad_blake3_hasher_finalize(SadBlake3Hasher *h, unsigned char *out, size_t out_len)
+{
+    SadBlake3Output output;
+    int remaining;
+    sad_blake3_chunk_output(&h->chunk_state, &output);
+    remaining = h->cv_stack_len;
+    while (remaining > 0)
+    {
+        unsigned int cv[8];
+        SadBlake3Output po;
+        remaining--;
+        sad_blake3_output_cv(&output, cv);
+        sad_blake3_parent_output(h->cv_stack[remaining], cv, h->key, h->flags, &po);
+        output = po;
+    }
+    sad_blake3_output_root_bytes(&output, out, out_len);
+}
+
+static void sad_blake3_raw(const char *str, unsigned char digest[32])
+{
+    SadBlake3Hasher h;
+    size_t len = str ? strlen(str) : 0;
+    sad_blake3_hasher_init(&h);
+    sad_blake3_hasher_update(&h, (const unsigned char *)(str ? str : ""), len);
+    sad_blake3_hasher_finalize(&h, digest, 32);
+}
+
+/* بلايك3 / BLAKE3 hash — سلسلة ست عشريّة 64 حرفًا */
+const char *sad_blake3_hash(const char *str)
+{
+    unsigned char digest[32];
+    char *out;
+    size_t i;
+    sad_blake3_raw(str, digest);
+    out = (char *)malloc(65);
+    if (!out)
+        return "";
+    for (i = 0; i < 32; ++i)
+        snprintf(out + i * 2, 3, "%02x", digest[i]);
+    out[64] = '\0';
+    return out;
+}
+
+/* هاش_مفتاح / BLAKE3 keyed hash (MAC) — سلسلة ست عشريّة 64 حرفًا.
+ * المفتاح: 32 بايت يُستعمَل مباشرة؛ غير ذلك يُشتقّ منه مفتاح 32 بايت عبر
+ * sad_blake3_raw أوّلًا (يطابق منطق المفسّر). */
+const char *sad_blake3_keyed_hash(const char *str, const char *key)
+{
+    unsigned char key32[32];
+    unsigned char digest[32];
+    SadBlake3Hasher h;
+    char *out;
+    size_t i, klen, slen;
+    if (!key)
+        key = "";
+    if (!str)
+        str = "";
+    klen = strlen(key);
+    slen = strlen(str);
+    if (klen == 32)
+        memcpy(key32, key, 32);
+    else
+        sad_blake3_raw(key, key32);
+    sad_blake3_hasher_init_keyed(&h, key32);
+    sad_blake3_hasher_update(&h, (const unsigned char *)str, slen);
+    sad_blake3_hasher_finalize(&h, digest, 32);
+    out = (char *)malloc(65);
+    if (!out)
+        return "";
+    for (i = 0; i < 32; ++i)
+        snprintf(out + i * 2, 3, "%02x", digest[i]);
+    out[64] = '\0';
+    return out;
+}
+
 /* وقت_الآن / Current timestamp */
 long long sad_security_timestamp(void)
 {

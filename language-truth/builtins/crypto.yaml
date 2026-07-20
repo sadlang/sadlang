@@ -1,0 +1,71 @@
+version: 1
+namespace_group: Crypto
+description_ar: وحدة تشفير (دوال هاش/MAC حديثة — بلايك3)
+description_en: Crypto module (modern hash/MAC functions — BLAKE3)
+functions:
+- cpp_id: BLAKE3_HASH
+  canonical: بلايك3
+  namespace: Crypto
+  category: MODULE_FUNCTION
+  require_import: true
+  module: CRYPTO
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: >-
+    يُرجع هاش BLAKE3 لنصّ كسلسلة ست عشريّة من 64 حرفًا (256 بت). BLAKE3 أحدث
+    وأسرع من SHA-256 (المستعمَل في هاش)، وذاتيّ التنفيذ بالكامل (بلا OpenSSL)
+    فيعمل على هدف الوضع الحرّ كذلك. التنفيذ مطابق حرفيًّا بين المفسّر
+    (interpreter/src/builtins/builtin_module_crypto.cpp) والمترجم
+    (tools/compiler/runtime/sad_embedded_runtime.c، دالّة sad_blake3_hash) —
+    نفس المدخل يُنتج نفس الهاش عبر كلا المحرّكين. مُتحقَّق مقابل شعاعات
+    BLAKE3 الرسميّة (test_vectors.json من مستودع BLAKE3-team) لمجموعة أطوال
+    مدخلات تغطّي المسارات الحرجة (كتلة واحدة/عدّة كتل/عدّة قطع في شجرة
+    Merkle الداخليّة).
+  description_en: >-
+    Returns the BLAKE3 hash of a string as a 64-character hex string (256
+    bits). BLAKE3 is newer and faster than SHA-256 (used by هاش), and fully
+    self-implemented (no OpenSSL), so it also works on the freestanding
+    target. Identical behavior between interpreter and compiler. Verified
+    against the official BLAKE3 test vectors across input-length boundaries
+    (single block / multi-block / multi-chunk Merkle tree).
+  params:
+    - نص — القيمة المراد حساب هاشها (تُحوَّل إلى نصّ عبر toString إن لم تكن نصًّا أصلًا).
+  examples:
+    - code: |
+        استورد تشفير
+        اطبع_سطر(بلايك3(""))
+      runnable: true
+  lookup_table: name_only
+- cpp_id: BLAKE3_KEYED_HASH
+  canonical: هاش_مفتاح
+  namespace: Crypto
+  category: MODULE_FUNCTION
+  require_import: true
+  module: CRYPTO
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: >-
+    مصادقة رسالة (Message Authentication) عبر نمط BLAKE3 المُفتاح (keyed
+    mode) الرسميّ — أحدث وأبسط من بناء HMAC التقليديّ (لا يحتاج BLAKE3 حماية
+    HMAC من هجمات امتداد الطول length-extension، فالنمط المُفتاح جزء أصيل من
+    تصميم الخوارزميّة). المفتاح: إن كان طوله 32 بايت يُستعمَل مباشرة؛ غير ذلك
+    يُشتقّ منه مفتاح 32 بايت عبر بلايك3(مفتاح) أوّلًا. يُرجع سلسلة ست عشريّة
+    من 64 حرفًا. مطابق حرفيًّا بين المفسّر والمترجم.
+  description_en: >-
+    Message authentication via BLAKE3's native keyed mode — modern and
+    simpler than classic HMAC (BLAKE3 doesn't need HMAC's length-extension
+    protection; keying is intrinsic to the design). If the key is exactly 32
+    bytes it's used directly; otherwise a 32-byte key is derived via
+    بلايك3(key) first. Returns a 64-character hex string. Identical behavior
+    between interpreter and compiler.
+  params:
+    - نص — الرسالة المراد مصادقتها.
+    - مفتاح — المفتاح السرّيّ (أيّ طول؛ يُشتقّ منه مفتاح 32 بايت عند الحاجة).
+  examples:
+    - code: |
+        استورد تشفير
+        اطبع_سطر(هاش_مفتاح("رسالة", "سرّ"))
+      runnable: true
+  lookup_table: name_only

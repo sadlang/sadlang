@@ -88,6 +88,7 @@ NS_COMMENTS = {
     "Arrays":            ("عمليات المصفوفات المدمجة", "Built-in array operations"),
     "Basics":            ("وحدة أساسيات", "Basics module"),
     "Assertions":        ("وحدة تأكيدات", "Assertions module"),
+    "Crypto":            ("وحدة تشفير", "Crypto module"),
     "Maps":              ("وحدة خرائط", "Maps module"),
     "Sockets":           ("وحدة مقابس", "Sockets module"),
     "HttpClient":        ("عميل HTTP", "HTTP Client"),
