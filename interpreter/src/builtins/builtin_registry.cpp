@@ -266,6 +266,8 @@ namespace Sad
                 {"ترميز_64", kModAssertions},
                 {"بلايك3", kModCrypto},
                 {"هاش_مفتاح", kModCrypto},
+                {"اشتق_مفتاح_مرور", kModCrypto},
+                {"اشتق_مفتاح", kModCrypto},
                 {"طباعة_تنسيق", kModAssertions},
                 {"حجز", kModAssertions},
                 {"حرر", kModAssertions},

@@ -946,6 +946,8 @@ namespace Sad
             llvm::Value *emitBuiltinSecurityBase64Encode(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityBase64Encode(inst); }   // ترميز_64
             llvm::Value *emitBuiltinCryptoBlake3Hash(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoBlake3Hash(inst); }           // بلايك3
             llvm::Value *emitBuiltinCryptoBlake3KeyedHash(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoBlake3KeyedHash(inst); } // هاش_مفتاح
+            llvm::Value *emitBuiltinCryptoKdfPbkdf2(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoKdfPbkdf2(inst); }             // اشتق_مفتاح_مرور
+            llvm::Value *emitBuiltinCryptoKdfHkdf(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoKdfHkdf(inst); }                 // اشتق_مفتاح
 
             // ================================================================
             // التكامل مع C/C++ — FFI Functions (20)

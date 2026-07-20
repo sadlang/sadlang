@@ -40,6 +40,8 @@ public:
     llvm::Value *emitBuiltinSecurityBase64Encode(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoBlake3Hash(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoBlake3KeyedHash(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoKdfPbkdf2(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoKdfHkdf(std::shared_ptr<SIRInstruction> inst);
 };
 
 }} // namespace Sad::LLVM

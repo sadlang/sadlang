@@ -702,6 +702,171 @@ const char *sad_blake3_keyed_hash(const char *str, const char *key)
     out[64] = '\0';
     return out;
 }
+)";
+                rt_file << R"(
+/* ============================================================================
+ * KDF — اشتق_مفتاح_مرور (PBKDF2-HMAC-SHA256, RFC 8018) و اشتق_مفتاح
+ * (HKDF-SHA256, RFC 5869). مطابقة حرفيًّا لنظير sad_embedded_runtime.c.
+ * ============================================================================ */
+
+static void sad_hmac_sha256_raw(const unsigned char *key, size_t klen,
+                                 const unsigned char *msg, size_t mlen, unsigned char out[32])
+{
+    unsigned char k0[64];
+    unsigned char ipad[64], opad[64];
+    unsigned char inner_hash[32];
+    unsigned char *inner_buf;
+    unsigned char outer_buf[64 + 32];
+    size_t i;
+    memset(k0, 0, 64);
+    if (klen > 64)
+        sad_sha256_raw(key, klen, k0);
+    else
+        memcpy(k0, key, klen);
+    for (i = 0; i < 64; ++i) {
+        ipad[i] = (unsigned char)(k0[i] ^ 0x36);
+        opad[i] = (unsigned char)(k0[i] ^ 0x5c);
+    }
+    inner_buf = (unsigned char *)malloc(64 + mlen);
+    if (!inner_buf) { memset(out, 0, 32); return; }
+    memcpy(inner_buf, ipad, 64);
+    memcpy(inner_buf + 64, msg, mlen);
+    sad_sha256_raw(inner_buf, 64 + mlen, inner_hash);
+    free(inner_buf);
+    memcpy(outer_buf, opad, 64);
+    memcpy(outer_buf + 64, inner_hash, 32);
+    sad_sha256_raw(outer_buf, 96, out);
+}
+
+static void sad_pbkdf2_hmac_sha256_raw(const unsigned char *pw, size_t pwlen,
+                                        const unsigned char *salt, size_t saltlen,
+                                        unsigned long long iterations, unsigned char *out, size_t dklen)
+{
+    unsigned int nblocks = (unsigned int)((dklen + 31) / 32);
+    unsigned int blk;
+    unsigned char *salt_ctr = (unsigned char *)malloc(saltlen + 4);
+    if (!salt_ctr) { memset(out, 0, dklen); return; }
+    memcpy(salt_ctr, salt, saltlen);
+    for (blk = 1; blk <= nblocks; ++blk) {
+        unsigned char u[32], t[32];
+        unsigned long long iter;
+        size_t off, take;
+        salt_ctr[saltlen + 0] = (unsigned char)(blk >> 24);
+        salt_ctr[saltlen + 1] = (unsigned char)(blk >> 16);
+        salt_ctr[saltlen + 2] = (unsigned char)(blk >> 8);
+        salt_ctr[saltlen + 3] = (unsigned char)(blk);
+        sad_hmac_sha256_raw(pw, pwlen, salt_ctr, saltlen + 4, u);
+        memcpy(t, u, 32);
+        for (iter = 1; iter < iterations; ++iter) {
+            unsigned char un[32];
+            int j;
+            sad_hmac_sha256_raw(pw, pwlen, u, 32, un);
+            memcpy(u, un, 32);
+            for (j = 0; j < 32; ++j)
+                t[j] ^= u[j];
+        }
+        off = (size_t)(blk - 1) * 32;
+        take = (dklen - off < 32) ? (dklen - off) : 32;
+        memcpy(out + off, t, take);
+    }
+    free(salt_ctr);
+}
+
+const char *sad_kdf_pbkdf2(const char *password, const char *salt, long long iterations)
+{
+    unsigned char digest[32];
+    char *out;
+    size_t i, pwlen, saltlen;
+    unsigned long long iters;
+    if (iterations <= 0) {
+        fprintf(stderr, "[sad] خطأ: عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر\n");
+        return "";
+    }
+    if (!password) password = "";
+    if (!salt) salt = "";
+    pwlen = strlen(password);
+    saltlen = strlen(salt);
+    iters = (unsigned long long)iterations;
+    sad_pbkdf2_hmac_sha256_raw((const unsigned char *)password, pwlen,
+                                (const unsigned char *)salt, saltlen, iters, digest, 32);
+    out = (char *)malloc(65);
+    if (!out) return "";
+    for (i = 0; i < 32; ++i)
+        snprintf(out + i * 2, 3, "%02x", digest[i]);
+    out[64] = '\0';
+    return out;
+}
+
+static void sad_hkdf_extract(const unsigned char *salt, size_t saltlen,
+                              const unsigned char *ikm, size_t ikmlen, unsigned char prk[32])
+{
+    unsigned char zero_salt[32];
+    if (saltlen == 0) {
+        memset(zero_salt, 0, 32);
+        sad_hmac_sha256_raw(zero_salt, 32, ikm, ikmlen, prk);
+    } else {
+        sad_hmac_sha256_raw(salt, saltlen, ikm, ikmlen, prk);
+    }
+}
+
+static void sad_hkdf_expand(const unsigned char prk[32], const unsigned char *info, size_t infolen,
+                             unsigned char *okm, size_t l)
+{
+    unsigned char t[32];
+    size_t tlen = 0;
+    unsigned char *buf = (unsigned char *)malloc(32 + infolen + 1);
+    unsigned int i = 1;
+    size_t produced = 0;
+    if (!buf) { memset(okm, 0, l); return; }
+    while (produced < l) {
+        size_t buflen = 0;
+        size_t take;
+        memcpy(buf, t, tlen);
+        buflen += tlen;
+        memcpy(buf + buflen, info, infolen);
+        buflen += infolen;
+        buf[buflen] = (unsigned char)i;
+        buflen += 1;
+        sad_hmac_sha256_raw(prk, 32, buf, buflen, t);
+        tlen = 32;
+        take = (l - produced < 32) ? (l - produced) : 32;
+        memcpy(okm + produced, t, take);
+        produced += take;
+        ++i;
+    }
+    free(buf);
+}
+
+const char *sad_kdf_hkdf(const char *secret, const char *salt, const char *info, long long length)
+{
+    unsigned char prk[32];
+    unsigned char *okm;
+    char *out;
+    size_t i, secretlen, saltlen, infolen, l;
+    /* RFC 5869 §2.3: الحدّ الأقصى للناتج L <= 255 * HashLen (32 بايت) = 8160 بايت */
+    if (length <= 0 || length > 8160) {
+        fprintf(stderr, "[sad] خطأ: طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت\n");
+        return "";
+    }
+    if (!secret) secret = "";
+    if (!salt) salt = "";
+    if (!info) info = "";
+    secretlen = strlen(secret);
+    saltlen = strlen(salt);
+    infolen = strlen(info);
+    l = (size_t)length;
+    okm = (unsigned char *)malloc(l);
+    if (!okm) return "";
+    sad_hkdf_extract((const unsigned char *)salt, saltlen, (const unsigned char *)secret, secretlen, prk);
+    sad_hkdf_expand(prk, (const unsigned char *)info, infolen, okm, l);
+    out = (char *)malloc(l * 2 + 1);
+    if (!out) { free(okm); return ""; }
+    for (i = 0; i < l; ++i)
+        snprintf(out + i * 2, 3, "%02x", okm[i]);
+    out[l * 2] = '\0';
+    free(okm);
+    return out;
+}
 
 long long sad_security_timestamp(void) {
     return (long long)time(NULL);

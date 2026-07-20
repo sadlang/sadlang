@@ -69,3 +69,97 @@ functions:
         اطبع_سطر(هاش_مفتاح("رسالة", "سرّ"))
       runnable: true
   lookup_table: name_only
+- cpp_id: KDF_PBKDF2
+  canonical: اشتق_مفتاح_مرور
+  namespace: Crypto
+  category: MODULE_FUNCTION
+  require_import: true
+  module: CRYPTO
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: >-
+    يشتقّ مفتاحًا بطيء الحساب من كلمة مرور عبر PBKDF2-HMAC-SHA256 (RFC
+    2898/8018) — مصمَّم عمدًا ليكون بطيئًا (عدد التكرارات معامل تحكّم صريح)
+    فيقاوم هجمات التخمين بالقوّة الغاشمة/GPU بخلاف استعمال هاش مباشرة على
+    كلمة المرور (بلا ملح، بلا إبطاء). يُرجع مفتاحًا 32 بايت (256 بت) كسلسلة
+    ست عشريّة من 64 حرفًا. خوارزميّة الاشتقاق مطابقة حرفيًّا بين المفسّر
+    والمترجم (نفس SHA-256/HMAC/PBKDF2 ذاتيّ التنفيذ)، ومُتحقَّقة مقابل
+    تنفيذ hashlib.pbkdf2_hmac المدقَّق في بايثون (ومقابل بناء HMAC يدويّ
+    مستقلّ) عبر حالات تغطّي تكرارًا واحدًا، عدّة كتل ناتج، كلمة مرور فارغة،
+    وبايتات صفريّة داخل المدخلات. **عدد_التكرارات يجب أن يكون أكبر من صفر**
+    (خطأ صريح خلاف ذلك). آليّة الإبلاغ عن هذا الخطأ تتباعد بين المحرِّكين
+    (استثناء قابل للالتقاط بالمفسّر مقابل رسالة stderr + سلسلة فارغة
+    بالمترجم بلا استثناء لغويّ) — نفس نمط التباعد الموثَّق سلفًا لـفك_تشفير.
+  description_en: >-
+    Derives a slow, brute-force-resistant key from a password via
+    PBKDF2-HMAC-SHA256 (RFC 2898/8018) — deliberately slow (iteration count
+    is an explicit tuning knob), unlike hashing the password directly (no
+    salt, no slowdown). Returns a 32-byte (256-bit) key as a 64-character hex
+    string. The derivation algorithm is identical between interpreter and
+    compiler (same self-implemented SHA-256/HMAC/PBKDF2), verified against
+    Python's audited hashlib.pbkdf2_hmac (and an independent manual
+    HMAC-based construction) across single-iteration, multi-block, empty
+    password, and null-byte-containing input cases. **iterations must be
+    greater than zero** (explicit error otherwise); the error-reporting
+    mechanism diverges between engines (catchable exception in the
+    interpreter vs. a stderr message + empty string in the compiled binary,
+    no language-level exception) — same divergence pattern already documented
+    for فك_تشفير.
+  params:
+    - كلمة_المرور — كلمة المرور المراد اشتقاق مفتاح منها.
+    - ملح — قيمة عشوائيّة فريدة لكل مستخدم/سجلّ (يُفضَّل عبر عشوائي_آمن).
+    - عدد_التكرارات — عدد جولات PBKDF2؛ كلما زاد كان الاشتقاق أبطأ وأصعب تخمينًا (يُنصح بـ100000 فأكثر).
+  examples:
+    - code: |
+        استورد تشفير
+        اطبع_سطر(اشتق_مفتاح_مرور("كلمة_سرّ", "ملح", 1))
+      runnable: true
+  lookup_table: name_only
+- cpp_id: KDF_HKDF
+  canonical: اشتق_مفتاح
+  namespace: Crypto
+  category: MODULE_FUNCTION
+  require_import: true
+  module: CRYPTO
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: >-
+    يشتقّ مفتاحًا فرعيًّا بطول محدَّد من سرّ مشترك عبر HKDF-SHA256 (RFC
+    5869: Extract-then-Expand) — يُستعمَل لتوسيع/تقسيم سرّ واحد (كناتج
+    تبادل مفاتيح) إلى عدّة مفاتيح مستقلّة لأغراض مختلفة (سياق الاستخدام
+    يفصل بينها)، بخلاف اشتق_مفتاح_مرور المصمَّم للبطء أمام تخمين كلمات
+    المرور. يُرجع سلسلة ست عشريّة طولها ضعف طول المخرَج المطلوب بالبايت.
+    خوارزميّة الاشتقاق مطابقة حرفيًّا بين المفسّر والمترجم، ومُتحقَّقة
+    حرفيًّا مقابل شعاعات RFC 5869 الرسميّة الثلاثة (Appendix A: مدخلات
+    عاديّة، مدخلات طويلة، ملح/سياق فارغان). **الطول محدود بين 1 و8160 بايت**
+    (255 × 32 بايت، حدّ HKDF-Expand في RFC 5869 §2.3 — عدّاد الكتلة بايت
+    واحد فيلتفّ صامتًا فوق هذا الحدّ)؛ خطأ صريح خارج هذا المدى، بنفس نمط
+    تباعد آليّة الإبلاغ الموثَّق أعلاه لـاشتق_مفتاح_مرور.
+  description_en: >-
+    Derives a fixed-length subkey from a shared secret via HKDF-SHA256 (RFC
+    5869: Extract-then-Expand) — used to expand/split one secret (e.g. a key
+    exchange output) into several independent keys for different purposes
+    (the info/context argument separates them), unlike
+    اشتق_مفتاح_مرور which is deliberately slow for password guessing
+    resistance. Returns a hex string twice the requested output length in
+    bytes. The derivation algorithm is identical between interpreter and
+    compiler, verified byte-for-byte against all three official RFC 5869
+    Appendix A test vectors (normal-length inputs, long inputs, empty
+    salt/info). **Length is bounded to 1–8160 bytes** (255 × 32-byte hash
+    length, the RFC 5869 §2.3 HKDF-Expand limit — the one-byte block counter
+    silently wraps beyond this); explicit error outside this range, with the
+    same error-reporting-mechanism divergence documented above for
+    اشتق_مفتاح_مرور.
+  params:
+    - سرّ — السرّ المشترك المصدر (input keying material).
+    - ملح — قيمة اختياريّة تُقوّي الاستخراج (يجوز نصًّا فارغًا).
+    - سياق — معلومات سياق الاستخدام تفصل مخرَجات مختلفة عن نفس السرّ (يجوز نصًّا فارغًا).
+    - الطول — طول المفتاح المُشتقّ بالبايت (1–8160).
+  examples:
+    - code: |
+        استورد تشفير
+        اطبع_سطر(اشتق_مفتاح("سرّ_مشترك", "ملح", "سياق", 16))
+      runnable: true
+  lookup_table: name_only

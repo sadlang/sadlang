@@ -510,4 +510,51 @@ namespace Sad { namespace LLVM {
             return result;
         }
 
+
+
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoKdfPbkdf2(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 3)
+                return nullptr;
+            llvm::Value *password = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *salt = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *iterations = cg_.resolveOperand(inst->operands[2]);
+            if (!password || !salt || !iterations)
+                return nullptr;
+            // Call runtime sad_kdf_pbkdf2(const char*, const char*, long long) -> char*
+            // (PBKDF2-HMAC-SHA256, RFC 8018 — hex string, 32-byte fixed output)
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i64Ty}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_pbkdf2", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {password, salt, iterations}, "pbkdf2.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+
+
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoKdfHkdf(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 4)
+                return nullptr;
+            llvm::Value *secret = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *salt = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *info = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *length = cg_.resolveOperand(inst->operands[3]);
+            if (!secret || !salt || !info || !length)
+                return nullptr;
+            // Call runtime sad_kdf_hkdf(const char*, const char*, const char*, long long) -> char*
+            // (HKDF-SHA256, RFC 5869 — hex string, caller-chosen output length)
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i8Ptr, i64Ty}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_hkdf", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {secret, salt, info, length}, "hkdf.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
 }} // namespace Sad::LLVM

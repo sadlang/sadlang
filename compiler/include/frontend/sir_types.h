@@ -469,6 +469,8 @@ namespace Sad
                 // ==========================================
                 BUILTIN_CRYPTO_BLAKE3_HASH,       ///< بلايك3 / BLAKE3 hash - hex string
                 BUILTIN_CRYPTO_BLAKE3_KEYED_HASH, ///< هاش_مفتاح / BLAKE3 keyed hash (MAC) - hex string
+                BUILTIN_CRYPTO_KDF_PBKDF2,        ///< اشتق_مفتاح_مرور / PBKDF2-HMAC-SHA256 - hex string
+                BUILTIN_CRYPTO_KDF_HKDF,          ///< اشتق_مفتاح / HKDF-SHA256 - hex string
 
                 // ==========================================
                 // 13. التكامل مع C/C++ — FFI Functions (15)

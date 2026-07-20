@@ -77,6 +77,53 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
+                // 3. اشتق_مفتاح_مرور / derive_password_key - PBKDF2-HMAC-SHA256
+                if (funcName == Bn::Crypto::KDF_PBKDF2)
+                {
+                    if (argResults.size() < 3)
+                    {
+                        std::cerr << "[خطأ] دالة اشتق_مفتاح_مرور تتطلب ثلاثة معاملات (كلمة_المرور، ملح، عدد_التكرارات)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_KDF_PBKDF2);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    inst.operands.push_back(argOperands[2]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 4. اشتق_مفتاح / derive_key - HKDF-SHA256
+                if (funcName == Bn::Crypto::KDF_HKDF)
+                {
+                    if (argResults.size() < 4)
+                    {
+                        std::cerr << "[خطأ] دالة اشتق_مفتاح تتطلب أربعة معاملات (سرّ، ملح، سياق، الطول)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_KDF_HKDF);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    inst.operands.push_back(argOperands[2]);
+                    inst.operands.push_back(argOperands[3]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
                 return std::nullopt;
             }
 
