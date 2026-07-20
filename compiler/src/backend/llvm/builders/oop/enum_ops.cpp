@@ -884,7 +884,10 @@ namespace Sad
             // (EN) Ensure value is a pointer — if i64 it's a Unit variant and doesn't need freeing
             if (!enumPtr->getType()->isPointerTy())
             {
-                return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void — إرجاع nullptr يُسقط الموزّع
+            //      المتدرّج فيبلّغ «Unsupported opcode» بائتًا (نمط emitMemWrite).
+            // (EN) "Handled" sentinel — see emitMemWrite pattern.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
             }
 
             // (AR) فحص null قبل التحرير
@@ -917,7 +920,10 @@ namespace Sad
             // (EN) Continue after free
             cg_.builder_->SetInsertPoint(contBlock);
 
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void — إرجاع nullptr يُسقط الموزّع
+            //      المتدرّج فيبلّغ «Unsupported opcode» بائتًا (نمط emitMemWrite).
+            // (EN) "Handled" sentinel — see emitMemWrite pattern.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
     } // namespace LLVM

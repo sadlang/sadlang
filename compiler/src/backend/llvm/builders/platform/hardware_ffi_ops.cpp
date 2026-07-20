@@ -158,7 +158,13 @@ namespace Sad
             llvm::Value *val = cg_.builder_->CreateIntCast(value, valType, false);
             auto *store = cg_.builder_->CreateStore(val, ptr);
             store->setVolatile(true);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: store تعليمة void بلا قيمة، وإرجاع nullptr
+            //      يُسقط الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (قاتلًا حرًّا عبر بوّابة hasErrors). نفس نمط security/objects_arrays.
+            // (EN) "Handled" sentinel: store is a void instruction with no value;
+            //      returning nullptr makes the tiered dispatcher fall through and
+            //      misreport "Unsupported opcode". Same dummy pattern as elsewhere.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitMemRead(std::shared_ptr<SIRInstruction> inst)
@@ -210,7 +216,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt8Ty(*cg_.context_)}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "int $0", "N,~{dirflag},~{fpsr},~{flags}", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {num8});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitHalt(std::shared_ptr<SIRInstruction> inst)
@@ -218,7 +230,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "hlt", "", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitCli(std::shared_ptr<SIRInstruction> inst)
@@ -226,7 +244,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "cli", "~{memory}", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitSti(std::shared_ptr<SIRInstruction> inst)
@@ -234,7 +258,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "sti", "~{memory}", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitVgaWrite(std::shared_ptr<SIRInstruction> inst)
@@ -263,7 +293,13 @@ namespace Sad
             llvm::Value *entry = cg_.builder_->CreateOr(charVal, colorVal, "vga.entry");
             auto *store = cg_.builder_->CreateStore(entry, ptr);
             store->setVolatile(true);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitVgaClear(std::shared_ptr<SIRInstruction> inst)
@@ -298,7 +334,13 @@ namespace Sad
             llvm::Value *done = cg_.builder_->CreateICmpUGE(next, llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 2000));
             cg_.builder_->CreateCondBr(done, doneBB, loopBB);
             cg_.builder_->SetInsertPoint(doneBB);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitAddrOf(std::shared_ptr<SIRInstruction> inst)
@@ -335,7 +377,13 @@ namespace Sad
             llvm::Value *destPtr = cg_.builder_->CreateIntToPtr(dest, i8p);
             llvm::Value *srcPtr = cg_.builder_->CreateIntToPtr(src, i8p);
             cg_.builder_->CreateMemCpy(destPtr, llvm::MaybeAlign(1), srcPtr, llvm::MaybeAlign(1), size);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitMemSet(std::shared_ptr<SIRInstruction> inst)
@@ -354,7 +402,13 @@ namespace Sad
             llvm::Value *destPtr = cg_.builder_->CreateIntToPtr(dest, i8p);
             llvm::Value *val8 = cg_.builder_->CreateIntCast(val, llvm::Type::getInt8Ty(*cg_.context_), false);
             cg_.builder_->CreateMemSet(destPtr, val8, size, llvm::MaybeAlign(1));
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         // ============================================================================
@@ -401,7 +455,13 @@ namespace Sad
             );
             cg_.builder_->CreateCall(asmFT, static_cast<llvm::Value *>(repStoreSd), {destPtr, val32, count64});
 
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         // ============================================================================
@@ -437,7 +497,13 @@ namespace Sad
             // Use @llvm.memcpy with 4-byte alignment for both source and destination
             cg_.builder_->CreateMemCpy(destPtr, llvm::MaybeAlign(4), srcPtr, llvm::MaybeAlign(4), byteSize);
 
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         // ============================================================================
@@ -476,7 +542,13 @@ namespace Sad
             doOutb(llvm::ConstantInt::get(i8, 0x03), p3);
             doOutb(llvm::ConstantInt::get(i8, 0xC7), p2);
             doOutb(llvm::ConstantInt::get(i8, 0x0B), p4);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitSerialWrite(std::shared_ptr<SIRInstruction> inst)
@@ -508,7 +580,13 @@ namespace Sad
             llvm::FunctionType *outbFT = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i8, i16}, false);
             llvm::InlineAsm *outbIA = llvm::InlineAsm::get(outbFT, "outb $0, $1", "{ax},{dx},~{dirflag},~{fpsr},~{flags}", true, false);
             cg_.builder_->CreateCall(outbFT, static_cast<llvm::Value *>(outbIA), {cg_.builder_->CreateIntCast(byte, i8, false), port16});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitSerialRead(std::shared_ptr<SIRInstruction> inst)
@@ -580,7 +658,13 @@ namespace Sad
             llvm::Value *ptr = cg_.builder_->CreateIntToPtr(cg_.builder_->CreateIntCast(addr, llvm::Type::getInt64Ty(*cg_.context_), false), i32->getPointerTo(), "gpio.ptr");
             auto *store = cg_.builder_->CreateStore(cg_.builder_->CreateIntCast(val, i32, false), ptr);
             store->setVolatile(true);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitGpioRead(std::shared_ptr<SIRInstruction> inst)
@@ -619,7 +703,13 @@ namespace Sad
             llvm::Value *ptr = cg_.builder_->CreateIntToPtr(dirAddr, i32->getPointerTo(), "gpio.dir");
             auto *st = cg_.builder_->CreateStore(cg_.builder_->CreateIntCast(mode, i32, false), ptr);
             st->setVolatile(true);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitTimerInit(std::shared_ptr<SIRInstruction> inst)
@@ -640,7 +730,13 @@ namespace Sad
             llvm::Value *div = cg_.builder_->CreateUDiv(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1193182), freq);
             cg_.builder_->CreateCall(outbFT, static_cast<llvm::Value *>(outbIA), {cg_.builder_->CreateIntCast(div, i8, false), llvm::ConstantInt::get(i16, 0x40)});
             cg_.builder_->CreateCall(outbFT, static_cast<llvm::Value *>(outbIA), {cg_.builder_->CreateIntCast(cg_.builder_->CreateLShr(div, 8), i8, false), llvm::ConstantInt::get(i16, 0x40)});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitTimerRead(std::shared_ptr<SIRInstruction> inst)
@@ -683,7 +779,13 @@ namespace Sad
             llvm::Value *now = cg_.builder_->CreateCall(rdtscFT, static_cast<llvm::Value *>(rdtscIA), {}, "w.now");
             cg_.builder_->CreateCondBr(cg_.builder_->CreateICmpUGE(now, target), doneBB, loopBB);
             cg_.builder_->SetInsertPoint(doneBB);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitReset(std::shared_ptr<SIRInstruction> inst)
@@ -704,7 +806,13 @@ namespace Sad
             cg_.builder_->SetInsertPoint(resetBB);
             cg_.builder_->CreateCall(outbFT, static_cast<llvm::Value *>(outbIA), {llvm::ConstantInt::get(i8, 0xFE), llvm::ConstantInt::get(i16, 0x64)});
             emitHalt(nullptr);
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitCpuId(std::shared_ptr<SIRInstruction> inst)
@@ -742,7 +850,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "mfence", "~{memory}", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitLfence(std::shared_ptr<SIRInstruction> inst)
@@ -750,7 +864,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "lfence", "~{memory}", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
         llvm::Value *HardwareFFICodeGen::emitSfence(std::shared_ptr<SIRInstruction> inst)
@@ -758,7 +878,13 @@ namespace Sad
             llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
             llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "sfence", "~{memory}", true, false);
             cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {});
-            return nullptr;
+            // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
+            //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
+            //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
+            // (EN) "Handled" sentinel: void instruction with no value; returning
+            //      nullptr makes the tiered dispatcher fall through and misreport
+            //      "Unsupported opcode". Same pattern as emitMemWrite.
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
         }
 
 
