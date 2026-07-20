@@ -144,6 +144,7 @@ namespace Sad
             SEM_COMPARE_DIFFERENT_TYPES,  ///< SEM017: (AR) مقارنة أنواع مختلفة / (EN) Comparing different types
             SEM_MAIN_FUNCTION_RULE,       ///< SEM018: (AR) قاعدة الدالة الرئيسية / (EN) Main function rule
             SEM_FREESTANDING_BUILTIN,     ///< SEM019: (AR) مدمجة غير متاحة في الوضع الحرّ / (EN) Builtin unavailable in freestanding
+            SEM_FREESTANDING_SYS_BUILTIN_ARG, ///< SEM020: (AR) معامل مدمجة نظام غير صالح في الوضع الحرّ / (EN) Invalid system-builtin argument in freestanding
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

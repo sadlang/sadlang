@@ -18,6 +18,8 @@
 #include "builders/platform/lowlevel_codegen.h"
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
 
 namespace Sad {
 namespace LLVM {
@@ -47,6 +49,21 @@ static llvm::Value* emitRuntimeCall(
 }
 
 // ============================================================================
+// (AR) يربط ناتج تعليمة منخفضة بسجلّها الناتج في جدول القيم (namedValues) كي
+//      يجده مستهلكوه (نمط دوالّ الحساب). دوالّ CPU المنخفضة كانت تعيد القيمة
+//      بلا ربطها ⇒ «Undefined register» عند استهلاكها (كامن: exit 0 مستضافًا،
+//      يظهر تحت بوّابة الوضع الحرّ). يعيد القيمة نفسها للتسلسل.
+// (EN) Bind a low-level instruction's result value into namedValues so consumers
+//      resolve it (as arithmetic emitters do). Returns the value for chaining.
+// ============================================================================
+static llvm::Value* bindLowlevelResult(LLVMCodeGen& cg,
+    const std::shared_ptr<SIRInstruction>& inst, llvm::Value* result) {
+    if (result && inst->result.has_value())
+        cg.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+// ============================================================================
 // 15a. وحدة المعالج المتقدمة / Advanced CPU Module
 // ============================================================================
 
@@ -67,15 +84,34 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruct
     // (AR) rdmsr — قراءة سجل نموذج محدد
     // (EN) rdmsr instruction via inline assembly: ecx=reg -> edx:eax
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
     llvm::Value* reg = cg_.resolveOperand(inst->operands[0]);
-    reg = cg_.builder_->CreateIntCast(reg, llvm::Type::getInt32Ty(*cg_.context_), false);
-    
-    // Use inline asm: rdmsr returns edx:eax combined into i64
-    auto* asmTy = llvm::FunctionType::get(i64Ty, {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+    reg = cg_.builder_->CreateIntCast(reg, i32Ty, false);
+
+    if (cg_.freestanding_) {
+        // (AR) i686 حرّ: rdmsr يعيد edx:eax؛ ندمجهما بلا shlq/rax (x86-64)
+        // (EN) Freestanding i686: rdmsr -> {eax,edx}, combine without 64-bit ops
+        auto* retTy = llvm::StructType::get(*cg_.context_, {i32Ty, i32Ty});
+        auto* asmTy = llvm::FunctionType::get(retTy, {i32Ty}, false);
+        auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+            "rdmsr", "={eax},={edx},{ecx}", true, false, llvm::InlineAsm::AD_ATT);
+        auto* result = cg_.builder_->CreateCall(asmTy, inlineAsm, {reg});
+        auto* eax = cg_.builder_->CreateExtractValue(result, 0, "msr_lo");
+        auto* edx = cg_.builder_->CreateExtractValue(result, 1, "msr_hi");
+        auto* eax64 = cg_.builder_->CreateZExt(eax, i64Ty);
+        auto* edx64 = cg_.builder_->CreateZExt(edx, i64Ty);
+        auto* shifted = cg_.builder_->CreateShl(edx64, 32);
+        return bindLowlevelResult(cg_, inst,
+            cg_.builder_->CreateOr(eax64, shifted, "msr_val"));
+    }
+
+    // (AR) الوضع المستضاف (x86-64): يبقى كما هو
+    auto* asmTy = llvm::FunctionType::get(i64Ty, {i32Ty}, false);
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,
         "rdmsr; shlq $$32, %rdx; orq %rdx, %rax",
         "={rax},{ecx},~{rdx}", true);
-    return cg_.builder_->CreateCall(asmTy, inlineAsm, {reg});
+    return bindLowlevelResult(cg_, inst,
+        cg_.builder_->CreateCall(asmTy, inlineAsm, {reg}));
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruction> inst) {
@@ -98,12 +134,53 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruc
     return cg_.builder_->CreateCall(asmTy, inlineAsm, {reg, lo, hi});
 }
 
+// (AR) يستخرج رقم سجلّ التحكّم الثابت من المعامل الأوّل، ويتحقّق ∈{0,2,3,4}.
+//      تعليمة `mov %crN` تتطلّب N حرفيًّا في نصّ الأسمبلي فلا يقبل رقمًا متغيّرًا
+//      في الوضع الحرّ. يعيد false ويبلّغ خطأً عند التعذّر.
+// (EN) Extract constant CR number (must be literal for `mov %crN`); {0,2,3,4}.
+static bool extractConstCrNum(LLVMCodeGen& cg, llvm::Value* crNum,
+                              const char* who, unsigned& out) {
+    auto* ci = llvm::dyn_cast<llvm::ConstantInt>(crNum);
+    if (!ci) {
+        cg.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
+            {{"detail", std::string(who) + ": رقم سجلّ التحكّم يجب أن يكون ثابتًا حرفيًّا في الوضع الحرّ"}});
+        return false;
+    }
+    unsigned n = static_cast<unsigned>(ci->getZExtValue());
+    if (n != 0 && n != 2 && n != 3 && n != 4) {
+        cg.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
+            {{"detail", std::string(who) + ": سجلّ تحكّم غير مدعوم (المدعوم: CR0/CR2/CR3/CR4)"}});
+        return false;
+    }
+    out = n;
+    return true;
+}
+
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadCR(std::shared_ptr<SIRInstruction> inst) {
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     llvm::Value* crNum = cg_.resolveOperand(inst->operands[0]);
-    // Call runtime — handles switch on CR number
-    return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
-        "sad_ll_read_cr", i64Ty, {i64Ty}, {crNum});
+
+    if (cg_.freestanding_) {
+        // (AR) i686 حرّ: `mov %crN, reg32` ثمّ تمديد بالصفر إلى i64 (يصفّر النصف
+        //      العلويّ تلقائيًّا — نظير جالبات العتاد)
+        unsigned n = 0;
+        if (!extractConstCrNum(cg_, crNum, "اقرأ_سجل_تحكم", n)) {
+            // (AR) اربط الناتج بصفر ثابت كي لا تتتالى «Undefined register» على
+            //      مستهلكيه (نمط بوّابة SEM019)؛ البناء يُحبَط عبر بوّابة hasErrors.
+            return bindLowlevelResult(cg_, inst, llvm::ConstantInt::get(i64Ty, 0));
+        }
+        auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+        auto* asmTy = llvm::FunctionType::get(i32Ty, {}, false);
+        auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+            "mov %cr" + std::to_string(n) + ", $0", "=r",
+            true, false, llvm::InlineAsm::AD_ATT);
+        auto* raw = cg_.builder_->CreateCall(asmTy, inlineAsm, {});
+        return bindLowlevelResult(cg_, inst, cg_.builder_->CreateZExt(raw, i64Ty));
+    }
+
+    // (AR) الوضع المستضاف: نداء runtime يحسم الفرع على رقم CR
+    return bindLowlevelResult(cg_, inst, emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
+        "sad_ll_read_cr", i64Ty, {i64Ty}, {crNum}));
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruction> inst) {
@@ -111,6 +188,20 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruct
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     llvm::Value* crNum = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* val = cg_.resolveOperand(inst->operands[1]);
+
+    if (cg_.freestanding_) {
+        // (AR) i686 حرّ: `mov reg32, %crN` — القيمة تُقصّ إلى 32-بت (فضاء i686)
+        unsigned n = 0;
+        if (!extractConstCrNum(cg_, crNum, "اكتب_سجل_تحكم", n)) return nullptr;
+        auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+        llvm::Value* val32 = cg_.builder_->CreateTrunc(val, i32Ty);
+        auto* asmTy = llvm::FunctionType::get(voidTy, {i32Ty}, false);
+        auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+            "mov $0, %cr" + std::to_string(n), "r,~{memory}",
+            true, false, llvm::InlineAsm::AD_ATT);
+        return cg_.builder_->CreateCall(asmTy, inlineAsm, {val32});
+    }
+
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_write_cr", voidTy, {i64Ty, i64Ty}, {crNum, val});
 }
@@ -120,7 +211,17 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstructi
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     llvm::Value* addr = cg_.resolveOperand(inst->operands[0]);
-    
+
+    if (cg_.freestanding_) {
+        // (AR) i686 حرّ: العنوان 32-بت (قيد r بنوع i64 يطلب سجلًّا 64-بت غير موجود)
+        auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+        llvm::Value* addr32 = cg_.builder_->CreateIntCast(addr, i32Ty, false);
+        auto* asmTy = llvm::FunctionType::get(voidTy, {i32Ty}, false);
+        auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+            "invlpg ($0)", "r,~{memory}", true, false, llvm::InlineAsm::AD_ATT);
+        return cg_.builder_->CreateCall(asmTy, inlineAsm, {addr32});
+    }
+
     auto* asmTy = llvm::FunctionType::get(voidTy, {i64Ty}, false);
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,
         "invlpg ($0)", "r", true);
@@ -146,6 +247,13 @@ llvm::Value* LowlevelCodeGen::emitLowlevelGdtInit(std::shared_ptr<SIRInstruction
 llvm::Value* LowlevelCodeGen::emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst) {
     // (AR) lgdt — تحميل جدول الواصفات العامة
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    if (cg_.freestanding_) {
+        // (AR) lgdt الحرّة تتطلّب مؤشّر واصف (الحدّ+القاعدة)، والمدمج بلا وسائط
+        //      حاليًّا؛ إضافة الوسيط تغيّر توقيع المدمج (SoT) ⇒ لبنة/RFC تابعة.
+        cg_.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
+            {{"detail", "حمل_جدول_واصفات: يتطلّب مؤشّر واصف في الوضع الحرّ — غير مدعوم بعد (لبنة تابعة)"}});
+        return nullptr;
+    }
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_gdt_load", voidTy, {}, {});
 }
@@ -190,6 +298,13 @@ llvm::Value* LowlevelCodeGen::emitLowlevelPagingFlushTlb(std::shared_ptr<SIRInst
     // (AR) mov cr3, cr3 — إفراغ ذاكرة الترجمة بالكامل
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     auto* asmTy = llvm::FunctionType::get(voidTy, {}, false);
+    if (cg_.freestanding_) {
+        // (AR) i686 حرّ: عبر eax لا rax (x86-64)
+        auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+            "mov %cr3, %eax; mov %eax, %cr3", "~{eax},~{memory}",
+            true, false, llvm::InlineAsm::AD_ATT);
+        return cg_.builder_->CreateCall(asmTy, inlineAsm, {});
+    }
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,
         "movq %cr3, %rax; movq %rax, %cr3", "~{rax}", true);
     return cg_.builder_->CreateCall(asmTy, inlineAsm, {});
@@ -213,6 +328,12 @@ llvm::Value* LowlevelCodeGen::emitLowlevelIdtInit(std::shared_ptr<SIRInstruction
 
 llvm::Value* LowlevelCodeGen::emitLowlevelIdtLoad(std::shared_ptr<SIRInstruction> inst) {
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    if (cg_.freestanding_) {
+        // (AR) lidt الحرّة تتطلّب مؤشّر واصف؛ المدمج بلا وسائط ⇒ لبنة/RFC تابعة.
+        cg_.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
+            {{"detail", "حمل_جدول_مقاطعات: يتطلّب مؤشّر واصف في الوضع الحرّ — غير مدعوم بعد (لبنة تابعة)"}});
+        return nullptr;
+    }
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_idt_load", voidTy, {}, {});
 }

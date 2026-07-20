@@ -323,3 +323,20 @@ errors:
   detailed:
     ar: الوضع الحرّ (‎--freestanding‎) يولّد شيفرة مستقلّة بلا مكتبة قياسية (libc) ولا نظام تشغيل؛ لا نظام ملفّات ولا دخل قياسيّ ولا تحكّم طرفيّة عبر الصدَفة ولا مصدر عشوائيّة ولا مؤقّتات نوم ولا إنهاء عمليّة ولا ساعة جدار ولا رياضيّات libm. دوال مثل قراءة/كتابة الملفّات والقراءة من الدخل ومسح الشاشة والعشوائيّة والنوم والخروج والجيب/اللوغاريتم والفرز والوقت تحتاج رموزًا (fopen/scanf/system/rand/sleep/exit/sin/qsort/time...) غير موجودة، فكانت تفشل زمن الربط برسالة غامضة. هذا التشخيص المبكّر يوقفها زمن الترجمة برسالة واضحة تسمّي الدالة.
     en: Freestanding (--freestanding) emits a self-contained target with no libc and no OS — no filesystem, no stdin, no shell-based terminal control, no entropy source, no sleep timers, no process exit, no wall clock, no libm math. Builtins like file read/write, reading input, clearing the screen, randomness, sleeping, exiting, sine/log, sorting, or time need symbols (fopen/scanf/system/rand/sleep/exit/sin/qsort/time...) that do not exist, so they used to fail at link time with an opaque error. This early diagnostic stops them at compile time with a clear, named message.
+- code: SEM_FREESTANDING_SYS_BUILTIN_ARG
+  id: SEM020
+  category: semantic
+  title:
+    ar: معامل مدمجة نظام غير صالح في الوضع الحرّ
+    en: Invalid system-builtin argument in freestanding mode
+  brief:
+    ar: '{detail}'
+    en: '{detail}'
+  placeholders:
+  - detail
+  fix_hint:
+    ar: 'مرّر ثابتًا حرفيًّا مدعومًا (مثل رقم سجلّ تحكّم CR0 أو CR2 أو CR3 أو CR4)، أو أجّل الاستدعاء حتى تدعمه اللبنة التابعة.'
+    en: 'Pass a supported literal constant (e.g. a control-register number CR0, CR2, CR3, or CR4), or defer the call until a follow-up milestone supports it.'
+  detailed:
+    ar: مدمجات النظام في الوضع الحرّ (‎--freestanding‎) تُخفَّض إلى تعليمات عتاد مباشرة (مثل ‎mov %%crN‎ التي تتطلّب رقم السجلّ حرفيًّا في نصّ الأسمبلي، أو ‎lgdt/lidt‎ التي تتطلّب مؤشّر واصف). فمعامل غير ثابت أو غير مدعوم لا يمكن خفضه إلى تعليمة صالحة. هذا خطأ استعمال من المبرمج لا علّة مترجم — صحّح المعامل.
+    en: System builtins in freestanding mode (--freestanding) lower to direct hardware instructions (e.g. `mov %%crN`, which needs the register number literally in the asm text, or lgdt/lidt, which need a descriptor pointer). A non-constant or unsupported argument cannot be lowered to a valid instruction. This is a programmer usage error, not a compiler bug — fix the argument.
