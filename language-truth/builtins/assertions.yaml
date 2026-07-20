@@ -260,9 +260,29 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: عشوائي آمن
-  description_en: Secure random
-  params: []
+  description_ar: >-
+    يُرجع عددًا صحيحًا عشوائيًّا ضمن المدى [الحدّ_الأدنى، الحدّ_الأقصى]
+    (كلاهما شامل)، مصدره CSPRNG حقيقيّ لنظام التشغيل — BCryptGenRandom على
+    Windows، /dev/urandom على Linux/macOS — لا مولِّد أرقام شبه عشوائيّ عاديّ
+    (rand()/srand()). مطابق بين المفسّر والمترجم منذ توحيد جولة توسيع مكتبة
+    التشفير (المرحلة ٠). مناسب لتوليد nonces/رموز جلسة/مفاتيح مؤقّتة؛ ليس
+    توليدًا لمفاتيح تشفير طويلة الأمد بحدّ ذاته (استعمل اشتقاق مفتاح مخصَّص
+    لذلك عند توفّره).
+  description_en: >-
+    Returns a random integer in [min, max] (inclusive) sourced from a real OS
+    CSPRNG — BCryptGenRandom on Windows, /dev/urandom on Linux/macOS — not a
+    plain PRNG (rand()/srand()). Identical behavior on interpreter and
+    compiler since the crypto-library-expansion RFC's phase 0. Suitable for
+    nonces/session tokens/short-lived keys; not a long-term key-generation
+    primitive by itself.
+  params:
+    - الحدّ_الأدنى — أصغر قيمة ممكنة للناتج (شاملة).
+    - الحدّ_الأقصى — أكبر قيمة ممكنة للناتج (شاملة).
+  examples:
+    - code: |
+        استورد تأكيدات
+        اطبع_سطر(عشوائي_آمن(1، 100) >= 1)
+      runnable: true
   lookup_table: name_only
 - cpp_id: BASE64_ENCODE
   canonical: ترميز_64

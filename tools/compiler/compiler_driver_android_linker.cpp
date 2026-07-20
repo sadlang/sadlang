@@ -340,12 +340,36 @@ long long sad_security_timestamp(void) {
     return (long long)time(NULL);
 }
 
+/* أندرويد نظام تشغيل مضيف دائمًا (لا وضع حرّ) — /dev/urandom متاح دون أذونات
+ * خاصّة على كل إصدارات API، فلا حاجة لتحميل مكتبة NDK إضافيّة أو تمييز حرّ/مضيف
+ * كما في sad_embedded_runtime.c. */
+static int sad_crypto_os_random(unsigned char* buf, size_t len) {
+    FILE* f = fopen("/dev/urandom", "rb");
+    size_t got;
+    if (!f) return 0;
+    got = fread(buf, 1, len, f);
+    fclose(f);
+    return got == len;
+}
+
 long long sad_security_secure_random(long long min_val, long long max_val) {
-    static int seeded = 0;
-    if (!seeded) { srand((unsigned int)time(NULL)); seeded = 1; }
+    unsigned long long range;
     if (min_val >= max_val) return min_val;
-    long long range = max_val - min_val + 1;
-    return min_val + (long long)(rand() % (int)range);
+    range = (unsigned long long)(max_val - min_val + 1);
+    {
+        unsigned char bytes[8];
+        if (sad_crypto_os_random(bytes, sizeof(bytes))) {
+            unsigned long long r = 0;
+            int i;
+            for (i = 0; i < 8; ++i) r = (r << 8) | bytes[i];
+            return min_val + (long long)(r % range);
+        }
+    }
+    {
+        static int seeded = 0;
+        if (!seeded) { srand((unsigned int)time(NULL)); seeded = 1; }
+        return min_val + (long long)(rand() % (int)range);
+    }
 }
 
 )";

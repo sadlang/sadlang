@@ -606,21 +606,79 @@ static void sad_sha256_raw(const unsigned char *data, size_t len, unsigned char 
     }
 }
 
-/* (AR) مولّد 64 بت بسيط (غير آمن تشفيريًّا) لِـnonce تشفير-التيار — نفس مستوى
- *      الجودة المستخدَم أصلًا في sad_security_secure_random أعلاه. */
+/* (AR) مصدر عشوائيّة النظام (CSPRNG حقيقيّ) — Windows: BCryptGenRandom (تحميل
+ *      ديناميكيّ عبر LoadLibraryA/GetProcAddress، فلا حاجة لربط bcrypt.lib في
+ *      أيّ من مسارات الربط الثلاثة). POSIX: /dev/urandom. يُرجع 1 عند النجاح.
+ *      غير مُستعمَل تحت SAD_FREESTANDING (انظر SAD_FREESTANDING أدناه) — الهدف
+ *      الحرّ قد لا يوجد تحته نظام تشغيل مضيف أصلًا (كنواة sad-os)، فيبقى على
+ *      مسار libc القديم عمدًا (فجوة معروفة، موثَّقة في RFC توسيع مكتبة
+ *      التشفير — "أسئلة غير محسومة": مصدر عشوائيّة للوضع الحرّ البحت).
+ * (EN) Real OS-backed CSPRNG source. Not used under SAD_FREESTANDING — that
+ *      target may have no host OS at all, so it intentionally keeps the old
+ *      libc-only path (tracked gap, see the crypto-library-expansion RFC). */
+#ifndef SAD_FREESTANDING
+#ifdef _WIN32
+static int sad_crypto_os_random(unsigned char *buf, size_t len)
+{
+    typedef long (WINAPI *BCryptGenRandomFn)(void *, unsigned char *, unsigned long, unsigned long);
+    static BCryptGenRandomFn fn = NULL;
+    static int tried = 0;
+    if (!tried)
+    {
+        HMODULE h;
+        tried = 1;
+        h = LoadLibraryA("bcrypt.dll");
+        if (h)
+            fn = (BCryptGenRandomFn)(void *)GetProcAddress(h, "BCryptGenRandom");
+    }
+    /* BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002 */
+    return (fn && fn(NULL, buf, (unsigned long)len, 0x00000002) == 0) ? 1 : 0;
+}
+#else
+static int sad_crypto_os_random(unsigned char *buf, size_t len)
+{
+    FILE *f = fopen("/dev/urandom", "rb");
+    size_t got;
+    if (!f)
+        return 0;
+    got = fread(buf, 1, len, f);
+    fclose(f);
+    return got == len;
+}
+#endif
+#endif /* !SAD_FREESTANDING */
+
+/* (AR) مولّد nonce 64 بت لتشفير-التيار — CSPRNG حقيقيّ على الأهداف المستضافة؛
+ *      يتراجع لمسار srand/rand القديم (غير آمن تشفيريًّا) فقط تحت
+ *      SAD_FREESTANDING أو إن تعذّر الوصول لمصدر عشوائيّة النظام. */
 static unsigned long long sad_crypto_random_u64(void)
 {
-    static int seeded = 0;
-    unsigned long long r = 0;
-    int i;
-    if (!seeded)
+#ifndef SAD_FREESTANDING
     {
-        srand((unsigned int)time(NULL));
-        seeded = 1;
+        unsigned char bytes[8];
+        if (sad_crypto_os_random(bytes, sizeof(bytes)))
+        {
+            unsigned long long r = 0;
+            int i;
+            for (i = 0; i < 8; ++i)
+                r = (r << 8) | bytes[i];
+            return r;
+        }
     }
-    for (i = 0; i < 4; ++i)
-        r = (r << 16) | ((unsigned long long)rand() & 0xFFFFu);
-    return r;
+#endif
+    {
+        static int seeded = 0;
+        unsigned long long r = 0;
+        int i;
+        if (!seeded)
+        {
+            srand((unsigned int)time(NULL));
+            seeded = 1;
+        }
+        for (i = 0; i < 4; ++i)
+            r = (r << 16) | ((unsigned long long)rand() & 0xFFFFu);
+        return r;
+    }
 }
 
 /* هاش / Hash — SHA-256 (يطابق FIPS 180-4 ومفسّر ص حرفيًّا) */
@@ -874,19 +932,37 @@ const char *sad_security_sanitize(const char *text)
     return result;
 }
 
-/* عشوائي_آمن / Secure random in range */
+/* عشوائي_آمن / Secure random in range — CSPRNG حقيقيّ على الأهداف المستضافة
+ * (انظر sad_crypto_os_random أعلاه)؛ يتراجع لمسار srand/rand القديم فقط تحت
+ * SAD_FREESTANDING أو إن تعذّر الوصول لمصدر عشوائيّة النظام. */
 long long sad_security_secure_random(long long min_val, long long max_val)
 {
-    static int seeded = 0;
-    if (!seeded)
-    {
-        srand((unsigned int)time(NULL));
-        seeded = 1;
-    }
+    unsigned long long range;
     if (min_val >= max_val)
         return min_val;
-    long long range = max_val - min_val + 1;
-    return min_val + (long long)(rand() % (int)range);
+    range = (unsigned long long)(max_val - min_val + 1);
+#ifndef SAD_FREESTANDING
+    {
+        unsigned char bytes[8];
+        if (sad_crypto_os_random(bytes, sizeof(bytes)))
+        {
+            unsigned long long r = 0;
+            int i;
+            for (i = 0; i < 8; ++i)
+                r = (r << 8) | bytes[i];
+            return min_val + (long long)(r % range);
+        }
+    }
+#endif
+    {
+        static int seeded = 0;
+        if (!seeded)
+        {
+            srand((unsigned int)time(NULL));
+            seeded = 1;
+        }
+        return min_val + (long long)(rand() % (int)range);
+    }
 }
 
 /* ترميز_64 / Base64 encode */

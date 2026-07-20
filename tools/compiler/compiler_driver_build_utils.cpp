@@ -581,16 +581,32 @@ namespace sad
             bool is_clang = (c_compiler.find("clang") != std::string::npos ||
                              c_compiler.find("CLANG") != std::string::npos);
 
+            // (AR) SAD_FREESTANDING يُميَّز فقط عند --freestanding: يُبقي
+            //      sad_embedded_runtime.c على مسار العشوائيّة القديم (srand/rand
+            //      عبر libc فقط، بلا نداء نظام تشغيل) لأهداف الوضع الحرّ التي قد
+            //      لا يوجد تحتها نظام تشغيل مضيف أصلًا (كنواة sad-os). الأهداف
+            //      المستضافة (الافتراضي) تحصل على CSPRNG حقيقيّ — انظر
+            //      sad_crypto_os_random في sad_embedded_runtime.c.
+            // (EN) SAD_FREESTANDING is defined only for --freestanding builds, so
+            //      sad_embedded_runtime.c keeps the old libc-only rand() path on
+            //      that target (may have no host OS at all, e.g. sad-os kernel).
+            //      Hosted targets (default) get a real OS-backed CSPRNG.
+            const std::string freestanding_define = options_.freestanding ? "SAD_FREESTANDING" : "";
+
             if (is_msvc)
             {
                 command = "\"" + c_compiler + "\" /c /O2 /TC /W0 /nologo";
                 command += options_.link_static ? " /MT" : " /MD";
+                if (!freestanding_define.empty())
+                    command += " /D" + freestanding_define;
                 command += " /Fo\"" + obj_output_path + "\"";
                 command += " \"" + c_source_path + "\"";
             }
             else
             {
                 command = "\"" + c_compiler + "\" -c -O2 -w";
+                if (!freestanding_define.empty())
+                    command += " -D" + freestanding_define;
 #ifdef _WIN32
                 if (is_clang)
                 {

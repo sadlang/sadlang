@@ -422,32 +422,31 @@ namespace Sad { namespace LLVM {
 
         llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinSecuritySecureRandom(std::shared_ptr<SIRInstruction> inst)
         {
-            // Use BCryptGenRandom on Windows for cryptographic randomness
-            // Signature: NTSTATUS BCryptGenRandom(BCRYPT_ALG_HANDLE, PUCHAR, ULONG, ULONG)
-            // We use flag BCRYPT_USE_SYSTEM_PREFERRED_RNG = 2 with NULL handle
+            // (AR) عشوائي_آمن(الحد_الأدنى، الحد_الأقصى) — يستدعي
+            //      sad_security_secure_random(i64, i64) -> i64 من وقت التشغيل
+            //      المضمَّن (sad_embedded_runtime.c)، بنفس نمط بقيّة عائلة الأمن
+            //      المستضافة (هاش/شفّر/فك_تشفير). هذا يستبدل نداءً سابقًا مباشرًا
+            //      لِـBCryptGenRandom في LLVM IR كان: (أ) يفشل الربط دومًا — لم
+            //      يُربط bcrypt.lib في أيّ من مسارات الربط الثلاثة، و(ب) يتجاهل
+            //      معاملَي الحد الأدنى/الأقصى تمامًا (يُرجع عددًا كاملًا شبه غير
+            //      محدود بدل مدى مطلوب). الآن: منطق التوليد (وحماية Windows/POSIX
+            //      عبر مصدر عشوائيّة النظام) في مكان واحد قابل للاختبار.
+            // (EN) Calls sad_security_secure_random(i64,i64)->i64 in the embedded
+            //      runtime, matching the rest of the hosted security family. This
+            //      replaces a previous direct BCryptGenRandom call in LLVM IR that
+            //      (a) never linked (bcrypt.lib was linked nowhere) and (b) ignored
+            //      the min/max arguments entirely.
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *minVal = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *maxVal = cg_.resolveOperand(inst->operands[1]);
+            if (!minVal || !maxVal)
+                return nullptr;
             auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
-            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
-            auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
-            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-
-            // Allocate 8 bytes on the stack for the random value
-            llvm::Value *buf = cg_.builder_->CreateAlloca(i64Ty, nullptr, "rng.buf");
-
-            // Call BCryptGenRandom(NULL, buf, 8, BCRYPT_USE_SYSTEM_PREFERRED_RNG=2)
-            auto *bcrType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, i32Ty, i32Ty}, false);
-            auto bcrFunc = cg_.module_->getOrInsertFunction("BCryptGenRandom", bcrType);
-            cg_.builder_->CreateCall(bcrFunc, {
-                                              llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
-                                              buf,
-                                              llvm::ConstantInt::get(i32Ty, 8),
-                                              llvm::ConstantInt::get(i32Ty, 2) // BCRYPT_USE_SYSTEM_PREFERRED_RNG
-                                          });
-
-            // Load the random value
-            llvm::Value *result = cg_.builder_->CreateLoad(i64Ty, buf, "rng.val");
-            // Make it positive by masking off sign bit
-            result = cg_.builder_->CreateAnd(result, llvm::ConstantInt::get(i64Ty, 0x7FFFFFFFFFFFFFFF), "rng.pos");
-            if (inst && inst->result.has_value())
+            llvm::FunctionType *ft = llvm::FunctionType::get(i64Ty, {i64Ty, i64Ty}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_secure_random", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {minVal, maxVal}, "secure_random.ret");
+            if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
         }
