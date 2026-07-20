@@ -123,7 +123,11 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_8)
                 {
+                    // (AR) وسيط اختياريّ: مؤشّر واصف الجدول (limit+base). في الوضع
+                    //      الحرّ يلزم لإصدار lgdt؛ المستضاف يتجاهله (sad_ll_gdt_load).
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_LOAD);
+                    if (!argResults.empty())
+                        inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
@@ -196,7 +200,11 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_16)
                 {
+                    // (AR) وسيط اختياريّ: مؤشّر واصف الجدول (limit+base). في الوضع
+                    //      الحرّ يلزم لإصدار lidt؛ المستضاف يتجاهله (sad_ll_idt_load).
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_LOAD);
+                    if (!argResults.empty())
+                        inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);

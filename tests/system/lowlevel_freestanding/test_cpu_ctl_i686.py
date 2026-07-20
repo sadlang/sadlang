@@ -115,3 +115,27 @@ def test_non_constant_cr_num_freestanding_errors():
     )
     code, out, _ = _compile(src, FREESTANDING)
     assert code != 0, "رقم CR غير ثابت نجح حرًّا — لا يمكن إصدار `mov %crN` برقم متغيّر:\n" + out
+
+
+# ─────────────── lidt/lgdt حرًّا بمؤشّر واصف (دَين 3.12 المُغلَق) ───────────────
+
+def test_lidt_freestanding_with_pointer():
+    """(AR) حمل_جدول_مقاطعات(مؤشّر) حرًّا ⇒ lidt inline asm، لا sad_ll_idt_load."""
+    code, out, ir = _compile("حمل_جدول_مقاطعات(1048576)\n", FREESTANDING)
+    assert code == 0, "حمل_جدول_مقاطعات بمؤشّر فشلت حرًّا:\n" + out
+    assert "lidt" in ir, "IR الحرّ بلا lidt:\n" + ir[:2000]
+    assert "sad_ll_idt_load" not in ir, "IR الحرّ ما زال ينادي sad_ll_idt_load المستضاف"
+
+
+def test_lgdt_freestanding_with_pointer():
+    """(AR) حمل_جدول_واصفات(مؤشّر) حرًّا ⇒ lgdt inline asm، لا sad_ll_gdt_load."""
+    code, out, ir = _compile("حمل_جدول_واصفات(1048576)\n", FREESTANDING)
+    assert code == 0, "حمل_جدول_واصفات بمؤشّر فشلت حرًّا:\n" + out
+    assert "lgdt" in ir, "IR الحرّ بلا lgdt:\n" + ir[:2000]
+    assert "sad_ll_gdt_load" not in ir, "IR الحرّ ما زال ينادي sad_ll_gdt_load المستضاف"
+
+
+def test_lidt_freestanding_without_pointer_errors():
+    """(AR) حمل_جدول_مقاطعات() بلا مؤشّر حرًّا ⇒ خروج غير صفريّ (lidt يتطلّب مؤشّر واصف)."""
+    code, out, _ = _compile("حمل_جدول_مقاطعات()\n", FREESTANDING)
+    assert code != 0, "حمل_جدول_مقاطعات بلا مؤشّر نجحت حرًّا — lidt يتطلّب واصفًا:\n" + out

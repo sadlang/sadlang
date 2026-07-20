@@ -244,16 +244,34 @@ llvm::Value* LowlevelCodeGen::emitLowlevelGdtInit(std::shared_ptr<SIRInstruction
         "sad_ll_gdt_init", voidTy, {}, {});
 }
 
+// (AR) يُصدر lgdt/lidt الحرّة على i686: تعليمة تحمّل واصف الجدول (الحدّ 2-بايت +
+//      القاعدة 4-بايت) من الذاكرة عبر مؤشّر (operands[0]، يُقصّ إلى 32-بت). يتطلّب
+//      وجود المؤشّر؛ غيابه في الوضع الحرّ خطأ استعمال. clobber "memory" يرسّخ كتابة
+//      الواصف قبل التحميل. يُشارَك بين lgdt/lidt (المنمنمة الوحيدة تختلف).
+// (EN) Emit freestanding i686 lgdt/lidt: loads the table descriptor via a pointer.
+static llvm::Value* emitFreestandingTableLoad(LLVMCodeGen& cg,
+    const std::shared_ptr<SIRInstruction>& inst, const char* mnemonic, const char* who) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg.context_);
+    if (inst->operands.empty()) {
+        cg.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
+            {{"detail", std::string(who) + ": يتطلّب مؤشّر واصف الجدول (الحدّ+القاعدة) في الوضع الحرّ"}});
+        return nullptr;
+    }
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg.context_);
+    llvm::Value* ptr = cg.resolveOperand(inst->operands[0]);
+    llvm::Value* ptr32 = cg.builder_->CreateIntCast(ptr, i32Ty, false);
+    auto* asmTy = llvm::FunctionType::get(voidTy, {i32Ty}, false);
+    auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+        std::string(mnemonic) + " ($0)", "r,~{memory}",
+        true, false, llvm::InlineAsm::AD_ATT);
+    return cg.builder_->CreateCall(asmTy, inlineAsm, {ptr32});
+}
+
 llvm::Value* LowlevelCodeGen::emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst) {
     // (AR) lgdt — تحميل جدول الواصفات العامة
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
-    if (cg_.freestanding_) {
-        // (AR) lgdt الحرّة تتطلّب مؤشّر واصف (الحدّ+القاعدة)، والمدمج بلا وسائط
-        //      حاليًّا؛ إضافة الوسيط تغيّر توقيع المدمج (SoT) ⇒ لبنة/RFC تابعة.
-        cg_.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
-            {{"detail", "حمل_جدول_واصفات: يتطلّب مؤشّر واصف في الوضع الحرّ — غير مدعوم بعد (لبنة تابعة)"}});
-        return nullptr;
-    }
+    if (cg_.freestanding_)
+        return emitFreestandingTableLoad(cg_, inst, "lgdt", "حمل_جدول_واصفات");
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_gdt_load", voidTy, {}, {});
 }
@@ -328,12 +346,8 @@ llvm::Value* LowlevelCodeGen::emitLowlevelIdtInit(std::shared_ptr<SIRInstruction
 
 llvm::Value* LowlevelCodeGen::emitLowlevelIdtLoad(std::shared_ptr<SIRInstruction> inst) {
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
-    if (cg_.freestanding_) {
-        // (AR) lidt الحرّة تتطلّب مؤشّر واصف؛ المدمج بلا وسائط ⇒ لبنة/RFC تابعة.
-        cg_.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
-            {{"detail", "حمل_جدول_مقاطعات: يتطلّب مؤشّر واصف في الوضع الحرّ — غير مدعوم بعد (لبنة تابعة)"}});
-        return nullptr;
-    }
+    if (cg_.freestanding_)
+        return emitFreestandingTableLoad(cg_, inst, "lidt", "حمل_جدول_مقاطعات");
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
         "sad_ll_idt_load", voidTy, {}, {});
 }
