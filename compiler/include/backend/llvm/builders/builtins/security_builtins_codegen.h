@@ -42,6 +42,8 @@ public:
     llvm::Value *emitBuiltinCryptoBlake3KeyedHash(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoKdfPbkdf2(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoKdfHkdf(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoAeadEncrypt(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoAeadDecrypt(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoKdfArgon2id(std::shared_ptr<SIRInstruction> inst);
 };
 

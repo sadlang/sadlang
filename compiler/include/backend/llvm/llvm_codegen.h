@@ -948,6 +948,8 @@ namespace Sad
             llvm::Value *emitBuiltinCryptoBlake3KeyedHash(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoBlake3KeyedHash(inst); } // هاش_مفتاح
             llvm::Value *emitBuiltinCryptoKdfPbkdf2(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoKdfPbkdf2(inst); }             // اشتق_مفتاح_مرور
             llvm::Value *emitBuiltinCryptoKdfHkdf(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoKdfHkdf(inst); }                 // اشتق_مفتاح
+            llvm::Value *emitBuiltinCryptoAeadEncrypt(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoAeadEncrypt(inst); }         // شفّر_موثّق
+            llvm::Value *emitBuiltinCryptoAeadDecrypt(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoAeadDecrypt(inst); }         // فك_تشفير_موثّق
             llvm::Value *emitBuiltinCryptoKdfArgon2id(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoKdfArgon2id(inst); }         // أرجون2
 
             // ================================================================

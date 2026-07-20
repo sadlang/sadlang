@@ -163,6 +163,113 @@ functions:
         اطبع_سطر(اشتق_مفتاح("سرّ_مشترك", "ملح", "سياق", 16))
       runnable: true
   lookup_table: name_only
+- cpp_id: AEAD_ENCRYPT
+  canonical: شفر_موثق
+  namespace: Crypto
+  category: MODULE_FUNCTION
+  require_import: true
+  module: CRYPTO
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: >-
+    تشفير موثَّق (AEAD) عبر ChaCha20-Poly1305 حسب RFC 8439 (IETF) — ذاتيّ
+    التنفيذ بالكامل (بلا OpenSSL/libsodium). بخلاف شفّر (SHA-256-CTR بلا
+    مصادقة) يُنتج شفّر_موثّق وسم مصادقة Poly1305 يكشف أيّ عبث بالنصّ المشفَّر
+    عند فكّه. اختير ChaCha20 على AES لأنّه ARX فقط (جمع/دوران/XOR) بلا جداول
+    S-box، فلا قناة توقيت جانبيّة تعتمد على البيانات في تنفيذ محمول بلا تسريع
+    عتاديّ (AES-NI). المفتاح: يُستعمَل مباشرةً إن كان طوله 32 بايت، وإلّا
+    يُشتقّ منه مفتاح 32 بايت عبر SHA-256(مفتاح). يُولَّد nonce عشوائيّ 12 بايت
+    جديد لكلّ استدعاء (عبر CSPRNG النظام على الأهداف المستضافة)، فتشفير النصّ
+    نفسه مرّتين يُنتج مغلَّفين مختلفين — خاصّيّة أمان مقصودة لا خلل. المغلَّف
+    سلسلة ست عشريّة: [nonce ‏12 بايت][النصّ المشفَّر][وسم Poly1305 ‏16 بايت].
+    لا معامل AAD في سطح اللغة (يُعامَل AAD طوله صفرًا حسب RFC 8439). التنفيذ
+    مطابق حرفيًّا بين المفسّر والمترجم، ومُتحقَّق حرفيًّا مقابل شعاعات RFC 8439
+    الرسميّة (§2.3.2 كتلة ChaCha20، §2.4.2 التشفير، §2.5.2 Poly1305، §2.6.2
+    توليد مفتاح Poly1305، §2.8.2 شعاع AEAD الكامل).
+  description_en: >-
+    Authenticated encryption (AEAD) via ChaCha20-Poly1305 per RFC 8439
+    (IETF), fully self-implemented (no OpenSSL/libsodium). Unlike شفّر
+    (unauthenticated SHA-256-CTR), شفّر_موثّق produces a Poly1305
+    authentication tag that detects any tampering with the ciphertext on
+    decryption. ChaCha20 was chosen over AES because it is ARX-only
+    (add-rotate-xor) with no S-box tables, hence no data-dependent timing
+    side channel in a portable implementation without hardware acceleration
+    (AES-NI). Key: used directly if exactly 32 bytes, otherwise a 32-byte
+    key is derived via SHA-256(key). A fresh random 12-byte nonce is
+    generated per call (via the OS CSPRNG on hosted targets), so encrypting
+    the same plaintext twice yields two different envelopes — an intended
+    security property, not a bug. The envelope is a hex string: [12-byte
+    nonce][ciphertext][16-byte Poly1305 tag]. No AAD parameter in the
+    language surface (AAD is treated as length-zero per RFC 8439).
+    Byte-identical between interpreter and compiler, verified against the
+    official RFC 8439 vectors (§2.3.2 ChaCha20 block, §2.4.2 encryption,
+    §2.5.2 Poly1305, §2.6.2 Poly1305 key generation, §2.8.2 full AEAD).
+  params:
+    - نص — النصّ الأصليّ المراد تشفيره ومصادقته.
+    - مفتاح — مفتاح التشفير (أيّ طول؛ يُشتقّ منه مفتاح 32 بايت عبر SHA-256 عند الحاجة).
+  examples:
+    - code: |
+        استورد تشفير
+        متغير مغلف = شفر_موثق("سرّ حسّاس", "مفتاح_كلمة_مرور")
+        اطبع_سطر(فك_تشفير_موثق(مغلف, "مفتاح_كلمة_مرور"))
+      runnable: true
+  lookup_table: name_only
+- cpp_id: AEAD_DECRYPT
+  canonical: فك_تشفير_موثق
+  namespace: Crypto
+  category: MODULE_FUNCTION
+  require_import: true
+  module: CRYPTO
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: >-
+    يفكّ ويصادِق مغلَّفًا أنتجه شفّر_موثّق (ChaCha20-Poly1305، RFC 8439):
+    يُعيد حساب وسم Poly1305 على النصّ المشفَّر ويقارنه بالوسم المُضمَّن بزمن
+    ثابت؛ عند التطابق يفكّ ويُرجع النصّ الأصليّ. غرض الدالّة الأساسيّ كشف
+    العبث، لذا — بخلاف فك_تشفير الذي يُرجع مدخله كما هو صامتًا على خطأ تنسيق
+    (تباعد موثَّق سابق) — يفشل فك_تشفير_موثّق **فشلًا صريحًا** عند فشل
+    المصادقة أو تشوُّه المغلَّف (hex غير صالح/طول أقصر من 28 بايت). ⚠️ آليّة
+    الإبلاغ عن هذا الفشل تتباعد بين المحرِّكين، وهو تباعد مقصود موثَّق:
+    **المفسّر** يرمي خطأً قابلًا للالتقاط بـحاول/امسك (فيمكن للبرنامج معالجة
+    العبث برشاقة)؛ **المترجم** يفشل مُغلَقًا (fail-closed) — يطبع رسالة خطأ
+    عامّة إلى stderr (لا تُسرّب الوسم/المفتاح) ثمّ exit(1)، إذ لا يوجد اليوم
+    مسار استثناء C-callable قابل للالتقاط في وقت تشغيل المترجم. هذا أأمن من
+    تباعد فك_تشفير (يفشل مُغلَقًا لا مفتوحًا: لا يُرجع نصًّا مُحرَّفًا أبدًا)،
+    لكنّه ليس موحَّدًا بعد بين المحرِّكين — بناء آليّة رمي C-callable عامّة
+    للمترجم عملٌ لاحق خارج نطاق هذه المرحلة. التنفيذ مطابق حرفيًّا بين
+    المحرِّكين ومُتحقَّق مقابل شعاعات RFC 8439 (انظر شفّر_موثّق).
+  description_en: >-
+    Decrypts and authenticates an envelope produced by شفّر_موثّق
+    (ChaCha20-Poly1305, RFC 8439): recomputes the Poly1305 tag over the
+    ciphertext and compares it against the embedded tag in constant time; on
+    match it decrypts and returns the original plaintext. The function's core
+    purpose is tamper detection, so — unlike فك_تشفير, which silently returns
+    its input unchanged on a format error (a previously documented
+    divergence) — فك_تشفير_موثّق **fails explicitly** on authentication
+    failure or a malformed envelope (invalid hex / shorter than 28 bytes).
+    ⚠️ The failure-reporting mechanism diverges between engines, an
+    intentional documented divergence: the **interpreter** throws a
+    catchable error (حاول/امسك can handle tampering gracefully); the
+    **compiler** fails closed — prints a generic error message to stderr
+    (which does not leak the tag/key) then exit(1), because there is
+    currently no C-callable catchable-exception path in the compiler runtime.
+    This is safer than فك_تشفير's divergence (fail-closed, not fail-open: it
+    never returns corrupted plaintext), but not yet fully unified between
+    engines — building a general C-callable throw mechanism for the compiler
+    runtime is future work, out of scope for this phase. Byte-identical
+    between engines, verified against the RFC 8439 vectors (see شفّر_موثّق).
+  params:
+    - مغلّف — المغلَّف الست عشريّ الذي أنتجه شفّر_موثّق.
+    - مفتاح — نفس المفتاح المُستعمَل في التشفير (مفتاح خاطئ ⇒ فشل مصادقة).
+  examples:
+    - code: |
+        استورد تشفير
+        متغير مغلف = شفر_موثق("رسالة", "مفتاحي")
+        اطبع_سطر(فك_تشفير_موثق(مغلف, "مفتاحي"))
+      runnable: true
+  lookup_table: name_only
 - cpp_id: KDF_ARGON2ID
   canonical: أرجون2
   namespace: Crypto

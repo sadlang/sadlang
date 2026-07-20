@@ -1249,6 +1249,268 @@ long long sad_security_secure_random(long long min_val, long long max_val) {
 }
 
 )";
+                // ChaCha20-Poly1305 AEAD (شفّر_موثّق/فك_تشفير_موثّق) — نسخة ثالثة
+                // مطابقة حرفيًّا لنظير sad_embedded_runtime.c، مقسّمة في سلسلة خام
+                // مستقلّة (<16KB لتفادي حدّ MSVC C2026 لحرفيّات السلاسل).
+                rt_file << R"(
+#include <stdint.h>
+/* ChaCha20-Poly1305 AEAD (RFC 8439) - self-implemented, byte-identical in logic
+ * to tools/compiler/runtime/sad_embedded_runtime.c. Poly1305 radix 2^26 (no
+ * __int128). Verified against RFC 8439 vectors 2.3.2/2.4.2/2.5.2/2.6.2/2.8.2. */
+static unsigned int sad_cc_rotl32(unsigned int x, int n) { return (x << n) | (x >> (32 - n)); }
+static unsigned int sad_cc_load32le(const unsigned char *p) {
+    return (unsigned int)p[0] | ((unsigned int)p[1] << 8) |
+           ((unsigned int)p[2] << 16) | ((unsigned int)p[3] << 24);
+}
+static void sad_cc_store32le(unsigned char *p, unsigned int v) {
+    p[0] = (unsigned char)v; p[1] = (unsigned char)(v >> 8);
+    p[2] = (unsigned char)(v >> 16); p[3] = (unsigned char)(v >> 24);
+}
+#define SAD_CC_QR(a, b, c, d)                       \
+    a += b; d ^= a; d = sad_cc_rotl32(d, 16);       \
+    c += d; b ^= c; b = sad_cc_rotl32(b, 12);       \
+    a += b; d ^= a; d = sad_cc_rotl32(d, 8);        \
+    c += d; b ^= c; b = sad_cc_rotl32(b, 7);
+static void sad_chacha20_block(const unsigned char key[32], unsigned int counter,
+                               const unsigned char nonce[12], unsigned char out[64]) {
+    unsigned int s[16], x[16];
+    int i;
+    s[0] = 0x61707865u; s[1] = 0x3320646eu; s[2] = 0x79622d32u; s[3] = 0x6b206574u;
+    for (i = 0; i < 8; ++i) s[4 + i] = sad_cc_load32le(key + i * 4);
+    s[12] = counter;
+    s[13] = sad_cc_load32le(nonce + 0);
+    s[14] = sad_cc_load32le(nonce + 4);
+    s[15] = sad_cc_load32le(nonce + 8);
+    for (i = 0; i < 16; ++i) x[i] = s[i];
+    for (i = 0; i < 10; ++i) {
+        SAD_CC_QR(x[0], x[4], x[8], x[12]);
+        SAD_CC_QR(x[1], x[5], x[9], x[13]);
+        SAD_CC_QR(x[2], x[6], x[10], x[14]);
+        SAD_CC_QR(x[3], x[7], x[11], x[15]);
+        SAD_CC_QR(x[0], x[5], x[10], x[15]);
+        SAD_CC_QR(x[1], x[6], x[11], x[12]);
+        SAD_CC_QR(x[2], x[7], x[8], x[13]);
+        SAD_CC_QR(x[3], x[4], x[9], x[14]);
+    }
+    for (i = 0; i < 16; ++i) sad_cc_store32le(out + i * 4, x[i] + s[i]);
+}
+static void sad_chacha20_xor(const unsigned char key[32], unsigned int counter,
+                             const unsigned char nonce[12], const unsigned char *in,
+                             size_t len, unsigned char *out) {
+    unsigned char ks[64];
+    size_t off = 0;
+    while (off < len) {
+        size_t i, take = len - off;
+        if (take > 64) take = 64;
+        sad_chacha20_block(key, counter, nonce, ks);
+        for (i = 0; i < take; ++i) out[off + i] = in[off + i] ^ ks[i];
+        off += take;
+        ++counter;
+    }
+}
+static void sad_poly1305_mac(const unsigned char *msg, size_t len,
+                             const unsigned char key[32], unsigned char tag[16]) {
+    unsigned int r0, r1, r2, r3, r4, s1, s2, s3, s4;
+    unsigned int h0 = 0, h1 = 0, h2 = 0, h3 = 0, h4 = 0;
+    unsigned int t0, t1, t2, t3, c, g0, g1, g2, g3, g4, mask;
+    unsigned long long d0, d1, d2, d3, d4, f;
+    t0 = sad_cc_load32le(key + 0);
+    t1 = sad_cc_load32le(key + 4);
+    t2 = sad_cc_load32le(key + 8);
+    t3 = sad_cc_load32le(key + 12);
+    r0 = t0 & 0x3ffffff; t0 = (t0 >> 26) | (t1 << 6);
+    r1 = t0 & 0x3ffff03; t1 = (t1 >> 20) | (t2 << 12);
+    r2 = t1 & 0x3ffc0ff; t2 = (t2 >> 14) | (t3 << 18);
+    r3 = t2 & 0x3f03fff; t3 = (t3 >> 8);
+    r4 = t3 & 0x00fffff;
+    s1 = r1 * 5; s2 = r2 * 5; s3 = r3 * 5; s4 = r4 * 5;
+    while (len > 0) {
+        unsigned char block[16];
+        size_t i, n = len < 16 ? len : 16;
+        unsigned int hibit;
+        for (i = 0; i < n; ++i) block[i] = msg[i];
+        if (n < 16) {
+            block[n] = 1;
+            for (i = n + 1; i < 16; ++i) block[i] = 0;
+            hibit = 0;
+        } else {
+            hibit = (1u << 24);
+        }
+        t0 = sad_cc_load32le(block + 0);
+        t1 = sad_cc_load32le(block + 4);
+        t2 = sad_cc_load32le(block + 8);
+        t3 = sad_cc_load32le(block + 12);
+        h0 += t0 & 0x3ffffff;
+        h1 += ((t0 >> 26) | (t1 << 6)) & 0x3ffffff;
+        h2 += ((t1 >> 20) | (t2 << 12)) & 0x3ffffff;
+        h3 += ((t2 >> 14) | (t3 << 18)) & 0x3ffffff;
+        h4 += (t3 >> 8) | hibit;
+        d0 = (unsigned long long)h0 * r0 + (unsigned long long)h1 * s4 + (unsigned long long)h2 * s3 + (unsigned long long)h3 * s2 + (unsigned long long)h4 * s1;
+        d1 = (unsigned long long)h0 * r1 + (unsigned long long)h1 * r0 + (unsigned long long)h2 * s4 + (unsigned long long)h3 * s3 + (unsigned long long)h4 * s2;
+        d2 = (unsigned long long)h0 * r2 + (unsigned long long)h1 * r1 + (unsigned long long)h2 * r0 + (unsigned long long)h3 * s4 + (unsigned long long)h4 * s3;
+        d3 = (unsigned long long)h0 * r3 + (unsigned long long)h1 * r2 + (unsigned long long)h2 * r1 + (unsigned long long)h3 * r0 + (unsigned long long)h4 * s4;
+        d4 = (unsigned long long)h0 * r4 + (unsigned long long)h1 * r3 + (unsigned long long)h2 * r2 + (unsigned long long)h3 * r1 + (unsigned long long)h4 * r0;
+        c = (unsigned int)(d0 >> 26); h0 = (unsigned int)d0 & 0x3ffffff;
+        d1 += c; c = (unsigned int)(d1 >> 26); h1 = (unsigned int)d1 & 0x3ffffff;
+        d2 += c; c = (unsigned int)(d2 >> 26); h2 = (unsigned int)d2 & 0x3ffffff;
+        d3 += c; c = (unsigned int)(d3 >> 26); h3 = (unsigned int)d3 & 0x3ffffff;
+        d4 += c; c = (unsigned int)(d4 >> 26); h4 = (unsigned int)d4 & 0x3ffffff;
+        h0 += c * 5; c = h0 >> 26; h0 &= 0x3ffffff;
+        h1 += c;
+        msg += n;
+        len -= n;
+    }
+    c = h1 >> 26; h1 &= 0x3ffffff;
+    h2 += c; c = h2 >> 26; h2 &= 0x3ffffff;
+    h3 += c; c = h3 >> 26; h3 &= 0x3ffffff;
+    h4 += c; c = h4 >> 26; h4 &= 0x3ffffff;
+    h0 += c * 5; c = h0 >> 26; h0 &= 0x3ffffff;
+    h1 += c;
+    g0 = h0 + 5; c = g0 >> 26; g0 &= 0x3ffffff;
+    g1 = h1 + c; c = g1 >> 26; g1 &= 0x3ffffff;
+    g2 = h2 + c; c = g2 >> 26; g2 &= 0x3ffffff;
+    g3 = h3 + c; c = g3 >> 26; g3 &= 0x3ffffff;
+    g4 = h4 + c - (1u << 26);
+    mask = (g4 >> 31) - 1;
+    g0 &= mask; g1 &= mask; g2 &= mask; g3 &= mask; g4 &= mask;
+    mask = ~mask;
+    h0 = (h0 & mask) | g0;
+    h1 = (h1 & mask) | g1;
+    h2 = (h2 & mask) | g2;
+    h3 = (h3 & mask) | g3;
+    h4 = (h4 & mask) | g4;
+    h0 = (h0) | (h1 << 26);
+    h1 = (h1 >> 6) | (h2 << 20);
+    h2 = (h2 >> 12) | (h3 << 14);
+    h3 = (h3 >> 18) | (h4 << 8);
+    f = (unsigned long long)h0 + sad_cc_load32le(key + 16); h0 = (unsigned int)f;
+    f = (unsigned long long)h1 + sad_cc_load32le(key + 20) + (f >> 32); h1 = (unsigned int)f;
+    f = (unsigned long long)h2 + sad_cc_load32le(key + 24) + (f >> 32); h2 = (unsigned int)f;
+    f = (unsigned long long)h3 + sad_cc_load32le(key + 28) + (f >> 32); h3 = (unsigned int)f;
+    sad_cc_store32le(tag + 0, h0);
+    sad_cc_store32le(tag + 4, h1);
+    sad_cc_store32le(tag + 8, h2);
+    sad_cc_store32le(tag + 12, h3);
+}
+static void sad_poly1305_keygen(const unsigned char key[32], const unsigned char nonce[12],
+                                unsigned char otk[32]) {
+    unsigned char blk[64];
+    sad_chacha20_block(key, 0, nonce, blk);
+    memcpy(otk, blk, 32);
+}
+static void sad_aead_compute_tag(const unsigned char otk[32],
+                                 const unsigned char *aad, size_t aadlen,
+                                 const unsigned char *ct, size_t ctlen, unsigned char tag[16]) {
+    size_t apad = (16 - (aadlen % 16)) % 16;
+    size_t cpad = (16 - (ctlen % 16)) % 16;
+    size_t cap = aadlen + apad + ctlen + cpad + 16;
+    unsigned char *buf = (unsigned char *)malloc(cap ? cap : 1);
+    size_t mlen = 0;
+    int i;
+    unsigned long long a = (unsigned long long)aadlen, cl = (unsigned long long)ctlen;
+    if (!buf) { memset(tag, 0, 16); return; }
+    memcpy(buf, aad, aadlen); mlen += aadlen;
+    memset(buf + mlen, 0, apad); mlen += apad;
+    memcpy(buf + mlen, ct, ctlen); mlen += ctlen;
+    memset(buf + mlen, 0, cpad); mlen += cpad;
+    for (i = 0; i < 8; ++i) buf[mlen + i] = (unsigned char)(a >> (8 * i));
+    mlen += 8;
+    for (i = 0; i < 8; ++i) buf[mlen + i] = (unsigned char)(cl >> (8 * i));
+    mlen += 8;
+    sad_poly1305_mac(buf, mlen, otk, tag);
+    free(buf);
+}
+static int sad_ct_equal(const unsigned char *a, const unsigned char *b, size_t n) {
+    unsigned char d = 0;
+    size_t i;
+    for (i = 0; i < n; ++i) d |= (unsigned char)(a[i] ^ b[i]);
+    return d == 0;
+}
+static void sad_crypto_random_bytes(unsigned char *buf, size_t len) {
+    if (sad_crypto_os_random(buf, len)) return;
+    {
+        static int seeded = 0;
+        size_t i;
+        if (!seeded) { srand((unsigned int)time(NULL)); seeded = 1; }
+        for (i = 0; i < len; ++i) buf[i] = (unsigned char)(rand() & 0xFF);
+    }
+}
+static void sad_aead_key32(const char *key, unsigned char out[32]) {
+    size_t klen = strlen(key);
+    if (klen == 32) memcpy(out, key, 32);
+    else sad_sha256_raw((const unsigned char *)key, klen, out);
+}
+const char *sad_security_aead_encrypt(const char *text, const char *key) {
+    unsigned char key32[32], nonce[12], tag[16];
+    unsigned char *ct;
+    size_t tlen, i, envlen;
+    char *result;
+    if (!text) text = "";
+    if (!key || !*key) return text;
+    tlen = strlen(text);
+    if (tlen > (SIZE_MAX / 2 - 64)) { fprintf(stderr, "[sad] error: plaintext too long for AEAD\n"); return text; }
+    sad_aead_key32(key, key32);
+    sad_crypto_random_bytes(nonce, 12);
+    ct = (unsigned char *)malloc(tlen ? tlen : 1);
+    if (!ct) { fprintf(stderr, "[sad] error: AEAD alloc failed\n"); return text; }
+    sad_chacha20_xor(key32, 1, nonce, (const unsigned char *)text, tlen, ct);
+    {
+        unsigned char otk[32];
+        unsigned char aad_empty = 0;
+        sad_poly1305_keygen(key32, nonce, otk);
+        sad_aead_compute_tag(otk, &aad_empty, 0, ct, tlen, tag);
+    }
+    envlen = 12 + tlen + 16;
+    result = (char *)malloc(envlen * 2 + 1);
+    if (!result) { free(ct); fprintf(stderr, "[sad] error: AEAD alloc failed\n"); return text; }
+    for (i = 0; i < 12; ++i) snprintf(result + i * 2, 3, "%02x", nonce[i]);
+    for (i = 0; i < tlen; ++i) snprintf(result + (12 + i) * 2, 3, "%02x", ct[i]);
+    for (i = 0; i < 16; ++i) snprintf(result + (12 + tlen + i) * 2, 3, "%02x", tag[i]);
+    result[envlen * 2] = '\0';
+    free(ct);
+    return result;
+}
+const char *sad_security_aead_decrypt(const char *hex, const char *key) {
+    unsigned char key32[32], nonce[12], tag[16], tag2[16];
+    unsigned char *raw, *ct;
+    size_t hlen, rlen, ctlen, i;
+    char *result;
+    if (!hex) hex = "";
+    if (!key || !*key) { fprintf(stderr, "[sad] error: AEAD decrypt - missing key\n"); exit(1); }
+    hlen = strlen(hex);
+    if (hlen % 2 != 0 || (hlen / 2) < (12 + 16)) { fprintf(stderr, "[sad] error: AEAD auth failed - tampered envelope or wrong key\n"); exit(1); }
+    rlen = hlen / 2;
+    raw = (unsigned char *)malloc(rlen);
+    if (!raw) { fprintf(stderr, "[sad] error: AEAD alloc failed\n"); exit(1); }
+    for (i = 0; i < rlen; ++i) {
+        unsigned int byte = 0;
+        if (sscanf(hex + i * 2, "%02x", &byte) != 1 || byte > 255) {
+            free(raw); fprintf(stderr, "[sad] error: AEAD auth failed - tampered envelope or wrong key\n"); exit(1);
+        }
+        raw[i] = (unsigned char)byte;
+    }
+    memcpy(nonce, raw, 12);
+    memcpy(tag, raw + rlen - 16, 16);
+    ct = raw + 12;
+    ctlen = rlen - 12 - 16;
+    sad_aead_key32(key, key32);
+    {
+        unsigned char otk[32];
+        unsigned char aad_empty = 0;
+        sad_poly1305_keygen(key32, nonce, otk);
+        sad_aead_compute_tag(otk, &aad_empty, 0, ct, ctlen, tag2);
+    }
+    if (!sad_ct_equal(tag, tag2, 16)) {
+        free(raw); fprintf(stderr, "[sad] error: AEAD auth failed - tampered envelope or wrong key\n"); exit(1);
+    }
+    result = (char *)malloc(ctlen + 1);
+    if (!result) { free(raw); fprintf(stderr, "[sad] error: AEAD alloc failed\n"); exit(1); }
+    sad_chacha20_xor(key32, 1, nonce, ct, ctlen, (unsigned char *)result);
+    result[ctlen] = '\0';
+    free(raw);
+    return result;
+}
+)";
                 rt_file.close();
 
                 if (options_.verbose)

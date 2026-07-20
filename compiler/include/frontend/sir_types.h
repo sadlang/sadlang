@@ -471,6 +471,8 @@ namespace Sad
                 BUILTIN_CRYPTO_BLAKE3_KEYED_HASH, ///< هاش_مفتاح / BLAKE3 keyed hash (MAC) - hex string
                 BUILTIN_CRYPTO_KDF_PBKDF2,        ///< اشتق_مفتاح_مرور / PBKDF2-HMAC-SHA256 - hex string
                 BUILTIN_CRYPTO_KDF_HKDF,          ///< اشتق_مفتاح / HKDF-SHA256 - hex string
+                BUILTIN_CRYPTO_AEAD_ENCRYPT,      ///< شفّر_موثّق / ChaCha20-Poly1305 AEAD encrypt - hex envelope
+                BUILTIN_CRYPTO_AEAD_DECRYPT,      ///< فك_تشفير_موثّق / ChaCha20-Poly1305 AEAD decrypt - plaintext (fail-closed)
                 BUILTIN_CRYPTO_KDF_ARGON2ID,      ///< أرجون2 / Argon2id (RFC 9106) - hex string
 
                 // ==========================================

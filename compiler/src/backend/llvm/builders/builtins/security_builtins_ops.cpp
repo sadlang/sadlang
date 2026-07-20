@@ -557,6 +557,48 @@ namespace Sad { namespace LLVM {
             return result;
         }
 
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoAeadEncrypt(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *text = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *key = cg_.resolveOperand(inst->operands[1]);
+            if (!text || !key)
+                return nullptr;
+            // Call runtime sad_security_aead_encrypt(const char*, const char*) -> char*
+            // (ChaCha20-Poly1305 AEAD, RFC 8439 — hex envelope [nonce][ct][tag])
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_aead_encrypt", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {text, key}, "aead_enc.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+
+
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoAeadDecrypt(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *envelope = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *key = cg_.resolveOperand(inst->operands[1]);
+            if (!envelope || !key)
+                return nullptr;
+            // Call runtime sad_security_aead_decrypt(const char*, const char*) -> char*
+            // (ChaCha20-Poly1305 AEAD, RFC 8439). Fail-closed: on tag mismatch or
+            // malformed envelope the runtime prints to stderr and exit(1) — the
+            // compiler has no C-callable catchable-throw path (documented divergence).
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_aead_decrypt", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {envelope, key}, "aead_dec.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
         llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoKdfArgon2id(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 4)

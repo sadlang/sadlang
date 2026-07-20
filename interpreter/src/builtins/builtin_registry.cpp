@@ -42,6 +42,7 @@ namespace Sad
         namespace Bhs = Builtins::Names::HttpServer;
         namespace Bcr = Builtins::Names::Crypto;
         namespace Bnu = Builtins::Names::NetworkUtils;
+        namespace Bcr = Builtins::Names::Crypto;
         // (AR) ثوابت أسماء الوحدات — مُشتقَّة من module_definitions.h
         // (EN) Module name constants — derived from module_definitions.h
         using Builtins::ModuleId;
@@ -269,6 +270,8 @@ namespace Sad
                 {std::string(Bcr::BLAKE3_KEYED_HASH), kModCrypto},
                 {std::string(Bcr::KDF_PBKDF2), kModCrypto},
                 {std::string(Bcr::KDF_HKDF), kModCrypto},
+                {std::string(Bcr::AEAD_ENCRYPT), kModCrypto},
+                {std::string(Bcr::AEAD_DECRYPT), kModCrypto},
                 {std::string(Bcr::KDF_ARGON2ID), kModCrypto},
                 {"طباعة_تنسيق", kModAssertions},
                 {"حجز", kModAssertions},

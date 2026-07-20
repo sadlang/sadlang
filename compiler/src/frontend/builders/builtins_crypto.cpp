@@ -124,7 +124,51 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-                // 5. أرجون2 / argon2id - Argon2id (RFC 9106)
+                // 5. شفّر_موثّق / aead_encrypt - ChaCha20-Poly1305 AEAD (RFC 8439)
+                if (funcName == Bn::Crypto::AEAD_ENCRYPT)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[خطأ] دالة شفّر_موثّق تتطلب معاملين (النص، المفتاح)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_AEAD_ENCRYPT);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 6. فك_تشفير_موثّق / aead_decrypt - ChaCha20-Poly1305 AEAD (fail-closed)
+                if (funcName == Bn::Crypto::AEAD_DECRYPT)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[خطأ] دالة فك_تشفير_موثّق تتطلب معاملين (المغلّف، المفتاح)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_AEAD_DECRYPT);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 7. أرجون2 / argon2id - Argon2id (RFC 9106)
                 if (funcName == Bn::Crypto::KDF_ARGON2ID)
                 {
                     if (argResults.size() < 4)

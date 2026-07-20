@@ -236,6 +236,10 @@ namespace Sad
                 return cg_.emitBuiltinCryptoKdfPbkdf2(inst);
             case SIROpcode::BUILTIN_CRYPTO_KDF_HKDF:
                 return cg_.emitBuiltinCryptoKdfHkdf(inst);
+            case SIROpcode::BUILTIN_CRYPTO_AEAD_ENCRYPT:
+                return cg_.emitBuiltinCryptoAeadEncrypt(inst);
+            case SIROpcode::BUILTIN_CRYPTO_AEAD_DECRYPT:
+                return cg_.emitBuiltinCryptoAeadDecrypt(inst);
             case SIROpcode::BUILTIN_CRYPTO_KDF_ARGON2ID:
                 return cg_.emitBuiltinCryptoKdfArgon2id(inst);
 
