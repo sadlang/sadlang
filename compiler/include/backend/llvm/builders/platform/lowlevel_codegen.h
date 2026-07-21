@@ -78,6 +78,7 @@ public:
     llvm::Value *emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitLowlevelSymbolAddr(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelDmaGetReport(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelDmaInit(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelDmaStatus(std::shared_ptr<SIRInstruction>);

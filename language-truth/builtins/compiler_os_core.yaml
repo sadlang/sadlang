@@ -1,7 +1,7 @@
 version: 1
 namespace_group: CompilerCpuCtl
-description_ar: دوال مترجم CompilerCpuCtl (20 دالة)
-description_en: Compiler builtins CompilerCpuCtl (20)
+description_ar: دوال مترجم CompilerCpuCtl (21 دالة)
+description_en: Compiler builtins CompilerCpuCtl (21)
 functions:
 - cpp_id: CPUCTL_0
   canonical: معلومات_المعالج
@@ -261,5 +261,18 @@ functions:
   status: stable
   description_ar: تقرير_مقاطعات
   description_en: compiler builtin (builtins_os_core)
+  params: []
+  lookup_table: name_only
+- cpp_id: CPUCTL_20
+  canonical: عنوان_رمز
+  namespace: CompilerCpuCtl
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: INLINE
+  since: 0.1.0
+  status: stable
+  description_ar: عنوان رمز رابط خارجيّ (address-of-symbol) — يعيد العنوان كـرقم
+  description_en: address-of external linker symbol — returns address as integer
   params: []
   lookup_table: name_only

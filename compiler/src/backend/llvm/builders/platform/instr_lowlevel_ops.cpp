@@ -55,6 +55,8 @@ namespace Sad
                 return cg_.emitLowlevelCpuInvlpg(inst);
             case SIROpcode::LOWLEVEL_CPU_GET_REPORT:
                 return cg_.emitLowlevelCpuGetReport(inst);
+            case SIROpcode::LOWLEVEL_SYMBOL_ADDR:
+                return cg_.emitLowlevelSymbolAddr(inst);
 
             // --- 15b: GDT ---
             case SIROpcode::LOWLEVEL_GDT_INIT:

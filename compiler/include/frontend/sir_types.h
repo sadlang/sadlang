@@ -578,6 +578,7 @@ namespace Sad
                 LOWLEVEL_CPU_WRITE_CR,     ///< اكتب_سجل_تحكم / write_cr — write control register (0,3,4)
                 LOWLEVEL_CPU_INVLPG,       ///< ابطل_صفحة / invlpg — invalidate TLB entry
                 LOWLEVEL_CPU_GET_REPORT,   ///< تقرير_المعالج / cpu_report — full CPU diagnostic report
+                LOWLEVEL_SYMBOL_ADDR,      ///< عنوان_رمز / symbol_addr — address of external linker symbol as integer
 
                 // --- 15b. وحدة GDT / GDT Module (3) ---
                 LOWLEVEL_GDT_INIT,       ///< هيئ_جدول_واصفات / gdt_init — initialize GDT

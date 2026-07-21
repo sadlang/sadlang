@@ -235,6 +235,52 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuGetReport(std::shared_ptr<SIRInstru
 }
 
 // ============================================================================
+// عنوان_رمز / symbol_addr — عنوان رمز رابط خارجيّ كـرقم (i64)
+// (AR) يأخذ اسم رمز رابط ثابتًا (سلسلة حرفيّة) ويُصدر ptrtoint على رمز خارجيّ.
+//      إن كان الرمز مصرَّحًا مسبقًا (دالّة أو عالميّ) يُعاد استخدامه؛ وإلّا يُنشأ
+//      تصريح رمز بيانات خارجيّ (i8) عند الطلب. المؤشّر 32-بت (i686) يوسَّع
+//      بالأصفار إلى i64 (نظير عقد الجالبات (unsigned int)&sym كـu64).
+//      قيد النطاق: للرموز الرابطة الخارجيّة حصرًا (بيانات/دوالّ C/أسمبلي/رموز .ld)؛
+//      لا يرصد الأخطاء المطبعيّة (اسم لا يطابق ⇒ خطأ رابط متأخّر)، ولا يأخذ عنوان
+//      رمز ص مُعرَّف داخليًّا (اسمه مُشوَّه mangled). الوسيط غير الثابت أو الفارغ
+//      يُرفَض بخطأ SEM_SYMBOL_ADDR_ARG (يجب أن يُعرَف الاسم وقت الترجمة لإصدار
+//      relocation). يقبله المترجم في الوضعين (الحرّ والمستضاف)؛ المفسّر يرفضه.
+// (EN) Address of external linker symbol as i64. Constant string arg only.
+// ============================================================================
+llvm::Value* LowlevelCodeGen::emitLowlevelSymbolAddr(std::shared_ptr<SIRInstruction> inst) {
+    auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+
+    // (AR) الوسيط يجب أن يكون سلسلة حرفيّة ثابتة (اسمها في operand.name)
+    const bool isConstStr = !inst->operands.empty()
+        && inst->operands[0].type == Compiler::SIR::SIROperandType::CONSTANT
+        && inst->operands[0].dataType == Compiler::SIR::SadTypeKind::String;
+    if (!isConstStr || inst->operands[0].name.empty()) {
+        // (AR) ميّز السبب: سلسلة فارغة (رمز بلا اسم) عن وسيط غير ثابت أصلًا.
+        const char* detail = (isConstStr && inst->operands[0].name.empty())
+            ? "عنوان_رمز: اسم الرمز سلسلة فارغة — مرّر اسم رمز رابط غير فارغ"
+            : "عنوان_رمز يتطلّب اسم رمز ثابتًا (سلسلة حرفيّة)، لا تعبيرًا وقت تشغيل";
+        cg_.reportError(::Sad::Errors::ErrorCode::SEM_SYMBOL_ADDR_ARG, {{"detail", detail}});
+        // (AR) اربط صفرًا كي لا تتتالى «Undefined register»؛ البناء يُحبَط بـhasErrors.
+        return bindLowlevelResult(cg_, inst, llvm::ConstantInt::get(i64Ty, 0));
+    }
+
+    const std::string& sym = inst->operands[0].name;
+
+    // (AR) أعِد استخدام أيّ تصريح سابق للرمز (دالّة أو عالميّ) تفاديًا لتصادم
+    //      إعادة التسمية في جدول رموز الوحدة؛ وإلّا أنشئ تصريح رمز بيانات خارجيّ.
+    llvm::Constant* g = llvm::dyn_cast_or_null<llvm::GlobalValue>(
+        cg_.module_->getNamedValue(sym));
+    if (!g) {
+        auto* i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+        g = cg_.module_->getOrInsertGlobal(sym, i8Ty); // ExternalLinkage عند الإنشاء
+    }
+
+    // (AR) ptrtoint إلى i64 — من مؤشّر الهدف (32-بت i686 ⇒ توسيع أصفار)
+    llvm::Value* addr = cg_.builder_->CreatePtrToInt(g, i64Ty, "symaddr");
+    return bindLowlevelResult(cg_, inst, addr);
+}
+
+// ============================================================================
 // 15b. وحدة GDT
 // ============================================================================
 

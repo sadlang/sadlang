@@ -340,3 +340,20 @@ errors:
   detailed:
     ar: مدمجات النظام في الوضع الحرّ (‎--freestanding‎) تُخفَّض إلى تعليمات عتاد مباشرة (مثل ‎mov %%crN‎ التي تتطلّب رقم السجلّ حرفيًّا في نصّ الأسمبلي، أو ‎lgdt/lidt‎ التي تتطلّب مؤشّر واصف). فمعامل غير ثابت أو غير مدعوم لا يمكن خفضه إلى تعليمة صالحة. هذا خطأ استعمال من المبرمج لا علّة مترجم — صحّح المعامل.
     en: System builtins in freestanding mode (--freestanding) lower to direct hardware instructions (e.g. `mov %%crN`, which needs the register number literally in the asm text, or lgdt/lidt, which need a descriptor pointer). A non-constant or unsupported argument cannot be lowered to a valid instruction. This is a programmer usage error, not a compiler bug — fix the argument.
+- code: SEM_SYMBOL_ADDR_ARG
+  id: SEM021
+  category: semantic
+  title:
+    ar: وسيط عنوان_رمز يجب أن يكون اسم رمز ثابتًا
+    en: symbol-address argument must be a constant symbol name
+  brief:
+    ar: '{detail}'
+    en: '{detail}'
+  placeholders:
+  - detail
+  fix_hint:
+    ar: 'مرّر اسم الرمز كسلسلة حرفيّة ثابتة (مثل عنوان_رمز("bee_idt"))، لا متغيّرًا يُحسب وقت التشغيل.'
+    en: 'Pass the symbol name as a constant string literal (e.g. symbol_addr("bee_idt")), not a value computed at run time.'
+  detailed:
+    ar: مدمج عنوان_رمز يُصدر إحالة (relocation) إلى رمز رابط خارجيّ باسمه، فيجب أن يُعرَف الاسم وقت الترجمة كسلسلة حرفيّة ثابتة. سلسلة تُحسب وقت التشغيل لا يمكن تحويلها إلى إحالة رابط. هذا خطأ استعمال من المبرمج لا علّة مترجم — مرّر اسم الرمز حرفيًّا.
+    en: The symbol-address builtin emits a relocation to an external linker symbol by name, so the name must be known at compile time as a constant string literal. A string computed at run time cannot become a link-time relocation. This is a programmer usage error, not a compiler bug — pass the symbol name literally.

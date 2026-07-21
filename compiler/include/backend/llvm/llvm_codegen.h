@@ -1078,6 +1078,7 @@ namespace Sad
             llvm::Value *emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuWriteCR(inst); }         // اكتب_سجل_تحكم
             llvm::Value *emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuInvlpg(inst); }           // ابطل_صفحة
             llvm::Value *emitLowlevelCpuGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuGetReport(inst); }     // تقرير_المعالج
+            llvm::Value *emitLowlevelSymbolAddr(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSymbolAddr(inst); }        // عنوان_رمز
 
             // 15b. وحدة GDT (3)
             llvm::Value *emitLowlevelGdtInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtInit(inst); }           // هيئ_جدول_واصفات

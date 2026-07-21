@@ -112,6 +112,22 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::String);
                 }
+                // ─── عنوان_رمز: عنوان رمز رابط خارجيّ ⇒ رقم ───
+                // (AR) الوسيط سلسلة حرفيّة ثابتة (اسم الرمز)؛ يصل كـConstantString
+                //      في operands[0].name. الخفض (backend) يُصدر ptrtoint على رمز
+                //      خارجيّ. الوسيط غير الثابت يُرفَض في الخفض (خطأ SEM).
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_20)
+                {
+                    if (argResults.empty())
+                        return BuildResult("", SadTypeKind::Integer);
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::LOWLEVEL_SYMBOL_ADDR);
+                    inst.result = SIROperand::Register(r, SadTypeKind::Integer);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Integer);
+                }
 
                 // ─── 15b. وحدة GDT ───
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_7)
