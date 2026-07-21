@@ -797,8 +797,8 @@ namespace Sad
             {
                 // (AR) مقاطعة
                 inline constexpr std::string_view INTERRUPT = "مقاطعة";
-                // (AR) توقف
-                inline constexpr std::string_view HALT = "توقف";
+                // (AR) أسبِت المعالج حتى المقاطعة التالية (hlt)
+                inline constexpr std::string_view HALT = "أسبت_المعالج";
                 // (AR) شاشة_اكتب
                 inline constexpr std::string_view VGA_WRITE = "شاشة_اكتب";
                 // (AR) شاشة_امسح
@@ -3324,7 +3324,7 @@ namespace Sad
             {Names::Platform::CLOCK, "Platform", "MODULE_FUNCTION", "NONE", true, "ساعة", "", ""},
             // ─── Kernel (24) ───
             {Names::Kernel::INTERRUPT, "Kernel", "MODULE_FUNCTION", "NONE", true, "مقاطعة", "", ""},
-            {Names::Kernel::HALT, "Kernel", "MODULE_FUNCTION", "NONE", true, "توقف", "", ""},
+            {Names::Kernel::HALT, "Kernel", "MODULE_FUNCTION", "NONE", true, "أسبِت المعالج حتى المقاطعة التالية (hlt)", "", ""},
             {Names::Kernel::VGA_WRITE, "Kernel", "MODULE_FUNCTION", "NONE", true, "شاشة_اكتب", "", ""},
             {Names::Kernel::VGA_CLEAR, "Kernel", "MODULE_FUNCTION", "NONE", true, "شاشة_امسح", "", ""},
             {Names::Kernel::MEMCPY, "Kernel", "MODULE_FUNCTION", "NONE", true, "انسخ_ذاكرة", "", ""},

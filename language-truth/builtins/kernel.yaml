@@ -17,7 +17,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: HALT
-  canonical: توقف
+  canonical: أسبت_المعالج
   namespace: Kernel
   category: MODULE_FUNCTION
   require_import: true
@@ -25,8 +25,8 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: توقف
-  description_en: توقف
+  description_ar: أسبِت المعالج حتى المقاطعة التالية (hlt)
+  description_en: halt the CPU until the next interrupt (hlt)
   params: []
   lookup_table: name_only
 - cpp_id: VGA_WRITE

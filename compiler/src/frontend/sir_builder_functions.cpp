@@ -233,6 +233,9 @@ namespace Sad
                 // (EN) Propagate function attributes [[attr]] from AST to SIR
                 //      so they can be lowered to LLVM function attributes in codegen.
                 sirFunction->attributes = funcDecl->attributes;
+                // (AR) اللبنة 3.15: مُعدِّل «دالة لا_ترجع» ⇒ سمة LLVM NoReturn في codegen.
+                // (EN) Brick 3.15: 'دالة لا_ترجع' modifier ⇒ LLVM NoReturn attribute in codegen.
+                sirFunction->isNoReturn = funcDecl->isNoReturn;
 #ifdef SIR_BUILDER_DEBUG
                 std::cerr << "[SIR-DBG] buildFunction: '" << funcDecl->name
                           << "' inferred retType=" << static_cast<int>(returnType) << std::endl;

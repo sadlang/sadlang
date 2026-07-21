@@ -162,6 +162,9 @@ categories:
       # ── التجميع المضمَّن (inline assembly) ──
       - { id: "KW-CTX-031", subcategory: "low_level", since: "1.0.0", word: "متطاير", tokenType: KEYWORD_VOLATILE, english: volatile }
 
+      # ── مُعدِّل الدوال: لا تعود أبداً (اللبنة 3.15) — يلي «دالة» قبل الاسم ──
+      - { id: "KW-CTX-040", subcategory: "low_level", since: "1.0.0", word: "لا_ترجع", tokenType: KEYWORD_NORETURN, english: noreturn }
+
       # ── مهجور / Deprecated ──
       - { id: "KW-CTX-032", subcategory: "deprecated", since: "1.0.0", word: "اعطِ", tokenType: KEYWORD_GIVE_DEPRECATED, english: give_deprecated }
 

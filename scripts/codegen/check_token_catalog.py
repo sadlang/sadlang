@@ -86,7 +86,7 @@ INHERITED_DEBT: dict = {
     "KEYWORD_SIZEOF":    "دَين موروث: حجم (sizeof) — بانتظار تسجيل لغويّ في الكتالوج",
     "KEYWORD_UNSAFE":    "دَين موروث: غير_آمن (unsafe) — بانتظار تسجيل لغويّ في الكتالوج",
     "KEYWORD_PACKED":    "دَين موروث: محزوم (packed) — بانتظار تسجيل لغويّ في الكتالوج",
-    "KEYWORD_NORETURN":  "دَين موروث: بلا_رجوع (noreturn) — بانتظار تسجيل لغويّ في الكتالوج",
+    # (اللبنة 3.15) KEYWORD_NORETURN سُجِّل في keywords.yaml (KW-CTX-040 لا_ترجع) — خرج من الدَّين.
     "KEYWORD_NAKED":     "دَين موروث: عارية (naked) — بانتظار تسجيل لغويّ في الكتالوج",
     "KEYWORD_REGISTER":  "دَين موروث: سجل (register) — بانتظار تسجيل لغويّ في الكتالوج",
     "KEYWORD_SECTION":   "دَين موروث: قسم (section) — بانتظار تسجيل لغويّ في الكتالوج",

@@ -292,8 +292,8 @@ namespace Sad
                 }
 
                 // ──────────────────────────────────────────────
-                // (AR) توقف() — إيقاف المعالج حتى المقاطعة التالية
-                // (EN) halt() — halt CPU until next interrupt (hlt instruction)
+                // (AR) أسبت_المعالج() — إيقاف المعالج حتى المقاطعة التالية
+                // (EN) halt_cpu() — halt CPU until next interrupt (hlt instruction)
                 // (AR) يستخدم في: حلقة الخمول الرئيسية للنواة
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::HALT)
@@ -302,7 +302,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin توقف()" << std::endl;
+                    std::cout << "[DEBUG] builtin أسبت_المعالج()" << std::endl;
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }

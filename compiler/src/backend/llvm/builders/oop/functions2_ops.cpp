@@ -340,6 +340,16 @@ namespace Sad
                 llvmFunc->addFnAttr(llvm::Attribute::PresplitCoroutine);
             }
 
+            // (AR) اللبنة 3.15: مُعدِّل «دالة لا_ترجع» ⇒ سمة NoReturn (يُصدر المحسّن
+            //      unreachable بعد ندائها، ويُسكِت فحص «كلّ المسارات تعيد قيمة»).
+            //      نظير سمة [[لا_ترجع]] أدناه لكن عبر الصياغة الأولى (بلا سيجيل @).
+            // (EN) Brick 3.15: 'دالة لا_ترجع' modifier ⇒ NoReturn attribute (optimizer
+            //      inserts unreachable after calls; silences the all-paths-return check).
+            if (sirFunc->isNoReturn)
+            {
+                llvmFunc->addFnAttr(llvm::Attribute::NoReturn);
+            }
+
             // ═══════════════════════════════════════════════════════════════════
             // (AR) تطبيق سمات الدالة [[سمة]] من SIR إلى LLVM function attributes
             //      الخريطة:

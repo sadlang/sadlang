@@ -62,6 +62,21 @@ namespace Sad
             Token name(TT::IDENTIFIER, "", Lexer::Position()); // (AR) تعريف name مسبقاً / (EN) Define name upfront
 
             // ─────────────────────────────────────────────────────────────────────
+            // (AR) اللبنة 3.15: مُعدِّل «لا_ترجع» يلي «دالة» قبل الاسم (نمط «متغير متطاير»):
+            //      دالة لا_ترجع اسم(...) — يُعلن أنّ الدالّة لا تعود أبدًا ⇒ سمة LLVM NoReturn.
+            //      «لا_ترجع» كلمة سياقيّة (CONTEXTUAL) فقد تُلفظ IDENTIFIER — نقبل الحالتين. لا سيجيل @.
+            // (EN) Brick 3.15: 'لا_ترجع' modifier after 'دالة' before the name (mirrors 'متغير متطاير'):
+            //      function noreturn name(...) — declares the function never returns ⇒ LLVM NoReturn.
+            // ─────────────────────────────────────────────────────────────────────
+            bool isNoReturn = false;
+            if (check(TT::KEYWORD_NORETURN) ||
+                (check(TT::IDENTIFIER) && current_.getValue() == "لا_ترجع"))
+            {
+                advance();
+                isNoReturn = true;
+            }
+
+            // ─────────────────────────────────────────────────────────────────────
             // (AR) RFC 0034: 'دالة خارجية' — الصيغة المفردة الوحيدة لتصريح الربط الخارجيّ:
             //      دالة خارجية [ ("اسم_الربط") ] [نوع] اسم(معاملات)
             // (EN) RFC 0034: 'function extern' — the only single-decl extern form:
@@ -140,6 +155,7 @@ namespace Sad
                     {
                         if (fd->docComment.empty())
                             fd->docComment = std::move(docComment);
+                        fd->isNoReturn = isNoReturn; // (AR) دالة لا_ترجع خارجية (مثل abort)
                     }
                     return externDecl;
                 }
@@ -470,6 +486,7 @@ namespace Sad
                 // (AR) تعيين راية الدالة الرئيسية
                 // (EN) Set main function flag
                 funcDecl->isMainFunction = isMain;
+                funcDecl->isNoReturn = isNoReturn; // (AR) اللبنة 3.15: دالة لا_ترجع
                 funcDecl->lifetimeParams = std::move(lifetimeParams);
                 funcDecl->preconditions = std::move(preconditions);
                 funcDecl->postconditions = std::move(postconditions);
@@ -498,6 +515,7 @@ namespace Sad
             // (AR) تعيين راية الدالة الرئيسية
             // (EN) Set main function flag
             funcDecl->isMainFunction = isMain;
+            funcDecl->isNoReturn = isNoReturn; // (AR) اللبنة 3.15: دالة لا_ترجع
             funcDecl->lifetimeParams = std::move(lifetimeParams);
             funcDecl->preconditions = std::move(preconditions);
             funcDecl->postconditions = std::move(postconditions);

@@ -332,6 +332,7 @@ namespace Sad
                 bool isCoroutine = false;                                ///< (AR) دالة غير متزامنة (كوروتين) / (EN) Async function (coroutine)
                 bool isGenerator = false;                                ///< (AR) دالة مولّد / (EN) Generator function
                 bool isExported = false;                                 ///< (AR) دالة مُصدّرة (صدّر) / (EN) Exported function (export)
+                bool isNoReturn = false;                                 ///< (AR) دالة لا_ترجع — لا تعود أبداً / (EN) noreturn → LLVM NoReturn (brick 3.15)
                 std::vector<SIRParameter> parameters;                    ///< (AR) المعاملات / (EN) Parameters
                 std::vector<std::shared_ptr<SIRBasicBlock>> basicBlocks; ///< (AR) الكتل الأساسية / (EN) Basic blocks
 
