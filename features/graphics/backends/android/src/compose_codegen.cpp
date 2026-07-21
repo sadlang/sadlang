@@ -237,7 +237,7 @@ namespace sad
                         << ind << "    text = \"" << text << "\",\n";
 
                     // حجم الخط
-                    const auto *sizeProp = node.findProperty("حجم_خط");
+                    const auto *sizeProp = node.findProperty(props::FONT_SIZE);
                     if (sizeProp)
                     {
                         if (auto *v = std::get_if<double>(&sizeProp->value))
@@ -266,7 +266,7 @@ namespace sad
 
                     // لون الخلفية
                     std::string buttonColor = "MaterialTheme.colorScheme.primary";
-                    const auto *bgColorProp = node.findProperty("لون_خلفية");
+                    const auto *bgColorProp = node.findProperty(props::BG_COLOR);
                     if (bgColorProp)
                     {
                         if (auto *colorStr = std::get_if<std::string>(&bgColorProp->value))
@@ -287,8 +287,8 @@ namespace sad
 
                 case UINodeType::Spacer:
                 {
-                    const auto *hProp = node.findProperty("ارتفاع");
-                    const auto *wProp = node.findProperty("عرض");
+                    const auto *hProp = node.findProperty(props::HEIGHT);
+                    const auto *wProp = node.findProperty(props::WIDTH);
                     std::string modifier;
                     if (hProp)
                     {
@@ -314,8 +314,8 @@ namespace sad
 
                 case UINodeType::Divider:
                 {
-                    const auto *colorProp = node.findProperty("لون");
-                    const auto *thickProp = node.findProperty("سمك");
+                    const auto *colorProp = node.findProperty(props::COLOR);
+                    const auto *thickProp = node.findProperty(props::THICKNESS_ALT);
                     out << ind << "Divider(";
                     bool hasArg = false;
                     if (colorProp)
@@ -353,9 +353,9 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *placeProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                    const auto *placeProp = node.findProperty(props::HINT); // تلميح
                     if (!placeProp)
-                        placeProp = node.findProperty("placeholder");
+                        placeProp = node.findProperty(props::PLACEHOLDER_LATIN);
                     std::string placeholder = "\"\"";
                     if (placeProp)
                     {
@@ -407,8 +407,8 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *minP = node.findProperty("\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89"); // أدنى
-                    const auto *maxP = node.findProperty("\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89"); // أقصى
+                    const auto *minP = node.findProperty(props::MIN); // أدنى
+                    const auto *maxP = node.findProperty(props::MAX); // أقصى
                     std::string minV = "0f", maxV = "1f";
                     if (minP)
                     {
@@ -465,9 +465,9 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+                    const auto *valProp = node.findProperty(props::VALUE); // قيمة
                     if (!valProp)
-                        valProp = node.findProperty("value");
+                        valProp = node.findProperty(props::VALUE_LATIN);
                     std::string radioValue = "\"\"";
                     if (valProp)
                     {
@@ -487,13 +487,13 @@ namespace sad
                 case UINodeType::Image:
                 {
                     // قراءة مصدر الصورة: مصدر ، src ، source
-                    const auto *srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
+                    const auto *srcProp = node.findProperty(props::SOURCE); // مصدر
                     if (!srcProp)
-                        srcProp = node.findProperty("src");
+                        srcProp = node.findProperty(props::SRC_LATIN);
                     if (!srcProp)
-                        srcProp = node.findProperty("source");
+                        srcProp = node.findProperty(props::SOURCE_LATIN);
                     if (!srcProp)
-                        srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
+                        srcProp = node.findProperty(props::PATH); // مسار
                     std::string src = "placeholder";
                     bool isUrl = false;
                     if (srcProp)
@@ -504,9 +504,9 @@ namespace sad
                             isUrl = (src.find("http") == 0 || src.find("/") != std::string::npos);
                         }
                     }
-                    const auto *altProp = node.findProperty("\xd9\x86\xd8\xb5_\xd8\xa8\xd8\xaf\xd9\x8a\xd9\x84"); // نص_بديل
+                    const auto *altProp = node.findProperty(props::ALT_TEXT); // نص_بديل
                     if (!altProp)
-                        altProp = node.findProperty("alt");
+                        altProp = node.findProperty(props::ALT_LATIN);
                     std::string altText = "null";
                     if (altProp)
                     {
@@ -535,7 +535,7 @@ namespace sad
 
                 case UINodeType::Icon:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string iconName = "Star";
                     if (textProp)
                     {
@@ -578,7 +578,7 @@ namespace sad
 
                 case UINodeType::AppBar:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string title;
                     if (textProp)
                     {
@@ -706,7 +706,7 @@ namespace sad
                     int tabIdx = 0;
                     for (const auto &child : node.getChildren())
                     {
-                        const auto *tp = child->findProperty("text");
+                        const auto *tp = child->findProperty(props::TEXT_LATIN);
                         std::string title = "Tab " + std::to_string(tabIdx);
                         if (tp)
                         {
@@ -780,7 +780,7 @@ namespace sad
 
                 case UINodeType::SnackBar:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string msg;
                     if (textProp)
                     {
@@ -808,7 +808,7 @@ namespace sad
 
                 case UINodeType::Chip:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text;
                     if (textProp)
                     {
@@ -829,7 +829,7 @@ namespace sad
                         << ind << "    modifier = Modifier.size(40.dp).clip(CircleShape),\n"
                         << ind << "    contentAlignment = Alignment.Center\n"
                         << ind << ") {\n";
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     if (textProp)
                     {
                         if (auto *s = std::get_if<std::string>(&textProp->value))
@@ -1004,7 +1004,7 @@ namespace sad
 
                 case UINodeType::RichText:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << ind << "Text(\n"
                         << ind << "    text = buildAnnotatedString {\n"
@@ -1017,7 +1017,7 @@ namespace sad
 
                 case UINodeType::Markdown:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << ind << "// Markdown — عرض نص منسق\n"
                         << ind << "Text(\n"
@@ -1029,7 +1029,7 @@ namespace sad
 
                 case UINodeType::CodeBlock:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << ind << "Text(\n"
                         << ind << "    text = \"" << text << "\",\n"
@@ -1114,7 +1114,7 @@ namespace sad
                 case UINodeType::Expandable:
                 case UINodeType::Collapsible:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string title = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "عنصر") : "عنصر";
                     out << ind << "var expanded by remember { mutableStateOf(false) }\n"
                         << ind << "Column(" << modifiers << ") {\n"
@@ -1375,7 +1375,7 @@ namespace sad
                 case UINodeType::Section:
                 {
                     out << ind << "Column(" << modifiers << ") {\n";
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     if (textProp)
                     {
                         if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -1509,8 +1509,8 @@ namespace sad
 
                 // توليد Canvas للرسم المخصص
                 // قراءة العرض والارتفاع من الخصائص
-                const auto *wProp = node.findProperty("\xd8\xb9\xd8\xb1\xd8\xb6");
-                const auto *hProp = node.findProperty("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9");
+                const auto *wProp = node.findProperty(props::WIDTH);
+                const auto *hProp = node.findProperty(props::HEIGHT);
 
                 out << ind << "Canvas(\n";
                 if (wProp || hProp)
@@ -1542,7 +1542,7 @@ namespace sad
                 out << ind << "    // رسم مخصص لـ " << nodeTypeToArabicName(node.getType()) << "\n";
 
                 // لون الخلفية → drawRect
-                const auto *bgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9");
+                const auto *bgProp = node.findProperty(props::BG_COLOR);
                 if (bgProp)
                 {
                     if (auto *cs = std::get_if<std::string>(&bgProp->value))
@@ -1552,9 +1552,9 @@ namespace sad
                 }
 
                 // زوايا دائرية → drawRoundRect
-                const auto *radiusProp = node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7");
+                const auto *radiusProp = node.findProperty(props::CORNER_RADIUS);
                 if (!radiusProp)
-                    radiusProp = node.findProperty("\xd9\x86\xd8\xb5\xd9\x81_\xd9\x82\xd8\xb7\xd8\xb1");
+                    radiusProp = node.findProperty(props::RADIUS);
                 if (radiusProp && !bgProp)
                 {
                     float r = 8.0f;
@@ -1569,7 +1569,7 @@ namespace sad
                 }
 
                 // حدود → drawRect مع StrokeStyle
-                const auto *borderProp = node.findProperty("\xd8\xad\xd8\xaf\xd9\x88\xd8\xaf");
+                const auto *borderProp = node.findProperty(props::BOUNDS);
                 if (borderProp)
                 {
                     out << ind << "    drawRect(\n"
@@ -1579,7 +1579,7 @@ namespace sad
                 }
 
                 // دائرة → drawCircle
-                const auto *circleProp = node.findProperty("\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd8\xa9");
+                const auto *circleProp = node.findProperty(props::CIRCLE);
                 if (circleProp)
                 {
                     out << ind << "    drawCircle(\n"

@@ -79,8 +79,8 @@ MeasuredSize LayoutEngine::measure(
     const LayoutConstraints& constraints
 ) {
     // تحقق من وجود عرض/ارتفاع ثابت
-    const auto* widthProp  = node.findProperty("عرض");
-    const auto* heightProp = node.findProperty("ارتفاع");
+    const auto* widthProp  = node.findProperty(props::WIDTH);
+    const auto* heightProp = node.findProperty(props::HEIGHT);
 
     LayoutConstraints adjusted = constraints;
 
@@ -148,7 +148,7 @@ MeasuredSize LayoutEngine::measureColumn(
     float maxWidth = 0.0f;
 
     // التباعد بين الأبناء
-    const auto* spacingProp = node.findProperty("تباعد");
+    const auto* spacingProp = node.findProperty(props::SPACING);
     float spacing = 0.0f;
     if (spacingProp) {
         if (auto* v = std::get_if<double>(&spacingProp->value))
@@ -168,7 +168,7 @@ MeasuredSize LayoutEngine::measureColumn(
     }
 
     // قراءة الهامش (margin)
-    const auto* marginProp = node.findProperty("هامش");
+    const auto* marginProp = node.findProperty(props::MARGIN);
     float margin = 0.0f;
     if (marginProp) {
         if (auto* v = std::get_if<double>(&marginProp->value))
@@ -206,7 +206,7 @@ MeasuredSize LayoutEngine::measureRow(
     float totalWidth = 0.0f;
     float maxHeight = 0.0f;
 
-    const auto* spacingProp = node.findProperty("تباعد");
+    const auto* spacingProp = node.findProperty(props::SPACING);
     float spacing = 0.0f;
     if (spacingProp) {
         if (auto* v = std::get_if<double>(&spacingProp->value))
@@ -226,7 +226,7 @@ MeasuredSize LayoutEngine::measureRow(
     }
 
     // قراءة الهامش (margin)
-    const auto* marginProp = node.findProperty("هامش");
+    const auto* marginProp = node.findProperty(props::MARGIN);
     float margin = 0.0f;
     if (marginProp) {
         if (auto* v = std::get_if<double>(&marginProp->value))
@@ -266,25 +266,28 @@ MeasuredSize LayoutEngine::measureLeaf(
     switch (node.getType()) {
         case UINodeType::Text: {
             // النص: حجم تقريبي بناءً على طول النص
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("محتوى");
-            if (!textProp) textProp = node.findProperty("نص");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::CONTENT);
+            if (!textProp) textProp = node.findProperty(props::TEXT);
             if (textProp) {
                 if (auto* text = std::get_if<std::string>(&textProp->value)) {
-                    // تقدير تقريبي: كل حرف UTF-8 ≈ 10dp عرض
-                    // نستخدم عدد الأحرف الفعلي وليس البايتات
-                    defaultWidth = static_cast<float>(utf8CharCount(*text)) * 10.0f;
-                    defaultHeight = 20.0f;
-                    // حجم الخط يؤثر على الارتفاع
-                    const auto* sizeProp = node.findProperty("حجم_خط");
-                    if (!sizeProp) sizeProp = node.findProperty("حجم_الخط");
-                    if (!sizeProp) sizeProp = node.findProperty("حجم");
+                    // حجم الخط يؤثّر على العرض والارتفاع معًا (كان العرض ثابتًا
+                    // 10px/حرف بلا مراعاة الحجم ⇒ عنوان كبير يُقاس أضيق من رسمه
+                    // فتنحرف محاذاة RTL؛ العامل 0.625 يُبقي الخطّ الافتراضيّ 16px
+                    // عند 10px/حرف — راجع layout-engine-rtl-cross-axis).
+                    float fontSize = 16.0f;
+                    const auto* sizeProp = node.findProperty(props::FONT_SIZE);
+                    if (!sizeProp) sizeProp = node.findProperty(props::FONT_SIZE_ALT);
+                    if (!sizeProp) sizeProp = node.findProperty(props::SIZE);
                     if (sizeProp) {
                         if (auto* v = std::get_if<double>(&sizeProp->value))
-                            defaultHeight = static_cast<float>(*v) * 1.5f;
+                            fontSize = static_cast<float>(*v);
                         else if (auto* vi = std::get_if<int64_t>(&sizeProp->value))
-                            defaultHeight = static_cast<float>(*vi) * 1.5f;
+                            fontSize = static_cast<float>(*vi);
                     }
+                    // عرض ≈ عدد الأحرف الفعليّ (لا البايتات) × الحجم × 0.625
+                    defaultWidth = static_cast<float>(utf8CharCount(*text)) * fontSize * 0.625f;
+                    defaultHeight = fontSize * 1.5f;
                 }
             }
             if (defaultWidth == 0.0f) defaultWidth = 50.0f;
@@ -336,8 +339,8 @@ MeasuredSize LayoutEngine::measureGrid(
     const LayoutConstraints& constraints
 ) {
     // شبكة: الأبناء يوزعون في صفوف وأعمدة
-    const auto* colsProp = node.findProperty("أعمدة");
-    if (!colsProp) colsProp = node.findProperty("columns");
+    const auto* colsProp = node.findProperty(props::COLUMNS);
+    if (!colsProp) colsProp = node.findProperty(props::COLUMNS_LATIN);
     int cols = 2; // افتراضي
     if (colsProp) {
         if (auto* v = std::get_if<int64_t>(&colsProp->value)) cols = static_cast<int>(*v);
@@ -345,7 +348,7 @@ MeasuredSize LayoutEngine::measureGrid(
     }
     if (cols < 1) cols = 1;
 
-    const auto* spacingProp = node.findProperty("تباعد");
+    const auto* spacingProp = node.findProperty(props::SPACING);
     float spacing = 8.0f;
     if (spacingProp) {
         if (auto* v = std::get_if<double>(&spacingProp->value)) spacing = static_cast<float>(*v);
@@ -411,7 +414,7 @@ MeasuredSize LayoutEngine::measureWrap(
     const LayoutConstraints& constraints
 ) {
     // التفاف: الأبناء يلتفون للسطر التالي عند نفاد المساحة الأفقية
-    const auto* spacingProp = node.findProperty("تباعد");
+    const auto* spacingProp = node.findProperty(props::SPACING);
     float spacing = 8.0f;
     if (spacingProp) {
         if (auto* v = std::get_if<double>(&spacingProp->value)) spacing = static_cast<float>(*v);
@@ -454,7 +457,7 @@ MeasuredSize LayoutEngine::measureScrollView(
     float totalHeight = 0.0f;
     float maxWidth = 0.0f;
 
-    const auto* spacingProp = node.findProperty("تباعد");
+    const auto* spacingProp = node.findProperty(props::SPACING);
     float spacing = 0.0f;
     if (spacingProp) {
         if (auto* v = std::get_if<double>(&spacingProp->value))
@@ -510,7 +513,7 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
     // توزيع الأبناء
     if (node.childCount() == 0) return result;
 
-    const auto* spacingProp = node.findProperty("تباعد");
+    const auto* spacingProp = node.findProperty(props::SPACING);
     float spacing = 0.0f;
     if (spacingProp) {
         if (auto* v = std::get_if<double>(&spacingProp->value))
@@ -530,7 +533,7 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
     }
 
     // قراءة الهامش (margin) — إزاحة خارجية
-    const auto* marginProp = node.findProperty("هامش");
+    const auto* marginProp = node.findProperty(props::MARGIN);
     float margin = 0.0f;
     if (marginProp) {
         if (auto* v = std::get_if<double>(&marginProp->value))
@@ -539,11 +542,14 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
             margin = static_cast<float>(*vi);
     }
 
-    // تعديل القيود المتاحة للأبناء بعد خصم الحشو
+    // تعديل القيود المتاحة للأبناء بعد خصم الحشو **والهامش** (إقحام المحتوى):
+    // الهامش إزاحة خارجيّة تُقلّص منطقة المحتوى، فالابن مالئ-المحور/الموزون يجب أن
+    // يرى عرض/ارتفاع المحتوى الحقيقيّ لا الحاوية كاملة (وإلّا تجاوز فجوة الهامش).
     LayoutConstraints childConstraints = constraints;
-    if (padding > 0) {
-        childConstraints.maxWidth = std::max(0.0f, childConstraints.maxWidth - padding * 2);
-        childConstraints.maxHeight = std::max(0.0f, childConstraints.maxHeight - padding * 2);
+    const float inset = padding + margin;
+    if (inset > 0) {
+        childConstraints.maxWidth = std::max(0.0f, childConstraints.maxWidth - inset * 2);
+        childConstraints.maxHeight = std::max(0.0f, childConstraints.maxHeight - inset * 2);
     }
 
     if (node.getType() == UINodeType::ScrollView ||
@@ -569,8 +575,8 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
         result->contentHeight = childY;
     } else if (node.getType() == UINodeType::Grid) {
         // ─── توزيع شبكي (Grid) ───
-        const auto* colsProp = node.findProperty("أعمدة");
-        if (!colsProp) colsProp = node.findProperty("columns");
+        const auto* colsProp = node.findProperty(props::COLUMNS);
+        if (!colsProp) colsProp = node.findProperty(props::COLUMNS_LATIN);
         int cols = 2;
         if (colsProp) {
             if (auto* v = std::get_if<int64_t>(&colsProp->value)) cols = static_cast<int>(*v);
@@ -594,11 +600,15 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
                 auto childSize = measure(*node.getChildren()[idx], cellConstraints2);
                 rowH = std::max(rowH, childSize.height);
             }
-            // ثانياً: توزيع الخلايا
+            // ثانياً: توزيع الخلايا — في RTL تتدفّق الأعمدة من اليمين لليسار
+            // (العمود 0 أقصى اليمين) بمرآة موقع الخليّة حول عرض الشبكة.
             for (int c = 0; c < cols; ++c) {
                 size_t idx = r * cols + c;
                 if (idx >= node.childCount()) break;
-                float cellX = padding + c * (cellW + spacing);
+                // عكس ترتيب الأعمدة في RTL (العمود 0 أقصى اليمين) — مرآة دقيقة
+                // لمواقع LTR بنفس cellW/التباعد/الحشوة، فلا تتولّد إحداثيّات سالبة.
+                int col = (direction_ == LayoutDirection::RTL) ? (cols - 1 - c) : c;
+                float cellX = padding + col * (cellW + spacing);
                 auto childResult = arrange(*node.getChildren()[idx], cellConstraints2,
                                             offsetX + cellX, offsetY + gridY);
                 result->children.push_back(childResult);
@@ -607,28 +617,54 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
         }
     } else if (node.getType() == UINodeType::Stack) {
         // ─── توزيع مكدس (Stack) — كل الأبناء في نفس الموقع ───
+        // في RTL يُحاذى كلّ ابن أضيق من الأب إلى اليمين (نفس دلالة العمود المتقاطع).
         for (const auto& child : node.getChildren()) {
+            float childX = padding;
+            if (direction_ == LayoutDirection::RTL) {
+                auto cs = measure(*child, childConstraints);
+                float rightAligned = measured.width - padding - cs.width;
+                if (rightAligned > childX) childX = rightAligned;
+            }
             auto childResult = arrange(*child, childConstraints,
-                                        offsetX + padding, offsetY + padding);
+                                        offsetX + childX, offsetY + padding);
             result->children.push_back(childResult);
         }
     } else if (node.getType() == UINodeType::Wrap) {
         // ─── توزيع التفاف (Wrap) ───
-        float lineX = padding, lineY = padding, lineH = 0.0f;
-        float maxWrapW = childConstraints.maxWidth;
-
-        for (const auto& child : node.getChildren()) {
-            auto childSize = measure(*child, childConstraints);
-            if (lineX + childSize.width > maxWrapW + padding && lineX > padding) {
-                lineY += lineH + spacing;
-                lineX = padding;
-                lineH = 0.0f;
+        // في RTL تتدفّق العناصر من اليمين لليسار وتلتفّ عند بلوغ حشوة اليسار:
+        // نتتبّع الحافّة اليمنى المتاحة (rightX) وننزل صفًّا عند عدم الاتّساع.
+        if (direction_ == LayoutDirection::RTL) {
+            float rightX = measured.width - padding, lineY = padding, lineH = 0.0f;
+            for (const auto& child : node.getChildren()) {
+                auto childSize = measure(*child, childConstraints);
+                if (rightX - childSize.width < padding && rightX < measured.width - padding) {
+                    lineY += lineH + spacing;
+                    rightX = measured.width - padding;
+                    lineH = 0.0f;
+                }
+                float childX = rightX - childSize.width;
+                auto childResult = arrange(*child, childConstraints,
+                                            offsetX + childX, offsetY + lineY);
+                rightX -= childResult->rect.width + spacing;
+                lineH = std::max(lineH, childResult->rect.height);
+                result->children.push_back(childResult);
             }
-            auto childResult = arrange(*child, childConstraints,
-                                        offsetX + lineX, offsetY + lineY);
-            lineX += childResult->rect.width + spacing;
-            lineH = std::max(lineH, childResult->rect.height);
-            result->children.push_back(childResult);
+        } else {
+            float lineX = padding, lineY = padding, lineH = 0.0f;
+            float maxWrapW = childConstraints.maxWidth;
+            for (const auto& child : node.getChildren()) {
+                auto childSize = measure(*child, childConstraints);
+                if (lineX + childSize.width > maxWrapW + padding && lineX > padding) {
+                    lineY += lineH + spacing;
+                    lineX = padding;
+                    lineH = 0.0f;
+                }
+                auto childResult = arrange(*child, childConstraints,
+                                            offsetX + lineX, offsetY + lineY);
+                lineX += childResult->rect.width + spacing;
+                lineH = std::max(lineH, childResult->rect.height);
+                result->children.push_back(childResult);
+            }
         }
     } else if (node.getType() == UINodeType::Column ||
         (node.getType() != UINodeType::Row && node.childCount() > 0)) {
@@ -640,14 +676,15 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
             size_t index;
             float height;
             float weight;
+            float width;   ///< العرض المقيس (للمحاذاة المتقاطعة في RTL)
         };
         std::vector<ChildInfo> infos;
 
         for (size_t i = 0; i < node.childCount(); ++i) {
             const auto& child = node.getChildren()[i];
             float weight = 0.0f;
-            const auto* weightProp = child->findProperty("وزن");
-            if (!weightProp) weightProp = child->findProperty("flex");
+            const auto* weightProp = child->findProperty(props::WEIGHT);
+            if (!weightProp) weightProp = child->findProperty(props::FLEX_LATIN);
             if (weightProp) {
                 if (auto* v = std::get_if<double>(&weightProp->value)) weight = static_cast<float>(*v);
                 else if (auto* vi = std::get_if<int64_t>(&weightProp->value)) weight = static_cast<float>(*vi);
@@ -655,16 +692,26 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
             auto childSize = measure(*child, childConstraints);
             if (weight > 0) {
                 totalWeight += weight;
-                infos.push_back({i, 0.0f, weight});
+                infos.push_back({i, 0.0f, weight, childSize.width});
             } else {
                 fixedTotal += childSize.height;
-                infos.push_back({i, childSize.height, 0.0f});
+                infos.push_back({i, childSize.height, 0.0f, childSize.width});
             }
             if (i > 0) fixedTotal += spacing;
         }
 
         // المرحلة 2: توزيع المساحة المتبقية حسب الأوزان
-        float availableH = std::max(0.0f, childConstraints.maxHeight - fixedTotal - padding * 2);
+        // أساس توزيع الوزن: إن كان للعمود ارتفاع صريح فالتوزيع ضمنه (منقوصًا الحشو
+        // والهامش)، وإلّا يتمدّد ليملأ القيد المنفذ (childConstraints المخصوم سلفًا).
+        // childConstraints.maxHeight لا يُطرح منه padding ثانيةً (كان خصمًا مزدوجًا).
+        float availBaseH = childConstraints.maxHeight;
+        if (const auto* hP = node.findProperty(props::HEIGHT)) {
+            float h = -1.0f;
+            if (auto* v = std::get_if<double>(&hP->value)) h = static_cast<float>(*v);
+            else if (auto* vi = std::get_if<int64_t>(&hP->value)) h = static_cast<float>(*vi);
+            if (h >= 0.0f) availBaseH = std::max(0.0f, h - inset * 2);
+        }
+        float availableH = std::max(0.0f, availBaseH - fixedTotal);
         for (auto& info : infos) {
             if (info.weight > 0 && totalWeight > 0) {
                 info.height = availableH * (info.weight / totalWeight);
@@ -672,7 +719,22 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
         }
 
         // المرحلة 3: ترتيب الأبناء
-        float childY = padding;
+        // المحاذاة المتقاطعة (المحور الأفقيّ للعمود): «محاذاة» تحدّد الوضع —
+        // «بداية» (افتراضيّ، اتّجاهيّة: RTL يمينًا، LTR يسارًا) · «وسط» · «نهاية».
+        // بلا «محاذاة» يبقى السلوك الاتّجاهيّ (أصل «الشاشة تبدأ من الشمال»). «تمدّد»
+        // يملأ الابن عرض المحتوى كاملًا (عبر قيد min=max فيتخطّط داخليًّا بالعرض
+        // الكامل). الهامش (margin) يُقحِم المحتوى: [margin+padding، العرض−margin−padding].
+        std::string cAlign;
+        if (const auto* aP = node.findProperty(props::ALIGN))
+            if (auto* s = std::get_if<std::string>(&aP->value)) cAlign = *s;
+        const bool alignCenter  = (cAlign == "وسط" || cAlign == "center");
+        const bool alignEnd     = (cAlign == "نهاية" || cAlign == "end");
+        const bool alignStretch = (cAlign == "تمدّد" || cAlign == "تمدد" || cAlign == "stretch");
+        const float contentLeft  = margin + padding;
+        const float contentRight = measured.width - margin - padding;
+        const float contentW = std::max(0.0f, contentRight - contentLeft);
+
+        float childY = margin + padding;
         for (const auto& info : infos) {
             const auto& child = node.getChildren()[info.index];
             LayoutConstraints cc = childConstraints;
@@ -680,10 +742,29 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
                 cc.maxHeight = info.height;
                 cc.minHeight = info.height;
             }
-            auto childResult = arrange(*child, cc, offsetX + padding, offsetY + childY);
+            const bool rtl = (direction_ == LayoutDirection::RTL);
+            // العرض الصريح للابن يفوز على التمدّد (اتّساقًا مع align-items:stretch):
+            // measure يدهس القيد بالعرض الصريح، ففرض rect.width خارجيًّا يُنتج تنافرًا
+            // رسم/تخطيط — فنتخطّى التمدّد لهذا الابن ونعامله كـ«بداية».
+            bool stretchThis = alignStretch &&
+                !child->findProperty(props::WIDTH) && !child->findProperty(props::WIDTH_LATIN);
+            float childX;
+            if (stretchThis) {
+                // يملأ عرض المحتوى: قيد min=max ⇒ يقيس/يتخطّط الابن بالعرض الكامل.
+                cc.minWidth = cc.maxWidth = contentW;
+                childX = contentLeft;
+            } else if (alignCenter)
+                childX = contentLeft + (contentW - info.width) * 0.5f;
+            else if (alignEnd)
+                childX = rtl ? contentLeft : (contentRight - info.width);
+            else // بداية (افتراضيّ، اتّجاهيّة)
+                childX = rtl ? (contentRight - info.width) : contentLeft;
+            if (childX < contentLeft) childX = contentLeft; // لا يتجاوز يسار المحتوى
+            auto childResult = arrange(*child, cc, offsetX + childX, offsetY + childY);
             if (info.weight > 0) {
                 childResult->rect.height = info.height;
             }
+            if (stretchThis) childResult->rect.width = contentW;
             childY += childResult->rect.height + spacing;
             result->children.push_back(childResult);
         }
@@ -702,8 +783,8 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
         for (size_t i = 0; i < node.childCount(); ++i) {
             const auto& child = node.getChildren()[i];
             float weight = 0.0f;
-            const auto* weightProp = child->findProperty("وزن");
-            if (!weightProp) weightProp = child->findProperty("flex");
+            const auto* weightProp = child->findProperty(props::WEIGHT);
+            if (!weightProp) weightProp = child->findProperty(props::FLEX_LATIN);
             if (weightProp) {
                 if (auto* v = std::get_if<double>(&weightProp->value)) weight = static_cast<float>(*v);
                 else if (auto* vi = std::get_if<int64_t>(&weightProp->value)) weight = static_cast<float>(*vi);
@@ -719,37 +800,72 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
             if (i > 0) fixedTotal += spacing;
         }
 
-        float availableW = std::max(0.0f, childConstraints.maxWidth - fixedTotal - padding * 2);
+        // أساس توزيع الوزن: إن كان للصفّ عرض صريح فالتوزيع ضمنه (منقوصًا الحشو
+        // والهامش)، وإلّا يتمدّد ليملأ القيد المنفذ (childConstraints المخصوم سلفًا).
+        float availBaseW = childConstraints.maxWidth;
+        if (const auto* wP = node.findProperty(props::WIDTH)) {
+            float w = -1.0f;
+            if (auto* v = std::get_if<double>(&wP->value)) w = static_cast<float>(*v);
+            else if (auto* vi = std::get_if<int64_t>(&wP->value)) w = static_cast<float>(*vi);
+            if (w >= 0.0f) availBaseW = std::max(0.0f, w - inset * 2);
+        }
+        float availableW = std::max(0.0f, availBaseW - fixedTotal);
         for (auto& info : rowInfos) {
             if (info.weight > 0 && totalWeight > 0) {
                 info.width = availableW * (info.weight / totalWeight);
             }
         }
 
+        // المحاذاة المتقاطعة للصفّ (عموديّة، غير اتّجاهيّة): «محاذاة» — «بداية»
+        // (أعلى، افتراضيّ) · «وسط» · «نهاية» (أسفل) · «تمدّد» (يملأ الارتفاع).
+        // الهامش يُقحِم منطقة المحتوى في المحورين.
+        std::string rAlign;
+        if (const auto* aP = node.findProperty(props::ALIGN))
+            if (auto* s = std::get_if<std::string>(&aP->value)) rAlign = *s;
+        const bool rCenter  = (rAlign == "وسط" || rAlign == "center");
+        const bool rEnd     = (rAlign == "نهاية" || rAlign == "end");
+        const bool rStretch = (rAlign == "تمدّد" || rAlign == "تمدد" || rAlign == "stretch");
+        const float rTop    = margin + padding;
+        const float rBottom = measured.height - margin - padding;
+        const float rContentH = std::max(0.0f, rBottom - rTop);
+
+        // يرتّب ابنًا واحدًا عند حافّة أفقيّة معطاة، محاذيًا عموديًّا حسب الوضع؛
+        // يعيد عرض الابن المرتَّب (لازم للتقدّم الأفقيّ). التمدّد يُتخطّى لابن بارتفاع صريح.
+        auto placeRowChild = [&](const RowChildInfo& info, float childXpos) -> float {
+            const auto& child = node.getChildren()[info.index];
+            LayoutConstraints cc = childConstraints;
+            if (info.weight > 0) { cc.maxWidth = cc.minWidth = info.width; }
+            bool stretchThis = rStretch &&
+                !child->findProperty(props::HEIGHT) && !child->findProperty(props::HEIGHT_LATIN);
+            if (stretchThis) { cc.minHeight = cc.maxHeight = rContentH; }
+            auto childSz = measure(*child, cc);
+            float ch = stretchThis ? rContentH : childSz.height;
+            float childY;
+            if (stretchThis)   childY = rTop;
+            else if (rCenter)  childY = rTop + (rContentH - ch) * 0.5f;
+            else if (rEnd)     childY = rBottom - ch;
+            else               childY = rTop; // بداية (أعلى)
+            if (childY < rTop) childY = rTop;
+            auto childResult = arrange(*child, cc, offsetX + childXpos, offsetY + childY);
+            if (info.weight > 0)   childResult->rect.width = info.width;
+            if (stretchThis)       childResult->rect.height = rContentH;
+            result->children.push_back(childResult);
+            return childResult->rect.width;
+        };
+
         if (direction_ == LayoutDirection::RTL) {
-            float childX = measured.width - padding;
+            float childX = measured.width - margin - padding;
             for (const auto& info : rowInfos) {
-                const auto& child = node.getChildren()[info.index];
-                LayoutConstraints cc = childConstraints;
-                if (info.weight > 0) { cc.maxWidth = info.width; cc.minWidth = info.width; }
-                auto childSz = measure(*child, cc);
-                float w = info.weight > 0 ? info.width : childSz.width;
-                childX -= w;
-                auto childResult = arrange(*child, cc, offsetX + childX, offsetY + padding);
-                if (info.weight > 0) childResult->rect.width = info.width;
+                // info.width محسوب سلفًا (المرحلة 1 للثابت، الوزن للموزون) — لا قياس مكرّر.
+                childX -= info.width;
+                placeRowChild(info, childX);
                 childX -= spacing;
-                result->children.push_back(childResult);
             }
         } else {
-            float childX = padding;
+            float childX = margin + padding;
             for (const auto& info : rowInfos) {
-                const auto& child = node.getChildren()[info.index];
-                LayoutConstraints cc = childConstraints;
-                if (info.weight > 0) { cc.maxWidth = info.width; cc.minWidth = info.width; }
-                auto childResult = arrange(*child, cc, offsetX + childX, offsetY + padding);
-                if (info.weight > 0) childResult->rect.width = info.width;
-                childX += childResult->rect.width + spacing;
-                result->children.push_back(childResult);
+                float w = placeRowChild(info, childX);
+                childX += w + spacing;
             }
         }
     }

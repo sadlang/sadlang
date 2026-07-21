@@ -41,6 +41,7 @@
  */
 
 #include "sad_ui/mouse_processor.h"
+#include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include <cmath>
 #include <variant>
 
@@ -313,8 +314,7 @@ namespace sad
         {
             // (AR) تبديل خاصية "مفعّل" ثم إطلاق OnChange
             auto *mutableNode = const_cast<IRNode *>(node);
-            const auto *prop = node->findProperty(
-                "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"); // مفعّل
+            const auto *prop = node->findProperty(props::ENABLED); // مفعّل
             bool wasOn = false;
             if (prop)
             {
@@ -351,8 +351,7 @@ namespace sad
             mutableNode->setProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84", true); // مفعّل
 
             // استخراج اسم المجموعة
-            const auto *groupProp = node->findProperty(
-                "\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\xd8\xa9"); // مجموعة
+            const auto *groupProp = node->findProperty(props::GROUP); // مجموعة
             std::string group;
             if (groupProp)
             {
@@ -400,8 +399,7 @@ namespace sad
                         bool sameGroup = group.empty();
                         if (!group.empty())
                         {
-                            const auto *gp = child->findProperty(
-                                "\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\xd8\xa9"); // مجموعة
+                            const auto *gp = child->findProperty(props::GROUP); // مجموعة
                             if (gp)
                             {
                                 if (auto *gs = std::get_if<std::string>(&gp->value))

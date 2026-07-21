@@ -178,7 +178,7 @@ def run(argv: list[str] | None = None) -> int:
         content = HEADER_TEMPLATE.format(keys_section=emit_keys(keys))
         write_if_changed(args.header, content, args.quiet)
         if not args.quiet:
-            print(f"[gen_ui_props] {len(keys)} property keys → {args.header}")
+            print(f"[gen_ui_props] {len(keys)} property keys -> {args.header}")
         return 0
     except Exception as exc:
         print(f"[gen_ui_props] FATAL: {exc}", file=sys.stderr)

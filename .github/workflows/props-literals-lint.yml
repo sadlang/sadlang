@@ -1,0 +1,48 @@
+# ======================================================================
+# (AR) ملف: .github/workflows/props-literals-lint.yml
+# (AR) الوصف: حارس «لا مفاتيح خصائص خام» في نواة الرسوميّات. يفشل إن كتب ملفّ
+#             في features/graphics استدعاء findProperty("سلسلة خام")
+#             بدل ثابت SoT المولَّد sad::ui::props::<ID> (من ui_props.yaml).
+#             الحدّ نظيفٌ اليوم (layout.cpp + platform_renderer.cpp مُرحَّلان)؛
+#             الحارس وقائيّ يمنع انحدار المكتسب. شقيقه: layering-lint.yml.
+# (EN) Guard: no raw property-key literals in the graphics core. Fails if a
+#      graphics file calls findProperty("raw") instead of the generated SoT
+#      constant sad::ui::props::<ID>. Preventive; core + backends clean today.
+# ======================================================================
+name: "🔑 مفاتيح الخصائص / Property-key literals"
+
+on:
+  push:
+    paths:
+      - "features/graphics/**"
+      - "scripts/codegen/check_no_raw_props.py"
+      - ".github/workflows/props-literals-lint.yml"
+  pull_request:
+    branches: [ main, master, dev, sadlang ]
+    paths:
+      - "features/graphics/**"
+      - "scripts/codegen/check_no_raw_props.py"
+      - ".github/workflows/props-literals-lint.yml"
+
+concurrency:
+  group: props-literals-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  props-guard:
+    name: "🔑 لا مفاتيح خصائص خام / No raw property keys"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🐍 إعداد Python / Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: "🔑 حارس مفاتيح الخصائص / Property-key guard"
+        run: python scripts/codegen/check_no_raw_props.py

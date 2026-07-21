@@ -20,6 +20,7 @@
 #include "sad_ui/platform_renderer.h"
 #include "sad_ui/types.h"
 #include "sad_ui/node.h"
+#include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 
 #include <cmath>
 #include <string>
@@ -48,6 +49,22 @@ namespace sad
 {
     namespace ui
     {
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // قيَم نصّيّة قانونيّة (لا literals خام — قاعدة المشروع): صواب منطقيّ ومحاذاة النصّ.
+        // (هروب hex كنمط المشروع، آمن ترميزًا عبر المصرّفات.)
+        // ═══════════════════════════════════════════════════════════════════════════════
+        namespace propval
+        {
+            constexpr const char *BOOL_TRUE_AR = "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad";  // صحيح
+            constexpr const char *BOOL_TRUE_EN = "true";
+            constexpr const char *BOOL_TRUE_ONE = "1";
+            constexpr const char *BOOL_ENABLED_AR = "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"; // مفعل
+            constexpr const char *ALIGN_RIGHT_AR = "\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86";  // يمين
+            constexpr const char *ALIGN_RIGHT_EN = "right";
+            constexpr const char *ALIGN_CENTER_AR = "\xd9\x88\xd8\xb3\xd8\xb7";         // وسط
+            constexpr const char *ALIGN_CENTER_EN = "center";
+        } // namespace propval
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // دوال مساعدة مشتركة
@@ -103,9 +120,9 @@ namespace sad
                 return *b;
             if (auto *s = std::get_if<std::string>(&prop->value))
             {
-                return (*s == "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad" ||
-                        *s == "true" || *s == "1" ||
-                        *s == "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84");
+                return (*s == propval::BOOL_TRUE_AR ||
+                        *s == propval::BOOL_TRUE_EN || *s == propval::BOOL_TRUE_ONE ||
+                        *s == propval::BOOL_ENABLED_AR);
             }
             if (auto *i = std::get_if<int64_t>(&prop->value))
                 return *i != 0;
@@ -255,7 +272,7 @@ namespace sad
             bool isPressed = (pressedNode_ == &node);
 
             // 0.6 حساب الشفافية (خاصية الشفافية + شفافية الانيميشن)
-            float nodeOpacity = getNumericProp(node.findProperty("\xd8\xb4\xd9\x81\xd8\xa7\xd9\x81\xd9\x8a\xd8\xa9"), 1.0f); // شفافية
+            float nodeOpacity = getNumericProp(node.findProperty(props::OPACITY), 1.0f); // شفافية
             if (nodeOpacity < 0.0f)
                 nodeOpacity = 0.0f;
             if (nodeOpacity > 1.0f)
@@ -287,7 +304,7 @@ namespace sad
             }
 
             // 1. رسم الظل (إن وجد) — قبل الخلفية للتطبيق الصحيح
-            const auto *shadowProp = node.findProperty("\xd8\xb8\xd9\x84"); // ظل
+            const auto *shadowProp = node.findProperty(props::SHADOW); // ظل
             if (shadowProp)
             {
                 float elevation = getNumericProp(shadowProp, 0.0f);
@@ -315,9 +332,9 @@ namespace sad
             // 2. رسم الخلفية (إن وجدت) — هذه الخطوة العامّة هي المصدر الوحيد
             //    لخلفية كلّ عقدة (بما فيها الحاويات): تدعم لون_خلفية/خلفية +
             //    الزوايا + التحويم/الضغط. الأولوية موحَّدة على لون_خلفية ثمّ خلفية.
-            const auto *bgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
+            const auto *bgProp = node.findProperty(props::BG_COLOR); // لون_خلفية
             if (!bgProp)
-                bgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+                bgProp = node.findProperty(props::BG); // خلفية
             if (bgProp)
             {
                 Color bgColor = parseColorProp(bgProp, {0, 0, 0, 0});
@@ -337,9 +354,9 @@ namespace sad
                         bgColor.b = std::max(0.0f, bgColor.b - 0.08f);
                     }
 
-                    const auto *radiusProp = node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"); // زوايا
+                    const auto *radiusProp = node.findProperty(props::CORNER_RADIUS); // زوايا
                     if (!radiusProp)
-                        radiusProp = node.findProperty("\xd9\x86\xd8\xb5\xd9\x81_\xd9\x82\xd8\xb7\xd8\xb1"); // نصف_قطر
+                        radiusProp = node.findProperty(props::RADIUS); // نصف_قطر
                     float radius = getNumericProp(radiusProp, 0.0f);
                     if (radius > 0)
                     {
@@ -359,28 +376,28 @@ namespace sad
             // ── النص ──
             case UINodeType::Text:
             {
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+                    textProp = node.findProperty(props::CONTENT); // محتوى
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        const auto *sizeProp = node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7"); // حجم_خط
+                        const auto *sizeProp = node.findProperty(props::FONT_SIZE); // حجم_خط
                         if (!sizeProp)
-                            sizeProp = node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"); // حجم_الخط
+                            sizeProp = node.findProperty(props::FONT_SIZE_ALT); // حجم_الخط
                         if (!sizeProp)
-                            sizeProp = node.findProperty("\xd8\xad\xd8\xac\xd9\x85"); // حجم
+                            sizeProp = node.findProperty(props::SIZE); // حجم
                         float fontSize = getNumericProp(sizeProp, 16.0f);
 
-                        const auto *colorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"); // لون_النص
+                        const auto *colorProp = node.findProperty(props::TEXT_COLOR); // لون_النص
                         if (!colorProp)
-                            colorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86"); // لون
+                            colorProp = node.findProperty(props::COLOR); // لون
                         Color textColor = parseColorProp(colorProp, {0, 0, 0, 1});
 
-                        const auto *alignProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9"); // محاذاة
+                        const auto *alignProp = node.findProperty(props::ALIGN); // محاذاة
                         std::string alignment;
                         if (alignProp)
                         {
@@ -389,14 +406,14 @@ namespace sad
                         }
 
                         float textX = rect.x;
-                        if (isArabicText(*text) || alignment == "\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86" || alignment == "right")
+                        if (isArabicText(*text) || alignment == propval::ALIGN_RIGHT_AR || alignment == propval::ALIGN_RIGHT_EN)
                         {
                             auto sz = measureText(*text, fontSize);
                             textX = rect.x + rect.width - sz.first;
                             if (textX < rect.x)
                                 textX = rect.x;
                         }
-                        else if (alignment == "\xd9\x88\xd8\xb3\xd8\xb7" || alignment == "center")
+                        else if (alignment == propval::ALIGN_CENTER_AR || alignment == propval::ALIGN_CENTER_EN)
                         {
                             auto sz = measureText(*text, fontSize);
                             textX = rect.x + (rect.width - sz.first) / 2.0f;
@@ -414,12 +431,12 @@ namespace sad
                 bool isHovered = (hoveredNode_ == &node);
                 bool isPressed = (pressedNode_ == &node);
 
-                float radius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 8.0f); // زوايا
-                if (!node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"))
-                    radius = getNumericProp(node.findProperty("\xd9\x86\xd8\xb5\xd9\x81_\xd9\x82\xd8\xb7\xd8\xb1"), 8.0f); // نصف_قطر
+                float radius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 8.0f); // زوايا
+                if (!node.findProperty(props::CORNER_RADIUS))
+                    radius = getNumericProp(node.findProperty(props::RADIUS), 8.0f); // نصف_قطر
 
                 // ظل
-                float elevation = getNumericProp(node.findProperty("\xd8\xb8\xd9\x84"), 2.0f); // ظل
+                float elevation = getNumericProp(node.findProperty(props::SHADOW), 2.0f); // ظل
                 if (isHovered && !isPressed)
                     elevation += 2.0f;
                 if (isPressed)
@@ -432,9 +449,9 @@ namespace sad
                 }
 
                 // خلفية الزر
-                const auto *bgColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
+                const auto *bgColorProp = node.findProperty(props::BG_COLOR); // لون_خلفية
                 if (!bgColorProp)
-                    bgColorProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+                    bgColorProp = node.findProperty(props::BG); // خلفية
                 Color btnColor = parseColorProp(bgColorProp, Color::fromNamed(NamedColor::Primary));
 
                 if (isHovered && !isPressed)
@@ -450,8 +467,8 @@ namespace sad
                     btnColor.b = std::max(0.0f, btnColor.b - 0.1f);
                 }
 
-                const auto *gradProp = node.findProperty("\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac");                                             // تدرج
-                const auto *gradEndProp = node.findProperty("\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"); // تدرج_نهاية
+                const auto *gradProp = node.findProperty(props::GRADIENT);                                             // تدرج
+                const auto *gradEndProp = node.findProperty(props::GRADIENT_END); // تدرج_نهاية
                 if (gradProp && gradEndProp)
                 {
                     Color gradStart = parseColorProp(gradProp, btnColor);
@@ -466,22 +483,22 @@ namespace sad
 
                 // نص الزر: احتياطيّ text ← نص ← عنوان (مصنع الزرّ يخزّن «عنوان»
                 // في كلا المحرّكين ⇒ لا بدّ من قراءته هنا كي يُرسَم النصّ).
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (!textProp)
-                    textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+                    textProp = node.findProperty(props::TITLE); // عنوان
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        const auto *textColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb5"); // لون_نص
+                        const auto *textColorProp = node.findProperty(props::TEXT_COLOR_ALT); // لون_نص
                         if (!textColorProp)
-                            textColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"); // لون_النص
+                            textColorProp = node.findProperty(props::TEXT_COLOR); // لون_النص
                         Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::White));
-                        float btnFontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 16.0f); // حجم_الخط
+                        float btnFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 16.0f); // حجم_الخط
                         if (btnFontSize <= 1.0f)
-                            btnFontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7"), 16.0f); // حجم_خط
+                            btnFontSize = getNumericProp(node.findProperty(props::FONT_SIZE), 16.0f); // حجم_خط
 
                         auto sz = measureText(*text, btnFontSize);
                         float textX = rect.x + (rect.width - sz.first) / 2.0f;
@@ -495,9 +512,9 @@ namespace sad
             // ── الفاصل ──
             case UINodeType::Divider:
             {
-                Color divColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                Color divColor = parseColorProp(node.findProperty(props::COLOR), // لون
                                                 Color::fromNamed(NamedColor::Grey));
-                float thickness = getNumericProp(node.findProperty("\xd8\xb3\xd9\x85\xd8\xa7\xd9\x83\xd8\xa9"), rect.height); // سماكة
+                float thickness = getNumericProp(node.findProperty(props::THICKNESS), rect.height); // سماكة
                 drawFilledRect(rect.x, rect.y, rect.width, thickness, divColor);
                 break;
             }
@@ -505,11 +522,11 @@ namespace sad
             // ── الصورة ──
             case UINodeType::Image:
             {
-                const auto *srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
+                const auto *srcProp = node.findProperty(props::SOURCE); // مصدر
                 if (!srcProp)
-                    srcProp = node.findProperty("src");
+                    srcProp = node.findProperty(props::SRC_LATIN);
                 if (!srcProp)
-                    srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
+                    srcProp = node.findProperty(props::PATH); // مسار
                 bool loaded = false;
                 if (srcProp)
                 {
@@ -534,12 +551,12 @@ namespace sad
             case UINodeType::TextField:
             {
                 bool isFocused = (focusedNode_ == &node);
-                Color bgColor = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // خلفية
+                Color bgColor = parseColorProp(node.findProperty(props::BG), // خلفية
                                                Color::fromNamed(NamedColor::White));
-                Color borderColor = parseColorProp(node.findProperty("\xd8\xad\xd8\xaf_\xd9\x84\xd9\x88\xd9\x86"), // حد_لون
+                Color borderColor = parseColorProp(node.findProperty(props::BORDER_COLOR), // حد_لون
                                                    Color::fromNamed(NamedColor::Gray));
-                float radius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 4.0f);                     // زوايا
-                float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 14.0f); // حجم_الخط
+                float radius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 4.0f);                     // زوايا
+                float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f); // حجم_الخط
 
                 if (isFocused)
                     borderColor = Color::fromNamed(NamedColor::Primary);
@@ -548,11 +565,11 @@ namespace sad
                 float borderW = isFocused ? 2.0f : 1.0f;
                 drawRectOutline(rect.x, rect.y, rect.width, rect.height, borderColor, borderW);
 
-                const auto *valueProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+                const auto *valueProp = node.findProperty(props::VALUE); // قيمة
                 if (!valueProp)
-                    valueProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    valueProp = node.findProperty(props::TEXT); // نص
                 if (!valueProp)
-                    valueProp = node.findProperty("value");
+                    valueProp = node.findProperty(props::VALUE_LATIN);
                 std::string inputText;
                 if (valueProp)
                 {
@@ -565,7 +582,7 @@ namespace sad
 
                 if (!inputText.empty())
                 {
-                    Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), {0, 0, 0, 1}); // لون_النص
+                    Color textColor = parseColorProp(node.findProperty(props::TEXT_COLOR), {0, 0, 0, 1}); // لون_النص
                     float textX = rect.x + textPad;
                     if (isArabicText(inputText))
                     {
@@ -576,9 +593,9 @@ namespace sad
                 }
                 else
                 {
-                    const auto *hintProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                    const auto *hintProp = node.findProperty(props::HINT); // تلميح
                     if (!hintProp)
-                        hintProp = node.findProperty("placeholder");
+                        hintProp = node.findProperty(props::PLACEHOLDER_LATIN);
                     if (hintProp)
                     {
                         if (auto *hint = std::get_if<std::string>(&hintProp->value))
@@ -619,10 +636,10 @@ namespace sad
             // ── مفتاح التبديل (Toggle) ──
             case UINodeType::Toggle:
             {
-                bool isOn = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"), false);                     // مفعل
-                Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb4\xd8\xb7"), // لون_نشط
+                bool isOn = getBoolProp(node.findProperty(props::ENABLED), false);                     // مفعل
+                Color activeColor = parseColorProp(node.findProperty(props::ACTIVE_COLOR), // لون_نشط
                                                    Color::fromNamed(NamedColor::Primary));
-                Color inactiveColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                Color inactiveColor = parseColorProp(node.findProperty(props::COLOR), // لون
                                                      Color::fromNamed(NamedColor::LightGray));
                 Color trackColor = isOn ? activeColor : inactiveColor;
 
@@ -643,11 +660,11 @@ namespace sad
             // ── الشريط المنزلق (Slider) ──
             case UINodeType::Slider:
             {
-                float sliderVal = getNumericProp(node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"), 50.0f) / 100.0f; // قيمة
+                float sliderVal = getNumericProp(node.findProperty(props::VALUE), 50.0f) / 100.0f; // قيمة
                 sliderVal = std::max(0.0f, std::min(1.0f, sliderVal));
-                Color trackBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // خلفية
+                Color trackBg = parseColorProp(node.findProperty(props::BG), // خلفية
                                                Color::fromNamed(NamedColor::LightGray));
-                Color trackFill = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                Color trackFill = parseColorProp(node.findProperty(props::COLOR), // لون
                                                  Color::fromNamed(NamedColor::Primary));
                 float trackY = rect.y + rect.height / 2 - 2;
                 drawRoundedRect(rect.x, trackY, rect.width, 4, trackBg, 2.0f);
@@ -666,8 +683,8 @@ namespace sad
             // ── مربع الاختيار (Checkbox) ──
             case UINodeType::Checkbox:
             {
-                bool checked = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"), false); // مفعل
-                Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"),         // لون
+                bool checked = getBoolProp(node.findProperty(props::ENABLED), false); // مفعل
+                Color activeColor = parseColorProp(node.findProperty(props::COLOR),         // لون
                                                    Color::fromNamed(NamedColor::Primary));
                 Color borderColor = checked ? activeColor : Color::fromNamed(NamedColor::Gray);
                 drawRoundedRect(rect.x, rect.y, 20, 20, borderColor, 3.0f);
@@ -683,15 +700,15 @@ namespace sad
                                     Color::fromNamed(NamedColor::White), 2.0f);
                 }
                 // نص
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), {0, 0, 0, 1}); // لون_النص
-                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 14.0f);         // حجم_الخط
+                        Color textColor = parseColorProp(node.findProperty(props::TEXT_COLOR), {0, 0, 0, 1}); // لون_النص
+                        float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f);         // حجم_الخط
                         float textX = rect.x + 28;
                         if (isArabicText(*text))
                         {
@@ -707,8 +724,8 @@ namespace sad
             // ── زر الراديو ──
             case UINodeType::Radio:
             {
-                bool selected = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84")); // مفعل
-                Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"),   // لون
+                bool selected = getBoolProp(node.findProperty(props::ENABLED)); // مفعل
+                Color activeColor = parseColorProp(node.findProperty(props::COLOR),   // لون
                                                    Color::fromNamed(NamedColor::Primary));
                 Color borderColor = selected ? activeColor : Color::fromNamed(NamedColor::Gray);
                 drawRoundedRect(rect.x, rect.y, 20, 20, borderColor, 10.0f);
@@ -718,9 +735,9 @@ namespace sad
                 {
                     drawRoundedRect(rect.x + 5, rect.y + 5, 10, 10, activeColor, 5.0f);
                 }
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -734,16 +751,16 @@ namespace sad
             // ── البطاقة (Card) ──
             case UINodeType::Card:
             {
-                float cardRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 12.0f); // زوايا
-                float cardElevation = getNumericProp(node.findProperty("\xd8\xb1\xd9\x81\xd8\xb9"), 4.0f);               // رفع
+                float cardRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 12.0f); // زوايا
+                float cardElevation = getNumericProp(node.findProperty(props::ELEVATION), 4.0f);               // رفع
                 if (cardElevation > 0)
                 {
                     drawFilledRect(rect.x + 2, rect.y + cardElevation,
                                    rect.width, rect.height, {0, 0, 0, 0.15f});
                 }
-                const auto *cardColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86"); // لون
+                const auto *cardColorProp = node.findProperty(props::COLOR); // لون
                 if (!cardColorProp)
-                    cardColorProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+                    cardColorProp = node.findProperty(props::BG); // خلفية
                 Color cardBg = parseColorProp(cardColorProp, Color::fromNamed(NamedColor::White));
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, cardBg, cardRadius);
                 break;
@@ -752,12 +769,12 @@ namespace sad
             // ── شريط التقدم ──
             case UINodeType::ProgressBar:
             {
-                float barRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), rect.height / 2.0f);     // زوايا
-                Color trackColor = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), {0.9f, 0.9f, 0.9f, 1}); // خلفية
+                float barRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), rect.height / 2.0f);     // زوايا
+                Color trackColor = parseColorProp(node.findProperty(props::BG), {0.9f, 0.9f, 0.9f, 1}); // خلفية
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, trackColor, barRadius);
-                float progressValue = getNumericProp(node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"), 50.0f) / 100.0f; // قيمة
+                float progressValue = getNumericProp(node.findProperty(props::VALUE), 50.0f) / 100.0f; // قيمة
                 progressValue = std::max(0.0f, std::min(1.0f, progressValue));
-                Color fillColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                Color fillColor = parseColorProp(node.findProperty(props::COLOR), // لون
                                                  Color::fromNamed(NamedColor::Primary));
                 float fillWidth = rect.width * progressValue;
                 if (fillWidth > 0)
@@ -774,15 +791,15 @@ namespace sad
             // ── شريط البحث ──
             case UINodeType::SearchBar:
             {
-                Color bgColor = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // خلفية
+                Color bgColor = parseColorProp(node.findProperty(props::BG), // خلفية
                                                Color::fromNamed(NamedColor::LightGray));
-                float radius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), rect.height / 2); // زوايا
+                float radius = getNumericProp(node.findProperty(props::CORNER_RADIUS), rect.height / 2); // زوايا
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, bgColor, radius);
                 drawText("\xf0\x9f\x94\x8d", rect.x + 8, rect.y + rect.height / 2 - 8,
                          Color::fromNamed(NamedColor::Gray), 14.0f);                                  // 🔍
-                const auto *hintProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                const auto *hintProp = node.findProperty(props::HINT); // تلميح
                 if (!hintProp)
-                    hintProp = node.findProperty("placeholder");
+                    hintProp = node.findProperty(props::PLACEHOLDER_LATIN);
                 if (hintProp)
                 {
                     if (auto *hint = std::get_if<std::string>(&hintProp->value))
@@ -795,24 +812,24 @@ namespace sad
             // ── FAB ──
             case UINodeType::FAB:
             {
-                Color fabColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // لون_خلفية
+                Color fabColor = parseColorProp(node.findProperty(props::BG_COLOR), // لون_خلفية
                                                 Color::fromNamed(NamedColor::Primary));
-                if (!node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"))
-                    fabColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), fabColor); // لون
+                if (!node.findProperty(props::BG_COLOR))
+                    fabColor = parseColorProp(node.findProperty(props::COLOR), fabColor); // لون
                 float radius = std::min(rect.width, rect.height) / 2;
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, fabColor, radius);
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (!textProp)
-                    textProp = node.findProperty("\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // ايقونة
+                    textProp = node.findProperty(props::ICON_ALT); // ايقونة
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), // لون_النص
+                        Color textColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
                                                          Color::fromNamed(NamedColor::White));
-                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 20.0f); // حجم_الخط
+                        float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 20.0f); // حجم_الخط
                         auto sz = measureText(*text, fontSize);
                         drawText(*text, rect.x + (rect.width - sz.first) / 2,
                                  rect.y + (rect.height - sz.second) / 2, textColor, fontSize);
@@ -824,27 +841,27 @@ namespace sad
             // ── شريط التطبيق ──
             case UINodeType::AppBar:
             {
-                Color barColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // لون_خلفية
+                Color barColor = parseColorProp(node.findProperty(props::BG_COLOR), // لون_خلفية
                                                 Color::fromNamed(NamedColor::Primary));
-                if (!node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"))
-                    barColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), barColor); // لون
+                if (!node.findProperty(props::BG_COLOR))
+                    barColor = parseColorProp(node.findProperty(props::COLOR), barColor); // لون
                 Color barLighter = {std::min(1.0f, barColor.r * 1.15f),
                                     std::min(1.0f, barColor.g * 1.15f),
                                     std::min(1.0f, barColor.b * 1.15f), barColor.a};
                 drawLinearGradient(rect.x, rect.y, rect.width, rect.height,
                                    barLighter, barColor, true);
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+                    textProp = node.findProperty(props::TITLE); // عنوان
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), // لون_النص
+                        Color textColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
                                                          Color::fromNamed(NamedColor::White));
-                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 20.0f); // حجم_الخط
+                        float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 20.0f); // حجم_الخط
                         float textX = rect.x + 16;
                         if (isArabicText(*text))
                         {
@@ -863,21 +880,21 @@ namespace sad
             // ── الشارة (Badge) ──
             case UINodeType::Badge:
             {
-                Color badgeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // لون_خلفية
+                Color badgeColor = parseColorProp(node.findProperty(props::BG_COLOR), // لون_خلفية
                                                   Color::fromNamed(NamedColor::Error));
-                if (!node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"))
-                    badgeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), badgeColor); // لون
+                if (!node.findProperty(props::BG_COLOR))
+                    badgeColor = parseColorProp(node.findProperty(props::COLOR), badgeColor); // لون
                 float r = std::min(rect.width, rect.height) / 2;
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, badgeColor, r);
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    textProp = node.findProperty(props::TEXT); // نص
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        Color tC = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), Color::fromNamed(NamedColor::White));
-                        float fS = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 10.0f);
+                        Color tC = parseColorProp(node.findProperty(props::TEXT_COLOR), Color::fromNamed(NamedColor::White));
+                        float fS = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 10.0f);
                         auto sz = measureText(*text, fS);
                         drawText(*text, rect.x + (rect.width - sz.first) / 2,
                                  rect.y + (rect.height - sz.second) / 2, tC, fS);
@@ -946,16 +963,16 @@ namespace sad
             // ── SnackBar، Chip، Avatar — نصوص مع خلفية ──
             case UINodeType::SnackBar:
             {
-                Color snackBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), {0.2f, 0.2f, 0.2f, 0.9f});
+                Color snackBg = parseColorProp(node.findProperty(props::BG), {0.2f, 0.2f, 0.2f, 0.9f});
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, snackBg, 4.0f);
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5");
+                    textProp = node.findProperty(props::TEXT);
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 14.0f);
+                        float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f);
                         drawText(*text, rect.x + 16, rect.y + rect.height / 2 - fontSize / 2,
                                  Color::fromNamed(NamedColor::White), fontSize);
                     }
@@ -965,11 +982,11 @@ namespace sad
 
             case UINodeType::Chip:
             {
-                Color chipBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::LightGray));
+                Color chipBg = parseColorProp(node.findProperty(props::BG), Color::fromNamed(NamedColor::LightGray));
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, chipBg, 16.0f);
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5");
+                    textProp = node.findProperty(props::TEXT);
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -984,14 +1001,14 @@ namespace sad
 
             case UINodeType::Avatar:
             {
-                Color avatarBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::Primary));
+                Color avatarBg = parseColorProp(node.findProperty(props::BG), Color::fromNamed(NamedColor::Primary));
                 float r = std::min(rect.width, rect.height) / 2;
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, avatarBg, r);
-                const auto *textProp = node.findProperty("text");
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd9\x86\xd8\xb5");
+                    textProp = node.findProperty(props::TEXT);
                 if (!textProp)
-                    textProp = node.findProperty("\xd8\xad\xd8\xb1\xd9\x81"); // حرف
+                    textProp = node.findProperty(props::CHAR); // حرف
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -1007,13 +1024,13 @@ namespace sad
 
             case UINodeType::Icon:
             {
-                Color iconColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), {0, 0, 0, 1});
-                float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85"), 24.0f);
-                const auto *textProp = node.findProperty("text");
+                Color iconColor = parseColorProp(node.findProperty(props::COLOR), {0, 0, 0, 1});
+                float fontSize = getNumericProp(node.findProperty(props::SIZE), 24.0f);
+                const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
-                    textProp = node.findProperty("\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // ايقونة
+                    textProp = node.findProperty(props::ICON_ALT); // ايقونة
                 if (!textProp)
-                    textProp = node.findProperty("\xd8\xb1\xd9\x85\xd8\xb2"); // رمز
+                    textProp = node.findProperty(props::SYMBOL); // رمز
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -1030,11 +1047,11 @@ namespace sad
                 // رسم tooltip كمستطيل داكن مع نص
                 Color tooltipBg = {0.15f, 0.15f, 0.15f, 0.88f};
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, tooltipBg, 4.0f);
-                const auto *tipText = node.findProperty("text");
+                const auto *tipText = node.findProperty(props::TEXT_LATIN);
                 if (!tipText)
-                    tipText = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                    tipText = node.findProperty(props::TEXT); // نص
                 if (!tipText)
-                    tipText = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                    tipText = node.findProperty(props::HINT); // تلميح
                 if (tipText)
                 {
                     if (auto *t = std::get_if<std::string>(&tipText->value))
@@ -1052,14 +1069,14 @@ namespace sad
             case UINodeType::Breadcrumb:
             {
                 // رسم مسارات متصلة بـ "/"
-                const auto *pathProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
+                const auto *pathProp = node.findProperty(props::PATH); // مسار
                 if (!pathProp)
-                    pathProp = node.findProperty("text");
+                    pathProp = node.findProperty(props::TEXT_LATIN);
                 if (!pathProp)
-                    pathProp = node.findProperty("\xd9\x86\xd8\xb5");                                             // نص
-                float fs = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7"), 13.0f); // حجم_خط
-                Color textCol = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), {0.4f, 0.4f, 0.4f, 1});
-                Color activeCol = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb4\xd8\xb7"), Color::fromNamed(NamedColor::Primary)); // لون_نشط
+                    pathProp = node.findProperty(props::TEXT);                                             // نص
+                float fs = getNumericProp(node.findProperty(props::FONT_SIZE), 13.0f); // حجم_خط
+                Color textCol = parseColorProp(node.findProperty(props::COLOR), {0.4f, 0.4f, 0.4f, 1});
+                Color activeCol = parseColorProp(node.findProperty(props::ACTIVE_COLOR), Color::fromNamed(NamedColor::Primary)); // لون_نشط
                 if (pathProp)
                 {
                     if (auto *p = std::get_if<std::string>(&pathProp->value))
@@ -1103,8 +1120,8 @@ namespace sad
             case UINodeType::Pagination:
             {
                 // رسم أزرار ترقيم
-                int total = (int)getNumericProp(node.findProperty("\xd8\xa7\xd9\x84\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9"), 5.0f); // المجموع
-                int current = (int)getNumericProp(node.findProperty("\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a"), 1.0f);       // الحالي
+                int total = (int)getNumericProp(node.findProperty(props::TOTAL), 5.0f); // المجموع
+                int current = (int)getNumericProp(node.findProperty(props::CURRENT), 1.0f);       // الحالي
                 total = std::max(1, std::min(total, 20));
                 current = std::max(1, std::min(current, total));
                 float btnW = std::min(36.0f, rect.width / (total + 2));
@@ -1112,7 +1129,7 @@ namespace sad
                 float cx = rect.x + 4.0f;
                 float cy = rect.y + (rect.height - btnH) * 0.5f;
                 float fs = 13.0f;
-                Color activeBg = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), Color::fromNamed(NamedColor::Primary)); // لون
+                Color activeBg = parseColorProp(node.findProperty(props::COLOR), Color::fromNamed(NamedColor::Primary)); // لون
                 Color inactiveBg = {0.92f, 0.92f, 0.92f, 1};
                 // زر السابق
                 drawRoundedRect(cx, cy, btnW, btnH, inactiveBg, 4.0f);
@@ -1236,12 +1253,12 @@ namespace sad
                                          node.getType() == UINodeType::LazyRow ||
                                          node.getType() == UINodeType::List;
             float scrollOffY = isScrollableContainer
-                                   ? getNumericProp(node.findProperty("\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb5"), // إزاحة_ص
-                                                    getNumericProp(node.findProperty("scroll_y"), 0.0f))
+                                   ? getNumericProp(node.findProperty(props::OFFSET_Y), // إزاحة_ص
+                                                    getNumericProp(node.findProperty(props::SCROLL_Y_LATIN), 0.0f))
                                    : 0.0f;
             float scrollOffX = isScrollableContainer
-                                   ? getNumericProp(node.findProperty("\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb3"), // إزاحة_س
-                                                    getNumericProp(node.findProperty("scroll_x"), 0.0f))
+                                   ? getNumericProp(node.findProperty(props::OFFSET_X), // إزاحة_س
+                                                    getNumericProp(node.findProperty(props::SCROLL_X_LATIN), 0.0f))
                                    : 0.0f;
 
             for (size_t i = 0; i < layout.children.size() && i < node.childCount(); ++i)

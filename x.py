@@ -334,6 +334,27 @@ SOT_CHECK_GUARDS = (
         "script": "gen_rules_matrix.py",
         "args": ("--check",),
     },
+    {
+        # (AR) اتّساق خصائص الواجهة: primary_prop لكلّ عنصر ⇐ مفتاح في ui_props.yaml.
+        # (EN) UI-property consistency: each widget primary_prop maps to a ui_props key.
+        "name": "ui_props_consistency",
+        "script": "check_ui_props_consistency.py",
+        "args": (),
+    },
+    {
+        # (AR) لا مفاتيح خصائص خام في features/graphics — استعمل ثوابت props:: المولَّدة.
+        # (EN) No raw property-key literals in graphics — use generated props:: constants.
+        "name": "no_raw_props",
+        "script": "check_no_raw_props.py",
+        "args": (),
+    },
+    {
+        # (AR) لا « #» غير مقتبس في حقول وصف language-truth (يبتره YAML تعليقًا صامتًا).
+        # (EN) No unquoted ` #` in language-truth description fields (YAML truncates it).
+        "name": "yaml_desc_hash",
+        "script": "check_yaml_desc_hash.py",
+        "args": (),
+    },
 )
 
 

@@ -238,7 +238,7 @@ void AppKitCodegen::generateNativeWidget(
                 << ind << "label.isEditable = false\n"
                 << ind << "label.drawsBackground = false\n";
 
-            const auto* sizeProp = node.findProperty("حجم_خط");
+            const auto* sizeProp = node.findProperty(props::FONT_SIZE);
             if (sizeProp) {
                 if (auto* v = std::get_if<double>(&sizeProp->value))
                     out << ind << "label.font = NSFont.systemFont(ofSize: " << *v << ")\n";
@@ -257,7 +257,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Image: {
-            const auto* srcProp = node.findProperty("source");
+            const auto* srcProp = node.findProperty(props::SOURCE_LATIN);
             std::string src;
             if (srcProp) {
                 if (auto* s = std::get_if<std::string>(&srcProp->value))
@@ -294,7 +294,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Checkbox: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string text;
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
@@ -307,7 +307,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Radio: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string text;
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
@@ -322,7 +322,7 @@ void AppKitCodegen::generateNativeWidget(
         case UINodeType::Picker: {
             out << ind << "let popup = NSPopUpButton()\n";
             for (const auto& child : node.getChildren()) {
-                const auto* tp = child->findProperty("text");
+                const auto* tp = child->findProperty(props::TEXT_LATIN);
                 if (tp) {
                     if (auto* s = std::get_if<std::string>(&tp->value))
                         out << ind << "popup.addItem(withTitle: \"" << *s << "\")\n";
@@ -382,7 +382,7 @@ void AppKitCodegen::generateNativeWidget(
         case UINodeType::TabView: {
             out << ind << "let tabView = NSTabView()\n";
             for (const auto& child : node.getChildren()) {
-                const auto* tp = child->findProperty("text");
+                const auto* tp = child->findProperty(props::TEXT_LATIN);
                 std::string title = "Tab";
                 if (tp) {
                     if (auto* s = std::get_if<std::string>(&tp->value))
@@ -398,7 +398,7 @@ void AppKitCodegen::generateNativeWidget(
 
         case UINodeType::SearchBar: {
             out << ind << "let searchField = NSSearchField()\n";
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
                     out << ind << "searchField.placeholderString = \"" << *s << "\"\n";
@@ -408,7 +408,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Icon: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string iconName = "star";
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
@@ -434,7 +434,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::AppBar: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string title;
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
@@ -454,7 +454,7 @@ void AppKitCodegen::generateNativeWidget(
             out << ind << "let fab = NSButton()\n"
                 << ind << "fab.bezelStyle = .circular\n"
                 << ind << "fab.isBordered = true\n";
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
                     out << ind << "fab.title = \"" << *s << "\"\n";
@@ -470,7 +470,7 @@ void AppKitCodegen::generateNativeWidget(
                 << ind << "badge.backgroundColor = .systemRed\n"
                 << ind << "badge.textColor = .white\n"
                 << ind << "badge.alignment = .center\n";
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
                     out << ind << "badge.stringValue = \"" << *s << "\"\n";
@@ -480,7 +480,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Chip: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string text;
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
@@ -498,7 +498,7 @@ void AppKitCodegen::generateNativeWidget(
                 << ind << "avatar.wantsLayer = true\n"
                 << ind << "avatar.layer?.cornerRadius = 20\n"
                 << ind << "avatar.layer?.masksToBounds = true\n";
-            const auto* srcProp = node.findProperty("text");
+            const auto* srcProp = node.findProperty(props::TEXT_LATIN);
             if (srcProp) {
                 if (auto* s = std::get_if<std::string>(&srcProp->value))
                     out << ind << "avatar.image = NSImage(named: \"" << *s << "\")\n";
@@ -508,7 +508,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::SnackBar: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string msg;
             if (textProp) {
                 if (auto* s = std::get_if<std::string>(&textProp->value))
@@ -696,7 +696,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::RichText: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string text = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "") : "";
@@ -708,7 +708,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Markdown: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string text = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "") : "";
@@ -719,7 +719,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::CodeBlock: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string text = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "") : "";
@@ -781,7 +781,7 @@ void AppKitCodegen::generateNativeWidget(
 
         case UINodeType::Expandable:
         case UINodeType::Collapsible: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string title = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "عنصر") : "عنصر";
@@ -986,7 +986,7 @@ void AppKitCodegen::generateNativeWidget(
         }
 
         case UINodeType::Section: {
-            const auto* textProp = node.findProperty("text");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
             std::string header = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "") : "";

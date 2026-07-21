@@ -95,9 +95,26 @@ keys:
     description_ar: الارتفاع الثابت (بالبكسل) لصندوق المقاس
     description_en: Fixed height (px) for the sized box
 
-  # (AR) الحشو الداخليّ للحاوية (عمود/صفّ/شبكة…) — معدّل «.حشوة(N)» يصير مفتاح IR
-  #      يقرؤه محرّك التخطيط (layout.cpp) لإزاحة الأبناء داخليًّا. القانونيّ «حشوة»
-  #      (بالتاء المربوطة، وهو ما يُنتجه types.cpp للمعدّل) — لا مرادف «حشو».
+  - id: ALIGN
+    canonical: محاذاة
+    value_type: نص
+    description_ar: >-
+      المحاذاة. للنصّ: «يمين»/«وسط» (أو right/center) — وإلّا يُحاذى النصّ العربيّ
+      يمينًا تلقائيًّا. لحاويات العمود/الصفّ (المحور المتقاطع): «بداية» (افتراضيّ،
+      اتّجاهيّ: العمود RTL يمينًا واللاتينيّ يسارًا، الصفّ أعلى) · «وسط» · «نهاية»
+      (العمود يسار المحتوى في RTL، الصفّ أسفل) · «تمدّد» (يملأ المحور المتقاطع؛
+      يتخطّاه الابن ذو المقاس الصريح في ذلك المحور).
+    description_en: >-
+      Alignment. For text: «يمين»/«وسط» (or right/center) — else Arabic text
+      right-aligns automatically. For Column/Row containers (cross-axis):
+      «بداية» (default, directional: Column RTL=right/LTR=left, Row=top) ·
+      «وسط» (center) · «نهاية» (end) · «تمدّد» (stretch — fills the cross-axis;
+      a child with an explicit cross-axis size opts out).
+
+  # ── مفاتيح التخطيط (يقرؤها محرّك التخطيط LayoutEngine في الحاويات) ──────────
+  # (AR) الحشو الداخليّ للحاوية — القانونيّ «حشوة» (بالتاء المربوطة، وهو ما يُنتجه
+  #      types.cpp للمعدّل، انظر UINodeType::Padding⇒«حشوة») لا «حشو». يقرؤه محرّك
+  #      التخطيط (layout.cpp) لإزاحة الأبناء داخليًّا.
   - id: PADDING
     canonical: حشوة
     value_type: عدد
@@ -109,12 +126,6 @@ keys:
   #      ما يُنتجه منتِج معدّلات DSL (types.cpp ⇒ ir_builder) في IRNode — فالقانونيّ =
   #      ما يكتبه DSL، نظير PADDING الأساس. تنبيه دَين: لا مستهلك يقرؤها بعدُ (layout.cpp
   #      يقرأ PADDING الأساس فقط) — التوحيد يزيل التباعُد النصّيّ لا يخترع مستهلكًا.
-  # (EN) Directional container padding — canonical is logical (top/bottom fixed vertical;
-  #      start/end RTL-aware horizontal: start=right, end=left per layout.h). These are the
-  #      keys the DSL modifier producer (types.cpp ⇒ ir_builder) writes into IRNode, so
-  #      canonical = what the DSL emits, mirroring base PADDING. Debt note: no consumer
-  #      reads them yet (layout.cpp reads only base PADDING) — unifying removes textual
-  #      drift, it does not invent a consumer.
   - id: PADDING_TOP
     canonical: حشوة_أعلى
     value_type: عدد
@@ -138,6 +149,437 @@ keys:
     value_type: عدد
     description_ar: حشو جهة النهاية (بالبكسل) — منطقيّ واعٍ بالـRTL (end=يسار)
     description_en: End-side padding (px) — RTL-aware logical (end=left)
+
+  - id: MARGIN
+    canonical: هامش
+    value_type: عدد
+    description_ar: الهامش الخارجيّ (بالبكسل) — يُقحِم منطقة محتوى الحاوية
+    description_en: Outer margin (px) — insets the container's content region
+
+  - id: SPACING
+    canonical: تباعد
+    value_type: عدد
+    description_ar: التباعد (بالبكسل) بين أبناء العمود/الصفّ المتتالين
+    description_en: Spacing (px) between consecutive Column/Row children
+
+  - id: WEIGHT
+    canonical: وزن
+    value_type: عدد
+    description_ar: وزن المرونة (flex) — حصّة الابن من المساحة المتبقّية على المحور الرئيسيّ
+    description_en: Flex weight — child's share of remaining main-axis space
+
+  - id: COLUMNS
+    canonical: أعمدة
+    value_type: عدد
+    description_ar: عدد أعمدة الشبكة (Grid)
+    description_en: Number of grid columns
+
+  - id: FONT_SIZE
+    canonical: حجم_خط
+    value_type: عدد
+    description_ar: حجم خطّ النصّ (بالبكسل) — يؤثّر على قياس النصّ عرضًا وارتفاعًا
+    description_en: Text font size (px) — affects text width and height measurement
+
+  # ── أسماء بديلة (هجاء عربيّ بديل أو بديل لاتينيّ يقرؤه المُرسِّم/التخطيط فقط) ──
+  - id: FONT_SIZE_ALT
+    canonical: حجم_الخط
+    value_type: عدد
+    description_ar: هجاء بديل لـ«حجم_خط» (بأل التعريف) — مقبول في القياس
+    description_en: Alternate spelling of «حجم_خط» — accepted in measurement
+
+  - id: SIZE
+    canonical: حجم
+    value_type: عدد
+    description_ar: اسم مختصر لحجم الخطّ (بديل لـ«حجم_خط»)
+    description_en: Short alias for font size (alternate for «حجم_خط»)
+
+  - id: FLEX_LATIN
+    canonical: flex
+    value_type: عدد
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«وزن» (flex) — يقرؤه التخطيط فقط
+    description_en: Latin alias for «وزن» (flex) — layout-read only
+
+  - id: COLUMNS_LATIN
+    canonical: columns
+    value_type: عدد
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«أعمدة» — يقرؤه التخطيط فقط
+    description_en: Latin alias for «أعمدة» — layout-read only
+
+  - id: WIDTH_LATIN
+    canonical: width
+    value_type: عدد
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«عرض» — يقرؤه التخطيط فقط
+    description_en: Latin alias for «عرض» — layout-read only
+
+  - id: HEIGHT_LATIN
+    canonical: height
+    value_type: عدد
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«ارتفاع» — يقرؤه التخطيط فقط
+    description_en: Latin alias for «ارتفاع» — layout-read only
+
+  # ── مفاتيح بصريّة (يقرؤها المُرسِّم PlatformRenderer عند الرسم) ──────────────
+  - id: COLOR
+    canonical: لون
+    value_type: نص
+    description_ar: "اللون العامّ للعنصر (سلسلة سداسيّة #RRGGBB أو اسم لون)"
+    description_en: Generic element color (#RRGGBB hex string or color name)
+
+  - id: TEXT_COLOR
+    canonical: لون_النص
+    value_type: نص
+    description_ar: لون النصّ
+    description_en: Text color
+
+  - id: TEXT_COLOR_ALT
+    canonical: لون_نص
+    value_type: نص
+    description_ar: هجاء بديل لـ«لون_النص» (بلا أل)
+    description_en: Alternate spelling of «لون_النص»
+
+  - id: BG
+    canonical: خلفية
+    value_type: نص
+    description_ar: لون الخلفية (مفتاح مختصر)
+    description_en: Background color (short key)
+
+  - id: BG_COLOR
+    canonical: لون_خلفية
+    value_type: نص
+    description_ar: لون خلفية العنصر (المعدّل الرسميّ)
+    description_en: Element background color (canonical modifier)
+
+  - id: ACTIVE_COLOR
+    canonical: لون_نشط
+    value_type: نص
+    description_ar: لون الحالة النشطة (مفتاح/زرّ مفعَّل)
+    description_en: Active-state color (toggle/enabled control)
+
+  - id: BORDER_COLOR
+    canonical: حد_لون
+    value_type: نص
+    description_ar: لون الحدّ الخارجيّ
+    description_en: Outer border color
+
+  - id: CORNER_RADIUS
+    canonical: زوايا
+    value_type: عدد
+    description_ar: نصف قطر تدوير الزوايا (بالبكسل)
+    description_en: Corner rounding radius (px)
+
+  - id: RADIUS
+    canonical: نصف_قطر
+    value_type: عدد
+    description_ar: نصف القطر (للدائرة/التدوير)
+    description_en: Radius (for circle/rounding)
+
+  - id: THICKNESS
+    canonical: سماكة
+    value_type: عدد
+    description_ar: سماكة الخطّ/الحدّ (بالبكسل)
+    description_en: Line/border thickness (px)
+
+  - id: OPACITY
+    canonical: شفافية
+    value_type: عدد
+    description_ar: الشفافية (0.0 شفّاف تمامًا … 1.0 معتِم)
+    description_en: Opacity (0.0 transparent … 1.0 opaque)
+
+  - id: SHADOW
+    canonical: ظل
+    value_type: نص
+    description_ar: مواصفة الظلّ (وجوده/لونه)
+    description_en: Shadow spec (presence/color)
+
+  - id: GRADIENT
+    canonical: تدرج
+    value_type: نص
+    description_ar: لون بداية التدرّج
+    description_en: Gradient start color
+
+  - id: GRADIENT_END
+    canonical: تدرج_نهاية
+    value_type: نص
+    description_ar: لون نهاية التدرّج
+    description_en: Gradient end color
+
+  - id: ELEVATION
+    canonical: رفع
+    value_type: عدد
+    description_ar: الارتفاع البصريّ (شدّة الظلّ)
+    description_en: Visual elevation (shadow depth)
+
+  - id: ENABLED
+    canonical: مفعل
+    value_type: منطقيّ
+    description_ar: هل العنصر مفعَّل (تفاعليّ) أم مُعطَّل
+    description_en: Whether the element is enabled (interactive) or disabled
+
+  - id: TOTAL
+    canonical: المجموع
+    value_type: عدد
+    description_ar: القيمة القصوى (لشريط التقدّم/المنزلق)
+    description_en: Maximum/total value (progress bar / slider)
+
+  - id: CURRENT
+    canonical: الحالي
+    value_type: عدد
+    description_ar: القيمة الحاليّة (لشريط التقدّم/المنزلق)
+    description_en: Current value (progress bar / slider)
+
+  - id: OFFSET_X
+    canonical: إزاحة_س
+    value_type: عدد
+    description_ar: الإزاحة الأفقيّة (بالبكسل)
+    description_en: Horizontal offset (px)
+
+  - id: OFFSET_Y
+    canonical: إزاحة_ص
+    value_type: عدد
+    description_ar: الإزاحة الرأسيّة (بالبكسل)
+    description_en: Vertical offset (px)
+
+  - id: ICON_ALT
+    canonical: ايقونة
+    value_type: نص
+    description_ar: هجاء بديل لـ«أيقونة» (بألف بلا همزة) — اسم الأيقونة
+    description_en: Alternate spelling of «أيقونة» (bare alef) — icon name
+
+  - id: SYMBOL
+    canonical: رمز
+    value_type: نص
+    description_ar: رمز نصّيّ (مثل محرف الأيقونة)
+    description_en: Text symbol (e.g. icon glyph)
+
+  - id: CHAR
+    canonical: حرف
+    value_type: نص
+    description_ar: محرف واحد يُعرَض (نحو أوّل حرف من عنصر)
+    description_en: Single displayed character (e.g. avatar initial)
+
+  - id: PATH
+    canonical: مسار
+    value_type: نص
+    description_ar: مسار المورد (صورة ونحوها)
+    description_en: Resource path (image, etc.)
+
+  - id: GROUP
+    canonical: مجموعة
+    value_type: نص
+    description_ar: اسم مجموعة العنصر (أزرار الاختيار المترابطة ونحوها)
+    description_en: Element group name (radio buttons and similar)
+
+  # ── مفاتيح إضافيّة تقرؤها مولِّدات المنصّات (backends) والمُرسِّم المكتبيّ ──────
+  - id: MIN
+    canonical: أدنى
+    value_type: عدد
+    description_ar: القيمة الدنيا (منزلق/مدى)
+    description_en: Minimum value (slider/range)
+
+  - id: MAX
+    canonical: أقصى
+    value_type: عدد
+    description_ar: القيمة القصوى (منزلق/مدى)
+    description_en: Maximum value (slider/range)
+
+  - id: TOTAL_SUM
+    canonical: إجمالي
+    value_type: عدد
+    description_ar: المجموع الكلّيّ (بديل دلاليّ لـ«المجموع»)
+    description_en: Grand total (semantic alias of «المجموع»)
+
+  - id: LINE_NUMBERS
+    canonical: أرقام_أسطر
+    value_type: منطقيّ
+    description_ar: إظهار أرقام الأسطر (محرِّر الشيفرة)
+    description_en: Show line numbers (code editor)
+
+  - id: CELL_SIZE
+    canonical: حجم_خلية
+    value_type: عدد
+    description_ar: حجم الخليّة (بالبكسل) في الشبكة/الجدول
+    description_en: Cell size (px) in grid/table
+
+  - id: BOUNDS
+    canonical: حدود
+    value_type: نص
+    description_ar: حدود المنطقة (نطاق/إطار)
+    description_en: Region bounds (extent/frame)
+
+  - id: CIRCLE
+    canonical: دائرة
+    value_type: منطقيّ
+    description_ar: هل الشكل دائريّ (نحو صورة رمزيّة)
+    description_en: Whether the shape is circular (e.g. avatar)
+
+  - id: DARK
+    canonical: داكن
+    value_type: منطقيّ
+    description_ar: هل السمة داكنة
+    description_en: Whether the theme is dark
+
+  - id: THICKNESS_ALT
+    canonical: سمك
+    value_type: عدد
+    description_ar: هجاء بديل لـ«سماكة» (سمك الخطّ/الحدّ)
+    description_en: Alternate spelling of «سماكة» (line/border thickness)
+
+  - id: PAGE
+    canonical: صفحة
+    value_type: عدد
+    description_ar: رقم الصفحة (ترقيم الصفحات)
+    description_en: Page number (pagination)
+
+  - id: CODE
+    canonical: كود
+    value_type: نص
+    description_ar: نصّ الشيفرة المصدريّة (كتلة/محرِّر شيفرة)
+    description_en: Source-code text (code block/editor)
+
+  - id: LANGUAGE
+    canonical: لغة
+    value_type: نص
+    description_ar: لغة الشيفرة (للإبراز النحويّ)
+    description_en: Code language (for syntax highlighting)
+
+  - id: ICON_COLOR
+    canonical: لون_الايقونة
+    value_type: نص
+    description_ar: لون الأيقونة
+    description_en: Icon color
+
+  - id: HANDLE_COLOR
+    canonical: لون_المقبض
+    value_type: نص
+    description_ar: لون مقبض المنزلق/المفتاح
+    description_en: Slider/toggle handle color
+
+  - id: SELECTED
+    canonical: محدد
+    value_type: منطقيّ
+    description_ar: هل العنصر محدَّد (خانة اختيار/تبويب نشط)
+    description_en: Whether the element is selected (checkbox/active tab)
+
+  - id: ALT_TEXT
+    canonical: نص_بديل
+    value_type: نص
+    description_ar: النصّ البديل (وصف الصورة للوصوليّة)
+    description_en: Alternative text (image accessibility description)
+
+  - id: TYPE
+    canonical: نوع
+    value_type: نص
+    description_ar: نوع العنصر (نوع حقل الإدخال ونحوه)
+    description_en: Element type (input field type, etc.)
+
+  - id: DESCRIPTION
+    canonical: وصف
+    value_type: نص
+    description_ar: وصف نصّيّ للعنصر
+    description_en: Textual element description
+
+  # ── بدائل لاتينيّة إضافيّة (يقرؤها المُرسِّم/المولِّدات فقط) ──────────────────
+  - id: CONTENT_LATIN
+    canonical: content
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«محتوى»
+    description_en: Latin alias for «محتوى»
+
+  - id: TITLE_LATIN
+    canonical: title
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«عنوان»
+    description_en: Latin alias for «عنوان»
+
+  - id: SOURCE_LATIN
+    canonical: source
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«مصدر»
+    description_en: Latin alias for «مصدر»
+
+  - id: LANGUAGE_LATIN
+    canonical: language
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«لغة»
+    description_en: Latin alias for «لغة»
+
+  - id: ALT_LATIN
+    canonical: alt
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«نص_بديل»
+    description_en: Latin alias for «نص_بديل»
+
+  - id: MAX_LATIN
+    canonical: max
+    value_type: عدد
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«أقصى»
+    description_en: Latin alias for «أقصى»
+
+  - id: MIN_LATIN
+    canonical: min
+    value_type: عدد
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«أدنى»
+    description_en: Latin alias for «أدنى»
+
+  - id: LAT_LATIN
+    canonical: lat
+    value_type: عدد
+    latin_alias: true
+    description_ar: خطّ العرض الجغرافيّ (خريطة)
+    description_en: Geographic latitude (map)
+
+  - id: LNG_LATIN
+    canonical: lng
+    value_type: عدد
+    latin_alias: true
+    description_ar: خطّ الطول الجغرافيّ (خريطة)
+    description_en: Geographic longitude (map)
+
+  # ── بدائل لاتينيّة يقرؤها المُرسِّم/التخطيط فقط ──────────────────────────────
+  - id: SRC_LATIN
+    canonical: src
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«مسار/مصدر» (مسار الصورة)
+    description_en: Latin alias for «مسار/مصدر» (image source)
+
+  - id: VALUE_LATIN
+    canonical: value
+    value_type: عدد أو منطقيّ
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«قيمة»
+    description_en: Latin alias for «قيمة»
+
+  - id: PLACEHOLDER_LATIN
+    canonical: placeholder
+    value_type: نص
+    latin_alias: true
+    description_ar: بديل لاتينيّ لـ«تلميح»
+    description_en: Latin alias for «تلميح»
+
+  - id: SCROLL_X_LATIN
+    canonical: scroll_x
+    value_type: عدد
+    latin_alias: true
+    description_ar: إزاحة تمرير أفقيّة (مفتاح لاتينيّ داخليّ للمُرسِّم)
+    description_en: Horizontal scroll offset (renderer-internal latin key)
+
+  - id: SCROLL_Y_LATIN
+    canonical: scroll_y
+    value_type: عدد
+    latin_alias: true
+    description_ar: إزاحة تمرير رأسيّة (مفتاح لاتينيّ داخليّ للمُرسِّم)
+    description_en: Vertical scroll offset (renderer-internal latin key)
 
   # (AR) مفتاح احتياطيّ لاتينيّ يُنتجه مسار UINode (ir_builder: primaryArg ⇒ "text").
   #      يقرؤه المُرسِّم كبديل فقط؛ ليس مفتاحًا قانونيًّا يكتبه مطوّر ص.

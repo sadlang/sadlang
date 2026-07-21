@@ -19,6 +19,7 @@
  */
 
 #include "sad_ui/keyboard_processor.h"
+#include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 
 namespace sad
 {
@@ -249,8 +250,7 @@ namespace sad
             {
                 // (AR) تبديل خاصية "مفعّل" مباشرة قبل إطلاق الحدث
                 auto *mutableNode = const_cast<IRNode *>(focused);
-                const auto *onProp = focused->findProperty(
-                    "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"); // مفعّل
+                const auto *onProp = focused->findProperty(props::ENABLED); // مفعّل
                 bool isOn = false;
                 if (onProp)
                 {

@@ -23,6 +23,7 @@
 
 #include <sad_ui/ir.h>
 #include <sad_ui/ir_builder.h>
+#include <sad_ui/prop_keys.h> // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include <sad_ui/print_tree.h> // (AR) م-تحكّم: طباعة_شجرة عبر منطق المكتبة المشترك
 #include <sad_ui/layout.h>
 #include <sad_ui/platform_renderer.h>
@@ -1161,13 +1162,13 @@ void sad_app_run(SadWidget root) {
     // (AR) قراءة العنوان/الأبعاد من خصائص الجذر إن وُجدت (نظير UIBridge::run).
     //      العنوان نصٌّ فقط عمدًا (نظير UIBridge)؛ قيمةٌ غير نصّيّة تُتجاهَل صمتًا،
     //      بينما الأبعاد تقبل int64/double مرونةً لاستنتاج النوع.
-    if (const auto* p = impl->irNode->findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86")) // عنوان
+    if (const auto* p = impl->irNode->findProperty(props::TITLE)) // عنوان
         if (auto* s = std::get_if<std::string>(&p->value)) options.title = *s;
-    if (const auto* p = impl->irNode->findProperty("\xd8\xb9\xd8\xb1\xd8\xb6")) { // عرض
+    if (const auto* p = impl->irNode->findProperty(props::WIDTH)) { // عرض
         if (auto* n = std::get_if<int64_t>(&p->value)) options.width = static_cast<int>(*n);
         else if (auto* d = std::get_if<double>(&p->value)) options.width = static_cast<int>(*d);
     }
-    if (const auto* p = impl->irNode->findProperty("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9")) { // ارتفاع
+    if (const auto* p = impl->irNode->findProperty(props::HEIGHT)) { // ارتفاع
         if (auto* n = std::get_if<int64_t>(&p->value)) options.height = static_cast<int>(*n);
         else if (auto* d = std::get_if<double>(&p->value)) options.height = static_cast<int>(*d);
     }

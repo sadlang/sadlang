@@ -23,6 +23,7 @@
  */
 
 #include "sad_ui/desktop/window.h"
+#include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include "sad_ui/window_control.h" // (م-تحكّم) استهلاك عمليّات النافذة المُعلَّقة (عنوان/إغلاق)
 
 #ifdef SAD_UI_USE_SDL2
@@ -1723,10 +1724,9 @@ namespace sad
 
                 // مزامنة النص من العقدة
                 std::string currentText;
-                const auto *valProp = focusedNode_->findProperty(
-                    "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+                const auto *valProp = focusedNode_->findProperty(props::VALUE); // قيمة
                 if (!valProp)
-                    valProp = focusedNode_->findProperty("value");
+                    valProp = focusedNode_->findProperty(props::VALUE_LATIN);
                 if (valProp)
                 {
                     if (auto *s = std::get_if<std::string>(&valProp->value))
@@ -2230,10 +2230,9 @@ namespace sad
 
                 // مزامنة النص من العقدة
                 std::string currentText;
-                const auto *valProp = node->findProperty(
-                    "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+                const auto *valProp = node->findProperty(props::VALUE); // قيمة
                 if (!valProp)
-                    valProp = node->findProperty("value");
+                    valProp = node->findProperty(props::VALUE_LATIN);
                 if (valProp)
                 {
                     if (auto *s = std::get_if<std::string>(&valProp->value))

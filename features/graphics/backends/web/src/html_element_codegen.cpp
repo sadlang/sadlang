@@ -156,7 +156,7 @@ void HtmlCodegen::generateBasicElement(
 
             // لون الخلفية
             std::string bgColor = "#1E88E5";
-            const auto* bgColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9");
+            const auto* bgColorProp = node.findProperty(props::BG_COLOR);
             if (bgColorProp) {
                 if (auto* colorStr = std::get_if<std::string>(&bgColorProp->value)) {
                     bgColor = arabicColorToCSS(*colorStr);
@@ -181,15 +181,15 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Image: {
-            const auto* srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
-            if (!srcProp) srcProp = node.findProperty("src");
-            if (!srcProp) srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
-            if (!srcProp) srcProp = node.findProperty("text");
+            const auto* srcProp = node.findProperty(props::SOURCE); // مصدر
+            if (!srcProp) srcProp = node.findProperty(props::SRC_LATIN);
+            if (!srcProp) srcProp = node.findProperty(props::PATH); // مسار
+            if (!srcProp) srcProp = node.findProperty(props::TEXT_LATIN);
             std::string src = srcProp ?
                 (std::get_if<std::string>(&srcProp->value) ?
                     *std::get_if<std::string>(&srcProp->value) : "") : "";
-            const auto* altProp = node.findProperty("\xd9\x88\xd8\xb5\xd9\x81"); // وصف
-            if (!altProp) altProp = node.findProperty("alt");
+            const auto* altProp = node.findProperty(props::DESCRIPTION); // وصف
+            if (!altProp) altProp = node.findProperty(props::ALT_LATIN);
             std::string alt = altProp ?
                 (std::get_if<std::string>(&altProp->value) ?
                     *std::get_if<std::string>(&altProp->value) : "\xd8\xb5\xd9\x88\xd8\xb1\xd8\xa9") : "\xd8\xb5\xd9\x88\xd8\xb1\xd8\xa9";
@@ -198,17 +198,17 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::TextField: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
-            if (!valProp) valProp = node.findProperty("value");
+            const auto* valProp = node.findProperty(props::VALUE); // قيمة
+            if (!valProp) valProp = node.findProperty(props::VALUE_LATIN);
             std::string val = valProp ?
                 (std::get_if<std::string>(&valProp->value) ?
                     *std::get_if<std::string>(&valProp->value) : "") : "";
-            const auto* phProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
-            if (!phProp) phProp = node.findProperty("placeholder");
+            const auto* phProp = node.findProperty(props::HINT); // تلميح
+            if (!phProp) phProp = node.findProperty(props::PLACEHOLDER_LATIN);
             std::string ph = phProp ?
                 (std::get_if<std::string>(&phProp->value) ?
                     *std::get_if<std::string>(&phProp->value) : "") : "";
-            const auto* typeP = node.findProperty("\xd9\x86\xd9\x88\xd8\xb9"); // نوع
+            const auto* typeP = node.findProperty(props::TYPE); // نوع
             std::string inputType = "text";
             if (typeP) {
                 if (auto* t = std::get_if<std::string>(&typeP->value)) {
@@ -225,13 +225,13 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::TextArea: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
-            if (!valProp) valProp = node.findProperty("value");
+            const auto* valProp = node.findProperty(props::VALUE); // قيمة
+            if (!valProp) valProp = node.findProperty(props::VALUE_LATIN);
             std::string val = valProp ?
                 (std::get_if<std::string>(&valProp->value) ?
                     *std::get_if<std::string>(&valProp->value) : "") : "";
-            const auto* phProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
-            if (!phProp) phProp = node.findProperty("placeholder");
+            const auto* phProp = node.findProperty(props::HINT); // تلميح
+            if (!phProp) phProp = node.findProperty(props::PLACEHOLDER_LATIN);
             std::string ph = phProp ?
                 (std::get_if<std::string>(&phProp->value) ?
                     *std::get_if<std::string>(&phProp->value) : "") : "";
@@ -243,8 +243,8 @@ void HtmlCodegen::generateBasicElement(
 
         case UINodeType::Spacer: {
             float spacerH = 0;
-            const auto* hProp = node.findProperty("\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9");
-            if (!hProp) hProp = node.findProperty("height");
+            const auto* hProp = node.findProperty(props::HEIGHT);
+            if (!hProp) hProp = node.findProperty(props::HEIGHT_LATIN);
             if (hProp) {
                 if (auto* d = std::get_if<double>(&hProp->value)) spacerH = static_cast<float>(*d);
                 else if (auto* iv = std::get_if<int64_t>(&hProp->value)) spacerH = static_cast<float>(*iv);
@@ -257,7 +257,7 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Divider: {
-            const auto* colorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86");
+            const auto* colorProp = node.findProperty(props::COLOR);
             if (colorProp) {
                 if (auto* cs = std::get_if<std::string>(&colorProp->value)) {
                     out << i << "<hr class=\"sad-divider\" style=\"border-color:" << *cs << ";\" />\n";
@@ -269,15 +269,15 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Toggle: {
-            const auto* onProp = node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"); // مفعّل
+            const auto* onProp = node.findProperty(props::ENABLED); // مفعّل
             bool isOn = false;
             if (onProp) {
                 if (auto* b = std::get_if<bool>(&onProp->value)) isOn = *b;
                 else if (auto* s = std::get_if<std::string>(&onProp->value))
                     isOn = (*s == "true" || *s == "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad");
             }
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
             std::string label = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "") : "";
@@ -290,11 +290,11 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Slider: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
-            const auto* minProp = node.findProperty("\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89");
-            if (!minProp) minProp = node.findProperty("min");
-            const auto* maxProp = node.findProperty("\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89");
-            if (!maxProp) maxProp = node.findProperty("max");
+            const auto* valProp = node.findProperty(props::VALUE);
+            const auto* minProp = node.findProperty(props::MIN);
+            if (!minProp) minProp = node.findProperty(props::MIN_LATIN);
+            const auto* maxProp = node.findProperty(props::MAX);
+            if (!maxProp) maxProp = node.findProperty(props::MAX_LATIN);
             std::string minVal = "0", maxVal = "100", curVal = "50";
             if (minProp) { if (auto* d = std::get_if<double>(&minProp->value)) minVal = std::to_string(static_cast<int>(*d)); }
             if (maxProp) { if (auto* d = std::get_if<double>(&maxProp->value)) maxVal = std::to_string(static_cast<int>(*d)); }
@@ -305,15 +305,15 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Checkbox: {
-            const auto* onProp = node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"); // مفعّل
+            const auto* onProp = node.findProperty(props::ENABLED); // مفعّل
             bool checked = false;
             if (onProp) {
                 if (auto* b = std::get_if<bool>(&onProp->value)) checked = *b;
                 else if (auto* s = std::get_if<std::string>(&onProp->value))
                     checked = (*s == "true" || *s == "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad");
             }
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
             std::string label = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xae\xd9\x8a\xd8\xa7\xd8\xb1") : "\xd8\xae\xd9\x8a\xd8\xa7\xd8\xb1";
@@ -326,14 +326,14 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Radio: {
-            const auto* onProp = node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"); // مفعّل
+            const auto* onProp = node.findProperty(props::ENABLED); // مفعّل
             bool selected = false;
             if (onProp) {
                 if (auto* b = std::get_if<bool>(&onProp->value)) selected = *b;
             }
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            const auto* groupProp = node.findProperty("\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\xd8\xa9"); // مجموعة
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            const auto* groupProp = node.findProperty(props::GROUP); // مجموعة
             std::string groupName = groupProp ?
                 (std::get_if<std::string>(&groupProp->value) ?
                     *std::get_if<std::string>(&groupProp->value) : "group") : "group";
@@ -362,14 +362,14 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::ProgressBar: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+            const auto* valProp = node.findProperty(props::VALUE); // قيمة
             float pval = 50.0f;
             if (valProp) {
                 if (auto* d = std::get_if<double>(&valProp->value)) pval = static_cast<float>(*d);
                 else if (auto* iv = std::get_if<int64_t>(&valProp->value)) pval = static_cast<float>(*iv);
             }
-            const auto* maxProp = node.findProperty("\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89"); // أقصى
-            if (!maxProp) maxProp = node.findProperty("max");
+            const auto* maxProp = node.findProperty(props::MAX); // أقصى
+            if (!maxProp) maxProp = node.findProperty(props::MAX_LATIN);
             float pmax = 100.0f;
             if (maxProp) {
                 if (auto* d = std::get_if<double>(&maxProp->value)) pmax = static_cast<float>(*d);
@@ -381,8 +381,8 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Badge: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
             std::string badgeText = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "0") : "0";
@@ -391,8 +391,8 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Chip: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
             std::string label = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xb1\xd9\x82\xd8\xa7\xd9\x82\xd8\xa9") : "\xd8\xb1\xd9\x82\xd8\xa7\xd9\x82\xd8\xa9";
@@ -401,10 +401,10 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Avatar: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd8\xad\xd8\xb1\xd9\x81"); // حرف
-            const auto* srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
-            if (!srcProp) srcProp = node.findProperty("src");
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::CHAR); // حرف
+            const auto* srcProp = node.findProperty(props::SOURCE); // مصدر
+            if (!srcProp) srcProp = node.findProperty(props::SRC_LATIN);
             std::string initial = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd9\x85") : "\xd9\x85";
@@ -419,9 +419,9 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::FAB: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // ايقونة
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::ICON_ALT); // ايقونة
             std::string fabIcon = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "+") : "+";
@@ -437,9 +437,9 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::SnackBar: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::CONTENT); // محتوى
             std::string msg = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9") : "\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9";
@@ -448,9 +448,9 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::AppBar: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::TITLE); // عنوان
             std::string title = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xa7\xd9\x84\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86") : "\xd8\xa7\xd9\x84\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86";
@@ -459,9 +459,9 @@ void HtmlCodegen::generateBasicElement(
         }
 
         case UINodeType::Icon: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd8\xa7\xd8\xb3\xd9\x85"); // اسم
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::NAME); // اسم
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
             std::string iconName = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xe2\x98\x85") : "\xe2\x98\x85";

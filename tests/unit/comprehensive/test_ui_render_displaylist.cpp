@@ -50,6 +50,7 @@ static const std::string K_TITLE = "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86";  
 static const std::string K_CONTENT = "\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89";               // محتوى — نصّ العنصر النصّيّ (فرع Text)
 static const std::string K_TEXT = "\xd9\x86\xd8\xb5";                                          // نص — مفتاح نصّ احتياطيّ عامّ
 static const std::string K_BG = "\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9";                     // خلفية — مفتاح IR (المعدّل الرسميّ «لون_خلفية»)
+static const std::string K_WIDTH = "\xd8\xb9\xd8\xb1\xd8\xb6";                                  // عرض — عرض ثابت للعنصر
 static const std::string K_FONTSZ = "\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"; // حجم_الخط — يقرؤه renderNode (المعدّل «حجم_خط»)
 static const std::string K_GRAD_END = "\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // تدرج_نهاية — لون نهاية التدرّج (فرع Button)
 static const std::string K_VALUE = "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9";                          // قيمة — قيمة حقل النصّ (فرع TextField)
@@ -162,6 +163,9 @@ int main()
     // 4) عمود بخلفية + زرّ + نصّ.
     //    خلفية الحاوية تُرسَم مرّةً واحدة (سطر rect واحد) بعد إصلاح الرسم
     //    المزدوج في renderNode — كان الاختبار قد كشف رسمها مرّتين.
+    //    محاذاة متقاطعة RTL: الزرّ بعرض كامل (120) يبقى عند x=0، والنصّ «Hi»
+    //    الأضيق (20) يُحاذى إلى يمين العمود (x = 120 − 20 = 100) — بداية المحتوى
+    //    من اليمين في RTL (يختبر مسار المحور المتقاطع في LayoutEngine::arrange).
     SAD_TEST("عمود بأبناء وخلفية", {
         auto col = mk(UINodeType::Column);
         withStr(col, K_BG, "#eeeeee");
@@ -172,11 +176,11 @@ int main()
         col->addChild(btn);
         col->addChild(txt);
         goldenCheck("column_children", col,
-                    "rect (0.00,0.00) 120.00x68.00 #EEEEEE\n"
+                    "rect (0.00,0.00) 120.00x72.00 #EEEEEE\n"
                     "rect (1.00,1.20) 120.00x48.00 #00000033\n"
                     "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
                     "text \"Go\" (52.00,14.40) size=16.00 #FFFFFF\n"
-                    "text \"Hi\" (0.00,48.00) size=16.00 #000000\n");
+                    "text \"Hi\" (100.00,48.00) size=16.00 #000000\n");
     });
 
     // 5) بطاقة — ظلّ مزاح + خلفية دائريّة بيضاء
@@ -247,6 +251,36 @@ int main()
                        "text \"B\" (56.00,14.40) size=16.00 #FFFFFF\n");
     });
 
+    // 10و) محاذاة الصفّ المتقاطعة (عموديّة): وسط/نهاية/تمدّد. صفّ بارتفاع 100.
+    SAD_TEST("صفّ محاذاة وسط", {
+        auto row = mk(UINodeType::Row);
+        withNum(row, "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", 100.0); // ارتفاع=100
+        withStr(row, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9", "\xd9\x88\xd8\xb3\xd8\xb7"); // وسط
+        auto ch = mk(UINodeType::Container);
+        withStr(ch, K_BG, "#abcdef");
+        withNum(ch, K_WIDTH, 40.0);
+        withNum(ch, "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", 40.0); // ارتفاع=40
+        row->addChild(ch);
+        // وسط عموديّ: y = (100−40)/2 = 30. الصفّ بلا عرض صريح ينكمش لعرض المحتوى
+        // (40)، فالطفل الوحيد عند x=0 (بداية RTL داخل صندوق العرض 40).
+        goldenCheckDir("row_cross_center", row, LayoutDirection::RTL,
+                       "rect (0.00,30.00) 40.00x40.00 #ABCDEF\n");
+    });
+
+    SAD_TEST("صفّ محاذاة تمدّد", {
+        auto row = mk(UINodeType::Row);
+        withNum(row, "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", 100.0); // ارتفاع=100
+        withStr(row, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9",
+                "\xd8\xaa\xd9\x85\xd8\xaf\xd9\x91\xd8\xaf"); // تمدّد
+        auto ch = mk(UINodeType::Container);
+        withStr(ch, K_BG, "#abcdef");
+        withNum(ch, K_WIDTH, 40.0);
+        row->addChild(ch);
+        // تمدّد عموديّ: يملأ ارتفاع الصفّ 100 عند y=0 (x=0، الصفّ بعرض المحتوى 40).
+        goldenCheckDir("row_cross_stretch", row, LayoutDirection::RTL,
+                       "rect (0.00,0.00) 40.00x100.00 #ABCDEF\n");
+    });
+
     SAD_TEST("صفّ LTR", {
         auto row = mk(UINodeType::Row);
         auto a = mk(UINodeType::Button);
@@ -266,6 +300,182 @@ int main()
                        "text \"B\" (176.00,14.40) size=16.00 #FFFFFF\n");
     });
 
+    // 10ب) محاذاة عمود متقاطعة — نصّ ضيّق داخل عمود عريض: RTL يمينًا، LTR يسارًا.
+    //      يثبت أنّ المحور المتقاطع للعمود يعتمد الاتّجاه (أصل «الشاشة تبدأ من
+    //      الشمال»: كان النصّ يلتصق يسارًا في الحالتين قبل الإصلاح).
+    SAD_TEST("عمود RTL متقاطع", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        auto txt = mk(UINodeType::Text);
+        withStr(txt, K_CONTENT, "Hi");  // عرض 20 ⇒ يمينًا عند x = 200 − 20 = 180
+        col->addChild(txt);
+        goldenCheckDir("column_cross_rtl", col, LayoutDirection::RTL,
+                       "text \"Hi\" (180.00,0.00) size=16.00 #000000\n");
+    });
+
+    SAD_TEST("عمود LTR متقاطع", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        auto txt = mk(UINodeType::Text);
+        withStr(txt, K_CONTENT, "Hi");  // LTR ⇒ يسارًا عند x = 0
+        col->addChild(txt);
+        goldenCheckDir("column_cross_ltr", col, LayoutDirection::LTR,
+                       "text \"Hi\" (0.00,0.00) size=16.00 #000000\n");
+    });
+
+    // 10ب٢) محاذاة عمود صريحة: وسط ونهاية (اتّجاهيّة) + إقحام الهامش.
+    SAD_TEST("عمود محاذاة وسط", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        withStr(col, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9", "\xd9\x88\xd8\xb3\xd8\xb7"); // محاذاة=وسط
+        auto txt = mk(UINodeType::Text);
+        withStr(txt, K_CONTENT, "Hi");  // عرض 20 ⇒ وسط عند (200−20)/2 = 90
+        col->addChild(txt);
+        goldenCheckDir("column_center", col, LayoutDirection::RTL,
+                       "text \"Hi\" (90.00,0.00) size=16.00 #000000\n");
+    });
+
+    SAD_TEST("عمود محاذاة نهاية RTL", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        withStr(col, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9", "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"); // محاذاة=نهاية
+        auto txt = mk(UINodeType::Text);
+        withStr(txt, K_CONTENT, "Hi");  // نهاية في RTL = يسار المحتوى ⇒ x=0
+        col->addChild(txt);
+        goldenCheckDir("column_end_rtl", col, LayoutDirection::RTL,
+                       "text \"Hi\" (0.00,0.00) size=16.00 #000000\n");
+    });
+
+    SAD_TEST("عمود بهامش RTL", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        withNum(col, "\xd9\x87\xd8\xa7\xd9\x85\xd8\xb4", 20.0); // هامش=20
+        auto txt = mk(UINodeType::Text);
+        withStr(txt, K_CONTENT, "Hi");  // بداية RTL بهامش 20 ⇒ x = 200−20−20 = 160
+        col->addChild(txt);
+        goldenCheckDir("column_margin_rtl", col, LayoutDirection::RTL,
+                       "text \"Hi\" (160.00,20.00) size=16.00 #000000\n");
+    });
+
+    // 10ب٣) عمود موزون بحشو — الابن الموزون يملأ منطقة المحتوى (ارتفاع القيد
+    //       المنفذ 600 − حشو×2 = 580) بدءًا من y=حشو، لا 560 (كان خصم padding
+    //       مزدوجًا يُنقِصه بمقدار حشو×2). يثبت إصلاح دَين الخصم المزدوج.
+    SAD_TEST("عمود موزون بحشو", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 100.0);
+        withNum(col, "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9", 10.0); // حشوة=10
+        auto child = mk(UINodeType::Container);
+        withStr(child, K_BG, "#123456");
+        withNum(child, "\xd9\x88\xd8\xb2\xd9\x86", 1.0); // وزن=1
+        col->addChild(child);
+        // الحاوية الموزونة تملأ منطقة المحتوى الرأسيّة كاملةً: ارتفاع 580 (لا 560).
+        goldenCheckDir("column_weight_padding", col, LayoutDirection::RTL,
+                       "rect (40.00,10.00) 50.00x580.00 #123456\n");
+    });
+
+    // 10ب٤) عمود موزون بارتفاع صريح — التوزيع ضمن الارتفاع الصريح (200−حشو×2=180)
+    //       لا القيد المنفذ (كان يتجاهل الارتفاع الصريح فيملأ 580).
+    SAD_TEST("عمود موزون بارتفاع صريح", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 100.0);
+        withNum(col, "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9", 200.0); // ارتفاع=200
+        withNum(col, "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9", 10.0); // حشوة=10
+        auto child = mk(UINodeType::Container);
+        withStr(child, K_BG, "#123456");
+        withNum(child, "\xd9\x88\xd8\xb2\xd9\x86", 1.0); // وزن=1
+        col->addChild(child);
+        // الابن الموزون يملأ الارتفاع الصريح المنقوص: 200 − 20 = 180 عند y=10.
+        goldenCheckDir("column_weight_explicit_h", col, LayoutDirection::RTL,
+                       "rect (40.00,10.00) 50.00x180.00 #123456\n");
+    });
+
+    // 10ب٥) عمود محاذاة تمدّد — الابن يملأ عرض المحتوى كاملًا (لا عرضه الجوهريّ).
+    //       عرض 200، حشو 10 ⇒ عرض المحتوى 180؛ الحاوية تُرسَم بعرض 180 عند x=10.
+    SAD_TEST("عمود محاذاة تمدّد", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        withNum(col, "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9", 10.0); // حشوة=10
+        withStr(col, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9",
+                "\xd8\xaa\xd9\x85\xd8\xaf\xd9\x91\xd8\xaf"); // محاذاة=تمدّد
+        auto child = mk(UINodeType::Container);
+        withStr(child, K_BG, "#abcdef");
+        col->addChild(child);
+        // الحاوية تملأ عرض المحتوى 180 عند x=10 (لا عرضها الجوهريّ 50).
+        goldenCheckDir("column_stretch", col, LayoutDirection::RTL,
+                       "rect (10.00,10.00) 180.00x50.00 #ABCDEF\n");
+    });
+
+    // 10ب٦) تمدّد + ابن بعرض صريح — العرض الصريح يفوز (لا تمدّد)، ويُحاذى بداية RTL.
+    //       عرض العمود 200/حشو 10 ⇒ محتوى [10,190]؛ ابن عرضه الصريح 60 ⇒ يبقى 60
+    //       ويُحاذى يمين المحتوى (بداية RTL) عند x = 190−60 = 130 (لا يتمدّد لـ180).
+    SAD_TEST("تمدّد مع عرض صريح للابن", {
+        auto col = mk(UINodeType::Column);
+        withNum(col, K_WIDTH, 200.0);
+        withNum(col, "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9", 10.0); // حشوة=10
+        withStr(col, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9",
+                "\xd8\xaa\xd9\x85\xd8\xaf\xd9\x91\xd8\xaf"); // محاذاة=تمدّد
+        auto child = mk(UINodeType::Container);
+        withStr(child, K_BG, "#abcdef");
+        withNum(child, K_WIDTH, 60.0); // عرض صريح=60 ⇒ يفوز على التمدّد
+        col->addChild(child);
+        goldenCheckDir("column_stretch_explicit_child", col, LayoutDirection::RTL,
+                       "rect (130.00,10.00) 60.00x50.00 #ABCDEF\n");
+    });
+
+    // 10ج) مكدّس RTL — أبناء متراكبون يُحاذَون يمينًا (نصّ ضيّق في مكدّس عريض).
+    SAD_TEST("مكدّس RTL", {
+        auto st = mk(UINodeType::Stack);
+        withNum(st, K_WIDTH, 200.0);
+        auto txt = mk(UINodeType::Text);
+        withStr(txt, K_CONTENT, "Hi");  // عرض 20 ⇒ يمينًا عند x = 200 − 20 = 180
+        st->addChild(txt);
+        goldenCheckDir("stack_rtl", st, LayoutDirection::RTL,
+                       "text \"Hi\" (180.00,0.00) size=16.00 #000000\n");
+    });
+
+    // 10د) شبكة RTL — عكس ترتيب الأعمدة: العنصر 0 في العمود الأيمن، العنصر 1 يساره.
+    //      عرض الخليّة = قيد المنفذ/الأعمدة = 400/2 = 200؛ عكس الأعمدة ⇒ A في العمود 1
+    //      (x=200) وB في العمود 0 (x=0). (يثبت التدفّق يمين⇒يسار لا القياس المطلق.)
+    SAD_TEST("شبكة RTL", {
+        auto grid = mk(UINodeType::Grid);
+        withNum(grid, "\xd8\xa3\xd8\xb9\xd9\x85\xd8\xaf\xd8\xa9", 2.0);  // أعمدة=2
+        auto a = mk(UINodeType::Text); withStr(a, K_CONTENT, "A");
+        auto b = mk(UINodeType::Text); withStr(b, K_CONTENT, "B");
+        grid->addChild(a);
+        grid->addChild(b);
+        // عكس الأعمدة: A (العنصر 0) في العمود الأيمن x=200، B (العنصر 1) في الأيسر x=0.
+        goldenCheckDir("grid_rtl", grid, LayoutDirection::RTL,
+                       "text \"A\" (200.00,0.00) size=16.00 #000000\n"
+                       "text \"B\" (0.00,0.00) size=16.00 #000000\n");
+    });
+
+    SAD_TEST("شبكة LTR", {
+        auto grid = mk(UINodeType::Grid);
+        withNum(grid, "\xd8\xa3\xd8\xb9\xd9\x85\xd8\xaf\xd8\xa9", 2.0);
+        auto a = mk(UINodeType::Text); withStr(a, K_CONTENT, "A");
+        auto b = mk(UINodeType::Text); withStr(b, K_CONTENT, "B");
+        grid->addChild(a);
+        grid->addChild(b);
+        // LTR معكوس: A في العمود 0 (x=0)، B في العمود 1 (x=200).
+        goldenCheckDir("grid_ltr", grid, LayoutDirection::LTR,
+                       "text \"A\" (0.00,0.00) size=16.00 #000000\n"
+                       "text \"B\" (200.00,0.00) size=16.00 #000000\n");
+    });
+
+    // 10ه) التفاف RTL — عنصران على سطر واحد يتدفّقان من اليمين (الأوّل أقصى اليمين).
+    SAD_TEST("التفاف RTL", {
+        auto wrap = mk(UINodeType::Wrap);
+        withNum(wrap, K_WIDTH, 400.0);
+        auto a = mk(UINodeType::Text); withStr(a, K_CONTENT, "A");  // عرض 10
+        auto b = mk(UINodeType::Text); withStr(b, K_CONTENT, "B");  // عرض 10
+        wrap->addChild(a);
+        wrap->addChild(b);
+        // A أوّلًا أقصى اليمين: حافّته اليمنى عند 400 ⇒ x=390؛ B يساره ⇒ x=380.
+        goldenCheckDir("wrap_rtl", wrap, LayoutDirection::RTL,
+                       "text \"A\" (390.00,0.00) size=16.00 #000000\n"
+                       "text \"B\" (380.00,0.00) size=16.00 #000000\n");
+    });
+
     // 11) تمرير — حاوية ScrollView تُصدِر clip ثمّ clip-clear حول الأبناء
     SAD_TEST("تمرير وقصّ", {
         auto sv = mk(UINodeType::ScrollView);
@@ -273,7 +483,7 @@ int main()
         withStr(child, K_CONTENT, "X");
         sv->addChild(child);
         goldenCheck("scrollview_clip", sv,
-                    "clip (0.00,0.00) 10.00x20.00\n"
+                    "clip (0.00,0.00) 10.00x24.00\n"
                     "text \"X\" (0.00,0.00) size=16.00 #000000\n"
                     "clip-clear\n");
     });
@@ -293,7 +503,7 @@ int main()
         // خلفية واحدة (rect واحد) بعد إصلاح الرسم المزدوج — وهو مهمّ هنا
         // تحديدًا: الرسم المزدوج كان يراكم الألفا بصريًّا على شبه الشفّاف.
         goldenCheck("opacity_half", col,
-                    "rect (0.00,0.00) 10.00x20.00 #FF00007F\n"
+                    "rect (0.00,0.00) 10.00x24.00 #FF00007F\n"
                     "text \"T\" (0.00,0.00) size=16.00 #000000\n");
     });
 

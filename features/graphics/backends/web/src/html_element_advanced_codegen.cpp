@@ -12,6 +12,7 @@
  */
 
 #include "sad_ui/web/html_codegen.h"
+#include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include "sad_ui/color_utils.h"
 #include <optional>
 
@@ -34,9 +35,9 @@ void HtmlCodegen::generateAdvancedElement(
         // ── §11 مكونات البيانات (Data Components) ──
 
         case UINodeType::Tooltip: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::CONTENT); // محتوى
             std::string tip = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad") : "\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad";
@@ -51,7 +52,7 @@ void HtmlCodegen::generateAdvancedElement(
         case UINodeType::DataTable: {
             out << i << "<table class=\"sad-data-table\"" << style << ">\n";
             out << i << "  <thead><tr>\n";
-            const auto* colsProp = node.findProperty("columns");
+            const auto* colsProp = node.findProperty(props::COLUMNS_LATIN);
             if (colsProp) {
                 if (auto* cols = std::get_if<std::string>(&colsProp->value))
                     out << i << "    <th>" << *cols << "</th>\n";
@@ -136,9 +137,9 @@ void HtmlCodegen::generateAdvancedElement(
 
         case UINodeType::RichText: {
             out << i << "<div class=\"sad-rich-text\" contenteditable=\"false\"" << style << ">\n";
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::CONTENT); // محتوى
             if (textProp) {
                 if (auto* text = std::get_if<std::string>(&textProp->value))
                     out << i << "  " << *text << "\n";
@@ -152,9 +153,9 @@ void HtmlCodegen::generateAdvancedElement(
 
         case UINodeType::Markdown: {
             out << i << "<div class=\"sad-markdown\"" << style << ">\n";
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::CONTENT); // محتوى
             if (textProp) {
                 if (auto* text = std::get_if<std::string>(&textProp->value))
                     out << i << "  <pre>" << *text << "</pre>\n";
@@ -164,17 +165,17 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::CodeBlock: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
-            if (!textProp) textProp = node.findProperty("\xd9\x83\xd9\x88\xd8\xaf"); // كود
-            const auto* langProp = node.findProperty("language");
-            if (!langProp) langProp = node.findProperty("\xd9\x84\xd8\xba\xd8\xa9"); // لغة
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::CONTENT); // محتوى
+            if (!textProp) textProp = node.findProperty(props::CODE); // كود
+            const auto* langProp = node.findProperty(props::LANGUAGE_LATIN);
+            if (!langProp) langProp = node.findProperty(props::LANGUAGE); // لغة
             std::string lang = langProp ?
                 (std::get_if<std::string>(&langProp->value) ?
                     *std::get_if<std::string>(&langProp->value) : "") : "";
             // تحقق من خاصية أرقام_أسطر
-            const auto* lineNumProp = node.findProperty("\xd8\xa3\xd8\xb1\xd9\x82\xd8\xa7\xd9\x85_\xd8\xa3\xd8\xb3\xd8\xb7\xd8\xb1");
+            const auto* lineNumProp = node.findProperty(props::LINE_NUMBERS);
             bool showLineNums = true;
             if (lineNumProp) {
                 if (auto* b = std::get_if<bool>(&lineNumProp->value)) showLineNums = *b;
@@ -206,7 +207,7 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::AudioPlayer: {
-            const auto* srcProp = node.findProperty("src");
+            const auto* srcProp = node.findProperty(props::SRC_LATIN);
             std::string src = srcProp ?
                 (std::get_if<std::string>(&srcProp->value) ?
                     *std::get_if<std::string>(&srcProp->value) : "") : "";
@@ -259,9 +260,9 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::Expandable: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::TITLE); // عنوان
             std::string title = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb9") : "\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb9";
@@ -275,9 +276,9 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::Collapsible: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::TITLE); // عنوان
             std::string title = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "\xd8\xb7\xd9\x8a") : "\xd8\xb7\xd9\x8a";
@@ -331,7 +332,7 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::TimePicker: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
+            const auto* valProp = node.findProperty(props::VALUE);
             std::string timeVal;
             if (valProp) { if (auto* s = std::get_if<std::string>(&valProp->value)) timeVal = *s; }
             out << i << "<label class=\"sad-time-picker-label\">\n";
@@ -343,7 +344,7 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::DatePicker: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
+            const auto* valProp = node.findProperty(props::VALUE);
             std::string dateVal;
             if (valProp) { if (auto* s = std::get_if<std::string>(&valProp->value)) dateVal = *s; }
             out << i << "<label class=\"sad-date-picker-label\">\n";
@@ -355,7 +356,7 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::Calendar: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
+            const auto* valProp = node.findProperty(props::VALUE);
             std::string calVal;
             if (valProp) { if (auto* s = std::get_if<std::string>(&valProp->value)) calVal = *s; }
             out << i << "<div class=\"sad-calendar-wrapper\"" << style << ">\n";
@@ -366,8 +367,8 @@ void HtmlCodegen::generateAdvancedElement(
         }
 
         case UINodeType::ColorPicker: {
-            const auto* valProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9");
-            if (!valProp) valProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86");
+            const auto* valProp = node.findProperty(props::VALUE);
+            if (!valProp) valProp = node.findProperty(props::COLOR);
             std::string colorVal = "#000000";
             if (valProp) { if (auto* s = std::get_if<std::string>(&valProp->value)) colorVal = *s; }
             out << i << "<label class=\"sad-color-picker-label\">\n";
@@ -495,9 +496,9 @@ void HtmlCodegen::generateNavElement(
         }
 
         case UINodeType::Section: {
-            const auto* textProp = node.findProperty("text");
-            if (!textProp) textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
-            if (!textProp) textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+            const auto* textProp = node.findProperty(props::TEXT_LATIN);
+            if (!textProp) textProp = node.findProperty(props::TEXT); // نص
+            if (!textProp) textProp = node.findProperty(props::TITLE); // عنوان
             std::string title = textProp ?
                 (std::get_if<std::string>(&textProp->value) ?
                     *std::get_if<std::string>(&textProp->value) : "") : "";
@@ -541,8 +542,8 @@ void HtmlCodegen::generateNavElement(
         }
 
         case UINodeType::MapView: {
-            const auto* latProp = node.findProperty("lat");
-            const auto* lngProp = node.findProperty("lng");
+            const auto* latProp = node.findProperty(props::LAT_LATIN);
+            const auto* lngProp = node.findProperty(props::LNG_LATIN);
             std::string lat = "24.7136", lng = "46.6753";
             if (latProp) { if (auto* d = std::get_if<double>(&latProp->value)) lat = std::to_string(*d); }
             if (lngProp) { if (auto* d = std::get_if<double>(&lngProp->value)) lng = std::to_string(*d); }
@@ -556,7 +557,7 @@ void HtmlCodegen::generateNavElement(
         }
 
         case UINodeType::WebView: {
-            const auto* srcProp = node.findProperty("src");
+            const auto* srcProp = node.findProperty(props::SRC_LATIN);
             std::string src = srcProp ?
                 (std::get_if<std::string>(&srcProp->value) ?
                     *std::get_if<std::string>(&srcProp->value) : "about:blank") : "about:blank";
@@ -565,7 +566,7 @@ void HtmlCodegen::generateNavElement(
         }
 
         case UINodeType::VideoPlayer: {
-            const auto* srcProp = node.findProperty("src");
+            const auto* srcProp = node.findProperty(props::SRC_LATIN);
             std::string src = srcProp ?
                 (std::get_if<std::string>(&srcProp->value) ?
                     *std::get_if<std::string>(&srcProp->value) : "") : "";

@@ -50,6 +50,8 @@ namespace sad
             inline constexpr const char *WIDTH = "\xd8\xb9\xd8\xb1\xd8\xb6";
             // (AR) الارتفاع الثابت (بالبكسل) لصندوق المقاس — «ارتفاع».
             inline constexpr const char *HEIGHT = "\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9";
+            // (AR) المحاذاة. للنصّ: «يمين»/«وسط» (أو right/center) — وإلّا يُحاذى النصّ العربيّ يمينًا تلقائيًّا. لحاويات العمود/الصفّ (المحور المتقاطع): «بداية» (افتراضيّ، اتّجاهيّ: العمود RTL يمينًا واللاتينيّ يسارًا، الصفّ أعلى) · «وسط» · «نهاية» (العمود يسار المحتوى في RTL، الصفّ أسفل) · «تمدّد» (يملأ المحور المتقاطع؛ يتخطّاه الابن ذو المقاس الصريح في ذلك المحور). — «محاذاة».
+            inline constexpr const char *ALIGN = "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9";
             // (AR) الحشو الداخليّ للحاوية (بالبكسل) — إزاحة الأبناء داخل حدود العنصر — «حشوة».
             inline constexpr const char *PADDING = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9";
             // (AR) الحشو العلويّ للحاوية (بالبكسل) — منطقيّ عموديّ ثابت — «حشوة_أعلى».
@@ -60,6 +62,142 @@ namespace sad
             inline constexpr const char *PADDING_START = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9_\xd8\xa8\xd8\xaf\xd8\xa7\xd9\x8a\xd8\xa9";
             // (AR) حشو جهة النهاية (بالبكسل) — منطقيّ واعٍ بالـRTL (end=يسار) — «حشوة_نهاية».
             inline constexpr const char *PADDING_END = "\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9";
+            // (AR) الهامش الخارجيّ (بالبكسل) — يُقحِم منطقة محتوى الحاوية — «هامش».
+            inline constexpr const char *MARGIN = "\xd9\x87\xd8\xa7\xd9\x85\xd8\xb4";
+            // (AR) التباعد (بالبكسل) بين أبناء العمود/الصفّ المتتالين — «تباعد».
+            inline constexpr const char *SPACING = "\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb9\xd8\xaf";
+            // (AR) وزن المرونة (flex) — حصّة الابن من المساحة المتبقّية على المحور الرئيسيّ — «وزن».
+            inline constexpr const char *WEIGHT = "\xd9\x88\xd8\xb2\xd9\x86";
+            // (AR) عدد أعمدة الشبكة (Grid) — «أعمدة».
+            inline constexpr const char *COLUMNS = "\xd8\xa3\xd8\xb9\xd9\x85\xd8\xaf\xd8\xa9";
+            // (AR) حجم خطّ النصّ (بالبكسل) — يؤثّر على قياس النصّ عرضًا وارتفاعًا — «حجم_خط».
+            inline constexpr const char *FONT_SIZE = "\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7";
+            // (AR) هجاء بديل لـ«حجم_خط» (بأل التعريف) — مقبول في القياس — «حجم_الخط».
+            inline constexpr const char *FONT_SIZE_ALT = "\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7";
+            // (AR) اسم مختصر لحجم الخطّ (بديل لـ«حجم_خط») — «حجم».
+            inline constexpr const char *SIZE = "\xd8\xad\xd8\xac\xd9\x85";
+            // (AR) بديل لاتينيّ لـ«وزن» (flex) — يقرؤه التخطيط فقط — «flex».
+            inline constexpr const char *FLEX_LATIN = "flex";
+            // (AR) بديل لاتينيّ لـ«أعمدة» — يقرؤه التخطيط فقط — «columns».
+            inline constexpr const char *COLUMNS_LATIN = "columns";
+            // (AR) بديل لاتينيّ لـ«عرض» — يقرؤه التخطيط فقط — «width».
+            inline constexpr const char *WIDTH_LATIN = "width";
+            // (AR) بديل لاتينيّ لـ«ارتفاع» — يقرؤه التخطيط فقط — «height».
+            inline constexpr const char *HEIGHT_LATIN = "height";
+            // (AR) اللون العامّ للعنصر (سلسلة سداسيّة #RRGGBB أو اسم لون) — «لون».
+            inline constexpr const char *COLOR = "\xd9\x84\xd9\x88\xd9\x86";
+            // (AR) لون النصّ — «لون_النص».
+            inline constexpr const char *TEXT_COLOR = "\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5";
+            // (AR) هجاء بديل لـ«لون_النص» (بلا أل) — «لون_نص».
+            inline constexpr const char *TEXT_COLOR_ALT = "\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb5";
+            // (AR) لون الخلفية (مفتاح مختصر) — «خلفية».
+            inline constexpr const char *BG = "\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9";
+            // (AR) لون خلفية العنصر (المعدّل الرسميّ) — «لون_خلفية».
+            inline constexpr const char *BG_COLOR = "\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9";
+            // (AR) لون الحالة النشطة (مفتاح/زرّ مفعَّل) — «لون_نشط».
+            inline constexpr const char *ACTIVE_COLOR = "\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb4\xd8\xb7";
+            // (AR) لون الحدّ الخارجيّ — «حد_لون».
+            inline constexpr const char *BORDER_COLOR = "\xd8\xad\xd8\xaf_\xd9\x84\xd9\x88\xd9\x86";
+            // (AR) نصف قطر تدوير الزوايا (بالبكسل) — «زوايا».
+            inline constexpr const char *CORNER_RADIUS = "\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7";
+            // (AR) نصف القطر (للدائرة/التدوير) — «نصف_قطر».
+            inline constexpr const char *RADIUS = "\xd9\x86\xd8\xb5\xd9\x81_\xd9\x82\xd8\xb7\xd8\xb1";
+            // (AR) سماكة الخطّ/الحدّ (بالبكسل) — «سماكة».
+            inline constexpr const char *THICKNESS = "\xd8\xb3\xd9\x85\xd8\xa7\xd9\x83\xd8\xa9";
+            // (AR) الشفافية (0.0 شفّاف تمامًا … 1.0 معتِم) — «شفافية».
+            inline constexpr const char *OPACITY = "\xd8\xb4\xd9\x81\xd8\xa7\xd9\x81\xd9\x8a\xd8\xa9";
+            // (AR) مواصفة الظلّ (وجوده/لونه) — «ظل».
+            inline constexpr const char *SHADOW = "\xd8\xb8\xd9\x84";
+            // (AR) لون بداية التدرّج — «تدرج».
+            inline constexpr const char *GRADIENT = "\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac";
+            // (AR) لون نهاية التدرّج — «تدرج_نهاية».
+            inline constexpr const char *GRADIENT_END = "\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9";
+            // (AR) الارتفاع البصريّ (شدّة الظلّ) — «رفع».
+            inline constexpr const char *ELEVATION = "\xd8\xb1\xd9\x81\xd8\xb9";
+            // (AR) هل العنصر مفعَّل (تفاعليّ) أم مُعطَّل — «مفعل».
+            inline constexpr const char *ENABLED = "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84";
+            // (AR) القيمة القصوى (لشريط التقدّم/المنزلق) — «المجموع».
+            inline constexpr const char *TOTAL = "\xd8\xa7\xd9\x84\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9";
+            // (AR) القيمة الحاليّة (لشريط التقدّم/المنزلق) — «الحالي».
+            inline constexpr const char *CURRENT = "\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a";
+            // (AR) الإزاحة الأفقيّة (بالبكسل) — «إزاحة_س».
+            inline constexpr const char *OFFSET_X = "\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb3";
+            // (AR) الإزاحة الرأسيّة (بالبكسل) — «إزاحة_ص».
+            inline constexpr const char *OFFSET_Y = "\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb5";
+            // (AR) هجاء بديل لـ«أيقونة» (بألف بلا همزة) — اسم الأيقونة — «ايقونة».
+            inline constexpr const char *ICON_ALT = "\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9";
+            // (AR) رمز نصّيّ (مثل محرف الأيقونة) — «رمز».
+            inline constexpr const char *SYMBOL = "\xd8\xb1\xd9\x85\xd8\xb2";
+            // (AR) محرف واحد يُعرَض (نحو أوّل حرف من عنصر) — «حرف».
+            inline constexpr const char *CHAR = "\xd8\xad\xd8\xb1\xd9\x81";
+            // (AR) مسار المورد (صورة ونحوها) — «مسار».
+            inline constexpr const char *PATH = "\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1";
+            // (AR) اسم مجموعة العنصر (أزرار الاختيار المترابطة ونحوها) — «مجموعة».
+            inline constexpr const char *GROUP = "\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\xd8\xa9";
+            // (AR) القيمة الدنيا (منزلق/مدى) — «أدنى».
+            inline constexpr const char *MIN = "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89";
+            // (AR) القيمة القصوى (منزلق/مدى) — «أقصى».
+            inline constexpr const char *MAX = "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89";
+            // (AR) المجموع الكلّيّ (بديل دلاليّ لـ«المجموع») — «إجمالي».
+            inline constexpr const char *TOTAL_SUM = "\xd8\xa5\xd8\xac\xd9\x85\xd8\xa7\xd9\x84\xd9\x8a";
+            // (AR) إظهار أرقام الأسطر (محرِّر الشيفرة) — «أرقام_أسطر».
+            inline constexpr const char *LINE_NUMBERS = "\xd8\xa3\xd8\xb1\xd9\x82\xd8\xa7\xd9\x85_\xd8\xa3\xd8\xb3\xd8\xb7\xd8\xb1";
+            // (AR) حجم الخليّة (بالبكسل) في الشبكة/الجدول — «حجم_خلية».
+            inline constexpr const char *CELL_SIZE = "\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd9\x84\xd9\x8a\xd8\xa9";
+            // (AR) حدود المنطقة (نطاق/إطار) — «حدود».
+            inline constexpr const char *BOUNDS = "\xd8\xad\xd8\xaf\xd9\x88\xd8\xaf";
+            // (AR) هل الشكل دائريّ (نحو صورة رمزيّة) — «دائرة».
+            inline constexpr const char *CIRCLE = "\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd8\xa9";
+            // (AR) هل السمة داكنة — «داكن».
+            inline constexpr const char *DARK = "\xd8\xaf\xd8\xa7\xd9\x83\xd9\x86";
+            // (AR) هجاء بديل لـ«سماكة» (سمك الخطّ/الحدّ) — «سمك».
+            inline constexpr const char *THICKNESS_ALT = "\xd8\xb3\xd9\x85\xd9\x83";
+            // (AR) رقم الصفحة (ترقيم الصفحات) — «صفحة».
+            inline constexpr const char *PAGE = "\xd8\xb5\xd9\x81\xd8\xad\xd8\xa9";
+            // (AR) نصّ الشيفرة المصدريّة (كتلة/محرِّر شيفرة) — «كود».
+            inline constexpr const char *CODE = "\xd9\x83\xd9\x88\xd8\xaf";
+            // (AR) لغة الشيفرة (للإبراز النحويّ) — «لغة».
+            inline constexpr const char *LANGUAGE = "\xd9\x84\xd8\xba\xd8\xa9";
+            // (AR) لون الأيقونة — «لون_الايقونة».
+            inline constexpr const char *ICON_COLOR = "\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9";
+            // (AR) لون مقبض المنزلق/المفتاح — «لون_المقبض».
+            inline constexpr const char *HANDLE_COLOR = "\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa8\xd8\xb6";
+            // (AR) هل العنصر محدَّد (خانة اختيار/تبويب نشط) — «محدد».
+            inline constexpr const char *SELECTED = "\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf";
+            // (AR) النصّ البديل (وصف الصورة للوصوليّة) — «نص_بديل».
+            inline constexpr const char *ALT_TEXT = "\xd9\x86\xd8\xb5_\xd8\xa8\xd8\xaf\xd9\x8a\xd9\x84";
+            // (AR) نوع العنصر (نوع حقل الإدخال ونحوه) — «نوع».
+            inline constexpr const char *TYPE = "\xd9\x86\xd9\x88\xd8\xb9";
+            // (AR) وصف نصّيّ للعنصر — «وصف».
+            inline constexpr const char *DESCRIPTION = "\xd9\x88\xd8\xb5\xd9\x81";
+            // (AR) بديل لاتينيّ لـ«محتوى» — «content».
+            inline constexpr const char *CONTENT_LATIN = "content";
+            // (AR) بديل لاتينيّ لـ«عنوان» — «title».
+            inline constexpr const char *TITLE_LATIN = "title";
+            // (AR) بديل لاتينيّ لـ«مصدر» — «source».
+            inline constexpr const char *SOURCE_LATIN = "source";
+            // (AR) بديل لاتينيّ لـ«لغة» — «language».
+            inline constexpr const char *LANGUAGE_LATIN = "language";
+            // (AR) بديل لاتينيّ لـ«نص_بديل» — «alt».
+            inline constexpr const char *ALT_LATIN = "alt";
+            // (AR) بديل لاتينيّ لـ«أقصى» — «max».
+            inline constexpr const char *MAX_LATIN = "max";
+            // (AR) بديل لاتينيّ لـ«أدنى» — «min».
+            inline constexpr const char *MIN_LATIN = "min";
+            // (AR) خطّ العرض الجغرافيّ (خريطة) — «lat».
+            inline constexpr const char *LAT_LATIN = "lat";
+            // (AR) خطّ الطول الجغرافيّ (خريطة) — «lng».
+            inline constexpr const char *LNG_LATIN = "lng";
+            // (AR) بديل لاتينيّ لـ«مسار/مصدر» (مسار الصورة) — «src».
+            inline constexpr const char *SRC_LATIN = "src";
+            // (AR) بديل لاتينيّ لـ«قيمة» — «value».
+            inline constexpr const char *VALUE_LATIN = "value";
+            // (AR) بديل لاتينيّ لـ«تلميح» — «placeholder».
+            inline constexpr const char *PLACEHOLDER_LATIN = "placeholder";
+            // (AR) إزاحة تمرير أفقيّة (مفتاح لاتينيّ داخليّ للمُرسِّم) — «scroll_x».
+            inline constexpr const char *SCROLL_X_LATIN = "scroll_x";
+            // (AR) إزاحة تمرير رأسيّة (مفتاح لاتينيّ داخليّ للمُرسِّم) — «scroll_y».
+            inline constexpr const char *SCROLL_Y_LATIN = "scroll_y";
             // (AR) بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط — «text».
             inline constexpr const char *TEXT_LATIN = "text";
         } // namespace props

@@ -200,7 +200,7 @@ namespace sad
                     out << i << "VStack";
 
                     // التباعد
-                    const auto *spacingProp = node.findProperty("تباعد");
+                    const auto *spacingProp = node.findProperty(props::SPACING);
                     if (spacingProp)
                     {
                         if (auto *v = std::get_if<double>(&spacingProp->value))
@@ -221,7 +221,7 @@ namespace sad
                 {
                     out << i << "HStack";
 
-                    const auto *spacingProp = node.findProperty("تباعد");
+                    const auto *spacingProp = node.findProperty(props::SPACING);
                     if (spacingProp)
                     {
                         if (auto *v = std::get_if<double>(&spacingProp->value))
@@ -264,7 +264,7 @@ namespace sad
 
                     // لون الخلفية
                     std::string buttonColor = "Color.accentColor";
-                    const auto *bgColorProp = node.findProperty("لون_خلفية");
+                    const auto *bgColorProp = node.findProperty(props::BG_COLOR);
                     if (bgColorProp)
                     {
                         if (auto *colorStr = std::get_if<std::string>(&bgColorProp->value))
@@ -286,15 +286,15 @@ namespace sad
                 case UINodeType::Image:
                 {
                     // قراءة مصدر الصورة: مصدر ، src ، source ، text
-                    const auto *srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
+                    const auto *srcProp = node.findProperty(props::SOURCE); // مصدر
                     if (!srcProp)
-                        srcProp = node.findProperty("src");
+                        srcProp = node.findProperty(props::SRC_LATIN);
                     if (!srcProp)
-                        srcProp = node.findProperty("source");
+                        srcProp = node.findProperty(props::SOURCE_LATIN);
                     if (!srcProp)
-                        srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
+                        srcProp = node.findProperty(props::PATH); // مسار
                     if (!srcProp)
-                        srcProp = node.findProperty("text");
+                        srcProp = node.findProperty(props::TEXT_LATIN);
                     std::string src = "photo";
                     bool isRemote = false;
                     if (srcProp)
@@ -333,8 +333,8 @@ namespace sad
                 case UINodeType::Spacer:
                 {
                     out << i << "Spacer()\n";
-                    const auto *hProp = node.findProperty("ارتفاع");
-                    const auto *wProp = node.findProperty("عرض");
+                    const auto *hProp = node.findProperty(props::HEIGHT);
+                    const auto *wProp = node.findProperty(props::WIDTH);
                     if (hProp || wProp)
                     {
                         out << i << ".frame(";
@@ -385,9 +385,9 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *labelProp = node.findProperty("text");
+                    const auto *labelProp = node.findProperty(props::TEXT_LATIN);
                     if (!labelProp)
-                        labelProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                        labelProp = node.findProperty(props::TEXT); // نص
                     std::string label = "\"\"";
                     if (labelProp)
                     {
@@ -412,9 +412,9 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *placeProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                    const auto *placeProp = node.findProperty(props::HINT); // تلميح
                     if (!placeProp)
-                        placeProp = node.findProperty("placeholder");
+                        placeProp = node.findProperty(props::PLACEHOLDER_LATIN);
                     std::string placeholder = "\"\"";
                     if (placeProp)
                     {
@@ -438,8 +438,8 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *minP = node.findProperty("\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89"); // أدنى
-                    const auto *maxP = node.findProperty("\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89"); // أقصى
+                    const auto *minP = node.findProperty(props::MIN); // أدنى
+                    const auto *maxP = node.findProperty(props::MAX); // أقصى
                     std::string minV = "0", maxV = "1";
                     if (minP)
                     {
@@ -469,9 +469,9 @@ namespace sad
                             break;
                         }
                     }
-                    const auto *labelProp = node.findProperty("text");
+                    const auto *labelProp = node.findProperty(props::TEXT_LATIN);
                     if (!labelProp)
-                        labelProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                        labelProp = node.findProperty(props::TEXT); // نص
                     std::string label = "\"\"";
                     if (labelProp)
                     {
@@ -563,7 +563,7 @@ namespace sad
 
                 case UINodeType::AppBar:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string title = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "العنوان") : "العنوان";
                     out << i << "// AppBar — يُستخدم عبر .navigationTitle\n";
                     out << i << "Text(\"" << title << "\")\n";
@@ -695,7 +695,7 @@ namespace sad
 
                 case UINodeType::FAB:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string label = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "+") : "+";
                     out << i << "Button(action: {}) {\n";
                     out << i << "    Image(systemName: \"plus\")\n";
@@ -712,7 +712,7 @@ namespace sad
 
                 case UINodeType::SnackBar:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string msg = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "رسالة") : "رسالة";
                     out << i << "HStack {\n";
                     out << i << "    Text(\"" << msg << "\")\n";
@@ -740,7 +740,7 @@ namespace sad
 
                 case UINodeType::Chip:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string label = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "رقاقة") : "رقاقة";
                     out << i << "Text(\"" << label << "\")\n";
                     out << i << "    .padding(.horizontal, 12)\n";
@@ -767,7 +767,7 @@ namespace sad
 
                 case UINodeType::Icon:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string iconName = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "star.fill") : "star.fill";
                     out << i << "Image(systemName: \"" << iconName << "\")\n";
                     generateViewModifiers(out, node, indentLevel);
@@ -917,7 +917,7 @@ namespace sad
 
                 case UINodeType::RichText:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << i << "Text(AttributedString(\"" << text << "\"))\n";
                     generateViewModifiers(out, node, indentLevel);
@@ -926,7 +926,7 @@ namespace sad
 
                 case UINodeType::Markdown:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << i << "Text(try! AttributedString(markdown: \"" << text << "\"))\n";
                     generateViewModifiers(out, node, indentLevel);
@@ -935,7 +935,7 @@ namespace sad
 
                 case UINodeType::CodeBlock:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string text = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << i << "Text(\"" << text << "\")\n"
                         << i << "    .font(.system(.body, design: .monospaced))\n"
@@ -1012,7 +1012,7 @@ namespace sad
                 case UINodeType::Expandable:
                 case UINodeType::Collapsible:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string title = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "عنصر") : "عنصر";
                     out << i << "DisclosureGroup(\"" << title << "\") {\n";
                     for (const auto &child : node.getChildren())
@@ -1237,7 +1237,7 @@ namespace sad
 
                 case UINodeType::Section:
                 {
-                    const auto *textProp = node.findProperty("text");
+                    const auto *textProp = node.findProperty(props::TEXT_LATIN);
                     std::string header = textProp ? (std::get_if<std::string>(&textProp->value) ? *std::get_if<std::string>(&textProp->value) : "") : "";
                     out << i << "Section(\"" << header << "\") {\n";
                     for (const auto &child : node.getChildren())
