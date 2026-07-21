@@ -355,6 +355,15 @@ SOT_CHECK_GUARDS = (
         "script": "check_yaml_desc_hash.py",
         "args": (),
     },
+    {
+        # (AR) تغطية معجم آبلتات sad-repl مقابل مقام busybox defconfig المثبَّت: لا
+        #      exec ميّت (ليس آبلتًا حقيقيًّا) ولا فجوة (آبلت defconfig بلا اسم عربيّ).
+        # (EN) sad-repl applet lexicon coverage vs the pinned busybox defconfig
+        #      denominator: no dead exec, no uncovered defconfig applet.
+        "name": "applet_coverage",
+        "script": "check_applet_coverage.py",
+        "args": (),
+    },
 )
 
 
