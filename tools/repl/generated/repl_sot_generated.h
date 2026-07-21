@@ -149,13 +149,24 @@ struct AppletEntry {
     const char *arabic;
     const char *exec;
     const char *descAr;
+    const char *arabicNorm;  // (AR) الاسم مطبَّعًا (L2) للمطابقة المتسامحة / L2-normalized name
 };
 
 extern const AppletEntry kApplets[];
 extern const std::size_t kAppletsCount;
 
+/// (AR) تطبيع عربيّ خفيف (L2): يجرّد التشكيل/التطويل ويطوي همزات الألف (أإآٱ⇒ا).
+///      يطابق normalize_arabic في scripts/codegen/_lib/emit.py حرفًا-بحرف.
+/// (EN) Light Arabic normalization (L2): strips tashkeel/tatweel and folds
+///      alef-hamza forms; matches _lib/emit.py's normalize_arabic byte-for-byte.
+std::string normalizeArabic(std::string_view arabic);
+
 /// (AR) يترجم اسمًا عربيًّا صريحًا إلى برنامج التنفيذ؛ nullptr إن لم يُعرَّف (فيبقى الاسم كما هو).
-/// (EN) translates an explicit Arabic name to its exec program; nullptr if undefined (kept as-is).
+///      مطابقةٌ ثنائيّة الطبقة: تطابقٌ بايتيّ تامّ أوّلًا (سلوكٌ محفوظ)، ثمّ تطابقٌ مطبَّع
+///      متسامح (يقبل نسيان الشدّة/همزة الألف). أسماء المعجم لا تتصادم تحت التطبيع (حارس).
+/// (EN) translates an explicit Arabic name to its exec; nullptr if undefined.
+///      Two-tier: exact byte match first (behavior preserved), then tolerant
+///      normalized match. Lexicon names are collision-free under normalization (guarded).
 const char *appletExec(std::string_view arabic);
 
 /// (AR) يعيد مدخل المعجم كاملًا لاسمٍ عربيّ صريح (لقراءة descAr)؛ nullptr إن لم يُعرَّف.

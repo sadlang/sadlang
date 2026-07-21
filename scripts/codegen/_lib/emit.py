@@ -72,6 +72,34 @@ def vector_literal(items = None):
     return '{' + ', '.join(cpp_string_literal(i) for i in items) + '}'
 
 
+def normalize_arabic(s):
+    '''
+    (AR) تطبيع عربيّ خفيف (مستوى L2) لمطابقة متسامحة لأسماء الآبلتات في الموزِّع:
+         (١) تجريد التشكيل والتطويل: الحركات U+064B..U+0652 (فتحتان..سكون) + الشدّة
+             + الألف الخنجريّة U+0670 + التطويل U+0640.
+         (٢) طيّ همزات الألف: أ/إ/آ/ٱ ⇒ ا (U+0627).
+         يغلق دَينَي الموزِّع الموثَّقَين: نسيان الشدّة (ملفّ⇒ملف) واختلاف همزة الألف
+         (أذن⇔إذن). محافظ عمدًا — لا يطوي ة/ى/ؤ/ئ (تجنّب مطابقة دلاليًّا خاطئة).
+         **يجب أن يطابق حرفًا-بحرف دالّةَ normalizeArabic C++ المولَّدة في
+         repl_sot_generated.cpp** (كلاهما يعمل على نقاط الترميز بنفس المجموعات).
+
+    (EN) Light Arabic normalization (L2) for tolerant applet-name matching:
+         strip tashkeel/tatweel (U+064B..U+0652, U+0670, U+0640) and fold
+         alef-hamza forms (أإآٱ ⇒ ا). Closes the two documented dispatcher debts
+         (missing shadda; alef-hamza variance). MUST match the generated C++
+         normalizeArabic byte-for-byte (same codepoint sets).
+    '''
+    out = []
+    for ch in s:
+        cp = ord(ch)
+        if 0x064B <= cp <= 0x0652 or cp == 0x0670 or cp == 0x0640:
+            continue
+        if cp in (0x0623, 0x0625, 0x0622, 0x0671):
+            cp = 0x0627
+        out.append(chr(cp))
+    return ''.join(out)
+
+
 def write_if_changed(path = None, content = None):
     '''
     (AR) لا يُحدِّث الملف إن لم يتغير المحتوى — يحفظ ctime ويتجنب إعادة بناء CMake.

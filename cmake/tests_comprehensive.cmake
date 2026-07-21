@@ -304,6 +304,28 @@ set_tests_properties("Comprehensive_test_arabic_shaper_freestanding"
     PROPERTIES TIMEOUT 60 LABELS "Unit")
 message(STATUS "  ✅ test_arabic_shaper_freestanding")
 
+# (AR) اختبار المطابقة المتسامحة لموزِّع آبلتات sad-repl (normalizeArabic + appletExec
+#      ثنائيّ الطبقة). يصرّف المولَّد repl_sot_generated.cpp مباشرةً — منطق نصّيّ نقيّ
+#      (لا execvp/busybox) فيعمل على كلّ منصّة CI.
+# (EN) Tolerant-matching test for the sad-repl applet dispatcher; compiles the
+#      generated SoT directly (pure string logic, no busybox) — runs on all CI.
+add_executable(test_applet_normalize
+    ${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/test_applet_normalize.cpp
+    ${CMAKE_SOURCE_DIR}/tools/repl/generated/repl_sot_generated.cpp)
+target_include_directories(test_applet_normalize PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/repl/generated)
+target_compile_features(test_applet_normalize PRIVATE cxx_std_17)
+if(MSVC)
+    target_compile_options(test_applet_normalize PRIVATE /W3 /utf-8 /FS)
+else()
+    target_compile_options(test_applet_normalize PRIVATE -Wall -Wextra)
+endif()
+add_test(NAME "Comprehensive_test_applet_normalize"
+         COMMAND test_applet_normalize)
+set_tests_properties("Comprehensive_test_applet_normalize"
+    PROPERTIES TIMEOUT 60 LABELS "Unit")
+message(STATUS "  ✅ test_applet_normalize")
+
 # ──────────────────────────────────────────────────────────────────────
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
 # ──────────────────────────────────────────────────────────────────────

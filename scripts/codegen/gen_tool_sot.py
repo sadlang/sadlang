@@ -41,7 +41,7 @@ _codegen_dir = str(Path(__file__).parent)
 if _codegen_dir not in sys.path:
     sys.path.insert(0, _codegen_dir)
 
-from _lib.emit import cpp_string_literal, write_if_changed
+from _lib.emit import cpp_string_literal, write_if_changed, normalize_arabic
 from _lib.loader import load_yaml, load_schema, validate_schema
 
 # (AR) خرائط ثابتة — لا حرفيّات مبعثرة داخل منطق التوليد نفسه.
@@ -308,13 +308,24 @@ struct AppletEntry {
     const char *arabic;
     const char *exec;
     const char *descAr;
+    const char *arabicNorm;  // (AR) الاسم مطبَّعًا (L2) للمطابقة المتسامحة / L2-normalized name
 };
 
 extern const AppletEntry kApplets[];
 extern const std::size_t kAppletsCount;
 
+/// (AR) تطبيع عربيّ خفيف (L2): يجرّد التشكيل/التطويل ويطوي همزات الألف (أإآٱ⇒ا).
+///      يطابق normalize_arabic في scripts/codegen/_lib/emit.py حرفًا-بحرف.
+/// (EN) Light Arabic normalization (L2): strips tashkeel/tatweel and folds
+///      alef-hamza forms; matches _lib/emit.py's normalize_arabic byte-for-byte.
+std::string normalizeArabic(std::string_view arabic);
+
 /// (AR) يترجم اسمًا عربيًّا صريحًا إلى برنامج التنفيذ؛ nullptr إن لم يُعرَّف (فيبقى الاسم كما هو).
-/// (EN) translates an explicit Arabic name to its exec program; nullptr if undefined (kept as-is).
+///      مطابقةٌ ثنائيّة الطبقة: تطابقٌ بايتيّ تامّ أوّلًا (سلوكٌ محفوظ)، ثمّ تطابقٌ مطبَّع
+///      متسامح (يقبل نسيان الشدّة/همزة الألف). أسماء المعجم لا تتصادم تحت التطبيع (حارس).
+/// (EN) translates an explicit Arabic name to its exec; nullptr if undefined.
+///      Two-tier: exact byte match first (behavior preserved), then tolerant
+///      normalized match. Lexicon names are collision-free under normalization (guarded).
 const char *appletExec(std::string_view arabic);
 
 /// (AR) يعيد مدخل المعجم كاملًا لاسمٍ عربيّ صريح (لقراءة descAr)؛ nullptr إن لم يُعرَّف.
@@ -498,27 +509,77 @@ def _emit_command_table(commands: dict) -> str:
     )
 
 
+# (AR) دالّة التطبيع C++ المولَّدة — تطابق normalize_arabic (Python) نقطةَ ترميزٍ
+#      بنقطة: تجرّد التشكيل/التطويل (U+064B..U+0652, U+0670, U+0640) وتطوي همزات
+#      الألف (U+0623/0625/0622/0671 ⇒ U+0627=0xD8 0xA7). كلّ التشكيل في الكتلة
+#      العربيّة ثنائيّ البايت في UTF-8؛ المحارف غير العربيّة تُنسَخ حرفيًّا بطولها.
+#      (قالب خامّ — أقواس مفردة، لا .format()).
+_APPLET_NORMALIZE_FN = """std::string normalizeArabic(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    std::size_t i = 0, n = s.size();
+    while (i < n) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        std::size_t len = 1;
+        if ((c & 0x80u) == 0x00u)      len = 1;
+        else if ((c & 0xE0u) == 0xC0u) len = 2;
+        else if ((c & 0xF0u) == 0xE0u) len = 3;
+        else if ((c & 0xF8u) == 0xF0u) len = 4;
+        if (i + len > n) len = 1;  // (AR) تسلسل مبتور: انسخ دفاعيًّا / truncated: copy defensively
+        if (len == 2) {
+            unsigned int cp = ((c & 0x1Fu) << 6) |
+                              (static_cast<unsigned char>(s[i + 1]) & 0x3Fu);
+            if ((cp >= 0x064Bu && cp <= 0x0652u) || cp == 0x0670u || cp == 0x0640u) {
+                i += 2;  // (AR) جرّد تشكيلًا/تطويلًا / strip tashkeel/tatweel
+                continue;
+            }
+            if (cp == 0x0623u || cp == 0x0625u || cp == 0x0622u || cp == 0x0671u) {
+                out.push_back(static_cast<char>(0xD8));  // (AR) ا U+0627 / bare alef
+                out.push_back(static_cast<char>(0xA7));
+                i += 2;
+                continue;
+            }
+        }
+        for (std::size_t k = 0; k < len; ++k) out.push_back(s[i + k]);
+        i += len;
+    }
+    return out;
+}
+
+"""
+
+
 def _emit_applet_table(applets: dict) -> str:
     rows = []
     for a in applets["applets"]:
         rows.append(
             f"    {{ {cpp_string_literal(a['arabic'])}, {cpp_string_literal(a['exec'])}, "
-            f"{_cpp_or_nullptr(a.get(_APPLET_DESC_KEY, ''))} }},\n"
+            f"{_cpp_or_nullptr(a.get(_APPLET_DESC_KEY, ''))}, "
+            f"{cpp_string_literal(normalize_arabic(a['arabic']))} }},\n"
         )
     return (
         "const AppletEntry kApplets[] = {\n"
         + "".join(rows)
         + "};\n"
         "const std::size_t kAppletsCount = sizeof(kApplets) / sizeof(kApplets[0]);\n\n"
-        "const char *appletExec(std::string_view arabic) {\n"
+        + _APPLET_NORMALIZE_FN
+        + "const char *appletExec(std::string_view arabic) {\n"
         "    for (std::size_t i = 0; i < kAppletsCount; ++i) {\n"
         "        if (arabic == kApplets[i].arabic) return kApplets[i].exec;\n"
+        "    }\n"
+        "    const std::string n = normalizeArabic(arabic);\n"
+        "    for (std::size_t i = 0; i < kAppletsCount; ++i) {\n"
+        "        if (n == kApplets[i].arabicNorm) return kApplets[i].exec;\n"
         "    }\n"
         "    return nullptr;\n"
         "}\n\n"
         "const AppletEntry *findApplet(std::string_view arabic) {\n"
         "    for (std::size_t i = 0; i < kAppletsCount; ++i) {\n"
         "        if (arabic == kApplets[i].arabic) return &kApplets[i];\n"
+        "    }\n"
+        "    const std::string n = normalizeArabic(arabic);\n"
+        "    for (std::size_t i = 0; i < kAppletsCount; ++i) {\n"
+        "        if (n == kApplets[i].arabicNorm) return &kApplets[i];\n"
         "    }\n"
         "    return nullptr;\n"
         "}\n\n"
