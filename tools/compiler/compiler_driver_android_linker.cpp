@@ -1708,7 +1708,10 @@ static unsigned int sad_cc_load32le(const unsigned char *p) {
     return (unsigned int)p[0] | ((unsigned int)p[1] << 8) |
            ((unsigned int)p[2] << 16) | ((unsigned int)p[3] << 24);
 }
-static void sad_cc_store32le(unsigned char *p, unsigned int v) {
+)";
+                // (AR) تقسيم السلسلة الخام: تجاوز حدّ MSVC C2026 (65535 بايت للـ
+                //      literal الواحد) بعد نموّ runtime التشفير المضمَّن (ChaCha/Poly/AEAD).
+                rt_file << R"(static void sad_cc_store32le(unsigned char *p, unsigned int v) {
     p[0] = (unsigned char)v; p[1] = (unsigned char)(v >> 8);
     p[2] = (unsigned char)(v >> 16); p[3] = (unsigned char)(v >> 24);
 }
