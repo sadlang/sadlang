@@ -4,8 +4,8 @@
  * المسار: features/graphics/backends/freestanding/include/sad_ui/freestanding/arabic_shaper.h
  * ═══════════════════════════════════════════════════════════════════════════════
  *
- * @brief (AR) مُشكِّل النصّ العربيّ للوضع المستقلّ — اختيار الأشكال السياقيّة + عكس RTL
- * @brief (EN) Freestanding Arabic shaper — contextual forms + simple RTL run reversal
+ * @brief (AR) مُشكِّل النصّ العربيّ للوضع المستقلّ — أشكال سياقيّة + اتّجاه ثنائيّ UAX#9
+ * @brief (EN) Freestanding Arabic shaper — contextual forms + full UAX#9 bidi reorder
  *
  * الوصف:
  * ------
@@ -22,18 +22,19 @@
  *      ترتيب مقطع Unicode Presentation Forms-B.
  *   3. ليغاتورة لام-ألف: ل + (آ/أ/إ/ا) ⇒ U+FEF5–U+FEFC (منفصلة أو نهائيّة
  *      بحسب اتّصال ما قبل اللام) — حرفان منطقيًّا يصيران غليفًا واحدًا.
- *   4. عكس ترتيب المدى العربيّ + تموضع الأرقام RTL: كلّ مدًى متّصل من نقاط
- *      عربيّة (مع المسافات والأرقام البينيّة) يُعكس، ثمّ تُعاد المقاطعُ الرقميّة
- *      داخله إلى ترتيبها LTR — فرقمٌ كـ«3.14» ضمن عربيّ يظهر يسار العربيّ
- *      ويُقرأ 3.14 لا 41.3. اللاتينيّ خارج المدى يبقى بترتيبه الأصليّ.
+ *   4. إعادة الترتيب البصريّ بخوارزميّة الاتّجاه الثنائيّ Unicode (UAX#9) الكاملة
+ *      لفقرةٍ واحدة: تُحسَب مستويات التضمين (تضمينات وتجاوزات صريحة LRE/RLE/LRO/
+ *      RLO/PDF + عزلات LRI/RLI/FSI/PDI)، ثمّ القواعد الضعيفة (W1–W7) والمحايدة
+ *      (N1–N2) والضمنيّة (I1–I2)، ثمّ إعادة الترتيب (L1–L2). اتّجاه الفقرة تلقائيّ
+ *      من أوّل حرفٍ قويّ (P2–P3): عربيّ-أوّلًا ⇒ RTL-أساس، لاتينيّ-أوّلًا ⇒ LTR-أساس.
+ *      فرقمٌ كـ«3.14» ضمن عربيّ يظهر يساره ويُقرأ 3.14 لا 41.3، ورقمٌ قائدٌ يقع
+ *      يمينَ العربيّ (أوّلٌ منطقيًّا = أيمن بصريًّا)، ونصٌّ مختلط L/R يتموضع صحيحًا.
  *
  * الحدود المعلَنة (عمدًا — نطاق الشريحة نصوص واجهة بسيطة):
- *   • لا UAX#9 (bidi كامل): لا تضمينات صريحة (LRE/RLE/PDF) ولا حلّ محايدات
- *     متداخل ولا أرقام تسبق المدى العربيّ ابتداءً — «عكس المدى + تموضع أرقام
- *     RTL» فقط (يغطّي أحجام/تواريخ/إصدارات نصوص الواجهة). UAX#9 الكامل دَين
- *     لاحق مسمًّى.
- *   • الفاصل الرقميّ يُضمّ للمقطع الرقميّ بين رقمين فقط؛ فاصلٌ طرفيّ («نص3.»)
- *     ينفصل عن رقمه بصريًّا — أثرٌ مقبول ضمن الحدّ (نادرٌ في نصوص الواجهة).
+ *   • N0 (مطابقة أزواج الأقواس BD16) غير مطبَّقة — الأقواس محايدات تُحَلّ بـN1/N2
+ *     (تقريب مقبول). وجدول تصنيف bidi يغطّي نطاق الشكّال (عربيّ/عبريّ/لاتينيّ/
+ *     أرقام/ترقيم شائع) لا كامل قاعدة UCD. والعزلات تُعامَل كتضمينات (دقيق
+ *     للتضمين، تقريبيّ للعزل العميق المتداخل). وحدةٌ واحدة (فقرة) لا متعدّدة.
  *   • الحركات (U+064B وما بعدها) شفّافة اتّصاليًّا: تُسقَط قبل التشكيل فلا تكسر
  *     اتّصال الحرفين المحيطين بها (المرحلة 0)، لكنّها لا تُموضَع فوقيًّا — تموضعها
  *     الفوقيّ (advance=0 + تركيب) دَين FreeType المعلَن (المسار المتّجه).
@@ -79,43 +80,9 @@ namespace sad
                 inline constexpr uint32_t PRESENTATION_FORMS_B_FIRST = 0xFE70;
                 inline constexpr uint32_t PRESENTATION_FORMS_B_LAST = 0xFEFF;
 
-                /// (AR) المسافة — الفاصل الوحيد الذي يُضمّ داخل المدى العربيّ المعكوس
-                inline constexpr uint32_t SPACE_CODEPOINT = 0x0020;
-
-                // ─── مدايات الأرقام (تُضمّ للمدى العربيّ ثمّ تُعاد لترتيبها LTR) ──────
-                /// (AR) أرقام ASCII اللاتينيّة ٠..٩ (0x30..0x39)
-                inline constexpr uint32_t ASCII_DIGIT_FIRST = 0x0030;
-                inline constexpr uint32_t ASCII_DIGIT_LAST = 0x0039;
-                /// (AR) الأرقام العربيّة-الهنديّة ٠..٩ (0x0660..0x0669)
-                inline constexpr uint32_t ARABIC_INDIC_DIGIT_FIRST = 0x0660;
-                inline constexpr uint32_t ARABIC_INDIC_DIGIT_LAST = 0x0669;
-                /// (AR) الأرقام العربيّة-الهنديّة الممتدّة (فارسيّ/أردو) ۰..۹ (0x06F0..0x06F9)
-                inline constexpr uint32_t EXT_ARABIC_INDIC_DIGIT_FIRST = 0x06F0;
-                inline constexpr uint32_t EXT_ARABIC_INDIC_DIGIT_LAST = 0x06F9;
-
-                /// (AR) هل النقطة رقم (بأيّ من مجموعات الأرقام الثلاث)؟
-                inline bool isBidiDigit(uint32_t cp)
-                {
-                    return (cp >= ASCII_DIGIT_FIRST && cp <= ASCII_DIGIT_LAST) ||
-                           (cp >= ARABIC_INDIC_DIGIT_FIRST && cp <= ARABIC_INDIC_DIGIT_LAST) ||
-                           (cp >= EXT_ARABIC_INDIC_DIGIT_FIRST && cp <= EXT_ARABIC_INDIC_DIGIT_LAST);
-                }
-
-                // ─── فواصل رقميّة داخليّة مسمّاة (تُضمّ للمقطع الرقميّ بين رقمين فقط) ──
-                inline constexpr uint32_t FULL_STOP_CODEPOINT = 0x002E;        // .
-                inline constexpr uint32_t COMMA_CODEPOINT = 0x002C;            // ,
-                inline constexpr uint32_t COLON_CODEPOINT = 0x003A;            // :
-                inline constexpr uint32_t ARABIC_DECIMAL_SEP_CODEPOINT = 0x066B; // ٫
-                inline constexpr uint32_t ARABIC_THOUSANDS_SEP_CODEPOINT = 0x066C; // ٬
-
-                /// (AR) فاصل رقميّ داخليّ (يُضمّ للمقطع الرقميّ فقط بين رقمين): النقطة/
-                ///      الفاصلة/النقطتان + الفاصلة العربيّة العشريّة/الألفيّة.
-                inline bool isNumberSeparator(uint32_t cp)
-                {
-                    return cp == FULL_STOP_CODEPOINT || cp == COMMA_CODEPOINT ||
-                           cp == COLON_CODEPOINT || cp == ARABIC_DECIMAL_SEP_CODEPOINT ||
-                           cp == ARABIC_THOUSANDS_SEP_CODEPOINT;
-                }
+                // (AR) تصنيف الأرقام والفواصل الرقميّة الآن داخل محرّك bidi (UAX#9) في
+                //      arabic_shaper.cpp (bidiClass) — لا حاجة لثوابت/دوالّ عامّة هنا بعد
+                //      إزالة المسار الاستدلاليّ «عكس المدى + تموضع أرقام».
 
                 /// (AR) هل النقطة من نطاق أشكال العرض-B؟ (يستعملها عدّاد غليفات الإثبات)
                 inline bool isPresentationFormB(uint32_t cp)

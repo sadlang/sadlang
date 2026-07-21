@@ -167,6 +167,368 @@ namespace sad
                                (cp >= PRESENTATION_FORMS_B_FIRST && cp <= PRESENTATION_FORMS_B_LAST);
                     }
 
+                    // ═══════════════════════════════════════════════════════════════════
+                    // (AR) خوارزميّة الاتّجاه الثنائيّ Unicode (UAX#9) — فقرة واحدة.
+                    //   تستبدل «عكس المدى + تموضع الأرقام» بمحرّك مستويات كامل: تُصنَّف كلّ
+                    //   نقطة، تُحسَب مستويات التضمين (تضمينات صريحة LRE/RLE/LRO/RLO/PDF +
+                    //   عزلات LRI/RLI/FSI/PDI)، ثمّ القواعد الضعيفة (W1–W7) والمحايدة
+                    //   (N1–N2) والضمنيّة (I1–I2)، ثمّ إعادة الترتيب البصريّ (L1–L2).
+                    //   تعمل على الغليفات المُشكَّلة (أشكال العرض FE70–FEFF ⇒ AL).
+                    //   حدود معلَنة: (١) N0 (مطابقة أزواج الأقواس BD16) غير مطبَّقة —
+                    //   الأقواس محايدات تُحَلّ بـN1/N2 (تقريب مقبول لنصوص الواجهة)؛ (٢)
+                    //   جدول التصنيف يغطّي نطاق الشكّال (عربيّ/عبريّ/لاتينيّ/أرقام/ترقيم
+                    //   شائع) لا كامل قاعدة UCD؛ (٣) العزلات تُعامَل كتضمينات (LRI≈LRE،
+                    //   RLI≈RLE، PDI≈PDF) — دقيق للتضمينات، تقريبيّ للعزل العميق المتداخل.
+                    // (EN) Unicode Bidirectional Algorithm (UAX#9), single paragraph;
+                    //   replaces the run-reversal heuristic with a full level engine.
+                    // ═══════════════════════════════════════════════════════════════════
+                    enum class Bc : uint8_t {
+                        L, R, AL, EN, ES, ET, AN, CS, NSM, BN, B, S, WS, ON,
+                        LRE, RLE, LRO, RLO, PDF, LRI, RLI, FSI, PDI
+                    };
+
+                    Bc bidiClass(uint32_t cp)
+                    {
+                        // تنسيقات صريحة (تضمين/عزل)
+                        switch (cp)
+                        {
+                        case 0x202A: return Bc::LRE;
+                        case 0x202B: return Bc::RLE;
+                        case 0x202D: return Bc::LRO;
+                        case 0x202E: return Bc::RLO;
+                        case 0x202C: return Bc::PDF;
+                        case 0x2066: return Bc::LRI;
+                        case 0x2067: return Bc::RLI;
+                        case 0x2068: return Bc::FSI;
+                        case 0x2069: return Bc::PDI;
+                        default: break;
+                        }
+                        if (cp == 0x0020) return Bc::WS;
+                        if (cp == 0x0009 || cp == 0x000B) return Bc::S;
+                        if (cp == 0x000A || cp == 0x000D || cp == 0x0085 || cp == 0x2029) return Bc::B;
+                        if (cp >= 0x0030 && cp <= 0x0039) return Bc::EN;   // أرقام ASCII
+                        if ((cp >= 0x0041 && cp <= 0x005A) || (cp >= 0x0061 && cp <= 0x007A))
+                            return Bc::L;                                    // لاتينيّة
+                        if (cp == 0x002B || cp == 0x002D) return Bc::ES;    // + −
+                        if (cp == 0x002C || cp == 0x002E || cp == 0x002F ||
+                            cp == 0x003A || cp == 0x00A0)
+                            return Bc::CS;                                   // , . / : NBSP
+                        if (cp == 0x0023 || cp == 0x0024 || cp == 0x0025 ||
+                            cp == 0x00A2 || cp == 0x00A3 || cp == 0x00A4 || cp == 0x00A5)
+                            return Bc::ET;                                   // # $ % عملات
+                        if (cp >= 0x0660 && cp <= 0x0669) return Bc::AN;    // أرقام عربيّة-هنديّة
+                        if (cp == 0x066B || cp == 0x066C) return Bc::AN;    // فاصلتا العدد العربيّتان
+                        if (cp >= 0x06F0 && cp <= 0x06F9) return Bc::EN;    // ممتدّة (فارسيّ/أردو)
+                        if (cp == 0x060C) return Bc::CS;                    // الفاصلة العربيّة (فاصل مشترك)
+                        if (cp == 0x066A) return Bc::ET;                    // ٪ علامة النسبة العربيّة
+                        if ((cp >= ARABIC_BLOCK_FIRST && cp <= ARABIC_BLOCK_LAST) ||
+                            (cp >= PRESENTATION_FORMS_A_FIRST && cp <= PRESENTATION_FORMS_A_LAST) ||
+                            (cp >= PRESENTATION_FORMS_B_FIRST && cp <= PRESENTATION_FORMS_B_LAST))
+                            return Bc::AL;                                   // عربيّة (أساس/أشكال عرض)
+                        if (cp >= 0x0590 && cp <= 0x05FF) return Bc::R;     // عبريّة
+                        if ((cp >= 0x0300 && cp <= 0x036F) ||               // علامات تجميعيّة
+                            (cp >= 0x064B && cp <= 0x065F) || cp == 0x0670)
+                            return Bc::NSM;
+                        return Bc::ON;                                       // محايد افتراضًا
+                    }
+
+                    inline bool bidiIsIsolateInitiator(Bc c)
+                    {
+                        return c == Bc::LRI || c == Bc::RLI || c == Bc::FSI;
+                    }
+                    inline bool bidiIsExplicit(Bc c)
+                    {
+                        return c == Bc::LRE || c == Bc::RLE || c == Bc::LRO || c == Bc::RLO ||
+                               c == Bc::PDF || bidiIsIsolateInitiator(c) || c == Bc::PDI;
+                    }
+
+                    constexpr uint8_t BIDI_MAX_DEPTH = 125;
+
+                    /// (AR) اتّجاه المستوى: زوجيّ ⇒ L، فرديّ ⇒ R.
+                    inline Bc bidiLevelDir(uint8_t lvl) { return (lvl & 1u) ? Bc::R : Bc::L; }
+
+                    /// (AR) مستوى الفقرة (P2–P3): أوّل حرفٍ قويّ (L⇒0، R/AL⇒1)، وإلّا 0.
+                    ///      يتخطّى ما بين مبتدئ عزلٍ وPDI المطابق (لا يُحتسَب في P2).
+                    uint8_t bidiParagraphLevel(const std::vector<Bc> &types)
+                    {
+                        int isolate = 0;
+                        for (Bc t : types)
+                        {
+                            if (bidiIsIsolateInitiator(t)) { ++isolate; continue; }
+                            if (t == Bc::PDI) { if (isolate > 0) --isolate; continue; }
+                            if (isolate > 0) continue;
+                            if (t == Bc::L) return 0;
+                            if (t == Bc::R || t == Bc::AL) return 1;
+                        }
+                        return 0;
+                    }
+
+                    /// (AR) القواعد الصريحة (X1–X8 مبسّطة بمكدّس تضمين/تجاوز): تُنتج مستوى
+                    ///      كلّ نقطة وتجاوزها الاتّجاهيّ. العزلات تُعامَل كتضمينات (تقريب
+                    ///      معلَن). تنسيقات التضمين/العزل نفسها تُعلَّم BN (تُزال في L).
+                    void bidiResolveExplicit(const std::vector<Bc> &types, uint8_t paraLevel,
+                                             std::vector<uint8_t> &levels, std::vector<Bc> &resolved)
+                    {
+                        struct Entry { uint8_t level; Bc override_; };
+                        std::vector<Entry> stack;
+                        stack.push_back({paraLevel, Bc::ON});
+                        auto nextOdd = [](uint8_t l) -> uint8_t { return (l % 2 == 0) ? l + 1 : l + 2; };
+                        auto nextEven = [](uint8_t l) -> uint8_t { return (l % 2 == 0) ? l + 2 : l + 1; };
+                        for (std::size_t i = 0; i < types.size(); ++i)
+                        {
+                            Bc t = types[i];
+                            const Entry top = stack.back();
+                            if (t == Bc::RLE || t == Bc::RLI)
+                            {
+                                levels[i] = top.level;
+                                uint8_t nl = nextOdd(top.level);
+                                if (nl <= BIDI_MAX_DEPTH) stack.push_back({nl, Bc::ON});
+                                resolved[i] = Bc::BN;
+                            }
+                            else if (t == Bc::LRE || t == Bc::LRI)
+                            {
+                                levels[i] = top.level;
+                                uint8_t nl = nextEven(top.level);
+                                if (nl <= BIDI_MAX_DEPTH) stack.push_back({nl, Bc::ON});
+                                resolved[i] = Bc::BN;
+                            }
+                            else if (t == Bc::RLO)
+                            {
+                                levels[i] = top.level;
+                                uint8_t nl = nextOdd(top.level);
+                                if (nl <= BIDI_MAX_DEPTH) stack.push_back({nl, Bc::R});
+                                resolved[i] = Bc::BN;
+                            }
+                            else if (t == Bc::LRO)
+                            {
+                                levels[i] = top.level;
+                                uint8_t nl = nextEven(top.level);
+                                if (nl <= BIDI_MAX_DEPTH) stack.push_back({nl, Bc::L});
+                                resolved[i] = Bc::BN;
+                            }
+                            else if (t == Bc::FSI)
+                            {
+                                // FSI: اتّجاه ذاتيّ من محتوى العزل حتّى PDI المطابق (P2 محلّيّ).
+                                levels[i] = top.level;
+                                int depth = 0; uint8_t innerPara = 0;
+                                for (std::size_t j = i + 1; j < types.size(); ++j)
+                                {
+                                    Bc u = types[j];
+                                    if (bidiIsIsolateInitiator(u)) { ++depth; continue; }
+                                    if (u == Bc::PDI) { if (depth == 0) break; --depth; continue; }
+                                    if (depth > 0) continue;
+                                    if (u == Bc::L) { innerPara = 0; break; }
+                                    if (u == Bc::R || u == Bc::AL) { innerPara = 1; break; }
+                                }
+                                uint8_t nl = innerPara ? nextOdd(top.level) : nextEven(top.level);
+                                if (nl <= BIDI_MAX_DEPTH) stack.push_back({nl, Bc::ON});
+                                resolved[i] = Bc::BN;
+                            }
+                            else if (t == Bc::PDF || t == Bc::PDI)
+                            {
+                                if (stack.size() > 1) stack.pop_back();
+                                levels[i] = stack.back().level;
+                                resolved[i] = Bc::BN;
+                            }
+                            else if (t == Bc::B)
+                            {
+                                levels[i] = paraLevel;
+                                resolved[i] = t;
+                            }
+                            else
+                            {
+                                levels[i] = top.level;
+                                resolved[i] = (top.override_ == Bc::ON) ? t : top.override_;
+                            }
+                        }
+                    }
+
+                    /// (AR) القواعد الضعيفة والمحايدة والضمنيّة (W1–W7، N1–N2، I1–I2) على
+                    ///      مدًى مستوًى واحد [b,e) بحدَّي sor/eor المعطَيَين.
+                    void bidiResolveRun(std::vector<Bc> &t, std::size_t b, std::size_t e,
+                                        Bc sor, Bc eor, uint8_t level)
+                    {
+                        if (b >= e) return;
+                        // W1: NSM ⇐ نوع سابقه (أو sor).
+                        for (std::size_t i = b; i < e; ++i)
+                            if (t[i] == Bc::NSM)
+                                t[i] = (i == b) ? sor : t[i - 1];
+                        // W2: EN ⇒ AN إن كان آخر قويّ AL.
+                        {
+                            Bc lastStrong = sor;
+                            for (std::size_t i = b; i < e; ++i)
+                            {
+                                if (t[i] == Bc::R || t[i] == Bc::L || t[i] == Bc::AL) lastStrong = t[i];
+                                else if (t[i] == Bc::EN && lastStrong == Bc::AL) t[i] = Bc::AN;
+                            }
+                        }
+                        // W3: AL ⇒ R.
+                        for (std::size_t i = b; i < e; ++i)
+                            if (t[i] == Bc::AL) t[i] = Bc::R;
+                        // W4: ES بين EN⇒EN؛ CS بين رقمين متطابقين ⇒ نوعهما.
+                        for (std::size_t i = b + 1; i + 1 < e; ++i)
+                        {
+                            if (t[i] == Bc::ES && t[i - 1] == Bc::EN && t[i + 1] == Bc::EN)
+                                t[i] = Bc::EN;
+                            else if (t[i] == Bc::CS && t[i - 1] == t[i + 1] &&
+                                     (t[i - 1] == Bc::EN || t[i - 1] == Bc::AN))
+                                t[i] = t[i - 1];
+                        }
+                        // W5: تتابُع ET ملاصق لـEN ⇒ EN.
+                        for (std::size_t i = b; i < e; ++i)
+                        {
+                            if (t[i] != Bc::ET) continue;
+                            std::size_t j = i;
+                            while (j < e && t[j] == Bc::ET) ++j;
+                            bool before = (i > b && t[i - 1] == Bc::EN);
+                            bool after = (j < e && t[j] == Bc::EN);
+                            if (before || after)
+                                for (std::size_t k = i; k < j; ++k) t[k] = Bc::EN;
+                            i = j - 1;
+                        }
+                        // W6: ما بقي من ES/ET/CS ⇒ ON.
+                        for (std::size_t i = b; i < e; ++i)
+                            if (t[i] == Bc::ES || t[i] == Bc::ET || t[i] == Bc::CS) t[i] = Bc::ON;
+                        // W7: EN ⇒ L إن كان آخر قويّ L.
+                        {
+                            Bc lastStrong = sor;
+                            for (std::size_t i = b; i < e; ++i)
+                            {
+                                if (t[i] == Bc::R || t[i] == Bc::L) lastStrong = t[i];
+                                else if (t[i] == Bc::EN && lastStrong == Bc::L) t[i] = Bc::L;
+                            }
+                        }
+                        // N1–N2: المحايدات (B/S/WS/ON + BN) — EN/AN تُعامَل R.
+                        auto asStrong = [](Bc c) -> Bc {
+                            if (c == Bc::L) return Bc::L;
+                            if (c == Bc::R || c == Bc::EN || c == Bc::AN) return Bc::R;
+                            return Bc::ON;
+                        };
+                        auto isNeutral = [](Bc c) -> bool {
+                            return c == Bc::B || c == Bc::S || c == Bc::WS || c == Bc::ON || c == Bc::BN;
+                        };
+                        for (std::size_t i = b; i < e; ++i)
+                        {
+                            if (!isNeutral(t[i])) continue;
+                            std::size_t j = i;
+                            while (j < e && isNeutral(t[j])) ++j;
+                            Bc left = (i == b) ? sor : asStrong(t[i - 1]);
+                            Bc right = (j == e) ? eor : asStrong(t[j]);
+                            Bc fill = (left == right && left != Bc::ON) ? left : bidiLevelDir(level); // N1 وإلّا N2
+                            for (std::size_t k = i; k < j; ++k) t[k] = fill;
+                            i = j - 1;
+                        }
+                    }
+
+                    /// (AR) يُنتج ترتيب الغليفات البصريّ (فهارس منطقيّة) من المستويات بعد
+                    ///      تطبيق الضمنيّة I1–I2 وإعادة الترتيب L2 (عكس المدايات من الأعلى).
+                    std::vector<uint8_t> bidiImplicitLevels(const std::vector<Bc> &t,
+                                                            const std::vector<uint8_t> &lvlIn)
+                    {
+                        std::vector<uint8_t> lvl = lvlIn;
+                        for (std::size_t i = 0; i < t.size(); ++i)
+                        {
+                            if (lvl[i] % 2 == 0)
+                            {
+                                if (t[i] == Bc::R) lvl[i] += 1;
+                                else if (t[i] == Bc::AN || t[i] == Bc::EN) lvl[i] += 2;
+                            }
+                            else
+                            {
+                                if (t[i] == Bc::L || t[i] == Bc::EN || t[i] == Bc::AN) lvl[i] += 1;
+                            }
+                        }
+                        return lvl;
+                    }
+
+                    /// (AR) المحرّك الكامل: يعيد ترتيب الغليفات بصريًّا (أوّل عنصر = أقصى
+                    ///      اليسار) وفق UAX#9، ويزيل تنسيقات التضمين/العزل الصفريّة العرض.
+                    std::vector<uint32_t> bidiReorder(const std::vector<uint32_t> &glyphs)
+                    {
+                        const std::size_t n = glyphs.size();
+                        if (n == 0) return {};
+                        std::vector<Bc> orig(n);
+                        for (std::size_t i = 0; i < n; ++i) orig[i] = bidiClass(glyphs[i]);
+
+                        const uint8_t paraLevel = bidiParagraphLevel(orig);
+                        std::vector<uint8_t> levels(n, paraLevel);
+                        std::vector<Bc> types(n);
+                        bidiResolveExplicit(orig, paraLevel, levels, types);
+
+                        // معالجة W/N على كلّ مدًى مستوًى متساوٍ (تسلسل مدى العزل = مدى المستوى
+                        // لنصّ الفقرة الواحدة). sor/eor = اتّجاه الأعلى بين المدى وجاره.
+                        std::size_t i = 0;
+                        while (i < n)
+                        {
+                            std::size_t j = i + 1;
+                            while (j < n && levels[j] == levels[i]) ++j;
+                            uint8_t runLvl = levels[i];
+                            uint8_t prevLvl = (i == 0) ? paraLevel : levels[i - 1];
+                            uint8_t nextLvl = (j == n) ? paraLevel : levels[j];
+                            Bc sor = bidiLevelDir(std::max(runLvl, prevLvl));
+                            Bc eor = bidiLevelDir(std::max(runLvl, nextLvl));
+                            bidiResolveRun(types, i, j, sor, eor, runLvl);
+                            i = j;
+                        }
+
+                        std::vector<uint8_t> lvl = bidiImplicitLevels(types, levels);
+
+                        // L1: أعِد S وB (والمسافات السابقة لهما أو الطرفيّة) إلى مستوى الفقرة.
+                        for (std::size_t k = 0; k < n; ++k)
+                        {
+                            if (orig[k] == Bc::B || orig[k] == Bc::S)
+                            {
+                                lvl[k] = paraLevel;
+                                for (std::size_t m = k; m-- > 0;)
+                                {
+                                    if (orig[m] == Bc::WS || bidiIsExplicit(orig[m]))
+                                        lvl[m] = paraLevel;
+                                    else break;
+                                }
+                            }
+                        }
+                        for (std::size_t m = n; m-- > 0;)
+                        {
+                            if (orig[m] == Bc::WS || bidiIsExplicit(orig[m])) lvl[m] = paraLevel;
+                            else break;
+                        }
+
+                        // بناء ترتيب الفهارس (استبعاد تنسيقات التضمين/العزل الصفريّة).
+                        std::vector<std::size_t> order;
+                        order.reserve(n);
+                        for (std::size_t k = 0; k < n; ++k)
+                            if (!bidiIsExplicit(orig[k])) order.push_back(k);
+                        if (order.empty()) return {};
+
+                        // L2: من أعلى مستوًى نزولًا حتّى أدنى مستوًى فرديّ، اعكس المدايات
+                        //     المتّصلة ذات المستوى ≥ الحدّ (على تسلسل الفهارس المرئيّة).
+                        uint8_t maxLvl = 0, minOdd = BIDI_MAX_DEPTH + 1;
+                        for (std::size_t k : order)
+                        {
+                            if (lvl[k] > maxLvl) maxLvl = lvl[k];
+                            if ((lvl[k] & 1u) && lvl[k] < minOdd) minOdd = lvl[k];
+                        }
+                        for (uint8_t l = maxLvl; l >= minOdd && l > 0; --l)
+                        {
+                            std::size_t a = 0;
+                            while (a < order.size())
+                            {
+                                if (lvl[order[a]] < l) { ++a; continue; }
+                                std::size_t bEnd = a;
+                                while (bEnd < order.size() && lvl[order[bEnd]] >= l) ++bEnd;
+                                std::reverse(order.begin() + static_cast<std::ptrdiff_t>(a),
+                                             order.begin() + static_cast<std::ptrdiff_t>(bEnd));
+                                a = bEnd;
+                            }
+                            if (l == minOdd) break; // تفادي التفاف uint8_t تحت الصفر
+                        }
+
+                        std::vector<uint32_t> out;
+                        out.reserve(order.size());
+                        for (std::size_t k : order) out.push_back(glyphs[k]);
+                        return out;
+                    }
+
                 } // namespace
 
                 std::vector<uint32_t> shape(const std::vector<uint32_t> &codepointsIn)
@@ -231,79 +593,12 @@ namespace sad
                         out.push_back(shaped);
                     }
 
-                    // ── المرحلة 2: عكس المدى العربيّ + تموضع الأرقام RTL (حدّ معلَن) ──
-                    // المدى = تتابُع نقاط عربيّة، وتُضمّ إليه: المسافات (إن تلاها عربيّ/رقم)
-                    // والأرقام (٠..٩ لاتينيّ/عربيّ/ممتدّ) والفواصل الرقميّة الداخليّة (بين
-                    // رقمين). بعد عكس المدى كلِّه، تُعاد المقاطعُ الرقميّة إلى ترتيبها الأصليّ
-                    // (LTR) — فرقم كـ«3.14» في نصّ عربيّ يظهر يسار العربيّ ويُقرأ 3.14 لا
-                    // 41.3. حدٌّ معلَن: لا UAX#9 كامل (لا تضمينات صريحة ولا حلّ محايدات
-                    // متداخل) ولا أرقام تسبق المدى العربيّ ابتداءً — نطاق نصوص الواجهة.
-                    const std::size_t m = out.size();
-                    std::size_t i = 0;
-                    while (i < m)
-                    {
-                        // المدى يبدأ عند حرفٍ عربيّ غيرِ رقم فقط — كي لا يبدأ رقمٌ مدًى
-                        // ابتداءً (الأرقام العربيّة-الهنديّة تقع ضمن كتلة isArabicDisplay،
-                        // فلولا استثناؤها لبدأت مدًى بينما لا يبدؤه رقم ASCII: عدم اتّساق).
-                        // فالأرقام تُضمّ لاحقًا فقط تاليةً لحرفٍ عربيّ، لا مُبتدِئةً — حدّ معلَن.
-                        if (!isArabicDisplay(out[i]) || isBidiDigit(out[i]))
-                        {
-                            ++i;
-                            continue;
-                        }
-                        std::size_t runEnd = i + 1; // ما بعد آخر نقطة مضمومة فعلًا
-                        std::size_t k = runEnd;
-                        while (k < m)
-                        {
-                            if (isArabicDisplay(out[k]) || isBidiDigit(out[k]))
-                            {
-                                ++k;
-                                runEnd = k;
-                            }
-                            else if (out[k] == SPACE_CODEPOINT)
-                            {
-                                ++k; // تُضمّ فقط إذا تلاها عربيّ/رقم (runEnd لا يتقدّم الآن)
-                            }
-                            else if (isNumberSeparator(out[k]) && k > i && k + 1 < m &&
-                                     isBidiDigit(out[k - 1]) && isBidiDigit(out[k + 1]))
-                            {
-                                ++k; // فاصل رقميّ بين رقمين: جزءٌ من المقطع الرقميّ
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-
-                        // (١) عكس المدى كلِّه (منطقيّ ⇒ بصريّ RTL).
-                        std::reverse(out.begin() + static_cast<std::ptrdiff_t>(i),
-                                     out.begin() + static_cast<std::ptrdiff_t>(runEnd));
-
-                        // (٢) إعادةُ عكسِ كلِّ مقطعٍ رقميّ داخل المدى المعكوس كي يُقرأ LTR.
-                        //     المقطع = أرقامٌ متتالية + فواصلها الداخليّة (بين رقمين).
-                        std::size_t a = i;
-                        while (a < runEnd)
-                        {
-                            if (!isBidiDigit(out[a]))
-                            {
-                                ++a;
-                                continue;
-                            }
-                            std::size_t b = a + 1;
-                            while (b < runEnd &&
-                                   (isBidiDigit(out[b]) ||
-                                    (isNumberSeparator(out[b]) && b + 1 < runEnd &&
-                                     isBidiDigit(out[b - 1]) && isBidiDigit(out[b + 1]))))
-                                ++b;
-                            std::reverse(out.begin() + static_cast<std::ptrdiff_t>(a),
-                                         out.begin() + static_cast<std::ptrdiff_t>(b));
-                            a = b;
-                        }
-
-                        i = runEnd;
-                    }
-
-                    return out;
+                    // ── المرحلة 2: إعادة الترتيب البصريّ بخوارزميّة UAX#9 الكاملة ──
+                    // تحلّ محلَّ «عكس المدى + تموضع الأرقام»: محرّك مستويات كامل يعالج
+                    // الفقرات المختلطة L/R، التضمينات الصريحة، حلّ المحايدات بين المدايات،
+                    // والأرقام أينما وقعت (بما فيها ما يسبق المدى العربيّ). النتيجة بترتيبٍ
+                    // بصريّ (أوّل عنصر = أقصى اليسار) جاهزةٍ لحلقة رسمٍ تتقدّم يسارًا.
+                    return bidiReorder(out);
                 }
 
             } // namespace arabic
