@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <utility>
 
 namespace sad
 {
@@ -159,24 +160,17 @@ namespace sad
                                (cp >= 0x06EA && cp <= 0x06ED);
                     }
 
-                    /// (AR) نقطة عربيّة عرضيًّا؟ (الكتلة الأساس أو مقطعا أشكال العرض)
-                    bool isArabicDisplay(uint32_t cp)
-                    {
-                        return (cp >= ARABIC_BLOCK_FIRST && cp <= ARABIC_BLOCK_LAST) ||
-                               (cp >= PRESENTATION_FORMS_A_FIRST && cp <= PRESENTATION_FORMS_A_LAST) ||
-                               (cp >= PRESENTATION_FORMS_B_FIRST && cp <= PRESENTATION_FORMS_B_LAST);
-                    }
-
                     // ═══════════════════════════════════════════════════════════════════
                     // (AR) خوارزميّة الاتّجاه الثنائيّ Unicode (UAX#9) — فقرة واحدة.
                     //   تستبدل «عكس المدى + تموضع الأرقام» بمحرّك مستويات كامل: تُصنَّف كلّ
                     //   نقطة، تُحسَب مستويات التضمين (تضمينات صريحة LRE/RLE/LRO/RLO/PDF +
-                    //   عزلات LRI/RLI/FSI/PDI)، ثمّ القواعد الضعيفة (W1–W7) والمحايدة
-                    //   (N1–N2) والضمنيّة (I1–I2)، ثمّ إعادة الترتيب البصريّ (L1–L2).
-                    //   تعمل على الغليفات المُشكَّلة (أشكال العرض FE70–FEFF ⇒ AL).
-                    //   حدود معلَنة: (١) N0 (مطابقة أزواج الأقواس BD16) غير مطبَّقة —
-                    //   الأقواس محايدات تُحَلّ بـN1/N2 (تقريب مقبول لنصوص الواجهة)؛ (٢)
-                    //   جدول التصنيف يغطّي نطاق الشكّال (عربيّ/عبريّ/لاتينيّ/أرقام/ترقيم
+                    //   عزلات LRI/RLI/FSI/PDI)، ثمّ القواعد الضعيفة (W1–W7)، ثمّ أزواج
+                    //   الأقواس (N0/BD16)، ثمّ المحايدة (N1–N2) والضمنيّة (I1–I2)، ثمّ
+                    //   إعادة الترتيب البصريّ (L1–L2). تعمل على الغليفات المُشكَّلة (أشكال
+                    //   العرض FE70–FEFF ⇒ AL).
+                    //   حدود معلَنة: (١) N0 مطبَّقة لأقواس ASCII القياسيّة ( [ { (+ توسعة
+                    //   للقوسين المزخرفين العربيّين ﴾﴿ خارج UCD) لا لكامل Bidi_Paired_Bracket؛
+                    //   (٢) جدول التصنيف يغطّي نطاق الشكّال (عربيّ/عبريّ/لاتينيّ/أرقام/ترقيم
                     //   شائع) لا كامل قاعدة UCD؛ (٣) العزلات تُعامَل كتضمينات (LRI≈LRE،
                     //   RLI≈RLE، PDI≈PDF) — دقيق للتضمينات، تقريبيّ للعزل العميق المتداخل.
                     // (EN) Unicode Bidirectional Algorithm (UAX#9), single paragraph;
@@ -221,6 +215,7 @@ namespace sad
                         if (cp >= 0x06F0 && cp <= 0x06F9) return Bc::EN;    // ممتدّة (فارسيّ/أردو)
                         if (cp == 0x060C) return Bc::CS;                    // الفاصلة العربيّة (فاصل مشترك)
                         if (cp == 0x066A) return Bc::ET;                    // ٪ علامة النسبة العربيّة
+                        if (cp == 0xFD3E || cp == 0xFD3F) return Bc::ON;    // قوسان مزخرفان: Bidi_Class=ON قياسيًّا (لا AL)
                         if ((cp >= ARABIC_BLOCK_FIRST && cp <= ARABIC_BLOCK_LAST) ||
                             (cp >= PRESENTATION_FORMS_A_FIRST && cp <= PRESENTATION_FORMS_A_LAST) ||
                             (cp >= PRESENTATION_FORMS_B_FIRST && cp <= PRESENTATION_FORMS_B_LAST))
@@ -343,9 +338,38 @@ namespace sad
                         }
                     }
 
-                    /// (AR) القواعد الضعيفة والمحايدة والضمنيّة (W1–W7، N1–N2، I1–I2) على
-                    ///      مدًى مستوًى واحد [b,e) بحدَّي sor/eor المعطَيَين.
-                    void bidiResolveRun(std::vector<Bc> &t, std::size_t b, std::size_t e,
+                    // ─── BD16/N0: أزواج الأقواس المتناظرة ───────────────────────────
+                    // مجال الشكّال: أقواس ASCII الثلاثة (Bidi_Paired_Bracket القياسيّة)
+                    // + القوسان المُزخرفان العربيّان ﴾﴿ كـ**توسعة عمليّة** (هذان ليسا في
+                    // BidiBrackets.txt — bpt=None — لكنّهما قوسان دلاليًّا في النصّ العربيّ،
+                    // فنعاملهما حاصرتَي N0). المعرّف الموحَّد = نقطة الفتح (canonical) كي
+                    // يطابق كلُّ إغلاقٍ فتحَه. بقيّة مجموعة Bidi_Paired_Bracket خارج الشريحة.
+                    struct BracketPair { uint32_t open; uint32_t close; };
+                    constexpr BracketPair BRACKET_TABLE[] = {
+                        {0x0028, 0x0029}, // ( )
+                        {0x005B, 0x005D}, // [ ]
+                        {0x007B, 0x007D}, // { }
+                        {0xFD3E, 0xFD3F}, // ﴾ ﴿ قوسان مزخرفان عربيّان
+                    };
+                    /// (AR) نوع القوس: 1=فتح، 2=إغلاق، 0=لا؛ ويضع المعرّف الموحّد (نقطة الفتح).
+                    int bracketKind(uint32_t cp, uint32_t &canon)
+                    {
+                        for (const auto &br : BRACKET_TABLE)
+                        {
+                            if (cp == br.open) { canon = br.open; return 1; }
+                            if (cp == br.close) { canon = br.open; return 2; }
+                        }
+                        return 0;
+                    }
+                    /// (AR) حدّ مكدّس BD16 (المواصفة: 63 عنصرًا ثمّ يتوقّف مسح الأزواج).
+                    constexpr std::size_t BD16_STACK_MAX = 63;
+
+                    /// (AR) القواعد الضعيفة والمحايدة والضمنيّة (W1–W7، N0، N1–N2، I1–I2)
+                    ///      على مدًى مستوًى واحد [b,e) بحدَّي sor/eor المعطَيَين. glyphs/orig
+                    ///      للمدى كلّه (فهارس مطلقة): glyphs لكشف الأقواس (N0)، وorig لنوع
+                    ///      NSM الأصليّ (قبل W1) في متابعة الحاصرات لأقواس N0.
+                    void bidiResolveRun(std::vector<Bc> &t, const std::vector<uint32_t> &glyphs,
+                                        const std::vector<Bc> &orig, std::size_t b, std::size_t e,
                                         Bc sor, Bc eor, uint8_t level)
                     {
                         if (b >= e) return;
@@ -396,6 +420,74 @@ namespace sad
                             {
                                 if (t[i] == Bc::R || t[i] == Bc::L) lastStrong = t[i];
                                 else if (t[i] == Bc::EN && lastStrong == Bc::L) t[i] = Bc::L;
+                            }
+                        }
+                        // N0: أزواج الأقواس (BD16). ضمن هذا النطاق EN/AN كـR. يُطابَق
+                        //     كلُّ زوجٍ ثمّ تُسنَد كلتا حاصرتيه لاتّجاهٍ قويّ وفق محتواه
+                        //     والسياق السابق، فتصير حاصرةٌ يمينيّةٌ ويسريّةٌ متطابقتين
+                        //     (وإلّا تُترَك للمحايدات N1/N2 حين لا قويّ داخلها).
+                        {
+                            auto strongN0 = [](Bc c) -> Bc {
+                                if (c == Bc::L) return Bc::L;
+                                if (c == Bc::R || c == Bc::EN || c == Bc::AN) return Bc::R;
+                                return Bc::ON;
+                            };
+                            // BD16: اكتشاف الأزواج بمكدّس فتحٍ داخل المدى [b,e).
+                            struct StackEl { uint32_t canon; std::size_t pos; };
+                            std::vector<StackEl> stk;
+                            std::vector<std::pair<std::size_t, std::size_t>> pairs;
+                            for (std::size_t k = b; k < e; ++k)
+                            {
+                                uint32_t canon = 0;
+                                int kind = bracketKind(glyphs[k], canon);
+                                if (kind == 1)
+                                {
+                                    if (stk.size() >= BD16_STACK_MAX) break; // مكدّس ممتلئ ⇒ توقّف
+                                    stk.push_back({canon, k});
+                                }
+                                else if (kind == 2)
+                                {
+                                    for (std::size_t s = stk.size(); s-- > 0;)
+                                        if (stk[s].canon == canon)
+                                        {
+                                            pairs.push_back({stk[s].pos, k});
+                                            stk.resize(s); // انزع حتّى المطابق ضمنًا
+                                            break;
+                                        }
+                                }
+                            }
+                            std::sort(pairs.begin(), pairs.end()); // بترتيب موضع الفتح
+                            const Bc eDir = bidiLevelDir(level);
+                            const Bc oppDir = (eDir == Bc::L) ? Bc::R : Bc::L;
+                            for (const auto &pr : pairs)
+                            {
+                                const std::size_t o = pr.first, c = pr.second;
+                                bool hasE = false, hasOpp = false;
+                                for (std::size_t k = o + 1; k < c; ++k)
+                                {
+                                    Bc s = strongN0(t[k]);
+                                    if (s == eDir) { hasE = true; break; }
+                                    if (s == oppDir) hasOpp = true;
+                                }
+                                Bc chosen;
+                                if (hasE) chosen = eDir;               // (b) قويّ باتّجاه التضمين
+                                else if (hasOpp)                        // (c) قويّ معاكس فقط داخلها
+                                {
+                                    Bc prevStrong = sor;
+                                    for (std::size_t k = o; k-- > b;)
+                                    {
+                                        Bc s = strongN0(t[k]);
+                                        if (s != Bc::ON) { prevStrong = s; break; }
+                                    }
+                                    chosen = (prevStrong == oppDir) ? oppDir : eDir;
+                                }
+                                else continue;                          // (d) لا قويّ ⇒ اترك للـN1/N2
+                                t[o] = chosen;
+                                t[c] = chosen;
+                                // متابعة NSM: حاصرات نوعها الأصليّ (قبل W1) NSM وتلي القوس
+                                //             مباشرةً تتبع اتّجاهه (فقرة N0 الأخيرة).
+                                for (std::size_t k = o + 1; k < e && orig[k] == Bc::NSM; ++k) t[k] = chosen;
+                                for (std::size_t k = c + 1; k < e && orig[k] == Bc::NSM; ++k) t[k] = chosen;
                             }
                         }
                         // N1–N2: المحايدات (B/S/WS/ON + BN) — EN/AN تُعامَل R.
@@ -467,7 +559,7 @@ namespace sad
                             uint8_t nextLvl = (j == n) ? paraLevel : levels[j];
                             Bc sor = bidiLevelDir(std::max(runLvl, prevLvl));
                             Bc eor = bidiLevelDir(std::max(runLvl, nextLvl));
-                            bidiResolveRun(types, i, j, sor, eor, runLvl);
+                            bidiResolveRun(types, glyphs, orig, i, j, sor, eor, runLvl);
                             i = j;
                         }
 

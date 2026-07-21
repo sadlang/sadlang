@@ -280,7 +280,7 @@ target_link_libraries(test_ui_render_displaylist PRIVATE sad_graphics)
 target_include_directories(test_ui_render_displaylist PRIVATE
     ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
 
-# 14f. اختبار المُشكِّل العربيّ للوضع الحرّ — حارس انحدار لـ arabic_shaper (٩ حالات)
+# 14f. اختبار المُشكِّل العربيّ للوضع الحرّ — حارس انحدار لـ arabic_shaper (٢٠ حالة)
 # (AR) C++ خالص مستضاف: يجمع arabic_shaper.cpp + الاختبار مباشرةً بلا SDL2/fb0/عتاد،
 #      فيُبنى على كلّ منصّات CI. كان يُشغَّل يدويًّا فقط عبر «بناء-عرض-fb.sh» — الآن
 #      مربوط بـCTest (وسم Unit) كي يشغّله CI حارسًا للانحدار (فشل ذرّيّ: خروج ≠ 0).
