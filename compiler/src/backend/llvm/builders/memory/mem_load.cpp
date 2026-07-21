@@ -170,12 +170,20 @@ namespace Sad
 
             llvm::Value *result = cg_.builder_->CreateLoad(loadType, ptr, "loadtmp");
 
-            if (inst->operands[0].name.find("volatile") != std::string::npos ||
-                inst->operands[0].name.find("\xd9\x85\xd8\xaa\xd8\xb7\xd8\xa7\xd9\x8a\xd8\xb1") != std::string::npos)
+            // (AR) اللبنة 3.14: وسم القراءة volatile إن كان الاسم يحوي volatile/متطاير
+            //      أو كان المخزن العامّ موسومًا @متطاير (بالاسم مجرَّدًا من %)
             {
-                if (auto *loadInst = llvm::dyn_cast<llvm::LoadInst>(result))
+                std::string vname = inst->operands[0].name;
+                if (!vname.empty() && vname[0] == '%')
+                    vname = vname.substr(1);
+                if (inst->operands[0].name.find("volatile") != std::string::npos ||
+                    inst->operands[0].name.find("\xd9\x85\xd8\xaa\xd8\xb7\xd8\xa7\xd9\x8a\xd8\xb1") != std::string::npos ||
+                    cg_.context_info_.volatileGlobals.count(vname))
                 {
-                    loadInst->setVolatile(true);
+                    if (auto *loadInst = llvm::dyn_cast<llvm::LoadInst>(result))
+                    {
+                        loadInst->setVolatile(true);
+                    }
                 }
             }
 

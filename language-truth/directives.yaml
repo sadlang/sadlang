@@ -51,16 +51,19 @@ directives:
     status: stable
     example: "@وقت_الترجمة\n  ثابت ح = @حجم(رقم)\nنهاية"
 
-  - id: directive.volatile
-    symbol: "@متطاير متغير"
-    name_ar: "متغير متطاير"
-    name_en: volatile_var
-    description_ar: "متغير لا يُحسَّن (للأجهزة والنوى)"
-    description_en: "Variable not subject to compiler optimization"
+  # (AR) توجيه @متطاير حُذف في اللبنة 3.14: «متطاير» صار لصيقةً لاحقةً «متغير متطاير»
+  #      (الموصوف ثمّ الصفة — عربيّ سليم، لا calque). كلمة «متطاير» موثَّقة في keywords.
+
+  - id: directive.symbol
+    symbol: "@رمز(\"اسم\") متغير"
+    name_ar: "رمز رابط مُصدَّر"
+    name_en: exported_symbol
+    description_ar: "يمنح مخزنًا ساكنًا عامًّا رمز رابط ثابتًا مُصدَّرًا (ExternalLinkage) بدل الاسم الداخليّ المُشوَّه — للتشغيل البينيّ مع C/الأسمبلي وأخذ العنوان بـعنوان_رمز (اللبنة 3.14). سمة اسميّة ذات وسيط (لا صفة نحويّة) فتبقى سابقةً"
+    description_en: "Gives a top-level static storage a stable exported linker symbol (ExternalLinkage) instead of the mangled internal name — for C/asm interop and address-taking via عنوان_رمز"
     context: declaration
     since: "1.0.0"
     status: stable
-    example: "@متطاير متغير س = 0"
+    example: "@رمز(\"bee_probe_hits\") متغير متطاير عداد = 0"
 
   - id: directive.asm
     symbol: "@تجميع(\"code\")"

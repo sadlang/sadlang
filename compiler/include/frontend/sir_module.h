@@ -26,6 +26,7 @@
 #include "sir_instruction.h"
 #include <string>
 #include <vector>
+#include <cstdint>
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
@@ -440,6 +441,11 @@ namespace Sad
                 SadTypeKind type;         ///< (AR) نوع المتغير / (EN) Variable type
                 std::string initialValue; ///< (AR) القيمة الأولية (اختياري) / (EN) Initial value (optional)
                 bool isConstant;          ///< (AR) ثابت / (EN) Constant
+                // (AR) سمات تخزين ساكن (اللبنة 3.14)
+                std::string linkName;     ///< (AR) رمز رابط مُصدَّر ثابت (@رمز) — فارغ = اسم داخليّ مُشوَّه
+                bool isVolatile = false;  ///< (AR) متطاير (@متطاير) — يوسم قراءات/كتابات المخزن volatile
+                bool isByteBlob = false;  ///< (AR) بيانات مضمَّنة بايتات(...) ⇒ ConstantDataArray في .rodata
+                std::vector<uint8_t> byteData; ///< (AR) بايتات الكتلة حين isByteBlob
 
                 /**
                  * @brief (AR) منشئ المتغير العام
@@ -481,6 +487,12 @@ namespace Sad
                  * @brief (EN) Check if variable is constant
                  */
                 bool getIsConstant() const { return isConstant; }
+
+                /**
+                 * @brief (AR) رمز الرابط المُصدَّر — يعيد linkName إن ضُبط، وإلّا الاسم
+                 * @brief (EN) Exported linker symbol — linkName if set, else name
+                 */
+                const std::string &getLinkName() const { return linkName.empty() ? name : linkName; }
             };
 
             // ======================================================================

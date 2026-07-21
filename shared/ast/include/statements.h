@@ -83,6 +83,9 @@ namespace Sad
             ExprPtr initializer;       ///< Initial value (optional) / القيمة الأولية
             bool isConst;              ///< Is constant? / ثابت؟
             Types::SadTypePtr sadType; ///< (AR) النوع الموحد الجديد / (EN) Unified type (new system)
+            // (AR) سمات تخزين ساكن (اللبنة 3.14): يملؤها المحلّل من توجيهات @رمز/@متطاير
+            std::string linkSymbol;    ///< (AR) رمز رابط مُصدَّر ثابت (@رمز("اسم")) — فارغ = اسم داخليّ
+            bool isVolatile = false;   ///< (AR) متطاير (@متطاير) — يوسم قراءات/كتابات المخزن volatile
 
             /**
              * @brief Constructor / البناء

@@ -728,10 +728,17 @@ namespace Sad
             }
 
             // م-أ03: فحص إذا كان المتغير متطايراً (volatile) — لسجلات الأجهزة MMIO
-            if (inst->operands[1].name.find("volatile") != std::string::npos ||
-                inst->operands[1].name.find("\xd9\x85\xd8\xaa\xd8\xb7\xd8\xa7\xd9\x8a\xd8\xb1") != std::string::npos)
+            // (AR) اللبنة 3.14: أو كان المخزن العامّ موسومًا @متطاير (بالاسم مجرَّدًا من %)
             {
-                storeResult->setVolatile(true);
+                std::string vname = ptrName;
+                if (!vname.empty() && vname[0] == '%')
+                    vname = vname.substr(1);
+                if (inst->operands[1].name.find("volatile") != std::string::npos ||
+                    inst->operands[1].name.find("\xd9\x85\xd8\xaa\xd8\xb7\xd8\xa7\xd9\x8a\xd8\xb1") != std::string::npos ||
+                    cg_.context_info_.volatileGlobals.count(vname))
+                {
+                    storeResult->setVolatile(true);
+                }
             }
 
             return storeResult;

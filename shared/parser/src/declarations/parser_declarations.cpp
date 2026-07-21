@@ -1250,6 +1250,17 @@ namespace Sad
             // (EN) Capture pending doc comment
             std::string docComment = consumePendingDocComment();
 
+            // (AR) اللبنة 3.14: لصيقة «متطاير» اللاحقة (عربيّ سليم: الموصوف ثمّ الصفة)
+            //      متغير متطاير عداد = 0  ⇒  volatile. تحلّ محلّ توجيه @متطاير المحذوف.
+            //      «متطاير» كلمة سياقيّة (CONTEXTUAL) فقد تُلفظ IDENTIFIER — نقبل الحالتين.
+            bool declVolatile = false;
+            if (check(TT::KEYWORD_VOLATILE) ||
+                (check(TT::IDENTIFIER) && current_.getValue() == "متطاير"))
+            {
+                advance();
+                declVolatile = true;
+            }
+
             // =====================================================================
             // (AR) تفكيك الصف: متغير (أ، ب، ج) = تعبير_صف
             // (EN) Tuple destructuring: var (a, b, c) = tuple_expression
@@ -1527,6 +1538,7 @@ namespace Sad
                 pendingConst_,
                 firstPos);
             firstDecl->docComment = std::move(docComment);
+            firstDecl->isVolatile = declVolatile; // (AR) لصيقة «متطاير» (اللبنة 3.14)
 
             // (AR) [NS-06 موجة 2] لنوع اختياريّ `T؟`: ابنِ sadType غنيًّا = Optional<T>
             //      (المُنشئ يضع fromValueType(Optional) بلا T داخليّ). هذا يمكّن codegen
@@ -1605,6 +1617,7 @@ namespace Sad
                         std::move(nextInit),
                         pendingConst_,
                         nextName.getPosition());
+                    nextDecl->isVolatile = declVolatile; // (AR) «متطاير» (اللبنة 3.14)
                     // (AR) [NS-06] سباكة Optional<T> للمتغيّر التالي كما في الأول
                     // (EN) [NS-06] Plumb Optional<T> for the next variable like the first
                     if (nextType == Types::SadTypeKind::Optional &&

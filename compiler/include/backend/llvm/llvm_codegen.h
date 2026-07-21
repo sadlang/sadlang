@@ -165,6 +165,13 @@ namespace Sad
             // (EN) Global variables table — NOT cleared on function entry
             std::unordered_map<std::string, llvm::Value *> globalValues;
 
+            // (AR) أسماء المتغيّرات العامّة المتطايرة (@متطاير، اللبنة 3.14) — تُوسَم
+            //      قراءاتها/كتاباتها المباشرة volatile (GlobalVariable لا يحمل السمة)
+            std::set<std::string> volatileGlobals;
+            // (AR) مؤشّرات الـglobals المتطايرة — تمريرة لاحقة تعلّم كلّ load/store
+            //      يمسّها volatile (متينة ضدّ تعدّد مسارات إصدار الأحمال)
+            std::set<const llvm::GlobalVariable *> volatileGlobalVars;
+
             // جدول الدوال / Function table
             std::unordered_map<std::string, llvm::Function *> functions;
 

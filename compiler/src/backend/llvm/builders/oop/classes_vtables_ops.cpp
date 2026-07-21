@@ -232,6 +232,39 @@ namespace Sad
             {
                 cg_.emitFreestandingRuntime();
             }
+
+            // (AR) اللبنة 3.14: تمريرة @متطاير اللاحقة — تعلّم كلّ load/store يمسّ
+            //      مخزنًا عامًّا موسومًا @متطاير بأنّه volatile. متينة ضدّ تعدّد مسارات
+            //      إصدار الأحمال (arith_resolve/mem_load/oop_ops/…): نطابق بالمؤشّر
+            //      (GlobalVariable الأساس بعد تجريد التحويلات) لا بالاسم.
+            if (!cg_.context_info_.volatileGlobalVars.empty())
+            {
+                for (llvm::Function &fn : *cg_.module_)
+                {
+                    for (llvm::BasicBlock &bb : fn)
+                    {
+                        for (llvm::Instruction &inst : bb)
+                        {
+                            llvm::Value *ptr = nullptr;
+                            if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(&inst))
+                                ptr = ld->getPointerOperand();
+                            else if (auto *st = llvm::dyn_cast<llvm::StoreInst>(&inst))
+                                ptr = st->getPointerOperand();
+                            else
+                                continue;
+                            auto *gv = llvm::dyn_cast<llvm::GlobalVariable>(
+                                ptr->stripPointerCasts());
+                            if (gv && cg_.context_info_.volatileGlobalVars.count(gv))
+                            {
+                                if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(&inst))
+                                    ld->setVolatile(true);
+                                else if (auto *st = llvm::dyn_cast<llvm::StoreInst>(&inst))
+                                    st->setVolatile(true);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         /**
@@ -443,13 +476,71 @@ namespace Sad
                 //      so __sad_main can write the computed value via STORE.
                 //      Constness is enforced at language level (parser), not LLVM level.
                 bool llvmConstant = isConstant && !globalVar->initialValue.empty();
+                // (AR) اللبنة 3.14: @رمز("اسم") ⇒ رمز رابط ثابت مُصدَّر (ExternalLinkage)
+                //      باسم linkName بدل الاسم الداخليّ المُشوَّه. مفتاح خريطة القيَم
+                //      يبقى الاسم العربيّ (varName) كي تُحلّ مراجع ص الداخليّة.
+                const bool hasLinkSym = !globalVar->linkName.empty();
+                // (AR) اللبنة 3.14: احرس تصادم رمز @رمز المُصدَّر (SEM022): تكرار
+                //      الاسم أو مصادفة رمز محجوز لزمن التشغيل ⇒ الرابط يعيد التسمية
+                //      صامتًا فيفقد غرضه أو يُفسد نداءات memset/malloc… رفعُ خطأ مفهوم.
+                if (hasLinkSym)
+                {
+                    static const std::set<std::string> kReservedRt = {
+                        "memset", "memcpy", "memmove", "memcmp", "strlen",
+                        "malloc", "free", "realloc",
+                        "__sad_heap", "__sad_heap_offset", "__sad_main",
+                        "__divdi3", "__udivdi3", "__moddi3", "__umoddi3",
+                        "__stack_chk_guard", "__stack_chk_fail"};
+                    const std::string &sym = globalVar->getLinkName();
+                    if (kReservedRt.count(sym))
+                    {
+                        cg_.reportError(::Sad::Errors::ErrorCode::SEM_SYMBOL_NAME_CONFLICT,
+                            {{"detail", "@رمز(\"" + sym + "\"): اسم محجوز لزمن التشغيل المضمَّن — اختر اسمًا آخر"}});
+                        continue;
+                    }
+                    if (cg_.module_->getNamedValue(sym))
+                    {
+                        cg_.reportError(::Sad::Errors::ErrorCode::SEM_SYMBOL_NAME_CONFLICT,
+                            {{"detail", "@رمز(\"" + sym + "\"): رمز مُصدَّر بهذا الاسم موجود مسبقًا (تكرار)"}});
+                        continue;
+                    }
+                }
+                // (AR) اللبنة 3.14: بيانات مضمَّنة بايتات(...) ⇒ ConstantDataArray في
+                //      .rodata (isConstant) برمز @رمز المُصدَّر. محاذاة 1 (بيانات جدول).
+                if (globalVar->isByteBlob)
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    auto *arrTy = llvm::ArrayType::get(i8Ty, globalVar->byteData.size());
+                    llvm::Constant *blobInit = llvm::ConstantDataArray::get(
+                        *cg_.context_,
+                        llvm::ArrayRef<uint8_t>(globalVar->byteData.data(),
+                                                globalVar->byteData.size()));
+                    auto *blobGV = new llvm::GlobalVariable(
+                        *cg_.module_, arrTy, /*isConstant*/ isConstant,
+                        hasLinkSym ? llvm::GlobalValue::ExternalLinkage
+                                   : llvm::GlobalValue::InternalLinkage,
+                        blobInit,
+                        hasLinkSym ? globalVar->getLinkName() : varName);
+                    blobGV->setAlignment(llvm::Align(1));
+                    cg_.context_info_.namedValues[varName] = blobGV;
+                    cg_.context_info_.globalValues[varName] = blobGV;
+                    continue;
+                }
                 auto *globalLLVM = new llvm::GlobalVariable(
                     *cg_.module_,
                     llvmType,
                     llvmConstant,
-                    llvm::GlobalValue::InternalLinkage,
+                    hasLinkSym ? llvm::GlobalValue::ExternalLinkage
+                               : llvm::GlobalValue::InternalLinkage,
                     initializer,
-                    varName);
+                    hasLinkSym ? globalVar->getLinkName() : varName);
+                // (AR) @متطاير: سجّل المخزن (اسمًا ومؤشّرًا) كي تعلّمه تمريرة لاحقة
+                //      volatile على كلّ load/store يمسّه (GlobalVariable لا يحمل السمة).
+                if (globalVar->isVolatile)
+                {
+                    cg_.context_info_.volatileGlobals.insert(varName);
+                    cg_.context_info_.volatileGlobalVars.insert(globalLLVM);
+                }
 
                 // حفظ في السياق
                 // Save to context

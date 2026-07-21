@@ -1542,9 +1542,10 @@ namespace Sad
 
             // (AR) قائمة الكلمات المفتاحية المسموحة كتوجيهات
             // (EN) List of keywords allowed as directives
+            // (AR) KEYWORD_VOLATILE أُزيل من قائمة توجيهات @ (اللبنة 3.14): «متطاير»
+            //      صار لصيقة لاحقة «متغير متطاير» لا توجيهًا سابقًا @متطاير.
             bool isDirectiveKeyword = (nextType == TT::KEYWORD_UNSAFE ||
                                        nextType == TT::KEYWORD_COMPTIME ||
-                                       nextType == TT::KEYWORD_VOLATILE ||
                                        nextType == TT::KEYWORD_SIZEOF ||
                                        nextType == TT::KEYWORD_ATOMIC ||
                                        nextType == TT::KEYWORD_ASM);
@@ -1596,24 +1597,42 @@ namespace Sad
                 return std::make_unique<ComptimeBlockStmt>(std::move(body), pos);
             }
 
-            // ─── @متطاير متغير/ثابت ... ───
-            if (nextType == TT::KEYWORD_VOLATILE || name == "متطاير")
+            // (AR) توجيه @متطاير حُذف (اللبنة 3.14): الصياغة العربيّة الصحيحة لصيقة
+            //      لاحقة «متغير متطاير» (الموصوف ثمّ الصفة) — تُعالَج في parseVarDecl.
+            //      @رمز يبقى توجيهًا سابقًا (سمة اسميّة ذات وسيط لا صفة نحويّة).
+
+            // ─── @رمز("اسم") متغير/ثابت — رمز رابط مُصدَّر ثابت (اللبنة 3.14) ───
+            if (name == "رمز")
             {
                 auto pos = current_.getPosition();
                 advance(); // consume @
-                advance(); // consume متطاير
+                advance(); // consume رمز
 
-                // (AR) التالي يجب أن يكون إعلان متغير (متغير أو ثابت)
-                // (EN) Next must be a variable declaration (var or const)
-                if (!check(TT::KEYWORD_VAR) && !check(TT::KEYWORD_CONST))
-                {
-                    error("(AR) خطأ نحوي: توقع 'متغير' أو 'ثابت' بعد @متطاير.\n"
-                          "(EN) Syntax error: expected 'متغير' or 'ثابت' after @متطاير.");
-                    return nullptr;
-                }
+                consume(TT::PAREN_LEFT,
+                        "(AR) خطأ نحوي: توقع '(' بعد @رمز.\n"
+                        "(EN) Syntax error: expected '(' after @رمز.");
+                Token symTok = consume(TT::STRING_LITERAL,
+                                       "(AR) خطأ نحوي: توقع اسم الرمز كنص حرفي بعد @رمز.\n"
+                                       "(EN) Syntax error: expected symbol name as string literal after @رمز.");
+                consume(TT::PAREN_RIGHT,
+                        "(AR) خطأ نحوي: توقع ')' بعد اسم الرمز في @رمز.\n"
+                        "(EN) Syntax error: expected ')' after symbol name in @رمز.");
 
+                // (AR) التالي تصريح متغيّر/ثابت (قد يسبقه @متطاير — يلتقطه parseDeclaration)
                 auto decl = parseDeclaration();
-                return std::make_unique<VolatileVarDeclStmt>(std::move(decl), pos);
+                // (AR) درِّل إلى VarDeclStmt (مباشرةً أو داخل غلاف @متطاير) واضبط الرمز
+                VarDeclStmt *vd = dynamic_cast<VarDeclStmt *>(decl.get());
+                if (!vd)
+                {
+                    if (auto *vol = dynamic_cast<VolatileVarDeclStmt *>(decl.get()))
+                        vd = dynamic_cast<VarDeclStmt *>(vol->declaration.get());
+                }
+                if (vd)
+                    vd->linkSymbol = symTok.getValue();
+                else
+                    error("(AR) خطأ نحوي: @رمز يتطلّب تصريح 'متغير' أو 'ثابت'.\n"
+                          "(EN) Syntax error: @رمز requires a 'متغير' or 'ثابت' declaration.");
+                return decl;
             }
 
             // ─── @تجميع("code") — inline assembly statement ───

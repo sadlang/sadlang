@@ -234,6 +234,10 @@ namespace Sad
                             // ================================================================
                             {
                                 llvm::Value *loaded = cg_.builder_->CreateLoad(gvInst->getValueType(), gvInst, globalName + ".gload");
+                                // (AR) اللبنة 3.14: وسم القراءة volatile إن كان المخزن @متطاير
+                                if (cg_.context_info_.volatileGlobals.count(globalName))
+                                    if (auto *li = llvm::dyn_cast<llvm::LoadInst>(loaded))
+                                        li->setVolatile(true);
                                 if (operand.dataType == SadTypeKind::String && loaded->getType()->isIntegerTy(64))
                                 {
                                     return cg_.builder_->CreateIntToPtr(loaded,
@@ -292,6 +296,10 @@ namespace Sad
                         // ================================================================
                         {
                             llvm::Value *loaded = cg_.builder_->CreateLoad(gv->getValueType(), gv, globalName + ".gload");
+                            // (AR) اللبنة 3.14: وسم القراءة volatile إن كان المخزن @متطاير
+                            if (cg_.context_info_.volatileGlobals.count(globalName))
+                                if (auto *li = llvm::dyn_cast<llvm::LoadInst>(loaded))
+                                    li->setVolatile(true);
                             if (operand.dataType == SadTypeKind::String && loaded->getType()->isIntegerTy(64))
                             {
                                 return cg_.builder_->CreateIntToPtr(loaded,

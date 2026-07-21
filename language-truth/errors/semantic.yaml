@@ -357,3 +357,20 @@ errors:
   detailed:
     ar: مدمج عنوان_رمز يُصدر إحالة (relocation) إلى رمز رابط خارجيّ باسمه، فيجب أن يُعرَف الاسم وقت الترجمة كسلسلة حرفيّة ثابتة. سلسلة تُحسب وقت التشغيل لا يمكن تحويلها إلى إحالة رابط. هذا خطأ استعمال من المبرمج لا علّة مترجم — مرّر اسم الرمز حرفيًّا.
     en: The symbol-address builtin emits a relocation to an external linker symbol by name, so the name must be known at compile time as a constant string literal. A string computed at run time cannot become a link-time relocation. This is a programmer usage error, not a compiler bug — pass the symbol name literally.
+- code: SEM_SYMBOL_NAME_CONFLICT
+  id: SEM022
+  category: semantic
+  title:
+    ar: اسم رمز @رمز مُصدَّر متصادم أو محجوز
+    en: exported @رمز symbol name conflicts or is reserved
+  brief:
+    ar: '{detail}'
+    en: '{detail}'
+  placeholders:
+  - detail
+  fix_hint:
+    ar: 'اختر اسم رمز مُصدَّرًا فريدًا وغير محجوز لزمن التشغيل (memset/malloc/__sad_* …). لا تُصدِّر رمزين بالاسم نفسه.'
+    en: 'Choose a unique exported symbol name that is not reserved for the runtime (memset/malloc/__sad_* …). Do not export two symbols with the same name.'
+  detailed:
+    ar: توجيه @رمز("اسم") يُصدِّر رمز رابط بربط خارجيّ (ExternalLinkage). إن تكرّر الاسم عبر مخزنين، أو صادف اسمًا محجوزًا لزمن التشغيل المضمَّن (memset/memcpy/malloc/free/strlen/__sad_heap/__divdi3…)، لأعاد الرابط تسميته صامتًا فيفقد غرضه أو يُفسد نداءات الزمن التشغيليّ. هذا خطأ استعمال — بدّل الاسم.
+    en: The @رمز("name") directive exports a linker symbol with ExternalLinkage. If the name is duplicated across two storages, or clashes with a name reserved for the embedded runtime (memset/memcpy/malloc/free/strlen/__sad_heap/__divdi3…), the linker would silently rename it, defeating its purpose or corrupting runtime calls. This is a usage error — change the name.

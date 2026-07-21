@@ -24,6 +24,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "directive_nodes.h" // (AR) VolatileVarDeclStmt (@متطاير، اللبنة 3.14)
 #include "sad_ui/generated/color_table_generated.h" // (AR) تعداد الألوان المدمَج (SoT)
 #include "utf8_utils.h"
 #include <stdexcept>
@@ -36,6 +37,9 @@ namespace Sad
     {
         namespace SIR
         {
+            // (AR) اسم مدمج البيانات المضمَّنة (اللبنة 3.14) — ثابت مسمّى واحد يشاركه
+            //      الكشف والتخطّي (تفاديًا لانحراف سلسلتين نصّيّتين مباشرتين).
+            static const std::string kByteBlobBuiltin = "\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa\xd8\xa7\xd8\xaa"; // «بايتات»
 
             // ============================================================================
             // المنشئ / Constructor
@@ -650,6 +654,8 @@ namespace Sad
                             }
                         }
                     }
+                    // (AR) اللبنة 3.14: لصيقة «متطاير» (isVolatile) تُضبَط مباشرةً على
+                    //      VarDeclStmt في parseVarDecl، فلا حاجة لفكّ غلاف — تُقرأ أدناه.
 
                     if (varDecl)
                     {
@@ -730,10 +736,66 @@ namespace Sad
                         // (EN) Also add global variable to SIR module so LLVM CodeGen creates real LLVM globals
                         auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
                         sirGlobal->isConstant = varDecl->isConst;
+                        // (AR) اللبنة 3.14: سمات التخزين الساكن من التوجيهات
+                        sirGlobal->linkName = varDecl->linkSymbol;   // @رمز("اسم") — رمز مُصدَّر
+                        sirGlobal->isVolatile = varDecl->isVolatile; // @متطاير
+
+                        // (AR) اللبنة 3.14: مُهيّئ بايتات(...) ⇒ كتلة بايتات ثابتة في
+                        //      .rodata برمز مملوك (لجداول النواة: أرشيف/خرائط). يُصدَر
+                        //      ConstantDataArray في الخلفيّة. القيَم أعداد حرفيّة 0–255.
+                        bool handledByteBlob = false;
+                        if (varDecl->initializer)
+                        {
+                            if (auto *callExpr = dynamic_cast<Sad::AST::CallExpr *>(varDecl->initializer.get()))
+                            {
+                                auto *callee = dynamic_cast<Sad::AST::VariableExpr *>(callExpr->callee.get());
+                                if (callee && callee->name == kByteBlobBuiltin)
+                                {
+                                    handledByteBlob = true;
+                                    sirGlobal->isByteBlob = true;
+                                    // (AR) C2: قائمة فارغة بايتات() ⇒ كتلة بلا معنى، ترفض
+                                    if (callExpr->arguments.empty())
+                                        errors_.push_back("Error: بايتات(...) لا يقبل قائمة فارغة — مرّر بايتًا واحدًا على الأقلّ (0–255)");
+                                    for (const auto &arg : callExpr->arguments)
+                                    {
+                                        auto *lit = dynamic_cast<Sad::AST::LiteralExpr *>(arg.get());
+                                        if (!lit || lit->token.getType() != Lexer::TokenType::NUMBER_INTEGER)
+                                        {
+                                            errors_.push_back("Error: بايتات(...) يقبل أعدادًا صحيحة حرفيّة فقط (0–255)");
+                                            break;
+                                        }
+                                        std::string bv = lit->token.getValue();
+                                        int64_t bn = 0;
+                                        try
+                                        {
+                                            if (bv.size() > 2 && bv[0] == '0' && (bv[1] == 'x' || bv[1] == 'X'))
+                                                bn = static_cast<int64_t>(std::stoull(bv, nullptr, 16));
+                                            else if (bv.size() > 2 && bv[0] == '0' && (bv[1] == 'o' || bv[1] == 'O'))
+                                                bn = static_cast<int64_t>(std::stoull(bv.substr(2), nullptr, 8));
+                                            else if (bv.size() > 2 && bv[0] == '0' && (bv[1] == 'b' || bv[1] == 'B'))
+                                                bn = static_cast<int64_t>(std::stoull(bv.substr(2), nullptr, 2));
+                                            else
+                                                bn = std::stoll(bv);
+                                        }
+                                        catch (...)
+                                        {
+                                            errors_.push_back("Error: بايتات: تعذّر تحليل العدد '" + bv + "'");
+                                            break;
+                                        }
+                                        if (bn < 0 || bn > 255)
+                                        {
+                                            errors_.push_back("Error: بايتات: قيمة خارج المدى [0,255]: " + bv);
+                                            break;
+                                        }
+                                        sirGlobal->byteData.push_back(static_cast<uint8_t>(bn));
+                                    }
+                                }
+                            }
+                        }
 
                         // (AR) استخراج القيمة الأولية إذا كانت ثابتاً حرفياً
                         // (EN) Extract initial value if it's a literal constant
-                        if (varDecl->initializer)
+                        if (!handledByteBlob && varDecl->initializer)
                         {
                             if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
                             {
@@ -1655,6 +1717,26 @@ namespace Sad
                         // (EN) [ISSUE-049] Struct already built in Phase 2A-0; skip here to
                         //      avoid double registration (addClass twice).
                         continue;
+                    }
+
+                    // (AR) اللبنة 3.14: تصريح «= بايتات(...)» عامّ مُعرَّف بالكامل كـ
+                    //      global .rodata (Phase 1.5)؛ لا يُدفَع كجملة تنفيذيّة تفاديًا
+                    //      لمعالجة «بايتات» كنداء دالّة غير معرّفة في __sad_main.
+                    //      قيود موثَّقة (خارج نطاق نهلة): (C1) بايتات مع «صدّر» تُعالَج
+                    //      مرّتين — نهلة تستعمل @رمز لا صدّر؛ (C3) بايتات كتعبير داخل
+                    //      دالّة يُعطي «دالّة غير معرّفة»؛ (C4) قراءة الكتلة بالاسم مباشرةً
+                    //      (لا عبر عنوان_رمز) مكسورة النوع — نهلة تقرأ بـعنوان_رمز+memread.
+                    if (auto *vd = dynamic_cast<Sad::AST::VarDeclStmt *>(stmt.get()))
+                    {
+                        if (vd->initializer)
+                        {
+                            if (auto *ce = dynamic_cast<Sad::AST::CallExpr *>(vd->initializer.get()))
+                            {
+                                auto *cv = dynamic_cast<Sad::AST::VariableExpr *>(ce->callee.get());
+                                if (cv && cv->name == kByteBlobBuiltin)
+                                    continue;
+                            }
+                        }
                     }
 
                     // ═══════════════════════════════════════════════════════════════
