@@ -231,38 +231,75 @@ namespace sad
                         out.push_back(shaped);
                     }
 
-                    // ── المرحلة 2: عكس المدى العربيّ البسيط (لا UAX#9 — حدّ معلَن) ──
-                    // المدى = تتابُع نقاط عربيّة، والمسافات تُضمّ فقط إن تلاها عربيّ
-                    // (مسافات الحافّة بين عربيّ ولاتينيّ تبقى خارج المدى بترتيبها).
+                    // ── المرحلة 2: عكس المدى العربيّ + تموضع الأرقام RTL (حدّ معلَن) ──
+                    // المدى = تتابُع نقاط عربيّة، وتُضمّ إليه: المسافات (إن تلاها عربيّ/رقم)
+                    // والأرقام (٠..٩ لاتينيّ/عربيّ/ممتدّ) والفواصل الرقميّة الداخليّة (بين
+                    // رقمين). بعد عكس المدى كلِّه، تُعاد المقاطعُ الرقميّة إلى ترتيبها الأصليّ
+                    // (LTR) — فرقم كـ«3.14» في نصّ عربيّ يظهر يسار العربيّ ويُقرأ 3.14 لا
+                    // 41.3. حدٌّ معلَن: لا UAX#9 كامل (لا تضمينات صريحة ولا حلّ محايدات
+                    // متداخل) ولا أرقام تسبق المدى العربيّ ابتداءً — نطاق نصوص الواجهة.
                     const std::size_t m = out.size();
                     std::size_t i = 0;
                     while (i < m)
                     {
-                        if (!isArabicDisplay(out[i]))
+                        // المدى يبدأ عند حرفٍ عربيّ غيرِ رقم فقط — كي لا يبدأ رقمٌ مدًى
+                        // ابتداءً (الأرقام العربيّة-الهنديّة تقع ضمن كتلة isArabicDisplay،
+                        // فلولا استثناؤها لبدأت مدًى بينما لا يبدؤه رقم ASCII: عدم اتّساق).
+                        // فالأرقام تُضمّ لاحقًا فقط تاليةً لحرفٍ عربيّ، لا مُبتدِئةً — حدّ معلَن.
+                        if (!isArabicDisplay(out[i]) || isBidiDigit(out[i]))
                         {
                             ++i;
                             continue;
                         }
-                        std::size_t runEnd = i + 1; // ما بعد آخر عربيّ مضموم
+                        std::size_t runEnd = i + 1; // ما بعد آخر نقطة مضمومة فعلًا
                         std::size_t k = runEnd;
                         while (k < m)
                         {
-                            if (isArabicDisplay(out[k]))
+                            if (isArabicDisplay(out[k]) || isBidiDigit(out[k]))
                             {
                                 ++k;
                                 runEnd = k;
                             }
                             else if (out[k] == SPACE_CODEPOINT)
                             {
-                                ++k; // تُضمّ فقط إذا جاء عربيّ بعدها (runEnd لا يتقدّم الآن)
+                                ++k; // تُضمّ فقط إذا تلاها عربيّ/رقم (runEnd لا يتقدّم الآن)
+                            }
+                            else if (isNumberSeparator(out[k]) && k > i && k + 1 < m &&
+                                     isBidiDigit(out[k - 1]) && isBidiDigit(out[k + 1]))
+                            {
+                                ++k; // فاصل رقميّ بين رقمين: جزءٌ من المقطع الرقميّ
                             }
                             else
                             {
                                 break;
                             }
                         }
+
+                        // (١) عكس المدى كلِّه (منطقيّ ⇒ بصريّ RTL).
                         std::reverse(out.begin() + static_cast<std::ptrdiff_t>(i),
                                      out.begin() + static_cast<std::ptrdiff_t>(runEnd));
+
+                        // (٢) إعادةُ عكسِ كلِّ مقطعٍ رقميّ داخل المدى المعكوس كي يُقرأ LTR.
+                        //     المقطع = أرقامٌ متتالية + فواصلها الداخليّة (بين رقمين).
+                        std::size_t a = i;
+                        while (a < runEnd)
+                        {
+                            if (!isBidiDigit(out[a]))
+                            {
+                                ++a;
+                                continue;
+                            }
+                            std::size_t b = a + 1;
+                            while (b < runEnd &&
+                                   (isBidiDigit(out[b]) ||
+                                    (isNumberSeparator(out[b]) && b + 1 < runEnd &&
+                                     isBidiDigit(out[b - 1]) && isBidiDigit(out[b + 1]))))
+                                ++b;
+                            std::reverse(out.begin() + static_cast<std::ptrdiff_t>(a),
+                                         out.begin() + static_cast<std::ptrdiff_t>(b));
+                            a = b;
+                        }
+
                         i = runEnd;
                     }
 
