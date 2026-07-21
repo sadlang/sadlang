@@ -280,6 +280,45 @@ namespace Sad
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
+
+                // (AR) لا معالج حاول/امسك مسجَّل (count == 0): longjmp إلى فهرس -1 قراءة
+                //      خارج الحدود ⇒ UB/تعطّل. نتفرّع إلى مسار آمن يطبع الاستثناء ويخرج
+                //      نظيفًا بدل تخمين jmpbuf غير موجود.
+                // (EN) No حاول/امسك handler registered (count == 0): longjmp to index -1
+                //      is an out-of-bounds read ⇒ UB/crash. Branch to a safe path that
+                //      prints the exception and exits cleanly instead of guessing a
+                //      nonexistent jmpbuf.
+                llvm::Function *raiseCurFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *noHandlerBB =
+                    llvm::BasicBlock::Create(*cg_.context_, "raise.nohandler", raiseCurFunc);
+                llvm::BasicBlock *hasHandlerBB =
+                    llvm::BasicBlock::Create(*cg_.context_, "raise.hashandler", raiseCurFunc);
+                llvm::Value *hasHandler = cg_.builder_->CreateICmpSGT(
+                    count, cg_.builder_->getInt32(0), "has_handler");
+                cg_.builder_->CreateCondBr(hasHandler, hasHandlerBB, noHandlerBB);
+
+                cg_.builder_->SetInsertPoint(noHandlerBB);
+                auto *reportFuncType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_), {ptrType, ptrType}, false);
+                auto reportCallee = cg_.module_->getOrInsertFunction(
+                    "sad_report_unhandled_exception", reportFuncType);
+                // (AR) ارمِ يقبل أيّ قيمة (عدد/منطقي/كائن...) لا سلاسل فقط، فقد يصل type/msg
+                //      هنا بنوع LLVM غير ptr (مثلاً i64 لـ«ارمي 42»). استدعاء دالّة الطباعة
+                //      بتوقيع (ptr,ptr) يتطلّب مطابقة صارمة، فنستبدل القيمة غير-ptr بـ null
+                //      بدل توليد IR غير سليم (verifyModule) أو inttoptr قد يقرأ عنوانًا وهميًّا.
+                // (EN) ارمِ accepts any value (number/bool/object...), not only strings, so
+                //      type/msg may arrive here with a non-ptr LLVM type (e.g. i64 for
+                //      "ارمي 42"). The (ptr,ptr) print call requires an exact match, so a
+                //      non-ptr value is replaced with null instead of emitting invalid IR
+                //      or inttoptr'ing into a bogus address.
+                llvm::Value *excTypeForReport =
+                    (excType && excType->getType() == ptrType) ? excType : llvm::ConstantPointerNull::get(ptrType);
+                llvm::Value *msgForReport =
+                    (msg && msg->getType() == ptrType) ? msg : llvm::ConstantPointerNull::get(ptrType);
+                cg_.builder_->CreateCall(reportCallee, {excTypeForReport, msgForReport});
+                cg_.builder_->CreateUnreachable();
+
+                cg_.builder_->SetInsertPoint(hasHandlerBB);
                 llvm::Value *idx = cg_.builder_->CreateSub(count, cg_.builder_->getInt32(1), "handler_idx");
 
                 auto *arrType = llvm::ArrayType::get(ptrType, 64);

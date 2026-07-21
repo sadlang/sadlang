@@ -522,6 +522,15 @@ void sad_security_panic(const char *msg)
     abort();
 }
 
+/* استثناء غير معالَج خارج حاول/امسك — طباعة ثم خروج نظيف (لا longjmp بلا معالج مسجَّل) */
+/* Unhandled exception outside try/catch — print then clean exit (no longjmp with no registered handler) */
+void sad_report_unhandled_exception(const char *type, const char *msg)
+{
+    fprintf(stderr, "[sad] استثناء غير معالَج (%s): %s\n",
+            type ? type : "خطأ", msg ? msg : "");
+    exit(1);
+}
+
 /* ============================================================================
  * SHA-256 (FIPS 180-4) — نواة مشتركة لِـ«هاش»/«شفّر»/«فك_تشفير»
  * ============================================================================
@@ -1151,7 +1160,7 @@ const char *sad_kdf_pbkdf2(const char *password, const char *salt, long long ite
     if (iterations <= 0)
     {
         fprintf(stderr, "[sad] خطأ: عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر\n");
-        return "";
+        return NULL;
     }
     if (!password)
         password = "";
@@ -1164,7 +1173,7 @@ const char *sad_kdf_pbkdf2(const char *password, const char *salt, long long ite
                                 (const unsigned char *)salt, saltlen, iters, digest, 32);
     out = (char *)malloc(65);
     if (!out)
-        return "";
+        return NULL;
     for (i = 0; i < 32; ++i)
         snprintf(out + i * 2, 3, "%02x", digest[i]);
     out[64] = '\0';
@@ -1232,7 +1241,7 @@ const char *sad_kdf_hkdf(const char *secret, const char *salt, const char *info,
     if (length <= 0 || length > 8160)
     {
         fprintf(stderr, "[sad] خطأ: طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت\n");
-        return "";
+        return NULL;
     }
     if (!secret)
         secret = "";
@@ -1246,14 +1255,14 @@ const char *sad_kdf_hkdf(const char *secret, const char *salt, const char *info,
     l = (size_t)length;
     okm = (unsigned char *)malloc(l);
     if (!okm)
-        return "";
+        return NULL;
     sad_hkdf_extract((const unsigned char *)salt, saltlen, (const unsigned char *)secret, secretlen, prk);
     sad_hkdf_expand(prk, (const unsigned char *)info, infolen, okm, l);
     out = (char *)malloc(l * 2 + 1);
     if (!out)
     {
         free(okm);
-        return "";
+        return NULL;
     }
     for (i = 0; i < l; ++i)
         snprintf(out + i * 2, 3, "%02x", okm[i]);
@@ -1667,11 +1676,11 @@ const char *sad_security_x25519_derive_pub(const char *priv)
     if (!priv) priv = "";
     if (!sadx_hex2bin(priv, sk, 32)) {
         fprintf(stderr, "[sad] خطأ: مفتاح x25519 الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)\n");
-        return "";
+        return NULL;
     }
     sadx_x25519_base(pk, sk);
     out = sadx_bin2hex(pk, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لاشتقاق مفتاح x25519\n"); return ""; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لاشتقاق مفتاح x25519\n"); return NULL; }
     return out;
 }
 /* تبادل_مفتاح / X25519 exchange. مدخل غير صالح أو سرّ مشترك كلّه أصفار: stderr +
@@ -1684,15 +1693,15 @@ const char *sad_security_x25519_exchange(const char *priv, const char *peer_pub)
     if (!peer_pub) peer_pub = "";
     if (!sadx_hex2bin(priv, sk, 32) || !sadx_hex2bin(peer_pub, pp, 32)) {
         fprintf(stderr, "[sad] خطأ: مدخل تبادل_مفتاح غير صالح (كلا المفتاحين 64 حرفًا ست عشريًّا)\n");
-        return "";
+        return NULL;
     }
     sadx_x25519(ss, sk, pp);
     if (sadx_is_all_zero(ss, 32)) {
         fprintf(stderr, "[sad] خطأ: سرّ مشترك صفريّ مرفوض (مفتاح عامّ منخفض الرتبة — RFC 7748 §6.1)\n");
-        return "";
+        return NULL;
     }
     out = sadx_bin2hex(ss, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لتبادل_مفتاح\n"); return ""; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لتبادل_مفتاح\n"); return NULL; }
     return out;
 }
 /* ولّد_مفتاح_خاص_توقيع / Ed25519 seed — 32 بايت عشوائيّة (ست عشريّ 64 حرفًا) */
@@ -2072,10 +2081,11 @@ const char *sad_security_aead_encrypt(const char *text, const char *key)
 }
 
 /* فك_تشفير_موثّق / AEAD decrypt — يتحقّق من الوسم ثمّ يفكّ. على فشل المصادقة أو
- * مغلّف مُشوَّه: يفشل مُغلَقًا (fail-closed) — رسالة stderr + exit(1)، لا يُرجع
- * قمامة. سبب التباعد عن المفسّر (الذي يرمي استثناءً قابلًا للالتقاط): لا يوجد
- * حاليًّا مسار استثناء C-callable قابل للالتقاط في وقت تشغيل المترجم؛ عملٌ لاحق
- * خارج نطاق هذه المرحلة. الرسالة عامّة عمدًا (لا تُسرّب الوسم/المفتاح). */
+ * مغلّف مُشوَّه: يفشل مُغلَقًا (fail-closed) — رسالة stderr + NULL، لا يُرجع
+ * قمامة أبدًا. المولّد اللغويّ (security_builtins_ops.cpp) يفحص NULL بعد النداء
+ * ويرفع استثناءً قابلًا للالتقاط عبر __sad_raise (نفس آليّة عقود «يتطلب») —
+ * فيتطابق سلوك المترجم الآن مع المفسّر (حاول/امسك يلتقط الفشل في الاثنين).
+ * الرسالة عامّة عمدًا (لا تُسرّب الوسم/المفتاح). */
 const char *sad_security_aead_decrypt(const char *hex, const char *key)
 {
     unsigned char key32[32], nonce[12], tag[16], tag2[16];
@@ -2087,20 +2097,20 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
     if (!key || !*key)
     {
         fprintf(stderr, "[sad] خطأ: فشل فكّ التشفير الموثّق — مفتاح مفقود\n");
-        exit(1);
+        return NULL;
     }
     hlen = strlen(hex);
     if (hlen % 2 != 0 || (hlen / 2) < (12 + 16))
     {
         fprintf(stderr, "[sad] خطأ: فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ\n");
-        exit(1);
+        return NULL;
     }
     rlen = hlen / 2;
     raw = (unsigned char *)malloc(rlen);
     if (!raw)
     {
         fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لفكّ التشفير الموثّق\n");
-        exit(1);
+        return NULL;
     }
     for (i = 0; i < rlen; ++i)
     {
@@ -2109,7 +2119,7 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
         {
             free(raw);
             fprintf(stderr, "[sad] خطأ: فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ\n");
-            exit(1);
+            return NULL;
         }
         raw[i] = (unsigned char)byte;
     }
@@ -2130,7 +2140,7 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
     {
         free(raw);
         fprintf(stderr, "[sad] خطأ: فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ\n");
-        exit(1);
+        return NULL;
     }
 
     result = (char *)malloc(ctlen + 1);
@@ -2138,7 +2148,7 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
     {
         free(raw);
         fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لفكّ التشفير الموثّق\n");
-        exit(1);
+        return NULL;
     }
     sad_chacha20_xor(key32, 1, nonce, ct, ctlen, (unsigned char *)result);
     result[ctlen] = '\0';
@@ -2464,17 +2474,17 @@ const char *sad_kdf_argon2id(const char *password, const char *salt, long long m
     if (memory_cost_kib < 8)
     {
         fprintf(stderr, "[sad] خطأ: تكلفة ذاكرة أرجون2 يجب أن تكون 8 كيلوبايت على الأقلّ\n");
-        return "";
+        return NULL;
     }
     if (iterations <= 0)
     {
         fprintf(stderr, "[sad] خطأ: عدد تكرارات أرجون2 يجب أن يكون أكبر من صفر\n");
-        return "";
+        return NULL;
     }
     if (saltlen < 8)
     {
         fprintf(stderr, "[sad] خطأ: ملح أرجون2 يجب أن يكون 8 بايت على الأقلّ\n");
-        return "";
+        return NULL;
     }
 
     m_cost = (unsigned int)memory_cost_kib;
@@ -2513,7 +2523,7 @@ const char *sad_kdf_argon2id(const char *password, const char *salt, long long m
 
     B = (sad_argon2_block_t *)malloc((size_t)m_prime * sizeof(sad_argon2_block_t));
     if (!B)
-        return "";
+        return NULL;
 
     {
         unsigned char seed[72];
@@ -2578,7 +2588,7 @@ const char *sad_kdf_argon2id(const char *password, const char *salt, long long m
         free(B);
         out = (char *)malloc(65);
         if (!out)
-            return "";
+            return NULL;
         for (i = 0; i < 32; ++i)
             snprintf(out + i * 2, 3, "%02x", tag[i]);
         out[64] = '\0';

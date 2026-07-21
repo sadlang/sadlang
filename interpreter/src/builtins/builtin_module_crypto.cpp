@@ -1599,8 +1599,6 @@ namespace Sad
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string data = args[0]->toString();
                 std::string key = args[1]->toString();
-                if (key.empty())
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return std::make_shared<Data::Value>(CryptoDetail::blake3_keyed_hex(data, key));
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bcr::BLAKE3_KEYED_HASH), keyed_hash_func);

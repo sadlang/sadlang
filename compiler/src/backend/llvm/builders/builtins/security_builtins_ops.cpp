@@ -12,6 +12,8 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <string>
+#include <vector>
 
 namespace Sad { namespace LLVM {
 
@@ -49,6 +51,53 @@ namespace Sad { namespace LLVM {
                 cg.builder_->CreateCall(abortFn, {});
             }
             cg.builder_->CreateUnreachable();
+        }
+
+        // ====================================================================
+        // (AR) نداء دالّة RUNTIME_CALL تشفيريّة تُرجع NULL عند الخطأ (اصطلاح
+        //      سنتينل موحَّد اعتُمد عبر كل دوال تشفير RUNTIME_CALL في
+        //      sad_embedded_runtime.c) + رفع استثناء قابل للالتقاط عبر
+        //      __sad_raise عند NULL — نفس آليّة عقود «يتطلب» بالضبط
+        //      (sir_builder_functions.cpp، [Fix BF-04]، مُعاد استعمالها هنا
+        //      عبر LLVMCodeGen::emitCallException العامّة، لا تكرار منطق
+        //      longjmp/globals). يوحّد سلوك الفشل بين المحرِّكين: كان المفسّر
+        //      وحده يرمي استثناءً قابلًا للالتقاط بـحاول/امسك، والمترجم يفشل
+        //      مُغلَقًا بـexit(1) أو يُرجع سلسلة فارغة صامتًا؛ الآن كلاهما يرمي.
+        // (EN) Call a crypto RUNTIME_CALL runtime function that returns NULL on
+        //      error (unified sentinel convention across all crypto RUNTIME_CALL
+        //      functions in sad_embedded_runtime.c) and raise a catchable
+        //      exception via __sad_raise on NULL — reusing the exact same
+        //      mechanism as `يتطلب` contract preconditions, through the
+        //      existing public LLVMCodeGen::emitCallException entry point
+        //      (no duplicated longjmp/global-store logic). Unifies failure
+        //      behavior across engines.
+        // ====================================================================
+        static llvm::Value *emitCryptoCallOrRaise(LLVMCodeGen &cg, llvm::FunctionCallee fn,
+                                                   const std::vector<llvm::Value *> &args,
+                                                   const char *callName, const std::string &errMsg)
+        {
+            llvm::Value *result = cg.builder_->CreateCall(fn, args, callName);
+
+            llvm::Function *curFunc = cg.builder_->GetInsertBlock()->getParent();
+            llvm::BasicBlock *failBB = llvm::BasicBlock::Create(*cg.context_, "crypto.raise", curFunc);
+            llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg.context_, "crypto.cont", curFunc);
+            llvm::Value *isNull = cg.builder_->CreateIsNull(result, "crypto.isnull");
+            cg.builder_->CreateCondBr(isNull, failBB, contBB);
+
+            cg.builder_->SetInsertPoint(failBB);
+            llvm::Value *typeStr = cg.getConstantString("خطأ");
+            llvm::Value *msgStr = cg.getConstantString(errMsg);
+            std::vector<llvm::Value *> raiseArgs = {typeStr, msgStr};
+            auto raiseInst = std::make_shared<SIRInstruction>();
+            cg.emitCallException("__sad_raise", raiseArgs, raiseInst);
+            // (AR) emitCallException("__sad_raise", ...) ينهي failBB بـlongjmp+
+            //      unreachable ثمّ يترك نقطة الإدراج داخل كتلته الميتة الخاصّة —
+            //      نعيد التوجيه صراحة إلى contBB لمتابعة توليد الشيفرة الطبيعيّة.
+            // (EN) emitCallException terminates failBB with longjmp+unreachable
+            //      then leaves the insert point inside its own dead block —
+            //      explicitly redirect to contBB to continue normal codegen.
+            cg.builder_->SetInsertPoint(contBB);
+            return result;
         }
 
         llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinSecurityAssert(std::shared_ptr<SIRInstruction> inst)
@@ -527,7 +576,8 @@ namespace Sad { namespace LLVM {
             llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i64Ty}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_pbkdf2", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {password, salt, iterations}, "pbkdf2.ret");
+            llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {password, salt, iterations}, "pbkdf2.ret",
+                "عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -551,7 +601,8 @@ namespace Sad { namespace LLVM {
             llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i8Ptr, i64Ty}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_hkdf", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {secret, salt, info, length}, "hkdf.ret");
+            llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {secret, salt, info, length}, "hkdf.ret",
+                "طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -588,12 +639,13 @@ namespace Sad { namespace LLVM {
                 return nullptr;
             // Call runtime sad_security_aead_decrypt(const char*, const char*) -> char*
             // (ChaCha20-Poly1305 AEAD, RFC 8439). Fail-closed: on tag mismatch or
-            // malformed envelope the runtime prints to stderr and exit(1) — the
-            // compiler has no C-callable catchable-throw path (documented divergence).
+            // malformed envelope the runtime returns NULL, which raises a catchable
+            // exception below (matching the interpreter's حاول/امسك-catchable throw).
             llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_aead_decrypt", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {envelope, key}, "aead_dec.ret");
+            llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {envelope, key}, "aead_dec.ret",
+                "فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -615,7 +667,9 @@ namespace Sad { namespace LLVM {
             llvm::Type *argon2i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
             llvm::FunctionType *argon2ft = llvm::FunctionType::get(argon2i8Ptr, {argon2i8Ptr, argon2i8Ptr, argon2i64Ty, argon2i64Ty}, false);
             llvm::FunctionCallee argon2fn = cg_.module_->getOrInsertFunction("sad_kdf_argon2id", argon2ft);
-            llvm::Value *argon2result = cg_.builder_->CreateCall(argon2fn, {password, salt, memoryCostKib, iterations}, "argon2id.ret");
+            llvm::Value *argon2result = emitCryptoCallOrRaise(cg_, argon2fn,
+                {password, salt, memoryCostKib, iterations}, "argon2id.ret",
+                "بارامترات أرجون2 خارج الحدود الآمنة (تكلفة الذاكرة/عدد التكرارات/طول الملح)");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = argon2result;
             return argon2result;
@@ -644,7 +698,8 @@ namespace Sad { namespace LLVM {
             llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_derive_pub", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {priv}, "x25519_pub.ret");
+            llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {priv}, "x25519_pub.ret",
+                "مفتاح x25519 الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -663,7 +718,8 @@ namespace Sad { namespace LLVM {
             llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_exchange", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {priv, peerPub}, "x25519_dh.ret");
+            llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {priv, peerPub}, "x25519_dh.ret",
+                "تبادل مفتاح x25519 فشل — مدخل غير صالح أو سرّ مشترك صفريّ مرفوض");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;

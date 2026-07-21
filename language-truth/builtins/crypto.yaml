@@ -88,9 +88,9 @@ functions:
     تنفيذ hashlib.pbkdf2_hmac المدقَّق في بايثون (ومقابل بناء HMAC يدويّ
     مستقلّ) عبر حالات تغطّي تكرارًا واحدًا، عدّة كتل ناتج، كلمة مرور فارغة،
     وبايتات صفريّة داخل المدخلات. **عدد_التكرارات يجب أن يكون أكبر من صفر**
-    (خطأ صريح خلاف ذلك). آليّة الإبلاغ عن هذا الخطأ تتباعد بين المحرِّكين
-    (استثناء قابل للالتقاط بالمفسّر مقابل رسالة stderr + سلسلة فارغة
-    بالمترجم بلا استثناء لغويّ) — نفس نمط التباعد الموثَّق سلفًا لـفك_تشفير.
+    (خطأ صريح خلاف ذلك، قابل للالتقاط بـحاول/امسك على المحرِّكين معًا — وقت
+    تشغيل المترجم يُرجع NULL فيرفع مولّد LLVM استثناءً عبر __sad_raise، نفس
+    آليّة عقود «يتطلب»).
   description_en: >-
     Derives a slow, brute-force-resistant key from a password via
     PBKDF2-HMAC-SHA256 (RFC 2898/8018) — deliberately slow (iteration count
@@ -101,11 +101,10 @@ functions:
     Python's audited hashlib.pbkdf2_hmac (and an independent manual
     HMAC-based construction) across single-iteration, multi-block, empty
     password, and null-byte-containing input cases. **iterations must be
-    greater than zero** (explicit error otherwise); the error-reporting
-    mechanism diverges between engines (catchable exception in the
-    interpreter vs. a stderr message + empty string in the compiled binary,
-    no language-level exception) — same divergence pattern already documented
-    for فك_تشفير.
+    greater than zero** (explicit error otherwise, catchable via حاول/امسك on
+    both engines — the compiler runtime returns NULL and the LLVM codegen
+    raises a catchable exception via __sad_raise, the same mechanism used for
+    `يتطلب` contracts).
   params:
     - كلمة_المرور — كلمة المرور المراد اشتقاق مفتاح منها.
     - ملح — قيمة عشوائيّة فريدة لكل مستخدم/سجلّ (يُفضَّل عبر عشوائي_آمن).
@@ -135,8 +134,8 @@ functions:
     حرفيًّا مقابل شعاعات RFC 5869 الرسميّة الثلاثة (Appendix A: مدخلات
     عاديّة، مدخلات طويلة، ملح/سياق فارغان). **الطول محدود بين 1 و8160 بايت**
     (255 × 32 بايت، حدّ HKDF-Expand في RFC 5869 §2.3 — عدّاد الكتلة بايت
-    واحد فيلتفّ صامتًا فوق هذا الحدّ)؛ خطأ صريح خارج هذا المدى، بنفس نمط
-    تباعد آليّة الإبلاغ الموثَّق أعلاه لـاشتق_مفتاح_مرور.
+    واحد فيلتفّ صامتًا فوق هذا الحدّ)؛ خطأ صريح خارج هذا المدى، قابل للالتقاط
+    بـحاول/امسك على المحرِّكين معًا (نفس آليّة اشتق_مفتاح_مرور عبر __sad_raise).
   description_en: >-
     Derives a fixed-length subkey from a shared secret via HKDF-SHA256 (RFC
     5869: Extract-then-Expand) — used to expand/split one secret (e.g. a key
@@ -149,9 +148,9 @@ functions:
     Appendix A test vectors (normal-length inputs, long inputs, empty
     salt/info). **Length is bounded to 1–8160 bytes** (255 × 32-byte hash
     length, the RFC 5869 §2.3 HKDF-Expand limit — the one-byte block counter
-    silently wraps beyond this); explicit error outside this range, with the
-    same error-reporting-mechanism divergence documented above for
-    اشتق_مفتاح_مرور.
+    silently wraps beyond this); explicit error outside this range, catchable
+    via حاول/امسك on both engines (same __sad_raise mechanism as
+    اشتق_مفتاح_مرور).
   params:
     - سرّ — السرّ المشترك المصدر (input keying material).
     - ملح — قيمة اختياريّة تُقوّي الاستخراج (يجوز نصًّا فارغًا).
@@ -230,16 +229,14 @@ functions:
     ثابت؛ عند التطابق يفكّ ويُرجع النصّ الأصليّ. غرض الدالّة الأساسيّ كشف
     العبث، لذا — بخلاف فك_تشفير الذي يُرجع مدخله كما هو صامتًا على خطأ تنسيق
     (تباعد موثَّق سابق) — يفشل فك_تشفير_موثّق **فشلًا صريحًا** عند فشل
-    المصادقة أو تشوُّه المغلَّف (hex غير صالح/طول أقصر من 28 بايت). ⚠️ آليّة
-    الإبلاغ عن هذا الفشل تتباعد بين المحرِّكين، وهو تباعد مقصود موثَّق:
-    **المفسّر** يرمي خطأً قابلًا للالتقاط بـحاول/امسك (فيمكن للبرنامج معالجة
-    العبث برشاقة)؛ **المترجم** يفشل مُغلَقًا (fail-closed) — يطبع رسالة خطأ
-    عامّة إلى stderr (لا تُسرّب الوسم/المفتاح) ثمّ exit(1)، إذ لا يوجد اليوم
-    مسار استثناء C-callable قابل للالتقاط في وقت تشغيل المترجم. هذا أأمن من
-    تباعد فك_تشفير (يفشل مُغلَقًا لا مفتوحًا: لا يُرجع نصًّا مُحرَّفًا أبدًا)،
-    لكنّه ليس موحَّدًا بعد بين المحرِّكين — بناء آليّة رمي C-callable عامّة
-    للمترجم عملٌ لاحق خارج نطاق هذه المرحلة. التنفيذ مطابق حرفيًّا بين
-    المحرِّكين ومُتحقَّق مقابل شعاعات RFC 8439 (انظر شفّر_موثّق).
+    المصادقة أو تشوُّه المغلَّف (hex غير صالح/طول أقصر من 28 بايت)، ولا يُرجع
+    أبدًا نصًّا مُحرَّفًا صامتًا. الفشل **قابل للالتقاط بـحاول/امسك على
+    المحرِّكين معًا**: وقت تشغيل المترجم (`sad_security_aead_decrypt` في
+    sad_embedded_runtime.c) يُرجع NULL عند الفشل بدل exit(1) سابقًا، ومولّد
+    LLVM (`security_builtins_ops.cpp`) يفحص NULL بعد النداء ويرفع استثناءً
+    قابلًا للالتقاط عبر `__sad_raise` — نفس آليّة عقود «يتطلب» (Fix BF-04)
+    مُعاد استعمالها هنا لأوّل مرّة لدالّة RUNTIME_CALL خام. التنفيذ مطابق
+    حرفيًّا بين المحرِّكين ومُتحقَّق مقابل شعاعات RFC 8439 (انظر شفّر_موثّق).
   description_en: >-
     Decrypts and authenticates an envelope produced by شفّر_موثّق
     (ChaCha20-Poly1305, RFC 8439): recomputes the Poly1305 tag over the
@@ -248,18 +245,16 @@ functions:
     purpose is tamper detection, so — unlike فك_تشفير, which silently returns
     its input unchanged on a format error (a previously documented
     divergence) — فك_تشفير_موثّق **fails explicitly** on authentication
-    failure or a malformed envelope (invalid hex / shorter than 28 bytes).
-    ⚠️ The failure-reporting mechanism diverges between engines, an
-    intentional documented divergence: the **interpreter** throws a
-    catchable error (حاول/امسك can handle tampering gracefully); the
-    **compiler** fails closed — prints a generic error message to stderr
-    (which does not leak the tag/key) then exit(1), because there is
-    currently no C-callable catchable-exception path in the compiler runtime.
-    This is safer than فك_تشفير's divergence (fail-closed, not fail-open: it
-    never returns corrupted plaintext), but not yet fully unified between
-    engines — building a general C-callable throw mechanism for the compiler
-    runtime is future work, out of scope for this phase. Byte-identical
-    between engines, verified against the RFC 8439 vectors (see شفّر_موثّق).
+    failure or a malformed envelope (invalid hex / shorter than 28 bytes),
+    and never silently returns corrupted plaintext. The failure is
+    **catchable via حاول/امسك on both engines**: the compiler runtime
+    (`sad_security_aead_decrypt` in sad_embedded_runtime.c) now returns NULL
+    on failure instead of the previous exit(1), and the LLVM codegen
+    (`security_builtins_ops.cpp`) checks for NULL after the call and raises a
+    catchable exception via `__sad_raise` — the same mechanism already used
+    for `يتطلب` contracts (Fix BF-04), reused here for the first time for a
+    plain-C RUNTIME_CALL function. Byte-identical between engines, verified
+    against the RFC 8439 vectors (see شفّر_موثّق).
   params:
     - مغلّف — المغلَّف الست عشريّ الذي أنتجه شفّر_موثّق.
     - مفتاح — نفس المفتاح المُستعمَل في التشفير (مفتاح خاطئ ⇒ فشل مصادقة).
@@ -298,8 +293,8 @@ functions:
     تكن تكلفة الذاكرة مضاعِفة لـ4؛ أُصلحت قبل الدمج). **تكلفة_الذاكرة ≥ 8 (كيلوبايت)،
     عدد_التكرارات ≥ 1، طول الملح ≥ 8 بايت** (الحدّ الأدنى الموصى به في
     RFC 9106 §3.1 لمقاومة هجمات قاموس الملح المشترك)؛ خطأ صريح خارج هذه
-    الشروط، بنفس نمط تباعد آليّة الإبلاغ الموثَّق أعلاه لـاشتق_مفتاح_مرور
-    واشتق_مفتاح. هذه الدالّة مُدرَجة رغم أنّ نصّ RFC توسيع مكتبة التشفير
+    الشروط، قابل للالتقاط بـحاول/امسك على المحرِّكين معًا (نفس آليّة
+    اشتق_مفتاح_مرور واشتق_مفتاح عبر __sad_raise). هذه الدالّة مُدرَجة رغم أنّ نصّ RFC توسيع مكتبة التشفير
     الأصليّ أجّلها عمدًا خارج نطاقه الأوّليّ — أُدرِجت بطلب صريح من المالك.
   description_en: >-
     Derives a memory-hard AND time-hard key from a password via Argon2id
@@ -316,9 +311,9 @@ functions:
     memory cost, iteration count, and password/salt length cases.
     **memory_cost ≥ 8 (KiB), iterations ≥ 1, salt length ≥ 8 bytes** (the
     RFC 9106 §3.1 recommended minimum, resisting shared-salt dictionary
-    attacks); explicit error outside these bounds, with the same
-    error-reporting-mechanism divergence documented above for
-    اشتق_مفتاح_مرور and اشتق_مفتاح. This function is included even though the
+    attacks); explicit error outside these bounds, catchable via حاول/امسك on
+    both engines (same __sad_raise mechanism as اشتق_مفتاح_مرور and
+    اشتق_مفتاح). This function is included even though the
     original crypto-library-expansion RFC deliberately deferred it out of
     its initial scope — included now at the owner's explicit request.
   params:
@@ -414,7 +409,9 @@ functions:
     إلزاميّ (RFC 7748 §6.1): يُرفض بخطأ أيّ سرّ مشترك كلّه أصفار** — ناتج عن
     مفاتيح عامّة منخفضة الرتبة (low-order) قد تُمرَّر خبيثًا لإجبار سرّ متوقَّع.
     السرّ الخامّ لا يُستعمَل مفتاحًا مباشرةً عادةً بل يُمرَّر عبر اشتق_مفتاح (HKDF).
-    مُتحقَّق مقابل شعاعات RFC 7748 §5.2 و§6.1. مطابق حرفيًّا بين المفسّر والمترجم.
+    مُتحقَّق مقابل شعاعات RFC 7748 §5.2 و§6.1. مطابق حرفيًّا بين المفسّر والمترجم،
+    بما في ذلك آليّة الفشل: الخطأ قابل للالتقاط بـحاول/امسك على المحرِّكين معًا
+    (وقت تشغيل المترجم يُرجع NULL فيرفع مولّد LLVM استثناءً عبر __sad_raise).
   description_en: >-
     Diffie-Hellman key exchange on Curve25519 (X25519, RFC 7748): multiplies a
     private key by the peer's public key (constant-time Montgomery ladder),
@@ -425,7 +422,9 @@ functions:
     low-order public keys that can be maliciously supplied to force a predictable
     secret. The raw secret is normally passed through اشتق_مفتاح (HKDF) rather
     than used directly as a key. Verified against RFC 7748 §5.2 and §6.1.
-    Identical between engines.
+    Identical between engines, including the failure mechanism: the error is
+    catchable via حاول/امسك on both engines (the compiler runtime returns
+    NULL and the LLVM codegen raises a catchable exception via __sad_raise).
   params:
     - مفتاح_خاص — مفتاحك الخاصّ الست عشريّ (64 حرفًا).
     - مفتاح_عام_الطرف_الآخر — المفتاح العامّ للطرف الآخر الست عشريّ (64 حرفًا).
