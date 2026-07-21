@@ -7,6 +7,9 @@
 # (EN) Ground-truth busybox applet list that sad-os builds; the coverage
 #      denominator for the Arabic lexicon. Source: real `make defconfig` build
 #      of busybox, captured via `busybox --list`.
+# مُعيد الإنتاج (إثبات تنفيذيّ): scripts/verify_busybox_reference.sh يعيد اشتقاق
+# defconfig_applets من مصدر busybox من الصفر (بنفس هذه الوصفة) ويقابلها بهذا الملفّ —
+# شغّله عند ترقية الإصدار أو للتحقّق الدوريّ (محلّيّ/لينكس، يتطلّب بناءً كاملًا).
 busybox_version: "1.37.0"
 # بصمة أرشيف المصدر (sha256) — نفس المثبَّت في sad-os/جذر/بناء-busybox-عربيّ.sh
 source_sha256: "3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4"

@@ -26,6 +26,7 @@ shared/errors/generated/error_messages_generated.cpp linguist-generated=true mer
 *.md  text eol=lf
 *.cmake text eol=lf
 *.code-snippets text eol=lf
+*.sh  text eol=lf
 CMakeLists.txt text eol=lf
 
 # ─── (AR) ملفات نص ص بترميز UTF-8 ───
