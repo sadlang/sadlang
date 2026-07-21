@@ -1280,6 +1280,54 @@ namespace Sad
             }
 
             // =====================================================================
+            // (AR) اللبنة 3.16: مصفوفة تخزين ساكن مصفَّرة في .bss —
+            //      «متغير ساكن اسم مصفوفة[N]» ⇒ [N x i8] zeroinitializer.
+            //      لا مُهيّئ (مصفَّرة تلقائيًّا)؛ N ثابت موجب زمن-ترجمة؛ تُصدَّر عبر @رمز
+            //      (linkSymbol). البايتات i8 — نهلة تعنونها بـعنوان_رمز + اكتب_ذاكرة32.
+            // (EN) Brick 3.16: named zero-filled static .bss array.
+            // =====================================================================
+            if (check(TT::KEYWORD_STATIC))
+            {
+                advance(); // (AR) استهلاك «ساكن» / (EN) consume 'static'
+                if (!check(TT::IDENTIFIER))
+                    errorCatalog(Errors::ErrorCode::SEM_STATIC_ARRAY_SIZE,
+                                 {{"detail", "توقّع اسم المخزن بعد «ساكن»: متغير ساكن اسم مصفوفة[N]"}});
+                Token saNameTok = current_;
+                advance(); // (AR) الاسم / (EN) the name
+                // (AR) «مصفوفة» نوع مدمج (builtin_types، emittedByLexer=false) فقد يُلفَظ
+                //      IDENTIFIER — نقبل الحالتين (نظير الأنواع السياقيّة).
+                if (check(TT::TYPE_ARRAY) ||
+                    (check(TT::IDENTIFIER) && current_.getValue() == "مصفوفة"))
+                    advance();
+                else
+                    errorCatalog(Errors::ErrorCode::SEM_STATIC_ARRAY_SIZE,
+                                 {{"detail", "توقّع «مصفوفة» بعد اسم المخزن الساكن: متغير ساكن اسم مصفوفة[N]"}});
+                consume(TT::BRACKET_LEFT,
+                        "(AR) توقّع '[' لحجم المصفوفة الساكنة / (EN) expected '[' for static array size");
+                Token saSizeTok = consume(TT::NUMBER_INTEGER,
+                        "(AR) توقّع عددًا صحيحًا حرفيًّا لحجم المصفوفة الساكنة\n"
+                        "(EN) expected an integer literal for the static array size");
+                consume(TT::BRACKET_RIGHT,
+                        "(AR) توقّع ']' بعد حجم المصفوفة الساكنة / (EN) expected ']' after size");
+                uint64_t saCount = 0;
+                try { saCount = std::stoull(saSizeTok.getValue()); }
+                catch (...) { saCount = 0; }
+                // (AR) SEM023: الحجم عدد صحيح موجب زمن-ترجمة
+                if (saCount == 0)
+                    errorCatalog(Errors::ErrorCode::SEM_STATIC_ARRAY_SIZE,
+                                 {{"detail", "الحجم '" + saSizeTok.getValue() + "' ليس عددًا صحيحًا موجبًا"}});
+                // (AR) النوع cosmetic هنا (الخلفيّة تُصدر [N x i8] من zeroArrayCount لا من
+                //      النوع)؛ Integer يتجنّب تحذير astTypeToSIRType على الأنواع غير المعالَجة.
+                auto saDecl = std::make_unique<VarDeclStmt>(
+                    saNameTok.getValue(), Types::SadTypeKind::Integer, nullptr, false,
+                    saNameTok.getPosition());
+                saDecl->isStaticArray = true;
+                saDecl->staticArrayCount = saCount;
+                saDecl->isVolatile = declVolatile;
+                return saDecl;
+            }
+
+            // =====================================================================
             // (AR) تفكيك الصف: متغير (أ، ب، ج) = تعبير_صف
             // (EN) Tuple destructuring: var (a, b, c) = tuple_expression
             // =====================================================================

@@ -276,6 +276,17 @@ namespace Sad
                     return;
                 }
 
+                // (AR) اللبنة 3.16: المصفوفة الساكنة (.bss) تُعرَّف في المستوى الأعلى حصرًا
+                //      (تخزين ساكن عالميّ). داخل دالّة لا يُصدَر تخزين .bss، فبدل توليد خاطئ
+                //      صامت (alloca) نرفضها صراحةً هنا (نقطة تجميع كلّ المسارات — رصد أميليا).
+                if (varDecl->isStaticArray)
+                {
+                    b_.errors_.push_back(
+                        "Error: SEM023 المصفوفة الساكنة «متغير ساكن اسم مصفوفة[N]» تُعرَّف "
+                        "في المستوى الأعلى حصرًا (تخزين .bss عالميّ)، لا داخل دالّة.");
+                    return;
+                }
+
 #ifdef SIR_BUILDER_DEBUG
                 std::cerr << "[SIR-DBG] buildLocalVariable: name='" << varDecl->name
                           << "' type=" << static_cast<int>(varDecl->type) << std::endl;

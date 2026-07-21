@@ -374,3 +374,21 @@ errors:
   detailed:
     ar: توجيه @رمز("اسم") يُصدِّر رمز رابط بربط خارجيّ (ExternalLinkage). إن تكرّر الاسم عبر مخزنين، أو صادف اسمًا محجوزًا لزمن التشغيل المضمَّن (memset/memcpy/malloc/free/strlen/__sad_heap/__divdi3…)، لأعاد الرابط تسميته صامتًا فيفقد غرضه أو يُفسد نداءات الزمن التشغيليّ. هذا خطأ استعمال — بدّل الاسم.
     en: The @رمز("name") directive exports a linker symbol with ExternalLinkage. If the name is duplicated across two storages, or clashes with a name reserved for the embedded runtime (memset/memcpy/malloc/free/strlen/__sad_heap/__divdi3…), the linker would silently rename it, defeating its purpose or corrupting runtime calls. This is a usage error — change the name.
+
+- code: SEM_STATIC_ARRAY_SIZE
+  id: SEM023
+  category: semantic
+  title:
+    ar: حجم المصفوفة الساكنة يجب أن يكون عددًا صحيحًا موجبًا
+    en: static array size must be a positive integer
+  brief:
+    ar: '{detail}'
+    en: '{detail}'
+  placeholders:
+  - detail
+  fix_hint:
+    ar: 'استعمل حجمًا حرفيًّا موجبًا: «متغير ساكن جدول مصفوفة[2048]». الصفر والقيم غير الحرفيّة غير مسموحة (الحجم يُحسم زمن الترجمة).'
+    en: 'Use a positive integer literal size: "متغير ساكن جدول مصفوفة[2048]". Zero and non-literal sizes are not allowed (the size is fixed at compile time).'
+  detailed:
+    ar: مصفوفة التخزين الساكن «متغير ساكن اسم مصفوفة[N]» تحجز N بايتًا مصفَّرًا في .bss بحجم ثابت زمن الترجمة، فيجب أن يكون N عددًا صحيحًا حرفيًّا موجبًا (> 0). مصفوفة بحجم صفر بلا معنى، والحجم المتغيّر غير مدعوم (لا تخصيص ديناميكيّ في الوضع الحرّ).
+    en: The static-storage array "متغير ساكن name مصفوفة[N]" reserves N zeroed bytes in .bss with a compile-time-fixed size, so N must be a positive integer literal (> 0). A zero-size array is meaningless, and a variable size is unsupported (no dynamic allocation in freestanding mode).

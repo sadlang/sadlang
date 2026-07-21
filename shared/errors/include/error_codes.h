@@ -147,6 +147,7 @@ namespace Sad
             SEM_FREESTANDING_SYS_BUILTIN_ARG, ///< SEM020: (AR) معامل مدمجة نظام غير صالح في الوضع الحرّ / (EN) Invalid system-builtin argument in freestanding
             SEM_SYMBOL_ADDR_ARG,          ///< SEM021: (AR) وسيط عنوان_رمز يجب أن يكون اسم رمز ثابتًا / (EN) symbol-address argument must be a constant symbol name
             SEM_SYMBOL_NAME_CONFLICT,     ///< SEM022: (AR) اسم رمز @رمز مُصدَّر متصادم أو محجوز / (EN) exported @رمز symbol name conflicts or is reserved
+            SEM_STATIC_ARRAY_SIZE,        ///< SEM023: (AR) حجم المصفوفة الساكنة يجب أن يكون عددًا صحيحًا موجبًا / (EN) static array size must be a positive integer
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

@@ -468,6 +468,8 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Found VarDeclStmt: " << varDecl->name << std::endl;
 #endif
+                    // (AR) اللبنة 3.16: رفض المصفوفة الساكنة داخل دالّة يقع في تعريف
+                    //      buildLocalVariable (نقطة تجميع كلّ المسارات) — انظر statement_assign_if.cpp.
                     buildLocalVariable(varDecl);
                     return;
                 }

@@ -526,6 +526,31 @@ namespace Sad
                     cg_.context_info_.globalValues[varName] = blobGV;
                     continue;
                 }
+                // (AR) اللبنة 3.16: مصفوفة تخزين ساكن مصفَّرة ⇒ [N x i8] zeroinitializer
+                //      في .bss. قابلة للكتابة (لا isConstant)، محاذاة 16 (تسمح وصولًا
+                //      i32/i64 مُحاذًى)، رمز @رمز مُصدَّر. نهلة تعنونها بـعنوان_رمز+اكتب_ذاكرة32.
+                if (globalVar->isZeroArray)
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    auto *arrTy = llvm::ArrayType::get(i8Ty, globalVar->zeroArrayCount);
+                    auto *zeroInit = llvm::ConstantAggregateZero::get(arrTy);
+                    auto *zaGV = new llvm::GlobalVariable(
+                        *cg_.module_, arrTy, /*isConstant*/ false,
+                        hasLinkSym ? llvm::GlobalValue::ExternalLinkage
+                                   : llvm::GlobalValue::InternalLinkage,
+                        zeroInit,
+                        hasLinkSym ? globalVar->getLinkName() : varName);
+                    zaGV->setAlignment(llvm::Align(16));
+                    // (AR) متطاير على المصفوفة الساكنة: سجّلها للتمريرة اللاحقة (نظير القياسيّ)
+                    if (globalVar->isVolatile)
+                    {
+                        cg_.context_info_.volatileGlobals.insert(varName);
+                        cg_.context_info_.volatileGlobalVars.insert(zaGV);
+                    }
+                    cg_.context_info_.namedValues[varName] = zaGV;
+                    cg_.context_info_.globalValues[varName] = zaGV;
+                    continue;
+                }
                 auto *globalLLVM = new llvm::GlobalVariable(
                     *cg_.module_,
                     llvmType,

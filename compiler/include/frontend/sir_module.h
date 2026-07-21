@@ -447,6 +447,8 @@ namespace Sad
                 bool isVolatile = false;  ///< (AR) متطاير (@متطاير) — يوسم قراءات/كتابات المخزن volatile
                 bool isByteBlob = false;  ///< (AR) بيانات مضمَّنة بايتات(...) ⇒ ConstantDataArray في .rodata
                 std::vector<uint8_t> byteData; ///< (AR) بايتات الكتلة حين isByteBlob
+                bool isZeroArray = false; ///< (AR) اللبنة 3.16: مصفوفة .bss مصفَّرة (ساكن مصفوفة[N]) ⇒ [N x i8] zeroinitializer
+                uint64_t zeroArrayCount = 0; ///< (AR) عدد بايتات المصفوفة الساكنة N حين isZeroArray
 
                 /**
                  * @brief (AR) منشئ المتغير العام

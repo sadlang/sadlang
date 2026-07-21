@@ -739,6 +739,15 @@ namespace Sad
                         // (AR) اللبنة 3.14: سمات التخزين الساكن من التوجيهات
                         sirGlobal->linkName = varDecl->linkSymbol;   // @رمز("اسم") — رمز مُصدَّر
                         sirGlobal->isVolatile = varDecl->isVolatile; // @متطاير
+                        // (AR) اللبنة 3.16: مصفوفة تخزين ساكن مصفَّرة ⇒ [N x i8] zeroinitializer
+                        //      في .bss. لا مُهيّئ (فلا تمرّ بمسار __sad_main). N موجب (SEM023).
+                        if (varDecl->isStaticArray)
+                        {
+                            sirGlobal->isZeroArray = true;
+                            sirGlobal->zeroArrayCount = varDecl->staticArrayCount;
+                            // (AR) حجم صفر يُرفَض في المحلّل (SEM023، عند parseVarDecl) — الحجم
+                            //      حرفيّ دائمًا فلا حاجة لتكرار الإبلاغ هنا (رصد أميليا 3.16).
+                        }
 
                         // (AR) اللبنة 3.14: مُهيّئ بايتات(...) ⇒ كتلة بايتات ثابتة في
                         //      .rodata برمز مملوك (لجداول النواة: أرشيف/خرائط). يُصدَر
@@ -1728,6 +1737,10 @@ namespace Sad
                     //      (لا عبر عنوان_رمز) مكسورة النوع — نهلة تقرأ بـعنوان_رمز+memread.
                     if (auto *vd = dynamic_cast<Sad::AST::VarDeclStmt *>(stmt.get()))
                     {
+                        // (AR) اللبنة 3.16: مصفوفة ساكنة .bss عُرِّفت كـglobal أعلاه؛ لا تُدفَع
+                        //      كجملة تنفيذيّة في __sad_main (نظير بايتات) — لا مُهيّئ لها.
+                        if (vd->isStaticArray)
+                            continue;
                         if (vd->initializer)
                         {
                             if (auto *ce = dynamic_cast<Sad::AST::CallExpr *>(vd->initializer.get()))
