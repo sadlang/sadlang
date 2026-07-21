@@ -474,6 +474,13 @@ namespace Sad
                 BUILTIN_CRYPTO_AEAD_ENCRYPT,      ///< شفّر_موثّق / ChaCha20-Poly1305 AEAD encrypt - hex envelope
                 BUILTIN_CRYPTO_AEAD_DECRYPT,      ///< فك_تشفير_موثّق / ChaCha20-Poly1305 AEAD decrypt - plaintext (fail-closed)
                 BUILTIN_CRYPTO_KDF_ARGON2ID,      ///< أرجون2 / Argon2id (RFC 9106) - hex string
+                BUILTIN_CRYPTO_X25519_KEYGEN_PRIV,  ///< ولّد_مفتاح_خاص_x25519 / X25519 private key - hex
+                BUILTIN_CRYPTO_X25519_DERIVE_PUB,   ///< اشتق_مفتاح_عام_x25519 / X25519 public from private - hex
+                BUILTIN_CRYPTO_X25519_EXCHANGE,     ///< تبادل_مفتاح / X25519 DH shared secret - hex (all-zero rejected)
+                BUILTIN_CRYPTO_ED25519_KEYGEN_PRIV, ///< ولّد_مفتاح_خاص_توقيع / Ed25519 seed - hex
+                BUILTIN_CRYPTO_ED25519_DERIVE_PUB,  ///< اشتق_مفتاح_عام_توقيع / Ed25519 public from seed - hex
+                BUILTIN_CRYPTO_ED25519_SIGN,        ///< وقّع / Ed25519 signature - hex (128 chars)
+                BUILTIN_CRYPTO_ED25519_VERIFY,      ///< تحقق_توقيع / Ed25519 verify - boolean (query, never throws)
 
                 // ==========================================
                 // 13. التكامل مع C/C++ — FFI Functions (15)

@@ -951,6 +951,13 @@ namespace Sad
             llvm::Value *emitBuiltinCryptoAeadEncrypt(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoAeadEncrypt(inst); }         // شفّر_موثّق
             llvm::Value *emitBuiltinCryptoAeadDecrypt(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoAeadDecrypt(inst); }         // فك_تشفير_موثّق
             llvm::Value *emitBuiltinCryptoKdfArgon2id(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoKdfArgon2id(inst); }         // أرجون2
+            llvm::Value *emitBuiltinCryptoX25519KeygenPriv(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoX25519KeygenPriv(inst); }   // ولّد_مفتاح_خاص_x25519
+            llvm::Value *emitBuiltinCryptoX25519DerivePub(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoX25519DerivePub(inst); }     // اشتق_مفتاح_عام_x25519
+            llvm::Value *emitBuiltinCryptoX25519Exchange(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoX25519Exchange(inst); }       // تبادل_مفتاح
+            llvm::Value *emitBuiltinCryptoEd25519KeygenPriv(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoEd25519KeygenPriv(inst); } // ولّد_مفتاح_خاص_توقيع
+            llvm::Value *emitBuiltinCryptoEd25519DerivePub(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoEd25519DerivePub(inst); }   // اشتق_مفتاح_عام_توقيع
+            llvm::Value *emitBuiltinCryptoEd25519Sign(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoEd25519Sign(inst); }             // وقّع
+            llvm::Value *emitBuiltinCryptoEd25519Verify(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinCryptoEd25519Verify(inst); }         // تحقق_توقيع
 
             // ================================================================
             // التكامل مع C/C++ — FFI Functions (20)

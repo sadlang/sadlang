@@ -45,6 +45,13 @@ public:
     llvm::Value *emitBuiltinCryptoAeadEncrypt(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoAeadDecrypt(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinCryptoKdfArgon2id(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoX25519KeygenPriv(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoX25519DerivePub(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoX25519Exchange(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoEd25519KeygenPriv(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoEd25519DerivePub(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoEd25519Sign(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinCryptoEd25519Verify(std::shared_ptr<SIRInstruction> inst);
 };
 
 }} // namespace Sad::LLVM

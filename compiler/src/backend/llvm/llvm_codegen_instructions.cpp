@@ -217,6 +217,13 @@ namespace Sad
             case SIROpcode::BUILTIN_CRYPTO_AEAD_ENCRYPT:      return std::string(Ncr::AEAD_ENCRYPT);      // شفّر_موثّق (runtime مستضاف)
             case SIROpcode::BUILTIN_CRYPTO_AEAD_DECRYPT:      return std::string(Ncr::AEAD_DECRYPT);      // فك_تشفير_موثّق (runtime مستضاف)
             case SIROpcode::BUILTIN_CRYPTO_KDF_ARGON2ID:      return std::string(Ncr::KDF_ARGON2ID);      // أرجون2 (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_X25519_KEYGEN_PRIV:  return std::string(Ncr::X25519_KEYGEN_PRIV);  // ولّد_مفتاح_خاص_x25519 (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_X25519_DERIVE_PUB:   return std::string(Ncr::X25519_DERIVE_PUB);   // اشتق_مفتاح_عام_x25519 (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_X25519_EXCHANGE:     return std::string(Ncr::X25519_EXCHANGE);     // تبادل_مفتاح (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_KEYGEN_PRIV: return std::string(Ncr::ED25519_KEYGEN_PRIV); // ولّد_مفتاح_خاص_توقيع (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_DERIVE_PUB:  return std::string(Ncr::ED25519_DERIVE_PUB);  // اشتق_مفتاح_عام_توقيع (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_SIGN:        return std::string(Ncr::ED25519_SIGN);        // وقّع (runtime مستضاف)
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_VERIFY:      return std::string(Ncr::ED25519_VERIFY);      // تحقق_توقيع (runtime مستضاف)
             default:                                 return std::string();
             }
         }

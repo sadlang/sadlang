@@ -1249,6 +1249,452 @@ long long sad_security_secure_random(long long min_val, long long max_val) {
 }
 
 )";
+                // X25519 (RFC 7748) + Ed25519 (RFC 8032) + SHA-512 (FIPS 180-4) —
+                // third identical-logic copy of sadx_core (mirrors interpreter's
+                // CryptoDetail and sad_embedded_runtime.c). Split into two <16KB raw
+                // strings to avoid MSVC C2026 (raw-string-literal size limit).
+                // Segment A: SHA-512 + field arithmetic + X25519.
+                rt_file << R"(
+#include <stdint.h>
+/* sadx_core (part A): SHA-512 + Curve25519 field arithmetic (gf[16], radix 2^16,
+ * no __int128) + X25519 scalar multiplication. Byte-identical in logic to
+ * interpreter/src/builtins/builtin_module_crypto.cpp and
+ * tools/compiler/runtime/sad_embedded_runtime.c. Verified against FIPS 180-4,
+ * RFC 7748 §5.2/§6.1, RFC 8032 §7.1. */
+typedef long long sadx_gf[16];
+static const unsigned long long SADX_K512[80] = {
+0x428a2f98d728ae22ULL,0x7137449123ef65cdULL,0xb5c0fbcfec4d3b2fULL,0xe9b5dba58189dbbcULL,
+0x3956c25bf348b538ULL,0x59f111f1b605d019ULL,0x923f82a4af194f9bULL,0xab1c5ed5da6d8118ULL,
+0xd807aa98a3030242ULL,0x12835b0145706fbeULL,0x243185be4ee4b28cULL,0x550c7dc3d5ffb4e2ULL,
+0x72be5d74f27b896fULL,0x80deb1fe3b1696b1ULL,0x9bdc06a725c71235ULL,0xc19bf174cf692694ULL,
+0xe49b69c19ef14ad2ULL,0xefbe4786384f25e3ULL,0x0fc19dc68b8cd5b5ULL,0x240ca1cc77ac9c65ULL,
+0x2de92c6f592b0275ULL,0x4a7484aa6ea6e483ULL,0x5cb0a9dcbd41fbd4ULL,0x76f988da831153b5ULL,
+0x983e5152ee66dfabULL,0xa831c66d2db43210ULL,0xb00327c898fb213fULL,0xbf597fc7beef0ee4ULL,
+0xc6e00bf33da88fc2ULL,0xd5a79147930aa725ULL,0x06ca6351e003826fULL,0x142929670a0e6e70ULL,
+0x27b70a8546d22ffcULL,0x2e1b21385c26c926ULL,0x4d2c6dfc5ac42aedULL,0x53380d139d95b3dfULL,
+0x650a73548baf63deULL,0x766a0abb3c77b2a8ULL,0x81c2c92e47edaee6ULL,0x92722c851482353bULL,
+0xa2bfe8a14cf10364ULL,0xa81a664bbc423001ULL,0xc24b8b70d0f89791ULL,0xc76c51a30654be30ULL,
+0xd192e819d6ef5218ULL,0xd69906245565a910ULL,0xf40e35855771202aULL,0x106aa07032bbd1b8ULL,
+0x19a4c116b8d2d0c8ULL,0x1e376c085141ab53ULL,0x2748774cdf8eeb99ULL,0x34b0bcb5e19b48a8ULL,
+0x391c0cb3c5c95a63ULL,0x4ed8aa4ae3418acbULL,0x5b9cca4f7763e373ULL,0x682e6ff3d6b2b8a3ULL,
+0x748f82ee5defb2fcULL,0x78a5636f43172f60ULL,0x84c87814a1f0ab72ULL,0x8cc702081a6439ecULL,
+0x90befffa23631e28ULL,0xa4506cebde82bde9ULL,0xbef9a3f7b2c67915ULL,0xc67178f2e372532bULL,
+0xca273eceea26619cULL,0xd186b8c721c0c207ULL,0xeada7dd6cde0eb1eULL,0xf57d4f7fee6ed178ULL,
+0x06f067aa72176fbaULL,0x0a637dc5a2c898a6ULL,0x113f9804bef90daeULL,0x1b710b35131c471bULL,
+0x28db77f523047d84ULL,0x32caab7b40c72493ULL,0x3c9ebe0a15c9bebcULL,0x431d67c49c100d4cULL,
+0x4cc5d4becb3e42b6ULL,0x597f299cfc657e2aULL,0x5fcb6fab3ad6faecULL,0x6c44198c4a475817ULL};
+static unsigned long long sadx_rotr64(unsigned long long x, int n) { return (x >> n) | (x << (64 - n)); }
+static unsigned long long sadx_load64be(const unsigned char *p) {
+    return ((unsigned long long)p[0] << 56) | ((unsigned long long)p[1] << 48) |
+           ((unsigned long long)p[2] << 40) | ((unsigned long long)p[3] << 32) |
+           ((unsigned long long)p[4] << 24) | ((unsigned long long)p[5] << 16) |
+           ((unsigned long long)p[6] << 8) | ((unsigned long long)p[7]);
+}
+static void sadx_store64be(unsigned char *p, unsigned long long v) {
+    p[0] = (unsigned char)(v >> 56); p[1] = (unsigned char)(v >> 48);
+    p[2] = (unsigned char)(v >> 40); p[3] = (unsigned char)(v >> 32);
+    p[4] = (unsigned char)(v >> 24); p[5] = (unsigned char)(v >> 16);
+    p[6] = (unsigned char)(v >> 8);  p[7] = (unsigned char)v;
+}
+static void sadx_sha512_compress(unsigned long long h[8], const unsigned char block[128]) {
+    unsigned long long w[80], a, b, c, d, e, f, g, hh, t1, t2, s0, s1, ch, maj;
+    int t;
+    for (t = 0; t < 16; ++t) w[t] = sadx_load64be(block + t * 8);
+    for (t = 16; t < 80; ++t) {
+        unsigned long long x0 = w[t - 15], x1 = w[t - 2];
+        s0 = sadx_rotr64(x0, 1) ^ sadx_rotr64(x0, 8) ^ (x0 >> 7);
+        s1 = sadx_rotr64(x1, 19) ^ sadx_rotr64(x1, 61) ^ (x1 >> 6);
+        w[t] = w[t - 16] + s0 + w[t - 7] + s1;
+    }
+    a = h[0]; b = h[1]; c = h[2]; d = h[3]; e = h[4]; f = h[5]; g = h[6]; hh = h[7];
+    for (t = 0; t < 80; ++t) {
+        s1 = sadx_rotr64(e, 14) ^ sadx_rotr64(e, 18) ^ sadx_rotr64(e, 41);
+        ch = (e & f) ^ ((~e) & g);
+        t1 = hh + s1 + ch + SADX_K512[t] + w[t];
+        s0 = sadx_rotr64(a, 28) ^ sadx_rotr64(a, 34) ^ sadx_rotr64(a, 39);
+        maj = (a & b) ^ (a & c) ^ (b & c);
+        t2 = s0 + maj;
+        hh = g; g = f; f = e; e = d + t1; d = c; c = b; b = a; a = t1 + t2;
+    }
+    h[0] += a; h[1] += b; h[2] += c; h[3] += d; h[4] += e; h[5] += f; h[6] += g; h[7] += hh;
+}
+static void sadx_sha512(const unsigned char *msg, size_t len, unsigned char out[64]) {
+    unsigned long long h[8] = {
+        0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL, 0x3c6ef372fe94f82bULL, 0xa54ff53a5f1d36f1ULL,
+        0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL, 0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL};
+    unsigned char last[256];
+    unsigned long long lenbits = (unsigned long long)len;
+    unsigned long long bitlenhi = lenbits >> 61;
+    unsigned long long bitlenlo = lenbits << 3;
+    size_t i, off = 0, rem, padlen;
+    while (len - off >= 128) { sadx_sha512_compress(h, msg + off); off += 128; }
+    rem = len - off;
+    for (i = 0; i < sizeof(last); ++i) last[i] = 0;
+    for (i = 0; i < rem; ++i) last[i] = msg[off + i];
+    last[rem] = 0x80;
+    padlen = (rem < 112) ? 128 : 256;
+    sadx_store64be(last + padlen - 16, bitlenhi);
+    sadx_store64be(last + padlen - 8, bitlenlo);
+    sadx_sha512_compress(h, last);
+    if (padlen == 256) sadx_sha512_compress(h, last + 128);
+    for (i = 0; i < 8; ++i) sadx_store64be(out + i * 8, h[i]);
+}
+static const sadx_gf
+sadx_gf0 = {0},
+sadx_gf1 = {1},
+sadx_121665 = {0xDB41, 1},
+sadx_D  = {0x78a3, 0x1359, 0x4dca, 0x75eb, 0xd8ab, 0x4141, 0x0a4d, 0x0070, 0xe898, 0x7779, 0x4079, 0x8cc7, 0xfe73, 0x2b6f, 0x6cee, 0x5203},
+sadx_D2 = {0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406},
+sadx_X  = {0xd51a, 0x8f25, 0x2d60, 0xc956, 0xa7b2, 0x9525, 0xc760, 0x692c, 0xdc5c, 0xfdd6, 0xe231, 0xc0a4, 0x53fe, 0xcd6e, 0x36d3, 0x2169},
+sadx_Y  = {0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666},
+sadx_I  = {0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83};
+static int sadx_vn(const unsigned char *x, const unsigned char *y, int n) {
+    unsigned int i, d = 0;
+    for (i = 0; i < (unsigned int)n; ++i) d |= x[i] ^ y[i];
+    return (1 & ((d - 1) >> 8)) - 1;
+}
+static int sadx_verify32(const unsigned char *x, const unsigned char *y) { return sadx_vn(x, y, 32); }
+static void sadx_set(sadx_gf r, const sadx_gf a) { int i; for (i = 0; i < 16; ++i) r[i] = a[i]; }
+static void sadx_car(sadx_gf o) {
+    int i; long long c;
+    for (i = 0; i < 16; ++i) {
+        o[i] += (1LL << 16);
+        c = o[i] >> 16;
+        o[(i + 1) * (i < 15)] += c - 1 + 37 * (c - 1) * (i == 15);
+        o[i] -= c << 16;
+    }
+}
+static void sadx_sel(sadx_gf p, sadx_gf q, int b) {
+    long long t, i, c = ~(b - 1);
+    for (i = 0; i < 16; ++i) { t = c & (p[i] ^ q[i]); p[i] ^= t; q[i] ^= t; }
+}
+static void sadx_pack(unsigned char *o, const sadx_gf n) {
+    int i, j, b;
+    sadx_gf m, t;
+    for (i = 0; i < 16; ++i) t[i] = n[i];
+    sadx_car(t); sadx_car(t); sadx_car(t);
+    for (j = 0; j < 2; ++j) {
+        m[0] = t[0] - 0xffed;
+        for (i = 1; i < 15; i++) { m[i] = t[i] - 0xffff - ((m[i - 1] >> 16) & 1); m[i - 1] &= 0xffff; }
+        m[15] = t[15] - 0x7fff - ((m[14] >> 16) & 1);
+        b = (m[15] >> 16) & 1;
+        m[14] &= 0xffff;
+        sadx_sel(t, m, 1 - b);
+    }
+    for (i = 0; i < 16; ++i) { o[2 * i] = t[i] & 0xff; o[2 * i + 1] = t[i] >> 8; }
+}
+static int sadx_neq(const sadx_gf a, const sadx_gf b) {
+    unsigned char c[32], d[32];
+    sadx_pack(c, a); sadx_pack(d, b);
+    return sadx_verify32(c, d);
+}
+static unsigned char sadx_par(const sadx_gf a) { unsigned char d[32]; sadx_pack(d, a); return d[0] & 1; }
+static void sadx_unpack(sadx_gf o, const unsigned char *n) {
+    int i;
+    for (i = 0; i < 16; ++i) o[i] = n[2 * i] + ((long long)n[2 * i + 1] << 8);
+    o[15] &= 0x7fff;
+}
+static void sadx_add_fe(sadx_gf o, const sadx_gf a, const sadx_gf b) { int i; for (i = 0; i < 16; ++i) o[i] = a[i] + b[i]; }
+static void sadx_sub_fe(sadx_gf o, const sadx_gf a, const sadx_gf b) { int i; for (i = 0; i < 16; ++i) o[i] = a[i] - b[i]; }
+static void sadx_mul(sadx_gf o, const sadx_gf a, const sadx_gf b) {
+    long long i, j, t[31];
+    for (i = 0; i < 31; ++i) t[i] = 0;
+    for (i = 0; i < 16; ++i) for (j = 0; j < 16; ++j) t[i + j] += a[i] * b[j];
+    for (i = 0; i < 15; ++i) t[i] += 38 * t[i + 16];
+    for (i = 0; i < 16; ++i) o[i] = t[i];
+    sadx_car(o); sadx_car(o);
+}
+static void sadx_sqr(sadx_gf o, const sadx_gf a) { sadx_mul(o, a, a); }
+static void sadx_inv(sadx_gf o, const sadx_gf i) {
+    sadx_gf c; int a;
+    for (a = 0; a < 16; ++a) c[a] = i[a];
+    for (a = 253; a >= 0; a--) { sadx_sqr(c, c); if (a != 2 && a != 4) sadx_mul(c, c, i); }
+    for (a = 0; a < 16; ++a) o[a] = c[a];
+}
+static void sadx_pow2523(sadx_gf o, const sadx_gf i) {
+    sadx_gf c; int a;
+    for (a = 0; a < 16; ++a) c[a] = i[a];
+    for (a = 250; a >= 0; a--) { sadx_sqr(c, c); if (a != 1) sadx_mul(c, c, i); }
+    for (a = 0; a < 16; ++a) o[a] = c[a];
+}
+static int sadx_x25519(unsigned char *q, const unsigned char *n, const unsigned char *p) {
+    unsigned char z[32];
+    long long x[80], r, i;
+    sadx_gf a, b, c, d, e, f;
+    for (i = 0; i < 31; ++i) z[i] = n[i];
+    z[31] = (n[31] & 127) | 64;
+    z[0] &= 248;
+    sadx_unpack(x, p);
+    for (i = 0; i < 16; ++i) { b[i] = x[i]; d[i] = a[i] = c[i] = 0; }
+    a[0] = d[0] = 1;
+    for (i = 254; i >= 0; --i) {
+        r = (z[i >> 3] >> (i & 7)) & 1;
+        sadx_sel(a, b, r); sadx_sel(c, d, r);
+        sadx_add_fe(e, a, c); sadx_sub_fe(a, a, c);
+        sadx_add_fe(c, b, d); sadx_sub_fe(b, b, d);
+        sadx_sqr(d, e); sadx_sqr(f, a);
+        sadx_mul(a, c, a); sadx_mul(c, b, e);
+        sadx_add_fe(e, a, c); sadx_sub_fe(a, a, c);
+        sadx_sqr(b, a); sadx_sub_fe(c, d, f);
+        sadx_mul(a, c, sadx_121665); sadx_add_fe(a, a, d);
+        sadx_mul(c, c, a); sadx_mul(a, d, f);
+        sadx_mul(d, b, x); sadx_sqr(b, e);
+        sadx_sel(a, b, r); sadx_sel(c, d, r);
+    }
+    for (i = 0; i < 16; ++i) { x[i + 16] = a[i]; x[i + 32] = c[i]; x[i + 48] = b[i]; x[i + 64] = d[i]; }
+    sadx_inv(x + 32, x + 32);
+    sadx_mul(x + 16, x + 16, x + 32);
+    sadx_pack(q, x + 16);
+    return 0;
+}
+static const unsigned char SADX_BASE9[32] = {9};
+static int sadx_x25519_base(unsigned char *q, const unsigned char *n) { return sadx_x25519(q, n, SADX_BASE9); }
+)";
+                // Segment B: Ed25519 (sign/verify/pubkey) + hex/random helpers + wrappers.
+                rt_file << R"(
+/* sadx_core (part B): Ed25519 point ops (extended coords), sign (RFC 8032
+ * §5.1.6), verify (§5.1.7, incl. non-canonical S>=L rejection and §5.1.3
+ * decompression), scalar reduction mod L, and the seven string-in/out builtin
+ * wrappers. */
+static void sadx_ed_add(sadx_gf p[4], sadx_gf q[4]) {
+    sadx_gf a, b, c, d, t, e, f, g, h;
+    sadx_sub_fe(a, p[1], p[0]); sadx_sub_fe(t, q[1], q[0]); sadx_mul(a, a, t);
+    sadx_add_fe(b, p[0], p[1]); sadx_add_fe(t, q[0], q[1]); sadx_mul(b, b, t);
+    sadx_mul(c, p[3], q[3]); sadx_mul(c, c, sadx_D2);
+    sadx_mul(d, p[2], q[2]); sadx_add_fe(d, d, d);
+    sadx_sub_fe(e, b, a); sadx_sub_fe(f, d, c); sadx_add_fe(g, d, c); sadx_add_fe(h, b, a);
+    sadx_mul(p[0], e, f); sadx_mul(p[1], h, g); sadx_mul(p[2], g, f); sadx_mul(p[3], e, h);
+}
+static void sadx_ed_cswap(sadx_gf p[4], sadx_gf q[4], unsigned char b) { int i; for (i = 0; i < 4; ++i) sadx_sel(p[i], q[i], b); }
+static void sadx_ed_pack(unsigned char *r, sadx_gf p[4]) {
+    sadx_gf tx, ty, zi;
+    sadx_inv(zi, p[2]);
+    sadx_mul(tx, p[0], zi); sadx_mul(ty, p[1], zi);
+    sadx_pack(r, ty);
+    r[31] ^= sadx_par(tx) << 7;
+}
+static void sadx_ed_scalarmult(sadx_gf p[4], sadx_gf q[4], const unsigned char *s) {
+    int i;
+    sadx_set(p[0], sadx_gf0); sadx_set(p[1], sadx_gf1); sadx_set(p[2], sadx_gf1); sadx_set(p[3], sadx_gf0);
+    for (i = 255; i >= 0; --i) {
+        unsigned char b = (s[i / 8] >> (i & 7)) & 1;
+        sadx_ed_cswap(p, q, b);
+        sadx_ed_add(q, p);
+        sadx_ed_add(p, p);
+        sadx_ed_cswap(p, q, b);
+    }
+}
+static void sadx_ed_scalarbase(sadx_gf p[4], const unsigned char *s) {
+    sadx_gf q[4];
+    sadx_set(q[0], sadx_X); sadx_set(q[1], sadx_Y); sadx_set(q[2], sadx_gf1); sadx_mul(q[3], sadx_X, sadx_Y);
+    sadx_ed_scalarmult(p, q, s);
+}
+static const unsigned long long SADX_L[32] = {
+    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10};
+static void sadx_modL(unsigned char *r, long long x[64]) {
+    long long carry, i, j;
+    for (i = 63; i >= 32; --i) {
+        carry = 0;
+        for (j = i - 32; j < i - 12; ++j) {
+            x[j] += carry - 16 * x[i] * (long long)SADX_L[j - (i - 32)];
+            carry = (x[j] + 128) >> 8;
+            x[j] -= carry << 8;
+        }
+        x[j] += carry;
+        x[i] = 0;
+    }
+    carry = 0;
+    for (j = 0; j < 32; ++j) { x[j] += carry - (x[31] >> 4) * (long long)SADX_L[j]; carry = x[j] >> 8; x[j] &= 255; }
+    for (j = 0; j < 32; ++j) x[j] -= carry * (long long)SADX_L[j];
+    for (i = 0; i < 32; ++i) { x[i + 1] += x[i] >> 8; r[i] = (unsigned char)(x[i] & 255); }
+}
+static void sadx_reduce(unsigned char *r) {
+    long long x[64], i;
+    for (i = 0; i < 64; ++i) x[i] = (unsigned long long)r[i];
+    for (i = 0; i < 64; ++i) r[i] = 0;
+    sadx_modL(r, x);
+}
+static void sadx_ed25519_pubkey(unsigned char pk[32], const unsigned char seed[32]) {
+    unsigned char d[64];
+    sadx_gf p[4];
+    sadx_sha512(seed, 32, d);
+    d[0] &= 248; d[31] &= 127; d[31] |= 64;
+    sadx_ed_scalarbase(p, d);
+    sadx_ed_pack(pk, p);
+}
+static void sadx_ed25519_sign(unsigned char sig[64], const unsigned char *m, size_t mlen,
+                              const unsigned char seed[32], unsigned char *scratch) {
+    unsigned char d[64], h[64], r[64], pk[32];
+    long long i, j, x[64];
+    sadx_gf p[4];
+    sadx_sha512(seed, 32, d);
+    d[0] &= 248; d[31] &= 127; d[31] |= 64;
+    sadx_ed_scalarbase(p, d); sadx_ed_pack(pk, p);
+    for (i = 0; i < 32; ++i) scratch[i] = d[32 + i];
+    for (i = 0; (size_t)i < mlen; ++i) scratch[32 + i] = m[i];
+    sadx_sha512(scratch, 32 + mlen, r);
+    sadx_reduce(r);
+    sadx_ed_scalarbase(p, r); sadx_ed_pack(sig, p);
+    for (i = 0; i < 32; ++i) scratch[i] = sig[i];
+    for (i = 0; i < 32; ++i) scratch[32 + i] = pk[i];
+    for (i = 0; (size_t)i < mlen; ++i) scratch[64 + i] = m[i];
+    sadx_sha512(scratch, 64 + mlen, h);
+    sadx_reduce(h);
+    for (i = 0; i < 64; ++i) x[i] = 0;
+    for (i = 0; i < 32; ++i) x[i] = (unsigned long long)r[i];
+    for (i = 0; i < 32; ++i) for (j = 0; j < 32; ++j) x[i + j] += (long long)h[i] * (long long)d[j];
+    sadx_modL(sig + 32, x);
+}
+static int sadx_ed_unpackneg(sadx_gf r[4], const unsigned char p[32]) {
+    sadx_gf t, chk, num, den, den2, den4, den6;
+    sadx_set(r[2], sadx_gf1);
+    sadx_unpack(r[1], p);
+    sadx_sqr(num, r[1]); sadx_mul(den, num, sadx_D);
+    sadx_sub_fe(num, num, r[2]); sadx_add_fe(den, r[2], den);
+    sadx_sqr(den2, den); sadx_sqr(den4, den2); sadx_mul(den6, den4, den2);
+    sadx_mul(t, den6, num); sadx_mul(t, t, den);
+    sadx_pow2523(t, t);
+    sadx_mul(t, t, num); sadx_mul(t, t, den); sadx_mul(t, t, den); sadx_mul(r[0], t, den);
+    sadx_sqr(chk, r[0]); sadx_mul(chk, chk, den);
+    if (sadx_neq(chk, num)) sadx_mul(r[0], r[0], sadx_I);
+    sadx_sqr(chk, r[0]); sadx_mul(chk, chk, den);
+    if (sadx_neq(chk, num)) return -1;
+    if (sadx_par(r[0]) == (p[31] >> 7)) sadx_sub_fe(r[0], sadx_gf0, r[0]);
+    sadx_mul(r[3], r[0], r[1]);
+    return 0;
+}
+static int sadx_ed25519_verify(const unsigned char *m, size_t mlen, const unsigned char sig[64],
+                               const unsigned char pk[32], unsigned char *scratch) {
+    unsigned char t[32], h[64];
+    sadx_gf p[4], q[4];
+    long long i;
+    int lt = 0, k;
+    for (k = 31; k >= 0; --k) {
+        unsigned char sb = sig[32 + k], lb = (unsigned char)SADX_L[k];
+        if (sb < lb) { lt = 1; break; }
+        if (sb > lb) { break; }
+    }
+    if (!lt) return 0;
+    if (sadx_ed_unpackneg(q, pk)) return 0;
+    for (i = 0; i < 32; ++i) scratch[i] = sig[i];
+    for (i = 0; i < 32; ++i) scratch[32 + i] = pk[i];
+    for (i = 0; (size_t)i < mlen; ++i) scratch[64 + i] = m[i];
+    sadx_sha512(scratch, 64 + mlen, h);
+    sadx_reduce(h);
+    sadx_ed_scalarmult(p, q, h);
+    sadx_ed_scalarbase(q, sig + 32);
+    sadx_ed_add(p, q);
+    sadx_ed_pack(t, p);
+    return sadx_verify32(sig, t) == 0 ? 1 : 0;
+}
+static int sadx_is_all_zero(const unsigned char *b, size_t n) {
+    unsigned char acc = 0; size_t i;
+    for (i = 0; i < n; ++i) acc |= b[i];
+    return acc == 0;
+}
+static void sadx_random_bytes(unsigned char *buf, size_t len) {
+    if (sad_crypto_os_random(buf, len)) return;
+    {
+        static int seeded = 0;
+        size_t i;
+        if (!seeded) { srand((unsigned int)time(NULL)); seeded = 1; }
+        for (i = 0; i < len; ++i) buf[i] = (unsigned char)(rand() & 0xFF);
+    }
+}
+static int sadx_hex2bin(const char *hex, unsigned char *out, size_t n) {
+    size_t i;
+    if (strlen(hex) != n * 2) return 0;
+    for (i = 0; i < n; ++i) {
+        unsigned int byte = 0;
+        char c0 = hex[2 * i], c1 = hex[2 * i + 1];
+        if (!((c0 >= '0' && c0 <= '9') || (c0 >= 'a' && c0 <= 'f') || (c0 >= 'A' && c0 <= 'F')) ||
+            !((c1 >= '0' && c1 <= '9') || (c1 >= 'a' && c1 <= 'f') || (c1 >= 'A' && c1 <= 'F')))
+            return 0;
+        if (sscanf(hex + 2 * i, "%02x", &byte) != 1) return 0;
+        out[i] = (unsigned char)byte;
+    }
+    return 1;
+}
+static char *sadx_bin2hex(const unsigned char *b, size_t n) {
+    char *out = (char *)malloc(n * 2 + 1);
+    size_t i;
+    if (!out) return NULL;
+    for (i = 0; i < n; ++i) snprintf(out + i * 2, 3, "%02x", b[i]);
+    out[n * 2] = '\0';
+    return out;
+}
+const char *sad_security_x25519_keygen_priv(void) {
+    unsigned char sk[32]; char *out;
+    sadx_random_bytes(sk, 32);
+    out = sadx_bin2hex(sk, 32);
+    if (!out) { fprintf(stderr, "[sad] error: x25519 keygen allocation failed\n"); return ""; }
+    return out;
+}
+const char *sad_security_x25519_derive_pub(const char *priv) {
+    unsigned char sk[32], pk[32]; char *out;
+    if (!priv) priv = "";
+    if (!sadx_hex2bin(priv, sk, 32)) { fprintf(stderr, "[sad] error: invalid x25519 private key (64 hex chars)\n"); return ""; }
+    sadx_x25519_base(pk, sk);
+    out = sadx_bin2hex(pk, 32);
+    if (!out) { fprintf(stderr, "[sad] error: x25519 derive allocation failed\n"); return ""; }
+    return out;
+}
+const char *sad_security_x25519_exchange(const char *priv, const char *peer_pub) {
+    unsigned char sk[32], pp[32], ss[32]; char *out;
+    if (!priv) priv = "";
+    if (!peer_pub) peer_pub = "";
+    if (!sadx_hex2bin(priv, sk, 32) || !sadx_hex2bin(peer_pub, pp, 32)) { fprintf(stderr, "[sad] error: invalid key-exchange input (both keys 64 hex chars)\n"); return ""; }
+    sadx_x25519(ss, sk, pp);
+    if (sadx_is_all_zero(ss, 32)) { fprintf(stderr, "[sad] error: all-zero shared secret rejected (low-order public key, RFC 7748 6.1)\n"); return ""; }
+    out = sadx_bin2hex(ss, 32);
+    if (!out) { fprintf(stderr, "[sad] error: key-exchange allocation failed\n"); return ""; }
+    return out;
+}
+const char *sad_security_ed25519_keygen_priv(void) {
+    unsigned char sk[32]; char *out;
+    sadx_random_bytes(sk, 32);
+    out = sadx_bin2hex(sk, 32);
+    if (!out) { fprintf(stderr, "[sad] error: ed25519 keygen allocation failed\n"); return ""; }
+    return out;
+}
+const char *sad_security_ed25519_derive_pub(const char *seed_hex) {
+    unsigned char seed[32], pk[32]; char *out;
+    if (!seed_hex) seed_hex = "";
+    if (!sadx_hex2bin(seed_hex, seed, 32)) { fprintf(stderr, "[sad] error: invalid signing seed (64 hex chars)\n"); return ""; }
+    sadx_ed25519_pubkey(pk, seed);
+    out = sadx_bin2hex(pk, 32);
+    if (!out) { fprintf(stderr, "[sad] error: ed25519 derive allocation failed\n"); return ""; }
+    return out;
+}
+const char *sad_security_ed25519_sign(const char *msg, const char *seed_hex) {
+    unsigned char seed[32], sig[64]; unsigned char *scratch; size_t mlen; char *out;
+    if (!msg) msg = "";
+    if (!seed_hex) seed_hex = "";
+    if (!sadx_hex2bin(seed_hex, seed, 32)) { fprintf(stderr, "[sad] error: invalid signing private key (64 hex chars)\n"); return ""; }
+    mlen = strlen(msg);
+    scratch = (unsigned char *)malloc(mlen + 64);
+    if (!scratch) { fprintf(stderr, "[sad] error: sign allocation failed\n"); return ""; }
+    sadx_ed25519_sign(sig, (const unsigned char *)msg, mlen, seed, scratch);
+    free(scratch);
+    out = sadx_bin2hex(sig, 64);
+    if (!out) { fprintf(stderr, "[sad] error: sign allocation failed\n"); return ""; }
+    return out;
+}
+int sad_security_ed25519_verify(const char *msg, const char *sig_hex, const char *pub_hex) {
+    unsigned char sig[64], pk[32]; unsigned char *scratch; size_t mlen; int ok;
+    if (!msg) msg = "";
+    if (!sig_hex) sig_hex = "";
+    if (!pub_hex) pub_hex = "";
+    if (!sadx_hex2bin(sig_hex, sig, 64)) return 0;
+    if (!sadx_hex2bin(pub_hex, pk, 32)) return 0;
+    mlen = strlen(msg);
+    scratch = (unsigned char *)malloc(mlen + 64);
+    if (!scratch) return 0;
+    ok = sadx_ed25519_verify((const unsigned char *)msg, mlen, sig, pk, scratch);
+    free(scratch);
+    return ok;
+}
                 // ChaCha20-Poly1305 AEAD (شفّر_موثّق/فك_تشفير_موثّق) — نسخة ثالثة
                 // مطابقة حرفيًّا لنظير sad_embedded_runtime.c، مقسّمة في سلسلة خام
                 // مستقلّة (<16KB لتفادي حدّ MSVC C2026 لحرفيّات السلاسل).

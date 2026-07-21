@@ -192,6 +192,145 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
+                // 6. ولّد_مفتاح_خاص_x25519 / X25519 private key gen (0 args)
+                if (funcName == Bn::Crypto::X25519_KEYGEN_PRIV)
+                {
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_X25519_KEYGEN_PRIV);
+                    inst.result = resultOp;
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 7. اشتق_مفتاح_عام_x25519 / X25519 derive public (1 arg)
+                if (funcName == Bn::Crypto::X25519_DERIVE_PUB)
+                {
+                    if (argResults.size() < 1)
+                    {
+                        std::cerr << "[خطأ] دالة اشتق_مفتاح_عام_x25519 تتطلب معاملاً واحداً (المفتاح الخاصّ)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_X25519_DERIVE_PUB);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 7. تبادل_مفتاح / X25519 exchange (2 args)
+                if (funcName == Bn::Crypto::X25519_EXCHANGE)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[خطأ] دالة تبادل_مفتاح تتطلب معاملين (المفتاح الخاصّ، المفتاح العامّ للطرف الآخر)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_X25519_EXCHANGE);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 8. ولّد_مفتاح_خاص_توقيع / Ed25519 seed gen (0 args)
+                if (funcName == Bn::Crypto::ED25519_KEYGEN_PRIV)
+                {
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_KEYGEN_PRIV);
+                    inst.result = resultOp;
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 9. اشتق_مفتاح_عام_توقيع / Ed25519 derive public (1 arg)
+                if (funcName == Bn::Crypto::ED25519_DERIVE_PUB)
+                {
+                    if (argResults.size() < 1)
+                    {
+                        std::cerr << "[خطأ] دالة اشتق_مفتاح_عام_توقيع تتطلب معاملاً واحداً (المفتاح الخاصّ)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_DERIVE_PUB);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 10. وقّع / Ed25519 sign (2 args)
+                if (funcName == Bn::Crypto::ED25519_SIGN)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[خطأ] دالة وقّع تتطلب معاملين (الرسالة، المفتاح الخاصّ)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_SIGN);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 11. تحقق_توقيع / Ed25519 verify (3 args) — returns Boolean
+                if (funcName == Bn::Crypto::ED25519_VERIFY)
+                {
+                    if (argResults.size() < 3)
+                    {
+                        std::cerr << "[خطأ] دالة تحقق_توقيع تتطلب ثلاثة معاملات (الرسالة، التوقيع، المفتاح العامّ)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_VERIFY);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    inst.operands.push_back(argOperands[2]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
                 return std::nullopt;
             }
 

@@ -242,6 +242,20 @@ namespace Sad
                 return cg_.emitBuiltinCryptoAeadDecrypt(inst);
             case SIROpcode::BUILTIN_CRYPTO_KDF_ARGON2ID:
                 return cg_.emitBuiltinCryptoKdfArgon2id(inst);
+            case SIROpcode::BUILTIN_CRYPTO_X25519_KEYGEN_PRIV:
+                return cg_.emitBuiltinCryptoX25519KeygenPriv(inst);
+            case SIROpcode::BUILTIN_CRYPTO_X25519_DERIVE_PUB:
+                return cg_.emitBuiltinCryptoX25519DerivePub(inst);
+            case SIROpcode::BUILTIN_CRYPTO_X25519_EXCHANGE:
+                return cg_.emitBuiltinCryptoX25519Exchange(inst);
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_KEYGEN_PRIV:
+                return cg_.emitBuiltinCryptoEd25519KeygenPriv(inst);
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_DERIVE_PUB:
+                return cg_.emitBuiltinCryptoEd25519DerivePub(inst);
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_SIGN:
+                return cg_.emitBuiltinCryptoEd25519Sign(inst);
+            case SIROpcode::BUILTIN_CRYPTO_ED25519_VERIFY:
+                return cg_.emitBuiltinCryptoEd25519Verify(inst);
 
             // ===== FFI (20) =====
             case SIROpcode::FFI_PRINTF:

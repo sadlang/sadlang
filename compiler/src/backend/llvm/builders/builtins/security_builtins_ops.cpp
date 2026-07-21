@@ -611,11 +611,128 @@ namespace Sad { namespace LLVM {
                 return nullptr;
             // Call runtime sad_kdf_argon2id(const char*, const char*, long long, long long) -> char*
             // (Argon2id, RFC 9106, parallelism fixed at 1 — hex string, 32-byte fixed output)
+            llvm::Type *argon2i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::Type *argon2i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            llvm::FunctionType *argon2ft = llvm::FunctionType::get(argon2i8Ptr, {argon2i8Ptr, argon2i8Ptr, argon2i64Ty, argon2i64Ty}, false);
+            llvm::FunctionCallee argon2fn = cg_.module_->getOrInsertFunction("sad_kdf_argon2id", argon2ft);
+            llvm::Value *argon2result = cg_.builder_->CreateCall(argon2fn, {password, salt, memoryCostKib, iterations}, "argon2id.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = argon2result;
+            return argon2result;
+        }
+
+        // ولّد_مفتاح_خاص_x25519 — runtime sad_security_x25519_keygen_priv(void) -> char* (hex)
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoX25519KeygenPriv(std::shared_ptr<SIRInstruction> inst)
+        {
             llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
-            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i64Ty, i64Ty}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_argon2id", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {password, salt, memoryCostKib, iterations}, "argon2id.ret");
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_keygen_priv", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {}, "x25519_kg.ret");
+            if (inst && inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // اشتق_مفتاح_عام_x25519 — runtime sad_security_x25519_derive_pub(const char*) -> char*
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoX25519DerivePub(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 1)
+                return nullptr;
+            llvm::Value *priv = cg_.resolveOperand(inst->operands[0]);
+            if (!priv)
+                return nullptr;
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_derive_pub", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {priv}, "x25519_pub.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // تبادل_مفتاح — runtime sad_security_x25519_exchange(const char*, const char*) -> char*
+        // (all-zero shared secret rejected inside the runtime — RFC 7748 §6.1)
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoX25519Exchange(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *priv = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *peerPub = cg_.resolveOperand(inst->operands[1]);
+            if (!priv || !peerPub)
+                return nullptr;
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_exchange", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {priv, peerPub}, "x25519_dh.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // ولّد_مفتاح_خاص_توقيع — runtime sad_security_ed25519_keygen_priv(void) -> char*
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoEd25519KeygenPriv(std::shared_ptr<SIRInstruction> inst)
+        {
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_ed25519_keygen_priv", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {}, "ed25519_kg.ret");
+            if (inst && inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // اشتق_مفتاح_عام_توقيع — runtime sad_security_ed25519_derive_pub(const char*) -> char*
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoEd25519DerivePub(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 1)
+                return nullptr;
+            llvm::Value *seed = cg_.resolveOperand(inst->operands[0]);
+            if (!seed)
+                return nullptr;
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_ed25519_derive_pub", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {seed}, "ed25519_pub.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // وقّع — runtime sad_security_ed25519_sign(const char*, const char*) -> char* (128-hex sig)
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoEd25519Sign(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *msg = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *seed = cg_.resolveOperand(inst->operands[1]);
+            if (!msg || !seed)
+                return nullptr;
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_ed25519_sign", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {msg, seed}, "ed25519_sign.ret");
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // تحقق_توقيع — runtime sad_security_ed25519_verify(const char*, const char*, const char*) -> int
+        // Query function: returns 0/1 (never throws). SIR result is Boolean; the print
+        // path materializes صحيح/خطأ via ICmpNE(v,0) (same convention as اكتب_ملف).
+        llvm::Value *SecurityBuiltinsCodeGen::emitBuiltinCryptoEd25519Verify(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 3)
+                return nullptr;
+            llvm::Value *msg = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *sig = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *pub = cg_.resolveOperand(inst->operands[2]);
+            if (!msg || !sig || !pub)
+                return nullptr;
+            llvm::Type *i8Ptr = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+            llvm::Type *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            llvm::FunctionType *ft = llvm::FunctionType::get(i32Ty, {i8Ptr, i8Ptr, i8Ptr}, false);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_ed25519_verify", ft);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {msg, sig, pub}, "ed25519_verify.ret");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
