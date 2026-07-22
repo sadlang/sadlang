@@ -19,6 +19,29 @@
 #include "builtin_registry.h"
 namespace Bn = Sad::Builtins::Names;
 
+namespace
+{
+    // (AR) رسائل خطأ عدد الوسائط لدوال وحدة تشفير — ثوابت مسمّاة بدل نصوص حرفيّة
+    //      مكرَّرة داخل الجسم؛ اسم الدالّة نفسه يُؤخَذ من معامل funcName (مطابق
+    //      لثابت Bn::Crypto::* المُستعمَل في المقارنة أعلاه) لا يُكتَب حرفيًّا مرّتين.
+    // (EN) Argument-count error messages for crypto builtins — named constants
+    //      instead of literals duplicated in the body; the function name itself
+    //      comes from the funcName parameter (same value as the Bn::Crypto::*
+    //      constant used in the comparison above), not re-typed as a literal.
+    constexpr const char *kErrBlake3Hash = "تتطلب معامل واحد (النص)";
+    constexpr const char *kErrKeyedHash = "تتطلب معاملين (النص، المفتاح)";
+    constexpr const char *kErrKdfPbkdf2 = "تتطلب ثلاثة معاملات (كلمة_المرور، ملح، عدد_التكرارات)";
+    constexpr const char *kErrKdfHkdf = "تتطلب أربعة معاملات (سرّ، ملح، سياق، الطول)";
+    constexpr const char *kErrAeadEncrypt = "تتطلب معاملين (النص، المفتاح)";
+    constexpr const char *kErrAeadDecrypt = "تتطلب معاملين (المغلّف، المفتاح)";
+    constexpr const char *kErrKdfArgon2id = "تتطلب أربعة معاملات (كلمة_المرور، ملح، تكلفة_الذاكرة، عدد_التكرارات)";
+    constexpr const char *kErrX25519DerivePub = "تتطلب معاملاً واحداً (المفتاح الخاصّ)";
+    constexpr const char *kErrX25519Exchange = "تتطلب معاملين (المفتاح الخاصّ، المفتاح العامّ للطرف الآخر)";
+    constexpr const char *kErrEd25519DerivePub = "تتطلب معاملاً واحداً (المفتاح الخاصّ)";
+    constexpr const char *kErrEd25519Sign = "تتطلب معاملين (الرسالة، المفتاح الخاصّ)";
+    constexpr const char *kErrEd25519Verify = "تتطلب ثلاثة معاملات (الرسالة، التوقيع، المفتاح العامّ)";
+} // namespace
+
 namespace Sad
 {
     namespace Compiler
@@ -39,7 +62,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[خطأ] دالة بلايك3 تتطلب معامل واحد (النص)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrBlake3Hash << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -60,7 +83,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة هاش_مفتاح تتطلب معاملين (النص، المفتاح)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKeyedHash << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -82,7 +105,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] دالة اشتق_مفتاح_مرور تتطلب ثلاثة معاملات (كلمة_المرور، ملح، عدد_التكرارات)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKdfPbkdf2 << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -105,7 +128,7 @@ namespace Sad
                 {
                     if (argResults.size() < 4)
                     {
-                        std::cerr << "[خطأ] دالة اشتق_مفتاح تتطلب أربعة معاملات (سرّ، ملح، سياق، الطول)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKdfHkdf << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -129,7 +152,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة شفّر_موثّق تتطلب معاملين (النص، المفتاح)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrAeadEncrypt << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -151,7 +174,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة فك_تشفير_موثّق تتطلب معاملين (المغلّف، المفتاح)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrAeadDecrypt << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -173,7 +196,7 @@ namespace Sad
                 {
                     if (argResults.size() < 4)
                     {
-                        std::cerr << "[خطأ] دالة أرجون2 تتطلب أربعة معاملات (كلمة_المرور، ملح، تكلفة_الذاكرة، عدد_التكرارات)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKdfArgon2id << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -212,7 +235,7 @@ namespace Sad
                 {
                     if (argResults.size() < 1)
                     {
-                        std::cerr << "[خطأ] دالة اشتق_مفتاح_عام_x25519 تتطلب معاملاً واحداً (المفتاح الخاصّ)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrX25519DerivePub << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -233,7 +256,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة تبادل_مفتاح تتطلب معاملين (المفتاح الخاصّ، المفتاح العامّ للطرف الآخر)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrX25519Exchange << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -270,7 +293,7 @@ namespace Sad
                 {
                     if (argResults.size() < 1)
                     {
-                        std::cerr << "[خطأ] دالة اشتق_مفتاح_عام_توقيع تتطلب معاملاً واحداً (المفتاح الخاصّ)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrEd25519DerivePub << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -291,7 +314,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        std::cerr << "[خطأ] دالة وقّع تتطلب معاملين (الرسالة، المفتاح الخاصّ)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrEd25519Sign << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -313,7 +336,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        std::cerr << "[خطأ] دالة تحقق_توقيع تتطلب ثلاثة معاملات (الرسالة، التوقيع، المفتاح العامّ)" << std::endl;
+                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrEd25519Verify << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
                     std::string resultReg = b_.newTempRegister();

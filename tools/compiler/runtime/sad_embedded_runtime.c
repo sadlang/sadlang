@@ -1150,6 +1150,45 @@ static void sad_pbkdf2_hmac_sha256_raw(const unsigned char *pw, size_t pwlen,
     free(salt_ctr);
 }
 
+/* (AR) رسائل خطأ دوال وحدة تشفير — ثوابت مسمّاة بدل نصوص حرفيّة مكرَّرة داخل
+ *      أجسام الدوالّ أدناه (بعضها يتكرّر حرفيًّا داخل هذا الملف نفسه: رسالة
+ *      فشل مصادقة AEAD ثلاث مرّات، ورسالتا فشل تخصيص ذاكرة التشفير/التوقيع
+ *      الموثَّق مرّتين لكلٍّ). ملاحظة معماريّة: هذا الملف مصدر C مستقلّ يُكتَب
+ *      إلى القرص ويُصرَّف بمُصرِّف خارجيّ (راجع sad_embedded_runtime_data.h في
+ *      compiler_driver_linker.cpp) — لا رابط مصدريّ متاح مع security_builtins_ops.cpp
+ *      (توليد LLVM IR، وحدة ترجمة مختلفة تمامًا)، فتطابق نصّ الرسالة بين
+ *      الملفَّين يبقى تكرارًا يدويًّا حتى تُوحَّد الخوارزميّات ضمن مكتبة
+ *      C مشتركة (راجع توصية النقل في تقرير مراجعة مكتبة التشفير).
+ * (EN) Crypto builtin error messages — named constants instead of literals
+ *      duplicated across the function bodies below (some repeat verbatim
+ *      within this very file). Architectural note: this is a standalone C
+ *      source written to disk and compiled by an external toolchain — no
+ *      shared header is feasible with security_builtins_ops.cpp (a different
+ *      translation unit entirely), so the message text matching between the
+ *      two files remains manual duplication until the algorithms are unified
+ *      into a shared C library. */
+static const char *const kErrPbkdf2Iterations = "عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر";
+static const char *const kErrHkdfLength = "طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت";
+static const char *const kErrX25519KeygenAlloc = "فشل تخصيص الذاكرة لتوليد مفتاح x25519";
+static const char *const kErrX25519InvalidPriv = "مفتاح x25519 الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)";
+static const char *const kErrX25519DerivePubAlloc = "فشل تخصيص الذاكرة لاشتقاق مفتاح x25519";
+static const char *const kErrX25519ExchangeInvalidInput = "مدخل تبادل_مفتاح غير صالح (كلا المفتاحين 64 حرفًا ست عشريًّا)";
+static const char *const kErrX25519ZeroSharedSecret = "سرّ مشترك صفريّ مرفوض (مفتاح عامّ منخفض الرتبة — RFC 7748 §6.1)";
+static const char *const kErrX25519ExchangeAlloc = "فشل تخصيص الذاكرة لتبادل_مفتاح";
+static const char *const kErrEd25519KeygenAlloc = "فشل تخصيص الذاكرة لتوليد مفتاح توقيع";
+static const char *const kErrEd25519InvalidSeed = "بذرة مفتاح التوقيع غير صالحة (يجب 64 حرفًا ست عشريًّا)";
+static const char *const kErrEd25519DerivePubAlloc = "فشل تخصيص الذاكرة لاشتقاق مفتاح توقيع";
+static const char *const kErrEd25519InvalidPriv = "مفتاح التوقيع الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)";
+static const char *const kErrEd25519SignAlloc = "فشل تخصيص الذاكرة للتوقيع";
+static const char *const kErrAeadTextTooLong = "النص طويل جداً للتشفير الموثّق";
+static const char *const kErrAeadEncryptAlloc = "فشل تخصيص الذاكرة للتشفير الموثّق";
+static const char *const kErrAeadDecryptMissingKey = "فشل فكّ التشفير الموثّق — مفتاح مفقود";
+static const char *const kErrAeadAuthFailed = "فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ";
+static const char *const kErrAeadDecryptAlloc = "فشل تخصيص الذاكرة لفكّ التشفير الموثّق";
+static const char *const kErrArgon2idMemoryCost = "تكلفة ذاكرة أرجون2 يجب أن تكون 8 كيلوبايت على الأقلّ";
+static const char *const kErrArgon2idIterations = "عدد تكرارات أرجون2 يجب أن يكون أكبر من صفر";
+static const char *const kErrArgon2idSaltLength = "ملح أرجون2 يجب أن يكون 8 بايت على الأقلّ";
+
 /* اشتق_مفتاح_مرور / PBKDF2-HMAC-SHA256 — مفتاح 32 بايت ثابت، سلسلة ست عشريّة 64 حرفًا */
 const char *sad_kdf_pbkdf2(const char *password, const char *salt, long long iterations)
 {
@@ -1159,7 +1198,7 @@ const char *sad_kdf_pbkdf2(const char *password, const char *salt, long long ite
     unsigned long long iters;
     if (iterations <= 0)
     {
-        fprintf(stderr, "[sad] خطأ: عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrPbkdf2Iterations);
         return NULL;
     }
     if (!password)
@@ -1240,7 +1279,7 @@ const char *sad_kdf_hkdf(const char *secret, const char *salt, const char *info,
     /* RFC 5869 §2.3: الحدّ الأقصى للناتج L <= 255 * HashLen (32 بايت) = 8160 بايت */
     if (length <= 0 || length > 8160)
     {
-        fprintf(stderr, "[sad] خطأ: طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrHkdfLength);
         return NULL;
     }
     if (!secret)
@@ -1664,7 +1703,7 @@ const char *sad_security_x25519_keygen_priv(void)
     char *out;
     sadx_random_bytes(sk, 32);
     out = sadx_bin2hex(sk, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لتوليد مفتاح x25519\n"); return ""; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: %s\n", kErrX25519KeygenAlloc); return ""; }
     return out;
 }
 /* اشتق_مفتاح_عام_x25519 / X25519 derive public. مدخل غير صالح: stderr + سلسلة
@@ -1675,12 +1714,12 @@ const char *sad_security_x25519_derive_pub(const char *priv)
     char *out;
     if (!priv) priv = "";
     if (!sadx_hex2bin(priv, sk, 32)) {
-        fprintf(stderr, "[sad] خطأ: مفتاح x25519 الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrX25519InvalidPriv);
         return NULL;
     }
     sadx_x25519_base(pk, sk);
     out = sadx_bin2hex(pk, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لاشتقاق مفتاح x25519\n"); return NULL; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: %s\n", kErrX25519DerivePubAlloc); return NULL; }
     return out;
 }
 /* تبادل_مفتاح / X25519 exchange. مدخل غير صالح أو سرّ مشترك كلّه أصفار: stderr +
@@ -1692,16 +1731,16 @@ const char *sad_security_x25519_exchange(const char *priv, const char *peer_pub)
     if (!priv) priv = "";
     if (!peer_pub) peer_pub = "";
     if (!sadx_hex2bin(priv, sk, 32) || !sadx_hex2bin(peer_pub, pp, 32)) {
-        fprintf(stderr, "[sad] خطأ: مدخل تبادل_مفتاح غير صالح (كلا المفتاحين 64 حرفًا ست عشريًّا)\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrX25519ExchangeInvalidInput);
         return NULL;
     }
     sadx_x25519(ss, sk, pp);
     if (sadx_is_all_zero(ss, 32)) {
-        fprintf(stderr, "[sad] خطأ: سرّ مشترك صفريّ مرفوض (مفتاح عامّ منخفض الرتبة — RFC 7748 §6.1)\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrX25519ZeroSharedSecret);
         return NULL;
     }
     out = sadx_bin2hex(ss, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لتبادل_مفتاح\n"); return NULL; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: %s\n", kErrX25519ExchangeAlloc); return NULL; }
     return out;
 }
 /* ولّد_مفتاح_خاص_توقيع / Ed25519 seed — 32 بايت عشوائيّة (ست عشريّ 64 حرفًا) */
@@ -1711,7 +1750,7 @@ const char *sad_security_ed25519_keygen_priv(void)
     char *out;
     sadx_random_bytes(sk, 32);
     out = sadx_bin2hex(sk, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لتوليد مفتاح توقيع\n"); return ""; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: %s\n", kErrEd25519KeygenAlloc); return ""; }
     return out;
 }
 /* اشتق_مفتاح_عام_توقيع / Ed25519 derive public. مدخل غير صالح: stderr + فارغة. */
@@ -1721,12 +1760,12 @@ const char *sad_security_ed25519_derive_pub(const char *seed_hex)
     char *out;
     if (!seed_hex) seed_hex = "";
     if (!sadx_hex2bin(seed_hex, seed, 32)) {
-        fprintf(stderr, "[sad] خطأ: بذرة مفتاح التوقيع غير صالحة (يجب 64 حرفًا ست عشريًّا)\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrEd25519InvalidSeed);
         return "";
     }
     sadx_ed25519_pubkey(pk, seed);
     out = sadx_bin2hex(pk, 32);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لاشتقاق مفتاح توقيع\n"); return ""; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: %s\n", kErrEd25519DerivePubAlloc); return ""; }
     return out;
 }
 /* وقّع / Ed25519 sign — توقيع 64 بايت (ست عشريّ 128 حرفًا). مفتاح غير صالح: stderr + فارغة. */
@@ -1739,16 +1778,16 @@ const char *sad_security_ed25519_sign(const char *msg, const char *seed_hex)
     if (!msg) msg = "";
     if (!seed_hex) seed_hex = "";
     if (!sadx_hex2bin(seed_hex, seed, 32)) {
-        fprintf(stderr, "[sad] خطأ: مفتاح التوقيع الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrEd25519InvalidPriv);
         return "";
     }
     mlen = strlen(msg);
     scratch = (unsigned char *)malloc(mlen + 64);
-    if (!scratch) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة للتوقيع\n"); return ""; }
+    if (!scratch) { fprintf(stderr, "[sad] خطأ: %s\n", kErrEd25519SignAlloc); return ""; }
     sadx_ed25519_sign(sig, (const unsigned char *)msg, mlen, seed, scratch);
     free(scratch);
     out = sadx_bin2hex(sig, 64);
-    if (!out) { fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة للتوقيع\n"); return ""; }
+    if (!out) { fprintf(stderr, "[sad] خطأ: %s\n", kErrEd25519SignAlloc); return ""; }
     return out;
 }
 /* تحقق_توقيع / Ed25519 verify — دالّة استعلام: تُرجع 0/1، لا تُبلّغ عن خطأ ولا
@@ -2044,7 +2083,7 @@ const char *sad_security_aead_encrypt(const char *text, const char *key)
     tlen = strlen(text);
     if (tlen > (SIZE_MAX / 2 - 64))
     {
-        fprintf(stderr, "[sad] خطأ: النص طويل جداً للتشفير الموثّق\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadTextTooLong);
         return text;
     }
     sad_aead_key32(key, key32);
@@ -2053,7 +2092,7 @@ const char *sad_security_aead_encrypt(const char *text, const char *key)
     ct = (unsigned char *)malloc(tlen ? tlen : 1);
     if (!ct)
     {
-        fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة للتشفير الموثّق\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadEncryptAlloc);
         return text;
     }
     sad_chacha20_xor(key32, 1, nonce, (const unsigned char *)text, tlen, ct);
@@ -2069,7 +2108,7 @@ const char *sad_security_aead_encrypt(const char *text, const char *key)
     if (!result)
     {
         free(ct);
-        fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة للتشفير الموثّق\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadEncryptAlloc);
         return text;
     }
     for (i = 0; i < 12; ++i) snprintf(result + i * 2, 3, "%02x", nonce[i]);
@@ -2096,20 +2135,20 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
     if (!hex) hex = "";
     if (!key || !*key)
     {
-        fprintf(stderr, "[sad] خطأ: فشل فكّ التشفير الموثّق — مفتاح مفقود\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadDecryptMissingKey);
         return NULL;
     }
     hlen = strlen(hex);
     if (hlen % 2 != 0 || (hlen / 2) < (12 + 16))
     {
-        fprintf(stderr, "[sad] خطأ: فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadAuthFailed);
         return NULL;
     }
     rlen = hlen / 2;
     raw = (unsigned char *)malloc(rlen);
     if (!raw)
     {
-        fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لفكّ التشفير الموثّق\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadDecryptAlloc);
         return NULL;
     }
     for (i = 0; i < rlen; ++i)
@@ -2118,7 +2157,7 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
         if (sscanf(hex + i * 2, "%02x", &byte) != 1 || byte > 255)
         {
             free(raw);
-            fprintf(stderr, "[sad] خطأ: فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ\n");
+            fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadAuthFailed);
             return NULL;
         }
         raw[i] = (unsigned char)byte;
@@ -2139,7 +2178,7 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
     if (!sad_ct_equal(tag, tag2, 16))
     {
         free(raw);
-        fprintf(stderr, "[sad] خطأ: فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadAuthFailed);
         return NULL;
     }
 
@@ -2147,7 +2186,7 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key)
     if (!result)
     {
         free(raw);
-        fprintf(stderr, "[sad] خطأ: فشل تخصيص الذاكرة لفكّ التشفير الموثّق\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrAeadDecryptAlloc);
         return NULL;
     }
     sad_chacha20_xor(key32, 1, nonce, ct, ctlen, (unsigned char *)result);
@@ -2473,17 +2512,17 @@ const char *sad_kdf_argon2id(const char *password, const char *salt, long long m
 
     if (memory_cost_kib < 8)
     {
-        fprintf(stderr, "[sad] خطأ: تكلفة ذاكرة أرجون2 يجب أن تكون 8 كيلوبايت على الأقلّ\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrArgon2idMemoryCost);
         return NULL;
     }
     if (iterations <= 0)
     {
-        fprintf(stderr, "[sad] خطأ: عدد تكرارات أرجون2 يجب أن يكون أكبر من صفر\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrArgon2idIterations);
         return NULL;
     }
     if (saltlen < 8)
     {
-        fprintf(stderr, "[sad] خطأ: ملح أرجون2 يجب أن يكون 8 بايت على الأقلّ\n");
+        fprintf(stderr, "[sad] خطأ: %s\n", kErrArgon2idSaltLength);
         return NULL;
     }
 

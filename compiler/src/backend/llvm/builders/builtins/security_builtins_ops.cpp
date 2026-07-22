@@ -15,6 +15,21 @@
 #include <string>
 #include <vector>
 
+namespace
+{
+    // (AR) رسائل استثناء التشفير (نوع + محتوى) — ثوابت مسمّاة بدل نصوص حرفيّة
+    //      مكرَّرة في نداءات emitCryptoCallOrRaise أدناه.
+    // (EN) Crypto exception messages (type + body) — named constants instead of
+    //      literals repeated across the emitCryptoCallOrRaise call sites below.
+    constexpr const char *kExceptionTypeGeneric = "خطأ";
+    constexpr const char *kErrPbkdf2Iterations = "عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر";
+    constexpr const char *kErrHkdfLength = "طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت";
+    constexpr const char *kErrAeadAuthFailed = "فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ";
+    constexpr const char *kErrArgon2idParams = "بارامترات أرجون2 خارج الحدود الآمنة (تكلفة الذاكرة/عدد التكرارات/طول الملح)";
+    constexpr const char *kErrX25519InvalidPriv = "مفتاح x25519 الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)";
+    constexpr const char *kErrX25519ExchangeFailed = "تبادل مفتاح x25519 فشل — مدخل غير صالح أو سرّ مشترك صفريّ مرفوض";
+} // namespace
+
 namespace Sad { namespace LLVM {
 
         // ====================================================================
@@ -85,7 +100,7 @@ namespace Sad { namespace LLVM {
             cg.builder_->CreateCondBr(isNull, failBB, contBB);
 
             cg.builder_->SetInsertPoint(failBB);
-            llvm::Value *typeStr = cg.getConstantString("خطأ");
+            llvm::Value *typeStr = cg.getConstantString(kExceptionTypeGeneric);
             llvm::Value *msgStr = cg.getConstantString(errMsg);
             std::vector<llvm::Value *> raiseArgs = {typeStr, msgStr};
             auto raiseInst = std::make_shared<SIRInstruction>();
@@ -577,7 +592,7 @@ namespace Sad { namespace LLVM {
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i64Ty}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_pbkdf2", ft);
             llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {password, salt, iterations}, "pbkdf2.ret",
-                "عدد تكرارات PBKDF2 يجب أن يكون أكبر من صفر");
+                kErrPbkdf2Iterations);
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -602,7 +617,7 @@ namespace Sad { namespace LLVM {
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr, i8Ptr, i64Ty}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_kdf_hkdf", ft);
             llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {secret, salt, info, length}, "hkdf.ret",
-                "طول ناتج HKDF يجب أن يكون بين 1 و8160 بايت");
+                kErrHkdfLength);
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -645,7 +660,7 @@ namespace Sad { namespace LLVM {
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_aead_decrypt", ft);
             llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {envelope, key}, "aead_dec.ret",
-                "فشل المصادقة — المغلّف مُحرَّف أو المفتاح خاطئ");
+                kErrAeadAuthFailed);
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -669,7 +684,7 @@ namespace Sad { namespace LLVM {
             llvm::FunctionCallee argon2fn = cg_.module_->getOrInsertFunction("sad_kdf_argon2id", argon2ft);
             llvm::Value *argon2result = emitCryptoCallOrRaise(cg_, argon2fn,
                 {password, salt, memoryCostKib, iterations}, "argon2id.ret",
-                "بارامترات أرجون2 خارج الحدود الآمنة (تكلفة الذاكرة/عدد التكرارات/طول الملح)");
+                kErrArgon2idParams);
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = argon2result;
             return argon2result;
@@ -699,7 +714,7 @@ namespace Sad { namespace LLVM {
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_derive_pub", ft);
             llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {priv}, "x25519_pub.ret",
-                "مفتاح x25519 الخاصّ غير صالح (يجب 64 حرفًا ست عشريًّا)");
+                kErrX25519InvalidPriv);
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -719,7 +734,7 @@ namespace Sad { namespace LLVM {
             llvm::FunctionType *ft = llvm::FunctionType::get(i8Ptr, {i8Ptr, i8Ptr}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("sad_security_x25519_exchange", ft);
             llvm::Value *result = emitCryptoCallOrRaise(cg_, fn, {priv, peerPub}, "x25519_dh.ret",
-                "تبادل مفتاح x25519 فشل — مدخل غير صالح أو سرّ مشترك صفريّ مرفوض");
+                kErrX25519ExchangeFailed);
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
