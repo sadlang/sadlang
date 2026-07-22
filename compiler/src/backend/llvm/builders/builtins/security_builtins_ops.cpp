@@ -6,6 +6,7 @@
  */
 #include "llvm_codegen.h"
 #include "builders/builtins/security_builtins_codegen.h"
+#include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
@@ -52,11 +53,7 @@ namespace Sad { namespace LLVM {
         {
             if (cg.freestanding_)
             {
-                auto *i64Ty = llvm::Type::getInt64Ty(*cg.context_);
-                auto *panicFT = llvm::FunctionType::get(
-                    llvm::Type::getVoidTy(*cg.context_), {i64Ty}, false);
-                auto panicFn = cg.module_->getOrInsertFunction("__sad_panic", panicFT);
-                cg.builder_->CreateCall(panicFn, {llvm::ConstantInt::get(i64Ty, 1)});
+                cg.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
             }
             else
             {

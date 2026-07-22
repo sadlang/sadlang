@@ -8,6 +8,7 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: حمولة %SadDyn عند خانات المصفوفة / (EN) %SadDyn payload at array slots
+#include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -227,10 +228,7 @@ namespace Sad
                 //      (weak_odr default emitted in emitFreestandingRuntime; a kernel
                 //      overrides it with a strong Arabic-banner definition). No printf:
                 //      an English line would pollute the sovereign serial output.
-                auto *panicType = llvm::FunctionType::get(
-                    llvm::Type::getVoidTy(*cg_.context_), {i64Ty}, false);
-                auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
-                cg_.builder_->CreateCall(panicFunc, {llvm::ConstantInt::get(i64Ty, 1)});
+                cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
             }
             else
             {

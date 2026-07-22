@@ -7,6 +7,7 @@
 #include "llvm_codegen.h"
 #include "builders/builtins/builtin_funcs_codegen.h"
 #include "sad_dyn_repr.h" // (AR) spike ISSUE-076: getSadDynType/isSadDyn/toDyn لـ%SadDyn PHI
+#include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -29,6 +30,16 @@ namespace Sad
     namespace LLVM
     {
 
+        // (AR) مسار كامن/احتياطيّ: الواجهة الأماميّة تُخفِض «تأكد» إلى
+        //      BUILTIN_SECURITY_ASSERT (⇒ emitAbortOrFreestandingPanic، كتلة sec.fail)
+        //      لا BUILTIN_ASSERT، فلا مُنتِج يصل هذه الدالّة اليوم. الفصل حرّ/مستضاف
+        //      أدناه محفوظ دفاعيًّا: لو أُعيد توجيه مُنتِج إليها لاحقًا، لا يتسرّب سطر
+        //      «Assertion failed» الإنجليزيّ في الوضع الحرّ (اللافتة السياديّة وحدها).
+        // (EN) Latent/fallback path: the frontend lowers «تأكد» to
+        //      BUILTIN_SECURITY_ASSERT (⇒ emitAbortOrFreestandingPanic, sec.fail block),
+        //      not BUILTIN_ASSERT, so no producer reaches this today. The hosted/
+        //      freestanding split below is kept defensively: if a producer is ever
+        //      routed here, no English «Assertion failed» leaks in freestanding.
         llvm::Value *BuiltinFuncsCodeGen::emitBuiltinAssert(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -57,44 +68,38 @@ namespace Sad
 
             cg_.builder_->CreateCondBr(cond, contBB, failBB);
 
-            // Fail block: print error and abort
+            // Fail block: freestanding → sovereign panic banner only; hosted → English
+            // developer diagnostic + abort.
             cg_.builder_->SetInsertPoint(failBB);
-            auto *printfType = llvm::FunctionType::get(
-                llvm::Type::getInt32Ty(*cg_.context_),
-                {llvm::PointerType::getUnqual(*cg_.context_)}, true);
-            auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
-
-            std::string msg = "Assertion failed";
-            if (inst->operands.size() >= 2)
-            {
-                msg = "Assertion failed: " + inst->operands[1].name;
-            }
-            llvm::Value *msgStr = cg_.builder_->CreateGlobalStringPtr(msg + "\n", "assert.msg");
-            // (AR) الرسالة أعلاه آمنة حرًّا: printf تُحقَن نسخته التسلسليّة داخل
-            //      الوحدة في --freestanding (emitFreestandingPrintf) فلا رمز libc.
-            // (EN) The printf above is freestanding-safe: an in-module serial printf
-            //      is injected under --freestanding (emitFreestandingPrintf).
-            cg_.builder_->CreateCall(printfFunc, {msgStr});
 
             if (cg_.freestanding_)
             {
-                // (AR) وضع حرّ: abort رمز libc غائب على المعدن — نستدعي __sad_panic
-                //      (weak_odr، NoReturn؛ تُبثّ نسخته في emitFreestandingRuntime
-                //      وللنواة تجاوزها بتعريف قويّ). النمط نفسه المتّبع في
-                //      arith_main.cpp/array_ops.cpp لاستبدال exit.
-                // (EN) Freestanding: abort is an absent libc symbol on bare metal —
-                //      call __sad_panic (weak_odr, NoReturn; emitted by
-                //      emitFreestandingRuntime, overridable by the kernel). Same
-                //      pattern as the exit replacement in arith_main.cpp/array_ops.cpp.
-                auto *panicType = llvm::FunctionType::get(
-                    llvm::Type::getVoidTy(*cg_.context_),
-                    {llvm::Type::getInt64Ty(*cg_.context_)}, false);
-                auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
-                cg_.builder_->CreateCall(panicFunc,
-                                         {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1)});
+                // (AR) وضع حرّ: لا سطر إنجليزيّ سابق — اللافتة السياديّة هي التشخيص
+                //      الوحيد (النمط نفسه المتّبع في na.fail/emitBoundsCheck). abort
+                //      رمز libc غائب على المعدن ⇒ __sad_panic(kSadPanicCheckViolation)
+                //      (weak_odr، NoReturn، للنواة تجاوزه).
+                // (EN) Freestanding: no preceding English line — the sovereign banner
+                //      is the sole diagnostic (same pattern as na.fail/emitBoundsCheck).
+                //      abort is absent on bare metal ⇒ __sad_panic(kSadPanicCheckViolation).
+                cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
             }
             else
             {
+                // (AR) مستضاف: تشخيص إنجليزيّ للمطوّر (منفذ libc) ثم abort().
+                // (EN) Hosted: English developer diagnostic (libc) then abort().
+                auto *printfType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(*cg_.context_),
+                    {llvm::PointerType::getUnqual(*cg_.context_)}, true);
+                auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+
+                std::string msg = "Assertion failed";
+                if (inst->operands.size() >= 2)
+                {
+                    msg = "Assertion failed: " + inst->operands[1].name;
+                }
+                llvm::Value *msgStr = cg_.builder_->CreateGlobalStringPtr(msg + "\n", "assert.msg");
+                cg_.builder_->CreateCall(printfFunc, {msgStr});
+
                 auto *abortType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
                 auto abortFunc = cg_.module_->getOrInsertFunction("abort", abortType);
                 cg_.builder_->CreateCall(abortFunc, {});

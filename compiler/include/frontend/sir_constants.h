@@ -38,6 +38,31 @@ namespace Sad::Compiler
     inline const std::string kSadNullSentinelStr = "-9223372036854775807";
 
     // ──────────────────────────────────────────────────────────────────
+    // (AR) رموز سبب الهلع (ABI نداء __sad_panic في الوضع الحرّ) — الوسيط
+    //      الوحيد الذي يمرّره المولِّد إلى __sad_panic ليصنّف البرنامجُ الحرّ
+    //      (نواة) لافتته. كانت كلّها الثابت السحريّ 1 ⇒ يُصنَّف الكلّ خطأً
+    //      واحدًا؛ فُصِّلت هنا كعقد مستقرّ يُخرِّطه المستهلك لرموز كتالوجه.
+    //      عقد مستقرّ: لا تُعِد ترقيم القيم القائمة (المستهلكون يعتمدونها).
+    // (EN) __sad_panic reason codes (freestanding ABI) — the sole argument
+    //      the backend passes to __sad_panic so a freestanding program (a
+    //      kernel) can classify its banner. Previously all sites passed the
+    //      magic 1; split here into a stable contract mapped by the consumer.
+    //      STABLE: do not renumber existing values (consumers depend on them).
+    // ──────────────────────────────────────────────────────────────────
+    //   1 = فشلُ فحصٍ/تأكيدٍ بنيويّ (سواء زرعه المولِّد: حدّ مصفوفة، وسم تعداد
+    //       خاطئ؛ أو استدعاه المستخدم: إجهاض، مدمج أمنيّ) — التصنيف التاريخيّ،
+    //       تبقى قيمته 1 للتوافق.
+    inline constexpr int64_t kSadPanicCheckViolation = 1;
+    //   2 = فشلُ عامل التأكيد اللاحق «مؤكَّد» على قيمة عدم (مُناظِر RUN056) —
+    //       مميَّز كي لا يُخلَط بانتهاك فحص بنيويّ (ليس تجاوز حدّ). حصريّ لعامل
+    //       «مؤكَّد» اللاحق؛ مدمجات «تأكد»/«ذعر» تُصنَّف 1.
+    inline constexpr int64_t kSadPanicNullAssert = 2;
+    // (AR) حارس زمن-ترجمة: القيمتان يجب أن تبقيا متمايزتين (يحمي العقد من
+    //      تصادم قيم سهوًا عند إضافة رموز مستقبلًا). (EN) contract guard.
+    static_assert(kSadPanicCheckViolation != kSadPanicNullAssert,
+                  "panic reason codes must stay distinct");
+
+    // ──────────────────────────────────────────────────────────────────
     // (AR) أسماء الكتل الأساسية والمعاملات المتكررة في بناء SIR
     //      تُوحَّد هنا لتجنب تكرار النصوص الحرفية (CW-10)
     // (EN) Common block/parameter names used throughout SIR building
@@ -164,5 +189,13 @@ namespace Sad::Compiler
     //      between compiler layers ⇒ one shared named constant.
     // ──────────────────────────────────────────────────────────────────
     inline constexpr char kRawLlvmAsmMarker = '\x01';
+
+    // (AR) تشخيص المطوّر (مستضاف فقط) لفشل عامل التأكيد اللاحق «مؤكَّد» على قيمة
+    //      عدم (RUN056). في الوضع الحرّ يُستبدل بنداء __sad_panic(kSadPanicNullAssert)
+    //      واللافتة السياديّة هي التشخيص الوحيد.
+    // (EN) Hosted-only developer diagnostic for a failed «مؤكَّد» null-assert
+    //      (RUN056); freestanding replaces it with __sad_panic(kSadPanicNullAssert).
+    inline constexpr const char *kNullAssertRun056Msg =
+        "خطأ [RUN056]: عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم\n";
 
 } // namespace Sad::Compiler

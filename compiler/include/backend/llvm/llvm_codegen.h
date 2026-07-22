@@ -563,6 +563,27 @@ namespace Sad
             void emitFreestandingRuntime() { freest_->emitFreestandingRuntime(); }
 
             /**
+             * (AR) نداء هلع الوضع الحرّ الموحّد: call void @__sad_panic(i64 reason).
+             *      يوحّد بناء النوع/الإدراج/النداء عبر مواقع الهلع الخمسة كي لا
+             *      يُمرَّر رمز سبب خاطئ يدويًّا (رمز السبب من sir_constants.h). لا
+             *      يُصدر unreachable الختاميّ — المنادي يضيفه (قد يُشارَك مع المسار
+             *      المستضاف). يُدرَج عند نقطة الإدراج الحاليّة للباني.
+             * (EN) Unified freestanding panic call: call void @__sad_panic(i64 reason).
+             *      Centralizes type/insert/call construction across the five panic
+             *      sites so no wrong reason code is passed by hand. Does NOT emit the
+             *      trailing unreachable (the caller adds it; may be shared with the
+             *      hosted path). Emitted at the builder's current insert point.
+             */
+            void emitFreestandingPanicCall(int64_t reasonCode)
+            {
+                auto *i64Ty = llvm::Type::getInt64Ty(*context_);
+                auto *panicFT = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*context_), {i64Ty}, false);
+                auto panicFn = module_->getOrInsertFunction("__sad_panic", panicFT);
+                builder_->CreateCall(panicFn, {llvm::ConstantInt::get(i64Ty, reasonCode)});
+            }
+
+            /**
              * إصدار المتغيرات العامة
              * Emit global variables
              *

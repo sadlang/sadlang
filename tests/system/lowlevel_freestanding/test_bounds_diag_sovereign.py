@@ -58,6 +58,27 @@ ENUM_WRONGVAR_SRC = (
     "نهاية\n"
 )
 
+# (AR) مصدر يُطلق فحص عامل التأكيد «مؤكَّد» على قيمة قد تكون عدمًا (متغيّر اختياريّ)
+#      ⇒ na.fail في arith_main (رمز سبب مميَّز kSadPanicNullAssert=2).
+#      المعامل لا يقبل النوع الاختياريّ مباشرةً؛ الاختياريّة عبر «متغير س: رقم؟».
+NULL_ASSERT_SRC = (
+    "دالة رقم جرب()\n"
+    "    متغير س: رقم؟ = لاشيء\n"
+    "    ارجع س مؤكد\n"
+    "نهاية\n"
+)
+
+
+# (AR) مصدر يُطلق فشل تأكيد المستخدم «تأكد» (مسار CheckViolation غير-الحدّ) ⇒
+#      وضع حرّ: __sad_panic(1) بلا سطر إنجليزيّ؛ مستضاف: abort. يحرس أنّ رمز
+#      السبب لمواقع الانتهاك البنيويّ غير-الحدّ يبقى 1.
+ASSERT_FAIL_SRC = (
+    "دالة رقم جرب(رقم ب)\n"
+    "    تأكد(ب > 0)\n"
+    "    ارجع ب\n"
+    "نهاية\n"
+)
+
 
 def _compile(source: str, *extra_flags: str) -> tuple[int, str, str]:
     with tempfile.TemporaryDirectory() as work:
@@ -78,6 +99,8 @@ def test_freestanding_bounds_fail_no_english_diagnostic():
     code, out, ir = _compile(ARRAY_OOB_SRC, FREESTANDING, NO_MAIN)
     assert code == 0, out
     assert "call void @__sad_panic" in ir, "لم يُصدَر نداء __sad_panic في الوضع الحرّ:\n" + ir[:2000]
+    # (AR) رمز سبب الهلع = kSadPanicCheckViolation (1) لفحص بنيويّ
+    assert "@__sad_panic(i64 1)" in ir, "رمز سبب الهلع للحدّ ليس 1 (فحص بنيويّ):\n" + ir[:2000]
     assert "out of bounds" not in ir, \
         "تسرّبت رسالة إنجليزيّة (out of bounds) في الوضع الحرّ:\n" + ir[:2000]
     assert "@bc.fmt" not in ir, "أُصدرت سلسلة bc.fmt في الوضع الحرّ:\n" + ir[:2000]
@@ -109,3 +132,59 @@ def test_hosted_enum_wrongvariant_keeps_english_diagnostic():
     assert code == 0, out
     assert "@adt.wrongvar.fmt" in ir, "غاب تشخيص التعداد الإنجليزيّ في المستضاف:\n" + ir[:2000]
     assert "call void @exit" in ir, "المستضاف يجب أن ينادي exit في فخّ التعداد:\n" + ir[:2000]
+
+
+def test_freestanding_null_assert_distinct_code_no_arabic_line():
+    """(AR) وضع حرّ: فشل «مؤكَّد» ينادي __sad_panic برمز التأكيد المميَّز (2) بلا
+    سطر RUN056 العربيّ السابق (اللافتةُ هي التشخيصُ الوحيد)."""
+    code, out, ir = _compile(NULL_ASSERT_SRC, FREESTANDING, NO_MAIN)
+    assert code == 0, out
+    assert "@__sad_panic(i64 2)" in ir, \
+        "رمز سبب الهلع لفشل التأكيد ليس 2 (kSadPanicNullAssert):\n" + ir[:2500]
+    assert "@na.fmt" not in ir, "أُصدر سطر RUN056 العربيّ في الوضع الحرّ (يجب حذفه):\n" + ir[:2500]
+    assert "RUN056" not in ir, "تسرّبت رسالة RUN056 في الوضع الحرّ:\n" + ir[:2500]
+    # (AR) توكيد مضادّ: الوضع الحرّ يجب ألّا ينادي exit (مسار المستضاف) — يحرس تسرّبًا عكسيًّا.
+    assert "call void @exit" not in ir, "تسرّب نداء exit المستضاف إلى الوضع الحرّ:\n" + ir[:2500]
+
+
+def test_hosted_null_assert_keeps_arabic_diagnostic():
+    """(AR) مستضاف: فشل «مؤكَّد» يُبقي تشخيص RUN056 العربيّ للمطوّر + exit."""
+    code, out, ir = _compile(NULL_ASSERT_SRC, NO_MAIN)
+    assert code == 0, out
+    assert "@na.fmt" in ir, "غاب تشخيص RUN056 العربيّ في المستضاف (يجب أن يبقى):\n" + ir[:2500]
+    assert "call void @exit" in ir, "المستضاف يجب أن ينادي exit لفشل التأكيد:\n" + ir[:2500]
+    # (AR) توكيد مضادّ: المستضاف يجب ألّا ينادي __sad_panic (مسار الوضع الحرّ) — يقفل تسرّبًا عكسيًّا.
+    assert "@__sad_panic" not in ir, "تسرّب نداء __sad_panic الحرّ إلى المستضاف:\n" + ir[:2500]
+
+
+def test_panic_reason_codes_are_distinct():
+    """(AR) عقد رموز السبب: الحدّ (1) ≠ التأكيد (2) في الوضع الحرّ — لا خلط."""
+    _, _, ir_bounds = _compile(ARRAY_OOB_SRC, FREESTANDING, NO_MAIN)
+    _, _, ir_assert = _compile(NULL_ASSERT_SRC, FREESTANDING, NO_MAIN)
+    assert "@__sad_panic(i64 1)" in ir_bounds and "@__sad_panic(i64 2)" not in ir_bounds, \
+        "الحدّ يجب أن يمرّر رمز 1 حصرًا"
+    assert "@__sad_panic(i64 2)" in ir_assert and "@__sad_panic(i64 1)" not in ir_assert, \
+        "التأكيد يجب أن يمرّر رمز 2 حصرًا"
+
+
+def test_freestanding_user_assert_check_violation_no_english():
+    """(AR) وضع حرّ: فشل «تأكد» (مسار الأمن sec.fail) ينادي __sad_panic برمز
+    الانتهاك البنيويّ (1) بلا exit — يحرس أنّ مواقع الانتهاك غير-الحدّ تبقى رمز 1.
+    ملاحظة: «تأكد» تُخفَض إلى BUILTIN_SECURITY_ASSERT (abort مستضافًا) لا
+    BUILTIN_ASSERT؛ فتوكيد غياب «Assertion failed» صحيح بداهةً (ذلك السطر حصريّ
+    لمسار emitBuiltinAssert الكامن) ويُبقى كحارس دفاعيّ ضدّ إعادة توجيه مستقبليّة."""
+    code, out, ir = _compile(ASSERT_FAIL_SRC, FREESTANDING, NO_MAIN)
+    assert code == 0, out
+    assert "@__sad_panic(i64 1)" in ir, \
+        "رمز سبب الهلع لفشل «تأكد» ليس 1 (kSadPanicCheckViolation):\n" + ir[:2500]
+    assert "Assertion failed" not in ir, \
+        "تسرّب سطر «Assertion failed» الإنجليزيّ في الوضع الحرّ:\n" + ir[:2500]
+    assert "call void @exit" not in ir, "تسرّب نداء exit المستضاف إلى الوضع الحرّ:\n" + ir[:2500]
+
+
+def test_hosted_user_assert_uses_abort():
+    """(AR) مستضاف: فشل «تأكد» يتوقّف بـ abort() (لا __sad_panic الحرّ)."""
+    code, out, ir = _compile(ASSERT_FAIL_SRC, NO_MAIN)
+    assert code == 0, out
+    assert "call void @abort" in ir, "المستضاف يجب أن ينادي abort لفشل «تأكد»:\n" + ir[:2500]
+    assert "@__sad_panic" not in ir, "تسرّب نداء __sad_panic الحرّ إلى المستضاف:\n" + ir[:2500]

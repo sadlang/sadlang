@@ -796,26 +796,34 @@ namespace Sad
                 llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg_.context_, "na.ok", curFunc);
                 cg_.builder_->CreateCondBr(isNull, failBB, contBB);
 
-                // (AR) كتلة الفشل: طباعة RUN056 ثم exit(1) / (EN) Fail: print RUN056 then exit(1)
+                // (AR) كتلة الفشل: مستضاف ⇒ تشخيص RUN056 العربيّ + exit(1)؛ وضع حرّ
+                //      ⇒ __sad_panic برمز التأكيد المميَّز وحده (النواة تُصنّف لافتته
+                //      بدقّة؛ وسطرٌ عربيّ سابق يخالف مبدأ «اللافتةُ هي التشخيصُ الوحيد»).
+                // (EN) Fail block: hosted ⇒ Arabic RUN056 diagnostic + exit(1);
+                //      freestanding ⇒ __sad_panic with the distinct null-assert code
+                //      only (the kernel banner classifies it precisely).
                 cg_.builder_->SetInsertPoint(failBB);
-                auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-                auto *printfType = llvm::FunctionType::get(
-                    llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
-                auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
-                llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
-                    "خطأ [RUN056]: عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم\n", "na.fmt");
-                cg_.builder_->CreateCall(printfFunc, {msg});
                 if (cg_.freestanding_)
                 {
-                    // (AR) وضع حرّ: لا exit على المعدن — __sad_panic (weak، النواة تتجاوزه)
-                    // (EN) Freestanding: no exit on bare metal — __sad_panic (weak)
-                    auto *panicType = llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt64Ty(*cg_.context_)}, false);
-                    auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
-                    cg_.builder_->CreateCall(panicFunc, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1)});
+                    // (AR) وضع حرّ: __sad_panic برمز kSadPanicNullAssert (weak، النواة
+                    //      تتجاوزه فتُصنّف اللافتة «تأكيد على عدم» لا «انتهاك مترجم»).
+                    //      لا printf: اللافتة العربيّة السياديّة هي التشخيص الوحيد.
+                    // (EN) Freestanding: __sad_panic with kSadPanicNullAssert (weak;
+                    //      kernel overrides → banner classifies as null-assert). No
+                    //      printf: the sovereign Arabic banner is the sole diagnostic.
+                    cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicNullAssert);
                 }
                 else
                 {
+                    // (AR) مستضاف: تشخيص RUN056 العربيّ للمطوّر (منفذ libc) ثم exit(1)
+                    // (EN) Hosted: Arabic RUN056 developer diagnostic (libc) then exit(1)
+                    auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                    auto *printfType = llvm::FunctionType::get(
+                        llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+                    auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                    llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
+                        Sad::Compiler::kNullAssertRun056Msg, "na.fmt");
+                    cg_.builder_->CreateCall(printfFunc, {msg});
                     auto *exitType = llvm::FunctionType::get(
                         llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
                     auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);

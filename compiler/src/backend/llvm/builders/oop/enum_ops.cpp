@@ -463,11 +463,7 @@ namespace Sad
                         //      لافتة الهلع على المخرج السياديّ (RFC مسار الهلع الموحَّد).
                         // (EN) Freestanding: __sad_panic only (weak; kernel overrides
                         //      with an Arabic banner). No English printf before the banner.
-                        auto *panicType = llvm::FunctionType::get(
-                            llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt64Ty(*cg_.context_)}, false);
-                        auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
-                        cg_.builder_->CreateCall(panicFunc,
-                                                 {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1)});
+                        cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
                     }
                     else
                     {
