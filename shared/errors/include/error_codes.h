@@ -100,6 +100,8 @@ namespace Sad
             SYN_PARSE_UNKNOWN_ERROR,      ///< SYN021: (AR) خطأ تحليل غير معروف / (EN) Unknown parse error
             SYN_ADJECTIVE_GENDER,         ///< SYN022: (AR) مطابقة الصفة للموصوف جنسًا / (EN) Adjective gender agreement
             SYN_DECL_NOT_ALLOWED_HERE,    ///< SYN023: (AR) تصريح غير مسموح في هذا السياق / (EN) Declaration not allowed in this context
+            SYN_DOC_ORPHAN,               ///< SYN024: (AR) توثيق يتيم لا يلتصق بتصريح / (EN) Orphan doc comment not attached to a declaration
+            SYN_DOC_TRAILING,             ///< SYN025: (AR) توثيق في ذيل سطر كود / (EN) Doc comment trailing a code line
 
             // ====================================================================
             // (AR) أخطاء دلالية / (EN) Semantic Errors

@@ -70,12 +70,15 @@ namespace Sad
                 //      if a previous one exists, append with newline separator.
                 if (current_.getType() == TT::DOC_COMMENT)
                 {
-                    if (!pendingDocComment_.empty())
-                        pendingDocComment_ += '\n';
-                    pendingDocComment_ += current_.getValue();
+                    // (AR) م٢: لا رمز كود قبل بداية الملف ⇒ لا فحص «ذيل سطر» هنا
+                    // (EN) M2: no code token precedes file start ⇒ no trailing check here
+                    appendDocComment(pendingDoc_, current_, nullptr);
                 }
                 current_ = lexer_.nextToken();
             }
+            // (AR) م٢: توثيق انفصل عن أول رمز حقيقي في الملف (سطر فاصل أو نهايته) ⇒ يتيم
+            // (EN) M2: doc detached from the file's first real token (separating line or EOF) ⇒ orphan
+            cutDetachedDoc(pendingDoc_, current_);
 
             // Fetch second token into nextToken_, also skipping whitespace/comments/doc-comments
             nextToken_ = lexer_.nextToken();
@@ -86,19 +89,24 @@ namespace Sad
             {
                 // (AR) إصلاح BF-04 (السبب الجذري): التعليقات التي تظهر بين current_
                 //      و nextToken_ تأتي بعد current_ فعلياً — يجب ألا تُرفق بأول
-                //      تصريح. نخزّنها في nextDocComment_ ليتم ترحيلها لاحقاً.
+                //      تصريح. نخزّنها في nextDoc_ ليتم ترحيلها لاحقاً.
                 // (EN) BF-04 root-cause fix: doc comments appearing between
                 //      current_ and nextToken_ are physically AFTER current_ —
                 //      they must NOT attach to the first declaration. Buffer
-                //      them in nextDocComment_ for later promotion.
+                //      them in nextDoc_ for later promotion.
                 if (nextToken_.getType() == TT::DOC_COMMENT)
                 {
-                    if (!nextDocComment_.empty())
-                        nextDocComment_ += '\n';
-                    nextDocComment_ += nextToken_.getValue();
+                    // (AR) م٢: current_ (أول رمز حقيقي) هو الكود السابق لهذا التوثيق —
+                    //      لكشف توثيق ذيل السطر (SYN025).
+                    // (EN) M2: current_ (first real token) is the code preceding this
+                    //      doc — for trailing-doc detection (SYN025).
+                    appendDocComment(nextDoc_, nextToken_, &current_);
                 }
                 nextToken_ = lexer_.nextToken();
             }
+            // (AR) م٢: توثيق مُجمَّع هنا انفصل عمّا يليه (سطر فاصل أو نهاية الملف) ⇒ يتيم
+            // (EN) M2: docs collected here detached from what follows (separating line or EOF) ⇒ orphan
+            cutDetachedDoc(nextDoc_, nextToken_);
 
             // (AR) إضافة نقاط مزامنة إضافية لنظام التعافي
             // (EN) Add additional sync points for recovery system

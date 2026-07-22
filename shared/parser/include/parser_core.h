@@ -1613,13 +1613,28 @@ namespace Sad
             bool panicMode_;                             ///< (AR) وضع الذعر للتعافي من الأخطاء (EN) Panic mode for error recovery
             std::string filename_;                       ///< (AR) اسم الملف المصدري (EN) Source filename
             bool pendingConst_ = false;                  ///< (AR) علامة تصريح ثابت معلق (EN) Pending const declaration flag
-            std::string pendingDocComment_;              ///< (AR) تعليق توثيقي معلق يُرفق بالتصريح التالي
+
+            /**
+             * @brief (AR) مخزن تجميع تعليق توثيقي مع معلومات التصاقه السطرية (م٢ من
+             *        RFC اللهجات: سطر فاصل يقطع الالتصاق، وذيل السطر يُرفَض بتحذير).
+             *        (EN) Doc-comment accumulation buffer with line-attachment info
+             *        (dialects-RFC M2: a separating line breaks attachment; trailing
+             *        doc comments are rejected with a warning).
+             */
+            struct DocBuffer
+            {
+                std::string text;            ///< (AR) النص المُجمَّع (EN) Accumulated text
+                Lexer::Position startPos{};  ///< (AR) موقع أول رمز توثيق (EN) First doc token position
+                long lastLine = -1;          ///< (AR) آخر سطر يشغله التوثيق (EN) Last source line the doc occupies
+            };
+
+            DocBuffer pendingDoc_;                       ///< (AR) تعليق توثيقي معلق يُرفق بالتصريح التالي
                                                          ///< (EN) Pending doc comment to attach to next declaration
-            std::string nextDocComment_;                 ///< (AR) تعليق توثيقي ظهر بعد current_ أثناء ملء nextToken_
-                                                         ///<      يُرحَّل إلى pendingDocComment_ في المرة التالية لـ advance()
+            DocBuffer nextDoc_;                          ///< (AR) تعليق توثيقي ظهر بعد current_ أثناء ملء nextToken_
+                                                         ///<      يُرحَّل إلى pendingDoc_ في المرة التالية لـ advance()
                                                          ///<      حتى لا يُنسب خطأً إلى تصريح يسبقه فعلياً.
                                                          ///< (EN) Doc comment encountered AFTER current_ while refilling
-                                                         ///<      nextToken_; promoted to pendingDocComment_ on the next
+                                                         ///<      nextToken_; promoted to pendingDoc_ on the next
                                                          ///<      advance() so it cannot be wrongly attached to a declaration
                                                          ///<      that precedes it physically (BF-04 fix).
             Errors::ErrorRecoverySystem recoverySystem_; ///< (AR) نظام التعافي الذكي من الأخطاء
@@ -1646,10 +1661,44 @@ namespace Sad
              */
             std::string consumePendingDocComment()
             {
-                std::string doc = std::move(pendingDocComment_);
-                pendingDocComment_.clear();
+                std::string doc = std::move(pendingDoc_.text);
+                pendingDoc_ = DocBuffer{};
                 return doc;
             }
+
+            /**
+             * @brief (AR) آخر سطر مصدري يشغله رمز توثيق (تعليق «#** **#» قد يمتد أسطراً).
+             *        (EN) Last source line a doc token occupies («#** **#» may span lines).
+             */
+            static long docTokenEndLine(const Lexer::Token &tok);
+
+            /**
+             * @brief (AR) يضيف رمز توثيق إلى المخزن مع فرض قواعد الالتصاق (م٢):
+             *        رمز في ذيل سطر كود يُرفَض بتحذير SYN025، وانقطاع سطري عن
+             *        محتوى سابق يجعله يتيماً بتحذير SYN024.
+             *        (EN) Appends a doc token to the buffer enforcing M2 attachment
+             *        rules: trailing-of-code tokens are rejected (SYN025 warning);
+             *        a line gap from earlier content orphans it (SYN024 warning).
+             * @param precedingCode (AR) آخر رمز كود حقيقي قبل التوثيق أو nullptr في
+             *        بداية الملف. (EN) Last real code token before the doc, or
+             *        nullptr at file start.
+             */
+            void appendDocComment(DocBuffer &buf, const Lexer::Token &tok,
+                                  const Lexer::Token *precedingCode);
+
+            /**
+             * @brief (AR) يقطع التصاق مخزن توثيق انفصل عن أول رمز حقيقي يليه
+             *        (سطر فاصل أو نهاية الملف) ويحذّر «توثيق يتيم» (SYN024).
+             *        (EN) Cuts a doc buffer detached from the first real token
+             *        after it (separating line or EOF) with an orphan warning.
+             */
+            void cutDetachedDoc(DocBuffer &buf, const Lexer::Token &nextReal);
+
+            /// (AR) تحذير «توثيق يتيم» عبر الكتالوج (SYN024). (EN) Orphan-doc catalog warning.
+            void warnDocOrphan(const DocBuffer &buf);
+
+            /// (AR) تحذير «توثيق في ذيل سطر» عبر الكتالوج (SYN025). (EN) Trailing-doc catalog warning.
+            void warnDocTrailing(const Lexer::Token &tok);
         };
 
     } // namespace Parser

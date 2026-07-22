@@ -21,6 +21,13 @@
 #include "sad_test.h"
 #include "lsp_engine.h"
 
+// (AR) م٢ (توثيق ##): مقارنة مسار LSP (AST) بمسار docgen — نفس المحلل والمنسّق.
+// (EN) M2 (## docs): comparing the LSP (AST) path with the docgen path — same
+//      parser and formatter.
+#include "lexer_core.h"
+#include "parser_core.h"
+#include "doc_comment.h"
+
 #include <string>
 #include <vector>
 
@@ -351,6 +358,167 @@ TEST(LspBehavior, اختلال_حقيقي_ما_يزال_يُكشف) {
         ed.open("file:///زائد.ص", u8"اطبع(1)\nنهاية\n"); // نهاية بلا فاتح
         ASSERT_TRUE(ed.has_code(u8"ص-ن٢٠٢"));
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  سيناريوهات م٢ — توثيق «##»: مصفوفة الالتصاق + ذهبيّ hover + توافق المسارين
+//  (RFC اللهجات rfcs#43 — الفجوتان ١ و٢)
+// ══════════════════════════════════════════════════════════════════════════════
+
+namespace {
+
+/// (AR) الذهبيّ: نفس تحويل LSP (format_doc_markdown) — DocCommentParser ثم toMarkdown
+///      مع قصّ الذيل؛ ما يظهر في hover يجب أن يطابق ما يولّده docgen من الحقل نفسه.
+std::string golden_markdown(const std::string& raw) {
+    auto dc = Sad::AST::DocCommentParser::parse(raw);
+    if (dc.isEmpty()) return raw;
+    std::string md = dc.toMarkdown();
+    while (!md.empty() && (md.back() == '\n' || md.back() == ' ')) md.pop_back();
+    return md.empty() ? raw : md;
+}
+
+const char* TAGGED_FUNC = u8"## يجمع عددين\n"
+                          u8"## @معطى أ: العدد الأول\n"
+                          u8"## @معطى ب: العدد الثاني\n"
+                          u8"## @أرجع مجموعهما\n"
+                          u8"دالة جمع(أ، ب)\n"
+                          u8"    ارجع أ + ب\n"
+                          u8"نهاية\n";
+
+bool has_warning_code(const Editor& ed, const std::string& code) {
+    for (const auto& d : ed.diags)
+        if (d.code == code && d.severity == DiagnosticSeverity::Warning) return true;
+    return false;
+}
+
+} // namespace
+
+// ── ذهبيّ LSP: hover على رمز موثَّق بالوسوم = ماركداون متوقَّع (من AST لا المسح النصي)
+TEST(LspBehavior, م2_تحويم_موثق_بالوسوم_ماركداون_متوقع) {
+    Editor ed;
+    DocumentUri uri = "file:///توثيق.ص";
+    ed.open(uri, TAGGED_FUNC);
+    ASSERT_FALSE(ed.has_error());
+
+    // (AR) الذهبيّ يُحسب من docComment على AST عبر المحلل نفسه (مسار docgen)
+    Sad::Lexer::LexerCore lexer(TAGGED_FUNC);
+    Sad::Parser::ParserCore parser(lexer);
+    auto program = parser.parseProgram();
+    std::string raw;
+    for (const auto& st : program)
+        if (auto* fn = dynamic_cast<Sad::AST::FunctionDecl*>(st.get()))
+            raw = fn->docComment;
+    ASSERT_FALSE(raw.empty());
+    const std::string golden = golden_markdown(raw);
+    ASSERT_FALSE(golden.empty());
+
+    // «جمع» في السطر 4 (٠-based) يبدأ عند العمود 5 (د0 ا1 ل2 ة3 ␣4 ج5)
+    auto h = ed.engine.hover(uri, Position{4, 6});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(golden) != std::string::npos);
+    ASSERT_TRUE(h->contents.value.find(u8"يجمع عددين") != std::string::npos);
+}
+
+// ── توافق المسارين: توثيق hover مصدره حقل docComment ذاته الذي يستهلكه docgen
+TEST(LspBehavior, م2_توافق_مسار_AST_مع_مسار_docgen) {
+    Editor ed;
+    DocumentUri uri = "file:///توافق.ص";
+    ed.open(uri, TAGGED_FUNC);
+
+    Sad::Lexer::LexerCore lexer(TAGGED_FUNC);
+    Sad::Parser::ParserCore parser(lexer);
+    auto program = parser.parseProgram();
+    std::string docgen_summary;
+    for (const auto& st : program)
+        if (auto* fn = dynamic_cast<Sad::AST::FunctionDecl*>(st.get()))
+            docgen_summary = Sad::AST::DocCommentParser::parse(fn->docComment).summary;
+    ASSERT_TRUE(docgen_summary.find(u8"يجمع عددين") != std::string::npos);
+
+    auto h = ed.engine.hover(uri, Position{4, 6});
+    ASSERT_TRUE(h.has_value());
+    // (AR) ملخّص docgen يجب أن يظهر حرفياً في hover — مصدر واحد لا مسحان متباعدان
+    ASSERT_TRUE(h->contents.value.find(docgen_summary) != std::string::npos);
+}
+
+// ── مصفوفة الالتصاق: سطر فارغ يقطع ⇒ لا توثيق في hover + تحذير «توثيق يتيم» SYN024
+TEST(LspBehavior, م2_سطر_فارغ_يقطع_الالتصاق_وتحذير_يتيم) {
+    Editor ed;
+    DocumentUri uri = "file:///يتيم.ص";
+    ed.open(uri,
+            u8"## توثيق يتيم مفصول\n"
+            u8"\n"
+            u8"دالة وحيدة()\n"
+            u8"    ارجع 1\n"
+            u8"نهاية\n");
+    ASSERT_FALSE(ed.has_error());
+    ASSERT_TRUE(has_warning_code(ed, "SYN024"));
+
+    auto h = ed.engine.hover(uri, Position{2, 6});
+    if (h.has_value())
+        ASSERT_TRUE(h->contents.value.find(u8"توثيق يتيم مفصول") == std::string::npos);
+}
+
+// ── مصفوفة الالتصاق: «##» ذيل سطر كود ⇒ تعليق عادي + تحذير SYN025 ولا التصاق بالتالي
+TEST(LspBehavior, م2_ذيل_السطر_تحذير_ولا_التصاق) {
+    Editor ed;
+    DocumentUri uri = "file:///ذيل.ص";
+    ed.open(uri,
+            u8"متغير س = 5 ## توثيق ذيل سطر\n"
+            u8"دالة تالية()\n"
+            u8"    ارجع 2\n"
+            u8"نهاية\n");
+    ASSERT_FALSE(ed.has_error());
+    ASSERT_TRUE(has_warning_code(ed, "SYN025"));
+
+    auto h = ed.engine.hover(uri, Position{1, 6});
+    if (h.has_value())
+        ASSERT_TRUE(h->contents.value.find(u8"توثيق ذيل سطر") == std::string::npos);
+}
+
+// ── مصفوفة الالتصاق: توثيق في نهاية الملف بلا تصريح بعده ⇒ يتيم SYN024
+TEST(LspBehavior, م2_توثيق_نهاية_الملف_يتيم) {
+    Editor ed;
+    DocumentUri uri = "file:///نهاية_ملف.ص";
+    ed.open(uri,
+            u8"دالة أولى()\n"
+            u8"    ارجع 1\n"
+            u8"نهاية\n"
+            u8"## توثيق بعد آخر تصريح\n");
+    ASSERT_FALSE(ed.has_error());
+    ASSERT_TRUE(has_warning_code(ed, "SYN024"));
+}
+
+// ── مصفوفة الالتصاق: صيغة الكتلة «#** **#» الملتصقة تعمل في hover
+TEST(LspBehavior, م2_كتلة_توثيق_ملتصقة_تظهر_في_hover) {
+    Editor ed;
+    DocumentUri uri = "file:///كتلة.ص";
+    ed.open(uri,
+            u8"#** توثيق كتلة للدالة **#\n"
+            u8"دالة كتلية()\n"
+            u8"    ارجع 1\n"
+            u8"نهاية\n");
+    ASSERT_FALSE(ed.has_error());
+    auto h = ed.engine.hover(uri, Position{1, 6});
+    ASSERT_TRUE(h.has_value());
+    ASSERT_TRUE(h->contents.value.find(u8"توثيق كتلة للدالة") != std::string::npos);
+}
+
+// ── تشديد المسار: تعليق «#» عادي فوق التصريح لم يعد يظهر توثيقاً في hover
+TEST(LspBehavior, م2_تعليق_عادي_لا_يظهر_في_hover) {
+    Editor ed;
+    DocumentUri uri = "file:///عادي.ص";
+    ed.open(uri,
+            u8"# شرح عادي ليس توثيقاً\n"
+            u8"دالة صافية()\n"
+            u8"    ارجع 3\n"
+            u8"نهاية\n");
+    ASSERT_FALSE(ed.has_error());
+    // (AR) تعليق «#» عادي لا يولّد أي تحذير توثيق
+    ASSERT_FALSE(has_warning_code(ed, "SYN024"));
+    ASSERT_FALSE(has_warning_code(ed, "SYN025"));
+    auto h = ed.engine.hover(uri, Position{1, 6});
+    if (h.has_value())
+        ASSERT_TRUE(h->contents.value.find(u8"شرح عادي") == std::string::npos);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

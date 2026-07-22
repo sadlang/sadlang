@@ -245,41 +245,44 @@ namespace sad
             return md.empty() ? raw_text : md;
         }
 
-        /// استخراج تعليقات التوثيق (## أو #) الموجودة فوق سطر معين
+        /// (AR) م٢ (الفجوة ١): المسار الأساسي لتوثيق الرموز — من حقل docComment على
+        ///      عقدة AST الذي يملؤه المحلل بقواعد الالتصاق نفسها في المحرّكين.
+        ///      لا مسح نصياً هنا ⇒ لا تباعد بين hover وdocgen.
+        /// (EN) M2 (gap 1): primary symbol-doc path — from the AST node's docComment
+        ///      field, filled by the parser with the same attachment rules as the
+        ///      engines. No text scan here ⇒ no hover/docgen divergence.
+        static std::string doc_from_ast(const Sad::AST::ASTNode &node)
+        {
+            if (node.docComment.empty())
+                return "";
+            return format_doc_markdown(node.docComment);
+        }
+
+        /// استخراج تعليقات التوثيق (## أو #** **#) الموجودة فوق سطر معين
+        ///
+        /// (AR) م٢: هذا المسح النصي أصبح حصرياً لرموز الخطة الاحتياطية (is_fallback)
+        ///      حين يتعذّر التحليل الحقيقي، وشُدِّد ليطابق دلالة المحلل:
+        ///      يقبل «##» و«#** **#» فقط (أُسقط قبول «#» العادي — تغيير سلوك معلَن)،
+        ///      وأي سطر فاصل مباشرة فوق التعريف (فارغ أو تعليق عادي) يقطع الالتصاق.
+        /// (EN) M2: this text scan is now exclusive to fallback symbols (is_fallback)
+        ///      when real parsing fails, tightened to match parser semantics:
+        ///      only «##» and «#** **#» are accepted (plain «#» support dropped —
+        ///      an announced behavior change), and any separating line directly
+        ///      above the definition (blank or plain comment) breaks attachment.
         ///
         /// @param lines  أسطر الملف مقسمة مسبقاً
         /// @param target_line  رقم السطر المستهدف (٠-based) الذي يحتوي على التعريف
         /// @return النص التوثيقي المُجمّع، أو سلسلة فارغة إذا لم يوجد توثيق
-        ///
-        /// الخوارزمية:
-        ///   ① نبدأ من السطر قبل التعريف مباشرة (target_line - 1)
-        ///   ② نصعد لأعلى سطراً بسطر
-        ///   ③ إذا وجدنا ## أو # في بداية السطر، نضيفه للقائمة
-        ///   ④ إذا وجدنا سطراً فارغاً بعد أن بدأنا بجمع التعليقات، نتوقف
-        ///   ⑤ إذا وجدنا سطر كود عادي، نتوقف
-        ///   ⑥ نعكس الترتيب (لأننا جمعنا من الأسفل للأعلى)
         static std::string extract_documentation(const std::vector<std::string> &lines, int target_line)
         {
             std::string doc;
             std::vector<std::string> doc_lines;
 
-            // نرجع للأعلى من السطر قبل التعريف
+            // (AR) م٢: نبدأ من السطر قبل التعريف مباشرة — بلا تخطي أسطر فارغة
+            //      (سطر فاصل يقطع الالتصاق، كما في المحلل: تحذير «توثيق يتيم»)
+            // (EN) M2: start at the line directly above the definition — no blank
+            //      skipping (a separating line breaks attachment, mirroring the parser)
             int start_scan = target_line - 1;
-
-            // تخطي أسطر فارغة بين التعريف والتعليق
-            while (start_scan >= 0)
-            {
-                const auto &line = lines[start_scan];
-                size_t s = 0;
-                while (s < line.size() && (line[s] == ' ' || line[s] == '\t'))
-                    s++;
-                if (s == line.size())
-                {
-                    start_scan--;
-                    continue;
-                }
-                break;
-            }
 
             if (start_scan < 0)
                 return "";
@@ -303,6 +306,21 @@ namespace sad
                             block_start = j;
                             break;
                         }
+                    }
+
+                    // (AR) م٢: كتلة تبدأ بعد كود على السطر نفسه = توثيق ذيل سطر ⇒
+                    //      تُعامَل تعليقاً عادياً ولا تلتصق (كما في المحلل، SYN025)
+                    // (EN) M2: a block starting after code on the same line is a
+                    //      trailing doc ⇒ treated as a plain comment, no attachment
+                    {
+                        const auto &bs_line = lines[block_start];
+                        size_t open_pos = bs_line.find("#**");
+                        size_t lead = 0;
+                        while (lead < open_pos &&
+                               (bs_line[lead] == ' ' || bs_line[lead] == '\t'))
+                            lead++;
+                        if (lead != open_pos)
+                            return "";
                     }
 
                     // تجميع نص الكتلة
@@ -366,7 +384,7 @@ namespace sad
                 std::string trimmed = line.substr(start);
 
                 // ──── تعليق توثيق ## ────
-                // هذا هو النوع المفضل للتوثيق في لغة ص
+                // هذا هو النوع الوحيد المقبول سطرياً للتوثيق في لغة ص
                 if (trimmed.size() >= 2 && trimmed[0] == '#' && trimmed[1] == '#')
                 {
                     std::string comment = trimmed.substr(2);
@@ -375,25 +393,12 @@ namespace sad
                         comment = comment.substr(1);
                     doc_lines.push_back(comment);
                 }
-                // ──── تعليق عادي # ────
-                // نضيفه أيضاً لأن بعض المبرمجين يستخدمون # بدل ##
-                else if (trimmed.size() >= 1 && trimmed[0] == '#' && (trimmed.size() < 2 || trimmed[1] != '#'))
-                {
-                    std::string comment = trimmed.substr(1);
-                    if (!comment.empty() && comment[0] == ' ')
-                        comment = comment.substr(1);
-                    doc_lines.push_back(comment);
-                }
-                // ──── سطر فارغ ────
-                // إذا كنا في منتصف جمع التعليقات، نتوقف
-                // إذا لم نبدأ بعد، نتخطى الأسطر الفارغة
-                else if (trimmed.empty())
-                {
-                    if (!doc_lines.empty())
-                        break;
-                }
-                // ──── سطر كود عادي ────
-                // نتوقف فوراً - انتهت التعليقات
+                // ──── أي سطر آخر (فارغ، تعليق # عادي، كود) ────
+                // (AR) م٢: يقطع الالتصاق فوراً — «#» العادي لم يعد توثيقاً (تشديد
+                //      المسار الاحتياطي)، والسطر الفاصل يقطع كما في المحلل.
+                // (EN) M2: breaks attachment immediately — plain «#» is no longer
+                //      documentation (fallback tightening), and a separating line
+                //      cuts attachment exactly like the parser.
                 else
                 {
                     break;
@@ -729,6 +734,13 @@ namespace sad
                 // تهيئة جدول الكلمات المفتاحية (يتم مرة واحدة فقط عبر static)
                 Sad::Lexer::KeywordTable::initialize();
 
+                // (AR) م٢: ErrorManager وحيد مشترك — تصفيره قبل كل تحليل حتى لا
+                //      تتراكم تشخيصات مستند/نسخة سابقة (النمط نفسه في كل المستهلكين)
+                // (EN) M2: the ErrorManager is a shared singleton — clear before each
+                //      analysis so prior document/version diagnostics don't accumulate
+                //      (same pattern as every other consumer)
+                Sad::Errors::ErrorManager::getInstance().clear();
+
                 // إنشاء المحلل المعجمي من النص
                 Sad::Lexer::LexerCore lexer(content);
 
@@ -760,7 +772,20 @@ namespace sad
                 // المحلل النحوي يجمعها ونحولها لتشخيصات LSP
                 if (parser.hasErrors())
                 {
-                    auto errors = parser.getErrors();
+                    // (AR) م٢: كان getErrors() يُرجع كل التشخيصات (تحذيرات وأخطاء) فتُعرَض
+                    //      التحذيرات أخطاءً حمراء خطأً — نُرشِّح بمستوى ERROR فقط هنا
+                    //      (التحذيرات لها حلقة مستقلة أدناه بمستواها الصحيح).
+                    // (EN) M2: getErrors() returned ALL diagnostics (warnings included),
+                    //      wrongly surfacing warnings as red errors — filter to ERROR
+                    //      severity here (warnings get their own loop below).
+                    const auto &emErrDiags =
+                        Sad::Errors::ErrorManager::getInstance().getAllDiagnostics();
+                    std::vector<std::string> errors;
+                    for (const auto &d : emErrDiags)
+                    {
+                        if (d.getSeverity() == Sad::Errors::DiagnosticSeverity::ERROR)
+                            errors.push_back(d.format(Sad::Errors::Language::ENGLISH, false));
+                    }
                     for (const auto &err : errors)
                     {
                         Diagnostic diag;
@@ -781,6 +806,35 @@ namespace sad
                         }
 
                         diag.code = "ص-٠٠١"; // كود خطأ نحوي
+                        result.diagnostics.push_back(diag);
+                    }
+                }
+
+                // ──── تحويل تحذيرات المحلل إلى تشخيصات LSP بمستوى Warning صحيح ────
+                // (AR) م٢: تحذيرا الالتصاق «توثيق يتيم» (SYN024) و«توثيق في ذيل سطر»
+                //      (SYN025) وأمثالهما تصل من الكتالوج المركزي بمستوى WARNING —
+                //      تُعرَض تحذيرات صفراء لا أخطاء (درس RFC #31 في محراب).
+                // (EN) M2: parser attachment warnings (orphan doc SYN024, trailing doc
+                //      SYN025, and peers) arrive from the central catalog with WARNING
+                //      severity — surfaced as yellow warnings, not errors (RFC #31).
+                {
+                    const auto &emDiags =
+                        Sad::Errors::ErrorManager::getInstance().getAllDiagnostics();
+                    for (const auto &d : emDiags)
+                    {
+                        if (d.getSeverity() != Sad::Errors::DiagnosticSeverity::WARNING)
+                            continue;
+                        Diagnostic diag;
+                        diag.severity = DiagnosticSeverity::Warning;
+                        diag.message = d.format(Sad::Errors::Language::ENGLISH, false);
+                        diag.message_ar = d.format(Sad::Errors::Language::ARABIC, false);
+                        diag.source = "ص-محلل";
+                        diag.code = Sad::Errors::getErrorCodeString(d.getCode());
+                        const auto &loc = d.getLocation();
+                        int wline = std::max(0, static_cast<int>(loc.line) - 1);
+                        int wcol = std::max(0, static_cast<int>(loc.column) - 1);
+                        diag.range.start = {wline, wcol};
+                        diag.range.end = {wline, wcol + std::max(1, static_cast<int>(loc.length))};
                         result.diagnostics.push_back(diag);
                     }
                 }
@@ -881,7 +935,7 @@ namespace sad
                             sym.scope_depth = 0;
 
                             // استخراج التوثيق من ## فوق الدالة
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*func);
 
                             // بناء معلومات الدالة (التوقيع الكامل)
                             AnalyzedSymbol::FunctionInfo fi;
@@ -935,7 +989,7 @@ namespace sad
                             sym.is_exported = cls->isExported;
                             sym.scope_depth = 0;
 
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*cls);
 
                             // معلومات الصنف (الأصناف الأب والأعضاء)
                             AnalyzedSymbol::ClassInfo ci;
@@ -967,7 +1021,7 @@ namespace sad
                                     msym.name_range = msym.definition_range;
                                     msym.scope_owner = cls->name;
                                     msym.scope_depth = 1;
-                                    msym.documentation = extract_documentation(lines, msym.definition_range.start.line);
+                                    msym.documentation = doc_from_ast(*method);
 
                                     AnalyzedSymbol::FunctionInfo mfi;
                                     mfi.return_type = data_type_to_type_info(method->returnType);
@@ -996,7 +1050,7 @@ namespace sad
                                     msym.name_range = msym.definition_range;
                                     msym.scope_owner = cls->name;
                                     msym.scope_depth = 1;
-                                    msym.documentation = extract_documentation(lines, msym.definition_range.start.line);
+                                    msym.documentation = doc_from_ast(*funcMember);
 
                                     AnalyzedSymbol::FunctionInfo mfi;
                                     mfi.return_type = data_type_to_type_info(funcMember->returnType);
@@ -1027,7 +1081,7 @@ namespace sad
                                     fsym.name_range = fsym.definition_range;
                                     fsym.scope_owner = cls->name;
                                     fsym.scope_depth = 1;
-                                    fsym.documentation = extract_documentation(lines, fsym.definition_range.start.line);
+                                    fsym.documentation = doc_from_ast(*field);
                                     result.symbols.push_back(fsym);
                                     continue;
                                 }
@@ -1047,7 +1101,7 @@ namespace sad
                                     fsym.name_range = fsym.definition_range;
                                     fsym.scope_owner = cls->name;
                                     fsym.scope_depth = 1;
-                                    fsym.documentation = extract_documentation(lines, fsym.definition_range.start.line);
+                                    fsym.documentation = doc_from_ast(*varMember);
                                     // محاولة استنتاج النوع من القيمة المسندة
                                     // ملاحظة: VarDeclStmt لديه initializer وليس value
                                     if (fsym.type.name == "غير_محدد" && varMember->initializer)
@@ -1075,7 +1129,7 @@ namespace sad
                                     csym.name_range = csym.definition_range;
                                     csym.scope_owner = cls->name;
                                     csym.scope_depth = 1;
-                                    csym.documentation = extract_documentation(lines, csym.definition_range.start.line);
+                                    csym.documentation = doc_from_ast(*ctor);
 
                                     AnalyzedSymbol::FunctionInfo cfi;
                                     for (const auto &p : ctor->parameters)
@@ -1162,7 +1216,7 @@ namespace sad
                             sym.definition_range = lexer_pos_to_range(var->position);
                             sym.name_range = sym.definition_range;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*var);
 
                             // ──── استنتاج النوع إذا لم يُحدد ────
                             // ملاحظة: VarDeclStmt لديه initializer وليس value
@@ -1200,7 +1254,7 @@ namespace sad
                             sym.name_range = sym.definition_range;
                             sym.is_exported = enumDecl->isExported;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*enumDecl);
                             result.symbols.push_back(sym);
 
                             // ──── أعضاء التعداد ────
@@ -1240,7 +1294,7 @@ namespace sad
                             sym.name_range = sym.definition_range;
                             sym.is_exported = structDecl->isExported;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*structDecl);
                             result.symbols.push_back(sym);
 
                             // ──── حقول البنية ────
@@ -1310,7 +1364,7 @@ namespace sad
                             sym.name_range = sym.definition_range;
                             sym.is_exported = traitDecl->isExported;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*traitDecl);
                             result.symbols.push_back(sym);
 
                             // ──── دوال السمة ────
@@ -1367,7 +1421,7 @@ namespace sad
                                     msym.name_range = msym.definition_range;
                                     msym.scope_owner = implDecl->targetType;
                                     msym.scope_depth = 1;
-                                    msym.documentation = extract_documentation(lines, msym.definition_range.start.line);
+                                    msym.documentation = doc_from_ast(*mf);
 
                                     AnalyzedSymbol::FunctionInfo fi;
                                     fi.return_type = data_type_to_type_info(mf->returnType);
@@ -1402,7 +1456,7 @@ namespace sad
                             sym.definition_range = lexer_pos_to_range(nsDecl->position);
                             sym.name_range = sym.definition_range;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*nsDecl);
                             result.symbols.push_back(sym);
 
                             // عبور أعضاء الفضاء
@@ -1475,7 +1529,7 @@ namespace sad
                             sym.name_range = sym.definition_range;
                             sym.is_exported = tmplFunc->isExported;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*tmplFunc);
 
                             // بناء توقيع مع معاملات الأنواع
                             // مثل: أكبر<ت>(أ: ت، ب: ت) → ت
@@ -1528,7 +1582,7 @@ namespace sad
                             sym.name_range = sym.definition_range;
                             sym.is_exported = tmplClass->isExported;
                             sym.scope_depth = 0;
-                            sym.documentation = extract_documentation(lines, sym.definition_range.start.line);
+                            sym.documentation = doc_from_ast(*tmplClass);
 
                             AnalyzedSymbol::ClassInfo ci;
                             for (const auto &base : tmplClass->superclasses)

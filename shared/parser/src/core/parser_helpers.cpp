@@ -14,6 +14,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib> // (AR) std::getenv لحجب آثار الاسترداد «🔧» عن المستخدم
+#include <algorithm> // (AR) std::count لحساب أسطر كتلة التوثيق (م٢)
 
 namespace Sad
 {
@@ -437,17 +438,33 @@ namespace Sad
             //      belong to the declaration starting at current_, not to
             //      the declaration that came before current_.
             // ─────────────────────────────────────────────────────────────────
-            if (!nextDocComment_.empty())
+            if (!nextDoc_.text.empty())
             {
-                if (!pendingDocComment_.empty())
-                    pendingDocComment_ += '\n';
-                pendingDocComment_ += nextDocComment_;
-                nextDocComment_.clear();
+                // (AR) م٢: انقطاع سطري بين دفعتي توثيق ⇒ الأقدم يتيم (تحذير SYN024)
+                // (EN) M2: a line gap between two doc chunks orphans the older one (SYN024)
+                if (!pendingDoc_.text.empty() &&
+                    static_cast<long>(nextDoc_.startPos.line) > pendingDoc_.lastLine + 1)
+                {
+                    warnDocOrphan(pendingDoc_);
+                    pendingDoc_ = DocBuffer{};
+                }
+                if (pendingDoc_.text.empty())
+                {
+                    pendingDoc_ = std::move(nextDoc_);
+                }
+                else
+                {
+                    pendingDoc_.text += '\n';
+                    pendingDoc_.text += nextDoc_.text;
+                    pendingDoc_.lastLine = nextDoc_.lastLine;
+                }
+                nextDoc_ = DocBuffer{};
             }
 
             // Skip whitespace, comments, and doc-comments in current_
             // (AR) تجاوز المسافات والتعليقات — التقاط التعليقات التوثيقية بدل تخطيها
-            // (AR) هذه التعليقات تسبق current_ النهائي فعلياً → pendingDocComment_
+            // (AR) هذه التعليقات تسبق current_ النهائي فعلياً → pendingDoc_
+            bool appendedToPendingHere = false;
             while (current_.getType() == TT::WHITESPACE ||
                    current_.getType() == TT::COMMENT ||
                    current_.getType() == TT::DOC_COMMENT ||
@@ -457,22 +474,30 @@ namespace Sad
                 // (EN) BF-04 fix: accumulate consecutive ## lines (each line = separate token)
                 if (current_.getType() == TT::DOC_COMMENT)
                 {
-                    if (!pendingDocComment_.empty())
-                        pendingDocComment_ += '\n';
-                    pendingDocComment_ += current_.getValue();
+                    appendDocComment(pendingDoc_, current_, &previous_);
+                    appendedToPendingHere = true;
                 }
                 current_ = nextToken_;
                 nextToken_ = lexer_.nextToken();
             }
+            // (AR) م٢: توثيق جُمع هنا وانفصل عن أول رمز حقيقي يليه ⇒ يتيم.
+            //      (يُفحص فقط عند تجميعٍ في هذه الحلقة كي لا يُقطع توثيقٌ ملتصق
+            //      بتصريح متعدد الأسطر أثناء التقدم داخله.)
+            // (EN) M2: docs collected here that are detached from the first real
+            //      token after them are orphaned. (Checked only when this loop
+            //      appended, so docs attached to a multi-line declaration are not
+            //      cut while advancing through it.)
+            if (appendedToPendingHere)
+                cutDetachedDoc(pendingDoc_, current_);
 
             // Also skip whitespace in nextToken_ for correct lookahead (peekNext)
             // (AR) أيضاً تجاوز المسافات في nextToken_ للنظر المسبق الصحيح
             // (AR) إصلاح BF-04: التعليقات هنا تظهر بعد current_ فعلياً —
-            //      نخزّنها مؤقتاً في nextDocComment_ ولا نضمها إلى pending الآن.
+            //      نخزّنها مؤقتاً في nextDoc_ ولا نضمها إلى pending الآن.
             //      ستُرحَّل في advance() القادم عندما يصبح هذا الموقع هو current_.
             // (EN) BF-04 fix: doc comments encountered while refilling
             //      nextToken_ appear AFTER current_; buffer them in
-            //      nextDocComment_ instead of attaching to pending now. They
+            //      nextDoc_ instead of attaching to pending now. They
             //      will be promoted on the next advance() once we cross them.
             while (nextToken_.getType() == TT::WHITESPACE ||
                    nextToken_.getType() == TT::COMMENT ||
@@ -481,12 +506,118 @@ namespace Sad
             {
                 if (nextToken_.getType() == TT::DOC_COMMENT)
                 {
-                    if (!nextDocComment_.empty())
-                        nextDocComment_ += '\n';
-                    nextDocComment_ += nextToken_.getValue();
+                    // (AR) م٢: current_ هو آخر رمز كود قبل هذا التوثيق فعلياً —
+                    //      يُستخدم لكشف توثيق ذيل السطر (SYN025).
+                    // (EN) M2: current_ is the last real code token physically before
+                    //      this doc — used to detect trailing docs (SYN025).
+                    appendDocComment(nextDoc_, nextToken_, &current_);
                 }
                 nextToken_ = lexer_.nextToken();
             }
+            // (AR) م٢: nextDoc_ يُملأ حصراً في هذه الحلقة (يُرحَّل في مطلع advance())،
+            //      فغير الفارغ هنا جُمع الآن — يُفحص انفصاله عن الرمز الحقيقي التالي.
+            // (EN) M2: nextDoc_ is filled only in this loop (promoted at the top of
+            //      advance()), so non-empty means freshly collected — check detachment
+            //      from the next real token.
+            if (!nextDoc_.text.empty())
+                cutDetachedDoc(nextDoc_, nextToken_);
+        }
+
+        /**
+         * @brief (AR) آخر سطر مصدري يشغله رمز توثيق (كتلة «#** **#» قد تمتد أسطراً).
+         *        (EN) Last source line a doc token occupies (a «#** **#» block may span lines).
+         */
+        long ParserCore::docTokenEndLine(const Lexer::Token &tok)
+        {
+            const std::string &value = tok.getValue();
+            return static_cast<long>(tok.getPosition().line) +
+                   static_cast<long>(std::count(value.begin(), value.end(), '\n'));
+        }
+
+        /**
+         * @brief (AR) يضيف رمز توثيق إلى مخزن مع فرض قواعد الالتصاق (م٢ من RFC اللهجات).
+         *        (EN) Appends a doc token to a buffer enforcing M2 attachment rules.
+         */
+        void ParserCore::appendDocComment(DocBuffer &buf, const Lexer::Token &tok,
+                                          const Lexer::Token *precedingCode)
+        {
+            const long tokLine = static_cast<long>(tok.getPosition().line);
+
+            // (AR) «##» في ذيل سطر كود ⇒ يُعامَل تعليقاً عادياً + تحذير SYN025
+            // (EN) «##» trailing a code line ⇒ treated as a plain comment + SYN025 warning
+            if (precedingCode != nullptr &&
+                static_cast<long>(precedingCode->getPosition().line) == tokLine)
+            {
+                warnDocTrailing(tok);
+                return;
+            }
+
+            // (AR) سطر فاصل عن محتوى التوثيق السابق ⇒ السابق يتيم + تحذير SYN024
+            // (EN) A separating line from earlier doc content ⇒ the earlier chunk is orphaned (SYN024)
+            if (!buf.text.empty() && tokLine > buf.lastLine + 1)
+            {
+                warnDocOrphan(buf);
+                buf = DocBuffer{};
+            }
+
+            if (buf.text.empty())
+                buf.startPos = tok.getPosition();
+            else
+                buf.text += '\n';
+            buf.text += tok.getValue();
+            buf.lastLine = docTokenEndLine(tok);
+        }
+
+        /**
+         * @brief (AR) يقطع التصاق مخزن توثيق انفصل عن أول رمز حقيقي يليه (سطر فاصل
+         *        أو نهاية الملف) — يتيم بتحذير SYN024.
+         *        (EN) Cuts a doc buffer detached from the first real token after it
+         *        (separating line or EOF) — orphaned with a SYN024 warning.
+         */
+        void ParserCore::cutDetachedDoc(DocBuffer &buf, const Lexer::Token &nextReal)
+        {
+            if (buf.text.empty())
+                return;
+            if (nextReal.getType() == TT::END_OF_FILE ||
+                static_cast<long>(nextReal.getPosition().line) > buf.lastLine + 1)
+            {
+                warnDocOrphan(buf);
+                buf = DocBuffer{};
+            }
+        }
+
+        /**
+         * @brief (AR) تحذير «توثيق يتيم» عبر الكتالوج المركزي (SYN024، مستوى Warning).
+         *        (EN) Orphan-doc warning via the central catalog (SYN024, Warning severity).
+         */
+        void ParserCore::warnDocOrphan(const DocBuffer &buf)
+        {
+            Errors::SourceLocation loc(
+                filename_.empty() ? "<source>" : filename_,
+                buf.startPos.line,
+                buf.startPos.column,
+                buf.startPos.offset,
+                buf.startPos.length);
+            Errors::RenderContext rctx(loc);
+            Errors::ErrorManager::getInstance().reportWarningFromCatalog(
+                Errors::ErrorCode::SYN_DOC_ORPHAN, loc, rctx);
+        }
+
+        /**
+         * @brief (AR) تحذير «توثيق في ذيل سطر» عبر الكتالوج المركزي (SYN025، مستوى Warning).
+         *        (EN) Trailing-doc warning via the central catalog (SYN025, Warning severity).
+         */
+        void ParserCore::warnDocTrailing(const Lexer::Token &tok)
+        {
+            Errors::SourceLocation loc(
+                filename_.empty() ? "<source>" : filename_,
+                tok.getPosition().line,
+                tok.getPosition().column,
+                tok.getPosition().offset,
+                tok.getPosition().length);
+            Errors::RenderContext rctx(loc);
+            Errors::ErrorManager::getInstance().reportWarningFromCatalog(
+                Errors::ErrorCode::SYN_DOC_TRAILING, loc, rctx);
         }
 
         /**

@@ -128,7 +128,7 @@ productions:
     maps_to:
       - { file: shared/lexer/src/lexer_core.cpp, function: "LexerCore::nextToken" }
     ast_node: "Token(COMMENT) | Token(DOC_COMMENT)"
-    description_ar: "تعليق سطر «#»، كتلة «#* *#»، توثيق «##» أو «#** **#»؛ تعليقات «##» تُرفَق بالتصريح التالي"
+    description_ar: "تعليق سطر «#»، كتلة «#* *#»، توثيق «##» أو «#** **#»؛ تعليقات التوثيق تُرفَق بالتصريح الذي يليها مباشرة: أي سطر فاصل بعدها (فارغ أو تعليق عادي) يقطع الالتصاق فتُهمَل بتحذير «توثيق يتيم» (SYN024)، وكذلك إن انتهى الملف بعدها؛ وتعليق «##» في ذيل سطر كود يُعامَل تعليقًا عاديًا بتحذير «توثيق في ذيل سطر» (SYN025)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 4, edge: 4, negative: 1, interaction: 2 } }

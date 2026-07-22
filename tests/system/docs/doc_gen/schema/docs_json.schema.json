@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sadlang:docs/docgen/docs_json.schema.json",
+  "title": "عقد JSON الوسيط لتوثيق كود ص — مخرج DocsExtractor::extractJson",
+  "description": "م٢ من RFC اللهجات (rfcs#43): يثبّت هذا الملف عقد JSON الوسيط الذي يصدره sad-run/sad-build بـ--صيغة-التوثيق=json من shared/ast/include/docs_extractor.h، ليستهلكه sadlang-docs وأي أداة خارجية. أي تغيير في الشكل تغيير عقد معلَن يوجب تحديث هذا الملف والمستهلكين معًا.",
+  "type": "object",
+  "required": ["file", "declarations"],
+  "additionalProperties": false,
+  "properties": {
+    "file": {
+      "type": "string",
+      "description": "مسار الملف أو المشروع المصدر كما مُرّر للأداة"
+    },
+    "declarations": {
+      "type": "array",
+      "description": "التصريحات الموثَّقة فقط (تصريح بلا توثيق ## لا يظهر هنا)",
+      "items": { "$ref": "#/definitions/declaration" }
+    }
+  },
+  "definitions": {
+    "declaration": {
+      "type": "object",
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["function", "class", "enum", "struct", "trait", "constant", "variable", "namespace"]
+        },
+        "name": { "type": "string" },
+        "summary": { "type": "string" }
+      },
+      "if": { "properties": { "kind": { "const": "namespace" } } },
+      "then": {
+        "required": ["kind", "name", "summary", "members"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "const": "namespace" },
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "members": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/declaration" }
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "kind", "name", "summary", "description", "params", "returns",
+          "since", "version", "author", "deprecated", "experimental",
+          "complexity", "threadSafety", "license"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["function", "class", "enum", "struct", "trait", "constant", "variable"]
+          },
+          "name": { "type": "string" },
+          "summary": { "type": "string" },
+          "description": { "type": "string" },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "description"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string" },
+                "description": { "type": "string" }
+              }
+            }
+          },
+          "returns": { "type": "string" },
+          "since": { "type": "string" },
+          "version": { "type": "string" },
+          "author": { "type": "string" },
+          "deprecated": { "type": "string" },
+          "experimental": { "type": "boolean" },
+          "complexity": { "type": "string" },
+          "threadSafety": { "type": "string" },
+          "license": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -176,6 +176,88 @@ def compare_outputs(fmt: str, sad_path: Path, sadc_path: Path) -> tuple[bool, st
     return True, ""
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════
+# (AR) م٢ (الفجوة ٤): التحقق من عقد JSON الوسيط — الملف المعياري للعقد هو
+#      schema/docs_json.schema.json (JSON Schema draft-07). المدقق أدناه نسخة
+#      مصغّرة مكتفية ذاتياً (بلا اعتماد jsonschema) تعكس الـschema نفسه؛ عند
+#      تغيير العقد يُحدَّث الملفان معاً.
+# (EN) M2 (gap 4): intermediate docs-JSON contract validation — the normative
+#      contract is schema/docs_json.schema.json (draft-07). The validator below
+#      is a self-contained mirror (no jsonschema dependency); update both
+#      together on any contract change.
+# ═══════════════════════════════════════════════════════════════════════════════════
+DOCS_JSON_SCHEMA = SCRIPT_DIR / "schema" / "docs_json.schema.json"
+_DECL_KINDS = {"function", "class", "enum", "struct", "trait", "constant", "variable", "namespace"}
+_DECL_STR_FIELDS = ("summary", "description", "returns", "since", "version",
+                    "author", "deprecated", "complexity", "threadSafety", "license")
+
+
+def _validate_declaration(decl, path: str, errs: List[str]) -> None:
+    """(AR) يتحقق من تصريح واحد وفق العقد (يتكرر داخل members للفضاءات)."""
+    if not isinstance(decl, dict):
+        errs.append(f"{path}: ليس كائناً")
+        return
+    kind = decl.get("kind")
+    if kind not in _DECL_KINDS:
+        errs.append(f"{path}.kind: قيمة غير معروفة {kind!r}")
+        return
+    if not isinstance(decl.get("name"), str):
+        errs.append(f"{path}.name: مفقود أو ليس نصاً")
+    if not isinstance(decl.get("summary"), str):
+        errs.append(f"{path}.summary: مفقود أو ليس نصاً")
+    if kind == "namespace":
+        members = decl.get("members")
+        if not isinstance(members, list):
+            errs.append(f"{path}.members: مفقود أو ليس مصفوفة")
+        else:
+            for i, m in enumerate(members):
+                _validate_declaration(m, f"{path}.members[{i}]", errs)
+        extra = set(decl) - {"kind", "name", "summary", "members"}
+        if extra:
+            errs.append(f"{path}: حقول خارج العقد {sorted(extra)}")
+        return
+    for f in _DECL_STR_FIELDS:
+        if not isinstance(decl.get(f), str):
+            errs.append(f"{path}.{f}: مفقود أو ليس نصاً")
+    if not isinstance(decl.get("experimental"), bool):
+        errs.append(f"{path}.experimental: مفقود أو ليس منطقياً")
+    params = decl.get("params")
+    if not isinstance(params, list):
+        errs.append(f"{path}.params: مفقود أو ليس مصفوفة")
+    else:
+        for i, p in enumerate(params):
+            if not isinstance(p, dict) or set(p) != {"name", "description"} \
+               or not isinstance(p.get("name"), str) or not isinstance(p.get("description"), str):
+                errs.append(f"{path}.params[{i}]: يجب أن يكون {{name, description}} نصيين")
+    extra = set(decl) - ({"kind", "name", "params", "experimental"} | set(_DECL_STR_FIELDS))
+    if extra:
+        errs.append(f"{path}: حقول خارج العقد {sorted(extra)}")
+
+
+def validate_docs_json(p: Path) -> str:
+    """(AR) يتحقق من ملف JSON مولَّد وفق العقد. يعيد "" عند السلامة أو وصف الخلل."""
+    import json
+    try:
+        obj = json.loads(normalized_bytes(p).decode("utf-8"))
+    except Exception as e:
+        return f"JSON غير قابل للتحليل: {e}"
+    errs: List[str] = []
+    if not isinstance(obj, dict):
+        return "الجذر ليس كائناً"
+    if not isinstance(obj.get("file"), str):
+        errs.append("file: مفقود أو ليس نصاً")
+    decls = obj.get("declarations")
+    if not isinstance(decls, list):
+        errs.append("declarations: مفقود أو ليس مصفوفة")
+    else:
+        for i, d in enumerate(decls):
+            _validate_declaration(d, f"declarations[{i}]", errs)
+    extra = set(obj) - {"file", "declarations"}
+    if extra:
+        errs.append(f"الجذر: حقول خارج العقد {sorted(extra)}")
+    return "؛ ".join(errs)
+
+
 def run_case(case: TestCase) -> TestResult:
     """(AR) يُشغّل حالة اختبار واحدة (نفس الإدخال على sad و sadc + المقارنة)."""
     if case.skip_reason:
@@ -192,6 +274,21 @@ def run_case(case: TestCase) -> TestResult:
     if not ok1:
         return TestResult(case=case, passed=False,
                           error=f"sad failed: {err1}", sad_time_ms=t1)
+
+    # (AR) م٢ (الفجوة ٤): بوابة عقد JSON — مخرج json للملف المفرد يجب أن يطابق
+    #      schema/docs_json.schema.json (عقد DocsExtractor::extractJson).
+    #      ⚠️ فجوة قائمة خارج نطاق م٢: وضع المشروع (--وثّق-مشروع) يتجاهل صيغة json
+    #      ويُخرج Markdown دائماً — لا يستدعي extractJson أصلاً، فالعقد لا يشمله بعد.
+    # (EN) M2 (gap 4): JSON contract gate — single-file json output must match
+    #      schema/docs_json.schema.json (the DocsExtractor::extractJson contract).
+    #      Known pre-existing gap outside M2 scope: project mode ignores the json
+    #      format and always emits Markdown (never calls extractJson).
+    if case.fmt == "json" and case.kind == "single":
+        contract_err = validate_docs_json(sad_out)
+        if contract_err:
+            return TestResult(case=case, passed=False,
+                              error=f"sad json contract: {contract_err}",
+                              sad_time_ms=t1)
 
     # (AR) لا مترجم: نكتفي بنجاح توليد المفسّر (وضع مفسّر-فقط).
     # (EN) No compiler: accept interpreter doc-gen success (interpreter-only mode).
