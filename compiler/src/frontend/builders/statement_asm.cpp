@@ -389,6 +389,30 @@ namespace Sad
                 for (const auto &c : asmBlock->clobbers)
                     constraintParts.push_back(c.llvm);
 
+                // (AR) التلويث الضمنيّ من المعجم (implicit_writes): سجلّات يكتبها العتاد
+                //      دون أن تظهر معاملًا (اضرب/اقسم ⇒ ‎~{eax},~{edx}‎…) تُصرَّح لـllvm
+                //      تلقائيًّا كي لا يضع مدخلًا/خرجًا حيًّا فيها — مع إسقاط المكرَّر
+                //      ممّا صرّح به «يلوّث(…)» أو منمنمة سابقة.
+                // (EN) Lexicon implicit clobbers (implicit_writes): registers the hardware
+                //      writes without an operand are auto-declared to llvm, deduplicated
+                //      against explicit يلوّث clobbers and earlier mnemonics.
+                {
+                    std::set<std::string> declaredClobbers;
+                    for (const auto &c : asmBlock->clobbers)
+                        declaredClobbers.insert(c.llvm);
+                    for (const auto &item : asmBlock->items)
+                    {
+                        if (item.isLabel || item.implicitClobbers.empty())
+                            continue;
+                        std::istringstream parts(item.implicitClobbers);
+                        std::string one;
+                        // (AR) الفاصل من الثابت المولَّد — مصدر واحد مع المولّد.
+                        while (std::getline(parts, one, kImplicitClobberSep))
+                            if (!one.empty() && declaredClobbers.insert(one).second)
+                                constraintParts.push_back(one);
+                    }
+                }
+
                 std::string constraints;
                 for (std::size_t i = 0; i < constraintParts.size(); ++i)
                 {

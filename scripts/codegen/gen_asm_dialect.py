@@ -64,6 +64,13 @@ def _hex(s: str) -> str:
     return "".join(out)
 
 
+# (AR) فاصل قائمة التلويث الضمنيّ (implicitClobbers) — يُصدَّر ثابتًا مولَّدًا
+#      kImplicitClobberSep فيستهلكه الطرفان (المولّد هنا والمحلّل/الخافض) من
+#      مصدر واحد بلا حرفيّة مكرَّرة.
+# (EN) Implicit-clobber list separator — exported as the generated constant
+#      kImplicitClobberSep so producer and consumers share one source.
+_IMPLICIT_CLOBBER_SEP = ","
+
 # (AR) تقابل صنف المعامل العربيّ ⇒ رمز حرف واحد يستهلكه المترجم/الفاحص.
 #      w=وجهة(تُكتب) r=قراءة l=لصيقة m=ذاكرة i=عدد a=تعليمة(بادئة)
 # (EN) operand class Arabic ⇒ single-char code for compiler/semantic.
@@ -110,12 +117,18 @@ namespace Sad
             //      عدد المعاملات = طول السلسلة.
             //      readsDest: هل تُقرأ الوجهة قبل الكتابة (من reads_dest في SoT)؟
             //      true ⇒ ربط inout (اجمع/وافق/زد…)، false ⇒ خرج صِرف (انقل/حمّل_عنوان…).
+            //      writesSource: المنمنمة تكتب معاملها المصدر أيضًا (بادل/xchg — من
+            //      writes_source في SoT) ⇒ متغيّر ص في موضع المصدر يُرفَض SEM034.
+            //      implicitClobbers: قيود تلويث LLVM مفصولة بفواصل لسجلّات يكتبها
+            //      العتاد ضمنيًّا (من implicit_writes في SoT)، أو سلسلة فارغة.
             struct Mnemonic
             {
                 const char *ar;             // (AR) canonical Arabic (diacritic-stripped)
                 const char *en;             // (EN) native mnemonic (lowered form)
                 const char *operandClasses; // (AR) one char per operand
                 bool readsDest;             // (AR) الوجهة تُقرأ قبل الكتابة / dest is read before written
+                bool writesSource;          // (AR) المصدر يُكتب أيضًا (بادل) / source is also written (xchg)
+                const char *implicitClobbers; // (AR) تلويث ضمنيّ "~{eax},~{edx}" أو "" / implicit clobbers or empty
             };
 
             // (AR) سجلّ واحد: الاسم العربيّ ⇒ الاسم الأصليّ.
@@ -170,6 +183,19 @@ HEADER_BOTTOM = """\
 def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
     lines: list[str] = [HEADER_TOP]
 
+    # (AR) خريطة السجلّات المعجميّة (مجرَّدة التشكيل) — يحتاجها حارس implicit_writes.
+    # (EN) Lexicon register map (diacritic-stripped) — needed by the implicit_writes guard.
+    reg_map: dict[str, str] = {}
+    for _group, regs in mnem["registers"].items():
+        for r in regs:
+            reg_map[_strip_diacritics(r["ar"])] = r["en"]
+
+    # ── ثابت فاصل التلويث الضمنيّ ──
+    lines.append("            // (AR) فاصل قائمة implicitClobbers — يستهلكه المحلّل والخافض بدل حرفيّة مكرَّرة.")
+    lines.append("            // (EN) implicitClobbers list separator, shared by parser and lowering.")
+    lines.append(f"            inline constexpr char kImplicitClobberSep = '{_IMPLICIT_CLOBBER_SEP}';")
+    lines.append("")
+
     # ── المنمنمات ──
     lines.append("            // ─── المنمنمات / mnemonics ───")
     lines.append("            inline constexpr Mnemonic kMnemonics[] = {")
@@ -199,8 +225,42 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
                     f"[gen_asm_dialect] المنمنمة {it['ar']} بلا معامل «وجهة» لكن لها reads_dest — احذف الحقل"
                 )
             reads_dest = "true" if it.get("reads_dest", False) else "false"
+            # (AR) writes_source (بادل/xchg): مسموح فقط حيث «وجهة» و«مصدر» معًا —
+            #      حارس يمنع تعميم العلم على منمنمات لا معنى له فيها.
+            # (EN) writes_source guard: allowed only with both a dest and a source operand.
+            if "writes_source" in it and not (has_dest and "r" in classes):
+                raise SystemExit(
+                    f"[gen_asm_dialect] المنمنمة {it['ar']} لها writes_source بلا معاملَي «وجهة» و«مصدر» معًا — احذف الحقل"
+                )
+            writes_source = "true" if it.get("writes_source", False) else "false"
+            # (AR) implicit_writes: سجلّات معجميّة يكتبها العتاد ضمنيًّا — مسموحة فقط
+            #      على منمنمة بلا معامل «وجهة» (كتابات ذات الوجهة يمثّلها reads_dest)،
+            #      وكلّ اسم يجب أن يكون سجلًّا معجميًّا بلا تكرار.
+            # (EN) implicit_writes guard: dest-less mnemonics only; every entry must be
+            #      a lexicon register; duplicates rejected.
+            implicit_clobbers = ""
+            if "implicit_writes" in it:
+                if has_dest:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] المنمنمة {it['ar']} لها معامل «وجهة» ومعها implicit_writes — كتابة الوجهة يمثّلها reads_dest، احذف الحقل"
+                    )
+                seen_regs: set[str] = set()
+                parts: list[str] = []
+                for reg_ar in it["implicit_writes"]:
+                    reg_key = _strip_diacritics(str(reg_ar))
+                    if reg_key not in reg_map:
+                        raise SystemExit(
+                            f"[gen_asm_dialect] implicit_writes للمنمنمة {it['ar']} يذكر «{reg_ar}» وليس سجلًّا معجميًّا"
+                        )
+                    if reg_key in seen_regs:
+                        raise SystemExit(
+                            f"[gen_asm_dialect] implicit_writes للمنمنمة {it['ar']} يكرّر السجلّ «{reg_ar}»"
+                        )
+                    seen_regs.add(reg_key)
+                    parts.append("~{" + reg_map[reg_key] + "}")
+                implicit_clobbers = _IMPLICIT_CLOBBER_SEP.join(parts)
             lines.append(
-                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest} }},'
+                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest}, {writes_source}, "{_hex(implicit_clobbers)}" }},'
                 f'  // {it["ar"]} => {it["en"]}'
             )
     lines.append("            };")

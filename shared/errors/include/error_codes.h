@@ -160,6 +160,8 @@ namespace Sad
             SEM_ASM_UNDEFINED_VAR,        ///< SEM031: (AR) متغيّر ص غير معرَّف داخل {…} في كتلة التجميع / (EN) undefined sad var in {…} in an asm block
             SEM_ASM_MEMORY_FORM,          ///< SEM032: (AR) صيغة عنونة غير مدعومة في كتلة التجميع (م١) / (EN) unsupported memory-addressing form in an asm block (M1)
             SEM_ASM_UNKNOWN_REGISTER,     ///< SEM033: (AR) سجلّ تجميع غير معجميّ / (EN) unknown assembly register (dialect)
+            SEM_ASM_WRITES_SOURCE_VAR,    ///< SEM034: (AR) متغيّر ص في موضع مصدر منمنمة تكتب مصدرها (بادل، م١) / (EN) sad var in the source position of a source-writing mnemonic (xchg, M1)
+            SEM_ASM_INVALID_PREFIX_OPERAND, ///< SEM035: (AR) منمنمة لا تصلح تابعةً لبادئة تكرار — كتاباتها الضمنيّة تتجاوز البادئة / (EN) mnemonic invalid as a repeat-prefix operand (implicit writes exceed the prefix's)
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

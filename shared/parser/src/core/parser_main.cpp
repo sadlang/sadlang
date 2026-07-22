@@ -1876,22 +1876,40 @@ namespace Sad
                 return prev[m];
             }
 
-            // (AR) أقرب ثلاثة أسماء معجميّة للاسم المجهول (لقائمة «هل تقصد؟»). المرشّحون
-            //      من المنمنمات و(اختياريًّا) السجلّات — كي يُقترَح لسجلّ مُخطأ سجلٌّ لا منمنمة.
-            // (EN) Three nearest lexicon names. Candidates from mnemonics and (optionally)
-            //      registers, so a mistyped register suggests a register, not a mnemonic.
-            std::string asmNearestNames(const std::string &name, bool includeRegisters)
+            // (AR) موضع الاسم المجهول — يحدّد فئة المرشّحين في «هل تقصد؟»:
+            //      Mnemonic ⇒ منمنمات فقط؛ Register ⇒ سجلّات فقط (خطأ سجلّ لا يقترح
+            //      منمنمة)؛ Clobber ⇒ سجلّات + الهدفان المخصوصان (الذاكرة/الأعلام)
+            //      لأنّهما صالحان في موضع «يلوّث».
+            // (EN) Position of the unknown name — selects the suggestion candidates:
+            //      mnemonics only, registers only, or registers + special clobber targets.
+            enum class AsmNamePos
+            {
+                Mnemonic,
+                Register,
+                Clobber
+            };
+
+            // (AR) أقرب ثلاثة أسماء معجميّة للاسم المجهول بحسب موضعه (لقائمة «هل تقصد؟»).
+            // (EN) Three nearest lexicon names for the unknown name, per its position.
+            std::string asmNearestNames(const std::string &name, AsmNamePos pos)
             {
                 using namespace ::Sad::Dialects::Asm;
                 std::vector<std::pair<std::size_t, const char *>> ranked;
-                ranked.reserve(kMnemonicCount + kRegisterCount);
-                for (std::size_t i = 0; i < kMnemonicCount; ++i)
-                    ranked.emplace_back(asmEditDistance(name, kMnemonics[i].ar), kMnemonics[i].ar);
-                if (includeRegisters)
+                ranked.reserve(kMnemonicCount + kRegisterCount + kClobberSpecialCount);
+                if (pos == AsmNamePos::Mnemonic)
+                    for (std::size_t i = 0; i < kMnemonicCount; ++i)
+                        ranked.emplace_back(asmEditDistance(name, kMnemonics[i].ar), kMnemonics[i].ar);
+                else
                     for (std::size_t i = 0; i < kRegisterCount; ++i)
                         ranked.emplace_back(asmEditDistance(name, kRegisters[i].ar), kRegisters[i].ar);
-                std::sort(ranked.begin(), ranked.end(),
-                          [](const auto &x, const auto &y) { return x.first < y.first; });
+                if (pos == AsmNamePos::Clobber)
+                    for (std::size_t i = 0; i < kClobberSpecialCount; ++i)
+                        ranked.emplace_back(asmEditDistance(name, kClobberSpecials[i].ar),
+                                            kClobberSpecials[i].ar);
+                // (AR) ترتيب مستقرّ: التعادل يُحسَم بترتيب المعجم لا بمزاج std::sort.
+                // (EN) Stable sort: ties resolve by lexicon order deterministically.
+                std::stable_sort(ranked.begin(), ranked.end(),
+                                 [](const auto &x, const auto &y) { return x.first < y.first; });
                 std::string out;
                 const std::size_t take = std::min<std::size_t>(3, ranked.size());
                 for (std::size_t i = 0; i < take; ++i)
@@ -1906,7 +1924,43 @@ namespace Sad
             // (AR) للمنمنمات فقط (موضع بداية التعليمة). / mnemonic-only (instruction head).
             std::string asmNearestMnemonics(const std::string &name)
             {
-                return asmNearestNames(name, /*includeRegisters=*/false);
+                return asmNearestNames(name, AsmNamePos::Mnemonic);
+            }
+
+            // (AR) تفكيك قائمة implicitClobbers المولَّدة بفاصلها المولَّد kImplicitClobberSep.
+            // (EN) Split a generated implicitClobbers list on the generated separator.
+            std::set<std::string> asmSplitImplicitClobbers(const char *list)
+            {
+                std::set<std::string> out;
+                std::string cur;
+                for (const char *p = list; *p; ++p)
+                {
+                    if (*p == ::Sad::Dialects::Asm::kImplicitClobberSep)
+                    {
+                        if (!cur.empty())
+                            out.insert(cur);
+                        cur.clear();
+                    }
+                    else
+                        cur += *p;
+                }
+                if (!cur.empty())
+                    out.insert(cur);
+                return out;
+            }
+
+            // (AR) هل كتابات التابعة الضمنيّة محتواة في كتابات البادئة المصرَّحة؟
+            //      التلويث يُصرَّح من بند البادئة وحده، فتابعة تكتب خارجه = إفساد صامت.
+            // (EN) Are the sub-mnemonic's implicit writes contained in the prefix's?
+            //      Clobbers are declared from the prefix item alone.
+            bool asmImplicitClobbersContained(const char *sub, const char *prefix)
+            {
+                const std::set<std::string> subSet = asmSplitImplicitClobbers(sub);
+                const std::set<std::string> prefixSet = asmSplitImplicitClobbers(prefix);
+                for (const auto &c : subSet)
+                    if (prefixSet.find(c) == prefixSet.end())
+                        return false;
+                return true;
             }
         } // namespace
 
@@ -1972,10 +2026,11 @@ namespace Sad
                         if (!reg)
                         {
                             // (AR) موضع سجلّ (داخل عنونة) ⇒ خطأ سجلّ SEM033 واقتراحات
-                            //      تشمل السجلّات (تصحيح ٦) — لا يُسمّى السجلّ «منمنمة».
+                            //      من السجلّات فقط — لا يُقترَح لسجلّ مُخطأ منمنمة.
                             errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_REGISTER,
                                          {{"register", current_.getValue()},
-                                          {"suggestions", asmNearestNames(current_.getValue(), true)}});
+                                          {"suggestions", asmNearestNames(current_.getValue(),
+                                                                          AsmNamePos::Register)}});
                             advance();
                             continue;
                         }
@@ -2087,10 +2142,10 @@ namespace Sad
                     return op;
                 }
                 // (AR) معرّف ليس سجلًّا في موضع سجلّ/قيمة — خطأ سجلّ SEM033.
-                //      الاقتراحات تشمل السجلّات (تصحيح ٦: سجلّ مُخطأ يُقترَح له سجلّ).
+                //      الاقتراحات من السجلّات فقط (سجلّ مُخطأ يُقترَح له سجلّ لا منمنمة).
                 errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_REGISTER,
                              {{"register", name},
-                              {"suggestions", asmNearestNames(name, true)}});
+                              {"suggestions", asmNearestNames(name, AsmNamePos::Register)}});
                 advance();
                 return op;
             }
@@ -2152,10 +2207,12 @@ namespace Sad
                             clob.llvm = std::string("~{") + reg->en + "}";
                         else
                             // (AR) هدف يلوّث = سجلّ أو هدف مخصوص ⇒ خطأ سجلّ SEM033
-                            //      واقتراحات تشمل السجلّات (لا اقتراح منمنمات هنا).
+                            //      واقتراحات من السجلّات والهدفين المخصوصين
+                            //      (الذاكرة/الأعلام) — لا اقتراح منمنمات هنا.
                             errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_REGISTER,
                                          {{"register", target},
-                                          {"suggestions", asmNearestNames(target, true)}});
+                                          {"suggestions", asmNearestNames(target,
+                                                                          AsmNamePos::Clobber)}});
                         if (!clob.llvm.empty())
                             block->clobbers.push_back(std::move(clob));
                         advance();
@@ -2218,6 +2275,7 @@ namespace Sad
                 item.mnemonicEn = info->en;
                 item.operandClasses = info->operandClasses;
                 item.readsDest = info->readsDest;
+                item.implicitClobbers = info->implicitClobbers;
                 item.pos = mnemonicPos;
 
                 const std::size_t expected = std::strlen(info->operandClasses);
@@ -2240,6 +2298,39 @@ namespace Sad
                         }
                     }
                     item.operands.push_back(parseAsmOperand(info->operandClasses[i]));
+                    // (AR) تابعة بادئة (كرّر …): كتاباتها الضمنيّة يجب أن تكون محتواةً
+                    //      في كتابات البادئة المصرَّحة (فحص احتواء على بيانات المعجم
+                    //      المولَّدة) — وإلا SEM035: التابعة تُصدَر نصًّا داخل قالب
+                    //      البادئة فلا يُصرَّح تلويثها المستقلّ لـllvm (إفساد صامت).
+                    // (EN) Prefix operand: its implicit writes must be contained in the
+                    //      prefix's declared ones (lexicon-data containment check),
+                    //      else SEM035 — the sub-mnemonic is emitted textually inside
+                    //      the prefix template and never declares its own clobbers.
+                    if (info->operandClasses[i] == 'a' &&
+                        item.operands.back().kind == AST::AsmOperand::Kind::SubMnemonic)
+                    {
+                        const Mnemonic *sub = findMnemonic(item.operands.back().text.c_str());
+                        if (sub && !asmImplicitClobbersContained(sub->implicitClobbers,
+                                                                info->implicitClobbers))
+                        {
+                            errorCatalog(Errors::ErrorCode::SEM_ASM_INVALID_PREFIX_OPERAND,
+                                         {{"mnemonic", item.operands.back().text},
+                                          {"prefix", mnemonicName}});
+                        }
+                    }
+                    // (AR) منمنمة تكتب مصدرها (بادل — علم writes_source من المعجم):
+                    //      متغيّر ص في موضع المصدر يُرفَض SEM034 — ربط م١ يعامله مدخلًا
+                    //      صِرفًا فتضيع الكتابة العكسيّة ويُفسَد حيٌّ صامتًا (كلا المحرّكين).
+                    // (EN) Source-writing mnemonic (writes_source in the lexicon): a sad
+                    //      var in the source position is rejected with SEM034 — the M1
+                    //      binding treats it as a pure input, losing the write-back.
+                    if (info->writesSource && info->operandClasses[i] == 'r' &&
+                        item.operands.back().kind == AST::AsmOperand::Kind::SadVariable)
+                    {
+                        errorCatalog(Errors::ErrorCode::SEM_ASM_WRITES_SOURCE_VAR,
+                                     {{"mnemonic", mnemonicName},
+                                      {"name", item.operands.back().text}});
+                    }
                 }
 
                 // (AR) معاملات أكثر من المعجم: فاصلة زائدة بعد المعامل الأخير

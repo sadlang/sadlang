@@ -574,3 +574,41 @@ errors:
   detailed:
     ar: مواضع السجلّ في كتلة «تجميع … نهاية» (معامل سجلّ، وقاعدة عنونة داخل [ … ]، وهدف يلوّث) تُفحص مقابل معجم السجلّات العربيّ المولَّد من مصدر الحقيقة. اسم غير معجميّ في موضع سجلّ يُرفَض بهذا الخطأ مع أقرب البدائل من السجلّات — رسالة مميَّزة عن SEM025 (منمنمة مجهولة) كي لا يُسمّى السجلّ «منمنمة» خطأً.
     en: Register positions inside an "تجميع … نهاية" block (a register operand, an addressing base inside [ … ], and a يلوّث clobber target) are validated against the Arabic register lexicon generated from the SoT. A non-lexicon name in a register position is rejected with this error plus nearest register suggestions — distinct from SEM025 (unknown mnemonic) so a register is never misnamed a "mnemonic".
+
+- code: SEM_ASM_WRITES_SOURCE_VAR
+  id: SEM034
+  category: semantic
+  title:
+    ar: متغيّر ص في موضع مصدر منمنمة تكتب مصدرها
+    en: sad var in the source position of a source-writing mnemonic
+  brief:
+    ar: 'المنمنمة «{mnemonic}» تكتب معاملها المصدر أيضًا، وربط م١ يعامل «{name}» مدخلًا صِرفًا — قيمة حيّة قد تُفسَد صامتًا. استعمل سجلًّا صريحًا في موضع المصدر.'
+    en: 'Mnemonic "{mnemonic}" also writes its source operand, and the M1 binding treats "{name}" as a pure input — a live value could be silently corrupted. Use an explicit register in the source position.'
+  placeholders:
+  - mnemonic
+  - name
+  fix_hint:
+    ar: 'انقل قيمة «{name}» إلى سجلّ صريح (مثل «انقل القاعدة، {name}») ثمّ استعمل السجلّ مصدرًا للمنمنمة «{mnemonic}»، وأعِد القيمة إلى المتغيّر بعدها إن لزم.'
+    en: 'Move the value of "{name}" into an explicit register (e.g. "انقل القاعدة، {name}"), use that register as the source of "{mnemonic}", and store it back afterwards if needed.'
+  detailed:
+    ar: المنمنمات الموسومة writes_source في المعجم (بادل/xchg) تكتب معاملها الثاني كما تكتب الأوّل، لكنّ خفض م١ يربط متغيّر ص في موضع المصدر قيدَ مدخل صِرف («r»)، فلا تُصرَّح الكتابة العكسيّة لـllvm ويصير لمخصّص السجلّات حرّيّة إبقاء القيمة القديمة أو إفسادها — كود خاطئ صامت. يُرفَض المتغيّر هنا صراحةً حتى اكتمال تمثيل الكتابة المزدوجة بعد م١؛ السجلّات الصريحة في موضع المصدر تبقى مسموحةً لأنّ كتابتها لا تمسّ ربط متغيّرات ص.
+    en: Mnemonics flagged writes_source in the lexicon (بادل/xchg) write their second operand as well as the first, but the M1 lowering binds a sad var in the source position as a pure-input ("r") constraint, so the write-back is never declared to llvm and the register allocator is free to keep or corrupt the old value — silent wrong code. The variable is rejected explicitly here until the dual-write representation lands after M1; explicit registers in the source position remain allowed because writing them does not affect sad-var bindings.
+
+- code: SEM_ASM_INVALID_PREFIX_OPERAND
+  id: SEM035
+  category: semantic
+  title:
+    ar: منمنمة لا تصلح تابعةً لبادئة تكرار
+    en: mnemonic invalid as a repeat-prefix operand
+  brief:
+    ar: 'المنمنمة «{mnemonic}» لا تصلح تابعةً للبادئة «{prefix}» — كتاباتها الضمنيّة تتجاوز ما تصرّح به البادئة، فتُفسَد سجلّات حيّة صامتًا.'
+    en: 'Mnemonic "{mnemonic}" is not valid as an operand of the "{prefix}" prefix — its implicit writes exceed what the prefix declares, silently corrupting live registers.'
+  placeholders:
+  - mnemonic
+  - prefix
+  fix_hint:
+    ar: 'اتبع البادئة «{prefix}» بمنمنمة سلاسل يصرّح المعجم باحتواء كتاباتها الضمنيّة في كتابات البادئة (خزّن_بايت/خزّن_مربّعًا/انقل_بايت/انقل_مربّعًا)، أو اكتب «{mnemonic}» تعليمةً مستقلّةً بلا بادئة.'
+    en: 'Follow the "{prefix}" prefix with a string mnemonic whose lexicon implicit writes are contained in the prefix''s (خزّن_بايت/خزّن_مربّعًا/انقل_بايت/انقل_مربّعًا), or write "{mnemonic}" as a standalone instruction without the prefix.'
+  detailed:
+    ar: التلويث الضمنيّ يُصرَّح لـllvm من بند البادئة وحده، والمنمنمة التابعة تُصدَر نصًّا داخل قالب البادئة بلا بند مستقلّ. فإن كانت كتاباتها الضمنيّة (implicit_writes في المعجم) غير محتواة في كتابات البادئة المصرَّحة، أفسدت سجلّاتٍ حيّةً لا يعلم بها مخصّص السجلّات — كود خاطئ صامت. يُرفَض التركيب هنا زمن التحليل بفحص احتواء مبنيّ على بيانات المعجم المولَّدة لا على قوائم مكتوبة يدويًّا.
+    en: Implicit clobbers are declared to llvm from the prefix item alone, while the sub-mnemonic is emitted textually inside the prefix template with no item of its own. If its lexicon implicit writes are not contained in the prefix's declared writes, it corrupts live registers the register allocator knows nothing about — silent wrong code. The combination is rejected at parse time by a containment check driven by the generated lexicon data, not hand-written lists.
