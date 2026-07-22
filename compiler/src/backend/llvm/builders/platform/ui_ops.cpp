@@ -37,6 +37,52 @@ using SIROpcode = Compiler::SIR::SIROpcode;
 // Forward declaration - emitRuntimeCall exists in llvm_codegen_android.cpp or llvm_codegen.cpp
 // We use a local helper to avoid dependencies
 
+// (AR) إكراه وسيطٍ واحد إلى نوع معامل الدالّة المُعلَن — الحارس الجذريّ الموحَّد ضدّ
+//      «Calling a function with a bad signature!». مدمجات الواجهة تُعلِن معاملاتها
+//      بأنواع صريحة (غالبًا ptr للعناصر/النصوص)، لكنّ resolveOperand قد يُعيد قيمةً
+//      بنوعٍ مختلف (i64) حين يتدفّق العنصر عبر خانةٍ عدديّة: معامل دالّة بلا نوع، أو
+//      استنتاج إرجاعٍ افتراضيّه i64 في وحدةٍ مستورَدة، أو مؤقّت لُوِّن ptrtoint. تمرير
+//      i64 لمعاملٍ ptr يُفشل verifyModule. هذا الإكراه (نظير حلقة تحويل الوسائط في
+//      cf_branch_call.cpp، وتعميمٌ لـcoerceUiChildToPtr من sad_add_child إلى كلّ
+//      نقطة الاختناق) يضمن تطابق التوقيع دائمًا. inttoptr على عنوانٍ ليس عنصرًا
+//      يحرسه runtime الواجهة وقت التشغيل (غير مُسجَّل في g_widgets) بأمان.
+// (EN) Coerce one arg to the callee's declared param type — the unified root guard
+//      against "Calling a function with a bad signature!". UI builtins declare their
+//      params with explicit types (usually ptr for widgets/strings), but resolveOperand
+//      may hand back a differently-typed value (i64) when a widget flows through an
+//      integer slot: an untyped function param, an imported-module return whose inferred
+//      type defaults to i64, or a ptrtoint'd temporary. Passing i64 to a ptr param fails
+//      verifyModule. This coercion (mirroring the arg-conversion loop in cf_branch_call.cpp,
+//      generalizing coerceUiChildToPtr from sad_add_child to the single choke point)
+//      keeps the signature matched. inttoptr of a non-widget address is guarded safely by
+//      the UI runtime at run time (absent from g_widgets).
+static llvm::Value* coerceUiArgToParam(LLVMCodeGen& cg, llvm::Value* v, llvm::Type* want) {
+    if (!v || !want) return v;
+    llvm::Type* have = v->getType();
+    if (have == want) return v;
+    llvm::IRBuilder<>* b = cg.getBuilder();
+    // (AR) عدد ⇄ مؤشّر (الحالة الأكثر شيوعًا: عنصر مرّ عبر خانة i64)
+    if (want->isPointerTy() && have->isIntegerTy())
+        return b->CreateIntToPtr(v, want);
+    if (want->isIntegerTy() && have->isPointerTy())
+        return b->CreatePtrToInt(v, want);
+    // (AR) عرض صحيح مختلف (i1/i32/i64 …): المنطقيّ i1 يُوسَّع بالأصفار (وإلّا
+    //      صار «صحيح» = -1 بدل 1)؛ أعداد ص موقَّعة فتُوسَّع بالإشارة.
+    // (EN) Differing int width: a boolean (i1) must zero-extend (else true→-1,
+    //      not 1); Sad integers are signed, so sign-extend the rest.
+    if (want->isIntegerTy() && have->isIntegerTy())
+        return b->CreateIntCast(v, want, /*isSigned=*/!have->isIntegerTy(1));
+    // (AR) عشريّ من صحيح / بين عرضَي عشريّ
+    if (want->isFloatingPointTy() && have->isIntegerTy())
+        return b->CreateSIToFP(v, want);
+    if (want->isFloatingPointTy() && have->isFloatingPointTy())
+        return b->CreateFPCast(v, want);
+    if (want->isIntegerTy() && have->isFloatingPointTy())
+        return b->CreateFPToSI(v, want);
+    // (AR) مؤشّر ⇄ مؤشّر (opaque) متطابق فعليًّا؛ أنواع أخرى نادرة تُترك — verifyModule الحارس النهائيّ.
+    return v;
+}
+
 static llvm::Value* emitUIRuntimeCall(
     LLVMCodeGen& cg,
     const std::string& funcName,
@@ -48,7 +94,7 @@ static llvm::Value* emitUIRuntimeCall(
     llvm::Module* module = cg.getModule();
     llvm::IRBuilder<>* builder = cg.getBuilder();
     llvm::LLVMContext* context = cg.getContext();
-    
+
     // Find or create function
     llvm::Function* fn = module->getFunction(funcName);
     if (!fn) {
@@ -56,13 +102,27 @@ static llvm::Value* emitUIRuntimeCall(
         fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, funcName, module);
         fn->addFnAttr(llvm::Attribute::NoUnwind);
     }
-    
+
+    // (AR) إكراه كلّ وسيط إلى نوع معامل الدالّة الفعليّ قبل الاستدعاء — يمنع
+    //      «bad signature» مهما كان نوع القيمة الذي أعاده resolveOperand. نعتمد
+    //      توقيع الدالّة الفعليّ (قد تكون أُعلنت سابقًا) لا argTypes فقط.
+    // (EN) Coerce every arg to the callee's actual param type before the call —
+    //      prevents "bad signature" whatever type resolveOperand returned. We use the
+    //      function's actual signature (it may have been declared earlier), not argTypes.
+    llvm::FunctionType* fnTy = fn->getFunctionType();
+    std::vector<llvm::Value*> coerced;
+    coerced.reserve(argValues.size());
+    for (size_t i = 0; i < argValues.size(); ++i) {
+        llvm::Type* want = (i < fnTy->getNumParams()) ? fnTy->getParamType(i) : nullptr;
+        coerced.push_back(want ? coerceUiArgToParam(cg, argValues[i], want) : argValues[i]);
+    }
+
     // (AR) دوال void لا يجب أن تحمل اسماً للنتيجة
     // (EN) void functions should not have a result name
     if (retType->isVoidTy()) {
-        return builder->CreateCall(fn, argValues);
+        return builder->CreateCall(fn, coerced);
     }
-    return builder->CreateCall(fn, argValues, funcName + "_result");
+    return builder->CreateCall(fn, coerced, funcName + "_result");
 }
 
 // (AR) تحصين نوع معاملات إدارة الشجرة (add/remove/clear child): باني الحاويات
