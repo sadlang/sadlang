@@ -54,7 +54,33 @@
 #include <windows.h>
 #else
 #include <pthread.h>
+#include <sys/stat.h>   /* stat/S_ISDIR — لدعم sad_file_is_dir على POSIX */
 #endif
+
+/* ============================================================================
+ * (AR) جسر نظام الملفّات — يُستدعى من مدمَج «هل_مجلد» في المترجم.
+ *      يُرجع 1 إن كان المسار مجلدًا موجودًا، و0 خلاف ذلك (غير موجود/ملفّ).
+ *      يوحّد سلوك المفسّر (sad::stdlib::filesystem::is_directory) في المُصرَّف.
+ * (EN) Filesystem bridge — called by the compiler's «هل_مجلد» builtin.
+ *      Returns 1 if the path is an existing directory, else 0 (missing/file).
+ *      Unifies the interpreter's is_directory semantics for compiled programs.
+ * ============================================================================ */
+int sad_file_is_dir(const char *path)
+{
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    DWORD attrs = GetFileAttributesA(path);
+    if (attrs == INVALID_FILE_ATTRIBUTES)
+        return 0;
+    return (attrs & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+#else
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return 0;
+    return S_ISDIR(st.st_mode) ? 1 : 0;
+#endif
+}
 
 /* ============================================================================
  * (AR) دوالّ تغليف التزامن — تجريد عابر للمنصّات للقفل والخيوط.

@@ -274,7 +274,7 @@ namespace Sad
                 inline constexpr std::string_view FILE_EXISTS = "هل_موجود";
                 // (AR) هل ملف؟
                 inline constexpr std::string_view IS_FILE = "هل_ملف";
-                // (AR) هل مجلد؟
+                // (AR) هل المسار مجلد موجود؟ (يعيد منطقيًّا)
                 inline constexpr std::string_view IS_DIR = "هل_مجلد";
                 // (AR) إنشاء مجلد
                 inline constexpr std::string_view MKDIR = "أنشئ_مجلد";
@@ -389,7 +389,7 @@ namespace Sad
                 inline constexpr std::string_view REGEX_REPLACE = "تعبير_استبدال";
                 // (AR) كل تطابقات regex
                 inline constexpr std::string_view REGEX_FIND_ALL = "تعبير_جد_الكل";
-                // (AR) الوقت الحالي
+                // (AR) الوقت الحالي (طابع زمني يونكس بالثواني منذ 1970)
                 inline constexpr std::string_view NOW = "الآن";
                 // (AR) الوقت بمللي ثانية
                 inline constexpr std::string_view NOW_MS = "الآن_مللي";
@@ -3079,7 +3079,7 @@ namespace Sad
             {Names::Basics::WRITE_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "كتابة ملف", "", ""},
             {Names::Basics::FILE_EXISTS, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل موجود؟", "", ""},
             {Names::Basics::IS_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل ملف؟", "", ""},
-            {Names::Basics::IS_DIR, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل مجلد؟", "", ""},
+            {Names::Basics::IS_DIR, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل المسار مجلد موجود؟ (يعيد منطقيًّا)", "{'name': 'مسار', 'type': 'نص'}", ""},
             {Names::Basics::MKDIR, "Basics", "MODULE_FUNCTION", "BASICS", true, "إنشاء مجلد", "", ""},
             {Names::Basics::DELETE_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "حذف ملف", "", ""},
             {Names::Basics::EXIT_ALT, "Basics", "MODULE_FUNCTION", "BASICS", true, "إنهاء البرنامج (بديل)", "", ""},
@@ -3132,7 +3132,7 @@ namespace Sad
             {Names::Maps::REGEX_SEARCH, "Maps", "MODULE_FUNCTION", "MAPS", true, "بحث regex", "", ""},
             {Names::Maps::REGEX_REPLACE, "Maps", "MODULE_FUNCTION", "MAPS", true, "استبدال regex", "", ""},
             {Names::Maps::REGEX_FIND_ALL, "Maps", "MODULE_FUNCTION", "MAPS", true, "كل تطابقات regex", "", ""},
-            {Names::Maps::NOW, "Maps", "MODULE_FUNCTION", "MAPS", true, "الوقت الحالي", "", ""},
+            {Names::Maps::NOW, "Maps", "MODULE_FUNCTION", "MAPS", true, "الوقت الحالي (طابع زمني يونكس بالثواني منذ 1970)", "", ""},
             {Names::Maps::NOW_MS, "Maps", "MODULE_FUNCTION", "MAPS", true, "الوقت بمللي ثانية", "", ""},
             {Names::Maps::DATE_FORMAT, "Maps", "MODULE_FUNCTION", "MAPS", true, "تنسيق تاريخ", "", ""},
             {Names::Maps::DATE_COMPONENTS, "Maps", "MODULE_FUNCTION", "MAPS", true, "مكونات التاريخ", "", ""},

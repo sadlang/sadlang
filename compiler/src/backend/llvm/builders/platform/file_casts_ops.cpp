@@ -312,6 +312,32 @@ namespace Sad
             return result;
         }
 
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileIsDir(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: int sad_file_is_dir(const char* path)
+            //      مضيف: stat/GetFileAttributes. حرّ: كعب ضعيف (تتجاوزه النواة).
+            // (EN) Runtime bridge: int sad_file_is_dir(const char* path)
+            //      Hosted: stat/GetFileAttributes. Freestanding: weak stub (OS overrides).
+            auto *isDirType = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+            auto isDirFunc = cg_.module_->getOrInsertFunction("sad_file_is_dir", isDirType);
+            llvm::Value *result = cg_.builder_->CreateCall(isDirFunc, {path}, "isdir_result");
+
+            if (inst->result.has_value())
+            {
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            }
+            return result;
+        }
+
         llvm::Value *FileCastsCodeGen::emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst)
         {
             // List directory contents using runtime helper

@@ -203,6 +203,27 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
 
+                // 9. هل_مجلد / is_dir — فحص إن كان المسار مجلدًا (stat)
+                if (funcName == Bn::Basics::IS_DIR)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة هل_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_IS_DIR);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
                 // ========================================================================
                 // Utility Functions (4 functions)
                 // ========================================================================

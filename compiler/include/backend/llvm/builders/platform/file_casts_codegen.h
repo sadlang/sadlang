@@ -32,6 +32,7 @@ public:
     llvm::Value *emitBuiltinFileMove(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileCreateDir(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileIsDir(std::shared_ptr<SIRInstruction> inst);
 };
 
 }} // namespace Sad::LLVM

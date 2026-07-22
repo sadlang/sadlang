@@ -157,6 +157,26 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     emitFreestandingUmoddi3(i64Ty);
     emitFreestandingDivdi3(i64Ty);
     emitFreestandingModdi3(i64Ty);
+
+    // ========================================================================
+    // 24. time — Current wall-clock time (Unix epoch seconds) via CMOS RTC
+    //     (AR) جسر عتاد: يقرأ ساعة الوقت الحقيقي (منافذ 0x70/0x71) بلا libc.
+    //          يُوفِّر رمز `time` الذي يولّده المترجم لمدمَج «الآن» في وضع --حرّ.
+    //     (EN) Hardware bridge: reads the RTC (ports 0x70/0x71) with no libc.
+    //          Provides the `time` symbol the compiler emits for the «الآن»
+    //          builtin under freestanding (--حرّ) mode.
+    // ========================================================================
+    llvm::Type* i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
+    emitFreestandingTime(i8Ty, i16Ty, i64Ty, ptrTy);
+
+    // ========================================================================
+    // 25. sad_file_is_dir — كعب ضعيف لمدمَج «هل_مجلد» في الوضع الحرّ
+    //     (AR) لا يوجد نظام ملفّات في المعدن العاري؛ نعيد 0 (ليس مجلدًا) كي يرتبط
+    //          البرنامج. النواة المضيفة تتجاوز هذا الرمز بتطبيق VFS حقيقيّ.
+    //     (EN) No filesystem on bare metal; return 0 (not a dir) so linking
+    //          succeeds. The host kernel overrides this symbol with a real VFS.
+    // ========================================================================
+    emitFreestandingFileIsDir(i32Ty, ptrTy);
 }
 
 // (AR) تصريح مسبق — التعريف أدناه / (EN) Forward declaration — defined below
@@ -810,6 +830,153 @@ void FreestandingCodeGen::emitFreestandingCalloc(llvm::Type* i64Ty, llvm::Type* 
     cg_.builder_->CreateMemSet(ptr, cg_.builder_->getInt8(0), total, llvm::MaybeAlign(8));
 
     cg_.builder_->CreateRet(ptr);
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
+// 24. time — Unix epoch seconds from the CMOS Real-Time Clock (no libc)
+// ============================================================================
+// (AR) يُطبّق التوقيع C: time_t time(time_t*). يتجاهل المعامل (يعيد القيمة فقط،
+//      لا يكتب عبر المؤشر كما تسمح المواصفة عند تمرير NULL). يقرأ سِجلّات CMOS
+//      عبر منفذ الفهرس 0x70 ومنفذ البيانات 0x71، يفكّ ترميز BCD، ثم يحوّل مكوّنات
+//      الوقت إلى ثوانٍ منذ 1970 بخوارزمية days-from-civil (سنوات ≥ 2000 موجبة).
+//      افتراضات: وضع BCD (افتراض QEMU/العتاد الشائع) وساعة 24، والسنة 2000–2099.
+// (EN) Implements C signature: time_t time(time_t*). Ignores the argument
+//      (returns the value only; does not write through the pointer — allowed
+//      when NULL is passed). Reads CMOS registers via index port 0x70 / data
+//      port 0x71, BCD-decodes them, then converts the broken-down time to
+//      seconds since 1970 using the days-from-civil algorithm (years ≥ 2000 are
+//      positive). Assumes BCD mode (common QEMU/hardware default), 24h, 2000–2099.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingTime(
+    llvm::Type* i8Ty, llvm::Type* i16Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+{
+    llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "time", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+    auto& B = *cg_.builder_;
+    llvm::Type* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+
+    // (AR) تجميع مُضمّن لـ inb/outb (يطابق نمط llvm_port_io_intrinsics)
+    // (EN) inline asm for inb/outb (mirrors llvm_port_io_intrinsics pattern)
+    llvm::InlineAsm* outbAsm = llvm::InlineAsm::get(
+        llvm::FunctionType::get(voidTy, {i8Ty, i16Ty}, false),
+        "outb $0, $1", "{al},{dx}", true, false);
+    llvm::InlineAsm* inbAsm = llvm::InlineAsm::get(
+        llvm::FunctionType::get(i8Ty, {i16Ty}, false),
+        "inb $1, $0", "={al},{dx}", true, false);
+
+    llvm::Value* idxPort = llvm::ConstantInt::get(i16Ty, 0x70);
+    llvm::Value* dataPort = llvm::ConstantInt::get(i16Ty, 0x71);
+
+    // (AR) دالة محلية: قراءة سِجلّ CMOS رقم reg وإرجاعه كـ i64
+    // (EN) local helper: read CMOS register `reg`, return as i64
+    auto readCmos = [&](uint8_t reg) -> llvm::Value* {
+        B.CreateCall(outbAsm, {llvm::ConstantInt::get(i8Ty, reg), idxPort});
+        llvm::Value* raw = B.CreateCall(inbAsm, {dataPort});
+        return B.CreateZExt(raw, i64Ty);
+    };
+    // (AR) فكّ BCD: (v & 0x0F) + ((v >> 4) * 10)
+    // (EN) BCD decode: (v & 0x0F) + ((v >> 4) * 10)
+    auto bcd = [&](llvm::Value* v) -> llvm::Value* {
+        llvm::Value* lo = B.CreateAnd(v, llvm::ConstantInt::get(i64Ty, 0x0F));
+        llvm::Value* hi = B.CreateMul(
+            B.CreateLShr(v, llvm::ConstantInt::get(i64Ty, 4)),
+            llvm::ConstantInt::get(i64Ty, 10));
+        return B.CreateAdd(lo, hi);
+    };
+
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* wait  = llvm::BasicBlock::Create(*cg_.context_, "uip_wait", fn);
+    llvm::BasicBlock* read  = llvm::BasicBlock::Create(*cg_.context_, "read", fn);
+
+    B.SetInsertPoint(entry);
+    B.CreateBr(wait);
+
+    // (AR) انتظر حتى ينتهي تحديث RTC: سِجلّ الحالة A (0x0A) بت 7 (0x80)
+    // (EN) wait until RTC update finishes: status register A (0x0A) bit 7 (0x80)
+    B.SetInsertPoint(wait);
+    llvm::Value* statusA = readCmos(0x0A);
+    llvm::Value* uip = B.CreateAnd(statusA, llvm::ConstantInt::get(i64Ty, 0x80));
+    llvm::Value* busy = B.CreateICmpNE(uip, llvm::ConstantInt::get(i64Ty, 0));
+    B.CreateCondBr(busy, wait, read);
+
+    B.SetInsertPoint(read);
+    llvm::Value* sec  = bcd(readCmos(0x00));
+    llvm::Value* min  = bcd(readCmos(0x02));
+    llvm::Value* hour = bcd(readCmos(0x04));
+    llvm::Value* day  = bcd(readCmos(0x07));
+    llvm::Value* mon  = bcd(readCmos(0x08));
+    llvm::Value* yy   = bcd(readCmos(0x09)); // 0..99
+    llvm::Value* year = B.CreateAdd(yy, llvm::ConstantInt::get(i64Ty, 2000), "year");
+
+    // days_from_civil (Howard Hinnant); year >= 2000 so all terms are positive.
+    //   y   = year - (mon <= 2)
+    //   era = y / 400
+    //   yoe = y - era*400
+    //   mp  = (mon > 2) ? mon-3 : mon+9
+    //   doy = (153*mp + 2)/5 + day - 1
+    //   doe = yoe*365 + yoe/4 - yoe/100 + doy
+    //   days= era*146097 + doe - 719468
+    llvm::Value* monLE2 = B.CreateICmpULE(mon, llvm::ConstantInt::get(i64Ty, 2));
+    llvm::Value* yAdj = B.CreateSelect(monLE2,
+        llvm::ConstantInt::get(i64Ty, 1), llvm::ConstantInt::get(i64Ty, 0));
+    llvm::Value* y = B.CreateSub(year, yAdj, "y");
+    llvm::Value* era = B.CreateUDiv(y, llvm::ConstantInt::get(i64Ty, 400), "era");
+    llvm::Value* yoe = B.CreateSub(y, B.CreateMul(era, llvm::ConstantInt::get(i64Ty, 400)), "yoe");
+    llvm::Value* mp = B.CreateSelect(
+        B.CreateICmpUGT(mon, llvm::ConstantInt::get(i64Ty, 2)),
+        B.CreateSub(mon, llvm::ConstantInt::get(i64Ty, 3)),
+        B.CreateAdd(mon, llvm::ConstantInt::get(i64Ty, 9)), "mp");
+    llvm::Value* doy = B.CreateAdd(
+        B.CreateUDiv(
+            B.CreateAdd(B.CreateMul(llvm::ConstantInt::get(i64Ty, 153), mp),
+                        llvm::ConstantInt::get(i64Ty, 2)),
+            llvm::ConstantInt::get(i64Ty, 5)),
+        B.CreateSub(day, llvm::ConstantInt::get(i64Ty, 1)), "doy");
+    llvm::Value* doe = B.CreateAdd(
+        B.CreateAdd(
+            B.CreateSub(
+                B.CreateAdd(B.CreateMul(yoe, llvm::ConstantInt::get(i64Ty, 365)),
+                            B.CreateUDiv(yoe, llvm::ConstantInt::get(i64Ty, 4))),
+                B.CreateUDiv(yoe, llvm::ConstantInt::get(i64Ty, 100))),
+            doy),
+        llvm::ConstantInt::get(i64Ty, 0), "doe");
+    llvm::Value* days = B.CreateSub(
+        B.CreateAdd(B.CreateMul(era, llvm::ConstantInt::get(i64Ty, 146097)), doe),
+        llvm::ConstantInt::get(i64Ty, 719468), "days");
+
+    // epoch = days*86400 + hour*3600 + min*60 + sec
+    llvm::Value* epoch = B.CreateAdd(
+        B.CreateAdd(
+            B.CreateAdd(B.CreateMul(days, llvm::ConstantInt::get(i64Ty, 86400)),
+                        B.CreateMul(hour, llvm::ConstantInt::get(i64Ty, 3600))),
+            B.CreateMul(min, llvm::ConstantInt::get(i64Ty, 60))),
+        sec, "epoch");
+    B.CreateRet(epoch);
+
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
+// 25. sad_file_is_dir — weak stub for the «هل_مجلد» builtin in freestanding
+//     Returns 0 (not a directory); the host kernel overrides with a real VFS.
+//     (getOrCreateFreestandingFunc keeps any user/OS-provided definition.)
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingFileIsDir(
+    llvm::Type* i32Ty, llvm::Type* ptrTy)
+{
+    llvm::FunctionType* ft = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(
+        cg_.module_.get(), *cg_.context_, "sad_file_is_dir", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    cg_.builder_->SetInsertPoint(bb);
+    cg_.builder_->CreateRet(llvm::ConstantInt::get(i32Ty, 0));
     cg_.builder_->restoreIP(savedIP);
 }
 

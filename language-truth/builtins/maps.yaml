@@ -129,10 +129,20 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: الوقت الحالي
-  description_en: Current time
+  description_ar: الوقت الحالي (طابع زمني يونكس بالثواني منذ 1970)
+  description_en: Current time (Unix timestamp in seconds since 1970)
   params: []
   lookup_table: MODULE_FUNCTION
+  # (AR) مدعوم في المفسّر والمترجم ووضع الوضع الحرّ.
+  #      مضيف: time(NULL). حرّ: جسر عتاد يقرأ ساعة الوقت الحقيقي CMOS (0x70/0x71).
+  # (EN) Supported in interpreter, compiler, and freestanding.
+  #      Hosted: time(NULL). Freestanding: hardware bridge reading the CMOS RTC.
+  freestanding: true
+  # (AR) تباين معروف: المفسّر يعيد عشريًّا (double) بدقّة أقلّ من الثانية، بينما
+  #      المترجم يعيد صحيحًا (i64) بثوانٍ كاملة — توحيد النوع قرار لغويّ معلّق.
+  # (EN) Known divergence: interpreter returns a double (sub-second), compiler
+  #      returns i64 whole seconds — full type unification is a pending language decision.
+  runtime_note: current-time-bridge
 - cpp_id: NOW_MS
   canonical: الآن_مللي
   namespace: Maps

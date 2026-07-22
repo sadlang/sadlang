@@ -644,6 +644,8 @@ namespace Sad
                 return cg_.emitBuiltinFileCreateDir(inst);
             case SIROpcode::BUILTIN_FILE_LIST_DIR:
                 return cg_.emitBuiltinFileListDir(inst);
+            case SIROpcode::BUILTIN_FILE_IS_DIR:
+                return cg_.emitBuiltinFileIsDir(inst);
 
             // ===== Builtin Extra =====
             case SIROpcode::BUILTIN_MIN:

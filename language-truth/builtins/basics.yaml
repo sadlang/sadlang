@@ -103,10 +103,18 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: هل مجلد؟
-  description_en: Is dir
-  params: []
+  description_ar: هل المسار مجلد موجود؟ (يعيد منطقيًّا)
+  description_en: Is the path an existing directory? (returns boolean)
+  params:
+    - name: مسار
+      type: نص
   lookup_table: MODULE_FUNCTION
+  # (AR) مدعوم في المفسّر والمترجم. مضيف: stat/GetFileAttributes عبر sad_file_is_dir.
+  #      حرّ: كعب ضعيف يعيد 0 (تتجاوزه النواة المضيفة بنظام ملفّات حقيقيّ).
+  # (EN) Supported in interpreter and compiler. Hosted: stat/GetFileAttributes via
+  #      sad_file_is_dir. Freestanding: weak stub returning 0 (host kernel overrides with a real VFS).
+  freestanding: stub
+  runtime_note: filesystem-bridge
 - cpp_id: MKDIR
   canonical: أنشئ_مجلد
   namespace: Basics

@@ -54,6 +54,12 @@ public:
     void emitFreestandingUmoddi3(llvm::Type *i64Ty);
     void emitFreestandingDivdi3(llvm::Type *i64Ty);
     void emitFreestandingModdi3(llvm::Type *i64Ty);
+    // (AR) time — الوقت الحالي عبر ساعة الوقت الحقيقي (RTC/CMOS) بلا مكتبة C
+    // (EN) time — current wall-clock time via the CMOS Real-Time Clock, no libc
+    void emitFreestandingTime(llvm::Type *i8Ty, llvm::Type *i16Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
+    // (AR) sad_file_is_dir — كعب ضعيف لمدمَج «هل_مجلد» (تتجاوزه النواة المضيفة)
+    // (EN) sad_file_is_dir — weak stub for the «هل_مجلد» builtin (host kernel overrides)
+    void emitFreestandingFileIsDir(llvm::Type *i32Ty, llvm::Type *ptrTy);
 };
 
 }} // namespace Sad::LLVM
