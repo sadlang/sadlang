@@ -483,6 +483,25 @@ namespace Sad
                 // (AR) اللبنة 3.14: احرس تصادم رمز @رمز المُصدَّر (SEM022): تكرار
                 //      الاسم أو مصادفة رمز محجوز لزمن التشغيل ⇒ الرابط يعيد التسمية
                 //      صامتًا فيفقد غرضه أو يُفسد نداءات memset/malloc… رفعُ خطأ مفهوم.
+                // (AR) مصدرا التصادم اللذان تحرسهما القائمة:
+                //   (أ) رمز يُصدر له المترجم تعريفًا **ضعيفًا** — لكن فقط تحت
+                //       cg_.freestanding_ (emitFreestandingRuntime أعلاه): @رمز
+                //       عليه = تعريف ثالث ⇒ تصادم فالرابط يختار عشوائيًّا.
+                //   (ب) رمز منصّة توفّره **libc** في الوضع المستضاف (memset،
+                //       __stack_chk_guard…): @رمز قويّ عليه يقنّع رمز libc — إمّا
+                //       خطأ ربط، أو تقنيع **صامت** لكوكي SSP بقيمة ثابتة (تعطيل
+                //       حماية تحطّم المكدّس). لذا يبقى الحجب في المستضاف.
+                // (AR) kReservedRt: محجوزة **دائمًا** (المصدر (أ) في الحرّ أو (ب)
+                //      في المستضاف، وكلاهما لبقيّة القائمة). __stack_chk_fail هنا
+                //      دالّة زمن تشغيل ⇒ ربط **بيانة** باسمها غير مشروع أبدًا
+                //      (SSP ينادي دالّة)، فيبقى محجوزًا للمتغيّرات في كِلا الوضعين
+                //      (مسار @رمز على الدوالّ منفصل لا يستشير هذه القائمة ⇒ هجرة
+                //      __stack_chk_fail دالّةً في أخ.3 غير متأثّرة).
+                // (AR) kHostedOnlyReserved: بيانات منصّة يوفّرها المصدر (ب) فقط
+                //      (لا احتياطيّ ضعيف من المترجم أصلًا) ⇒ تُحجَب في المستضاف
+                //      وتُرخى في **الوضع الحرّ** حيث لا مصدر آخر فيصير @رمز التعريف
+                //      الوحيد (RFC إرخاء الحارس؛ يُمكِّن هجرة __stack_chk_guard إلى ص).
+                //      التكرار الفعليّ يبقى محروسًا أدناه (getNamedValue) وبالرابط.
                 if (hasLinkSym)
                 {
                     static const std::set<std::string> kReservedRt = {
@@ -490,9 +509,13 @@ namespace Sad
                         "malloc", "free", "realloc",
                         "__sad_heap", "__sad_heap_offset", "__sad_main",
                         "__divdi3", "__udivdi3", "__moddi3", "__umoddi3",
-                        "__stack_chk_guard", "__stack_chk_fail"};
+                        "__stack_chk_fail"};
+                    static const std::set<std::string> kHostedOnlyReserved = {
+                        "__stack_chk_guard"};
                     const std::string &sym = globalVar->getLinkName();
-                    if (kReservedRt.count(sym))
+                    const bool reserved = kReservedRt.count(sym) ||
+                        (!cg_.freestanding_ && kHostedOnlyReserved.count(sym));
+                    if (reserved)
                     {
                         cg_.reportError(::Sad::Errors::ErrorCode::SEM_SYMBOL_NAME_CONFLICT,
                             {{"detail", "@رمز(\"" + sym + "\"): اسم محجوز لزمن التشغيل المضمَّن — اختر اسمًا آخر"}});

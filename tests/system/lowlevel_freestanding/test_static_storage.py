@@ -120,6 +120,60 @@ def test_symbol_reserved_runtime_name_errors():
     assert "محجوز" in out or "SEM022" in out or "memset" in out, "ليست رسالة تصادم الرمز:\n" + out
 
 
+def test_symbol_stack_guard_allowed_freestanding():
+    """(AR) @رمز("__stack_chk_guard") في **الوضع الحرّ** ⇒ يُقبَل: لا احتياطيّ
+    ضعيف من المترجم ولا libc ⇒ @رمز التعريف الوحيد (RFC إرخاء الحارس). يُصدَر
+    رمزًا عامًّا مُعرَّفًا i64 بالاسم الحرفيّ (توثيق حيّ لانحراف الحجم i64 مقابل
+    uintptr_t — يخصّ المستهلك، انظر RFC)."""
+    code, out, ir = _compile('@رمز("__stack_chk_guard") متغير حارس = 3202730513\n', FREESTANDING)
+    assert code == 0, "@رمز(__stack_chk_guard) رُفض في الوضع الحرّ رغم الإرخاء:\n" + out
+    assert "@__stack_chk_guard = global i64" in ir, \
+        "لم يُصدَر __stack_chk_guard رمزًا عامًّا i64 مُعرَّفًا:\n" + ir[:1500]
+
+
+def test_symbol_stack_guard_rejected_hosted():
+    """(AR) @رمز("__stack_chk_guard") في **المستضاف** ⇒ يُحجَب: libc توفّره،
+    فتعريف قويّ يقنّع كوكي SSP العشوائيّ صامتًا (تعطيل الحماية). الإرخاء حرّيّ
+    حصرًا — هذا حارس الثغرة الأمنيّة. الخاصّيّة المُختبَرة: رسالة الحجب تظهر
+    والرمز الخطير **لا يُصدَر** (‏continue يتخطّى الإصدار). ملاحظة: خروج المترجم
+    يبقى 0 في المستضاف لأخطاء هذه المرحلة — قيد قائم يخصّ كلّ الأسماء المحجوزة
+    لا هذا التغيير، فنختبر عدم الإصدار لا رمز الخروج."""
+    code, out, ir = _compile('@رمز("__stack_chk_guard") متغير حارس = 3202730513\n')
+    assert "محجوز" in out or "__stack_chk_guard" in out, "لم تظهر رسالة الحجب في المستضاف:\n" + out
+    assert "@__stack_chk_guard = global" not in ir, \
+        "أُصدر __stack_chk_guard قويًّا في المستضاف — يقنّع SSP لـlibc:\n" + ir[:1500]
+
+
+def test_symbol_stack_chk_fail_var_rejected():
+    """(AR) @رمز("__stack_chk_fail") على **متغيّر** ⇒ يُحجَب دائمًا (حرّ ومستضاف):
+    __stack_chk_fail دالّة زمن تشغيل يناديها SSP؛ ربط بيانة باسمها فخّ (نداء
+    كائن بيانات ⇒ تعطّل). مسار @رمز على الدوالّ منفصل ولا يتأثّر."""
+    code_fs, out_fs, ir_fs = _compile('@رمز("__stack_chk_fail") متغير ح = 0\n', FREESTANDING)
+    assert code_fs != 0, "@رمز(__stack_chk_fail) على متغيّر نجح في الحرّ — فخّ ربط بيانات:\n" + out_fs
+    assert "@__stack_chk_fail = global" not in ir_fs, "أُصدر __stack_chk_fail بيانةً في الحرّ:\n" + ir_fs[:1500]
+    _, out_h, ir_h = _compile('@رمز("__stack_chk_fail") متغير ح = 0\n')
+    assert "@__stack_chk_fail = global" not in ir_h, "أُصدر __stack_chk_fail بيانةً في المستضاف:\n" + ir_h[:1500]
+
+
+def test_symbol_memset_rejected_hosted():
+    """(AR) @رمز("memset") يبقى محجوبًا في **المستضاف** أيضًا (libc توفّره) —
+    إثبات أنّ الإرخاء محصور بحارس المكدّس ولم يفتح رموز libc العامّة. نختبر عدم
+    الإصدار (خروج المستضاف 0 كما في الحارس أعلاه)."""
+    code, out, ir = _compile('@رمز("memset") متغير خ = 0\n')
+    assert "محجوز" in out or "memset" in out, "لم تظهر رسالة حجب memset في المستضاف:\n" + out
+    assert "@memset = global" not in ir, "أُصدر memset قويًّا في المستضاف — يُفسد libc:\n" + ir[:1500]
+
+
+def test_symbol_stack_guard_duplicate_freestanding_errors():
+    """(AR) تكرار @رمز("__stack_chk_guard") في الوضع الحرّ ⇒ خطأ (حارس التكرار
+    getNamedValue ما زال يمسك الرمز المُرخَّى — الإرخاء لم يعطّله)."""
+    src = ('@رمز("__stack_chk_guard") متغير أ = 3202730513\n'
+           '@رمز("__stack_chk_guard") متغير ب = 0\n')
+    code, out, _ = _compile(src, FREESTANDING)
+    assert code != 0, "تكرار __stack_chk_guard نجح — حارس التكرار معطَّل:\n" + out
+    assert "تكرار" in out or "موجود" in out or "محجوز" in out, "ليست رسالة التكرار:\n" + out
+
+
 def test_symbol_duplicate_name_errors():
     """(AR) رمزان @رمز بنفس الاسم ⇒ خطأ SEM022 (تكرار، الرابط يعيد التسمية صامتًا)."""
     src = '@رمز("bee_dup") متغير أ = 0\n@رمز("bee_dup") متغير ب = 1\n'
