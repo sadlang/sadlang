@@ -41,6 +41,8 @@ using Sad::AST::StmtList;
 #define AR_CTOR "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A"         // باني
 #define AR_STRUCT "\xD8\xA8\xD9\x86\xD9\x8A\xD8\xA9"       // بنية
 #define AR_ENUM "\xD8\xAA\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF" // تعداد
+#define AR_ASM "\xD8\xAA\xD8\xAC\xD9\x85\xD9\x8A\xD8\xB9"  // تجميع (فاتحة كتلة لهجة التجميع)
+#define AR_ASM_NOP "\xD9\x84\xD8\xA7_\xD8\xB9\xD9\x85\xD9\x84" // لا_عمل (منمنمة nop)
 
 // ======================================================================
 // (AR) أدوات مساعدة / (EN) Helpers
@@ -322,6 +324,26 @@ int main()
             "second()\n" AR_END "\n";
         auto md = md_of(src);
         SAD_ASSERT_TRUE(contains(md, "Documented items:** 1"));
+    });
+
+    SAD_TEST("DOC-L03: ## داخل كتلة «تجميع … نهاية» لا يلتصق بالتصريح التالي", {
+        // (AR) بوّابة تصميم م٢ (الفجوة ٣): تعليق توثيق داخل كتلة لهجة التجميع
+        //      تعليقٌ معزول — parseAsmBlockStmt يمسح pendingDoc_/nextDoc_ عند
+        //      نهاية الكتلة، فلا يتسرّب `##` إلى الدالة المعرَّفة بعدها.
+        // (EN) M2 design gate (gap 3): a doc comment inside an asm dialect block
+        //      is isolated — it must never attach to the declaration after the
+        //      block (pendingDoc_/nextDoc_ are cleared at block end).
+        std::string src =
+            AR_ASM "\n"
+            "  ## توثيق حبيس الكتلة\n"
+            "  " AR_ASM_NOP "\n"
+            AR_END "\n"
+            AR_FUNC " after_asm()\n" AR_END "\n";
+        auto md = md_of(src);
+        // (AR) لا عنصر موثَّق إطلاقًا، ونصّ التوثيق الحبيس لا يظهر في المخرج.
+        SAD_ASSERT_TRUE(contains(md, "Documented items:** 0"));
+        SAD_ASSERT_TRUE(!contains(md,
+            "\xD8\xAD\xD8\xA8\xD9\x8A\xD8\xB3")); // "حبيس"
     });
 
     // ══════════════════════════════════════════════════════════════════

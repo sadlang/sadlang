@@ -119,6 +119,7 @@ namespace Sad
             std::string mnemonicAr;      ///< (AR) المنمنمة العربيّة القانونيّة (مجرَّدة التشكيل) / Arabic mnemonic
             std::string mnemonicEn;      ///< (AR) التعليمة الأصليّة المخفوضة (من المعجم) / native mnemonic
             std::string operandClasses;  ///< (AR) أصناف المعاملات من المعجم (w/r/l/m/i/a) / operand classes
+            bool readsDest = false;      ///< (AR) الوجهة تُقرأ قبل الكتابة (من المعجم) ⇒ ربط inout / dest read before written
             std::vector<AsmOperand> operands;
             Lexer::Position pos;
         };

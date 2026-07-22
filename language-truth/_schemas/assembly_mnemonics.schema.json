@@ -50,6 +50,10 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
+        "reads_dest": {
+          "type": "boolean",
+          "description": "هل تُقرأ الوجهة قبل الكتابة؟ إلزاميّ (يفرضه المولّد) لكلّ منمنمة لها معامل «وجهة»: true ⇒ ربط inout (اجمع/وافق/زد…)، false ⇒ خرج صِرف (انقل/حمّل_عنوان/اسحب…)"
+        },
         "note": { "type": "string" }
       }
     }

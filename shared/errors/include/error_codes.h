@@ -159,6 +159,7 @@ namespace Sad
             SEM_ASM_DUPLICATE_LABEL,      ///< SEM030: (AR) لصيقة مكرَّرة في كتلة التجميع / (EN) duplicate label in an asm block
             SEM_ASM_UNDEFINED_VAR,        ///< SEM031: (AR) متغيّر ص غير معرَّف داخل {…} في كتلة التجميع / (EN) undefined sad var in {…} in an asm block
             SEM_ASM_MEMORY_FORM,          ///< SEM032: (AR) صيغة عنونة غير مدعومة في كتلة التجميع (م١) / (EN) unsupported memory-addressing form in an asm block (M1)
+            SEM_ASM_UNKNOWN_REGISTER,     ///< SEM033: (AR) سجلّ تجميع غير معجميّ / (EN) unknown assembly register (dialect)
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

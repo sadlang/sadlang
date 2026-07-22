@@ -1971,9 +1971,10 @@ namespace Sad
                         const Register *reg = findRegister(current_.getValue().c_str());
                         if (!reg)
                         {
-                            // (AR) موضع سجلّ (داخل عنونة) ⇒ اقتراحات تشمل السجلّات (تصحيح ٦).
-                            errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
-                                         {{"mnemonic", current_.getValue()},
+                            // (AR) موضع سجلّ (داخل عنونة) ⇒ خطأ سجلّ SEM033 واقتراحات
+                            //      تشمل السجلّات (تصحيح ٦) — لا يُسمّى السجلّ «منمنمة».
+                            errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_REGISTER,
+                                         {{"register", current_.getValue()},
                                           {"suggestions", asmNearestNames(current_.getValue(), true)}});
                             advance();
                             continue;
@@ -2085,10 +2086,10 @@ namespace Sad
                     advance();
                     return op;
                 }
-                // (AR) معرّف ليس سجلًّا في موضع سجلّ/قيمة — اسم غير معجميّ.
+                // (AR) معرّف ليس سجلًّا في موضع سجلّ/قيمة — خطأ سجلّ SEM033.
                 //      الاقتراحات تشمل السجلّات (تصحيح ٦: سجلّ مُخطأ يُقترَح له سجلّ).
-                errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
-                             {{"mnemonic", name},
+                errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_REGISTER,
+                             {{"register", name},
                               {"suggestions", asmNearestNames(name, true)}});
                 advance();
                 return op;
@@ -2150,9 +2151,11 @@ namespace Sad
                         else if (const Register *reg = findRegister(target.c_str()))
                             clob.llvm = std::string("~{") + reg->en + "}";
                         else
-                            errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
-                                         {{"mnemonic", target},
-                                          {"suggestions", asmNearestMnemonics(target)}});
+                            // (AR) هدف يلوّث = سجلّ أو هدف مخصوص ⇒ خطأ سجلّ SEM033
+                            //      واقتراحات تشمل السجلّات (لا اقتراح منمنمات هنا).
+                            errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_REGISTER,
+                                         {{"register", target},
+                                          {"suggestions", asmNearestNames(target, true)}});
                         if (!clob.llvm.empty())
                             block->clobbers.push_back(std::move(clob));
                         advance();
@@ -2214,6 +2217,7 @@ namespace Sad
                 item.mnemonicAr = mnemonicName;
                 item.mnemonicEn = info->en;
                 item.operandClasses = info->operandClasses;
+                item.readsDest = info->readsDest;
                 item.pos = mnemonicPos;
 
                 const std::size_t expected = std::strlen(info->operandClasses);

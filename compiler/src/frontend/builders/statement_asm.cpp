@@ -15,6 +15,7 @@
 #include "builders/statement_builder.h"
 #include "directive_nodes.h"
 #include "asm_dialect_generated.h"
+#include "sir_constants.h" // (AR) kRawLlvmAsmMarker — عقد SOH المشترك مع الخلفيّة
 #include "error_manager.h" // (AR) buildBilingualMessage — بلاغات كتالوج الأخطاء (مصدر الحقيقة)
 
 #include <map>
@@ -32,9 +33,10 @@ namespace Sad
             namespace
             {
                 // (AR) نمرّر النصّ النهائيّ بصيغة LLVM جاهزة (‎$$‎ للثابت، ‎$N‎ للمعامل،
-                //      ‎%reg‎ للسجلّ) مع بادئة SOH كي يتخطّى الخلفيُّ تحويل صيغة GCC.
-                // (EN) SOH prefix tells the backend to skip its GCC->LLVM conversion.
-                constexpr char kRawLlvmAsmMarker = '\x01';
+                //      ‎%reg‎ للسجلّ) مع بادئة SOH كي يتخطّى الخلفيُّ تحويل صيغة GCC —
+                //      الثابت المشترك kRawLlvmAsmMarker في sir_constants.h (عقد الطبقتين).
+                // (EN) SOH prefix tells the backend to skip its GCC->LLVM conversion —
+                //      shared constant kRawLlvmAsmMarker in sir_constants.h.
 
                 // (AR) يصيّر معامل سجلّ/عدد إلى نصّ AT&T. العنونة تُعالَج في المستدعي
                 //      (renderMemory) لأنّها تحتاج ربط {متغيّر} ⇒ $N والإبلاغ عن الأخطاء.
@@ -104,9 +106,12 @@ namespace Sad
                             {
                                 pushUnique(writtenOrder, op.text);
                                 isWritten[op.text] = true;
-                                // (AR) وجهة الحساب (اجمع/اطرح…) تُقرأ أيضًا ⇒ inout.
-                                //      «انقل» (mov) يكتب دون قراءة. نميّزها بالمنمنمة.
-                                if (item.mnemonicEn != "mov")
+                                // (AR) وجهة تُقرأ قبل الكتابة (اجمع/اطرح/وافق…) ⇒ inout.
+                                //      التصنيف من علم reads_dest في معجم مصدر الحقيقة
+                                //      (انقل/حمّل_عنوان/اسحب… تكتب دون قراءة).
+                                // (EN) Dest-reading mnemonics (per the SoT reads_dest
+                                //      flag) bind as inout; write-only dests do not.
+                                if (item.readsDest)
                                     isRead[op.text] = true;
                             }
                             else

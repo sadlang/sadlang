@@ -153,4 +153,16 @@ namespace Sad::Compiler
     inline constexpr const char *kAdtWrongVariantFieldMsg =
         "Error [RUN005]: ADT field access on a variant that does not contain the field (enum '%s')\n";
 
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) علامة SOH ‎(\x01)‎ في بداية قالب INLINE_ASM: نصّ بصيغة LLVM جاهزة
+    //      (‎$$‎ للثابت، ‎$N‎ للمعامل، ‎%reg‎ للسجلّ) تُصدرها لهجة التجميع العربيّ (م١)
+    //      في statement_asm.cpp، فتتخطّى الخلفيّة (strings_ops.cpp) تحويل صيغة
+    //      GCC→LLVM وتحذف العلامة. عقد بين طبقتَي المترجم ⇒ ثابت واحد مشترك.
+    // (EN) SOH ‎(\x01)‎ prefix on an INLINE_ASM template: the text is already
+    //      LLVM-style (emitted by the Arabic assembly dialect, M1) — the backend
+    //      skips its GCC→LLVM conversion and strips the marker. A contract
+    //      between compiler layers ⇒ one shared named constant.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr char kRawLlvmAsmMarker = '\x01';
+
 } // namespace Sad::Compiler

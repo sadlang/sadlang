@@ -555,3 +555,22 @@ errors:
   detailed:
     ar: معامل العنونة يُخفَض إلى صيغة AT&T «disp(base)». قاعدة واحدة فقط مسموحة في م١ (سجلّ أو متغيّر ص)، مع إزاحة عدديّة اختياريّة. صيغة غير مدعومة (قاعدتان، أو فهرس×حجم) كانت تُسقِط أجزاءً صامتًا (مثل ضياع الإزاحة)؛ الآن تُرفَض صراحةً.
     en: A memory operand lowers to AT&T "disp(base)". Only one base is allowed in M1 (a register or a sad var), with an optional integer displacement. An unsupported form (two bases, or index*scale) used to silently drop parts (e.g. a lost displacement); it is now rejected explicitly.
+
+- code: SEM_ASM_UNKNOWN_REGISTER
+  id: SEM033
+  category: semantic
+  title:
+    ar: سجلّ تجميع غير معجميّ
+    en: unknown assembly register
+  brief:
+    ar: 'السجلّ «{register}» غير موجود في معجم سجلّات لهجة التجميع. هل تقصد: {suggestions}؟'
+    en: 'Register "{register}" is not in the assembly-dialect register lexicon. Did you mean: {suggestions}?'
+  placeholders:
+  - register
+  - suggestions
+  fix_hint:
+    ar: 'استعمل اسم سجلّ معجميًّا من معجم i686 (المركم/القاعدة/العدّاد/البيانات/رأس_المكدّس …)، أو أضِفه بقرار لغويّ في language-truth/dialects/assembly_mnemonics/i686.yaml.'
+    en: 'Use a register name from the i686 lexicon (المركم/القاعدة/العدّاد/البيانات/رأس_المكدّس …), or add it by a language decision in language-truth/dialects/assembly_mnemonics/i686.yaml.'
+  detailed:
+    ar: مواضع السجلّ في كتلة «تجميع … نهاية» (معامل سجلّ، وقاعدة عنونة داخل [ … ]، وهدف يلوّث) تُفحص مقابل معجم السجلّات العربيّ المولَّد من مصدر الحقيقة. اسم غير معجميّ في موضع سجلّ يُرفَض بهذا الخطأ مع أقرب البدائل من السجلّات — رسالة مميَّزة عن SEM025 (منمنمة مجهولة) كي لا يُسمّى السجلّ «منمنمة» خطأً.
+    en: Register positions inside an "تجميع … نهاية" block (a register operand, an addressing base inside [ … ], and a يلوّث clobber target) are validated against the Arabic register lexicon generated from the SoT. A non-lexicon name in a register position is rejected with this error plus nearest register suggestions — distinct from SEM025 (unknown mnemonic) so a register is never misnamed a "mnemonic".

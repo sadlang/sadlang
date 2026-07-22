@@ -108,11 +108,14 @@ namespace Sad
             // (AR) منمنمة واحدة: العربيّ القانونيّ ⇒ التعليمة الأصليّة + أصناف المعاملات.
             //      operandClasses سلسلة من رموز: w=وجهة r=قراءة l=لصيقة m=ذاكرة i=عدد a=بادئة.
             //      عدد المعاملات = طول السلسلة.
+            //      readsDest: هل تُقرأ الوجهة قبل الكتابة (من reads_dest في SoT)؟
+            //      true ⇒ ربط inout (اجمع/وافق/زد…)، false ⇒ خرج صِرف (انقل/حمّل_عنوان…).
             struct Mnemonic
             {
                 const char *ar;             // (AR) canonical Arabic (diacritic-stripped)
                 const char *en;             // (EN) native mnemonic (lowered form)
                 const char *operandClasses; // (AR) one char per operand
+                bool readsDest;             // (AR) الوجهة تُقرأ قبل الكتابة / dest is read before written
             };
 
             // (AR) سجلّ واحد: الاسم العربيّ ⇒ الاسم الأصليّ.
@@ -182,8 +185,22 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
                 if op not in _OPERAND_CLASS:
                     raise SystemExit(f"[gen_asm_dialect] صنف معامل مجهول '{op}' في المنمنمة {it['ar']}")
                 classes += _OPERAND_CLASS[op]
+            # (AR) reads_dest إلزاميّ لكلّ منمنمة لها معامل وجهة (w)، وممنوع لغيرها —
+            #      حارس يفرض المراجعة المعماريّة الصريحة في مصدر الحقيقة.
+            # (EN) reads_dest is mandatory for every 'w'-operand mnemonic and
+            #      forbidden otherwise — forces an explicit architectural review.
+            has_dest = "w" in classes
+            if has_dest and "reads_dest" not in it:
+                raise SystemExit(
+                    f"[gen_asm_dialect] المنمنمة {it['ar']} لها معامل «وجهة» بلا حقل reads_dest — صنّفها صراحةً في SoT"
+                )
+            if not has_dest and "reads_dest" in it:
+                raise SystemExit(
+                    f"[gen_asm_dialect] المنمنمة {it['ar']} بلا معامل «وجهة» لكن لها reads_dest — احذف الحقل"
+                )
+            reads_dest = "true" if it.get("reads_dest", False) else "false"
             lines.append(
-                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}" }},'
+                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest} }},'
                 f'  // {it["ar"]} => {it["en"]}'
             )
     lines.append("            };")

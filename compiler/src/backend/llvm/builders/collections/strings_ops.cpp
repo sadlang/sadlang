@@ -76,11 +76,13 @@ namespace Sad
                 return nullptr;
             }
 
-            // (AR) لهجة التجميع (م١): نصّ مسبوق بـSOH ‎(\x01)‎ يعني «صيغة LLVM جاهزة»
-            //      (‎$$‎ للثابت، ‎$N‎ للمعامل، ‎%reg‎ للسجلّ) ⇒ نتخطّى تحويل GCC.
+            // (AR) لهجة التجميع (م١): نصّ مسبوق بـSOH يعني «صيغة LLVM جاهزة»
+            //      (‎$$‎ للثابت، ‎$N‎ للمعامل، ‎%reg‎ للسجلّ) ⇒ نتخطّى تحويل GCC —
+            //      الثابت المشترك kRawLlvmAsmMarker في sir_constants.h (عقد الطبقتين).
             // (EN) Assembly dialect (M1): a SOH-prefixed text is already LLVM-style —
-            //      skip the GCC->LLVM conversion below.
-            bool rawLlvmAsm = (!asmText.empty() && asmText[0] == '\x01');
+            //      skip the GCC->LLVM conversion below (shared kRawLlvmAsmMarker).
+            bool rawLlvmAsm =
+                (!asmText.empty() && asmText[0] == ::Sad::Compiler::kRawLlvmAsmMarker);
             if (rawLlvmAsm)
             {
                 asmText.erase(asmText.begin());

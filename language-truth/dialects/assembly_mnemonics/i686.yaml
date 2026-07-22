@@ -56,47 +56,51 @@ registers:
 addressing_note: "الترتيب: الوجهة أوّلًا ثمّ المصدر (اصطلاح Intel — كترتيب المفعولين في «سلّم فلانًا الشيءَ»)"
 
 # ─── التعليمات ──────────────────────────────────────────────
+# reads_dest: هل تُقرأ الوجهة قبل الكتابة؟ إلزاميّ لكلّ منمنمة لها معامل «وجهة»
+#   (المولّد يرفض غيابه). true = الوجهة تُقرأ وتُكتب (اجمع/وافق/زد…) ⇒ ربط inout؛
+#   false = الوجهة تُكتب فقط (انقل/حمّل_عنوان/اسحب…) ⇒ خرج صِرف.
+#   ملاحظة «بادل» (xchg): يكتب معامله الثاني أيضًا — تمثيله الكامل مؤجَّل لما بعد م١.
 instructions:
 
   نقل_وبيانات:
-    - { ar: انقل,            en: mov,    operands: [وجهة, مصدر] }
-    - { ar: انقل_بتصفير,     en: movzx,  operands: [وجهة, مصدر], note: "توسيع بلا إشارة" }
-    - { ar: انقل_بمدّ_الإشارة, en: movsx, operands: [وجهة, مصدر] }
-    - { ar: بادل,            en: xchg,   operands: [وجهة, مصدر] }
-    - { ar: حمّل_عنوان,      en: lea,    operands: [وجهة, ذاكرة] }
+    - { ar: انقل,            en: mov,    operands: [وجهة, مصدر], reads_dest: false }
+    - { ar: انقل_بتصفير,     en: movzx,  operands: [وجهة, مصدر], reads_dest: false, note: "توسيع بلا إشارة" }
+    - { ar: انقل_بمدّ_الإشارة, en: movsx, operands: [وجهة, مصدر], reads_dest: false }
+    - { ar: بادل,            en: xchg,   operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: حمّل_عنوان,      en: lea,    operands: [وجهة, ذاكرة], reads_dest: false }
     - { ar: ادفع,            en: push,   operands: [مصدر] }
-    - { ar: اسحب,            en: pop,    operands: [وجهة] }
+    - { ar: اسحب,            en: pop,    operands: [وجهة], reads_dest: false }
     - { ar: ادفع_الكلّ,      en: pusha,  operands: [] }
     - { ar: اسحب_الكلّ,      en: popa,   operands: [] }
     - { ar: ادفع_الأعلام,    en: pushf,  operands: [] }
     - { ar: اسحب_الأعلام,    en: popf,   operands: [] }
 
   حساب:
-    - { ar: اجمع,             en: add,  operands: [وجهة, مصدر] }
-    - { ar: اجمع_بالحمل,      en: adc,  operands: [وجهة, مصدر] }
-    - { ar: اطرح,             en: sub,  operands: [وجهة, مصدر] }
-    - { ar: اطرح_بالاستلاف,   en: sbb,  operands: [وجهة, مصدر] }
+    - { ar: اجمع,             en: add,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اجمع_بالحمل,      en: adc,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اطرح,             en: sub,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اطرح_بالاستلاف,   en: sbb,  operands: [وجهة, مصدر], reads_dest: true }
     - { ar: اضرب,             en: mul,  operands: [مصدر], note: "بلا إشارة؛ الناتج البيانات:المركم (الأعلى في البيانات)" }
-    - { ar: اضرب_بإشارة,      en: imul, operands: [وجهة, مصدر], note: "الصيغة الأحاديّة (ناتج البيانات:المركم) تُضاف عند حاجة __muldi3" }
+    - { ar: اضرب_بإشارة,      en: imul, operands: [وجهة, مصدر], reads_dest: true, note: "الصيغة الأحاديّة (ناتج البيانات:المركم) تُضاف عند حاجة __muldi3" }
     - { ar: اقسم,             en: div,  operands: [مصدر], note: "بلا إشارة؛ يقسم البيانات:المركم على المصدر — الخارج في المركم والباقي في البيانات؛ صفّر البيانات قبلها وإلا #DE. أساسٌ تُبنى فوقه __divdi3" }
     - { ar: اقسم_بإشارة,      en: idiv, operands: [مصدر], note: "مدّ الإشارة قبلها بـمدّ_الإشارة_للبيانات" }
     - { ar: مدّ_الإشارة_للبيانات, en: cdq, operands: [], note: "يمدّ إشارة المركم إلى البيانات — واجبة قبل اقسم_بإشارة" }
-    - { ar: زد,               en: inc,  operands: [وجهة] }
-    - { ar: أنقص,             en: dec,  operands: [وجهة] }
-    - { ar: اعكس_الإشارة,     en: neg,  operands: [وجهة] }
+    - { ar: زد,               en: inc,  operands: [وجهة], reads_dest: true }
+    - { ar: أنقص,             en: dec,  operands: [وجهة], reads_dest: true }
+    - { ar: اعكس_الإشارة,     en: neg,  operands: [وجهة], reads_dest: true }
 
   منطق_وبتّات:
-    - { ar: وافق,             en: and,  operands: [وجهة, مصدر], note: "تبقى البتّات حيث يتوافق المعاملان («طابق» رُفضت — كلمة ص محجوزة). محسوم: معجم البتّيّات موحَّد على أسماء اللهجة — المدمجات بت_و/بت_أو/بت_حصري/بت_نفي تُرحَّل إليها (دَين ترحيل متتبَّع)" }
-    - { ar: ضمّ,              en: or,   operands: [وجهة, مصدر], note: "ضمّ البتّات" }
-    - { ar: خالف,             en: xor,  operands: [وجهة, مصدر], note: "تُرفع البتّات المختلفة؛ خالف س، س = تصفير" }
-    - { ar: اعكس_البتّات,     en: not,  operands: [وجهة] }
+    - { ar: وافق,             en: and,  operands: [وجهة, مصدر], reads_dest: true, note: "تبقى البتّات حيث يتوافق المعاملان («طابق» رُفضت — كلمة ص محجوزة). محسوم: معجم البتّيّات موحَّد على أسماء اللهجة — المدمجات بت_و/بت_أو/بت_حصري/بت_نفي تُرحَّل إليها (دَين ترحيل متتبَّع)" }
+    - { ar: ضمّ,              en: or,   operands: [وجهة, مصدر], reads_dest: true, note: "ضمّ البتّات" }
+    - { ar: خالف,             en: xor,  operands: [وجهة, مصدر], reads_dest: true, note: "تُرفع البتّات المختلفة؛ خالف س، س = تصفير (تقرأ الوجهة معماريًّا وإن كانت النتيجة مستقلّة عنها)" }
+    - { ar: اعكس_البتّات,     en: not,  operands: [وجهة], reads_dest: true }
     - { ar: افحص,             en: test, operands: [أ, ب], note: "وافق بلا كتابة — يضبط الأعلام فقط" }
     - { ar: قارن,             en: cmp,  operands: [أ, ب] }
-    - { ar: أزح_يسارًا,       en: shl,  operands: [وجهة, مقدار] }
-    - { ar: أزح_يمينًا,       en: shr,  operands: [وجهة, مقدار] }
-    - { ar: أزح_يمينًا_بإشارة, en: sar, operands: [وجهة, مقدار] }
-    - { ar: دوّر_يسارًا,      en: rol,  operands: [وجهة, مقدار] }
-    - { ar: دوّر_يمينًا,      en: ror,  operands: [وجهة, مقدار] }
+    - { ar: أزح_يسارًا,       en: shl,  operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: أزح_يمينًا,       en: shr,  operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: أزح_يمينًا_بإشارة, en: sar, operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: دوّر_يسارًا,      en: rol,  operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: دوّر_يمينًا,      en: ror,  operands: [وجهة, مقدار], reads_dest: true }
 
   قفز_وتحكّم:
     - { ar: اقفز,                    en: jmp, operands: [لصيقة] }
