@@ -456,19 +456,13 @@ namespace Sad
 
                 cg_.builder_->SetInsertPoint(trapBB);
                 {
-                    auto ptrTyTrap = llvm::PointerType::getUnqual(*cg_.context_);
-                    auto *printfType = llvm::FunctionType::get(
-                        llvm::Type::getInt32Ty(*cg_.context_), {ptrTyTrap}, true);
-                    auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
-                    llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
-                        Sad::Compiler::kAdtWrongVariantFieldMsg, "adt.wrongvar.fmt");
-                    llvm::Value *enumNameStr = cg_.builder_->CreateGlobalStringPtr(
-                        inst->operands[2].name, "adt.wrongvar.enum");
-                    cg_.builder_->CreateCall(printfFunc, {fmtStr, enumNameStr});
                     if (cg_.freestanding_)
                     {
-                        // (AR) وضع حرّ: __sad_panic بدل exit (weak، النواة تتجاوزه)
-                        // (EN) Freestanding: __sad_panic instead of exit (weak)
+                        // (AR) وضع حرّ: __sad_panic وحده (weak، النواة تتجاوزه بلافتة
+                        //      عربيّة سياديّة). لا نُصدر printf الإنجليزيّ كي لا يسبق
+                        //      لافتة الهلع على المخرج السياديّ (RFC مسار الهلع الموحَّد).
+                        // (EN) Freestanding: __sad_panic only (weak; kernel overrides
+                        //      with an Arabic banner). No English printf before the banner.
                         auto *panicType = llvm::FunctionType::get(
                             llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt64Ty(*cg_.context_)}, false);
                         auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
@@ -477,6 +471,18 @@ namespace Sad
                     }
                     else
                     {
+                        // (AR) مستضاف: تشخيص إنجليزيّ للمطوّر (منفذ libc) ثم exit(1)
+                        // (EN) Hosted: English developer diagnostic (libc stdout) then exit(1)
+                        auto ptrTyTrap = llvm::PointerType::getUnqual(*cg_.context_);
+                        auto *printfType = llvm::FunctionType::get(
+                            llvm::Type::getInt32Ty(*cg_.context_), {ptrTyTrap}, true);
+                        auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                        llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
+                            Sad::Compiler::kAdtWrongVariantFieldMsg, "adt.wrongvar.fmt");
+                        llvm::Value *enumNameStr = cg_.builder_->CreateGlobalStringPtr(
+                            inst->operands[2].name, "adt.wrongvar.enum");
+                        cg_.builder_->CreateCall(printfFunc, {fmtStr, enumNameStr});
+
                         auto *exitType = llvm::FunctionType::get(
                             llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
                         auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);

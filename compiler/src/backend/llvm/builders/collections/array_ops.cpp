@@ -209,30 +209,24 @@ namespace Sad
 
             cg_.builder_->CreateCondBr(isOOB, failBB, contBB);
 
-            // (AR) كتلة الفشل: طباعة رسالة خطأ ثم exit(1)
-            // (EN) Fail block: print error message then exit(1)
+            // (AR) كتلة الفشل: مستضاف ⇒ تشخيص إنجليزيّ للمطوّر ثم exit(1)؛ وضع حرّ
+            //      ⇒ __sad_panic وحده (لا تشخيص إنجليزيّ يسبق لافتة الهلع).
+            // (EN) Fail block: hosted ⇒ English developer diagnostic then exit(1);
+            //      freestanding ⇒ __sad_panic only (no English before the panic banner).
             cg_.builder_->SetInsertPoint(failBB);
-
-            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-            auto *printfType = llvm::FunctionType::get(
-                llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
-            auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
-
-            // (AR) رسالة: "خطأ: فهرس %lld خارج نطاق المصفوفة (الطول: %lld)\n"
-            // (EN) Message: "Error: index %lld out of array bounds (length: %lld)\n"
-            llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
-                "Error: array index %lld out of bounds (length: %lld)\n", "bc.fmt");
-            cg_.builder_->CreateCall(printfFunc, {fmtStr, index, len});
 
             if (cg_.freestanding_)
             {
                 // (AR) وضع حرّ: لا exit في نواة/معدن عارٍ — نستدعي __sad_panic
                 //      (تُبثّ نسخة weak_odr منه في emitFreestandingRuntime؛ وللنواة
-                //      تجاوزها بتعريف قويّ خاصّ بها). printf أعلاه هو نسخة الوضع
-                //      الحرّ (منفذ تسلسليّ) فالرسالة تصل قبل الإيقاف.
+                //      تجاوزها بتعريف قويّ خاصّ بها). لا نُصدر printf: النواة تحمل
+                //      التشخيص عبر لافتة الهلع العربيّة السياديّة في تعريفها القويّ
+                //      لـ__sad_panic، فرسالة إنجليزيّة سابقة تلوّث المخرج السياديّ.
+                //      (سبب حذف printf الحرّيّ — RFC مسار الهلع العربيّ الموحَّد.)
                 // (EN) Freestanding: no exit on bare metal — call __sad_panic
                 //      (weak_odr default emitted in emitFreestandingRuntime; a kernel
-                //      may override it with a strong definition).
+                //      overrides it with a strong Arabic-banner definition). No printf:
+                //      an English line would pollute the sovereign serial output.
                 auto *panicType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(*cg_.context_), {i64Ty}, false);
                 auto panicFunc = cg_.module_->getOrInsertFunction("__sad_panic", panicType);
@@ -240,6 +234,16 @@ namespace Sad
             }
             else
             {
+                // (AR) مستضاف: تشخيص إنجليزيّ للمطوّر (منفذ libc) ثم exit(1)
+                // (EN) Hosted: English developer diagnostic (libc stdout) then exit(1)
+                auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *printfType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+                auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
+                    "Error: array index %lld out of bounds (length: %lld)\n", "bc.fmt");
+                cg_.builder_->CreateCall(printfFunc, {fmtStr, index, len});
+
                 auto *exitType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
                 auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
