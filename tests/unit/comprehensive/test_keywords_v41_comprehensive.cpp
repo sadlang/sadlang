@@ -93,8 +93,8 @@ int main() {
         SAD_ASSERT_EQ(allEntries().size(), kEntryCount);
     });
 
-    SAD_TEST("G1.02: ״§„״¹״¯״¯ ״§„״¥״¬…״§„ 93 ״¥״¯״®״§„״§‹ (40+3+41+9)", {
-        SAD_ASSERT_EQ(kEntryCount, static_cast<std::size_t>(93));
+    SAD_TEST("G1.02: ״§„״¹״¯״¯ ״§„״¥״¬…״§„ 94 ״¥״¯״®״§„״§‹ (40+3+42+9)", {
+        SAD_ASSERT_EQ(kEntryCount, static_cast<std::size_t>(94));
     });
 
     SAD_TEST("G1.03: ״¹״¯״¯ ״§„״¦״© RESERVED = 40", {

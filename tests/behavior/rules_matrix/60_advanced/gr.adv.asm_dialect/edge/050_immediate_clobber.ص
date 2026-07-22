@@ -1,0 +1,12 @@
+# @rule: gr.adv.asm_dialect
+# @description: معامل عدد صحيح مباشر + بند يلوّث(الأعلام) على متغيّر inout
+# @requires: اطبع_سطر
+# @skip_interpreter
+# @expected: 17
+
+متغير ن = 7
+تجميع
+    اجمع {ن}، 10
+    يلوّث(الأعلام)
+نهاية
+اطبع_سطر(ن)

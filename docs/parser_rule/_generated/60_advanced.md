@@ -7,7 +7,7 @@
 
 - **الطبقة:** `advanced` · **ملف المصدر:** `language-truth/grammar/60_advanced.yaml`
 - **الوصف:** بنيات متقدمة — أنواع/قوالب/عمر/قيود + أنتج/باستخدام/أجّل/أطلق/اختر + استيعاب/ماكرو/اختبار/عقد/FFI/واجهة
-- **عدد القواعد:** 27
+- **عدد القواعد:** 28
 
 > **قراءة المخطّطات:** «📊 مخطّط البنية النحويّة» يُظهر تسلسل الرموز (تكرار «تكرار»، اختياري «تخطّي»، بدائل ◆). «مخطّط مسار الدوال» يُظهر دوال المحلل التي تُستدعى حتى بناء عقدة AST.
 
@@ -37,17 +37,18 @@ flowchart TD
   o20["اتفاقيّة ربط<br/>parseDeclaration()"]
   o21["نوع C<br/>parseType()"]
   o22["تجميع مضمَّن<br/>tryParseDirective()"]
-  o23["تصريح واجهة<br/>parseUIDeclaration()"]
-  o24["تصريح حالة واجهة<br/>parseUIStateDecl()"]
-  o25["تعبير عنصر واجهة<br/>parseWidgetExpression()"]
-  o26["سلسلة معدّلات<br/>parseModifierChain()"]
-  o27["معالج حدث<br/>parseUIEventHandler()"]
+  o23["كتلة لهجة التجميع<br/>parseAsmBlockStmt()"]
+  o24["تصريح واجهة<br/>parseUIDeclaration()"]
+  o25["تصريح حالة واجهة<br/>parseUIStateDecl()"]
+  o26["تعبير عنصر واجهة<br/>parseWidgetExpression()"]
+  o27["سلسلة معدّلات<br/>parseModifierChain()"]
+  o28["معالج حدث<br/>parseUIEventHandler()"]
   o3 --> o4
   o4 --> o1
   o5 --> o1
-  o23 --> o24
-  o24 --> o1
-  o25 --> o26
+  o24 --> o25
+  o25 --> o1
+  o26 --> o27
 ```
 
 ---
@@ -1511,10 +1512,60 @@ flowchart LR
 
 ---
 
+<a id="gr.adv.asm_dialect"></a>
+### gr.adv.asm_dialect — كتلة لهجة التجميع <span dir="ltr">(AsmBlock)</span>
+
+- **الرقم التسلسليّ:** `ق-093` · **المعرّف الموحَّد:** `gr.adv.asm_dialect` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الوصف:** كتلة لهجة التجميع العربيّ «تجميع … نهاية» (م١ RFC اللهجات الأصيلة) — تعليمات عربيّة منظَّمة مفحوصة مقابل معجم i686 المولَّد من مصدر الحقيقة. المنمنمات والسجلّات عربيّة، و{متغيّر ص} يُربَط تلقائيًّا بقيود InlineAsm، ويلوّث(…) ⇒ clobbers. تُخفَض في sadc إلى llvm::InlineAsm وتُرفَض في المفسّر بخطأ كتالوج SEM027. منمنمة غير معجميّة ⇒ SEM025، وعدد معاملات مخالف ⇒ SEM026.
+
+#### 📐 BNF
+```bnf
+AsmBlock = 'تجميع' [ 'متطاير' ] { AsmLabel | AsmInstruction | AsmClobber } 'نهاية' ; AsmInstruction = MNEMONIC [ Operand { '،' Operand } ] ; AsmLabel = IDENT ':' ; AsmClobber = 'يلوّث' '(' Target { '،' Target } ')' ; Operand = REGISTER | INTEGER | '[' MemExpr ']' | '{' IDENT '}' | LABEL ;
+```
+
+#### 🧩 تفصيل البدائل
+- `«تجميع» { AsmInstruction } «نهاية»`
+
+#### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
+**دالة (دوال) الدخول:**
+1. [`ParserCore::parseAsmBlockStmt`](../../../shared/parser/src/core/parser_main.cpp) — `shared/parser/src/core/parser_main.cpp`
+2. [`StatementBuilder::buildAsmBlock`](../../../compiler/src/frontend/builders/statement_asm.cpp) — `compiler/src/frontend/builders/statement_asm.cpp`
+- **عقدة AST المُنتَجة:** `AsmBlockStmt`
+
+##### مخطّط مسار الدوال (حتى AST)
+```mermaid
+flowchart TD
+  f1["parseAsmBlockStmt()"]
+  f2(["⇒ AsmBlockStmt"])
+  f1 --> f2
+```
+
+#### 📊 مخطّط البنية النحويّة (Mermaid)
+```mermaid
+flowchart LR
+  n1(["كتلة لهجة التجميع"])
+  n2["«تجميع»"]
+  n3{"◇"}
+  n4{"◇"}
+  n5["AsmInstruction"]
+  n3 --> n5
+  n5 --> n4
+  n5 -- "تكرار" --> n5
+  n3 -- "صفر/أكثر" --> n4
+  n2 --> n3
+  n6["«نهاية»"]
+  n4 --> n6
+  n1 --> n2
+  n7(["⇒ AsmBlockStmt"])
+  n6 --> n7
+```
+
+---
+
 <a id="gr.adv.ui_decl"></a>
 ### gr.adv.ui_decl — تصريح واجهة <span dir="ltr">(UIDeclaration)</span>
 
-- **الرقم التسلسليّ:** `ق-093` · **المعرّف الموحَّد:** `gr.adv.ui_decl` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-094` · **المعرّف الموحَّد:** `gr.adv.ui_decl` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** مكوّن واجهة تصريحيّ «واجهة عداد ... نهاية»؛ يحوي تصريحات حالة ودوال. «واجهة» سياقيّة.
 
 #### 📐 BNF
@@ -1587,7 +1638,7 @@ flowchart LR
 <a id="gr.adv.ui_state"></a>
 ### gr.adv.ui_state — تصريح حالة واجهة <span dir="ltr">(UIStateDecl)</span>
 
-- **الرقم التسلسليّ:** `ق-094` · **المعرّف الموحَّد:** `gr.adv.ui_state` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-095` · **المعرّف الموحَّد:** `gr.adv.ui_state` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** حالة مكوّن: «@حالة اسم: نوع = قيمة» (محليّة)، «@ربط» (مرجع)، «@بيئة» (عالميّة)، «@محسوب اسم = تعبير» (مشتقّة).
 
 #### 📐 BNF
@@ -1652,7 +1703,7 @@ flowchart LR
 <a id="gr.adv.widget"></a>
 ### gr.adv.widget — تعبير عنصر واجهة <span dir="ltr">(WidgetExpr)</span>
 
-- **الرقم التسلسليّ:** `ق-095` · **المعرّف الموحَّد:** `gr.adv.widget` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-096` · **المعرّف الموحَّد:** `gr.adv.widget` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** عنصر واجهة «نص("مرحبا").حجم(32)»؛ يدعم وسائط مسمّاة وغير مسمّاة، سلسلة معدّلات، وكتلة أبناء للحاويات تُغلَق بـ«نهاية». يُحلَّل بعد «اعرض» أو في موضع تعبير.
 
 #### 📐 BNF
@@ -1714,7 +1765,7 @@ flowchart LR
 <a id="gr.adv.ui_modifier_chain"></a>
 ### gr.adv.ui_modifier_chain — سلسلة معدّلات <span dir="ltr">(ModifierChain)</span>
 
-- **الرقم التسلسليّ:** `ق-096` · **المعرّف الموحَّد:** `gr.adv.ui_modifier_chain` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-097` · **المعرّف الموحَّد:** `gr.adv.ui_modifier_chain` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** سلسلة معدّلات لاحقيّة على عنصر «.حجم(32).لون(أحمر)»؛ تشمل معالجات الأحداث
 
 #### 📐 BNF
@@ -1771,7 +1822,7 @@ flowchart LR
 <a id="gr.adv.ui_event"></a>
 ### gr.adv.ui_event — معالج حدث <span dir="ltr">(UIEventHandler)</span>
 
-- **الرقم التسلسليّ:** `ق-097` · **المعرّف الموحَّد:** `gr.adv.ui_event` · **الحالة:** experimental · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-098` · **المعرّف الموحَّد:** `gr.adv.ui_event` · **الحالة:** experimental · **منذ:** 1.0.0
 - **الوصف:** معالج حدث «.عند_النقر => اطبع("تم!")»؛ الجسم تعبير «=>» أو كتلة تنتهي بـ«نهاية»
 
 #### 📐 BNF

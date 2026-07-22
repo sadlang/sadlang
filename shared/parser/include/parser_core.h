@@ -54,6 +54,7 @@
 #include "property_nodes.h"
 #include "class_nodes.h"
 #include "pattern_nodes.h"
+#include "directive_nodes.h" // (AR) AsmBlockStmt/AsmOperand — كتلة لهجة التجميع (م١)
 #include "ui_nodes.h"
 #include "error_manager.h"
 #include "error_recovery.h"
@@ -687,6 +688,25 @@ namespace Sad
              *         (EN) Pointer to defer statement node.
              */
             AST::StmtPtr parseDeferStmt();
+
+            /**
+             * @brief (AR) يحلل كتلة لهجة التجميع «تجميع … نهاية» (م١ RFC اللهجات الأصيلة).
+             *        (EN) Parses the assembly dialect block "تجميع … نهاية".
+             *
+             * (AR) داخل الكتلة: أسطر تعليمات «منمنمة [معامل {، معامل}]»، لصائق «اسم:»،
+             *      وبند «يلوّث(…)». المنمنمات والسجلّات تُفحَص مقابل الجدول المولَّد من
+             *      مصدر الحقيقة (SEM025/SEM026 عند المخالفة).
+             *
+             * @return (AR) مؤشر لعقدة AsmBlockStmt.
+             *         (EN) Pointer to AsmBlockStmt node.
+             */
+            AST::StmtPtr parseAsmBlockStmt();
+
+            /**
+             * @brief (AR) يحلل معاملًا واحدًا داخل تعليمة تجميع (سجلّ/عدد/[عنونة]/{متغيّر}/لصيقة).
+             *        (EN) Parses one operand of a dialect assembly instruction.
+             */
+            AST::AsmOperand parseAsmOperand(char operandClass);
 
             /**
              * @brief (AR) يحلل جملة أطلق (goroutine).

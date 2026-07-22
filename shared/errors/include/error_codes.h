@@ -151,6 +151,14 @@ namespace Sad
             SEM_SYMBOL_NAME_CONFLICT,     ///< SEM022: (AR) اسم رمز @رمز مُصدَّر متصادم أو محجوز / (EN) exported @رمز symbol name conflicts or is reserved
             SEM_STATIC_ARRAY_SIZE,        ///< SEM023: (AR) حجم المصفوفة الساكنة يجب أن يكون عددًا صحيحًا موجبًا / (EN) static array size must be a positive integer
             SEM_DUP_EXPORT_SYMBOL,        ///< SEM024: (AR) اسم رمز مُصدَّر مكرَّر عبر @رمز على الدوالّ / (EN) duplicate exported symbol name via @رمز on functions
+            SEM_ASM_UNKNOWN_MNEMONIC,     ///< SEM025: (AR) منمنمة تجميع غير معجميّة / (EN) unknown assembly mnemonic (dialect)
+            SEM_ASM_OPERAND_COUNT,        ///< SEM026: (AR) عدد معاملات منمنمة تجميع مخالف للمعجم / (EN) assembly mnemonic operand-count mismatch
+            SEM_DIALECT_COMPILER_ONLY,    ///< SEM027: (AR) كتلة لهجة متاحة في المترجم فقط / (EN) dialect block available in the compiler only
+            SEM_ASM_MULTIPLE_OUTPUTS,     ///< SEM028: (AR) أكثر من متغيّر ص مكتوب في كتلة تجميع (م١) / (EN) more than one written sad var in an asm block (M1)
+            SEM_ASM_UNDEFINED_LABEL,      ///< SEM029: (AR) لصيقة/هدف قفز غير معرَّف في كتلة التجميع / (EN) undefined jump label/target in an asm block
+            SEM_ASM_DUPLICATE_LABEL,      ///< SEM030: (AR) لصيقة مكرَّرة في كتلة التجميع / (EN) duplicate label in an asm block
+            SEM_ASM_UNDEFINED_VAR,        ///< SEM031: (AR) متغيّر ص غير معرَّف داخل {…} في كتلة التجميع / (EN) undefined sad var in {…} in an asm block
+            SEM_ASM_MEMORY_FORM,          ///< SEM032: (AR) صيغة عنونة غير مدعومة في كتلة التجميع (م١) / (EN) unsupported memory-addressing form in an asm block (M1)
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

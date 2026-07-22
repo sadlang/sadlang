@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/assembly_mnemonics.schema.json",
+  "title": "Assembly Mnemonics Schema (معجم منمنمات التجميع)",
+  "description": "مخطط JSON لمعجم منمنمات التجميع العربيّ لكلّ معماريّة — language-truth/dialects/assembly_mnemonics/<arch>.yaml. الموضع الوحيد الذي تُذكَر فيه المنمنمات اللاتينيّة (توثيقًا للتقابل وخفضًا).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "architecture", "status", "registers", "instructions"],
+  "properties": {
+    "version": { "type": "string" },
+    "architecture": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["experimental", "stable", "deprecated", "draft"] },
+    "addressing_note": { "type": "string" },
+    "registers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/register" }
+      }
+    },
+    "instructions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/instruction" }
+      }
+    }
+  },
+  "$defs": {
+    "register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ar", "en"],
+      "properties": {
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 },
+        "role": { "type": "string" }
+      }
+    },
+    "instruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ar", "en", "operands"],
+      "properties": {
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 },
+        "operands": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# @rule: gr.adv.asm_dialect
+# @description: لصيقة مكرَّرة تُرفَض بخطأ كتالوج SEM030
+# @expect_error: SEM030
+
+تجميع
+    حلقة: لا_عمل
+    حلقة: أوقف
+نهاية

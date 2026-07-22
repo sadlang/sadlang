@@ -1,0 +1,7 @@
+# @rule: gr.adv.asm_dialect
+# @description: منمنمة غير معجميّة تُرفَض بخطأ كتالوج SEM025 (بقائمة الأقرب)
+# @expect_error: SEM025
+
+تجميع
+    انقلل المركم، 5
+نهاية

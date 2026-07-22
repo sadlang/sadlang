@@ -60,7 +60,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "و", TokenType::OP_AND, KeywordCategory::OPERATOR, true, {}, {}, "and" },
         { "أو", TokenType::OP_OR, KeywordCategory::OPERATOR, true, {}, {}, "or" },
         { "ليس", TokenType::OP_NOT, KeywordCategory::OPERATOR, true, {}, {}, "not" },
-        // ─── contextual (41) ───
+        // ─── contextual (42) ───
         { "مؤكد", TokenType::OP_NULL_ASSERT, KeywordCategory::CONTEXTUAL, false, {"مؤكدة"}, {}, "asserted" },
         { "خاصية", TokenType::KEYWORD_PROPERTY, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "property" },
         { "احصل", TokenType::KEYWORD_GET, KeywordCategory::CONTEXTUAL, false, {}, {}, "get" },
@@ -93,6 +93,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "واجهة", TokenType::KEYWORD_UI_DECL, KeywordCategory::CONTEXTUAL, false, {}, {}, "ui_decl" },
         { "اعرض", TokenType::KEYWORD_SHOW, KeywordCategory::CONTEXTUAL, false, {}, {}, "show" },
         { "متطاير", TokenType::KEYWORD_VOLATILE, KeywordCategory::CONTEXTUAL, false, {}, {}, "volatile" },
+        { "تجميع", TokenType::KEYWORD_ASM, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "asm" },
         { "لا_ترجع", TokenType::KEYWORD_NORETURN, KeywordCategory::CONTEXTUAL, false, {}, {}, "noreturn" },
         { "اعطِ", TokenType::KEYWORD_GIVE_DEPRECATED, KeywordCategory::CONTEXTUAL, false, {}, {}, "give_deprecated" },
         { "ثم", TokenType::KEYWORD_THEN, KeywordCategory::CONTEXTUAL, false, {}, {}, "then" },

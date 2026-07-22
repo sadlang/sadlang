@@ -19,6 +19,9 @@
 #include "advanced_expr_nodes.h"
 #include "directive_nodes.h"
 #include "error_recovery.h" // (AR) kDiagStatsEnvVar لحجب آثار الاسترداد عن المستخدم
+#include "asm_dialect_generated.h" // (AR) جدول لهجة التجميع المولَّد من SoT (م١ RFC اللهجات)
+#include <algorithm>
+#include <set>
 #include <iostream>
 #include <sstream>
 #include <cstdlib> // (AR) std::getenv
@@ -386,6 +389,29 @@ namespace Sad
                 {
                     return directiveResult;
                 }
+            }
+
+            // ─────────────────────────────────────────────────────────────────────
+            // (AR) كتلة لهجة التجميع «تجميع … نهاية» (م١ RFC اللهجات الأصيلة)
+            //      تُكتشَف هنا قبل منطق تصريح المتغيّر كي لا يُلتقط «تجميع» اسمَ نوع/
+            //      متغيّر. كلمة سياقية: تُفتح كتلةً فقط إن لم يلها ما يجعلها تعبيرًا.
+            // (EN) Assembly dialect block — detected before variable-declaration logic
+            //      so "تجميع" is not mistaken for a type/variable name.
+            // ─────────────────────────────────────────────────────────────────────
+            if (check(TT::KEYWORD_ASM) || checkContextual(TT::KEYWORD_ASM))
+            {
+                TT nxtAsm = peekNext().getType();
+                bool isExprCtxAsm =
+                    nxtAsm == TT::OP_ASSIGN ||
+                    nxtAsm == TT::OP_PLUS_ASSIGN ||
+                    nxtAsm == TT::OP_MINUS_ASSIGN ||
+                    nxtAsm == TT::OP_MULTIPLY_ASSIGN ||
+                    nxtAsm == TT::OP_DIVIDE_ASSIGN ||
+                    nxtAsm == TT::DOT ||
+                    nxtAsm == TT::PAREN_LEFT ||
+                    nxtAsm == TT::BRACKET_LEFT;
+                if (!isExprCtxAsm)
+                    return parseAsmBlockStmt();
             }
 
             // (AR) التحقق من المُزخرِفات قبل التصريح
@@ -1820,6 +1846,457 @@ namespace Sad
             }
 
             return nullptr;
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // (AR) كتلة لهجة التجميع العربيّ «تجميع … نهاية» (م١ RFC اللهجات الأصيلة)
+        // (EN) Arabic assembly dialect block (native-dialects RFC M1)
+        // ═════════════════════════════════════════════════════════════════════
+
+        namespace
+        {
+            // (AR) مسافة تحرير (Levenshtein) بايتيّة — كافية لترتيب الاقتراحات.
+            // (EN) Byte-wise Levenshtein distance — sufficient for ranking suggestions.
+            std::size_t asmEditDistance(const std::string &a, const std::string &b)
+            {
+                const std::size_t n = a.size(), m = b.size();
+                std::vector<std::size_t> prev(m + 1), cur(m + 1);
+                for (std::size_t j = 0; j <= m; ++j)
+                    prev[j] = j;
+                for (std::size_t i = 1; i <= n; ++i)
+                {
+                    cur[0] = i;
+                    for (std::size_t j = 1; j <= m; ++j)
+                    {
+                        const std::size_t sub = prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1);
+                        cur[j] = std::min({prev[j] + 1, cur[j - 1] + 1, sub});
+                    }
+                    std::swap(prev, cur);
+                }
+                return prev[m];
+            }
+
+            // (AR) أقرب ثلاثة أسماء معجميّة للاسم المجهول (لقائمة «هل تقصد؟»). المرشّحون
+            //      من المنمنمات و(اختياريًّا) السجلّات — كي يُقترَح لسجلّ مُخطأ سجلٌّ لا منمنمة.
+            // (EN) Three nearest lexicon names. Candidates from mnemonics and (optionally)
+            //      registers, so a mistyped register suggests a register, not a mnemonic.
+            std::string asmNearestNames(const std::string &name, bool includeRegisters)
+            {
+                using namespace ::Sad::Dialects::Asm;
+                std::vector<std::pair<std::size_t, const char *>> ranked;
+                ranked.reserve(kMnemonicCount + kRegisterCount);
+                for (std::size_t i = 0; i < kMnemonicCount; ++i)
+                    ranked.emplace_back(asmEditDistance(name, kMnemonics[i].ar), kMnemonics[i].ar);
+                if (includeRegisters)
+                    for (std::size_t i = 0; i < kRegisterCount; ++i)
+                        ranked.emplace_back(asmEditDistance(name, kRegisters[i].ar), kRegisters[i].ar);
+                std::sort(ranked.begin(), ranked.end(),
+                          [](const auto &x, const auto &y) { return x.first < y.first; });
+                std::string out;
+                const std::size_t take = std::min<std::size_t>(3, ranked.size());
+                for (std::size_t i = 0; i < take; ++i)
+                {
+                    if (i)
+                        out += "\xd8\x8c "; // (AR) فاصلة عربيّة بين الاقتراحات / Arabic comma separator
+                    out += ranked[i].second;
+                }
+                return out;
+            }
+
+            // (AR) للمنمنمات فقط (موضع بداية التعليمة). / mnemonic-only (instruction head).
+            std::string asmNearestMnemonics(const std::string &name)
+            {
+                return asmNearestNames(name, /*includeRegisters=*/false);
+            }
+        } // namespace
+
+        AST::AsmOperand ParserCore::parseAsmOperand(char operandClass)
+        {
+            using namespace ::Sad::Dialects::Asm;
+            AST::AsmOperand op;
+
+            // ── {متغيّر ص} — ربط تلقائيّ بقيد InlineAsm ──
+            if (check(TT::BRACE_LEFT))
+            {
+                advance(); // {
+                if (check(TT::IDENTIFIER))
+                {
+                    op.kind = AST::AsmOperand::Kind::SadVariable;
+                    op.text = current_.getValue();
+                    op.varExpr = std::make_unique<AST::VariableExpr>(
+                        current_.getValue(), current_.getPosition());
+                    advance();
+                }
+                else
+                {
+                    errorCatalogExpected(Errors::ErrorCode::SYN_MISSING_IDENTIFIER);
+                }
+                if (check(TT::BRACE_RIGHT))
+                    advance();
+                else
+                    errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
+                                         {{"symbol", "}"}});
+                return op;
+            }
+
+            // ── [تعبير عنونة] ──
+            if (check(TT::BRACKET_LEFT))
+            {
+                advance(); // [
+                op.kind = AST::AsmOperand::Kind::Memory;
+                while (!check(TT::BRACKET_RIGHT) && !check(TT::END_OF_FILE))
+                {
+                    AST::AsmOperand piece;
+                    if (check(TT::BRACE_LEFT))
+                    {
+                        advance();
+                        if (check(TT::IDENTIFIER))
+                        {
+                            piece.kind = AST::AsmOperand::Kind::SadVariable;
+                            piece.text = current_.getValue();
+                            piece.varExpr = std::make_unique<AST::VariableExpr>(
+                                current_.getValue(), current_.getPosition());
+                            advance();
+                        }
+                        else
+                        {
+                            errorCatalogExpected(Errors::ErrorCode::SYN_MISSING_IDENTIFIER);
+                            break;
+                        }
+                        if (check(TT::BRACE_RIGHT))
+                            advance();
+                    }
+                    else if (check(TT::IDENTIFIER))
+                    {
+                        const Register *reg = findRegister(current_.getValue().c_str());
+                        if (!reg)
+                        {
+                            // (AR) موضع سجلّ (داخل عنونة) ⇒ اقتراحات تشمل السجلّات (تصحيح ٦).
+                            errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
+                                         {{"mnemonic", current_.getValue()},
+                                          {"suggestions", asmNearestNames(current_.getValue(), true)}});
+                            advance();
+                            continue;
+                        }
+                        piece.kind = AST::AsmOperand::Kind::Register;
+                        piece.text = current_.getValue();
+                        piece.loweredText = reg->en;
+                        advance();
+                    }
+                    else if (check(TT::NUMBER_INTEGER))
+                    {
+                        piece.kind = AST::AsmOperand::Kind::Immediate;
+                        piece.text = current_.getValue();
+                        piece.loweredText = current_.getValue();
+                        advance();
+                    }
+                    else if (check(TT::OP_PLUS) || check(TT::OP_MINUS) || check(TT::OP_MULTIPLY))
+                    {
+                        piece.kind = AST::AsmOperand::Kind::Punct;
+                        piece.loweredText = (current_.getType() == TT::OP_PLUS)    ? "+"
+                                            : (current_.getType() == TT::OP_MINUS) ? "-"
+                                                                                   : "*";
+                        advance();
+                    }
+                    else
+                    {
+                        errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
+                                             {{"symbol", "]"}});
+                        break;
+                    }
+                    op.pieces.push_back(std::move(piece));
+                }
+                if (check(TT::BRACKET_RIGHT))
+                    advance();
+
+                // (AR) [تصحيح ١] فحص صيغة العنونة: قاعدة واحدة فقط (سجلّ أو متغيّر ص)
+                //      وإزاحة اختياريّة؛ قاعدتان أو فهرس×حجم (×) ⇒ SEM032 (لا إسقاط صامت).
+                // (EN) [Fix 1] one base + optional disp; two bases or index*scale ⇒ SEM032.
+                {
+                    int baseCount = 0;
+                    bool indexScale = false;
+                    for (const auto &p : op.pieces)
+                    {
+                        if (p.kind == AST::AsmOperand::Kind::Register ||
+                            p.kind == AST::AsmOperand::Kind::SadVariable)
+                            ++baseCount;
+                        else if (p.kind == AST::AsmOperand::Kind::Punct && p.loweredText == "*")
+                            indexScale = true;
+                    }
+                    if (baseCount != 1 || indexScale)
+                        errorCatalog(Errors::ErrorCode::SEM_ASM_MEMORY_FORM, {});
+                }
+                return op;
+            }
+
+            // ── عدد صحيح (قد تسبقه إشارة سالب) ──
+            if (check(TT::NUMBER_INTEGER) ||
+                (check(TT::OP_MINUS) && peekNext().getType() == TT::NUMBER_INTEGER))
+            {
+                std::string digits;
+                if (check(TT::OP_MINUS))
+                {
+                    digits += "-";
+                    advance();
+                }
+                digits += current_.getValue();
+                advance();
+                op.kind = AST::AsmOperand::Kind::Immediate;
+                op.text = digits;
+                op.loweredText = digits;
+                return op;
+            }
+
+            // ── معرّف: سجلّ أو لصيقة أو منمنمة تابعة (حسب صنف المعامل من المعجم) ──
+            if (check(TT::IDENTIFIER))
+            {
+                const std::string name = current_.getValue();
+                if (operandClass == 'l')
+                {
+                    op.kind = AST::AsmOperand::Kind::LabelRef;
+                    op.text = name;
+                    advance();
+                    return op;
+                }
+                if (operandClass == 'a')
+                {
+                    const Mnemonic *sub = findMnemonic(name.c_str());
+                    if (!sub || sub->operandClasses[0] != '\0')
+                    {
+                        // (AR) بادئة «كرّر» تتبعها منمنمة معجميّة بلا معاملات فقط
+                        errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
+                                     {{"mnemonic", name},
+                                      {"suggestions", asmNearestMnemonics(name)}});
+                        advance();
+                        return op;
+                    }
+                    op.kind = AST::AsmOperand::Kind::SubMnemonic;
+                    op.text = name;
+                    op.loweredText = sub->en;
+                    advance();
+                    return op;
+                }
+                const Register *reg = findRegister(name.c_str());
+                if (reg)
+                {
+                    op.kind = AST::AsmOperand::Kind::Register;
+                    op.text = name;
+                    op.loweredText = reg->en;
+                    advance();
+                    return op;
+                }
+                // (AR) معرّف ليس سجلًّا في موضع سجلّ/قيمة — اسم غير معجميّ.
+                //      الاقتراحات تشمل السجلّات (تصحيح ٦: سجلّ مُخطأ يُقترَح له سجلّ).
+                errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
+                             {{"mnemonic", name},
+                              {"suggestions", asmNearestNames(name, true)}});
+                advance();
+                return op;
+            }
+
+            errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION);
+            if (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                advance();
+            return op;
+        }
+
+        AST::StmtPtr ParserCore::parseAsmBlockStmt()
+        {
+            using namespace ::Sad::Dialects::Asm;
+
+            auto pos = current_.getPosition();
+            advance(); // (AR) استهلاك «تجميع»
+
+            auto block = std::make_unique<AST::AsmBlockStmt>(pos);
+
+            // (AR) «تجميع متطاير» — مُعدِّل اختياريّ (الكتلة متطايرة دومًا في م١)
+            if (checkContextual(TT::KEYWORD_VOLATILE))
+                advance();
+
+            // (AR) متتبِّعات فحص بنيويّ زمن التحليل (تفعل في المحرّكين معًا كـSEM025/026):
+            //      لصائق معرَّفة، مراجع قفز، متغيّرات ص مكتوبة.
+            // (EN) Parse-time structural trackers (dual-engine, like SEM025/026):
+            //      defined labels, jump refs, written sad vars.
+            std::set<std::string> definedLabelNames;
+            std::vector<std::string> labelRefs;
+            std::set<std::string> writtenVars;
+            bool multiOutputReported = false;
+
+            while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+            {
+                // ── بند يلوّث(هدف {، هدف}) ──
+                if (check(TT::IDENTIFIER) && current_.getValue() == kClobberKeyword)
+                {
+                    advance();
+                    if (!check(TT::PAREN_LEFT))
+                    {
+                        errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
+                                             {{"symbol", "("}});
+                        break;
+                    }
+                    advance(); // (
+                    while (!check(TT::PAREN_RIGHT) && !check(TT::END_OF_FILE))
+                    {
+                        if (!check(TT::IDENTIFIER))
+                        {
+                            errorCatalogExpected(Errors::ErrorCode::SYN_MISSING_IDENTIFIER);
+                            break;
+                        }
+                        const std::string target = current_.getValue();
+                        AST::AsmClobber clob;
+                        clob.ar = target;
+                        if (const ClobberSpecial *sp = findClobberSpecial(target.c_str()))
+                            clob.llvm = sp->llvm;
+                        else if (const Register *reg = findRegister(target.c_str()))
+                            clob.llvm = std::string("~{") + reg->en + "}";
+                        else
+                            errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
+                                         {{"mnemonic", target},
+                                          {"suggestions", asmNearestMnemonics(target)}});
+                        if (!clob.llvm.empty())
+                            block->clobbers.push_back(std::move(clob));
+                        advance();
+                        if (check(TT::ARABIC_COMMA) || check(TT::COMMA))
+                            advance();
+                        else
+                            break;
+                    }
+                    if (check(TT::PAREN_RIGHT))
+                        advance();
+                    else
+                        errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
+                                             {{"symbol", ")"}});
+                    continue;
+                }
+
+                // ── لصيقة «اسم:» ──
+                if (check(TT::IDENTIFIER) && peekNext().getType() == TT::COLON)
+                {
+                    AST::AsmItem item;
+                    item.isLabel = true;
+                    item.labelName = current_.getValue();
+                    item.pos = current_.getPosition();
+                    // (AR) [تصحيح ٤] لصيقة مكرَّرة ⇒ SEM030 (لا خفض صامت لرقم واحد).
+                    if (!definedLabelNames.insert(item.labelName).second)
+                        errorCatalog(Errors::ErrorCode::SEM_ASM_DUPLICATE_LABEL,
+                                     {{"label", item.labelName}});
+                    advance(); // الاسم
+                    advance(); // :
+                    block->items.push_back(std::move(item));
+                    continue;
+                }
+
+                // ── تعليمة: منمنمة [معامل {، معامل}] ──
+                if (!check(TT::IDENTIFIER))
+                {
+                    errorCatalogExpected(Errors::ErrorCode::SYN_UNEXPECTED_TOKEN);
+                    advance();
+                    continue;
+                }
+
+                const std::string mnemonicName = current_.getValue();
+                const Lexer::Position mnemonicPos = current_.getPosition();
+                const Mnemonic *info = findMnemonic(mnemonicName.c_str());
+                if (!info)
+                {
+                    errorCatalog(Errors::ErrorCode::SEM_ASM_UNKNOWN_MNEMONIC,
+                                 {{"mnemonic", mnemonicName},
+                                  {"suggestions", asmNearestMnemonics(mnemonicName)}});
+                    // (AR) استرداد: تخطَّ حتى «نهاية» — لا معنى لمواصلة كتلة فاسدة
+                    while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                        advance();
+                    break;
+                }
+                advance(); // المنمنمة
+
+                AST::AsmItem item;
+                item.isLabel = false;
+                item.mnemonicAr = mnemonicName;
+                item.mnemonicEn = info->en;
+                item.operandClasses = info->operandClasses;
+                item.pos = mnemonicPos;
+
+                const std::size_t expected = std::strlen(info->operandClasses);
+                for (std::size_t i = 0; i < expected; ++i)
+                {
+                    if (i > 0)
+                    {
+                        if (check(TT::ARABIC_COMMA) || check(TT::COMMA))
+                        {
+                            advance();
+                        }
+                        else
+                        {
+                            // (AR) معاملات أقلّ من المعجم
+                            errorCatalog(Errors::ErrorCode::SEM_ASM_OPERAND_COUNT,
+                                         {{"mnemonic", mnemonicName},
+                                          {"expected", std::to_string(expected)},
+                                          {"found", std::to_string(i)}});
+                            break;
+                        }
+                    }
+                    item.operands.push_back(parseAsmOperand(info->operandClasses[i]));
+                }
+
+                // (AR) معاملات أكثر من المعجم: فاصلة زائدة بعد المعامل الأخير
+                if ((check(TT::ARABIC_COMMA) || check(TT::COMMA)))
+                {
+                    errorCatalog(Errors::ErrorCode::SEM_ASM_OPERAND_COUNT,
+                                 {{"mnemonic", mnemonicName},
+                                  {"expected", std::to_string(expected)},
+                                  {"found", std::to_string(expected + 1)}});
+                    // (AR) استرداد: تخطَّ الفواصل والمعاملات الزائدة
+                    while (check(TT::ARABIC_COMMA) || check(TT::COMMA))
+                    {
+                        advance();
+                        if (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                            advance();
+                    }
+                }
+
+                // (AR) [تصحيح ٥/٣] تتبُّع بنيويّ: متغيّرات ص المكتوبة (خرج) ومراجع القفز.
+                //      «انقل» يكتب دون قراءة؛ بقيّة موضع 'w' inout — كلاهما خرجٌ يُخزَّن.
+                // (EN) [Fix 5/3] track written sad vars (outputs) and jump refs.
+                for (std::size_t i = 0; i < item.operands.size(); ++i)
+                {
+                    const char cls = (i < item.operandClasses.size()) ? item.operandClasses[i] : 'r';
+                    const AST::AsmOperand &op = item.operands[i];
+                    if (cls == 'w' && op.kind == AST::AsmOperand::Kind::SadVariable)
+                        writtenVars.insert(op.text);
+                    if (cls == 'l' && op.kind == AST::AsmOperand::Kind::LabelRef)
+                        labelRefs.push_back(op.text);
+                }
+                // (AR) [تصحيح ٥] أكثر من متغيّر ص مكتوب ⇒ SEM028 (مرّة واحدة).
+                if (writtenVars.size() > 1 && !multiOutputReported)
+                {
+                    errorCatalog(Errors::ErrorCode::SEM_ASM_MULTIPLE_OUTPUTS,
+                                 {{"count", std::to_string(writtenVars.size())}});
+                    multiOutputReported = true;
+                }
+
+                block->items.push_back(std::move(item));
+            }
+
+            if (!match(TT::KEYWORD_END))
+            {
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT,
+                             {{"construct_ar", kBlockOpener},
+                              {"construct_en", "assembly dialect block"},
+                              {"closer", kw(TT::KEYWORD_END)}});
+            }
+
+            // (AR) [تصحيح ٣] كلّ هدف قفز/نداء يجب أن يكون لصيقةً معرَّفةً في الكتلة نفسها
+            //      ⇒ SEM029 (النداء إلى رمز خارجيّ حقيقيّ خارج نطاق م١).
+            // (EN) [Fix 3] every jump/call target must be a label defined in this block ⇒ SEM029.
+            for (const auto &ref : labelRefs)
+                if (definedLabelNames.find(ref) == definedLabelNames.end())
+                    errorCatalog(Errors::ErrorCode::SEM_ASM_UNDEFINED_LABEL, {{"label", ref}});
+
+            // (AR) عزل التوثيق: لا يتسرّب `##` من داخل الكتلة إلى التصريح التالي
+            pendingDoc_ = DocBuffer{};
+            nextDoc_ = DocBuffer{};
+
+            return block;
         }
 
     } // namespace Parser

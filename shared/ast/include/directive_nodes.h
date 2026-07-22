@@ -71,6 +71,106 @@ namespace Sad
         };
 
         // ============================================================================
+        // (AR) كتلة لهجة التجميع العربيّ «تجميع … نهاية» (م١ RFC اللهجات الأصيلة)
+        // (EN) Arabic assembly dialect block "تجميع … نهاية" (native-dialects RFC M1)
+        // ============================================================================
+
+        /**
+         * @brief (AR) معامل واحد في تعليمة تجميع — بنية مفحوصة لا نصّ خام
+         * @brief (EN) One operand of a dialect assembly instruction — structured, not raw text
+         *
+         * (AR) الأصناف:
+         *   Register    سجلّ عربيّ (يُخزَّن اسمه الأصليّ المخفوض في loweredText: eax…)
+         *   Immediate   ثابت صحيح (loweredText أرقام ASCII، قد تسبقها -)
+         *   Memory      تعبير عنونة [قاعدة + فهرس × حجم + إزاحة] — pieces قِطَعه
+         *   SadVariable متغيّر ص {اسم} — varExpr تعبير المتغيّر (يُربَط بقيد InlineAsm)
+         *   LabelRef    إحالة لصيقة قفز معرَّفة في الكتلة
+         *   SubMnemonic منمنمة تابعة لبادئة (كرّر خزّن_بايت — loweredText = stosb)
+         *   Punct       فاصل داخل تعبير عنونة (+ - ×) — داخل Memory.pieces فقط
+         */
+        struct AsmOperand
+        {
+            enum class Kind
+            {
+                Register,
+                Immediate,
+                Memory,
+                SadVariable,
+                LabelRef,
+                SubMnemonic,
+                Punct
+            };
+
+            Kind kind = Kind::Register;
+            std::string text;        ///< (AR) النصّ المصدريّ (اسم عربيّ/أرقام/لصيقة) / source text
+            std::string loweredText; ///< (AR) الخفض الأصليّ (eax/أرقام ASCII/منمنمة en) / lowered form
+            ExprPtr varExpr;         ///< (AR) لمعامل SadVariable: تعبير المتغيّر / variable expression
+            std::vector<AsmOperand> pieces; ///< (AR) لمعامل Memory: قِطَع تعبير العنونة / memory pieces
+        };
+
+        /**
+         * @brief (AR) بند واحد داخل كتلة التجميع: لصيقة «اسم:» أو تعليمة «منمنمة [معاملات]»
+         * @brief (EN) One item of the assembly block: a label "name:" or an instruction
+         */
+        struct AsmItem
+        {
+            bool isLabel = false;
+            std::string labelName;       ///< (AR) اسم اللصيقة (للبند اللصيقة) / label name
+            std::string mnemonicAr;      ///< (AR) المنمنمة العربيّة القانونيّة (مجرَّدة التشكيل) / Arabic mnemonic
+            std::string mnemonicEn;      ///< (AR) التعليمة الأصليّة المخفوضة (من المعجم) / native mnemonic
+            std::string operandClasses;  ///< (AR) أصناف المعاملات من المعجم (w/r/l/m/i/a) / operand classes
+            std::vector<AsmOperand> operands;
+            Lexer::Position pos;
+        };
+
+        /**
+         * @brief (AR) هدف تلويث واحد من بند «يلوّث(…)» — مخفوض إلى قيد LLVM
+         * @brief (EN) One clobber target from the "يلوّث(…)" clause, lowered to an LLVM constraint
+         */
+        struct AsmClobber
+        {
+            std::string ar;   ///< (AR) الاسم العربيّ (المركم/الذاكرة…) / Arabic name
+            std::string llvm; ///< (AR) قيد LLVM المخفوض (~{eax}/~{memory}) / lowered constraint
+        };
+
+        /**
+         * @brief (AR) كتلة لهجة التجميع «تجميع … نهاية» — تعليمات عربيّة منظَّمة مفحوصة
+         * @brief (EN) Assembly dialect block "تجميع … نهاية" — structured, validated Arabic instructions
+         *
+         * @code
+         * تجميع
+         *     انقل المركم، {أ}
+         *     اجمع المركم، {ب}
+         *     انقل {ناتج}، المركم
+         *     يلوّث(المركم)
+         * نهاية
+         * @endcode
+         *
+         * (AR) تُخفَض في المترجم sadc إلى llvm::InlineAsm (توليد القالب والقيود آليًّا
+         *      من المعجم المولَّد)، وتُرفَض في المفسّر بخطأ كتالوج SEM027 (نمط بوّابة SEM019).
+         */
+        class AsmBlockStmt : public Statement
+        {
+        public:
+            std::vector<AsmItem> items;      ///< (AR) اللصائق والتعليمات بترتيبها / labels & instructions in order
+            std::vector<AsmClobber> clobbers; ///< (AR) بنود يلوّث المخفوضة / lowered clobber targets
+            bool isVolatile = true;           ///< (AR) «تجميع متطاير» — دومًا متطايرة في م١ / volatile (always in M1)
+
+            explicit AsmBlockStmt(const Lexer::Position &pos = Lexer::Position())
+                : Statement(pos) {}
+
+            void accept(ASTVisitor &visitor) override
+            {
+                visitor.visitAsmBlockStmt(*this);
+            }
+
+            std::string toString() const override
+            {
+                return "AsmBlock(" + std::to_string(items.size()) + ")";
+            }
+        };
+
+        // ============================================================================
         // (AR) @وقت_الترجمة ... نهاية — تنفيذ وقت الترجمة
         // (EN) @وقت_الترجمة ... نهاية — Compile-time execution block
         // ============================================================================

@@ -7,7 +7,7 @@
 
 المصدر الموحَّد: [`language-truth/grammar/`](../../../language-truth/grammar/) (قواعد إنتاج YAML). هذا التوثيق مُشتقّ منه آليًّا.
 
-**إجمالي القواعد:** 105 · **الطبقات:** 8 · **عقد AST مميَّزة:** 86 · **الحالة:** experimental: 9، stable: 96
+**إجمالي القواعد:** 106 · **الطبقات:** 8 · **عقد AST مميَّزة:** 87 · **الحالة:** experimental: 10، stable: 96
 
 ## خريطة التوزيع العليا (البرنامج → التصريح → الجملة)
 ```mermaid
@@ -67,7 +67,7 @@ flowchart TD
 | 4 | البرمجة الكائنية | [30_oop.md](30_oop.md) | `30_oop.yaml` | 16 |
 | 5 | التعابير وسلسلة الأسبقية | [40_expressions.md](40_expressions.md) | `40_expressions.yaml` | 25 |
 | 6 | أنماط المطابقة | [50_patterns.md](50_patterns.md) | `50_patterns.yaml` | 6 |
-| 7 | البنيات المتقدمة | [60_advanced.md](60_advanced.md) | `60_advanced.yaml` | 27 |
+| 7 | البنيات المتقدمة | [60_advanced.md](60_advanced.md) | `60_advanced.yaml` | 28 |
 | 8 | القواعد المعجمية | [70_lexical.md](70_lexical.md) | `70_lexical.yaml` | 8 |
 
 ## كل القواعد (المعرّف ⇒ عقدة AST ⇒ دالة المحلل)
@@ -166,25 +166,27 @@ flowchart TD
 | ق-090 | [`gr.adv.ffi_linkage`](60_advanced.md#gr.adv.ffi_linkage) | اتفاقيّة ربط | `ExternLinkage` | `ParserCore::parseDeclaration` |
 | ق-091 | [`gr.adv.ffi_ctype`](60_advanced.md#gr.adv.ffi_ctype) | نوع C | `SadTypeKind` | `ParserCore::parseType` |
 | ق-092 | [`gr.adv.inline_asm`](60_advanced.md#gr.adv.inline_asm) | تجميع مضمَّن | `InlineAsmExpr` | `ParserCore::tryParseDirective` |
-| ق-093 | [`gr.adv.ui_decl`](60_advanced.md#gr.adv.ui_decl) | تصريح واجهة | `UIDeclarationNode` | `ParserCore::parseUIDeclaration` |
-| ق-094 | [`gr.adv.ui_state`](60_advanced.md#gr.adv.ui_state) | تصريح حالة واجهة | `UIStateDecl` | `ParserCore::parseUIStateDecl` |
-| ق-095 | [`gr.adv.widget`](60_advanced.md#gr.adv.widget) | تعبير عنصر واجهة | `UIWidgetExprNode` | `ParserCore::parseWidgetExpression` |
-| ق-096 | [`gr.adv.ui_modifier_chain`](60_advanced.md#gr.adv.ui_modifier_chain) | سلسلة معدّلات | `std::vector<UIModifierNode>` | `ParserCore::parseModifierChain` |
-| ق-097 | [`gr.adv.ui_event`](60_advanced.md#gr.adv.ui_event) | معالج حدث | `UIEventHandlerNode` | `ParserCore::parseUIEventHandler` |
-| ق-098 | [`gr.lex.identifier`](70_lexical.md#gr.lex.identifier) | مُعرّف | `Token(IDENTIFIER)` | `LexerCore::nextToken` |
-| ق-099 | [`gr.lex.integer`](70_lexical.md#gr.lex.integer) | عدد صحيح | `Token(NUMBER_INTEGER)` | `LexerCore::nextToken` |
-| ق-100 | [`gr.lex.double`](70_lexical.md#gr.lex.double) | عدد عشريّ | `Token(NUMBER_DOUBLE)` | `LexerCore::nextToken` |
-| ق-101 | [`gr.lex.string`](70_lexical.md#gr.lex.string) | نص حرفيّ | `Token(STRING_LITERAL)` | `LexerCore::nextToken` |
-| ق-102 | [`gr.lex.raw_string`](70_lexical.md#gr.lex.raw_string) | نص خام | `Token(STRING_RAW)` | `LexerCore::nextToken` |
-| ق-103 | [`gr.lex.fstring`](70_lexical.md#gr.lex.fstring) | رمز نص منسَّق | `Token(STRING_FSTRING)` | `LexerCore::nextToken` |
-| ق-104 | [`gr.lex.lifetime`](70_lexical.md#gr.lex.lifetime) | تعليق عمر | `Token(LIFETIME)` | `LexerCore::nextToken` |
-| ق-105 | [`gr.lex.comment`](70_lexical.md#gr.lex.comment) | تعليق | `Token(COMMENT) \| Token(DOC_COMMENT)` | `LexerCore::nextToken` |
+| ق-093 | [`gr.adv.asm_dialect`](60_advanced.md#gr.adv.asm_dialect) | كتلة لهجة التجميع | `AsmBlockStmt` | `ParserCore::parseAsmBlockStmt` |
+| ق-094 | [`gr.adv.ui_decl`](60_advanced.md#gr.adv.ui_decl) | تصريح واجهة | `UIDeclarationNode` | `ParserCore::parseUIDeclaration` |
+| ق-095 | [`gr.adv.ui_state`](60_advanced.md#gr.adv.ui_state) | تصريح حالة واجهة | `UIStateDecl` | `ParserCore::parseUIStateDecl` |
+| ق-096 | [`gr.adv.widget`](60_advanced.md#gr.adv.widget) | تعبير عنصر واجهة | `UIWidgetExprNode` | `ParserCore::parseWidgetExpression` |
+| ق-097 | [`gr.adv.ui_modifier_chain`](60_advanced.md#gr.adv.ui_modifier_chain) | سلسلة معدّلات | `std::vector<UIModifierNode>` | `ParserCore::parseModifierChain` |
+| ق-098 | [`gr.adv.ui_event`](60_advanced.md#gr.adv.ui_event) | معالج حدث | `UIEventHandlerNode` | `ParserCore::parseUIEventHandler` |
+| ق-099 | [`gr.lex.identifier`](70_lexical.md#gr.lex.identifier) | مُعرّف | `Token(IDENTIFIER)` | `LexerCore::nextToken` |
+| ق-100 | [`gr.lex.integer`](70_lexical.md#gr.lex.integer) | عدد صحيح | `Token(NUMBER_INTEGER)` | `LexerCore::nextToken` |
+| ق-101 | [`gr.lex.double`](70_lexical.md#gr.lex.double) | عدد عشريّ | `Token(NUMBER_DOUBLE)` | `LexerCore::nextToken` |
+| ق-102 | [`gr.lex.string`](70_lexical.md#gr.lex.string) | نص حرفيّ | `Token(STRING_LITERAL)` | `LexerCore::nextToken` |
+| ق-103 | [`gr.lex.raw_string`](70_lexical.md#gr.lex.raw_string) | نص خام | `Token(STRING_RAW)` | `LexerCore::nextToken` |
+| ق-104 | [`gr.lex.fstring`](70_lexical.md#gr.lex.fstring) | رمز نص منسَّق | `Token(STRING_FSTRING)` | `LexerCore::nextToken` |
+| ق-105 | [`gr.lex.lifetime`](70_lexical.md#gr.lex.lifetime) | تعليق عمر | `Token(LIFETIME)` | `LexerCore::nextToken` |
+| ق-106 | [`gr.lex.comment`](70_lexical.md#gr.lex.comment) | تعليق | `Token(COMMENT) \| Token(DOC_COMMENT)` | `LexerCore::nextToken` |
 
 ## فهرس حسب عقدة AST
 
 | عقدة AST | القواعد المُنتِجة |
 |----------|--------------------|
 | `ArrayExpr \| ListComprehensionExpr` | [`gr.expr.array_literal`](40_expressions.md#gr.expr.array_literal) |
+| `AsmBlockStmt` | [`gr.adv.asm_dialect`](60_advanced.md#gr.adv.asm_dialect) |
 | `AssignExpr \| MemberAssignExpr \| IndexAssignExpr \| WalrusExpr` | [`gr.expr.assignment`](40_expressions.md#gr.expr.assignment) |
 | `AwaitExpr` | [`gr.adv.await`](60_advanced.md#gr.adv.await) |
 | `BinaryExpr` | [`gr.expr.logical_or`](40_expressions.md#gr.expr.logical_or)، [`gr.expr.logical_and`](40_expressions.md#gr.expr.logical_and)، [`gr.expr.bitwise_or`](40_expressions.md#gr.expr.bitwise_or)، [`gr.expr.bitwise_xor`](40_expressions.md#gr.expr.bitwise_xor)، [`gr.expr.bitwise_and`](40_expressions.md#gr.expr.bitwise_and)، [`gr.expr.equality`](40_expressions.md#gr.expr.equality)، [`gr.expr.comparison`](40_expressions.md#gr.expr.comparison)، [`gr.expr.term`](40_expressions.md#gr.expr.term)، [`gr.expr.factor`](40_expressions.md#gr.expr.factor)، [`gr.expr.power`](40_expressions.md#gr.expr.power) |

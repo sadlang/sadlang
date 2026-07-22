@@ -68,6 +68,14 @@ namespace Sad
 
                 void buildContinueStatement(Sad::AST::ContinueStmt *continueStmt);
 
+                /**
+                 * @brief (AR) يخفض كتلة لهجة التجميع «تجميع … نهاية» إلى llvm::InlineAsm
+                 *        (م١ RFC اللهجات الأصيلة): توليد قالب المنمنمة الأصليّة والقيود
+                 *        آليًّا من المعجم المولَّد، وربط {متغيّر} بقيود r، ويلوّث ⇒ clobbers.
+                 * @brief (EN) Lowers the assembly dialect block to llvm::InlineAsm.
+                 */
+                void buildAsmBlock(Sad::AST::AsmBlockStmt *asmBlock);
+
                 void buildForRangeLoop(Sad::AST::ForRangeStmt *forRange);
 
                 void buildMatchStatement(Sad::AST::MatchStmt *matchStmt);

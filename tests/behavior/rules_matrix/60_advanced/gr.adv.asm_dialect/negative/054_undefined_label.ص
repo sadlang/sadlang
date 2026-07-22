@@ -1,0 +1,7 @@
+# @rule: gr.adv.asm_dialect
+# @description: هدف قفز غير معرَّف كلصيقة يُرفَض بخطأ كتالوج SEM029
+# @expect_error: SEM029
+
+تجميع
+    اقفز غائبة
+نهاية

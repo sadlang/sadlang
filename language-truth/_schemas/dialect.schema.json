@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/dialect.schema.json",
+  "title": "Dialect Schema (اللهجات الأصيلة)",
+  "description": "مخطط JSON لملفّ بُنى لهجة أصيلة — language-truth/dialects/<dialect>.yaml. يصف كلمات الكتلة وحدودها وأصناف معاملاتها وبنودها. النموذج الدلاليّ ملك ص؛ معجم المنمنمات (إن وُجد) في ملفّ مستقلّ لكلّ معماريّة.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "dialect", "name_ar", "name_en", "status", "consumers", "interpreter", "block"],
+  "properties": {
+    "version": { "type": "string" },
+    "dialect": { "type": "string", "minLength": 1 },
+    "name_ar": { "type": "string", "minLength": 1 },
+    "name_en": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["experimental", "stable", "deprecated"] },
+    "consumers": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["sadc", "interpreter", "lsp", "docgen"] },
+      "minItems": 1
+    },
+    "interpreter": { "type": "string", "enum": ["compiler_only", "supported"] },
+    "architectures": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opener_ar", "closer_ar"],
+      "properties": {
+        "opener_ar": { "type": "string", "minLength": 1 },
+        "closer_ar": { "type": "string", "minLength": 1 },
+        "volatile_ar": { "type": "string", "minLength": 1 }
+      }
+    },
+    "instruction_line": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operand_separator_ar": { "type": "string", "minLength": 1 },
+        "comment_prefix": { "type": "string", "minLength": 1 }
+      }
+    },
+    "operand_kinds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name_ar", "desc"],
+        "properties": {
+          "id": { "type": "string", "enum": ["register", "immediate", "memory", "sad_var", "label"] },
+          "name_ar": { "type": "string", "minLength": 1 },
+          "desc": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "clobbers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyword_ar"],
+      "properties": {
+        "keyword_ar": { "type": "string", "minLength": 1 },
+        "special_targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ar", "en", "llvm"],
+            "properties": {
+              "ar": { "type": "string", "minLength": 1 },
+              "en": { "type": "string", "minLength": 1 },
+              "llvm": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suffix"],
+      "properties": {
+        "suffix": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -59,6 +59,9 @@ EXPECTED_OUTPUTS = {
     # (EN) CLI flags — cli_flags.yaml source-of-truth ⇒ C++ header + Arabic doc.
     "shared/cli/include/cli_flags_generated.h",
     "docs/cli_flags/_generated/cli_flags.ar.md",
+    # (AR) لهجة التجميع العربيّ — جدول المنمنمات/السجلّات المولَّد من dialects/ (م١ من rfcs#43).
+    # (EN) Arabic assembly dialect — mnemonic/register table generated from dialects/ (rfcs#43 M1).
+    "shared/dialects/generated/asm_dialect_generated.h",
     # (AR) توثيق قواعد المحلّل — Markdown مولَّد من language-truth/grammar/*.yaml
     #      (8 طبقات + فهرس)، مُلتزَم تحت docs/parser_rule/_generated.
     # (EN) Parser-grammar docs — generated Markdown (8 layers + INDEX) committed

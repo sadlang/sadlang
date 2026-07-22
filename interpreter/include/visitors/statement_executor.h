@@ -442,6 +442,12 @@ namespace Sad
             void visitUnsafeBlockStmt(AST::UnsafeBlockStmt &node) override;
 
             /**
+             * @brief (AR) كتلة لهجة التجميع «تجميع … نهاية» — متاحة في المترجم فقط (SEM027)
+             * @brief (EN) Assembly dialect block — compiler-only, rejected with SEM027
+             */
+            void visitAsmBlockStmt(AST::AsmBlockStmt &node) override;
+
+            /**
              * @brief (AR) @وقت_الترجمة ... نهاية — كتلة تنفيذ وقت الترجمة
              * @brief (EN) @comptime block
              */

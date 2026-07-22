@@ -76,10 +76,21 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) لهجة التجميع (م١): نصّ مسبوق بـSOH ‎(\x01)‎ يعني «صيغة LLVM جاهزة»
+            //      (‎$$‎ للثابت، ‎$N‎ للمعامل، ‎%reg‎ للسجلّ) ⇒ نتخطّى تحويل GCC.
+            // (EN) Assembly dialect (M1): a SOH-prefixed text is already LLVM-style —
+            //      skip the GCC->LLVM conversion below.
+            bool rawLlvmAsm = (!asmText.empty() && asmText[0] == '\x01');
+            if (rawLlvmAsm)
+            {
+                asmText.erase(asmText.begin());
+            }
+
             // (AR) تحويل صيغة GCC إلى صيغة LLVM للأسمبلي المضمن
             // (EN) Convert GCC-style inline asm syntax to LLVM-style:
             //   GCC: %%reg → LLVM: %reg  (double-percent = literal register name)
             //   GCC: %N   → LLVM: $N    (percent + digit = operand reference)
+            if (!rawLlvmAsm)
             {
                 std::string converted;
                 converted.reserve(asmText.size());

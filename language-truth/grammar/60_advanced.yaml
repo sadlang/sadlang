@@ -551,6 +551,31 @@ productions:
       test_budget: { basic: 2, edge: 2, negative: 1, interaction: 1 }
       notes_ar: "خاص بالمترجم sadc (تجميع مضمَّن) — مُعفى من المفسّر"
 
+  - id: gr.adv.asm_dialect
+    lhs: { nonterminal: AsmBlock, name_ar: "كتلة لهجة التجميع", name_en: assembly_dialect_block }
+    ebnf: "AsmBlock = 'تجميع' [ 'متطاير' ] { AsmLabel | AsmInstruction | AsmClobber } 'نهاية' ; AsmInstruction = MNEMONIC [ Operand { '،' Operand } ] ; AsmLabel = IDENT ':' ; AsmClobber = 'يلوّث' '(' Target { '،' Target } ')' ; Operand = REGISTER | INTEGER | '[' MemExpr ']' | '{' IDENT '}' | LABEL ;"
+    alternatives:
+      - symbols:
+          - { kind: terminal, ref: KEYWORD_ASM, value: "تجميع" }
+          - { kind: repeat, children: [ { kind: nonterminal, ref: AsmInstruction } ] }
+          - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
+    maps_to:
+      - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseAsmBlockStmt" }
+      - { file: compiler/src/frontend/builders/statement_asm.cpp, function: "StatementBuilder::buildAsmBlock" }
+    ast_node: "AsmBlockStmt"
+    description_ar: >
+      كتلة لهجة التجميع العربيّ «تجميع … نهاية» (م١ RFC اللهجات الأصيلة) — تعليمات عربيّة
+      منظَّمة مفحوصة مقابل معجم i686 المولَّد من مصدر الحقيقة. المنمنمات والسجلّات عربيّة،
+      و{متغيّر ص} يُربَط تلقائيًّا بقيود InlineAsm، ويلوّث(…) ⇒ clobbers. تُخفَض في sadc إلى
+      llvm::InlineAsm وتُرفَض في المفسّر بخطأ كتالوج SEM027. منمنمة غير معجميّة ⇒ SEM025،
+      وعدد معاملات مخالف ⇒ SEM026.
+    since: "1.0.0"
+    status: experimental
+    conformance:
+      compiler_optional: true
+      test_budget: { basic: 2, edge: 3, negative: 7, interaction: 1 }
+      notes_ar: "خاصّ بالمترجم sadc (لهجة التجميع) — مُعفى من المفسّر (بوّابة SEM027)"
+
   - id: gr.adv.ui_decl
     lhs: { nonterminal: UIDeclaration, name_ar: "تصريح واجهة", name_en: ui_declaration }
     ebnf: "UIDeclaration = 'واجهة' Identifier [ 'يرث' Identifier ] { UIStateDecl | 'دالة' FunctionDecl } 'نهاية' ;"

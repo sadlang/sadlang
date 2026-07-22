@@ -144,6 +144,10 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/shared/memory_policy/include
     ${CMAKE_SOURCE_DIR}/shared/modules/include
     ${CMAKE_SOURCE_DIR}/shared/builtins/include
+    # (AR) م١ RFC اللهجات الأصيلة: جدول لهجة التجميع المولَّد (asm_dialect_generated.h) —
+    #      هيدر مشترك يستهلكه المحلّل والفاحص والمترجم (بلا هدف CMake؛ حارس الانجراف يكفي).
+    # (EN) M1 native-dialects: generated assembly-dialect table shared by parser/semantic/compiler.
+    ${CMAKE_SOURCE_DIR}/shared/dialects/generated
     # (AR) م3 (RFC sadlang-rfcs#10): أُزيلت مسارات interpreter/include* العامّة من هنا
     #      ونُقلت إلى sad_interp PUBLIC (+ sad_runtime PRIVATE) في cmake/libraries.cmake.
     #      الهدف: ألّا تَرى أهدافُ نظام المترجم (التي تربط sad_shared فقط) ترويسات

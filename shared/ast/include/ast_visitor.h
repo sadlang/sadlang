@@ -51,6 +51,7 @@ namespace Sad
         class SizeofExpr;          // (AR) @حجم / (EN) @sizeof expression
         class AtomicExpr;          // (AR) @ذري / (EN) @atomic expression
         class VolatileVarDeclStmt; // (AR) @متطاير / (EN) @volatile declaration
+        class AsmBlockStmt;        // (AR) كتلة لهجة التجميع «تجميع … نهاية» (م١ RFC اللهجات) / (EN) assembly dialect block
 
         // OOP Expression nodes / عُقد تعابير OOP
         class NewExpr;
@@ -446,6 +447,15 @@ namespace Sad
              * @brief (EN) @volatile — volatile variable declaration
              */
             virtual void visitVolatileVarDeclStmt(VolatileVarDeclStmt &stmt) = 0;
+
+            /**
+             * @brief (AR) زيارة كتلة لهجة التجميع «تجميع … نهاية» (م١ RFC اللهجات الأصيلة)
+             * @brief (EN) Visit assembly dialect block "تجميع … نهاية"
+             *
+             * (AR) افتراضيّ فارغ (كنمط عقد الواجهة) — يعيد تعريفه من يحتاجه فقط:
+             *      المفسّر (بوّابة SEM027) والمترجم (خفض InlineAsm — عبر dynamic_cast لا الزائر).
+             */
+            virtual void visitAsmBlockStmt(AsmBlockStmt &stmt) {}
 
             // =====================================================================
             // OOP Expression visitors / زوار تعابير OOP

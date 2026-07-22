@@ -82,7 +82,7 @@ INHERITED_DEBT: dict = {
     "KEYWORD_ELSE_IF":   "legacy: يُركَّب من كلمتين منفصلتين (وإلا + إذا) لا كلمة واحدة",
     "KEYWORD_EXTENDS":   "legacy: مرادف تاريخيّ لـKEYWORD_INHERITS (يرث)",
     # ── دفعة «برمجة الأنظمة/الوضع الحرّ» — مُعرَّفة في token.h ولم تُسجَّل بعد ──
-    "KEYWORD_ASM":       "دَين موروث: تجميع (inline asm) — بانتظار تسجيل لغويّ في الكتالوج",
+    # (م١ RFC اللهجات الأصيلة) KEYWORD_ASM سُجِّل في keywords.yaml (KW-CTX-041 تجميع) — خرج من الدَّين.
     "KEYWORD_SIZEOF":    "دَين موروث: حجم (sizeof) — بانتظار تسجيل لغويّ في الكتالوج",
     "KEYWORD_UNSAFE":    "دَين موروث: غير_آمن (unsafe) — بانتظار تسجيل لغويّ في الكتالوج",
     "KEYWORD_PACKED":    "دَين موروث: محزوم (packed) — بانتظار تسجيل لغويّ في الكتالوج",

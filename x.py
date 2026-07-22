@@ -294,6 +294,28 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) لهجة التجميع العربيّ (م١ RFC اللهجات الأصيلة) — جدول منمنمات/سجلّات/
+        #      تلويث/كلمات الكتلة مولَّد من language-truth/dialects/. هيدر واحد
+        #      constexpr مُلتزَم يستهلكه المحلّل والفاحص الدلاليّ والمترجم sadc (لا
+        #      اعتماد ربط جديد — كنمط ui_*؛ يُضاف مجلّده لـinclude_directories الجذر).
+        # (EN) Arabic assembly dialect (M1 of the native-dialects RFC) — mnemonic/
+        #      register/clobber/block-keyword table generated from language-truth/
+        #      dialects/. One committed constexpr header consumed by parser, semantic
+        #      checker, and sadc.
+        "name": "asm_dialect",
+        "script": "gen_asm_dialect.py",
+        "out_dir": "shared/dialects/generated",
+        "outputs": ("asm_dialect_generated.h",),
+        "args": lambda d: [
+            "--dialect", "language-truth/dialects/assembly.yaml",
+            "--mnemonics", "language-truth/dialects/assembly_mnemonics/i686.yaml",
+            "--dialect-schema", "language-truth/_schemas/dialect.schema.json",
+            "--mnemonics-schema", "language-truth/_schemas/assembly_mnemonics.schema.json",
+            "--header", f"{d}/asm_dialect_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         # (AR) توثيق Markdown لأعلام سطر الأوامر — مولَّد من المصدر الوحيد نفسه،
         #      مجموعًا حسب المحرّك المستهلِك. بضمّه نطاقًا يمسك `gen --check`
         #      انحرافَه فلا يصير بائتًا عند تعديل الأعلام.

@@ -116,6 +116,7 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/builtins/include           # السجل المركزي الموحّد (ADR-003)
         ${CMAKE_CURRENT_SOURCE_DIR}/memory_gc/include          # B-step5b: pin.h يحتاج garbage_collector.h
         ${CMAKE_CURRENT_SOURCE_DIR}/cli/include                # (AR) cli_flags_generated.h — أعلام الأدوات (المصدر الوحيد، يستهلكه المحرّكان)
+        ${CMAKE_CURRENT_SOURCE_DIR}/dialects/generated         # (AR) asm_dialect_generated.h — جدول لهجة التجميع (م١ RFC اللهجات)
 )
 
 # (AR) م3 خطوة 3 (RFC sadlang-rfcs#10): أُزيل تصدير interpreter/include +

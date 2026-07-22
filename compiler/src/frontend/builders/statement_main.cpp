@@ -448,6 +448,14 @@ namespace Sad
                     return;
                 }
 
+                // (AR) AsmBlockStmt — كتلة لهجة التجميع «تجميع … نهاية» (م١ RFC اللهجات)
+                // (EN) Assembly dialect block "تجميع … نهاية"
+                if (auto asmBlock = dynamic_cast<Sad::AST::AsmBlockStmt *>(stmt))
+                {
+                    buildAsmBlock(asmBlock);
+                    return;
+                }
+
                 // (AR) ExprStmt - جملة تعبير (statements.h:38)
                 // (EN) Expression statement
                 if (auto exprStmt = dynamic_cast<Sad::AST::ExprStmt *>(stmt))

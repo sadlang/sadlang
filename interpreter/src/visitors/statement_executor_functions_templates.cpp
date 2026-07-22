@@ -12,6 +12,7 @@
 #include "directive_nodes.h"
 #include "error_manager.h"
 #include "runtime_throw.h"
+#include "asm_dialect_generated.h" // (AR) kBlockOpener — اسم لهجة التجميع من SoT (م١)
 #include "user_thrown.h"
 #include "object_instance.h"
 #include "debug_server.h"
@@ -402,6 +403,21 @@ namespace Sad
          * (AR) في المفسر، هذا ينفذ الجسم مباشرة. القيود الحقيقية تكون في المترجم.
          * (EN) In interpreter, this just executes the body. Real restrictions are in compiler.
          */
+        /**
+         * @brief (AR) كتلة لهجة التجميع «تجميع … نهاية» — خطأ كتالوج «متاح في المترجم فقط»
+         * @brief (EN) Assembly dialect block — catalog error "compiler only"
+         *
+         * (AR) نفس نمط بوّابة @غير_آمن/SEM019: اللهجة تُخفَض إلى تعليمات معالج أصليّة
+         *      عبر llvm::InlineAsm في sadc، ولا معنى لها في المفسّر الشجريّ.
+         */
+        void StatementExecutor::visitAsmBlockStmt(AST::AsmBlockStmt &node)
+        {
+            ::Sad::Errors::throwRuntime(
+                ::Sad::Errors::ErrorCode::SEM_DIALECT_COMPILER_ONLY,
+                node.position,
+                {{"dialect", ::Sad::Dialects::Asm::kBlockOpener}});
+        }
+
         void StatementExecutor::visitUnsafeBlockStmt(AST::UnsafeBlockStmt &node)
         {
             // (AR) تنفيذ جسم الكتلة في نطاق جديد

@@ -77,6 +77,10 @@ target_include_directories(sad_frontend
  # (EN) Phase 4 (F-03): add utils to avoid relative #include workarounds
  ${SAD_SHARED_DIR}/shared/utils/include
  ${SAD_SHARED_DIR}/shared/hot_reload/include
+ # (AR) م١ RFC اللهجات: جدول لهجة التجميع المولَّد (asm_dialect_generated.h) —
+ #      يستهلكه statement_asm.cpp لخفض «تجميع … نهاية» إلى llvm::InlineAsm.
+ # (EN) M1 native-dialects: generated assembly-dialect table for statement_asm.cpp.
+ ${SAD_SHARED_DIR}/shared/dialects/generated
 )
 
 # (AR) مسار هيدرات sad_ui (ui_modifiers.h المولَّد من language-truth) — PRIVATE:
