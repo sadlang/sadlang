@@ -134,7 +134,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_14
-  canonical: بت_و
+  canonical: وافق
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -142,12 +142,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: بت_و
+  description_ar: وافق
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_15
-  canonical: بت_أو
+  canonical: ضم
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -155,12 +155,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: بت_أو
+  description_ar: ضمّ
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_16
-  canonical: بت_حصري
+  canonical: خالف
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -168,12 +168,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: بت_حصري
+  description_ar: خالف
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_17
-  canonical: بت_نفي
+  canonical: اعكس_البتات
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -181,12 +181,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: بت_نفي
+  description_ar: اعكس_البتّات
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_18
-  canonical: بت_يسار
+  canonical: أزح_يسارا
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -194,12 +194,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: بت_يسار
+  description_ar: أزح_يسارًا
   description_en: kernel cpu function
   params: []
   lookup_table: name_only
 - cpp_id: CPU_19
-  canonical: بت_يمين
+  canonical: أزح_يمينا
   namespace: KernelCpu
   category: MODULE_FUNCTION
   require_import: true
@@ -207,7 +207,7 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: بت_يمين
+  description_ar: أزح_يمينًا
   description_en: kernel cpu function
   params: []
   lookup_table: name_only

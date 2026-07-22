@@ -378,6 +378,15 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) تفرّد canonical عبر نطاقات المدمجات — المسجّل يفهرس بالاسم وحده،
+        #      فالتكرار عبر النطاقات يحسمه ترتيب الاستيراد بصمت (تصادم «ضم»).
+        # (EN) Builtin canonical uniqueness across namespaces — the registry keys
+        #      by name only; cross-namespace duplicates are import-order races.
+        "name": "builtins_canonical_unique",
+        "script": "check_builtins_canonical_unique.py",
+        "args": (),
+    },
+    {
         # (AR) تغطية معجم آبلتات sad-repl مقابل مقام busybox defconfig المثبَّت: لا
         #      exec ميّت (ليس آبلتًا حقيقيًّا) ولا فجوة (آبلت defconfig بلا اسم عربيّ).
         # (EN) sad-repl applet lexicon coverage vs the pinned busybox defconfig

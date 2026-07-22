@@ -1555,14 +1555,14 @@ functions:
   source_file: stdlib_maps.yaml
   module: maps
 - cpp_id: ZIP
-  canonical: ضم
+  canonical: زاوج
   namespace: Maps
-  description_ar: دمج مصفوفتين في مصفوفة من الأزواج
+  description_ar: اقتران مصفوفتين في مصفوفة من الأزواج
   description_en: Combine two arrays into an array of pairs
   since: 0.1.0
   stability: stable
   examples:
-  - code: اطبع_سطر(ضم(["أ"، "ب"، "ج"]، "،"))
+  - code: اطبع_سطر(زاوج([1، 2]، ["أ"، "ب"]))
     runnable: true
   source_file: stdlib_maps.yaml
   module: maps

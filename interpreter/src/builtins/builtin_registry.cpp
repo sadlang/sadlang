@@ -315,7 +315,7 @@ namespace Sad
                 {"اختزال", kModMaps},
                 {"لكل_عنصر", kModMaps},
                 {"تخطيط_مسطح", kModMaps},
-                {"ضم", kModMaps},
+                {std::string(Bmp::ZIP), kModMaps},
                 {"أي_عنصر", kModMaps},
                 {"كل_العناصر", kModMaps},
                 {std::string(Bmp::NOW), kModMaps},

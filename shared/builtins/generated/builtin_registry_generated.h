@@ -491,8 +491,8 @@ namespace Sad
                 inline constexpr std::string_view FOR_EACH = "لكل_عنصر";
                 // (AR) تخطيط ثم تسطيح
                 inline constexpr std::string_view FLAT_MAP = "تخطيط_مسطح";
-                // (AR) ضم مصفوفتين في أزواج
-                inline constexpr std::string_view ZIP = "ضم";
+                // (AR) اقتران مصفوفتين في أزواج
+                inline constexpr std::string_view ZIP = "زاوج";
                 // (AR) هل يوجد عنصر يطابق؟
                 inline constexpr std::string_view ANY_ELEMENT = "أي_عنصر";
                 // (AR) هل كل العناصر تطابق؟
@@ -1661,18 +1661,18 @@ namespace Sad
                 inline constexpr std::string_view CPU_12 = "اقرأ_منفذ32";
                 // (AR) اكتب_منفذ32
                 inline constexpr std::string_view CPU_13 = "اكتب_منفذ32";
-                // (AR) بت_و
-                inline constexpr std::string_view CPU_14 = "بت_و";
-                // (AR) بت_أو
-                inline constexpr std::string_view CPU_15 = "بت_أو";
-                // (AR) بت_حصري
-                inline constexpr std::string_view CPU_16 = "بت_حصري";
-                // (AR) بت_نفي
-                inline constexpr std::string_view CPU_17 = "بت_نفي";
-                // (AR) بت_يسار
-                inline constexpr std::string_view CPU_18 = "بت_يسار";
-                // (AR) بت_يمين
-                inline constexpr std::string_view CPU_19 = "بت_يمين";
+                // (AR) وافق
+                inline constexpr std::string_view CPU_14 = "وافق";
+                // (AR) ضمّ
+                inline constexpr std::string_view CPU_15 = "ضم";
+                // (AR) خالف
+                inline constexpr std::string_view CPU_16 = "خالف";
+                // (AR) اعكس_البتّات
+                inline constexpr std::string_view CPU_17 = "اعكس_البتات";
+                // (AR) أزح_يسارًا
+                inline constexpr std::string_view CPU_18 = "أزح_يسارا";
+                // (AR) أزح_يمينًا
+                inline constexpr std::string_view CPU_19 = "أزح_يمينا";
                 // (AR) بت_اختبار
                 inline constexpr std::string_view CPU_20 = "بت_اختبار";
                 // (AR) بت_عيّن
@@ -3183,7 +3183,7 @@ namespace Sad
             {Names::Maps::REDUCE, "Maps", "MODULE_FUNCTION", "MAPS", true, "اختزال مصفوفة", "", ""},
             {Names::Maps::FOR_EACH, "Maps", "MODULE_FUNCTION", "MAPS", true, "تطبيق دالة على كل عنصر", "", ""},
             {Names::Maps::FLAT_MAP, "Maps", "MODULE_FUNCTION", "MAPS", true, "تخطيط ثم تسطيح", "", ""},
-            {Names::Maps::ZIP, "Maps", "MODULE_FUNCTION", "MAPS", true, "ضم مصفوفتين في أزواج", "", ""},
+            {Names::Maps::ZIP, "Maps", "MODULE_FUNCTION", "MAPS", true, "اقتران مصفوفتين في أزواج", "", ""},
             {Names::Maps::ANY_ELEMENT, "Maps", "MODULE_FUNCTION", "MAPS", true, "هل يوجد عنصر يطابق؟", "", ""},
             {Names::Maps::ALL_ELEMENTS, "Maps", "MODULE_FUNCTION", "MAPS", true, "هل كل العناصر تطابق؟", "", ""},
             {Names::Maps::UNIQUE, "Maps", "MODULE_FUNCTION", "MAPS", true, "إزالة التكرار", "", ""},
@@ -3726,12 +3726,12 @@ namespace Sad
             {Names::KernelCpu::CPU_11, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اكتب_منفذ16", "", ""},
             {Names::KernelCpu::CPU_12, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اقرأ_منفذ32", "", ""},
             {Names::KernelCpu::CPU_13, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اكتب_منفذ32", "", ""},
-            {Names::KernelCpu::CPU_14, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_و", "", ""},
-            {Names::KernelCpu::CPU_15, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_أو", "", ""},
-            {Names::KernelCpu::CPU_16, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_حصري", "", ""},
-            {Names::KernelCpu::CPU_17, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_نفي", "", ""},
-            {Names::KernelCpu::CPU_18, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_يسار", "", ""},
-            {Names::KernelCpu::CPU_19, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_يمين", "", ""},
+            {Names::KernelCpu::CPU_14, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "وافق", "", ""},
+            {Names::KernelCpu::CPU_15, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "ضمّ", "", ""},
+            {Names::KernelCpu::CPU_16, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "خالف", "", ""},
+            {Names::KernelCpu::CPU_17, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "اعكس_البتّات", "", ""},
+            {Names::KernelCpu::CPU_18, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "أزح_يسارًا", "", ""},
+            {Names::KernelCpu::CPU_19, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "أزح_يمينًا", "", ""},
             {Names::KernelCpu::CPU_20, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_اختبار", "", ""},
             {Names::KernelCpu::CPU_21, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_عيّن", "", ""},
             {Names::KernelCpu::CPU_22, "KernelCpu", "MODULE_FUNCTION", "NONE", true, "بت_امسح", "", ""},
