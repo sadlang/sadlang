@@ -290,6 +290,23 @@ namespace Sad
                 // (AR) قائمة الأخطاء (قاتلة — تمنع إنتاج الثنائيّ) / (EN) Error list (fatal)
                 std::vector<std::string> errors_;
 
+                // (AR) (اللبنة 3.17) أسماء رموز @رمز المُصدَّرة لتعريفات ذات جسم، مفصولةً
+                //      حسب النوع (دالّة/متغيّر) ليتقاطع كلّ مسارٍ مع الآخر. حارس تصادم:
+                //      تعريفان باسم رابط واحد يتصادمان صامتًا في الخلفيّة — دالّتان تُدمَجان
+                //      (الثاني يُفقَد)، ودالّة/متغيّر يُعيد LLVM تسمية أحدهما (@اسم.1) فيَضيع
+                //      عقد الـABI ⇒ نرفض التكرار بخطأ (SEM024). الفصل بمجموعتين يُبقي تصادم
+                //      متغيّر/متغيّر لحارسه القائم (SEM022 خلفيًّا) بلا تغيير، ويرفع تصادم
+                //      دالّة/دالّة ودالّة/متغيّر إلى SEM024 مستقلًّا عن ترتيب المعالجة.
+                // (EN) (Brick 3.17) @رمز exported symbol names for defined (bodied) entities,
+                //      split by kind (function/variable) so each path cross-checks the other.
+                //      Collision guard (SEM024): functions merge silently; a function sharing a
+                //      variable's name makes LLVM rename one (@name.1), losing the ABI contract.
+                //      Two sets keep variable/variable collisions on their existing guard (SEM022,
+                //      backend) untouched, and raise function/function + function/variable to
+                //      SEM024 order-independently.
+                std::unordered_set<std::string> exportedFunctionLinkNames_;
+                std::unordered_set<std::string> exportedVarLinkNames_;
+
                 // (AR) علَمٌ: هل الذراع الحاليّ ميتٌ ساكنًا؟ يضبطه failAlways داخل الدائرة
                 //      القصيرة (SC) عند فشلٍ بنيويّ غير مشروط، فيُصفَّر قبل كلّ ذراعٍ في
                 //      buildMatchStatement. يقرأه ربطُ المتغيّرات الصوريّ: لا نربط قيمةً

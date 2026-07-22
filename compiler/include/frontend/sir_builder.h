@@ -1712,6 +1712,18 @@ namespace Sad
                 const std::vector<std::string> &getErrors() const { return errors_; }
 
                 /**
+                 * @brief (AR) (اللبنة 3.17) يُبلِّغ SEM024 (تصادم اسم رمز @رمز مُصدَّر)
+                 *        مبنيًّا من كتالوج الأخطاء (مصدر الحقيقة — لا نصّ يدويّ) ويدفعه إلى
+                 *        errors_ ليُفشِل البناء عبر hasErrors(). يُستدعى من مساري الدالّة
+                 *        (sir_builder_functions) والمتغيّر (sir_builder_module).
+                 * @brief (EN) (Brick 3.17) Reports SEM024 (@رمز exported-symbol collision)
+                 *        built from the error catalog (SoT — no hand-written text) and pushes
+                 *        it to errors_ so hasErrors() fails the build. Called from both the
+                 *        function path and the variable path.
+                 */
+                void reportDuplicateExportSymbol(const std::string &symbol);
+
+                /**
                  * @brief (AR) هل توجد تحذيرات؟ (غير قاتلة — لا تُفشِل البناء)
                  * @brief (EN) Has warnings? (non-fatal — do not fail the build)
                  */

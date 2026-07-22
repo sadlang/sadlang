@@ -210,6 +210,15 @@ namespace Sad
                 //   across modules (LSP/multi-unit) never inherits a prior module's diagnostics.
                 errors_.clear();
                 warnings_.clear();
+                // (AR) (اللبنة 3.17، رصد Amelia H1) امسح مجموعتَي رموز @رمز المُصدَّرة أيضًا:
+                //      باقٍ حيّ عبر الوحدات في بانٍ مُعاد استخدامه (LSP) يُطلق SEM024 كاذبًا
+                //      على رمزٍ شرعيّ في وحدةٍ تالية (وحدتان مستقلّتان قد تُصدِّران الاسم نفسه).
+                // (EN) (Brick 3.17, Amelia H1) Also clear the @رمز exported-symbol sets: state
+                //      surviving across modules in a reused builder (LSP) would raise a false
+                //      SEM024 on a legitimate symbol in a later module (independent units may
+                //      export the same name).
+                exportedFunctionLinkNames_.clear();
+                exportedVarLinkNames_.clear();
 
                 if (!program)
                 {
@@ -738,6 +747,26 @@ namespace Sad
                         sirGlobal->isConstant = varDecl->isConst;
                         // (AR) اللبنة 3.14: سمات التخزين الساكن من التوجيهات
                         sirGlobal->linkName = varDecl->linkSymbol;   // @رمز("اسم") — رمز مُصدَّر
+                        // (AR) (اللبنة 3.17، رصد Amelia H2) تقاطع رمز المتغيّر المُصدَّر مع
+                        //      رموز الدوالّ المُصدَّرة: متغيّر يشارك دالّةً الاسمَ يجعل LLVM
+                        //      يُعيد تسمية أحدهما (@اسم.1) فيَضيع عقد الـABI صامتًا ⇒ SEM024.
+                        //      نتصادم مع مجموعة الدوالّ فقط (تصادم متغيّر/متغيّر يبقى لحارسه
+                        //      القائم SEM022 خلفيًّا بلا تغيير)، ونسجّل الرمز في مجموعة
+                        //      المتغيّرات ليكشفه مسار الدالّة إن عولجت لاحقًا (استقلال الترتيب).
+                        // (EN) (Brick 3.17, Amelia H2) Cross-check the exported variable symbol
+                        //      against exported function symbols: a variable sharing a function's
+                        //      name makes LLVM rename one (@name.1), silently losing the ABI
+                        //      contract ⇒ SEM024. Collide only with the function set (var/var stays
+                        //      on its existing SEM022 backend guard); record in the variable set so
+                        //      a later-processed function detects it (order-independent).
+                        if (!varDecl->linkSymbol.empty())
+                        {
+                            if (exportedFunctionLinkNames_.count(varDecl->linkSymbol) != 0)
+                            {
+                                reportDuplicateExportSymbol(varDecl->linkSymbol);
+                            }
+                            exportedVarLinkNames_.insert(varDecl->linkSymbol);
+                        }
                         sirGlobal->isVolatile = varDecl->isVolatile; // @متطاير
                         // (AR) اللبنة 3.16: مصفوفة تخزين ساكن مصفَّرة ⇒ [N x i8] zeroinitializer
                         //      في .bss. لا مُهيّئ (فلا تمرّ بمسار __sad_main). N موجب (SEM023).

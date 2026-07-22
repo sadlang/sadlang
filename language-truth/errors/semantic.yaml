@@ -392,3 +392,21 @@ errors:
   detailed:
     ar: مصفوفة التخزين الساكن «متغير ساكن اسم مصفوفة[N]» تحجز N بايتًا مصفَّرًا في .bss بحجم ثابت زمن الترجمة، فيجب أن يكون N عددًا صحيحًا حرفيًّا موجبًا (> 0). مصفوفة بحجم صفر بلا معنى، والحجم المتغيّر غير مدعوم (لا تخصيص ديناميكيّ في الوضع الحرّ).
     en: The static-storage array "متغير ساكن name مصفوفة[N]" reserves N zeroed bytes in .bss with a compile-time-fixed size, so N must be a positive integer literal (> 0). A zero-size array is meaningless, and a variable size is unsupported (no dynamic allocation in freestanding mode).
+
+- code: SEM_DUP_EXPORT_SYMBOL
+  id: SEM024
+  category: semantic
+  title:
+    ar: اسم رمز مُصدَّر مكرَّر عبر @رمز
+    en: duplicate exported symbol name via @رمز
+  brief:
+    ar: 'اسم الرمز المُصدَّر «{symbol}» مُكرَّر عبر @رمز — رمزان مُعرَّفان باسم رابط واحد يتصادمان (الثاني يُفقَد). استعمل اسمًا فريدًا لكلّ رمز مُصدَّر.'
+    en: 'Exported symbol name "{symbol}" is duplicated via @رمز — two definitions under one link symbol collide (the second is lost). Use a unique name for each exported symbol.'
+  placeholders:
+  - symbol
+  fix_hint:
+    ar: 'استعمل اسم رمز فريدًا لكلّ تعريف مُصدَّر عبر @رمز — تعريفان (دالّة/دالّة أو دالّة/متغيّر) باسم رابط واحد يتصادمان.'
+    en: 'Use a unique symbol name for each definition exported via @رمز — two definitions (function/function or function/variable) under one link symbol collide.'
+  detailed:
+    ar: '@رمز("اسم") على تعريف مُعرَّف (دالّة أو متغيّر) يُصدِّره في LLVM باسم الرمز بربط خارجيّ. تعريفان مُعرَّفان بنفس اسم الرمز يتصادمان: دالّتان تُدمَجهما الخلفيّة صامتًا (جسم الثانية يُلحَق ككتلة بلا سلف ويُفقَد فعليًّا)، ودالّة تشارك متغيّرًا الاسمَ تُعيد LLVM تسمية أحدهما صامتًا (@اسم.1) فيَضيع عقد الـABI ⇒ كودٌ خاطئ صامت. لذا يُرفَض تكرار اسم الرمز المُصدَّر بخطأ قاتل. (الدوالّ الخارجيّة «دالة خارجية» بلا جسم = استيراد، فلا تتصادم.)'
+    en: '@رمز("name") on a defined entity (function or variable) exports it in LLVM under the symbol name with external linkage. Two definitions with the same symbol name collide: two functions are silently merged by the backend (the second body is appended as a predecessor-less block and effectively lost), and a function sharing the name with a variable makes LLVM silently rename one (@name.1), losing the ABI contract ⇒ silent wrong code. Duplicate exported symbol names are therefore rejected with a fatal error. (Extern functions "دالة خارجية" have no body = import, so they do not collide.)'

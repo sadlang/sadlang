@@ -1629,9 +1629,15 @@ namespace Sad
                 }
                 if (vd)
                     vd->linkSymbol = symTok.getValue();
+                else if (auto *fd = dynamic_cast<FunctionDecl *>(decl.get()))
+                    // (AR) (اللبنة 3.17) @رمز على دالّة: تُصدَّر تحت اسم الرمز عبر
+                    //      linkName بربط خارجيّ (ExternalLinkage) — يستدعيها كود C/
+                    //      المترجم بالاسم ASCII حرفيًّا. تُطفئ تعريفات C مثل
+                    //      __sad_panic بتعريف ص مكافئ (getLinkName يُرجِع linkName).
+                    fd->linkName = symTok.getValue();
                 else
-                    error("(AR) خطأ نحوي: @رمز يتطلّب تصريح 'متغير' أو 'ثابت'.\n"
-                          "(EN) Syntax error: @رمز requires a 'متغير' or 'ثابت' declaration.");
+                    error("(AR) خطأ نحوي: @رمز يتطلّب تصريح 'متغير' أو 'ثابت' أو 'دالة'.\n"
+                          "(EN) Syntax error: @رمز requires a 'متغير', 'ثابت', or 'دالة' declaration.");
                 return decl;
             }
 

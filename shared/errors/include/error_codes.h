@@ -148,6 +148,7 @@ namespace Sad
             SEM_SYMBOL_ADDR_ARG,          ///< SEM021: (AR) وسيط عنوان_رمز يجب أن يكون اسم رمز ثابتًا / (EN) symbol-address argument must be a constant symbol name
             SEM_SYMBOL_NAME_CONFLICT,     ///< SEM022: (AR) اسم رمز @رمز مُصدَّر متصادم أو محجوز / (EN) exported @رمز symbol name conflicts or is reserved
             SEM_STATIC_ARRAY_SIZE,        ///< SEM023: (AR) حجم المصفوفة الساكنة يجب أن يكون عددًا صحيحًا موجبًا / (EN) static array size must be a positive integer
+            SEM_DUP_EXPORT_SYMBOL,        ///< SEM024: (AR) اسم رمز مُصدَّر مكرَّر عبر @رمز على الدوالّ / (EN) duplicate exported symbol name via @رمز on functions
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

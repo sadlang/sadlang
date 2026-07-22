@@ -26,6 +26,9 @@
 #include <iostream>
 #include <filesystem>
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "error_manager.h"    // (AR) (3.17) buildBilingualMessage لبلاغ SEM024 من الكتالوج
+#include "error_catalog.h"    // (AR) RenderContext (حاملُ placeholders)
+#include "error_codes.h"      // (AR) ErrorCode::SEM_DUP_EXPORT_SYMBOL
 
 namespace Sad
 {
@@ -163,6 +166,24 @@ namespace Sad
             // - buildStatement: sir_builder.h:372
             // - module_->addFunction: sir_module.h:569
             // ============================================================================
+
+            // (AR) (اللبنة 3.17) بلاغ SEM024 من كتالوج الأخطاء (مصدر الحقيقة الوحيد — لا
+            //      نصّ يدويّ)، نظير نمط الواجهة الخلفيّة (buildBilingualMessage) لكن يُدفَع
+            //      إلى errors_ ليُفشِل البناء عبر hasErrors() (البلاغ المطبوع لا يكفي وحده
+            //      لأنّ السائق يبوّب على hasErrors). التمرير: symbol = اسم الرمز المُصدَّر.
+            // (EN) (Brick 3.17) SEM024 diagnostic from the error catalog (single SoT — no
+            //      hand-written text), same pattern as the backend (buildBilingualMessage),
+            //      but pushed to errors_ so hasErrors() fails the build (a printed message
+            //      alone is insufficient — the driver gates on hasErrors).
+            void SIRBuilder::reportDuplicateExportSymbol(const std::string &symbol)
+            {
+                Sad::Errors::RenderContext ctx;
+                ctx.placeholders = {{"symbol", symbol}};
+                errors_.push_back(
+                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                        Sad::Errors::ErrorCode::SEM_DUP_EXPORT_SYMBOL, ctx));
+            }
+
             void SIRBuilder::buildFunction(AST::FunctionDeclNode *funcDecl)
             {
                 if (!funcDecl)
@@ -273,6 +294,32 @@ namespace Sad
                 if (!funcDecl->linkName.empty())
                 {
                     sirFunction->linkName = funcDecl->linkName;
+
+                    // (AR) (اللبنة 3.17) حارس تصادم @رمز على الدوالّ المُعرَّفة: رمزان
+                    //      مُصدَّران باسم رابط واحد يُدمَجهما الخلفيّة صامتًا (الثاني
+                    //      يُفقَد ⇒ كودٌ خاطئ). نرفض التكرار بخطأ قاتل (SEM024). يُطبَّق على
+                    //      المُعرَّفة فقط (الخارجيّة بلا جسم = استيراد، لا تتصادم). نتقاطع
+                    //      أيضًا مع رموز المتغيّرات المُصدَّرة: دالّة تشارك متغيّرًا الاسمَ
+                    //      تجعل LLVM يُعيد تسمية أحدهما (@اسم.1) فيَضيع عقد الـABI (رصد
+                    //      Amelia H2). التقاطع مستقلٌّ عن ترتيب معالجة الدوالّ/المتغيّرات.
+                    // (EN) (Brick 3.17) @رمز collision guard for defined functions: two
+                    //      exports under one link symbol are silently merged by the backend
+                    //      (second lost ⇒ wrong code). Reject duplicates (SEM024). Applies to
+                    //      defined functions only (extern = import, no collision). Also
+                    //      cross-checks variable export symbols: a function sharing a
+                    //      variable's name makes LLVM rename one (@name.1), losing the ABI
+                    //      contract (Amelia H2). Cross-check is order-independent.
+                    if (!funcDecl->isExtern)
+                    {
+                        const bool dupFunc =
+                            !exportedFunctionLinkNames_.insert(funcDecl->linkName).second;
+                        const bool dupVar =
+                            exportedVarLinkNames_.count(funcDecl->linkName) != 0;
+                        if (dupFunc || dupVar)
+                        {
+                            reportDuplicateExportSymbol(funcDecl->linkName);
+                        }
+                    }
                 }
 
                 // (AR) إضافة المعاملات (declarations.h:44 - parameters: vector<Parameter>)
