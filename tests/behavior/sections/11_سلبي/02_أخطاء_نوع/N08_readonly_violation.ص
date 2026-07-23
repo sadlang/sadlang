@@ -1,5 +1,5 @@
 ﻿# @description اختبار سلبي — تعديل ثابت (Const Assignment)
-# @expect_error Cannot reassign
+# @expect_error SEM007
 # @priority P1
 
 # ============================================================

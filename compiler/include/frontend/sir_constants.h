@@ -227,4 +227,20 @@ namespace Sad::Compiler
     inline constexpr const char *kModZeroRun010Msg =
         "خطأ [RUN010]: محاولة حساب باقي %g %% 0\n";
 
+    // (AR) النظائر الصحيحة (%lld للمقسوم i64) — سدّ تباعد قسمة/أرضيّة/باقي
+    //      الصحيحين على صفر: المفسّر يرمي RUN001/RUN009/RUN010 بينما كان المترجَم
+    //      يتباين (المسار العامّ 0/لاشيء صامتة؛ الساكن المستنتَج ينهار 0xC0000094
+    //      بقسمة عتاديّة على صفر). نفس نمط الحارس؛ حرًّا __sad_panic.
+    // (EN) Integer counterparts (%lld for the i64 dividend) — closing the
+    //      int div/floor-div/modulo-by-zero divergence: the interpreter throws
+    //      RUN001/RUN009/RUN010 while the compiled side diverged (generic path:
+    //      silent 0/null; inferred static path: 0xC0000094 hardware divide
+    //      crash). Same guard pattern; freestanding uses __sad_panic.
+    inline constexpr const char *kDivZeroRun001IntMsg =
+        "خطأ [RUN001]: محاولة قسمة %lld على صفر\n";
+    inline constexpr const char *kFloorDivZeroRun009IntMsg =
+        "خطأ [RUN009]: محاولة قسمة صحيحة لـ %lld على صفر\n";
+    inline constexpr const char *kModZeroRun010IntMsg =
+        "خطأ [RUN010]: محاولة حساب باقي %lld %% 0\n";
+
 } // namespace Sad::Compiler

@@ -320,9 +320,10 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_19), bit_shr);
 
     // اختبار بت محدد في قيمة
-    auto bit_test = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_test = [requireNumericBitArgs](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         int val = args[0]->toInt();
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>((val >> bit) & 1);
@@ -330,9 +331,10 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_20), bit_test);
 
     // تعيين بت محدد في قيمة
-    auto bit_set = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_set = [requireNumericBitArgs](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         int val = args[0]->toInt();
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>(val | (1 << bit));
@@ -340,9 +342,10 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_21), bit_set);
 
     // مسح بت محدد في قيمة
-    auto bit_clear = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_clear = [requireNumericBitArgs](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         int val = args[0]->toInt();
         int bit = args[1]->toInt();
         return std::make_shared<Data::Value>(val & ~(1 << bit));

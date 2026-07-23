@@ -463,16 +463,17 @@ namespace Sad
         // (AR) حارس القاسم العشريّ الصفريّ للمسار الديناميّ (د-1 + إغلاق بوّابتَي
         //      NaN المتبقّيتين RUN009/RUN010 — مرآة emitFloatDivZeroGuard في المسار
         //      الساكن): failCond جاهز عند النداء (عادةً eitherF ∧ القاسم == 0.0 —
-        //      الفرع الصحيح يُبقي سياسة النتيجة 0 الموثَّقة). مستضاف ⇒ تشخيص عربيّ
+        //      أو intDivZero للفرع الصحيح — رسالة %g أو %lld بحسب المقسوم). مستضاف ⇒ تشخيص عربيّ
         //      بالكتالوج (hostedMsg بموضع %g للمقسوم) + exit(1)؛ حرّ ⇒ __sad_panic.
         // (EN) Dynamic-path float zero-divisor guard (D-1 + closing the remaining
         //      NaN gates RUN009/RUN010 — mirror of the static-path
         //      emitFloatDivZeroGuard): failCond is precomputed by the caller
         //      (typically eitherF ∧ divisor == 0.0 — the integer branch keeps its
-        //      documented result-0 policy). Hosted ⇒ Arabic catalog diagnostic
+        //      or intDivZero for the int branch — %g or %lld message to match the
+        //      dividend). Hosted ⇒ Arabic catalog diagnostic
         //      (hostedMsg with %g for the dividend) + exit(1); freestanding ⇒
         //      __sad_panic(check-violation).
-        static void emitDynFloatDivZeroGuard(LLVMCodeGen &cg, llvm::Value *failCond,
+        static void emitDynDivZeroGuard(LLVMCodeGen &cg, llvm::Value *failCond,
                                              llvm::Value *dividendD,
                                              const char *hostedMsg, const char *tag)
         {
@@ -543,9 +544,9 @@ namespace Sad
             //      المسار الساكن المترجم نفسها — المفسّر يرمي RUN001/RUN009، تباعدٌ موثَّق).
             // (EN) Amelia (ISSUE-063): widen the guard — besides the float branch, an integer
             //      zero divisor (sdiv/srem ⇒ #DE crash) and INT64_MIN/-1 (sdiv overflow ⇒ #DE
-            //      too) substitute divisor 1; the div-by-zero case then forces result 0 (same
-            //      policy as the compiled static path — the interpreter throws RUN001/RUN009,
-            //      a documented divergence).
+            //      too) substitute divisor 1. The int zero-divisor case is no longer a
+            //      silent result-0 policy: it is rejected by the guards below with
+            //      RUN001/RUN009/RUN010, matching the interpreter (divergence closed).
             llvm::Value *dynZero64 = llvm::ConstantInt::get(i64, 0);
             llvm::Value *intDivZero = b.CreateAnd(
                 b.CreateNot(eitherF, "dyn.not.f"),
@@ -608,26 +609,30 @@ namespace Sad
                 //      نفس بوّابة NaN التي سُدَّت في المسار الساكن (emitDiv). المفسّر
                 //      يرمي RUN001؛ هنا نرفض زمنيًّا قبل fdiv: مستضاف ⇒ تشخيص RUN001
                 //      العربيّ + exit(1)؛ حرّ ⇒ __sad_panic برمز انتهاك الفحص.
-                //      الفرع الصحيح (قاسم صفر صحيح) يُبقي سياسة النتيجة 0 الموثَّقة
-                //      أدناه — نطاق د-1 هو العشريّ حصرًا.
+                //      والفرع الصحيح (قاسم صفر صحيح) يُرفض بـRUN001 كذلك — سياسة
+                //      النتيجة 0 الصامتة أُلغيت (سدّ تباعد الصحيحين).
                 // (EN) Float division-by-zero guard (D-1, engine parity): a float
                 //      branch (eitherF) with divisor 0.0 silently produced nan/inf —
                 //      the same NaN gate closed on the static path (emitDiv). The
                 //      interpreter throws RUN001; reject at runtime before fdiv:
                 //      hosted ⇒ Arabic RUN001 diagnostic + exit(1); freestanding ⇒
-                //      __sad_panic(check-violation). The integer branch keeps the
-                //      documented result-0 policy below — D-1 scope is float only.
-                emitDynFloatDivZeroGuard(
+                //      __sad_panic(check-violation). The integer branch (int zero
+                //      divisor) is rejected with RUN001 too — the silent result-0
+                //      policy is gone (int divergence closed).
+                emitDynDivZeroGuard(
                     cg,
                     b.CreateAnd(eitherF,
                                 b.CreateFCmpOEQ(rD, llvm::ConstantFP::get(dbl, 0.0),
                                                 "dyn.fdiv.rz"),
                                 "dyn.fdivz"),
                     lD, Sad::Compiler::kDivZeroRun001Msg, "dyn.fdiv.dz");
+                // (AR) والفرع الصحيح: قاسم صفر ⇒ RUN001 كالمفسّر (كانت سياسة 0 صامتة)
+                // (EN) Int branch: zero divisor ⇒ RUN001 like the interpreter
+                //      (was a silent result-0 policy)
+                emitDynDivZeroGuard(cg, intDivZero, lI,
+                                    Sad::Compiler::kDivZeroRun001IntMsg, "dyn.idiv.dz");
                 fRes = b.CreateFDiv(lD, rD, "dyn.fdiv");
                 iRes = b.CreateSDiv(lI, safeRI, "dyn.idiv");
-                // (AR) قسمة صحيحة على صفر ⇒ 0 (سياسة المسار الساكن) / (EN) int /0 ⇒ 0
-                iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.idiv.z");
                 llvm::Value *rem = b.CreateSRem(lI, safeRI, "dyn.div.rem");
                 llvm::Value *inexact = b.CreateICmpNE(
                     rem, llvm::ConstantInt::get(i64, 0), "dyn.div.inexact");
@@ -645,46 +650,48 @@ namespace Sad
             case SIROpcode::MOD_I64:
                 // (AR) % : عشريّ ⇒ frem (fmod، مثل المفسّر 7.5%2=1.5)؛ صحيح ⇒ srem.
                 //      حارس القاسم الصفريّ العشريّ ⇒ RUN010 (المفسّر يرمي؛ كان frem
-                //      يُنتج NaN بصمت) — الفرع الصحيح يُبقي سياسة النتيجة 0.
+                //      يُنتج NaN بصمت)، والفرع الصحيح ⇒ RUN010 كذلك (كانت سياسة 0 صامتة).
                 // (EN) % : float ⇒ frem (fmod, like the interpreter 7.5%2=1.5); int ⇒ srem.
                 //      Float zero-divisor guard ⇒ RUN010 (interpreter throws; frem
-                //      silently produced NaN) — the int branch keeps the result-0 policy.
-                emitDynFloatDivZeroGuard(
+                //      silently produced NaN); int branch ⇒ RUN010 too (was silent 0).
+                emitDynDivZeroGuard(
                     cg,
                     b.CreateAnd(eitherF,
                                 b.CreateFCmpOEQ(rD, llvm::ConstantFP::get(dbl, 0.0),
                                                 "dyn.frem.rz"),
                                 "dyn.fremz"),
                     lD, Sad::Compiler::kModZeroRun010Msg, "dyn.frem.dz");
+                emitDynDivZeroGuard(cg, intDivZero, lI,
+                                    Sad::Compiler::kModZeroRun010IntMsg, "dyn.srem.dz");
                 fRes = b.CreateFRem(lD, rD, "dyn.frem");
                 iRes = b.CreateSRem(lI, safeRI, "dyn.srem");
-                // (AR) باقٍ على صفر ⇒ 0 (سياسة المسار الساكن) / (EN) int %0 ⇒ 0
-                iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.srem.z");
                 break;
             case SIROpcode::FLOOR_DIV_I64:
             {
                 // (AR) // : عشريّ ⇒ floor(fdiv) (مثل المفسّر 7.5//2=3.0)؛ صحيح ⇒ sdiv.
                 // (EN) // : float ⇒ floor(fdiv) (like the interpreter 7.5//2=3.0); int ⇒ sdiv.
                 // (AR) حارس القاسم الصفريّ العشريّ ⇒ RUN009 (المفسّر يرمي؛ كان
-                //      fdiv/floor يُنتج nan/inf بصمت) — الفرع الصحيح يُبقي سياسة 0.
+                //      fdiv/floor يُنتج nan/inf بصمت)، والفرع الصحيح ⇒ RUN009 كذلك.
                 // (EN) Float zero-divisor guard ⇒ RUN009 (interpreter throws;
-                //      fdiv/floor silently produced nan/inf) — int branch keeps 0.
-                emitDynFloatDivZeroGuard(
+                //      fdiv/floor silently produced nan/inf); int branch ⇒ RUN009 too.
+                emitDynDivZeroGuard(
                     cg,
                     b.CreateAnd(eitherF,
                                 b.CreateFCmpOEQ(rD, llvm::ConstantFP::get(dbl, 0.0),
                                                 "dyn.fd.rz"),
                                 "dyn.fdz"),
                     lD, Sad::Compiler::kFloorDivZeroRun009Msg, "dyn.ffd.dz");
+                emitDynDivZeroGuard(cg, intDivZero, lI,
+                                    Sad::Compiler::kFloorDivZeroRun009IntMsg,
+                                    "dyn.ifd.dz");
                 llvm::Value *q = b.CreateFDiv(lD, rD, "dyn.fdiv.q");
                 llvm::Function *floorFn = llvm::Intrinsic::getDeclaration(
                     cg.module_.get(), llvm::Intrinsic::floor, {dbl});
                 fRes = b.CreateCall(floorFn, {q}, "dyn.floor");
                 // (AR) Amelia (ISSUE-063): تسويةٌ أرضيّة للفرع الصحيح (-7//2=-4 كالمفسّر)
-                //      بدل اقتطاع sdiv نحو الصفر (-3)؛ وقاسمٌ صفر ⇒ 0.
+                //      بدل اقتطاع sdiv نحو الصفر (-3).
                 // (EN) Amelia (ISSUE-063): floor adjustment on the integer branch
-                //      (-7//2=-4 like the interpreter) instead of sdiv truncation (-3);
-                //      zero divisor ⇒ 0.
+                //      (-7//2=-4 like the interpreter) instead of sdiv truncation (-3).
                 llvm::Value *iq = b.CreateSDiv(lI, safeRI, "dyn.sdiv");
                 llvm::Value *irem = b.CreateSRem(lI, safeRI, "dyn.sdiv.rem");
                 llvm::Value *signsDiffer = b.CreateICmpSLT(
@@ -692,7 +699,6 @@ namespace Sad
                 llvm::Value *inexactI = b.CreateICmpNE(irem, dynZero64, "dyn.fd.ix");
                 llvm::Value *needAdj = b.CreateAnd(signsDiffer, inexactI, "dyn.fd.na");
                 iRes = b.CreateSub(iq, b.CreateZExt(needAdj, i64, "dyn.fd.adj"), "dyn.fd.q");
-                iRes = b.CreateSelect(intDivZero, dynZero64, iRes, "dyn.fd.z");
                 // (AR) INT64_MIN // -1 يفيض ⇒ المفسّر يرقّيه إلى عشريّ (9223372036854775808.0)
                 //      كالقسمة `/`. fRes = floor(fdiv(lD,rD)) يحسبه؛ نضمّ minOverflow لوسمه عشريًّا.
                 // (EN) INT64_MIN // -1 overflows ⇒ the interpreter promotes to float

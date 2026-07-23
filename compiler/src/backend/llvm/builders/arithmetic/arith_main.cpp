@@ -128,6 +128,56 @@ namespace Sad
 
                 b.SetInsertPoint(contBB);
             }
+
+            // (AR) النظير الصحيح لحارس القاسم الصفريّ (سدّ تباعد قسمة/أرضيّة/باقي
+            //      الصحيحين على صفر): ICmpEQ بدل FCmpOEQ ورسالة %lld — كان sdiv/srem
+            //      ينهار عتاديًّا 0xC0000094 في المسار الساكن المستنتَج بينما المفسّر
+            //      يرمي RUN001/RUN009/RUN010.
+            // (EN) Integer counterpart of the zero-divisor guard (closing the int
+            //      div/floor-div/modulo-by-zero divergence): ICmpEQ instead of
+            //      FCmpOEQ with an %lld message — sdiv/srem crashed with a
+            //      0xC0000094 hardware fault on the inferred static path while the
+            //      interpreter throws RUN001/RUN009/RUN010.
+            void emitIntDivZeroGuard(LLVMCodeGen &cg, llvm::Value *dividend,
+                                     llvm::Value *divisor, const char *hostedMsg,
+                                     const char *tag)
+            {
+                llvm::IRBuilder<> &b = *cg.builder_;
+                llvm::LLVMContext &ctx = *cg.context_;
+                llvm::Value *isZeroDiv = b.CreateICmpEQ(
+                    divisor, llvm::ConstantInt::get(cg.getInt64Type(), 0),
+                    std::string(tag) + ".iszero");
+                llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+                llvm::BasicBlock *failBB =
+                    llvm::BasicBlock::Create(ctx, std::string(tag) + ".fail", curFunc);
+                llvm::BasicBlock *contBB =
+                    llvm::BasicBlock::Create(ctx, std::string(tag) + ".ok", curFunc);
+                b.CreateCondBr(isZeroDiv, failBB, contBB);
+
+                b.SetInsertPoint(failBB);
+                if (cg.freestanding_)
+                {
+                    cg.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
+                }
+                else
+                {
+                    auto ptrTy = llvm::PointerType::getUnqual(ctx);
+                    auto *printfType = llvm::FunctionType::get(
+                        llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
+                    auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
+                    llvm::Value *msg = b.CreateGlobalStringPtr(
+                        hostedMsg, std::string(tag) + ".fmt");
+                    b.CreateCall(printfFunc, {msg, dividend});
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);
+                    auto exitFunc = cg.module_->getOrInsertFunction("exit", exitType);
+                    b.CreateCall(exitFunc,
+                                 {llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 1)});
+                }
+                b.CreateUnreachable();
+
+                b.SetInsertPoint(contBB);
+            }
         } // namespace
 
         llvm::Value *ArithmeticCodeGen::emitAdd(std::shared_ptr<SIRInstruction> inst)
@@ -623,6 +673,9 @@ namespace Sad
                         left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "f64toi64.l");
                     if (right->getType()->isDoubleTy())
                         right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
+                    emitIntDivZeroGuard(cg_, left, right,
+                                        Sad::Compiler::kFloorDivZeroRun009IntMsg,
+                                        "ifloordiv.dz");
                     llvm::Value *q = cg_.builder_->CreateSDiv(left, right, "floordivtmp");
                     llvm::Value *rem = cg_.builder_->CreateSRem(left, right, "floordiv.rem");
                     llvm::Value *zero64 = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
@@ -642,6 +695,8 @@ namespace Sad
                     left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "f64toi64.l");
                 if (right->getType()->isDoubleTy())
                     right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
+                emitIntDivZeroGuard(cg_, left, right,
+                                    Sad::Compiler::kDivZeroRun001IntMsg, "idiv.dz");
                 result = cg_.builder_->CreateSDiv(left, right, "divtmp");
             }
 
@@ -769,6 +824,8 @@ namespace Sad
             if (right->getType()->isDoubleTy())
                 right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
 
+            emitIntDivZeroGuard(cg_, left, right,
+                                Sad::Compiler::kModZeroRun010IntMsg, "imod.dz");
             llvm::Value *result = cg_.builder_->CreateSRem(left, right, "modtmp");
 
             if (inst->result.has_value())
