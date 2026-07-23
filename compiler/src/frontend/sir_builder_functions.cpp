@@ -349,12 +349,29 @@ namespace Sad
                     //      تبديل UNKNOWN→Boolean يُسبّب trunc i64→i1 عند الاستدعاء مما يُضيّع قيمة null
                     // (EN) FIX X04: Don't override to Boolean (i1) — null is passed as i64 sentinel
                     //      Overriding UNKNOWN→Boolean causes trunc i64→i1 at call site, corrupting null
+                    // (AR) دَين مراجعة #258 (RUN001 كاذبة): المصرَّح «رقم» يقبل العشريّ في المفسّر
+                    //      (المرجع)، والمرحلة 1.7 ترقّيه في functionTable_ إلى Float/Any من مواقع
+                    //      الاستدعاء — لكنّ شرط Unknown هنا كان يرفض الترقية فيبقى المعامل i64
+                    //      ويقتطع fptosi الوسيطَ العشريّ عند الحدود (اقسم(7.0، 0.5) ⇒ مقام 0 ⇒
+                    //      RUN001 كاذبة). نقبل الترقية العدديّة (Float/Any حصرًا) للمصرَّح «رقم»
+                    //      أيضًا — عدا خارجي/@رمز (ABI مثبَّت لا يُعاد تشكيله من مواقع الاستدعاء).
+                    // (EN) #258 review debt (false RUN001): a declared «رقم» accepts floats in the
+                    //      interpreter (reference), and Phase 1.7 widens it to Float/Any in
+                    //      functionTable_ from call sites — but the Unknown gate here rejected the
+                    //      widening, leaving the param i64 so fptosi truncated float args at the
+                    //      boundary (divide(7.0, 0.5) ⇒ divisor 0 ⇒ false RUN001). Accept the
+                    //      numeric widening (Float/Any only) for declared «رقم» too — except
+                    //      extern/@رمز functions (fixed ABI, never reshaped from call sites).
                     if (paramType == SadTypeKind::Integer &&
-                        param.type == Types::SadTypeKind::Unknown &&
                         ftIt != functionTable_.end() &&
                         i < ftIt->second.parameters.size() &&
                         ftIt->second.parameters[i].type != SadTypeKind::Integer &&
-                        ftIt->second.parameters[i].type != SadTypeKind::Boolean)
+                        ftIt->second.parameters[i].type != SadTypeKind::Boolean &&
+                        (param.type == Types::SadTypeKind::Unknown ||
+                         (param.type == Types::SadTypeKind::Integer &&
+                          !funcDecl->isExtern && funcDecl->linkName.empty() &&
+                          (ftIt->second.parameters[i].type == SadTypeKind::Float ||
+                           ftIt->second.parameters[i].type == SadTypeKind::Any))))
                     {
                         paramType = ftIt->second.parameters[i].type;
 #ifdef SIR_BUILDER_DEBUG
@@ -421,12 +438,18 @@ namespace Sad
                     // (EN) Same logic: use inferred type when UNKNOWN
                     // (AR) إصلاح X04: نفس الشرط — لا تُبدِّل إلى Boolean
                     // (EN) FIX X04: Same condition — don't override to Boolean
+                    // (AR) دَين #258: نفس الشرط — قبول الترقية العدديّة للمصرَّح «رقم» (انظر أعلاه)
+                    // (EN) #258 debt: same condition — accept numeric widening for declared «رقم» (see above)
                     if (paramType == SadTypeKind::Integer &&
-                        param.type == Types::SadTypeKind::Unknown &&
                         ftIt != functionTable_.end() &&
                         i < ftIt->second.parameters.size() &&
                         ftIt->second.parameters[i].type != SadTypeKind::Integer &&
-                        ftIt->second.parameters[i].type != SadTypeKind::Boolean)
+                        ftIt->second.parameters[i].type != SadTypeKind::Boolean &&
+                        (param.type == Types::SadTypeKind::Unknown ||
+                         (param.type == Types::SadTypeKind::Integer &&
+                          !funcDecl->isExtern && funcDecl->linkName.empty() &&
+                          (ftIt->second.parameters[i].type == SadTypeKind::Float ||
+                           ftIt->second.parameters[i].type == SadTypeKind::Any))))
                     {
                         paramType = ftIt->second.parameters[i].type;
                     }

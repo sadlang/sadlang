@@ -826,6 +826,30 @@ namespace Sad
 
             emitIntDivZeroGuard(cg_, left, right,
                                 Sad::Compiler::kModZeroRun010IntMsg, "imod.dz");
+            // (AR) حارس فيض الحدّ الأدنى (دَين مراجعة #258): srem على INT64_MIN % -1
+            //      فيضٌ عتاديّ (#DE = 0xC0000095) رغم أنّ الناتج الرياضيّ صفر — والمفسّر
+            //      (المرجع) يُرجع 0 صراحةً، والمسار الديناميّ محروسٌ سلفًا بترقية safeRI.
+            //      نستبدل المقسوم عليه بـ1 عند اجتماع الحدّين (srem(min,1)=0) — بلا تفرّع،
+            //      مرآةً لحيلة safeRI الديناميّة.
+            // (EN) Min-overflow guard (#258 review debt): srem traps on INT64_MIN % -1
+            //      (#DE = 0xC0000095) although the mathematical result is zero — the
+            //      interpreter (reference) explicitly returns 0, and the dynamic path is
+            //      already guarded via the safeRI promotion. Substitute divisor 1 when
+            //      both extremes meet (srem(min,1)=0) — branch-free, mirroring safeRI.
+            {
+                llvm::Value *i64Min = llvm::ConstantInt::get(
+                    cg_.getInt64Type(), llvm::APInt::getSignedMinValue(64));
+                llvm::Value *negOne =
+                    llvm::ConstantInt::getSigned(cg_.getInt64Type(), -1);
+                llvm::Value *isMin =
+                    cg_.builder_->CreateICmpEQ(left, i64Min, "imod.min");
+                llvm::Value *isNegOne =
+                    cg_.builder_->CreateICmpEQ(right, negOne, "imod.negone");
+                llvm::Value *minOvf =
+                    cg_.builder_->CreateAnd(isMin, isNegOne, "imod.ovf");
+                llvm::Value *one = llvm::ConstantInt::get(cg_.getInt64Type(), 1);
+                right = cg_.builder_->CreateSelect(minOvf, one, right, "imod.safeden");
+            }
             llvm::Value *result = cg_.builder_->CreateSRem(left, right, "modtmp");
 
             if (inst->result.has_value())
