@@ -13,6 +13,7 @@
 #include "widget_builder.h"
 #include "sad_ui/node.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/event_dispatch.h" // (rfcs#51) stopActiveEventPropagation
 #include "sad_ui/types.h"
 #include "sad_ui/print_tree.h" // (AR) مصدر الحقيقة الوحيد لطباعة شجرة IR (مشترك)
 #include "sad_ui/nav.h"        // (AR) مكدّس التنقّل المشترك (مصدر الحقيقة: عمق + بنية + رسم حيّ)
@@ -554,6 +555,15 @@ namespace Sad
                 return std::make_shared<Data::Value>();
             };
             fm.registerBuiltinFunction(std::string(Bc::UPDATE_STATE), set_state_fn);
+
+            // ─── أوقف_الانتشار — يوقف انتشار الحدث الجاري (rfcs#51) ───
+            auto stop_prop_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
+            {
+                const auto &args = ctx.args(); (void)args;
+                sad::ui::stopActiveEventPropagation();
+                return std::make_shared<Data::Value>();
+            };
+            fm.registerBuiltinFunction(std::string(Bc::STOP_PROPAGATION), stop_prop_fn);
 
             // ─── عنوان النافذة ───
             auto set_title_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>

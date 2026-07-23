@@ -339,14 +339,42 @@ namespace sad
             Translation, ///< انتقال — تحريك العنصر
 
             // ── أحداث التفاعل ───────────────────────────
+            // (AR) تحذير: لا تُضِف معدّل حدثٍ هنا وحده! المعدّل الذي لا يُدرَج في
+            //      SAD_UI_EVENT_MODIFIER_MAP (أدناه) يسقط صامتًا إلى **خاصّيّة**
+            //      في IRBuilder فلا يُطلَق أبدًا — عيبٌ لا تكشفه الترجمة. أضِف
+            //      السطر في الخريطة، وهي وحدها تُولّد القائمة البيضاء والتحويل.
             OnTap,         ///< عند_النقر — عند النقر على العنصر
+            OnDoubleTap,   ///< عند_النقر_المزدوج — نقرتان متتاليتان
             OnLongPress,   ///< عند_الضغط_المطول — عند الضغط المطول
             OnDrag,        ///< عند_السحب — سحب مستمرّ (دلتا تفاضليّة لكلّ حركة)
+            OnDragStart,   ///< عند_بدء_السحب — بداية عمليّة السحب
+            OnDragEnd,     ///< عند_انتهاء_السحب — نهاية عمليّة السحب
+            OnDrop,        ///< عند_الإسقاط — إسقاط عنصر مسحوب
             OnSwipeLeft,   ///< عند_السحب_يسار — إيماءة تمرير يسارًا (مرّة واحدة)
             OnSwipeRight,  ///< عند_السحب_يمين — إيماءة تمرير يمينًا (مرّة واحدة)
+            OnSwipeUp,     ///< عند_السحب_أعلى — إيماءة تمرير للأعلى
+            OnSwipeDown,   ///< عند_السحب_أسفل — إيماءة تمرير للأسفل
+            OnZoom,        ///< عند_التكبير — إيماءة القرص/التكبير
+            OnRotate,      ///< عند_الدوران — إيماءة الدوران باللمس
             OnAppear,      ///< عند_الظهور — عند دخول العنصر الشاشة
             OnDisappear,   ///< عند_الاختفاء — عند خروج العنصر من الشاشة
             OnValueChange, ///< عند_تغيّر_القيمة — عند تغير قيمة حقل إدخال
+            OnInput,       ///< عند_الإدخال — إدخال نصّ حرفًا بحرف
+            OnRelease,     ///< عند_التحرير — رفع الضغط عن العنصر
+            OnScroll,      ///< عند_التمرير — تمرير محتوى قابل للتمرير
+            OnHover,       ///< عند_التحويم — دخول المؤشّر حدود العنصر
+            OnHoverExit,   ///< عند_الخروج — مغادرة المؤشّر حدود العنصر
+            OnFocus,       ///< عند_التركيز — اكتساب العنصر التركيز
+            OnBlur,        ///< عند_فقد_التركيز — فقدان العنصر التركيز
+            OnKeyDown,     ///< عند_ضغط_مفتاح — ضغط مفتاح لوحة
+            OnKeyUp,       ///< عند_رفع_مفتاح — رفع مفتاح لوحة
+            OnSubmit,      ///< عند_الإرسال — إرسال نموذج
+            OnContextMenu, ///< عند_القائمة_السياقية — نقرة يمنى/ضغط مطوّل سياقيّ
+            OnSelect,      ///< عند_التحديد — تحديد نصّ أو عنصر
+            OnResize,      ///< عند_تغيير_الحجم — تغيّر أبعاد العنصر
+            OnAnimationEnd, ///< عند_انتهاء_التحريك — انتهاء حركة
+            OnLoad,        ///< عند_التحميل — اكتمال تحميل محتوى
+            OnError,       ///< عند_الخطأ — فشل تحميل محتوى
 
             // ── خصائص إمكانية الوصول ─────────────────────
             AccessibilityLabel, ///< تسمية_وصول — نص يُقرأ بواسطة قارئ الشاشة
@@ -450,6 +478,72 @@ namespace sad
         };
 
         // ═══════════════════════════════════════════════════════════════════════════════
+        // خريطة معدّلات الأحداث (Event Modifier Map) — مصدر حقيقة واحد
+        // ═══════════════════════════════════════════════════════════════════════════════
+        //
+        // (AR) كلّ سطر: X(<قيمة ModifierType>, <قيمة IREventType المقابلة>).
+        //      كانت هذه المعرفة مكتوبة **مرّتين**: قائمة بيضاء في IRBuilder وسويتش
+        //      في modifierTypeToIREventType. إضافةُ معدّلٍ لأحدهما دون الآخر تجعله
+        //      يسقط صامتًا إلى خاصّيّة (لا يُطلَق حدث قطّ) — عيبٌ وقع فعلًا. صار
+        //      الموضعان يُوسّعان هذه الخريطة، فالتباعد مستحيل بنيويًّا لا مُراقَبًا.
+        //      واسم المعدّل العربيّ يُشتقّ من ui_events.yaml عبر irEventTypeToString
+        //      فلا يُكتب حرفيًّا في جدول الأسماء.
+        //
+        // (EN) One line per event modifier: X(ModifierType, IREventType). This
+        //      knowledge used to live twice (IRBuilder whitelist + a switch); a
+        //      modifier added to only one silently degraded into a property and
+        //      never fired. Both sites now expand this map — divergence is
+        //      structurally impossible rather than merely watched for.
+        // ═══════════════════════════════════════════════════════════════════════════════
+#define SAD_UI_EVENT_MODIFIER_MAP(X)         \
+    X(OnTap, OnTap)                          \
+    X(OnDoubleTap, OnDoubleTap)              \
+    X(OnLongPress, OnLongPress)              \
+    X(OnDrag, OnDrag)                        \
+    X(OnDragStart, OnDragStart)              \
+    X(OnDragEnd, OnDragEnd)                  \
+    X(OnDrop, OnDrop)                        \
+    X(OnSwipeLeft, OnSwipeLeft)              \
+    X(OnSwipeRight, OnSwipeRight)            \
+    X(OnSwipeUp, OnSwipeUp)                  \
+    X(OnSwipeDown, OnSwipeDown)              \
+    X(OnZoom, OnZoom)                        \
+    X(OnRotate, OnRotate)                    \
+    X(OnAppear, OnAppear)                    \
+    X(OnDisappear, OnDisappear)              \
+    X(OnValueChange, OnChange)               \
+    X(OnInput, OnInput)                      \
+    X(OnRelease, OnRelease)                  \
+    X(OnScroll, OnScroll)                    \
+    X(OnHover, OnHover)                      \
+    X(OnHoverExit, OnHoverExit)              \
+    X(OnFocus, OnFocus)                      \
+    X(OnBlur, OnBlur)                        \
+    X(OnKeyDown, OnKeyDown)                  \
+    X(OnKeyUp, OnKeyUp)                      \
+    X(OnSubmit, OnSubmit)                    \
+    X(OnContextMenu, OnContextMenu)          \
+    X(OnSelect, OnSelect)                    \
+    X(OnResize, OnResize)                    \
+    X(OnAnimationEnd, OnAnimationEnd)        \
+    X(OnLoad, OnLoad)                        \
+    X(OnError, OnError)
+
+        /// هل هذا المعدّل معدّلُ حدثٍ (فيُحوَّل إلى IREvent لا إلى خاصّيّة)؟
+        bool isEventModifier(ModifierType mod);
+
+        /**
+         * @brief (AR) هل هذا النوع حاويةً قابلة للتمرير؟
+         *
+         * كان هذا التصنيف مكتوبًا حرفيًّا في تسعة مواضع، **وانحرف**: بعضها
+         * أغفل `LazyRow` فصار الصفّ الكسول قابلًا للتمرير عند الرسم وحساب
+         * الإزاحة، وحاويةً عاديّة عند التوزيع. مصدرٌ واحد يمنع تكرار ذلك.
+         *      دلالة مرتبطة: في هذه الأنواع تعني `إزاحة_س/إزاحة_ص` إزاحةَ
+         *      تمريرٍ تُطبَّق على الأبناء، لا موضعًا حرًّا للعقدة نفسها.
+         */
+        bool isScrollableType(UINodeType type);
+
+        // ═══════════════════════════════════════════════════════════════════════════════
         // طور انتشار الحدث (Event Propagation Phase)
         // ═══════════════════════════════════════════════════════════════════════════════
         //
@@ -521,7 +615,10 @@ namespace sad
             std::string value; ///< القيمة الجديدة (حقل إدخال، slider، ...)
 
             // ─── بيانات مخصصة (Custom Payload) ────────
-            std::string customData; ///< بيانات حرة يُحددها المبرمج
+            /// (AR) بيانات حرّة يُحدّدها المبرمج لكلّ **معالِج**؛ يملؤها المُرسِل
+            ///      قبل كلّ نداء من IREvent::userData — ولذلك هي mutable كعلامة
+            ///      إيقاف الانتشار (بيانات الحدث تُمرَّر مرجعًا ثابتًا مشتركًا).
+            mutable std::string customData;
 
             // ─── التحكم بالانتشار ─────────────────────
             mutable bool propagationStopped = false; ///< هل تم إيقاف الانتشار؟
@@ -539,6 +636,13 @@ namespace sad
 
         /// هل هذا الاسم يمثل حدث معروف؟ (أي: ليس Custom)
         bool isKnownEventName(const std::string &name);
+
+        /// (AR) اسم طورٍ عربيّ قانونيّ (SoT: ui_propagation.yaml) → EventPropagation.
+        ///      يُرجع None لأيّ اسمٍ غير معروف (فشل-آمن: لا انتشار غير مقصود).
+        EventPropagation stringToEventPropagation(const std::string &name);
+
+        /// (AR) EventPropagation → اسمه العربيّ القانونيّ.
+        const std::string &eventPropagationToString(EventPropagation phase);
 
         /// تحويل ModifierType (للأحداث فقط) إلى IREventType
         IREventType modifierTypeToIREventType(ModifierType mod);

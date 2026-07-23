@@ -243,6 +243,11 @@ namespace Sad
             // أثر المعدّلات (م-أ3ر، L2): ربط حدث عند_* بالعقدة
             case SIROpcode::BUILTIN_UI_ADD_EVENT:
                 return cg_.emitUiAddEvent(inst);
+            // أثر المعدّلات (rfcs#51): طور انتشار آخر معالِج (.تفرع)
+            case SIROpcode::BUILTIN_UI_SET_EVENT_PHASE:
+                return cg_.emitUiSetEventPhase(inst);
+            case SIROpcode::BUILTIN_UI_SET_EVENT_DATA:
+                return cg_.emitUiSetEventData(inst);
             // أثر المعدّلات (م-أ3ر، L3): سلسلة التحريك
             case SIROpcode::BUILTIN_UI_ANIM_BEGIN:
                 return cg_.emitUiAnimBegin(inst);
@@ -337,6 +342,8 @@ namespace Sad
                 return cg_.emitUiNavigateExitTransition(inst);
             case SIROpcode::BUILTIN_UI_UPDATE_STATE:
                 return cg_.emitUiUpdateState(inst);
+            case SIROpcode::BUILTIN_UI_STOP_PROPAGATION:
+                return cg_.emitUiStopPropagation(inst);
             case SIROpcode::BUILTIN_UI_SET_STATE:
                 return cg_.emitUiSetState(inst);
             case SIROpcode::BUILTIN_UI_SET_TITLE:

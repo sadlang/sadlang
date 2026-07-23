@@ -281,8 +281,14 @@ namespace sad
                 bool same = true;
                 for (size_t i = 0; i < oldEvents.size(); i++)
                 {
+                    // (AR) نقارن كلّ ما يؤثّر في الإرسال: النوع والتعبير وطورَ
+                    //   الانتشار وبيانات المعالِج — إعادةُ رسمٍ تفاعليّة تغيّر
+                    //   طورًا أو بيانات دون تغيير التعبير كانت تُعدّ مطابِقة فتبقى
+                    //   القيمة قديمة (لا تُنبعث UPDATE_EVENTS).
                     if (oldEvents[i].type != newEvents[i].type ||
-                        oldEvents[i].expression != newEvents[i].expression)
+                        oldEvents[i].expression != newEvents[i].expression ||
+                        oldEvents[i].propagation != newEvents[i].propagation ||
+                        oldEvents[i].userData != newEvents[i].userData)
                     {
                         same = false;
                         break;

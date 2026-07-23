@@ -983,6 +983,7 @@ namespace Sad
                 // --- 20k. إكمال corui: انتقال كامل + الحالة + النافذة + توليد ويب ---
                 BUILTIN_UI_NAVIGATE_EXIT_TRANSITION, ///< انتقل_بتحريك_كامل(صفحة,دخول,خروج,مدة) / sad_navigate_exit_transition
                 BUILTIN_UI_UPDATE_STATE,             ///< تحديث_حالة() / sad_update_state — يعلّم إعادة رسم
+                BUILTIN_UI_STOP_PROPAGATION,         ///< أوقف_الانتشار() / sad_stop_propagation — يوقف انتشار الحدث
                 BUILTIN_UI_SET_STATE,                ///< عين_الحالة(دالّة) / نداء إغلاق + sad_update_state
                 BUILTIN_UI_SET_TITLE,                ///< عنوان_النافذة(نص) / sad_set_window_title
                 BUILTIN_UI_CLOSE_WINDOW,             ///< أغلق_النافذة() / sad_close_window
@@ -999,6 +1000,8 @@ namespace Sad
                 BUILTIN_UI_ANIM_BEGIN,        ///< .حرّك(أنواع) → sad_anim_begin(w,csv) — يبدأ مجموعة (مركّب بالفاصلة)
                 BUILTIN_UI_ANIM_DURATION,     ///< .مدة(ث) → sad_anim_duration(w,sec)
                 BUILTIN_UI_ANIM_EASING,       ///< .منحنى(اسم) → sad_anim_easing(w,name)
+                BUILTIN_UI_SET_EVENT_PHASE,   ///< .تفرع(طور) → sad_set_event_phase(w,phase) — طور آخر معالِج
+                BUILTIN_UI_SET_EVENT_DATA,    ///< .عند_*(د،بيانات) → sad_set_event_data(w,str) — «بيانات» آخر معالِج
                 BUILTIN_UI_ANIM_DELAY,        ///< .تأخير(ث) → sad_anim_delay(w,sec)
                 BUILTIN_UI_ANIM_REPEAT,       ///< .تكرار(ن) → sad_anim_repeat(w,count)
                 BUILTIN_UI_ANIM_AUTO_REVERSE, ///< .عكس_تلقائي([منطقي]) → sad_anim_auto_reverse(w,bool)

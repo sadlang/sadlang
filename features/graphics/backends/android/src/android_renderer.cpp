@@ -972,6 +972,9 @@ void main() {
 
                 // ─── تهيئة معالج أحداث اللمس الموحد ───
                 touchProcessor_.setViewportSize(width_, height_);
+                touchProcessor_.setGetContentRootCallback(
+                    [this]() -> const IRNode *
+                    { return contentRoot_.get(); });
                 touchProcessor_.setHitTestCallback(
                     [this](float x, float y) -> const IRNode *
                     { return hitTest(x, y); });
@@ -1070,6 +1073,9 @@ void main() {
 
             void AndroidWindow::setContent(std::shared_ptr<IRNode> root)
             {
+                // (AR) استبدال الشجرة يُحرّر عقدها، ومعالج اللمس يحتفظ بمؤشّرات
+                //      خام إليها (FingerState.dragNode) ⇒ نُصفّرها قبل التحرير.
+                touchProcessor_.reset();
                 contentRoot_ = std::move(root);
                 // ربط محرك الانيميشن بالمُصيّر وتهيئة الحركات
                 renderer_->setAnimationEngine(&animationEngine_);

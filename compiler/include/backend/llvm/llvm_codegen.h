@@ -1996,6 +1996,8 @@ namespace Sad
             llvm::Value *emitUiAnimBegin(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimBegin(inst); }
             llvm::Value *emitUiAnimDuration(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimDuration(inst); }
             llvm::Value *emitUiAnimEasing(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimEasing(inst); }
+            llvm::Value *emitUiSetEventPhase(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetEventPhase(inst); }
+            llvm::Value *emitUiSetEventData(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetEventData(inst); }
             llvm::Value *emitUiAnimDelay(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimDelay(inst); }
             llvm::Value *emitUiAnimRepeat(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimRepeat(inst); }
             llvm::Value *emitUiAnimAutoReverse(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimAutoReverse(inst); }
@@ -2040,6 +2042,7 @@ namespace Sad
             // (إكمال corui) الانتقال الكامل + الحالة + النافذة + توليد الويب
             llvm::Value *emitUiNavigateExitTransition(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavigateExitTransition(inst); }
             llvm::Value *emitUiUpdateState(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiUpdateState(inst); }
+            llvm::Value *emitUiStopPropagation(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiStopPropagation(inst); }
             llvm::Value *emitUiSetState(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetState(inst); }
             llvm::Value *emitUiSetTitle(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetTitle(inst); }
             llvm::Value *emitUiCloseWindow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCloseWindow(inst); }

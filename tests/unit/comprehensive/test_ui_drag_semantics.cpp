@@ -45,6 +45,18 @@ namespace
         double deltaY;
     };
 
+    /// (AR) هل العقدة الهدف ما زالت داخل الشجرة الحيّة؟ مقارنة مؤشّرات فقط
+    ///      (بلا فكّ إسناد الهدف) فتصحّ حتّى لو كانت العقدة قد تحرّرت.
+    bool nodeInTree(const IRNode &root, const IRNode *target)
+    {
+        if (&root == target)
+            return true;
+        for (const auto &child : root.getChildren())
+            if (child && nodeInTree(*child, target))
+                return true;
+        return false;
+    }
+
     /// مشهد اختبار: شجرة من عنصرين متجاورين + معالج موصول بسجلّ الإطلاق.
     struct DragScene
     {
@@ -57,14 +69,21 @@ namespace
 
         /// اختبار نقر هندسيّ بسيط: العنصر الهدف يشغل [0,100]×[0,100]،
         /// والمجاور [200,300]×[0,100] — بينهما فجوة تُرجع nullptr.
+        /// (AR) كإنتاجٍ فعليّ: لا يُرجَع إلّا عقدٌ حيّةٌ في الشجرة الحاليّة —
+        ///      فبعد استبدال الجذر تُحرَّر target/other فلا تُعاد (مقارنة
+        ///      مؤشّرات فقط، بلا فكّ إسناد العقدة المحرَّرة).
         const IRNode *hit(float x, float y)
         {
-            if (y < 0.0f || y > 100.0f)
-                return nullptr;
-            if (x >= 0.0f && x <= 100.0f)
-                return target;
-            if (x >= 200.0f && x <= 300.0f)
-                return other;
+            const IRNode *candidate = nullptr;
+            if (y >= 0.0f && y <= 100.0f)
+            {
+                if (x >= 0.0f && x <= 100.0f)
+                    candidate = target;
+                else if (x >= 200.0f && x <= 300.0f)
+                    candidate = other;
+            }
+            if (candidate && root && nodeInTree(*root, candidate))
+                return candidate;
             return nullptr;
         }
     };
@@ -227,7 +246,12 @@ int main()
         s->proc.onMouseMove(70.0f, 50.0f, leftDown());
         SAD_ASSERT_EQ(static_cast<size_t>(1), only(s->fired, IREventType::OnDrag).size());
 
-        // تُستبدل الشجرة بأخرى لا تحوي العقدة المُمسَكة (نظير rebuildUI/REPLACE)
+        // تُستبدل الشجرة بأخرى لا تحوي العقدة المُمسَكة (نظير rebuildUI/REPLACE).
+        // (AR) نُحاكي تسلسل الإنتاج بدقّة: setContent يصفّر المؤشّرات الخام
+        //      (سحب/ضغط/تحويم) قبل تحرير العقد القديمة — وإلّا بقي تحويمٌ/ضغطٌ
+        //      مُعلَّقًا على عقدةٍ محرَّرة فقُرئت ذاكرتها. الحارس هنا: بعد التصفير
+        //      الصحيح لا يُطلَق أيّ حدثٍ على العقدة الميتة.
+        s->proc.clearNodeRefs();
         s->root = std::make_shared<IRNode>(UINodeType::Column);
         s->fired.clear();
         s->proc.onMouseMove(90.0f, 50.0f, leftDown());

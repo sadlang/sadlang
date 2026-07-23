@@ -866,6 +866,19 @@ functions:
   description_en: تحديث_حالة
   params: []
   lookup_table: name_only
+- cpp_id: STOP_PROPAGATION
+  canonical: أوقف_الانتشار
+  namespace: UICore
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: يوقف انتشار الحدث الجاري (لا يبلغ الأجداد ولا بقيّة المعالِجات)
+  description_en: Stops propagation of the current event (no ancestors, no further handlers)
+  params: []
+  lookup_table: name_only
 - cpp_id: SET_TITLE
   canonical: عنوان_النافذة
   namespace: UICore

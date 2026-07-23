@@ -47,6 +47,7 @@
 
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/event_dispatch.h" // hasListenerInPath
 
 #include <functional>
 #include <string>
@@ -296,6 +297,22 @@ namespace sad
             // ─── Callbacks ──────────────────────────────
 
             std::function<void(IREventType, const std::string &, const IRNode *, const EventData &)> fireEventCb_;
+
+            /**
+             * (AR) يُطلق حدثًا **مرّةً واحدة** على العقدة، ويترك اختيارَ المعالِجات
+             *      والمرورَ بأطوار الانتشار لـdispatchEvent في مدخل المنصّة.
+             *      كانت المعالجات تمرّ على getEvents() بنفسها ثمّ تنادي مدخلًا
+             *      يمرّ عليها ثانيةً ⇒ إطلاقٌ N² على الهدف وN مرّة على كلّ جدّ.
+             *      التعبير فارغ عمدًا: لم يعد المُطلِق يعرف أيّ معالِجٍ سيُنفَّذ.
+             */
+            void emitEvent(IREventType type, const IRNode *node,
+                           const EventData &data) const
+            {
+                if (fireEventCb_ && hasListenerInPath(type, node))
+                    fireEventCb_(type, std::string(), node, data);
+            }
+
+
             std::function<const IRNode *()> getFocusedNodeCb_;
             std::function<const IRNode *()> getContentRootCb_;
             std::function<void(std::vector<const IRNode *> &)> collectFocusableCb_;

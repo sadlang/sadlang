@@ -528,6 +528,10 @@ namespace Sad
                     return "ui.anim_duration";
                 case SIROpcode::BUILTIN_UI_ANIM_EASING:
                     return "ui.anim_easing";
+                case SIROpcode::BUILTIN_UI_SET_EVENT_PHASE:
+                    return "ui.set_event_phase";
+                case SIROpcode::BUILTIN_UI_SET_EVENT_DATA:
+                    return "ui.set_event_data";
                 case SIROpcode::BUILTIN_UI_ANIM_DELAY:
                     return "ui.anim_delay";
                 case SIROpcode::BUILTIN_UI_ANIM_REPEAT:
@@ -612,6 +616,8 @@ namespace Sad
                 // (AR) إكمال corui: انتقال كامل + الحالة + النافذة + توليد ويب
                 case SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION:
                     return "ui.navigate_exit_transition";
+                case SIROpcode::BUILTIN_UI_STOP_PROPAGATION:
+                    return "ui.stop_propagation";
                 case SIROpcode::BUILTIN_UI_UPDATE_STATE:
                     return "ui.update_state";
                 case SIROpcode::BUILTIN_UI_SET_STATE:

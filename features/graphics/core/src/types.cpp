@@ -18,6 +18,7 @@
 #include "sad_ui/text_normalize.h" // (AR) تجريد التشكيل من اسم الحدث قبل المطابقة
 // (AR) قائمة X-macro لأنواع الأحداث مولَّدة من language-truth/ui_events.yaml.
 #include "sad_ui/generated/event_vocab_generated.h"
+#include "sad_ui/generated/propagation_vocab_generated.h"
 // (AR) جداول الألوان الموحَّدة مولَّدة من language-truth/ui_colors.yaml.
 #include "sad_ui/generated/color_table_generated.h"
 
@@ -249,7 +250,7 @@ namespace sad
         /// جدول: ModifierType → اسم عربي
         static const std::unordered_map<ModifierType, std::string> &getModifierTypeNames()
         {
-            static const std::unordered_map<ModifierType, std::string> table = {
+            static std::unordered_map<ModifierType, std::string> table = {
                 // ─── الألوان ──────────────
                 {ModifierType::ForegroundColor, "لون"},
                 {ModifierType::BackgroundColor, "لون_خلفية"},
@@ -295,15 +296,6 @@ namespace sad
                 {ModifierType::Rotation, "دوران"},
                 {ModifierType::Scale, "مقياس"},
                 {ModifierType::Translation, "ترجمة"},
-                // ─── الأحداث ──────────────
-                {ModifierType::OnTap, "عند_النقر"},
-                {ModifierType::OnLongPress, "عند_الضغط_المطول"},
-                {ModifierType::OnDrag, "عند_السحب"},
-                {ModifierType::OnSwipeLeft, "عند_السحب_يسار"},
-                {ModifierType::OnSwipeRight, "عند_السحب_يمين"},
-                {ModifierType::OnAppear, "عند_الظهور"},
-                {ModifierType::OnDisappear, "عند_الاختفاء"},
-                {ModifierType::OnValueChange, "عند_التغيير"},
                 // ─── سهولة الوصول ─────────
                 {ModifierType::AccessibilityLabel, "تسمية_وصول"},
                 {ModifierType::AccessibilityHint, "تلميح_وصول"},
@@ -311,6 +303,22 @@ namespace sad
                 {ModifierType::Animation, "رسوم_متحركة"},
                 {ModifierType::Transition, "انتقال"},
             };
+
+            // (AR) أسماء معدّلات الأحداث تُشتقّ من ui_events.yaml (عبر
+            //      irEventTypeToString) لا تُكتب حرفيًّا هنا: الاسمُ القانونيّ
+            //      للمعدّل هو اسمُ الحدث نفسه. فمعدّلٌ جديد في الخريطة يكتسب
+            //      اسمه تلقائيًّا، ولا يمكن أن ينحرف اسمُه عن اسم الحدث.
+            static const bool eventsSeeded = []()
+            {
+#define X(modId, evtId)                          \
+    table[ModifierType::modId] =                 \
+        irEventTypeToString(IREventType::evtId);
+                SAD_UI_EVENT_MODIFIER_MAP(X)
+#undef X
+                return true;
+            }();
+            (void)eventsSeeded;
+
             return table;
         }
 
@@ -351,6 +359,94 @@ namespace sad
             }
             return std::nullopt;
         }
+
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // جداول التحويل — أطوار الانتشار (EventPropagation) — SoT: ui_propagation.yaml
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        namespace
+        {
+            /// ترتيب المفردة كما ولّدها المولّد من ui_propagation.yaml.
+            enum class PropagationVocabOrder : uint8_t
+            {
+#define X(id, str) id,
+                SAD_UI_PROPAGATION_VOCAB(X)
+#undef X
+                    _Count
+            };
+
+#define X(id, str)                                                                  static_assert(static_cast<int>(PropagationVocabOrder::id) ==                                      static_cast<int>(EventPropagation::id),                                     "ترتيب ui_propagation.yaml خالف enum EventPropagation.");
+            SAD_UI_PROPAGATION_VOCAB(X)
+#undef X
+        } // namespace
+
+        EventPropagation stringToEventPropagation(const std::string &name)
+        {
+            // (AR) الاسم وسيطٌ نصّيّ قد يحمل تشكيلًا — يُجرَّد قبل المطابقة كالأحداث.
+            static const std::unordered_map<std::string, EventPropagation> table = {
+#define X(id, str) {str, EventPropagation::id},
+                SAD_UI_PROPAGATION_VOCAB(X)
+#undef X
+            };
+            const auto it = table.find(stripArabicDiacritics(name));
+            // (AR) فشل-آمن: اسمٌ مجهول ⇒ لا انتشار (لا نُفعّل تفرّعًا لم يُطلَب).
+            return it != table.end() ? it->second : EventPropagation::None;
+        }
+
+        const std::string &eventPropagationToString(EventPropagation phase)
+        {
+            static const std::unordered_map<EventPropagation, std::string> table = {
+#define X(id, str) {EventPropagation::id, str},
+                SAD_UI_PROPAGATION_VOCAB(X)
+#undef X
+            };
+            static const std::string unknown;
+            const auto it = table.find(phase);
+            return it != table.end() ? it->second : unknown;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // حارس الترتيب: ui_events.yaml ↔ enum IREventType (فحص وقت الترجمة)
+        // ═══════════════════════════════════════════════════════════════════════════════
+        //
+        // (AR) القيمة العدديّة لـIREventType **جزء من ABI**: المترجم يبصمها في
+        //      البنيّة المولَّدة (حقل «نوع» في بنية «حدث») ويقرؤها وقتُ التشغيل.
+        //      ولمّا كان الترتيب يُكتب مرّتين — في language-truth/ui_events.yaml
+        //      وفي enum IREventType يدويًّا — فإنّ إدراج نوعٍ في وسط أحدهما دون
+        //      الآخر يزيح كلّ ما بعده صامتًا: يُطلَق حدثٌ ويُفسَّر آخر.
+        //      هذا الحارس يجعل التباعد **خطأ ترجمة** لا عيبًا صامتًا في وقت
+        //      التشغيل، ريثما يصير الـenum نفسه مُولَّدًا (إنهاء SoT المزدوج).
+        //
+        // (EN) IREventType's numeric values are ABI: the compiler stamps them into
+        //      the generated event struct. The order is written twice (YAML SoT +
+        //      hand-written enum), so an insertion in one shifts everything after
+        //      it silently. This guard turns that divergence into a compile error.
+        // ═══════════════════════════════════════════════════════════════════════════════
+        namespace
+        {
+            /// ترتيب المفردة كما ولّدها gen_ui_vocab.py من ui_events.yaml.
+            enum class EventVocabOrder : uint8_t
+            {
+#define X(id, str) id,
+                SAD_UI_EVENT_VOCAB(X)
+#undef X
+                    _Count
+            };
+
+#define X(id, str)                                                              \
+    static_assert(static_cast<int>(EventVocabOrder::id) ==                      \
+                      static_cast<int>(IREventType::id),                        \
+                  "ترتيب ui_events.yaml خالف enum IREventType — القيم العدديّة " \
+                  "جزء من ABI (حقل «نوع» في بنية «حدث»).");
+            SAD_UI_EVENT_VOCAB(X)
+#undef X
+
+            static_assert(static_cast<int>(EventVocabOrder::_Count) ==
+                              static_cast<int>(IREventType::_Count),
+                          "عدد أنواع الأحداث في ui_events.yaml خالف enum IREventType — "
+                          "نوعٌ مُضاف في أحدهما دون الآخر.");
+        } // namespace
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // جداول التحويل — أنواع أحداث IR (IREventType)
@@ -411,26 +507,38 @@ namespace sad
 
         IREventType modifierTypeToIREventType(ModifierType mod)
         {
+            // (AR) الحالات مُوسَّعة من خريطة المعدّلات — إضافةُ سطرٍ هناك تُغطّي
+            //      التحويل والقائمة البيضاء معًا، فلا يبقى موضعٌ يُنسى.
             switch (mod)
             {
-            case ModifierType::OnTap:
-                return IREventType::OnTap;
-            case ModifierType::OnLongPress:
-                return IREventType::OnLongPress;
-            case ModifierType::OnDrag:
-                return IREventType::OnDrag;
-            case ModifierType::OnSwipeLeft:
-                return IREventType::OnSwipeLeft;
-            case ModifierType::OnSwipeRight:
-                return IREventType::OnSwipeRight;
-            case ModifierType::OnAppear:
-                return IREventType::OnAppear;
-            case ModifierType::OnDisappear:
-                return IREventType::OnDisappear;
-            case ModifierType::OnValueChange:
-                return IREventType::OnChange;
+#define X(modId, evtId)              \
+    case ModifierType::modId:        \
+        return IREventType::evtId;
+                SAD_UI_EVENT_MODIFIER_MAP(X)
+#undef X
             default:
                 return IREventType::Custom;
+            }
+        }
+
+        bool isScrollableType(UINodeType type)
+        {
+            return type == UINodeType::ScrollView ||
+                   type == UINodeType::LazyColumn ||
+                   type == UINodeType::LazyRow ||
+                   type == UINodeType::List;
+        }
+
+        bool isEventModifier(ModifierType mod)
+        {
+            switch (mod)
+            {
+#define X(modId, evtId) case ModifierType::modId:
+                SAD_UI_EVENT_MODIFIER_MAP(X)
+#undef X
+                return true;
+            default:
+                return false;
             }
         }
 

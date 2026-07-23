@@ -14,6 +14,7 @@
 
 #include "sad_ui/freestanding/app_runner.h"
 #include "sad_ui/freestanding/psf_font.h"
+#include "sad_ui/event_dispatch.h" // (AR) إرسال الأحداث بأطواره — مصدر الحقيقة المشترك
 #include "sad_ui/mouse_processor.h"
 #include "sad_ui/platform_renderer.h" // PlatformWindowOptions
 
@@ -134,11 +135,19 @@ namespace sad
                     [&window]() -> const IRNode *
                     { return window.getContentRoot(); });
                 mouseProc.setFireEventCallback(
-                    [&](IREventType type, const std::string &expr,
+                    [&](IREventType type, const std::string & /*expr*/,
                         const IRNode *node, const EventData &data)
                     {
-                        if (cfg.onEvent)
-                            cfg.onEvent(type, expr, node, data); // (② rfcs#46) نمرّر بيانات الحدث
+                        // (AR) كان الربط مباشرًا بـcfg.onEvent ⇒ صفر تفرّع في الوضع
+                        //      الحرّ. صار يمرّ بمُرسِل المكتبة المشترك، فيسلك أطوار
+                        //      الالتقاط/الهدف/الفقاعات كسطح المكتب تمامًا.
+                        dispatchEvent(type, node, data,
+                                      [&](IREventType t, const std::string &e,
+                                          const IRNode *n, const EventData &d)
+                                      {
+                                          if (cfg.onEvent)
+                                              cfg.onEvent(t, e, n, d); // (② rfcs#46) بيانات الحدث
+                                      });
                     });
 
                 // ─── ربط evdev: فأرة (مؤشّر مرسوم) + مفاتيح لوحة ───

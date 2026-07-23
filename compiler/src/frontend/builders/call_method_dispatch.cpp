@@ -731,6 +731,25 @@ namespace Sad
                         const bool isAnim = isAnimBegin || isAnimDuration || isAnimEasing ||
                                             isAnimDelay || isAnimRepeat || isAnimAutoReverse;
                         const bool isChild = mods::isChild(m);            // ابن (إضافة أطفال)
+                        // (rfcs#51) تفرع — طور انتشار آخر معالِجٍ سُجِّل (نظير .مدة مع الحركة)
+                        const bool isPropagation = mods::isPropagation(m);
+
+                        if (isPropagation)
+                        {
+                            // args[0]=العنصر، args[1]=اسم الطور. بلا وسيطٍ لا نُصدر
+                            //   شيئًا — نظير المفسّر (يتجاهل المعدّل بلا وسائط).
+                            if (args.size() > 1)
+                            {
+                                SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_EVENT_PHASE);
+                                inst.operands.push_back(handleOp);
+                                inst.operands.push_back(args[1]);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->instructions.push_back(inst);
+                            }
+                            // (AR) المعدّل انسيابيّ ⇒ يعيد العنصر نفسه (نظير بقيّة
+                            //      السلسلة أدناه) كي يواصل التسلسل.
+                            return BuildResult(objResult.registerName, SadTypeKind::Pointer);
+                        }
 
                         if (isEvent)
                         {
@@ -788,6 +807,18 @@ namespace Sad
                                 }
                                 if (b_.currentBlock_)
                                     b_.currentBlock_->instructions.push_back(inst);
+
+                                // (AR) الوسيط الثالث = «بيانات» حرّة لهذا المعالِج
+                                //      (نظير setLastEventUserData في المفسّر). يُصدَر
+                                //      نداءً مستقلًّا كي لا تتغيّر بصمة sad_add_event.
+                                if (args.size() > 2)
+                                {
+                                    SIRInstruction dataInst(SIROpcode::BUILTIN_UI_SET_EVENT_DATA);
+                                    dataInst.operands.push_back(handleOp);
+                                    dataInst.operands.push_back(args[2]);
+                                    if (b_.currentBlock_)
+                                        b_.currentBlock_->instructions.push_back(dataInst);
+                                }
                             }
                         }
                         else if (isAnim)

@@ -42,6 +42,7 @@
 
 #include "sad_ui/mouse_processor.h"
 #include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
+#include "sad_ui/event_dispatch.h" // fireFocusChange — زوج فقد/اكتساب التركيز
 #include <cmath>
 #include <variant>
 
@@ -69,13 +70,7 @@ namespace sad
                     data.x = x;
                     data.y = y;
                     data.button = 2; // أيمن
-                    for (const auto &evt : ctxNode->getEvents())
-                    {
-                        if (evt.type == IREventType::OnContextMenu)
-                        {
-                            fireEventCb_(evt.type, evt.expression, ctxNode, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnContextMenu, ctxNode, data);
                 }
                 return; // النقرة اليمنى لا تُكمل بقية المعالجة
             }
@@ -107,6 +102,10 @@ namespace sad
                 if (hitNode != currentFocus)
                 {
                     setFocusedNodeCb_(hitNode);
+                    // (AR) عند_فقد_التركيز/عند_التركيز: كانا مُعرَّفَين في المفردة
+                    //      بلا مُطلِقٍ قطّ. يُطلَقان هنا في القلب فيعمّان المنصّات
+                    //      كلّها. الترتيب DOM: الفقد قبل الاكتساب.
+                    fireFocusChange(currentFocus, hitNode, x, y, fireEventCb_);
                     if (invalidateCb_)
                         invalidateCb_();
                 }
@@ -196,13 +195,7 @@ namespace sad
                         data.y = y;
                         data.deltaX = x - gestureStartX_;
                         data.deltaY = y - gestureStartY_;
-                        for (const auto &evt : dragSource->getEvents())
-                        {
-                            if (evt.type == IREventType::OnDragEnd)
-                            {
-                                fireEventCb_(evt.type, evt.expression, dragSource, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnDragEnd, dragSource, data);
                     }
 
                     // (AR) إطلاق OnDrop على العنصر المُسقَط عليه (إن كان مختلفاً)
@@ -211,13 +204,7 @@ namespace sad
                         EventData data;
                         data.x = x;
                         data.y = y;
-                        for (const auto &evt : dropTarget->getEvents())
-                        {
-                            if (evt.type == IREventType::OnDrop)
-                            {
-                                fireEventCb_(evt.type, evt.expression, dropTarget, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnDrop, dropTarget, data);
                     }
                 }
                 dragging_ = false;
@@ -270,13 +257,7 @@ namespace sad
                         data.x = mouseX;
                         data.y = mouseY;
                         data.deltaY = deltaY;
-                        for (const auto &evt : zoomNode->getEvents())
-                        {
-                            if (evt.type == IREventType::OnZoom)
-                            {
-                                fireEventCb_(evt.type, evt.expression, zoomNode, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnZoom, zoomNode, data);
                     }
                 }
             }
@@ -309,17 +290,11 @@ namespace sad
                 const auto *scrollNode = hitTestCb_(mouseX, mouseY);
                 if (scrollNode)
                 {
-                    for (const auto &evt : scrollNode->getEvents())
-                    {
-                        if (evt.type == IREventType::OnScroll)
-                        {
-                            EventData data;
-                            data.x = mouseX;
-                            data.y = mouseY;
-                            data.deltaY = deltaY;
-                            fireEventCb_(evt.type, evt.expression, scrollNode, data);
-                        }
-                    }
+                    EventData data;
+                    data.x = mouseX;
+                    data.y = mouseY;
+                    data.deltaY = deltaY;
+                    emitEvent(IREventType::OnScroll, scrollNode, data);
                 }
             }
         }
@@ -349,16 +324,10 @@ namespace sad
 
             if (fireEventCb_)
             {
-                for (const auto &evt : node->getEvents())
-                {
-                    if (evt.type == IREventType::OnChange)
-                    {
-                        EventData data;
-                        data.x = x;
-                        data.y = y;
-                        fireEventCb_(evt.type, evt.expression, node, data);
-                    }
-                }
+                EventData data;
+                data.x = x;
+                data.y = y;
+                emitEvent(IREventType::OnChange, node, data);
             }
         }
 
@@ -383,16 +352,10 @@ namespace sad
             // إطلاق OnChange
             if (fireEventCb_)
             {
-                for (const auto &evt : node->getEvents())
-                {
-                    if (evt.type == IREventType::OnChange)
-                    {
-                        EventData data;
-                        data.x = x;
-                        data.y = y;
-                        fireEventCb_(evt.type, evt.expression, node, data);
-                    }
-                }
+                EventData data;
+                data.x = x;
+                data.y = y;
+                emitEvent(IREventType::OnChange, node, data);
             }
         }
 
@@ -457,16 +420,10 @@ namespace sad
 
             if (fireEventCb_)
             {
-                for (const auto &evt : node->getEvents())
-                {
-                    if (evt.type == IREventType::OnChange)
-                    {
-                        EventData data;
-                        data.x = x;
-                        data.y = 0;
-                        fireEventCb_(evt.type, evt.expression, node, data);
-                    }
-                }
+                EventData data;
+                data.x = x;
+                data.y = 0;
+                emitEvent(IREventType::OnChange, node, data);
             }
         }
 
@@ -491,17 +448,11 @@ namespace sad
 
             if (fireEventCb_)
             {
-                for (const auto &evt : draggedSliderNode_->getEvents())
-                {
-                    if (evt.type == IREventType::OnChange)
-                    {
-                        EventData data;
-                        data.x = mouseX;
-                        data.y = mouseY_;
-                        data.value = std::to_string(newVal);
-                        fireEventCb_(evt.type, evt.expression, draggedSliderNode_, data);
-                    }
-                }
+                EventData data;
+                data.x = mouseX;
+                data.y = mouseY_;
+                data.value = std::to_string(newVal);
+                emitEvent(IREventType::OnChange, draggedSliderNode_, data);
             }
 
             if (invalidateCb_)
@@ -514,17 +465,11 @@ namespace sad
             if (!fireEventCb_)
                 return;
 
-            for (const auto &evt : node->getEvents())
-            {
-                if (evt.type == IREventType::OnTap)
-                {
-                    EventData data;
-                    data.x = x;
-                    data.y = y;
-                    data.button = 0;
-                    fireEventCb_(evt.type, evt.expression, node, data);
-                }
-            }
+            EventData data;
+            data.x = x;
+            data.y = y;
+            data.button = 0;
+            emitEvent(IREventType::OnTap, node, data);
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -563,18 +508,13 @@ namespace sad
                     data.y = y;
                     data.deltaX = dx;
                     data.deltaY = dy;
-                    for (const auto &evt : gestureNode->getEvents())
-                    {
-                        // (AR) OnDrag المستمرّ (الدلتا التفاضليّة) يُطلَق أثناء الحركة في
-                        //   handleDragTracking؛ فلا نُعيد إطلاقه هنا بالدلتا *الإجماليّة*
-                        //   إن كان سحبٌ فعليّ قد جرى (dragging_ لم يُصفَّر بعد) — وإلّا
-                        //   قفزت النافذة دفعةً واحدة عند الرفع. إيماءات Swipe تبقى كما هي.
-                        if (evt.type == irSwipeType ||
-                            (evt.type == IREventType::OnDrag && !dragging_))
-                        {
-                            fireEventCb_(evt.type, evt.expression, gestureNode, data);
-                        }
-                    }
+                    emitEvent(irSwipeType, gestureNode, data);
+                    // (AR) OnDrag المستمرّ (الدلتا التفاضليّة) يُطلَق أثناء الحركة في
+                    //   handleDragTracking؛ فلا نُعيد إطلاقه هنا بالدلتا *الإجماليّة*
+                    //   إن كان سحبٌ فعليّ قد جرى (dragging_ لم يُصفَّر بعد) — وإلّا
+                    //   قفزت النافذة دفعةً واحدة عند الرفع. إيماءات Swipe تبقى كما هي.
+                    if (!dragging_)
+                        emitEvent(IREventType::OnDrag, gestureNode, data);
                 }
             }
             else if (duration >= MOUSE_LONG_PRESS_MS)
@@ -585,13 +525,7 @@ namespace sad
                     EventData data;
                     data.x = x;
                     data.y = y;
-                    for (const auto &evt : gestureNode->getEvents())
-                    {
-                        if (evt.type == IREventType::OnLongPress)
-                        {
-                            fireEventCb_(evt.type, evt.expression, gestureNode, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnLongPress, gestureNode, data);
                 }
             }
             else
@@ -605,13 +539,7 @@ namespace sad
                         EventData data;
                         data.x = x;
                         data.y = y;
-                        for (const auto &evt : gestureNode->getEvents())
-                        {
-                            if (evt.type == IREventType::OnDoubleTap)
-                            {
-                                fireEventCb_(evt.type, evt.expression, gestureNode, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnDoubleTap, gestureNode, data);
                     }
                     lastTapTime_ = 0; // إعادة ضبط
                 }
@@ -639,13 +567,7 @@ namespace sad
                     EventData data;
                     data.x = x;
                     data.y = y;
-                    for (const auto &evt : hoveredNode_->getEvents())
-                    {
-                        if (evt.type == IREventType::OnHoverExit)
-                        {
-                            fireEventCb_(evt.type, evt.expression, hoveredNode_, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnHoverExit, hoveredNode_, data);
                 }
 
                 hoveredNode_ = newHover;
@@ -656,13 +578,7 @@ namespace sad
                     EventData data;
                     data.x = x;
                     data.y = y;
-                    for (const auto &evt : hoveredNode_->getEvents())
-                    {
-                        if (evt.type == IREventType::OnHover)
-                        {
-                            fireEventCb_(evt.type, evt.expression, hoveredNode_, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnHover, hoveredNode_, data);
                 }
 
                 // (AR) تغيير شكل المؤشر — يد عند التحويم على عناصر تفاعلية
@@ -760,13 +676,7 @@ namespace sad
                     EventData data;
                     data.x = x;
                     data.y = y;
-                    for (const auto &evt : dragNode_->getEvents())
-                    {
-                        if (evt.type == IREventType::OnDragStart)
-                        {
-                            fireEventCb_(evt.type, evt.expression, dragNode_, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnDragStart, dragNode_, data);
                 }
                 dragging_ = true;
                 // (AR) مرجع الدلتا = نقطة *بدء الضغط* لا الموضع الحاليّ، كي لا تضيع
@@ -795,13 +705,7 @@ namespace sad
                 data.y = y;
                 data.deltaX = deltaX;
                 data.deltaY = deltaY;
-                for (const auto &evt : dragNode_->getEvents())
-                {
-                    if (evt.type == IREventType::OnDrag)
-                    {
-                        fireEventCb_(evt.type, evt.expression, dragNode_, data);
-                    }
-                }
+                emitEvent(IREventType::OnDrag, dragNode_, data);
             }
         }
 

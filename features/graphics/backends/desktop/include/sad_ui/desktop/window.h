@@ -396,10 +396,6 @@ namespace sad
                 void fireEvent(IREventType type, const std::string &expression,
                                const IRNode *node, const EventData &data = EventData{});
 
-                /// إطلاق حدث على عقدة مع دعم الفقاعات (يجتاز الأجداد)
-                void fireEventWithBubbling(IREventType type, const std::string &expression,
-                                           const IRNode *node, const EventData &data);
-
                 /// معالجة أحداث مخصصة (Custom Events)
                 void dispatchCustomEvent(const std::string &eventName,
                                          const IRNode *node, const EventData &data = EventData{});

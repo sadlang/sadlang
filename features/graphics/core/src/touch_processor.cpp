@@ -24,6 +24,31 @@ namespace sad
 {
     namespace ui
     {
+        namespace
+        {
+            /// (AR) هل العقدة الهدف ما زالت داخل شجرة الجذر المُعطى؟
+            bool containsNode(const IRNode &root, const IRNode *target)
+            {
+                if (&root == target)
+                    return true;
+                for (const auto &child : root.getChildren())
+                    if (child && containsNode(*child, target))
+                        return true;
+                return false;
+            }
+        } // namespace
+
+        bool TouchEventProcessor::touchNodeAlive(const IRNode *node) const
+        {
+            if (!node)
+                return false;
+            // (AR) بلا ردّ نداءٍ للجذر لا يمكن التحقّق — نبقي السلوك القديم.
+            if (!getContentRootCb_)
+                return true;
+            const IRNode *liveRoot = getContentRootCb_();
+            return liveRoot && containsNode(*liveRoot, node);
+        }
+
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // مساعدات داخلية
@@ -96,13 +121,7 @@ namespace sad
                 if (node)
                 {
                     EventData data = makeTouchEventData(x, y, touchId, fingerId, pressure);
-                    for (const auto &evt : node->getEvents())
-                    {
-                        if (evt.type == IREventType::OnTap)
-                        {
-                            fireEventCb_(evt.type, evt.expression, node, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnTap, node, data);
                 }
             }
 
@@ -163,17 +182,12 @@ namespace sad
                         EventData data = makeTouchEventData(x, y, touchId, fingerId);
                         data.deltaX = dx;
                         data.deltaY = dy;
-                        for (const auto &evt : node->getEvents())
-                        {
-                            // (AR) OnDrag المستمرّ (دلتا تفاضليّة) أُطلق أثناء الحركة؛
-                            //      فلا نُعيده هنا بالدلتا *الإجماليّة* إن جرى سحبٌ فعليّ،
-                            //      وإلّا قفز العنصر ضِعف المسافة عند رفع الإصبع.
-                            if (evt.type == swipeType ||
-                                (evt.type == IREventType::OnDrag && !fs.dragStarted))
-                            {
-                                fireEventCb_(evt.type, evt.expression, node, data);
-                            }
-                        }
+                        emitEvent(swipeType, node, data);
+                        // (AR) OnDrag المستمرّ (دلتا تفاضليّة) أُطلق أثناء الحركة؛
+                        //      فلا نُعيده هنا بالدلتا *الإجماليّة* إن جرى سحبٌ فعليّ،
+                        //      وإلّا قفز العنصر ضِعف المسافة عند رفع الإصبع.
+                        if (!fs.dragStarted)
+                            emitEvent(IREventType::OnDrag, node, data);
                     }
                 }
                 else if (duration >= longPressMs)
@@ -182,13 +196,7 @@ namespace sad
                     if (node)
                     {
                         EventData data = makeTouchEventData(x, y, touchId, fingerId);
-                        for (const auto &evt : node->getEvents())
-                        {
-                            if (evt.type == IREventType::OnLongPress)
-                            {
-                                fireEventCb_(evt.type, evt.expression, node, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnLongPress, node, data);
                     }
                 }
                 else
@@ -201,13 +209,7 @@ namespace sad
                         if (node)
                         {
                             EventData data = makeTouchEventData(x, y, touchId, fingerId);
-                            for (const auto &evt : node->getEvents())
-                            {
-                                if (evt.type == IREventType::OnDoubleTap)
-                                {
-                                    fireEventCb_(evt.type, evt.expression, node, data);
-                                }
-                            }
+                            emitEvent(IREventType::OnDoubleTap, node, data);
                         }
                         lastTapTime_ = 0;
                     }
@@ -217,19 +219,17 @@ namespace sad
                     }
                 }
 
-                // (AR) إطلاق حدث انتهاء السحب إذا كان الإصبع قد تحرك
-                if (fs.dragStarted && node)
+                // (AR) انتهاء السحب يُطلَق على العقدة **المُمسَكة** لا على ما تحت
+                //      الإصبع: العنصر تحرّك أثناء السحب فلم يعد تحته بالضرورة
+                //      (نظير معالج الفأرة تمامًا). ونتحقّق من بقائها في الشجرة
+                //      أوّلًا — ردّ نداء ص قد يكون أعاد البناء فحرّرها.
+                const IRNode *dragSource = touchNodeAlive(fs.dragNode) ? fs.dragNode : nullptr;
+                if (fs.dragStarted && dragSource)
                 {
                     EventData data = makeTouchEventData(x, y, touchId, fingerId);
                     data.deltaX = dx;
                     data.deltaY = dy;
-                    for (const auto &evt : node->getEvents())
-                    {
-                        if (evt.type == IREventType::OnDragEnd)
-                        {
-                            fireEventCb_(evt.type, evt.expression, node, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnDragEnd, dragSource, data);
                 }
             }
 
@@ -291,13 +291,7 @@ namespace sad
                     EventData data = makeTouchEventData(midX, midY, touchId, fingerId, pressure);
                     data.deltaY = scale - 1.0f; // >0 تكبير, <0 تصغير
                     data.value = std::to_string(scale);
-                    for (const auto &evt : zoomNode->getEvents())
-                    {
-                        if (evt.type == IREventType::OnZoom)
-                        {
-                            fireEventCb_(evt.type, evt.expression, zoomNode, data);
-                        }
-                    }
+                    emitEvent(IREventType::OnZoom, zoomNode, data);
                 }
 
                 // تحديث المسافة المرجعية للقرص المستمر
@@ -325,13 +319,7 @@ namespace sad
                     {
                         EventData data = makeTouchEventData(midX, midY, touchId, fingerId, pressure);
                         data.angle = dTheta;
-                        for (const auto &evt : rotateNode->getEvents())
-                        {
-                            if (evt.type == IREventType::OnRotate)
-                            {
-                                fireEventCb_(evt.type, evt.expression, rotateNode, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnRotate, rotateNode, data);
                     }
 
                     // تحديث الزاوية المرجعية
@@ -354,6 +342,10 @@ namespace sad
                     //      المسحوب يتحرّك تحت الإصبع.
                     if (!it->second.dragStarted)
                         it->second.dragNode = hitTestCb_(it->second.startX, it->second.startY);
+                    // (AR) لا نقرأ عقدةً محرَّرة: تحديث_حالة داخل ردّ النداء قد
+                    //      يستبدل الشجرة أثناء السحب (فشل-مُغلق كمعالج الفأرة).
+                    if (!touchNodeAlive(it->second.dragNode))
+                        it->second.dragNode = nullptr;
                     const auto *touchNode = it->second.dragNode;
                     if (touchNode)
                     {
@@ -365,23 +357,11 @@ namespace sad
                         if (!it->second.dragStarted)
                         {
                             it->second.dragStarted = true;
-                            for (const auto &evt : touchNode->getEvents())
-                            {
-                                if (evt.type == IREventType::OnDragStart)
-                                {
-                                    fireEventCb_(evt.type, evt.expression, touchNode, data);
-                                }
-                            }
+                            emitEvent(IREventType::OnDragStart, touchNode, data);
                         }
 
                         // (AR) إطلاق OnDrag مستمر
-                        for (const auto &evt : touchNode->getEvents())
-                        {
-                            if (evt.type == IREventType::OnDrag)
-                            {
-                                fireEventCb_(evt.type, evt.expression, touchNode, data);
-                            }
-                        }
+                        emitEvent(IREventType::OnDrag, touchNode, data);
                     }
                 }
             }

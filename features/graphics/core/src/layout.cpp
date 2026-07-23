@@ -40,12 +40,8 @@ static float readNumericProp(const sad::ui::IRNode& node,
 
 // (FR-009) الحاويات القابلة للتمرير تُفسّر إزاحة_س/إزاحة_ص كإزاحة تمرير (تُطبَّق على
 //   الأبناء وقت الرسم)، لا كموضع حرّ — فتُستثنى من إزاحة الموضع الحرّ في arrange.
-static bool isScrollableType(sad::ui::UINodeType t) {
-    return t == sad::ui::UINodeType::ScrollView ||
-           t == sad::ui::UINodeType::LazyColumn ||
-           t == sad::ui::UINodeType::LazyRow ||
-           t == sad::ui::UINodeType::List;
-}
+//   التصنيف نفسه في types.cpp — مصدر واحد لتسعة مواضع كانت تكتبه حرفيًّا.
+using sad::ui::isScrollableType;
 
 // حساب عدد أحرف UTF-8 الفعلية (ليس البايتات)
 static size_t utf8CharCount(const std::string& text) {
@@ -581,10 +577,16 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
         childConstraints.maxHeight = std::max(0.0f, childConstraints.maxHeight - inset * 2);
     }
 
-    if (node.getType() == UINodeType::ScrollView ||
-        node.getType() == UINodeType::LazyColumn ||
-        node.getType() == UINodeType::List) {
-        // ─── توزيع عنصر قابل للتمرير (ScrollView) ───
+    // (AR) هذا الفرع توزيعٌ **رأسيّ** (عمود بارتفاعٍ غير محدود)، فيقتصر على
+    //   الأنواع القابلة للتمرير رأسيًّا. لا يشمل LazyRow (تمرير أفقيّ) عمدًا —
+    //   إدراجه كان سيوزّع أبناءه عمودًا بارتفاعٍ غير محدود، وهو خطأ اتّجاه.
+    //   isScrollableType الموحَّد (كلّ قابلٍ للتمرير) يخصّ دلالة الإزاحة والرسم
+    //   ثنائيَّي المحور، لا اتّجاه التوزيع هنا.
+    const auto arrangeType = node.getType();
+    if (arrangeType == UINodeType::ScrollView ||
+        arrangeType == UINodeType::LazyColumn ||
+        arrangeType == UINodeType::List) {
+        // ─── توزيع عنصر قابل للتمرير رأسيًّا (ScrollView/LazyColumn/List) ───
         // الأبناء يُوزعون كعمود لكن بارتفاع غير محدود
         LayoutConstraints scrollChildConstraints = childConstraints;
         scrollChildConstraints.maxHeight = 1e6f;

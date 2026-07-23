@@ -950,10 +950,7 @@ namespace sad
                 //      it here caused a double draw (waste + alpha accumulation on
                 //      semi-transparent backgrounds). Removed; only clipping remains.
                 // قص المحتوى للعناصر القابلة للتمرير
-                if (node.getType() == UINodeType::ScrollView ||
-                    node.getType() == UINodeType::LazyColumn ||
-                    node.getType() == UINodeType::LazyRow ||
-                    node.getType() == UINodeType::List)
+                if (isScrollableType(node.getType()))
                 {
                     setClipRect(rect.x, rect.y, rect.width, rect.height);
                 }
@@ -1248,10 +1245,7 @@ namespace sad
             }
 
             // 4. رسم الأبناء (تكرار) مع دعم scroll offset
-            bool isScrollableContainer = node.getType() == UINodeType::ScrollView ||
-                                         node.getType() == UINodeType::LazyColumn ||
-                                         node.getType() == UINodeType::LazyRow ||
-                                         node.getType() == UINodeType::List;
+            bool isScrollableContainer = isScrollableType(node.getType());
             float scrollOffY = isScrollableContainer
                                    ? getNumericProp(node.findProperty(props::OFFSET_Y), // إزاحة_ص
                                                     getNumericProp(node.findProperty(props::SCROLL_Y_LATIN), 0.0f))
@@ -1288,10 +1282,7 @@ namespace sad
             }
 
             // 6. إعادة تعيين القص
-            if (node.getType() == UINodeType::ScrollView ||
-                node.getType() == UINodeType::LazyColumn ||
-                node.getType() == UINodeType::LazyRow ||
-                node.getType() == UINodeType::List)
+            if (isScrollableType(node.getType()))
             {
                 clearClipRect();
             }

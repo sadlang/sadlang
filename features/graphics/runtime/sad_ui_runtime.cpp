@@ -23,6 +23,7 @@
 
 #include <sad_ui/ir.h>
 #include <sad_ui/ir_builder.h>
+#include "sad_ui/event_dispatch.h" // (rfcs#51) stopActiveEventPropagation
 #include <sad_ui/prop_keys.h> // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include <sad_ui/print_tree.h> // (AR) م-تحكّم: طباعة_شجرة عبر منطق المكتبة المشترك
 #include <sad_ui/layout.h>
@@ -86,6 +87,10 @@ struct SadWidgetImpl {
         IREventType type = IREventType::Custom; // (AR) مُشتقٌّ مرّةً عند الربط (لا يُعاد اشتقاقه لكلّ إرسال)
         SadEventCallback cb = nullptr;          // (② rfcs#46) ردّ نداءٍ حامل POD الحدث
         void* data = nullptr;
+        // (AR) مُعرِّفٌ فريدٌ يطابق IREvent::expression على العقدة. المُرسِل المشترك
+        //      (dispatchEvent) يختار المعالِج ويمرّر تعبيره؛ فنُطلق الرابطَ المطابق
+        //      وحده لا كلَّ روابط النوع — وإلّا تعطّلت تصفية الطور واختلطت البيانات.
+        std::string expression;
     };
     std::vector<EventBinding> eventBindings;
 
@@ -573,13 +578,16 @@ void sad_add_event(SadWidget w, const char* name, SadEventCallback cb, void* dat
     ev.type = stringToIREventType(evName);
     if (ev.type == IREventType::Custom)
         ev.customEventName = evName;
-    // (AR) علامة: المعالج ردّ نداء مُترجَم لا تعبير نصّيّ. ملاحظة تكافؤ: المفسّر
-    //      يستعمل "__event_"+m (ui_widget_method_call.cpp:92) — علامةٌ مختلفة، لكنّ
-    //      `expression` **ليس جزءًا من مخرَج التكافؤ** (طباعة_شجرة تقرأ getEventName
-    //      المعتمِد على type/customEventName لا expression) فلا تباعد.
-    ev.expression = "__compiled_cb";
+    // (AR) تعبيرٌ **فريدٌ لكلّ رابط** (لا ثابت "__compiled_cb"): المُرسِل المشترك
+    //      dispatchEvent يختار المعالِج (بالطور) ويمرّر تعبيره للمُصرِف، فيُطلق
+    //      dispatchCompiledEvent الرابطَ المطابق وحده. الثابتُ القديم كان يجعل
+    //      المُصرِف يُعيد الاختيار بالنوع فيُطلق كلّ روابط النوع — مبطلًا تصفية
+    //      الطور وخالطًا بيانات المعالِجات ومضاعِفًا الإطلاق (N²). التعبير ليس
+    //      جزءًا من مخرَج التكافؤ (طباعة_شجرة تقرأ getEventName لا expression).
+    static uint64_t s_cbCounter = 0;
+    ev.expression = "__cb_" + std::to_string(s_cbCounter++);
     impl->irNode->addEvent(ev);
-    impl->eventBindings.push_back({evName, ev.type, cb, data}); // نخزّن النوع المُشتقّ مرّةً
+    impl->eventBindings.push_back({evName, ev.type, cb, data, ev.expression}); // النوع + المُعرِّف الفريد
     // (② rfcs#46) أُزيل شيم onTap القديم: eventBindings صار مصدر الحقيقة الوحيد لأحداث
     //   عند_* في مسار المترجم (dispatchCompiledEvent يمرّ عليها ثمّ onTap كاحتياطٍ عند
     //   !fired فقط)، ولأنّ ردّ النداء الآن SadEventCallback ثنائيّ الوسيط لا يُسند لخانة
@@ -637,6 +645,26 @@ void sad_anim_easing(SadWidget w, const char* name) {
         auto curve = stringToEasingCurve(name);
         animApplyToActive(impl, [curve](IRAnimation& a){ a.easing = curve; });
     }
+}
+
+/** .تفرع(طور) — طور انتشار **آخر** معالِجٍ سُجِّل على العقدة (rfcs#51).
+ *  نظيرٌ دقيق لـWidgetBuilder::setLastEventPropagation في المفسّر: بلا معالِجٍ
+ *  سابق لا أثر (معدّلٌ بلا هدف)، واسمٌ مجهول ⇒ لا_انتشار (فشل-آمن). */
+void sad_set_event_phase(SadWidget w, const char* phase) {
+    auto* impl = toWidget(w);
+    if (!impl || !impl->irNode || !phase) return;
+    auto& events = impl->irNode->getMutableEvents();
+    if (events.empty()) return;
+    events.back().propagation = stringToEventPropagation(std::string(phase));
+}
+
+/** بيانات المستخدم لآخر معالِجٍ سُجِّل — تصل الحقلَ «بيانات» في بنية «حدث». */
+void sad_set_event_data(SadWidget w, const char* text) {
+    auto* impl = toWidget(w);
+    if (!impl || !impl->irNode || !text) return;
+    auto& events = impl->irNode->getMutableEvents();
+    if (events.empty()) return;
+    events.back().userData = std::string(text);
 }
 
 /** .تأخير(ث) — التأخير قبل البدء. */
@@ -930,6 +958,7 @@ void sad_app_render(SadApp app) {
 //   لأنّ الرأس المولَّد يضمّ <array> وقوالبَ بلغة C++؛ تضمينُه داخل كتلة extern "C"
 //   يُعطيها ربطًا C فيفشل (C2894). هنا نستعمل sadFillEventPod بلا إعادة تضمين.
 static void dispatchCompiledEvent(const IRNode* node, IREventType type,
+                                  const std::string& expression,
                                   const sad::ui::EventData& evData) {
     if (!node) return;
     // (② rfcs#46) نبني POD الحدث مرّةً لكلّ إرسال ونمرّر مؤشّره لردّ النداء المترجَم.
@@ -941,18 +970,24 @@ static void dispatchCompiledEvent(const IRNode* node, IREventType type,
     for (auto& up : g_widgets) {
         SadWidgetImpl* impl = up.get();
         if (!impl || impl->irNode.get() != node) continue;
-        // (AR) نُطلق كلّ رابطٍ يطابق نوعَ الحدث — مطابقةٌ لحلقة handleEvent في المفسّر
-        //      (ui_bridge_events.cpp:36-38) التي تمرّ على كلّ node->getEvents() وتُطلق
-        //      كلّ حدثٍ نوعه == eventType (لا واحدًا). فعدّة معالجاتٍ بنفس النوع تُطلق كلّها.
-        // (AR) قيدٌ موروثٌ من القلب (مطابقٌ للمفسّر لا انحرافَ): كلّ حدثٍ غير قياسيّ
-        //      يُصنَّف IREventType::Custom، فحدثان مخصّصان مختلفان (عند_س/عند_ص) يُطلقان
-        //      معًا لأيّهما — لأنّ المطابقة بالنوع لا بالاسم المخصّص. سلوكٌ مطابقٌ
-        //      لـui_bridge_events.cpp تمامًا (تمييزُ الأحداث المخصّصة تحسينٌ للقلب لاحقًا).
+        // (AR) الاختيار صار للمُرسِل المشترك dispatchEvent: هو من يمرّ بالأطوار
+        //      (التقاط/هدف/فقاعات) ويختار المعالِج الواحد ويمرّر تعبيره الفريد
+        //      هنا. فنُطلق الرابطَ المطابق للتعبير **وحده** — لا كلّ روابط النوع.
+        //      هكذا تُحترم تصفية الطور، ولا تختلط بيانات المعالِجات، ولا يتضاعف
+        //      الإطلاق. (كان المُصرِف يُعيد الاختيار بالنوع فيكسر الثلاثة.)
         bool fired = false;
-        for (auto& b : impl->eventBindings) {
-            if (b.cb && b.type == type) { // النوع مُشتقٌّ مسبقًا (لا stringToIREventType لكلّ إرسال)
-                b.cb(b.data, &evPod); // (② rfcs#46) نمرّر POD الحدث
-                fired = true;
+        if (!expression.empty()) {
+            for (auto& b : impl->eventBindings) {
+                if (b.cb && b.expression == expression) {
+                    // (rfcs#51) نربط بيانات الحدث بالخيط طوال تنفيذ المعالِج،
+                    //   فيصل إليها مدمج `أوقف_الانتشار` (sad_stop_propagation)؛
+                    //   evData هنا هو مرجعُ dispatchEvent نفسه الذي يفحص
+                    //   propagationStopped بين المعالِجات، فيسري الإيقاف.
+                    sad::ui::ActiveEventScope eventScope(evData);
+                    b.cb(b.data, &evPod); // (② rfcs#46) نمرّر POD الحدث
+                    fired = true;
+                    break; // مُعرِّفٌ فريد ⇒ رابطٌ واحد
+                }
             }
         }
         if (!fired && type == IREventType::OnTap && impl->onTap)
@@ -1079,6 +1114,7 @@ void sad_navigate_exit_transition_builder(SadPageBuilder build, void* data, SadR
  *      يجسران إلى الدوال/المتحكّم نفسها ⇒ مصدرُ حقيقةٍ واحد لا تكرار. headless:
  *      تُكتب العمليّات ولا تُستهلَك (لا حلقة نافذة) ⇒ لا أثر على التكافؤ. */
 void sad_update_state(void) { sad::ui::nav().markDirty(); }
+void sad_stop_propagation(void) { sad::ui::stopActiveEventPropagation(); }
 void sad_set_window_title(const char* title) {
     sad::ui::windowController().setTitle(title ? title : "");
 }
@@ -1149,9 +1185,9 @@ void sad_app_run(SadWidget root) {
         return impl->irNode;
     };
     // إرسال النقر إلى ردود النداء المُترجَمة (بالعقدة لا بالتعبير النصّيّ):
-    cfg.onEvent = [](IREventType type, const std::string& /*expr*/,
+    cfg.onEvent = [](IREventType type, const std::string& expr,
                      const IRNode* node, const sad::ui::EventData& evData)
-    { dispatchCompiledEvent(node, type, evData); }; // (② rfcs#46) نمرّر بيانات الحدث
+    { dispatchCompiledEvent(node, type, expr, evData); }; // (② rfcs#46) نمرّر بيانات الحدث + تعبير المعالِج المُختار
     // مفتاح الخروج: F2/Escape (اتّفاقيّة الخروج من التطبيقات الحرّة):
     cfg.onKey = [](sad::ui::UnifiedKeyCode code) -> bool
     {
@@ -1212,9 +1248,9 @@ void sad_app_run(SadWidget root) {
     //        dirty الابتدائيّ لأنّ المحتوى مضبوطٌ سلفًا بـsetContent أعلاه.
     { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root; navStack.replace(e); navStack.takeDirty(); }
     window.setOnEventCallback(
-        [](IREventType type, const std::string& /*elementId*/,
+        [](IREventType type, const std::string& expr,
            const IRNode* node, const EventData& data) {
-            dispatchCompiledEvent(node, type, data); // (② rfcs#46) نمرّر بيانات الحدث
+            dispatchCompiledEvent(node, type, expr, data); // (② rfcs#46) بيانات الحدث + تعبير المعالِج المُختار
         });
     // (م1-ب) إعادة الرسم عند تبديل الصفحة: كلّ إطار نفحص إن تغيّرت الصفحة الحاليّة
     //        (انتقل/عودة/… من ردّ نداء) فنعيد ضبط محتوى النافذة من الجذر الجديد.

@@ -15,6 +15,7 @@
 
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/event_dispatch.h" // (rfcs#51) ActiveEventScope لمدمج أوقف_الانتشار
 #include "sad_event_layout_generated.h" // (② rfcs#46) أسماء حقول «حدث» العربيّة (SoT) — تطابق بنية المترجم
 #include "sad_ui/prop_keys.h" // (AR) SoT مفتاح الحشو (props::PADDING = «حشوة») — هيدر ثوابت ذاتيّ الاكتفاء، بلا اعتماد ربط (حارس الطبقات يفحص روابط CMake لا التضمين)
 #include "sad_ui/nav.h" // (م1-د) مكدّس التنقّل المشترك — لا تدُس الصفحة المُنتقَل إليها
@@ -36,13 +37,16 @@ namespace Sad
             if (!interpreter_)
                 return;
 
-            for (const auto &event : node->getEvents())
+            // (AR) الاختيار (أيّ معالِج على أيّ عقدة، وأطوار الانتشار) صار
+            //      مسؤوليّة مُرسِل المكتبة المشترك؛ وهذه الدالّة صارت المُصرِف:
+            //      تُنفّذ المعالِج المُختار وحده. بذلك زال تباعدٌ حقيقيّ كان
+            //      قائمًا: المفسّر كان يُطلق أوّل معالِج مطابق ويتوقّف (break)
+            //      بينما وقت تشغيل المترجم يُطلق كلّ المطابقات.
             {
-                if (event.type == eventType)
                 {
                     try
                     {
-                        const auto &expr = event.expression;
+                        const auto &expr = handlerId;
 
                         // ═══════════════════════════════════════════════════════════
                         // (② rfcs#46) خريطة بيانات الحدث بأسماء الحقول العربيّة من مصدر
@@ -124,6 +128,11 @@ namespace Sad
                         std::vector<Data::Value> args;
                         args.push_back(Data::Value(std::move(eventMap)));
 
+                        // (AR) نربط بيانات الحدث بالخيط طوال تنفيذ المعالِج، فيصل
+                        //      إليها مدمج `أوقف_الانتشار` إن استُدعي (RAII: يُستعاد
+                        //      عند الخروج فيصحّ التعشيش أثناء الانتشار).
+                        sad::ui::ActiveEventScope eventScope(eventData);
+
                         // (AR) استدعاء المعالج
                         auto it = eventHandlers_.find(expr);
                         if (it != eventHandlers_.end())
@@ -144,7 +153,6 @@ namespace Sad
                                   << sad::ui::irEventTypeToString(eventType)
                                   << "': " << e.what() << std::endl;
                     }
-                    break;
                 }
             }
         }

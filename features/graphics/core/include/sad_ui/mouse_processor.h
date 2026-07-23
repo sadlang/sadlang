@@ -37,6 +37,8 @@
 #define SAD_UI_MOUSE_PROCESSOR_H
 
 #include "sad_ui/ir.h"
+#include "sad_ui/keyboard_processor.h" // KeyModifiers
+#include "sad_ui/event_dispatch.h" // hasListenerInPath
 #include "sad_ui/types.h"
 #include "sad_ui/layout.h"
 
@@ -229,6 +231,11 @@ namespace sad
             using SetFocusedNodeCallback = std::function<void(const IRNode *node)>;
             void setSetFocusedNodeCallback(SetFocusedNodeCallback cb) { setFocusedNodeCb_ = std::move(cb); }
 
+            /// (AR) حالة مفاتيح التعديل الحيّة من المنصّة — تُثري أحداث الفأرة
+            ///      بحقول مفتاح_عالي/تحكم/بديل (كانت أصفارًا لغياب المصدر).
+            using GetKeyModifiersCallback = std::function<KeyModifiers()>;
+            void setGetKeyModifiersCallback(GetKeyModifiersCallback cb) { getKeyModifiersCb_ = std::move(cb); }
+
             // ─── عناصر خاصة ──────────────────────────────
 
             /// (AR) البحث عن مستطيل تخطيط عقدة (للـ Slider)
@@ -268,7 +275,39 @@ namespace sad
             // Callbacks
             // ═══════════════════════════════════════════════════════════════════
             HitTestCallback hitTestCb_;
+            GetKeyModifiersCallback getKeyModifiersCb_;
+
             FireEventCallback fireEventCb_;
+
+            /**
+             * (AR) يُطلق حدثًا **مرّةً واحدة** على العقدة، ويترك اختيارَ المعالِجات
+             *      والمرورَ بأطوار الانتشار لـdispatchEvent في مدخل المنصّة.
+             *      كانت المعالجات تمرّ على getEvents() بنفسها ثمّ تنادي مدخلًا
+             *      يمرّ عليها ثانيةً ⇒ إطلاقٌ N² على الهدف وN مرّة على كلّ جدّ.
+             *      التعبير فارغ عمدًا: لم يعد المُطلِق يعرف أيّ معالِجٍ سيُنفَّذ.
+             */
+            void emitEvent(IREventType type, const IRNode *node,
+                           const EventData &data) const
+            {
+                if (!fireEventCb_ || !hasListenerInPath(type, node))
+                    return;
+                if (!getKeyModifiersCb_)
+                {
+                    fireEventCb_(type, std::string(), node, data);
+                    return;
+                }
+                // (AR) مفاتيح التعديل (عالي/تحكّم/بديل) كانت أصفارًا دائمًا في
+                //      أحداث الفأرة: لا مصدر لحالتها في القلب. تُقرأ الآن من
+                //      المنصّة عند الإطلاق فتصل ثلاثةُ حقولٍ في بنية «حدث».
+                EventData enriched = data;
+                const auto mods = getKeyModifiersCb_();
+                enriched.shiftKey = mods.shift;
+                enriched.ctrlKey = mods.ctrl;
+                enriched.altKey = mods.alt;
+                fireEventCb_(type, std::string(), node, enriched);
+            }
+
+
             GetTimeMsCallback getTimeMsCb_;
             InvalidateCallback invalidateCb_;
             GetFocusedNodeCallback getFocusedNodeCb_;

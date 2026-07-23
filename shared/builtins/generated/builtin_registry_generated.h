@@ -1155,6 +1155,8 @@ namespace Sad
                 inline constexpr std::string_view IS_DARK = "هل_داكن";
                 // (AR) تحديث_حالة
                 inline constexpr std::string_view UPDATE_STATE = "تحديث_حالة";
+                // (AR) يوقف انتشار الحدث الجاري (لا يبلغ الأجداد ولا بقيّة المعالِجات)
+                inline constexpr std::string_view STOP_PROPAGATION = "أوقف_الانتشار";
                 // (AR) عنوان_النافذة
                 inline constexpr std::string_view SET_TITLE = "عنوان_النافذة";
                 // (AR) عدد_الصفحات
@@ -2982,7 +2984,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1089> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1090> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3478,7 +3480,7 @@ namespace Sad
             {Names::UIWidgets::DRAWER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "درج", "الأبناء: محتوى اللوحة الجانبيّة", "كائن"},
             {Names::UIWidgets::SAFE_AREA, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "منطقة_آمنة", "ابن: عنصر يتجنّب مناطق النظام", "كائن"},
             {Names::UIWidgets::SURFACE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "سطح", "الأبناء: عناصر على السطح", "كائن"},
-            // ─── UICore (21) ───
+            // ─── UICore (22) ───
             {Names::UICore::ENGINE, "UICore", "MODULE_FUNCTION", "NONE", true, "_محرك_واجهات", "جذر: عنصر الجذر (داخليّ)", ""},
             {Names::UICore::RUN_APP, "UICore", "MODULE_FUNCTION", "NONE", true, "تشغيل_تطبيق", "جذر: عنصر الجذر للتطبيق", ""},
             {Names::UICore::PRINT_TREE, "UICore", "MODULE_FUNCTION", "NONE", true, "طباعة_شجرة", "عنصر: عنصر الواجهة لطباعة شجرته", ""},
@@ -3494,6 +3496,7 @@ namespace Sad
             {Names::UICore::LIGHT_MODE, "UICore", "MODULE_FUNCTION", "NONE", true, "وضع_فاتح", "", ""},
             {Names::UICore::IS_DARK, "UICore", "MODULE_FUNCTION", "NONE", true, "هل_داكن", "", ""},
             {Names::UICore::UPDATE_STATE, "UICore", "MODULE_FUNCTION", "NONE", true, "تحديث_حالة", "", ""},
+            {Names::UICore::STOP_PROPAGATION, "UICore", "MODULE_FUNCTION", "NONE", true, "يوقف انتشار الحدث الجاري (لا يبلغ الأجداد ولا بقيّة المعالِجات)", "", ""},
             {Names::UICore::SET_TITLE, "UICore", "MODULE_FUNCTION", "NONE", true, "عنوان_النافذة", "عنوان: نصّ عنوان النافذة", ""},
             {Names::UICore::PAGE_COUNT, "UICore", "MODULE_FUNCTION", "NONE", true, "عدد_الصفحات", "", ""},
             {Names::UICore::CURRENT_PAGE, "UICore", "MODULE_FUNCTION", "NONE", true, "الصفحة_الحالية", "", ""},
@@ -4127,7 +4130,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", true, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1089, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1090, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

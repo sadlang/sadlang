@@ -156,6 +156,8 @@ SadWidget sad_sized_box(float width, float height);
 /** .حرّك(أنواع) — يبدأ سلسلة (مركّب بالفاصلة) */ void sad_anim_begin(SadWidget w, const char* typesCsv);
 /** .مدة(ث) */                    void sad_anim_duration(SadWidget w, double seconds);
 /** .منحنى(اسم) */                void sad_anim_easing(SadWidget w, const char* name);
+/** .تفرع(طور) */                 void sad_set_event_phase(SadWidget w, const char* phase);
+/** .عند_*(د،بيانات) */           void sad_set_event_data(SadWidget w, const char* text);
 /** .تأخير(ث) */                  void sad_anim_delay(SadWidget w, double seconds);
 /** .تكرار(ن) */                  void sad_anim_repeat(SadWidget w, int32_t count);
 /** .عكس_تلقائي([منطقي]) */       void sad_anim_auto_reverse(SadWidget w, int32_t reverse);
@@ -269,6 +271,8 @@ void sad_navigate_exit_transition_builder(SadPageBuilder build, void* data, SadR
  *  في المترجم = استدعاء ثانك الإغلاق تزامنيًّا (دالّة التحديث) ثمّ sad_update_state، فلا دالّة
  *  runtime مستقلّة لها. نظير المفسّر (rebuildUI). */
 void sad_update_state(void);
+/** أوقف_الانتشار() — يوقف انتشار الحدث الجاري (rfcs#51). */
+void sad_stop_propagation(void);
 /** عنوان_النافذة(نص) — يطلب تغيير عنوان النافذة عبر المتحكّم المشترك (window_control) */
 void sad_set_window_title(const char* title);
 /** أغلق_النافذة() — يطلب إغلاق النافذة عبر المتحكّم المشترك (window_control) */

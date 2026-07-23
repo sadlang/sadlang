@@ -56,6 +56,7 @@ set(SAD_UI_CORE_SOURCES
     core/src/notification.cpp
     core/src/touch_processor.cpp
     core/src/keyboard_processor.cpp
+    core/src/event_dispatch.cpp
     core/src/mouse_processor.cpp
     core/src/reconciler.cpp
     core/src/widget_node.cpp

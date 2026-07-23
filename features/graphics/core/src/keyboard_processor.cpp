@@ -20,6 +20,7 @@
 
 #include "sad_ui/keyboard_processor.h"
 #include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
+#include "sad_ui/event_dispatch.h" // fireFocusChange — زوج فقد/اكتساب التركيز
 
 namespace sad
 {
@@ -75,13 +76,7 @@ namespace sad
             if (target && fireEventCb_)
             {
                 EventData data = makeKeyEventData(rawCode, keyName, mods);
-                for (const auto &evt : target->getEvents())
-                {
-                    if (evt.type == IREventType::OnKeyDown)
-                    {
-                        fireEventCb_(evt.type, evt.expression, target, data);
-                    }
-                }
+                emitEvent(IREventType::OnKeyDown, target, data);
             }
 
             // ─── 2. معالجة مفاتيح تحرير النصوص (إذا العقدة حقل إدخال) ───
@@ -132,13 +127,7 @@ namespace sad
             if (target && fireEventCb_)
             {
                 EventData data = makeKeyEventData(rawCode, keyName, mods);
-                for (const auto &evt : target->getEvents())
-                {
-                    if (evt.type == IREventType::OnKeyUp)
-                    {
-                        fireEventCb_(evt.type, evt.expression, target, data);
-                    }
-                }
+                emitEvent(IREventType::OnKeyUp, target, data);
             }
         }
 
@@ -161,15 +150,10 @@ namespace sad
             // (AR) إطلاق حدث OnInput و OnChange
             if (fireEventCb_)
             {
-                for (const auto &evt : focused->getEvents())
-                {
-                    if (evt.type == IREventType::OnInput || evt.type == IREventType::OnChange)
-                    {
-                        EventData data;
-                        data.value = text;
-                        fireEventCb_(evt.type, evt.expression, focused, data);
-                    }
-                }
+                EventData data;
+                data.value = text;
+                emitEvent(IREventType::OnInput, focused, data);
+                emitEvent(IREventType::OnChange, focused, data);
             }
         }
 
@@ -211,6 +195,9 @@ namespace sad
             if (newFocus != focused)
             {
                 setFocusedNodeCb_(newFocus);
+                // (AR) التنقّل بـTab يُطلق زوج فقد/اكتساب التركيز كنقر الفأرة
+                //      تمامًا — الموضع صفرٌ إذ لا مؤشّر مُسبِّب.
+                fireFocusChange(focused, newFocus, 0.0f, 0.0f, fireEventCb_);
                 if (invalidateCb_)
                     invalidateCb_();
             }
@@ -232,16 +219,10 @@ namespace sad
             // ─── أزرار: تفعيل OnTap ───
             if (nodeType == UINodeType::Button || nodeType == UINodeType::FAB)
             {
-                for (const auto &evt : focused->getEvents())
-                {
-                    if (evt.type == IREventType::OnTap)
-                    {
-                        EventData data;
-                        data.keyCode = keyCode;
-                        data.keyName = keyName;
-                        fireEventCb_(evt.type, evt.expression, focused, data);
-                    }
-                }
+                EventData data;
+                data.keyCode = keyCode;
+                data.keyName = keyName;
+                emitEvent(IREventType::OnTap, focused, data);
                 if (invalidateCb_)
                     invalidateCb_();
             }
@@ -259,15 +240,9 @@ namespace sad
                 }
                 mutableNode->setProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84", !isOn);
 
-                for (const auto &evt : focused->getEvents())
-                {
-                    if (evt.type == IREventType::OnChange)
-                    {
-                        EventData data;
-                        data.keyCode = keyCode;
-                        fireEventCb_(evt.type, evt.expression, focused, data);
-                    }
-                }
+                EventData data;
+                data.keyCode = keyCode;
+                emitEvent(IREventType::OnChange, focused, data);
                 if (invalidateCb_)
                     invalidateCb_();
             }

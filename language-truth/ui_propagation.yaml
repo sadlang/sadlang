@@ -1,0 +1,41 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لأطوار انتشار الحدث — القيمة التي يكتبها مطوّر ص
+#      في معدّل `.تفرع("…")` بعد تسجيل معالِج حدث. يُولَّد منه
+#      sad_ui/generated/propagation_vocab_generated.h عبر gen_ui_vocab.py،
+#      وتستهلكه دوالّ التحويل في types.cpp (stringToEventPropagation).
+#
+#      الطور مُعلَن على **المعالِج** لا على الحدث (نموذج DOM): فالجدّ يشترك
+#      صراحةً في أحداث أبنائه. والافتراض «لا انتشار» (بلا معدّل `تفرع`) يجعل
+#      الاشتراك صريحًا ⇒ لا يتغيّر سلوك أيّ برنامجٍ قائم.
+#
+#      سياسة: الأسماء العربيّة القانونيّة فقط، بلا تشكيل ولا بدائل.
+#
+# (EN) Central SoT for event propagation phases — the value a Sad developer
+#      passes to `.تفرع("…")` on a just-registered handler. The phase is
+#      declared on the LISTENER (DOM model), and the default (no modifier) is
+#      "no propagation", so opting in is explicit and nothing regresses.
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+macro: SAD_UI_PROPAGATION_VOCAB
+enum: EventPropagation
+description_ar: أطوار انتشار حدث SadUI
+description_en: SadUI event propagation phases
+
+# (AR) الترتيب يطابق enum EventPropagation في types.h.
+entries:
+  - id: None
+    canonical: لا_انتشار
+    description_ar: لا انتشار — المعالِج يعمل على العنصر المُستهدَف فقط (الافتراض)
+    description_en: No propagation — handler runs on the target node only (default)
+  - id: Bubble
+    canonical: فقاعة
+    description_ar: فقاعات — يستقبل أحداث الأبناء صعودًا نحو الجذر
+    description_en: Bubble — receives descendants' events on the way up to the root
+  - id: Capture
+    canonical: التقاط
+    description_ar: التقاط — يستقبل أحداث الأبناء نزولًا من الجذر قبل بلوغ الهدف
+    description_en: Capture — receives descendants' events on the way down, before the target
+  - id: Both
+    canonical: كلاهما
+    description_ar: كلاهما — يشارك في طورَي الالتقاط والفقاعات معًا
+    description_en: Both — participates in the capture and bubble phases

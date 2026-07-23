@@ -47,6 +47,7 @@ public:
     // (إكمال corui) الانتقال الكامل + الحالة + النافذة + توليد الويب
     llvm::Value *emitUiNavigateExitTransition(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiUpdateState(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiStopPropagation(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSetState(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSetTitle(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiCloseWindow(std::shared_ptr<SIRInstruction> inst);
@@ -128,6 +129,8 @@ public:
     llvm::Value *emitUiAnimBegin(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAnimDuration(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAnimEasing(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetEventPhase(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSetEventData(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAnimDelay(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAnimRepeat(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiAnimAutoReverse(std::shared_ptr<SIRInstruction> inst);

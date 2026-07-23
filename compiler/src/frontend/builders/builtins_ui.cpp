@@ -1046,6 +1046,14 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
+                // (rfcs#51) أوقف_الانتشار() — يوقف انتشار الحدث الجاري (بلا وسائط).
+                if (funcName == Bn::UICore::STOP_PROPAGATION)
+                {
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_STOP_PROPAGATION);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
                 // (إكمال) عين_الحالة(دالّة_تحديث؟) — نداء دالّة التحديث تزامنيًّا ثمّ إعادة رسم.
                 //   نمرّر المُعامل فقط إن كان **دالّة** (Function): الخافض يستدعي ثانك الإغلاق
                 //   `void(i64 __env)` تزامنيًّا ثمّ sad_update_state. غير الدالّة يُتجاهَل

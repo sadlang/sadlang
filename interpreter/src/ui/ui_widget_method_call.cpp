@@ -85,7 +85,24 @@ namespace Sad
                                 std::string eventKey = "__event_" + m;
                                 wb->fields[eventKey] = args[0];
                                 wb->addIREvent(m, eventKey);
+                                // (AR) وسيطٌ ثانٍ اختياريّ = «بيانات» الحرّة لهذا
+                                //      المعالِج، تصل الحقلَ «بيانات» في بنية «حدث».
+                                if (args.size() > 1)
+                                    wb->setLastEventUserData(args[1].toString());
                             }
+                            ev.lastResult_ = objectValue;
+                            return true;
+                        }
+
+                        // (AR) طريقة تفرّع — طور انتشار آخر معالِجٍ سُجِّل
+                        //      (نظير .مدة/.منحنى مع آخر حركة). الطور مُعلَن على
+                        //      المعالِج لا على الحدث؛ وبلا هذا المعدّل لا انتشار
+                        //      البتّة ⇒ الاشتراك صريح فلا ينحدر برنامجٌ قائم.
+                        if (sad::ui::mods::isPropagation(m))
+                        {
+                            if (!args.empty())
+                                wb->setLastEventPropagation(
+                                    sad::ui::stringToEventPropagation(args[0].toString()));
                             ev.lastResult_ = objectValue;
                             return true;
                         }

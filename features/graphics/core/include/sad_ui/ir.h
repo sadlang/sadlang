@@ -127,6 +127,10 @@ namespace sad
             std::vector<std::string> modifiedStates;               ///< متغيرات الحالة المتأثرة
             std::string customEventName;                           ///< اسم الحدث المخصص (فقط عندما type == Custom)
             EventPropagation propagation = EventPropagation::None; ///< طور الانتشار
+            /// (AR) بيانات حرّة يربطها المبرمج بهذا المعالِج عند التسجيل
+            ///      (`.عند_النقر(دالّة، "بيانات")`) — تصل الحقلَ «بيانات» في بنية
+            ///      «حدث». كان الحقل يُقرأ في المحرّكين ولا يكتبه أحد.
+            std::string userData;
 
             /// الحصول على اسم الحدث (العربي الأساسي، أو المخصص)
             const std::string &getEventName() const

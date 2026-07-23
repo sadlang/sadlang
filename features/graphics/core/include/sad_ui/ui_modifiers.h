@@ -36,6 +36,10 @@ namespace sad
             // (AR) يطابق أيّ اسمٍ يبدأ بالبادئة (عائلة عند_*).
             inline bool isEvent(std::string_view m) { return m.rfind("\xd8\xb9\xd9\x86\xd8\xaf_", 0) == 0; }
 
+            // (AR) يعيّن طور انتشار آخر معالِج حدثٍ سُجِّل على العنصر — «تفرع».
+            inline constexpr const char *PROPAGATION = "\xd8\xaa\xd9\x81\xd8\xb1\xd8\xb9";
+            inline bool isPropagation(std::string_view m) { return m == "\xd8\xaa\xd9\x81\xd8\xb1\xd8\xb9"; }
+
             // (AR) يبدأ سلسلة تحريك على العنصر (يقبل أنواعًا مركّبة بفاصلة) — «حرك».
             inline constexpr const char *ANIMATE = "\xd8\xad\xd8\xb1\xd9\x83";
             inline bool isAnimate(std::string_view m) { return m == "\xd8\xad\xd8\xb1\xd9\x83"; }

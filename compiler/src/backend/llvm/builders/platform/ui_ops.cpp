@@ -1080,6 +1080,12 @@ llvm::Value* UICodeGen::emitUiUpdateState(std::shared_ptr<SIRInstruction> /*inst
     return emitUIRuntimeCall(cg_, "sad_update_state", voidTy, {}, {});
 }
 
+// (rfcs#51) أوقف_الانتشار() ⇒ sad_stop_propagation(): يوقف انتشار الحدث الجاري. بلا وسائط.
+llvm::Value* UICodeGen::emitUiStopPropagation(std::shared_ptr<SIRInstruction> /*inst*/) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    return emitUIRuntimeCall(cg_, "sad_stop_propagation", voidTy, {}, {});
+}
+
 // (إكمال) عين_الحالة(دالّة؟) ⇒ نداء دالّة التحديث تزامنيًّا عبر ثانك الإغلاق ثمّ sad_update_state.
 //   نظير المفسّر (يستدعي الدالّة أوّلًا ثمّ rebuildUI). المُعامل موجودٌ فقط إن كان دالّة (حرسه
 //   الخافض)؛ غيابه ⇒ إعادة رسمٍ فقط. الثانك void(void* data) ينفّذ دالّة التحديث فورًا.
@@ -1419,6 +1425,27 @@ llvm::Value* UICodeGen::emitUiAnimEasing(std::shared_ptr<SIRInstruction> inst) {
     if (!name->getType()->isPointerTy()) name = llvm::ConstantPointerNull::get(ptrTy);
     return emitUIRuntimeCall(cg_, "sad_anim_easing", voidTy,
         {ptrTy, ptrTy}, {widget, name});
+}
+llvm::Value* UICodeGen::emitUiSetEventPhase(std::shared_ptr<SIRInstruction> inst) {
+    // (AR) .تفرع("فقاعة") ⇒ sad_set_event_phase(w, "فقاعة") — يعيّن طور **آخر**
+    //      معالِجٍ سُجِّل على العقدة (نظير setLastEventPropagation في المفسّر).
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* phase = cg_.resolveOperand(inst->operands[1]);
+    if (!phase->getType()->isPointerTy()) phase = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_set_event_phase", voidTy,
+        {ptrTy, ptrTy}, {widget, phase});
+}
+llvm::Value* UICodeGen::emitUiSetEventData(std::shared_ptr<SIRInstruction> inst) {
+    // (AR) وسيطٌ ثالث لـ.عند_* ⇒ «بيانات» آخر معالِج (نظير setLastEventUserData).
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* text = cg_.resolveOperand(inst->operands[1]);
+    if (!text->getType()->isPointerTy()) text = llvm::ConstantPointerNull::get(ptrTy);
+    return emitUIRuntimeCall(cg_, "sad_set_event_data", voidTy,
+        {ptrTy, ptrTy}, {widget, text});
 }
 llvm::Value* UICodeGen::emitUiAnimDelay(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);

@@ -158,6 +158,17 @@ namespace Sad
              */
             void addIREvent(const std::string &eventName, const std::string &handlerId);
 
+            /**
+             * @brief (AR) يعيّن طور انتشار **آخر** معالِج حدثٍ سُجِّل على العقدة.
+             *
+             * نظير `.مدة/.منحنى` مع آخر حركة: `.عند_النقر(د).تفرع("فقاعة")`.
+             * لا أثر إن لم يسبقه معالِج (فشل-صامت مقصود: معدّلٌ بلا هدف).
+             */
+            void setLastEventPropagation(sad::ui::EventPropagation phase);
+
+            /// (AR) يربط بيانات حرّة بـ**آخر** معالِجٍ سُجِّل (الحقل «بيانات»).
+            void setLastEventUserData(const std::string &userData);
+
             // ──────────────────────────────────────────────────────
             // إضافة أبناء
             // ──────────────────────────────────────────────────────

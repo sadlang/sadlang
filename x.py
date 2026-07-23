@@ -200,6 +200,21 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) أطوار انتشار حدث SadUI (لا_انتشار/فقاعة/التقاط/كلاهما) — قانونيّ.
+        #      يستهلكه types.cpp (stringToEventPropagation) فيتوحّد المحرّكان في
+        #      معنى معدّل `.تفرع("…")`.
+        "name": "ui_propagation",
+        "script": "gen_ui_vocab.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("propagation_vocab_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_propagation.yaml",
+            "--schema", "language-truth/_schemas/ui_vocab.schema.json",
+            "--header", f"{d}/propagation_vocab_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         # (AR) ألوان SadUI (تعداد `ألوان` المدمَج + جدول hex/RGBA موحَّد) — قانونيّ.
         #      مخرَجان: بادئة التعداد (تُحقَن في المحرّكين) + جداول المكتبة الموحَّدة.
         "name": "ui_colors",

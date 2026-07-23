@@ -44,6 +44,7 @@
 
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
+#include "sad_ui/event_dispatch.h" // hasListenerInPath
 
 #include <unordered_map>
 #include <functional>
@@ -179,6 +180,10 @@ namespace sad
             /// مسح جميع الأصابع — يُستخدم عند فقدان التركيز
             void reset();
 
+            /// (AR) جذر المحتوى الحيّ — للتحقّق من بقاء العقدة المُمسَكة أثناء السحب.
+            using GetContentRootCallback = std::function<const IRNode *()>;
+            void setGetContentRootCallback(GetContentRootCallback cb) { getContentRootCb_ = std::move(cb); }
+
         private:
             // ─── مساعدات داخلية ─────────────────────────
 
@@ -244,7 +249,28 @@ namespace sad
             // ─── Callbacks ─────────────────────────────
 
             std::function<const IRNode *(float, float)> hitTestCb_;
+
+            /// (AR) هل العقدة ما زالت في الشجرة الحيّة؟ (فشل-مُغلق ضدّ الاستعمال بعد التحرير)
+            bool touchNodeAlive(const IRNode *node) const;
+
+            GetContentRootCallback getContentRootCb_;
             std::function<void(IREventType, const std::string &, const IRNode *, const EventData &)> fireEventCb_;
+
+            /**
+             * (AR) يُطلق حدثًا **مرّةً واحدة** على العقدة، ويترك اختيارَ المعالِجات
+             *      والمرورَ بأطوار الانتشار لـdispatchEvent في مدخل المنصّة.
+             *      كانت المعالجات تمرّ على getEvents() بنفسها ثمّ تنادي مدخلًا
+             *      يمرّ عليها ثانيةً ⇒ إطلاقٌ N² على الهدف وN مرّة على كلّ جدّ.
+             *      التعبير فارغ عمدًا: لم يعد المُطلِق يعرف أيّ معالِجٍ سيُنفَّذ.
+             */
+            void emitEvent(IREventType type, const IRNode *node,
+                           const EventData &data) const
+            {
+                if (fireEventCb_ && hasListenerInPath(type, node))
+                    fireEventCb_(type, std::string(), node, data);
+            }
+
+
             std::function<uint32_t()> getTimeMsCb_;
         };
 

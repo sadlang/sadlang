@@ -49,6 +49,7 @@ EXPECTED_OUTPUTS = {
     "features/graphics/core/include/sad_ui/generated/animation_vocab_generated.h",
     "features/graphics/core/include/sad_ui/generated/easing_vocab_generated.h",
     "features/graphics/core/include/sad_ui/generated/event_vocab_generated.h",
+    "features/graphics/core/include/sad_ui/generated/propagation_vocab_generated.h",
     "features/graphics/core/include/sad_ui/generated/color_prelude_generated.h",
     "features/graphics/core/include/sad_ui/generated/color_table_generated.h",
     # (AR) نظام «مصدر حقيقة الأدوات» — أوّل أداة sad-repl (كتالوج أخطاء/رسائل/أوامر).

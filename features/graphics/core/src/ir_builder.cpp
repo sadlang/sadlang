@@ -138,15 +138,10 @@ namespace sad
         {
             for (const auto &mod : source.getModifiers())
             {
-                // المعدّلات التي تمثل أحداث
-                if (mod.type == ModifierType::OnTap ||
-                    mod.type == ModifierType::OnLongPress ||
-                    mod.type == ModifierType::OnDrag ||
-                    mod.type == ModifierType::OnSwipeLeft ||
-                    mod.type == ModifierType::OnSwipeRight ||
-                    mod.type == ModifierType::OnAppear ||
-                    mod.type == ModifierType::OnDisappear ||
-                    mod.type == ModifierType::OnValueChange)
+                // (AR) المعدّلات التي تمثّل أحداثًا — القائمة البيضاء صارت مُوسَّعة
+                //      من SAD_UI_EVENT_MODIFIER_MAP نفسها التي يُوسّعها التحويل،
+                //      فلا يمكن أن يُضاف معدّل حدثٍ ويسقط هنا صامتًا إلى خاصّيّة.
+                if (isEventModifier(mod.type))
                 {
 
                     IREvent event;

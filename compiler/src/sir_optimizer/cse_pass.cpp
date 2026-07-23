@@ -393,6 +393,8 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_NUM:
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
                 case SIR::SIROpcode::BUILTIN_UI_ADD_EVENT:
+                case SIR::SIROpcode::BUILTIN_UI_SET_EVENT_PHASE:
+                case SIR::SIROpcode::BUILTIN_UI_SET_EVENT_DATA:
                 case SIR::SIROpcode::BUILTIN_UI_ANIM_BEGIN:
                 case SIR::SIROpcode::BUILTIN_UI_ANIM_DURATION:
                 case SIR::SIROpcode::BUILTIN_UI_ANIM_EASING:
@@ -446,6 +448,7 @@ namespace Sad
                 //   ذات آثار جانبيّة (إعادة رسم/عنوان/إغلاق/تخصيص نصّ + نداء دالّة تحديث)
                 //   ⇒ لا يجوز دمج/حذف أيّ منها.
                 case SIR::SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION:
+                case SIR::SIROpcode::BUILTIN_UI_STOP_PROPAGATION:
                 case SIR::SIROpcode::BUILTIN_UI_UPDATE_STATE:
                 case SIR::SIROpcode::BUILTIN_UI_SET_STATE:
                 case SIR::SIROpcode::BUILTIN_UI_SET_TITLE:

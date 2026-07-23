@@ -23,6 +23,7 @@
  */
 
 #include "sad_ui/desktop/window.h"
+#include "sad_ui/event_dispatch.h" // (AR) إرسال الأحداث بأطواره — مصدر الحقيقة المشترك
 #include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include "sad_ui/window_control.h" // (م-تحكّم) استهلاك عمليّات النافذة المُعلَّقة (عنوان/إغلاق)
 
@@ -182,6 +183,9 @@ namespace sad
 
                 // ─── تهيئة معالج أحداث اللمس الموحد ───
                 touchProcessor_.setViewportSize(width_, height_);
+                touchProcessor_.setGetContentRootCallback(
+                    [this]() -> const IRNode *
+                    { return contentRoot_.get(); });
                 touchProcessor_.setHitTestCallback(
                     [this](float x, float y) -> const IRNode *
                     { return hitTest(x, y); });
@@ -260,6 +264,19 @@ namespace sad
                 mouseProcessor_.setGetTimeMsCallback(
                     [this]() -> uint32_t
                     { return SDL_GetTicks(); });
+                // (AR) حالة مفاتيح التعديل الحيّة ⇒ حقول مفتاح_عالي/تحكم/بديل في
+                //      «حدث» صارت تُملأ لأحداث الفأرة (كانت أصفارًا دائمًا).
+                mouseProcessor_.setGetKeyModifiersCallback(
+                    []() -> KeyModifiers
+                    {
+                        const SDL_Keymod state = SDL_GetModState();
+                        KeyModifiers mods;
+                        mods.shift = (state & KMOD_SHIFT) != 0;
+                        mods.ctrl = (state & KMOD_CTRL) != 0;
+                        mods.alt = (state & KMOD_ALT) != 0;
+                        mods.meta = (state & KMOD_GUI) != 0;
+                        return mods;
+                    });
                 mouseProcessor_.setInvalidateCallback(
                     [this]()
                     { invalidate(); });
@@ -339,6 +356,7 @@ namespace sad
                 //      يحتفظان بمؤشّرات خام إليها (سحب/ضغط/تحويم/منزلق) ⇒ نُصفّرها
                 //      قبل التحرير منعًا لاستعمال-بعد-التحرير.
                 mouseProcessor_.clearNodeRefs();
+                touchProcessor_.reset(); // (AR) FingerState.dragNode مؤشّر خام كذلك
                 contentRoot_ = std::move(root);
                 needsRedraw_ = true;
 
@@ -1004,61 +1022,14 @@ namespace sad
                 if (!onEventCallback_ || !node)
                     return;
 
-                // (AR) استدعاء المعالج على العنصر المستهدف
-                onEventCallback_(type, expression, node, data);
-
-                // (AR) إذا أُوقف الانتشار، لا نصعد
-                if (data.propagationStopped)
-                    return;
-
-                // (AR) البحث عن الحدث في العقدة لمعرفة نوع الانتشار
-                EventPropagation prop = EventPropagation::None;
-                for (const auto &evt : node->getEvents())
-                {
-                    if (evt.type == type)
-                    {
-                        prop = evt.propagation;
-                        break;
-                    }
-                }
-
-                // (AR) فقاعات الأحداث — صعوداً عبر الأجداد
-                if (prop == EventPropagation::Bubble || prop == EventPropagation::Both)
-                {
-                    fireEventWithBubbling(type, expression, node, data);
-                }
-            }
-
-            // ═══════════════════════════════════════════════════════════════════════════════
-            // fireEventWithBubbling — انتشار الحدث صعوداً عبر شجرة الأجداد
-            // ═══════════════════════════════════════════════════════════════════════════════
-            void DesktopWindow::fireEventWithBubbling(
-                IREventType type,
-                const std::string &expression,
-                const IRNode *node,
-                const EventData &data)
-            {
-                if (!onEventCallback_)
-                    return;
-
-                // (AR) بناء مسار الأجداد من العقدة صعوداً
-                auto ancestors = node->getAncestorPath();
-
-                for (const auto *ancestor : ancestors)
-                {
-                    if (data.propagationStopped)
-                        break;
-
-                    // (AR) البحث عن معالج لنفس نوع الحدث في الأب
-                    for (const auto &evt : ancestor->getEvents())
-                    {
-                        if (evt.type == type)
-                        {
-                            onEventCallback_(type, evt.expression, ancestor, data);
-                            break;
-                        }
-                    }
-                }
+                // (AR) الإرسال بأطواره الثلاثة صار في المكتبة المشتركة
+                //      (sad_ui/event_dispatch.h) كي تسلكه كلّ المنصّات — لا
+                //      نسخة خاصّة بسطح المكتب. المُصرِف هنا مجرّد مُنفِّذ.
+                (void)expression; // الاختيار للمُرسِل: يمرّر تعبير كلّ معالِج
+                dispatchEvent(type, node, data,
+                              [this](IREventType t, const std::string &expr,
+                                     const IRNode *n, const EventData &d)
+                              { onEventCallback_(t, expr, n, d); });
             }
 
             // ═══════════════════════════════════════════════════════════════════════════════
@@ -1300,13 +1271,12 @@ namespace sad
                                 EventData data;
                                 data.x = static_cast<float>(width_);
                                 data.y = static_cast<float>(height_);
-                                for (const auto &evt : contentRoot_->getEvents())
-                                {
-                                    if (evt.type == IREventType::OnResize)
-                                    {
-                                        fireEvent(evt.type, evt.expression, contentRoot_.get(), data);
-                                    }
-                                }
+                                // (AR) نداءٌ واحد: fireEvent صار يفوّض الاختيار والأطوار
+                                //      لـdispatchEvent؛ المرور على getEvents هنا كان
+                                //      يُطلق كلّ معالِجٍ مرّةً، وكلّ نداءٍ يُعيد اختيار
+                                //      الجميع ⇒ إطلاقٌ مضاعف (N²).
+                                fireEvent(IREventType::OnResize, std::string(),
+                                          contentRoot_.get(), data);
                             }
 
                             invalidate();
@@ -1331,13 +1301,9 @@ namespace sad
                                 data.x = cx;
                                 data.y = cy;
                                 data.angle = event.mgesture.dTheta;
-                                for (const auto &evt : rotateNode->getEvents())
-                                {
-                                    if (evt.type == IREventType::OnRotate)
-                                    {
-                                        fireEvent(evt.type, evt.expression, rotateNode, data);
-                                    }
-                                }
+                                // (AR) نداءٌ واحد — تفويض الاختيار للمُرسِل (تجنّب N²).
+                                fireEvent(IREventType::OnRotate, std::string(),
+                                          rotateNode, data);
                             }
                         }
                         break;
@@ -1533,7 +1499,7 @@ namespace sad
                 // إذا كان العنصر قابلاً للتمرير، نعدّل Y لتعويض الإزاحة
                 float childY = y;
                 auto nodeType = node->getType();
-                if (nodeType == UINodeType::ScrollView || nodeType == UINodeType::LazyColumn || nodeType == UINodeType::List)
+                if (isScrollableType(nodeType))
                 {
                     float scrollOff = renderer_->getScrollOffset(node);
                     childY = y - scrollOff; // scrollOff سالب، فنطرحه لنحصل على Y الحقيقي في المحتوى
@@ -1636,7 +1602,7 @@ namespace sad
 
                 // هل هذا العنصر قابل للتمرير؟
                 auto t = node->getType();
-                if (t == UINodeType::ScrollView || t == UINodeType::LazyColumn || t == UINodeType::List)
+                if (isScrollableType(t))
                 {
                     return {node, layout};
                 }
@@ -1916,15 +1882,12 @@ namespace sad
                     mutableNode->setProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9", editState.text);
                     invalidate();
 
-                    // إطلاق حدث عند_التغيير
-                    for (const auto &evt : focusedNode_->getEvents())
+                    // إطلاق حدث عند_التغيير — نداءٌ واحد (تفويض الاختيار للمُرسِل، تجنّب N²)
                     {
-                        if (evt.type == IREventType::OnChange)
-                        {
-                            EventData data;
-                            data.value = editState.text;
-                            fireEvent(evt.type, evt.expression, focusedNode_, data);
-                        }
+                        EventData data;
+                        data.value = editState.text;
+                        fireEvent(IREventType::OnChange, std::string(),
+                                  focusedNode_, data);
                     }
                 }
 #endif

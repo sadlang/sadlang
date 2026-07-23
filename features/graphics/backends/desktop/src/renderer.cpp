@@ -1548,10 +1548,7 @@ namespace sad
                             drawFilledRect(rect, bg);
                     }
                     // قص المحتوى للعناصر القابلة للتمرير
-                    if (node.getType() == UINodeType::ScrollView ||
-                        node.getType() == UINodeType::LazyColumn ||
-                        node.getType() == UINodeType::LazyRow ||
-                        node.getType() == UINodeType::List)
+                    if (isScrollableType(node.getType()))
                     {
                         setClipRect(&rect);
                     }
@@ -2165,10 +2162,7 @@ namespace sad
                 }
 
                 // 4. رسم الأبناء (تكرار) — مع دعم التمرير
-                bool isScrollable = (node.getType() == UINodeType::ScrollView ||
-                                     node.getType() == UINodeType::LazyColumn ||
-                                     node.getType() == UINodeType::LazyRow ||
-                                     node.getType() == UINodeType::List);
+                bool isScrollable = isScrollableType(node.getType());
 
                 float prevScrollTranslateY = scrollTranslateY_;
                 if (isScrollable)

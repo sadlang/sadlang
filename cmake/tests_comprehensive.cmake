@@ -290,6 +290,16 @@ target_link_libraries(test_ui_drag_semantics PRIVATE sad_graphics)
 target_include_directories(test_ui_drag_semantics PRIVATE
     ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
 
+# 14e-2. اختبار قلب إرسال الأحداث المشترك — حارس انحدار لـ dispatchEvent
+# (AR) الطور مُعلَن على المعالِج (افتراضه None ⇒ صفر انحدار)، طور الهدف يُطلق كلّ
+#      المطابقات (توحيد المفسّر/المترجم)، وترتيب التقاط←هدف←فقاعات مع فحص
+#      إيقاف الانتشار بين كلّ معالِجَين. C++ مستضاف بلا عتاد.
+# (EN) Regression guard for the shared 3-phase event dispatcher.
+add_comprehensive_test(test_ui_event_dispatch test_ui_event_dispatch.cpp)
+target_link_libraries(test_ui_event_dispatch PRIVATE sad_graphics)
+target_include_directories(test_ui_event_dispatch PRIVATE
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
+
 # 14f. اختبار المُشكِّل العربيّ للوضع الحرّ — حارس انحدار لـ arabic_shaper (٢٠ حالة)
 # (AR) C++ خالص مستضاف: يجمع arabic_shaper.cpp + الاختبار مباشرةً بلا SDL2/fb0/عتاد،
 #      فيُبنى على كلّ منصّات CI. كان يُشغَّل يدويًّا فقط عبر «بناء-عرض-fb.sh» — الآن

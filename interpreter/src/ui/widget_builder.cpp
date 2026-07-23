@@ -126,6 +126,26 @@ namespace Sad
             irNode_->addEvent(event);
         }
 
+        void WidgetBuilder::setLastEventPropagation(sad::ui::EventPropagation phase)
+        {
+            if (!irNode_)
+                return;
+            auto &events = irNode_->getMutableEvents();
+            if (events.empty())
+                return;
+            events.back().propagation = phase;
+        }
+
+        void WidgetBuilder::setLastEventUserData(const std::string &userData)
+        {
+            if (!irNode_)
+                return;
+            auto &events = irNode_->getMutableEvents();
+            if (events.empty())
+                return;
+            events.back().userData = userData;
+        }
+
         void WidgetBuilder::addIREvent(const std::string &eventName, const std::string &handlerId)
         {
             // (AR) تحويل الاسم النصي إلى نوع enum مركزي
