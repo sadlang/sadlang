@@ -129,10 +129,10 @@ namespace sad
                                                 { window.invalidate(); });
                 mouseProc.setFireEventCallback(
                     [&](IREventType type, const std::string &expr,
-                        const IRNode *node, const EventData & /*data*/)
+                        const IRNode *node, const EventData &data)
                     {
                         if (cfg.onEvent)
-                            cfg.onEvent(type, expr, node);
+                            cfg.onEvent(type, expr, node, data); // (② rfcs#46) نمرّر بيانات الحدث
                     });
 
                 // ─── ربط evdev: فأرة (مؤشّر مرسوم) + مفاتيح لوحة ───

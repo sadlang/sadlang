@@ -204,6 +204,8 @@ target_include_directories(sad_graphics
         # (EN) Shared AST headers — needed only by binding_compiler.cpp
         ${CMAKE_SOURCE_DIR}/shared/ast/include
         ${CMAKE_SOURCE_DIR}/shared/types/include
+        # (② rfcs#46) تخطيط حدث المُولَّد (sad_event_layout_generated.h) — يستهلكه المُرسِل
+        ${CMAKE_SOURCE_DIR}/shared/types/generated
         ${CMAKE_SOURCE_DIR}/shared/lexer/include
 )
 

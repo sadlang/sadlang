@@ -179,6 +179,22 @@ namespace Sad
                     paramVar.registerName = paramReg;
                     paramVar.isMutable = false;
                     paramVar.scopeLevel = b_.currentScopeLevel_;
+                    // (② rfcs#46) معامل لامدا مُنمَّط بصنفٍ: انقل اسم الصنف كي يُحلّ الوصول
+                    //   العضويّ داخل الجسم (ح.دلتا_س) ويُتحقَّق نوعيًّا. يُسجَّل بالاسم و«%الاسم»
+                    //   (نظير معاملات class_operator.cpp) لأنّ باني VariableExpr يبحث بكليهما.
+                    // ⚠ ملاحظة (ع-1): مُحلّل اللامدا الحاليّ (parseLambda) لا يقرأ معاملات
+                    //   مُنمَّطة (النوع قبل الاسم)، فـtypeName يبقى فارغًا للامدا وهذا الفرع لا
+                    //   يُفعَّل عمليًّا اليوم — إبقاؤه استباقٌ لدعمٍ لاحق. المسارُ المدعوم الآن
+                    //   لمعالِج حدثٍ يقرأ «حدث» هو **دالّة مسمّاة** `دالة معالِج(حدث ح)` (تنميط
+                    //   معاملها يجري في مسار تعريف الدوالّ لا هنا)، تُمرَّر كمرجع للمعدّل.
+                    const std::string &paramTypeName = lambdaExpr->parameters[i].typeName;
+                    if (!paramTypeName.empty() && b_.module_ &&
+                        b_.module_->getClass(paramTypeName))
+                    {
+                        paramVar.className = paramTypeName;
+                        b_.classInstanceTypes_[paramVar.name] = paramTypeName;
+                        b_.classInstanceTypes_[paramReg] = paramTypeName;
+                    }
                     b_.addVariable(paramVar);
                 }
 

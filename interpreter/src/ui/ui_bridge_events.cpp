@@ -15,6 +15,7 @@
 
 #include "sad_ui/types.h"
 #include "sad_ui/ir.h"
+#include "sad_event_layout_generated.h" // (② rfcs#46) أسماء حقول «حدث» العربيّة (SoT) — تطابق بنية المترجم
 #include "sad_ui/prop_keys.h" // (AR) SoT مفتاح الحشو (props::PADDING = «حشوة») — هيدر ثوابت ذاتيّ الاكتفاء، بلا اعتماد ربط (حارس الطبقات يفحص روابط CMake لا التضمين)
 #include "sad_ui/nav.h" // (م1-د) مكدّس التنقّل المشترك — لا تدُس الصفحة المُنتقَل إليها
 #include "sad_ui/window_control.h" // (م-تحكّم) عنوان/إغلاق النافذة عبر المتحكّم المشترك (SoT موحَّد)
@@ -43,65 +44,84 @@ namespace Sad
                     {
                         const auto &expr = event.expression;
 
-                        // (AR) تحضير بيانات الحدث كخريطة Value لتمريرها للمعالج
+                        // ═══════════════════════════════════════════════════════════
+                        // (② rfcs#46) خريطة بيانات الحدث بأسماء الحقول العربيّة من مصدر
+                        //   الحقيقة (SAD_EVENT_FIELDS المولَّد من types.yaml) — نفس أسماء
+                        //   حقول بنية «حدث» التي يبنيها المترجم، فيعمل معالِج ص الواحد
+                        //   `دالة م(حدث ح){ ح.دلتا_س }` على المحرّكين سواءً (تكافؤ مصدريّ).
+                        //   كلّ الحقول حاضرة دائمًا (نظير البنية ذات التخطيط الثابت)، فلا
+                        //   يُلقى RUN_KEY_NOT_FOUND على حقلٍ غائب.
+                        // (إصلاح Amelia م-5/6) الربط **بالمصدر لا بالموضع**: نمرّ على
+                        //   SAD_EVENT_FIELDS ونشتقّ قيمة كلّ حقل من `source` (عضو EventData
+                        //   الإنجليزيّ) عبر مبدّلٍ صريح. فإعادةُ ترتيب حقول types.yaml لا
+                        //   تُفسِد الربط (الاسم العربيّ يقترن بمصدره الصحيح مهما تغيّر ترتيبه)،
+                        //   خلافًا لمصفوفةٍ موضعيّةٍ يحرسها العدد وحده.
+                        // ═══════════════════════════════════════════════════════════
+                        namespace EL = ::Sad::Types::EventLayout;
                         Data::Value::MapType eventMap;
-                        eventMap["x"] = Data::Value(static_cast<double>(eventData.x));
-                        eventMap["y"] = Data::Value(static_cast<double>(eventData.y));
-                        eventMap["deltaX"] = Data::Value(static_cast<double>(eventData.deltaX));
-                        eventMap["deltaY"] = Data::Value(static_cast<double>(eventData.deltaY));
-                        if (eventData.keyCode != 0)
+                        const auto valueForSource =
+                            [&](std::string_view src) -> Data::Value
                         {
-                            eventMap["keyCode"] = Data::Value(eventData.keyCode);
-                        }
-                        if (!eventData.keyName.empty())
+                            // (AR) عدديّ عشريّ
+                            if (src == "x")          return Data::Value(static_cast<double>(eventData.x));
+                            if (src == "y")          return Data::Value(static_cast<double>(eventData.y));
+                            if (src == "deltaX")     return Data::Value(static_cast<double>(eventData.deltaX));
+                            if (src == "deltaY")     return Data::Value(static_cast<double>(eventData.deltaY));
+                            if (src == "pressure")   return Data::Value(static_cast<double>(eventData.pressure));
+                            if (src == "angle")      return Data::Value(static_cast<double>(eventData.angle));
+                            // (AR) عدديّ صحيح
+                            if (src == "keyCode")    return Data::Value(static_cast<int64_t>(eventData.keyCode));
+                            if (src == "button")     return Data::Value(static_cast<int64_t>(eventData.button));
+                            if (src == "touchId")    return Data::Value(static_cast<int64_t>(eventData.touchId));
+                            if (src == "fingerId")   return Data::Value(static_cast<int64_t>(eventData.fingerId));
+                            if (src == "touchCount") return Data::Value(static_cast<int64_t>(eventData.touchCount));
+                            if (src == "__type")     return Data::Value(static_cast<int64_t>(eventType));
+                            // (AR) منطقيّ
+                            if (src == "shiftKey")   return Data::Value(eventData.shiftKey);
+                            if (src == "ctrlKey")    return Data::Value(eventData.ctrlKey);
+                            if (src == "altKey")     return Data::Value(eventData.altKey);
+                            if (src == "isTouch")    return Data::Value(eventData.isTouch);
+                            // (AR) نصّيّ
+                            if (src == "keyName")    return Data::Value(eventData.keyName);
+                            if (src == "value")      return Data::Value(eventData.value);
+                            if (src == "customData") return Data::Value(eventData.customData);
+                            return Data::Value(); // (AR) مصدرٌ غير معروف — لن يقع (كلّها مغطّاة)
+                        };
+                        for (const auto &field : EL::SAD_EVENT_FIELDS)
                         {
-                            eventMap["keyName"] = Data::Value(eventData.keyName);
-                        }
-                        eventMap["button"] = Data::Value(eventData.button);
-                        eventMap["shift"] = Data::Value(eventData.shiftKey);
-                        eventMap["ctrl"] = Data::Value(eventData.ctrlKey);
-                        eventMap["alt"] = Data::Value(eventData.altKey);
-
-                        // ─── بيانات اللمس (Touch Data) ───
-                        if (eventData.isTouch)
-                        {
-                            eventMap["\xd9\x84\xd9\x85\xd8\xb3"] = Data::Value(true); // لمس
-                            eventMap["isTouch"] = Data::Value(true);
-                            eventMap["\xd8\xb6\xd8\xba\xd8\xb7"] = Data::Value(static_cast<double>(eventData.pressure)); // ضغط
-                            eventMap["pressure"] = Data::Value(static_cast<double>(eventData.pressure));
-                            eventMap["\xd9\x85\xd8\xb9\xd8\xb1\xd9\x81_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb5\xd8\xa8\xd8\xb9"] = Data::Value(static_cast<int>(eventData.fingerId)); // معرف_الإصبع
-                            eventMap["fingerId"] = Data::Value(static_cast<int>(eventData.fingerId));
-                            eventMap["\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb5\xd8\xa7\xd8\xa8\xd8\xb9"] = Data::Value(eventData.touchCount); // عدد_الأصابع
-                            eventMap["touchCount"] = Data::Value(eventData.touchCount);
-                        }
-                        if (eventData.angle != 0.0f)
-                        {
-                            eventMap["angle"] = Data::Value(static_cast<double>(eventData.angle));
-                        }
-                        if (!eventData.value.empty())
-                        {
-                            eventMap["value"] = Data::Value(eventData.value);
-                        }
-                        if (!eventData.customData.empty())
-                        {
-                            eventMap["data"] = Data::Value(eventData.customData);
+                            eventMap[std::string(field.nameUtf8)] = valueForSource(field.source);
                         }
 
-                        // (AR) تحضير الوسائط
-                        std::vector<Data::Value> args;
+                        // (② rfcs#46، ع-3) المنزلق: نضع قيمته الحاليّة في حقل «قيمة» من
+                        //   الخريطة (لا كوسيطٍ موضعيّ منفصل). هكذا معالِج `دالة(حدث ح)` أحاديّ
+                        //   الأريّة يقرأ ح.قيمة على المحرّكين سواءً؛ المسارُ القديم (دفعُ القيمة
+                        //   أوّلًا) كان يجعل adaptEventArgsToArity يُبقيها ويُسقط الخريطة، فيتلقّى
+                        //   المعالِجُ رقمًا لا بنيةً — تباعدٌ عن المترجم (يمرّر البنية دائمًا).
                         if (node->getType() == sad::ui::UINodeType::Slider)
                         {
                             const auto *valProp = node->findProperty(
                                 "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
                             if (valProp)
                             {
-                                if (auto *iv = std::get_if<int64_t>(&valProp->value))
-                                    args.push_back(Data::Value(static_cast<int>(*iv)));
-                                else if (auto *dv = std::get_if<double>(&valProp->value))
-                                    args.push_back(Data::Value(*dv));
+                                // (AR) مفتاح «قيمة» من مصدر الحقيقة بالبحث عن الحقل ذي source=="value"
+                                //   (لا فهرسٍ موضعيّ — نظير إصلاح م-5/6 أعلاه).
+                                std::string valueKey;
+                                for (const auto &f : EL::SAD_EVENT_FIELDS)
+                                    if (f.source == "value") { valueKey.assign(f.nameUtf8); break; }
+                                // (إصلاح Amelia 🟡) حقل «قيمة» نوعه String في SoT، والمترجم
+                                //   يبنيه نصًّا؛ فنكتب القيمة نصًّا لا رقمًا حفاظًا على التكافؤ
+                                //   (ح.قيمة نصّ على المحرّكين).
+                                if (!valueKey.empty())
+                                {
+                                    if (auto *iv = std::get_if<int64_t>(&valProp->value))
+                                        eventMap[valueKey] = Data::Value(std::to_string(*iv));
+                                    else if (auto *dv = std::get_if<double>(&valProp->value))
+                                        eventMap[valueKey] = Data::Value(std::to_string(*dv));
+                                }
                             }
                         }
-                        // (AR) إضافة خريطة بيانات الحدث كوسيط
+                        // (AR) وسيطٌ وحيد: خريطة بيانات الحدث (بنية «حدث» مكافئة).
+                        std::vector<Data::Value> args;
                         args.push_back(Data::Value(std::move(eventMap)));
 
                         // (AR) استدعاء المعالج

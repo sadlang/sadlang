@@ -106,7 +106,7 @@ namespace sad
                  *        expr = IREvent.expression (تعبير المفسّر النصّيّ) لتمييز
                  *        الأزرار في سطح المكتب؛ جسرُ وقت التشغيل يتجاهله ويرسل بالعقدة.
                  */
-                std::function<void(IREventType, const std::string &expr, const IRNode *)> onEvent;
+                std::function<void(IREventType, const std::string &expr, const IRNode *, const EventData &)> onEvent; // (② rfcs#46) يحمل بيانات الحدث
 
                 /**
                  * @brief (AR) ردّ نداء ضغط مفتاح. يُرجع true لطلب الخروج (مثلًا F2).

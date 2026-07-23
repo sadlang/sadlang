@@ -83,6 +83,9 @@ if(TARGET sad_graphics)
             ${CMAKE_SOURCE_DIR}/features/graphics/core/include
             ${CMAKE_SOURCE_DIR}/features/graphics/backends/desktop/include
             ${CMAKE_SOURCE_DIR}/features/graphics/third_party
+            # (② rfcs#46) تخطيط «حدث» المولَّد (sad_event_layout_generated.h) — يبني منه
+            #   dispatchCompiledEvent الـPOD عبر sadFillEventPod.
+            ${CMAKE_SOURCE_DIR}/shared/types/generated
     )
     target_link_libraries(sad_graphics_runtime PUBLIC sad_graphics)
     if(MSVC)
@@ -112,6 +115,8 @@ if(TARGET sad_graphics_freestanding)
             ${CMAKE_SOURCE_DIR}/features/graphics/backends/freestanding/include
             ${CMAKE_SOURCE_DIR}/features/graphics/backends/web/include
             ${CMAKE_SOURCE_DIR}/features/graphics/third_party
+            # (② rfcs#46) تخطيط «حدث» المولَّد — نفس التبعيّة للفرع الحرّ (fb0/evdev).
+            ${CMAKE_SOURCE_DIR}/shared/types/generated
     )
     # (AR) SAD_UI_FREESTANDING يُفعّل فرع fb0/evdev في sad_app_run؛ لا SDL2.
     target_compile_definitions(sad_graphics_runtime_freestanding PUBLIC SAD_UI_FREESTANDING)

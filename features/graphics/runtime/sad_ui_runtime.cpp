@@ -83,7 +83,7 @@ struct SadWidgetImpl {
     struct EventBinding {
         std::string name;
         IREventType type = IREventType::Custom; // (AR) مُشتقٌّ مرّةً عند الربط (لا يُعاد اشتقاقه لكلّ إرسال)
-        SadCallback cb = nullptr;
+        SadEventCallback cb = nullptr;          // (② rfcs#46) ردّ نداءٍ حامل POD الحدث
         void* data = nullptr;
     };
     std::vector<EventBinding> eventBindings;
@@ -241,11 +241,33 @@ static void animStartChain(SadWidgetImpl* w, const std::string& typeName) {
     w->animActive = true;
 }
 
+// (② rfcs#46) POD تخطيط الحدث + دالّة تعبئته من EventData — مصدر حقيقة مُولَّد.
+//   يجب أن يُضمَّن بربط C++ الافتراضيّ (الرأس يضمّ <array> وقوالب) خارج أيّ كتلة
+//   extern "C"، وبعد types.h (السطر 34) كي تتوفّر sad::ui::EventData لـsadFillEventPod.
+#define SAD_EVENT_POD_WITH_EVENTDATA
+#include "sad_event_layout_generated.h"
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * 1. مصانع العناصر / Widget Factories
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 extern "C" {
+
+// (② rfcs#46، إصلاح Amelia ع-2) نسخةٌ مملوكة من نصّ حدثٍ: يستدعيها ثانكُ المترجم لكلّ
+//   حقلٍ نصّيّ فيؤمّن عمرَه بعد رجوع الإرسال (POD يحمل c_str() لـstd::string داخل EventData
+//   المحلّيّة فتتدلّى بالعودة). نصوص ص تُدار بلا مُحرِّر في المترجم (تُسرَّب كنموذج اللغة
+//   الحاليّ) فالنسخة متّسقة معه. الفارغ ⇒ "" ساكن مشترك (لا تخصيص) تفاديًا لتسرّبٍ لكلّ
+//   إطار سحب. ⚠ غير مشروطة بـSAD_UI_USE_SDL2/الحرّ (خلافًا لـdispatchCompiledEvent): المترجم
+//   يُصدر نداءها لأيّ برنامجٍ فيه معالِج حدثٍ يقرأ نصًّا، فيلزم تعريفها في كلّ بناءٍ لمكتبة
+//   الرسومات (نظير مصانع العناصر). صفرُ اعتمادٍ على SDL2/الحرّ (<cstdlib>/<cstring> فقط).
+const char* sad_event_dup_str(const char* s) {
+    if (!s || !*s) { static const char kEmpty[] = ""; return kEmpty; }
+    const std::size_t n = std::strlen(s);
+    char* p = static_cast<char*>(std::malloc(n + 1));
+    if (!p) { static const char kEmpty[] = ""; return kEmpty; } // فشل تخصيص ⇒ فارغ آمن
+    std::memcpy(p, s, n + 1);
+    return p;
+}
 
 SadWidget sad_column(void) {
     return createWidget(UINodeType::Column);
@@ -542,7 +564,7 @@ void sad_set_prop_bool(SadWidget w, const char* name, int32_t value) {
  *      يُشتقّ بـstringToIREventType من القلب فالتطابق دقيق)، فيتطابق getEvents()
  *      بين المحرّكين. ونحفظ ردّ النداء المُترجَم في جدول العنصر لإرسالٍ مستقبليّ
  *      — لا مُرسِل في وقت تشغيل المترجم بعدُ يقرأ onTap/eventBindings (شريحة لاحقة). */
-void sad_add_event(SadWidget w, const char* name, SadCallback cb, void* data) {
+void sad_add_event(SadWidget w, const char* name, SadEventCallback cb, void* data) {
     auto* impl = toWidget(w);
     if (!impl || !impl->irNode || !name) return;
     const std::string evName(name);
@@ -557,15 +579,10 @@ void sad_add_event(SadWidget w, const char* name, SadCallback cb, void* data) {
     ev.expression = "__compiled_cb";
     impl->irNode->addEvent(ev);
     impl->eventBindings.push_back({evName, ev.type, cb, data}); // نخزّن النوع المُشتقّ مرّةً
-    // (AR) ⚠ TODO(حظر عند تنفيذ المُرسِل الكامل): شيم توافق مع مسار onTap القديم في
-    //      المصانع (sad_button…): أوّل معالج نقر يملأ خانة onTap إن كانت فارغة.
-    //      الحارس nullptr يمنع تجاوز معالج المصنع. متى نُفِّذ المُرسِل الكامل **يجب
-    //      إزالة هذا الشيم** وجعل eventBindings مصدرَ الحقيقة الوحيد لأحداث عند_*
-    //      وإلّا فأيّ مُرسِلٍ يقرأ onTap مباشرةً يُطلق النقر مرّتين.
-    if (cb && impl->onTap == nullptr && ev.type == IREventType::OnTap) {
-        impl->onTap = cb;
-        impl->userData = data;
-    }
+    // (② rfcs#46) أُزيل شيم onTap القديم: eventBindings صار مصدر الحقيقة الوحيد لأحداث
+    //   عند_* في مسار المترجم (dispatchCompiledEvent يمرّ عليها ثمّ onTap كاحتياطٍ عند
+    //   !fired فقط)، ولأنّ ردّ النداء الآن SadEventCallback ثنائيّ الوسيط لا يُسند لخانة
+    //   onTap أحاديّة الوسيط (SadCallback المصنعيّة). هذا هو ما أوصى به TODO الحظر سابقًا.
 }
 
 /* ─── سلسلة التحريك (م-أ3ر، L3) ───
@@ -908,8 +925,16 @@ void sad_app_render(SadApp app) {
  *      المطابق للنوع (stringToIREventType من القلب فالمطابقة دقيقة)، وإلّا onTap
  *      المصنعيّ لحدث النقر. (لا نُكرّر الإرسال: الربط له الأولويّة على onTap.)
  *      مشترك بين الجسر المستضاف (SDL2) والجسر الحرّ (fb0/evdev). */
-static void dispatchCompiledEvent(const IRNode* node, IREventType type) {
+// (② rfcs#46) POD تخطيط الحدث + sadFillEventPod مُضمَّنان أعلى الملفّ (قبل extern "C")
+//   لأنّ الرأس المولَّد يضمّ <array> وقوالبَ بلغة C++؛ تضمينُه داخل كتلة extern "C"
+//   يُعطيها ربطًا C فيفشل (C2894). هنا نستعمل sadFillEventPod بلا إعادة تضمين.
+static void dispatchCompiledEvent(const IRNode* node, IREventType type,
+                                  const sad::ui::EventData& evData) {
     if (!node) return;
+    // (② rfcs#46) نبني POD الحدث مرّةً لكلّ إرسال ونمرّر مؤشّره لردّ النداء المترجَم.
+    //   thunk المترجم يقرأ الخانات (أو يتجاهلها إن كان المعالِج بلا معامل).
+    Sad::Types::EventLayout::SadEventPod evPod;
+    Sad::Types::EventLayout::sadFillEventPod(evData, static_cast<int64_t>(type), evPod);
     // (AR) قيد أداء: مسحٌ خطّيّ O(n) على g_widgets لكلّ حدث؛ مقبولٌ لأحجام UI
     //      الصغيرة. عند الحاجة للأحجام الكبيرة استبدله بخريطة IRNode*→impl.
     for (auto& up : g_widgets) {
@@ -925,12 +950,12 @@ static void dispatchCompiledEvent(const IRNode* node, IREventType type) {
         bool fired = false;
         for (auto& b : impl->eventBindings) {
             if (b.cb && b.type == type) { // النوع مُشتقٌّ مسبقًا (لا stringToIREventType لكلّ إرسال)
-                b.cb(b.data);
+                b.cb(b.data, &evPod); // (② rfcs#46) نمرّر POD الحدث
                 fired = true;
             }
         }
         if (!fired && type == IREventType::OnTap && impl->onTap)
-            impl->onTap(impl->userData);
+            impl->onTap(impl->userData); // (AR) احتياطٌ مصنعيّ (SadCallback بلا حدث)
         return;
     }
 }
@@ -1124,8 +1149,8 @@ void sad_app_run(SadWidget root) {
     };
     // إرسال النقر إلى ردود النداء المُترجَمة (بالعقدة لا بالتعبير النصّيّ):
     cfg.onEvent = [](IREventType type, const std::string& /*expr*/,
-                     const IRNode* node)
-    { dispatchCompiledEvent(node, type); };
+                     const IRNode* node, const sad::ui::EventData& evData)
+    { dispatchCompiledEvent(node, type, evData); }; // (② rfcs#46) نمرّر بيانات الحدث
     // مفتاح الخروج: F2/Escape (اتّفاقيّة الخروج من التطبيقات الحرّة):
     cfg.onKey = [](sad::ui::UnifiedKeyCode code) -> bool
     {
@@ -1180,8 +1205,8 @@ void sad_app_run(SadWidget root) {
     { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root; navStack.replace(e); navStack.takeDirty(); }
     window.setOnEventCallback(
         [](IREventType type, const std::string& /*elementId*/,
-           const IRNode* node, const EventData& /*data*/) {
-            dispatchCompiledEvent(node, type);
+           const IRNode* node, const EventData& data) {
+            dispatchCompiledEvent(node, type, data); // (② rfcs#46) نمرّر بيانات الحدث
         });
     // (م1-ب) إعادة الرسم عند تبديل الصفحة: كلّ إطار نفحص إن تغيّرت الصفحة الحاليّة
     //        (انتقل/عودة/… من ردّ نداء) فنعيد ضبط محتوى النافذة من الجذر الجديد.

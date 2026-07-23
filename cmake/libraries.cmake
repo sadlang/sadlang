@@ -255,6 +255,9 @@ if(TARGET sad_graphics)
         $<TARGET_PROPERTY:sad_interp,INCLUDE_DIRECTORIES>
         ${CMAKE_SOURCE_DIR}/features/graphics/core/include
         ${CMAKE_SOURCE_DIR}/features/graphics/backends/desktop/include
+        # (② rfcs#46) تخطيط «حدث» المولَّد — ui_bridge_events.cpp يشتقّ منه أسماء
+        #   حقول خريطة الحدث العربيّة (SAD_EVENT_FIELDS) فتطابق بنية «حدث» في المترجم.
+        ${CMAKE_SOURCE_DIR}/shared/types/generated
     )
 
     if(MSVC)

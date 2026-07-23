@@ -66,7 +66,34 @@
     },
     "description_ar": { "type": "string" },
     "description_en": { "type": "string" },
-    "example": { "type": "string" }
+    "example": { "type": "string" },
+    "fields": {
+      "type": "array",
+      "description": "مخطّط حقول نوع بنيويّ مضمَّن (مثل حدث): يُولَّد منه تخطيط البنية للمترجم/المفسّر ووقت التشغيل. الترتيب حرج (توافق ABI).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "source"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "اسم الحقل العربيّ كما يكتبه المستخدم (حدث.دلتا_س)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["Float", "Integer", "Boolean", "String"],
+            "description": "نوع الحقل — يحدّد نوع LLVM لخانة البنية وخانة POD الجسر"
+          },
+          "source": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "description": "اسم عضو EventData المصدر (x/deltaX/keyName…) — يصير اسم عضو POD الجسر. القيمة __type = نوع الحدث المحقون."
+          },
+          "description_ar": { "type": "string" },
+          "description_en": { "type": "string" }
+        }
+      }
+    }
   },
   "allOf": [
     {

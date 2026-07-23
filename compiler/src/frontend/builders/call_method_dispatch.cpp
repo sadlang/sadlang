@@ -502,6 +502,9 @@ namespace Sad
                 //      Needed for higher-order array methods (map/filter/reduce/forEach)
                 std::string firstClosureLambdaName;
                 SadTypeKind firstClosureRetType = SadTypeKind::Void;
+                // (② rfcs#46) اسم أوّل معالِجٍ (لامدا أو دالّة مسمّاة مرجعيّة) لبصمة حدث
+                //   الواجهة؛ منفصلٌ عن firstClosureLambdaName كي لا يمسّ طرقَ المصفوفات العليا.
+                std::string firstEventHandlerName;
                 for (const auto &arg : methodCallExpr->arguments)
                 {
                     auto argResult = b_.buildExpression(arg.get());
@@ -513,6 +516,13 @@ namespace Sad
                         auto lambdaIt = b_.functionTable_.find(argResult.closureLambdaName);
                         if (lambdaIt != b_.functionTable_.end())
                             firstClosureRetType = lambdaIt->second.returnType;
+                    }
+                    if (firstEventHandlerName.empty())
+                    {
+                        if (!argResult.closureLambdaName.empty())
+                            firstEventHandlerName = argResult.closureLambdaName;
+                        else if (!argResult.funcRefName.empty())
+                            firstEventHandlerName = argResult.funcRefName;
                     }
                     if (argResult.isConstant && !argResult.constantValue.empty())
                     {
@@ -746,6 +756,36 @@ namespace Sad
                                 inst.operands.push_back(args[1]);      // ردّ النداء (مُغلِّف)
                                 if (args.size() > 2)
                                     inst.operands.push_back(args[2]);  // بيانات المستخدم (اختياريّة)
+                                // (② rfcs#46) نحسب أريّة معالِج الحدث الصريحة (بلغة ص) هنا في
+                                //   الواجهة الأماميّة حيث المعرفة موثوقة (functionTable_)، ونبصمها
+                                //   في comment=«ui-evt:N:الاسم». هذا أمتن من إعادة حسابها في
+                                //   الخلفيّة عبر getFunction بالاسم (يكسره تصدير @رمز إذ linkName≠name،
+                                //   ويلتبس تمييز اللامدا ذات __env عن الدالّة المسمّاة). المعالِج
+                                //   يأخذ 0 أو 1 معاملًا حصرًا (لا شيء أو بنية «حدث»)؛ أكثرُ من ذلك
+                                //   خطأٌ نُشخّصه بدل تمرير وسيطين لدالّةٍ بثلاثة (سلوك غير معرَّف).
+                                if (!firstEventHandlerName.empty())
+                                {
+                                    int handlerArity = -1;
+                                    auto fit = b_.functionTable_.find(firstEventHandlerName);
+                                    if (fit != b_.functionTable_.end())
+                                    {
+                                        const auto &ps = fit->second.parameters;
+                                        handlerArity = static_cast<int>(ps.size());
+                                        // (AR) اللامدا تحمل __env مخفيًّا كمعاملٍ أخير — اطرحه.
+                                        if (!ps.empty() && ps.back().name == "__env")
+                                            --handlerArity;
+                                    }
+                                    if (handlerArity > 1)
+                                    {
+                                        b_.errors_.push_back(
+                                            "خطأ (② rfcs#46): معالِج حدث الواجهة '" + firstEventHandlerName +
+                                            "' يأخذ " + std::to_string(handlerArity) +
+                                            " معاملات؛ يجب أن يأخذ 0 (بلا بيانات) أو 1 (بنية «حدث») حصرًا. "
+                                            "UI event handler must take 0 or 1 parameter.");
+                                    }
+                                    const int emitArity = handlerArity < 0 ? 0 : (handlerArity > 1 ? 1 : handlerArity);
+                                    inst.comment = "ui-evt:" + std::to_string(emitArity) + ":" + firstEventHandlerName;
+                                }
                                 if (b_.currentBlock_)
                                     b_.currentBlock_->instructions.push_back(inst);
                             }

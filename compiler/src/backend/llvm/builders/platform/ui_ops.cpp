@@ -20,6 +20,7 @@
 #include "llvm_codegen.h"
 #include "builders/platform/ui_codegen.h"
 #include "sir_constants.h" // (م1-ج) kSadNullSentinel — حارس بانِي يُرجع لاشيء/void
+#include "sad_event_layout_generated.h" // (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/POD/الاسم)
 #include <llvm/IR/DerivedTypes.h>
 
 namespace Sad {
@@ -209,6 +210,185 @@ struct UiCallbackPair { llvm::Value* cb = nullptr; llvm::Value* data = nullptr; 
     else
         return { nullp, nullp }; // نوع غير متوقّع ⇒ لا ردّ نداء (كالحارس الدفاعيّ السابق)
     return { getOrCreateUiClosureThunk(cg), dataPtr };
+}
+
+// ─── (② rfcs#46) جسر ردّ نداء الحدث ذي بيانات الحدث ─────────────────────────────
+// (AR) خلافًا للثانك أعلاه (معالِج بلا وسائط)، هذا المسار يبني بنية «حدث» بلغة ص من
+//   SadEventPod الذي يملؤه وقت التشغيل (sad_ui_runtime.cpp: sadFillEventPod)، ثمّ
+//   يمرّرها للمعالِج ذي المعامل الواحد `دالة(حدث ح)`. التوقيع الجديد للجسر يطابق
+//   SadEventCallback = void(*)(void* data, const void* pod) تمامًا (لا اتّكال على
+//   تجاهل وسيطٍ زائد عبر cdecl). نوعان: صفريّ الأريّة (يتجاهل pod) وذو بنية.
+
+// (AR) نوع POD الجسر بلغة LLVM — بترتيب SAD_EVENT_FIELDS وبنوع كلّ خانة ABI. كلّ
+//   الخانات 8 بايت على x86_64/ARM64 (double/i64/مؤشّر)، لكنّنا نبني النوع صراحةً
+//   بأعضاءٍ منمَّطة ونفهرس بـGEP عضويّ فيصحّ التخطيط بلا افتراض حجمٍ موحَّد.
+[[nodiscard]] static llvm::StructType* getOrCreateSadEventPodType(LLVMCodeGen& cg) {
+    if (auto* existing = llvm::StructType::getTypeByName(*cg.context_, "__sad_event_pod"))
+        return existing;
+    auto& ctx = *cg.context_;
+    auto* i64Ty = llvm::Type::getInt64Ty(ctx);
+    auto* f64Ty = llvm::Type::getDoubleTy(ctx);
+    auto* ptrTy = llvm::PointerType::getUnqual(ctx);
+    std::vector<llvm::Type*> members;
+    members.reserve(::Sad::Types::EventLayout::SAD_EVENT_FIELDS.size());
+    for (const auto& f : ::Sad::Types::EventLayout::SAD_EVENT_FIELDS) {
+        switch (f.abi) {
+        case ::Sad::Types::EventLayout::AbiSlot::F64: members.push_back(f64Ty); break;
+        case ::Sad::Types::EventLayout::AbiSlot::PTR: members.push_back(ptrTy); break;
+        case ::Sad::Types::EventLayout::AbiSlot::I64:
+        default: members.push_back(i64Ty); break;
+        }
+    }
+    return llvm::StructType::create(ctx, members, "__sad_event_pod"); // (خ-17) اسم محجوز بادئة __sad
+}
+
+// (AR) ثانك الحدث: void thunk(void* data, void* pod) — يبني بنية «حدث» من pod ويمرّرها.
+// (م-7) classStructTypes["حدث"] مضمونٌ دائمًا: sir_builder_module.cpp يُسجّل صنف «حدث»
+//   في كلّ وحدة قبل أيّ معالجة، وpreprocessClasses يبني نوعه. فرعُ الغياب أدناه دفاعيّ
+//   بحت (لا يُبلَغ عمليًّا)؛ لو بلغ لَمرّر مؤشّرًا لاغيًا — لكنّه غير قابل للوصول بالبناء.
+[[nodiscard]] static llvm::Function* getOrCreateUiEventThunk(LLVMCodeGen& cg) {
+    llvm::Module* m = cg.getModule();
+    if (auto* existing = m->getFunction("__sad_ui_event_thunk")) return existing;
+    auto& ctx = *cg.context_;
+    auto* voidTy = llvm::Type::getVoidTy(ctx);
+    auto* i64Ty = llvm::Type::getInt64Ty(ctx);
+    auto* f64Ty = llvm::Type::getDoubleTy(ctx);
+    auto* ptrTy = llvm::PointerType::getUnqual(ctx);
+    auto* ft = llvm::FunctionType::get(voidTy, {ptrTy, ptrTy}, false); // void(void* data, void* pod)
+    auto* fn = llvm::Function::Create(ft, llvm::Function::InternalLinkage, "__sad_ui_event_thunk", m);
+    fn->addFnAttr(llvm::Attribute::NoUnwind);
+    llvm::IRBuilder<>& b = *cg.builder_;
+    auto savedBB = b.GetInsertBlock();
+    auto savedIP = savedBB ? b.GetInsertPoint() : llvm::BasicBlock::iterator();
+    auto* entry = llvm::BasicBlock::Create(ctx, "entry", fn);
+    b.SetInsertPoint(entry);
+
+    llvm::Value* data = fn->getArg(0);  // مؤشّر بنية الإغلاق {fn@0, env@1}
+    llvm::Value* podRaw = fn->getArg(1); // مؤشّر SadEventPod
+
+    // ─── استخراج fn/env من الإغلاق (نظير الثانك الصفريّ) ───
+    llvm::Value* fnSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureFnSlot), "fn.slot");
+    llvm::Value* fnI64 = b.CreateLoad(i64Ty, fnSlot, "fn.i64");
+    llvm::Value* envSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureEnvSlot), "env.slot");
+    llvm::Value* envI64 = b.CreateLoad(i64Ty, envSlot, "env.i64");
+    llvm::Value* handlerFn = b.CreateIntToPtr(fnI64, ptrTy, "handler.fn");
+
+    // ─── بناء بنية «حدث» على المكدّس وملؤها من POD ───
+    const std::string eventClass(::Sad::Types::EventLayout::SAD_EVENT_STRUCT_NAME);
+    auto stIt = cg.context_info_.classStructTypes.find(eventClass);
+    llvm::Value* eventPtr = llvm::ConstantPointerNull::get(ptrTy);
+    if (stIt != cg.context_info_.classStructTypes.end() && stIt->second) {
+        llvm::StructType* eventTy = stIt->second;
+        llvm::StructType* podTy = getOrCreateSadEventPodType(cg);
+        llvm::Value* evt = b.CreateAlloca(eventTy, nullptr, "event.obj");
+        // (AR) الحقل 0 = مؤشّر vtable — بنية «حدث» بلا دوال، فنصفّره (لا يُقرأ في الوصول).
+        llvm::Value* vptr = b.CreateStructGEP(eventTy, evt, 0, "event.vptr");
+        b.CreateStore(llvm::ConstantPointerNull::get(ptrTy), vptr);
+        // (AR) الحقول 1..N بترتيب SAD_EVENT_FIELDS نفسه (= ترتيب classFieldNames["حدث"]).
+        const auto& fields = ::Sad::Types::EventLayout::SAD_EVENT_FIELDS;
+        for (unsigned i = 0; i < fields.size(); ++i) {
+            const auto& fdesc = fields[i];
+            llvm::Value* podSlot = b.CreateStructGEP(podTy, podRaw, i, "pod.f");
+            unsigned structIdx = i + 1; // (AR) +1 لتخطّي vtable
+            llvm::Value* dstSlot = b.CreateStructGEP(eventTy, evt, structIdx, "event.f");
+            using K = ::Sad::Types::SadTypeKind;
+            switch (fdesc.kind) {
+            case K::Float: {
+                llvm::Value* v = b.CreateLoad(f64Ty, podSlot, "f.f64");
+                b.CreateStore(v, dstSlot);
+                break;
+            }
+            case K::Boolean: {
+                // (AR) POD يخزّن i64 (0/1)؛ حقل الصنف i1 ⇒ نُقارن ≠0 (نظير toBool).
+                llvm::Value* raw = b.CreateLoad(i64Ty, podSlot, "f.i64");
+                llvm::Value* bit = b.CreateICmpNE(raw, llvm::ConstantInt::get(i64Ty, 0), "f.bool");
+                b.CreateStore(bit, dstSlot);
+                break;
+            }
+            case K::String: {
+                // (إصلاح ع-2) POD يحمل const char* من EventData::<نصّ>.c_str() الذي يتدلّى
+                //   برجوع dispatchCompiledEvent. نستدعي sad_event_dup_str لأخذ نسخةٍ مملوكة
+                //   (مُسرَّبة كنموذج نصوص ص) فيبقى ح.قيمة/ح.اسم_المفتاح صالحًا لو خزّنه المعالِج
+                //   بعد العودة. الفارغ يعيد "" ساكنًا (بلا تخصيص) فلا تسرّب لكلّ إطار سحب.
+                llvm::Value* raw = b.CreateLoad(ptrTy, podSlot, "f.ptr");
+                auto dupFn = m->getOrInsertFunction(
+                    "sad_event_dup_str",
+                    llvm::FunctionType::get(ptrTy, {ptrTy}, false));
+                llvm::Value* owned = b.CreateCall(dupFn, {raw}, "f.str.owned");
+                b.CreateStore(owned, dstSlot);
+                break;
+            }
+            case K::Integer:
+            default: {
+                llvm::Value* v = b.CreateLoad(i64Ty, podSlot, "f.i64");
+                b.CreateStore(v, dstSlot);
+                break;
+            }
+            }
+        }
+        eventPtr = evt;
+    }
+
+    // ─── نداء المعالِج عبر مُغلِّف الإغلاق: void(i64 حدث, i64 __env) ───
+    // (AR) بروتوكول الإغلاق موحَّد على i64: مُغلِّفُ func-ref يُعلَن (i64,i64) ويُعيد
+    //   inttoptr للوسيط الأوّل ليقرأ الحقول (كما في جسم المعالِج المولَّد: inttoptr ثمّ
+    //   GEP على class.حدث). لذا نمرّر مؤشّر البنية كـi64 (ptrtoint) لا كـptr.
+    llvm::Value* eventI64 = b.CreatePtrToInt(eventPtr, i64Ty, "event.i64");
+    auto* handlerFt = llvm::FunctionType::get(voidTy, {i64Ty, i64Ty}, false);
+    b.CreateCall(handlerFt, handlerFn, {eventI64, envI64});
+    b.CreateRetVoid();
+    if (savedBB) b.SetInsertPoint(savedBB, savedIP);
+    return fn;
+}
+
+// (AR) ثانك حدثٍ صفريّ الأريّة: void thunk(void* data, void* pod) — يتجاهل pod ويستدعي
+//   المعالِج بلا وسيطٍ صريح (نظير getOrCreateUiClosureThunk لكن بتوقيع SadEventCallback).
+//   لازمٌ كي يطابق نوعُ مؤشّر الدالّة SadEventCallback حتّى للمعالِج الصفريّ (وقت التشغيل
+//   يستدعي cb(data, &pod) دائمًا)، فلا نتّكل على تجاهل وسيطٍ زائد عبر اصطلاح cdecl.
+[[nodiscard]] static llvm::Function* getOrCreateUiEventThunkZeroArg(LLVMCodeGen& cg) {
+    llvm::Module* m = cg.getModule();
+    if (auto* existing = m->getFunction("__sad_ui_event_thunk_void")) return existing;
+    auto& ctx = *cg.context_;
+    auto* voidTy = llvm::Type::getVoidTy(ctx);
+    auto* i64Ty = llvm::Type::getInt64Ty(ctx);
+    auto* ptrTy = llvm::PointerType::getUnqual(ctx);
+    auto* ft = llvm::FunctionType::get(voidTy, {ptrTy, ptrTy}, false);
+    auto* fn = llvm::Function::Create(ft, llvm::Function::InternalLinkage, "__sad_ui_event_thunk_void", m);
+    fn->addFnAttr(llvm::Attribute::NoUnwind);
+    llvm::IRBuilder<>& b = *cg.builder_;
+    auto savedBB = b.GetInsertBlock();
+    auto savedIP = savedBB ? b.GetInsertPoint() : llvm::BasicBlock::iterator();
+    auto* entry = llvm::BasicBlock::Create(ctx, "entry", fn);
+    b.SetInsertPoint(entry);
+    llvm::Value* data = fn->getArg(0);
+    llvm::Value* fnSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureFnSlot), "fn.slot");
+    llvm::Value* fnI64 = b.CreateLoad(i64Ty, fnSlot, "fn.i64");
+    llvm::Value* envSlot = b.CreateGEP(i64Ty, data, llvm::ConstantInt::get(i64Ty, kClosureEnvSlot), "env.slot");
+    llvm::Value* envI64 = b.CreateLoad(i64Ty, envSlot, "env.i64");
+    llvm::Value* handlerFn = b.CreateIntToPtr(fnI64, ptrTy, "handler.fn");
+    auto* handlerFt = llvm::FunctionType::get(voidTy, {i64Ty}, false); // void(i64 __env)
+    b.CreateCall(handlerFt, handlerFn, {envI64});
+    b.CreateRetVoid();
+    if (savedBB) b.SetInsertPoint(savedBB, savedIP);
+    return fn;
+}
+
+// (AR) يختار ثانك الحدث بحسب أريّة المعالِج الصريحة، المُبصومة في الواجهة الأماميّة
+//   في comment=«ui-evt:N:الاسم» (N ∈ {0,1}). N≥1 ⇒ ثانك بنية «حدث»؛ 0 ⇒ الثانك
+//   الصفريّ. لا نُعيد الحساب عبر getFunction (يكسره تصدير @رمز، ويلتبس __env اللامدا).
+[[nodiscard]] static llvm::Function* selectUiEventThunk(LLVMCodeGen& cg, const std::string& comment) {
+    unsigned sadArity = 0;
+    const std::string prefix = "ui-evt:";
+    if (comment.rfind(prefix, 0) == 0) {
+        // (AR) الصيغة: ui-evt:<رقم>:<اسم>. نقرأ الرقم بين النقطتين.
+        std::size_t p = prefix.size();
+        std::size_t colon = comment.find(':', p);
+        std::string numStr = comment.substr(p, colon == std::string::npos ? std::string::npos : colon - p);
+        if (!numStr.empty() && numStr.find_first_not_of("0123456789") == std::string::npos)
+            sadArity = static_cast<unsigned>(std::stoul(numStr));
+    }
+    return sadArity >= 1 ? getOrCreateUiEventThunk(cg)
+                         : getOrCreateUiEventThunkZeroArg(cg);
 }
 
 // =====================================================================
@@ -1187,12 +1367,25 @@ llvm::Value* UICodeGen::emitUiAddEvent(std::shared_ptr<SIRInstruction> inst) {
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
-    // (AR) ردّ النداء = إغلاق (operands[2]) ⇒ جسر thunk (cb=thunk, data=مؤشّر الإغلاق).
-    //      يُصلح الالتقاط المكسور؛ operands[3] القديم (userData) لم يعد يُستعمَل (data من الإغلاق).
+    // (② rfcs#46) ردّ النداء = إغلاق (operands[2]). data = مؤشّر الإغلاق كما كان، لكنّ cb
+    //   الآن جسرُ حدثٍ يطابق SadEventCallback = void(*)(void* data, const void* pod):
+    //   بحسب أريّة المعالِج (من comment=«lambda:الاسم») نختار ثانك البنية (معالِج
+    //   `دالة(حدث ح)` يتلقّى بنية «حدث» مبنيّة من POD) أو الثانك الصفريّ (يتجاهل POD).
+    //   operands[3] القديم (userData) غير مستعمَل (data من الإغلاق).
     llvm::Value* closureVal = inst->operands.size() > 2 ? cg_.resolveOperand(inst->operands[2]) : nullptr;
-    auto cbPair = bridgeUiCallback(cg_, closureVal);
+    auto* nullp = llvm::ConstantPointerNull::get(ptrTy);
+    llvm::Value* dataPtr = nullp;
+    llvm::Value* cbFn = nullp;
+    if (closureVal) {
+        if (closureVal->getType()->isPointerTy())
+            dataPtr = closureVal;
+        else if (closureVal->getType()->isIntegerTy())
+            dataPtr = cg_.builder_->CreateIntToPtr(closureVal, ptrTy, "cb.closure");
+        if (dataPtr != nullp)
+            cbFn = selectUiEventThunk(cg_, inst->comment);
+    }
     return emitUIRuntimeCall(cg_, "sad_add_event", voidTy,
-        {ptrTy, ptrTy, ptrTy, ptrTy}, {widget, name, cbPair.cb, cbPair.data});
+        {ptrTy, ptrTy, ptrTy, ptrTy}, {widget, name, cbFn, dataPtr});
 }
 
 // ─── سلسلة التحريك (م-أ3ر، L3) ───

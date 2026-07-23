@@ -103,7 +103,34 @@ types:
   - { id: type.color,  kind: Color,  word: لون,         name_en: color,  category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "لون (RGBA)", description_en: "Color (RGBA)" }
   - { id: type.widget, kind: Widget, word: عنصر_واجهة,  name_en: widget, category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "عنصر واجهة", description_en: "UI widget" }
   - { id: type.window, kind: Window, word: نافذة,       name_en: window, category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "نافذة", description_en: "Window" }
-  - { id: type.event,  kind: Event,  word: حدث,         name_en: event,  category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "حدث", description_en: "Event" }
+  # (AR) حدث (EventData): بنية مضمَّنة تُمرَّر لردود نداء الأحداث المكانيّة (② rfcs#46).
+  #      الحقول مصدر الحقيقة لتخطيط البنية: يُشتقّ منها هيكل المترجم + POD الجسر + خانات المفسّر.
+  #      الترتيب حرج (توافق ABI). المصدر (source) = عضو EventData في وقت التشغيل.
+  # (EN) حدث (EventData): built-in struct passed to spatial event callbacks (② rfcs#46).
+  #      Fields are the SoT for the struct layout: compiler struct + bridge POD + interpreter slots
+  #      are all derived from here. Order is ABI-critical. `source` = the runtime EventData member.
+  - { id: type.event,  kind: Event,  word: حدث,         name_en: event,  category: graphics, surface: false, since: "1.0.0", status: experimental, description_ar: "حدث واجهة (موضع/دلتا/مفتاح/لمس)", description_en: "UI event (position/delta/key/touch)",
+      fields: [
+        { name: س,            kind: Float,   source: x,          description_ar: "إحداثيّ المؤشّر الأفقيّ",        description_en: "pointer x" },
+        { name: ص,            kind: Float,   source: y,          description_ar: "إحداثيّ المؤشّر الرأسيّ",        description_en: "pointer y" },
+        { name: دلتا_س,       kind: Float,   source: deltaX,     description_ar: "دلتا الحركة الأفقيّة",           description_en: "movement delta x" },
+        { name: دلتا_ص,       kind: Float,   source: deltaY,     description_ar: "دلتا الحركة الرأسيّة",           description_en: "movement delta y" },
+        { name: رمز_المفتاح,  kind: Integer, source: keyCode,    description_ar: "رمز المفتاح المضغوط",           description_en: "key code" },
+        { name: اسم_المفتاح,  kind: String,  source: keyName,    description_ar: "اسم المفتاح المضغوط",           description_en: "key name" },
+        { name: مفتاح_عالي,   kind: Boolean, source: shiftKey,   description_ar: "هل مفتاح العالي مضغوط؟",         description_en: "shift held" },
+        { name: مفتاح_تحكم,   kind: Boolean, source: ctrlKey,    description_ar: "هل مفتاح التحكّم مضغوط؟",        description_en: "ctrl held" },
+        { name: مفتاح_بديل,   kind: Boolean, source: altKey,     description_ar: "هل مفتاح البديل مضغوط؟",         description_en: "alt held" },
+        { name: زر,           kind: Integer, source: button,     description_ar: "زرّ الفأرة",                     description_en: "mouse button" },
+        { name: معرف_اللمس,   kind: Integer, source: touchId,    description_ar: "معرّف اللمسة",                   description_en: "touch id" },
+        { name: معرف_الإصبع,  kind: Integer, source: fingerId,   description_ar: "معرّف الإصبع",                   description_en: "finger id" },
+        { name: ضغط,          kind: Float,   source: pressure,   description_ar: "ضغط اللمس",                      description_en: "touch pressure" },
+        { name: عدد_اللمسات,  kind: Integer, source: touchCount, description_ar: "عدد اللمسات",                    description_en: "touch count" },
+        { name: هل_لمس,       kind: Boolean, source: isTouch,    description_ar: "هل الحدث لمسيّ؟",                description_en: "is touch" },
+        { name: زاوية,        kind: Float,   source: angle,      description_ar: "زاوية الدوران",                  description_en: "rotation angle" },
+        { name: قيمة,         kind: String,  source: value,      description_ar: "القيمة الجديدة (إدخال/منزلقة)",  description_en: "new value" },
+        { name: بيانات,       kind: String,  source: customData, description_ar: "حمولة مخصّصة",                   description_en: "custom payload" },
+        { name: نوع,          kind: Integer, source: __type,     description_ar: "نوع الحدث (تعداد)",              description_en: "event type enum" }
+      ] }
 
   # ─── متجهات SIMD / SIMD vectors ───
   - { id: type.vector, kind: Vector, word: متجه, name_en: vector, category: simd, surface: false, since: "1.0.0", status: experimental, description_ar: "متجه SIMD <نوع_عنصر، عدد> — <N x T> في LLVM", description_en: "SIMD vector <elem, count> — <N x T> in LLVM" }

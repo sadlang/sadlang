@@ -429,7 +429,7 @@ namespace
 
         // إرسال حدث النقر ⇒ رفع العلَم المناسب (لا إيقاف مباشر للحلقة):
         cfg.onEvent = [&](IREventType type, const std::string &expr,
-                          const IRNode * /*node*/)
+                          const IRNode * /*node*/, const sad::ui::EventData & /*data*/)
         {
             if (type != IREventType::OnTap)
                 return;

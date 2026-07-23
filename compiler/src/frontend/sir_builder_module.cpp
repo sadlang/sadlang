@@ -26,6 +26,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h" // (AR) VolatileVarDeclStmt (@متطاير، اللبنة 3.14)
 #include "sad_ui/generated/color_table_generated.h" // (AR) تعداد الألوان المدمَج (SoT)
+#include "sad_event_layout_generated.h" // (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/SAD_EVENT_STRUCT_NAME) — SoT صنف الحدث المضمَّن
 #include "utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
@@ -229,6 +230,29 @@ namespace Sad
                 // (AR) إنشاء وحدة SIR جديدة (sir_module.h:501 - SIRModule constructor)
                 // (EN) Create new SIR module
                 module_ = std::make_shared<SIRModule>("main");
+
+                // ═══════════════════════════════════════════════════════════════════
+                // (② rfcs#46) البنية المضمَّنة «حدث»: نُسجّلها كصنفٍ في الوحدة قبل أيّ
+                //   معالجة، فتشتقّ حقولها حصريًّا من مصدر الحقيقة (SAD_EVENT_FIELDS
+                //   المولَّد من types.yaml) — لا أسماءٍ حرفيّة هنا. أثرها مزدوج:
+                //     (١) الواجهة الأماميّة: معالِج ص `دالة(حدث ح) { ح.دلتا_س … }` يُنمَّط
+                //         معامله كصنف «حدث» فيُحلّ الوصولُ العضويّ ويُتحقّق نوعيًّا؛
+                //     (٢) الخلفيّة: preprocessClasses يُوجِد classStructTypes["حدث"]
+                //         دائمًا، فيبني thunkُ الحدث بنيةً بهذا التخطيط بالضبط (اللبنة 4).
+                //   بترتيب SAD_EVENT_FIELDS نفسه ⇒ فهارس الحقول تطابق الجسر بايتيًّا.
+                // (EN) Built-in «حدث» struct registered as a module class up-front, its
+                //   fields derived solely from the generated SoT (SAD_EVENT_FIELDS). This
+                //   both types event-handler params (`دالة(حدث ح)`) so member access
+                //   resolves, and guarantees classStructTypes["حدث"] for the backend thunk.
+                {
+                    auto eventClass = std::make_shared<SIRClass>(
+                        std::string(::Sad::Types::EventLayout::SAD_EVENT_STRUCT_NAME));
+                    for (const auto &f : ::Sad::Types::EventLayout::SAD_EVENT_FIELDS)
+                    {
+                        eventClass->addField(std::string(f.nameUtf8), f.kind);
+                    }
+                    module_->addClass(eventClass);
+                }
 
                 // ===========================================================
                 // Phase 0: Lower UI components (واجهة) to equivalent ClassDecl

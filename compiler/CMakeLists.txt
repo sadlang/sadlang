@@ -90,7 +90,10 @@ target_include_directories(sad_frontend
 # (EN) sad_ui header path (generated ui_modifiers.h) — PRIVATE, consumed only by
 #      call_method_dispatch.cpp. Header-only, no link dependency; layering preserved.
 target_include_directories(sad_frontend PRIVATE
- ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
+ ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+ # (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/SAD_EVENT_STRUCT_NAME) —
+ #   يستهلكه sir_builder_module.cpp لتوليد صنف «حدث» المضمَّن من مصدر الحقيقة.
+ ${CMAKE_SOURCE_DIR}/shared/types/generated)
 
 # (AR) ????? ??????? UTF-8 / Fix UTF-8 encoding warnings for frontend
 if(MSVC)
@@ -201,6 +204,9 @@ if(LLVM_FOUND)
  ${CMAKE_CURRENT_SOURCE_DIR}/include/pipeline
  ${CMAKE_CURRENT_SOURCE_DIR}/src/backend
  ${CMAKE_SOURCE_DIR}
+ # (② rfcs#46) تخطيط «حدث» المولَّد — يستهلكه ui_ops.cpp لبناء بنية الحدث في thunk
+ #   المعالِج بتخطيطٍ مطابقٍ للجسر بايتيًّا (SAD_EVENT_FIELDS + POD).
+ ${CMAKE_SOURCE_DIR}/shared/types/generated
  ${SAD_LLVM_INCLUDES}
  )
 

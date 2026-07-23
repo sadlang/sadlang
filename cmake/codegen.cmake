@@ -80,20 +80,22 @@ set(SAD_TY_SCHEMA     "${CMAKE_SOURCE_DIR}/language-truth/_schemas/type.schema.j
 set(SAD_TY_GEN_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/codegen/gen_types.py"                     CACHE INTERNAL "")
 set(SAD_TY_GEN_DIR    "${CMAKE_SOURCE_DIR}/shared/types/generated"                           CACHE INTERNAL "")
 set(SAD_TY_GEN_H      "${SAD_TY_GEN_DIR}/sad_type_kind_generated.h"                          CACHE INTERNAL "")
+set(SAD_TY_LAYOUT_H   "${SAD_TY_GEN_DIR}/sad_event_layout_generated.h"                       CACHE INTERNAL "")
 
 add_custom_command(
     OUTPUT  ${CMAKE_BINARY_DIR}/sad_types_codegen.stamp
-    BYPRODUCTS ${SAD_TY_GEN_H}
+    BYPRODUCTS ${SAD_TY_GEN_H} ${SAD_TY_LAYOUT_H}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${SAD_TY_GEN_DIR}
     COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8
             ${Python3_EXECUTABLE} ${SAD_TY_GEN_SCRIPT}
                 --yaml   ${SAD_TY_YAML}
                 --schema ${SAD_TY_SCHEMA}
                 --header ${SAD_TY_GEN_H}
+                --layout-header ${SAD_TY_LAYOUT_H}
                 --quiet
     COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/sad_types_codegen.stamp
     DEPENDS ${SAD_TY_YAML} ${SAD_TY_SCHEMA} ${SAD_TY_GEN_SCRIPT}
-    COMMENT "(sad) Generating SadTypeKind from language-truth/types.yaml (V5)..."
+    COMMENT "(sad) Generating SadTypeKind + event layout from language-truth/types.yaml (V5)..."
     VERBATIM
 )
 

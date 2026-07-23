@@ -185,6 +185,10 @@ namespace Sad
                 bool isFieldAccess = false;    ///< (AR) نتيجة وصول لحقل OOP (لا تحتاج LOAD إضافي) / (EN) OOP field access result (no extra LOAD needed)
                 bool isDirectValue = false;    ///< (AR) قيمة مباشرة (نتيجة CALL/CLOSURE_CALL) لا تحتاج LOAD إضافي / (EN) Direct value (CALL/CLOSURE_CALL result) — no extra LOAD needed
                 std::string closureLambdaName; ///< (AR) اسم __lambda_X المرتبط عند إسناد لامدا / (EN) Associated __lambda_X name for lambda assignment
+                // (② rfcs#46) اسم دالّةٍ مسمّاة مُمرَّرة كمرجع (`.عند_السحب(معالِج)`): خلافًا
+                //   للامدا لا يملأ closureLambdaName. نحمله كي تبصمه إضافةُ الحدث في
+                //   comment=«lambda:الاسم»، فتقرأ الخلفيّةُ أريّةَ المعالِج وتبني بنية «حدث».
+                std::string funcRefName; ///< (② rfcs#46) اسم دالّة المرجع المسمّاة (لبصمة معالِج الحدث)
                 bool isGeneratorFuncRef = false; ///< (AR) مرجع دالّة مولّدة (يُصدِر CONSUME عند الاستدعاء غير المباشر) / (EN) Reference to a generator function (emits CONSUME on indirect call)
 
                 /**

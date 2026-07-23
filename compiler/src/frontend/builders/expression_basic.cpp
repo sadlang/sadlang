@@ -300,6 +300,8 @@ namespace Sad
                         result.type = SadTypeKind::Function;
                         result.registerName = closureReg;
                         result.isConstant = false;
+                        // (② rfcs#46) احمل اسم الدالّة المرجعيّة كي يبصمه معالِجُ حدث الواجهة.
+                        result.funcRefName = var->name;
                         // (AR) إن كان المرجع لدالّة مولّدة، نسِمه كي يُصدِر الاستدعاء غير
                         //      المباشر (`د()`) GENERATOR_CONSUME بدل ترك المقبض خامًا.
                         // (EN) If this references a generator, mark it so the indirect call

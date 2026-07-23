@@ -30,6 +30,10 @@ extern "C" {
 typedef void* SadWidget;
 typedef void* SadApp;
 typedef void (*SadCallback)(void* userData);
+/* (② rfcs#46) ردّ نداء حدثٍ مكانيّ: يتلقّى بيئة الإغلاق + مؤشّر POD الحدث (حدث).
+ * eventPod يشير إلى Sad::Types::EventLayout::SadEventPod (مبهم هنا لإبقاء الرأس خفيفًا).
+ * thunk المترجم يقرؤه ويبني بنية «حدث» حين أعلن المعالِج معاملًا (استدلال الأرية). */
+typedef void (*SadEventCallback)(void* userData, const void* eventPod);
 /* (م1-ج، توقيع البانِي) باني صفحة: يُنتج عنصرًا **طازجًا** عند كلّ رسم (تفاعليّة) */
 typedef SadWidget (*SadPageBuilder)(void* data);
 /* (م1-ج/Q5) مُحرِّر بيئة الإغلاق: يُستدعى عند إسقاط إدخال التنقّل (ملكيّة مُدارة) */
@@ -146,7 +150,7 @@ SadWidget sad_sized_box(float width, float height);
 /** .م(صحيح) → خاصّيّة int64 */    void sad_set_prop_int(SadWidget w, const char* name, int64_t value);
 /** .م(عشري) → خاصّيّة عدديّة */   void sad_set_prop_num(SadWidget w, const char* name, double value);
 /** .م()/.م(منطقي) → منطقيّة */   void sad_set_prop_bool(SadWidget w, const char* name, int32_t value);
-/** .عند_*(دالة) → ربط حدث */     void sad_add_event(SadWidget w, const char* name, SadCallback cb, void* data);
+/** .عند_*(دالة) → ربط حدث */     void sad_add_event(SadWidget w, const char* name, SadEventCallback cb, void* data);
 
 /* ─── سلسلة التحريك الانسيابيّة (م-أ3ر، L3) — نظائر WidgetBuilder ─── */
 /** .حرّك(أنواع) — يبدأ سلسلة (مركّب بالفاصلة) */ void sad_anim_begin(SadWidget w, const char* typesCsv);
