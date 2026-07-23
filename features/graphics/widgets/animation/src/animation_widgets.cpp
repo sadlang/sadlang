@@ -91,7 +91,13 @@ SwipeableBuilder& SwipeableBuilder::threshold(float t) { threshold_ = t; return 
 
 std::shared_ptr<UINode> SwipeableBuilder::build() const {
     auto node = UINode::create(UINodeType::Swipeable);
-    if (leftAction_) node->addModifier(Modifier::event(ModifierType::OnDrag, *leftAction_));
+    // (AR) إيماءة التمرير دلالتها OnSwipe* لا OnDrag: الأخير صار حدثًا *مستمرًّا*
+    //      يُطلَق لكلّ حركة بدلتا تفاضليّة (سحب العناصر)، فربط إجراء التمرير به
+    //      كان ينفّذه عشرات المرّات في الإيماءة الواحدة ومن عتبة 5 بكسل.
+    //      OnSwipeLeft/Right يُطلقان مرّةً واحدة عند تجاوز عتبة التمرير.
+    if (leftAction_) node->addModifier(Modifier::event(ModifierType::OnSwipeLeft, *leftAction_));
+    // (AR) إجراء التمرير يمينًا كان يُهمَل صامتًا (يُخزَّن ولا يُربَط) — رُبِط الآن.
+    if (rightAction_) node->addModifier(Modifier::event(ModifierType::OnSwipeRight, *rightAction_));
     return node;
 }
 

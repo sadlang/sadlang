@@ -86,6 +86,15 @@ namespace sad
             gestureStartTime_ = getTimeMsCb_ ? getTimeMsCb_() : 0;
             gestureActive_ = true;
 
+            // (AR) تصفير حالة السحب عند كلّ ضغطة: لو ضاع onMouseUp السابق (فقدان
+            //      تركيز النافذة أو خروج المؤشّر أثناء الضغط) لبقيت dragging_ صادقة،
+            //      فتُحسَب أوّل دلتا من lastDrag_ قديم ⇒ قفزة بمقدار المسافة بين
+            //      السحبتين على عقدةٍ قد تكون تحرّرت. فشل-مُغلق: نبدأ نظيفين دائمًا.
+            dragging_ = false;
+            dragNode_ = nullptr;
+            lastDragX_ = x;
+            lastDragY_ = y;
+
             // ─── 3. البحث عن العنصر المنقور ───
             const IRNode *hitNode = hitTestCb_ ? hitTestCb_(x, y) : nullptr;
             pressedNode_ = hitNode;
@@ -168,7 +177,15 @@ namespace sad
             {
                 if (hitTestCb_ && fireEventCb_)
                 {
-                    const auto *dragSource = hitTestCb_(gestureStartX_, gestureStartY_);
+                    // (AR) مصدر السحب = العقدة المُمسَكة إن وُجدت. لا نعتمد
+                    //      hitTest(نقطة البدء) وحده: العنصر يكون قد *تحرّك* أثناء
+                    //      السحب (وهذا جوهر الميزة)، فنقطة البدء لم تعد فوقه ⇒ كان
+                    //      OnDragEnd يضيع وOnDrop يُطلَق على العنصر المسحوب نفسه.
+                    //      (dragNodeAlive يتحقّق من بقائها؛ فإن تحرّرت أثناء السحب
+                    //       سقطنا إلى اختبار النقر بنقطة البدء بدل قراءة ذاكرة محرَّرة.)
+                    const auto *dragSource = dragNodeAlive()
+                                                 ? dragNode_
+                                                 : hitTestCb_(gestureStartX_, gestureStartY_);
                     const auto *dropTarget = hitTestCb_(x, y);
 
                     // (AR) إطلاق OnDragEnd على العنصر الذي بدأ منه السحب
@@ -205,6 +222,7 @@ namespace sad
                 }
                 dragging_ = false;
             }
+            dragNode_ = nullptr; // (AR) حرّر العنصر المُمسَك بعد انتهاء السحب
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -547,7 +565,12 @@ namespace sad
                     data.deltaY = dy;
                     for (const auto &evt : gestureNode->getEvents())
                     {
-                        if (evt.type == irSwipeType || evt.type == IREventType::OnDrag)
+                        // (AR) OnDrag المستمرّ (الدلتا التفاضليّة) يُطلَق أثناء الحركة في
+                        //   handleDragTracking؛ فلا نُعيد إطلاقه هنا بالدلتا *الإجماليّة*
+                        //   إن كان سحبٌ فعليّ قد جرى (dragging_ لم يُصفَّر بعد) — وإلّا
+                        //   قفزت النافذة دفعةً واحدة عند الرفع. إيماءات Swipe تبقى كما هي.
+                        if (evt.type == irSwipeType ||
+                            (evt.type == IREventType::OnDrag && !dragging_))
                         {
                             fireEventCb_(evt.type, evt.expression, gestureNode, data);
                         }
@@ -664,8 +687,59 @@ namespace sad
         // تتبع السحب (Drag)
         // ═══════════════════════════════════════════════════════════════════════════════
 
+        namespace
+        {
+            /// (AR) هل العقدة الهدف ما زالت داخل الشجرة الحيّة؟ مقارنة مؤشّرات فقط
+            ///      (بلا فكّ إسناد الهدف) فتصحّ حتّى لو كانت العقدة قد تحرّرت.
+            bool containsNode(const IRNode &root, const IRNode *target)
+            {
+                if (&root == target)
+                    return true;
+                for (const auto &child : root.getChildren())
+                {
+                    if (child && containsNode(*child, target))
+                        return true;
+                }
+                return false;
+            }
+        } // namespace
+
+        bool MouseEventProcessor::dragNodeAlive()
+        {
+            // (AR) العقدة المُمسَكة مؤشّر خام محفوظ عبر الإطارات، وردّ نداء السحب
+            //      نفسه قد يعيد بناء الشجرة (تحديث_حالة ⇒ rebuildUI/مُوفِّق) فتتحرّر.
+            //      نتحقّق قبل *كلّ* استعمال (حركةً كان أم رفعًا) بمقارنة مؤشّرات فقط.
+            if (!dragNode_)
+                return false;
+            if (!getContentRootCb_)
+                return true; // لا سبيل للتحقّق على هذا المُضيف — نُبقي السلوك السابق
+            const IRNode *liveRoot = getContentRootCb_();
+            if (liveRoot && containsNode(*liveRoot, dragNode_))
+                return true;
+            dragNode_ = nullptr; // تحرّرت ⇒ أنهِ السحب بأمان
+            dragging_ = false;
+            return false;
+        }
+
+        void MouseEventProcessor::clearNodeRefs()
+        {
+            // (AR) تُنادى حين تُستبدل شجرة المحتوى: كلّ المؤشّرات الخام أعلاه قد
+            //      تحرّرت، فتصفيرها يمنع استعمال-بعد-التحرير.
+            dragging_ = false;
+            dragNode_ = nullptr;
+            pressedNode_ = nullptr;
+            hoveredNode_ = nullptr;
+            draggedSliderNode_ = nullptr;
+        }
+
         void MouseEventProcessor::handleDragTracking(float x, float y)
         {
+            // (AR) حارس: لا سحب بلا ضغطةٍ بدأت فعلًا. بدونه يكفي دخول المؤشّر
+            //      والزرّ مضغوط (ضُغط خارج النافذة) ليُحسَب سحبٌ شبحيّ من
+            //      gestureStart قديمة/صفريّة على عنصرٍ لم يلمسه أحد.
+            if (!gestureActive_)
+                return;
+
             // (AR) كشف بدء السحب وتتبع الحركة أثناء الضغط
             if (!dragging_)
             {
@@ -675,29 +749,60 @@ namespace sad
                 if (dx < MOUSE_DRAG_THRESHOLD && dy < MOUSE_DRAG_THRESHOLD)
                     return; // لم نتجاوز العتبة بعد
 
-                // ─── إطلاق OnDragStart ───
-                if (hitTestCb_ && fireEventCb_)
+                // (AR) العنصر المُمسَك = العنصر تحت نقطة *بداية* الضغط، لا الموضع الحاليّ.
+                //      هكذا يبقى العنصر مسحوبًا وإن غادر المؤشّر حدوده (دلالة الإمساك:
+                //      اسحب النافذة من شريطها ولو تجاوز المؤشّر إطارها).
+                dragNode_ = hitTestCb_ ? hitTestCb_(gestureStartX_, gestureStartY_) : nullptr;
+
+                // ─── إطلاق OnDragStart على العنصر المُمسَك ───
+                if (dragNode_ && fireEventCb_)
                 {
-                    const auto *dragStartNode = hitTestCb_(x, y);
-                    if (dragStartNode)
+                    EventData data;
+                    data.x = x;
+                    data.y = y;
+                    for (const auto &evt : dragNode_->getEvents())
                     {
-                        EventData data;
-                        data.x = x;
-                        data.y = y;
-                        for (const auto &evt : dragStartNode->getEvents())
+                        if (evt.type == IREventType::OnDragStart)
                         {
-                            if (evt.type == IREventType::OnDragStart)
-                            {
-                                fireEventCb_(evt.type, evt.expression, dragStartNode, data);
-                            }
+                            fireEventCb_(evt.type, evt.expression, dragNode_, data);
                         }
                     }
                 }
                 dragging_ = true;
+                // (AR) مرجع الدلتا = نقطة *بدء الضغط* لا الموضع الحاليّ، كي لا تضيع
+                //      حركة عبور العتبة (قد تبلغ عشرات البكسلات في حدث حركةٍ واحد
+                //      عند الحركة السريعة) فيتخلّف العنصر عن المؤشّر بها طوال السحب.
+                //      ولا نعود هنا: نُكمل ليُطلَق أوّل OnDrag في الإطار نفسه.
+                lastDragX_ = gestureStartX_;
+                lastDragY_ = gestureStartY_;
             }
 
-            // (AR) ملاحظة: DragMove لا يُطلق حدث IR محدد — يُمكن إضافته لاحقاً
-            //      الحركة الفعلية تُعالج في المنصة (UIEvent::DragMove)
+            if (!dragNodeAlive())
+                return;
+
+            // (② rfcs#46 / FR-009) سحب مستمرّ: نُطلق OnDrag لكلّ حركة بدلتا *تفاضليّة*
+            //   (مقدار الحركة منذ الإطار السابق، لا الإجماليّة منذ البدء). هكذا يستطيع
+            //   منطق ص تحريك النافذة بمقدار الحركة لحظةً بلحظة (يجمع الدلتا على موضعها).
+            //   يغطّي كلّ المنصّات لأنّ الجميع يمرّ عبر fireEventCb_ نفسه.
+            const float deltaX = x - lastDragX_;
+            const float deltaY = y - lastDragY_;
+            lastDragX_ = x;
+            lastDragY_ = y;
+            if ((deltaX != 0.0f || deltaY != 0.0f) && dragNode_ && fireEventCb_)
+            {
+                EventData data;
+                data.x = x;
+                data.y = y;
+                data.deltaX = deltaX;
+                data.deltaY = deltaY;
+                for (const auto &evt : dragNode_->getEvents())
+                {
+                    if (evt.type == IREventType::OnDrag)
+                    {
+                        fireEventCb_(evt.type, evt.expression, dragNode_, data);
+                    }
+                }
+            }
         }
 
     } // namespace ui

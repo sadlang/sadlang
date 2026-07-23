@@ -165,7 +165,11 @@ namespace sad
                         data.deltaY = dy;
                         for (const auto &evt : node->getEvents())
                         {
-                            if (evt.type == swipeType || evt.type == IREventType::OnDrag)
+                            // (AR) OnDrag المستمرّ (دلتا تفاضليّة) أُطلق أثناء الحركة؛
+                            //      فلا نُعيده هنا بالدلتا *الإجماليّة* إن جرى سحبٌ فعليّ،
+                            //      وإلّا قفز العنصر ضِعف المسافة عند رفع الإصبع.
+                            if (evt.type == swipeType ||
+                                (evt.type == IREventType::OnDrag && !fs.dragStarted))
                             {
                                 fireEventCb_(evt.type, evt.expression, node, data);
                             }
@@ -343,7 +347,14 @@ namespace sad
 
                 if (totalDx > dragThreshold || totalDy > dragThreshold)
                 {
-                    const auto *touchNode = hitTestCb_(x, y);
+                    // (AR) العنصر المُمسَك يُلتقط مرّةً من *نقطة بدء اللمس* ويُستعمل
+                    //      طوال السحب (دلالة الإمساك، نظير معالج الفأرة): اختبار
+                    //      النقر بالموضع الحاليّ كان ينقل السحب لعنصر آخر أو يوقفه
+                    //      فور خروج الإصبع من العنصر — وهو حتميّ هنا لأنّ العنصر
+                    //      المسحوب يتحرّك تحت الإصبع.
+                    if (!it->second.dragStarted)
+                        it->second.dragNode = hitTestCb_(it->second.startX, it->second.startY);
+                    const auto *touchNode = it->second.dragNode;
                     if (touchNode)
                     {
                         EventData data = makeTouchEventData(x, y, touchId, fingerId, pressure);

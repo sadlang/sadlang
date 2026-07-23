@@ -254,6 +254,15 @@ namespace sad
             using SetCursorCallback = std::function<void(int cursorType)>;
             void setSetCursorCallback(SetCursorCallback cb) { setCursorCb_ = std::move(cb); }
 
+            /**
+             * @brief (AR) تصفير كلّ المؤشّرات الخام للعقد (سحب/ضغط/تحويم/منزلق).
+             *
+             * تُنادى من المنصّة حين تُستبدل شجرة المحتوى (setContent / إعادة بناء)
+             * لأنّ العقد القديمة تتحرّر حينها، فبقاء مؤشّراتها ⇒ استعمال-بعد-التحرير.
+             * (EN) Reset all raw node pointers; call when the content tree is replaced.
+             */
+            void clearNodeRefs();
+
         private:
             // ═══════════════════════════════════════════════════════════════════
             // Callbacks
@@ -288,6 +297,9 @@ namespace sad
             // ─── حالة السحب ──────────────────────────────
             bool dragging_ = false;               ///< (AR) هل يتم السحب حالياً
             const IRNode *pressedNode_ = nullptr; ///< (AR) العنصر المضغوط (أثناء الضغط)
+            const IRNode *dragNode_ = nullptr;    ///< (AR) العنصر المُمسَك للسحب (تحت نقطة بدء الضغط)
+            float lastDragX_ = 0.0f;              ///< (AR) آخر X للسحب — مرجع الدلتا التفاضليّة المستمرّة
+            float lastDragY_ = 0.0f;              ///< (AR) آخر Y للسحب — مرجع الدلتا التفاضليّة المستمرّة
 
             // ─── حالة التحويم ─────────────────────────────
             const IRNode *hoveredNode_ = nullptr; ///< (AR) العنصر تحت المؤشر حالياً
@@ -325,6 +337,11 @@ namespace sad
 
             /// (AR) معالجة السحب (Drag) أثناء حركة المؤشر مع الضغط
             void handleDragTracking(float x, float y);
+
+            /// (AR) هل العقدة المُمسَكة ما زالت في الشجرة الحيّة؟ تُصفّرها وتنهي
+            ///      السحب إن تحرّرت (إعادة بناء الشجرة أثناء السحب). تُنادى قبل
+            ///      كلّ استعمال لـdragNode_ — حركةً كان أم رفعًا.
+            bool dragNodeAlive();
         };
 
     } // namespace ui

@@ -335,6 +335,10 @@ namespace sad
 
             void DesktopWindow::setContent(std::shared_ptr<IRNode> root)
             {
+                // (AR) استبدال الشجرة يُحرّر عقدها القديمة، ومعالجا الفأرة/اللمس
+                //      يحتفظان بمؤشّرات خام إليها (سحب/ضغط/تحويم/منزلق) ⇒ نُصفّرها
+                //      قبل التحرير منعًا لاستعمال-بعد-التحرير.
+                mouseProcessor_.clearNodeRefs();
                 contentRoot_ = std::move(root);
                 needsRedraw_ = true;
 

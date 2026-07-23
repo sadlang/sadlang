@@ -120,9 +120,9 @@ namespace sad
             inline constexpr const char *TOTAL = "\xd8\xa7\xd9\x84\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9";
             // (AR) القيمة الحاليّة (لشريط التقدّم/المنزلق) — «الحالي».
             inline constexpr const char *CURRENT = "\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a";
-            // (AR) الإزاحة الأفقيّة (بالبكسل) — «إزاحة_س».
+            // (AR) الإزاحة الأفقيّة بالبكسل — تمرير للحاويات القابلة للتمرير، وموضع حرّ لغيرها — «إزاحة_س».
             inline constexpr const char *OFFSET_X = "\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb3";
-            // (AR) الإزاحة الرأسيّة (بالبكسل) — «إزاحة_ص».
+            // (AR) الإزاحة الرأسيّة بالبكسل — تمرير للحاويات القابلة للتمرير، وموضع حرّ لغيرها — «إزاحة_ص».
             inline constexpr const char *OFFSET_Y = "\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb5";
             // (AR) هجاء بديل لـ«أيقونة» (بألف بلا همزة) — اسم الأيقونة — «ايقونة».
             inline constexpr const char *ICON_ALT = "\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9";

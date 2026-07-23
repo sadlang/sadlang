@@ -330,17 +330,22 @@ keys:
     description_ar: القيمة الحاليّة (لشريط التقدّم/المنزلق)
     description_en: Current value (progress bar / slider)
 
+  # دلالة مزدوجة بحسب نوع العنصر (مقصودة، وموثَّقة هنا لأنّها مصدر الحقيقة):
+  #   • حاوية قابلة للتمرير (ScrollView/LazyColumn/LazyRow/List): إزاحة تمرير
+  #     تُطبَّق على الأبناء وقت الرسم.
+  #   • أيّ عنصر آخر: موضع حرّ يُزيح العنصر وكامل شجرته في محرّك التخطيط
+  #     (يبقى اختبار النقر متّسقًا مع الرسم) — أساس سحب النوافذ بمنطق ص.
   - id: OFFSET_X
     canonical: إزاحة_س
     value_type: عدد
-    description_ar: الإزاحة الأفقيّة (بالبكسل)
-    description_en: Horizontal offset (px)
+    description_ar: الإزاحة الأفقيّة بالبكسل — تمرير للحاويات القابلة للتمرير، وموضع حرّ لغيرها
+    description_en: Horizontal offset (px) — scroll for scrollable containers, free position otherwise
 
   - id: OFFSET_Y
     canonical: إزاحة_ص
     value_type: عدد
-    description_ar: الإزاحة الرأسيّة (بالبكسل)
-    description_en: Vertical offset (px)
+    description_ar: الإزاحة الرأسيّة بالبكسل — تمرير للحاويات القابلة للتمرير، وموضع حرّ لغيرها
+    description_en: Vertical offset (px) — scroll for scrollable containers, free position otherwise
 
   - id: ICON_ALT
     canonical: ايقونة

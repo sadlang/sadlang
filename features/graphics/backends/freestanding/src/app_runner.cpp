@@ -127,6 +127,12 @@ namespace sad
                                                { return monotonicMs(); });
                 mouseProc.setInvalidateCallback([&window]()
                                                 { window.invalidate(); });
+                // (AR) جذر المحتوى الحيّ: يستعمله المعالج للتحقّق من بقاء العقدة
+                //      المُمسَكة أثناء السحب — ردّ نداء ص قد يستبدل الشجرة
+                //      (تحديث_حالة ⇒ setContent) فتتحرّر العقدة القديمة.
+                mouseProc.setGetContentRootCallback(
+                    [&window]() -> const IRNode *
+                    { return window.getContentRoot(); });
                 mouseProc.setFireEventCallback(
                     [&](IREventType type, const std::string &expr,
                         const IRNode *node, const EventData &data)

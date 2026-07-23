@@ -57,6 +57,7 @@
 #include <memory>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>  // (AR) fprintf لإعلان فشل تهيئة الوضع الحرّ على stderr
 #include <cstdlib> // (م-تحكّم) malloc لنسخة نصّ توليد_ويب المملوكة للمستدعي
 #include <iostream>
 #include <sstream>
@@ -1175,7 +1176,14 @@ void sad_app_run(SadWidget root) {
     };
 
     std::string err;
-    sad::ui::freestanding::runFreestandingApp(cfg, &err);
+    // (AR) فشل-معلَن: كان الخطأ يُلتقَط ويُهمَل، فيخرج التطبيق الحرّ صامتًا تمامًا
+    //      (شاشة سوداء بلا سبب) عند تعذّر فتح جهاز الإطار/الإدخال. نُبلّغ على
+    //      المسار القياسيّ للأخطاء كي يظهر السبب على وحدة التحكّم/التسلسليّ.
+    //      (نستعمل fprintf لا std::cerr: الثنائيّ الحرّ يُفضَّل ألّا يجرّ تهيئة
+    //       iostream/locale الساكنة، وstderr هو المسار المضمون هناك.)
+    if (int rc = sad::ui::freestanding::runFreestandingApp(cfg, &err); rc != 0)
+        std::fprintf(stderr, "sad_app_run (الوضع الحرّ): %s (رمز %d)\n",
+                     err.empty() ? "فشل غير موصوف" : err.c_str(), rc);
     // بعد إغلاق النافذة: صفّر مكدّس التنقّل والمتحكّم (نظير الفرع المستضاف).
     sad::ui::nav().reset();
     sad::ui::windowController().reset();

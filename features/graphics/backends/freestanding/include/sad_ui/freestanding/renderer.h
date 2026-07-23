@@ -403,6 +403,10 @@ namespace sad
                 void setContent(std::shared_ptr<IRNode> root) override;
                 void setStateStore(std::shared_ptr<StateStore> store) override;
 
+                /// (AR) جذر المحتوى الحيّ — يحتاجه معالج الفأرة للتحقّق من بقاء
+                ///      العقدة المُمسَكة بعد إعادة بناء الشجرة (منع استعمال-بعد-التحرير).
+                const IRNode *getContentRoot() const { return contentRoot_.get(); }
+
                 /**
                  * @brief (AR) تطبيق رقع جزئية — تحديث ذكي بدلاً من setContent الكامل
                  * @brief (EN) Apply partial patches — smart update instead of full setContent

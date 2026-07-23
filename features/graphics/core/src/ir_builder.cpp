@@ -142,6 +142,8 @@ namespace sad
                 if (mod.type == ModifierType::OnTap ||
                     mod.type == ModifierType::OnLongPress ||
                     mod.type == ModifierType::OnDrag ||
+                    mod.type == ModifierType::OnSwipeLeft ||
+                    mod.type == ModifierType::OnSwipeRight ||
                     mod.type == ModifierType::OnAppear ||
                     mod.type == ModifierType::OnDisappear ||
                     mod.type == ModifierType::OnValueChange)

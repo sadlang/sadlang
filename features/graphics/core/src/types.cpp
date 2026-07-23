@@ -299,6 +299,8 @@ namespace sad
                 {ModifierType::OnTap, "عند_النقر"},
                 {ModifierType::OnLongPress, "عند_الضغط_المطول"},
                 {ModifierType::OnDrag, "عند_السحب"},
+                {ModifierType::OnSwipeLeft, "عند_السحب_يسار"},
+                {ModifierType::OnSwipeRight, "عند_السحب_يمين"},
                 {ModifierType::OnAppear, "عند_الظهور"},
                 {ModifierType::OnDisappear, "عند_الاختفاء"},
                 {ModifierType::OnValueChange, "عند_التغيير"},
@@ -417,6 +419,10 @@ namespace sad
                 return IREventType::OnLongPress;
             case ModifierType::OnDrag:
                 return IREventType::OnDrag;
+            case ModifierType::OnSwipeLeft:
+                return IREventType::OnSwipeLeft;
+            case ModifierType::OnSwipeRight:
+                return IREventType::OnSwipeRight;
             case ModifierType::OnAppear:
                 return IREventType::OnAppear;
             case ModifierType::OnDisappear:

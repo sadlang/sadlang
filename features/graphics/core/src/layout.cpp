@@ -27,6 +27,26 @@
 #include <algorithm>
 #include <numeric>
 
+// (FR-009) قراءة خاصّيّة عدديّة (double أو int64) من عقدة، بقيمة افتراضيّة.
+//   تُستعمل لإزاحة الموضع الحرّ (إزاحة_س/إزاحة_ص) في arrange.
+static float readNumericProp(const sad::ui::IRNode& node,
+                             const std::string& key, float fallback) {
+    const auto* p = node.findProperty(key);
+    if (!p) return fallback;
+    if (auto* v = std::get_if<double>(&p->value)) return static_cast<float>(*v);
+    if (auto* vi = std::get_if<int64_t>(&p->value)) return static_cast<float>(*vi);
+    return fallback;
+}
+
+// (FR-009) الحاويات القابلة للتمرير تُفسّر إزاحة_س/إزاحة_ص كإزاحة تمرير (تُطبَّق على
+//   الأبناء وقت الرسم)، لا كموضع حرّ — فتُستثنى من إزاحة الموضع الحرّ في arrange.
+static bool isScrollableType(sad::ui::UINodeType t) {
+    return t == sad::ui::UINodeType::ScrollView ||
+           t == sad::ui::UINodeType::LazyColumn ||
+           t == sad::ui::UINodeType::LazyRow ||
+           t == sad::ui::UINodeType::List;
+}
+
 // حساب عدد أحرف UTF-8 الفعلية (ليس البايتات)
 static size_t utf8CharCount(const std::string& text) {
     size_t count = 0;
@@ -502,6 +522,15 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
     float offsetX, float offsetY
 ) {
     auto result = std::make_shared<LayoutResult>();
+
+    // (FR-009) إزاحة الموضع الحرّ (إزاحة_س/إزاحة_ص) — تُزيح العقدة وكامل شجرتها معًا.
+    //   نضيفها إلى offsetX/offsetY فتتدفّق إلى مستطيل العقدة *وإلى* مواضع كلّ أبنائها
+    //   (المحسوبة من offsetX/offsetY)، فيبقى hitTest متّسقًا مع الرسم. محصورة بغير
+    //   الحاويات القابلة للتمرير (حيث تعني تلك المفاتيح إزاحة تمرير لا موضعًا حرًّا).
+    if (!isScrollableType(node.getType())) {
+        offsetX += readNumericProp(node, props::OFFSET_X, 0.0f); // إزاحة_س
+        offsetY += readNumericProp(node, props::OFFSET_Y, 0.0f); // إزاحة_ص
+    }
 
     // قياس الحجم المطلوب
     auto measured = measure(node, constraints);
