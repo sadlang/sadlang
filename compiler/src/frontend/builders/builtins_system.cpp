@@ -31,6 +31,7 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "builtin_categories.h" // (AR) kBitwiseShiftCountMask المشترك بين المحرّكين (ت-1) / (EN) cross-engine shift-count mask (T-1)
 namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
@@ -147,6 +148,136 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
+                }
+
+                // ──────────────────────────────────────────────
+                // (AR) المدمجات البتّيّة (نطاق KernelCpu، أسماء اللهجة بعد rfcs#43):
+                //      وافق/ضمّ/خالف ثنائيّة، اعكس_البتّات أحاديّة، أزح_يسارًا/أزح_يمينًا إزاحة.
+                //      القرار المعماريّ: تعمل على i64 (أعداد ص الصحيحة) في المحرّكين،
+                //      وعدّاد الإزاحة يُقنَّع بـ&63 (دلالة عتاد x86-64) لتحديد سلوك
+                //      العدّاد السالب/الكبير حتميًّا بلا UB — يطابق المفسّر بعد توحيده.
+                //      الإزاحة اليمنى حسابيّة (SAR/AShr) حفظًا للإشارة كالمفسّر.
+                // (EN) Bitwise builtins (KernelCpu scope, dialect names per rfcs#43).
+                //      Architectural decision: i64 operands in both engines; shift count
+                //      masked with &63 (x86-64 hardware semantics) so negative/oversized
+                //      counts are deterministic and UB-free — mirrors the interpreter.
+                //      Right shift is arithmetic (sign-preserving), like the interpreter.
+                // ──────────────────────────────────────────────
+                {
+                    // (AR) قناع عدّاد الإزاحة المشترك بين المحرّكين (ت-1) — انظر
+                    //      shared/builtins/include/builtin_categories.h
+                    // (EN) Cross-engine shared shift-count mask (T-1) — see
+                    //      shared/builtins/include/builtin_categories.h
+                    constexpr int64_t kShiftCountMask = Sad::Builtins::kBitwiseShiftCountMask;
+
+                    // (AR) نقطة التحويل الواحدة (إصلاح تكافؤ ARM/المسارات المتناثرة):
+                    //      كلّ معامل بتّيّ ليس صحيحًا/منطقيًّا سكونيًّا (Float أو
+                    //      مجهول/ديناميّ) يمرّ عبر F64_TO_I64_SAT أوّلًا — الدلالة
+                    //      المُشبَعة الموحَّدة منصّيًّا (llvm.fptosi.sat) مهما كان أصل
+                    //      المعامل (ثابت/متغيّر/SadDyn/معامل دالة منمَّط عشريًّا يصل
+                    //      i64-بتّات خامًا). الصحيح السكونيّ يمرّ مباشرة.
+                    // (EN) Single conversion point (ARM/scattered-paths parity fix):
+                    //      every bitwise operand not statically Integer/Boolean
+                    //      (Float or unknown/dynamic) goes through F64_TO_I64_SAT
+                    //      first — the platform-independent saturating semantics
+                    //      (llvm.fptosi.sat) regardless of operand origin (constant,
+                    //      variable, SadDyn, or a double-typed function parameter
+                    //      arriving as raw i64 bits). Statically-Integer passes through.
+                    auto satNormalize = [&](size_t idx) -> SIROperand
+                    {
+                        const SadTypeKind k = argResults[idx].type;
+                        if (k == SadTypeKind::Integer || k == SadTypeKind::Boolean)
+                            return argOperands[idx];
+                        std::string satReg = b_.newTempRegister();
+                        SIRInstruction satInst(SIROpcode::F64_TO_I64_SAT);
+                        satInst.result = SIROperand::Register(satReg, SadTypeKind::Integer);
+                        // (AR) نمرّر المعامل بنوعه الأصليّ — الخلفيّة تفكّ بحسب ما تراه
+                        //      (double⇒sat، i64 موسوم Float⇒bitcast ثم sat، SadDyn⇒فكّ
+                        //      بالوسم، i64 مجهول⇒تمرير).
+                        // (EN) Operand keeps its original type — the backend dispatches
+                        //      on what it sees (double⇒sat, Float-typed i64⇒bitcast then
+                        //      sat, SadDyn⇒tag-unpack, unknown i64⇒passthrough).
+                        satInst.operands.push_back(argOperands[idx]);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(satInst);
+                        return SIROperand::Register(satReg, SadTypeKind::Integer);
+                    };
+
+                    // (AR) مساعد: إصدار عمليّة ثنائيّة بتّيّة وإرجاع سجلّ النتيجة
+                    // (EN) Helper: emit a binary bitwise op and return the result register
+                    auto emitBitBinary = [&](SIROpcode op, const SIROperand &lhs,
+                                             const SIROperand &rhs) -> BuildResult
+                    {
+                        std::string resultReg = b_.newTempRegister();
+                        SIRInstruction inst(op);
+                        inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                        inst.operands.push_back(lhs);
+                        inst.operands.push_back(rhs);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
+                        return BuildResult(resultReg, SadTypeKind::Integer);
+                    };
+
+                    // (AR) مساعد: تقنيع عدّاد الإزاحة بـ&63 ثم إصدار الإزاحة
+                    // (EN) Helper: mask the shift count with &63, then emit the shift
+                    auto emitShift = [&](SIROpcode shiftOp) -> BuildResult
+                    {
+                        BuildResult masked = emitBitBinary(
+                            SIROpcode::AND, satNormalize(1), SIROperand::ConstantI64(kShiftCountMask));
+                        return emitBitBinary(
+                            shiftOp, satNormalize(0),
+                            SIROperand::Register(masked.registerName, SadTypeKind::Integer));
+                    };
+
+                    // وافق(أ، ب) — AND بتّيّ
+                    if (funcName == Bn::KernelCpu::CPU_14)
+                    {
+                        if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        return emitBitBinary(SIROpcode::AND, satNormalize(0), satNormalize(1));
+                    }
+                    // ضمّ(أ، ب) — OR بتّيّ
+                    if (funcName == Bn::KernelCpu::CPU_15)
+                    {
+                        if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        return emitBitBinary(SIROpcode::OR, satNormalize(0), satNormalize(1));
+                    }
+                    // خالف(أ، ب) — XOR بتّيّ
+                    if (funcName == Bn::KernelCpu::CPU_16)
+                    {
+                        if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        return emitBitBinary(SIROpcode::XOR, satNormalize(0), satNormalize(1));
+                    }
+                    // اعكس_البتّات(أ) — NOT بتّيّ (نتيجته Integer لا Boolean كي لا
+                    // يسلك emitNot مسار النفي المنطقيّ)
+                    if (funcName == Bn::KernelCpu::CPU_17)
+                    {
+                        if (argResults.empty())
+                            return BuildResult("", SadTypeKind::Integer);
+                        std::string resultReg = b_.newTempRegister();
+                        SIRInstruction inst(SIROpcode::NOT);
+                        inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                        inst.operands.push_back(satNormalize(0));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
+                        return BuildResult(resultReg, SadTypeKind::Integer);
+                    }
+                    // أزح_يسارًا(أ، عدّاد) — SHL بعدّاد مُقنَّع
+                    if (funcName == Bn::KernelCpu::CPU_18)
+                    {
+                        if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        return emitShift(SIROpcode::SHL);
+                    }
+                    // أزح_يمينًا(أ، عدّاد) — إزاحة يمنى حسابيّة بعدّاد مُقنَّع
+                    if (funcName == Bn::KernelCpu::CPU_19)
+                    {
+                        if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        return emitShift(SIROpcode::SHR);
+                    }
                 }
 
                 // ──────────────────────────────────────────────

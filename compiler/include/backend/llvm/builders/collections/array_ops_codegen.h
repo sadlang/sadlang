@@ -55,6 +55,7 @@ namespace Sad
             llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction>);
+            llvm::Value *emitArrayZip(std::shared_ptr<SIRInstruction>);
 
             // (AR) إنشاء النصوص
             llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction>);

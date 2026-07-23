@@ -145,6 +145,8 @@ namespace Sad
                     return "array.remove";
                 case SIROpcode::ARRAY_CONCAT:
                     return "array.concat";
+                case SIROpcode::ARRAY_ZIP:
+                    return "array.zip";
 
                 // Tuple
                 case SIROpcode::TUPLE_NEW:
@@ -199,6 +201,8 @@ namespace Sad
                     return "i64.to.f64";
                 case SIROpcode::F64_TO_I64:
                     return "f64.to.i64";
+                case SIROpcode::F64_TO_I64_SAT:
+                    return "f64.to.i64.sat";
                 case SIROpcode::I64_TO_BOOL:
                     return "i64.to.bool";
                 case SIROpcode::BOOL_TO_I64:
@@ -746,6 +750,7 @@ namespace Sad
                 case SIROpcode::OBJECT_NEW:
                 case SIROpcode::I64_TO_F64:
                 case SIROpcode::F64_TO_I64:
+                case SIROpcode::F64_TO_I64_SAT:
                 case SIROpcode::I64_TO_BOOL:
                 case SIROpcode::BOOL_TO_I64:
                 case SIROpcode::I64_TO_STRING:
@@ -793,6 +798,7 @@ namespace Sad
                 case SIROpcode::ARRAY_APPEND:
                 case SIROpcode::ARRAY_REMOVE:
                 case SIROpcode::ARRAY_CONCAT:
+                case SIROpcode::ARRAY_ZIP:
                 case SIROpcode::TUPLE_NEW:
                 case SIROpcode::STRING_NEW:
                 case SIROpcode::STRING_SUBSTR:

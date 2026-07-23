@@ -86,6 +86,17 @@ class TestMetadata:
     description: str = ""
     priority: str = "P1"
     expect_error: str = ""  # (AR) إذا غير فارغ: الاختبار يتوقع خطأ يحتوي هذا النص
+    # (AR) @expect_compile_error: اختبار سلبيّ للمترجم — يشغّل sad-build ويتوقّع فشل
+    #      الترجمة (exit غير صفريّ)، مع نمط رسالة اختياريّ يُطابَق ضدّ stderr.
+    #      التصميم: كلّ توجيه يحكم محرّكه — @expect_compile_error وحده ⇒ لا يشغَّل
+    #      المفسّر (سالب مترجم فقط)؛ ومع @expect_error معًا ⇒ سالب مزدوج: يجب أن
+    #      يُخطئ المفسّر (بنمطه) وأن يرفض المترجم الترجمة (بنمطه) ليمرّ الاختبار.
+    # (EN) @expect_compile_error: compiler-negative test — runs sad-build expecting
+    #      compilation failure (nonzero exit), with an optional message pattern
+    #      matched against stderr. Design: each directive governs its own engine —
+    #      alone ⇒ the interpreter is not run; combined with @expect_error ⇒ dual
+    #      negative: the interpreter must error AND the compiler must reject.
+    expect_compile_error: str = ""
     stdin_data: str = ""    # (AR) إذا غير فارغ: يُمرَّر كـ stdin للمفسر والمترجم
     # ── وسوم الحتمية (ADR-004 / TEST-007) ──
     unordered: bool = False        # (AR) @unordered: يُفرز الخرج قبل المقارنة (التزامن — ترتيب غير حتمي)
@@ -118,6 +129,7 @@ _RE_TIMEOUT = re.compile(r"^#\s*@timeout:?\s+(\d+)$")
 _RE_SKIP_COMPILER = re.compile(r"^#\s*@skip_compiler\b")
 _RE_SKIP_INTERP = re.compile(r"^#\s*@skip_interpreter\b")
 _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
+_RE_EXPECT_COMPILE_ERROR = re.compile(r"^#\s*@expect_compile_error:?\s*(.*)$")
 _RE_DESC = re.compile(r"^#\s*@description:?\s+(.+)$")
 _RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-9]+(?:\.[\w.]+)?)$")
 _RE_STDIN = re.compile(r"^#\s*@stdin_data:?\s+(.+)$")  # (AR) بيانات stdin للاختبارات التفاعلية
@@ -158,6 +170,10 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                     continue
                 if _RE_SKIP_INTERP.match(line):
                     meta.skip_interpreter = True
+                    continue
+                m = _RE_EXPECT_COMPILE_ERROR.match(line)
+                if m:
+                    meta.expect_compile_error = m.group(1).strip() or "__ANY_ERROR__"
                     continue
                 m = _RE_EXPECT_ERROR.match(line)
                 if m:
@@ -476,7 +492,7 @@ def run_freestanding_audit(sadc_exe: Path, test_files: list, temp_dir: Path,
     excluded = 0
     for tf in test_files:
         meta = parse_metadata(tf)
-        if meta.expect_error or meta.skip_compiler:
+        if meta.expect_error or meta.expect_compile_error or meta.skip_compiler:
             excluded += 1
             continue
         audit_files.append(tf)
@@ -575,8 +591,11 @@ def run_single_test(
         return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
                           error_message="تخطي: skip_compiler + skip_interpreter")
 
-    # (AR) تشغيل المفسر
-    if meta.skip_interpreter:
+    # (AR) تشغيل المفسر — سالبُ المترجم وحده (@expect_compile_error بلا @expect_error)
+    #      لا يشغّل المفسّر: التوجيه يحكم محرّكه فقط (انظر تعليق TestMetadata).
+    # (EN) Run interpreter — a compiler-only negative (@expect_compile_error without
+    #      @expect_error) skips the interpreter: each directive governs its own engine.
+    if meta.skip_interpreter or (meta.expect_compile_error and not meta.expect_error):
         interp_out, interp_time, interp_err = "", 0.0, ""
     else:
         interp_out, interp_time, interp_err = run_interpreter(sad_exe, test_file, timeout,
@@ -596,9 +615,14 @@ def run_single_test(
         if interp_err:
             # (AR) المفسر أعطى خطأ — نتحقق من محتوى الخطأ
             if meta.expect_error == "__ANY_ERROR__" or meta.expect_error in combined:
-                return TestResult(file=rel_path, status=Status.PASS,
-                                  interp_output=interp_out, interp_time_ms=interp_time,
-                                  metadata=meta)
+                # (AR) سالب مزدوج (@expect_error + @expect_compile_error): لا نمرّر
+                #      بعدُ — يجب أن يرفض المترجم أيضًا (الكتلة التالية).
+                # (EN) Dual negative: don't pass yet — the compiler must also reject
+                #      (next block).
+                if not meta.expect_compile_error:
+                    return TestResult(file=rel_path, status=Status.PASS,
+                                      interp_output=interp_out, interp_time_ms=interp_time,
+                                      metadata=meta)
             else:
                 return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
                                   interp_output=combined, interp_time_ms=interp_time,
@@ -610,6 +634,50 @@ def run_single_test(
                               interp_output=interp_out, interp_time_ms=interp_time,
                               metadata=meta,
                               error_message="اختبار سلبي: المفسر لم يُعطِ خطأ")
+
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) اختبارات سلبية للمترجم: @expect_compile_error — يشغَّل sad-build
+    #      ويُتوقَّع فشل الترجمة (COMPILE_ERROR)، مع مطابقة نمط اختياريّ ضدّ
+    #      stderr. نجاح الترجمة = فشل الاختبار السلبيّ (شبكة أمان حقيقيّة
+    #      لحرّاس الترجمة مثل SEM002/SEM005 — مراجعة أميليا م-4).
+    # (EN) Compiler-negative tests: @expect_compile_error — run sad-build and
+    #      expect compilation failure (COMPILE_ERROR), optionally matching a
+    #      pattern against stderr. Successful compilation fails the negative
+    #      test (a real safety net for compile-time guards — Amelia M-4).
+    # ═══════════════════════════════════════════════════════════════
+    if meta.expect_compile_error:
+        if meta.skip_compiler:
+            # (AR) لا مترجم متاحًا (وضع مفسّر-فقط) أو @skip_compiler صريح — لا
+            #      يمكن فحص الرفض الترجميّ.
+            # (EN) No compiler available (interpreter-only mode) or explicit
+            #      @skip_compiler — the compile rejection cannot be checked.
+            return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                              error_message="تخطي: expect_compile_error بلا مترجم")
+        compiler_out, compiler_time, compiler_err = run_compiler(
+            sadc_exe, test_file, temp_dir, timeout, stdin_data=meta.stdin_data)
+        if compiler_err == "TIMEOUT":
+            return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta, error_message="المترجم تجاوز المهلة")
+        if compiler_err.startswith("COMPILE_ERROR"):
+            if (meta.expect_compile_error == "__ANY_ERROR__"
+                    or meta.expect_compile_error in compiler_err):
+                return TestResult(file=rel_path, status=Status.PASS,
+                                  interp_output=interp_out, interp_time_ms=interp_time,
+                                  compiler_time_ms=compiler_time, metadata=meta)
+            return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
+                              interp_output=interp_out, compiler_output=compiler_err,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta,
+                              error_message=f"خطأ الترجمة لا يحتوي '{meta.expect_compile_error}'")
+        # (AR) المترجم لم يرفض — فشل الاختبار السلبيّ (سواء نجح التنفيذ أو انهار)
+        # (EN) Compiler did not reject — the negative test fails (whether the
+        #      produced binary ran or crashed)
+        return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
+                          interp_output=interp_out, compiler_output=compiler_out,
+                          interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                          metadata=meta,
+                          error_message="اختبار سلبي: المترجم لم يرفض الترجمة")
 
     if interp_err and not meta.skip_interpreter:
         return TestResult(file=rel_path, status=Status.FAIL_INTERP,

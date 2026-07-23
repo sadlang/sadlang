@@ -1337,6 +1337,7 @@ namespace Sad
             // SIR Type Conversion opcodes (Phase 7 Step 1: delegate)
             llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToF64(inst); }
             llvm::Value *emitF64ToI64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitF64ToI64(inst); }
+            llvm::Value *emitF64ToI64SatOp(std::shared_ptr<SIRInstruction> inst) { return arith_->emitF64ToI64SatOp(inst); } // عشري→صحيح مُشبَع (دلالة البتّيّات الموحَّدة منصّيًّا)
             llvm::Value *emitI64ToBool(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToBool(inst); }
             llvm::Value *emitBoolToI64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitBoolToI64(inst); }
             llvm::Value *emitI64ToString(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToString(inst); }
@@ -1434,6 +1435,7 @@ namespace Sad
             llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArraySet(inst); }
             llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayLen(inst); }
             llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayConcat(inst); }
+            llvm::Value *emitArrayZip(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayZip(inst); } // زاوج — اقتران مصفوفتين أزواجًا
 
             // String core
             llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction> inst) { return arr_->emitStringNew(inst); }

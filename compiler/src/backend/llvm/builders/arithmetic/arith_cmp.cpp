@@ -98,9 +98,9 @@ namespace Sad
             if (right->getType()->isIntegerTy(1))
                 right = cg_.builder_->CreateZExt(right, cg_.getInt64Type(), "shl.r.zext");
             if (left->getType()->isDoubleTy())
-                left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "shl.l.f2i");
+                left = emitF64ToI64Sat(left, "shl.l.f2i.sat");
             if (right->getType()->isDoubleTy())
-                right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "shl.r.f2i");
+                right = emitF64ToI64Sat(right, "shl.r.f2i.sat");
 
             llvm::Value *result = cg_.builder_->CreateShl(left, right, "shltmp");
 
@@ -158,9 +158,9 @@ namespace Sad
             if (right->getType()->isIntegerTy(1))
                 right = cg_.builder_->CreateZExt(right, cg_.getInt64Type(), "shr.r.zext");
             if (left->getType()->isDoubleTy())
-                left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "shr.l.f2i");
+                left = emitF64ToI64Sat(left, "shr.l.f2i.sat");
             if (right->getType()->isDoubleTy())
-                right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "shr.r.f2i");
+                right = emitF64ToI64Sat(right, "shr.r.f2i.sat");
 
             // (AR) إزاحة يمنى حسابيّة (AShr) لا منطقيّة (LShr) — المفسّر (المرجع) يستخدم
             //      `int64_t >> r` أي إزاحةً حسابيّةً تحفظ الإشارة (‏-8 >> 1 = -4). كان LShr

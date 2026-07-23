@@ -851,6 +851,82 @@ namespace Sad
          * @param inst تعليمة SIR / SIR instruction
          * @return قيمة LLVM / LLVM value
          */
+        // (AR) انظر التوثيق في arithmetic_codegen.h — دلالة الإشباع الموحَّدة منصّيًّا
+        // (EN) See arithmetic_codegen.h — platform-independent saturation semantics
+        llvm::Value *ArithmeticCodeGen::emitF64ToI64Sat(llvm::Value *v, const llvm::Twine &name)
+        {
+            llvm::Function *satFn = llvm::Intrinsic::getDeclaration(
+                cg_.module_.get(), llvm::Intrinsic::fptosi_sat,
+                {cg_.getInt64Type(), cg_.getDoubleType()});
+            return cg_.builder_->CreateCall(satFn, {v}, name);
+        }
+
+        // ====================================================================
+        // (AR) F64_TO_I64_SAT — نقطة التحويل الواحدة لمعاملات البتّيّات: تفكّ
+        //      بحسب ما تراه فعليًّا (لا بحسب مسار الوصول):
+        //      • double ⇒ llvm.fptosi.sat مباشرة.
+        //      • %SadDyn ⇒ فكّ بالوسم (unpackI64 — عشريّ⇒sat، صحيح⇒الحمولة).
+        //      • i64 وSIR يقول Float ⇒ بتّات double خام (معامل دالة منمَّط
+        //        عشريًّا يُمرَّر i64-بتّات في موضع النداء) ⇒ bitcast إلى double
+        //        ثمّ sat — هذا جوهر عطب «البتّات الخام» المقيس.
+        //      • i64 مجهول/صحيح ⇒ تمرير كما هو. • i1 ⇒ zext.
+        // (EN) F64_TO_I64_SAT — the single conversion point for bitwise operands;
+        //      dispatches on what it actually sees: double ⇒ llvm.fptosi.sat;
+        //      %SadDyn ⇒ tag-unpack (unpackI64: Float⇒sat, Int⇒payload); an i64
+        //      whose SIR type says Float is raw double bits (double-typed function
+        //      params are passed as raw i64 at call sites) ⇒ bitcast to double
+        //      then sat — the measured "raw bits" corruption; unknown/integer
+        //      i64 ⇒ passthrough; i1 ⇒ zext.
+        // ====================================================================
+        llvm::Value *ArithmeticCodeGen::emitF64ToI64SatOp(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "F64ToI64Sat"}});
+                return nullptr;
+            }
+            llvm::Value *v = resolveOperand(inst->operands[0]);
+            if (!v)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "F64ToI64Sat"}});
+                return nullptr;
+            }
+
+            llvm::Value *result = nullptr;
+            if (isSadDyn(v))
+            {
+                result = unpackI64(cg_, v); // (AR) فكّ بالوسم — مُشبَع للعشريّ / (EN) tag-unpack, saturating for Float
+            }
+            else if (v->getType()->isDoubleTy())
+            {
+                result = emitF64ToI64Sat(v, "f2i.sat");
+            }
+            else if (v->getType()->isIntegerTy(64) &&
+                     inst->operands[0].dataType == Compiler::SIR::SadTypeKind::Float)
+            {
+                // (AR) بتّات double خام في وعاء i64 ⇒ أعد تفسيرها ثمّ أشبِع
+                // (EN) Raw double bits in an i64 ⇒ reinterpret, then saturate
+                llvm::Value *asDbl = cg_.builder_->CreateBitCast(v, cg_.getDoubleType(), "f2i.sat.bc");
+                result = emitF64ToI64Sat(asDbl, "f2i.sat");
+            }
+            else if (v->getType()->isIntegerTy(1))
+            {
+                result = cg_.builder_->CreateZExt(v, cg_.getInt64Type(), "f2i.sat.zext");
+            }
+            else if (v->getType()->isPointerTy())
+            {
+                result = cg_.builder_->CreatePtrToInt(v, cg_.getInt64Type(), "f2i.sat.ptoi");
+            }
+            else
+            {
+                result = v; // (AR) i64 صحيح/مجهول — تمرير / (EN) integer/unknown i64 — passthrough
+            }
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
         llvm::Value *ArithmeticCodeGen::emitAnd(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
@@ -913,9 +989,9 @@ namespace Sad
             if (right->getType()->isIntegerTy(1))
                 right = cg_.builder_->CreateZExt(right, cg_.getInt64Type(), "and.r.zext");
             if (left->getType()->isDoubleTy())
-                left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "and.l.f2i");
+                left = emitF64ToI64Sat(left, "and.l.f2i.sat");
             if (right->getType()->isDoubleTy())
-                right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "and.r.f2i");
+                right = emitF64ToI64Sat(right, "and.r.f2i.sat");
 
             llvm::Value *result = cg_.builder_->CreateAnd(left, right, "andtmp");
 
@@ -997,9 +1073,9 @@ namespace Sad
             if (right->getType()->isIntegerTy(1))
                 right = cg_.builder_->CreateZExt(right, cg_.getInt64Type(), "or.r.zext");
             if (left->getType()->isDoubleTy())
-                left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "or.l.f2i");
+                left = emitF64ToI64Sat(left, "or.l.f2i.sat");
             if (right->getType()->isDoubleTy())
-                right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "or.r.f2i");
+                right = emitF64ToI64Sat(right, "or.r.f2i.sat");
 
             llvm::Value *result = cg_.builder_->CreateOr(left, right, "ortmp");
 
@@ -1081,9 +1157,9 @@ namespace Sad
             if (right->getType()->isIntegerTy(1))
                 right = cg_.builder_->CreateZExt(right, cg_.getInt64Type(), "xor.r.zext");
             if (left->getType()->isDoubleTy())
-                left = cg_.builder_->CreateFPToSI(left, cg_.getInt64Type(), "xor.l.f2i");
+                left = emitF64ToI64Sat(left, "xor.l.f2i.sat");
             if (right->getType()->isDoubleTy())
-                right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "xor.r.f2i");
+                right = emitF64ToI64Sat(right, "xor.r.f2i.sat");
 
             llvm::Value *result = cg_.builder_->CreateXor(left, right, "xortmp");
 
@@ -1127,7 +1203,7 @@ namespace Sad
             if (operand->getType()->isPointerTy())
                 operand = cg_.builder_->CreatePtrToInt(operand, cg_.getInt64Type(), "not.ptoi");
             if (operand->getType()->isDoubleTy())
-                operand = cg_.builder_->CreateFPToSI(operand, cg_.getInt64Type(), "not.f2i");
+                operand = emitF64ToI64Sat(operand, "not.f2i.sat");
 
             // (AR) التمييز بين النفي المنطقي (ليس/!) والنفي البِتّي (~)
             // (EN) Distinguish logical NOT (ليس/!) from bitwise NOT (~)

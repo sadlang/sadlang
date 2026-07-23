@@ -10,6 +10,8 @@
 #include "builders/builtin_builder.h"
 #include "sir_builder.h"
 #include "builtin_registry.h"
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (م-2) / (EN) catalog bilingual messages (M-2)
+#include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include <stdexcept>
 #include <iostream>
 #include <optional>
@@ -18,6 +20,7 @@
 // (AR) اختصار لأسماء الدوال المركزية
 namespace Bs = Sad::Builtins::Names::Strings;
 namespace Ba = Sad::Builtins::Names::Arrays;
+namespace Bmp = Sad::Builtins::Names::Maps;
 
 namespace Sad
 {
@@ -563,6 +566,70 @@ namespace Sad
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
                     return BuildResult(resultReg, SadTypeKind::Array);
+                }
+
+                // (AR) زاوج(أ، ب) — اقتران مصفوفتين أزواجًا (Maps::ZIP بعد إعادة
+                //      التسمية من «ضم»): النتيجة مصفوفة أزواج بطول min(|أ|، |ب|)،
+                //      كلّ زوج مصفوفة داخليّة من عنصرين. تُخفَّض إلى ARRAY_ZIP
+                //      وتُولَّد حلقةً في الخلفيّة (بنية SadArray المتداخلة).
+                // (EN) zip(a, b) — pair two arrays (Maps::ZIP, renamed from «ضم»):
+                //      result is an array of two-element pair arrays of length
+                //      min(|a|, |b|). Lowered to ARRAY_ZIP, emitted as a loop in
+                //      the backend over the nested SadArray layout.
+                if (funcName == Bmp::ZIP)
+                {
+                    // (AR) Amelia (م-2): رفض ترجمة صريح — الإرجاع الصامت كان يُنتج
+                    //      BuildResult فارغًا ⇒ segfault عند الاستهلاك. الرسالة كتالوجيّة
+                    //      (SEM005) عبر errors_ فيفشل البناء عبر hasErrors().
+                    // (EN) Amelia (M-2): explicit compile rejection — the silent return
+                    //      produced an empty BuildResult ⇒ segfault on consumption.
+                    //      Catalog message (SEM005) pushed to errors_ fails the build.
+                    if (argResults.size() < 2)
+                    {
+                        Sad::Errors::RenderContext ectx;
+                        ectx.placeholders = {{"name", std::string(Bmp::ZIP)},
+                                             {"expected", "2"},
+                                             {"found", std::to_string(argResults.size())}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                        return BuildResult("", SadTypeKind::Array);
+                    }
+                    // (AR) حارس نوع بزمن الترجمة: معاملٌ معلومُ النوع سكونيًّا وليس مصفوفةً
+                    //      (عدد/عشريّ/منطقيّ/نصّ) ⇒ SEM002 — زاوج(5، [1، 2]) كانت تنهار
+                    //      segfault مترجَمةً بينما يرفضها المفسّر بخطأ نظيف. عند الجهل
+                    //      السكونيّ (Any/Unknown/سجلّ عابر) لا حارس زمنيّ ممكن: خانات
+                    //      المصفوفات مؤشّرات i64 خام بلا وسم نوعيّ (دَين موثَّق م-3).
+                    // (EN) Compile-time type guard: a statically known non-array operand
+                    //      (int/float/bool/string) ⇒ SEM002 — compiled زاوج(5, [1,2])
+                    //      segfaulted while the interpreter rejects it cleanly. When the
+                    //      type is statically unknown (Any/Unknown), no runtime guard is
+                    //      possible: array slots are raw untagged i64 pointers (M-3 debt).
+                    for (size_t zi = 0; zi < 2; ++zi)
+                    {
+                        const SadTypeKind zk = argResults[zi].type;
+                        if (zk == SadTypeKind::Integer || zk == SadTypeKind::Float ||
+                            zk == SadTypeKind::Boolean || zk == SadTypeKind::String)
+                        {
+                            Sad::Errors::RenderContext ectx;
+                            ectx.placeholders = {{"expected", sirTypeToString(SadTypeKind::Array)},
+                                                 {"found", sirTypeToString(zk)}};
+                            b_.errors_.push_back(
+                                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                    Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ectx));
+                            return BuildResult("", SadTypeKind::Array);
+                        }
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::ARRAY_ZIP);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    BuildResult zr(resultReg, SadTypeKind::Array);
+                    zr.elementType = SadTypeKind::Array;
+                    return zr;
                 }
 
                 return std::nullopt;

@@ -498,6 +498,8 @@ namespace Sad
                 return cg_.emitBuiltinArrayRemove(inst);
             case SIROpcode::ARRAY_CONCAT:
                 return cg_.emitArrayConcat(inst);
+            case SIROpcode::ARRAY_ZIP:
+                return cg_.emitArrayZip(inst);
 
             // ===== Tuples (3) - يُعاد استخدام بنية المصفوفة =====
             // (AR) الصفوف تشترك مع المصفوفات في نفس بنية runtime
@@ -564,6 +566,8 @@ namespace Sad
                 return cg_.emitI64ToF64(inst);
             case SIROpcode::F64_TO_I64:
                 return cg_.emitF64ToI64(inst);
+            case SIROpcode::F64_TO_I64_SAT:
+                return cg_.emitF64ToI64SatOp(inst);
             case SIROpcode::I64_TO_BOOL:
                 return cg_.emitI64ToBool(inst);
             case SIROpcode::BOOL_TO_I64:

@@ -739,6 +739,119 @@ namespace Sad
         }
 
         // ============================================================================
+        // (AR) زاوج (ARRAY_ZIP) — اقتران مصفوفتين أزواجًا: النتيجة مصفوفة بطول
+        //      min(|أ|، |ب|)، كلّ خانة فيها مؤشّر (ptrtoint) لمصفوفة زوج {أ[i]، ب[i]}.
+        //      الخانات تُنسخ خامًا (كما في ARRAY_CONCAT) فيُحفَظ تمثيل العنصر أيًّا كان.
+        // (EN) zip (ARRAY_ZIP) — pair two arrays: result has length min(|a|, |b|);
+        //      each slot holds a ptrtoint'd two-element pair array {a[i], b[i]}.
+        //      Slots are copied raw (like ARRAY_CONCAT), preserving element repr.
+        // ============================================================================
+        llvm::Value *ArrayOpsCodeGen::emitArrayZip(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_ZIP"}});
+                return nullptr;
+            }
+
+            llvm::Value *arr1 = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *arr2 = cg_.resolveOperand(inst->operands[1]);
+            if (!arr1 || !arr2)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "ARRAY_ZIP"}});
+                return nullptr;
+            }
+
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i64Ty = cg_.getInt64Type();
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
+
+            arr1 = cg_.normalizeArrayPtr(arr1, "zip.a");
+            arr2 = cg_.normalizeArrayPtr(arr2, "zip.b");
+            if (!arr1 || !arr2)
+                return nullptr;
+
+            // (AR) الأطوال ومؤشّرا البيانات / (EN) lengths and data pointers
+            llvm::Value *len1 = cg_.builder_->CreateLoad(
+                i64Ty, cg_.builder_->CreateStructGEP(arrTy, arr1, 0, "zip.len1.gep"), "zip.len1");
+            llvm::Value *data1 = cg_.builder_->CreateLoad(
+                ptrTy, cg_.builder_->CreateStructGEP(arrTy, arr1, 2, "zip.data1.gep"), "zip.data1");
+            llvm::Value *len2 = cg_.builder_->CreateLoad(
+                i64Ty, cg_.builder_->CreateStructGEP(arrTy, arr2, 0, "zip.len2.gep"), "zip.len2");
+            llvm::Value *data2 = cg_.builder_->CreateLoad(
+                ptrTy, cg_.builder_->CreateStructGEP(arrTy, arr2, 2, "zip.data2.gep"), "zip.data2");
+
+            // (AR) الطول = min(len1, len2) — دلالة المفسّر (std::min)
+            // (EN) length = min(len1, len2) — interpreter semantics (std::min)
+            llvm::Value *useLen1 = cg_.builder_->CreateICmpSLT(len1, len2, "zip.cmp");
+            llvm::Value *outLen = cg_.builder_->CreateSelect(useLen1, len1, len2, "zip.len");
+
+            // (AR) تخصيص مصفوفة الناتج / (EN) allocate the result array
+            auto *dlSize = llvm::ConstantExpr::getSizeOf(arrTy);
+            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
+            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *outArr = cg_.builder_->CreateCall(mallocFn, {dlSize}, "zip.arr");
+            cg_.builder_->CreateStore(outLen, cg_.builder_->CreateStructGEP(arrTy, outArr, 0, "zip.out.len.gep"));
+            cg_.builder_->CreateStore(outLen, cg_.builder_->CreateStructGEP(arrTy, outArr, 1, "zip.out.cap.gep"));
+            llvm::Value *slotSize = llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES);
+            llvm::Value *outBytes = cg_.builder_->CreateMul(outLen, slotSize, "zip.out.bytes");
+            llvm::Value *outData = cg_.builder_->CreateCall(mallocFn, {outBytes}, "zip.out.data");
+            cg_.builder_->CreateStore(outData, cg_.builder_->CreateStructGEP(arrTy, outArr, 2, "zip.out.data.gep"));
+
+            // (AR) الحلقة: لكلّ i أنشئ مصفوفة زوج {أ[i]، ب[i]} وخزّن مؤشّرها
+            // (EN) loop: for each i build pair array {a[i], b[i]} and store its pointer
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*cg_.context_, "zip.loop", curFunc);
+            llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(*cg_.context_, "zip.body", curFunc);
+            llvm::BasicBlock *doneBB = llvm::BasicBlock::Create(*cg_.context_, "zip.done", curFunc);
+
+            llvm::BasicBlock *entryBB = cg_.builder_->GetInsertBlock();
+            cg_.builder_->CreateBr(loopBB);
+
+            cg_.builder_->SetInsertPoint(loopBB);
+            llvm::PHINode *iVal = cg_.builder_->CreatePHI(i64Ty, 2, "zip.i");
+            iVal->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entryBB);
+            llvm::Value *cond = cg_.builder_->CreateICmpSLT(iVal, outLen, "zip.cond");
+            cg_.builder_->CreateCondBr(cond, bodyBB, doneBB);
+
+            cg_.builder_->SetInsertPoint(bodyBB);
+            llvm::Value *two = llvm::ConstantInt::get(i64Ty, 2);
+            llvm::Value *pairArr = cg_.builder_->CreateCall(mallocFn, {dlSize}, "zip.pair");
+            cg_.builder_->CreateStore(two, cg_.builder_->CreateStructGEP(arrTy, pairArr, 0, "zip.pair.len.gep"));
+            cg_.builder_->CreateStore(two, cg_.builder_->CreateStructGEP(arrTy, pairArr, 1, "zip.pair.cap.gep"));
+            llvm::Value *pairBytes = cg_.builder_->CreateMul(two, slotSize, "zip.pair.bytes");
+            llvm::Value *pairData = cg_.builder_->CreateCall(mallocFn, {pairBytes}, "zip.pair.data");
+            cg_.builder_->CreateStore(pairData, cg_.builder_->CreateStructGEP(arrTy, pairArr, 2, "zip.pair.data.gep"));
+
+            // (AR) نسخ الخانتين خامًا / (EN) raw copy of both slots
+            llvm::Value *e1 = cg_.builder_->CreateLoad(
+                i64Ty, cg_.builder_->CreateGEP(i64Ty, data1, {iVal}, "zip.e1.gep"), "zip.e1");
+            llvm::Value *e2 = cg_.builder_->CreateLoad(
+                i64Ty, cg_.builder_->CreateGEP(i64Ty, data2, {iVal}, "zip.e2.gep"), "zip.e2");
+            cg_.builder_->CreateStore(e1, cg_.builder_->CreateGEP(
+                i64Ty, pairData, {llvm::ConstantInt::get(i64Ty, 0)}, "zip.p0.gep"));
+            cg_.builder_->CreateStore(e2, cg_.builder_->CreateGEP(
+                i64Ty, pairData, {llvm::ConstantInt::get(i64Ty, 1)}, "zip.p1.gep"));
+
+            // (AR) خزّن مؤشّر الزوج (ptrtoint) في خانة الناتج
+            // (EN) store the pair pointer (ptrtoint) into the result slot
+            llvm::Value *pairAsI64 = cg_.builder_->CreatePtrToInt(pairArr, i64Ty, "zip.pair.i64");
+            cg_.builder_->CreateStore(pairAsI64, cg_.builder_->CreateGEP(i64Ty, outData, {iVal}, "zip.out.slot"));
+
+            llvm::Value *nextI = cg_.builder_->CreateAdd(iVal, llvm::ConstantInt::get(i64Ty, 1), "zip.next");
+            iVal->addIncoming(nextI, cg_.builder_->GetInsertBlock());
+            cg_.builder_->CreateBr(loopBB);
+
+            cg_.builder_->SetInsertPoint(doneBB);
+
+            if (inst->result.has_value())
+            {
+                cg_.context_info_.namedValues[inst->result->name] = outArr;
+            }
+            return outArr;
+        }
+
+        // ============================================================================
         // Phase N: String Core / عمليات النصوص الأساسية
         // ============================================================================
 

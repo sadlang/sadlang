@@ -38,6 +38,26 @@ namespace Sad
             llvm::Value *emitNeg(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitNullAssert(std::shared_ptr<SIRInstruction>); ///< تأكيد عدم الفراغ (NS-05)
             // الثنائية + الإزاحة
+            // (AR) تحويل double→i64 مُشبَع (llvm.fptosi.sat.i64.f64) — دلالة لغة ص
+            //      الموحَّدة للمعاملات العشريّة في البتّيّات: NaN⇒0، فوق INT64_MAX⇒
+            //      INT64_MAX، تحت INT64_MIN⇒INT64_MIN، وإلّا اقتطاع نحو الصفر.
+            //      fptosi العاديّ poison خارج المدى فيتبدّل ناتجه بالعتاد
+            //      (x86 cvttsd2si⇒INT64_MIN، ‏ARM fcvtzs⇒إشباع) — الإشباع يوحّدهما.
+            // (EN) Saturating double→i64 (llvm.fptosi.sat.i64.f64) — Sad's single
+            //      platform-independent semantics for float operands of bitwise
+            //      builtins: NaN⇒0, above INT64_MAX⇒INT64_MAX, below INT64_MIN⇒
+            //      INT64_MIN, else truncation toward zero. Plain fptosi is poison
+            //      out of range so results vary by hardware (x86 cvttsd2si vs ARM
+            //      fcvtzs) — saturation unifies them.
+            llvm::Value *emitF64ToI64Sat(llvm::Value *v, const llvm::Twine &name);
+
+            // (AR) معالج SIR F64_TO_I64_SAT — نقطة التحويل الواحدة لمعاملات
+            //      البتّيّات (double/SadDyn/i64-بتّات-Float/i64/i1) — انظر التوثيق
+            //      عند التعريف في arith_main.cpp
+            // (EN) Handler for SIR F64_TO_I64_SAT — the single conversion point for
+            //      bitwise operands; see the definition in arith_main.cpp
+            llvm::Value *emitF64ToI64SatOp(std::shared_ptr<SIRInstruction> inst);
+
             llvm::Value *emitAnd(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitOr(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitXor(std::shared_ptr<SIRInstruction>);

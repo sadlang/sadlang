@@ -211,6 +211,7 @@ namespace Sad
                 ARRAY_APPEND, ///< إضافة عنصر / Append element
                 ARRAY_REMOVE, ///< حذف عنصر / Remove element
                 ARRAY_CONCAT, ///< دمج مصفوفتين / Concatenate two arrays
+                ARRAY_ZIP,    ///< زاوج — اقتران مصفوفتين أزواجًا / Zip two arrays into pairs (Maps::ZIP)
 
                 // ==========================================
                 // 6b. الصفوف / Tuples (3)
@@ -284,6 +285,7 @@ namespace Sad
                 // ==========================================
                 I64_TO_F64,      ///< رقم صحيح → عشري / Integer to float
                 F64_TO_I64,      ///< رقم عشري → صحيح / Float to integer
+                F64_TO_I64_SAT,  ///< عشري → صحيح مُشبَع (llvm.fptosi.sat؛ دلالة البتّيّات الموحَّدة منصّيًّا) / Saturating float→int (bitwise-builtin semantics)
                 I64_TO_BOOL,     ///< رقم → منطقي / Integer to boolean
                 BOOL_TO_I64,     ///< منطقي → رقم / Boolean to integer
                 I64_TO_STRING,   ///< رقم → نص / Integer to string

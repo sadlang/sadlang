@@ -437,8 +437,15 @@ namespace Sad
             llvm::Value *payload = dynPayloadI64(cg, dyn);
             llvm::Value *isF = b.CreateICmpEQ(
                 dynKindByte(cg, dyn), llvm::ConstantInt::get(i8, DynKind::Float), "dyn.i.isf");
-            llvm::Value *fromF = b.CreateFPToSI(
-                b.CreateBitCast(payload, dbl, "dyn.i.fbc"), i64, "dyn.i.f2i");
+            // (AR) دلالة الإشباع الموحَّدة منصّيًّا (fptosi.sat) — كمواضع البتّيّات في
+            //      arith_main/arith_cmp، وإلّا يتباعد مسار SadDyn عن الدلالة المعلَنة.
+            // (EN) Platform-independent saturation (fptosi.sat) — matches the bitwise
+            //      sites in arith_main/arith_cmp; a raw fptosi here would make the
+            //      SadDyn path diverge from the declared semantics.
+            llvm::Function *satFn = llvm::Intrinsic::getDeclaration(
+                cg.module_.get(), llvm::Intrinsic::fptosi_sat, {i64, dbl});
+            llvm::Value *fromF = b.CreateCall(
+                satFn, {b.CreateBitCast(payload, dbl, "dyn.i.fbc")}, "dyn.i.f2i.sat");
             return b.CreateSelect(isF, fromF, payload, "dyn.i64");
         }
 

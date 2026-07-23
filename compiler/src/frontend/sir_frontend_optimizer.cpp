@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cmath>
+#include <limits> // (AR) numeric_limits لدلالة الإشباع (م-6) / (EN) numeric_limits for saturation semantics (M-6)
 #include <cassert>
 #include <iostream>
 
@@ -101,6 +102,45 @@ namespace Sad
                 }
             }
 
+            // ==================================================================
+            // (AR) Amelia (م-6، ثمّ إصلاح CI‏ ARM): تحويل double→i64 بدلالة الإشباع
+            //      — دلالة لغة ص الواحدة المستقلّة عن المنصّة (= llvm.fptosi.sat
+            //      بالضبط، وهي fcvtzs على ARM): NaN ⇒ 0، فوق INT64_MAX ⇒ INT64_MAX،
+            //      تحت INT64_MIN ⇒ INT64_MIN، وإلّا اقتطاع نحو الصفر. الدلالة
+            //      السابقة (cvttsd2si: خارج المدى ⇒ INT64_MIN) كانت دلالة عتاد
+            //      x86-64 حصرًا فكسرت التكافؤ على macOS ‏ARM64 (المسار الزمنيّ
+            //      والمفسّر يعطيان الإشباع هناك). المسار الزمنيّ المترجَم يُصدر
+            //      llvm.fptosi.sat.i64.f64 (emitF64ToI64Sat) والمفسّر يشبع صراحةً
+            //      — فالطيّ والزمن والمفسّر متطابقون على كلّ المنصّات.
+            // (EN) Amelia (M-6, then the ARM CI fix): double→i64 with saturation —
+            //      Sad's single platform-independent semantics (exactly
+            //      llvm.fptosi.sat, i.e. ARM's fcvtzs): NaN ⇒ 0, above INT64_MAX ⇒
+            //      INT64_MAX, below INT64_MIN ⇒ INT64_MIN, else truncation toward
+            //      zero. The previous cvttsd2si semantics (out-of-range ⇒ INT64_MIN)
+            //      was x86-64-only and broke parity on macOS ARM64 where both the
+            //      compiled runtime path and the interpreter saturate. Compiled
+            //      runtime emits llvm.fptosi.sat.i64.f64 (emitF64ToI64Sat) and the
+            //      interpreter saturates explicitly — fold, runtime and interpreter
+            //      agree on every platform.
+            // ==================================================================
+            static int64_t foldDoubleToI64Saturating(double d)
+            {
+                constexpr int64_t kMin = std::numeric_limits<int64_t>::min();
+                constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+                if (std::isnan(d))
+                    return 0;
+                // (AR) المدى القابل للتمثيل [-2^63، 2^63) — الحدّ الأعلى 2^63 بالضبط
+                //      كـdouble؛ ما بلغه أو تجاوزه يُشبَع لأعلى، وما دون -2^63 لأسفل.
+                // (EN) Representable range is [-2^63, 2^63); 2^63 is exact as double —
+                //      values at/above it saturate up, values below -2^63 saturate down.
+                constexpr double kTwoPow63 = 9223372036854775808.0; // 2^63
+                if (d >= kTwoPow63)
+                    return kMax;
+                if (d < -kTwoPow63)
+                    return kMin;
+                return static_cast<int64_t>(d); // (AR) اقتطاع نحو الصفر، معرَّف داخل المدى / (EN) in-range truncation toward zero
+            }
+
             static bool isBitwiseOp(SIROpcode op)
             {
                 switch (op)
@@ -171,6 +211,33 @@ namespace Sad
                     if (val.dataType == SadTypeKind::Float)
                     {
                         constants[resultName] = SIROperand::ConstantF64(-val.floatValue);
+                        return true;
+                    }
+                    return false;
+                }
+
+                // (AR) أحاديّ: F64_TO_I64_SAT — طيّ التحويل المُشبَع (نقطة التحويل
+                //      الواحدة للمعاملات البتّيّة) بنفس دلالة الإشباع المنصّيّة:
+                //      عشريّ ⇒ foldDoubleToI64Saturating؛ صحيح/منطقيّ ⇒ تمرير قيمته.
+                // (EN) Unary: F64_TO_I64_SAT — fold the saturating conversion (the
+                //      single conversion point for bitwise operands) with the same
+                //      platform-independent saturation: Float ⇒
+                //      foldDoubleToI64Saturating; Integer/Boolean ⇒ passthrough.
+                if (inst.opcode == SIROpcode::F64_TO_I64_SAT && inst.operands.size() == 1)
+                {
+                    if (!isConstant(inst.operands[0], constants))
+                        return false;
+                    auto val = resolveConstant(inst.operands[0], constants);
+                    if (val.dataType == SadTypeKind::Float)
+                    {
+                        constants[resultName] = SIROperand::ConstantI64(
+                            foldDoubleToI64Saturating(val.floatValue));
+                        return true;
+                    }
+                    if (val.dataType == SadTypeKind::Integer ||
+                        val.dataType == SadTypeKind::Boolean)
+                    {
+                        constants[resultName] = SIROperand::ConstantI64(val.intValue);
                         return true;
                     }
                     return false;
@@ -385,29 +452,68 @@ namespace Sad
                 //      because AND/OR on Boolean must preserve Boolean type
                 case SIROpcode::AND:
                 {
+                    // (AR) Amelia (م-1+م-6): معاملٌ عشريّ ⇒ اطوِ صراحةً بدلالة الإشباع
+                    //      (foldDoubleToI64Saturating) — قراءة intValue من ثابت Float كانت
+                    //      تعامل بِتّات double كعدد صحيح (وافق(6.0، 3) طُويت إلى 0)،
+                    //      والامتناع عن الطيّ (إصلاح م-1 الأوّل) دفع الثابت الضخم لمطويّة
+                    //      LLVM حيث FPToSI خارج المدى poison (وافق(1e30، -1) اعتباطيّة).
+                    // (EN) Amelia (M-1+M-6): a float operand ⇒ fold explicitly with
+                    //      saturation semantics — reading intValue off a Float constant
+                    //      treated raw double bits as an integer, and refusing to fold
+                    //      (the first M-1 fix) pushed huge constants into LLVM's folder
+                    //      where out-of-range FPToSI is poison (arbitrary values).
+                    const int64_t lhsI = lhsIsFloat ? foldDoubleToI64Saturating(lhs.floatValue) : lhs.intValue;
+                    const int64_t rhsI = rhsIsFloat ? foldDoubleToI64Saturating(rhs.floatValue) : rhs.intValue;
                     bool isBoolOp = (lhs.dataType == SadTypeKind::Boolean && rhs.dataType == SadTypeKind::Boolean);
                     if (isBoolOp)
-                        constants[resultName] = SIROperand::ConstantBool((lhs.intValue & rhs.intValue) != 0);
+                        constants[resultName] = SIROperand::ConstantBool((lhsI & rhsI) != 0);
                     else
-                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue & rhs.intValue);
+                        constants[resultName] = SIROperand::ConstantI64(lhsI & rhsI);
                     return true;
                 }
                 case SIROpcode::OR:
                 {
+                    // (AR) انظر تعليل AND أعلاه (م-1+م-6) / (EN) see AND rationale above (M-1+M-6)
+                    const int64_t lhsI = lhsIsFloat ? foldDoubleToI64Saturating(lhs.floatValue) : lhs.intValue;
+                    const int64_t rhsI = rhsIsFloat ? foldDoubleToI64Saturating(rhs.floatValue) : rhs.intValue;
                     bool isBoolOp = (lhs.dataType == SadTypeKind::Boolean && rhs.dataType == SadTypeKind::Boolean);
                     if (isBoolOp)
-                        constants[resultName] = SIROperand::ConstantBool((lhs.intValue | rhs.intValue) != 0);
+                        constants[resultName] = SIROperand::ConstantBool((lhsI | rhsI) != 0);
                     else
-                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue | rhs.intValue);
+                        constants[resultName] = SIROperand::ConstantI64(lhsI | rhsI);
                     return true;
                 }
                 case SIROpcode::XOR:
-                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue ^ rhs.intValue);
+                {
+                    // (AR) انظر تعليل AND أعلاه (م-1+م-6) / (EN) see AND rationale above (M-1+M-6)
+                    const int64_t lhsI = lhsIsFloat ? foldDoubleToI64Saturating(lhs.floatValue) : lhs.intValue;
+                    const int64_t rhsI = rhsIsFloat ? foldDoubleToI64Saturating(rhs.floatValue) : rhs.intValue;
+                    constants[resultName] = SIROperand::ConstantI64(lhsI ^ rhsI);
                     return true;
+                }
                 case SIROpcode::SHL:
-                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue << rhs.intValue);
+                {
+                    // (AR) العشريّ يُحوَّل بدلالة الإشباع (م-6)؛ وعدّادٌ خارج [0، 63]
+                    //      لا يُطوى — التقنيع الزمنيّ (&63) هو صاحب الدلالة، والطيّ
+                    //      بعدّاد خارجها UB في C++‎ (مسار المدمجات يطوي قناعه أوّلًا).
+                    // (EN) Floats convert with saturation semantics (M-6); a count outside
+                    //      [0, 63] is not folded — the runtime mask (&63) owns the
+                    //      semantics and folding it is C++ UB (the builtin path folds
+                    //      its mask first anyway).
+                    const int64_t lhsI = lhsIsFloat ? foldDoubleToI64Saturating(lhs.floatValue) : lhs.intValue;
+                    const int64_t rhsI = rhsIsFloat ? foldDoubleToI64Saturating(rhs.floatValue) : rhs.intValue;
+                    if (rhsI < 0 || rhsI > 63)
+                        return false;
+                    constants[resultName] = SIROperand::ConstantI64(lhsI << rhsI);
                     return true;
+                }
                 case SIROpcode::SHR:
+                {
+                    // (AR) انظر تعليل SHL أعلاه / (EN) see SHL rationale above
+                    const int64_t lhsI = lhsIsFloat ? foldDoubleToI64Saturating(lhs.floatValue) : lhs.intValue;
+                    const int64_t rhsI = rhsIsFloat ? foldDoubleToI64Saturating(rhs.floatValue) : rhs.intValue;
+                    if (rhsI < 0 || rhsI > 63)
+                        return false;
                     // (AR) إزاحة يمنى حسابيّة (int64_t موقَّع) — عامل `>>` في المفسّر (المرجع)
                     //      إزاحةٌ حسابيّة تحفظ الإشارة (-8 >> 1 = -4)، والخلفيّة تُصدر AShr.
                     //      كان cast لـuint64_t يطوي إزاحةً منطقيّة فيباعد الطيَّ عن زمن التشغيل.
@@ -415,9 +521,9 @@ namespace Sad
                     //      `>>` is a sign-preserving arithmetic shift (-8 >> 1 = -4) and the
                     //      backend emits AShr. The uint64_t cast folded a logical shift, diverging
                     //      the fold from runtime.
-                    constants[resultName] = SIROperand::ConstantI64(
-                        lhs.intValue >> rhs.intValue);
+                    constants[resultName] = SIROperand::ConstantI64(lhsI >> rhsI);
                     return true;
+                }
 
                 default:
                     return false;
@@ -567,6 +673,7 @@ namespace Sad
                 case SIROpcode::ARRAY_LEN:
                 case SIROpcode::ARRAY_NEW:
                 case SIROpcode::ARRAY_CONCAT:
+                case SIROpcode::ARRAY_ZIP:
                 case SIROpcode::TUPLE_NEW:
                 case SIROpcode::TUPLE_GET:
                 case SIROpcode::TUPLE_LEN:
@@ -609,6 +716,7 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════════
                 case SIROpcode::I64_TO_F64:
                 case SIROpcode::F64_TO_I64:
+                case SIROpcode::F64_TO_I64_SAT:
                 case SIROpcode::I64_TO_BOOL:
                 case SIROpcode::BOOL_TO_I64:
                 case SIROpcode::I64_TO_STRING:

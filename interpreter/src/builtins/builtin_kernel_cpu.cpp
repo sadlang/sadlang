@@ -10,6 +10,9 @@
 
 #include "builtins.h"
 #include "builtin_registry.h"
+#include "builtin_categories.h" // (AR) kBitwiseShiftCountMask المشترك بين المحرّكين (ت-1) / (EN) cross-engine shift-count mask (T-1)
+#include <cmath>  // (AR) isnan لدلالة الإشباع في البتّيّات / (EN) isnan for bitwise saturation semantics
+#include <limits> // (AR) numeric_limits لدلالة الإشباع / (EN) numeric_limits for saturation semantics
 namespace Kcpu = Sad::Builtins::Names::KernelCpu;
 #include "interpreter_core.h"
 
@@ -193,51 +196,99 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
 
     // ═══════════════════════════════════════════════════════════════
     // 3. العمليات البتية / Bitwise Operations
+    // (AR) القرار المعماريّ (توافق المحرّكين): البتّيّات تعمل على i64 (أعداد ص
+    //      الصحيحة 64-بت)، وعدّاد الإزاحة يُقنَّع بـ&63 (دلالة عتاد x86-64) —
+    //      سلوك حتميّ بلا UB للعدّاد السالب/الكبير، مطابق لتوليد المترجم.
+    //      الإزاحة اليمنى حسابيّة (تحفظ الإشارة) — int64_t >>.
+    // (EN) Architectural decision (engine parity): bitwise ops act on i64;
+    //      shift count is masked with &63 (x86-64 hardware semantics) —
+    //      deterministic, UB-free for negative/oversized counts, matching
+    //      compiler codegen. Right shift is arithmetic (sign-preserving).
     // ═══════════════════════════════════════════════════════════════
-    auto bit_and = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    // (AR) قناع عدّاد الإزاحة المشترك بين المحرّكين (ت-1) — مصدره الوحيد
+    //      shared/builtins/include/builtin_categories.h كي لا تتباعد النسختان.
+    // (EN) Cross-engine shared shift-count mask (T-1) — single source in
+    //      shared/builtins/include/builtin_categories.h so the engines cannot drift.
+    constexpr int64_t kShiftCountMask = Sad::Builtins::kBitwiseShiftCountMask;
+
+    // (AR) تحويل معامل بتّيّ إلى i64 بدلالة الإشباع المنصّيّة الموحَّدة (إصلاح CI‏
+    //      ARM): عشريّ NaN ⇒ 0، فوق INT64_MAX ⇒ INT64_MAX، تحت INT64_MIN ⇒
+    //      INT64_MIN، وإلّا اقتطاع نحو الصفر — نفس llvm.fptosi.sat.i64.f64 الذي
+    //      يُصدره المترجم (emitF64ToI64Sat) ونفس طيّ الثوابت
+    //      (foldDoubleToI64Saturating). cast خام على عشريّ خارج المدى UB منصّيّ
+    //      (x86 cvttsd2si⇒INT64_MIN، ‏ARM fcvtzs⇒إشباع) فكان يكسر التكافؤ على
+    //      macOS ‏ARM64. مقصور على مسار البتّيّات — toInt64 العامّ لم يُمَسّ.
+    // (EN) Saturating i64 conversion for bitwise operands — Sad's single
+    //      platform-independent semantics (ARM CI fix): float NaN ⇒ 0, above
+    //      INT64_MAX ⇒ INT64_MAX, below INT64_MIN ⇒ INT64_MIN, else truncation
+    //      toward zero — exactly the llvm.fptosi.sat.i64.f64 the compiler emits
+    //      and the constant fold applies. A raw out-of-range cast is UB and
+    //      hardware-dependent (x86 cvttsd2si vs ARM fcvtzs), breaking parity on
+    //      macOS ARM64. Scoped to the bitwise path — the general toInt64 is
+    //      untouched.
+    auto bitwiseOperandToI64 = [](const Data::Value &v) -> int64_t {
+        if (!v.isDouble())
+            return v.toInt64();
+        const double d = v.toDouble();
+        if (std::isnan(d))
+            return 0;
+        constexpr double kTwoPow63 = 9223372036854775808.0; // 2^63 (بالضبط كـdouble)
+        if (d >= kTwoPow63)
+            return std::numeric_limits<int64_t>::max();
+        if (d < -kTwoPow63)
+            return std::numeric_limits<int64_t>::min();
+        return static_cast<int64_t>(d); // اقتطاع نحو الصفر داخل المدى / in-range truncation
+    };
+
+    auto bit_and = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-        return std::make_shared<Data::Value>(args[0]->toInt() & args[1]->toInt());
+        return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) & bitwiseOperandToI64(*args[1]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_14), bit_and);
 
     // عملية OR بتية بين قيمتين
-    auto bit_or = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_or = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-        return std::make_shared<Data::Value>(args[0]->toInt() | args[1]->toInt());
+        return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) | bitwiseOperandToI64(*args[1]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_15), bit_or);
 
     // عملية XOR بتية حصرية بين قيمتين
-    auto bit_xor = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_xor = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-        return std::make_shared<Data::Value>(args[0]->toInt() ^ args[1]->toInt());
+        return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) ^ bitwiseOperandToI64(*args[1]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_16), bit_xor);
 
     // عملية NOT بتية (نفي بتي)
-    auto bit_not = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_not = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-        return std::make_shared<Data::Value>(~args[0]->toInt());
+        return std::make_shared<Data::Value>(~bitwiseOperandToI64(*args[0]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_17), bit_not);
 
-    // إزاحة بتية لليسار (SHL)
-    auto bit_shl = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    // إزاحة بتية لليسار (SHL) — العدّاد مُقنَّع بـ&63
+    auto bit_shl = [kShiftCountMask, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-        return std::make_shared<Data::Value>(args[0]->toInt() << args[1]->toInt());
+        const int64_t count = bitwiseOperandToI64(*args[1]) & kShiftCountMask;
+        // (AR) الإزاحة على غير المُوقَّع ثم الإرجاع لـi64 — سلوك التفاف حتميّ بلا UB
+        // (EN) Shift as unsigned then cast back — deterministic wrap, no UB
+        const uint64_t shifted = static_cast<uint64_t>(bitwiseOperandToI64(*args[0])) << count;
+        return std::make_shared<Data::Value>(static_cast<int64_t>(shifted));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_18), bit_shl);
 
-    // إزاحة بتية لليمين (SHR)
-    auto bit_shr = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    // إزاحة بتية لليمين (حسابيّة تحفظ الإشارة) — العدّاد مُقنَّع بـ&63
+    auto bit_shr = [kShiftCountMask, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-        return std::make_shared<Data::Value>(args[0]->toInt() >> args[1]->toInt());
+        const int64_t count = bitwiseOperandToI64(*args[1]) & kShiftCountMask;
+        return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) >> count);
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_19), bit_shr);
 

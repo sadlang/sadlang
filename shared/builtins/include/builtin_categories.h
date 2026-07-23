@@ -98,5 +98,18 @@ namespace Sad
             ANY = 5      /// (AR) أي نوع / (EN) Any type
         };
 
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) دلالة المدمجات البتّيّة الموحَّدة بين المحرّكين (rfcs#43):
+        //      قناع عدّاد الإزاحة — 6 بتّات (0–63) لعرض i64 (دلالة عتاد x86-64).
+        //      العدّاد السالب/الكبير يُقنَّع حتميًّا بلا UB في المفسّر والمترجم معًا.
+        //      ثابت واحد مشترك كي لا تتباعد نسختا المحرّكين (مراجعة أميليا ت-1).
+        // (EN) Cross-engine bitwise-builtin semantics (rfcs#43): shift-count mask —
+        //      6 bits (0–63) for the i64 width (x86-64 hardware semantics). Negative
+        //      or oversized counts are masked deterministically, UB-free, in both
+        //      the interpreter and the compiler. Single shared constant so the two
+        //      engines cannot drift (Amelia review T-1).
+        // ════════════════════════════════════════════════════════════════════
+        inline constexpr int64_t kBitwiseShiftCountMask = 63;
+
     } // namespace Builtins
 } // namespace Sad
