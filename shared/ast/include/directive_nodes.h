@@ -121,6 +121,7 @@ namespace Sad
             std::string operandClasses;  ///< (AR) أصناف المعاملات من المعجم (w/r/l/m/i/a) / operand classes
             bool readsDest = false;      ///< (AR) الوجهة تُقرأ قبل الكتابة (من المعجم) ⇒ ربط inout / dest read before written
             std::string implicitClobbers; ///< (AR) تلويث ضمنيّ من المعجم ("~{eax},~{edx}" أو فارغ) / implicit clobbers from the lexicon
+            int operandWidth = 0;        ///< (AR) عرض معامل السجلّ من المعجم (0=افتراضيّ الهدف، 16=${N:w}⇒سجلّ فرعيّ 16-بت لـltr/str) / register operand width (0=target default, 16=${N:w})
             std::vector<AsmOperand> operands;
             Lexer::Position pos;
         };

@@ -278,9 +278,18 @@ namespace Sad
                     return true;
                 };
 
-                auto operandRef = [&](const ::Sad::AST::AsmOperand &op, char /*cls*/, bool &ok) -> std::string {
+                // (AR) width: عرض معامل السجلّ من المعجم (operandWidth). 16 ⇒ نُصدر
+                //      ‎${N:w}‎ فيختار العتاد السجلَّ الفرعيّ 16-بت (‎%ax‎ لا ‎%eax‎) —
+                //      إلزاميّ لمعامل r/m16 (ltr/str) الذي يرفض المُجمِّع صيغته 32-بت.
+                //      يسري على معامل السجلّ (‎$N‎) فقط؛ الذاكرة/العدد لا مُعدِّل لهما.
+                // (EN) width: register-operand bit width; 16 ⇒ emit ${N:w} (16-bit
+                //      sub-register) for r/m16 mnemonics whose 32-bit form is rejected.
+                auto operandRef = [&](const ::Sad::AST::AsmOperand &op, char /*cls*/, int width, bool &ok) -> std::string {
                     if (op.kind == Kind::SadVariable)
-                        return "$" + std::to_string(slotOfVar(op.text));
+                    {
+                        const std::string slot = std::to_string(slotOfVar(op.text));
+                        return width == 16 ? ("${" + slot + ":w}") : ("$" + slot);
+                    }
                     if (op.kind == Kind::Memory)
                     {
                         std::string out;
@@ -354,7 +363,7 @@ namespace Sad
                                                  ? item.operandClasses[i]
                                                  : 'r';
                             bool ok = true;
-                            std::string r = operandRef(item.operands[i], cls, ok);
+                            std::string r = operandRef(item.operands[i], cls, item.operandWidth, ok);
                             if (!ok)
                                 asmFailed = true;
                             rendered.push_back(r);

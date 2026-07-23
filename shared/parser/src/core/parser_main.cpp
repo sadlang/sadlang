@@ -2276,6 +2276,7 @@ namespace Sad
                 item.operandClasses = info->operandClasses;
                 item.readsDest = info->readsDest;
                 item.implicitClobbers = info->implicitClobbers;
+                item.operandWidth = info->operandWidth;
                 item.pos = mnemonicPos;
 
                 const std::size_t expected = std::strlen(info->operandClasses);

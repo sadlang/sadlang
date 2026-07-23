@@ -121,6 +121,9 @@ namespace Sad
             //      writes_source في SoT) ⇒ متغيّر ص في موضع المصدر يُرفَض SEM034.
             //      implicitClobbers: قيود تلويث LLVM مفصولة بفواصل لسجلّات يكتبها
             //      العتاد ضمنيًّا (من implicit_writes في SoT)، أو سلسلة فارغة.
+            //      operandWidth: عرض معامل السجلّ بالبتّات حين يخالف الافتراض (0 =
+            //      عرض كلمة الهدف الطبيعيّ ⇒ ${N})؛ 16 ⇒ يُصدر الخفض ${N:w} فيُختار
+            //      السجلّ الفرعيّ 16-بت (ax لا eax) — لازم لمعامل r/m16 (ltr/str).
             struct Mnemonic
             {
                 const char *ar;             // (AR) canonical Arabic (diacritic-stripped)
@@ -129,6 +132,7 @@ namespace Sad
                 bool readsDest;             // (AR) الوجهة تُقرأ قبل الكتابة / dest is read before written
                 bool writesSource;          // (AR) المصدر يُكتب أيضًا (بادل) / source is also written (xchg)
                 const char *implicitClobbers; // (AR) تلويث ضمنيّ "~{eax},~{edx}" أو "" / implicit clobbers or empty
+                int operandWidth;           // (AR) عرض معامل السجلّ (0=افتراضيّ، 16=${N:w}) / register operand width
             };
 
             // (AR) سجلّ واحد: الاسم العربيّ ⇒ الاسم الأصليّ.
@@ -259,8 +263,24 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
                     seen_regs.add(reg_key)
                     parts.append("~{" + reg_map[reg_key] + "}")
                 implicit_clobbers = _IMPLICIT_CLOBBER_SEP.join(parts)
+            # (AR) operand_width: عرض معامل السجلّ (16 وحده مدعوم) — مسموح فقط على
+            #      منمنمة لها معامل سجلّ **واحد** (وجهة w أو مصدر r). المعامل الذاكريّ/
+            #      الفوريّ لا معنى لمُعدِّل ${N:w} فيه (المُجمِّع يستنتج حجم الذاكرة)،
+            #      والعرض لكلّ التعليمة لا لكلّ معامل (statement_asm يمرّره لكلّ المعاملات)
+            #      ⇒ منمنمة ثنائيّة السجلّات ستُصدر :w على كليهما خطأً. حارس يمنع كلَيهما.
+            # (EN) operand_width guard: exactly one register operand (w or r); the width
+            #      applies per-instruction, so a two-register mnemonic would wrongly
+            #      emit :w on both operands.
+            operand_width = 0
+            if "operand_width" in it:
+                reg_operands = classes.count("w") + classes.count("r")
+                if reg_operands != 1:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] المنمنمة {it['ar']} لها operand_width مع {reg_operands} معامل سجلّ — مسموح فقط بمعامل سجلّ واحد (المُعدِّل يسري على كلّ المعاملات)، احذف الحقل أو صحّح المعاملات"
+                    )
+                operand_width = int(it["operand_width"])
             lines.append(
-                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest}, {writes_source}, "{_hex(implicit_clobbers)}" }},'
+                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest}, {writes_source}, "{_hex(implicit_clobbers)}", {operand_width} }},'
                 f'  // {it["ar"]} => {it["en"]}'
             )
     lines.append("            };")
