@@ -502,13 +502,11 @@ namespace Sad
                     return llvm::ConstantInt::get(i64, 0);
                 }
 
-                llvm::FunctionType *strlenType = llvm::FunctionType::get(i64, {i8p}, false);
-                llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction("strlen", strlenType);
                 llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     stringValue,
                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(stringValue->getType())),
                     "net.strlen.is_null");
-                llvm::Value *measured = cg_.builder_->CreateCall(strlenFn, {stringValue}, "net.strlen");
+                llvm::Value *measured = cg_.emitStrlen(stringValue, "net.strlen");
                 return cg_.builder_->CreateSelect(isNull, llvm::ConstantInt::get(i64, 0), measured, "net.strlen.safe");
             };
 

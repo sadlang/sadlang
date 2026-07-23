@@ -92,7 +92,9 @@ namespace Sad { namespace LLVM {
             if (!inst || inst->operands.size() < 3)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getInt32Ty(*cg_.context_), {i8p, llvm::Type::getInt64Ty(*cg_.context_), i8p}, true);
+            // (AR) وسائط/عائد ‎size_t‎ الهدف (عقد C) — i64 ثابتًا يزيح الخانات على 32-بت.
+            llvm::Type *szTy = cg_.getSizeType();
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getInt32Ty(*cg_.context_), {i8p, szTy, i8p}, true);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("snprintf", ft);
             std::vector<llvm::Value *> args;
             for (auto &op : inst->operands)

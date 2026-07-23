@@ -73,19 +73,7 @@ namespace Sad
 
                     // (AR) استدعاء malloc للتخصيص على الكومة
                     // (EN) Call malloc for heap allocation
-                    llvm::Function *mallocFn = cg_.module_->getFunction("malloc");
-                    if (!mallocFn)
-                    {
-                        // (AR) إعلان malloc إذا لم يكن موجوداً
-                        // (EN) Declare malloc if not found
-                        llvm::FunctionType *mallocTy = llvm::FunctionType::get(
-                            llvm::PointerType::get(*cg_.context_, 0),
-                            {llvm::Type::getInt64Ty(*cg_.context_)}, false);
-                        mallocFn = llvm::Function::Create(
-                            mallocTy, llvm::Function::ExternalLinkage, "malloc", cg_.module_.get());
-                    }
-
-                    llvm::Value *rawPtr = cg_.builder_->CreateCall(mallocFn, {sizeVal}, regName + ".heap");
+                    llvm::Value *rawPtr = cg_.emitMalloc(sizeVal, regName + ".heap");
 
                     // (AR) تصفير الذاكرة المخصصة
                     // (EN) Zero-initialize the allocated memory
@@ -124,8 +112,8 @@ namespace Sad
                                 {
                                     // (AR) تخصيص SadArray {length=0, capacity=8, data=malloc(8*ptrsize)}
                                     // (EN) Allocate SadArray {length=0, capacity=8, data=malloc(8*ptrsize)}
-                                    llvm::Value *arrPtr = cg_.builder_->CreateCall(
-                                        mallocFn, {cg_.builder_->CreateIntCast(arrStructSize, i64Ty, false)},
+                                    llvm::Value *arrPtr = cg_.emitMalloc(
+                                        cg_.builder_->CreateIntCast(arrStructSize, i64Ty, false),
                                         fieldName + ".arr");
 
                                     // length = 0
@@ -143,8 +131,7 @@ namespace Sad
                                         llvm::ConstantInt::get(i64Ty, 8),
                                         llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES),
                                         fieldName + ".datasz");
-                                    llvm::Value *dataPtr = cg_.builder_->CreateCall(
-                                        mallocFn, {dataSize}, fieldName + ".data");
+                                    llvm::Value *dataPtr = cg_.emitMalloc(dataSize, fieldName + ".data");
                                     llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                                     cg_.builder_->CreateStore(dataPtr, dataGep);
 

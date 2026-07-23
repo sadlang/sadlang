@@ -67,9 +67,7 @@ namespace Sad
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
 
             // (AR) تخصيص 2 * 8 = 16 بايت للبنية [handle, flag]
-            auto mallocTy = llvm::FunctionType::get(i8PtrTy, {llvm::Type::getInt64Ty(*cg_.context_)}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
-            auto rawPtr = cg_.builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 16)});
+            auto rawPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 16));
             auto structPtr = cg_.builder_->CreateBitCast(rawPtr, i64PtrTy);
 
             // (AR) إنشاء القفل: CreateMutexA(NULL, FALSE, NULL)
@@ -449,9 +447,7 @@ namespace Sad
 
             // (AR) تخصيص 8 بايت للعداد
             // (EN) Allocate 8 bytes for counter
-            auto mallocTy = llvm::FunctionType::get(i8PtrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
-            auto rawPtr = cg_.builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 8)});
+            auto rawPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 8));
             auto structPtr = cg_.builder_->CreateBitCast(rawPtr, i64PtrTy);
 
             // (AR) تهيئة العداد = 0

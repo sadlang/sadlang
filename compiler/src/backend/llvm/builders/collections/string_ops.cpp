@@ -157,9 +157,7 @@ static llvm::Function *getOrCreateSplitHelper(
                             cg_.builder_->CreateMul(arrLen, llvm::ConstantInt::get(i64Ty, 34), "arr.str.elmsz"),
                             llvm::ConstantInt::get(i64Ty, 4), "arr.str.bufsz");
 
-                        llvm::FunctionType *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                        llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-                        llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufLen}, "arr.str.buf");
+                        llvm::Value *buf = cg_.emitMalloc(bufLen, "arr.str.buf");
 
                         // (AR) استدعاء __sad_array_to_string_impl(buf, arrLen, dataPtr) -> i32 (عدد الأحرف المكتوبة)
                         // (EN) Call __sad_array_to_string_impl(buf, arrLen, dataPtr) -> i32 (chars written)
@@ -604,14 +602,9 @@ static llvm::Function *getOrCreateSplitHelper(
             right = ensureString(right, rightTy, inst->operands[1]);
 
             // Get lengths using strlen
-            llvm::FunctionType *strlenType = llvm::FunctionType::get(
-                llvm::Type::getInt64Ty(*cg_.context_),
-                {llvm::PointerType::getUnqual(*cg_.context_)},
-                false);
-            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction("strlen", strlenType);
 
-            llvm::Value *len1 = cg_.builder_->CreateCall(strlenFn, {left}, "len1");
-            llvm::Value *len2 = cg_.builder_->CreateCall(strlenFn, {right}, "len2");
+            llvm::Value *len1 = cg_.emitStrlen(left, "len1");
+            llvm::Value *len2 = cg_.emitStrlen(right, "len2");
             llvm::Value *totalLen = cg_.builder_->CreateAdd(len1, len2, "totallen");
             llvm::Value *bufSize = cg_.builder_->CreateAdd(totalLen,
                                                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1), "bufsize");
@@ -619,30 +612,30 @@ static llvm::Function *getOrCreateSplitHelper(
             // Allocate result buffer on HEAP (using malloc) so it's safe to return
             // (AR) تخصيص على الـ Heap بدلاً من Stack لتجنب مشاكل الرجوع من الدوال
             // (EN) Allocate on heap instead of stack to avoid returning dangling pointers
-            llvm::FunctionType *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_),
-                {llvm::Type::getInt64Ty(*cg_.context_)},
-                false);
-            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *result = cg_.builder_->CreateCall(mallocFn, {bufSize}, "concat.buf");
+            llvm::Value *result = cg_.emitMalloc(bufSize, "concat.buf");
 
             // Copy first string using memcpy
+            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت) — يطابق
+            //      النداء المكتبيّ الذي تولّده الخلفيّة وتعريفَ وقت التشغيل الحرّ.
+            llvm::Type *szTy = cg_.getSizeType();
             llvm::FunctionType *memcpyType = llvm::FunctionType::get(
                 llvm::PointerType::getUnqual(*cg_.context_),
                 {llvm::PointerType::getUnqual(*cg_.context_),
                  llvm::PointerType::getUnqual(*cg_.context_),
-                 llvm::Type::getInt64Ty(*cg_.context_)},
+                 szTy},
                 false);
             llvm::FunctionCallee memcpyFn = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
 
-            cg_.builder_->CreateCall(memcpyFn, {result, left, len1});
+            cg_.builder_->CreateCall(memcpyFn, {result, left,
+                cg_.builder_->CreateZExtOrTrunc(len1, szTy, "concat.len1.sz")});
 
             // Copy second string after first
             llvm::Value *dest2 = cg_.builder_->CreateGEP(
                 llvm::Type::getInt8Ty(*cg_.context_), result, len1, "dest2");
             llvm::Value *copyLen2 = cg_.builder_->CreateAdd(len2,
                                                         llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1), "copylen2");
-            cg_.builder_->CreateCall(memcpyFn, {dest2, right, copyLen2});
+            cg_.builder_->CreateCall(memcpyFn, {dest2, right,
+                cg_.builder_->CreateZExtOrTrunc(copyLen2, szTy, "copylen2.sz")});
 
             if (inst->result.has_value())
             {
@@ -902,14 +895,10 @@ static llvm::Function *getOrCreateSplitHelper(
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
             auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
 
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *len = cg_.builder_->CreateCall(strlenFunc, {str}, "len");
+            llvm::Value *len = cg_.emitStrlen(str, "len");
 
             llvm::Value *newLen = cg_.builder_->CreateAdd(len, llvm::ConstantInt::get(i64Ty, 1));
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {newLen}, "upper_buf");
+            llvm::Value *buf = cg_.emitMalloc(newLen, "upper_buf");
 
             // strcpy then loop toupper
             auto *strcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
@@ -946,14 +935,10 @@ static llvm::Function *getOrCreateSplitHelper(
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i64Ty = cg_.getInt64Type();
 
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *len = cg_.builder_->CreateCall(strlenFunc, {str}, "len");
+            llvm::Value *len = cg_.emitStrlen(str, "len");
 
             llvm::Value *newLen = cg_.builder_->CreateAdd(len, llvm::ConstantInt::get(i64Ty, 1));
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {newLen}, "lower_buf");
+            llvm::Value *buf = cg_.emitMalloc(newLen, "lower_buf");
 
             auto *strcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
             auto strcpyFunc = cg_.module_->getOrInsertFunction("strcpy", strcpyType);
@@ -1040,20 +1025,16 @@ static llvm::Function *getOrCreateSplitHelper(
 
             // Build inline: find first occurrence with strstr, copy before + new + after
             // Allocate generous buffer: strlen(str) * 2 + strlen(newStr) + 1
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *srcLen = cg_.builder_->CreateCall(strlenFunc, {str}, "src.len");
-            llvm::Value *oldLen = cg_.builder_->CreateCall(strlenFunc, {oldStr}, "old.len");
-            llvm::Value *newLen = cg_.builder_->CreateCall(strlenFunc, {newStr}, "new.len");
+            llvm::Value *srcLen = cg_.emitStrlen(str, "src.len");
+            llvm::Value *oldLen = cg_.emitStrlen(oldStr, "old.len");
+            llvm::Value *newLen = cg_.emitStrlen(newStr, "new.len");
 
             // bufSize = srcLen * 2 + newLen + 1 (generous)
             llvm::Value *bufSize = cg_.builder_->CreateMul(srcLen, llvm::ConstantInt::get(i64Ty, 2));
             bufSize = cg_.builder_->CreateAdd(bufSize, newLen);
             bufSize = cg_.builder_->CreateAdd(bufSize, llvm::ConstantInt::get(i64Ty, 1));
 
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {bufSize}, "replace_buf");
+            llvm::Value *buf = cg_.emitMalloc(bufSize, "replace_buf");
 
             // Use strstr to find oldStr in str
             auto *strstrType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
@@ -1080,16 +1061,22 @@ static llvm::Function *getOrCreateSplitHelper(
             // Found: copy prefix + newStr + suffix
             cg_.builder_->SetInsertPoint(foundBB);
             llvm::Value *prefixLen = cg_.builder_->CreatePtrDiff(i8Ty, found, str, "prefix.len");
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت) — يطابق
+            //      النداء المكتبيّ الذي تولّده الخلفيّة وتعريفَ وقت التشغيل الحرّ.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
             auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {buf, str, prefixLen}); // copy prefix
+            cg_.builder_->CreateCall(memcpyFunc, {buf, str,
+                cg_.builder_->CreateZExtOrTrunc(prefixLen, szTy, "prefix.len.sz")}); // copy prefix
             llvm::Value *dst1 = cg_.builder_->CreateGEP(i8Ty, buf, {prefixLen}, "dst1");
-            cg_.builder_->CreateCall(memcpyFunc, {dst1, newStr, newLen}); // copy newStr
+            cg_.builder_->CreateCall(memcpyFunc, {dst1, newStr,
+                cg_.builder_->CreateZExtOrTrunc(newLen, szTy, "new.len.sz")}); // copy newStr
             llvm::Value *dst2 = cg_.builder_->CreateGEP(i8Ty, dst1, {newLen}, "dst2");
             llvm::Value *suffixStart = cg_.builder_->CreateGEP(i8Ty, found, {oldLen}, "suffix.start");
             llvm::Value *suffixLen = cg_.builder_->CreateSub(srcLen, cg_.builder_->CreateAdd(prefixLen, oldLen));
             llvm::Value *suffixCopyLen = cg_.builder_->CreateAdd(suffixLen, llvm::ConstantInt::get(i64Ty, 1)); // include null
-            cg_.builder_->CreateCall(memcpyFunc, {dst2, suffixStart, suffixCopyLen});
+            cg_.builder_->CreateCall(memcpyFunc, {dst2, suffixStart,
+                cg_.builder_->CreateZExtOrTrunc(suffixCopyLen, szTy, "suffix.len.sz")});
             cg_.builder_->CreateBr(mergeBB);
 
             cg_.builder_->SetInsertPoint(mergeBB);
@@ -1139,17 +1126,19 @@ static llvm::Function *getOrCreateSplitHelper(
 
             // (AR) حجز ذاكرة: byteLen + 1
             llvm::Value *bufSize = cg_.builder_->CreateAdd(byteLen, llvm::ConstantInt::get(i64Ty, 1));
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {bufSize}, "substr_buf");
+            llvm::Value *buf = cg_.emitMalloc(bufSize, "substr_buf");
 
             // (AR) مؤشر المصدر: str + byteStart
             llvm::Value *srcPtr = cg_.builder_->CreateGEP(i8Ty, str, {byteStart}, "substr.src");
 
             // memcpy(buf, srcPtr, byteLen)
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت) — يطابق
+            //      النداء المكتبيّ الذي تولّده الخلفيّة وتعريفَ وقت التشغيل الحرّ.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
             auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {buf, srcPtr, byteLen});
+            cg_.builder_->CreateCall(memcpyFunc, {buf, srcPtr,
+                cg_.builder_->CreateZExtOrTrunc(byteLen, szTy, "substr.len.sz")});
 
             // (AR) إنهاء النص بـ null
             llvm::Value *endPtr = cg_.builder_->CreateGEP(i8Ty, buf, {byteLen}, "substr.end");
@@ -1180,29 +1169,33 @@ static llvm::Function *getOrCreateSplitHelper(
 
             // Use strspn to find leading whitespace count, then strlen-based trim end
             // strspn(str, " \t\n\r") returns number of leading whitespace chars
-            auto *strspnType = llvm::FunctionType::get(i64Ty, {ptrTy, ptrTy}, false);
+            // (AR) ‎strspn‎ يعيد ‎size_t‎؛ إعلانه i64 على 32-بت يقرأ ‎edx‎ قمامةً
+            //      كعدد المسافات البادئة ⇒ ‎GEP‎ خارج النصّ. نمدّده بعد النداء.
+            auto *strspnType = llvm::FunctionType::get(cg_.getSizeType(), {ptrTy, ptrTy}, false);
             auto strspnFunc = cg_.module_->getOrInsertFunction("strspn", strspnType);
             llvm::Value *ws = cg_.builder_->CreateGlobalStringPtr(" \t\n\r", "ws_chars");
-            llvm::Value *leadingWS = cg_.builder_->CreateCall(strspnFunc, {str, ws}, "leading.ws");
+            llvm::Value *leadingWS = cg_.builder_->CreateZExtOrTrunc(
+                cg_.builder_->CreateCall(strspnFunc, {str, ws}, "leading.ws.sz"),
+                i64Ty, "leading.ws");
 
             // start = str + leadingWS
             llvm::Value *start = cg_.builder_->CreateGEP(i8Ty, str, {leadingWS}, "trim.start");
 
             // Get length of remaining string
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *remLen = cg_.builder_->CreateCall(strlenFunc, {start}, "rem.len");
+            llvm::Value *remLen = cg_.emitStrlen(start, "rem.len");
 
             // Allocate buffer: remLen + 1
             llvm::Value *bufSize = cg_.builder_->CreateAdd(remLen, llvm::ConstantInt::get(i64Ty, 1));
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {bufSize}, "trim_buf");
+            llvm::Value *buf = cg_.emitMalloc(bufSize, "trim_buf");
 
             // memcpy start content
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت) — يطابق
+            //      النداء المكتبيّ الذي تولّده الخلفيّة وتعريفَ وقت التشغيل الحرّ.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
             auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {buf, start, bufSize});
+            cg_.builder_->CreateCall(memcpyFunc, {buf, start,
+                cg_.builder_->CreateZExtOrTrunc(bufSize, szTy, "trim.size.sz")});
 
             // Trim trailing whitespace: walk back from end while isspace
             // Simple approach: create loop to null-terminate at first non-whitespace from end
@@ -1327,15 +1320,10 @@ static llvm::Function *getOrCreateSplitHelper(
             auto ci8 = [&](int v) { return llvm::ConstantInt::get(i8Ty, v); };
 
             // (AR) البدائيّات الخارجيّة (libc مستضافةً / __sad حرًّا).
-            auto mallocF = mod->getOrInsertFunction(
-                "malloc", llvm::FunctionType::get(ptrTy, {i64Ty}, false));
-            auto reallocF = mod->getOrInsertFunction(
-                "realloc", llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty}, false));
+            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف — يطابق تعريف وقت التشغيل الحرّ.
+            llvm::Type *szTy = cg_.getSizeType();
             auto memcpyF = mod->getOrInsertFunction(
-                "memcpy", llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false));
-            auto strlenF = mod->getOrInsertFunction(
-                "strlen", llvm::FunctionType::get(i64Ty, {ptrTy}, false));
-
+                "memcpy", llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false));
             auto savedIP = cg_.builder_->saveIP();
             auto &B = *cg_.builder_;
             auto mkBB = [&](const char *n, llvm::Function *f) {
@@ -1403,10 +1391,10 @@ static llvm::Function *getOrCreateSplitHelper(
                                  *found = mkBB("found", f), *retH = mkBB("ret.h", f),
                                  *retN = mkBB("ret.null", f);
                 B.SetInsertPoint(e);
-                llvm::Value *nlen = B.CreateCall(strlenF, {n}, "nlen");
+                llvm::Value *nlen = cg_.emitStrlen(n, "nlen");
                 B.CreateCondBr(B.CreateICmpEQ(nlen, ci64(0)), retH, cont);
                 B.SetInsertPoint(cont);
-                llvm::Value *hlen = B.CreateCall(strlenF, {h}, "hlen");
+                llvm::Value *hlen = cg_.emitStrlen(h, "hlen");
                 B.CreateCondBr(B.CreateICmpULT(hlen, nlen), retN, oInit);
                 B.SetInsertPoint(oInit);
                 llvm::Value *lastStart = B.CreateSub(hlen, nlen, "last.start");
@@ -1450,9 +1438,10 @@ static llvm::Function *getOrCreateSplitHelper(
                 llvm::Value *src = f->getArg(0), *start = f->getArg(1), *len = f->getArg(2);
                 llvm::BasicBlock *e = mkBB("entry", f);
                 B.SetInsertPoint(e);
-                llvm::Value *buf = B.CreateCall(mallocF, {B.CreateAdd(len, ci64(1))}, "buf");
+                llvm::Value *buf = cg_.emitMalloc(B.CreateAdd(len, ci64(1)), "buf");
                 llvm::Value *srcStart = B.CreateGEP(i8Ty, src, start, "src.start");
-                B.CreateCall(memcpyF, {buf, srcStart, len});
+                B.CreateCall(memcpyF, {buf, srcStart,
+                    B.CreateZExtOrTrunc(len, szTy, "substr.dup.len.sz")});
                 B.CreateStore(ci8(0), B.CreateGEP(i8Ty, buf, len));
                 B.CreateRet(buf);
             }
@@ -1481,7 +1470,7 @@ static llvm::Function *getOrCreateSplitHelper(
                 llvm::Value *oldData = B.CreateLoad(ptrTy, datP, "old.data");
                 llvm::Value *newCap = B.CreateMul(cap, ci64(2), "new.cap");
                 llvm::Value *newBytes = B.CreateMul(newCap, ci64(SLOT), "new.bytes");
-                llvm::Value *newData = B.CreateCall(reallocF, {oldData, newBytes}, "new.data");
+                llvm::Value *newData = cg_.emitRealloc(oldData, newBytes, "new.data");
                 B.CreateStore(newData, datP);
                 B.CreateStore(newCap, capP);
                 B.CreateBr(store);
@@ -1519,15 +1508,15 @@ static llvm::Function *getOrCreateSplitHelper(
                                  *doneBB = mkBB("done", splitFn);
                 B.SetInsertPoint(e);
                 // arr = malloc(sizeof SadArray); len=0, cap=8, data=malloc(8*SLOT)
-                llvm::Value *arr = B.CreateCall(mallocF, {arrAllocSz}, "arr");
+                llvm::Value *arr = cg_.emitMalloc(arrAllocSz, "arr");
                 llvm::Value *initCap = ci64(8);
                 llvm::Value *data0 =
-                    B.CreateCall(mallocF, {B.CreateMul(initCap, ci64(SLOT))}, "data0");
+                    cg_.emitMalloc(B.CreateMul(initCap, ci64(SLOT)), "data0");
                 B.CreateStore(ci64(0), B.CreateStructGEP(arrTy, arr, 0));
                 B.CreateStore(initCap, B.CreateStructGEP(arrTy, arr, 1));
                 B.CreateStore(data0, B.CreateStructGEP(arrTy, arr, 2));
-                llvm::Value *strLen = B.CreateCall(strlenF, {str}, "str.len");
-                llvm::Value *delimLen = B.CreateCall(strlenF, {delim}, "delim.len");
+                llvm::Value *strLen = cg_.emitStrlen(str, "str.len");
+                llvm::Value *delimLen = cg_.emitStrlen(delim, "delim.len");
                 // maxSplits==0 ⇒ النصّ كاملًا في عنصر واحد
                 B.CreateCondBr(B.CreateICmpEQ(maxSplits, ci64(0)), whole, notZero);
                 B.SetInsertPoint(whole);
@@ -1630,16 +1619,12 @@ static llvm::Function *getOrCreateSplitHelper(
             llvm::Value *dataPtr = cg_.builder_->CreateLoad(ptrTy, datGep, "join.data");
 
             // Get separator length
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *sepLen = cg_.builder_->CreateCall(strlenFunc, {sep}, "sep.len");
+            llvm::Value *sepLen = cg_.emitStrlen(sep, "sep.len");
 
             // Allocate generous buffer: arrLen * 256 (rough estimate)
             llvm::Value *bufSize = cg_.builder_->CreateMul(arrLen, llvm::ConstantInt::get(i64Ty, 256));
             bufSize = cg_.builder_->CreateAdd(bufSize, llvm::ConstantInt::get(i64Ty, 1));
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {bufSize}, "join.buf");
+            llvm::Value *buf = cg_.emitMalloc(bufSize, "join.buf");
 
             // Start with empty string
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), buf);
@@ -1708,15 +1693,15 @@ static llvm::Function *getOrCreateSplitHelper(
             auto i64Ty = cg_.getInt64Type();
 
             // Get prefix length
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *prefLen = cg_.builder_->CreateCall(strlenFunc, {prefix}, "pref.len");
+
+            llvm::Value *prefLen = cg_.emitStrlen(prefix, "pref.len");
 
             // strncmp(str, prefix, prefLen)
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
-            auto *strncmpType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, i64Ty}, false);
+            auto *strncmpType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, cg_.getSizeType()}, false);
             auto strncmpFunc = cg_.module_->getOrInsertFunction("strncmp", strncmpType);
-            llvm::Value *cmp = cg_.builder_->CreateCall(strncmpFunc, {str, prefix, prefLen}, "starts.cmp");
+            llvm::Value *cmp = cg_.builder_->CreateCall(strncmpFunc,
+                {str, prefix, cg_.coerceToSize(prefLen, "pref.len.sz")}, "starts.cmp");
             llvm::Value *cmpBool = cg_.builder_->CreateICmpEQ(cmp,
                                                           llvm::ConstantInt::get(i32Ty, 0), "starts_with");
             llvm::Value *result = cg_.builder_->CreateZExt(cmpBool, i64Ty, "starts_with.i64");
@@ -1743,10 +1728,8 @@ static llvm::Function *getOrCreateSplitHelper(
             auto i64Ty = cg_.getInt64Type();
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
 
-            auto *strlenType = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
-            auto strlenFunc = cg_.module_->getOrInsertFunction("strlen", strlenType);
-            llvm::Value *strLen = cg_.builder_->CreateCall(strlenFunc, {str}, "str.len");
-            llvm::Value *sufLen = cg_.builder_->CreateCall(strlenFunc, {suffix}, "suf.len");
+            llvm::Value *strLen = cg_.emitStrlen(str, "str.len");
+            llvm::Value *sufLen = cg_.emitStrlen(suffix, "suf.len");
 
             // Compare last sufLen chars: str + (strLen - sufLen)
             llvm::Value *offset = cg_.builder_->CreateSub(strLen, sufLen, "offset");

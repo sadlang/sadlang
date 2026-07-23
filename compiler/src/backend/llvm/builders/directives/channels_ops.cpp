@@ -76,9 +76,7 @@ namespace Sad
 
             // (AR) تخصيص الذاكرة وتصفيرها
             // (EN) Allocate and zero-initialize
-            auto mallocTy = llvm::FunctionType::get(i8PtrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
-            auto chanPtr = cg_.builder_->CreateCall(mallocFn, {totalSize});
+            auto chanPtr = cg_.emitMalloc(totalSize);
             cg_.builder_->CreateMemSet(chanPtr, cg_.builder_->getInt8(0), totalSize, llvm::MaybeAlign(8));
 
             // (AR) تخزين السعة في الموقع [0]

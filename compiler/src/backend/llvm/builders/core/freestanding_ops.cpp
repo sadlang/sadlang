@@ -41,6 +41,16 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     llvm::Type* i8Ty    = llvm::Type::getInt8Ty(*cg_.context_);
     llvm::Type* i32Ty   = llvm::Type::getInt32Ty(*cg_.context_);
     llvm::Type* i64Ty   = llvm::Type::getInt64Ty(*cg_.context_);
+    // (AR) نوع الحجم = ‎size_t‎ الهدف (بحجم المؤشّر): ‎i32‎ على i686، ‎i64‎ على x86-64.
+    //      ⚠️ حرِج لدوالّ الذاكرة الأربع: الخلفيّة تخفّض ‎llvm.memset/memcpy/memmove‎
+    //      (و‎expandMemCmp‎) إلى **نداءات مكتبيّة بوسيط ‎size_t‎**. تعريفٌ بـ‎i64‎ ثابت
+    //      يقرأ 8 بايت بينما النداء يدفع 4 على هدف 32-بت ⇒ النصف الأعلى قمامة
+    //      ⇒ حجم هائل ⇒ دوس ذاكرة صامت. (كان تعريف C خارجيّ يقنّع العيب في
+    //      نواة النحلة حتى حُذف في لبنة «صفر C».)
+    // (EN) Size type = target size_t (pointer-sized). The backend lowers the
+    //      mem* intrinsics to libcalls taking size_t; a hardcoded i64 length
+    //      mismatches on 32-bit targets (callee reads 8, caller pushes 4).
+    llvm::Type* sizeTy  = cg_.module_->getDataLayout().getIntPtrType(*cg_.context_);
     llvm::Type* ptrTy   = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Type* voidTy  = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Type* dblTy   = llvm::Type::getDoubleTy(*cg_.context_);
@@ -58,22 +68,22 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     // ========================================================================
     // 3. memcpy — Byte-by-byte copy loop
     // ========================================================================
-    emitFreestandingMemcpy(i8Ty, i64Ty, ptrTy);
+    emitFreestandingMemcpy(i8Ty, sizeTy, ptrTy);
 
     // ========================================================================
     // 3b. memmove — Overlap-safe directional copy (clang -ffreestanding needs it)
     // ========================================================================
-    emitFreestandingMemmove(i8Ty, i64Ty, ptrTy);
+    emitFreestandingMemmove(i8Ty, sizeTy, ptrTy);
 
     // ========================================================================
     // 4. memset — Byte-by-byte set loop
     // ========================================================================
-    emitFreestandingMemset(i8Ty, i32Ty, i64Ty, ptrTy);
+    emitFreestandingMemset(i8Ty, i32Ty, sizeTy, ptrTy);
 
     // ========================================================================
     // 4b. memcmp — Byte-by-byte unsigned comparison (clang -ffreestanding needs it)
     // ========================================================================
-    emitFreestandingMemcmp(i8Ty, i32Ty, i64Ty, ptrTy);
+    emitFreestandingMemcmp(i8Ty, i32Ty, sizeTy, ptrTy);
 
     // ========================================================================
     // 5. strlen — Scan for null byte
@@ -302,6 +312,11 @@ static llvm::Function* getOrCreateFreestandingFunc(
                             val = bld.CreateIntToPtr(val, implTy);
                         else if (val->getType()->isPointerTy() && implTy->isIntegerTy())
                             val = bld.CreatePtrToInt(val, implTy);
+                        // (AR) صحيح↔صحيح بعرضين مختلفين: يقع حين يصرّح المصدر
+                        //      حجمًا i64 بينما التطبيق يأخذ size_t الهدف (i32).
+                        //      بدونه يخرج الجسر بنداء مخالف النوع ⇒ verifyModule يسقط.
+                        else if (val->getType()->isIntegerTy() && implTy->isIntegerTy())
+                            val = bld.CreateZExtOrTrunc(val, implTy);
                     }
                 }
                 args.push_back(val);
@@ -319,6 +334,8 @@ static llvm::Function* getOrCreateFreestandingFunc(
                         retVal = bld.CreatePtrToInt(result, fn->getReturnType());
                     else if (result->getType()->isIntegerTy() && fn->getReturnType()->isPointerTy())
                         retVal = bld.CreateIntToPtr(result, fn->getReturnType());
+                    else if (result->getType()->isIntegerTy() && fn->getReturnType()->isIntegerTy())
+                        retVal = bld.CreateZExtOrTrunc(result, fn->getReturnType());
                 }
                 bld.CreateRet(retVal);
             }
@@ -371,7 +388,10 @@ void FreestandingCodeGen::emitFreestandingMalloc(
     constexpr uint64_t HEAP_SIZE = 4 * 1024 * 1024; // 4MB
     constexpr uint64_t HEADER_SIZE = 16; // (AR) ترويسة الحجم — تحفظ محاذاة 16
 
-    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
+    // (AR) ⚠️ الوسائط/العائد بنوع ‎size_t‎ الهدف (i32 على 32-بت) ليطابق عقد C
+    //      ومواقع الاستدعاء المولَّدة؛ الحساب الداخليّ يبقى i64.
+    llvm::Type* szTy = cg_.getSizeType();
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {szTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "malloc", ft);
     if (!fn) return;
 
@@ -399,7 +419,7 @@ void FreestandingCodeGen::emitFreestandingMalloc(
     llvm::BasicBlock* okBB  = llvm::BasicBlock::Create(*cg_.context_, "ok", fn);
 
     cg_.builder_->SetInsertPoint(entry);
-    llvm::Value* size = fn->getArg(0);
+    llvm::Value* size = cg_.builder_->CreateZExtOrTrunc(fn->getArg(0), i64Ty, "size.i64");
 
     // (AR) محاذاة إلى 16 بايت: aligned = (offset + 15) & ~15
     // (EN) Align to 16 bytes
@@ -456,9 +476,15 @@ void FreestandingCodeGen::emitFreestandingFree(llvm::Type* ptrTy, llvm::Type* vo
 // 3. memcpy — Fast 8-byte (qword) forward copy with byte tail
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingMemcpy(
-    llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+    llvm::Type* i8Ty, llvm::Type* sizeTy, llvm::Type* ptrTy)
 {
-    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+    // (AR) ⚠️ تمييزٌ إلزاميّ بين نوعين لا يجوز خلطهما:
+    //      • ‎sizeTy‎ = ‎size_t‎ الهدف (i32 على i686) — للطول والفهارس والإزاحات،
+    //        ليطابق النداء المكتبيّ الذي تولّده الخلفيّة من ‎llvm.memcpy‎.
+    //      • ‎wordTy‎ = i64 ثابتًا — **عرض بيانات** حلقة الكلمة المضاعفة (8 بايت).
+    //      خلطُهما (استعمال sizeTy للحمل/الخزن) ينسخ 4 بايت بخطوة 8 على i686.
+    llvm::Type* wordTy = llvm::Type::getInt64Ty(*cg_.context_);
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, sizeTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "memcpy", ft);
     if (!fn) return;
 
@@ -476,22 +502,22 @@ void FreestandingCodeGen::emitFreestandingMemcpy(
     llvm::Value* n   = fn->getArg(2);
 
     // qword count = n / 8, tail start = qcount * 8
-    llvm::Value* qCount = cg_.builder_->CreateLShr(n, llvm::ConstantInt::get(i64Ty, 3), "qcount");
-    llvm::Value* tStart = cg_.builder_->CreateShl(qCount, llvm::ConstantInt::get(i64Ty, 3), "tstart");
+    llvm::Value* qCount = cg_.builder_->CreateLShr(n, llvm::ConstantInt::get(sizeTy, 3), "qcount");
+    llvm::Value* tStart = cg_.builder_->CreateShl(qCount, llvm::ConstantInt::get(sizeTy, 3), "tstart");
 
-    llvm::Value* hasQ = cg_.builder_->CreateICmpNE(qCount, llvm::ConstantInt::get(i64Ty, 0));
+    llvm::Value* hasQ = cg_.builder_->CreateICmpNE(qCount, llvm::ConstantInt::get(sizeTy, 0));
     cg_.builder_->CreateCondBr(hasQ, qLoop, qDone);
 
     // 8-byte copy loop
     cg_.builder_->SetInsertPoint(qLoop);
-    llvm::PHINode* qi = cg_.builder_->CreatePHI(i64Ty, 2, "qi");
-    qi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
-    llvm::Value* qOff = cg_.builder_->CreateShl(qi, llvm::ConstantInt::get(i64Ty, 3));
+    llvm::PHINode* qi = cg_.builder_->CreatePHI(sizeTy, 2, "qi");
+    qi->addIncoming(llvm::ConstantInt::get(sizeTy, 0), entry);
+    llvm::Value* qOff = cg_.builder_->CreateShl(qi, llvm::ConstantInt::get(sizeTy, 3));
     llvm::Value* srcQ = cg_.builder_->CreateGEP(i8Ty, src, qOff, "srcq");
-    llvm::Value* qVal = cg_.builder_->CreateLoad(i64Ty, srcQ, "qval");
+    llvm::Value* qVal = cg_.builder_->CreateLoad(wordTy, srcQ, "qval");
     llvm::Value* dstQ = cg_.builder_->CreateGEP(i8Ty, dst, qOff, "dstq");
     cg_.builder_->CreateStore(qVal, dstQ);
-    llvm::Value* qNext = cg_.builder_->CreateAdd(qi, llvm::ConstantInt::get(i64Ty, 1));
+    llvm::Value* qNext = cg_.builder_->CreateAdd(qi, llvm::ConstantInt::get(sizeTy, 1));
     qi->addIncoming(qNext, qLoop);
     llvm::Value* qCond = cg_.builder_->CreateICmpULT(qNext, qCount);
     cg_.builder_->CreateCondBr(qCond, qLoop, qDone);
@@ -502,13 +528,13 @@ void FreestandingCodeGen::emitFreestandingMemcpy(
     cg_.builder_->CreateCondBr(hasTail, tailLoop, done);
 
     cg_.builder_->SetInsertPoint(tailLoop);
-    llvm::PHINode* ti = cg_.builder_->CreatePHI(i64Ty, 2, "ti");
+    llvm::PHINode* ti = cg_.builder_->CreatePHI(sizeTy, 2, "ti");
     ti->addIncoming(tStart, qDone);
     llvm::Value* srcP = cg_.builder_->CreateGEP(i8Ty, src, ti, "src.p");
     llvm::Value* byte = cg_.builder_->CreateLoad(i8Ty, srcP, "byte");
     llvm::Value* dstP = cg_.builder_->CreateGEP(i8Ty, dst, ti, "dst.p");
     cg_.builder_->CreateStore(byte, dstP);
-    llvm::Value* tNext = cg_.builder_->CreateAdd(ti, llvm::ConstantInt::get(i64Ty, 1));
+    llvm::Value* tNext = cg_.builder_->CreateAdd(ti, llvm::ConstantInt::get(sizeTy, 1));
     ti->addIncoming(tNext, tailLoop);
     llvm::Value* tCond = cg_.builder_->CreateICmpULT(tNext, n);
     cg_.builder_->CreateCondBr(tCond, tailLoop, done);
@@ -523,9 +549,15 @@ void FreestandingCodeGen::emitFreestandingMemcpy(
 // 4. memset — Fast 8-byte (qword) set with byte tail
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingMemset(
-    llvm::Type* i8Ty, llvm::Type* i32Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+    llvm::Type* i8Ty, llvm::Type* i32Ty, llvm::Type* sizeTy, llvm::Type* ptrTy)
 {
-    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, i32Ty, i64Ty}, false);
+    // (AR) ⚠️ نوعان لا يجوز خلطهما (انظر ‎emitFreestandingMemcpy‎):
+    //      • ‎sizeTy‎ = ‎size_t‎ الهدف — للطول والفهارس والإزاحات.
+    //      • ‎wordTy‎ = i64 ثابتًا — عرض نمط التعبئة وخزن حلقة الكلمة المضاعفة.
+    //      استعمال sizeTy للنمط على i686 يجعل الإزاحات 32/40/48/56 ‎poison‎
+    //      (‎shl‎ بعدد ≥ عرض النوع) ويعبّئ 4 بايت من كلّ 8.
+    llvm::Type* wordTy = llvm::Type::getInt64Ty(*cg_.context_);
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, i32Ty, sizeTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "memset", ft);
     if (!fn) return;
 
@@ -543,31 +575,31 @@ void FreestandingCodeGen::emitFreestandingMemset(
     llvm::Value* n   = fn->getArg(2);
 
     // Build 8-byte fill pattern: broadcast byte to all 8 positions in i64
-    llvm::Value* v64 = cg_.builder_->CreateZExt(val, i64Ty, "v64");
+    llvm::Value* v64 = cg_.builder_->CreateZExt(val, wordTy, "v64");
     llvm::Value* fill = v64;
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 8)));
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 16)));
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 24)));
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 32)));
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 40)));
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 48)));
-    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(i64Ty, 56)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 8)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 16)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 24)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 32)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 40)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 48)));
+    fill = cg_.builder_->CreateOr(fill, cg_.builder_->CreateShl(v64, llvm::ConstantInt::get(wordTy, 56)));
 
     // qword count = n / 8, tail count = n % 8
-    llvm::Value* qCount = cg_.builder_->CreateLShr(n, llvm::ConstantInt::get(i64Ty, 3), "qcount");
-    llvm::Value* tStart = cg_.builder_->CreateShl(qCount, llvm::ConstantInt::get(i64Ty, 3), "tstart");
+    llvm::Value* qCount = cg_.builder_->CreateLShr(n, llvm::ConstantInt::get(sizeTy, 3), "qcount");
+    llvm::Value* tStart = cg_.builder_->CreateShl(qCount, llvm::ConstantInt::get(sizeTy, 3), "tstart");
 
-    llvm::Value* hasQ = cg_.builder_->CreateICmpNE(qCount, llvm::ConstantInt::get(i64Ty, 0));
+    llvm::Value* hasQ = cg_.builder_->CreateICmpNE(qCount, llvm::ConstantInt::get(sizeTy, 0));
     cg_.builder_->CreateCondBr(hasQ, qLoop, qDone);
 
     // 8-byte loop
     cg_.builder_->SetInsertPoint(qLoop);
-    llvm::PHINode* qi = cg_.builder_->CreatePHI(i64Ty, 2, "qi");
-    qi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
-    llvm::Value* qOff = cg_.builder_->CreateShl(qi, llvm::ConstantInt::get(i64Ty, 3));
+    llvm::PHINode* qi = cg_.builder_->CreatePHI(sizeTy, 2, "qi");
+    qi->addIncoming(llvm::ConstantInt::get(sizeTy, 0), entry);
+    llvm::Value* qOff = cg_.builder_->CreateShl(qi, llvm::ConstantInt::get(sizeTy, 3));
     llvm::Value* qPtr = cg_.builder_->CreateGEP(i8Ty, dst, qOff, "qptr");
     cg_.builder_->CreateStore(fill, qPtr);
-    llvm::Value* qNext = cg_.builder_->CreateAdd(qi, llvm::ConstantInt::get(i64Ty, 1));
+    llvm::Value* qNext = cg_.builder_->CreateAdd(qi, llvm::ConstantInt::get(sizeTy, 1));
     qi->addIncoming(qNext, qLoop);
     llvm::Value* qCond = cg_.builder_->CreateICmpULT(qNext, qCount);
     cg_.builder_->CreateCondBr(qCond, qLoop, qDone);
@@ -578,11 +610,11 @@ void FreestandingCodeGen::emitFreestandingMemset(
     cg_.builder_->CreateCondBr(hasTail, tailLoop, done);
 
     cg_.builder_->SetInsertPoint(tailLoop);
-    llvm::PHINode* ti = cg_.builder_->CreatePHI(i64Ty, 2, "ti");
+    llvm::PHINode* ti = cg_.builder_->CreatePHI(sizeTy, 2, "ti");
     ti->addIncoming(tStart, qDone);
     llvm::Value* tPtr = cg_.builder_->CreateGEP(i8Ty, dst, ti, "tptr");
     cg_.builder_->CreateStore(val, tPtr);
-    llvm::Value* tNext = cg_.builder_->CreateAdd(ti, llvm::ConstantInt::get(i64Ty, 1));
+    llvm::Value* tNext = cg_.builder_->CreateAdd(ti, llvm::ConstantInt::get(sizeTy, 1));
     ti->addIncoming(tNext, tailLoop);
     llvm::Value* tCond = cg_.builder_->CreateICmpULT(tNext, n);
     cg_.builder_->CreateCondBr(tCond, tailLoop, done);
@@ -600,9 +632,11 @@ void FreestandingCodeGen::emitFreestandingMemset(
 //     self-referential memmove call (would recurse infinitely).
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingMemmove(
-    llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+    llvm::Type* i8Ty, llvm::Type* sizeTy, llvm::Type* ptrTy)
 {
-    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+    // (AR) ⚠️ الطول ‎size_t‎ الهدف (يطابق النداء المكتبيّ من ‎llvm.memmove‎).
+    //      الجسم بايتيّ خالص فلا نوع بيانات منفصل هنا (خلاف memcpy/memset).
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, sizeTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "memmove", ft);
     if (!fn) return;
 
@@ -619,7 +653,7 @@ void FreestandingCodeGen::emitFreestandingMemmove(
     llvm::Value* src = fn->getArg(1);
     llvm::Value* n   = fn->getArg(2);
     // n == 0 → nothing to copy (also guards the backward loop's n-1 underflow)
-    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(n, llvm::ConstantInt::get(i64Ty, 0));
+    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(n, llvm::ConstantInt::get(sizeTy, 0));
     cg_.builder_->CreateCondBr(isZero, done, checkDir);
 
     // dst < src ⇒ forward copy is overlap-safe; otherwise copy backward.
@@ -629,28 +663,28 @@ void FreestandingCodeGen::emitFreestandingMemmove(
 
     // Forward loop: i = 0 .. n-1
     cg_.builder_->SetInsertPoint(fwdLoop);
-    llvm::PHINode* fi = cg_.builder_->CreatePHI(i64Ty, 2, "fi");
-    fi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), checkDir);
+    llvm::PHINode* fi = cg_.builder_->CreatePHI(sizeTy, 2, "fi");
+    fi->addIncoming(llvm::ConstantInt::get(sizeTy, 0), checkDir);
     llvm::Value* fSrc  = cg_.builder_->CreateGEP(i8Ty, src, fi, "fsrc");
     llvm::Value* fByte = cg_.builder_->CreateLoad(i8Ty, fSrc, "fbyte");
     llvm::Value* fDst  = cg_.builder_->CreateGEP(i8Ty, dst, fi, "fdst");
     cg_.builder_->CreateStore(fByte, fDst);
-    llvm::Value* fNext = cg_.builder_->CreateAdd(fi, llvm::ConstantInt::get(i64Ty, 1));
+    llvm::Value* fNext = cg_.builder_->CreateAdd(fi, llvm::ConstantInt::get(sizeTy, 1));
     fi->addIncoming(fNext, fwdLoop);
     llvm::Value* fCond = cg_.builder_->CreateICmpULT(fNext, n);
     cg_.builder_->CreateCondBr(fCond, fwdLoop, done);
 
     // Backward loop: index = n-1 .. 0 (phi starts at n, decrement-first)
     cg_.builder_->SetInsertPoint(bwdLoop);
-    llvm::PHINode* bj = cg_.builder_->CreatePHI(i64Ty, 2, "bj");
+    llvm::PHINode* bj = cg_.builder_->CreatePHI(sizeTy, 2, "bj");
     bj->addIncoming(n, checkDir);
-    llvm::Value* bIdx  = cg_.builder_->CreateSub(bj, llvm::ConstantInt::get(i64Ty, 1), "bidx");
+    llvm::Value* bIdx  = cg_.builder_->CreateSub(bj, llvm::ConstantInt::get(sizeTy, 1), "bidx");
     llvm::Value* bSrc  = cg_.builder_->CreateGEP(i8Ty, src, bIdx, "bsrc");
     llvm::Value* bByte = cg_.builder_->CreateLoad(i8Ty, bSrc, "bbyte");
     llvm::Value* bDst  = cg_.builder_->CreateGEP(i8Ty, dst, bIdx, "bdst");
     cg_.builder_->CreateStore(bByte, bDst);
     bj->addIncoming(bIdx, bwdLoop);
-    llvm::Value* bCond = cg_.builder_->CreateICmpNE(bIdx, llvm::ConstantInt::get(i64Ty, 0));
+    llvm::Value* bCond = cg_.builder_->CreateICmpNE(bIdx, llvm::ConstantInt::get(sizeTy, 0));
     cg_.builder_->CreateCondBr(bCond, bwdLoop, done);
 
     cg_.builder_->SetInsertPoint(done);
@@ -664,7 +698,10 @@ void FreestandingCodeGen::emitFreestandingMemmove(
 void FreestandingCodeGen::emitFreestandingStrlen(
     llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
 {
-    llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
+    // (AR) ⚠️ العائد ‎size_t‎ الهدف (عقد C): على 32-بت يعيد eax وحده، فلو
+    //      أُعلن i64 قرأ المستدعي edx قمامةً. العدّاد الداخليّ i64.
+    llvm::Type* szTy = cg_.getSizeType();
+    llvm::FunctionType* ft = llvm::FunctionType::get(szTy, {ptrTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "strlen", ft);
     if (!fn) return;
 
@@ -689,7 +726,7 @@ void FreestandingCodeGen::emitFreestandingStrlen(
     cg_.builder_->CreateCondBr(isNull, done, loop);
 
     cg_.builder_->SetInsertPoint(done);
-    cg_.builder_->CreateRet(i);
+    cg_.builder_->CreateRet(cg_.builder_->CreateZExtOrTrunc(i, szTy, "len.sz"));
     cg_.builder_->restoreIP(savedIP);
 }
 
@@ -756,9 +793,10 @@ void FreestandingCodeGen::emitFreestandingStrcmp(
 //     against loop-idiom rewriting the loop into a self memcmp call.
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingMemcmp(
-    llvm::Type* i8Ty, llvm::Type* i32Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+    llvm::Type* i8Ty, llvm::Type* i32Ty, llvm::Type* sizeTy, llvm::Type* ptrTy)
 {
-    llvm::FunctionType* ft = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, i64Ty}, false);
+    // (AR) ⚠️ الطول ‎size_t‎ الهدف (يطابق نداء ‎memcmp‎ الذي يولّده ‎expandMemCmp‎)
+    llvm::FunctionType* ft = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, sizeTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "memcmp", ft);
     if (!fn) return;
 
@@ -775,12 +813,12 @@ void FreestandingCodeGen::emitFreestandingMemcmp(
     llvm::Value* b = fn->getArg(1);
     llvm::Value* n = fn->getArg(2);
     // n == 0 → equal (also guards the loop's iNext == n exit)
-    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(n, llvm::ConstantInt::get(i64Ty, 0));
+    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(n, llvm::ConstantInt::get(sizeTy, 0));
     cg_.builder_->CreateCondBr(isZero, retZero, loop);
 
     cg_.builder_->SetInsertPoint(loop);
-    llvm::PHINode* i = cg_.builder_->CreatePHI(i64Ty, 2, "i");
-    i->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+    llvm::PHINode* i = cg_.builder_->CreatePHI(sizeTy, 2, "i");
+    i->addIncoming(llvm::ConstantInt::get(sizeTy, 0), entry);
     llvm::Value* pa = cg_.builder_->CreateGEP(i8Ty, a, i, "pa");
     llvm::Value* ca = cg_.builder_->CreateLoad(i8Ty, pa, "ca");
     llvm::Value* pb = cg_.builder_->CreateGEP(i8Ty, b, i, "pb");
@@ -797,7 +835,7 @@ void FreestandingCodeGen::emitFreestandingMemcmp(
 
     // Bytes equal — advance; stop after n bytes
     cg_.builder_->SetInsertPoint(cont);
-    llvm::Value* iNext = cg_.builder_->CreateAdd(i, llvm::ConstantInt::get(i64Ty, 1), "inext");
+    llvm::Value* iNext = cg_.builder_->CreateAdd(i, llvm::ConstantInt::get(sizeTy, 1), "inext");
     i->addIncoming(iNext, cont);
     llvm::Value* atEnd = cg_.builder_->CreateICmpEQ(iNext, n);
     cg_.builder_->CreateCondBr(atEnd, retZero, loop);
@@ -884,7 +922,9 @@ void FreestandingCodeGen::emitFreestandingStrcat(llvm::Type* ptrTy) {
 // 9. realloc — malloc new block, memcpy old data, free old block
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type* ptrTy) {
-    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty}, false);
+    // (AR) ⚠️ الوسائط بنوع ‎size_t‎ الهدف (عقد C)؛ الحساب الداخليّ i64.
+    llvm::Type* szTy = cg_.getSizeType();
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, szTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "realloc", ft);
     if (!fn) return;
 
@@ -896,12 +936,14 @@ void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type*
 
     cg_.builder_->SetInsertPoint(entry);
     llvm::Value* oldPtr = fn->getArg(0);
-    llvm::Value* newSz  = fn->getArg(1);
+    llvm::Value* newSz  = cg_.builder_->CreateZExtOrTrunc(fn->getArg(1), i64Ty, "new.size.i64");
 
     // (AR) تخصيص كتلة جديدة
     // (EN) Allocate new block
     llvm::Function* mallocFn = cg_.module_->getFunction("malloc");
-    llvm::Value* newPtr = cg_.builder_->CreateCall(mallocFn, {newSz}, "new.ptr");
+    llvm::Value* newPtr = cg_.builder_->CreateCall(mallocFn,
+        {cg_.builder_->CreateZExtOrTrunc(newSz, mallocFn->getFunctionType()->getParamType(0),
+                                         "new.size.sz")}, "new.ptr");
 
     // (AR) النسخ فقط إذا كان المؤشران غير فارغين (فشل malloc ⇒ إرجاع null بلا نسخ)
     // (EN) Copy only when both pointers are non-null (malloc failure returns null)
@@ -925,7 +967,15 @@ void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type*
     llvm::Value* newSmaller = cg_.builder_->CreateICmpULT(newSz, oldSz, "new.smaller");
     llvm::Value* copySz = cg_.builder_->CreateSelect(newSmaller, newSz, oldSz, "copy.size");
     llvm::Function* memcpyFn = cg_.module_->getFunction("memcpy");
-    cg_.builder_->CreateCall(memcpyFn, {newPtr, oldPtr, copySz});
+    // (AR) ‎memcpy‎ يأخذ الطول بنوع ‎size_t‎ الهدف (‎i32‎ على i686)، بينما أحجام
+    //      ‎realloc‎ داخليًّا ‎i64‎ ⇒ نطابق النوع صراحةً (اقتطاع آمن: الحجم محصور
+    //      بسعة الكومة). بدونها ينهار التحقّق من الأنواع في LLVM.
+    // (EN) memcpy takes target size_t; realloc's sizes are i64 — coerce.
+    llvm::Type* memcpySizeTy = memcpyFn->getFunctionType()->getParamType(2);
+    llvm::Value* copySzArg = (copySz->getType() == memcpySizeTy)
+        ? copySz
+        : cg_.builder_->CreateZExtOrTrunc(copySz, memcpySizeTy, "copy.size.sz");
+    cg_.builder_->CreateCall(memcpyFn, {newPtr, oldPtr, copySzArg});
     llvm::Function* freeFn = cg_.module_->getFunction("free");
     cg_.builder_->CreateCall(freeFn, {oldPtr});
     cg_.builder_->CreateBr(done);
@@ -939,7 +989,9 @@ void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type*
 // 10. calloc — malloc + memset to zero
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingCalloc(llvm::Type* i64Ty, llvm::Type* ptrTy) {
-    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {i64Ty, i64Ty}, false);
+    // (AR) ⚠️ الوسائط بنوع ‎size_t‎ الهدف (عقد C)؛ الحساب الداخليّ i64.
+    llvm::Type* szTy = cg_.getSizeType();
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {szTy, szTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "calloc", ft);
     if (!fn) return;
 
@@ -949,12 +1001,14 @@ void FreestandingCodeGen::emitFreestandingCalloc(llvm::Type* i64Ty, llvm::Type* 
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
     cg_.builder_->SetInsertPoint(entry);
 
-    llvm::Value* count = fn->getArg(0);
-    llvm::Value* size  = fn->getArg(1);
+    llvm::Value* count = cg_.builder_->CreateZExtOrTrunc(fn->getArg(0), i64Ty, "count.i64");
+    llvm::Value* size  = cg_.builder_->CreateZExtOrTrunc(fn->getArg(1), i64Ty, "size.i64");
     llvm::Value* total = cg_.builder_->CreateMul(count, size, "total");
 
     llvm::Function* mallocFn = cg_.module_->getFunction("malloc");
-    llvm::Value* ptr = cg_.builder_->CreateCall(mallocFn, {total}, "ptr");
+    llvm::Value* ptr = cg_.builder_->CreateCall(mallocFn,
+        {cg_.builder_->CreateZExtOrTrunc(total, mallocFn->getFunctionType()->getParamType(0),
+                                         "total.sz")}, "ptr");
 
     // (AR) التصفير عبر llvm.memset intrinsic لا رمز @memset — يتفادى تعارض
     //      التوقيع حين يعيد المصدر إعلان memset بتوقيع مختلف (خارجي memset).

@@ -768,10 +768,7 @@ namespace Sad
             // (AR) تخصيص ذاكرة على الكومة
             // (EN) Allocate on heap
             auto *dlSize = llvm::ConstantExpr::getSizeOf(structType);
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *objPtr = cg_.builder_->CreateCall(mallocFunc, {dlSize}, className + "_ctor");
+            llvm::Value *objPtr = cg_.emitMalloc(dlSize, className + "_ctor");
 
             // (AR) تصفير الذاكرة المخصصة
             // (EN) Zero-initialize allocated memory
@@ -804,8 +801,8 @@ namespace Sad
                         {
                             // (AR) تخصيص بنية SadArray {length=0, capacity=8, data=malloc(8*ptrsize)}
                             // (EN) Allocate SadArray struct {length=0, capacity=8, data=malloc(8*ptrsize)}
-                            llvm::Value *arrPtr = cg_.builder_->CreateCall(
-                                mallocFunc, {cg_.builder_->CreateIntCast(arrStructSize, i64Ty, false)},
+                            llvm::Value *arrPtr = cg_.emitMalloc(
+                                cg_.builder_->CreateIntCast(arrStructSize, i64Ty, false),
                                 fieldName + ".arr");
 
                             // length = 0
@@ -823,8 +820,7 @@ namespace Sad
                                 llvm::ConstantInt::get(i64Ty, 8),
                                 llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES),
                                 fieldName + ".datasz");
-                            llvm::Value *dataPtr = cg_.builder_->CreateCall(
-                                mallocFunc, {dataSize}, fieldName + ".data");
+                            llvm::Value *dataPtr = cg_.emitMalloc(dataSize, fieldName + ".data");
                             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                             cg_.builder_->CreateStore(dataPtr, dataGep);
 

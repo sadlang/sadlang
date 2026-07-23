@@ -104,12 +104,8 @@ namespace Sad
             // (AR) تخصيص ذاكرة على الكومة
             // (EN) Heap allocate
             auto *structSize = llvm::ConstantExpr::getSizeOf(structType);
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *objPtr = cg_.builder_->CreateCall(
-                mallocFunc,
-                {cg_.builder_->CreateIntCast(structSize, cg_.getInt64Type(), false)},
+            llvm::Value *objPtr = cg_.emitMalloc(
+                cg_.builder_->CreateIntCast(structSize, cg_.getInt64Type(), false),
                 structName + ".adt");
 
             // (AR) تخزين المميّز في الحقل 0 (__tag)
@@ -209,10 +205,7 @@ namespace Sad
                                 //      (same leak profile as existing string payloads) — acceptable.
                                 auto *i64Ty = cg_.getInt64Type();
                                 auto *boxPtrTy = llvm::PointerType::getUnqual(*cg_.context_);
-                                auto *boxMallocTy = llvm::FunctionType::get(boxPtrTy, {i64Ty}, false);
-                                auto boxMallocFn = cg_.module_->getOrInsertFunction("malloc", boxMallocTy);
-                                llvm::Value *box = cg_.builder_->CreateCall(
-                                    boxMallocFn, {llvm::ConstantInt::get(i64Ty, 8)}, "float.box");
+                                llvm::Value *box = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 8), "float.box");
                                 cg_.builder_->CreateStore(fieldVal, box);
                                 llvm::Value *boxI64 = cg_.builder_->CreatePtrToInt(box, i64Ty, "float.box.p2i");
                                 llvm::Value *tagged = cg_.builder_->CreateOr(
@@ -914,8 +907,8 @@ namespace Sad
             auto freeType = llvm::FunctionType::get(
                 llvm::Type::getVoidTy(*cg_.context_),
                 {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-            auto freeFunc = cg_.module_->getOrInsertFunction("free", freeType);
-            cg_.builder_->CreateCall(freeFunc, {enumPtr});
+
+            cg_.emitFreeCall(enumPtr);
             cg_.builder_->CreateBr(contBlock);
 
             // (AR) الاستمرار بعد التحرير

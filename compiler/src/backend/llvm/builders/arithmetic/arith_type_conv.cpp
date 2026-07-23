@@ -431,13 +431,10 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
                 auto *dblTy = llvm::Type::getDoubleTy(*cg_.context_);
 
-                auto *mallocTy2 = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                auto mallocFn2 = cg_.module_->getOrInsertFunction("malloc", mallocTy2);
                 // (AR) ISSUE-076 (Amelia #8): 512 لا 64 — فرع العشريّ يكتب __sad_format_double
                 //      و%.6f لـDBL_MAX ~316 حرفًا يفيض. (EN) 512 not 64 — the float branch writes
                 //      __sad_format_double; %.6f for DBL_MAX ~316 chars overflows 64.
-                llvm::Value *dbuf = cg_.builder_->CreateCall(
-                    mallocFn2, {llvm::ConstantInt::get(i64Ty, 512)}, "any.tostr.buf");
+                llvm::Value *dbuf = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 512), "any.tostr.buf");
 
                 auto *sprintfTy = llvm::FunctionType::get(
                     llvm::Type::getInt32Ty(*cg_.context_), {ptrTy, ptrTy}, true);
@@ -531,11 +528,8 @@ namespace Sad
             }
 
             // Allocate buffer: 21 bytes enough for i64 range + sign + null
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc,
-                                                    {llvm::ConstantInt::get(cg_.getInt64Type(), 32)}, "i64str_buf");
+
+            llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(cg_.getInt64Type(), 32), "i64str_buf");
 
             if (cg_.freestanding_)
             {
@@ -598,13 +592,10 @@ namespace Sad
                     val = cg_.builder_->CreateSIToFP(val, cg_.getDoubleType(), "tof64");
             }
 
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+
             // (AR) ISSUE-076 (Amelia #8): 512 لا 64 — __sad_format_double بـ%.6f لـDBL_MAX ~316 حرفًا.
             // (EN) ISSUE-076 (Amelia #8): 512 not 64 — __sad_format_double %.6f for DBL_MAX ~316 chars.
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc,
-                                                    {llvm::ConstantInt::get(cg_.getInt64Type(), 512)}, "f64str_buf");
+            llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(cg_.getInt64Type(), 512), "f64str_buf");
 
             if (cg_.freestanding_)
             {
@@ -786,9 +777,7 @@ namespace Sad
                 cg_.builder_->CreateMul(arrLen, llvm::ConstantInt::get(i64Ty, 34)),
                 llvm::ConstantInt::get(i64Ty, 4), "ats.bufsz");
 
-            llvm::FunctionType *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufLen}, "ats.buf");
+            llvm::Value *buf = cg_.emitMalloc(bufLen, "ats.buf");
 
             // Call __sad_array_to_string(buf, len, data)
             llvm::FunctionType *helperType = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);

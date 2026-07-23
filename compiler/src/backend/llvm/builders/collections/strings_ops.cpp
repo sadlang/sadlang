@@ -336,10 +336,6 @@ namespace Sad
             llvm::BasicBlock::iterator savedPoint = cg_.builder_->GetInsertPoint();
 
             // (AR) دوال C المساعدة / (EN) C helper declarations
-            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction(
-                "strlen", llvm::FunctionType::get(i64Ty, {ptrTy}, false));
-            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction(
-                "malloc", llvm::FunctionType::get(ptrTy, {i64Ty}, false));
             llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction(
                 "sprintf", llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true));
 
@@ -376,7 +372,7 @@ namespace Sad
 
             cg_.builder_->SetInsertPoint(sizeBodyBB);
             llvm::Value *sElem = loadElemPtr(si, "s2s.size.ptr");
-            llvm::Value *sLen = cg_.builder_->CreateCall(strlenFn, {sElem}, "s2s.strlen");
+            llvm::Value *sLen = cg_.emitStrlen(sElem, "s2s.strlen");
             llvm::Value *sAdd = cg_.builder_->CreateAdd(
                 sAcc, cg_.builder_->CreateAdd(sLen, llvm::ConstantInt::get(i64Ty, 2)), "s.acc.next");
             llvm::Value *sNext = cg_.builder_->CreateAdd(si, llvm::ConstantInt::get(i64Ty, 1), "s.i.next");
@@ -386,7 +382,7 @@ namespace Sad
 
             // ── malloc + كتابة '[' ──
             cg_.builder_->SetInsertPoint(allocBB);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {sAcc}, "s2s.buf");
+            llvm::Value *buf = cg_.emitMalloc(sAcc, "s2s.buf");
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), buf);
             cg_.builder_->CreateBr(fillChkBB);
 
@@ -479,10 +475,6 @@ namespace Sad
             llvm::BasicBlock *savedBB = cg_.builder_->GetInsertBlock();
             llvm::BasicBlock::iterator savedPoint = cg_.builder_->GetInsertPoint();
 
-            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction(
-                "malloc", llvm::FunctionType::get(ptrTy, {i64Ty}, false));
-            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction(
-                "strlen", llvm::FunctionType::get(i64Ty, {ptrTy}, false));
             llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction(
                 "sprintf", llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true));
             // (AR) منسّق العشريّ: حرًّا __sad_ftoa؛ وإلّا __sad_format_double (نفس منسّق القياسيّ)
@@ -506,7 +498,7 @@ namespace Sad
             llvm::Value *bufSz = cg_.builder_->CreateAdd(
                 cg_.builder_->CreateMul(lenArg, llvm::ConstantInt::get(i64Ty, kFloatElemBudget)),
                 llvm::ConstantInt::get(i64Ty, kBracketsAndNull), "f2s.bufsz");
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufSz}, "f2s.buf");
+            llvm::Value *buf = cg_.emitMalloc(bufSz, "f2s.buf");
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), buf);
             cg_.builder_->CreateBr(chkBB);
 
@@ -542,7 +534,7 @@ namespace Sad
             llvm::Value *elemD = cg_.builder_->CreateBitCast(elemI64, dblTy, "f2s.elem.d");
             llvm::Value *elemDst = cg_.builder_->CreateGEP(i8Ty, buf, elemPos, "f2s.elem.dst");
             cg_.builder_->CreateCall(fmtFn, {elemDst, elemD});
-            llvm::Value *wrote = cg_.builder_->CreateCall(strlenFn, {elemDst}, "f2s.elem.len");
+            llvm::Value *wrote = cg_.emitStrlen(elemDst, "f2s.elem.len");
             llvm::Value *newPos = cg_.builder_->CreateAdd(elemPos, wrote, "f2s.new.pos");
             llvm::Value *nextI = cg_.builder_->CreateAdd(iPhi, llvm::ConstantInt::get(i64Ty, 1), "next.i");
             iPhi->addIncoming(nextI, elemBB);
@@ -591,10 +583,6 @@ namespace Sad
             llvm::BasicBlock *savedBB = cg_.builder_->GetInsertBlock();
             llvm::BasicBlock::iterator savedPoint = cg_.builder_->GetInsertPoint();
 
-            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction(
-                "strlen", llvm::FunctionType::get(i64Ty, {ptrTy}, false));
-            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction(
-                "malloc", llvm::FunctionType::get(ptrTy, {i64Ty}, false));
             llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction(
                 "sprintf", llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true));
 
@@ -672,7 +660,7 @@ namespace Sad
 
             B.SetInsertPoint(szAdd);
             // acc += strlen(key) + 6  ("": ", ")
-            llvm::Value *szKeyLen = B.CreateCall(strlenFn, {szKey}, "sz.klen");
+            llvm::Value *szKeyLen = cg_.emitStrlen(szKey, "sz.klen");
             llvm::Value *acc1 = B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v"),
                                             B.CreateAdd(szKeyLen, C0(6)), "acc.k");
             B.CreateStore(acc1, accA);
@@ -681,7 +669,7 @@ namespace Sad
 
             B.SetInsertPoint(szStr);
             llvm::Value *szVal = loadPtrElem(valsArr, si, "sz.val");
-            llvm::Value *szVLen = B.CreateCall(strlenFn, {szVal}, "sz.vlen");
+            llvm::Value *szVLen = cg_.emitStrlen(szVal, "sz.vlen");
             B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v2"), szVLen, "acc.s"), accA);
             B.CreateBr(szNext);
 
@@ -696,7 +684,7 @@ namespace Sad
 
             // ── malloc + '{' ──
             B.SetInsertPoint(doAlloc);
-            llvm::Value *buf = B.CreateCall(mallocFn, {B.CreateLoad(i64Ty, accA, "acc.final")}, "m2s.buf");
+            llvm::Value *buf = cg_.emitMalloc(B.CreateLoad(i64Ty, accA, "acc.final"), "m2s.buf");
             B.CreateStore(C8('{'), buf);
             B.CreateStore(C0(1), posA);
             B.CreateStore(C0(1), firstA); // 1 = ما زلنا في أوّل مدخل

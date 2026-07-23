@@ -60,14 +60,10 @@ namespace Sad
             llvm::FunctionCallee inputFn = cg_.module_->getOrInsertFunction("sad_llvm_input", inputFT);
             llvm::Value *line = cg_.builder_->CreateCall(inputFn, {}, "read.line");
 
-            llvm::FunctionType *strlenFT = llvm::FunctionType::get(i64Ty, {i8p}, false);
-            llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction("strlen", strlenFT);
-            llvm::Value *len = cg_.builder_->CreateCall(strlenFn, {line}, "read.len");
+            llvm::Value *len = cg_.emitStrlen(line, "read.len");
             llvm::Value *size = cg_.builder_->CreateAdd(len, llvm::ConstantInt::get(i64Ty, 1), "read.size");
 
-            llvm::FunctionType *mallocFT = llvm::FunctionType::get(i8p, {i64Ty}, false);
-            llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocFT);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {size}, "read.buf");
+            llvm::Value *buf = cg_.emitMalloc(size, "read.buf");
 
             llvm::FunctionType *strcpyFT = llvm::FunctionType::get(i8p, {i8p, i8p}, false);
             llvm::FunctionCallee strcpyFn = cg_.module_->getOrInsertFunction("strcpy", strcpyFT);
@@ -272,9 +268,7 @@ namespace Sad
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
 
             // malloc(24) for {state, value, event_handle}
-            auto mallocTy = llvm::FunctionType::get(i8PtrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
-            auto futurePtr = cg_.builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 24)});
+            auto futurePtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 24));
 
             // Initialize state=0 (pending)
             auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);

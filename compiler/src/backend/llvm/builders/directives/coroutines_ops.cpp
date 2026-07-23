@@ -76,9 +76,7 @@ namespace Sad
             llvm::Value *coroSize = cg_.builder_->CreateCall(coroSizeFn, {}, "coro.size");
 
             // === Step 4: malloc ===
-            auto mallocTy = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
-            llvm::Value *coroAlloc = cg_.builder_->CreateCall(mallocFn, {coroSize}, "coro.alloc");
+            llvm::Value *coroAlloc = cg_.emitMalloc(coroSize, "coro.alloc");
 
             // === Step 5: coro.begin ===
             auto coroBeginFn = llvm::Intrinsic::getDeclaration(cg_.module_.get(), llvm::Intrinsic::coro_begin);
@@ -158,9 +156,7 @@ namespace Sad
             auto coroFreeFn = llvm::Intrinsic::getDeclaration(cg_.module_.get(), llvm::Intrinsic::coro_free);
             llvm::Value *mem = cg_.builder_->CreateCall(coroFreeFn, {coroId, coroHdl}, "coro.mem");
 
-            auto freeTy = llvm::FunctionType::get(voidTy, {ptrTy}, false);
-            auto freeFn = cg_.module_->getOrInsertFunction("free", freeTy);
-            cg_.builder_->CreateCall(freeFn, {mem});
+            cg_.emitFreeCall(mem);
 
             cg_.builder_->CreateBr(cg_.context_info_.coroSuspendBB);
 
@@ -482,16 +478,13 @@ namespace Sad
             // (AR) الخطوة 1: تخصيص SadArray أولية بسعة 8
             // (EN) Step 1: Allocate initial SadArray with capacity 8
             // ================================================================
-            auto mallocTy = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocTy);
 
             // (AR) حساب حجم بنية SadArray
             // (EN) Calculate SadArray struct size
             const llvm::DataLayout &DL = cg_.module_->getDataLayout();
             uint64_t arrStructSize = DL.getTypeAllocSize(arrTy);
 
-            llvm::Value *arrPtr = cg_.builder_->CreateCall(
-                mallocFn, {llvm::ConstantInt::get(i64Ty, arrStructSize)}, "gen.arr");
+            llvm::Value *arrPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, arrStructSize), "gen.arr");
 
             // length = 0
             llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "gen.arr.len");
@@ -504,8 +497,7 @@ namespace Sad
 
             // data = malloc(8 * 8) — 8 عناصر × 8 بايت لكل i64
             // data = malloc(8 * 8) — 8 elements × 8 bytes per i64
-            llvm::Value *dataPtr = cg_.builder_->CreateCall(
-                mallocFn, {llvm::ConstantInt::get(i64Ty, 64)}, "gen.arr.data");
+            llvm::Value *dataPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 64), "gen.arr.data");
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.arr.datagep");
             cg_.builder_->CreateStore(dataPtr, dataGep);
 
@@ -561,12 +553,10 @@ namespace Sad
 
             // (AR) realloc(data, newCap * 8)
             // (EN) realloc(data, newCap * 8)
-            auto reallocTy = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty}, false);
-            auto reallocFn = cg_.module_->getOrInsertFunction("realloc", reallocTy);
             llvm::Value *oldData = cg_.builder_->CreateLoad(ptrTy,
                                                         cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.data.gep.grow"), "gen.olddata");
             llvm::Value *newSize = cg_.builder_->CreateMul(newCap, llvm::ConstantInt::get(i64Ty, 8), "gen.newsz");
-            llvm::Value *newData = cg_.builder_->CreateCall(reallocFn, {oldData, newSize}, "gen.newdata");
+            llvm::Value *newData = cg_.emitRealloc(oldData, newSize, "gen.newdata");
             cg_.builder_->CreateStore(newData,
                                   cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.data.gep.grow2"));
 

@@ -159,9 +159,8 @@ namespace Sad
             llvm::Value *size = cg_.resolveOperand(inst->operands[0]);
             if (!size)
                 return nullptr;
-            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo(), {llvm::Type::getInt64Ty(*cg_.context_)}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("malloc", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {size}, "malloc.ptr");
+
+            llvm::Value *result = cg_.emitMalloc(size, "malloc.ptr");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -177,11 +176,10 @@ namespace Sad
             llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
             if (!ptr)
                 return nullptr;
-            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo()}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("free", ft);
+
             if (!ptr->getType()->isPointerTy())
                 ptr = cg_.builder_->CreateIntToPtr(ptr, llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo());
-            cg_.builder_->CreateCall(fn, {ptr});
+            cg_.emitFreeCall(ptr);
             // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
             //      الموزّع المتدرّج عبر الطبقات فيطبع «Unsupported opcode» بائتًا
             //      (نمط emitMemWrite نفسه — إصلاح جماعيّ لعائلة معالجات void).
@@ -203,11 +201,10 @@ namespace Sad
             if (!ptr || !size)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {i8p, llvm::Type::getInt64Ty(*cg_.context_)}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("realloc", ft);
+
             if (!ptr->getType()->isPointerTy())
                 ptr = cg_.builder_->CreateIntToPtr(ptr, i8p);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {ptr, size}, "realloc.ptr");
+            llvm::Value *result = cg_.emitRealloc(ptr, size, "realloc.ptr");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -224,10 +221,7 @@ namespace Sad
             llvm::Value *size = cg_.resolveOperand(inst->operands[1]);
             if (!count || !size)
                 return nullptr;
-            llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {llvm::Type::getInt64Ty(*cg_.context_), llvm::Type::getInt64Ty(*cg_.context_)}, false);
-            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("calloc", ft);
-            llvm::Value *result = cg_.builder_->CreateCall(fn, {count, size}, "calloc.ptr");
+            llvm::Value *result = cg_.emitCalloc(count, size, "calloc.ptr");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
@@ -647,8 +641,12 @@ namespace Sad
             if (!dst || !src || !sz)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {i8p, i8p, llvm::Type::getInt64Ty(*cg_.context_)}, false);
+            // (AR) طول ‎mem*‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت): الخلفيّة تولّد
+            //      النداء المكتبيّ بهذا العرض، وتعريف وقت التشغيل الحرّ يطابقه.
+            llvm::Type *szTy = cg_.getSizeType();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {i8p, i8p, szTy}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("memcpy", ft);
+            sz = cg_.builder_->CreateZExtOrTrunc(sz, szTy, "memcpy.size.sz");
             if (!dst->getType()->isPointerTy())
                 dst = cg_.builder_->CreateIntToPtr(dst, i8p);
             if (!src->getType()->isPointerTy())
@@ -669,8 +667,12 @@ namespace Sad
             if (!dst || !val || !sz)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {i8p, llvm::Type::getInt32Ty(*cg_.context_), llvm::Type::getInt64Ty(*cg_.context_)}, false);
+            // (AR) طول ‎mem*‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت): الخلفيّة تولّد
+            //      النداء المكتبيّ بهذا العرض، وتعريف وقت التشغيل الحرّ يطابقه.
+            llvm::Type *szTy = cg_.getSizeType();
+            llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {i8p, llvm::Type::getInt32Ty(*cg_.context_), szTy}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("memset", ft);
+            sz = cg_.builder_->CreateZExtOrTrunc(sz, szTy, "memset.size.sz");
             if (!dst->getType()->isPointerTy())
                 dst = cg_.builder_->CreateIntToPtr(dst, i8p);
             llvm::Value *val32 = cg_.builder_->CreateIntCast(val, llvm::Type::getInt32Ty(*cg_.context_), false);

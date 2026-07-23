@@ -301,9 +301,12 @@ namespace Sad
 
                 // Call qsort(data, len, sizeof(i64), comparator)
                 // (AR) نختار المقارن المناسب حسب نوع العنصر.
+                // (AR) ‎qsort(ptr, size_t nmemb, size_t size, ptr)‎ — بـ i64 ثابتًا على
+                //      32-بت تُزاح خانتا ‎size‎ و‎compar‎ ⇒ نداء لمؤشّر قمامة ⇒ تعطّل.
+                llvm::Type *szTy = cg_.getSizeType();
                 auto *qsortType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(*cg_.context_),
-                    {ptrTy, i64Ty, i64Ty, ptrTy}, false);
+                    {ptrTy, szTy, szTy, ptrTy}, false);
                 auto qsortFunc = cg_.module_->getOrInsertFunction("qsort", qsortType);
 
                 llvm::Function *cmpFunc = nullptr;
@@ -376,7 +379,10 @@ namespace Sad
                     }
                 }
 
-                cg_.builder_->CreateCall(qsortFunc, {dataPtr, len, llvm::ConstantInt::get(i64Ty, 8), cmpFunc});
+                // (AR) ‎nmemb‎ و‎size‎ بنوع ‎size_t‎ الهدف؛ ‎len‎ داخليًّا i64.
+                cg_.builder_->CreateCall(qsortFunc,
+                    {dataPtr, cg_.coerceToSize(len, "qsort.nmemb"),
+                     llvm::ConstantInt::get(szTy, 8), cmpFunc});
             }
 
             if (inst->result.has_value() && arrPtr)
@@ -538,10 +544,8 @@ namespace Sad
 
             llvm::Value *fastLen = cg_.builder_->CreateSub(end, start, "fast.len");
 
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
             auto *arrSize = llvm::ConstantExpr::getSizeOf(arrTy);
-            llvm::Value *fastArr = cg_.builder_->CreateCall(mallocFunc, {arrSize}, "fast.arr");
+            llvm::Value *fastArr = cg_.emitMalloc(arrSize, "fast.arr");
 
             llvm::Value *fLenGep = cg_.builder_->CreateStructGEP(arrTy, fastArr, 0, "fast.len.gep");
             cg_.builder_->CreateStore(fastLen, fLenGep);
@@ -549,7 +553,7 @@ namespace Sad
             cg_.builder_->CreateStore(fastLen, fCapGep);
 
             llvm::Value *fDataSize = cg_.builder_->CreateMul(fastLen, llvm::ConstantInt::get(i64Ty, 8), "fast.data.size");
-            llvm::Value *fNewData = cg_.builder_->CreateCall(mallocFunc, {fDataSize}, "fast.data");
+            llvm::Value *fNewData = cg_.emitMalloc(fDataSize, "fast.data");
             llvm::Value *fDataGep = cg_.builder_->CreateStructGEP(arrTy, fastArr, 2, "fast.data.gep");
             cg_.builder_->CreateStore(fNewData, fDataGep);
 
@@ -557,9 +561,13 @@ namespace Sad
             llvm::Value *srcData = cg_.builder_->CreateLoad(ptrTy, srcDataGep, "src.data");
             llvm::Value *srcStart = cg_.builder_->CreateGEP(i64Ty, srcData, {start}, "src.start");
 
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+            // (AR) طول ‎mem*‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت): الخلفيّة تولّد
+            //      النداء المكتبيّ بهذا العرض، وتعريف وقت التشغيل الحرّ يطابقه.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
             auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {fNewData, srcStart, fDataSize});
+            cg_.builder_->CreateCall(memcpyFunc, {fNewData, srcStart,
+                cg_.builder_->CreateZExtOrTrunc(fDataSize, szTy, "fast.size.sz")});
 
             cg_.builder_->CreateBr(mergeBB);
 
@@ -581,7 +589,7 @@ namespace Sad
             llvm::Value *lenIsNeg = cg_.builder_->CreateICmpSLT(loopLen, llvm::ConstantInt::get(i64Ty, 0), "len.neg");
             loopLen = cg_.builder_->CreateSelect(lenIsNeg, llvm::ConstantInt::get(i64Ty, 0), loopLen, "loop.len.safe");
 
-            llvm::Value *loopArr = cg_.builder_->CreateCall(mallocFunc, {arrSize}, "loop.arr");
+            llvm::Value *loopArr = cg_.emitMalloc(arrSize, "loop.arr");
 
             llvm::Value *lLenGep = cg_.builder_->CreateStructGEP(arrTy, loopArr, 0, "loop.len.gep");
             cg_.builder_->CreateStore(loopLen, lLenGep);
@@ -589,7 +597,7 @@ namespace Sad
             cg_.builder_->CreateStore(loopLen, lCapGep);
 
             llvm::Value *lDataSize = cg_.builder_->CreateMul(loopLen, llvm::ConstantInt::get(i64Ty, 8), "loop.data.size");
-            llvm::Value *lNewData = cg_.builder_->CreateCall(mallocFunc, {lDataSize}, "loop.data");
+            llvm::Value *lNewData = cg_.emitMalloc(lDataSize, "loop.data");
             llvm::Value *lDataGep = cg_.builder_->CreateStructGEP(arrTy, loopArr, 2, "loop.data.gep");
             cg_.builder_->CreateStore(lNewData, lDataGep);
 

@@ -151,10 +151,8 @@ namespace Sad
             if (!size)
                 return nullptr;
 
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *result = cg_.builder_->CreateCall(mallocFunc, {size}, "heap_alloc");
+
+            llvm::Value *result = cg_.emitMalloc(size, "heap_alloc");
 
             if (inst->result.has_value())
             {
@@ -179,10 +177,7 @@ namespace Sad
                 ptr = cg_.builder_->CreateIntToPtr(ptr, llvm::PointerType::getUnqual(*cg_.context_), "free.ptr");
             }
 
-            auto *freeType = llvm::FunctionType::get(
-                llvm::Type::getVoidTy(*cg_.context_), {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-            auto freeFunc = cg_.module_->getOrInsertFunction("free", freeType);
-            cg_.builder_->CreateCall(freeFunc, {ptr});
+            cg_.emitFreeCall(ptr);
 
             return llvm::ConstantInt::get(cg_.getInt64Type(), 0);
         }
@@ -444,10 +439,8 @@ namespace Sad
                 // (AR) تخصيص مصفوفة env على الكومة: numCaptures * 8 بايت
                 // (EN) Allocate env array on heap: numCaptures * 8 bytes
                 llvm::Value *envSize = llvm::ConstantInt::get(cg_.getInt64Type(), numCaptures * 8);
-                auto *mallocType = llvm::FunctionType::get(
-                    llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-                auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-                llvm::Value *envPtr = cg_.builder_->CreateCall(mallocFunc, {envSize}, "env.alloc");
+
+                llvm::Value *envPtr = cg_.emitMalloc(envSize, "env.alloc");
 
                 // (AR) تخزين كل قيمة ملتقطة في env[i]
                 // (EN) Store each captured value at env[i]
@@ -482,10 +475,8 @@ namespace Sad
             // (AR) تخصيص بنية الإغلاق: 2 * i64 = 16 بايت
             // (EN) Allocate closure struct: 2 * i64 = 16 bytes
             llvm::Value *closureSize = llvm::ConstantInt::get(cg_.getInt64Type(), 16);
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *closurePtr = cg_.builder_->CreateCall(mallocFunc, {closureSize}, "closure.alloc");
+
+            llvm::Value *closurePtr = cg_.emitMalloc(closureSize, "closure.alloc");
 
             // (AR) تخزين fn_ptr في offset 0
             // (EN) Store fn_ptr at offset 0
@@ -611,13 +602,9 @@ namespace Sad
                                          llvm::PointerType::getUnqual(*cg_.context_)},
                                         true);
                                     auto sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfType);
-                                    auto mallocType = llvm::FunctionType::get(
-                                        llvm::PointerType::getUnqual(*cg_.context_),
-                                        {cg_.getInt64Type()}, false);
-                                    auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
+
                                     // (AR) تخصيص 32 بايت للنص
-                                    llvm::Value *buf = cg_.builder_->CreateCall(
-                                        mallocFn, {llvm::ConstantInt::get(cg_.getInt64Type(), 32)}, "num2str.buf");
+                                    llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(cg_.getInt64Type(), 32), "num2str.buf");
                                     llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%lld", "num2str.fmt");
                                     cg_.builder_->CreateCall(sprintfFn, {buf, fmt, arg});
                                     arg = buf;

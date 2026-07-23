@@ -830,9 +830,11 @@ namespace Sad
             llvm::Value *payload = dynPayloadI64(cg, dyn);
 
             // (AR) مخزّن مشترك للصحيح/العشريّ (512 لـ%.6f لـDBL_MAX) / (EN) shared buffer int/float
-            auto *mallocTy = llvm::FunctionType::get(ptrTy, {i64}, false);
+            // (AR) بانٍ محلّيّ (b) ⇒ تصريح مباشر بنوع size_t الهدف.
+            llvm::Type *szTy = cg.getSizeType();
+            auto *mallocTy = llvm::FunctionType::get(ptrTy, {szTy}, false);
             auto mallocFn = cg.module_->getOrInsertFunction("malloc", mallocTy);
-            llvm::Value *buf = b.CreateCall(mallocFn, {llvm::ConstantInt::get(i64, 512)}, "dyn.ts.buf");
+            llvm::Value *buf = b.CreateCall(mallocFn, {llvm::ConstantInt::get(szTy, 512)}, "dyn.ts.buf");
 
             auto *parent = b.GetInsertBlock()->getParent();
             auto *intBB = llvm::BasicBlock::Create(ctx, "dyn.ts.int", parent);

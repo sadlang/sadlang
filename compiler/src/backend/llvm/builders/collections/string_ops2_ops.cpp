@@ -105,23 +105,23 @@ namespace Sad
 
             // (AR) تخصيص مخزن بيانات جديد: السعة_الجديدة × 8 بايت
             // (EN) Allocate new data buffer: new_capacity * 8 bytes
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
             llvm::Value *newDataSize = cg_.builder_->CreateMul(newCap, llvm::ConstantInt::get(i64Ty, 8), "app.new.size");
-            llvm::Value *newData = cg_.builder_->CreateCall(mallocFunc, {newDataSize}, "app.new.data");
+            llvm::Value *newData = cg_.emitMalloc(newDataSize, "app.new.data");
 
             // (AR) نسخ البيانات القديمة: memcpy(newData, oldData, len * 8)
             // (EN) Copy old data: memcpy(newData, oldData, len * 8)
             llvm::Value *copySize = cg_.builder_->CreateMul(len, llvm::ConstantInt::get(i64Ty, 8), "app.copy.size");
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+            // (AR) طول ‎mem*‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت): الخلفيّة تولّد
+            //      النداء المكتبيّ بهذا العرض، وتعريف وقت التشغيل الحرّ يطابقه.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
             auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {newData, dataPtr, copySize});
+            cg_.builder_->CreateCall(memcpyFunc, {newData, dataPtr,
+                cg_.builder_->CreateZExtOrTrunc(copySize, szTy, "app.copy.size.sz")});
 
             // (AR) تحرير المخزن القديم
             // (EN) Free old buffer
-            auto *freeType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy}, false);
-            auto freeFunc = cg_.module_->getOrInsertFunction("free", freeType);
-            cg_.builder_->CreateCall(freeFunc, {dataPtr});
+            cg_.emitFreeCall(dataPtr);
 
             // (AR) تحديث السعة ومؤشر البيانات في البنية
             // (EN) Update capacity and data pointer in struct

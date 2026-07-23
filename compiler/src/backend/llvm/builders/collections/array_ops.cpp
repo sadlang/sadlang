@@ -274,10 +274,7 @@ namespace Sad
             // Allocate array struct on heap
             llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
             auto *dlSize = llvm::ConstantExpr::getSizeOf(arrTy);
-            auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *arrPtr = cg_.builder_->CreateCall(mallocFunc, {dlSize}, "arr_new");
+            llvm::Value *arrPtr = cg_.emitMalloc(dlSize, "arr_new");
 
             // Set length (0 by default, or initial length from operand[1])
             int64_t initialLength = 0;
@@ -299,7 +296,7 @@ namespace Sad
             llvm::Value *dataSize = cg_.builder_->CreateMul(
                 llvm::ConstantInt::get(cg_.getInt64Type(), capacity),
                 llvm::ConstantInt::get(cg_.getInt64Type(), SAD_ARRAY_SLOT_BYTES), "arr.data.size");
-            llvm::Value *dataPtr = cg_.builder_->CreateCall(mallocFunc, {dataSize}, "arr.data");
+            llvm::Value *dataPtr = cg_.emitMalloc(dataSize, "arr.data");
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
             cg_.builder_->CreateStore(dataPtr, dataGep);
 
@@ -700,9 +697,7 @@ namespace Sad
             // (AR) إنشاء مصفوفة جديدة بالطول الكلي
             // (EN) Allocate new array with total length
             auto *dlSize = llvm::ConstantExpr::getSizeOf(arrTy);
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *newArr = cg_.builder_->CreateCall(mallocFn, {dlSize}, "concat.arr");
+            llvm::Value *newArr = cg_.emitMalloc(dlSize, "concat.arr");
 
             // (AR) تعيين الطول والسعة
             // (EN) Set length and capacity
@@ -716,7 +711,7 @@ namespace Sad
             // (EN) Allocate & copy by unified slot size (8), matching source layout.
             llvm::Value *ptrSize64 = llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES);
             llvm::Value *dataSize = cg_.builder_->CreateMul(totalLen, ptrSize64, "concat.data.size");
-            llvm::Value *newData = cg_.builder_->CreateCall(mallocFn, {dataSize}, "concat.data");
+            llvm::Value *newData = cg_.emitMalloc(dataSize, "concat.data");
             llvm::Value *newDataGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 2, "concat.new.data.gep");
             cg_.builder_->CreateStore(newData, newDataGep);
 
@@ -788,14 +783,12 @@ namespace Sad
 
             // (AR) تخصيص مصفوفة الناتج / (EN) allocate the result array
             auto *dlSize = llvm::ConstantExpr::getSizeOf(arrTy);
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *outArr = cg_.builder_->CreateCall(mallocFn, {dlSize}, "zip.arr");
+            llvm::Value *outArr = cg_.emitMalloc(dlSize, "zip.arr");
             cg_.builder_->CreateStore(outLen, cg_.builder_->CreateStructGEP(arrTy, outArr, 0, "zip.out.len.gep"));
             cg_.builder_->CreateStore(outLen, cg_.builder_->CreateStructGEP(arrTy, outArr, 1, "zip.out.cap.gep"));
             llvm::Value *slotSize = llvm::ConstantInt::get(i64Ty, SAD_ARRAY_SLOT_BYTES);
             llvm::Value *outBytes = cg_.builder_->CreateMul(outLen, slotSize, "zip.out.bytes");
-            llvm::Value *outData = cg_.builder_->CreateCall(mallocFn, {outBytes}, "zip.out.data");
+            llvm::Value *outData = cg_.emitMalloc(outBytes, "zip.out.data");
             cg_.builder_->CreateStore(outData, cg_.builder_->CreateStructGEP(arrTy, outArr, 2, "zip.out.data.gep"));
 
             // (AR) الحلقة: لكلّ i أنشئ مصفوفة زوج {أ[i]، ب[i]} وخزّن مؤشّرها
@@ -816,11 +809,11 @@ namespace Sad
 
             cg_.builder_->SetInsertPoint(bodyBB);
             llvm::Value *two = llvm::ConstantInt::get(i64Ty, 2);
-            llvm::Value *pairArr = cg_.builder_->CreateCall(mallocFn, {dlSize}, "zip.pair");
+            llvm::Value *pairArr = cg_.emitMalloc(dlSize, "zip.pair");
             cg_.builder_->CreateStore(two, cg_.builder_->CreateStructGEP(arrTy, pairArr, 0, "zip.pair.len.gep"));
             cg_.builder_->CreateStore(two, cg_.builder_->CreateStructGEP(arrTy, pairArr, 1, "zip.pair.cap.gep"));
             llvm::Value *pairBytes = cg_.builder_->CreateMul(two, slotSize, "zip.pair.bytes");
-            llvm::Value *pairData = cg_.builder_->CreateCall(mallocFn, {pairBytes}, "zip.pair.data");
+            llvm::Value *pairData = cg_.emitMalloc(pairBytes, "zip.pair.data");
             cg_.builder_->CreateStore(pairData, cg_.builder_->CreateStructGEP(arrTy, pairArr, 2, "zip.pair.data.gep"));
 
             // (AR) نسخ الخانتين خامًا / (EN) raw copy of both slots

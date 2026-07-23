@@ -82,16 +82,14 @@ namespace Sad
                 llvm::Value *capacity = cg_.builder_->CreateSelect(cmp, doubled, minCap, "cap.final");
 
                 // (AR) تخصيص البنية الرئيسية: 5 حقول * 8 = 40 بايت
-                auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-                llvm::Value *mapPtr = cg_.builder_->CreateCall(mallocFunc,
-                                                           {llvm::ConstantInt::get(i64Ty, 40)}, "map.ptr");
+
+                llvm::Value *mapPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 40), "map.ptr");
 
                 // (AR) تخصيص المصفوفات (keys, values, types)
                 llvm::Value *arrBytes = cg_.builder_->CreateMul(capacity, llvm::ConstantInt::get(i64Ty, 8), "arr.bytes");
-                llvm::Value *keysPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.keys");
-                llvm::Value *valsPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.vals");
-                llvm::Value *typesPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.types");
+                llvm::Value *keysPtr = cg_.emitMalloc(arrBytes, "map.keys");
+                llvm::Value *valsPtr = cg_.emitMalloc(arrBytes, "map.vals");
+                llvm::Value *typesPtr = cg_.emitMalloc(arrBytes, "map.types");
 
                 // (AR) تصفير keys بالكامل — null يعني خانة فارغة
                 cg_.builder_->CreateMemSet(keysPtr, cg_.builder_->getInt8(0), arrBytes, llvm::MaybeAlign(8));
@@ -288,10 +286,8 @@ namespace Sad
                     llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(valI64, ptrTy, "mget.as.ptr");
 
                     // (AR) تخصيص ذاكرة مؤقتة 32 بايت لتحويل الرقم لنص
-                    auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                    auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-                    llvm::Value *buf = cg_.builder_->CreateCall(mallocFn,
-                                                            {llvm::ConstantInt::get(i64Ty, 32)}, "mget.sprintf.buf");
+
+                    llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 32), "mget.sprintf.buf");
 
                     // (AR) استدعاء sprintf لتحويل الرقم لنص
                     //      توقيع sprintf الحقيقي له معاملان ثابتان فقط (str, format) — كل
@@ -658,19 +654,23 @@ namespace Sad
 
             // entry: allocate SadArray {len, cap, data}
             b.SetInsertPoint(entry);
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
+            // (AR) بانٍ محلّيّ (b) لا cg_.builder_ ⇒ لا نستطيع cg_.emitMalloc؛
+            //      نصرّح بنوع size_t الهدف ونكيّف الوسائط يدويًّا.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *mallocType = llvm::FunctionType::get(ptrTy, {szTy}, false);
             auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
 
             // (AR) بنية SadArray: 3 حقول i64 = 24 bytes
             llvm::Value *arrPtr = b.CreateCall(mallocFn,
-                                               {llvm::ConstantInt::get(i64Ty, 24)}, "arr.ptr");
+                                               {llvm::ConstantInt::get(szTy, 24)}, "arr.ptr");
             // (AR) مصفوفة البيانات: count * 8 bytes
             llvm::Value *dataBytes = b.CreateMul(count, llvm::ConstantInt::get(i64Ty, 8), "data.bytes");
             // (AR) ضمان عدم تخصيص 0 bytes (للخرائط الفارغة)
             llvm::Value *minBytes = llvm::ConstantInt::get(i64Ty, 8);
             llvm::Value *cmpZero = b.CreateICmpUGT(dataBytes, llvm::ConstantInt::get(i64Ty, 0), "cmp.zero");
             llvm::Value *safeBytes = b.CreateSelect(cmpZero, dataBytes, minBytes, "safe.bytes");
-            llvm::Value *dataPtr = b.CreateCall(mallocFn, {safeBytes}, "data.ptr");
+            llvm::Value *dataPtr = b.CreateCall(mallocFn,
+                {b.CreateZExtOrTrunc(safeBytes, szTy, "safe.bytes.sz")}, "data.ptr");
 
             // (AR) تخزين: [0]=length=0 (سنزيدها), [1]=cap=count, [2]=data
             auto *lenGep = b.CreateGEP(i64Ty, arrPtr, {llvm::ConstantInt::get(i64Ty, 0)}, "len.gep");

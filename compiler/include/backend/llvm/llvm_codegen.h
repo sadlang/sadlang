@@ -423,6 +423,103 @@ namespace Sad
             llvm::LLVMContext *getContext() const { return context_.get(); }
 
             /**
+             * نوع `size_t` الهدف (i32 على 32-بت، i64 على 64-بت)
+             * Target `size_t` type (i32 on 32-bit, i64 on 64-bit)
+             *
+             * (AR) ⚠️ إلزاميّ لكلّ توقيع دالّة مكتبيّة C يأخذ حجمًا
+             *      (memcpy/memmove/memset/memcmp…): الخلفيّة تخفّض
+             *      `llvm.mem*` إلى نداء مكتبيّ بوسيط `size_t`، فتعريفٌ
+             *      بـ i64 ثابت على هدف 32-بت يقرأ 8 بايت بينما النداء
+             *      يدفع 4 ⇒ النصف الأعلى قمامة ⇒ دوس ذاكرة صامت.
+             * (EN) Mandatory for any C library signature taking a size.
+             *
+             * @return نوع الحجم الموافق للهدف / Target-matching size type
+             */
+            llvm::IntegerType *getSizeType() const {
+                return module_->getDataLayout().getIntPtrType(*context_);
+            }
+
+            /**
+             * تحويل قيمة حجم إلى `size_t` الهدف
+             * Coerce a size value to the target `size_t`
+             */
+            llvm::Value *coerceToSize(llvm::Value *v, const llvm::Twine &name = "sz") {
+                llvm::Type *szTy = getSizeType();
+                return v->getType() == szTy
+                           ? v
+                           : builder_->CreateZExtOrTrunc(v, szTy, name);
+            }
+
+            // ================================================================
+            // (AR) مُصدِرات دوالّ التخصيص المكتبيّة — **المسار الوحيد المسموح**
+            //      لإصدار نداء malloc/realloc/calloc/free/strlen.
+            //
+            //      ⚠️ لماذا مركزيّة؟ توقيع هذه الدوالّ يأخذ/يعيد `size_t`،
+            //      وهو i32 على 32-بت. تصريحٌ بـ i64 ثابت في موقع استدعاء
+            //      يجعل النداء يدفع 8 بايت لدالّة تقرأ 4 (أو العكس في
+            //      strlen: يقرأ النصف الأعلى قمامةً من edx) ⇒ حجم هائل ⇒
+            //      دوس ذاكرة صامت. تفرّق التصاريح عبر 23 ملفًّا هو ما أنتج
+            //      هذا العيب أصلًا؛ فالمركزيّة هنا حارسٌ بنيويّ لا تجميل.
+            //
+            //      الأحجام الداخليّة في المترجم i64؛ هذه المُصدِرات تكيّفها.
+            // (EN) Sole sanctioned path for emitting allocator libcalls —
+            //      centralizes the target-dependent `size_t` contract.
+            // ================================================================
+
+            /** malloc(size_t) → ptr */
+            llvm::Value *emitMalloc(llvm::Value *size, const llvm::Twine &name = "") {
+                llvm::Type *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto fn = module_->getOrInsertFunction(
+                    "malloc", llvm::FunctionType::get(ptrTy, {getSizeType()}, false));
+                return builder_->CreateCall(fn, {coerceToSize(size, "malloc.size")}, name);
+            }
+
+            /** realloc(ptr, size_t) → ptr */
+            llvm::Value *emitRealloc(llvm::Value *ptr, llvm::Value *size,
+                                     const llvm::Twine &name = "") {
+                llvm::Type *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto fn = module_->getOrInsertFunction(
+                    "realloc",
+                    llvm::FunctionType::get(ptrTy, {ptrTy, getSizeType()}, false));
+                return builder_->CreateCall(fn, {ptr, coerceToSize(size, "realloc.size")}, name);
+            }
+
+            /** calloc(size_t, size_t) → ptr */
+            llvm::Value *emitCalloc(llvm::Value *count, llvm::Value *size,
+                                    const llvm::Twine &name = "") {
+                llvm::Type *ptrTy = llvm::PointerType::getUnqual(*context_);
+                llvm::Type *szTy = getSizeType();
+                auto fn = module_->getOrInsertFunction(
+                    "calloc", llvm::FunctionType::get(ptrTy, {szTy, szTy}, false));
+                return builder_->CreateCall(
+                    fn, {coerceToSize(count, "calloc.n"), coerceToSize(size, "calloc.size")}, name);
+            }
+
+            /** free(ptr) */
+            llvm::Value *emitFreeCall(llvm::Value *ptr) {
+                llvm::Type *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto fn = module_->getOrInsertFunction(
+                    "free",
+                    llvm::FunctionType::get(llvm::Type::getVoidTy(*context_), {ptrTy}, false));
+                return builder_->CreateCall(fn, {ptr});
+            }
+
+            /**
+             * strlen(ptr) → i64
+             *
+             * (AR) التوقيع المُصدَر يعيد `size_t`؛ نمدّده إلى i64 لأنّ أطوال
+             *      المترجم الداخليّة i64. بلا هذا يقرأ المستدعي edx قمامةً.
+             */
+            llvm::Value *emitStrlen(llvm::Value *str, const llvm::Twine &name = "len") {
+                llvm::Type *ptrTy = llvm::PointerType::getUnqual(*context_);
+                llvm::Type *szTy = getSizeType();
+                auto fn = module_->getOrInsertFunction(
+                    "strlen", llvm::FunctionType::get(szTy, {ptrTy}, false));
+                llvm::Value *n = builder_->CreateCall(fn, {str}, name);
+                return builder_->CreateZExt(n, llvm::Type::getInt64Ty(*context_), name + ".i64");
+            }
+
+            /**
              * التحقق من صحة الوحدة
              * Verify module correctness
              *

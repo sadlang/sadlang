@@ -212,8 +212,6 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "print.arr.data.gep");
                     llvm::Value *dataPtr = cg_.builder_->CreateLoad(ptrTy, dataGep, "print.arr.data");
 
-                    llvm::FunctionType *freeType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy}, false);
-                    llvm::FunctionCallee freeFn = cg_.module_->getOrInsertFunction("free", freeType);
                     llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
 
                     // (AR) عناصر نصّيّة ⇒ نظير __sad_array_to_string_str (يخصّص مخزنه ويطبع بـ%s).
@@ -229,7 +227,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::FunctionCallee strHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_str", strHelperType);
                         llvm::Value *strResult = cg_.builder_->CreateCall(strHelperFn, {arrLen, dataPtr}, "print.arr.sstr");
                         cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
-                        cg_.builder_->CreateCall(freeFn, {strResult}); // (AR) المساعِد النصّيّ يخصّص، فنحرّر ناتجه
+                        cg_.emitFreeCall(strResult); // (AR) المساعِد النصّيّ يخصّص، فنحرّر ناتجه
                     }
                     // (AR) عناصر عشريّة ⇒ نظير __sad_array_to_string_float (bitcast خانة⇒double
                     //      ثمّ __sad_format_double) ⇒ «[1.5, 2.5]» بدل بتّات double خام بـ%lld
@@ -244,7 +242,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::FunctionCallee fHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_float", fHelperType);
                         llvm::Value *fResult = cg_.builder_->CreateCall(fHelperFn, {arrLen, dataPtr}, "print.arr.fstr");
                         cg_.builder_->CreateCall(printfFunc, {fmt, fResult});
-                        cg_.builder_->CreateCall(freeFn, {fResult});
+                        cg_.emitFreeCall(fResult);
                     }
                     else
                     {
@@ -253,15 +251,13 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::Value *bufLen = cg_.builder_->CreateAdd(
                             cg_.builder_->CreateMul(arrLen, llvm::ConstantInt::get(i64Ty, 34)),
                             llvm::ConstantInt::get(i64Ty, 4), "print.arr.bufsz");
-                        llvm::FunctionType *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                        llvm::FunctionCallee mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
-                        llvm::Value *buf = cg_.builder_->CreateCall(mallocFn, {bufLen}, "print.arr.buf");
+                        llvm::Value *buf = cg_.emitMalloc(bufLen, "print.arr.buf");
 
                         llvm::FunctionType *helperType = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);
                         llvm::FunctionCallee helperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string", helperType);
                         llvm::Value *strResult = cg_.builder_->CreateCall(helperFn, {buf, arrLen, dataPtr}, "print.arr.str");
                         cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
-                        cg_.builder_->CreateCall(freeFn, {buf});
+                        cg_.emitFreeCall(buf);
                     }
                 }
                 // ================================================================
@@ -287,9 +283,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::Value *mStr = cg_.builder_->CreateCall(mHelperFn, {mapPtr}, "print.map.str");
                         llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
                         cg_.builder_->CreateCall(printfFunc, {fmt, mStr});
-                        llvm::FunctionType *freeType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy}, false);
-                        llvm::FunctionCallee freeFn = cg_.module_->getOrInsertFunction("free", freeType);
-                        cg_.builder_->CreateCall(freeFn, {mStr});
+                        cg_.emitFreeCall(mStr);
                     }
                     else
                     {

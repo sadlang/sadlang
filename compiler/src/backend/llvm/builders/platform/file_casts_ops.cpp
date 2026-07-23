@@ -55,15 +55,18 @@ namespace Sad
             llvm::Value *file = cg_.builder_->CreateCall(fopenFunc, {filename, mode}, "file");
 
             // Allocate read buffer (4096 bytes)
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc,
-                                                    {llvm::ConstantInt::get(i64Ty, 4096)}, "read_buf");
+            llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 4096), "read_buf");
 
             // fread(buf, 1, 4095, file)
-            auto *freadType = llvm::FunctionType::get(i64Ty, {ptrTy, i64Ty, i64Ty, ptrTy}, false);
+            // (AR) ‎fread/fwrite(ptr, size_t, size_t, FILE*)‎ والعائد ‎size_t‎ —
+            //      بـ i64 ثابتًا على 32-بت تُزاح خانة ‎FILE*‎ ويُقرأ العائد قمامةً.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *freadType = llvm::FunctionType::get(szTy, {ptrTy, szTy, szTy, ptrTy}, false);
             auto freadFunc = cg_.module_->getOrInsertFunction("fread", freadType);
-            llvm::Value *bytesRead = cg_.builder_->CreateCall(freadFunc, {buf, llvm::ConstantInt::get(i64Ty, 1), llvm::ConstantInt::get(i64Ty, 4095), file}, "bytes_read");
+            llvm::Value *bytesRead = cg_.builder_->CreateZExtOrTrunc(
+                cg_.builder_->CreateCall(freadFunc, {buf, llvm::ConstantInt::get(szTy, 1),
+                    llvm::ConstantInt::get(szTy, 4095), file}, "bytes_read.sz"),
+                i64Ty, "bytes_read");
 
             // Null-terminate
             llvm::Value *endPtr = cg_.builder_->CreateGEP(
@@ -217,18 +220,17 @@ namespace Sad
             // Copy loop: read 4096 bytes at a time
             cg_.builder_->SetInsertPoint(copyBB);
             llvm::Value *bufSize = llvm::ConstantInt::get(i64Ty, 4096);
-            auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *buf = cg_.builder_->CreateCall(mallocFunc, {bufSize}, "copy.buf");
+            llvm::Value *buf = cg_.emitMalloc(bufSize, "copy.buf");
 
-            auto *freadType = llvm::FunctionType::get(i64Ty, {ptrTy, i64Ty, i64Ty, ptrTy}, false);
+            // (AR) ‎fread/fwrite(ptr, size_t, size_t, FILE*)‎ والعائد ‎size_t‎ —
+            //      بـ i64 ثابتًا على 32-بت تُزاح خانة ‎FILE*‎ ويُقرأ العائد قمامةً.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *freadType = llvm::FunctionType::get(szTy, {ptrTy, szTy, szTy, ptrTy}, false);
             auto freadFunc = cg_.module_->getOrInsertFunction("fread", freadType);
-            auto *fwriteType = llvm::FunctionType::get(i64Ty, {ptrTy, i64Ty, i64Ty, ptrTy}, false);
+            auto *fwriteType = llvm::FunctionType::get(szTy, {ptrTy, szTy, szTy, ptrTy}, false);
             auto fwriteFunc = cg_.module_->getOrInsertFunction("fwrite", fwriteType);
             auto *fcloseType = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
             auto fcloseFunc = cg_.module_->getOrInsertFunction("fclose", fcloseType);
-            auto *freeType = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {ptrTy}, false);
-            auto freeFunc = cg_.module_->getOrInsertFunction("free", freeType);
 
             llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*cg_.context_, "fcopy.loop", curFunc);
             llvm::BasicBlock *loopBodyBB = llvm::BasicBlock::Create(*cg_.context_, "fcopy.body", curFunc);
@@ -236,18 +238,21 @@ namespace Sad
             cg_.builder_->CreateBr(loopBB);
 
             cg_.builder_->SetInsertPoint(loopBB);
-            llvm::Value *bytesRead = cg_.builder_->CreateCall(freadFunc, {buf, llvm::ConstantInt::get(i64Ty, 1), bufSize, srcFile}, "bytes.read");
-            llvm::Value *hasData = cg_.builder_->CreateICmpUGT(bytesRead, llvm::ConstantInt::get(i64Ty, 0));
+            // (AR) العدّ يبقى بعرض ‎size_t‎ داخل الحلقة — لا تمديد ثمّ اقتطاع.
+            llvm::Value *bytesRead = cg_.builder_->CreateCall(freadFunc,
+                {buf, llvm::ConstantInt::get(szTy, 1),
+                 cg_.coerceToSize(bufSize, "buf.size.sz"), srcFile}, "bytes.read");
+            llvm::Value *hasData = cg_.builder_->CreateICmpUGT(bytesRead, llvm::ConstantInt::get(szTy, 0));
             cg_.builder_->CreateCondBr(hasData, loopBodyBB, loopDoneBB);
 
             cg_.builder_->SetInsertPoint(loopBodyBB);
-            cg_.builder_->CreateCall(fwriteFunc, {buf, llvm::ConstantInt::get(i64Ty, 1), bytesRead, dstFile});
+            cg_.builder_->CreateCall(fwriteFunc, {buf, llvm::ConstantInt::get(szTy, 1), bytesRead, dstFile});
             cg_.builder_->CreateBr(loopBB);
 
             cg_.builder_->SetInsertPoint(loopDoneBB);
             cg_.builder_->CreateCall(fcloseFunc, {srcFile});
             cg_.builder_->CreateCall(fcloseFunc, {dstFile});
-            cg_.builder_->CreateCall(freeFunc, {buf});
+            cg_.emitFreeCall(buf);
             cg_.builder_->CreateBr(doneBB);
 
             cg_.builder_->SetInsertPoint(failBB);

@@ -24,10 +24,10 @@ public:
     void emitFreestandingRuntime();
     void emitFreestandingMalloc(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingFree(llvm::Type *ptrTy, llvm::Type *voidTy);
-    void emitFreestandingMemcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-    void emitFreestandingMemmove(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-    void emitFreestandingMemset(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-    void emitFreestandingMemcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
+    void emitFreestandingMemcpy(llvm::Type *i8Ty, llvm::Type *sizeTy, llvm::Type *ptrTy);
+    void emitFreestandingMemmove(llvm::Type *i8Ty, llvm::Type *sizeTy, llvm::Type *ptrTy);
+    void emitFreestandingMemset(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *sizeTy, llvm::Type *ptrTy);
+    void emitFreestandingMemcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *sizeTy, llvm::Type *ptrTy);
     void emitFreestandingStrlen(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingStrcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingStrcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
