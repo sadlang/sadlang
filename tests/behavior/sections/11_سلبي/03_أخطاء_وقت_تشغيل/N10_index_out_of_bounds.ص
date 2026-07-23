@@ -1,5 +1,5 @@
 ﻿# @description اختبار سلبي — فهرس خارج النطاق (Index Out of Bounds)
-# @expect_error IndexOutOfRange
+# @expect_error RUN002
 # @priority P1
 
 # ============================================================

@@ -97,6 +97,18 @@ class TestMetadata:
     #      alone ⇒ the interpreter is not run; combined with @expect_error ⇒ dual
     #      negative: the interpreter must error AND the compiler must reject.
     expect_compile_error: str = ""
+    # (AR) @expect_error_compiled: سالب زمنيّ مترجَم — يجب أن تنجح الترجمة ثمّ
+    #      يفشل الثنائيّ المُنتَج زمنيًّا (خروج ≠ 0) ومخرجاته تحوي النمط. يُكمِل
+    #      @expect_error (الذي يغطّي المفسّر وحده) فيصنعان معًا سالبًا زمنيًّا
+    #      مزدوجًا — شبكة أمان لحرّاس وقت التشغيل المترجَمة (RUN001/RUN009/RUN010)
+    #      التي كانت بلا أيّ تغطية سلوكيّة.
+    # (EN) @expect_error_compiled: compiled-runtime negative — compilation must
+    #      succeed, then the produced binary must fail at runtime (nonzero exit)
+    #      with output containing the pattern. Complements @expect_error (which
+    #      covers the interpreter only), together forming a dual runtime
+    #      negative — a safety net for compiled runtime guards
+    #      (RUN001/RUN009/RUN010) that previously had no behavioral coverage.
+    expect_error_compiled: str = ""
     stdin_data: str = ""    # (AR) إذا غير فارغ: يُمرَّر كـ stdin للمفسر والمترجم
     # ── وسوم الحتمية (ADR-004 / TEST-007) ──
     unordered: bool = False        # (AR) @unordered: يُفرز الخرج قبل المقارنة (التزامن — ترتيب غير حتمي)
@@ -130,6 +142,7 @@ _RE_SKIP_COMPILER = re.compile(r"^#\s*@skip_compiler\b")
 _RE_SKIP_INTERP = re.compile(r"^#\s*@skip_interpreter\b")
 _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
 _RE_EXPECT_COMPILE_ERROR = re.compile(r"^#\s*@expect_compile_error:?\s*(.*)$")
+_RE_EXPECT_ERROR_COMPILED = re.compile(r"^#\s*@expect_error_compiled:?\s*(.*)$")
 _RE_DESC = re.compile(r"^#\s*@description:?\s+(.+)$")
 _RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-9]+(?:\.[\w.]+)?)$")
 _RE_STDIN = re.compile(r"^#\s*@stdin_data:?\s+(.+)$")  # (AR) بيانات stdin للاختبارات التفاعلية
@@ -174,6 +187,14 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                 m = _RE_EXPECT_COMPILE_ERROR.match(line)
                 if m:
                     meta.expect_compile_error = m.group(1).strip() or "__ANY_ERROR__"
+                    continue
+                # (AR) يُفحص قبل @expect_error — البادئة المشتركة تجعل نمطه العامّ
+                #      يلتهم «_compiled ...» لولا هذا الترتيب.
+                # (EN) Checked before @expect_error — the shared prefix would make
+                #      the generic pattern swallow "_compiled ..." otherwise.
+                m = _RE_EXPECT_ERROR_COMPILED.match(line)
+                if m:
+                    meta.expect_error_compiled = m.group(1).strip() or "__ANY_ERROR__"
                     continue
                 m = _RE_EXPECT_ERROR.match(line)
                 if m:
@@ -240,7 +261,7 @@ def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
 
 
 def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
-                 stdin_data: str = "") -> tuple[str, float, str]:
+                 stdin_data: str = "", capture_exit: bool = False) -> tuple[str, float, str]:
     """
     (AR) ترجمة ملف .ص عبر المترجم ثم تشغيل الملف المُنتج
     (EN) Compile .ص file, then run the produced executable
@@ -294,6 +315,15 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
         elapsed = (time.perf_counter() - start) * 1000
         output = run_result.stdout.rstrip("\n")
         error = run_result.stderr.strip() if run_result.returncode != 0 else ""
+        # (AR) capture_exit (لسالب @expect_error_compiled الزمنيّ): حرّاس وقت
+        #      التشغيل المترجَمة تطبع التشخيص على stdout وتخرج بـexit(1) وstderr
+        #      فارغ — فبدون هذا الوسم يبدو الفشل نجاحًا. لا يغيّر المسار الافتراضيّ.
+        # (EN) capture_exit (for the @expect_error_compiled runtime negative):
+        #      compiled runtime guards print the diagnostic to stdout and exit(1)
+        #      with an empty stderr — without this marker the failure looks like
+        #      success. The default path is unchanged.
+        if capture_exit and run_result.returncode != 0 and not error:
+            error = f"RUNTIME_EXIT:{run_result.returncode}"
         return output, elapsed, error
 
     except subprocess.TimeoutExpired:
@@ -492,7 +522,8 @@ def run_freestanding_audit(sadc_exe: Path, test_files: list, temp_dir: Path,
     excluded = 0
     for tf in test_files:
         meta = parse_metadata(tf)
-        if meta.expect_error or meta.expect_compile_error or meta.skip_compiler:
+        if (meta.expect_error or meta.expect_compile_error
+                or meta.expect_error_compiled or meta.skip_compiler):
             excluded += 1
             continue
         audit_files.append(tf)
@@ -595,7 +626,26 @@ def run_single_test(
     #      لا يشغّل المفسّر: التوجيه يحكم محرّكه فقط (انظر تعليق TestMetadata).
     # (EN) Run interpreter — a compiler-only negative (@expect_compile_error without
     #      @expect_error) skips the interpreter: each directive governs its own engine.
-    if meta.skip_interpreter or (meta.expect_compile_error and not meta.expect_error):
+    # (AR) تركيبة متناقضة: @expect_compile_error (الترجمة تفشل) مع
+    #      @expect_error_compiled (الترجمة تنجح ويفشل الثنائيّ زمنيًّا) — لا
+    #      يجتمعان؛ نرفض صراحةً بدل ترك الثاني شيفرة ميّتة صامتة.
+    # (EN) Contradictory combo: @expect_compile_error (compilation must fail)
+    #      with @expect_error_compiled (compilation must succeed then the binary
+    #      fails at runtime) — mutually exclusive; reject explicitly instead of
+    #      leaving the latter silently dead.
+    if meta.expect_compile_error and meta.expect_error_compiled:
+        return TestResult(file=rel_path, status=Status.FAIL_OUTPUT, metadata=meta,
+                          error_message="توجيهان متناقضان: expect_compile_error مع expect_error_compiled")
+
+    # (AR) كلّ توجيه يحكم محرّكه: سالبُ المترجم المنفرد (ترجمةً أو زمنيًّا) بلا
+    #      @expect_error لا يشغّل المفسّر — وإلّا أُهملت نتيجته إهمالًا صامتًا
+    #      (يقنّع انحدار مفسّر) أو أفشلته مهلته.
+    # (EN) Each directive governs its own engine: a compiler-only negative
+    #      (compile-time or runtime) without @expect_error skips the interpreter
+    #      — otherwise its result is silently discarded (masking interpreter
+    #      regressions) or its timeout spuriously fails the test.
+    if meta.skip_interpreter or ((meta.expect_compile_error or meta.expect_error_compiled)
+                                 and not meta.expect_error):
         interp_out, interp_time, interp_err = "", 0.0, ""
     else:
         interp_out, interp_time, interp_err = run_interpreter(sad_exe, test_file, timeout,
@@ -615,11 +665,13 @@ def run_single_test(
         if interp_err:
             # (AR) المفسر أعطى خطأ — نتحقق من محتوى الخطأ
             if meta.expect_error == "__ANY_ERROR__" or meta.expect_error in combined:
-                # (AR) سالب مزدوج (@expect_error + @expect_compile_error): لا نمرّر
-                #      بعدُ — يجب أن يرفض المترجم أيضًا (الكتلة التالية).
-                # (EN) Dual negative: don't pass yet — the compiler must also reject
-                #      (next block).
-                if not meta.expect_compile_error:
+                # (AR) سالب مزدوج (@expect_error + @expect_compile_error أو
+                #      @expect_error_compiled): لا نمرّر بعدُ — يجب أن يرفض المترجم
+                #      ترجمةً أو زمنيًّا أيضًا (الكتلتان التاليتان).
+                # (EN) Dual negative (@expect_error + @expect_compile_error or
+                #      @expect_error_compiled): don't pass yet — the compiler must
+                #      also reject, at compile time or at runtime (next blocks).
+                if not meta.expect_compile_error and not meta.expect_error_compiled:
                     return TestResult(file=rel_path, status=Status.PASS,
                                       interp_output=interp_out, interp_time_ms=interp_time,
                                       metadata=meta)
@@ -678,6 +730,52 @@ def run_single_test(
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                           metadata=meta,
                           error_message="اختبار سلبي: المترجم لم يرفض الترجمة")
+
+    # ═══════════════════════════════════════════════════════════════
+    # (AR) سالب زمنيّ مترجَم: @expect_error_compiled — يجب أن تنجح الترجمة ثمّ
+    #      يفشل الثنائيّ زمنيًّا (خروج ≠ 0) ومخرجاته تحوي النمط. شبكة أمان
+    #      لحرّاس وقت التشغيل المترجَمة (RUN001/RUN009/RUN010) التي كان الرنر
+    #      يتركها بلا أيّ تغطية (السلبيّات كانت مفسّرًا حصرًا).
+    # (EN) Compiled-runtime negative: @expect_error_compiled — compilation must
+    #      succeed, then the binary must fail at runtime (nonzero exit) with
+    #      output containing the pattern. Safety net for compiled runtime
+    #      guards (RUN001/RUN009/RUN010) the runner previously never exercised
+    #      (negatives were interpreter-only).
+    # ═══════════════════════════════════════════════════════════════
+    if meta.expect_error_compiled:
+        if meta.skip_compiler:
+            return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                              error_message="تخطي: expect_error_compiled بلا مترجم")
+        compiler_out, compiler_time, compiler_err = run_compiler(
+            sadc_exe, test_file, temp_dir, timeout, stdin_data=meta.stdin_data,
+            capture_exit=True)
+        if compiler_err == "TIMEOUT":
+            return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta, error_message="المترجم تجاوز المهلة")
+        if compiler_err.startswith("COMPILE_ERROR"):
+            return TestResult(file=rel_path, status=Status.FAIL_COMPILE,
+                              interp_output=interp_out, compiler_output=compiler_err,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta,
+                              error_message="سالب زمنيّ مترجَم: الترجمة يجب أن تنجح")
+        if not compiler_err:
+            return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
+                              interp_output=interp_out, compiler_output=compiler_out,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta,
+                              error_message="سالب زمنيّ مترجَم: الثنائيّ لم يفشل زمنيًّا")
+        combined_c = compiler_out + "\n" + compiler_err
+        if (meta.expect_error_compiled == "__ANY_ERROR__"
+                or meta.expect_error_compiled in combined_c):
+            return TestResult(file=rel_path, status=Status.PASS,
+                              interp_output=interp_out, interp_time_ms=interp_time,
+                              compiler_time_ms=compiler_time, metadata=meta)
+        return TestResult(file=rel_path, status=Status.FAIL_OUTPUT,
+                          interp_output=interp_out, compiler_output=combined_c,
+                          interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                          metadata=meta,
+                          error_message=f"مخرجات الفشل الزمنيّ لا تحوي '{meta.expect_error_compiled}'")
 
     if interp_err and not meta.skip_interpreter:
         return TestResult(file=rel_path, status=Status.FAIL_INTERP,

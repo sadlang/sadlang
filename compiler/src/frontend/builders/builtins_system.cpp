@@ -32,6 +32,8 @@
 
 #include "builtin_registry.h"
 #include "builtin_categories.h" // (AR) kBitwiseShiftCountMask المشترك بين المحرّكين (ت-1) / (EN) cross-engine shift-count mask (T-1)
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (د-2) / (EN) catalog bilingual messages (D-2)
+#include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
@@ -203,6 +205,52 @@ namespace Sad
                         return SIROperand::Register(satReg, SadTypeKind::Integer);
                     };
 
+                    // (AR) حارس النوع العدديّ (د-2، توافق المحرّكين — نمط حارس زاوج
+                    //      SEM002 في builtins_strings_arrays.cpp): معاملٌ معلومُ النوع
+                    //      سكونيًّا وليس عدديًّا (منطقيّ/نصّ/مصفوفة/خريطة/صفّ/عدم/فراغ/
+                    //      حرف/صنف/بنية/تعداد/دالّة/إغلاق/شريحة) ⇒ SEM002.
+                    //      كان النصّ يُحوَّل ptrtoint (بتّات مؤشّر!) والمصفوفة تمرّ فراغًا —
+                    //      كود خاطئ صامت. المفسّر يرفض النظير زمنيًّا بـRUN053. عند الجهل
+                    //      السكونيّ (Any/Unknown/سجلّ عابر) يمرّ المعامل بلا وسم زمنيّ
+                    //      ممكن — كحال حارس زاوج تمامًا: خانات القيم i64 خام بلا وسم
+                    //      نوعيّ فلا حارس زمنيّ (دَين موثَّق د-3).
+                    // (EN) Numeric-type guard (D-2, engine parity — the زاوج SEM002
+                    //      guard pattern from builtins_strings_arrays.cpp): a statically
+                    //      known non-numeric operand (bool/string/array/map/tuple/null/
+                    //      void/char/class/struct/enum/function/closure/slice) ⇒
+                    //      SEM002. Strings used to be ptrtoint'ed (pointer bits!) and
+                    //      arrays passed through as garbage — silent wrong results. The
+                    //      interpreter rejects the mirror case at runtime with RUN053.
+                    //      A statically unknown type (Any/Unknown) passes — exactly like
+                    //      the زاوج guard: value slots are raw untagged i64, so no
+                    //      runtime guard is possible (documented debt, D-3).
+                    auto rejectNonNumericArgs = [&](size_t count) -> bool
+                    {
+                        for (size_t bi = 0; bi < count && bi < argResults.size(); ++bi)
+                        {
+                            const SadTypeKind bk = argResults[bi].type;
+                            const bool knownNonNumeric =
+                                bk == SadTypeKind::Boolean || bk == SadTypeKind::String ||
+                                bk == SadTypeKind::Array || bk == SadTypeKind::Map ||
+                                bk == SadTypeKind::Tuple || bk == SadTypeKind::Null ||
+                                bk == SadTypeKind::Void || bk == SadTypeKind::Char ||
+                                bk == SadTypeKind::Class || bk == SadTypeKind::Struct ||
+                                bk == SadTypeKind::Enum || bk == SadTypeKind::Function ||
+                                bk == SadTypeKind::Closure || bk == SadTypeKind::Slice;
+                            if (knownNonNumeric)
+                            {
+                                Sad::Errors::RenderContext ectx;
+                                ectx.placeholders = {{"expected", sirTypeToString(SadTypeKind::Integer)},
+                                                     {"found", sirTypeToString(bk)}};
+                                b_.errors_.push_back(
+                                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                        Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ectx));
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+
                     // (AR) مساعد: إصدار عمليّة ثنائيّة بتّيّة وإرجاع سجلّ النتيجة
                     // (EN) Helper: emit a binary bitwise op and return the result register
                     auto emitBitBinary = [&](SIROpcode op, const SIROperand &lhs,
@@ -234,12 +282,16 @@ namespace Sad
                     {
                         if (argResults.size() < 2)
                             return BuildResult("", SadTypeKind::Integer);
+                        if (rejectNonNumericArgs(2))
+                            return BuildResult("", SadTypeKind::Integer);
                         return emitBitBinary(SIROpcode::AND, satNormalize(0), satNormalize(1));
                     }
                     // ضمّ(أ، ب) — OR بتّيّ
                     if (funcName == Bn::KernelCpu::CPU_15)
                     {
                         if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
                         return emitBitBinary(SIROpcode::OR, satNormalize(0), satNormalize(1));
                     }
@@ -248,6 +300,8 @@ namespace Sad
                     {
                         if (argResults.size() < 2)
                             return BuildResult("", SadTypeKind::Integer);
+                        if (rejectNonNumericArgs(2))
+                            return BuildResult("", SadTypeKind::Integer);
                         return emitBitBinary(SIROpcode::XOR, satNormalize(0), satNormalize(1));
                     }
                     // اعكس_البتّات(أ) — NOT بتّيّ (نتيجته Integer لا Boolean كي لا
@@ -255,6 +309,8 @@ namespace Sad
                     if (funcName == Bn::KernelCpu::CPU_17)
                     {
                         if (argResults.empty())
+                            return BuildResult("", SadTypeKind::Integer);
+                        if (rejectNonNumericArgs(1))
                             return BuildResult("", SadTypeKind::Integer);
                         std::string resultReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::NOT);
@@ -269,12 +325,16 @@ namespace Sad
                     {
                         if (argResults.size() < 2)
                             return BuildResult("", SadTypeKind::Integer);
+                        if (rejectNonNumericArgs(2))
+                            return BuildResult("", SadTypeKind::Integer);
                         return emitShift(SIROpcode::SHL);
                     }
                     // أزح_يمينًا(أ، عدّاد) — إزاحة يمنى حسابيّة بعدّاد مُقنَّع
                     if (funcName == Bn::KernelCpu::CPU_19)
                     {
                         if (argResults.size() < 2)
+                            return BuildResult("", SadTypeKind::Integer);
+                        if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
                         return emitShift(SIROpcode::SHR);
                     }

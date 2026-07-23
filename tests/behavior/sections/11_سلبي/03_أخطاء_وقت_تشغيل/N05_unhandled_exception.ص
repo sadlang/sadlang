@@ -1,5 +1,5 @@
 ﻿# @description اختبار سلبي — استثناء غير مُمسك (ارمي بدون حاول/امسك)
-# @expect_error RuntimeError
+# @expect_error UserThrown
 # @priority P0
 
 # ============================================================

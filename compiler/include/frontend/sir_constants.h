@@ -198,4 +198,33 @@ namespace Sad::Compiler
     inline constexpr const char *kNullAssertRun056Msg =
         "خطأ [RUN056]: عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم\n";
 
+    // (AR) تشخيص المطوّر (مستضاف فقط) للقسمة العشريّة على صفر (RUN001) — الحارس
+    //      الزمنيّ المزروع قبل fdiv (نمط emitBoundsCheck/emitNullAssert): كان
+    //      LLVM يطوي fdiv إلى nan/inf بصمت فيتباعد عن رفض المفسّر الصريح، وكانت
+    //      هذه بوّابة NaN الوحيدة في ص (لا حرفيّة NaN في اللغة). صيغة printf
+    //      بموضع %g للمقسوم — مرآةُ العنصر النائب {a} في رسالة الكتالوج RUN001.
+    //      في الوضع الحرّ يُستبدل بنداء __sad_panic(kSadPanicCheckViolation)
+    //      واللافتة السياديّة هي التشخيص الوحيد.
+    // (EN) Hosted-only developer diagnostic for float division by zero (RUN001) —
+    //      the runtime guard planted before fdiv (emitBoundsCheck/emitNullAssert
+    //      pattern): LLVM silently folded fdiv to nan/inf, diverging from the
+    //      interpreter's explicit rejection, and this was the language's only NaN
+    //      gate (no NaN literal exists). printf format with %g for the dividend —
+    //      mirrors the {a} placeholder of the RUN001 catalog message. Freestanding
+    //      replaces it with __sad_panic(kSadPanicCheckViolation).
+    inline constexpr const char *kDivZeroRun001Msg =
+        "خطأ [RUN001]: محاولة قسمة %g على صفر\n";
+
+    // (AR) تشخيصا القسمة الأرضيّة العشريّة والباقي العشريّ على صفر (RUN009/RUN010)
+    //      — إغلاق بوّابتَي NaN المتبقّيتين بعد سدّ fdiv (نفس نمط الحارس؛ %g مرآة
+    //      {a} في رسالتَي الكتالوج). الوضع الحرّ يستبدلهما بـ__sad_panic كذلك.
+    // (EN) Hosted diagnostics for float floor-division and float modulo by zero
+    //      (RUN009/RUN010) — closing the two NaN gates remaining after the fdiv
+    //      guard (same guard pattern; %g mirrors the catalog {a} placeholder).
+    //      Freestanding likewise replaces them with __sad_panic.
+    inline constexpr const char *kFloorDivZeroRun009Msg =
+        "خطأ [RUN009]: محاولة قسمة صحيحة لـ %g على صفر\n";
+    inline constexpr const char *kModZeroRun010Msg =
+        "خطأ [RUN010]: محاولة حساب باقي %g %% 0\n";
+
 } // namespace Sad::Compiler

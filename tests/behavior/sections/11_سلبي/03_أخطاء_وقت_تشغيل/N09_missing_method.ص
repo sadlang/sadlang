@@ -1,5 +1,5 @@
 # @description اختبار سلبي — دالة عضوية مفقودة (Method Not Found)
-# @expect_error RuntimeError
+# @expect_error RUN022
 # @priority P1
 
 # ============================================================

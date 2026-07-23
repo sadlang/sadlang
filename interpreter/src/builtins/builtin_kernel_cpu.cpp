@@ -240,41 +240,67 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
         return static_cast<int64_t>(d); // اقتطاع نحو الصفر داخل المدى / in-range truncation
     };
 
-    auto bit_and = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    // (AR) حارس النوع العدديّ للبتّيّات (د-2، توافق المحرّكين): المعاملات عدديّة
+    //      حصرًا (صحيح/عشريّ). كان toInt64 يقبل النصّ عبر stoll («"7"» تصير 7)
+    //      ويُصفّر المصفوفة بصمت، بينما المترجم كان يحوّل النصّ ptrtoint (بتّات
+    //      مؤشّر!) — كود خاطئ صامت في المحرّكين. الرفض الصريح: RUN053 (تتطلّب
+    //      قيمة رقميّة) — الأدقّ من RUN037 العامّة. المترجم يرفض النظير سكونيًّا
+    //      بـSEM002 حيث النوع معلوم (builtins_system.cpp).
+    // (EN) Numeric-type guard for the bitwise builtins (D-2, engine parity):
+    //      operands are strictly numeric (int/float). toInt64 accepted strings
+    //      via stoll ("7" became 7) and silently zeroed arrays, while the
+    //      compiler ptrtoint'ed strings (pointer bits!) — silent wrong results
+    //      in both engines. Explicit rejection: RUN053 (numeric required) — more
+    //      precise than the generic RUN037. The compiler rejects the mirror case
+    //      statically with SEM002 where the type is known (builtins_system.cpp).
+    auto requireNumericBitArgs = [](Sad::Interpreter::BuiltinContext &ctx, std::size_t n) {
+        const auto &args = ctx.args();
+        for (std::size_t i = 0; i < n; ++i)
+            if (!args[i]->isNumeric())
+                ctx.error(::Sad::Errors::ErrorCode::RUN_NUMERIC_REQUIRED,
+                          {{"op", std::string(ctx.functionName())}});
+    };
+
+    auto bit_and = [requireNumericBitArgs, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) & bitwiseOperandToI64(*args[1]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_14), bit_and);
 
     // عملية OR بتية بين قيمتين
-    auto bit_or = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_or = [requireNumericBitArgs, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) | bitwiseOperandToI64(*args[1]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_15), bit_or);
 
     // عملية XOR بتية حصرية بين قيمتين
-    auto bit_xor = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_xor = [requireNumericBitArgs, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) ^ bitwiseOperandToI64(*args[1]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_16), bit_xor);
 
     // عملية NOT بتية (نفي بتي)
-    auto bit_not = [bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_not = [requireNumericBitArgs, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 1);
         return std::make_shared<Data::Value>(~bitwiseOperandToI64(*args[0]));
     };
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_17), bit_not);
 
     // إزاحة بتية لليسار (SHL) — العدّاد مُقنَّع بـ&63
-    auto bit_shl = [kShiftCountMask, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_shl = [kShiftCountMask, requireNumericBitArgs, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         const int64_t count = bitwiseOperandToI64(*args[1]) & kShiftCountMask;
         // (AR) الإزاحة على غير المُوقَّع ثم الإرجاع لـi64 — سلوك التفاف حتميّ بلا UB
         // (EN) Shift as unsigned then cast back — deterministic wrap, no UB
@@ -284,9 +310,10 @@ void registerBuiltinsKernelCPU(Interpreter& interpreter) {
     fm.registerBuiltinFunction(std::string(Kcpu::CPU_18), bit_shl);
 
     // إزاحة بتية لليمين (حسابيّة تحفظ الإشارة) — العدّاد مُقنَّع بـ&63
-    auto bit_shr = [kShiftCountMask, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
+    auto bit_shr = [kShiftCountMask, requireNumericBitArgs, bitwiseOperandToI64](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         if (args.size() < 2) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        requireNumericBitArgs(ctx, 2);
         const int64_t count = bitwiseOperandToI64(*args[1]) & kShiftCountMask;
         return std::make_shared<Data::Value>(bitwiseOperandToI64(*args[0]) >> count);
     };

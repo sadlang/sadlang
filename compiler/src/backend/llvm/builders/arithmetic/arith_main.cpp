@@ -73,6 +73,61 @@ namespace Sad
                     cg.context_info_.namedValues[inst->result->name] = res;
                 return res;
             }
+
+            // (AR) حارس القاسم العشريّ الصفريّ المشترك (د-1 + إغلاق بوّابتَي NaN
+            //      المتبقّيتين RUN009/RUN010): يزرع فحص divisor == 0.0 قبل عمليّة
+            //      القسمة العشريّة (fdiv/floor(fdiv)/frem) — نمط emitBoundsCheck/
+            //      emitNullAssert: مستضاف ⇒ تشخيص عربيّ بالكتالوج (hostedMsg بموضع
+            //      %g للمقسوم) + exit(1)؛ حرّ ⇒ __sad_panic برمز انتهاك الفحص.
+            //      كان LLVM يطوي هذه العمليّات إلى nan/inf بصمت بينما المفسّر يرمي
+            //      RUN001/RUN009/RUN010.
+            // (EN) Shared float zero-divisor guard (D-1 + closing the two remaining
+            //      NaN gates RUN009/RUN010): plants a divisor == 0.0 check before
+            //      the float division op (fdiv/floor(fdiv)/frem) — the
+            //      emitBoundsCheck/emitNullAssert pattern: hosted ⇒ Arabic catalog
+            //      diagnostic (hostedMsg with %g for the dividend) + exit(1);
+            //      freestanding ⇒ __sad_panic(check-violation). LLVM silently
+            //      folded these to nan/inf while the interpreter throws.
+            void emitFloatDivZeroGuard(LLVMCodeGen &cg, llvm::Value *dividend,
+                                       llvm::Value *divisor, const char *hostedMsg,
+                                       const char *tag)
+            {
+                llvm::IRBuilder<> &b = *cg.builder_;
+                llvm::LLVMContext &ctx = *cg.context_;
+                llvm::Value *isZeroDiv = b.CreateFCmpOEQ(
+                    divisor, llvm::ConstantFP::get(cg.getDoubleType(), 0.0),
+                    std::string(tag) + ".iszero");
+                llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+                llvm::BasicBlock *failBB =
+                    llvm::BasicBlock::Create(ctx, std::string(tag) + ".fail", curFunc);
+                llvm::BasicBlock *contBB =
+                    llvm::BasicBlock::Create(ctx, std::string(tag) + ".ok", curFunc);
+                b.CreateCondBr(isZeroDiv, failBB, contBB);
+
+                b.SetInsertPoint(failBB);
+                if (cg.freestanding_)
+                {
+                    cg.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
+                }
+                else
+                {
+                    auto ptrTy = llvm::PointerType::getUnqual(ctx);
+                    auto *printfType = llvm::FunctionType::get(
+                        llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
+                    auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
+                    llvm::Value *msg = b.CreateGlobalStringPtr(
+                        hostedMsg, std::string(tag) + ".fmt");
+                    b.CreateCall(printfFunc, {msg, dividend});
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);
+                    auto exitFunc = cg.module_->getOrInsertFunction("exit", exitType);
+                    b.CreateCall(exitFunc,
+                                 {llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 1)});
+                }
+                b.CreateUnreachable();
+
+                b.SetInsertPoint(contBB);
+            }
         } // namespace
 
         llvm::Value *ArithmeticCodeGen::emitAdd(std::shared_ptr<SIRInstruction> inst)
@@ -500,6 +555,28 @@ namespace Sad
                     left = coerceFloatOperandToDouble(inst->operands[0], left);
                 if (!right->getType()->isDoubleTy())
                     right = coerceFloatOperandToDouble(inst->operands[1], right);
+
+                // (AR) حارس القسمة العشريّة على صفر (د-1، توافق المحرّكين): كان fdiv
+                //      يُطوى إلى nan/inf بصمت — بوّابة NaN الوحيدة في ص (لا حرفيّة
+                //      NaN) فتعطي وافق(0.0/0.0، س) قيمة اعتباطيّة (FPToSI-poison).
+                //      المفسّر يرمي RUN001؛ هنا نطابقه بفحص المقسوم عليه == 0.0 قبل
+                //      fdiv (نمط emitBoundsCheck/emitNullAssert): مستضاف ⇒ تشخيص
+                //      RUN001 العربيّ + exit(1)؛ حرّ ⇒ __sad_panic برمز انتهاك الفحص
+                //      (كنمط فحص الحدود — اللافتة السياديّة هي التشخيص الوحيد).
+                //      طيّ الثوابت في الواجهة يرفض أصلًا طيَّ مقسومٍ عليه صفريّ
+                //      (sir_frontend_optimizer/constant_folding_pass) فيصل الثابتان
+                //      إلى هذا الحارس ويُرفَضان زمنيًّا لا يُطويان إلى NaN.
+                // (EN) Float division-by-zero guard (D-1, engine parity): fdiv folded
+                //      silently to nan/inf — the language's only NaN gate (no NaN
+                //      literal), making وافق(0.0/0.0, x) arbitrary (FPToSI poison).
+                //      The interpreter throws RUN001; we match it by testing the
+                //      divisor == 0.0 before fdiv (emitBoundsCheck/emitNullAssert
+                //      pattern): hosted ⇒ Arabic RUN001 diagnostic + exit(1);
+                //      freestanding ⇒ __sad_panic(check-violation), like the bounds
+                //      check. Frontend constant folding already refuses to fold a
+                //      zero divisor, so constant operands reach this runtime guard.
+                emitFloatDivZeroGuard(cg_, left, right,
+                                      Sad::Compiler::kDivZeroRun001Msg, "fdiv.dz");
                 result = cg_.builder_->CreateFDiv(left, right, "divtmp");
             }
             else if (inst->opcode == SIROpcode::FLOOR_DIV_I64)
@@ -524,6 +601,13 @@ namespace Sad
                     };
                     left = toDouble(inst->operands[0], left);
                     right = toDouble(inst->operands[1], right);
+                    // (AR) حارس القاسم الصفريّ (إغلاق بوّابة NaN المتبقّية للأرضيّة
+                    //      العشريّة): المفسّر يرمي RUN009 — نطابقه قبل fdiv.
+                    // (EN) Zero-divisor guard (closing the float floor-div NaN gate):
+                    //      the interpreter throws RUN009 — match it before fdiv.
+                    emitFloatDivZeroGuard(cg_, left, right,
+                                          Sad::Compiler::kFloorDivZeroRun009Msg,
+                                          "ffloordiv.dz");
                     llvm::Value *q = cg_.builder_->CreateFDiv(left, right, "ffloordiv.q");
                     llvm::Function *floorFn = llvm::Intrinsic::getDeclaration(
                         cg_.module_.get(), llvm::Intrinsic::floor, {cg_.getDoubleType()});
@@ -664,6 +748,12 @@ namespace Sad
                 };
                 left = toDouble(inst->operands[0], left);
                 right = toDouble(inst->operands[1], right);
+                // (AR) حارس القاسم الصفريّ (إغلاق بوّابة NaN المتبقّية للباقي
+                //      العشريّ): المفسّر يرمي RUN010 — نطابقه قبل frem.
+                // (EN) Zero-divisor guard (closing the float modulo NaN gate): the
+                //      interpreter throws RUN010 — match it before frem.
+                emitFloatDivZeroGuard(cg_, left, right,
+                                      Sad::Compiler::kModZeroRun010Msg, "fmod.dz");
                 llvm::Value *fresult = cg_.builder_->CreateFRem(left, right, "fmodtmp");
                 if (inst->result.has_value())
                 {

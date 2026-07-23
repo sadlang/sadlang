@@ -1,5 +1,5 @@
 ﻿# @description اختبار سلبي — القسمة على صفر
-# @expect_error DivisionByZeroError
+# @expect_error RUN001
 # @priority P0
 
 # ============================================================

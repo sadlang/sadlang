@@ -7,6 +7,7 @@
 
 #include "sad_dyn_repr.h"
 #include "llvm_codegen.h"
+#include "sir_constants.h" // (AR) kDivZeroRun001Msg + kSadPanicCheckViolation (د-1) / (EN) D-1 div-zero guard constants
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
@@ -459,6 +460,56 @@ namespace Sad
                 dynKindByte(cg, dyn), llvm::ConstantInt::get(i8, DynKind::Float), "dyn.k.isf");
         }
 
+        // (AR) حارس القاسم العشريّ الصفريّ للمسار الديناميّ (د-1 + إغلاق بوّابتَي
+        //      NaN المتبقّيتين RUN009/RUN010 — مرآة emitFloatDivZeroGuard في المسار
+        //      الساكن): failCond جاهز عند النداء (عادةً eitherF ∧ القاسم == 0.0 —
+        //      الفرع الصحيح يُبقي سياسة النتيجة 0 الموثَّقة). مستضاف ⇒ تشخيص عربيّ
+        //      بالكتالوج (hostedMsg بموضع %g للمقسوم) + exit(1)؛ حرّ ⇒ __sad_panic.
+        // (EN) Dynamic-path float zero-divisor guard (D-1 + closing the remaining
+        //      NaN gates RUN009/RUN010 — mirror of the static-path
+        //      emitFloatDivZeroGuard): failCond is precomputed by the caller
+        //      (typically eitherF ∧ divisor == 0.0 — the integer branch keeps its
+        //      documented result-0 policy). Hosted ⇒ Arabic catalog diagnostic
+        //      (hostedMsg with %g for the dividend) + exit(1); freestanding ⇒
+        //      __sad_panic(check-violation).
+        static void emitDynFloatDivZeroGuard(LLVMCodeGen &cg, llvm::Value *failCond,
+                                             llvm::Value *dividendD,
+                                             const char *hostedMsg, const char *tag)
+        {
+            auto &b = *cg.builder_;
+            auto &ctx = *cg.context_;
+            llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+            llvm::BasicBlock *failBB =
+                llvm::BasicBlock::Create(ctx, std::string(tag) + ".fail", curFunc);
+            llvm::BasicBlock *contBB =
+                llvm::BasicBlock::Create(ctx, std::string(tag) + ".ok", curFunc);
+            b.CreateCondBr(failCond, failBB, contBB);
+
+            b.SetInsertPoint(failBB);
+            if (cg.freestanding_)
+            {
+                cg.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
+            }
+            else
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(ctx);
+                auto *printfType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
+                auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *msg = b.CreateGlobalStringPtr(
+                    hostedMsg, std::string(tag) + ".fmt");
+                b.CreateCall(printfFunc, {msg, dividendD});
+                auto *exitType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);
+                auto exitFunc = cg.module_->getOrInsertFunction("exit", exitType);
+                b.CreateCall(exitFunc,
+                             {llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 1)});
+            }
+            b.CreateUnreachable();
+
+            b.SetInsertPoint(contBB);
+        }
+
         llvm::Value *dynBinOp(LLVMCodeGen &cg, SIROpcode op, llvm::Value *l, llvm::Value *r)
         {
             auto &b = *cg.builder_;
@@ -552,6 +603,27 @@ namespace Sad
                 //      on the float branch safeRI=1 ⇒ remainder 0, no effect (eitherF wins).
                 //      fdiv(lD,rD) is correct either way since unpackDouble sitofp-promotes
                 //      integer payloads.
+                // (AR) حارس القسمة العشريّة على صفر (د-1، توافق المحرّكين): فرعٌ
+                //      عشريّ (eitherF) بمقسومٍ عليه 0.0 كان يُنتج nan/inf بصمت —
+                //      نفس بوّابة NaN التي سُدَّت في المسار الساكن (emitDiv). المفسّر
+                //      يرمي RUN001؛ هنا نرفض زمنيًّا قبل fdiv: مستضاف ⇒ تشخيص RUN001
+                //      العربيّ + exit(1)؛ حرّ ⇒ __sad_panic برمز انتهاك الفحص.
+                //      الفرع الصحيح (قاسم صفر صحيح) يُبقي سياسة النتيجة 0 الموثَّقة
+                //      أدناه — نطاق د-1 هو العشريّ حصرًا.
+                // (EN) Float division-by-zero guard (D-1, engine parity): a float
+                //      branch (eitherF) with divisor 0.0 silently produced nan/inf —
+                //      the same NaN gate closed on the static path (emitDiv). The
+                //      interpreter throws RUN001; reject at runtime before fdiv:
+                //      hosted ⇒ Arabic RUN001 diagnostic + exit(1); freestanding ⇒
+                //      __sad_panic(check-violation). The integer branch keeps the
+                //      documented result-0 policy below — D-1 scope is float only.
+                emitDynFloatDivZeroGuard(
+                    cg,
+                    b.CreateAnd(eitherF,
+                                b.CreateFCmpOEQ(rD, llvm::ConstantFP::get(dbl, 0.0),
+                                                "dyn.fdiv.rz"),
+                                "dyn.fdivz"),
+                    lD, Sad::Compiler::kDivZeroRun001Msg, "dyn.fdiv.dz");
                 fRes = b.CreateFDiv(lD, rD, "dyn.fdiv");
                 iRes = b.CreateSDiv(lI, safeRI, "dyn.idiv");
                 // (AR) قسمة صحيحة على صفر ⇒ 0 (سياسة المسار الساكن) / (EN) int /0 ⇒ 0
@@ -572,7 +644,18 @@ namespace Sad
             }
             case SIROpcode::MOD_I64:
                 // (AR) % : عشريّ ⇒ frem (fmod، مثل المفسّر 7.5%2=1.5)؛ صحيح ⇒ srem.
+                //      حارس القاسم الصفريّ العشريّ ⇒ RUN010 (المفسّر يرمي؛ كان frem
+                //      يُنتج NaN بصمت) — الفرع الصحيح يُبقي سياسة النتيجة 0.
                 // (EN) % : float ⇒ frem (fmod, like the interpreter 7.5%2=1.5); int ⇒ srem.
+                //      Float zero-divisor guard ⇒ RUN010 (interpreter throws; frem
+                //      silently produced NaN) — the int branch keeps the result-0 policy.
+                emitDynFloatDivZeroGuard(
+                    cg,
+                    b.CreateAnd(eitherF,
+                                b.CreateFCmpOEQ(rD, llvm::ConstantFP::get(dbl, 0.0),
+                                                "dyn.frem.rz"),
+                                "dyn.fremz"),
+                    lD, Sad::Compiler::kModZeroRun010Msg, "dyn.frem.dz");
                 fRes = b.CreateFRem(lD, rD, "dyn.frem");
                 iRes = b.CreateSRem(lI, safeRI, "dyn.srem");
                 // (AR) باقٍ على صفر ⇒ 0 (سياسة المسار الساكن) / (EN) int %0 ⇒ 0
@@ -582,6 +665,17 @@ namespace Sad
             {
                 // (AR) // : عشريّ ⇒ floor(fdiv) (مثل المفسّر 7.5//2=3.0)؛ صحيح ⇒ sdiv.
                 // (EN) // : float ⇒ floor(fdiv) (like the interpreter 7.5//2=3.0); int ⇒ sdiv.
+                // (AR) حارس القاسم الصفريّ العشريّ ⇒ RUN009 (المفسّر يرمي؛ كان
+                //      fdiv/floor يُنتج nan/inf بصمت) — الفرع الصحيح يُبقي سياسة 0.
+                // (EN) Float zero-divisor guard ⇒ RUN009 (interpreter throws;
+                //      fdiv/floor silently produced nan/inf) — int branch keeps 0.
+                emitDynFloatDivZeroGuard(
+                    cg,
+                    b.CreateAnd(eitherF,
+                                b.CreateFCmpOEQ(rD, llvm::ConstantFP::get(dbl, 0.0),
+                                                "dyn.fd.rz"),
+                                "dyn.fdz"),
+                    lD, Sad::Compiler::kFloorDivZeroRun009Msg, "dyn.ffd.dz");
                 llvm::Value *q = b.CreateFDiv(lD, rD, "dyn.fdiv.q");
                 llvm::Function *floorFn = llvm::Intrinsic::getDeclaration(
                     cg.module_.get(), llvm::Intrinsic::floor, {dbl});
