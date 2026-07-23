@@ -61,9 +61,19 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     emitFreestandingMemcpy(i8Ty, i64Ty, ptrTy);
 
     // ========================================================================
+    // 3b. memmove — Overlap-safe directional copy (clang -ffreestanding needs it)
+    // ========================================================================
+    emitFreestandingMemmove(i8Ty, i64Ty, ptrTy);
+
+    // ========================================================================
     // 4. memset — Byte-by-byte set loop
     // ========================================================================
     emitFreestandingMemset(i8Ty, i32Ty, i64Ty, ptrTy);
+
+    // ========================================================================
+    // 4b. memcmp — Byte-by-byte unsigned comparison (clang -ffreestanding needs it)
+    // ========================================================================
+    emitFreestandingMemcmp(i8Ty, i32Ty, i64Ty, ptrTy);
 
     // ========================================================================
     // 5. strlen — Scan for null byte
@@ -583,6 +593,72 @@ void FreestandingCodeGen::emitFreestandingMemset(
 }
 
 // ============================================================================
+// 3b. memmove — Overlap-safe copy: forward if dst<src, else backward.
+//     Byte-by-byte (correctness over speed; memmove is rarely a hot path).
+//     getOrCreateFreestandingFunc marks it weak_odr + no-builtins + NoInline +
+//     OptimizeNone ⇒ LLVM's loop-idiom pass cannot rewrite the loop into a
+//     self-referential memmove call (would recurse infinitely).
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingMemmove(
+    llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+{
+    llvm::FunctionType* ft = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "memmove", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+
+    llvm::BasicBlock* entry    = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* checkDir = llvm::BasicBlock::Create(*cg_.context_, "checkdir", fn);
+    llvm::BasicBlock* fwdLoop  = llvm::BasicBlock::Create(*cg_.context_, "fwd", fn);
+    llvm::BasicBlock* bwdLoop  = llvm::BasicBlock::Create(*cg_.context_, "bwd", fn);
+    llvm::BasicBlock* done     = llvm::BasicBlock::Create(*cg_.context_, "done", fn);
+
+    cg_.builder_->SetInsertPoint(entry);
+    llvm::Value* dst = fn->getArg(0);
+    llvm::Value* src = fn->getArg(1);
+    llvm::Value* n   = fn->getArg(2);
+    // n == 0 → nothing to copy (also guards the backward loop's n-1 underflow)
+    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(n, llvm::ConstantInt::get(i64Ty, 0));
+    cg_.builder_->CreateCondBr(isZero, done, checkDir);
+
+    // dst < src ⇒ forward copy is overlap-safe; otherwise copy backward.
+    cg_.builder_->SetInsertPoint(checkDir);
+    llvm::Value* fwdSafe = cg_.builder_->CreateICmpULT(dst, src, "fwdsafe");
+    cg_.builder_->CreateCondBr(fwdSafe, fwdLoop, bwdLoop);
+
+    // Forward loop: i = 0 .. n-1
+    cg_.builder_->SetInsertPoint(fwdLoop);
+    llvm::PHINode* fi = cg_.builder_->CreatePHI(i64Ty, 2, "fi");
+    fi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), checkDir);
+    llvm::Value* fSrc  = cg_.builder_->CreateGEP(i8Ty, src, fi, "fsrc");
+    llvm::Value* fByte = cg_.builder_->CreateLoad(i8Ty, fSrc, "fbyte");
+    llvm::Value* fDst  = cg_.builder_->CreateGEP(i8Ty, dst, fi, "fdst");
+    cg_.builder_->CreateStore(fByte, fDst);
+    llvm::Value* fNext = cg_.builder_->CreateAdd(fi, llvm::ConstantInt::get(i64Ty, 1));
+    fi->addIncoming(fNext, fwdLoop);
+    llvm::Value* fCond = cg_.builder_->CreateICmpULT(fNext, n);
+    cg_.builder_->CreateCondBr(fCond, fwdLoop, done);
+
+    // Backward loop: index = n-1 .. 0 (phi starts at n, decrement-first)
+    cg_.builder_->SetInsertPoint(bwdLoop);
+    llvm::PHINode* bj = cg_.builder_->CreatePHI(i64Ty, 2, "bj");
+    bj->addIncoming(n, checkDir);
+    llvm::Value* bIdx  = cg_.builder_->CreateSub(bj, llvm::ConstantInt::get(i64Ty, 1), "bidx");
+    llvm::Value* bSrc  = cg_.builder_->CreateGEP(i8Ty, src, bIdx, "bsrc");
+    llvm::Value* bByte = cg_.builder_->CreateLoad(i8Ty, bSrc, "bbyte");
+    llvm::Value* bDst  = cg_.builder_->CreateGEP(i8Ty, dst, bIdx, "bdst");
+    cg_.builder_->CreateStore(bByte, bDst);
+    bj->addIncoming(bIdx, bwdLoop);
+    llvm::Value* bCond = cg_.builder_->CreateICmpNE(bIdx, llvm::ConstantInt::get(i64Ty, 0));
+    cg_.builder_->CreateCondBr(bCond, bwdLoop, done);
+
+    cg_.builder_->SetInsertPoint(done);
+    cg_.builder_->CreateRet(dst);
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
 // 5. strlen — Scan for null byte
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingStrlen(
@@ -670,6 +746,64 @@ void FreestandingCodeGen::emitFreestandingStrcmp(
     // Fix phi — incoming from eqNull since that's where we increment
     i->addIncoming(nextI, eqNull);
 
+    cg_.builder_->restoreIP(savedIP);
+}
+
+// ============================================================================
+// 6b. memcmp — Return (unsigned char)a[i] − (unsigned char)b[i] at the first
+//     differing byte, else 0. Unsigned per the C memcmp contract (zext, not
+//     sext). Length-bounded sibling of strcmp. weak_odr + no-builtins guard
+//     against loop-idiom rewriting the loop into a self memcmp call.
+// ============================================================================
+void FreestandingCodeGen::emitFreestandingMemcmp(
+    llvm::Type* i8Ty, llvm::Type* i32Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
+{
+    llvm::FunctionType* ft = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, i64Ty}, false);
+    llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "memcmp", ft);
+    if (!fn) return;
+
+    auto savedIP = cg_.builder_->saveIP();
+
+    llvm::BasicBlock* entry   = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* loop    = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
+    llvm::BasicBlock* differ  = llvm::BasicBlock::Create(*cg_.context_, "differ", fn);
+    llvm::BasicBlock* cont    = llvm::BasicBlock::Create(*cg_.context_, "cont", fn);
+    llvm::BasicBlock* retZero = llvm::BasicBlock::Create(*cg_.context_, "ret_zero", fn);
+
+    cg_.builder_->SetInsertPoint(entry);
+    llvm::Value* a = fn->getArg(0);
+    llvm::Value* b = fn->getArg(1);
+    llvm::Value* n = fn->getArg(2);
+    // n == 0 → equal (also guards the loop's iNext == n exit)
+    llvm::Value* isZero = cg_.builder_->CreateICmpEQ(n, llvm::ConstantInt::get(i64Ty, 0));
+    cg_.builder_->CreateCondBr(isZero, retZero, loop);
+
+    cg_.builder_->SetInsertPoint(loop);
+    llvm::PHINode* i = cg_.builder_->CreatePHI(i64Ty, 2, "i");
+    i->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+    llvm::Value* pa = cg_.builder_->CreateGEP(i8Ty, a, i, "pa");
+    llvm::Value* ca = cg_.builder_->CreateLoad(i8Ty, pa, "ca");
+    llvm::Value* pb = cg_.builder_->CreateGEP(i8Ty, b, i, "pb");
+    llvm::Value* cb = cg_.builder_->CreateLoad(i8Ty, pb, "cb");
+    llvm::Value* neq = cg_.builder_->CreateICmpNE(ca, cb);
+    cg_.builder_->CreateCondBr(neq, differ, cont);
+
+    // Bytes differ — return unsigned difference
+    cg_.builder_->SetInsertPoint(differ);
+    llvm::Value* ea = cg_.builder_->CreateZExt(ca, i32Ty);
+    llvm::Value* eb = cg_.builder_->CreateZExt(cb, i32Ty);
+    llvm::Value* diff = cg_.builder_->CreateSub(ea, eb, "diff");
+    cg_.builder_->CreateRet(diff);
+
+    // Bytes equal — advance; stop after n bytes
+    cg_.builder_->SetInsertPoint(cont);
+    llvm::Value* iNext = cg_.builder_->CreateAdd(i, llvm::ConstantInt::get(i64Ty, 1), "inext");
+    i->addIncoming(iNext, cont);
+    llvm::Value* atEnd = cg_.builder_->CreateICmpEQ(iNext, n);
+    cg_.builder_->CreateCondBr(atEnd, retZero, loop);
+
+    cg_.builder_->SetInsertPoint(retZero);
+    cg_.builder_->CreateRet(llvm::ConstantInt::get(i32Ty, 0));
     cg_.builder_->restoreIP(savedIP);
 }
 

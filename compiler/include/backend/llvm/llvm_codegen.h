@@ -1022,7 +1022,9 @@ namespace Sad
             void emitFreestandingMalloc(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMalloc(i8Ty, i64Ty, ptrTy); }
             void emitFreestandingFree(llvm::Type *ptrTy, llvm::Type *voidTy) { freest_->emitFreestandingFree(ptrTy, voidTy); }
             void emitFreestandingMemcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMemcpy(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingMemmove(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMemmove(i8Ty, i64Ty, ptrTy); }
             void emitFreestandingMemset(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMemset(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingMemcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMemcmp(i8Ty, i32Ty, i64Ty, ptrTy); }
             void emitFreestandingStrlen(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingStrlen(i8Ty, i64Ty, ptrTy); }
             void emitFreestandingStrcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingStrcmp(i8Ty, i32Ty, i64Ty, ptrTy); }
             void emitFreestandingStrcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingStrcpy(i8Ty, i64Ty, ptrTy); }
