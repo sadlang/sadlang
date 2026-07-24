@@ -11,6 +11,7 @@
 
 #include "compiler_driver.h"
 #include "utf8_utils.h"
+#include "error_codes.h" // (AR) ErrorCode::INT_SIR_FIELD_LAYOUT لبوّابة التوليد المُنمَّطة / (EN) code-scoped codegen gate
 #include "../../compiler/include/frontend/sir_module.h"
 #include "../../compiler/include/backend/llvm/llvm_codegen.h"
 #include "../../compiler/include/backend/llvm/arabic_optimizer.h"
@@ -304,6 +305,31 @@ namespace sad
                 //      DiagnosticEngine so the "N error(s)" tally is honest — codegen
                 //      errors live in a channel separate from error_count_.
                 if (options_.freestanding && llvm_codegen_->hasErrors())
+                {
+                    for (const auto &codegen_error : llvm_codegen_->getErrors())
+                    {
+                        diagnostics_.report_error(codegen_error);
+                    }
+                    return false;
+                }
+                // (AR) بوّابة مستضافة مُنمَّطة بالرمز (جولة أميليا ٢ لإصلاح اختطاف
+                //      «حدث»): فشلُ ربط كائنٍ بصنفه (INT_SIR_FIELD_LAYOUT — «No class
+                //      mapping») يعني GEPًا مستحيلًا وثنائيًّا مكسورًا حتمًا، والمفسّر
+                //      يرفض نظيره زمنيًّا (RUN025) — فالإحباط الصريح هو التكافؤ الصادق،
+                //      وكان exit 0 يُبقيه انحدارًا صامتًا لا يمسكه أيّ اختبار سلوكيّ.
+                //      مقصورة على هذا الرمز عمدًا: البوّابة العامّة مؤجَّلة (ISSUE-073)
+                //      كي لا تنكشف عللُ codegen الخمس المقنَّعة (yield/مولّدات + مدى).
+                // (EN) Hosted code-scoped gate (Amelia round 2 of the «حدث» hijack fix):
+                //      failing to map an object to its class (INT_SIR_FIELD_LAYOUT —
+                //      "No class mapping") means an impossible GEP and a certainly
+                //      broken binary; the interpreter rejects the counterpart at run
+                //      time (RUN025), so an explicit abort is the honest parity —
+                //      exit 0 kept this class of regression invisible to behavioral
+                //      tests. Deliberately scoped to this code: the general gate is
+                //      deferred (ISSUE-073) to avoid exposing the 5 masked codegen
+                //      bugs (yield/generators + equality-range).
+                if (llvm_codegen_->hasErrorCode(
+                        ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT))
                 {
                     for (const auto &codegen_error : llvm_codegen_->getErrors())
                     {

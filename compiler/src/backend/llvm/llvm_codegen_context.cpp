@@ -42,6 +42,9 @@ namespace Sad
         void LLVMCodeGenContext::reportError(Sad::Errors::ErrorCode code,
                                              std::map<std::string, std::string> placeholders)
         {
+            // (AR) سجّل الرمز أوّلًا — يُمكّن البوّابات المُنمَّطة بالرمز في السائق
+            // (EN) Record the code first — enables code-scoped driver gates
+            errorCodes_.push_back(code);
             Sad::Errors::RenderContext ctx;
             ctx.placeholders = std::move(placeholders);
             reportError(Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx));

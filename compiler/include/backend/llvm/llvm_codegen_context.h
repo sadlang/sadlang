@@ -140,6 +140,15 @@ namespace Sad
             /// (EN) Chronological list of error messages
             std::vector<std::string> errors_;
 
+            /// (AR) رموز الكتالوج للأخطاء المسجَّلة (توازي errors_ الكتالوجيّة) —
+            ///      تُمكّن بوّاباتٍ مُنمَّطةً بالرمز في السائق (كبوّابة INT_SIR_FIELD_LAYOUT
+            ///      المستضافة) دون مطابقة نصوص، وبلا كشف أصناف الأخطاء المؤجَّلة (ISSUE-073).
+            /// (EN) Catalog codes of recorded errors (parallel to catalog-based errors_) —
+            ///      enable code-scoped driver gates (e.g. the hosted INT_SIR_FIELD_LAYOUT
+            ///      gate) without string matching and without exposing the deferred
+            ///      ISSUE-073 error classes.
+            std::vector<Sad::Errors::ErrorCode> errorCodes_;
+
             // ------------------------------------------------------------------------
             // (7) دوال مساعدة عامة / Public helpers (متاحة لكل sub-codegen)
             // ------------------------------------------------------------------------
@@ -169,6 +178,16 @@ namespace Sad
              * (EN) Errors list (read-only)
              */
             const std::vector<std::string> &getErrors() const { return errors_; }
+
+            /// (AR) هل سُجّل خطأ بهذا الرمز الكتالوجيّ؟ (للبوّابات المُنمَّطة بالرمز)
+            /// (EN) Was an error with this catalog code recorded? (code-scoped gates)
+            bool hasErrorCode(Sad::Errors::ErrorCode code) const
+            {
+                for (const auto &c : errorCodes_)
+                    if (c == code)
+                        return true;
+                return false;
+            }
 
         protected:
             /// (AR) مُنشئ افتراضي — كل الحقول لها قيم ابتدائية

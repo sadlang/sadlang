@@ -168,7 +168,16 @@ namespace Sad
                     for (const auto &param : funcDecl->parameters)
                     {
                         SIR::SadTypeKind paramType = b_.astTypeToSIRType(param.type);
-                        sirMethod->addParameter(SIR::SIRParameter(param.name, paramType));
+                        SIR::SIRParameter sirParam(param.name, paramType);
+                        // (AR) نقل اسم الصنف المصرَّح — كما في class_main —
+                        //      كي يصل بذر أصناف المعاملات لطرق السمات أيضًا
+                        // (EN) Carry the declared class name — as class_main does —
+                        //      so declared-param class seeding reaches trait methods too
+                        if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                        {
+                            sirParam.className = param.typeName;
+                        }
+                        sirMethod->addParameter(sirParam);
                     }
 
                     // (AR) إضافة الدالة للصنف
@@ -411,7 +420,14 @@ namespace Sad
                                             for (const auto &param : traitMethod.params)
                                             {
                                                 SIR::SadTypeKind paramType = b_.astTypeToSIRType(param.type);
-                                                sirMethod->addParameter(SIR::SIRParameter(param.name, paramType));
+                                                SIR::SIRParameter sirParam(param.name, paramType);
+                                                // (AR) نقل اسم الصنف المصرَّح لطرق السمات الافتراضيّة أيضًا
+                                                // (EN) Carry declared class name for trait default methods too
+                                                if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                                                {
+                                                    sirParam.className = param.typeName;
+                                                }
+                                                sirMethod->addParameter(sirParam);
                                             }
 
                                             sirClass->addMethod(sirMethod);

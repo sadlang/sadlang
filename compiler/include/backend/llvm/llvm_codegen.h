@@ -225,6 +225,16 @@ namespace Sad
             // Class name → ordered field names
             std::unordered_map<std::string, std::vector<std::string>> classFieldNames;
 
+            // (AR) الأصناف المضمَّنة لغويًّا (كصنف «حدث» من SoT) — تُستثنى من احتياطيّ
+            //      «تخمين الصنف من اسم الحقل»: تسجيل «حدث» غير المشروط (② rfcs#46)
+            //      جعل حقوله (س/ص/قيمة…) تفوز بالتخمين على حقول أصناف المستخدم
+            //      فيُبنى GEP بتخطيط «حدث» فوق كائن المستخدم (انحدار dev الثلاثيّ).
+            // (EN) Language-builtin classes (e.g. the SoT «حدث» event class) — excluded
+            //      from the infer-class-from-field-name fallback: its unconditional
+            //      registration made its fields (x/y/value…) win the guess over user
+            //      classes, building GEPs with the event layout over user objects.
+            std::unordered_set<std::string> builtinClassNames;
+
             // اسم الصنف → اسم الصنف الأب (للوراثة)
             // Class name → parent class name (for inheritance)
             std::unordered_map<std::string, std::string> classParentMap;

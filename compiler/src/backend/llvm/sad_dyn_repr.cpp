@@ -8,6 +8,7 @@
 #include "sad_dyn_repr.h"
 #include "llvm_codegen.h"
 #include "sir_constants.h" // (AR) kDivZeroRun001Msg + kSadPanicCheckViolation (د-1) / (EN) D-1 div-zero guard constants
+#include "sad_event_layout_generated.h" // (② rfcs#46) اسم صنف «حدث» المضمَّن من SoT — استثناؤه من توسيع الحقول بالاسم
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
@@ -212,7 +213,15 @@ namespace Sad
                                 const bool dynVal = valueIsDyn(valOp);
                                 for (const auto &cls : sirModule->getClasses())
                                 {
-                                    if (!cls)
+                                    // (AR) صنف «حدث» المضمَّن مستثنى: مطابقة الاسم هنا كانت
+                                    //      تُوسّع حقوله (س/ص/قيمة…) من تخزينات المستخدم
+                                    //      فتفسد تخطيط thunk الحدث (انحدار #251).
+                                    // (EN) The builtin «حدث» class is skipped: name-matching
+                                    //      here widened its fields (x/y/value…) from user
+                                    //      stores, corrupting the event-thunk layout (#251).
+                                    if (!cls ||
+                                        cls->name ==
+                                            ::Sad::Types::EventLayout::SAD_EVENT_STRUCT_NAME)
                                         continue;
                                     auto fit = cls->fields_.find(fieldName);
                                     if (fit == cls->fields_.end() || fit->second == SadTypeKind::Any)

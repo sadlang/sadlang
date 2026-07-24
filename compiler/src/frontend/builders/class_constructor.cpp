@@ -54,7 +54,12 @@ namespace Sad
                               << "' AST type=" << static_cast<int>(param.type)
                               << " -> SIR type=" << static_cast<int>(paramType) << std::endl;
 #endif
-                    sirCtor->addParameter(SIRParameter(param.name, paramType));
+                    // (AR) بذر صنف المعامل المصرَّح في الباني (جولة أميليا ٢)
+                    // (EN) Seed declared param class in the constructor (Amelia round 2)
+                    SIRParameter sp(param.name, paramType);
+                    if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                        sp.className = param.typeName;
+                    sirCtor->addParameter(sp);
                 }
 
                 sirClass->addMethod(sirCtor);

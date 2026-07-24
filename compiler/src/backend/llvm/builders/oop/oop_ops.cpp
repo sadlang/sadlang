@@ -37,6 +37,20 @@ namespace Sad
         // (EN) Object and pointer operations - ObjectNew, ObjectGet, ObjectSet, Addr, PtrAdd, PtrCast
         // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
         // ============================================================================
+
+        bool OOPOpsCodeGen::fieldExistsInAnyClass(const std::string &fieldName) const
+        {
+            for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
+            {
+                for (const auto &fn : fieldVec)
+                {
+                    if (fn == fieldName)
+                        return true;
+                }
+            }
+            return false;
+        }
+
         llvm::Value *OOPOpsCodeGen::emitAddr(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -314,10 +328,16 @@ namespace Sad
 
             // (AR) Fallback: استنتاج الصنف من اسم الحقل
             // (EN) Fallback: infer class from field name
+            // (AR) تُستثنى الأصناف المضمَّنة («حدث») وإلّا فازت حقولها (س/ص/قيمة…)
+            //      بالتخمين على أصناف المستخدم ⇒ GEP بتخطيطها فوق كائنه (انحدار #251).
+            // (EN) Builtin classes («حدث») are skipped, else their fields (x/y/value…)
+            //      win the guess over user classes ⇒ wrong-layout GEP (#251 regression).
             if (className.empty())
             {
                 for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
+                    if (cg_.context_info_.builtinClassNames.count(clsName))
+                        continue;
                     for (const auto &fn : fieldVec)
                     {
                         if (fn == fieldName)
@@ -334,7 +354,20 @@ namespace Sad
 
             if (className.empty())
             {
-                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("No class mapping for:") + objRegName}});
+                // (AR) تمييز عطب التخطيط عن الوصول الديناميكيّ: إن كان الحقل موجودًا في
+                //      تخطيط صنفٍ معروف (بما فيها المضمَّنة) فتعذُّر الربط عطبُ تخطيطٍ
+                //      حقيقيّ يُجهض الترجمة (بوّابة INT_SIR_FIELD_LAYOUT في السائق)؛
+                //      وإلّا فهو وصولٌ ديناميكيّ لعضوٍ لا يعرفه أيّ صنف («م.الطول» على
+                //      نصّ) — شأنُ زمنِ تشغيلٍ في المرجع (RUN033) لا يُجهض الترجمة.
+                // (EN) Distinguish layout corruption from dynamic access: a member that
+                //      exists in some known class layout (builtins included) failing to
+                //      bind is a real layout defect (driver gate aborts); a member no
+                //      class knows is dynamic access — a runtime matter in the reference
+                //      engine (RUN033), which must not abort compilation.
+                cg_.reportError(fieldExistsInAnyClass(fieldName)
+                                    ? ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT
+                                    : ::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
+                                {{"detail", std::string("No class mapping for:") + objRegName}});
                 return nullptr;
             }
 
@@ -486,9 +519,12 @@ namespace Sad
             // (EN) Field not found — search all classes as fallback
             if (fieldIndex < 0)
             {
+                // (AR) المضمَّنة («حدث») مستثناة من التخمين (انحدار #251)
+                // (EN) Builtins («حدث») excluded from the guess (#251 regression)
                 for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
-                    if (clsName == className)
+                    if (clsName == className ||
+                        cg_.context_info_.builtinClassNames.count(clsName))
                         continue;
                     for (size_t i = 0; i < fieldVec.size(); i++)
                     {
@@ -647,10 +683,14 @@ namespace Sad
 
             // (AR) Fallback: استنتاج الصنف من اسم الحقل
             // (EN) Fallback: infer class from field name
+            // (AR) المضمَّنة («حدث») مستثناة من التخمين (انحدار #251)
+            // (EN) Builtins («حدث») excluded from the guess (#251 regression)
             if (className.empty())
             {
                 for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
+                    if (cg_.context_info_.builtinClassNames.count(clsName))
+                        continue;
                     for (const auto &fn : fieldVec)
                     {
                         if (fn == fieldName)
@@ -667,7 +707,14 @@ namespace Sad
 
             if (className.empty())
             {
-                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT, {{"detail", std::string("No class mapping for:") + objRegName}});
+                // (AR) التمييز نفسه المطبَّق في emitObjectGet: حقلٌ يعرفه صنفٌ ما ⇒ عطب
+                //      تخطيط مُجهِض؛ عضوٌ لا يعرفه أحد ⇒ ديناميكيّ (شأن زمن تشغيل)
+                // (EN) Same distinction as emitObjectGet: known-in-some-class field ⇒
+                //      aborting layout defect; unknown-to-all member ⇒ dynamic (runtime)
+                cg_.reportError(fieldExistsInAnyClass(fieldName)
+                                    ? ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT
+                                    : ::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
+                                {{"detail", std::string("No class mapping for:") + objRegName}});
                 return nullptr;
             }
 
@@ -858,9 +905,12 @@ namespace Sad
             // (EN) Field not found — search all classes as fallback
             if (fieldIndex < 0)
             {
+                // (AR) المضمَّنة («حدث») مستثناة من التخمين (انحدار #251)
+                // (EN) Builtins («حدث») excluded from the guess (#251 regression)
                 for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
-                    if (clsName == className)
+                    if (clsName == className ||
+                        cg_.context_info_.builtinClassNames.count(clsName))
                         continue;
                     for (size_t i = 0; i < fieldVec.size(); i++)
                     {

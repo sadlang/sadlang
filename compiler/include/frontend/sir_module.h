@@ -305,6 +305,15 @@ namespace Sad
                 std::string name;                            ///< (AR) اسم المعامل / (EN) Parameter name
                 SadTypeKind type;                            ///< (AR) نوع المعامل / (EN) Parameter type
                 SadTypeKind elementType = SadTypeKind::Void; ///< (AR) نوع عنصر المصفوفة (للمصفوفات) / (EN) Array element type (for arrays)
+                /// (AR) اسم الصنف للمعامل المصرَّح بصنفٍ مسجَّل (نحو `دالة معالج(حدث ح)`) —
+                ///      تبذره الخلفيّة في objectClassMap فلا يُترك حلّ الحقول لتخمين الاسم
+                ///      (معالِج الحدث لا يُستدعى من كود ص فلا يصله استدلال مواقع الاستدعاء).
+                /// (EN) Class name for a param declared with a registered class (e.g.
+                ///      `دالة معالج(حدث ح)`) — the backend seeds objectClassMap from it so
+                ///      field resolution never relies on the name-guess fallback (event
+                ///      handlers are never called from ص code, so call-site inference
+                ///      cannot reach them).
+                std::string className;
 
                 SIRParameter(const std::string &paramName, SadTypeKind paramType)
                     : name(paramName), type(paramType), elementType(SadTypeKind::Void) {}

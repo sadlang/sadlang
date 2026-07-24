@@ -404,7 +404,14 @@ namespace Sad
                                             break;
                                         }
                                     }
-                                    sirMethod->addParameter(SIRParameter(param.name, paramType));
+                                    // (AR) بذر صنف المعامل المصرَّح («حدث ح» في طريقة) — نظير
+                                    //      الدوالّ الحرّة في sir_builder_functions (جولة أميليا ٢)
+                                    // (EN) Seed declared param class («حدث ح» in a method) —
+                                    //      mirrors free functions in sir_builder_functions
+                                    SIRParameter sp(param.name, paramType);
+                                    if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                                        sp.className = param.typeName;
+                                    sirMethod->addParameter(sp);
                                 }
                             }
                             else
@@ -412,7 +419,10 @@ namespace Sad
                                 for (const auto &param : methodDecl->parameters)
                                 {
                                     SadTypeKind paramType = b_.astTypeToSIRType(param.type);
-                                    sirMethod->addParameter(SIRParameter(param.name, paramType));
+                                    SIRParameter sp(param.name, paramType);
+                                    if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                                        sp.className = param.typeName;
+                                    sirMethod->addParameter(sp);
                                 }
                             }
                         }
@@ -646,7 +656,12 @@ namespace Sad
                         for (const auto &param : funcDecl->parameters)
                         {
                             SadTypeKind paramType = b_.astTypeToSIRType(param.type);
-                            sirMethod->addParameter(SIRParameter(param.name, paramType));
+                            // (AR) بذر صنف المعامل المصرَّح (جولة أميليا ٢)
+                            // (EN) Seed declared param class (Amelia round 2)
+                            SIRParameter sp(param.name, paramType);
+                            if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                                sp.className = param.typeName;
+                            sirMethod->addParameter(sp);
                         }
 
                         sirClass->addMethod(sirMethod);
@@ -868,13 +883,23 @@ namespace Sad
                                 if (ip.name == param.name && param.type == Types::SadTypeKind::Unknown && ip.type != paramType)
                                 { paramType = ip.type; break; }
                             }
-                            sirMethod->addParameter(SIRParameter(param.name, paramType));
+                            // (AR) بذر صنف المعامل المصرَّح (جولة أميليا ٢)
+                            // (EN) Seed declared param class (Amelia round 2)
+                            SIRParameter sp(param.name, paramType);
+                            if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                                sp.className = param.typeName;
+                            sirMethod->addParameter(sp);
                         }
                     }
                     else
                     {
                         for (const auto &param : methodDecl->parameters)
-                            sirMethod->addParameter(SIRParameter(param.name, b_.astTypeToSIRType(param.type)));
+                        {
+                            SIRParameter sp(param.name, b_.astTypeToSIRType(param.type));
+                            if (!param.typeName.empty() && b_.module_ && b_.module_->getClass(param.typeName))
+                                sp.className = param.typeName;
+                            sirMethod->addParameter(sp);
+                        }
                     }
                 }
 

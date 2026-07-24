@@ -421,7 +421,13 @@ namespace Sad
                             {
                                 defaultValue = parseExpression();
                             }
-                            parameters.push_back(Parameter(paramToken.getValue(), Types::SadTypeKind::Class, std::move(defaultValue)));
+                            // (AR) تمرير اسم الصنف typeName — كان يُسقَط هنا فلا يصل
+                            //      بذرُ أصناف المعاملات المصرَّحة إلى طرق الأصناف إطلاقًا
+                            //      (`دالة سجل(حدث ح)` كطريقة) بينما يصل للدوالّ الحرّة.
+                            // (EN) Pass the class name as typeName — it was dropped here,
+                            //      so declared-param class seeding never reached class
+                            //      methods (`دالة سجل(حدث ح)`) while free functions got it.
+                            parameters.push_back(Parameter(paramToken.getValue(), Types::SadTypeKind::Class, std::move(defaultValue), firstToken.getValue()));
                         }
                         else
                         {

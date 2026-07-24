@@ -30,6 +30,13 @@ public:
     llvm::Value *emitObjectNew(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitObjectGet(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitObjectSet(std::shared_ptr<SIRInstruction> inst);
+
+private:
+    // (AR) هل الحقل موجود في تخطيط أيّ صنف معروف (بما فيها المضمَّنة)؟ —
+    //      يميّز عطب التخطيط المُجهِض عن الوصول الديناميكيّ (شأن زمن التشغيل)
+    // (EN) Does the field exist in any known class layout (builtins included)?
+    //      Distinguishes aborting layout defects from dynamic (runtime) access.
+    bool fieldExistsInAnyClass(const std::string &fieldName) const;
 };
 
 }} // namespace Sad::LLVM

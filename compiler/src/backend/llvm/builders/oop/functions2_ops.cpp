@@ -526,6 +526,23 @@ namespace Sad
                 }
             }
 
+            // (AR) بذر أصناف المعاملات المصرَّحة (نحو `دالة معالج(حدث ح)`): التصريح
+            //      أوثق من احتياطيّ «تخمين الصنف من اسم الحقل»، وهو المسار الوحيد
+            //      لمعالِجات الأحداث (لا مواقعَ استدعاء ص لها) بعد استثناء «حدث»
+            //      المضمَّن من التخمين.
+            // (EN) Seed declared param classes (e.g. `دالة معالج(حدث ح)`): the
+            //      declaration beats the infer-class-from-field-name fallback, and is
+            //      the only path for event handlers (no ص call sites) now that the
+            //      builtin «حدث» is excluded from the guess.
+            for (const auto &param : sirFunc->getParameters())
+            {
+                if (!param.className.empty())
+                {
+                    cg_.context_info_.objectClassMap["%" + param.name] = param.className;
+                    cg_.context_info_.objectClassMap[param.name] = param.className;
+                }
+            }
+
             // Source: SIRFunction::getBasicBlocks() is at sir_module.h:299
             const auto &basicBlocks = sirFunc->getBasicBlocks();
 

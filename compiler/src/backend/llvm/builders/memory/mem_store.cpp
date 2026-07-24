@@ -194,10 +194,14 @@ namespace Sad
                 // (AR) Fallback: إذا لم يُعرف الصنف، نبحث في كل الأصناف عن حقل بهذا الاسم
                 // (EN) Fallback: if class unknown, search all classes for the field name
                 // ================================================================
+                // (AR) المضمَّنة («حدث») مستثناة من التخمين (انحدار #251)
+                // (EN) Builtins («حدث») excluded from the guess (#251 regression)
                 if (className.empty())
                 {
                     for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                     {
+                        if (cg_.context_info_.builtinClassNames.count(clsName))
+                            continue;
                         for (const auto &fn : fieldVec)
                         {
                             if (fn == fieldName)
@@ -290,9 +294,12 @@ namespace Sad
                     // (AR) البحث في كل الأصناف كـ fallback
                     if (!foundField)
                     {
+                        // (AR) المضمَّنة («حدث») مستثناة من التخمين (انحدار #251)
+                        // (EN) Builtins («حدث») excluded from the guess (#251 regression)
                         for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                         {
-                            if (clsName == className)
+                            if (clsName == className ||
+                                cg_.context_info_.builtinClassNames.count(clsName))
                                 continue;
                             for (size_t i = 0; i < fieldVec.size(); i++)
                             {
@@ -716,9 +723,24 @@ namespace Sad
             // نشر خريطة الأصناف عند تخزين كائن في متغير
             // Propagate class map when storing object into variable
             // ================================================================
-            if (cg_.context_info_.objectClassMap.count(valueOp.name) &&
-                !cg_.context_info_.objectClassMap.count(ptrName))
+            // (AR) الكتابة فوق أيّ ربط سابق (بذرة تصريح أو نشر أقدم) — إعادة
+            //      إسناد المتغيّر لكائن من صنف آخر يجب أن تحدّث صنفه وإلّا
+            //      بقي GEP بتخطيط الصنف القديم فوق الكائن الجديد (قيمة خاطئة صامتة)
+            // (EN) Overwrite any prior binding (declared-param seed or older
+            //      propagation) — reassigning the variable to another class's
+            //      object must update its class, else GEPs keep the stale layout.
+            if (cg_.context_info_.objectClassMap.count(valueOp.name))
             {
+#ifndef NDEBUG
+                auto prevIt = cg_.context_info_.objectClassMap.find(ptrName);
+                if (prevIt != cg_.context_info_.objectClassMap.end() &&
+                    prevIt->second != cg_.context_info_.objectClassMap[valueOp.name])
+                {
+                    std::cout << "[DEBUG] emitStore: OVERWRITE class '" << prevIt->second
+                              << "' -> '" << cg_.context_info_.objectClassMap[valueOp.name]
+                              << "' on " << ptrName << " (from " << valueOp.name << ")" << std::endl;
+                }
+#endif
                 cg_.context_info_.objectClassMap[ptrName] = cg_.context_info_.objectClassMap[valueOp.name];
 #ifndef NDEBUG
                 std::cout << "[DEBUG] emitStore: propagated class '"

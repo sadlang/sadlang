@@ -15,6 +15,7 @@
 #include "llvm_codegen.h"
 #include "builders/oop/classes_vtables_codegen.h"
 #include "sad_dyn_repr.h" // (AR) ISSUE-076: النوع الديناميّ %SadDyn لخانات حمولة ADT
+#include "sad_event_layout_generated.h" // (② rfcs#46) اسم صنف «حدث» المضمَّن من SoT — لوسم builtinClassNames
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -90,6 +91,18 @@ namespace Sad
                     continue;
 
                 const std::string &className = sirClass->name;
+
+                // (AR) وسم صنف «حدث» المضمَّن (② rfcs#46، اسمه من SoT المولَّد) —
+                //      يبقى مسجَّلًا كاملًا (thunk الحدث يحتاج تخطيطه) لكنّه يُستثنى
+                //      من احتياطيّ تخمين الصنف من اسم الحقل (انظر builtinClassNames).
+                // (EN) Mark the builtin «حدث» event class (② rfcs#46, name from the
+                //      generated SoT) — still fully registered (the event thunk needs
+                //      its layout) but excluded from the infer-class-from-field-name
+                //      fallback (see builtinClassNames).
+                if (className == ::Sad::Types::EventLayout::SAD_EVENT_STRUCT_NAME)
+                {
+                    cg_.context_info_.builtinClassNames.insert(className);
+                }
 
                 // (AR) تسجيل علاقة الوراثة
                 // (EN) Register inheritance relationship

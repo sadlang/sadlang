@@ -383,6 +383,17 @@ namespace Sad
                     }
 
                     SIRParameter sirParam(param.name, paramType);
+                    // (AR) معامل مصرَّح بصنفٍ مسجَّل («حدث ح» أو صنف مستخدم): انقل اسم
+                    //      الصنف إلى SIR كي تبذره الخلفيّة في objectClassMap — التصريح
+                    //      أوثق من تخمين الصنف بالاسم، ومعالِج الحدث لا مواقعَ استدعاء له.
+                    // (EN) Param declared with a registered class («حدث ح» or a user
+                    //      class): carry the class name into SIR so the backend seeds
+                    //      objectClassMap — the declaration beats name-guessing, and an
+                    //      event handler has no call sites to infer from.
+                    if (!param.typeName.empty() && module_ && module_->getClass(param.typeName))
+                    {
+                        sirParam.className = param.typeName;
+                    }
                     sirFunction->addParameter(sirParam);
                 }
 
