@@ -117,6 +117,40 @@ namespace Sad
                 //      in nested short-circuit — prevents Segfault on a scalar element).
                 SadTypeKind matchValueElementType = matchResult.elementType;
 
+                // (AR) [أ-م٥] اسم تعداد القيمة المُطابَقة (className المتتبَّع). نحفظ القيمة
+                //      السابقة ونضبط الحاليّة، ثمّ نستعيدها في نهاية الدالّة — كي يعمل تداخل
+                //      «طابق» داخل ذراع «طابق» آخر بلا تلوّث. يقرأه نمطُ المتغيّر ليميّز
+                //      المعاملَ الوحدويّ العاري عن الرباط الشامل.
+                // (EN) [A-M5] Enum name of the matched value (its tracked className). Save the
+                //      previous value and set the current one, restoring it at the function's end
+                //      so a «match» nested inside another «match» arm doesn't leak. Read by the
+                //      variable pattern to tell a bare unit variant from a catch-all.
+                const std::string thisMatchEnumName = matchResult.className;
+                const std::string savedMatchEnumName = b_.currentMatchEnumName_;
+                b_.currentMatchEnumName_ = thisMatchEnumName;
+
+                // (AR) [أ-م٥] هل هذا النمطُ اسمٌ عارٍ لمعاملٍ وحدويّ (بلا حقول) لتعداد القيمة
+                //      المُطابَقة؟ إن نعم فهو فحصُ وسمٍ لا رباطٌ شامل، فيجب ألّا يُربَط اسمُه
+                //      متغيّرًا في نطاق الحارس/الجسم (كان الرباط يُنشئ متغيّرًا صوريًّا باسم
+                //      العضو). نظير التمييز نفسه في buildMatchPatternCondition.
+                // (EN) [A-M5] Is this pattern a bare name for a unit variant (no fields) of the
+                //      matched value's enum? If so it is a tag check, not a catch-all, so its name
+                //      must NOT be bound as a variable in the guard/body scope (binding used to
+                //      create a bogus variable named after the variant). Mirrors the same
+                //      distinction in buildMatchPatternCondition.
+                auto isBareUnitVariant =
+                    [&](const Sad::AST::Pattern *p) -> bool
+                {
+                    auto *vp = dynamic_cast<const Sad::AST::VariablePattern *>(p);
+                    if (!vp || thisMatchEnumName.empty())
+                        return false;
+                    auto adtIt = b_.adtEnumTable_.find(thisMatchEnumName);
+                    if (adtIt == b_.adtEnumTable_.end())
+                        return false;
+                    const ADTVariantInfo *v = adtIt->second.findVariant(vp->name);
+                    return v && v->isUnit();
+                };
+
                 if (matchResult.isConstant)
                 {
                     matchValueReg = b_.newTempRegister();
@@ -276,6 +310,11 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(brMerge);
                     }
                     b_.currentBlock_ = mergeBlock;
+                    // (AR) استعادة سياق تعداد المطابقة عند الخروج المبكر كي لا يتسرّب إلى مطابقةٍ
+                    //      محيطة (دفاعيّ — المطابقة الفارغة يرفضها المحلّل بـSYN018؛ أميليا 🟠#2).
+                    // (EN) Restore the match-enum context on early exit so it cannot leak into an
+                    //      enclosing match (defensive — empty match is rejected by SYN018; Amelia 🟠#2).
+                    b_.currentMatchEnumName_ = savedMatchEnumName;
                     return;
                 }
 
@@ -482,7 +521,8 @@ namespace Sad
 
                         // (AR) ربط المتغيرات من النمط قبل تقييم الشرط
                         // (EN) Bind pattern variables before evaluating guard
-                        if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(caseClause.pattern.get()))
+                        if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(caseClause.pattern.get());
+                            varPat && !isBareUnitVariant(caseClause.pattern.get()))
                         {
                             VariableInfo guardVar;
                             guardVar.name = varPat->name;
@@ -615,7 +655,8 @@ namespace Sad
 
                     // (AR) ربط المتغيرات من النمط في الجسم
                     // (EN) Bind pattern variables in body scope
-                    if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(caseClause.pattern.get()))
+                    if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(caseClause.pattern.get());
+                        varPat && !isBareUnitVariant(caseClause.pattern.get()))
                     {
                         VariableInfo bodyVar;
                         bodyVar.name = varPat->name;
@@ -764,10 +805,42 @@ namespace Sad
                             hasWildcard = true;
                             break;
                         }
-                        if (dynamic_cast<const Sad::AST::VariablePattern *>(caseClause.pattern.get()))
+                        if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(caseClause.pattern.get()))
                         {
-                            hasVariablePattern = true;
-                            break;
+                            // (AR) [أ-م٥] الاسم العاري الّذي يطابق معاملًا وحدويًّا (بلا حقول)
+                            //      لتعداد القيمة المُطابَقة هو فحصُ وسمٍ (تغطية) لا رباطٌ شامل —
+                            //      نظير buildMatchPatternCondition. عندئذٍ نعدّه مغطّيًا لعضوه
+                            //      (فتعمل شموليّة الصيغة غير المؤهَّلة، نظير أ-م٢ الدلاليّ). وإلّا
+                            //      فهو رباطٌ شامل حقيقيّ «عندما س:» يُعطّل فحصَ الشموليّة كالسابق.
+                            // (EN) [A-M5] A bare name matching a unit variant (no fields) of the
+                            //      matched value's enum is a tag check (coverage), not a catch-all —
+                            //      mirroring buildMatchPatternCondition. Count it as covering its
+                            //      variant (so unqualified exhaustiveness works, like A-M2 semantic).
+                            //      Otherwise it's a genuine catch-all «when x:» disabling the check.
+                            const ADTVariantInfo *unitCov = nullptr;
+                            if (!thisMatchEnumName.empty())
+                            {
+                                auto covIt = b_.adtEnumTable_.find(thisMatchEnumName);
+                                if (covIt != b_.adtEnumTable_.end())
+                                {
+                                    if (const ADTVariantInfo *v = covIt->second.findVariant(varPat->name))
+                                    {
+                                        if (v->isUnit())
+                                            unitCov = v;
+                                    }
+                                }
+                            }
+                            if (unitCov)
+                            {
+                                if (adtEnumName.empty())
+                                    adtEnumName = thisMatchEnumName;
+                                coveredVariants.insert(varPat->name);
+                            }
+                            else
+                            {
+                                hasVariablePattern = true;
+                                break;
+                            }
                         }
                         if (auto *enumPat = dynamic_cast<const Sad::AST::EnumVariantPattern *>(caseClause.pattern.get()))
                         {
@@ -841,6 +914,9 @@ namespace Sad
                 // (AR) الخطوة 6: الاستمرار بعد match
                 // (EN) Step 6: Continue after match statement
                 // ========================================================================
+                // (AR) [أ-م٥] استعادة اسم تعداد المطابقة المحيطة (آمن للتداخل).
+                // (EN) [A-M5] Restore the enclosing match's enum name (nesting-safe).
+                b_.currentMatchEnumName_ = savedMatchEnumName;
                 b_.currentBlock_ = mergeBlock;
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: completed" << std::endl;

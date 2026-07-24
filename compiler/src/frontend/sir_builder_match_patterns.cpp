@@ -134,35 +134,100 @@ namespace Sad
                 }
                 else if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(pattern))
                 {
-                    // (AR) نمط متغير - دائماً true ويربط القيمة
-                    // (EN) Variable pattern - always true and binds value
-                    condReg = newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(condReg, SadTypeKind::Boolean);
-                    SIROperand trueOp = SIROperand::ConstantBool(true);
-                    SIRInstruction moveInst(SIROpcode::MOVE);
-                    moveInst.result = resultOp;
-                    moveInst.operands = {trueOp};
-                    currentBlock_->instructions.push_back(moveInst);
+                    // ================================================================
+                    // (AR) [أ-م٥] المعامل الوحدويّ العاري مقابل الرباط الشامل.
+                    //      المحلّل ينتج «عندما فراغ:» (بلا أقواس) كـ VariablePattern. إن كان
+                    //      الاسم يطابق معاملًا وحدويًّا معروفًا (بلا حقول) **لتعداد القيمة
+                    //      المُطابَقة** (currentMatchEnumName_)، فهو فحصُ وسمٍ لا رباطٌ شامل:
+                    //      نبعث **نفس** شيفرة الوحدويّ المؤهَّل (ENUM_IS_VARIANT، isUnit=1، بلا
+                    //      ربط) فيميّز بين «فراغ» و«عدد(٥)» بدل ابتلاعٍ صامتٍ زائف. وإلّا يبقى
+                    //      رباطًا شاملًا حقيقيًّا (توافقٌ خلفيّ لـ«عندما س:» على قيمةٍ عاديّة).
+                    //      القصر على تعداد القيمة المُطابَقة حصرًا يحمي الرباط الشامل من
+                    //      الاختطاف بتصادف اسمٍ مع عضو تعدادٍ آخر.
+                    // (EN) [A-M5] Bare unit variant vs. catch-all. The parser emits «when None:»
+                    //      (no parens) as a VariablePattern. If the name matches a known unit
+                    //      variant (no fields) of the MATCHED value's enum (currentMatchEnumName_),
+                    //      it is a tag check, not a catch-all: emit the SAME SIR as the qualified
+                    //      unit variant (ENUM_IS_VARIANT, isUnit=1, no binding) so «None» and
+                    //      «Num(5)» are told apart instead of a false silent swallow. Otherwise it
+                    //      stays a genuine catch-all binding (backward compat for «when x:» on an
+                    //      ordinary value). Keying strictly on the matched value's enum shields the
+                    //      catch-all from hijack by a name colliding with another enum's variant.
+                    // ================================================================
+                    const ADTVariantInfo *bareUnitVariant = nullptr;
+                    std::string bareUnitEnumName;
+                    if (!currentMatchEnumName_.empty())
+                    {
+                        auto adtIt = adtEnumTable_.find(currentMatchEnumName_);
+                        if (adtIt != adtEnumTable_.end())
+                        {
+                            if (const ADTVariantInfo *v = adtIt->second.findVariant(varPat->name))
+                            {
+                                if (v->isUnit())
+                                {
+                                    bareUnitVariant = v;
+                                    bareUnitEnumName = adtIt->first;
+                                }
+                            }
+                        }
+                    }
 
-                    // (AR) ربط المتغير: حجز + تخزين
-                    // (EN) Bind variable: alloc + store
-                    std::string varReg = newTempRegister();
-
-                    // (AR) إضافة المتغير إلى النطاق باسم النمط
-                    // (EN) Add variable to scope with pattern name
-                    VariableInfo varInfo;
-                    varInfo.name = varPat->name;
-                    varInfo.type = matchValueType;
-                    varInfo.registerName = matchValueReg;
-                    varInfo.isGlobal = false;
-                    varInfo.isMutable = false;
-                    varInfo.scopeLevel = currentScopeLevel_;
-                    addVariable(varInfo);
+                    if (bareUnitVariant)
+                    {
+                        // (AR) فحص وسمٍ نظير المعامل الوحدويّ المؤهَّل تمامًا (بلا ربط متغيّر).
+                        // (EN) Tag check identical to the qualified unit variant (no binding).
+                        condReg = newTempRegister();
+                        SIRInstruction isVariantInst(SIROpcode::ENUM_IS_VARIANT);
+                        isVariantInst.result = SIROperand::Register(condReg, SadTypeKind::Boolean);
+                        isVariantInst.operands.push_back(
+                            SIROperand::Register(matchValueReg, matchValueType));
+                        isVariantInst.operands.push_back(
+                            SIROperand::ConstantI64(bareUnitVariant->tag));
+                        isVariantInst.operands.push_back(
+                            SIROperand::ConstantString(bareUnitEnumName));
+                        // (AR) المعامل [3]: وحدويّ ⇒ 1 (قيمة tag مباشرة، لا مؤشّر بنية).
+                        // (EN) Operand [3]: unit ⇒ 1 (tag value directly, not a struct pointer).
+                        isVariantInst.operands.push_back(SIROperand::ConstantI64(1));
+                        isVariantInst.comment = "[A-M5] bare unit variant check: " +
+                                                bareUnitEnumName + "." + varPat->name +
+                                                " (tag=" + std::to_string(bareUnitVariant->tag) + ")";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(isVariantInst);
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i
-                              << " is VariablePattern(" << varPat->name << ")" << std::endl;
+                        std::cout << "[DEBUG] buildMatchStatement: case " << i
+                                  << " is bare UnitVariant(" << bareUnitEnumName << "."
+                                  << varPat->name << ")" << std::endl;
 #endif
+                    }
+                    else
+                    {
+                        // (AR) نمط متغير - دائماً true ويربط القيمة (رباط شامل حقيقيّ)
+                        // (EN) Variable pattern - always true and binds value (genuine catch-all)
+                        condReg = newTempRegister();
+                        SIROperand resultOp = SIROperand::Register(condReg, SadTypeKind::Boolean);
+                        SIROperand trueOp = SIROperand::ConstantBool(true);
+                        SIRInstruction moveInst(SIROpcode::MOVE);
+                        moveInst.result = resultOp;
+                        moveInst.operands = {trueOp};
+                        currentBlock_->instructions.push_back(moveInst);
+
+                        // (AR) إضافة المتغير إلى النطاق باسم النمط
+                        // (EN) Add variable to scope with pattern name
+                        VariableInfo varInfo;
+                        varInfo.name = varPat->name;
+                        varInfo.type = matchValueType;
+                        varInfo.registerName = matchValueReg;
+                        varInfo.isGlobal = false;
+                        varInfo.isMutable = false;
+                        varInfo.scopeLevel = currentScopeLevel_;
+                        addVariable(varInfo);
+
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildMatchStatement: case " << i
+                                  << " is VariablePattern(" << varPat->name << ")" << std::endl;
+#endif
+                    }
                 }
                 else if (auto *litPat = dynamic_cast<const Sad::AST::LiteralPattern *>(pattern))
                 {

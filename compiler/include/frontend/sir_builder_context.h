@@ -319,6 +319,18 @@ namespace Sad
                 //      silent divergence in a LIVE arm that lost its payload binding.
                 bool matchArmStaticallyDead_ = false;
 
+                // (AR) [أ-م٥] اسم تعداد قيمة المطابقة الحاليّة (className المتتبَّع للقيمة
+                //      المُطابَقة). يضبطه buildMatchStatement قبل حلقة الأذرع ويُستعيده بعدها
+                //      (آمنٌ للتداخل). يقرأه نمطُ المتغيّر في buildMatchPatternCondition ليميّز
+                //      المعاملَ الوحدويّ العاري «عندما فراغ:» (فحص وسمٍ ENUM_IS_VARIANT بلا ربط)
+                //      عن الرباط الشامل الحقيقيّ «عندما س:» على قيمةٍ عاديّة (يبقى شاملًا).
+                // (EN) [A-M5] Enum name of the current match value (its tracked className). Set
+                //      by buildMatchStatement before the arm loop and restored after it (nesting-
+                //      safe). Read by the variable pattern in buildMatchPatternCondition to tell a
+                //      bare unit variant «when None:» (ENUM_IS_VARIANT tag check, no binding) from
+                //      a genuine catch-all binding «when x:» on an ordinary value (stays catch-all).
+                std::string currentMatchEnumName_;
+
                 // (AR) قائمة التحذيرات (غير قاتلة — تُطبَع ولا تمنع البناء). قناة منفصلة عن
                 //      errors_ كي لا يُخلَط تحذيرٌ بخطأ فيفشل البناء خطأً أو ينجح خطأً (RFC:
                 //      فصل التحذيرات عن الأخطاء في بانِي SIR).

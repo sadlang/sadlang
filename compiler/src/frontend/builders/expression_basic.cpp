@@ -309,6 +309,67 @@ namespace Sad
                         result.isGeneratorFuncRef = funcIt->second.isGenerator;
                         return result;
                     }
+                    // ================================================================
+                    // (AR) [أ-م٥] قيمة معاملٍ وحدويّ عارٍ: «متغير م = فراغ» / تمريره «قيّم(فراغ)».
+                    //      الاسم العاري (بلا أقواس، بلا تأهيل) وصل هنا بعد فشل كلّ حلٍّ آخر
+                    //      (متغيّر/دالّة). إن كان معاملًا وحدويًّا معروفًا (بلا حقول) لتعدادٍ ما،
+                    //      نبني قيمته بنداء بانيه المؤهَّل المُولَّد (نظير «تعداد.فراغ» في
+                    //      expression_members) فيعبر المسارَ القائم. **محروسٌ ضدّ الاختطاف**:
+                    //      لا نصل هنا إلّا بعد أن يفشل lookupVariable وبحثُ الدالّة أعلاه، فلا
+                    //      يختطف اسمًا يملكه رمزٌ مُصرَّح (نظير أولويّة الباني في call_main).
+                    // (EN) [A-M5] Bare unit variant value: «var m = None» / passing it «eval(None)».
+                    //      The bare name (no parens, no qualifier) reached here after every other
+                    //      resolution failed (variable/function). If it is a known unit variant (no
+                    //      fields) of some enum, build its value via the generated qualified
+                    //      constructor (like «Enum.None» in expression_members) so it flows through
+                    //      the existing path. HIJACK-GUARDED: we only get here after lookupVariable
+                    //      and the function lookup above both failed, so it never hijacks a declared
+                    //      symbol's name (mirrors the constructor priority in call_main).
+                    {
+                        std::string bareEnumName;
+                        const ADTVariantInfo *bareUnit = nullptr;
+                        for (const auto &adtEntry : b_.adtEnumTable_)
+                        {
+                            if (const ADTVariantInfo *v = adtEntry.second.findVariant(var->name))
+                            {
+                                if (v->isUnit())
+                                {
+                                    // (AR) وجدنا معاملًا وحدويًّا بهذا الاسم — انتهينا.
+                                    // (EN) Found a unit variant with this name — done.
+                                    bareEnumName = adtEntry.first;
+                                    bareUnit = v;
+                                    break;
+                                }
+                                // (AR) تعدادٌ يملك عضوًا **غير وحدويّ** بنفس الاسم — لا نكسر، بل نواصل
+                                //      البحث كي لا نحجب معاملًا وحدويًّا يحمل الاسم ذاته في تعدادٍ لاحق
+                                //      (أميليا 🔵#3).
+                                // (EN) An enum has a NON-unit member of the same name — keep searching so
+                                //      we don't mask a unit variant of the same name in a later enum
+                                //      (Amelia 🔵#3).
+                            }
+                        }
+                        if (bareUnit && b_.currentBlock_)
+                        {
+                            std::string fullName = bareEnumName + "." + var->name;
+                            auto ctorIt = b_.functionTable_.find(fullName);
+                            if (ctorIt != b_.functionTable_.end())
+                            {
+                                std::string callReg = b_.newTempRegister();
+                                SIRInstruction callInst(SIROpcode::CALL);
+                                callInst.result = SIROperand::Register(callReg, SadTypeKind::Integer);
+                                callInst.operands.push_back(SIROperand::Function(ctorIt->second.name));
+                                callInst.comment = "[A-M5] bare unit variant value: " + fullName;
+                                b_.currentBlock_->addInstruction(callInst);
+
+                                // (AR) نسِم النتيجة باسم التعداد كي تعمل «طابق» عليها لاحقًا.
+                                // (EN) Tag the result with the enum name so «match» works on it later.
+                                b_.classInstanceTypes_[callReg] = bareEnumName;
+                                BuildResult result(callReg, SadTypeKind::Integer);
+                                result.className = bareEnumName;
+                                return result;
+                            }
+                        }
+                    }
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildVariableAccess: variable NOT FOUND!" << std::endl;
 #endif

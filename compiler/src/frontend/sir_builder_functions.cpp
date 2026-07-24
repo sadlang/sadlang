@@ -496,6 +496,21 @@ namespace Sad
                         }
                     }
 
+                    // (AR) [أ-م٥] معامل مصرَّح بنوع تعداد جبريّ («عقدة ع»): سجّل صنفه = اسم
+                    //      التعداد كي يحمل className عبر buildExpression، فتعرف «طابق» نوع
+                    //      القيمة المُطابَقة وتميّز المعاملَ الوحدويّ العاري «عندما فراغ:» (فحص
+                    //      وسم) عن الرباط الشامل. الأصناف المُسجَّلة لها مسارها (module_->getClass)
+                    //      فنقصر هذا على تعدادات adtEnumTable_ حصرًا كيلا نُظلّل مسارها.
+                    // (EN) [A-M5] Param declared with an ADT enum type («Node n»): record its
+                    //      class = the enum name so className flows via buildExpression, letting
+                    //      «match» know the matched value's type and distinguish a bare unit variant
+                    //      «when None:» (tag check) from a catch-all. Registered classes have their
+                    //      own path (module_->getClass); restrict this to adtEnumTable_ enums only.
+                    if (!param.typeName.empty() && adtEnumTable_.count(param.typeName))
+                    {
+                        classInstanceTypes_[param.name] = param.typeName;
+                    }
+
                     addVariable(paramInfo);
                 }
 
