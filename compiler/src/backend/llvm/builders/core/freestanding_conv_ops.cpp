@@ -84,6 +84,51 @@ namespace Sad
             auto savedIP = cg_.builder_->saveIP();
             llvm::Type *i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
 
+            // ====================================================================
+            // (AR) هدف بنظام تشغيل ⇒ البرنامج عمليّةُ مستخدم في الحلقة 3، وتعليمتا
+            //      in/out ممتازتان: استقصاء 0x3FD أو الكتابة إلى 0x3F8 يُثير خطأ
+            //      حماية عامّ (#GP) ⇒ SIGSEGV فورًا. ولأنّ كلّ مخرجات وقت التشغيل
+            //      الحرّ (printf/puts/putint ⇒ «اطبع») تمرّ من هنا، كان أيّ طبع في
+            //      برنامج حرّ مستضاف ينهار — وهذا تفسير دَين «اطبع_سطر يُسقط
+            //      البرنامج» المرصود في سطح مكتب sad-os.
+            //      البديل المستضاف: putchar من libc/CRT (المكافئ الطبيعيّ لمنفذ
+            //      COM1: بايت واحد إلى المخرج القياسيّ). يُترك تصريحًا خارجيًّا
+            //      يحلّه الرابط، تمامًا كعقد `time` على الهدف المستضاف.
+            // (EN) On a target with an OS the program is a ring-3 userspace process
+            //      and in/out are privileged: polling 0x3FD or writing 0x3F8 raises
+            //      a general protection fault (#GP) → immediate SIGSEGV. Since all
+            //      freestanding output (printf/puts/putint ⇒ «اطبع») funnels through
+            //      here, any print in a hosted freestanding program crashed — this is
+            //      the root cause of the «اطبع_سطر kills the program» debt observed in
+            //      the sad-os desktop. The hosted substitute is libc/CRT putchar (the
+            //      natural equivalent of the COM1 port: one byte to standard output),
+            //      left as an external declaration for the linker to resolve, exactly
+            //      like the `time` contract on a hosted target.
+            // ====================================================================
+            if (!targetIsBareMetal())
+            {
+                llvm::BasicBlock *hostedEntry =
+                    llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+                cg_.builder_->SetInsertPoint(hostedEntry);
+
+                llvm::Type *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                llvm::FunctionType *putcharTy =
+                    llvm::FunctionType::get(i32Ty, {i32Ty}, false);
+                llvm::FunctionCallee putcharFn =
+                    cg_.module_->getOrInsertFunction("putchar", putcharTy);
+                // (AR) putchar تأخذ int: نوسّع البايت بلا إشارة (لا امتداد إشارة —
+                //      البايت ≥ 0x80 يجب ألّا يصير سالبًا فيُقرأ EOF أو محرفًا خطأً).
+                // (EN) putchar takes an int: zero-extend the byte (never sign-extend —
+                //      a byte ≥ 0x80 must not become negative and read as EOF/garbage).
+                llvm::Value *ch =
+                    cg_.builder_->CreateZExt(fn->getArg(0), i32Ty, "ch");
+                cg_.builder_->CreateCall(putcharFn, {ch});
+                cg_.builder_->CreateRetVoid();
+
+                cg_.builder_->restoreIP(savedIP);
+                return;
+            }
+
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
             llvm::BasicBlock *wait = llvm::BasicBlock::Create(*cg_.context_, "wait_tx", fn);
             llvm::BasicBlock *send = llvm::BasicBlock::Create(*cg_.context_, "send", fn);

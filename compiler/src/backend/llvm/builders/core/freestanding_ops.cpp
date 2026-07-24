@@ -25,9 +25,32 @@
 #include "builders/core/freestanding_codegen.h"
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/TargetParser/Triple.h>
 
 namespace Sad {
 namespace LLVM {
+
+// ============================================================================
+// (AR) المميِّز الواحد لجسور العتاد المباشرة — التوثيق في الترويسة.
+//      دلاليّ عبر llvm::Triple لا مطابقة نصّيّة: نظام غير معروف = معدن عارٍ
+//      (مثل ثالوث نواة النحلة i686-unknown-elf، و*-unknown-none / *-none-elf).
+// (EN) The single discriminator for direct hardware bridges — documented in the
+//      header. Semantic via llvm::Triple, not a substring match: an unknown OS
+//      means bare metal (e.g. the nahla kernel's i686-unknown-elf, and
+//      *-unknown-none / *-none-elf).
+// ============================================================================
+bool FreestandingCodeGen::targetIsBareMetal() const {
+    if (!cg_.module_) return false;
+    // (AR) التطبيع إلزاميّ: الثالوث ثلاثيّ المكوّنات (مثل "x86_64-linux-gnu") يُقرأ
+    //      مكوّنه الثاني بائعًا لا نظامًا، فيعود getOS() بـUnknownOS ⇒ يُصنَّف لينكس
+    //      «معدنًا» خطأً. normalize يُدرج البائع الناقص ("x86_64-unknown-linux-gnu").
+    // (EN) Normalization is mandatory: a 3-component triple (e.g. "x86_64-linux-gnu")
+    //      has its second component read as the vendor, not the OS, so getOS() returns
+    //      UnknownOS and Linux would be misclassified as bare metal. normalize inserts
+    //      the missing vendor ("x86_64-unknown-linux-gnu").
+    llvm::Triple triple(llvm::Triple::normalize(cg_.module_->getTargetTriple()));
+    return triple.getOS() == llvm::Triple::UnknownOS;
+}
 
 // ============================================================================
 // (AR) نقطة الدخول الرئيسية — تُستدعى من emitModule عند freestanding
@@ -180,14 +203,24 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
 
     // ========================================================================
     // 24. time — Current wall-clock time (Unix epoch seconds) via CMOS RTC
-    //     (AR) جسر عتاد: يقرأ ساعة الوقت الحقيقي (منافذ 0x70/0x71) بلا libc.
-    //          يُوفِّر رمز `time` الذي يولّده المترجم لمدمَج «الآن» في وضع --حرّ.
-    //     (EN) Hardware bridge: reads the RTC (ports 0x70/0x71) with no libc.
-    //          Provides the `time` symbol the compiler emits for the «الآن»
-    //          builtin under freestanding (--حرّ) mode.
+    //     (AR) جسر عتاد **للمعدن العاري وحده**: يقرأ ساعة الوقت الحقيقي (منافذ
+    //          0x70/0x71) بلا libc، ويُوفِّر رمز `time` الذي يولّده المترجم لمدمَج
+    //          «الآن» في وضع --حرّ (مثل نواة النحلة، ثالوث i686-unknown-elf).
+    //          على هدف بنظام تشغيل (لينكس/ويندوز) البرنامج عمليّةُ مستخدم في
+    //          الحلقة 3، وتعليمتا in/out ممتازتان ⇒ #GP ⇒ SIGSEGV؛ فنترك `time`
+    //          رمزًا خارجيًّا توفّره libc/CRT (نداء نظام الوقت الصحيح).
+    //     (EN) Hardware bridge **for bare metal only**: reads the RTC (ports
+    //          0x70/0x71) with no libc, providing the `time` symbol the compiler
+    //          emits for the «الآن» builtin under freestanding (--حرّ) mode (e.g.
+    //          the nahla kernel, triple i686-unknown-elf). On a target with an OS
+    //          (Linux/Windows) the program is a ring-3 userspace process and
+    //          in/out are privileged ⇒ #GP ⇒ SIGSEGV; there we leave `time`
+    //          external for libc/CRT to provide (the correct time syscall).
     // ========================================================================
-    llvm::Type* i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
-    emitFreestandingTime(i8Ty, i16Ty, i64Ty, ptrTy);
+    if (targetIsBareMetal()) {
+        llvm::Type* i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
+        emitFreestandingTime(i8Ty, i16Ty, i64Ty, ptrTy);
+    }
 
     // ========================================================================
     // 25. sad_file_is_dir — كعب ضعيف لمدمَج «هل_مجلد» في الوضع الحرّ
@@ -241,8 +274,21 @@ void FreestandingCodeGen::emitFreestandingPanic(llvm::Type* i64Ty, llvm::Type* v
     // (AR) التوقّف الافتراضيّ: cli ثم hlt في حلقة — الدوران الفارغ السابق كان
     //      يواصل خدمة المقاطعات بعد الهلع ويحرق المعالج. (يبقى weak_odr —
     //      النواة تتجاوزه بسياستها الخاصّة عند الحاجة.)
+    //      ملاحظة مقصودة (عائلة الحلقة 3): cli/hlt ممتازتان، فعلى هدف بنظام تشغيل
+    //      ينتهي الهلع بـ#GP ⇒ SIGSEGV بدل توقّف نظيف. هذا **مقبول عمدًا** ولم
+    //      يُستبدَل بـabort: سبب الهلع يُطبع أعلاه قبل التوقّف (والطبع صار يعمل
+    //      مستضافًا عبر __sad_serial_putc ⇒ putchar)، والهلع حالة نهائيّة أصلًا،
+    //      بينما إقحام رمز libc «abort» هنا يكسر عقد «حرًّا: abort ⇒ __sad_panic»
+    //      الذي تحرسه اختبارات البوّابة ويُضيع رمز سبب الهلع (#248).
     // (EN) Default halt: cli;hlt loop — the previous empty spin kept serving
     //      interrupts after panic and burned the CPU. Still weak_odr.
+    //      Deliberate note (ring-3 family): cli/hlt are privileged, so on a target
+    //      with an OS a panic ends in #GP → SIGSEGV rather than a clean halt. This
+    //      is **intentionally accepted** and not replaced by abort: the panic reason
+    //      is printed above first (and printing now works hosted via
+    //      __sad_serial_putc ⇒ putchar), a panic is terminal anyway, whereas pulling
+    //      the libc «abort» symbol in here would break the gate-tested «freestanding:
+    //      abort ⇒ __sad_panic» contract and discard the panic reason code (#248).
     cg_.builder_->SetInsertPoint(halt);
     llvm::InlineAsm* haltAsm = llvm::InlineAsm::get(
         llvm::FunctionType::get(voidTy, {}, false),

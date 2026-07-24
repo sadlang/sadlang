@@ -90,7 +90,6 @@ namespace Sad
             namespace Na = Sad::Builtins::Names::Assertions;
             namespace Ncr = Sad::Builtins::Names::Crypto;
             namespace Nar = Sad::Builtins::Names::Arrays;
-            namespace Nmap = Sad::Builtins::Names::Maps;
             namespace Nasync = Sad::Builtins::Names::AsyncAdvanced;
             switch (op)
             {
@@ -185,11 +184,18 @@ namespace Sad
             //      libc symbol freestanding. An in-module freestanding sort is a
             //      non-trivial codegen patch ⇒ gated until designed.
             case SIROpcode::BUILTIN_ARRAY_SORT:      return std::string(Nar::SORT);       // رتب (qsort)
-            // (AR) الآن: يستدعي time(NULL) — رمز libc غائب حرًّا، ولا ساعة جدار على
-            //      المعدن بلا سائق RTC/PIT (قرار نواة). يُبوَّب.
-            // (EN) now/timestamp: calls time(NULL) — an absent libc symbol; bare metal
-            //      has no wall clock without an RTC/PIT driver (kernel design) ⇒ gated.
-            case SIROpcode::BUILTIN_SECURITY_TIMESTAMP: return std::string(Nmap::NOW);    // الآن (time)
+            // (AR) الآن: لم يعُد مُبوَّبًا حرًّا. مُصدره يستدعي `time`، ويُحلّ حسب الهدف
+            //      (emitFreestandingTime في freestanding_ops.cpp): على المعدن العاري
+            //      (ثالوث بلا "linux") يُبثّ داخل الوحدة عبر ساعة CMOS الحقيقيّة (منافذ
+            //      0x70/0x71 بلا libc)؛ على هدف لينكس يُترَك خارجيًّا فيوفّره نداء نظام
+            //      libc (قراءة منافذ CMOS في الحلقة 3 = #GP⇒SIGSEGV). التعليل القديم
+            //      «لا ساعة جدار على المعدن» بائت: كلا الجسرين موجود.
+            // (EN) now/timestamp: no longer gated freestanding. Its emitter calls `time`,
+            //      resolved per target (emitFreestandingTime in freestanding_ops.cpp): on
+            //      bare metal (triples without "linux") it is emitted in-module via the
+            //      CMOS RTC (ports 0x70/0x71, no libc); on a Linux target it is left
+            //      external for libc's time syscall (CMOS port I/O in ring 3 = #GP→SIGSEGV).
+            //      The old «no bare-metal wall clock» rationale is stale: both bridges exist.
             // (AR) عشوائي_آمن: يستدعي BCryptGenRandom (خدمة نظام تشغيل) — غائبة حرًّا
             //      بداهةً، ولا مصدر عشوائيّة معياريّ على المعدن (نفس ميثاق «عشوائي»).
             // (EN) secure-random: calls BCryptGenRandom (an OS service) — absent

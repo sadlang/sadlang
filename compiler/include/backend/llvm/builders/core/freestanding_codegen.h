@@ -21,6 +21,19 @@ public:
     FreestandingCodeGen(const FreestandingCodeGen &) = delete;
     FreestandingCodeGen &operator=(const FreestandingCodeGen &) = delete;
 
+    // (AR) هل الهدف «معدن عارٍ» (بلا نظام تشغيل) — أي تُنفَّذ الشيفرة في الحلقة 0؟
+    //      المميِّز الواحد لكلّ جسور العتاد المباشرة في وقت التشغيل الحرّ (منافذ
+    //      الدخل/الخرج، cli/hlt): على هدف بنظام تشغيل يعمل البرنامج عمليّةَ مستخدم
+    //      في الحلقة 3، فالتعليمات الممتازة تُثير خطأ حماية عامّ (#GP) ⇒ SIGSEGV،
+    //      فيلزم مسار مستضاف بديل (libc) بدل لمس العتاد.
+    // (EN) Is the target bare metal (no OS) — i.e. does the code run in ring 0?
+    //      The single discriminator for every direct hardware bridge in the
+    //      freestanding runtime (port I/O, cli/hlt): on a target with an OS the
+    //      program is a ring-3 userspace process where privileged instructions
+    //      raise a general protection fault (#GP) → SIGSEGV, so a hosted (libc)
+    //      path must be emitted instead of touching hardware.
+    bool targetIsBareMetal() const;
+
     void emitFreestandingRuntime();
     void emitFreestandingMalloc(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingFree(llvm::Type *ptrTy, llvm::Type *voidTy);

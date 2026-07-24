@@ -133,10 +133,21 @@ functions:
   description_en: Current time (Unix timestamp in seconds since 1970)
   params: []
   lookup_table: MODULE_FUNCTION
-  # (AR) مدعوم في المفسّر والمترجم ووضع الوضع الحرّ.
-  #      مضيف: time(NULL). حرّ: جسر عتاد يقرأ ساعة الوقت الحقيقي CMOS (0x70/0x71).
-  # (EN) Supported in interpreter, compiler, and freestanding.
-  #      Hosted: time(NULL). Freestanding: hardware bridge reading the CMOS RTC.
+  # (AR) مدعوم في المفسّر والمترجم والوضع الحرّ. ثلاث حالات لا حالتان:
+  #        • مستضاف: time(NULL) من libc.
+  #        • حرّ + هدف معدن عارٍ (بلا نظام تشغيل، مثل i686-unknown-elf): جسر عتاد
+  #          مبثوث داخل الوحدة يقرأ ساعة CMOS الحقيقيّة (منافذ 0x70/0x71) بلا libc.
+  #        • حرّ + هدف بنظام تشغيل (لينكس/ويندوز): يبقى `time` تصريحًا خارجيًّا
+  #          توفّره libc/CRT — لأنّ البرنامج عمليّةُ مستخدم في الحلقة 3 حيث تعليمتا
+  #          in/out ممتازتان (#GP ⇒ SIGSEGV)، فبثّ جسر CMOS هناك انهيارٌ لا حلّ.
+  # (EN) Supported in interpreter, compiler, and freestanding. Three cases, not two:
+  #        • Hosted: libc time(NULL).
+  #        • Freestanding + bare-metal target (no OS, e.g. i686-unknown-elf): an
+  #          in-module hardware bridge reads the CMOS RTC (ports 0x70/0x71), no libc.
+  #        • Freestanding + OS target (Linux/Windows): `time` stays an external
+  #          declaration provided by libc/CRT — the program is a ring-3 userspace
+  #          process where in/out are privileged (#GP → SIGSEGV), so emitting the
+  #          CMOS bridge there would crash rather than help.
   freestanding: true
   # (AR) تباين معروف: المفسّر يعيد عشريًّا (double) بدقّة أقلّ من الثانية، بينما
   #      المترجم يعيد صحيحًا (i64) بثوانٍ كاملة — توحيد النوع قرار لغويّ معلّق.

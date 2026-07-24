@@ -150,7 +150,9 @@ _GATED_BUILTINS = [
     #      (وفيها إشارات append/remove غير معرّفة تشوّش الاختبار)؛ الصيغتان تُخفضان
     #      إلى BUILTIN_ARRAY_SORT نفسه (qsort).
     ("رتب", "متغير م = [3, 1, 2]\nم.رتب()\nاطبع(م)\n", "qsort"),
-    ("الآن", "متغير س = الآن()\nاطبع(س)\n", "time"),
+    # (AR) «الآن» لم تعُد هنا: رُفعت بوّابتها ﻷنّ لها الآن مسارًا حرًّا سليمًا لكلّ
+    #      هدف — انظر اختبارَي العقد الموجبين أدناه (معدن ⇒ جسر CMOS مبثوث،
+    #      هدف بنظام تشغيل ⇒ `time` خارجيّ توفّره libc).
     ("عشوائي_آمن", "متغير س = عشوائي_آمن(1, 10)\nاطبع(س)\n", "BCryptGenRandom"),
     ("هاش", 'متغير س = هاش("نص")\nاطبع(س)\n', "sad_security_hash"),
     ("شفر", 'متغير س = شفر("نص", "مفتاح")\nاطبع(س)\n', "sad_security_encrypt"),
@@ -330,3 +332,52 @@ def test_assert_type_hosted_builds_without_spurious_error():
         "بلاغ «Unsupported opcode» زائف مستضافًا رغم إصدار النداء (انحدار القيمة الإشاريّة):\n" + out
     )
     assert SEM019 not in out, "SEM019 ظهر مستضافًا — تسريب بوّابة:\n" + out
+
+
+# ──── 4) عقد «الآن» الحرّ حسب الهدف: جسر عتاد على المعدن، libc على المستضاف ────
+# (AR) رُفعت بوّابة SEM019 عن «الآن» ﻷنّ لها مسارًا حرًّا سليمًا في الحالتين، لكنّ
+#      المسارين مختلفان جوهريًّا ويجب تثبيتهما:
+#        • معدن عارٍ (بلا نظام تشغيل، الحلقة 0): يُبثّ تعريف `time` داخل الوحدة
+#          يقرأ ساعة CMOS بمنافذ الدخل/الخرج — لا libc هناك.
+#        • هدف بنظام تشغيل (الحلقة 3): تعليمتا in/out ممتازتان ⇒ #GP ⇒ SIGSEGV،
+#          فيجب أن يبقى `time` **تصريحًا خارجيًّا** توفّره libc/CRT.
+#      بثّ نسخة CMOS على هدف مستضاف انهيارٌ زمن تشغيل لا خطأ ترجمة، فلا يمسكه
+#      إلّا اختبار عقد كهذا.
+NOW_SOURCE = "استورد خرائط\nمتغير س = الآن()\nاطبع(س)\n"
+BARE_METAL_TARGET = "--هدف=i686-unknown-elf"   # (AR) ثالوث نواة النحلة
+HOSTED_TARGET = "--هدف=x86_64-linux-gnu"
+CMOS_PORT_ASM = "outb"  # (AR) بصمة تجميع منافذ CMOS المُضمّن في جسر المعدن
+
+
+def _time_definitions(ir: str) -> tuple[bool, bool]:
+    """(AR) يعيد (مُعرَّفة داخل الوحدة، مُصرَّحة خارجيًّا) لرمز `time` في IR."""
+    import re
+
+    defined = re.search(r"^define[^\n]*@time\(", ir, re.MULTILINE) is not None
+    declared = re.search(r"^declare[^\n]*@time\(", ir, re.MULTILINE) is not None
+    return defined, declared
+
+
+def test_now_freestanding_bare_metal_emits_cmos_bridge():
+    """(AR) على المعدن العاري: «الآن» تُترجم حرًّا ويُبثّ تعريف `time` داخل الوحدة
+    (جسر ساعة CMOS) — لا اعتماد على libc غائبة."""
+    code, out, ir = _compile(NOW_SOURCE, FREESTANDING, BARE_METAL_TARGET)
+    assert code == 0, "الآن() رُفضت حرًّا على المعدن رغم توفّر جسر CMOS:\n" + out
+    assert SEM019 not in out, "بوّابة SEM019 ما زالت تحجب «الآن» على المعدن:\n" + out
+    defined, _ = _time_definitions(ir)
+    assert defined, "IR المعدن بلا تعريف `time` — جسر ساعة CMOS لم يُبثّ"
+    assert CMOS_PORT_ASM in ir, "IR المعدن بلا تجميع منافذ مُضمّن — الجسر العتاديّ مفقود"
+
+
+def test_now_freestanding_hosted_target_leaves_time_external():
+    """(AR) على هدف بنظام تشغيل: «الآن» تُترجم حرًّا لكنْ يبقى `time` تصريحًا
+    خارجيًّا توفّره libc. بثّ نسخة CMOS هنا ⇒ #GP ⇒ SIGSEGV في الحلقة 3."""
+    code, out, ir = _compile(NOW_SOURCE, FREESTANDING, HOSTED_TARGET)
+    assert code == 0, "الآن() رُفضت حرًّا على هدف مستضاف:\n" + out
+    assert SEM019 not in out, "بوّابة SEM019 ما زالت تحجب «الآن» على هدف مستضاف:\n" + out
+    defined, declared = _time_definitions(ir)
+    assert not defined, (
+        "IR الهدف المستضاف يحوي تعريف `time` (جسر CMOS) — منافذ الدخل/الخرج "
+        "ممتازة في الحلقة 3 ⇒ سينهار البرنامج بـSIGSEGV زمن التشغيل"
+    )
+    assert declared, "IR الهدف المستضاف بلا تصريح `time` — لن يُحلّ الرمز من libc"
