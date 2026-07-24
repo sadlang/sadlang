@@ -44,6 +44,7 @@ namespace Sad
         class NullCoalesceExpr;   // (AR) تعبير التجميع الفارغ ?? / (EN) Null coalescing expression
         class ErrorPropagateExpr; // (AR) تعبير نشر الخطأ — انشر / (EN) Error propagation expression
         class TupleExpr;          // (AR) تعبير الصف / (EN) Tuple expression
+        class EnumVariantExpr;    // (AR) تعبير بناء عضو تعداد بحمولة (ADT) / (EN) Tagged-enum variant construction
 
         // Directive nodes / عُقد التوجيهات @
         class UnsafeBlockStmt;     // (AR) @غير_آمن / (EN) @unsafe block
@@ -413,6 +414,16 @@ namespace Sad
              * @brief (EN) Tuple expression — (value1, value2, ...)
              */
             virtual void visitTupleExpr(TupleExpr &expr) = 0;
+
+            /**
+             * @brief (AR) تعبير بناء عضو تعداد بحمولة (ADT) — سِقالة أ-م١.
+             *        افتراضٌ عدميّ (غير خالص) كي لا يُلزم كلّ الزوّار القائمين بتحقيقه؛
+             *        يُوصَل في التحويل الدلاليّ/المفسّر (أ-م٢/أ-م٣).
+             * @brief (EN) Tagged-enum variant construction — phase A-M1 scaffold.
+             *        Non-pure default so existing visitors need not implement it yet;
+             *        wired in semantic lowering / interpreter (A-M2/A-M3).
+             */
+            virtual void visitEnumVariantExpr(EnumVariantExpr &expr) {}
 
             // =====================================================================
             // Directive visitors / زوار التوجيهات @

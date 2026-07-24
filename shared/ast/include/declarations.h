@@ -424,7 +424,8 @@ namespace Sad
         {
             std::string name;                ///< (AR) اسم العضو / (EN) Member name
             ExprPtr value;                   ///< (AR) قيمة العضو (اختيارية) / (EN) Member value (optional)
-            std::vector<std::string> fields; ///< (AR) أسماء حقول البيانات (ADT) / (EN) Data field names (ADT)
+            std::vector<std::string> fields; ///< (AR) أسماء حقول الحمولة (ADT) / (EN) Payload field names (ADT)
+            std::vector<std::string> fieldTypes; ///< (AR) أنواع حقول الحمولة — موازٍ لـ fields ("" = غير مُصنَّف/ديناميكيّ) / (EN) Payload field types — parallel to fields ("" = untyped)
 
             /**
              * @brief (AR) باني عضو تعداد بسيط (بدون بيانات أو مع قيمة فقط)
@@ -434,13 +435,26 @@ namespace Sad
                 : name(n), value(std::move(v)) {}
 
             /**
-             * @brief (AR) باني عضو تعداد جبري (ADT) — مع بيانات مرتبة
-             *        (EN) Constructor for ADT enum member — with positional data fields
+             * @brief (AR) باني عضو تعداد جبري (ADT) — مع حمولة موضعيّة غير مُصنَّفة
+             *        (EN) Constructor for ADT enum member — untyped positional payload
              * @param n اسم العضو / Member name
              * @param fieldNames أسماء الحقول / Field names
              */
             EnumMember(const std::string &n, std::vector<std::string> fieldNames)
-                : name(n), value(nullptr), fields(std::move(fieldNames)) {}
+                : name(n), value(nullptr), fields(std::move(fieldNames)),
+                  fieldTypes(this->fields.size()) {}
+
+            /**
+             * @brief (AR) باني عضو تعداد جبري (ADT) — مع حمولة موضعيّة مُصنَّفة (النوع قبل الاسم)
+             *        (EN) Constructor for ADT enum member — typed positional payload (type before name)
+             * @param n اسم العضو / Member name
+             * @param fieldNames أسماء الحقول / Field names
+             * @param fieldTypeNames أنواع الحقول الموازية / Parallel field type names
+             */
+            EnumMember(const std::string &n, std::vector<std::string> fieldNames,
+                       std::vector<std::string> fieldTypeNames)
+                : name(n), value(nullptr), fields(std::move(fieldNames)),
+                  fieldTypes(std::move(fieldTypeNames)) {}
 
             /**
              * @brief (AR) هل هذا عضو يحمل بيانات (variant مع حقول)؟

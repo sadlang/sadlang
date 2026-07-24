@@ -74,7 +74,7 @@ Type = TypeCore [ '؟' ] ; TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطق
 2. [`ParserCore::parseTypeCore`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
 3. [`ParserCore::parseGenericType`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
 - **عقدة AST المُنتَجة:** `SadTypeKind | SadTypePtr`
-- **مُستدعى من:** [`parseFieldDeclaration`](30_oop.md#gr.oop.field)، [`parseMethodDeclaration`](30_oop.md#gr.oop.method)، [`parsePropertyDeclaration`](30_oop.md#gr.oop.property)، [`parseType`](60_advanced.md#gr.adv.type)، [`parseTemplateParameters`](60_advanced.md#gr.adv.template_params)، [`parseTemplateInstantiation`](60_advanced.md#gr.adv.template_args)، [`parseUIStateDecl`](60_advanced.md#gr.adv.ui_state)
+- **مُستدعى من:** [`parseEnumDecl`](30_oop.md#gr.oop.enum)، [`parseFieldDeclaration`](30_oop.md#gr.oop.field)، [`parseMethodDeclaration`](30_oop.md#gr.oop.method)، [`parsePropertyDeclaration`](30_oop.md#gr.oop.property)، [`parseType`](60_advanced.md#gr.adv.type)، [`parseTemplateParameters`](60_advanced.md#gr.adv.template_params)، [`parseTemplateInstantiation`](60_advanced.md#gr.adv.template_args)، [`parseUIStateDecl`](60_advanced.md#gr.adv.ui_state)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid

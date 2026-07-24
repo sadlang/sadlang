@@ -685,6 +685,107 @@ namespace Sad
         };
 
         // ============================================================================
+        // (AR) نمط الباني (غير مؤهَّل) / (EN) Constructor Pattern (unqualified)
+        // ============================================================================
+
+        /**
+         * @brief (AR) نمط باني تعداد بحمولة — بصيغة غير مؤهَّلة: اسم(نمط، ...)
+         *        (EN) Tagged-enum constructor pattern — unqualified form: Name(pattern, ...)
+         *
+         * (AR) يميّز عن نمط المتغيّر بوجود أقواس بعد الاسم مباشرةً. بخلاف EnumVariantPattern
+         *      (المؤهَّل «تعداد.عضو(...)») هذا النمط يذكر اسم العضو وحده، فتُحسم هويّة التعداد
+         *      دلاليًّا (أ-م٢). مثال المواصفة (الملحق أ):
+         *          عدد(ق)        => ConstructorPattern("عدد", [VariablePattern("ق")])
+         *          جمع(ي، ن)     => ConstructorPattern("جمع", [Var("ي"), Var("ن")])
+         * (EN) Distinguished from a variable pattern by parentheses immediately after the
+         *      name. Unlike EnumVariantPattern (qualified «Enum.Variant(...)») this names the
+         *      variant alone; the enum identity is resolved semantically (phase A-M2).
+         */
+        class ConstructorPattern : public Pattern
+        {
+        public:
+            std::string variantName;                             ///< (AR) اسم العضو/الباني / (EN) Variant/constructor name
+            std::vector<std::unique_ptr<Pattern>> fieldPatterns; ///< (AR) أنماط الحمولة / (EN) Payload patterns
+
+            /**
+             * @brief (AR) المُنشئ / (EN) Constructor
+             * @param vName اسم الباني / Constructor name (e.g., "جمع")
+             * @param patterns أنماط الحمولة الموضعيّة / Positional payload patterns
+             */
+            ConstructorPattern(std::string vName,
+                               std::vector<std::unique_ptr<Pattern>> patterns = {})
+                : variantName(std::move(vName)), fieldPatterns(std::move(patterns)) {}
+
+            bool matches(const Data::Value &value,
+                         std::map<std::string, Data::Value> &bindings) const override
+            {
+                // (AR) القيمة تمثيلٌ لعضو تعداد بحمولة: خريطة تحوي __عضو__ و__حقول__.
+                //      لا نطابق اسم التعداد (النمط غير مؤهَّل) — العضو وحده يكفي.
+                // (EN) Value is a tagged-enum variant: a map with __عضو__ and __حقول__.
+                //      Enum name is not matched (pattern is unqualified) — variant suffices.
+                if (value.getKind() != Types::SadTypeKind::Map)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    const Data::Value &variantNameVal = value["__عضو__"];
+                    if (variantNameVal.toString() != variantName)
+                    {
+                        return false;
+                    }
+                }
+                catch (...)
+                {
+                    return false;
+                }
+
+                // (AR) عضو وحدويّ (بلا حمولة) — المطابقة تنجح / (EN) Unit variant — succeeds
+                if (fieldPatterns.empty())
+                {
+                    return true;
+                }
+
+                try
+                {
+                    const Data::Value &fieldsVal = value["__حقول__"];
+                    if (fieldsVal.getKind() != Types::SadTypeKind::Array ||
+                        fieldsVal.size() != fieldPatterns.size())
+                    {
+                        return false;
+                    }
+                    for (size_t i = 0; i < fieldPatterns.size(); ++i)
+                    {
+                        if (!fieldPatterns[i]->matches(fieldsVal[i], bindings))
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                catch (...)
+                {
+                    return false;
+                }
+            }
+
+            std::string toString() const override
+            {
+                std::string result = variantName;
+                result += "(";
+                for (size_t i = 0; i < fieldPatterns.size(); ++i)
+                {
+                    if (i > 0)
+                        result += ", ";
+                    result += fieldPatterns[i]->toString();
+                }
+                result += ")";
+                return result;
+            }
+        };
+
+        // ============================================================================
         // (AR) فرع Case / (EN) Case Clause
         // ============================================================================
 

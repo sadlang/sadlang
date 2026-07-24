@@ -1480,6 +1480,57 @@ namespace Sad
             }
         };
 
+        // =========================================================================
+        // (AR) تعبير بناء عضو تعداد بحمولة — عضو(وسائط) أو تعداد.عضو(وسائط)
+        //      يُنشئ قيمةً موسومةً (اتّحاد موسوم/ADT) وقت التنفيذ.
+        //      سِقالة أ-م١: العقدة مُعرَّفة هنا ليستهدفها التحويل الدلاليّ (أ-م٢) والمفسّر/
+        //      المولّد (أ-م٣/أ-م٤)؛ المحلّل النحويّ لا يُنتجها بعد لأنّ تمييز «عضو(..)» عن
+        //      استدعاء دالّة قرارٌ دلاليّ (يلزمه معرفة أنّ «عضو» عضوٌ لتعدادٍ في النطاق).
+        // (EN) Tagged-enum variant construction expression — Variant(args) or Enum.Variant(args).
+        //      Builds a tagged value (tagged union / ADT) at run time.
+        //      Phase A-M1 scaffold: the node is defined here as a target for semantic
+        //      lowering (A-M2) and the interpreter/backend (A-M3/A-M4); the parser does NOT
+        //      yet produce it, because telling «Variant(..)» apart from a function call is a
+        //      semantic decision (needs to know «Variant» is an in-scope enum variant).
+        // =========================================================================
+        class EnumVariantExpr : public Expression
+        {
+        public:
+            std::string enumName;         ///< (AR) اسم التعداد (قد يكون فارغًا إن غير مؤهَّل) / (EN) Enum name (empty if unqualified)
+            std::string variantName;      ///< (AR) اسم العضو/الباني / (EN) Variant/constructor name
+            std::vector<ExprPtr> args;    ///< (AR) وسائط الحمولة الموضعيّة / (EN) Positional payload arguments
+
+            EnumVariantExpr(std::string vName, std::vector<ExprPtr> arguments = {},
+                            std::string eName = "",
+                            const Lexer::Position &pos = Lexer::Position())
+                : Expression(pos), enumName(std::move(eName)),
+                  variantName(std::move(vName)), args(std::move(arguments)) {}
+
+            void accept(ASTVisitor &visitor) override
+            {
+                visitor.visitEnumVariantExpr(*this);
+            }
+
+            std::string toString() const override
+            {
+                std::string result = enumName.empty() ? variantName : (enumName + "." + variantName);
+                result += "(";
+                for (size_t i = 0; i < args.size(); ++i)
+                {
+                    if (i > 0)
+                        result += "، ";
+                    result += args[i]->toString();
+                }
+                result += ")";
+                return result;
+            }
+
+            Types::SadTypePtr getType() const override
+            {
+                return Types::SadTypeRegistry::instance().getAny();
+            }
+        };
+
     } // namespace AST
 } // namespace Sad
 

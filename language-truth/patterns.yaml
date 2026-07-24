@@ -132,3 +132,36 @@ patterns:
           عندما ن @ 1..10:
               اطبع_سطر("في النطاق: " + ن)
       نهاية
+
+  - id: pattern.constructor
+    name_ar: "نمط باني (تعداد بحمولة)"
+    name_en: constructor_pattern
+    syntax: "عندما اسم(نمط، ...):"
+    description_ar: >
+      نمط باني تعداد بحمولة بصيغةٍ غير مؤهَّلة «عندما اسم(نمط، ...):» — يفكّك حمولة عضوٍ
+      من تعدادٍ جبريّ (ADT) ويربط حقولها بأنماط. يُميَّز عن نمط المتغيّر بوجود القوسين بعد
+      الاسم مباشرةً. يقابل عضو الحمولة «عدد(رقم قيمة)». هويّة التعداد تُحسم دلاليًّا. النظير
+      المؤهَّل «تعداد.عضو(نمط، ...)» موجودٌ ضمن gr.pattern.primary (EnumVariantPattern).
+      قدرةٌ تجريبيّة (experimental): المحلّل النحويّ يبني ConstructorPattern؛ التوصيل
+      الدلاليّ/الاستنفاد يكتمل في مراحل الاستضافة الذاتيّة (أ-م٢..أ-م٤).
+    description_en: >
+      Unqualified tagged-enum constructor pattern «عندما اسم(نمط، ...):» — destructures an
+      ADT variant's payload, binding fields to sub-patterns. Distinguished from a variable
+      pattern by parentheses right after the name; pairs with the «عدد(رقم قيمة)» payload
+      variant. Enum identity is resolved semantically. The qualified counterpart
+      «Enum.Variant(pat, ...)» lives in gr.pattern.primary (EnumVariantPattern). Experimental:
+      the parser builds ConstructorPattern; semantic/exhaustiveness wiring lands in A-M2..A-M4.
+    category: pattern_matching
+    since: "1.0.0"
+    status: experimental
+    example: |
+      تعداد عقدة
+          عدد(رقم قيمة)
+          جمع(عقدة يسار، عقدة يمين)
+      نهاية
+      طابق (ع)
+          عندما عدد(ق):
+              أرجع ق
+          عندما جمع(ي، ن):
+              أرجع قيّم(ي) + قيّم(ن)
+      نهاية

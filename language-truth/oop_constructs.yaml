@@ -44,15 +44,40 @@ constructs:
     name_ar: "تعريف تعداد"
     name_en: enum_definition
     category: enum
-    syntax: "تعداد <اسم> ... نهاية"
+    syntax: "تعداد <اسم> <عضو> [، <عضو>...] نهاية"
     keywords_used: [تعداد, نهاية]
     since: "1.0.0"
     status: stable
+    description_ar: >
+      تعدادٌ بكلمة «تعداد» ثمّ الاسم ثمّ أعضاء يُغلَقون بـ«نهاية». للعضو ثلاثة أشكال:
+        • بسيطٌ/وحدويّ: «أحمر» أو «فراغ» (بلا حمولة؛ يُرقَّم ضمنيًّا).
+        • بقيمة: «خطأ = 99» حيث «= N» يثبّت الوسم صراحةً (حالة خاصّة من التعداد البسيط).
+        • بحمولة موضعيّة (تعداد جبريّ/ADT): «عدد(رقم قيمة)» — قائمة معاملاتٍ بين قوسين،
+          النوع قبل الاسم (قاعدة ص)، والنوع اختياريّ («جمع(عقدة يسار، عقدة يمين)» أو
+          غير مُصنَّف «دائرة(نصف_القطر)»). الحمولة والقيمة «= N» متعارضتان لعضوٍ واحد.
+      الأعضاء مفصولون بفاصلةٍ اختياريّة. الحمولة الموضعيّة (ADT) قدرةٌ تجريبيّة (experimental)
+      يكتمل توصيلها الدلاليّ/التنفيذيّ في مراحل الاستضافة الذاتيّة (أ-م٢..أ-م٤).
+    description_en: >
+      Enum with «تعداد» then a name then members closed by «نهاية». A member has three
+      forms: simple/unit («أحمر» / «فراغ»), value-tagged («خطأ = 99» where «= N» pins the
+      tag), or positional payload (ADT: «عدد(رقم قيمة)») — a parenthesised parameter list,
+      type-before-name, type optional. Payload and «= N» are mutually exclusive per member.
+      The positional payload (ADT) capability is experimental; semantic/runtime wiring lands
+      across the self-hosting phases (A-M2..A-M4).
     example: |
+      # تعداد بسيط + قيمة صريحة تثبّت الوسم
       تعداد لون
           أحمر = 1
           أخضر = 2
           أزرق = 3
+      نهاية
+
+      # تعداد بحمولة (ADT) + وحدويّ + قيمة تثبّت الوسم
+      تعداد عقدة
+          عدد(رقم قيمة)                 # حمولة مُصنَّفة (النوع قبل الاسم)
+          جمع(عقدة يسار، عقدة يمين)     # حمولة بأنواع أصناف
+          فراغ                          # عضو وحدويّ (بلا حمولة)
+          خطأ = 99                      # «= N» يثبّت الوسم
       نهاية
 
   - id: oop.inheritance

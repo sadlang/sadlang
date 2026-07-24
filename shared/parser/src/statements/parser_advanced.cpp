@@ -967,6 +967,48 @@ namespace Sad
                         enumName, variantName);
                 }
 
+                // (AR) نمط الباني غير المؤهَّل: اسم(نمط، ...) — عضو تعداد بحمولة.
+                //      يُميَّز عن نمط المتغيّر بوجود '(' بعد الاسم مباشرةً (بلا نقطة).
+                //      مثال المواصفة: عدد(ق) — جمع(ي، ن). هويّة التعداد تُحسم دلاليًّا (أ-م٢).
+                // (EN) Unqualified constructor pattern: Name(pattern, ...) — tagged-enum variant.
+                //      Distinguished from a variable pattern by '(' right after the name (no dot).
+                if (check(TT::PAREN_LEFT))
+                {
+                    advance(); // (AR) استهلاك '(' / (EN) consume '('
+
+                    std::vector<std::unique_ptr<AST::Pattern>> fieldPatterns;
+
+                    // (AR) تحليل أنماط الحمولة مفصولة بفواصل / (EN) parse comma-separated payload patterns
+                    if (!check(TT::PAREN_RIGHT))
+                    {
+                        auto firstPattern = parsePattern();
+                        if (firstPattern)
+                        {
+                            fieldPatterns.push_back(std::move(firstPattern));
+                        }
+
+                        while (checkComma())
+                        {
+                            advance(); // (AR) استهلاك الفاصلة / (EN) consume comma
+                            auto nextPattern = parsePattern();
+                            if (nextPattern)
+                            {
+                                fieldPatterns.push_back(std::move(nextPattern));
+                            }
+                        }
+                    }
+
+                    if (!check(TT::PAREN_RIGHT))
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "لإغلاق أنماط باني التعداد بحمولة"}, {"ctx_en", "to close the tagged-enum constructor patterns"}});
+                        return nullptr;
+                    }
+                    advance(); // (AR) استهلاك ')' / (EN) consume ')'
+
+                    return std::make_unique<AST::ConstructorPattern>(
+                        token.getValue(), std::move(fieldPatterns));
+                }
+
                 return std::make_unique<AST::VariablePattern>(token.getValue());
             }
 

@@ -330,9 +330,26 @@ std::string EnumDecl::toString() const {
     oss << "enum " << name << " {\n";
     
     for (size_t i = 0; i < members.size(); ++i) {
-        oss << "  " << members[i].name;
-        if (members[i].value) {
-            oss << " = " << members[i].value->toString();
+        const auto &member = members[i];
+        oss << "  " << member.name;
+        // (AR) حمولة موضعيّة (ADT): اسم(نوع اسم، ...) — النوع قبل الاسم (قاعدة ص)
+        // (EN) Positional payload (ADT): name(type field, ...) — type before name
+        if (member.hasData()) {
+            oss << "(";
+            for (size_t f = 0; f < member.fields.size(); ++f) {
+                if (f > 0) {
+                    oss << ", ";
+                }
+                const std::string &ft = f < member.fieldTypes.size() ? member.fieldTypes[f] : "";
+                if (!ft.empty()) {
+                    oss << ft << " ";
+                }
+                oss << member.fields[f];
+            }
+            oss << ")";
+        }
+        if (member.value) {
+            oss << " = " << member.value->toString();
         }
         if (i < members.size() - 1) {
             oss << ",";

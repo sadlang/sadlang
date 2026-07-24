@@ -11,8 +11,8 @@ schema_version: "5.0"
 version: "1.0"
 layer: patterns
 
-description_ar: "أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق (حصريّ وشامل)/عضو تعداد (unit وADT)/قائمة/بنية/ربط/بدائل"
-description_en: "Match patterns — wildcard/literal/variable/range (excl+incl)/enum-variant (unit+ADT)/list/struct/binding/or"
+description_ar: "أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق (حصريّ وشامل)/عضو تعداد مؤهَّل (unit وADT)/باني غير مؤهَّل (ConstructorPattern)/قائمة/بنية/ربط/بدائل"
+description_en: "Match patterns — wildcard/literal/variable/range (excl+incl)/qualified enum-variant (unit+ADT)/unqualified constructor/list/struct/binding/or"
 
 productions:
 
@@ -53,7 +53,8 @@ productions:
     ebnf: >
       PrimaryPattern = [ '-' ] Number [ ( '..' | '..=' ) [ '-' ] Number ]
                      | String | BoolLit | NullLit
-                     | Identifier [ '.' Identifier [ '(' Pattern { ( ',' | '،' ) Pattern } ')' ] ] ;
+                     | Identifier ( '.' Identifier [ CtorArgs ] | CtorArgs )? ;
+      CtorArgs       = '(' [ Pattern { ( ',' | '،' ) Pattern } ] ')' ;
     alternatives:
       - label: "حرفيّ / نطاق رقميّ (حصريّ «..» أو شامل «..=»)"
         symbols:
@@ -79,25 +80,41 @@ productions:
               - { kind: terminal, ref: LITERAL_TRUE, value: "صحيح" }
               - { kind: terminal, ref: LITERAL_FALSE, value: "خطأ" }
               - { kind: terminal, ref: LITERAL_NULL, value: "لاشيء" }
-      - label: "متغيّر (ربط) أو عضو تعداد (مؤهَّل / جبريّ ADT)"
+      - label: "متغيّر (ربط) أو عضو تعداد (مؤهَّل EnumVariant / باني غير مؤهَّل Constructor)"
         symbols:
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
             children:
-              - { kind: terminal, ref: DOT, value: "." }
-              - { kind: terminal, ref: IDENTIFIER }
-              - kind: optional
+              - kind: alt
                 children:
-                  - { kind: terminal, ref: PAREN_LEFT, value: "(" }
-                  - kind: optional
+                  # (AR) مؤهَّل: '.' عضو [ '(' أنماط ')' ] ⇒ EnumVariantPattern (unit/ADT)
+                  # (EN) qualified: '.' variant [ '(' patterns ')' ] ⇒ EnumVariantPattern
+                  - kind: group
                     children:
-                      - { kind: nonterminal, ref: gr.pattern.pattern }
-                      - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
-                  - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+                      - { kind: terminal, ref: DOT, value: "." }
+                      - { kind: terminal, ref: IDENTIFIER }
+                      - kind: optional
+                        children:
+                          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+                          - kind: optional
+                            children:
+                              - { kind: nonterminal, ref: gr.pattern.pattern }
+                              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+                          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+                  # (AR) غير مؤهَّل: '(' أنماط ')' ⇒ ConstructorPattern (نمط الباني بحمولة)
+                  # (EN) unqualified: '(' patterns ')' ⇒ ConstructorPattern (tagged-enum ctor)
+                  - kind: group
+                    children:
+                      - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+                      - kind: optional
+                        children:
+                          - { kind: nonterminal, ref: gr.pattern.pattern }
+                          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+                      - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePrimaryPattern" }
-    ast_node: "LiteralPattern | RangePattern | VariablePattern | EnumVariantPattern"
-    description_ar: "حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT)"
+    ast_node: "LiteralPattern | RangePattern | VariablePattern | EnumVariantPattern | ConstructorPattern"
+    description_ar: "حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT مؤهَّل)؛ «عدد(ق)» أو «جمع(ي، ن)» ⇒ ConstructorPattern (باني بحمولة غير مؤهَّل، تجريبيّ)"
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 2, interaction: 2 } }

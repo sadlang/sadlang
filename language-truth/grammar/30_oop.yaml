@@ -72,7 +72,11 @@ productions:
 
   - id: gr.oop.enum
     lhs: { nonterminal: EnumDecl, name_ar: "تصريح تعداد", name_en: enum_declaration }
-    ebnf: "EnumDecl = 'تعداد' Identifier EnumMember { [ ',' ] EnumMember } 'نهاية' ;"
+    ebnf: >
+      EnumDecl   = 'تعداد' Identifier EnumMember { [ ',' ] EnumMember } 'نهاية' ;
+      EnumMember = Identifier [ Payload | '=' Expression ] ;
+      Payload    = '(' [ Field { ( ',' | '،' ) Field } ] ')' ;
+      Field      = [ Type ] Identifier ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_ENUM, value: "تعداد" }
@@ -81,7 +85,26 @@ productions:
             separator: OP_COMMA
             children:
               - { kind: terminal, ref: IDENTIFIER }
-              - { kind: optional, children: [ { kind: terminal, ref: OP_ASSIGN, value: "=" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+              - kind: optional
+                children:
+                  - kind: alt
+                    children:
+                      # (AR) حمولة موضعيّة (تعداد جبريّ/ADT): '(' [نوع] اسم { ',' [نوع] اسم } ')'
+                      # (EN) Positional payload (ADT): '(' [Type] Identifier { ',' [Type] Identifier } ')'
+                      - kind: group
+                        children:
+                          - { kind: terminal, ref: PAREN_LEFT, value: "(" }
+                          - kind: optional
+                            children:
+                              - { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }
+                              - { kind: terminal, ref: IDENTIFIER }
+                              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }, { kind: terminal, ref: IDENTIFIER } ] }
+                          - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
+                      # (AR) قيمة صريحة تثبّت الوسم: '=' تعبير / (EN) explicit tag value: '=' Expression
+                      - kind: group
+                        children:
+                          - { kind: terminal, ref: OP_ASSIGN, value: "=" }
+                          - { kind: nonterminal, ref: gr.expr.expression }
           - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
     references: { keywords: ["KW-RES-005", "KW-RES-007"] }
     maps_to:
@@ -90,8 +113,11 @@ productions:
     description_ar: >
       تعدادٌ بكلمة «تعداد» ثمّ الاسم ثمّ أعضاء يُغلَقون بـ«نهاية» (الأقواس «{}» مُزالة).
       عضوٌ واحدٌ على الأقلّ، والأعضاء مفصولون بفواصل (والفاصلة بين الأعضاء اختياريّة في
-      بعض المواضع). لكلّ عضوٍ قيمةٌ صريحة اختياريّة «= تعبير» (وإلّا تُرقَّم ضمنيّاً).
-      أسماء الأعضاء مرنة (تقبل كلماتٍ محجوزةً غير بنيويّة).
+      بعض المواضع). لكلّ عضوٍ ثلاثة أشكال متعارضة: (١) بسيط/وحدويّ (بلا لاحقة؛ يُرقَّم
+      ضمنيًّا)، (٢) قيمةٌ صريحة «= تعبير» تثبّت الوسم، (٣) حمولةٌ موضعيّة «(نوع اسم، ...)»
+      لتعدادٍ جبريّ (ADT) — النوع قبل الاسم (قاعدة ص) واختياريّ. أسماء الأعضاء والحقول
+      مرنة (تقبل كلماتٍ محجوزةً غير بنيويّة). الحمولة الموضعيّة قدرةٌ تجريبيّة يكتمل
+      توصيلها الدلاليّ/التنفيذيّ في مراحل الاستضافة الذاتيّة (أ-م٢..أ-م٤).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 5, negative: 3, interaction: 2 } }
@@ -100,9 +126,16 @@ productions:
           أحمر، أخضر، أزرق
       نهاية
 
-      # بقيَم صريحة
+      # بقيَم صريحة تثبّت الوسم
       تعداد حالة
           نشط = 1، متوقف = 2
+      نهاية
+
+      # بحمولة موضعيّة (ADT) + وحدويّ
+      تعداد عقدة
+          عدد(رقم قيمة)
+          جمع(عقدة يسار، عقدة يمين)
+          فراغ
       نهاية
 
   - id: gr.oop.struct

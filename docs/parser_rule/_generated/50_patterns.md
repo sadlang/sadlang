@@ -6,7 +6,7 @@
 
 
 - **الطبقة:** `patterns` · **ملف المصدر:** `language-truth/grammar/50_patterns.yaml`
-- **الوصف:** أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق (حصريّ وشامل)/عضو تعداد (unit وADT)/قائمة/بنية/ربط/بدائل
+- **الوصف:** أنماط المطابقة — شامل/حرفيّ/متغيّر/نطاق (حصريّ وشامل)/عضو تعداد مؤهَّل (unit وADT)/باني غير مؤهَّل (ConstructorPattern)/قائمة/بنية/ربط/بدائل
 - **عدد القواعد:** 6
 
 > **قراءة المخطّطات:** «📊 مخطّط البنية النحويّة» يُظهر تسلسل الرموز (تكرار «تكرار»، اختياري «تخطّي»، بدائل ◆). «مخطّط مسار الدوال» يُظهر دوال المحلل التي تُستدعى حتى بناء عقدة AST.
@@ -125,24 +125,25 @@ flowchart LR
 ### gr.pattern.primary — نمط أوّليّ <span dir="ltr">(PrimaryPattern)</span>
 
 - **الرقم التسلسليّ:** `ق-066` · **المعرّف الموحَّد:** `gr.pattern.primary` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT)
+- **الوصف:** حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT مؤهَّل)؛ «عدد(ق)» أو «جمع(ي، ن)» ⇒ ConstructorPattern (باني بحمولة غير مؤهَّل، تجريبيّ)
 
 #### 📐 BNF
 ```bnf
 PrimaryPattern = [ '-' ] Number [ ( '..' | '..=' ) [ '-' ] Number ]
                | String | BoolLit | NullLit
-               | Identifier [ '.' Identifier [ '(' Pattern { ( ',' | '،' ) Pattern } ')' ] ] ;
+               | Identifier ( '.' Identifier [ CtorArgs ] | CtorArgs )? ;
+CtorArgs       = '(' [ Pattern { ( ',' | '،' ) Pattern } ] ')' ;
 ```
 
 #### 🧩 تفصيل البدائل
 **1.** *حرفيّ / نطاق رقميّ (حصريّ «..» أو شامل «..=»):* `[ «-» ] ( «NUMBER_INTEGER» | «NUMBER_DOUBLE» ) [ «..» [ «=» ] [ «-» ] ( «NUMBER_INTEGER» | «NUMBER_DOUBLE» ) ]`
 **2.** *حرفيّ آخر:* `( «STRING_LITERAL» | «صحيح» | «خطأ» | «لاشيء» )`
-**3.** *متغيّر (ربط) أو عضو تعداد (مؤهَّل / جبريّ ADT):* `«IDENTIFIER» [ «.» «IDENTIFIER» [ «(» [ pattern { «،» pattern } ] «)» ] ]`
+**3.** *متغيّر (ربط) أو عضو تعداد (مؤهَّل EnumVariant / باني غير مؤهَّل Constructor):* `«IDENTIFIER» [ ( ( «.» «IDENTIFIER» [ «(» [ pattern { «،» pattern } ] «)» ] ) | ( «(» [ pattern { «،» pattern } ] «)» ) ) ]`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parsePrimaryPattern`](../../../shared/parser/src/statements/parser_advanced.cpp) — `shared/parser/src/statements/parser_advanced.cpp`
-- **عقدة AST المُنتَجة:** `LiteralPattern | RangePattern | VariablePattern | EnumVariantPattern`
+- **عقدة AST المُنتَجة:** `LiteralPattern | RangePattern | VariablePattern | EnumVariantPattern | ConstructorPattern`
 - **يستدعي دوال:** [`parsePattern`](50_patterns.md#gr.pattern.pattern)
 - **مُستدعى من:** [`parsePattern`](50_patterns.md#gr.pattern.pattern)، [`parsePattern`](50_patterns.md#gr.pattern.or)
 
@@ -152,7 +153,7 @@ flowchart TD
   f1["parsePrimaryPattern()"]
   f2["parsePattern()"]
   f1 -- "نمط" --> f2
-  f3(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  f3(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern ∣ ConstructorPattern"])
   f1 --> f3
 ```
 
@@ -206,7 +207,7 @@ flowchart LR
   n9 -- "تخطّي" --> n10
   n6 --> n9
   n1 -- "حرفيّ / نطاق رقميّ (حصريّ «..» أو شامل «..=»)" --> n2
-  n22(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  n22(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern ∣ ConstructorPattern"])
   n10 --> n22
   n23{"◆"}
   n24{"◆"}
@@ -223,47 +224,73 @@ flowchart LR
   n23 --> n28
   n28 --> n24
   n1 -- "حرفيّ آخر" --> n23
-  n29(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
+  n29(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern ∣ ConstructorPattern"])
   n24 --> n29
   n30["«IDENTIFIER»"]
   n31{"◇"}
   n32{"◇"}
-  n33["«.»"]
-  n34["«IDENTIFIER»"]
-  n33 --> n34
-  n35{"◇"}
-  n36{"◇"}
-  n37["«(»"]
+  n33{"◆"}
+  n34{"◆"}
+  n35["«.»"]
+  n36["«IDENTIFIER»"]
+  n35 --> n36
+  n37{"◇"}
   n38{"◇"}
-  n39{"◇"}
-  n40["pattern"]
+  n39["«(»"]
+  n40{"◇"}
   n41{"◇"}
-  n42{"◇"}
-  n43["«،»"]
-  n44["pattern"]
-  n43 --> n44
-  n41 --> n43
-  n44 --> n42
-  n44 -- "تكرار" --> n43
-  n41 -- "صفر/أكثر" --> n42
-  n40 --> n41
-  n38 --> n40
-  n42 --> n39
-  n38 -- "تخطّي" --> n39
-  n37 --> n38
-  n45["«)»"]
-  n39 --> n45
-  n35 --> n37
-  n45 --> n36
-  n35 -- "تخطّي" --> n36
-  n34 --> n35
+  n42["pattern"]
+  n43{"◇"}
+  n44{"◇"}
+  n45["«،»"]
+  n46["pattern"]
+  n45 --> n46
+  n43 --> n45
+  n46 --> n44
+  n46 -- "تكرار" --> n45
+  n43 -- "صفر/أكثر" --> n44
+  n42 --> n43
+  n40 --> n42
+  n44 --> n41
+  n40 -- "تخطّي" --> n41
+  n39 --> n40
+  n47["«)»"]
+  n41 --> n47
+  n37 --> n39
+  n47 --> n38
+  n37 -- "تخطّي" --> n38
+  n36 --> n37
+  n33 --> n35
+  n38 --> n34
+  n48["«(»"]
+  n49{"◇"}
+  n50{"◇"}
+  n51["pattern"]
+  n52{"◇"}
+  n53{"◇"}
+  n54["«،»"]
+  n55["pattern"]
+  n54 --> n55
+  n52 --> n54
+  n55 --> n53
+  n55 -- "تكرار" --> n54
+  n52 -- "صفر/أكثر" --> n53
+  n51 --> n52
+  n49 --> n51
+  n53 --> n50
+  n49 -- "تخطّي" --> n50
+  n48 --> n49
+  n56["«)»"]
+  n50 --> n56
+  n33 --> n48
+  n56 --> n34
   n31 --> n33
-  n36 --> n32
+  n34 --> n32
   n31 -- "تخطّي" --> n32
   n30 --> n31
-  n1 -- "متغيّر (ربط) أو عضو تعداد (مؤهَّل / جبريّ ADT)" --> n30
-  n46(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern"])
-  n32 --> n46
+  n1 -- "متغيّر (ربط) أو عضو تعداد (مؤهَّل EnumVariant / باني غير مؤهَّل Constructor)" --> n30
+  n57(["⇒ LiteralPattern ∣ RangePattern ∣ VariablePattern ∣ EnumVariantPattern ∣ ConstructorPattern"])
+  n32 --> n57
 ```
 
 ---

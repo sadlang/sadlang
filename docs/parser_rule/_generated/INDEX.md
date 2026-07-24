@@ -139,7 +139,7 @@ flowchart TD
 | ق-063 | [`gr.expr.array_literal`](40_expressions.md#gr.expr.array_literal) | مصفوفة حرفيّة | `ArrayExpr \| ListComprehensionExpr` | `ParserCore::parseArrayLiteral` |
 | ق-064 | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) | خريطة حرفيّة | `MapExpr \| DictComprehensionExpr \| SetComprehensionExpr` | `ParserCore::parseMapLiteral` |
 | ق-065 | [`gr.pattern.pattern`](50_patterns.md#gr.pattern.pattern) | نمط | `WildcardPattern \| StructPattern \| ListPattern \| BindingPattern \| OrPattern` | `ParserCore::parsePattern` |
-| ق-066 | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) | نمط أوّليّ | `LiteralPattern \| RangePattern \| VariablePattern \| EnumVariantPattern` | `ParserCore::parsePrimaryPattern` |
+| ق-066 | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) | نمط أوّليّ | `LiteralPattern \| RangePattern \| VariablePattern \| EnumVariantPattern \| ConstructorPattern` | `ParserCore::parsePrimaryPattern` |
 | ق-067 | [`gr.pattern.list`](50_patterns.md#gr.pattern.list) | نمط قائمة | `ListPattern` | `ParserCore::parseListPattern` |
 | ق-068 | [`gr.pattern.struct`](50_patterns.md#gr.pattern.struct) | نمط بنية | `StructPattern` | `ParserCore::parseStructPattern` |
 | ق-069 | [`gr.pattern.binding`](50_patterns.md#gr.pattern.binding) | نمط ربط | `BindingPattern` | `ParserCore::parsePattern` |
@@ -220,7 +220,7 @@ flowchart TD
 | `ListComprehensionExpr` | [`gr.adv.list_comprehension`](60_advanced.md#gr.adv.list_comprehension) |
 | `ListPattern` | [`gr.pattern.list`](50_patterns.md#gr.pattern.list) |
 | `LiteralExpr \| VariableExpr \| TupleExpr \| ArrayExpr \| MapExpr \| ThisExpr \| SuperExpr \| AwaitExpr \| ErrorPropagateExpr \| TernaryExpr \| LambdaExpr \| CallExpr \| TemplateInstantiation` | [`gr.expr.primary`](40_expressions.md#gr.expr.primary) |
-| `LiteralPattern \| RangePattern \| VariablePattern \| EnumVariantPattern` | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) |
+| `LiteralPattern \| RangePattern \| VariablePattern \| EnumVariantPattern \| ConstructorPattern` | [`gr.pattern.primary`](50_patterns.md#gr.pattern.primary) |
 | `MacroDecl` | [`gr.adv.macro`](60_advanced.md#gr.adv.macro) |
 | `MapExpr \| DictComprehensionExpr \| SetComprehensionExpr` | [`gr.expr.map_literal`](40_expressions.md#gr.expr.map_literal) |
 | `MatchStmt` | [`gr.stmt.match`](10_statements.md#gr.stmt.match) |

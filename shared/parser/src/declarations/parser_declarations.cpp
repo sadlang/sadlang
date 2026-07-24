@@ -1828,48 +1828,89 @@ namespace Sad
                 advance();
 
                 ExprPtr value = nullptr;
-                std::vector<std::string> adtFields; // (AR) حقول بيانات ADT / (EN) ADT data fields
+                std::vector<std::string> adtFields;     // (AR) أسماء حقول الحمولة (ADT) / (EN) ADT payload field names
+                std::vector<std::string> adtFieldTypes; // (AR) أنواع حقول الحمولة الموازية / (EN) parallel payload field types
 
-                // (AR) كشف أقواس البيانات للتعدادات الجبرية (ADT)
-                //      مثال: دائرة(نصف_القطر) أو مستطيل(عرض، ارتفاع)
-                // (EN) Detect data parentheses for Algebraic Data Types (ADT)
-                //      Example: Circle(radius) or Rectangle(width, height)
+                // (AR) تحليل حقلٍ واحدٍ من الحمولة — نوعٌ اختياريّ (النوع قبل الاسم: قاعدة ص)
+                //      يليه اسم الحقل. يدعم: «رقم قيمة» (نوع مدمج)، «عقدة يسار» (نوع صنف)،
+                //      و«نصف_القطر» (اسم فقط — غير مُصنَّف، توافق خلفيّ).
+                // (EN) Parse one payload field — optional type (type-before-name: Sad rule)
+                //      then field name. Supports: «رقم قيمة» (built-in), «عقدة يسار» (class
+                //      type), and «نصف_القطر» (name only — untyped, backward compatible).
+                auto parseAdtField = [&]() -> bool
+                {
+                    std::string fieldType;
+
+                    // (AR) نوعٌ مدمجٌ متبوعٌ باسم؟ (مثل «رقم قيمة») / (EN) built-in type then a name?
+                    bool builtinTypeThenName = isTypeToken(current_.getType()) &&
+                                               (peekNext().getType() == TT::IDENTIFIER ||
+                                                isTokenUsableAsName(peekNext().getType()));
+                    // (AR) اسمُ صنفٍ متبوعٌ باسمٍ؟ (مثل «عقدة يسار») / (EN) class-type name then a name?
+                    bool classTypeThenName = (check(TT::IDENTIFIER) || isTokenUsableAsName(current_.getType())) &&
+                                             (peekNext().getType() == TT::IDENTIFIER ||
+                                              isTokenUsableAsName(peekNext().getType()));
+
+                    if (builtinTypeThenName)
+                    {
+                        fieldType = current_.getValue();
+                        // (AR) استهلاك النوع المدمج. حدّ أ-م١: بوّابة peekNext تشترط اسمًا بعد النوع،
+                        //      فالأنواع العامّة/المصفوفات في الحمولة (قائمة<رقم> قيمة / رقم[] قيمة) غير مدعومة بعد.
+                        // (EN) consume built-in type. أ-م١ limit: the peekNext gate requires a name after the
+                        //      type, so generic/array payload types are not yet supported.
+                        parseType();
+                    }
+                    else if (classTypeThenName)
+                    {
+                        fieldType = current_.getValue();
+                        advance(); // (AR) استهلاك اسم نوع الصنف / (EN) consume class-type name
+                    }
+
+                    // (AR) اسم الحقل / (EN) field name
+                    if (!check(TT::IDENTIFIER) && !isValidEnumMember())
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "داخل حمولة التعداد الجبري — مثال: عدد(رقم قيمة)"}, {"ctx_en", "inside the ADT enum payload — e.g., عدد(رقم قيمة)"}});
+                        return false;
+                    }
+                    adtFields.push_back(peek().getValue());
+                    adtFieldTypes.push_back(fieldType);
+                    advance();
+                    return true;
+                };
+
+                // (AR) كشف أقواس الحمولة للتعدادات الجبرية (ADT)
+                //      مثال: عدد(رقم قيمة) أو مستطيل(عرض، ارتفاع) أو دائرة(نصف_القطر)
+                // (EN) Detect payload parentheses for Algebraic Data Types (ADT)
+                //      Example: عدد(رقم قيمة) or Rectangle(width, height) or Circle(radius)
                 if (check(TT::PAREN_LEFT))
                 {
                     advance(); // (AR) استهلاك '(' / (EN) consume '('
 
-                    // (AR) تحليل أسماء الحقول المفصولة بفواصل
-                    // (EN) Parse comma-separated field names
+                    // (AR) تحليل حقول الحمولة المفصولة بفواصل
+                    // (EN) Parse comma-separated payload fields
                     if (!check(TT::PAREN_RIGHT))
                     {
                         // (AR) الحقل الأول / (EN) First field
-                        if (!check(TT::IDENTIFIER) && !isValidEnumMember())
+                        if (!parseAdtField())
                         {
-                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "داخل أقواس التعداد الجبري — مثال: دائرة(نصف_القطر)"}, {"ctx_en", "inside the ADT enum parentheses — e.g., Circle(radius)"}});
                             return nullptr;
                         }
-                        adtFields.push_back(peek().getValue());
-                        advance();
 
                         // (AR) الحقول التالية مفصولة بفواصل
                         // (EN) Remaining fields separated by commas
                         while (checkComma())
                         {
                             advance(); // (AR) استهلاك الفاصلة / (EN) consume comma
-                            if (!check(TT::IDENTIFIER) && !isValidEnumMember())
+                            if (!parseAdtField())
                             {
-                                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الحقل"}, {"what_en", "field"}, {"ctx_ar", "بعد الفاصلة في التعداد الجبري"}, {"ctx_en", "after the comma in an ADT enum"}});
                                 return nullptr;
                             }
-                            adtFields.push_back(peek().getValue());
-                            advance();
                         }
                     }
 
                     // (AR) استهلاك ')' / (EN) consume ')'
                     if (!check(TT::PAREN_RIGHT))
                     {
-                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "لإغلاق حقول التعداد الجبري"}, {"ctx_en", "to close the ADT enum fields"}});
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "لإغلاق حمولة التعداد الجبري"}, {"ctx_en", "to close the ADT enum payload"}});
                         return nullptr;
                     }
                     advance();
@@ -1890,7 +1931,7 @@ namespace Sad
                 // (EN) Create enum member — ADT or simple
                 if (!adtFields.empty())
                 {
-                    members.push_back(EnumMember(memberName.getValue(), std::move(adtFields)));
+                    members.push_back(EnumMember(memberName.getValue(), std::move(adtFields), std::move(adtFieldTypes)));
                 }
                 else
                 {

@@ -934,7 +934,24 @@ namespace Sad
             increaseIndent();
             for (size_t i = 0; i < decl.members.size(); ++i)
             {
-                result_ += indent() + decl.members[i].name;
+                const auto &member = decl.members[i];
+                result_ += indent() + member.name;
+                // (AR) حمولة موضعيّة (ADT): اسم(نوع اسم، ...) — النوع قبل الاسم
+                // (EN) Positional payload (ADT): name(type field, ...) — type before name
+                if (member.hasData())
+                {
+                    result_ += "(";
+                    for (size_t f = 0; f < member.fields.size(); ++f)
+                    {
+                        if (f > 0)
+                            result_ += ", ";
+                        const std::string &ft = f < member.fieldTypes.size() ? member.fieldTypes[f] : "";
+                        if (!ft.empty())
+                            result_ += ft + " ";
+                        result_ += member.fields[f];
+                    }
+                    result_ += ")";
+                }
                 if (i < decl.members.size() - 1)
                     result_ += ",";
                 result_ += "\n";
