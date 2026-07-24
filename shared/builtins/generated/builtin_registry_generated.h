@@ -3482,7 +3482,7 @@ namespace Sad
             {Names::UIWidgets::SURFACE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "سطح", "الأبناء: عناصر على السطح", "كائن"},
             // ─── UICore (22) ───
             {Names::UICore::ENGINE, "UICore", "MODULE_FUNCTION", "NONE", true, "_محرك_واجهات", "جذر: عنصر الجذر (داخليّ)", ""},
-            {Names::UICore::RUN_APP, "UICore", "MODULE_FUNCTION", "NONE", true, "تشغيل_تطبيق", "جذر: عنصر الجذر للتطبيق", ""},
+            {Names::UICore::RUN_APP, "UICore", "MODULE_FUNCTION", "NONE", true, "تشغيل_تطبيق", "جذر: عنصر الجذر للتطبيق (لقطة ثابتة)، أو دالّة بانية تُستدعى كلّ رسم فتُحدَّث المشاهد الزمنيّة حيًّا (م1-ب، نظير انتقل)", ""},
             {Names::UICore::PRINT_TREE, "UICore", "MODULE_FUNCTION", "NONE", true, "طباعة_شجرة", "عنصر: عنصر الواجهة لطباعة شجرته", ""},
             {Names::UICore::NAVIGATE, "UICore", "MODULE_FUNCTION", "NONE", true, "انتقل", "صفحة: عنصر أو دالّة تُرجع عنصرًا", ""},
             {Names::UICore::NAVIGATE_TRANSITION, "UICore", "MODULE_FUNCTION", "NONE", true, "انتقل_بتحريك", "صفحة: عنصر أو دالّة تُرجع عنصرًا، نوع_الانتقال: اسم تأثير الانتقال، المدة: زمن الانتقال بالثواني (اختياريّ)", ""},

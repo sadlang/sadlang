@@ -683,7 +683,7 @@ functions:
   description_ar: تشغيل_تطبيق
   description_en: تشغيل_تطبيق
   params:
-  - "جذر: عنصر الجذر للتطبيق"
+  - "جذر: عنصر الجذر للتطبيق (لقطة ثابتة)، أو دالّة بانية تُستدعى كلّ رسم فتُحدَّث المشاهد الزمنيّة حيًّا (م1-ب، نظير انتقل)"
   lookup_table: name_only
 - cpp_id: PRINT_TREE
   canonical: طباعة_شجرة

@@ -899,12 +899,21 @@ llvm::Value* UICodeGen::emitUiAppRender(std::shared_ptr<SIRInstruction> inst) {
     return emitUIRuntimeCall(cg_, "sad_app_render", voidTy, {ptrTy}, {app});
 }
 
-// (AR) تشغيل_تطبيق(عنصر) ⇒ sad_app_run(root): حلقة سطح المكتب + الإرسال (جسر المكتبة).
-//      نداءٌ void: لا يُخزَّن نتيجةٌ في namedValues (بخلاف مصانع العناصر التي تعيد مقبضًا).
+// (AR) تشغيل_تطبيق(عنصر|دالّة) ⇒ حلقة سطح المكتب + الإرسال (جسر المكتبة). نداءٌ void:
+//      لا يُخزَّن نتيجةٌ في namedValues (بخلاف مصانع العناصر التي تعيد مقبضًا).
+//      (م1-ب) دالّة/إغلاق ⇒ نموذج البانِي (sad_app_run_builder): يُعاد استدعاؤه دوريًّا
+//      (نبضةُ ثانية) فتُحدَّث المشاهد الزمنيّة حيًّا (الساعة)؛ عنصرٌ ⇒ لقطة ثابتة
+//      (sad_app_run، توافقٌ خلفيّ). التمييزُ بنوع المعامل نظير emitUiNavigate تمامًا.
 llvm::Value* UICodeGen::emitUiAppRun(std::shared_ptr<SIRInstruction> inst) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
     llvm::Value* root = cg_.resolveOperand(inst->operands[0]);
+    auto tri = bridgeUiPageBuilder(cg_, root);
+    if (tri.isBuilder) {
+        auto* nullRel = llvm::ConstantPointerNull::get(ptrTy);
+        return emitUIRuntimeCall(cg_, "sad_app_run_builder", voidTy,
+            {ptrTy, ptrTy, ptrTy}, {tri.build, tri.data, nullRel});
+    }
     return emitUIRuntimeCall(cg_, "sad_app_run", voidTy, {ptrTy}, {root});
 }
 

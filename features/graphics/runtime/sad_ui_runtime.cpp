@@ -56,6 +56,8 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm> // (م1-ب) remove_if لحصاد أجيال البانِي (تفادي تسريب النبضة)
+#include <chrono>  // (م1-ب) نبضة الساعة الحيّة: system_clock لبوّابة الدقيقة الجداريّة
 #include <cstdint>
 #include <cstring>
 #include <cstdio>  // (AR) fprintf لإعلان فشل تهيئة الوضع الحرّ على stderr
@@ -78,6 +80,12 @@ struct SadWidgetImpl {
     SadWidgetImpl* parent = nullptr;
     SadCallback onTap = nullptr;
     void* userData = nullptr;
+
+    // (م1-ب) جيل الإنشاء: يُختَم من g_widgetGeneration وقت createWidget. نموذج البانِي
+    //        (تشغيل_تطبيق(دالّة)) يبني شجرةً بجيلٍ جديد كلّ نبضة، ويحصد جيلَ الشجرة
+    //        المُستبدَلة بعد عرض الجديدة ⇒ لا يتراكم g_widgets بلا حدّ. الجيل 0 =
+    //        عناصر مستوى الوحدة/اللقطة (لا تُحصَد أبدًا). انظر reapWidgetGeneration.
+    uint64_t generation = 0;
 
     // (AR) ربط الأحداث الانسيابيّة عند_* (م-أ3ر، L2): اسم الحدث ⇒ ردّ نداء + بيانات.
     //      الحدث نفسه يُسجَّل على irNode (تطابق getEvents مع المفسّر)؛ هذا الجدول
@@ -138,13 +146,35 @@ struct SadAppImpl {
 static std::vector<std::unique_ptr<SadWidgetImpl>> g_widgets;
 static std::vector<std::unique_ptr<SadAppImpl>> g_apps;
 
+/* ── (م1-ب) جيل الإنشاء الحاليّ: يبدأ 0 (مستوى الوحدة/اللقطة)؛ نموذج البانِي يزيده
+ *    قبل كلّ بناء شجرةٍ ليختم عناصرها بجيلٍ متفرّد، فيُحصَد جيل الشجرة المُستبدَلة
+ *    وحده دون مساس بالجيل الحاليّ أو الجيل 0. ── */
+static uint64_t g_widgetGeneration = 0;
+
 /* ── دوال مساعدة / Helper functions ── */
 
 static SadWidgetImpl* createWidget(UINodeType type) {
     auto widget = std::make_unique<SadWidgetImpl>(type);
     SadWidgetImpl* ptr = widget.get();
+    ptr->generation = g_widgetGeneration; // (م1-ب) ختمُ الجيل للحصاد اللاحق
     g_widgets.push_back(std::move(widget));
     return ptr;
+}
+
+/* ── (م1-ب) حصاد جيلٍ من العناصر: يحرّر كلّ SadWidgetImpl مختومٍ بـgen. يُستدعى بعد
+ *    عرض شجرةٍ جديدة (setContent) لتحرير الشجرة المُستبدَلة في نموذج البانِي، فلا
+ *    يتراكم g_widgets مع النبضة الدوريّة. الجيل 0 (مستوى الوحدة/اللقطة) لا يُحصَد.
+ *    آمنٌ بعد setContent: الشجرة المُستبدَلة لم تعُد معروضة ولا يشير إليها إلّا ما
+ *    نحرّره (أشجار IR جديدة كاملة بلا مشاركةٍ مع الجديدة). المؤشّرات الباقية تظلّ
+ *    صالحة (erase على unique_ptr لا يزحزح الكائنات الباقية). ── */
+static void reapWidgetGeneration(uint64_t gen) {
+    if (gen == 0) return; // الجيل 0 = عناصر دائمة (مستوى الوحدة/اللقطة)
+    g_widgets.erase(
+        std::remove_if(g_widgets.begin(), g_widgets.end(),
+            [gen](const std::unique_ptr<SadWidgetImpl>& up) {
+                return up && up->generation == gen;
+            }),
+        g_widgets.end());
 }
 
 static SadWidgetImpl* toWidget(SadWidget w) {
@@ -1149,40 +1179,81 @@ char* sad_generate_web(SadWidget root, const char* title) {
     return out;
 }
 
-/* ─── تشغيل_تطبيق(عنصر) — حلقة سطح المكتب (م-أ3ر/الإرسال) ───
+/* ─── تشغيل_تطبيق(عنصر|دالّة) — حلقة سطح المكتب (م-أ3ر/الإرسال) ───
  * (AR) جسرٌ رفيع فوق DesktopWindow في المكتبة: النافذة تملك الحلقة والتخطيط والرسم
  *      وhit-test وإرسال الأحداث؛ نوصّل callback يُرسِل إلى ردود النداء المُترجَمة.
- *      كلّ المنطق الرسوميّ في المكتبة؛ هذا الجسر يربط فقط. */
-void sad_app_run(SadWidget root) {
+ *      كلّ المنطق الرسوميّ في المكتبة؛ هذا الجسر يربط فقط.
+ *
+ * (AR) نموذجان لمصدر الجذر يتشاركان آليّة الحلقة نفسها عبر runNavRegisteredApp:
+ *      • لقطة (sad_app_run): جذرٌ ثابتٌ يُعرَض أبدًا (توافق خلفيّ).
+ *      • بانٍ (sad_app_run_builder، م1-ب): دالّة ص تُستدعى كلّ رسم ⇒ شجرةٌ طازجة،
+ *        + نبضةٌ زمنيّة كلّ ثانية توسّخ المكدّس فتُحدَّث المشاهد الزمنيّة (الساعة).
+ *      كلاهما يسجّل إدخال nav ثمّ يُشغّل الحلقة؛ الرسم دائمًا من nav().buildCurrent()
+ *      ⇒ مصدر رسمٍ واحد لا قناتين. */
+namespace {
+
+// (م1-ب) عبّئ عرض/ارتفاع الجذر بأبعاد الشاشة إن غابا (كي يمتدّ التخطيط ليملأ الشاشة،
+//        نظير جذر سطح المكتب). يُطبَّق على كلّ شجرةٍ من buildCurrent: اللقطة تُعبَّأ
+//        مرّةً (الخصائص تبقى)، والبانِي يُنتج شجرةً طازجةً كلّ رسم فتلزمه كلّ مرّة.
+inline void fillRootDims(const std::shared_ptr<IRNode>& node,
+                         std::uint32_t w, std::uint32_t h) {
+    if (!node) return;
+    if (!node->findProperty(sad::ui::props::WIDTH))
+        node->setProperty(sad::ui::props::WIDTH, static_cast<double>(w));
+    if (!node->findProperty(sad::ui::props::HEIGHT))
+        node->setProperty(sad::ui::props::HEIGHT, static_cast<double>(h));
+}
+
+// (م1-ب) حالة أجيال البانِي المشتركة بين buildRoot وحلقة الرسم: prevGen جيلُ الشجرة
+//        المعروضة حاليًّا (تُحصَد عند استبدالها)، وbaseDepth عمقُ المكدّس عند البدء
+//        (حارسٌ ضدّ حصاد صفحةٍ دُفعت بتنقّل)، وlastMinute آخر دقيقةٍ جداريّة أُعيد عندها
+//        البناء (بوّابة النبضة: انظر أدناه).
+struct BuilderGenState { uint64_t prevGen = 0; std::size_t baseDepth = 0; long long lastMinute = -1; };
+
+// (م1-ب) الدقيقة الجداريّة الحاليّة (دقائق منذ حقبة يونكس، UTC). بوّابةُ النبضة:
+//        عرضُ HH:MM لا يتغيّر إلّا عند تبدّل الدقيقة، فنُعيد بناء البانِي **مرّةً كلّ
+//        دقيقة** لا كلّ ثانية. هذا (أ) الإيقاع الصحيح لساعةٍ بدقّة الدقيقة، و(ب)
+//        يقلّص إعادةَ البناء ٦٠ ضعفًا — وإعادةُ البناء في الوضع الحرّ (بلا كانِس
+//        مهملات) تسرّب كومةَ البرنامج المُترجَم؛ فالبوّابة تحدّ التسريب سِتّين ضعفًا.
+//        (دَينٌ قائم: الإصلاح الجذريّ حوضُ ذاكرةٍ حرٌّ يُعاد ضبطه حول كلّ إعادة بناء.)
+static long long currentWallMinute() {
+    return std::chrono::duration_cast<std::chrono::minutes>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+// (م1-ب) آليّة تشغيل التطبيق بعد تسجيل إدخال nav الحاليّ (لقطةً أو بانيًا). الجذر
+//        يُبنى دائمًا عبر nav().buildCurrent()؛ withPeriodicTick يحقن توسيخًا كلّ
+//        ثانية (steady_clock) فيُعاد استدعاء البانِي دوريًّا (يعيد حساب الآن).
+void runNavRegisteredApp(bool withPeriodicTick) {
 #if defined(SAD_UI_FREESTANDING) && defined(__linux__)
     // ─── الفرع الحرّ (fb0/evdev): بديل SDL2 على لينكس بلا X11 ───
     // (AR) نفس ABI جسر SDL2: نمرّر شجرة IR نفسها إلى آليّة الحلقة الحرّة المشتركة
     //      (fs::runFreestandingApp)، ونوصّل إرسال الأحداث لردود النداء المُترجَمة
     //      (dispatchCompiledEvent) — فلا SDL2 في الثنائيّ إطلاقًا.
-    auto* impl = toWidget(root);
-    if (!impl || !impl->irNode) return;
-
-    // (م1-ب) سجّل الجذر كصفحة ابتدائيّة في مكدّس التنقّل (نظير الفرع المستضاف)،
-    //        ونستهلك dirty الابتدائيّ لأنّ المحتوى يُضبَط في buildRoot أدناه.
-    { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root;
-      navStack.replace(e); navStack.takeDirty(); }
-
     sad::ui::freestanding::FreestandingAppConfig cfg;
     // (AR) خطّ العرض وجهاز الإطار عبر البيئة (يمرّرهما /init في sad-os): غيابهما
     //      ⇒ الخطّ المدمج و/dev/fb0. أسماء المتغيّرات عقدٌ مع مُشغِّل sad-os.
     if (const char* f = std::getenv("SAD_UI_FB_FONT")) cfg.fontPath = f;
     if (const char* d = std::getenv("SAD_UI_FB_DEVICE")) cfg.devicePath = d;
 
-    // بناء الجذر: نُرجع شجرة IR نفسها؛ وإن لم يحدّد البرنامج أبعاد الجذر نملؤها
-    // بأبعاد الشاشة (نظير جذر سطح المكتب الذي يملأ الشاشة) كي يمتدّ التخطيط.
-    cfg.buildRoot = [impl](std::uint32_t w, std::uint32_t h)
+    // (م1-ب) حالة أجيال البانِي: كلّ إعادة بناءٍ (نبضة) تختم شجرةً بجيلٍ جديد، ثمّ
+    //        تُحصَد الشجرة المُستبدَلة بعد عرض الجديدة ⇒ g_widgets محدود. حارس العمق
+    //        (baseDepth) يمنع حصادَ صفحةٍ دُفعت للمكدّس بتنقّلٍ من ردّ نداء. مشتركةٌ
+    //        بين buildRoot وonIterate عبر shared_ptr (تعيش مع الحلقة).
+    auto genState = std::make_shared<BuilderGenState>();
+    genState->baseDepth = sad::ui::nav().depth();
+    if (withPeriodicTick) genState->lastMinute = currentWallMinute(); // الشجرة الأولى تعرض الدقيقة الحاليّة
+
+    // بناء الجذر: من الصفحة الحاليّة (buildCurrent) — اللقطة تعيد الشجرة المخزّنة،
+    // والبانِي يُنتجها طازجةً؛ نملأ أبعاد الجذر إن غابت كي يمتدّ التخطيط.
+    cfg.buildRoot = [withPeriodicTick, genState](std::uint32_t w, std::uint32_t h)
         -> std::shared_ptr<IRNode>
     {
-        if (!impl->irNode->findProperty(sad::ui::props::WIDTH))
-            impl->irNode->setProperty(sad::ui::props::WIDTH, static_cast<double>(w));
-        if (!impl->irNode->findProperty(sad::ui::props::HEIGHT))
-            impl->irNode->setProperty(sad::ui::props::HEIGHT, static_cast<double>(h));
-        return impl->irNode;
+        if (withPeriodicTick) genState->prevGen = ++g_widgetGeneration; // ختمُ جيل الشجرة الأولى
+        auto* pimpl = toWidget(sad::ui::nav().buildCurrent());
+        if (!pimpl || !pimpl->irNode) return nullptr;
+        fillRootDims(pimpl->irNode, w, h);
+        return pimpl->irNode;
     };
     // إرسال النقر إلى ردود النداء المُترجَمة (بالعقدة لا بالتعبير النصّيّ):
     cfg.onEvent = [](IREventType type, const std::string& expr,
@@ -1194,18 +1265,44 @@ void sad_app_run(SadWidget root) {
         return code == sad::ui::UnifiedKeyCode::F2 ||
                code == sad::ui::UnifiedKeyCode::Escape;
     };
-    // كلّ دورة: تبديل المحتوى إن غيّر ردّ نداءٍ الصفحة الحاليّة (تنقّل حيّ) —
-    // نظير setTimerUpdateCallback في الفرع المستضاف.
-    cfg.onIterate = [](sad::ui::freestanding::AppLoopContext& ctx) -> bool
+    // كلّ دورة: (م1-ب) نبضةُ الدقيقة — نوسّخ المكدّس **مرّةً كلّ دقيقة جداريّة** (لا
+    //   كلّ ثانية): عرضُ HH:MM لا يتبدّل أسرع، وإعادةُ البناء الحرّة تسرّب الكومة بلا
+    //   كانِس فنحدّها بالإيقاع الصحيح. ثمّ نبدّل المحتوى إن اتّسخ (نبضةٌ أو تنقّل).
+    cfg.onIterate = [withPeriodicTick, genState](
+        sad::ui::freestanding::AppLoopContext& ctx) -> bool
     {
         auto& navStack = sad::ui::nav();
+        if (withPeriodicTick)
+        {
+            const long long nowMin = currentWallMinute();
+            if (nowMin != genState->lastMinute)
+            {
+                genState->lastMinute = nowMin;
+                navStack.markDirty();
+            }
+        }
         if (navStack.takeDirty())
         {
+            // (م1-ب) اختِم شجرةَ إعادة البناء بجيلٍ جديد كي نحصد سابقتها لاحقًا.
+            const uint64_t builtGen = withPeriodicTick ? ++g_widgetGeneration : 0;
             auto* pimpl = toWidget(navStack.buildCurrent());
             if (pimpl && pimpl->irNode)
             {
+                fillRootDims(pimpl->irNode, ctx.width, ctx.height);
                 ctx.window.setContent(pimpl->irNode);
                 ctx.window.invalidate();
+                // (م1-ب) حصاد الشجرة المُستبدَلة بعد عرض الجديدة — إلّا إن نمَا عمقُ
+                //        المكدّس (تنقّلٌ دفع الشجرةَ القديمة للعودة إليها): لا نحرّرها.
+                //        (دَينٌ مقبول: التنقّل بعيدًا يُيَتِّم شجرةَ الأساس فلا تُحصَد —
+                //         محدودٌ بعدد التنقّلات لا بالزمن، بخلاف تسريب النبضة المحسوم.)
+                if (withPeriodicTick)
+                {
+                    const uint64_t replaced = genState->prevGen;
+                    genState->prevGen = builtGen;
+                    if (replaced != 0 && replaced != builtGen &&
+                        navStack.depth() == genState->baseDepth)
+                        reapWidgetGeneration(replaced);
+                }
             }
         }
         return true;
@@ -1224,7 +1321,13 @@ void sad_app_run(SadWidget root) {
     sad::ui::nav().reset();
     sad::ui::windowController().reset();
 #elif defined(SAD_UI_USE_SDL2)
-    auto* impl = toWidget(root);
+    // (م1-ب) حالة أجيال البانِي (نظير الفرع الحرّ): تُحصَد الشجرة المُستبدَلة كلّ نبضة.
+    auto genState = std::make_shared<BuilderGenState>();
+    genState->baseDepth = sad::ui::nav().depth();
+    if (withPeriodicTick) genState->lastMinute = currentWallMinute(); // الشجرة الأولى تعرض الدقيقة الحاليّة
+    // (AR) الجذر الابتدائيّ من الصفحة الحاليّة (لقطةً أو بانيًا) — مصدر رسمٍ واحد.
+    if (withPeriodicTick) genState->prevGen = ++g_widgetGeneration; // ختمُ جيل الشجرة الأولى
+    auto* impl = toWidget(sad::ui::nav().buildCurrent());
     if (!impl || !impl->irNode) return;
     sad::ui::desktop::DesktopWindow window;
     sad::ui::desktop::WindowOptions options;
@@ -1243,32 +1346,48 @@ void sad_app_run(SadWidget root) {
     }
     if (!window.create(options)) return;
     window.setContent(impl->irNode);
-    // (م1-ب) سجّل الجذر كصفحة ابتدائيّة في مكدّس التنقّل (نظير UIBridge::run الذي
-    //        يضبط rootWidget_)، فتعمل عودة_للبداية وتتّسق حالة nav مع المرسوم. نستهلك
-    //        dirty الابتدائيّ لأنّ المحتوى مضبوطٌ سلفًا بـsetContent أعلاه.
-    { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root; navStack.replace(e); navStack.takeDirty(); }
     window.setOnEventCallback(
         [](IREventType type, const std::string& expr,
            const IRNode* node, const EventData& data) {
             dispatchCompiledEvent(node, type, expr, data); // (② rfcs#46) بيانات الحدث + تعبير المعالِج المُختار
         });
-    // (م1-ب) إعادة الرسم عند تبديل الصفحة: كلّ إطار نفحص إن تغيّرت الصفحة الحاليّة
-    //        (انتقل/عودة/… من ردّ نداء) فنعيد ضبط محتوى النافذة من الجذر الجديد.
-    //        هذا يجعل التنقّل الحيّ يبدّل المرسوم فعلًا (كان sad_app_run يعرض جذرًا ثابتًا).
-    window.setTimerUpdateCallback([&window]() {
+    // (م1-ب) إعادة الرسم عند تبديل الصفحة أو نبضة الدقيقة: نوسّخ المكدّس **مرّةً كلّ
+    //        دقيقة جداريّة** (لا كلّ ثانية) — الإيقاع الصحيح لـHH:MM وحدٌّ للتسريب،
+    //        ثمّ نعيد ضبط المحتوى إن اتّسخ (نبضة/تنقّل).
+    window.setTimerUpdateCallback([&window, withPeriodicTick, genState]() {
         auto& navStack = sad::ui::nav();
+        if (withPeriodicTick) {
+            const long long nowMin = currentWallMinute();
+            if (nowMin != genState->lastMinute) {
+                genState->lastMinute = nowMin;
+                navStack.markDirty();
+            }
+        }
         if (navStack.takeDirty()) {
             // (م1-ج) ابنِ الصفحة الحاليّة عبر buildCurrent: إن كان الإدخال بانيًا
-            //        (انتقل(دالّة)) استُدعي البانِي ⇒ شجرةٌ طازجةٌ تفاعليّة كلّ رسم؛
-            //        وإن كان لقطةً أُعيدت كما هي (توافق خلفيّ). مصدر رسمٍ واحد.
+            //        (انتقل(دالّة)/تشغيل_تطبيق(دالّة)) استُدعي البانِي ⇒ شجرةٌ طازجةٌ
+            //        تفاعليّة كلّ رسم؛ وإن كان لقطةً أُعيدت كما هي. مصدر رسمٍ واحد.
+            const uint64_t builtGen = withPeriodicTick ? ++g_widgetGeneration : 0;
             auto* pimpl = toWidget(navStack.buildCurrent());
             if (pimpl && pimpl->irNode) {
                 // (م2) إن كان ثمّة انتقال بصريّ مُعلَّق (انتقل_بتحريك) نبدّل بتحريك؛ وإلّا فورًا.
                 std::string transType; float dur = sad::ui::kDefaultTransitionSec;
-                if (navStack.takePendingTransition(transType, dur))
+                const bool withTransition = navStack.takePendingTransition(transType, dur);
+                if (withTransition)
                     window.setContentWithTransition(pimpl->irNode, transType, dur);
                 else
                     window.setContent(pimpl->irNode);
+                // (م1-ب) حصاد الشجرة المُستبدَلة — إلّا إن نمَا العمق بتنقّلٍ دفعها للمكدّس،
+                //        أو كان ثمّة انتقالٌ بصريّ يُبقي الشجرة القديمة حيّةً أثناء التحريك.
+                if (withPeriodicTick && !withTransition) {
+                    const uint64_t replaced = genState->prevGen;
+                    genState->prevGen = builtGen;
+                    if (replaced != 0 && replaced != builtGen &&
+                        navStack.depth() == genState->baseDepth)
+                        reapWidgetGeneration(replaced);
+                } else if (withPeriodicTick) {
+                    genState->prevGen = builtGen; // حدّث الجيل دون حصادٍ (الانتقال يحمي القديم)
+                }
             }
         }
     });
@@ -1279,8 +1398,33 @@ void sad_app_run(SadWidget root) {
     sad::ui::nav().reset();
     sad::ui::windowController().reset();
 #else
-    (void)root;
+    (void)withPeriodicTick;
 #endif
+}
+
+} // namespace
+
+void sad_app_run(SadWidget root) {
+    // (AR) نموذج اللقطة (توافق خلفيّ): جذرٌ ثابتٌ يُعرَض أبدًا، بلا نبضة زمنيّة.
+    //      نسجّله صفحةً ابتدائيّة في المكدّس ونستهلك dirty الابتدائيّ (المحتوى يُضبَط
+    //      في buildRoot)، ثمّ نُشغّل الحلقة المشتركة.
+    auto* impl = toWidget(root);
+    if (!impl || !impl->irNode) return;
+    { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e; e.page = root;
+      navStack.replace(e); navStack.takeDirty(); }
+    runNavRegisteredApp(/*withPeriodicTick=*/false);
+}
+
+/* ─── تشغيل_تطبيق(دالّة_بناء) — نموذج البانِي (م1-ب): دالّة ص تُستدعى كلّ رسم ───
+ * (AR) نظير sad_navigate_builder: نسجّل بانيًا في المكدّس يُنتج الشجرة طازجةً، ونفعّل
+ *      نبضةً زمنيّة كلّ ثانية توسّخ المكدّس فيُعاد بناء الصفحة دوريًّا (تُحدَّث الساعة).
+ *      الملكيّة (Q5): release يحرّر بيئة الإغلاق `data` عند nav().reset() في نهاية الحلقة. */
+void sad_app_run_builder(SadPageBuilder build, void* data, SadReleaseFn release) {
+    if (!build) return;
+    { auto& navStack = sad::ui::nav(); sad::ui::NavEntry e;
+      e.build = build; e.data = data; e.release = release;
+      navStack.replace(e); navStack.takeDirty(); }
+    runNavRegisteredApp(/*withPeriodicTick=*/true);
 }
 
 void sad_app_destroy(SadApp app) {

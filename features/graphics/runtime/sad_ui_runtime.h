@@ -218,6 +218,11 @@ void sad_app_render(SadApp app);
 /** تشغيل_تطبيق(عنصر) — حلقة سطح المكتب: نافذة + رسم + إرسال الأحداث (جسر فوق DesktopWindow) */
 void sad_app_run(SadWidget root);
 
+/** تشغيل_تطبيق(دالّة_بناء) — نموذج البانِي (م1-ب): يخزّن بانيًا يُستدعى كلّ رسم +
+ *  نبضةٌ زمنيّة كلّ ثانية توسّخ المكدّس ⇒ تُحدَّث المشاهد الزمنيّة حيًّا (الساعة).
+ *  نظير sad_navigate_builder؛ release يحرّر بيئة الإغلاق عند نهاية الحلقة (Q5). */
+void sad_app_run_builder(SadPageBuilder build, void* data, SadReleaseFn release);
+
 /** طباعة_شجرة(عنصر) — طباعة شجرة العناصر للتصحيح (منطق المكتبة المشترك) */
 void sad_print_tree(SadWidget root);
 

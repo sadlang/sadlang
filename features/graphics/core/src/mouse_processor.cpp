@@ -429,6 +429,10 @@ namespace sad
 
         void MouseEventProcessor::handleSliderDrag(float mouseX)
         {
+            // (م1-ب) حارس استعمال-بعد-التحرير: المنزلق المسحوب مؤشّر خام قد يتحرّر
+            //        باستبدال الشجرة (نبضة/تنقّل) بين إطارين — تحقّق قبل استعماله.
+            if (draggedSliderNode_ && !nodeInLiveTree(draggedSliderNode_))
+                draggedSliderNode_ = nullptr;
             // (AR) تحديث قيمة المنزلق أثناء السحب المستمر
             if (!draggedSliderNode_ || !findNodeRectCb_)
                 return;
@@ -556,6 +560,12 @@ namespace sad
 
         void MouseEventProcessor::handleHoverTracking(float x, float y)
         {
+            // (م1-ب) حارس استعمال-بعد-التحرير: إن استُبدلت الشجرة (نبضة/تنقّل) بين
+            //        إطارين وتحرّرت العقدة المُحوَّم عليها، صفّرها **دون** إطلاق
+            //        OnHoverExit (لا نفكّ إسناد ذاكرةٍ محرَّرة) قبل أيّ استعمال أدناه.
+            if (!nodeInLiveTree(hoveredNode_))
+                hoveredNode_ = nullptr;
+
             // (AR) تتبع دخول/خروج المؤشر من العناصر
             const IRNode *newHover = hitTestCb_ ? hitTestCb_(x, y) : nullptr;
 
@@ -635,6 +645,21 @@ namespace sad
             dragNode_ = nullptr; // تحرّرت ⇒ أنهِ السحب بأمان
             dragging_ = false;
             return false;
+        }
+
+        bool MouseEventProcessor::nodeInLiveTree(const IRNode *node) const
+        {
+            // (AR) حارس استعمال-بعد-التحرير المشترك (نظير dragNodeAlive بلا آثار
+            //      جانبيّة): يقارن مؤشّر العقدة بشجرة المحتوى الحيّة. حين تُستبدَل
+            //      الشجرة (نبضة الساعة م١-ب/تنقّل) تتحرّر عقدُ الجيل السابق؛ ومنصّة
+            //      الوضع الحرّ لا تُصفّر مؤشّرات هذا المعالِج عند setContent (بخلاف
+            //      DesktopWindow)، فيلزم التحقّق قبل فكّ إسناد التحويم/المنزلق.
+            if (!node)
+                return false;
+            if (!getContentRootCb_)
+                return true; // لا سبيل للتحقّق على هذا المُضيف — نُبقي السلوك السابق
+            const IRNode *liveRoot = getContentRootCb_();
+            return liveRoot && containsNode(*liveRoot, node);
         }
 
         void MouseEventProcessor::clearNodeRefs()
