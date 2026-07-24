@@ -16,6 +16,7 @@
 #include "ast_visitor.h"
 #include "expressions.h"
 #include "statements.h"
+#include "tagged_enum_keys.h"
 #include "value.h"
 #include <memory>
 #include <string>
@@ -612,8 +613,8 @@ namespace Sad
                 // (EN) Check that enum name and variant name match
                 try
                 {
-                    const Data::Value &enumNameVal = value["__تعداد__"];
-                    const Data::Value &variantNameVal = value["__عضو__"];
+                    const Data::Value &enumNameVal = value[TaggedEnumKeys::ENUM];
+                    const Data::Value &variantNameVal = value[TaggedEnumKeys::VARIANT];
 
                     if (enumNameVal.toString() != enumName || variantNameVal.toString() != variantName)
                     {
@@ -636,7 +637,7 @@ namespace Sad
                 // (EN) Check fields exist and match them
                 try
                 {
-                    const Data::Value &fieldsVal = value["__حقول__"];
+                    const Data::Value &fieldsVal = value[TaggedEnumKeys::FIELDS];
                     if (fieldsVal.getKind() != Types::SadTypeKind::Array)
                     {
                         return false;
@@ -730,7 +731,7 @@ namespace Sad
 
                 try
                 {
-                    const Data::Value &variantNameVal = value["__عضو__"];
+                    const Data::Value &variantNameVal = value[TaggedEnumKeys::VARIANT];
                     if (variantNameVal.toString() != variantName)
                     {
                         return false;
@@ -749,7 +750,7 @@ namespace Sad
 
                 try
                 {
-                    const Data::Value &fieldsVal = value["__حقول__"];
+                    const Data::Value &fieldsVal = value[TaggedEnumKeys::FIELDS];
                     if (fieldsVal.getKind() != Types::SadTypeKind::Array ||
                         fieldsVal.size() != fieldPatterns.size())
                     {

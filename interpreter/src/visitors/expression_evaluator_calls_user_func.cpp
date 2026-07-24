@@ -22,6 +22,7 @@
 #include "advanced_expr_nodes.h"
 #include "class_manager.h"
 #include "object_instance.h"
+#include "tagged_enum_keys.h" // (AR) مفاتيح القيمة الموسومة (SoT) / (EN) tagged-value keys (SoT)
 #include "error_manager.h"
 #include "runtime_throw.h"
 #include "ownership_manager.h"
@@ -250,12 +251,33 @@ namespace Sad
                                 {{"actual", actualClass}, {"expected", expectedClass}});
                         }
                     }
+                    // (AR) [أ-م٣] قيمة تعداد جبريّ موسومة (خريطة بوسم __تعداد__): نوعها هو
+                    //      التعداد المُخزَّن في الوسم، فتُقبَل لمعاملٍ من نوع ذلك التعداد.
+                    // (EN) [A-M3] A tagged ADT value (Map with the __تعداد__ tag): its type is
+                    //      the enum recorded in the tag, so accept it for a parameter of that enum.
+                    else if (argVal.getKind() == Types::SadTypeKind::Map &&
+                             argVal.hasKey(AST::TaggedEnumKeys::ENUM) &&
+                             argVal[AST::TaggedEnumKeys::ENUM].toString() == expectedClass)
+                    {
+                        // (AR) مقبول: نوع القيمة الموسومة يطابق نوع المعامل التعداديّ.
+                        // (EN) Accepted: tagged value's enum type matches the parameter type.
+                    }
                     else
                     {
+                        // (AR) لتشخيصٍ أنفع: إن كانت القيمة موسومةً لتعدادٍ آخر، اذكر اسم تعدادها
+                        //      الفعليّ بدل «MAP» (تحسين أميليا 🔵٤).
+                        // (EN) For a more useful diagnostic: if the value is a tagged value of a
+                        //      different enum, report its actual enum name instead of «MAP» (Amelia 🔵4).
+                        std::string actualType = argVal.getTypeName();
+                        if (argVal.getKind() == Types::SadTypeKind::Map &&
+                            argVal.hasKey(AST::TaggedEnumKeys::ENUM))
+                        {
+                            actualType = argVal[AST::TaggedEnumKeys::ENUM].toString();
+                        }
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_TYPE_CHECK_FAILED,
                             node.position,
-                            {{"actual", argVal.getTypeName()}, {"expected", expectedClass}});
+                            {{"actual", actualType}, {"expected", expectedClass}});
                     }
                 }
 

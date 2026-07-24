@@ -21,6 +21,7 @@
 #include "user_thrown.h"
 #include "runtime_throw.h"
 #include "async_runtime.h"  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
+#include "tagged_enum_keys.h" // (AR) مفاتيح القيمة الموسومة (SoT) / (EN) tagged-value keys (SoT)
 #include "suggestions.h"    // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <atomic>
@@ -321,12 +322,20 @@ namespace Sad
                             // ═══════════════════════════════════════════════════════
                             auto mapVal = varValue.toMap();
                             auto ctorIt = mapVal.find("__باني_نموذج__");
-                            if (ctorIt != mapVal.end() && ctorIt->second.isBoolean() && ctorIt->second.toBool())
+                            // (AR) الدالّة المُصرَّحة تتقدّم على باني المُعامِل العاري مهما كان ترتيب
+                            //      التصريح (تفادي اختطاف اسم الدالّة — نظير حسم أ-م٢ الدلاليّ). إن وُجدت
+                            //      دالّة بنفس الاسم يسقط الحسم إلى مسار الدالّة (funcName أدناه).
+                            // (EN) A declared function outranks the bare variant builder regardless of
+                            //      declaration order (avoid hijacking the function name — mirrors the A-M2
+                            //      semantic resolution). If a same-named function exists, fall through to
+                            //      the function path (funcName below).
+                            if (ctorIt != mapVal.end() && ctorIt->second.isBoolean() && ctorIt->second.toBool() &&
+                                !functionManager_.hasFunction(calleeVar->name))
                             {
                                 // (AR) باني نموذج — نقيّم الوسائط وننشئ variant
                                 // (EN) Variant constructor — evaluate args and create variant
-                                std::string enumName = mapVal["__تعداد__"].toString();
-                                std::string memberName = mapVal["__عضو__"].toString();
+                                std::string enumName = mapVal[AST::TaggedEnumKeys::ENUM].toString();
+                                std::string memberName = mapVal[AST::TaggedEnumKeys::VARIANT].toString();
                                 auto fieldNamesArr = mapVal["__حقول_أسماء__"].toArray();
                                 int expectedCount = mapVal["__عدد_حقول__"].toInt();
 
@@ -348,8 +357,8 @@ namespace Sad
                                 }
 
                                 Data::Value::MapType variantMap;
-                                variantMap["__تعداد__"] = Data::Value(enumName);
-                                variantMap["__عضو__"] = Data::Value(memberName);
+                                variantMap[AST::TaggedEnumKeys::ENUM] = Data::Value(enumName);
+                                variantMap[AST::TaggedEnumKeys::VARIANT] = Data::Value(memberName);
                                 variantMap["__جبري__"] = Data::Value(true);
 
                                 Data::Value::ArrayType fieldsArray;
@@ -358,7 +367,7 @@ namespace Sad
                                     fieldsArray.push_back(args[i]);
                                     variantMap[fieldNamesArr[i].toString()] = args[i];
                                 }
-                                variantMap["__حقول__"] = Data::Value(fieldsArray);
+                                variantMap[AST::TaggedEnumKeys::FIELDS] = Data::Value(fieldsArray);
 
                                 lastResult_ = Data::Value(variantMap);
                                 return;
@@ -460,8 +469,8 @@ namespace Sad
                             // (EN) This is an ADT variant constructor!
                             //      Example: Shape.Circle(5) — creates variant map
                             // ═══════════════════════════════════════════════════════
-                            std::string enumName = mapVal["__تعداد__"].toString();
-                            std::string memberName = mapVal["__عضو__"].toString();
+                            std::string enumName = mapVal[AST::TaggedEnumKeys::ENUM].toString();
+                            std::string memberName = mapVal[AST::TaggedEnumKeys::VARIANT].toString();
                             auto fieldNamesArr = mapVal["__حقول_أسماء__"].toArray();
                             int expectedCount = mapVal["__عدد_حقول__"].toInt();
 
@@ -488,8 +497,8 @@ namespace Sad
                             // (AR) إنشاء خريطة الـ variant
                             // (EN) Create variant map
                             Data::Value::MapType variantMap;
-                            variantMap["__تعداد__"] = Data::Value(enumName);
-                            variantMap["__عضو__"] = Data::Value(memberName);
+                            variantMap[AST::TaggedEnumKeys::ENUM] = Data::Value(enumName);
+                            variantMap[AST::TaggedEnumKeys::VARIANT] = Data::Value(memberName);
                             variantMap["__جبري__"] = Data::Value(true);
 
                             Data::Value::ArrayType fieldsArray;
@@ -498,7 +507,7 @@ namespace Sad
                                 fieldsArray.push_back(args[i]);
                                 variantMap[fieldNamesArr[i].toString()] = args[i];
                             }
-                            variantMap["__حقول__"] = Data::Value(fieldsArray);
+                            variantMap[AST::TaggedEnumKeys::FIELDS] = Data::Value(fieldsArray);
 
                             lastResult_ = Data::Value(variantMap);
                             return;

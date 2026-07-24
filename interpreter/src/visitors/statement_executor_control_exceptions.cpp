@@ -427,6 +427,7 @@ namespace Sad
                 bool matched = false;
                 auto *enumVarPat = dynamic_cast<AST::EnumVariantPattern *>(caseClause.pattern.get());
                 auto *orPat = dynamic_cast<AST::OrPattern *>(caseClause.pattern.get());
+                auto *varPat = dynamic_cast<AST::VariablePattern *>(caseClause.pattern.get());
                 if (enumVarPat && testValue.getKind() != Types::SadTypeKind::Map)
                 {
                     // (AR) تعداد بسيط — نبحث عن قيمة "تعداد.عضو" ونقارنها مباشرة
@@ -477,6 +478,83 @@ namespace Sad
                                 break;
                             }
                         }
+                    }
+                }
+                else if (varPat)
+                {
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) [أ-م٣] اسمٌ عارٍ قد يكون معاملًا وحدويًّا («فراغ») لا رابطًا شاملًا.
+                    //      المحلّل النحويّ يُنتج VariablePattern لكلٍّ من «عندما ن» (ربط شامل)
+                    //      و«عندما فراغ» (معامل وحدويّ)، فنميّز زمن التشغيل: إن كان الاسم
+                    //      مُعرَّفًا كقيمة موسومة وحدويّة (خريطة بمفتاح __عضو__ مساوٍ للاسم وبلا
+                    //      «__باني_نموذج__») طابقنا بمقارنة وسم القيمة المُختبَرة دون ربط.
+                    //      وإلّا فهو رابطٌ شامل عبر matches() المعتادة (توافق خلفيّ تامّ).
+                    // (EN) [A-M3] A bare name may be a UNIT variant («فراغ»), not a catch-all binding.
+                    //      The parser emits VariablePattern for both «عندما ن» (catch-all bind) and
+                    //      «عندما فراغ» (unit variant), so we disambiguate at runtime: if the name
+                    //      resolves to a registered unit tagged value (a Map whose __عضو__ equals the
+                    //      name and without «__باني_نموذج__»), match by comparing the scrutinee's tag
+                    //      with no binding. Otherwise it is a catch-all binding via the usual matches().
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) المميِّز الصحيح هو **القيمة المُختبَرة**، لا الاسم: نعامِل «عندما اسم:»
+                    //      معاملًا وحدويًّا فقط إذا كانت القيمة المُختبَرة قيمةً موسومةً لتعدادٍ
+                    //      يملك معاملًا وحدويًّا بهذا الاسم (تطابق __عضو__ و__تعداد__ معًا). في كلّ
+                    //      ما عدا ذلك — قيمة غير موسومة (عدد/نصّ...) أو تعداد مختلف — هو رابطٌ شامل
+                    //      عبر matches() المعتادة. هذا يمنع «فعلًا عن بُعد» يكسر رابطًا شاملًا صحيحًا
+                    //      لمجرّد وجود تعدادٍ غير ذي صلة يشارك الاسم (عيبا أميليا 🔴١/🟠٢).
+                    // (EN) The correct discriminator is the **scrutinee**, not the name: treat
+                    //      «عندما name:» as a unit variant only when the scrutinee is a tagged value of
+                    //      an enum that has a unit variant of that name (both __عضو__ and __تعداد__
+                    //      match). Otherwise — a non-tagged value (number/string...) or a different
+                    //      enum — it is a catch-all binding via the usual matches(). This prevents an
+                    //      action-at-a-distance where an unrelated same-named enum breaks a valid
+                    //      catch-all binding (Amelia 🔴1/🟠2).
+                    bool handledAsUnitVariant = false;
+                    if (testValue.getKind() == Types::SadTypeKind::Map)
+                    {
+                        auto tvMap = testValue.toMap();
+                        auto tvVariantIt = tvMap.find(AST::TaggedEnumKeys::VARIANT);
+                        auto tvEnumIt = tvMap.find(AST::TaggedEnumKeys::ENUM);
+                        const bool testIsTagged =
+                            tvVariantIt != tvMap.end() && tvEnumIt != tvMap.end();
+                        if (testIsTagged)
+                        {
+                            // (AR) نبحث بالاسم **المؤهَّل بتعداد القيمة المُختبَرة** (تعداد.اسم) لا
+                            //      بالاسم العارِي — كي لا يفوز تعدادٌ آخر شاركه الاسمَ بحكم «الأوّل
+                            //      يُسجَّل عامًّا» فيُطلَق فرعٌ خاطئ عند تصادم أسماءٍ كـ«فراغ» (أميليا X1).
+                            // (EN) Look up by the name **qualified with the scrutinee's enum** (Enum.name),
+                            //      not the bare name — so a different enum that shares the name cannot win by
+                            //      the bare "first-registered" rule and fire a wrong branch on a name clash
+                            //      like «فراغ» (Amelia X1).
+                            const std::string qualifiedUnitName =
+                                tvEnumIt->second.toString() + "." + varPat->name;
+                            const Data::Value *bound = variableManager_.tryGet(qualifiedUnitName);
+                            if (bound && bound->getKind() == Types::SadTypeKind::Map)
+                            {
+                                auto boundMap = bound->toMap();
+                                const bool isCtorTemplate =
+                                    boundMap.find("__باني_نموذج__") != boundMap.end();
+                                auto boundVariantIt = boundMap.find(AST::TaggedEnumKeys::VARIANT);
+                                auto boundEnumIt = boundMap.find(AST::TaggedEnumKeys::ENUM);
+                                if (!isCtorTemplate &&
+                                    boundVariantIt != boundMap.end() &&
+                                    boundVariantIt->second.toString() == varPat->name &&
+                                    boundEnumIt != boundMap.end() &&
+                                    boundEnumIt->second.toString() == tvEnumIt->second.toString())
+                                {
+                                    // (AR) اسمٌ لمعاملٍ وحدويّ من تعداد القيمة ذاته: يُطابَق بالاسم بلا ربط.
+                                    // (EN) A unit variant of the scrutinee's own enum: match by name, no binding.
+                                    matched = (tvVariantIt->second.toString() == varPat->name);
+                                    handledAsUnitVariant = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!handledAsUnitVariant)
+                    {
+                        // (AR) رابطٌ شامل معتاد / (EN) ordinary catch-all binding
+                        matched = caseClause.pattern->matches(testValue, bindings);
                     }
                 }
                 else

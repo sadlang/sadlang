@@ -12,6 +12,7 @@
 #include "declarations.h" // For OperatorDecl
 #include "class_nodes.h"  // For ClassDeclStmt
 #include "runtime_throw.h"
+#include "tagged_enum_keys.h" // (AR) مفاتيح القيمة الموسومة (SoT) / (EN) tagged-value keys (SoT)
 #include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
@@ -432,8 +433,8 @@ namespace Sad
 
                     Data::Value::MapType constructorMap;
                     constructorMap["__باني_نموذج__"] = Data::Value(true);
-                    constructorMap["__تعداد__"] = Data::Value(node.name);
-                    constructorMap["__عضو__"] = Data::Value(member.name);
+                    constructorMap[AST::TaggedEnumKeys::ENUM] = Data::Value(node.name);
+                    constructorMap[AST::TaggedEnumKeys::VARIANT] = Data::Value(member.name);
 
                     // (AR) أسماء الحقول كمصفوفة نصية
                     // (EN) Field names as string array
@@ -447,6 +448,18 @@ namespace Sad
 
                     Data::Value constructorVal(constructorMap);
                     variableManager_.defineOrAssign(qualifiedName, constructorVal);
+
+                    // (AR) [أ-م٣] تسجيل باسم عارٍ أيضًا لدعم الصيغة غير المؤهَّلة «عدد(٥)».
+                    //      المُعامِل يخسر التنازع أمام دالّة/متغيّرٍ مُصرَّحٍ (مطابقةً لمنطق
+                    //      المحلّل الدلاليّ: لا نختطف اسمًا يملكه رمزٌ مُصرَّح).
+                    // (EN) [A-M3] Also register under the bare name to support the unqualified
+                    //      form «عدد(5)». A variant loses to an already-declared function/variable
+                    //      (mirrors the semantic checker: do not hijack a declared symbol's name).
+                    if (!functionManager_.hasFunction(member.name) &&
+                        !variableManager_.exists(member.name))
+                    {
+                        variableManager_.defineOrAssign(member.name, constructorVal);
+                    }
 
                     // (AR) تسجيل في خريطة التعداد
                     // (EN) Register in enum map
@@ -468,10 +481,10 @@ namespace Sad
                         // (AR) عضو Unit في تعداد ADT — يُخزن كخريطة variant بدون حقول
                         // (EN) Unit member in ADT enum — stored as variant map without fields
                         Data::Value::MapType variantMap;
-                        variantMap["__تعداد__"] = Data::Value(node.name);
-                        variantMap["__عضو__"] = Data::Value(member.name);
+                        variantMap[AST::TaggedEnumKeys::ENUM] = Data::Value(node.name);
+                        variantMap[AST::TaggedEnumKeys::VARIANT] = Data::Value(member.name);
                         variantMap["__جبري__"] = Data::Value(true);
-                        variantMap["__حقول__"] = Data::Value(Data::Value::ArrayType{});
+                        variantMap[AST::TaggedEnumKeys::FIELDS] = Data::Value(Data::Value::ArrayType{});
                         memberVal = Data::Value(variantMap);
                     }
                     else if (member.value)
@@ -499,7 +512,18 @@ namespace Sad
 
                     // (AR) تسجيل باسم بسيط أيضاً
                     // (EN) Also register with simple name
+                    //      تعداد بسيط: يُسجَّل دائمًا (سلوك موروث).
+                    //      [أ-م٣] معامل وحدويّ في تعداد جبري («فراغ»): يُسجَّل باسمٍ عارٍ
+                    //      كي يُقيَّم تعبيرًا ويُطابَق بـ«عندما فراغ»، ما لم يختطف رمزًا مُصرَّحًا.
+                    // (EN) Simple enum: always registered (legacy behavior).
+                    //      [A-M3] ADT unit variant («فراغ»): register bare so it evaluates as an
+                    //      expression and matches «عندما فراغ», unless it would hijack a declared symbol.
                     if (!isADT)
+                    {
+                        variableManager_.defineOrAssign(member.name, memberVal);
+                    }
+                    else if (!functionManager_.hasFunction(member.name) &&
+                             !variableManager_.exists(member.name))
                     {
                         variableManager_.defineOrAssign(member.name, memberVal);
                     }
