@@ -45,11 +45,13 @@
 #include "types/trait_system.h"
 #include "types/union_types.h"
 #include "sad_type_system.h" // (AR) SadTypeKind — محور المدقّق بعد S-TS-P2
+#include "error_codes.h"     // (AR) [أ-م٢] رموز أخطاء الكتالوج (Errors::ErrorCode)
 
 #include <memory>
 #include <vector>
 #include <string>
 #include <sstream>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -201,6 +203,9 @@ namespace Sad
             void visitRangeExpr(AST::RangeExpr &expr) override;
             void visitOptionalChainExpr(AST::OptionalChainExpr &expr) override;
             void visitNullCoalesceExpr(AST::NullCoalesceExpr &expr) override;
+            // (AR) [أ-م٢] بناء عضو تعداد بحمولة — يفحص عدد/أنواع الحمولة عبر fieldTypes.
+            // (EN) [A-M2] Tagged-enum variant construction — checks payload arity/types via fieldTypes.
+            void visitEnumVariantExpr(AST::EnumVariantExpr &expr) override;
 
             // Statements / العبارات
             void visitExprStmt(AST::ExprStmt &stmt) override;
@@ -210,6 +215,11 @@ namespace Sad
             void visitForStmt(AST::ForStmt &stmt) override;
             void visitForRangeStmt(AST::ForRangeStmt &stmt) override;
             void visitSwitchStmt(AST::SwitchStmt &stmt) override;
+            // (AR) [أ-م٢] مطابقة الأنماط «طابق» — حسم هويّة نمط الباني غير المؤهَّل،
+            //      فحص عدد الحمولة، وفحص استنفاد معاملات التعداد.
+            // (EN) [A-M2] «طابق» pattern match — resolves unqualified constructor
+            //      patterns, checks payload arity, and enforces exhaustiveness.
+            void visitMatchStmt(AST::MatchStmt &stmt) override;
             void visitReturnStmt(AST::ReturnStmt &stmt) override;
             void visitYieldStmt(AST::YieldStmt &stmt) override;
             void visitBreakStmt(AST::BreakStmt &stmt) override;
@@ -531,6 +541,63 @@ namespace Sad
              * @brief (EN) AST-boundary bridge: DataType → SadTypeKind → Arabic name (removed in S-TS-P2.5a)
              */
             std::string dataTypeArabicName(Types::SadTypeKind t) const;
+
+            // ==================================================================
+            // (AR) [أ-م٢] سجلّ معاملات التعداد بحمولة (ADT) — الحاجز ٢ للاستضافة
+            //      الذاتيّة. يُملأ في visitEnumDecl ويُستهلَك في حسم هويّة نمط
+            //      الباني/تعبير البناء وفحص الاستنفاد.
+            // (EN) [A-M2] Tagged-enum (ADT) variant registry — self-hosting barrier
+            //      2. Filled in visitEnumDecl; consumed by constructor-pattern /
+            //      variant-expression identity resolution and exhaustiveness.
+            // ==================================================================
+
+            /// (AR) معلومات معامل تعداد واحد / (EN) One enum-variant info
+            struct EnumVariantInfo
+            {
+                std::string variantName;            ///< (AR) اسم المعامل / (EN) Variant name
+                std::vector<std::string> fieldTypes; ///< (AR) أنواع الحمولة الموازية ("" = غير مُصنَّف) / (EN) Parallel payload types ("" = untyped)
+            };
+
+            /// (AR) اسم التعداد → معاملاته (بالترتيب) / (EN) Enum name → its variants (ordered)
+            std::unordered_map<std::string, std::vector<EnumVariantInfo>> enumVariants_;
+
+            /// (AR) اسم المعامل → أسماء التعدادات التي تُصرّحه (لحسم غير المؤهَّل)
+            /// (EN) Variant name → enum names declaring it (to resolve unqualified refs)
+            std::unordered_map<std::string, std::vector<std::string>> variantOwners_;
+
+            /**
+             * @brief (AR) يبحث عن معامل تعداد بالاسم (غير مؤهَّل). يعيد مؤشّرًا لمعلوماته
+             *        واسم تعداده، أو nullptr إن كان غير معروف/غامض (يملأ ambiguous).
+             * @brief (EN) Look up an enum variant by (unqualified) name. Returns its info
+             *        pointer and owning enum name, or nullptr if unknown/ambiguous.
+             */
+            const EnumVariantInfo *lookupVariant(const std::string &variantName,
+                                                 std::string &owningEnumOut,
+                                                 bool &ambiguousOut) const;
+
+            /**
+             * @brief (AR) يفحص حمولة بناء معامل تعداد موسوم: عددها (SEM_WRONG_ARG_COUNT)
+             *        وأنواعها مقابل fieldTypes (SEM_TYPE_MISMATCH للوسائط المعروفة النوع).
+             *        يُعيد نوع التعداد المُنشأ (كـ Class مبدئيًّا) لتمريره كنوع مُستنتَج.
+             * @brief (EN) Check a tagged-enum variant construction payload: arity
+             *        (SEM_WRONG_ARG_COUNT) and types vs fieldTypes (SEM_TYPE_MISMATCH for
+             *        typed args). Returns the constructed enum type (Class placeholder).
+             */
+            TypeSystem::TypePtr checkEnumConstruction(
+                const std::string &variantName,
+                const EnumVariantInfo &info,
+                const std::vector<AST::ExprPtr> &args,
+                AST::ASTNode *node);
+
+            /**
+             * @brief (AR) يُصدر خطأ دلاليّ من كتالوج مصدر الحقيقة (رمز SoT) — يبني الرسالة
+             *        ثنائيّة اللغة عبر ErrorManager ويُسجّلها في نتيجة الفحص (تفشل الترجمة).
+             * @brief (EN) Emit a semantic error from the SoT catalog (SoT code) — builds the
+             *        bilingual message via ErrorManager and records it into the result.
+             */
+            void reportCatalogError(Errors::ErrorCode code,
+                                    const std::map<std::string, std::string> &placeholders,
+                                    AST::ASTNode *node);
         };
 
         // ============================================================================

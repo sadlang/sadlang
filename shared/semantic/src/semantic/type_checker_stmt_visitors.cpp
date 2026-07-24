@@ -16,6 +16,7 @@
 #include "semantic/type_checker.h"
 #include "token.h"
 #include "class_nodes.h"
+#include "pattern_nodes.h"    // (AR) [أ-م٢] MatchStmt / CaseClause / ConstructorPattern / أنماط
 #include "types/composite_type_classes.h"
 #include "types/enum_types.h"
 #include "types/struct_types.h"
@@ -23,6 +24,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cassert>
+#include <functional> // (AR) [أ-م٢] std::function لتصريح المتغيّرات المربوطة عوديًّا
 
 namespace Sad
 {
@@ -247,6 +249,224 @@ namespace Sad
                 enterScope();
                 stmt.defaultCase->accept(*this);
                 exitScope();
+            }
+        }
+
+        // ============================================================================
+        // (AR) [أ-م٢] مطابقة الأنماط «طابق» — الحاجز ٢ (الأنواع الجبريّة الموسومة)
+        // (EN) [A-M2] «طابق» pattern match — barrier 2 (tagged algebraic data types)
+        //
+        // (AR) ثلاث مهامّ دلاليّة:
+        //   ١) حسم هويّة نمط الباني غير المؤهَّل «عندما عدد(ق)»: ربطه بمعامل التعداد
+        //      الصحيح عبر السجلّ (variantOwners_) دون تأهيلٍ صريح.
+        //   ٢) فحص عدد حمولة كلّ نمط باني مقابل fieldTypes (SEM_WRONG_ARG_COUNT).
+        //   ٣) استنفاد المطابقة: إن لم تُغطَّ كلّ معاملات التعداد ولا يوجد فرعٌ شامل
+        //      («افتراضي» ⇒ WildcardPattern، أو «عندما _»، أو نمط متغيّر بلا حارس)
+        //      يُصدَر SEM_NON_EXHAUSTIVE_MATCH.
+        // (EN) Three semantic duties: (1) resolve unqualified constructor-pattern identity
+        //   via the registry; (2) check each constructor pattern's payload arity vs
+        //   fieldTypes; (3) enforce exhaustiveness, emitting SEM_NON_EXHAUSTIVE_MATCH.
+        // ============================================================================
+        void TypeChecker::visitMatchStmt(AST::MatchStmt &stmt)
+        {
+            // (AR) استنتاج نوع المُطابَق عليه (أفضل جهد؛ الهويّة تُحسم من المعاملات). / best-effort
+            if (stmt.value)
+            {
+                inferExprType(stmt.value.get());
+            }
+
+            // (AR) المرحلة ١: حسم الهويّة + فحص العدد + جمع التغطية.
+            // (EN) Pass 1: identity resolution + arity checks + coverage collection.
+            std::string matchedEnum;                 // (AR) التعداد المُطابَق / (EN) matched enum
+            std::unordered_set<std::string> covered; // (AR) المعاملات المُغطّاة / (EN) covered variants
+            bool hasCatchAll = false;                // (AR) فرعٌ شامل موجود؟ / (EN) catch-all present?
+            bool enumPinnedByQualified = false;      // (AR) ثُبّت التعداد بنمط مؤهَّل؟ / pinned by qualified pattern?
+            bool ambiguousUnresolved = false;        // (AR) التباسٌ لم يُحسَم / unresolved ambiguity
+
+            // (AR) دالّة فحص عدد الحمولة المشتركة بين النمطين (نُعيد استعمال SEM_WRONG_ARG_COUNT).
+            // (EN) Shared payload-arity check for both pattern kinds (reuse SEM_WRONG_ARG_COUNT).
+            auto checkPayloadArity =
+                [&](const std::string &variantName, const EnumVariantInfo &variant, size_t found)
+            {
+                const size_t expected = variant.fieldTypes.size();
+                if (found != expected)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
+                        {{"name", variantName},
+                         {"expected", std::to_string(expected)},
+                         {"found", std::to_string(found)}},
+                        &stmt);
+                }
+            };
+
+            for (auto &clause : stmt.cases)
+            {
+                AST::Pattern *pat = clause.pattern.get();
+                if (!pat)
+                    continue;
+
+                // (AR) نمط باني مؤهَّل: «شكل.مربع(ع)» — التعداد صريح فيه (🔴-١ من مراجعة أميليا).
+                // (EN) Qualified variant pattern «شكل.مربع(ع)» — enum name is explicit (Amelia 🔴-1).
+                if (auto *ev = dynamic_cast<AST::EnumVariantPattern *>(pat))
+                {
+                    // (AR) الاسم المؤهَّل مرجعٌ حاسمٌ للهويّة (يتقدّم على الاستدلال من المعامل).
+                    // (EN) The qualified enum name authoritatively pins identity.
+                    if (!ev->enumName.empty())
+                    {
+                        matchedEnum = ev->enumName;
+                        enumPinnedByQualified = true;
+                    }
+                    std::string owningEnum;
+                    bool ambiguous = false;
+                    const EnumVariantInfo *variant =
+                        lookupVariant(ev->variantName, owningEnum, ambiguous);
+                    if (variant)
+                    {
+                        if (matchedEnum.empty())
+                            matchedEnum = owningEnum;
+                        checkPayloadArity(ev->variantName, *variant, ev->fieldPatterns.size());
+                    }
+                    covered.insert(ev->variantName);
+                }
+                else if (auto *ctor = dynamic_cast<AST::ConstructorPattern *>(pat))
+                {
+                    std::string owningEnum;
+                    bool ambiguous = false;
+                    const EnumVariantInfo *variant =
+                        lookupVariant(ctor->variantName, owningEnum, ambiguous);
+                    if (variant)
+                    {
+                        // (AR) الهويّة: أوّل معامل معروف يثبّت تعداد المطابقة (ما لم يثبّته مؤهَّل).
+                        // (EN) Identity: first known variant fixes the enum (unless a qualified pattern pinned it).
+                        if (matchedEnum.empty())
+                            matchedEnum = owningEnum;
+                        // (AR) التباسٌ غير محسومٍ بمؤهَّل ⇒ لا نُشغّل الاستنفاد (🔴-٣ من مراجعة أميليا).
+                        // (EN) Ambiguity not pinned by a qualified pattern ⇒ skip exhaustiveness (Amelia 🔴-3).
+                        if (ambiguous && !enumPinnedByQualified)
+                            ambiguousUnresolved = true;
+                        checkPayloadArity(ctor->variantName, *variant, ctor->fieldPatterns.size());
+                        covered.insert(ctor->variantName);
+                    }
+                    // (AR) معامل غير معروف: خارج نطاق أ-م٢ (لا خطأ هنا). / unknown: out of A-M2 scope
+                }
+                else if (dynamic_cast<AST::WildcardPattern *>(pat))
+                {
+                    // (AR) «افتراضي» أو «عندما _» — يلتقط كلّ ما تبقّى.
+                    // (EN) «افتراضي» or «عندما _» — catches everything else.
+                    hasCatchAll = true;
+                }
+                else if (auto *var = dynamic_cast<AST::VariablePattern *>(pat))
+                {
+                    // (AR) اسمٌ عارٍ قد يكون معاملًا وحدويًّا («فراغ») لا رابطَ متغيّرٍ شاملًا
+                    //      (🟠-٤): إن طابق معاملًا وحدويًّا معروفًا (بلا حمولة) لتعداد المطابقة،
+                    //      نعدّه تغطيةً لا فرعًا شاملًا؛ وإلّا فهو رابطٌ شاملٌ ما لم يقيّده حارس.
+                    // (EN) A bare name may be a UNIT variant («فراغ»), not a catch-all binding
+                    //      (🟠-4): if it matches a known unit variant (no payload) of the matched
+                    //      enum, count it as coverage; otherwise it is a catch-all unless guarded.
+                    // (AR) نعُدّ الاسم العاري تغطيةَ معاملٍ وحدويٍّ فقط إذا كانت هويّة التعداد
+                    //      مثبَّتةً سلفًا (بنمط بانٍ/مؤهَّل) وتطابقه — كي لا يثبّت متغيّرٌ رابطٌ عابرٌ
+                    //      تعدادًا أجنبيًّا فيُطلق استنفادًا كاذبًا (انحدار كشفته أميليا).
+                    // (EN) Count a bare name as unit-variant coverage ONLY when the enum identity is
+                    //      already pinned (by a ctor/qualified pattern) and matches — so a stray binding
+                    //      whose name coincides with a foreign unit variant cannot pin it and trigger a
+                    //      false non-exhaustive error (regression caught by Amelia).
+                    std::string owningEnum;
+                    bool ambiguous = false;
+                    const EnumVariantInfo *unitVariant =
+                        matchedEnum.empty() ? nullptr : lookupVariant(var->name, owningEnum, ambiguous);
+                    const bool isUnitVariantOfMatch =
+                        unitVariant && unitVariant->fieldTypes.empty() && owningEnum == matchedEnum;
+                    if (isUnitVariantOfMatch)
+                    {
+                        covered.insert(var->name);
+                    }
+                    else if (!clause.guard)
+                    {
+                        hasCatchAll = true;
+                    }
+                }
+                else if (dynamic_cast<AST::BindingPattern *>(pat))
+                {
+                    // (AR) نمط ربط عارٍ يربط كلّ قيمة ⇒ شامل، ما لم يقيّده حارس.
+                    // (EN) A bare binding pattern binds every value ⇒ catch-all, unless guarded.
+                    if (!clause.guard)
+                        hasCatchAll = true;
+                }
+            }
+
+            // (AR) دالّة تصريح المتغيّرات المربوطة في نمط (كي تُفحص الأجسام سليمةً).
+            // (EN) Declare pattern-bound variables (so bodies type-check cleanly).
+            std::function<void(AST::Pattern *)> declareBindings =
+                [&](AST::Pattern *pat)
+            {
+                if (!pat)
+                    return;
+                if (auto *v = dynamic_cast<AST::VariablePattern *>(pat))
+                {
+                    declareVariable(v->name, registry_.getUnknownType());
+                }
+                else if (auto *b = dynamic_cast<AST::BindingPattern *>(pat))
+                {
+                    declareVariable(b->name, registry_.getUnknownType());
+                    declareBindings(b->pattern.get());
+                }
+                else if (auto *c = dynamic_cast<AST::ConstructorPattern *>(pat))
+                {
+                    for (auto &fp : c->fieldPatterns)
+                        declareBindings(fp.get());
+                }
+                else if (auto *ev = dynamic_cast<AST::EnumVariantPattern *>(pat))
+                {
+                    for (auto &fp : ev->fieldPatterns)
+                        declareBindings(fp.get());
+                }
+            };
+
+            // (AR) المرحلة ٢: زيارة أجسام الفروع في نطاقات معزولة مع المتغيّرات المربوطة.
+            // (EN) Pass 2: visit branch bodies in isolated scopes with bound variables.
+            for (auto &clause : stmt.cases)
+            {
+                enterScope();
+                declareBindings(clause.pattern.get());
+                if (clause.guard)
+                    inferExprType(clause.guard.get());
+                for (auto &s : clause.body)
+                {
+                    if (s)
+                        s->accept(*this);
+                }
+                exitScope();
+            }
+
+            // (AR) المرحلة ٣: استنفاد المطابقة — فقط لتعدادٍ محسومٍ، بلا فرعٍ شامل، وبلا التباسٍ عالق.
+            // (EN) Pass 3: exhaustiveness — only for a resolved enum, no catch-all, no unresolved ambiguity.
+            if (!matchedEnum.empty() && !hasCatchAll && !ambiguousUnresolved)
+            {
+                auto enumIt = enumVariants_.find(matchedEnum);
+                if (enumIt != enumVariants_.end())
+                {
+                    std::vector<std::string> missing;
+                    for (const auto &v : enumIt->second)
+                    {
+                        if (covered.find(v.variantName) == covered.end())
+                            missing.push_back(v.variantName);
+                    }
+                    if (!missing.empty())
+                    {
+                        std::string missingStr;
+                        for (size_t i = 0; i < missing.size(); ++i)
+                        {
+                            if (i > 0)
+                                missingStr += "، ";
+                            missingStr += missing[i];
+                        }
+                        reportCatalogError(
+                            Errors::ErrorCode::SEM_NON_EXHAUSTIVE_MATCH,
+                            {{"enum", matchedEnum}, {"missing", missingStr}},
+                            &stmt);
+                    }
+                }
             }
         }
 
@@ -640,6 +860,23 @@ namespace Sad
             declareVariable(decl.name, isKnown
                                            ? registry_.internPrimitiveType(SadTypeKind::Class) // استخدام Class كبديل لحين يتوفر EnumKind
                                            : registry_.getUnknownType());
+
+            // (AR) [أ-م٢] تسجيل معاملات التعداد بحمولة (ADT) في السجلّ الدلاليّ.
+            //      يُمكّن حسم هويّة نمط الباني «عندما عدد(ق)» وتعبير البناء «عدد(٥)»،
+            //      وفحص عدد/أنواع الحمولة، وفحص استنفاد المطابقة. (الترتيب مصدر حقيقة
+            //      لاستنفاد المطابقة، لذا نحفظ المعاملات بترتيب التصريح.)
+            // (EN) [A-M2] Register tagged-enum (ADT) variants into the semantic registry.
+            //      Enables constructor-pattern «عندما عدد(ق)» and variant-expr «عدد(5)»
+            //      identity resolution, payload arity/type checks, and match exhaustiveness.
+            auto &variantList = enumVariants_[decl.name];
+            for (auto &member : decl.members)
+            {
+                EnumVariantInfo info;
+                info.variantName = member.name;
+                info.fieldTypes = member.fieldTypes; // (AR) نسخة موازية للحمولة / (EN) parallel payload copy
+                variantList.push_back(std::move(info));
+                variantOwners_[member.name].push_back(decl.name);
+            }
 
             for (auto &member : decl.members)
             {

@@ -13,6 +13,8 @@
 #include "semantic/type_checker.h"
 #include "token.h"
 #include "class_nodes.h"
+#include "pattern_nodes.h"    // (AR) [أ-م٢] ConstructorPattern / MatchStmt / CaseClause
+#include "error_manager.h"    // (AR) [أ-م٢] بناء رسالة الكتالوج ثنائيّة اللغة
 #include "types/composite_type_classes.h"
 #include "types/enum_types.h"
 #include "types/struct_types.h"
@@ -98,6 +100,12 @@ namespace Sad
         TypeCheckResult TypeChecker::check(AST::ASTNode *ast)
         {
             currentResult_ = TypeCheckResult();
+            // (AR) تصفير سجلّ التعدادات بين نداءات الفحص كي لا تتراكم المعاملات مضاعَفةً
+            //      (REPL/وحدات متعدّدة) فتختلق التباسًا كاذبًا (🟠-٥ من مراجعة أميليا).
+            // (EN) Reset the enum registry between checks so variants don't accumulate
+            //      (REPL/multi-module) and fabricate false ambiguity (Amelia 🟠-5).
+            enumVariants_.clear();
+            variantOwners_.clear();
 
             if (!ast)
             {
@@ -395,6 +403,139 @@ namespace Sad
         }
 
         // ============================================================================
+        // (AR) [أ-م٢] مساعدات التعداد بحمولة (ADT) / (EN) [A-M2] Tagged-enum helpers
+        // ============================================================================
+
+        const TypeChecker::EnumVariantInfo *
+        TypeChecker::lookupVariant(const std::string &variantName,
+                                   std::string &owningEnumOut,
+                                   bool &ambiguousOut) const
+        {
+            ambiguousOut = false;
+            owningEnumOut.clear();
+
+            auto ownersIt = variantOwners_.find(variantName);
+            if (ownersIt == variantOwners_.end() || ownersIt->second.empty())
+            {
+                return nullptr;
+            }
+            // (AR) معامل مشترك بين أكثر من تعداد ⇒ غامض (نأخذ الأوّل لكن نُعلِم المُستدعي).
+            // (EN) Variant shared by more than one enum ⇒ ambiguous (take first, flag caller).
+            ambiguousOut = ownersIt->second.size() > 1;
+            const std::string &enumName = ownersIt->second.front();
+            owningEnumOut = enumName;
+
+            auto enumIt = enumVariants_.find(enumName);
+            if (enumIt == enumVariants_.end())
+            {
+                return nullptr;
+            }
+            for (const auto &v : enumIt->second)
+            {
+                if (v.variantName == variantName)
+                {
+                    return &v;
+                }
+            }
+            return nullptr;
+        }
+
+        void TypeChecker::reportCatalogError(
+            Errors::ErrorCode code,
+            const std::map<std::string, std::string> &placeholders,
+            AST::ASTNode *node)
+        {
+            auto [line, col] = getLocation(node);
+
+            // (AR) رمز الخطأ من كتالوج مصدر الحقيقة حصرًا؛ الرسالة تُبنى من القالب.
+            // (EN) Error code from the SoT catalog exclusively; message built from template.
+            Errors::RenderContext ctx;
+            ctx.location = Errors::SourceLocation("<input>", line, col);
+            ctx.placeholders = placeholders;
+
+            const std::string rendered =
+                Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx);
+
+            TypeCheckError err;
+            err.line = line;
+            err.column = col;
+            err.message = rendered;
+            err.arabicMessage = rendered;
+            currentResult_.addError(err);
+        }
+
+        TypePtr TypeChecker::checkEnumConstruction(
+            const std::string &variantName,
+            const EnumVariantInfo &info,
+            const std::vector<AST::ExprPtr> &args,
+            AST::ASTNode *node)
+        {
+            // (AR) فحص عدد الحمولة — نعيد استعمال رمز الكتالوج القائم SEM_WRONG_ARG_COUNT.
+            // (EN) Payload arity check — reuse the existing SEM_WRONG_ARG_COUNT catalog code.
+            const size_t expected = info.fieldTypes.size();
+            const size_t found = args.size();
+            if (found != expected)
+            {
+                reportCatalogError(
+                    Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
+                    {{"name", variantName},
+                     {"expected", std::to_string(expected)},
+                     {"found", std::to_string(found)}},
+                    node);
+            }
+            else
+            {
+                // (AR) فحص أنواع الحمولة عبر fieldTypes — للوسائط المصرَّح نوعها بنوعٍ
+                //      مدمجٍ معروف فقط (رقم/عشري/نص/منطقي). الحقول غير المُصنَّفة ("")
+                //      أو أنواع الأصناف تُتجاوز في أ-م٢ (استدلالها غير موثوق بعد).
+                // (EN) Payload type check via fieldTypes — only for args whose declared
+                //      field type is a known built-in (رقم/عشري/نص/منطقي). Untyped ("")
+                //      or class-typed fields are skipped in A-M2 (inference not reliable yet).
+                for (size_t i = 0; i < expected; ++i)
+                {
+                    const std::string &ftName = info.fieldTypes[i];
+                    if (ftName.empty() || !args[i])
+                        continue;
+
+                    // (AR) خرائط اسم النوع المدمج → SadTypeKind (تجاوز غير المعروف).
+                    // (EN) Map built-in type name → SadTypeKind (skip if unknown).
+                    using K = Types::SadTypeKind;
+                    K expKind;
+                    if (ftName == "رقم")
+                        expKind = K::Integer;
+                    else if (ftName == "عشري")
+                        expKind = K::Float;
+                    else if (ftName == "نص")
+                        expKind = K::String;
+                    else if (ftName == "منطقي")
+                        expKind = K::Boolean;
+                    else
+                        continue; // (AR) نوع صنف/غير مدمج / (EN) class/non-built-in type
+
+                    TypePtr argT = inferExprType(args[i].get());
+                    if (!argT || argT->isUnknown() || argT->getKind() == SadTypeKind::Any)
+                        continue; // (AR) نوع الوسيط غير معروف / (EN) unknown arg type
+
+                    TypePtr expT = sadKindToTypePtr(expKind);
+                    if (expT && !areTypesCompatible(expT, argT))
+                    {
+                        reportCatalogError(
+                            Errors::ErrorCode::SEM_TYPE_MISMATCH,
+                            {{"expected", expT->toString()},
+                             {"found", argT->toString()}},
+                            node);
+                    }
+                }
+            }
+
+            // (AR) نوع القيمة المُنشأة: نستعمل Class مبدئيًّا (لا EnumKind بعد) — نظير
+            //      visitEnumDecl. codegen الاتّحاد الموسوم مؤجَّل لـأ-م٤.
+            // (EN) Constructed value's type: Class placeholder (no EnumKind yet) — mirrors
+            //      visitEnumDecl. Tagged-union codegen deferred to A-M4.
+            return registry_.internPrimitiveType(SadTypeKind::Class);
+        }
+
+        // ============================================================================
         // زيارة التعابير / Visit Expressions
         // ============================================================================
 
@@ -679,6 +820,42 @@ namespace Sad
             {
                 if (arg)
                     inferExprType(arg.get());
+            }
+
+            // ============================================================
+            // (AR) [أ-م٢] حسم هويّة بناء معامل تعداد بحمولة: «عدد(٥)» يُحلَّل نحويًّا
+            //      كاستدعاء دالّة، لكن إن كان اسم المُستدعى معامل تعداد معروفًا فهو
+            //      بناء قيمة موسومة (ADT) لا استدعاء دالّة غير معرّفة. نفحص الحمولة
+            //      (عددًا/أنواعًا) ونثبّت النوع المُستنتَج ونعود مبكّرًا (لا نعامله دالّة).
+            //      بناء القيمة الفعليّة (الاتّحاد الموسوم) في المفسّر/codegen (أ-م٣/أ-م٤).
+            // (EN) [A-M2] Resolve tagged-enum variant construction: «عدد(5)» parses as a
+            //      function call, but if the callee name is a known enum variant it is a
+            //      tagged (ADT) value construction, not an undefined function call. We check
+            //      the payload (arity/types), set the inferred type, and return early.
+            //      Actual value building (tagged union) is in interpreter/codegen (A-M3/A-M4).
+            // ============================================================
+            if (auto *calleeVar = dynamic_cast<AST::VariableExpr *>(expr.callee.get()))
+            {
+                // (AR) المُعامِل يخسر التنازع أمام دالّة/رمزٍ مُصرَّحٍ صراحةً (🔴-٢ من مراجعة أميليا):
+                //      لا نختطف نداءً إلى دالّة مستخدم اسمُها يطابق اسم معامل تعداد.
+                // (EN) A variant loses to an explicitly declared function/symbol (Amelia 🔴-2):
+                //      do not hijack a call to a user function whose name matches a variant.
+                TypeSystem::TypePtr declared = lookupVariable(calleeVar->name);
+                const bool isDeclaredCallable =
+                    declared && std::dynamic_pointer_cast<TypeSystem::FunctionType>(declared) != nullptr;
+                if (!isDeclaredCallable)
+                {
+                    std::string owningEnum;
+                    bool ambiguous = false;
+                    const EnumVariantInfo *variant =
+                        lookupVariant(calleeVar->name, owningEnum, ambiguous);
+                    if (variant)
+                    {
+                        lastInferredType_ = checkEnumConstruction(
+                            calleeVar->name, *variant, expr.arguments, &expr);
+                        return;
+                    }
+                }
             }
 
             // ============================================================

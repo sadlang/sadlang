@@ -541,6 +541,66 @@ namespace Sad
         }
 
         // ============================================================================
+        // (AR) [أ-م٢] بناء عضو تعداد بحمولة صريح — عدد(٥) أو تعداد.عدد(٥)
+        // (EN) [A-M2] Explicit tagged-enum variant construction — عدد(5) or Enum.عدد(5)
+        //
+        // (AR) المحلّل النحويّ لا يُنتج EnumVariantExpr في أ-م١/أ-م٢ (يبقى «عدد(٥)»
+        //      استدعاءً يُحسم في visitCallExpr)؛ هذا المُحقِّق دفاعيّ وجاهز لأ-م٣ حين
+        //      يخفض المفسّر/المولّد الاستدعاء إلى هذه العقدة. يُعيد استعمال نفس فحص
+        //      الحمولة تمامًا كي لا يتباعد المساران.
+        // (EN) The parser does not emit EnumVariantExpr in A-M1/A-M2 («عدد(5)» stays a
+        //      call resolved in visitCallExpr); this visitor is defensive and ready for
+        //      A-M3 when the interpreter/backend lowers the call to this node. It reuses
+        //      the exact same payload check so the two paths cannot diverge.
+        // ============================================================================
+        void TypeChecker::visitEnumVariantExpr(AST::EnumVariantExpr &expr)
+        {
+            currentResult_.totalExpressions++;
+
+            for (auto &arg : expr.args)
+            {
+                if (arg)
+                    inferExprType(arg.get());
+            }
+
+            const EnumVariantInfo *variant = nullptr;
+
+            if (!expr.enumName.empty())
+            {
+                // (AR) مؤهَّل: ابحث في تعداده المُصرَّح مباشرةً.
+                // (EN) Qualified: look up directly in its declared enum.
+                auto enumIt = enumVariants_.find(expr.enumName);
+                if (enumIt != enumVariants_.end())
+                {
+                    for (const auto &v : enumIt->second)
+                    {
+                        if (v.variantName == expr.variantName)
+                        {
+                            variant = &v;
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                std::string owningEnum;
+                bool ambiguous = false;
+                variant = lookupVariant(expr.variantName, owningEnum, ambiguous);
+            }
+
+            if (variant)
+            {
+                lastInferredType_ =
+                    checkEnumConstruction(expr.variantName, *variant, expr.args, &expr);
+            }
+            else
+            {
+                lastInferredType_ = registry_.getUnknownType();
+            }
+        }
+
+        // ============================================================================
         // زيارة العبارات / Visit Statements
         // ============================================================================
 
