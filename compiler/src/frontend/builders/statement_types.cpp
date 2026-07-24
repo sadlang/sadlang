@@ -26,6 +26,48 @@ namespace Sad
         namespace SIR
         {
 
+            // ================================================================
+            // (AR) [أ-م٤] تحويل اسم النوع المصرَّح لحقل حمولة تعداد بحمولة إلى SadTypeKind.
+            //      يُستعمل لبذر أنواع الحقول من التصريح مباشرةً (`عدد(رقم قيمة)`) بدل
+            //      انتظار استنتاجها من موقع إنشاء (ISSUE-076) — فيعمل الاستخراج بنوعه
+            //      الصحيح حتّى لو بُنيَت المطابقة قبل أوّل بناءٍ (كالتعداد ذاتيّ المرجع).
+            //      القاعدة: بدائيّ معروف ⇒ نوعه؛ اسمٌ صريح غير بدائيّ (صنف/تعداد) ⇒ مؤشّر
+            //      (قيمة ADT مُكوَّمة تُمرَّر مؤشّرًا)؛ فارغ (بلا نوع) ⇒ مجهول (سلوك ISSUE-076).
+            // (EN) [A-M4] Map a declared payload-field type name to SadTypeKind. Used to seed
+            //      field types straight from the declaration (`Num(int value)`) instead of
+            //      waiting for construction-site inference (ISSUE-076) — so extraction runs
+            //      with the right type even when the match is built before the first
+            //      construction (as with a self-referential enum). Rule: a known primitive ⇒
+            //      its type; an explicit non-primitive name (class/enum) ⇒ Pointer (a heap ADT
+            //      value is passed by pointer); empty (untyped) ⇒ Unknown (ISSUE-076 behavior).
+            static SadTypeKind adtDeclaredTypeNameToKind(const std::string &typeName)
+            {
+                if (typeName.empty())
+                    return SadTypeKind::Unknown;
+                if (typeName == "\xD8\xB1\xD9\x82\xD9\x85" /*رقم*/ ||
+                    typeName == "\xD8\xB9\xD8\xAF\xD8\xAF" /*عدد*/ ||
+                    typeName == "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD" /*صحيح*/ ||
+                    typeName == "i64" || typeName == "int" || typeName == "integer")
+                    return SadTypeKind::Integer;
+                if (typeName == "\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A" /*عشري*/ ||
+                    typeName == "\xD9\x85\xD8\xB6\xD8\xA7\xD8\xB9\xD9\x81" /*مضاعف*/ ||
+                    typeName == "\xD8\xAD\xD9\x82\xD9\x8A\xD9\x82\xD9\x8A" /*حقيقي*/ ||
+                    typeName == "f64" || typeName == "float" || typeName == "double")
+                    return SadTypeKind::Float;
+                if (typeName == "\xD9\x85\xD9\x86\xD8\xB7\xD9\x82\xD9\x8A" /*منطقي*/ ||
+                    typeName == "bool" || typeName == "boolean")
+                    return SadTypeKind::Boolean;
+                if (typeName == "\xD9\x86\xD8\xB5" /*نص*/ ||
+                    typeName == "string" || typeName == "str")
+                    return SadTypeKind::String;
+                if (typeName == "\xD9\x85\xD8\xB5\xD9\x81\xD9\x88\xD9\x81\xD8\xA9" /*مصفوفة*/ ||
+                    typeName == "array")
+                    return SadTypeKind::Array;
+                // (AR) اسمٌ صريح غير بدائيّ ⇒ صنف/تعداد ⇒ يُمرَّر مؤشّرًا (قيمة ADT مُكوَّمة).
+                // (EN) An explicit non-primitive name ⇒ class/enum ⇒ passed by pointer (heap ADT value).
+                return SadTypeKind::Pointer;
+            }
+
             bool StatementBuilder::buildStatement_Types(AST::Statement *stmt)
             {
                 // ========================================================================
@@ -72,6 +114,24 @@ namespace Sad
                             // (AR) ISSUE-076: أنواع الحقول Unknown حتّى تُستنتَج من موقع الإنشاء
                             // (EN) ISSUE-076: field types Unknown until inferred from a construction site
                             variant.fieldTypes.assign(member.fields.size(), SadTypeKind::Unknown);
+                            // (AR) [أ-م٤] بذر أنواع الحقول من الأنواع المصرَّحة في التعداد إن وُجدت
+                            //      (`عدد(رقم قيمة)` ⇒ Integer، `جمع(عقدة يسار)` ⇒ Pointer). الحقول
+                            //      بلا نوع مصرَّح تبقى Unknown (توافق ISSUE-076 التامّ). يمنح هذا
+                            //      الاستخراجَ نوعَه الصحيح حتّى إن بُنيَت المطابقة قبل أوّل بناء
+                            //      (حاسمٌ للتعداد ذاتيّ المرجع في الاستضافة الذاتيّة).
+                            // (EN) [A-M4] Seed field types from the declared enum types when present
+                            //      (`Num(int value)` ⇒ Integer, `Add(Node left)` ⇒ Pointer). Untyped
+                            //      fields stay Unknown (full ISSUE-076 compatibility). Gives extraction
+                            //      the right type even if the match is built before the first
+                            //      construction (crucial for the self-referential enum in self-hosting).
+                            for (size_t fi = 0; fi < member.fields.size() &&
+                                                fi < member.fieldTypes.size();
+                                 ++fi)
+                            {
+                                SadTypeKind declaredKind = adtDeclaredTypeNameToKind(member.fieldTypes[fi]);
+                                if (declaredKind != SadTypeKind::Unknown)
+                                    variant.fieldTypes[fi] = declaredKind;
+                            }
 
                             if (variant.fields.size() > adtInfo.maxFieldCount)
                             {

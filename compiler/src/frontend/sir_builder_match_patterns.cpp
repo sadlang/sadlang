@@ -1126,6 +1126,166 @@ namespace Sad
                     std::cout << "[DEBUG] buildMatchStatement: case " << i << " is BindingPattern(" << bindPat->name << ")" << std::endl;
 #endif
                 }
+                else if (auto *ctorPat = dynamic_cast<const Sad::AST::ConstructorPattern *>(pattern))
+                {
+                    // ================================================================
+                    // (AR) [أ-م٤] نمط الباني غير المؤهَّل — «عندما عدد(ق):» / «عندما جمع(ي، ن):»
+                    //      يذكر اسم العضو وحده (بلا اسم التعداد)، فنحسم هويّة التعداد بالبحث
+                    //      في adtEnumTable_ عن التعداد المالك للعضو (نظير حسم أ-م٢ الدلاليّ
+                    //      والنموذج الديناميّ للمفسّر في أ-م٣). بعد الحسم نبعث **نفس** شيفرة
+                    //      EnumVariantPattern الوسيطة (ENUM_IS_VARIANT + استخراج مؤجَّل +
+                    //      فحص الحقول الحرفيّة) فيعبر المسار كلّه للخلفيّة القائمة بلا تفريع.
+                    // (EN) [A-M4] Unqualified constructor pattern — «when Num(x):» / «when Add(l, r):».
+                    //      It names the variant alone (no enum), so we resolve the owning enum by
+                    //      scanning adtEnumTable_ (mirrors A-M2 semantic resolution and the A-M3
+                    //      interpreter's dynamic model). After resolution we emit the SAME SIR as
+                    //      the qualified EnumVariantPattern (ENUM_IS_VARIANT + deferred extraction +
+                    //      literal field checks) so it flows into the existing backend unchanged.
+                    // ================================================================
+                    condReg = newTempRegister();
+
+                    // (AR) حسم التعداد المالك للعضو غير المؤهَّل بالبحث في جدول ADT.
+                    // (EN) Resolve the enum that owns this unqualified variant via the ADT table.
+                    std::string resolvedEnumName;
+                    const ADTVariantInfo *variantInfo = nullptr;
+                    for (const auto &entry : adtEnumTable_)
+                    {
+                        if (const ADTVariantInfo *v = entry.second.findVariant(ctorPat->variantName))
+                        {
+                            resolvedEnumName = entry.first;
+                            variantInfo = v;
+                            break;
+                        }
+                    }
+
+                    if (!variantInfo)
+                    {
+                        // (AR) لا تعداد يملك هذا العضو — false آمن مع تشخيص.
+                        // (EN) No enum owns this variant — safe false with a diagnostic.
+                        SIRInstruction moveFalseCtor(SIROpcode::MOVE);
+                        moveFalseCtor.result = SIROperand::Register(condReg, SadTypeKind::Boolean);
+                        moveFalseCtor.operands = {SIROperand::ConstantBool(false)};
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(moveFalseCtor);
+
+                        errors_.push_back("Error: Unknown enum constructor '" +
+                                          ctorPat->variantName + "' (no ADT enum declares it)");
+                    }
+                    else
+                    {
+                        // (AR) الخطوة 1: فحص المميّز عبر ENUM_IS_VARIANT (نظير المؤهَّل تمامًا)
+                        // (EN) Step 1: Check discriminant via ENUM_IS_VARIANT (identical to qualified)
+                        SIRInstruction isVariantInst(SIROpcode::ENUM_IS_VARIANT);
+                        isVariantInst.result = SIROperand::Register(condReg, SadTypeKind::Boolean);
+                        isVariantInst.operands.push_back(
+                            SIROperand::Register(matchValueReg, matchValueType));
+                        isVariantInst.operands.push_back(
+                            SIROperand::ConstantI64(variantInfo->tag));
+                        isVariantInst.operands.push_back(
+                            SIROperand::ConstantString(resolvedEnumName));
+                        isVariantInst.operands.push_back(
+                            SIROperand::ConstantI64(variantInfo->isUnit() ? 1 : 0));
+                        isVariantInst.comment = "Check if " + resolvedEnumName +
+                                                " is " + ctorPat->variantName + " (tag=" +
+                                                std::to_string(variantInfo->tag) +
+                                                ", unit=" + (variantInfo->isUnit() ? "yes" : "no") +
+                                                ", unqualified)";
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(isVariantInst);
+
+                        // (AR) الخطوة 2: استخراج الحقول وربطها (مؤجَّل)/فحص الحرفيّات
+                        // (EN) Step 2: Extract & bind fields (deferred) / literal field checks
+                        for (size_t fi = 0; fi < ctorPat->fieldPatterns.size() &&
+                                            fi < variantInfo->fields.size();
+                             ++fi)
+                        {
+                            const auto &fieldPat = ctorPat->fieldPatterns[fi];
+
+                            if (auto *varFieldPat = dynamic_cast<const Sad::AST::VariablePattern *>(fieldPat.get()))
+                            {
+                                // (AR) تأجيل الاستخراج إلى كتلة الجسم (بعد التحقق) — نظير المؤهَّل.
+                                // (EN) Defer extraction to the body block (post-check) — like qualified.
+                                MatchDeferredField deferred;
+                                deferred.varName = varFieldPat->name;
+                                deferred.fieldIndex = fi;
+                                deferred.fieldName = variantInfo->fields[fi];
+                                deferred.enumName = resolvedEnumName;
+                                deferred.fieldType = variantInfo->fieldTypeAt(fi);
+                                deferredExtractions.push_back(std::move(deferred));
+                            }
+                            else if (auto *litFieldPat = dynamic_cast<const Sad::AST::LiteralPattern *>(fieldPat.get()))
+                            {
+                                // (AR) مطابقة حقل بقيمة حرفيّة — استخراج + مقارنة + AND (نظير المؤهَّل).
+                                // (EN) Match field against a literal — extract + compare + AND (like qualified).
+                                std::string fieldReg = newTempRegister();
+                                SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                                getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                                getPayload.operands.push_back(
+                                    SIROperand::Register(matchValueReg, matchValueType));
+                                getPayload.operands.push_back(
+                                    SIROperand::ConstantI64(static_cast<int64_t>(fi)));
+                                getPayload.operands.push_back(
+                                    SIROperand::ConstantString(resolvedEnumName));
+                                getPayload.comment = "Extract field " + std::to_string(fi) +
+                                                     " (" + variantInfo->fields[fi] + ") for literal check (unqualified)";
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(getPayload);
+
+                                std::string litFieldReg = newTempRegister();
+                                SIROperand litFieldOp;
+                                const auto &litFieldVal = litFieldPat->literal;
+                                if (litFieldVal.isInteger())
+                                {
+                                    litFieldOp = SIROperand::ConstantI64(litFieldVal.toInt());
+                                }
+                                else if (litFieldVal.getKind() == SadTypeKind::Float)
+                                {
+                                    litFieldOp = SIROperand::ConstantF64(litFieldVal.toDouble());
+                                }
+                                else if (litFieldVal.getKind() == SadTypeKind::String)
+                                {
+                                    litFieldOp = SIROperand::ConstantString(litFieldVal.toString());
+                                }
+                                else
+                                {
+                                    litFieldOp = SIROperand::ConstantI64(0);
+                                }
+
+                                SIRInstruction moveLitField(SIROpcode::MOVE);
+                                moveLitField.result = SIROperand::Register(litFieldReg, SadTypeKind::Pointer);
+                                moveLitField.operands = {litFieldOp};
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(moveLitField);
+
+                                std::string fieldCmpReg = newTempRegister();
+                                SIRInstruction cmpField = SIRInstruction::Binary(
+                                    SIROpcode::EQ,
+                                    SIROperand::Register(fieldCmpReg, SadTypeKind::Boolean),
+                                    SIROperand::Register(fieldReg, SadTypeKind::Pointer),
+                                    SIROperand::Register(litFieldReg, SadTypeKind::Pointer));
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(cmpField);
+
+                                std::string newCondReg = newTempRegister();
+                                SIRInstruction andField = SIRInstruction::Binary(
+                                    SIROpcode::AND,
+                                    SIROperand::Register(newCondReg, SadTypeKind::Boolean),
+                                    SIROperand::Register(condReg, SadTypeKind::Boolean),
+                                    SIROperand::Register(fieldCmpReg, SadTypeKind::Boolean));
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(andField);
+                                condReg = newCondReg;
+                            }
+                            // (AR) نمط شامل «_» — يُتجاهَل الحقل. / (EN) Wildcard — ignore field.
+                        }
+                    }
+
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildMatchStatement: case " << i
+                              << " is ConstructorPattern(" << ctorPat->variantName
+                              << ") resolved enum=" << resolvedEnumName << std::endl;
+#endif
+                }
                 else
                 {
                     // (AR) نمط غير مدعوم - فشل آمن مع تشخيص واضح

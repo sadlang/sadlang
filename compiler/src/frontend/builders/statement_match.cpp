@@ -774,6 +774,25 @@ namespace Sad
                             adtEnumName = enumPat->enumName;
                             coveredVariants.insert(enumPat->variantName);
                         }
+                        // (AR) [أ-م٤] نمط الباني غير المؤهَّل — نحسم التعداد المالك بالبحث
+                        //      في adtEnumTable_ كي تعمل شموليّة المطابقة للصيغة غير المؤهَّلة أيضًا.
+                        // (EN) [A-M4] Unqualified constructor pattern — resolve the owning enum by
+                        //      scanning adtEnumTable_ so exhaustiveness works for the unqualified form too.
+                        else if (auto *ctorPat = dynamic_cast<const Sad::AST::ConstructorPattern *>(caseClause.pattern.get()))
+                        {
+                            if (adtEnumName.empty())
+                            {
+                                for (const auto &entry : b_.adtEnumTable_)
+                                {
+                                    if (entry.second.findVariant(ctorPat->variantName))
+                                    {
+                                        adtEnumName = entry.first;
+                                        break;
+                                    }
+                                }
+                            }
+                            coveredVariants.insert(ctorPat->variantName);
+                        }
                     }
 
                     // (AR) إذا كان تعداد ADT ولا يوجد نمط شامل — نتحقق من التغطية

@@ -665,6 +665,93 @@ namespace Sad
                 }
 
                 // ========================================================================
+                // (AR) الخطوة 3.45: [أ-م٤] باني تعداد بحمولة غير مؤهَّل — «عدد(٥)» / «جمع(ي، ن)»
+                //      المحلّل يُنتج البناء غير المؤهَّل كـ CallExpr على اسم العضو وحده، فلا
+                //      يوجد في functionTable_ (المُسجَّل هناك «تعداد.عضو» وحده). نحسم التعداد
+                //      المالك بالبحث في adtEnumTable_ ثمّ نُصدر **نفس** نداء الباني المولَّد
+                //      (__adt_ctor_تعداد_عضو) الّذي تُصدره الصيغة المؤهَّلة — فيعبر البناءُ
+                //      المسارَ القائم (ENUM_CONSTRUCT) بلا تفريع. الأولويّة نظير المفسّر (أ-م٣):
+                //      الباني غير المؤهَّل يخسر أمام دالّة مُصرَّحة (it موجود) أو متغيّر/إغلاق
+                //      (lookupVariable) — فلا يختطف اسمًا يملكه رمزٌ مُصرَّح.
+                // (EN) Phase 3.45: [A-M4] unqualified tagged-enum constructor — «Num(5)» / «Add(l, r)».
+                //      The parser emits the unqualified build as a CallExpr on the bare variant name,
+                //      absent from functionTable_ (only «Enum.Variant» is registered there). Resolve the
+                //      owning enum via adtEnumTable_, then emit the SAME generated-constructor call
+                //      (__adt_ctor_Enum_Variant) the qualified form emits, so it flows through the
+                //      existing ENUM_CONSTRUCT path unchanged. Priority mirrors the A-M3 interpreter:
+                //      an unqualified builder loses to a declared function (it found) or a
+                //      variable/closure (lookupVariable) — it never hijacks a declared symbol's name.
+                // ========================================================================
+                if (b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                    b_.lambdaAliases_.find(funcName) == b_.lambdaAliases_.end() &&
+                    !b_.lookupVariable(funcName))
+                {
+                    std::string ctorEnumName;
+                    const ADTVariantInfo *ctorVariant = nullptr;
+                    for (const auto &adtEntry : b_.adtEnumTable_)
+                    {
+                        if (const ADTVariantInfo *v = adtEntry.second.findVariant(funcName))
+                        {
+                            ctorEnumName = adtEntry.first;
+                            ctorVariant = v;
+                            break;
+                        }
+                    }
+
+                    if (ctorVariant)
+                    {
+                        std::string ctorKey = ctorEnumName + "." + funcName;
+                        auto ctorIt = b_.functionTable_.find(ctorKey);
+                        if (ctorIt != b_.functionTable_.end() &&
+                            ctorIt->second.name.find(Sad::Compiler::kAdtCtorPrefix) == 0)
+                        {
+                            // (AR) سجّل أنواع حقول الحمولة من أنواع الوسائط (ISSUE-076، أ′) —
+                            //      نظير مسار البناء المؤهَّل في call_method_dispatch تمامًا.
+                            // (EN) Register payload field types from the argument types (ISSUE-076, A′)
+                            //      — identical to the qualified build path in call_method_dispatch.
+                            {
+                                auto &adtInfo = b_.adtEnumTable_[ctorEnumName];
+                                for (auto &variant : adtInfo.variants)
+                                {
+                                    if (variant.name != funcName)
+                                        continue;
+                                    if (variant.fieldTypes.size() < argOperands.size())
+                                        variant.fieldTypes.resize(argOperands.size(), SadTypeKind::Unknown);
+                                    for (size_t fi = 0; fi < argOperands.size(); ++fi)
+                                    {
+                                        SadTypeKind argTy = argOperands[fi].dataType;
+                                        SadTypeKind &slot = variant.fieldTypes[fi];
+                                        if (slot == SadTypeKind::Unknown)
+                                            slot = argTy;
+                                        else if (slot != argTy)
+                                            slot = SadTypeKind::Unknown; // (AR) تعارض ⇒ تراجُع آمن
+                                    }
+                                    break;
+                                }
+                            }
+
+                            std::string ctorResultReg = b_.newTempRegister();
+                            SIRInstruction ctorCall(SIROpcode::CALL);
+                            ctorCall.result = SIROperand::Register(ctorResultReg, SadTypeKind::Struct);
+                            ctorCall.operands.push_back(SIROperand::Function(ctorIt->second.name));
+                            for (const auto &a : argOperands)
+                                ctorCall.operands.push_back(a);
+                            ctorCall.comment = "ADT constructor (unqualified): " + ctorKey;
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(ctorCall);
+
+                            // (AR) نضع اسم التعداد صنفًا للنتيجة كي تعمل «طابق» (تفهرس على اسم
+                            //      التعداد في adtEnumTable_) — نظير الصيغة المؤهَّلة.
+                            // (EN) Tag the result's className with the enum name so «match» works
+                            //      (it keys on the enum name in adtEnumTable_) — like the qualified form.
+                            BuildResult ctorRes(ctorResultReg, SadTypeKind::Struct);
+                            ctorRes.className = ctorEnumName;
+                            return ctorRes;
+                        }
+                    }
+                }
+
+                // ========================================================================
                 // (AR) الخطوة 3.5: فحص الاستدعاء عبر بنية إغلاق (Closure)
                 //      إذا كان الاسم ليس في b_.functionTable_ ولا b_.lambdaAliases_ ولا b_.templateFunctions_
                 //      لكنه متغير معروف → يحمل مؤشر بنية إغلاق (closure struct)
