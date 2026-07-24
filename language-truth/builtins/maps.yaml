@@ -133,21 +133,34 @@ functions:
   description_en: Current time (Unix timestamp in seconds since 1970)
   params: []
   lookup_table: MODULE_FUNCTION
-  # (AR) مدعوم في المفسّر والمترجم والوضع الحرّ. ثلاث حالات لا حالتان:
+  # (AR) مدعوم في المفسّر والمترجم والوضع الحرّ. مصدر الوقت يتبع **حلقة الامتياز
+  #      والمعمارية**، لا مجرّد وجود المكتبة القياسيّة — أربع حالات:
   #        • مستضاف: time(NULL) من libc.
-  #        • حرّ + هدف معدن عارٍ (بلا نظام تشغيل، مثل i686-unknown-elf): جسر عتاد
-  #          مبثوث داخل الوحدة يقرأ ساعة CMOS الحقيقيّة (منافذ 0x70/0x71) بلا libc.
-  #        • حرّ + هدف بنظام تشغيل (لينكس/ويندوز): يبقى `time` تصريحًا خارجيًّا
-  #          توفّره libc/CRT — لأنّ البرنامج عمليّةُ مستخدم في الحلقة 3 حيث تعليمتا
-  #          in/out ممتازتان (#GP ⇒ SIGSEGV)، فبثّ جسر CMOS هناك انهيارٌ لا حلّ.
-  # (EN) Supported in interpreter, compiler, and freestanding. Three cases, not two:
+  #        • حرّ + معدن عارٍ x86 (مثل i686-unknown-elf): جسر عتاد مبثوث داخل الوحدة
+  #          يقرأ ساعة CMOS الحقيقيّة (منافذ 0x70/0x71) بلا libc.
+  #        • حرّ + لينكس (x86_64/i386): نداء نظام `time` مبثوث داخل الوحدة — يعمل
+  #          مع libc وبدونها. لا CMOS: البرنامج عمليّةُ مستخدم في الحلقة 3 حيث
+  #          تعليمتا in/out ممتازتان (#GP ⇒ SIGSEGV).
+  #        • حرّ + معدن عارٍ بمعمارية أخرى (aarch64/riscv64) أو نظام آخر: كعب ضعيف
+  #          يعيد صفرًا تتجاوزه حزمة دعم اللوحة / أو يُترك للـCRT.
+  #      «الآن» في ص بلا معاملات (تستدعي time(NULL))، فلا يُلاحَظ tloc من اللغة؛
+  #      لكنّ الجسر يحترم عقد C على مستوى ABI كاملًا (مؤشّر غير عدميّ ⇒ كتابة عبره)
+  #      كي يطابق دالّة libc تمامًا لو استُدعي الرمز من كود C خارجيّ يربط الوحدة.
+  # (EN) Supported in interpreter, compiler, and freestanding. The time source
+  #      follows the *privilege ring and architecture*, not merely the presence of
+  #      a standard library — four cases:
   #        • Hosted: libc time(NULL).
-  #        • Freestanding + bare-metal target (no OS, e.g. i686-unknown-elf): an
-  #          in-module hardware bridge reads the CMOS RTC (ports 0x70/0x71), no libc.
-  #        • Freestanding + OS target (Linux/Windows): `time` stays an external
-  #          declaration provided by libc/CRT — the program is a ring-3 userspace
-  #          process where in/out are privileged (#GP → SIGSEGV), so emitting the
-  #          CMOS bridge there would crash rather than help.
+  #        • Freestanding + x86 bare metal (e.g. i686-unknown-elf): an in-module
+  #          hardware bridge reads the CMOS RTC (ports 0x70/0x71), no libc.
+  #        • Freestanding + Linux (x86_64/i386): an in-module `time` syscall —
+  #          works with and without libc. No CMOS: the program is a ring-3
+  #          userspace process where in/out are privileged (#GP → SIGSEGV).
+  #        • Freestanding + other bare metal (aarch64/riscv64) or another OS: a
+  #          weak stub returning zero for the BSP to override, or left to the CRT.
+  #      «الآن» takes no parameters (it calls time(NULL)), so tloc is not observable
+  #      from the language; the bridge still honours the C ABI contract fully (non-null
+  #      pointer ⇒ written through) to match libc if the symbol is called from external
+  #      C linked against the module.
   freestanding: true
   # (AR) تباين معروف: المفسّر يعيد عشريًّا (double) بدقّة أقلّ من الثانية، بينما
   #      المترجم يعيد صحيحًا (i64) بثوانٍ كاملة — توحيد النوع قرار لغويّ معلّق.

@@ -24,6 +24,10 @@
 
 #include "compiler_driver.h"
 #include "cli_flags_generated.h"
+// (AR) لتصنيف الهدف بنفس دلالات الخلفيّة (معدن عارٍ مقابل نظام تشغيل)
+// (EN) To classify the target with the backend's own semantics
+#include "backend/llvm/builders/core/freestanding_codegen.h"
+#include <llvm/TargetParser/Triple.h>
 #include "error_manager.h"
 #include "explanation_level.h"
 // (AR) محلل أعلام سياسة الذاكرة (--gc/--learn/--prod) لتوحيد سلوك الأخطاء
@@ -144,7 +148,7 @@ namespace sad
             // (EN) Phase E-3: Print warnings even on success (e.g. --learn mode).
             //      Otherwise --learn would compile silently despite ownership
             //      violations that we explicitly want to surface to the user.
-            if (diagnostics_.get_warning_count() > 0)
+            if (diagnostics_.has_diagnostics())
             {
                 diagnostics_.print_diagnostics(std::cerr, options_.color_diagnostics);
             }
@@ -973,6 +977,68 @@ namespace sad
             // ════════════════════════════════════════════════════════════════════════
             if (options_.freestanding)
             {
+                // ════════════════════════════════════════════════════════════════
+                // (AR) تشخيص الهدف المُستنتَج: راية الوضع الحرّ تصف **غياب المكتبة
+                //      القياسيّة**، لا حلقة الامتياز. حين لا يُمرَّر «--هدف» يرث
+                //      المترجم ثالوث المضيف. نصنّفه بنفس دالّة الخلفيّة تمامًا
+                //      (classifyHwBridgeProfile) كي لا يناقض التشخيصُ التوليد، ثمّ:
+                //        • HostedLibc (ويندوز/ماك): لا جسور ولا نداءات ⇒ **تحذير**:
+                //          الناتج لا يصلح للمعدن ولا لـ-nostdlib.
+                //        • LinuxSyscall (مضيف لينكس، الحالة الغالبة في CI): تُبثّ
+                //          نداءات النظام ويُربط -nostdlib فعلًا ⇒ **ملاحظة** ألطف:
+                //          افتُرض نطاق مستخدم؛ للنواة مرّر --هدف. (ليست تحذيرًا كي
+                //          لا تنقلب خطأً تحت -Werror فتكسر بناء المضيف الحرّ.)
+                //      لا شيء إن كان الهدف صريحًا أو معدنًا مُستنتَجًا (لا التباس).
+                // (EN) Inferred-target diagnostic: the freestanding flag describes
+                //      the *absence of a standard library*, not the privilege ring.
+                //      With no «--هدف» the compiler inherits the host triple. We
+                //      classify it with the backend's own function so the diagnostic
+                //      cannot contradict codegen: HostedLibc (Windows/macOS) ⇒ a
+                //      *warning* (neither bare-metal nor -nostdlib capable);
+                //      LinuxSyscall (a Linux host, the common CI case) ⇒ a milder
+                //      *note* (syscalls are emitted, -nostdlib links — for a kernel
+                //      pass --هدف). A note, not a warning, so -Werror does not turn
+                //      it into an error that breaks a valid hosted freestanding build.
+                // ════════════════════════════════════════════════════════════════
+                const llvm::Triple effective_target(
+                    llvm::Triple::normalize(options_.target.to_string()));
+                if (!options_.target_explicit)
+                {
+                    const Sad::LLVM::HwBridgeProfile profile =
+                        Sad::LLVM::classifyHwBridgeProfile(effective_target);
+                    if (profile == Sad::LLVM::HwBridgeProfile::HostedLibc)
+                    {
+                        diagnostics_.report_warning(
+                            std::string(::sad::cli::messages::FreestandingHostTargetHosted) +
+                            options_.target.to_string());
+                    }
+                    else if (profile == Sad::LLVM::HwBridgeProfile::LinuxSyscall)
+                    {
+                        diagnostics_.report_note(
+                            std::string(::sad::cli::messages::FreestandingHostTargetLinux) +
+                            options_.target.to_string());
+                    }
+                }
+
+                // (AR) معدن عارٍ بمعمارية بلا جسر (aarch64/riscv64 وأمثالها): جسرا
+                //      الإخراج والوقت كعبان صامتان. قبل هذه الحملة كان يُبثّ تجميع
+                //      x86 لا يُترجَم — فشلٌ صاخب. الآن يرتبط بصمت، فنُصرّح بالحاجة
+                //      إلى تعريف BSP بدل ترك المطوّر أمام نواة صامتة بلا خيط. يُصرَّح
+                //      ولو كان الهدف صريحًا (المطوّر اختار المعمارية عن قصد).
+                // (EN) Bare metal with no bridge (aarch64/riscv64 and the like): the
+                //      output and time bridges are silent stubs. This campaign
+                //      replaced non-building x86 asm (a loud failure) with a silent
+                //      link, so state the BSP requirement rather than leave a silent
+                //      kernel with no thread to pull. Emitted even for an explicit
+                //      target — the developer chose the architecture deliberately.
+                if (Sad::LLVM::classifyHwBridgeProfile(effective_target) ==
+                    Sad::LLVM::HwBridgeProfile::BareMetalStub)
+                {
+                    diagnostics_.report_note(
+                        std::string(::sad::cli::messages::FreestandingBareMetalStubBridges) +
+                        options_.target.to_string());
+                }
+
                 // (AR) تفعيل no_main تلقائياً — في بيئة freestanding لا مكتبة C
                 //      لذا لا توجد دالة __start المسؤولة عن استدعاء main()
                 // (EN) Auto-enable no_main — freestanding has no C lib startup

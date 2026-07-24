@@ -182,6 +182,7 @@ namespace sad
                                 if (triple_opt)
                                 {
                                     options.target = *triple_opt;
+                                    options.target_explicit = true;
                                 }
                                 else
                                 {
@@ -346,6 +347,7 @@ namespace sad
                     return false;
                 }
                 options.target = *triple_opt;
+                options.target_explicit = true;
                 return true;
             }
 
@@ -408,6 +410,11 @@ namespace sad
                     if (android_triple)
                     {
                         options.target = *android_triple;
+                        // (AR) هدف مضبوط عمدًا — لا يُطلَق عليه تحذير «افتُرض ثالوث
+                        //      المضيف» (وإلّا كذَب التشخيص على المستخدم بثالوث لم يُفترَض).
+                        // (EN) An intentionally set target — must not trigger the
+                        //      «host triple assumed» warning (else the diagnostic lies).
+                        options.target_explicit = true;
                     }
                 }
                 return true;

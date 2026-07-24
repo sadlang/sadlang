@@ -346,7 +346,14 @@ def test_assert_type_hosted_builds_without_spurious_error():
 NOW_SOURCE = "استورد خرائط\nمتغير س = الآن()\nاطبع(س)\n"
 BARE_METAL_TARGET = "--هدف=i686-unknown-elf"   # (AR) ثالوث نواة النحلة
 HOSTED_TARGET = "--هدف=x86_64-linux-gnu"
+LINUX32_TARGET = "--هدف=i686-linux-gnu"  # (AR) نطاق مستخدم لينكس 32-بت (نحلة م4)
+WINDOWS_TARGET = "--هدف=x86_64-pc-windows-msvc"
 CMOS_PORT_ASM = "outb"  # (AR) بصمة تجميع منافذ CMOS المُضمّن في جسر المعدن
+IN_PORT_ASM = "inb"     # (AR) بصمة قراءة منفذ معزول (x86 حصرًا)
+# (AR) بصمة بوّابة نداء نظام لينكس — التعليمة نفسها لا اسم قيمة الإرجاع (الأخير
+#      سُمّي «sys.ret» عمدًا كي لا تظهر السلسلة "syscall" ولو حُذف التجميع):
+SYSCALL_ASM = 'asm sideeffect "syscall"'  # x86_64
+SYSCALL32_ASM = "int $$0x80"              # i386 (‏$$ في IR = بوّابة int 0x80)
 
 
 def _time_definitions(ir: str) -> tuple[bool, bool]:
@@ -369,15 +376,185 @@ def test_now_freestanding_bare_metal_emits_cmos_bridge():
     assert CMOS_PORT_ASM in ir, "IR المعدن بلا تجميع منافذ مُضمّن — الجسر العتاديّ مفقود"
 
 
-def test_now_freestanding_hosted_target_leaves_time_external():
-    """(AR) على هدف بنظام تشغيل: «الآن» تُترجم حرًّا لكنْ يبقى `time` تصريحًا
-    خارجيًّا توفّره libc. بثّ نسخة CMOS هنا ⇒ #GP ⇒ SIGSEGV في الحلقة 3."""
+def test_now_freestanding_linux_uses_syscall_not_ports():
+    """(AR) على لينكس x86_64: «الآن» تُترجم حرًّا ويُبثّ تعريف `time` داخل الوحدة،
+    لكنْ عبر **نداء نظام** لا منافذ CMOS. هذا يحسم أمرين معًا: منافذ الدخل/الخرج
+    ممتازة في الحلقة 3 (‏#GP ⇒ SIGSEGV)، والاعتماد على libc يكسر ‎-nostdlib‎."""
     code, out, ir = _compile(NOW_SOURCE, FREESTANDING, HOSTED_TARGET)
-    assert code == 0, "الآن() رُفضت حرًّا على هدف مستضاف:\n" + out
-    assert SEM019 not in out, "بوّابة SEM019 ما زالت تحجب «الآن» على هدف مستضاف:\n" + out
-    defined, declared = _time_definitions(ir)
-    assert not defined, (
-        "IR الهدف المستضاف يحوي تعريف `time` (جسر CMOS) — منافذ الدخل/الخرج "
-        "ممتازة في الحلقة 3 ⇒ سينهار البرنامج بـSIGSEGV زمن التشغيل"
+    assert code == 0, "الآن() رُفضت حرًّا على لينكس:\n" + out
+    assert SEM019 not in out, "بوّابة SEM019 ما زالت تحجب «الآن» على لينكس:\n" + out
+    defined, _ = _time_definitions(ir)
+    assert defined, "IR لينكس بلا تعريف `time` — جسر نداء النظام لم يُبثّ (عاد الاعتماد على libc)"
+    assert SYSCALL_ASM in ir, "IR لينكس بلا تعليمة نداء نظام — الجسر السياديّ مفقود"
+    assert CMOS_PORT_ASM not in ir, (
+        "IR لينكس يحوي منافذ دخل/خرج — ممتازة في الحلقة 3 ⇒ SIGSEGV زمن التشغيل"
     )
-    assert declared, "IR الهدف المستضاف بلا تصريح `time` — لن يُحلّ الرمز من libc"
+
+
+def test_now_freestanding_linux32_uses_int80_gate():
+    """(AR) على لينكس i386: نداء النظام عبر بوّابة `int 0x80` لا `syscall` — تغطية
+    مباشرة لواصف ABI الـ32-بت (بيئة نطاق مستخدم نحلة م4). خطأ في time=13 أو في
+    تهريب $$ يُشحن بلا كشف دون هذا الاختبار."""
+    code, out, ir = _compile(NOW_SOURCE, FREESTANDING, LINUX32_TARGET)
+    assert code == 0, "الآن() رُفضت حرًّا على لينكس 32-بت:\n" + out
+    defined, _ = _time_definitions(ir)
+    assert defined, "IR لينكس 32-بت بلا تعريف `time` — جسر نداء النظام لم يُبثّ"
+    assert SYSCALL32_ASM in ir, "IR لينكس 32-بت بلا بوّابة int 0x80 — واصف i386 مكسور"
+    assert CMOS_PORT_ASM not in ir, "IR لينكس 32-بت يحوي منافذ CMOS — ممتازة في الحلقة 3"
+
+
+def test_now_freestanding_other_os_leaves_time_external():
+    """(AR) على نظام تشغيل لا نبثّ له نداء نظام (ويندوز): يبقى `time` تصريحًا
+    خارجيًّا يحلّه CRT — لا منافذ ولا نداء نظام لينكس."""
+    code, out, ir = _compile(NOW_SOURCE, FREESTANDING, WINDOWS_TARGET)
+    assert code == 0, "الآن() رُفضت حرًّا على ويندوز:\n" + out
+    defined, declared = _time_definitions(ir)
+    assert not defined, "IR ويندوز يحوي تعريف `time` — لا جسر صالحًا هناك"
+    assert declared, "IR ويندوز بلا تصريح `time` — لن يُحلّ الرمز من CRT"
+
+
+# ─── 5) عمى المعمارية: لا تُبثّ تعليمات x86 على معدن بمعمارية أخرى ─────────────
+# (AR) inb/outb **غير موجودتين في مجموعة تعليمات** aarch64/riscv64، والمنفذ
+#      التسلسليّ هناك ذاكرة مُهيَّأة يختلف عنوانها بكلّ لوحة. كان المميِّز يقرأ
+#      النظام وحده فيبثّ شيفرة x86 على أيّ معدن — تجميعٌ لا يُترجَم أصلًا.
+ARM_BARE_TARGET = "--هدف=aarch64-unknown-none-elf"
+RISCV_BARE_TARGET = "--هدف=riscv64-unknown-none-elf"
+PRINT_SOURCE = 'اطبع("س")\n'
+HALT_ASM = "hlt"
+
+
+@pytest.mark.parametrize("target", [ARM_BARE_TARGET, RISCV_BARE_TARGET])
+def test_non_x86_bare_metal_emits_no_x86_instructions(target):
+    """(AR) معدن عارٍ بمعمارية بلا منافذ معزولة: أكعاب محايدة، صفر تعليمات x86."""
+    code, out, ir = _compile(PRINT_SOURCE, FREESTANDING, target)
+    assert code == 0, "الترجمة فشلت على معدن غير x86:\n" + out
+    assert CMOS_PORT_ASM not in ir, (
+        "IR معدن " + target + " يحوي outb — تعليمة x86 لا وجود لها في هذه المعمارية"
+    )
+    assert IN_PORT_ASM not in ir, "IR معدن غير x86 يحوي inb — تعليمة x86 غير موجودة"
+    assert HALT_ASM not in ir, "IR معدن غير x86 يحوي hlt — تعليمة x86 غير موجودة"
+
+
+# ─── 6) عقد time(tloc): المؤشّر غير العدميّ يُكتب عبره في كلّ الجسور ────────────
+# (AR) كانت نسخة CMOS تتجاهل المعامل بينما libc تحترمه ⇒ تباعد صامت: كودٌ يقرأ
+#      ‎*tloc‎ يعمل مستضافًا ويقرأ قمامةً حرًّا.
+TLOC_STORE_BLOCK = "tloc.store"
+
+
+@pytest.mark.parametrize("target", [BARE_METAL_TARGET, HOSTED_TARGET, ARM_BARE_TARGET])
+def test_time_honours_tloc_pointer_in_every_bridge(target):
+    """(AR) كلّ جسر يبثّ `time` يجب أن يحوي فرع الكتابة عبر المؤشّر."""
+    code, out, ir = _compile(NOW_SOURCE, FREESTANDING, target)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    defined, _ = _time_definitions(ir)
+    assert defined, "لا تعريف `time` على " + target
+    assert TLOC_STORE_BLOCK in ir, (
+        "جسر `time` على " + target + " يتجاهل معامل tloc — تباعد عن عقد C ودالّة libc"
+    )
+
+
+# ─── 7) الهلع في الحلقة 3: إنهاء نظيف بنداء نظام لا تعليمة ممتازة ─────────────
+# (AR) cli/hlt ممتازتان: على لينكس ينتهي الهلع بـ#GP ⇒ SIGSEGV بدل رمز خروج.
+#      والبديل abort مرفوض — يكسر عقد «حرًّا: abort ⇒ __sad_panic» ويُضيع رمز
+#      سبب الهلع (#248). نداء النظام لا يفعل أيًّا من الاثنين.
+PANIC_SOURCE = "تأكد(1 + 1 == 3)\n"
+# (AR) رقم نداء exit_group على x86_64 = 231 (i386 = 252). بصمة مميِّزة **للرقم**
+#      لا لمجرّد "syscall": مسار الطبع في __sad_panic يبثّ نداء write أصلًا، فلا
+#      يميّز وجودُ "syscall" وحده إنهاءَ exit_group من حلقة دوران — لا بدّ من الرقم.
+EXITGROUP_NUM_X64 = "i64 231"
+
+
+def test_panic_linux_exits_cleanly_without_privileged_instructions():
+    """(AR) هلع حرّ على لينكس: بلا cli/hlt وبلا abort — نداء exit_group فقط.
+    نؤكّد على **رقم** النداء لا مجرّد "syscall" (الطبع يبثّه أصلًا)."""
+    code, out, ir = _compile(PANIC_SOURCE, FREESTANDING, HOSTED_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    assert PANIC_CALL in ir, "مسار التأكيد الحرّ لا يستدعي __sad_panic (انحدار)"
+    assert HALT_ASM not in ir, "IR لينكس يحوي hlt — تعليمة ممتازة ⇒ #GP ⇒ SIGSEGV بدل خروج نظيف"
+    assert ABORT_SYM not in ir, "IR حرّ يحوي abort — رمز libc غائب وعقد #248 مكسور"
+    assert EXITGROUP_NUM_X64 in ir, (
+        "IR لينكس بلا نداء exit_group (231) — الهلع يعلّق بدل إنهاء نظيف"
+    )
+
+
+def test_panic_bare_metal_keeps_halt_loop():
+    """(AR) على المعدن يبقى cli/hlt: حارس ضدّ تعميم مسار لينكس على النواة."""
+    code, out, ir = _compile(PANIC_SOURCE, FREESTANDING, BARE_METAL_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    assert HALT_ASM in ir, "IR المعدن فقد hlt — الهلع صار دورانًا يحرق المعالج"
+
+
+def test_panic_other_os_traps_not_spins():
+    """(AR) هلع حرّ على نظام بلا نداء (ويندوز): llvm.trap لا حلقة دوران. حلقة
+    فارغة كانت ستبدّل انهيارًا صاخبًا بتعليق صامت ١٠٠٪ معالج — أسوأ للأدوات."""
+    code, out, ir = _compile(PANIC_SOURCE, FREESTANDING, WINDOWS_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    assert "@llvm.trap" in ir, "IR ويندوز بلا llvm.trap — الهلع يعلّق بدل إنهاء فوريّ"
+
+
+# ─── 8) الطبع الحرّ على لينكس: write بنداء نظام لا putchar من libc ─────────────
+PUTCHAR_SYM = "@putchar"
+
+
+def test_print_linux_uses_write_syscall_not_libc():
+    """(AR) «اطبع» حرًّا على لينكس تمرّ بـ__sad_serial_putc: يجب أن يبثّ نداء
+    write لا نداء putchar — وإلّا بقي الوضع الحرّ رهين libc ولا يُربط ‎-nostdlib‎."""
+    code, out, ir = _compile(PRINT_SOURCE, FREESTANDING, HOSTED_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    assert SYSCALL_ASM in ir, "IR لينكس بلا نداء نظام — مسار الطبع لم يُحرَّر من libc"
+    assert PUTCHAR_SYM not in ir, (
+        "IR لينكس ما زال ينادي putchar — تبعيّة libc باقية في مسار الطبع الحرّ"
+    )
+    assert CMOS_PORT_ASM not in ir, "IR لينكس يحوي outb — منفذ COM1 ممتاز في الحلقة 3"
+
+
+# ─── 9) الهدف المُستنتَج: تشخيص بالافتراض بدل فشل ربط صامت ─────────────────────
+# (AR) راية الوضع الحرّ تصف غياب المكتبة القياسيّة لا حلقة الامتياز. بلا «--هدف»
+#      يُورَث ثالوث المضيف، فيصنّفه السائق بنفس دالّة الخلفيّة:
+#        • مضيف لينكس ⇒ **ملاحظة** (تُبثّ نداءات النظام ويُربط -nostdlib فعلًا)،
+#          ليست تحذيرًا كي لا تنقلب خطأً تحت -Werror.
+#        • مضيف بلا نداء (ويندوز/ماك) ⇒ **تحذير** (لا جسور، لا معدن، لا -nostdlib).
+#      مضيف CI قد يكون أيًّا منها، فنطابق النصّ المشترك «الوضع الحرّ بلا».
+INFERRED_TARGET_DIAG = "الوضع الحرّ بلا"
+LINUX_USERSPACE_NOTE = "افتُرض لينكس نطاقَ مستخدم"
+STUB_BRIDGE_NOTE = "حزمة دعم اللوحة"
+
+
+def test_freestanding_without_explicit_target_is_diagnosed():
+    """(AR) وضع حرّ بلا «--هدف» على مضيف ذي نظام تشغيل ⇒ تشخيص صريح بالافتراض
+    (ملاحظة على لينكس، تحذير على غيره) — لا فشل صامت."""
+    code, out, _ = _compile(PRINT_SOURCE, FREESTANDING)
+    assert code == 0, "الترجمة فشلت (التشخيص يجب ألّا يكون خطأً):\n" + out
+    assert INFERRED_TARGET_DIAG in out, (
+        "لا تشخيص عند وضع حرّ بلا هدف صريح — يعود الفشل الصامت في بناء النوى:\n" + out
+    )
+
+
+def test_freestanding_with_explicit_bare_metal_target_is_silent():
+    """(AR) حارس ضدّ الإفراط: هدف معدنيّ x86 صريح لا يستحقّ تشخيص الهدف المُستنتَج."""
+    code, out, _ = _compile(PRINT_SOURCE, FREESTANDING, BARE_METAL_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    assert INFERRED_TARGET_DIAG not in out, (
+        "تشخيص الهدف المُستنتَج ظهر رغم تمرير «--هدف» صراحةً (ضجيج):\n" + out
+    )
+
+
+def test_freestanding_explicit_linux_emits_userspace_note():
+    """(AR) هدف لينكس صريح: ملاحظة «نطاق مستخدم» لا تحذير — كي لا يكسر -Werror
+    بناء المضيف الحرّ. النصّ يذكر ربط -nostdlib صراحةً (لا فشلًا كاذبًا)."""
+    code, out, _ = _compile(PRINT_SOURCE, FREESTANDING, HOSTED_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    # (AR) هدف صريح ⇒ لا تشخيص «هدف مُستنتَج» إطلاقًا (لا ملاحظة نطاق مستخدم هنا).
+    assert LINUX_USERSPACE_NOTE not in out, (
+        "ملاحظة «نطاق مستخدم» ظهرت رغم أنّ الهدف صريح — التشخيص للمُستنتَج وحده:\n" + out
+    )
+
+
+def test_freestanding_bare_metal_stub_arch_notes_bsp_requirement():
+    """(AR) معدن عارٍ بمعمارية بلا جسر (ARM): ملاحظة صريحة أنّ جسري الإخراج/الوقت
+    كعبان يحتاجان تعريف BSP — بدل نواة صامتة بلا خيط يدلّ على السبب."""
+    code, out, _ = _compile(PRINT_SOURCE, FREESTANDING, ARM_BARE_TARGET)
+    assert code == 0, "الترجمة فشلت:\n" + out
+    assert STUB_BRIDGE_NOTE in out, (
+        "لا ملاحظة BSP على معدن ARM — يبقى المطوّر أمام نواة صامتة بلا تشخيص:\n" + out
+    )

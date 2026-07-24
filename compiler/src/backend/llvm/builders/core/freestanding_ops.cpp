@@ -30,26 +30,292 @@
 namespace Sad {
 namespace LLVM {
 
+namespace {
+
 // ============================================================================
-// (AR) المميِّز الواحد لجسور العتاد المباشرة — التوثيق في الترويسة.
-//      دلاليّ عبر llvm::Triple لا مطابقة نصّيّة: نظام غير معروف = معدن عارٍ
-//      (مثل ثالوث نواة النحلة i686-unknown-elf، و*-unknown-none / *-none-elf).
-// (EN) The single discriminator for direct hardware bridges — documented in the
-//      header. Semantic via llvm::Triple, not a substring match: an unknown OS
-//      means bare metal (e.g. the nahla kernel's i686-unknown-elf, and
-//      *-unknown-none / *-none-elf).
+// (AR) أرقام نداءات لينكس وصيغ التجميع — مجمّعة هنا لا متناثرة في البواثّ.
+//      الترقيم يختلف بين المعماريّتين، فأيّ خلط = نداء نظام آخر تمامًا.
+// (EN) Linux syscall numbers and asm templates — gathered here, not scattered
+//      across the emitters. The numbering differs per architecture; mixing them
+//      up silently invokes a completely different syscall.
 // ============================================================================
-bool FreestandingCodeGen::targetIsBareMetal() const {
-    if (!cg_.module_) return false;
-    // (AR) التطبيع إلزاميّ: الثالوث ثلاثيّ المكوّنات (مثل "x86_64-linux-gnu") يُقرأ
-    //      مكوّنه الثاني بائعًا لا نظامًا، فيعود getOS() بـUnknownOS ⇒ يُصنَّف لينكس
-    //      «معدنًا» خطأً. normalize يُدرج البائع الناقص ("x86_64-unknown-linux-gnu").
-    // (EN) Normalization is mandatory: a 3-component triple (e.g. "x86_64-linux-gnu")
-    //      has its second component read as the vendor, not the OS, so getOS() returns
-    //      UnknownOS and Linux would be misclassified as bare metal. normalize inserts
-    //      the missing vendor ("x86_64-unknown-linux-gnu").
-    llvm::Triple triple(llvm::Triple::normalize(cg_.module_->getTargetTriple()));
-    return triple.getOS() == llvm::Triple::UnknownOS;
+struct LinuxSyscallAbi
+{
+    const char *instruction;    // (AR) التعليمة التي تدخل النواة
+    const char *returnReg;      // (AR) قيد سجلّ الإرجاع (وهو أيضًا سجلّ الرقم)
+    const char *argRegs[3];     // (AR) قيود سجلّات الوسائط بالترتيب
+    const char *clobbers;       // (AR) السجلّات التي تدهسها التعليمة (تُلحَق آخرًا)
+    long long   write;
+    long long   time;
+    long long   exitGroup;
+};
+
+// (AR) دهس الرايات إلزاميّ في كلا الواصفين: نداء النظام يعبر حدود النواة
+//      فتعود EFLAGS مُعدَّلة (النواة تفرض DF=0، وx86_64 تستعيد rflags من r11).
+//      بدونه يُبقي LLVM مقارنةً قبل النداء وفرعَها بعده — أثبتته تجربة على llc —
+//      فينقلب الفرع. clang يبثّ هذه الثلاثة لكلّ asm في C.
+// (EN) The flags clobber is mandatory in both ABIs: a syscall crosses into the
+//      kernel and returns with EFLAGS modified (the kernel forces DF=0; x86_64
+//      restores rflags from r11). Without it LLVM keeps a compare before the
+//      call and its branch after it — demonstrated on llc — and the branch
+//      flips. clang emits these three for every C-level asm.
+#define SAD_ASM_FLAGS_CLOBBER_BARE "~{dirflag},~{fpsr},~{flags}"
+#define SAD_ASM_FLAGS_CLOBBER "," SAD_ASM_FLAGS_CLOBBER_BARE
+
+// (AR) x86_64: التعليمة `syscall` تدهس rcx وr11 (تحفظ فيهما rip وrflags).
+// (EN) x86_64: the `syscall` instruction clobbers rcx and r11 (rip/rflags).
+constexpr LinuxSyscallAbi kAbiX86_64 = {
+    "syscall", "={rax}", {"{rdi}", "{rsi}", "{rdx}"},
+    ",~{rcx},~{r11},~{memory}" SAD_ASM_FLAGS_CLOBBER,
+    /*write=*/1, /*time=*/201, /*exitGroup=*/231};
+
+// (AR) i386: البوّابة التقليديّة `int 0x80` ($$ تُنتج $ واحدًا في نصّ التجميع).
+//      تستعمل ebx وسيطًا أوّل؛ وهو سجلّ القاعدة في شيفرة PIC — لكنّ LLVM يحفظه
+//      ويستعيده تلقائيًّا حول كتلة التجميع (مؤكَّد تجريبيًّا بـllc تحت PIC)، فلا
+//      يلزم افتراض بناء ساكن.
+// (EN) i386: the classic `int 0x80` gate ($$ yields one literal $). It uses ebx
+//      as the first argument — the PIC base register — but LLVM saves and
+//      restores it around the asm block (verified with llc under PIC), so no
+//      non-PIC assumption is needed.
+constexpr LinuxSyscallAbi kAbiI386 = {
+    "int $$0x80", "={eax}", {"{ebx}", "{ecx}", "{edx}"},
+    ",~{memory}" SAD_ASM_FLAGS_CLOBBER,
+    /*write=*/4, /*time=*/13, /*exitGroup=*/252};
+
+// (AR) واصف المخرج القياسيّ في لينكس — ثابت مسمّى لا رقم عارٍ في النداء.
+// (EN) The Linux standard-output file descriptor — a named constant.
+constexpr long long kStdoutFileDescriptor = 1;
+// (AR) رمز خطأ لينكس EINTR كما يعود سالبًا من نداء النظام الخامّ.
+// (EN) The Linux EINTR error as a raw syscall returns it (negated).
+constexpr long long kErrnoEIntr = -4;
+// (AR) حالة خروج بديلة حين يكون رمز سبب الهلع صفرًا: صفرٌ يعني «نجاح».
+// (EN) Fallback exit status when the panic reason code is zero (0 means success).
+constexpr long long kPanicFallbackStatus = 1;
+// (AR) قناع حالة الخروج: النواة تحتفظ بالبايت الأدنى فقط.
+// (EN) Exit-status mask: the kernel keeps only the low byte.
+constexpr long long kExitStatusMask = 0xFF;
+
+// (AR) الواصف الموافق للمعمارية، أو nullptr إن لم نبثّ لها نداءً مضمَّنًا.
+// (EN) The ABI for this architecture, or nullptr if we emit no inline syscall.
+const LinuxSyscallAbi *linuxSyscallAbi(const llvm::Triple &triple)
+{
+    switch (triple.getArch())
+    {
+    case llvm::Triple::x86_64: return &kAbiX86_64;
+    case llvm::Triple::x86:    return &kAbiI386;
+    default:                   return nullptr;
+    }
+}
+
+// (AR) هل تملك هذه المعمارية منافذ دخل/خرج معزولة (inb/outb)؟ x86 وحدها.
+// (EN) Does this architecture have isolated port I/O (inb/outb)? x86 only.
+bool archHasPortIO(const llvm::Triple &triple)
+{
+    return triple.getArch() == llvm::Triple::x86 ||
+           triple.getArch() == llvm::Triple::x86_64;
+}
+
+// (AR) هل للمعمارية تعليمة «انتظر مقاطعة» توقف المعالج بلا امتياز حلقة 0 خاصّ؟
+//      تُستعمل في حلقة الهلع على المعدن غير x86 بدل دوران يحرق المعالج.
+// (EN) Does the architecture have a wait-for-interrupt instruction usable in a
+//      bare-metal halt loop, instead of a spin that burns the CPU?
+bool archHasWaitForInterrupt(const llvm::Triple &triple)
+{
+    switch (triple.getArch())
+    {
+    case llvm::Triple::aarch64:
+    case llvm::Triple::aarch64_be:
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb:
+    case llvm::Triple::riscv32:
+    case llvm::Triple::riscv64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// (AR) ثالوث الوحدة مُطبَّعًا. التطبيع إلزاميّ: الثالوث ثلاثيّ المكوّنات (مثل
+//      "x86_64-linux-gnu") يُقرأ مكوّنه الثاني **بائعًا لا نظامًا**، فيعود
+//      getOS() بـUnknownOS ⇒ يُصنَّف لينكس «معدنًا» خطأً. normalize يُدرج البائع
+//      الناقص ("x86_64-unknown-linux-gnu").
+// (EN) The module triple, normalized. Mandatory: a 3-component triple has its
+//      second component read as the *vendor*, not the OS, so getOS() returns
+//      UnknownOS and Linux would be misclassified as bare metal.
+llvm::Triple normalizedTriple(const llvm::Module &mod)
+{
+    return llvm::Triple(llvm::Triple::normalize(mod.getTargetTriple()));
+}
+
+} // namespace
+
+// ============================================================================
+// (AR) المميِّز الواحد لجسور العتاد — التوثيق في الترويسة. دلاليّ عبر llvm::Triple
+//      لا مطابقة نصّيّة، ويقرأ **النظام والمعمارية معًا**: نظام غير معروف = معدن
+//      عارٍ (i686-unknown-elf لنواة النحلة، *-unknown-none، *-none-elf)، ثمّ
+//      تفصل المعمارية بين معدن بمنافذ ومعدن بلا جسر معروف.
+// (EN) The single discriminator for hardware bridges — documented in the header.
+//      Semantic via llvm::Triple, not a substring match, and it reads *OS and
+//      architecture together*: an unknown OS means bare metal, then the arch
+//      splits port-I/O bare metal from bare metal with no known bridge.
+// ============================================================================
+HwBridgeProfile classifyHwBridgeProfile(const llvm::Triple &triple) {
+    if (triple.getOS() == llvm::Triple::UnknownOS)
+        return archHasPortIO(triple) ? HwBridgeProfile::BareMetalPortIO
+                                     : HwBridgeProfile::BareMetalStub;
+
+    if (triple.isOSLinux() && linuxSyscallAbi(triple) != nullptr)
+        return HwBridgeProfile::LinuxSyscall;
+
+    return HwBridgeProfile::HostedLibc;
+}
+
+HwBridgeProfile FreestandingCodeGen::hwBridgeProfile() const {
+    // (AR) بلا وحدة لا ثالوث؛ المستضاف هو الافتراض الآمن (لا تعليمات ممتازة).
+    // (EN) No module, no triple; hosted is the safe default (no privileged insns).
+    if (!cg_.module_) return HwBridgeProfile::HostedLibc;
+    return classifyHwBridgeProfile(normalizedTriple(*cg_.module_));
+}
+
+// ============================================================================
+// (AR) بثّ نداء نظام لينكس مضمَّن — التوثيق في الترويسة.
+//      هذا هو ما يجعل الوضع الحرّ **سياديًّا في الحلقة 3**: بدل ترك `time`
+//      و`putchar` للمكتبة القياسيّة (فيلزم libc، ويسقط الربط بـ-nostdlib)،
+//      نخاطب النواة مباشرةً كما تفعل libc نفسها.
+// (EN) Emit an inline Linux syscall — documented in the header. This is what
+//      makes freestanding *sovereign in ring 3*: instead of deferring `time`
+//      and `putchar` to libc (which forces libc and breaks a -nostdlib link),
+//      we talk to the kernel directly, exactly as libc itself does.
+// ============================================================================
+llvm::Value *FreestandingCodeGen::emitLinuxSyscall(
+    LinuxSyscallId id, llvm::ArrayRef<llvm::Value *> args)
+{
+    // (AR) لا يُستدعى إلّا تحت LinuxSyscall؛ الحرّاس دفاع عميق لا مسار متوقّع.
+    // (EN) Only reachable under LinuxSyscall; these guards are defence in depth.
+    if (!cg_.module_ || !cg_.builder_) return nullptr;
+    const llvm::Triple triple = normalizedTriple(*cg_.module_);
+    const LinuxSyscallAbi *abi = linuxSyscallAbi(triple);
+    if (!abi || args.size() > 3) return nullptr;
+
+    auto &B = *cg_.builder_;
+    // (AR) عرض الكلمة = عرض المؤشّر: i64 على x86_64، i32 على i386. النداء يمرّر
+    //      سجلّات بعرض الكلمة، فأيّ خلط عرض يقطع نصف مؤشّر أو يمرّر قمامة.
+    // (EN) Word width = pointer width. The syscall passes word-wide registers,
+    //      so any width mismatch truncates a pointer or passes garbage.
+    llvm::Type *wordTy = cg_.module_->getDataLayout().getIntPtrType(*cg_.context_);
+
+    const long long number = (id == LinuxSyscallId::Write)   ? abi->write
+                           : (id == LinuxSyscallId::Time)    ? abi->time
+                                                             : abi->exitGroup;
+
+    llvm::SmallVector<llvm::Type *, 4> paramTys;
+    llvm::SmallVector<llvm::Value *, 4> callArgs;
+    paramTys.push_back(wordTy);
+    callArgs.push_back(llvm::ConstantInt::get(wordTy, number));
+
+    std::string constraints = abi->returnReg;
+    constraints += ",";
+    constraints += abi->returnReg + 1; // (AR) نفس السجلّ دخلًا: أسقط '=' البادئة
+
+    for (size_t i = 0; i < args.size(); ++i)
+    {
+        llvm::Value *v = args[i];
+        if (v->getType()->isPointerTy())
+            v = B.CreatePtrToInt(v, wordTy);
+        else
+            v = B.CreateZExtOrTrunc(v, wordTy);
+        paramTys.push_back(wordTy);
+        callArgs.push_back(v);
+        constraints += ",";
+        constraints += abi->argRegs[i];
+    }
+    constraints += abi->clobbers;
+
+    llvm::InlineAsm *asmCall = llvm::InlineAsm::get(
+        llvm::FunctionType::get(wordTy, paramTys, false),
+        abi->instruction, constraints, /*hasSideEffects=*/true, /*isAlignStack=*/false);
+    // (AR) الاسم «sys.ret» لا «syscall.ret» عمدًا: الأخير يجعل السلسلة "syscall"
+    //      تظهر في IR كلّ هدف لينكس حتّى لو حُذف التجميع، فتصير بصمة اختبار كاذبة.
+    // (EN) Named «sys.ret», not «syscall.ret», on purpose: the latter makes the
+    //      string "syscall" appear in the IR even if the asm were removed, which
+    //      would turn it into a false test fingerprint.
+    return B.CreateCall(asmCall, callArgs, "sys.ret");
+}
+
+// ============================================================================
+// (AR) حلقة الكتابة الكاملة — التوثيق في الترويسة.
+// (EN) The full write loop — documented in the header.
+// ============================================================================
+void FreestandingCodeGen::emitLinuxWriteAll(llvm::Value *buf, llvm::Value *len)
+{
+    if (!cg_.builder_ || !cg_.module_ || !buf || !len) return;
+    auto &B = *cg_.builder_;
+
+    // (AR) الحارس أوّلًا — **قبل إنشاء أيّ كتلة**: إن لم يكن للهدف واصف نداء نظام
+    //      فلا نبثّ شيئًا ونترك مؤشّر الإدراج في كتلة المستدعي سليمًا (يُكمل هو
+    //      بـret). إنشاء كتل ثمّ الاكتشاف متأخّرًا كان يترك كتلًا بلا مُنهٍ وPHI
+    //      بسلف زائف ⇒ IR يرفضه المدقّق. (المستدعون محروسون بـLinuxSyscall فهذا
+    //      المسار ميت اليوم، لكن الدفاع العميق يجب أن يبثّ IR صالحًا لا فاسدًا.)
+    // (EN) Guard first — *before creating any block*: if the target has no syscall
+    //      ABI, emit nothing and leave the insert point in the caller's block
+    //      (it continues with its own ret). Creating blocks then bailing late left
+    //      unterminated blocks and a PHI with a bogus predecessor ⇒ verifier-
+    //      invalid IR. (Callers are LinuxSyscall-guarded so this is dead today,
+    //      but defence in depth must emit valid IR, not broken IR.)
+    if (linuxSyscallAbi(normalizedTriple(*cg_.module_)) == nullptr) return;
+
+    llvm::Function *fn = B.GetInsertBlock()->getParent();
+    llvm::Type *wordTy = cg_.module_->getDataLayout().getIntPtrType(*cg_.context_);
+    llvm::Type *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+
+    llvm::BasicBlock *entry = B.GetInsertBlock();
+    llvm::BasicBlock *loop = llvm::BasicBlock::Create(*cg_.context_, "write.loop", fn);
+    llvm::BasicBlock *retry = llvm::BasicBlock::Create(*cg_.context_, "write.retry", fn);
+    llvm::BasicBlock *advance = llvm::BasicBlock::Create(*cg_.context_, "write.advance", fn);
+    llvm::BasicBlock *done = llvm::BasicBlock::Create(*cg_.context_, "write.done", fn);
+
+    llvm::Value *len0 = B.CreateZExtOrTrunc(len, wordTy, "write.len");
+    B.CreateBr(loop);
+
+    // (AR) الحلقة تحمل (المؤشّر الجاري، المتبقّي).
+    // (EN) The loop carries (current pointer, remaining).
+    B.SetInsertPoint(loop);
+    llvm::PHINode *ptr = B.CreatePHI(buf->getType(), 3, "write.ptr");
+    llvm::PHINode *rem = B.CreatePHI(wordTy, 3, "write.rem");
+    ptr->addIncoming(buf, entry);
+    rem->addIncoming(len0, entry);
+
+    // (AR) الواصف مضمون الوجود بالحارس أعلاه ⇒ ret غير عدميّ (3 وسائط لا تتجاوز 3).
+    // (EN) The ABI is guaranteed by the guard above ⇒ ret is non-null (3 args ≤ 3).
+    llvm::Value *ret = emitLinuxSyscall(
+        LinuxSyscallId::Write,
+        {llvm::ConstantInt::get(wordTy, kStdoutFileDescriptor), ptr, rem});
+
+    // (AR) تقدّم فقط عند ret > 0؛ خلاف ذلك افحص السبب.
+    // (EN) Advance only when ret > 0; otherwise inspect the cause.
+    llvm::Value *wrote = B.CreateICmpSGT(ret, llvm::ConstantInt::get(wordTy, 0), "write.ok");
+    B.CreateCondBr(wrote, advance, retry);
+
+    // (AR) المقاطعة بإشارة (EINTR) تعيد المحاولة بنفس الحالة؛ أيّ خطأ آخر ينهي
+    //      الحلقة كي لا تدور أبدًا على واصف تالف.
+    // (EN) EINTR retries with the same state; any other error ends the loop so a
+    //      broken descriptor cannot spin forever.
+    B.SetInsertPoint(retry);
+    llvm::Value *interrupted = B.CreateICmpEQ(
+        ret, llvm::ConstantInt::get(wordTy, kErrnoEIntr), "write.eintr");
+    ptr->addIncoming(ptr, retry);
+    rem->addIncoming(rem, retry);
+    B.CreateCondBr(interrupted, loop, done);
+
+    B.SetInsertPoint(advance);
+    llvm::Value *nextPtr = B.CreateGEP(i8Ty, ptr, ret, "write.next");
+    llvm::Value *nextRem = B.CreateSub(rem, ret, "write.left");
+    llvm::Value *finished = B.CreateICmpEQ(nextRem, llvm::ConstantInt::get(wordTy, 0), "write.end");
+    ptr->addIncoming(nextPtr, advance);
+    rem->addIncoming(nextRem, advance);
+    B.CreateCondBr(finished, done, loop);
+
+    B.SetInsertPoint(done);
 }
 
 // ============================================================================
@@ -202,22 +468,20 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     emitFreestandingModdi3(i64Ty);
 
     // ========================================================================
-    // 24. time — Current wall-clock time (Unix epoch seconds) via CMOS RTC
-    //     (AR) جسر عتاد **للمعدن العاري وحده**: يقرأ ساعة الوقت الحقيقي (منافذ
-    //          0x70/0x71) بلا libc، ويُوفِّر رمز `time` الذي يولّده المترجم لمدمَج
-    //          «الآن» في وضع --حرّ (مثل نواة النحلة، ثالوث i686-unknown-elf).
-    //          على هدف بنظام تشغيل (لينكس/ويندوز) البرنامج عمليّةُ مستخدم في
-    //          الحلقة 3، وتعليمتا in/out ممتازتان ⇒ #GP ⇒ SIGSEGV؛ فنترك `time`
-    //          رمزًا خارجيًّا توفّره libc/CRT (نداء نظام الوقت الصحيح).
-    //     (EN) Hardware bridge **for bare metal only**: reads the RTC (ports
-    //          0x70/0x71) with no libc, providing the `time` symbol the compiler
-    //          emits for the «الآن» builtin under freestanding (--حرّ) mode (e.g.
-    //          the nahla kernel, triple i686-unknown-elf). On a target with an OS
-    //          (Linux/Windows) the program is a ring-3 userspace process and
-    //          in/out are privileged ⇒ #GP ⇒ SIGSEGV; there we leave `time`
-    //          external for libc/CRT to provide (the correct time syscall).
+    // 24. time — الوقت الحاليّ (ثوانٍ منذ 1970) بجسر يناسب البيئة
+    //     (AR) مصدر الوقت يختلف بحلقة الامتياز والمعمارية، لا بوجود libc:
+    //          • معدن x86 ⇒ ساعة CMOS عبر منفذَي 0x70/0x71 (نواة النحلة).
+    //          • لينكس ⇒ نداء النظام مباشرةً (يعمل مع libc وبدونها؛ منافذ CMOS
+    //            ممتازة في الحلقة 3 ⇒ #GP ⇒ SIGSEGV).
+    //          • معدن بمعمارية أخرى ⇒ كعب ضعيف يتجاوزه دعم اللوحة.
+    //          • نظام آخر ⇒ لا نبثّ شيئًا: يحلّه CRT.
+    //     (EN) The time source varies by privilege ring and architecture, not by
+    //          the presence of libc: x86 bare metal ⇒ CMOS RTC; Linux ⇒ the
+    //          syscall directly (works with and without libc — CMOS ports are
+    //          privileged in ring 3 ⇒ #GP ⇒ SIGSEGV); other bare metal ⇒ a weak
+    //          stub for the board; another OS ⇒ nothing, the CRT resolves it.
     // ========================================================================
-    if (targetIsBareMetal()) {
+    {
         llvm::Type* i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
         emitFreestandingTime(i8Ty, i16Ty, i64Ty, ptrTy);
     }
@@ -271,30 +535,78 @@ void FreestandingCodeGen::emitFreestandingPanic(llvm::Type* i64Ty, llvm::Type* v
     }
     cg_.builder_->CreateBr(halt);
 
-    // (AR) التوقّف الافتراضيّ: cli ثم hlt في حلقة — الدوران الفارغ السابق كان
-    //      يواصل خدمة المقاطعات بعد الهلع ويحرق المعالج. (يبقى weak_odr —
-    //      النواة تتجاوزه بسياستها الخاصّة عند الحاجة.)
-    //      ملاحظة مقصودة (عائلة الحلقة 3): cli/hlt ممتازتان، فعلى هدف بنظام تشغيل
-    //      ينتهي الهلع بـ#GP ⇒ SIGSEGV بدل توقّف نظيف. هذا **مقبول عمدًا** ولم
-    //      يُستبدَل بـabort: سبب الهلع يُطبع أعلاه قبل التوقّف (والطبع صار يعمل
-    //      مستضافًا عبر __sad_serial_putc ⇒ putchar)، والهلع حالة نهائيّة أصلًا،
-    //      بينما إقحام رمز libc «abort» هنا يكسر عقد «حرًّا: abort ⇒ __sad_panic»
-    //      الذي تحرسه اختبارات البوّابة ويُضيع رمز سبب الهلع (#248).
-    // (EN) Default halt: cli;hlt loop — the previous empty spin kept serving
-    //      interrupts after panic and burned the CPU. Still weak_odr.
-    //      Deliberate note (ring-3 family): cli/hlt are privileged, so on a target
-    //      with an OS a panic ends in #GP → SIGSEGV rather than a clean halt. This
-    //      is **intentionally accepted** and not replaced by abort: the panic reason
-    //      is printed above first (and printing now works hosted via
-    //      __sad_serial_putc ⇒ putchar), a panic is terminal anyway, whereas pulling
-    //      the libc «abort» symbol in here would break the gate-tested «freestanding:
-    //      abort ⇒ __sad_panic» contract and discard the panic reason code (#248).
+    // (AR) التوقّف يختلف بالبيئة — الحلقة الفارغة وحدها لم تعد كافية:
+    //      • معدن x86 ⇒ cli ثمّ hlt في حلقة. (الدوران الفارغ السابق كان يواصل
+    //        خدمة المقاطعات بعد الهلع ويحرق المعالج.)
+    //      • لينكس ⇒ exit_group(رمز السبب): إنهاء **نظيف** بحالة خروج تحمل رمز
+    //        سبب الهلع، بلا تعليمة ممتازة وبلا رمز libc. هذا يحسم دَين «الهلع في
+    //        الحلقة 3» الذي كان مقبولًا اضطرارًا: cli/hlt كانتا تنهيان الهلع
+    //        بـ#GP ⇒ SIGSEGV، وطريق abort كان مرفوضًا لأنّه يكسر عقد «حرًّا:
+    //        abort ⇒ __sad_panic». نداء النظام لا يفعل أيًّا من الاثنين، ويُبقي
+    //        رمز السبب (#248) مرئيًّا في حالة الخروج لا في الطبع وحده.
+    //      • معدن بمعمارية لها «انتظر مقاطعة» ⇒ حلقة wfi: توقف المعالج بدل حرقه.
+    //      • ما تبقّى (نظام آخر، معمارية مجهولة، wasm) ⇒ llvm.trap: إنهاء **فوريّ**
+    //        محايد معماريًّا وغير ممتاز وبلا رمز libc. حلقةٌ فارغة هنا كانت ستبدّل
+    //        انهيارًا صاخبًا بتعليقٍ صامت بنسبة معالج ١٠٠٪ — أسوأ للأدوات وللـCI.
+    //      (الدالّة تبقى weak_odr — النواة تتجاوزها بسياستها الخاصّة.)
+    // (EN) The halt varies by environment: x86 bare metal ⇒ cli;hlt loop (an empty
+    //      spin kept serving interrupts after panic and burned the CPU); Linux ⇒
+    //      exit_group(reason), a *clean* exit whose status carries the panic reason
+    //      — no privileged instruction, no libc symbol. This settles the «ring-3
+    //      panic» debt accepted under duress (cli/hlt ended a panic in #GP →
+    //      SIGSEGV; routing to abort was rejected as it breaks the gate-tested
+    //      «freestanding: abort ⇒ __sad_panic» contract) and keeps the reason code
+    //      (#248) visible in the exit status, not only in the printout. Bare metal
+    //      with a wait-for-interrupt ⇒ a wfi loop that idles rather than burns.
+    //      Everything else (another OS, unknown arch, wasm) ⇒ llvm.trap: an
+    //      immediate, arch-neutral, unprivileged, dependency-free stop. An empty
+    //      spin there would have traded a loud crash for a silent 100%-CPU hang —
+    //      worse for tooling and CI. (Still weak_odr — a kernel overrides it.)
     cg_.builder_->SetInsertPoint(halt);
-    llvm::InlineAsm* haltAsm = llvm::InlineAsm::get(
-        llvm::FunctionType::get(voidTy, {}, false),
-        "cli\n\thlt", "", true, false);
-    cg_.builder_->CreateCall(haltAsm, {});
-    cg_.builder_->CreateBr(halt);
+    const HwBridgeProfile profile = hwBridgeProfile();
+    const llvm::Triple triple =
+        cg_.module_ ? normalizedTriple(*cg_.module_) : llvm::Triple();
+
+    if (profile == HwBridgeProfile::BareMetalPortIO)
+    {
+        llvm::InlineAsm* haltAsm = llvm::InlineAsm::get(
+            llvm::FunctionType::get(voidTy, {}, false),
+            "cli\n\thlt", SAD_ASM_FLAGS_CLOBBER_BARE, true, false);
+        cg_.builder_->CreateCall(haltAsm, {});
+        cg_.builder_->CreateBr(halt);
+    }
+    else if (profile == HwBridgeProfile::LinuxSyscall)
+    {
+        // (AR) حالة الخروج = البايت الأدنى من رمز السبب (النواة تقنّعه)، وإن كان
+        //      صفرًا استُبدل بـ1: صفرٌ يعني «نجاح» فيُخفي الهلع عن المستدعي.
+        // (EN) Exit status = the low byte of the reason (the kernel masks it), or
+        //      1 when that is zero — a zero status means success and would hide
+        //      the panic from the caller.
+        llvm::Value* masked = cg_.builder_->CreateAnd(
+            fn->getArg(0), llvm::ConstantInt::get(i64Ty, kExitStatusMask), "panic.code");
+        llvm::Value* status = cg_.builder_->CreateSelect(
+            cg_.builder_->CreateICmpEQ(masked, llvm::ConstantInt::get(i64Ty, 0)),
+            llvm::ConstantInt::get(i64Ty, kPanicFallbackStatus), masked, "panic.status");
+        emitLinuxSyscall(LinuxSyscallId::ExitGroup, {status});
+        // (AR) النداء لا يعود؛ القفزة تُبقي الكتلة منتهية بفرع سليم.
+        // (EN) The call does not return; the branch keeps the block terminated.
+        cg_.builder_->CreateBr(halt);
+    }
+    else if (profile == HwBridgeProfile::BareMetalStub &&
+             archHasWaitForInterrupt(triple))
+    {
+        // (AR) «wfi» هي التسمية نفسها على ARM/AArch64 وRISC-V.
+        // (EN) «wfi» is spelled the same on ARM/AArch64 and RISC-V.
+        llvm::InlineAsm* wfiAsm = llvm::InlineAsm::get(
+            llvm::FunctionType::get(voidTy, {}, false), "wfi", "", true, false);
+        cg_.builder_->CreateCall(wfiAsm, {});
+        cg_.builder_->CreateBr(halt);
+    }
+    else
+    {
+        cg_.builder_->CreateIntrinsic(llvm::Intrinsic::trap, {}, {});
+        cg_.builder_->CreateUnreachable();
+    }
     cg_.builder_->restoreIP(savedIP);
 }
 
@@ -1068,23 +1380,30 @@ void FreestandingCodeGen::emitFreestandingCalloc(llvm::Type* i64Ty, llvm::Type* 
 }
 
 // ============================================================================
-// 24. time — Unix epoch seconds from the CMOS Real-Time Clock (no libc)
+// 24. time — (AR) ثوانٍ منذ 1970 بالمصدر المناسب للبيئة (CMOS / نداء نظام / كعب)
 // ============================================================================
-// (AR) يُطبّق التوقيع C: time_t time(time_t*). يتجاهل المعامل (يعيد القيمة فقط،
-//      لا يكتب عبر المؤشر كما تسمح المواصفة عند تمرير NULL). يقرأ سِجلّات CMOS
-//      عبر منفذ الفهرس 0x70 ومنفذ البيانات 0x71، يفكّ ترميز BCD، ثم يحوّل مكوّنات
-//      الوقت إلى ثوانٍ منذ 1970 بخوارزمية days-from-civil (سنوات ≥ 2000 موجبة).
-//      افتراضات: وضع BCD (افتراض QEMU/العتاد الشائع) وساعة 24، والسنة 2000–2099.
-// (EN) Implements C signature: time_t time(time_t*). Ignores the argument
-//      (returns the value only; does not write through the pointer — allowed
-//      when NULL is passed). Reads CMOS registers via index port 0x70 / data
-//      port 0x71, BCD-decodes them, then converts the broken-down time to
-//      seconds since 1970 using the days-from-civil algorithm (years ≥ 2000 are
-//      positive). Assumes BCD mode (common QEMU/hardware default), 24h, 2000–2099.
+// (AR) يُطبّق التوقيع C: time_t time(time_t*)، **بعقده كاملًا**: إن كان المؤشّر
+//      غير عدميّ كُتبت النتيجة عبره أيضًا (كانت النسخة المعدنيّة تتجاهله، فيتباعد
+//      سلوك المحرّكين: كود يقرأ ‎*tloc‎ يعمل مستضافًا ويقرأ قمامة حرًّا).
+//      المصادر: معدن x86 ⇒ سِجلّات CMOS عبر منفذ الفهرس 0x70 ومنفذ البيانات 0x71
+//      بفكّ BCD ثمّ days-from-civil؛ لينكس ⇒ نداء النظام؛ معدن آخر ⇒ صفر.
+//      افتراضات CMOS: وضع BCD (افتراض QEMU/العتاد الشائع) وساعة 24، 2000–2099.
+// (EN) Implements the C signature time_t time(time_t*) with its *full contract*:
+//      when the pointer is non-null the result is stored through it too (the
+//      bare-metal version used to ignore it, diverging from hosted behaviour —
+//      code reading *tloc worked hosted and read garbage freestanding).
+//      Sources: x86 bare metal ⇒ CMOS registers via index port 0x70 / data port
+//      0x71, BCD-decoded then days-from-civil; Linux ⇒ the syscall; other bare
+//      metal ⇒ zero. CMOS assumes BCD mode, 24h, years 2000–2099.
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingTime(
     llvm::Type* i8Ty, llvm::Type* i16Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
 {
+    const HwBridgeProfile profile = hwBridgeProfile();
+    // (AR) نظام تشغيل بلا نداء مبثوث: `time` يبقى تصريحًا خارجيًّا يحلّه CRT.
+    // (EN) An OS with no inline syscall: leave `time` external for the CRT.
+    if (profile == HwBridgeProfile::HostedLibc) return;
+
     llvm::FunctionType* ft = llvm::FunctionType::get(i64Ty, {ptrTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "time", ft);
     if (!fn) return;
@@ -1092,6 +1411,78 @@ void FreestandingCodeGen::emitFreestandingTime(
     auto savedIP = cg_.builder_->saveIP();
     auto& B = *cg_.builder_;
     llvm::Type* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+
+    // ------------------------------------------------------------------------
+    // (AR) الجزء المشترك في العقد: إن كان tloc غير عدميّ فاكتب النتيجة عبره ثمّ
+    //      أرجِعها. يُستدعى من كلّ فرع بقيمته الخاصّة.
+    // (EN) The shared contract tail: if tloc is non-null store the result through
+    //      it, then return it. Called by every branch with its own value.
+    // ------------------------------------------------------------------------
+    auto returnHonouringTloc = [&](llvm::Value* seconds) {
+        llvm::BasicBlock* store = llvm::BasicBlock::Create(*cg_.context_, "tloc.store", fn);
+        llvm::BasicBlock* done  = llvm::BasicBlock::Create(*cg_.context_, "tloc.done", fn);
+        llvm::Value* tloc = fn->getArg(0);
+        llvm::Value* isNull = B.CreateICmpEQ(
+            tloc, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "tloc.null");
+        B.CreateCondBr(isNull, done, store);
+
+        B.SetInsertPoint(store);
+        // (AR) time_t بعرض الكلمة على الهدف: i32 على i686، i64 على x86_64.
+        //      كتابة i64 ثابتة تدوس 4 بايتات وراء المتغيّر على هدف 32-بت.
+        // (EN) time_t is word-sized: i32 on i686, i64 on x86_64. A hardcoded i64
+        //      store would smash 4 bytes past the variable on a 32-bit target.
+        //      والامتداد بإشارة لا بدونها: قيمة النداء قد تعود سالبة (خطأ)، فامتدادٌ
+        //      بلا إشارة يحوّلها إلى عدد ضخم موجب على هدف 32-بت.
+        // (EN) Sign-extend, never zero-extend: the syscall may return a negative
+        //      error, which zero-extension would turn into a huge positive value.
+        llvm::Type* timeTy = cg_.module_->getDataLayout().getIntPtrType(*cg_.context_);
+        B.CreateStore(B.CreateSExtOrTrunc(seconds, timeTy, "tloc.val"), tloc);
+        B.CreateBr(done);
+
+        B.SetInsertPoint(done);
+        B.CreateRet(seconds);
+    };
+
+    // ------------------------------------------------------------------------
+    // (AR) لينكس: نداء النظام مباشرةً — لا CMOS (ممتاز) ولا libc (تبعيّة).
+    //      نمرّر صفرًا لا tloc: تخزين النواة عبر المؤشّر يكرّر ما نفعله أدناه،
+    //      ونريد المسار واحدًا لكلّ الجسور (والصفر يعمل ولو كان المؤشّر عدميًّا).
+    // (EN) Linux: the syscall directly — no CMOS (privileged), no libc (a dep).
+    //      Pass zero rather than tloc: letting the kernel store through the
+    //      pointer would duplicate the tail below; one path for every bridge.
+    // ------------------------------------------------------------------------
+    if (profile == HwBridgeProfile::LinuxSyscall)
+    {
+        llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+        B.SetInsertPoint(entry);
+        llvm::Value* raw = emitLinuxSyscall(
+            LinuxSyscallId::Time,
+            {llvm::ConstantInt::get(
+                cg_.module_->getDataLayout().getIntPtrType(*cg_.context_), 0)});
+        // (AR) دفاع عميق: الفرع مشروط بـLinuxSyscall فالواصف موجود قطعًا، لكن
+        //      تمرير nullptr إلى CreateSExtOrTrunc انهيارٌ لا تشخيص.
+        // (EN) Defence in depth: this branch implies a syscall ABI exists, but
+        //      passing nullptr into CreateSExtOrTrunc would crash, not diagnose.
+        if (!raw) raw = llvm::ConstantInt::get(i64Ty, 0);
+        returnHonouringTloc(B.CreateSExtOrTrunc(raw, i64Ty, "epoch"));
+        cg_.builder_->restoreIP(savedIP);
+        return;
+    }
+
+    // ------------------------------------------------------------------------
+    // (AR) معدن عارٍ بمعمارية بلا جسر معروف: لا inb/outb ولا نداء نظام. كعب ضعيف
+    //      يعيد صفرًا كي يرتبط البرنامج، وحزمة دعم اللوحة تتجاوزه بساعتها.
+    // (EN) Bare metal with no known bridge: no inb/outb and no syscall. A weak
+    //      stub returning zero so the program links; the BSP overrides it.
+    // ------------------------------------------------------------------------
+    if (profile == HwBridgeProfile::BareMetalStub)
+    {
+        llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+        B.SetInsertPoint(entry);
+        returnHonouringTloc(llvm::ConstantInt::get(i64Ty, 0));
+        cg_.builder_->restoreIP(savedIP);
+        return;
+    }
 
     // (AR) تجميع مُضمّن لـ inb/outb (يطابق نمط llvm_port_io_intrinsics)
     // (EN) inline asm for inb/outb (mirrors llvm_port_io_intrinsics pattern)
@@ -1189,7 +1580,7 @@ void FreestandingCodeGen::emitFreestandingTime(
                         B.CreateMul(hour, llvm::ConstantInt::get(i64Ty, 3600))),
             B.CreateMul(min, llvm::ConstantInt::get(i64Ty, 60))),
         sec, "epoch");
-    B.CreateRet(epoch);
+    returnHonouringTloc(epoch);
 
     cg_.builder_->restoreIP(savedIP);
 }

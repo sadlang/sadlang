@@ -221,6 +221,16 @@ namespace sad
 
             // ========== Target ==========
             TargetTriple target = TargetTriple::get_host_target();
+            // (AR) هل حدّد المستخدم الهدف صراحةً («--هدف» / «-T»)؟ يميّز الهدف
+            //      المقصود من ثالوث المضيف المُستنتَج. حرِج في الوضع الحرّ: بناء
+            //      نواة على مضيف لينكس بلا هدف صريح يرث ثالوثًا ذا نظام تشغيل
+            //      فتُكبَت جسور العتاد صامتةً ⇒ يفشل الربط بـ-nostdlib بلا سبب بيّن.
+            // (EN) Did the user set the target explicitly («--هدف» / «-T»)? Tells an
+            //      intended target from an inferred host triple. Critical under
+            //      freestanding: building a kernel on a Linux host with no explicit
+            //      target inherits an OS triple, so hardware bridges are silently
+            //      suppressed and the -nostdlib link fails for no visible reason.
+            bool target_explicit = false;
             bool freestanding = false;              // نظام مستقل / Freestanding (no OS)
             bool position_independent_code = false; // PIC for shared libraries
 
@@ -413,6 +423,11 @@ namespace sad
             // Get statistics
             int get_error_count() const { return error_count_; }
             int get_warning_count() const { return warning_count_; }
+            // (AR) هل ثمّة أيّ تشخيص للطبع (بما فيه الملاحظات)؟ الملاحظات لا تُعَدّ
+            //      تحذيرات، فلا يكفي warning_count لتقرير الطبع على نجاح الترجمة.
+            // (EN) Any diagnostic worth printing (notes included)? Notes are not
+            //      warnings, so warning_count alone can't decide printing on success.
+            bool has_diagnostics() const { return !diagnostics_.empty(); }
             bool has_errors() const { return error_count_ > 0; }
 
             // Print all diagnostics

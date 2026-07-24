@@ -266,6 +266,9 @@ namespace messages {
     inline constexpr const char* UnknownOptionPrefix = "خيار غير معروف / unknown option: ";
     inline constexpr const char* RequiresArgument = " — يتطلّب وسيطًا / requires an argument";
     inline constexpr const char* UnimplementedAction = ": إجراء غير مُنفَّذ في الموزِّع / unimplemented flag action";
+    inline constexpr const char* FreestandingHostTargetHosted = "الوضع الحرّ بلا «--هدف»: افتُرض ثالوث المضيف (بلا واجهة نداءات نظام مبثوثة)، فلن تُبثّ جسور العتاد (ساعة CMOS، المنفذ التسلسليّ) ولا يصلح الناتج للمعدن العاري ولا لربط «-nostdlib». مرّر «--هدف=i686-unknown-elf» أو نظيره لبناء نواة / freestanding without «--هدف»: assumed the host triple (no inline syscall ABI), so hardware bridges (CMOS clock, serial port) are not emitted and the output is neither bare-metal nor -nostdlib capable. Pass «--هدف=i686-unknown-elf» or similar to build a kernel: ";
+    inline constexpr const char* FreestandingHostTargetLinux = "الوضع الحرّ بلا «--هدف»: افتُرض لينكس نطاقَ مستخدم (تُبثّ نداءات النظام، ويُربط «-nostdlib»). إن قصدت نواة معدنيّة فمرّر «--هدف=i686-unknown-elf» أو نظيره / freestanding without «--هدف»: assumed Linux userspace (syscalls are emitted, -nostdlib links). For a bare-metal kernel pass «--هدف=i686-unknown-elf» or similar: ";
+    inline constexpr const char* FreestandingBareMetalStubBridges = "الوضع الحرّ على معدن عارٍ بمعمارية بلا منافذ معزولة ولا نداء نظام مبثوث: جسرا الإخراج (المنفذ التسلسليّ) والوقت (الساعة) كعبان يعيدان لا شيء/صفرًا. عرِّف «__sad_serial_putc» و«time» في حزمة دعم اللوحة (BSP) وإلّا فلا مخرجات زمن التشغيل / freestanding on bare metal with no isolated ports and no inline syscall: the output (serial) and time (clock) bridges are stubs returning nothing/zero. Define «__sad_serial_putc» and «time» in a board-support package (BSP), otherwise there is no runtime output: ";
 } // namespace messages
 
 } // namespace cli

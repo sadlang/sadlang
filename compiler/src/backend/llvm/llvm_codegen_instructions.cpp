@@ -184,18 +184,23 @@ namespace Sad
             //      libc symbol freestanding. An in-module freestanding sort is a
             //      non-trivial codegen patch ⇒ gated until designed.
             case SIROpcode::BUILTIN_ARRAY_SORT:      return std::string(Nar::SORT);       // رتب (qsort)
-            // (AR) الآن: لم يعُد مُبوَّبًا حرًّا. مُصدره يستدعي `time`، ويُحلّ حسب الهدف
-            //      (emitFreestandingTime في freestanding_ops.cpp): على المعدن العاري
-            //      (ثالوث بلا "linux") يُبثّ داخل الوحدة عبر ساعة CMOS الحقيقيّة (منافذ
-            //      0x70/0x71 بلا libc)؛ على هدف لينكس يُترَك خارجيًّا فيوفّره نداء نظام
-            //      libc (قراءة منافذ CMOS في الحلقة 3 = #GP⇒SIGSEGV). التعليل القديم
-            //      «لا ساعة جدار على المعدن» بائت: كلا الجسرين موجود.
-            // (EN) now/timestamp: no longer gated freestanding. Its emitter calls `time`,
-            //      resolved per target (emitFreestandingTime in freestanding_ops.cpp): on
-            //      bare metal (triples without "linux") it is emitted in-module via the
-            //      CMOS RTC (ports 0x70/0x71, no libc); on a Linux target it is left
-            //      external for libc's time syscall (CMOS port I/O in ring 3 = #GP→SIGSEGV).
-            //      The old «no bare-metal wall clock» rationale is stale: both bridges exist.
+            // (AR) الآن: لم يعُد مُبوَّبًا حرًّا. مُصدره يستدعي `time`، ويُحلّ حسب بيئة
+            //      الجسر (classifyHwBridgeProfile/emitFreestandingTime في
+            //      freestanding_ops.cpp) بأربع حالات لا حالتين:
+            //        • معدن x86 ⇒ ساعة CMOS الحقيقيّة (منافذ 0x70/0x71 بلا libc).
+            //        • لينكس (x86_64/i386) ⇒ نداء نظام `time` مبثوث داخل الوحدة —
+            //          يعمل مع libc وبدونها؛ لا CMOS (منافذ في الحلقة 3 = #GP⇒SIGSEGV).
+            //        • معدن بمعمارية أخرى ⇒ كعب يعيد صفرًا يتجاوزه دعم اللوحة.
+            //        • نظام آخر (ويندوز/ماك) ⇒ يُترَك خارجيًّا يحلّه CRT.
+            //      التعليل القديم «لا ساعة جدار على المعدن» بائت: الجسور كلّها موجودة.
+            // (EN) now/timestamp: no longer gated freestanding. Its emitter calls
+            //      `time`, resolved per bridge profile (classifyHwBridgeProfile /
+            //      emitFreestandingTime in freestanding_ops.cpp) across four cases,
+            //      not two: x86 bare metal ⇒ the CMOS RTC (ports 0x70/0x71, no libc);
+            //      Linux (x86_64/i386) ⇒ an in-module `time` syscall (works with and
+            //      without libc; no CMOS — ports in ring 3 = #GP→SIGSEGV); other bare
+            //      metal ⇒ a zero stub for the BSP; another OS (Windows/macOS) ⇒ left
+            //      external for the CRT. The old «no bare-metal wall clock» is stale.
             // (AR) عشوائي_آمن: يستدعي BCryptGenRandom (خدمة نظام تشغيل) — غائبة حرًّا
             //      بداهةً، ولا مصدر عشوائيّة معياريّ على المعدن (نفس ميثاق «عشوائي»).
             // (EN) secure-random: calls BCryptGenRandom (an OS service) — absent

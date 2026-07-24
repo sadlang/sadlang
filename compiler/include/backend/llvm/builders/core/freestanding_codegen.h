@@ -7,11 +7,79 @@
 #ifndef SAD_LLVM_FREESTANDING_CODEGEN_H
 #define SAD_LLVM_FREESTANDING_CODEGEN_H
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Value.h>
+#include <llvm/TargetParser/Triple.h>
+
+#include <cstdint>
 
 namespace Sad { namespace LLVM {
 
 class LLVMCodeGen;
+
+// ============================================================================
+// (AR) بيئة جسور العتاد — المميِّز الوحيد لكلّ توليد يلمس العتاد أو نظام التشغيل
+//      في الوضع الحرّ. راية «--حرّ» وحدها لا تكفي: هي تصف **غياب المكتبة
+//      القياسيّة**، لا **حلقة الامتياز** ولا **المعمارية**. الجسور تختلف بالثلاثة.
+// (EN) Hardware-bridge environment — the single discriminator for every emission
+//      that touches hardware or the OS in freestanding mode. The «--حرّ» flag
+//      alone is not enough: it describes the *absence of a standard library*,
+//      not the *privilege ring* nor the *architecture*. Bridges differ by all.
+// ============================================================================
+enum class HwBridgeProfile
+{
+    // (AR) معدن عارٍ على x86/x86_64: الحلقة 0 — منافذ الدخل/الخرج وcli/hlt متاحة.
+    // (EN) Bare metal on x86/x86_64: ring 0 — port I/O and cli/hlt are available.
+    BareMetalPortIO,
+    // (AR) معدن عارٍ على معمارية بلا جسر معروف (aarch64/riscv64/...): تعليمات
+    //      inb/outb غير موجودة أصلًا، والمنفذ التسلسليّ يُخاطَب بذاكرة مُهيَّأة
+    //      خاصّة باللوحة. نبثّ أكعابًا ضعيفة محايدة يتجاوزها دعم اللوحة (BSP).
+    // (EN) Bare metal on an architecture with no known bridge: inb/outb do not
+    //      exist and the UART is board-specific MMIO. Emit neutral weak stubs
+    //      for the board support package to override.
+    BareMetalStub,
+    // (AR) لينكس بمعمارية لها نداء نظام مبثوث (x86_64: syscall، i386: int 0x80):
+    //      الحلقة 3 — نخاطب النواة مباشرةً، فيعمل الوضع الحرّ **مع libc وبدونها**.
+    // (EN) Linux on an architecture with an inline syscall (x86_64: syscall,
+    //      i386: int 0x80): ring 3 — talk to the kernel directly, so freestanding
+    //      works both with and without libc.
+    LinuxSyscall,
+    // (AR) نظام تشغيل آخر (ويندوز/ماك) أو لينكس بمعمارية لا نبثّ لها نداء نظام:
+    //      نترك الرموز للمكتبة القياسيّة/CRT يحلّها الرابط.
+    // (EN) Another OS (Windows/macOS), or Linux on an architecture we do not emit
+    //      a syscall for: leave the symbols for the libc/CRT linker resolution.
+    HostedLibc
+};
+
+// ============================================================================
+// (AR) نداءات النظام المستعملة في الجسور — التعداد يمنع تناثر الأرقام السحريّة،
+//      والترجمة إلى رقم تتمّ في مكان واحد لأنّ الترقيم يختلف بين x86_64 وi386.
+// (EN) The syscalls used by the bridges — the enum keeps magic numbers out of
+//      the emitters; the mapping lives in one place because x86_64 and i386
+//      number them differently.
+// ============================================================================
+enum class LinuxSyscallId
+{
+    Write,     // (AR) write(fd, buf, len)
+    Time,      // (AR) time(tloc) — ثوانٍ منذ 1970
+    ExitGroup  // (AR) exit_group(status) — إنهاء العمليّة بكاملها
+};
+
+// ============================================================================
+// (AR) تصنيف ثالوث هدف إلى بيئة جسور. **دالّة حرّة عمدًا**: يستشيرها السائق أيضًا
+//      ليطابق تشخيصُه ما تفعله الخلفيّة فعلًا؛ تكرار المحكّ في موضعين يُنتج
+//      تحذيرًا يناقض التوليد.
+//      ⚠️ يجب أن يكون الثالوث **مُطبَّعًا** (llvm::Triple::normalize): الثالوث
+//      ثلاثيّ المكوّنات مثل "x86_64-linux-gnu" يُقرأ مكوّنه الثاني بائعًا لا
+//      نظامًا، فيعود getOS() بـUnknownOS ⇒ لينكس يُصنَّف «معدنًا» خطأً.
+// (EN) Classify a target triple into a bridge profile. Deliberately a free
+//      function: the driver consults it too, so its diagnostics match what the
+//      backend actually emits — duplicating the test would let a warning
+//      contradict codegen. ⚠️ The triple must be normalized: a 3-component
+//      triple reads its second field as vendor, not OS.
+// ============================================================================
+HwBridgeProfile classifyHwBridgeProfile(const llvm::Triple &normalizedTriple);
 
 class FreestandingCodeGen
 {
@@ -21,18 +89,31 @@ public:
     FreestandingCodeGen(const FreestandingCodeGen &) = delete;
     FreestandingCodeGen &operator=(const FreestandingCodeGen &) = delete;
 
-    // (AR) هل الهدف «معدن عارٍ» (بلا نظام تشغيل) — أي تُنفَّذ الشيفرة في الحلقة 0؟
-    //      المميِّز الواحد لكلّ جسور العتاد المباشرة في وقت التشغيل الحرّ (منافذ
-    //      الدخل/الخرج، cli/hlt): على هدف بنظام تشغيل يعمل البرنامج عمليّةَ مستخدم
-    //      في الحلقة 3، فالتعليمات الممتازة تُثير خطأ حماية عامّ (#GP) ⇒ SIGSEGV،
-    //      فيلزم مسار مستضاف بديل (libc) بدل لمس العتاد.
-    // (EN) Is the target bare metal (no OS) — i.e. does the code run in ring 0?
-    //      The single discriminator for every direct hardware bridge in the
-    //      freestanding runtime (port I/O, cli/hlt): on a target with an OS the
-    //      program is a ring-3 userspace process where privileged instructions
-    //      raise a general protection fault (#GP) → SIGSEGV, so a hosted (libc)
-    //      path must be emitted instead of touching hardware.
-    bool targetIsBareMetal() const;
+    // (AR) بيئة الجسور المستنتَجة من ثالوث الوحدة (نظامًا **ومعمارية**).
+    // (EN) The bridge profile inferred from the module triple (OS *and* arch).
+    HwBridgeProfile hwBridgeProfile() const;
+
+    // (AR) يبثّ نداء نظام لينكس مضمَّنًا ويعيد قيمة الإرجاع بعرض كلمة الهدف.
+    //      يقبل حتّى ثلاثة وسائط (كافية لكلّ جسورنا). الوسائط تُحوَّل تلقائيًّا إلى
+    //      عرض الكلمة (i64 على x86_64، i32 على i386) — المؤشّرات عبر ptrtoint.
+    //      يعيد nullptr إن لم يكن للهدف واصف نداء نظام.
+    // (EN) Emits an inline Linux syscall and returns its result at target word
+    //      width. Takes up to three arguments (enough for every bridge here);
+    //      arguments are coerced to the word type (pointers via ptrtoint).
+    //      Returns nullptr when the target has no syscall ABI.
+    llvm::Value *emitLinuxSyscall(LinuxSyscallId id,
+                                  llvm::ArrayRef<llvm::Value *> args);
+
+    // (AR) يبثّ حلقة كتابة كاملة على المخرج القياسيّ: تعالج **الكتابة الجزئيّة**
+    //      و**المقاطعة بإشارة** (EINTR). نداء write خامّ بلا حلقة يُسقط بايتات
+    //      صامتةً إن وصلت إشارة — وهو ما كانت putchar المخزَّنة تخفيه.
+    //      يفترض المستدعي أنّ البيئة LinuxSyscall، ويترك مؤشّر الإدراج في كتلة
+    //      «انتهى» صالحة للمتابعة.
+    // (EN) Emits a full write loop to stdout handling partial writes and EINTR.
+    //      A raw one-shot write silently drops bytes when a signal lands — which
+    //      buffered putchar used to hide. Assumes a LinuxSyscall environment and
+    //      leaves the insert point in a valid «done» block.
+    void emitLinuxWriteAll(llvm::Value *buf, llvm::Value *len);
 
     void emitFreestandingRuntime();
     void emitFreestandingMalloc(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);

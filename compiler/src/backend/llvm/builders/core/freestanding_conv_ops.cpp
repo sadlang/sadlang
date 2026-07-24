@@ -91,21 +91,52 @@ namespace Sad
             //      الحرّ (printf/puts/putint ⇒ «اطبع») تمرّ من هنا، كان أيّ طبع في
             //      برنامج حرّ مستضاف ينهار — وهذا تفسير دَين «اطبع_سطر يُسقط
             //      البرنامج» المرصود في سطح مكتب sad-os.
-            //      البديل المستضاف: putchar من libc/CRT (المكافئ الطبيعيّ لمنفذ
-            //      COM1: بايت واحد إلى المخرج القياسيّ). يُترك تصريحًا خارجيًّا
-            //      يحلّه الرابط، تمامًا كعقد `time` على الهدف المستضاف.
+            //      البديلان بحسب البيئة:
+            //      • لينكس ⇒ write(1, &c, 1) بنداء نظام مضمَّن. سياديّ: يعمل
+            //        **بلا libc** أيضًا (‎-nostdlib‎)، وهو بالضبط ما تفعله putchar
+            //        في جوفها. هذا يُلغي آخر تبعيّة مكتبة قياسيّة في مسار الطبع.
+            //      • نظام آخر (ويندوز/ماك) ⇒ putchar من CRT: المكافئ المحمول
+            //        الوحيد بلا واجهة نداءات نظام مستقرّة.
             // (EN) On a target with an OS the program is a ring-3 userspace process
             //      and in/out are privileged: polling 0x3FD or writing 0x3F8 raises
             //      a general protection fault (#GP) → immediate SIGSEGV. Since all
-            //      freestanding output (printf/puts/putint ⇒ «اطبع») funnels through
-            //      here, any print in a hosted freestanding program crashed — this is
-            //      the root cause of the «اطبع_سطر kills the program» debt observed in
-            //      the sad-os desktop. The hosted substitute is libc/CRT putchar (the
-            //      natural equivalent of the COM1 port: one byte to standard output),
-            //      left as an external declaration for the linker to resolve, exactly
-            //      like the `time` contract on a hosted target.
+            //      freestanding output funnels through here, any print in a hosted
+            //      freestanding program crashed — the root cause of the «اطبع_سطر
+            //      kills the program» debt seen in the sad-os desktop. Two
+            //      substitutes: Linux ⇒ an inline write(1, &c, 1) syscall, which is
+            //      sovereign (works with *no libc* at all, i.e. -nostdlib) and is
+            //      exactly what putchar does internally — removing the last libc
+            //      dependency from the print path; another OS (Windows/macOS) ⇒
+            //      CRT putchar, the only portable equivalent absent a stable
+            //      syscall interface.
             // ====================================================================
-            if (!targetIsBareMetal())
+            const HwBridgeProfile profile = hwBridgeProfile();
+
+            if (profile == HwBridgeProfile::LinuxSyscall)
+            {
+                llvm::BasicBlock *linuxEntry =
+                    llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+                cg_.builder_->SetInsertPoint(linuxEntry);
+
+                // (AR) النداء يحتاج عنوانًا: نحجز بايتًا على المكدّس ونكتب فيه.
+                //      عبر حلقة الكتابة الكاملة لا نداءٍ خامّ: إشارة تصل أثناء
+                //      النداء تعيده بـEINTR فيضيع المحرف صامتًا (كانت putchar
+                //      المخزَّنة تخفي هذا).
+                // (EN) The syscall needs an address: spill the byte to the stack.
+                //      Through the full write loop, not a raw call: a signal
+                //      landing mid-call returns EINTR and the byte is silently
+                //      lost (buffered putchar used to hide this).
+                llvm::Value *slot = cg_.builder_->CreateAlloca(i8Ty, nullptr, "ch.slot");
+                cg_.builder_->CreateStore(fn->getArg(0), slot);
+                emitLinuxWriteAll(
+                    slot, llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1));
+                cg_.builder_->CreateRetVoid();
+
+                cg_.builder_->restoreIP(savedIP);
+                return;
+            }
+
+            if (profile == HwBridgeProfile::HostedLibc)
             {
                 llvm::BasicBlock *hostedEntry =
                     llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
@@ -123,6 +154,28 @@ namespace Sad
                 llvm::Value *ch =
                     cg_.builder_->CreateZExt(fn->getArg(0), i32Ty, "ch");
                 cg_.builder_->CreateCall(putcharFn, {ch});
+                cg_.builder_->CreateRetVoid();
+
+                cg_.builder_->restoreIP(savedIP);
+                return;
+            }
+
+            // ====================================================================
+            // (AR) معدن عارٍ بمعمارية بلا منافذ معزولة (aarch64/riscv64/...):
+            //      inb/outb **غير موجودتين في مجموعة التعليمات أصلًا**، والمنفذ
+            //      التسلسليّ يُخاطَب بذاكرة مُهيَّأة يختلف عنوانها بكلّ لوحة. بثّ
+            //      شيفرة x86 هنا كان يُنتج تجميعًا لا يُترجَم. كعب صامت يرتبط،
+            //      وحزمة دعم اللوحة تتجاوزه بتعريف قويّ لـ__sad_serial_putc.
+            // (EN) Bare metal without isolated ports: inb/outb do not exist in the
+            //      ISA at all, and the UART is board-specific MMIO. Emitting x86
+            //      code here produced assembly that would not build. A silent stub
+            //      links, and the BSP overrides __sad_serial_putc strongly.
+            // ====================================================================
+            if (profile == HwBridgeProfile::BareMetalStub)
+            {
+                llvm::BasicBlock *stubEntry =
+                    llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+                cg_.builder_->SetInsertPoint(stubEntry);
                 cg_.builder_->CreateRetVoid();
 
                 cg_.builder_->restoreIP(savedIP);
@@ -171,6 +224,57 @@ namespace Sad
                 return;
 
             auto savedIP = cg_.builder_->saveIP();
+
+            // ====================================================================
+            // (AR) على لينكس: نداء نظام **واحد** للسلسلة كاملة بدل نداء لكلّ بايت.
+            //      المسار العامّ (بايت⇒__sad_serial_putc) صحيح لكنّه على نطاق
+            //      المستخدم يعني نداء نظام لكلّ محرف: سطر حالة من 80 محرفًا في حلقة
+            //      إطارات = 80 عبورًا للنواة كلّ إطار. نقيس الطول ثمّ نكتب دفعةً.
+            //      (على المعدن لا معنى للتجميع: المنفذ التسلسليّ بايت-بايت أصلًا.)
+            // (EN) On Linux: a *single* syscall for the whole string instead of one
+            //      per byte. The generic byte path is correct but in userspace it
+            //      means a kernel crossing per character — an 80-char status line
+            //      in a frame loop is 80 crossings per frame. Measure the length,
+            //      then write once. (Batching is meaningless on bare metal: the
+            //      serial port is byte-at-a-time by nature.)
+            // ====================================================================
+            if (hwBridgeProfile() == HwBridgeProfile::LinuxSyscall)
+            {
+                llvm::BasicBlock *lenEntry =
+                    llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+                llvm::BasicBlock *lenLoop =
+                    llvm::BasicBlock::Create(*cg_.context_, "len.loop", fn);
+                llvm::BasicBlock *lenNext =
+                    llvm::BasicBlock::Create(*cg_.context_, "len.next", fn);
+                llvm::BasicBlock *lenDone =
+                    llvm::BasicBlock::Create(*cg_.context_, "len.done", fn);
+
+                cg_.builder_->SetInsertPoint(lenEntry);
+                llvm::Value *buf = fn->getArg(0);
+                cg_.builder_->CreateBr(lenLoop);
+
+                cg_.builder_->SetInsertPoint(lenLoop);
+                llvm::PHINode *n = cg_.builder_->CreatePHI(i64Ty, 2, "len");
+                n->addIncoming(llvm::ConstantInt::get(i64Ty, 0), lenEntry);
+                llvm::Value *at = cg_.builder_->CreateGEP(i8Ty, buf, n, "len.ptr");
+                llvm::Value *byte = cg_.builder_->CreateLoad(i8Ty, at, "len.ch");
+                llvm::Value *atNul = cg_.builder_->CreateICmpEQ(
+                    byte, llvm::ConstantInt::get(i8Ty, 0), "len.nul");
+                cg_.builder_->CreateCondBr(atNul, lenDone, lenNext);
+
+                cg_.builder_->SetInsertPoint(lenNext);
+                llvm::Value *nNext = cg_.builder_->CreateAdd(
+                    n, llvm::ConstantInt::get(i64Ty, 1), "len.inc");
+                n->addIncoming(nNext, lenNext);
+                cg_.builder_->CreateBr(lenLoop);
+
+                cg_.builder_->SetInsertPoint(lenDone);
+                emitLinuxWriteAll(buf, n);
+                cg_.builder_->CreateRetVoid();
+
+                cg_.builder_->restoreIP(savedIP);
+                return;
+            }
 
             llvm::BasicBlock *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
             llvm::BasicBlock *loop = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
