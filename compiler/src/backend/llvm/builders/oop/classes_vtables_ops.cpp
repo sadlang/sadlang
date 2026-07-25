@@ -134,7 +134,19 @@ namespace Sad
                 bool isADTStruct = !sirClass->fieldOrder_.empty() &&
                                    sirClass->fieldOrder_[0] == "__tag";
 
-                if (!isADTStruct)
+                // (AR) RFC #53 F2-ب: بنية @تمثيل_سي تُسقِط ترويسة vtable ⇒ الحقل 0 هو أوّل حقل
+                //      للمستخدم، فيطابق التخطيطُ بنيةَ C نظيرةً (بلا إزاحة 8 بايت خفيّة). نسجّلها
+                //      لتُصحّح إزاحات GEP في getFieldStructIndex ويُتخطّى تخزين vtable.
+                // (EN) RFC #53 F2-ب: a @تمثيل_سي struct drops the vtable header ⇒ field 0 is the
+                //      first user field, so the layout matches a peer C struct (no hidden 8-byte
+                //      shift). Register it so getFieldStructIndex fixes GEP offsets and the
+                //      vtable store is skipped.
+                if (sirClass->isCRepr)
+                {
+                    cg_.context_info_.cReprClasses.insert(className);
+                }
+
+                if (!isADTStruct && !sirClass->isCRepr)
                 {
                     // (AR) الحقل 0: مؤشر vtable (ptr) — لدعم الاستدعاء الافتراضي
                     // (EN) Field 0: vtable pointer (ptr) — for virtual dispatch
@@ -676,6 +688,40 @@ namespace Sad
                     continue;
                 const std::string &className = cls->name;
 
+                // (AR) RFC #53 F2-ب: بنية @تمثيل_سي بلا ترويسة vtable في الحقل 0 (الحقل 0 بيانات
+                //      المستخدم). لو بُني لها vtable وسُجّل في classVtableLayout، لأصبح استدعاء
+                //      طريقةٍ عليها إرسالًا افتراضيًّا يقرأ الحقل 0 كمؤشّر vtable ⇒ انهيار/تنفيذ
+                //      عشوائيّ (مراجعة أميليا C-1). البنى غير موروثة ⇒ طرقها غير افتراضيّة أصلًا،
+                //      فتخطّي الـvtable يجعل الاستدعاء مباشرًا (className.method) بإزاحات حقول
+                //      صحيحة عبر getFieldStructIndex. الهدم يُستدعى بالاسم لا عبر vtable.
+                // (EN) RFC #53 F2-ب: a @تمثيل_سي struct has no vtable header (field 0 is user data).
+                //      Building a vtable and registering it in classVtableLayout would turn a
+                //      method call into a virtual dispatch that reads field 0 as a vtable pointer
+                //      ⇒ crash/UB (Amelia review C-1). Structs don't inherit ⇒ their methods are
+                //      never virtual, so skipping the vtable makes calls direct (className.method)
+                //      with correct field offsets via getFieldStructIndex. Destructors dispatch by
+                //      name, not through the vtable.
+                if (cg_.context_info_.cReprClasses.count(className))
+                {
+                    // (AR) سجّل الهدم إن وُجد (يُستدعى بالاسم) دون بناء vtable
+                    // (EN) Still register a destructor (called by name) without a vtable
+                    for (const auto &[methodName, methodFunc] : cls->methods_)
+                    {
+                        std::string shortName = methodName;
+                        size_t dp = methodName.find('.');
+                        if (dp != std::string::npos)
+                            shortName = methodName.substr(dp + 1);
+                        if (shortName == "\xD9\x87\xD8\xAF\xD9\x85" || shortName == "__del__" ||
+                            shortName == "__destroy__")
+                        {
+                            cg_.context_info_.classDestructors[className] =
+                                (methodName.find('.') != std::string::npos) ? methodName
+                                                                            : (className + "." + methodName);
+                        }
+                    }
+                    continue;
+                }
+
                 // (AR) بناء تخطيط vtable: ابدأ من الأب
                 // (EN) Build vtable layout: start from parent
                 std::vector<std::string> vtableSlots;
@@ -839,6 +885,15 @@ namespace Sad
          */
         void ClassesVtablesCodeGen::storeVtablePtr(llvm::Value *objPtr, const std::string &className)
         {
+            // (AR) RFC #53 F2-ب: بنية @تمثيل_سي بلا ترويسة vtable — الحقل 0 هو أوّل حقل مستخدم،
+            //      فتخزين مؤشّر vtable هنا سيطمس بياناته. نتخطّاه صراحةً (بنى البيانات بلا vtable
+            //      عادةً، لكن هذا حارس متانة).
+            // (EN) RFC #53 F2-ب: a @تمثيل_سي struct has no vtable header — field 0 is the first
+            //      user field, so storing a vtable pointer here would clobber its data. Skip it
+            //      explicitly (data structs usually have no vtable, but this is a robustness guard).
+            if (cg_.context_info_.cReprClasses.count(className))
+                return;
+
             auto vtableIt = cg_.context_info_.classVtableGlobals.find(className);
             if (vtableIt == cg_.context_info_.classVtableGlobals.end())
                 return; // لا vtable
@@ -1011,6 +1066,14 @@ namespace Sad
          */
         int ClassesVtablesCodeGen::getFieldStructIndex(const std::string &className, int userFieldIndex) const
         {
+            // (AR) RFC #53 F2-ب: بنية @تمثيل_سي بلا ترويسة vtable ⇒ الحقل 0 هو أوّل حقل مستخدم،
+            //      فلا إزاحة. غيرها: الحقل 0 مؤشر vtable ⇒ +1.
+            // (EN) RFC #53 F2-ب: a @تمثيل_سي struct has no vtable header ⇒ field 0 is the first
+            //      user field, no offset. Otherwise field 0 is the vtable pointer ⇒ +1.
+            if (cg_.context_info_.cReprClasses.count(className))
+            {
+                return userFieldIndex;
+            }
             // كل صنف يملك vtable pointer في الحقل 0
             return userFieldIndex + 1;
         }

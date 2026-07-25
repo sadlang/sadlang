@@ -419,6 +419,12 @@ namespace Sad
                     // (EN) Create SIR "class" without inheritance to represent struct
                     auto sirClass = std::make_shared<SIRClass>(structDecl->name, "");
 
+                    // (AR) RFC #53 F2-ب: نقل سمة @تمثيل_سي — بنيةٌ بتخطيط C-متوافق (بلا ترويسة
+                    //      vtable في الحقل 0) لعبور حدود C في الربط الخارجيّ (FFI).
+                    // (EN) RFC #53 F2-ب: carry the @تمثيل_سي flag — a C-ABI-layout struct (no
+                    //      vtable header at field 0) so it can cross the C boundary in FFI.
+                    sirClass->isCRepr = structDecl->isCRepr;
+
                     // (AR) إضافة الحقول
                     // (EN) Add fields
                     for (const auto &field : structDecl->fields)

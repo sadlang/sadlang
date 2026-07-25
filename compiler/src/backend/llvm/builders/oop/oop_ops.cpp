@@ -218,10 +218,11 @@ namespace Sad
                             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                             cg_.builder_->CreateStore(dataPtr, dataGep);
 
-                            // (AR) تخزين مؤشر المصفوفة في حقل الكائن (fieldIdx + 1 بسبب vtable في الحقل 0)
-                            // (EN) Store array pointer in object field (fieldIdx + 1 because vtable is field 0)
+                            // (AR) الإزاحة عبر getFieldStructIndex — تُسقِط ترويسة vtable لبنى @تمثيل_سي [RFC #53 F2-ب]
+                            // (EN) Offset via getFieldStructIndex — drops the vtable header for @تمثيل_سي structs [RFC #53 F2-ب]
                             llvm::Value *objFieldGep = cg_.builder_->CreateStructGEP(
-                                structType, rawPtr, fieldIdx + 1, fieldName + ".objfield");
+                                structType, rawPtr, cg_.getFieldStructIndex(className, fieldIdx),
+                                fieldName + ".objfield");
                             cg_.builder_->CreateStore(arrPtr, objFieldGep);
                         }
                         fieldIdx++;

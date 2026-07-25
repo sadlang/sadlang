@@ -135,10 +135,13 @@ namespace Sad
                                     llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                                     cg_.builder_->CreateStore(dataPtr, dataGep);
 
-                                    // (AR) تخزين مؤشر المصفوفة في حقل الكائن (fieldIdx + 1 بسبب vtable)
-                                    // (EN) Store array pointer in object field (fieldIdx + 1 for vtable)
+                                    // (AR) تخزين مؤشر المصفوفة في حقل الكائن — الإزاحة عبر
+                                    //      getFieldStructIndex (تُسقِط ترويسة vtable لبنى @تمثيل_سي) [RFC #53 F2-ب]
+                                    // (EN) Store array pointer in object field — offset via
+                                    //      getFieldStructIndex (drops the vtable header for @تمثيل_سي structs) [RFC #53 F2-ب]
                                     llvm::Value *objFieldGep = cg_.builder_->CreateStructGEP(
-                                        structType, rawPtr, fieldIdx + 1, fieldName + ".objfield");
+                                        structType, rawPtr, cg_.getFieldStructIndex(className, fieldIdx),
+                                        fieldName + ".objfield");
                                     cg_.builder_->CreateStore(arrPtr, objFieldGep);
 
 #ifndef NDEBUG
@@ -208,10 +211,13 @@ namespace Sad
 
                                 if (!defaultVal.empty() && defaultType != SadTypeKind::Unknown)
                                 {
-                                    // (AR) fieldIdx2 + 1 لأن الحقل 0 هو vtable pointer
-                                    // (EN) fieldIdx2 + 1 because field 0 is vtable pointer
+                                    // (AR) الإزاحة عبر getFieldStructIndex: +1 لتجاوز vtable في
+                                    //      الأصناف العاديّة، وبلا إزاحة لبنى @تمثيل_سي [RFC #53 F2-ب]
+                                    // (EN) Offset via getFieldStructIndex: +1 past vtable for regular
+                                    //      classes, no offset for @تمثيل_سي structs [RFC #53 F2-ب]
+                                    int slotIdx = cg_.getFieldStructIndex(className, fieldIdx2);
                                     llvm::Value *fieldGep = cg_.builder_->CreateStructGEP(
-                                        structType, rawPtr, fieldIdx2 + 1, fieldName + ".default_init");
+                                        structType, rawPtr, slotIdx, fieldName + ".default_init");
 
                                     // (AR) ISSUE-063: خانة الحقل قد تكون %SadDyn (رفعها المسحُ
                                     //      المسبق) ⇒ القيمة الابتدائيّة تُعلَّب (toDyn) بدل كتابة
@@ -220,7 +226,7 @@ namespace Sad
                                     //      pre-scan) ⇒ pack the default value (toDyn) instead of
                                     //      writing its raw bits over the {kind, payload} pair.
                                     llvm::Type *fieldSlotTy =
-                                        structType->getElementType(fieldIdx2 + 1);
+                                        structType->getElementType(slotIdx);
                                     llvm::StructType *dynSlotTy = getSadDynType(*cg_.context_);
                                     auto storeDefault = [&](llvm::Value *cv, SadTypeKind kind)
                                     {

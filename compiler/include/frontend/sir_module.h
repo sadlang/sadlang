@@ -522,6 +522,7 @@ namespace Sad
                 std::string parentClass;                                                ///< (AR) الصنف الأب (للوراثة) / (EN) Parent class (for inheritance)
                 bool isAbstract = false;                                                ///< (AR) هل الصنف مجرد / (EN) Is class abstract
                 bool isSealed = false;                                                  ///< (AR) هل الصنف محكم / (EN) Is class sealed
+                bool isCRepr = false;                                                   ///< (AR) تخطيط C-متوافق (@تمثيل_سي): بلا ترويسة vtable في الحقل 0 [RFC #53 F2-ب] / (EN) C-ABI layout: no vtable header at field 0
                 std::string sourceFile;                                                 ///< (AR) مسار الملف المصدري (لفحص الوراثة المحكمة) / (EN) Source file path (sealed inheritance check)
                 std::vector<std::string> implementedTraits;                             ///< (AR) السمات المُنفَّذة / (EN) Implemented traits
                 std::unordered_map<std::string, SadTypeKind> fields_;                   ///< (AR) الحقول / (EN) Fields

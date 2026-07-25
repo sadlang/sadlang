@@ -266,6 +266,10 @@ namespace Sad
             // Abstract class names (cannot be instantiated)
             std::unordered_set<std::string> abstractClasses;
 
+            // (AR) أسماء بنى @تمثيل_سي (تخطيط C-متوافق: بلا ترويسة vtable في الحقل 0) [RFC #53 F2-ب]
+            // (EN) @تمثيل_سي struct names (C-ABI layout: no vtable header at field 0) [RFC #53 F2-ب]
+            std::unordered_set<std::string> cReprClasses;
+
             // ================================================================
             // دعم الكوروتين / Coroutine Support
             // ================================================================

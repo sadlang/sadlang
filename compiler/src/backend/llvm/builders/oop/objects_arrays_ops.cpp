@@ -824,10 +824,11 @@ namespace Sad
                             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                             cg_.builder_->CreateStore(dataPtr, dataGep);
 
-                            // (AR) تخزين مؤشر المصفوفة في حقل الكائن (fieldIdx + 1 بسبب vtable في الحقل 0)
-                            // (EN) Store array pointer in object field (fieldIdx + 1 because vtable is field 0)
+                            // (AR) الإزاحة عبر getFieldStructIndex — تُسقِط ترويسة vtable لبنى @تمثيل_سي [RFC #53 F2-ب]
+                            // (EN) Offset via getFieldStructIndex — drops the vtable header for @تمثيل_سي structs [RFC #53 F2-ب]
                             llvm::Value *objFieldGep = cg_.builder_->CreateStructGEP(
-                                structType, objPtr, fieldIdx + 1, fieldName + ".field");
+                                structType, objPtr, cg_.getFieldStructIndex(className, fieldIdx),
+                                fieldName + ".field");
                             cg_.builder_->CreateStore(arrPtr, objFieldGep);
                         }
                         fieldIdx++;
@@ -899,10 +900,11 @@ namespace Sad
 
                         if (!defaultVal.empty() && defaultType != SadTypeKind::Unknown)
                         {
-                            // (AR) fieldIdx + 1 لأن الحقل 0 هو vtable pointer
-                            // (EN) fieldIdx + 1 because field 0 is vtable pointer
+                            // (AR) الإزاحة عبر getFieldStructIndex — بلا إزاحة لبنى @تمثيل_سي [RFC #53 F2-ب]
+                            // (EN) Offset via getFieldStructIndex — no offset for @تمثيل_سي structs [RFC #53 F2-ب]
                             llvm::Value *fieldGep = cg_.builder_->CreateStructGEP(
-                                structType, objPtr, fieldIdx + 1, fieldName + ".default_init");
+                                structType, objPtr, cg_.getFieldStructIndex(className, fieldIdx),
+                                fieldName + ".default_init");
 
                             switch (defaultType)
                             {
