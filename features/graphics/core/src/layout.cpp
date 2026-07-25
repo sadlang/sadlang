@@ -408,6 +408,30 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = 34.0f;
             break;
 
+        case UINodeType::Picker:
+            // قائمة منسدلة (م٥ إدخال متقدّم)
+            defaultWidth = 200.0f;
+            defaultHeight = 40.0f;
+            break;
+
+        case UINodeType::DatePicker:
+            // منتقي تاريخ (م٥ إدخال متقدّم)
+            defaultWidth = 200.0f;
+            defaultHeight = 40.0f;
+            break;
+
+        case UINodeType::Stepper:
+            // خطوات [−] قيمة [+] (م٥ إدخال متقدّم)
+            defaultWidth = 140.0f;
+            defaultHeight = 40.0f;
+            break;
+
+        case UINodeType::RatingBar:
+            // شريط تقييم بنجوم (م٥ إدخال متقدّم)
+            defaultWidth = 160.0f;
+            defaultHeight = 32.0f;
+            break;
+
         default:
             defaultWidth = 50.0f;
             defaultHeight = 50.0f;

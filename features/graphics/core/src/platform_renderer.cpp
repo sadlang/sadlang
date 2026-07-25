@@ -1512,6 +1512,158 @@ namespace sad
                 break;
             }
 
+            // ── قائمة منسدلة (Picker/Dropdown) — صندوق + سهم منسدل + قيمة/تلميح (م٥ إدخال متقدّم) ──
+            case UINodeType::Picker:
+            {
+                float pkRad = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
+                Color pkBg = parseColorProp(node.findProperty(props::BG),                    // خلفية
+                                            Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, pkBg, pkRad);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                // سهم منسدل ▾ (خطّان) على الحافّة اليسرى — مقبض القائمة يسار في RTL
+                float chvX = rect.x + 16.0f;
+                float chvY = rect.y + rect.height / 2.0f;
+                Color chv = Color::fromNamed(NamedColor::Gray);
+                drawLine(chvX - 6, chvY - 3, chvX, chvY + 4, chv, 2.0f);
+                drawLine(chvX, chvY + 4, chvX + 6, chvY - 3, chv, 2.0f);
+                // القيمة إن وُجدت وإلّا التلميح بلون باهت (RTL يمينًا)
+                const auto *pkVal = node.findProperty(props::VALUE); // قيمة
+                if (!pkVal)
+                    pkVal = node.findProperty(props::VALUE_LATIN);
+                Color pkTextCol = Color::fromNamed(NamedColor::Black);
+                if (!pkVal)
+                {
+                    pkVal = node.findProperty(props::HINT); // تلميح
+                    pkTextCol = {0.5f, 0.5f, 0.5f, 1};
+                }
+                if (pkVal)
+                {
+                    if (auto *v = std::get_if<std::string>(&pkVal->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 15.0f); // حجم_الخط
+                        float tx = rect.x + 34;
+                        if (isArabicText(*v))
+                        {
+                            auto sz = measureText(*v, fs);
+                            tx = rect.x + rect.width - sz.first - 12;
+                            if (tx < rect.x + 30)
+                                tx = rect.x + 30; // منع القصّ فوق السهم
+                        }
+                        drawText(*v, tx, rect.y + rect.height / 2 - fs / 2, pkTextCol, fs);
+                    }
+                }
+                break;
+            }
+
+            // ── منتقي تاريخ (DatePicker) — صندوق + أيقونة تقويم + قيمة (م٥ إدخال متقدّم) ──
+            case UINodeType::DatePicker:
+            {
+                float dpRad = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
+                Color dpBg = parseColorProp(node.findProperty(props::BG),                    // خلفية
+                                            Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, dpBg, dpRad);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                // أيقونة تقويم مصغّرة (مربّع بشريط علويّ) على الحافّة اليسرى
+                float calX = rect.x + 10.0f;
+                float calY = rect.y + rect.height / 2.0f - 8.0f;
+                Color cal = Color::fromNamed(NamedColor::Primary);
+                drawRectOutline(calX, calY, 16, 16, cal);
+                drawFilledRect(calX, calY, 16, 4, cal); // شريط رأس التقويم
+                // القيمة (التاريخ) بمحاذاة RTL يمينًا
+                const auto *dpVal = node.findProperty(props::VALUE); // قيمة
+                if (!dpVal)
+                    dpVal = node.findProperty(props::VALUE_LATIN);
+                Color dpTextCol = Color::fromNamed(NamedColor::Black);
+                if (!dpVal)
+                {
+                    dpVal = node.findProperty(props::HINT); // تلميح
+                    dpTextCol = {0.5f, 0.5f, 0.5f, 1};
+                }
+                if (dpVal)
+                {
+                    if (auto *v = std::get_if<std::string>(&dpVal->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 15.0f); // حجم_الخط
+                        float tx = rect.x + 34;
+                        if (isArabicText(*v))
+                        {
+                            auto sz = measureText(*v, fs);
+                            tx = rect.x + rect.width - sz.first - 12;
+                            if (tx < rect.x + 32)
+                                tx = rect.x + 32;
+                        }
+                        drawText(*v, tx, rect.y + rect.height / 2 - fs / 2, dpTextCol, fs);
+                    }
+                }
+                break;
+            }
+
+            // ── خطوات (Stepper) — [−] قيمة [+] بأزرار طرفيّة (م٥ إدخال متقدّم) ──
+            case UINodeType::Stepper:
+            {
+                float stRad = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
+                Color stBg = parseColorProp(node.findProperty(props::BG),                    // خلفية
+                                            Color::fromNamed(NamedColor::LightGray));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, stBg, stRad);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                float btn = rect.height; // منطقة الزرّ مربّعة بارتفاع العنصر
+                float cy = rect.y + rect.height / 2.0f;
+                Color sign = Color::fromNamed(NamedColor::Black);
+                // زرّ الطرح (يسار) — خطّ أفقيّ
+                float minusCx = rect.x + btn / 2.0f;
+                drawLine(minusCx - 7, cy, minusCx + 7, cy, sign, 2.0f);
+                // زرّ الجمع (يمين) — خطّان متقاطعان
+                float plusCx = rect.x + rect.width - btn / 2.0f;
+                drawLine(plusCx - 7, cy, plusCx + 7, cy, sign, 2.0f);
+                drawLine(plusCx, cy - 7, plusCx, cy + 7, sign, 2.0f);
+                // خطّا فاصلان بين الأزرار والقيمة
+                drawLine(rect.x + btn, rect.y + 4, rect.x + btn, rect.y + rect.height - 4,
+                         Color::fromNamed(NamedColor::Gray), 1.0f);
+                drawLine(rect.x + rect.width - btn, rect.y + 4, rect.x + rect.width - btn,
+                         rect.y + rect.height - 4, Color::fromNamed(NamedColor::Gray), 1.0f);
+                // القيمة في الوسط
+                const auto *stVal = node.findProperty(props::VALUE); // قيمة
+                if (!stVal)
+                    stVal = node.findProperty(props::VALUE_LATIN);
+                if (stVal)
+                {
+                    if (auto *v = std::get_if<std::string>(&stVal->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 16.0f); // حجم_الخط
+                        auto sz = measureText(*v, fs);
+                        drawText(*v, rect.x + rect.width / 2 - sz.first / 2,
+                                 cy - fs / 2, Color::fromNamed(NamedColor::Black), fs);
+                    }
+                }
+                break;
+            }
+
+            // ── تقييم (RatingBar) — نجوم مربّعة ممتلئة حتّى القيمة (م٥ إدخال متقدّم) ──
+            case UINodeType::RatingBar:
+            {
+                int maxStars = static_cast<int>(getNumericProp(node.findProperty(props::MAX), 5.0f)); // أقصى
+                if (maxStars < 1)
+                    maxStars = 5;
+                float filled = getNumericProp(node.findProperty(props::VALUE), 0.0f); // قيمة
+                float star = std::min(rect.height - 6.0f, 22.0f);
+                float gap = 6.0f;
+                float sy = rect.y + (rect.height - star) / 2.0f;
+                Color gold{0.96f, 0.77f, 0.13f, 1};
+                Color empty = Color::fromNamed(NamedColor::Gray);
+                for (int i = 0; i < maxStars; ++i)
+                {
+                    float sx = rect.x + 4.0f + static_cast<float>(i) * (star + gap);
+                    if (static_cast<float>(i) < filled)
+                        drawFilledRect(sx, sy, star, star, gold);
+                    else
+                        drawRectOutline(sx, sy, star, star, empty);
+                }
+                break;
+            }
+
             default:
                 break;
             }
