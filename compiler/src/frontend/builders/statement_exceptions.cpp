@@ -41,6 +41,13 @@ namespace Sad
                     bool hasFinally = (tryStmt->finallyBlock != nullptr);
                     size_t numClauses = tryStmt->catchClauses.size();
 
+                    // (AR) ادفع خانة استنتاج نوع المرميّ لهذا «حاول». كلُّ «ارمي» لفظيّة
+                    //      داخل الجسم (لا في «حاول» متداخل) ستسجّل نوعها فيها.
+                    // (EN) Push a thrown-type inference slot for this «try». Each lexical
+                    //      «throw» in the body (not in a nested «try») records its type here.
+                    b_.tryThrownStack_.push_back({});
+                    SIRBuilderContext::ThrownInfo inferredThrow;
+
                     // (AR) إنشاء كتل: try، catch dispatch، finally، exit
                     // (EN) Create blocks: try, catch dispatch, finally, exit
                     std::string tryLabel = b_.newLabel("try_body");
@@ -228,12 +235,60 @@ namespace Sad
                                                  finallyRetTypeReg, finallyHasRetReg});
                     }
 
+                    // (AR) الحاجز ٧: علّم دخول «حاول» فعليّة (عدّاد مستقلّ عن معالِج
+                    //      تنظيف الدالّة) ليعرف حاجزُ الهلع الجوهريّ أنّ الالتقاط ممكن.
+                    // (EN) Barrier 7: mark entry into a real «try» (a counter independent of
+                    //      the function-cleanup handler) so the intrinsic-panic guard knows a
+                    //      catch is possible.
+                    {
+                        SIRInstruction tryEnter;
+                        tryEnter.opcode = SIROpcode::CALL;
+                        tryEnter.operands.push_back(SIROperand::Function("__sad_try_enter"));
+                        tryEnter.comment = "barrier7: enter active try";
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(tryEnter);
+                    }
+
+                    // (AR) عمق «حاول» اللفظيّ يشمل جسمَ هذا «حاول» فتعرف جُمَلُ الخروج
+                    //      غير المحلّيّ (ارجع/قف/أكمل) داخله كم مرّة تبعث __sad_try_exit.
+                    // (EN) The lexical «try» depth now includes this «try»'s body, so non-local
+                    //      exits (return/break/continue) inside it know how many __sad_try_exit
+                    //      to emit.
+                    b_.currentTryDepth_++;
+
                     b_.enterScope();
                     if (tryStmt->tryBlock)
                     {
                         buildStatement(tryStmt->tryBlock.get());
                     }
                     b_.exitScope();
+
+                    // (AR) انتهى جسمُ «حاول» لفظيًّا ⇒ اخرج من عمقه (كتلُ «امسك» تلي بعمقٍ أدنى).
+                    // (EN) The «try» body is lexically done ⇒ leave its depth (catch blocks that
+                    //      follow are at the lower depth).
+                    b_.currentTryDepth_--;
+
+                    // (AR) خروج «حاول» على المسار الناجح (لا استثناء)
+                    // (EN) Leave the «try» on the successful (no-exception) path
+                    {
+                        SIRInstruction tryExit;
+                        tryExit.opcode = SIROpcode::CALL;
+                        tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
+                        tryExit.comment = "barrier7: exit active try (success)";
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(tryExit);
+                    }
+
+                    // (AR) التقط استنتاج نوع المرميّ ثمّ انبثق الخانة (الجسم اكتمل بناؤه؛
+                    //      «حاول» المتداخلة أدارت خاناتها). يُستعمَل في ربط متغيّر «امسك».
+                    // (EN) Capture the thrown-type inference then pop the slot (the body is
+                    //      fully built; nested «try»s managed their own slots). Used when
+                    //      binding the «catch» variable below.
+                    if (!b_.tryThrownStack_.empty())
+                    {
+                        inferredThrow = b_.tryThrownStack_.back();
+                        b_.tryThrownStack_.pop_back();
+                    }
 
                     {
                         SIRInstruction popInst;
@@ -256,6 +311,17 @@ namespace Sad
                     if (b_.currentFunction_)
                         b_.currentFunction_->addBasicBlock(catchSetupBlock);
                     b_.currentBlock_ = catchSetupBlock;
+
+                    // (AR) خروج «حاول» على مسار الاستثناء (وصلنا هنا عبر setjmp!=0)
+                    // (EN) Leave the «try» on the exception path (reached via setjmp!=0)
+                    {
+                        SIRInstruction tryExit;
+                        tryExit.opcode = SIROpcode::CALL;
+                        tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
+                        tryExit.comment = "barrier7: exit active try (exception)";
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(tryExit);
+                    }
 
                     {
                         SIRInstruction popInst;
@@ -460,40 +526,120 @@ namespace Sad
 
                         if (!clause.exceptionVar.empty())
                         {
-                            std::string exAllocReg = "%" + clause.exceptionVar;
-                            std::string exReg = b_.newTempRegister();
+                            // ────────────────────────────────────────────────
+                            // (AR) ربط متغيّر «امسك» بنوعه الساكن الصحيح فيطابق نوع()
+                            //      المفسّرَ ويعمل وصول الحقل. الأولويّة: نوع البند
+                            //      المصرَّح (`امسك صنف خ`) ثمّ استنتاج جسم «حاول».
+                            //      • كائن ⇒ ربط مباشر لمؤشّر الكائن (msg العامّ) + اسم الصنف.
+                            //      • رقم/منطقيّ ⇒ __sad_get_exception_value (i64 من value العامّ).
+                            //      • عشريّ ⇒ __sad_get_exception_valuef (double).
+                            //      • نصّ/تراجُع ⇒ __sad_get_exception (السلوك السابق).
+                            // (EN) Bind the «catch» variable with its correct static type so
+                            //      نوع() matches the interpreter and field access works.
+                            //      Priority: the clause's declared type, then try-body
+                            //      inference. object ⇒ direct object-pointer bind (from the
+                            //      msg global) + class name; int/bool ⇒ i64 value global;
+                            //      float ⇒ double; string/fallback ⇒ prior behaviour.
+                            SadTypeKind bindKind = SadTypeKind::String;
+                            std::string bindClassName;
+                            std::string getFn = "__sad_get_exception";
+                            bool isObject = false;
 
+                            // (AR) دالّة صغيرة: صنِّف النوع المستنتَج/المصرَّح إلى ربط
+                            // (EN) small helper: classify a declared/inferred kind into a binding
+                            auto classify = [&](SadTypeKind k, const std::string &cls) -> bool
                             {
-                                SIRInstruction allocInst;
-                                allocInst.opcode = SIROpcode::ALLOC;
-                                allocInst.result = SIROperand::Register(exAllocReg, SadTypeKind::String);
-                                if (b_.currentBlock_)
-                                    b_.currentBlock_->addInstruction(allocInst);
+                                // (AR) الكائن يُرجعه «جديد» بنوع Struct (⇒ «كائن»)؛ نطابقه بالضبط
+                                // (EN) an object is produced by «new» as Struct (⇒ «كائن»); mirror it
+                                if (k == SadTypeKind::Struct || k == SadTypeKind::Class)
+                                {
+                                    bindKind = SadTypeKind::Struct;
+                                    bindClassName = cls;
+                                    isObject = true;
+                                    getFn = "__sad_get_exception";
+                                    return true;
+                                }
+                                if (k == SadTypeKind::Integer || k == SadTypeKind::Boolean)
+                                {
+                                    bindKind = k;
+                                    getFn = "__sad_get_exception_value";
+                                    return true;
+                                }
+                                if (k == SadTypeKind::Float)
+                                {
+                                    bindKind = SadTypeKind::Float;
+                                    getFn = "__sad_get_exception_valuef";
+                                    return true;
+                                }
+                                if (k == SadTypeKind::String)
+                                {
+                                    bindKind = SadTypeKind::String;
+                                    getFn = "__sad_get_exception";
+                                    return true;
+                                }
+                                return false;
+                            };
+
+                            // (AR) الأولويّة: نوع البند المصرَّح، ثمّ استنتاج جسم «حاول»
+                            // (EN) Priority: the clause's declared type, then try-body inference
+                            if ((clause.exceptionType == Sad::Types::SadTypeKind::Class ||
+                                 clause.exceptionType == Sad::Types::SadTypeKind::Struct) &&
+                                !clause.exceptionTypeName.empty())
+                            {
+                                classify(SadTypeKind::Struct, clause.exceptionTypeName);
                             }
+                            else if (!classify(clause.exceptionType, clause.exceptionTypeName))
+                            {
+                                if (inferredThrow.sawThrow && !inferredThrow.mixed)
+                                    classify(inferredThrow.kind, inferredThrow.className);
+                                // (AR) وإلّا: يبقى التراجُع الآمن (نصّ) — لا انهيار
+                                // (EN) else: safe fallback (string) — no crash
+                            }
+
+                            std::string exReg = b_.newTempRegister();
                             {
                                 SIRInstruction loadExInst;
                                 loadExInst.opcode = SIROpcode::CALL;
-                                loadExInst.result = SIROperand::Register(exReg, SadTypeKind::String);
-                                loadExInst.operands.push_back(SIROperand::Function("__sad_get_exception"));
+                                loadExInst.result = SIROperand::Register(exReg, bindKind);
+                                loadExInst.operands.push_back(SIROperand::Function(getFn));
                                 loadExInst.comment = "load caught exception into " + clause.exceptionVar;
                                 if (b_.currentBlock_)
                                     b_.currentBlock_->addInstruction(loadExInst);
                             }
+
+                            // (AR) نمط المتغيّر المحلّيّ الموحَّد: ALLOC «%الاسم» + STORE القيمة
+                            //      (مطابق للكائنات العاديّة التي تُخزَّن كذلك). الكائن يُسجَّل صنفه.
+                            // (EN) Uniform local-variable pattern: ALLOC «%name» + STORE the value
+                            //      (identical to normal objects, which are stored the same way).
+                            //      An object additionally registers its class name.
+                            std::string exAllocReg = "%" + clause.exceptionVar;
+                            {
+                                SIRInstruction allocInst;
+                                allocInst.opcode = SIROpcode::ALLOC;
+                                allocInst.result = SIROperand::Register(exAllocReg, bindKind);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(allocInst);
+                            }
                             {
                                 SIRInstruction storeInst;
                                 storeInst.opcode = SIROpcode::STORE;
-                                storeInst.operands.push_back(SIROperand::Register(exReg, SadTypeKind::String));
-                                storeInst.operands.push_back(SIROperand::Register(exAllocReg, SadTypeKind::String));
+                                storeInst.operands.push_back(SIROperand::Register(exReg, bindKind));
+                                storeInst.operands.push_back(SIROperand::Register(exAllocReg, bindKind));
                                 if (b_.currentBlock_)
                                     b_.currentBlock_->addInstruction(storeInst);
                             }
 
                             VariableInfo exVar;
                             exVar.name = clause.exceptionVar;
-                            exVar.type = SadTypeKind::String;
+                            exVar.type = bindKind;
                             exVar.registerName = exAllocReg;
                             exVar.isMutable = false;
                             exVar.scopeLevel = b_.currentScopeLevel_;
+                            if (isObject)
+                            {
+                                exVar.className = bindClassName;
+                                b_.classInstanceTypes_[clause.exceptionVar] = bindClassName;
+                            }
                             b_.addVariable(exVar);
                         }
 
@@ -904,29 +1050,90 @@ namespace Sad
                     raiseInst.opcode = SIROpcode::CALL;
                     raiseInst.operands.push_back(SIROperand::Function("__sad_raise"));
 
-                    // (AR) تحديد نوع الاستثناء: إذا كان NewExpr نستخدم اسم الصنف
-                    // (EN) Determine exception type: if NewExpr, use class name
+                    // (AR) تحديد نوع القيمة المرميّة: NewExpr ⇒ صنف؛ متغيّر يحمل كائنًا ⇒
+                    //      صنف باسمه؛ وإلّا نوع BuildResult (رقم/عشريّ/منطقيّ/نصّ).
+                    // (EN) Determine the thrown value's kind: NewExpr ⇒ Class; a variable
+                    //      holding an object ⇒ Class by its name; else the BuildResult type
+                    //      (number/float/bool/string).
                     std::string exceptionTypeName = "\xd8\xae\xd8\xb7\xd8\xa3"; // "خطأ" default
+                    SadTypeKind thrownKind = raiseStmt->exception ? exResult.type : SadTypeKind::String;
+                    std::string thrownClass;
                     if (raiseStmt->exception)
                     {
                         if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(raiseStmt->exception.get()))
                         {
                             exceptionTypeName = newExpr->className;
+                            thrownKind = SadTypeKind::Class;
+                            thrownClass = newExpr->className;
+                        }
+                        else if (!exResult.className.empty())
+                        {
+                            exceptionTypeName = exResult.className;
+                            thrownKind = SadTypeKind::Class;
+                            thrownClass = exResult.className;
                         }
                     }
                     raiseInst.operands.push_back(SIROperand::ConstantString(exceptionTypeName));
 
-                    // (AR) الوسيط الثاني: رسالة الاستثناء
-                    // (EN) Second arg: exception message
-                    if (exResult.isConstant && exResult.type == SadTypeKind::String)
+                    // (AR) سجّل النوع المرميّ في خانة استنتاج «حاول» العليا (إن وُجدت)
+                    //      لربط متغيّر «امسك» بنوعه الساكن الصحيح لاحقًا.
+                    // (EN) Record the thrown kind into the top «try» inference slot (if any)
+                    //      so the «catch» variable can be bound with its correct static type.
+                    if (!b_.tryThrownStack_.empty())
                     {
-                        raiseInst.operands.push_back(SIROperand::ConstantString(exResult.constantValue));
+                        auto &slot = b_.tryThrownStack_.back();
+                        if (!slot.sawThrow)
+                        {
+                            slot.sawThrow = true;
+                            slot.kind = thrownKind;
+                            slot.className = thrownClass;
+                        }
+                        else if (slot.kind != thrownKind || slot.className != thrownClass)
+                        {
+                            slot.mixed = true;
+                        }
                     }
-                    else if (!exResult.registerName.empty())
+
+                    // (AR) الوسيط الثاني: القيمة المرميّة — بنوع SIR الصحيح فتُخزَّن الخلفيّةُ
+                    //      المؤشّرَ (نصّ/كائن) في msg العامّ، والقيمةَ العدديّة في value العامّ
+                    //      (لا تخزين i64 في مؤشّر ⇒ لا انهيار). المؤشّرات تُمرَّر كسجلّ.
+                    // (EN) Second arg: the thrown value — with its correct SIR type so the
+                    //      backend stores a pointer (string/object) into the msg global and a
+                    //      scalar into the value global (no i64-into-ptr ⇒ no crash). Pointer
+                    //      payloads are passed as a register.
+                    if (raiseStmt->exception)
                     {
-                        raiseInst.operands.push_back(SIROperand::Register(exResult.registerName, exResult.type));
+                        if (!exResult.registerName.empty())
+                        {
+                            raiseInst.operands.push_back(SIROperand::Register(exResult.registerName, exResult.type));
+                        }
+                        else if (exResult.isConstant)
+                        {
+                            switch (exResult.type)
+                            {
+                            case SadTypeKind::Integer:
+                                raiseInst.operands.push_back(
+                                    SIROperand::ConstantI64(std::stoll(exResult.constantValue)));
+                                break;
+                            case SadTypeKind::Float:
+                                raiseInst.operands.push_back(
+                                    SIROperand::ConstantF64(std::stod(exResult.constantValue)));
+                                break;
+                            case SadTypeKind::Boolean:
+                                raiseInst.operands.push_back(SIROperand::ConstantBool(
+                                    exResult.constantValue == "true" ||
+                                    exResult.constantValue == "1" ||
+                                    exResult.constantValue == "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad")); // "صحيح"
+                                break;
+                            case SadTypeKind::String:
+                            default:
+                                raiseInst.operands.push_back(
+                                    SIROperand::ConstantString(exResult.constantValue));
+                                break;
+                            }
+                        }
                     }
-                    raiseInst.comment = "raise exception (type + message)";
+                    raiseInst.comment = "raise exception (type + value)";
 
                     if (b_.currentBlock_)
                     {

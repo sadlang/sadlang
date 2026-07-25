@@ -246,8 +246,17 @@ namespace Sad
                     cg_.builder_->CreateStore(excType, exceptionType);
                 }
 
-                // (AR) تخزين رسالة الاستثناء في متغير عام
-                // (EN) Store exception message in global
+                // (AR) تخزين حمولة الاستثناء بأمان حسب نوع LLVM — إصلاح الانهيار الجذريّ:
+                //      «ارمي 404»/«ارمي كائن» كان يخزّن i64/مؤشّرًا في مؤشّر kRuntimeExceptionMsg
+                //      مباشرةً ⇒ IR غير سليم (تخزين i64 في خانة مؤشّر) ⇒ SIGSEGV في المترجَم.
+                //      الآن: المؤشّرات (نصّ/كائن) ⇒ kRuntimeExceptionMsg؛ القيم العدديّة
+                //      (رقم/منطقيّ/عشريّ) ⇒ بتّات i64 في kRuntimeExceptionValue. لا IR غير سليم.
+                // (EN) Store the exception payload safely, discriminated by LLVM type — the
+                //      root crash fix: «ارمي 404»/«ارمي object» stored an i64/pointer directly
+                //      into the ptr global kRuntimeExceptionMsg ⇒ invalid IR (i64 into a ptr
+                //      slot) ⇒ SIGSEGV in the compiler. Now: pointers (string/object) ⇒
+                //      kRuntimeExceptionMsg; scalar values (number/bool/float) ⇒ i64 bits in
+                //      kRuntimeExceptionValue. No invalid IR regardless of thrown type.
                 auto *exceptionMsg = cg_.module_->getNamedGlobal(kRuntimeExceptionMsg);
                 if (!exceptionMsg)
                 {
@@ -255,9 +264,44 @@ namespace Sad
                         *cg_.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), kRuntimeExceptionMsg);
                 }
+                auto *i64Type = cg_.getInt64Type();
+                auto *exceptionValue = cg_.module_->getNamedGlobal(kRuntimeExceptionValue);
+                if (!exceptionValue)
+                {
+                    exceptionValue = new llvm::GlobalVariable(
+                        *cg_.module_, i64Type, false, llvm::GlobalValue::InternalLinkage,
+                        llvm::ConstantInt::get(i64Type, 0), kRuntimeExceptionValue);
+                }
                 if (msg)
                 {
-                    cg_.builder_->CreateStore(msg, exceptionMsg);
+                    llvm::Type *mt = msg->getType();
+                    if (mt->isPointerTy())
+                    {
+                        // (AR) مؤشّر (نصّ/كائن) ⇒ خانة المؤشّر + صفر في خانة القيمة
+                        // (EN) pointer (string/object) ⇒ ptr slot + zero the value slot
+                        cg_.builder_->CreateStore(msg, exceptionMsg);
+                        cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Type, 0), exceptionValue);
+                    }
+                    else
+                    {
+                        // (AR) قيمة عدديّة ⇒ بتّات i64 في خانة القيمة + null في خانة المؤشّر
+                        // (EN) scalar ⇒ i64 bits in the value slot + null in the ptr slot
+                        llvm::Value *asI64 = nullptr;
+                        if (mt->isIntegerTy(64))
+                            asI64 = msg;
+                        else if (mt->isIntegerTy())
+                            asI64 = cg_.builder_->CreateSExtOrTrunc(msg, i64Type, "raise.val.i64");
+                        else if (mt->isDoubleTy())
+                            asI64 = cg_.builder_->CreateBitCast(msg, i64Type, "raise.val.f2i");
+                        else if (mt->isFloatingPointTy())
+                            asI64 = cg_.builder_->CreateBitCast(
+                                cg_.builder_->CreateFPExt(msg, llvm::Type::getDoubleTy(*cg_.context_), "raise.val.fpext"),
+                                i64Type, "raise.val.f2i");
+                        else
+                            asI64 = llvm::ConstantInt::get(i64Type, 0);
+                        cg_.builder_->CreateStore(asI64, exceptionValue);
+                        cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrType), exceptionMsg);
+                    }
                 }
 
                 // (AR) تحميل jmpbuf من مكدس المعالجات
@@ -450,6 +494,59 @@ namespace Sad
                 }
 
                 llvm::Value *result = cg_.builder_->CreateLoad(ptrType, exceptionType, "exception_type");
+                if (inst->result.has_value())
+                {
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                }
+                return result;
+            }
+
+            if (funcName == "__sad_try_enter" || funcName == "__sad_try_exit")
+            {
+                // (AR) عدّاد «حاول» النشطة: يميّز معالِج try/catch الحقيقيّ عن معالِج
+                //      تنظيف الدالّة. يُقرأ في حاجز الهلع الجوهريّ فقط (لا يمسّ الرمي/الالتقاط).
+                // (EN) Active-try counter: distinguishes a real try/catch handler from the
+                //      per-function cleanup handler. Read only by the intrinsic-panic guard.
+                auto *i32Type = llvm::Type::getInt32Ty(*cg_.context_);
+                auto *tryActive = cg_.module_->getNamedGlobal(kRuntimeTryActive);
+                if (!tryActive)
+                    tryActive = new llvm::GlobalVariable(
+                        *cg_.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                        llvm::ConstantInt::get(i32Type, 0), kRuntimeTryActive);
+                llvm::Value *cur = cg_.builder_->CreateLoad(i32Type, tryActive, "try_active");
+                llvm::Value *next = (funcName == "__sad_try_enter")
+                                        ? cg_.builder_->CreateAdd(cur, cg_.builder_->getInt32(1), "try_active_inc")
+                                        : cg_.builder_->CreateSub(cur, cg_.builder_->getInt32(1), "try_active_dec");
+                cg_.builder_->CreateStore(next, tryActive);
+
+                llvm::Value *dummy = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dummy;
+                return dummy;
+            }
+
+            if (funcName == "__sad_get_exception_value" || funcName == "__sad_get_exception_valuef")
+            {
+                // (AR) تحميل حمولة الاستثناء العدديّة المحفوظة (i64). النسخة *f تعيد double
+                //      عبر إعادة تفسير البتّات (لالتقاط قيمة عشريّة مرميّة).
+                // (EN) Load the stored scalar exception payload (i64). The *f variant returns a
+                //      double by reinterpreting the bits (for a caught thrown float value).
+                auto *i64Type = cg_.getInt64Type();
+                auto *exceptionValue = cg_.module_->getNamedGlobal(kRuntimeExceptionValue);
+                if (!exceptionValue)
+                {
+                    exceptionValue = new llvm::GlobalVariable(
+                        *cg_.module_, i64Type, false, llvm::GlobalValue::InternalLinkage,
+                        llvm::ConstantInt::get(i64Type, 0), kRuntimeExceptionValue);
+                }
+
+                llvm::Value *raw = cg_.builder_->CreateLoad(i64Type, exceptionValue, "exception_value");
+                llvm::Value *result = raw;
+                if (funcName == "__sad_get_exception_valuef")
+                {
+                    result = cg_.builder_->CreateBitCast(
+                        raw, llvm::Type::getDoubleTy(*cg_.context_), "exception_value_f");
+                }
                 if (inst->result.has_value())
                 {
                     cg_.context_info_.namedValues[inst->result->name] = result;

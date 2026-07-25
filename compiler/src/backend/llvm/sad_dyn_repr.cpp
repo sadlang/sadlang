@@ -482,6 +482,90 @@ namespace Sad
         //      dividend). Hosted ⇒ Arabic catalog diagnostic
         //      (hostedMsg with %g for the dividend) + exit(1); freestanding ⇒
         //      __sad_panic(check-violation).
+        // (AR) الحاجز ٧ (مشترك): يُعرَّف هنا ويُعلَن في sad_dyn_repr.h. راجع التوثيق هناك.
+        // (EN) Barrier 7 (shared): defined here, declared in sad_dyn_repr.h. See docs there.
+        void emitRecoverablePanicToHandler(LLVMCodeGen &cg, llvm::Value *msgPtr)
+        {
+            namespace SC = ::Sad::Compiler;
+            llvm::IRBuilder<> &b = *cg.builder_;
+            llvm::LLVMContext &ctx = *cg.context_;
+            auto *ptrType = llvm::PointerType::getUnqual(ctx);
+            auto *i32Type = llvm::Type::getInt32Ty(ctx);
+            auto *i64Type = cg.getInt64Type();
+
+            auto ensurePtrGlobal = [&](const char *name) -> llvm::GlobalVariable *
+            {
+                auto *g = cg.module_->getNamedGlobal(name);
+                if (!g)
+                    g = new llvm::GlobalVariable(
+                        *cg.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
+                        llvm::ConstantPointerNull::get(ptrType), name);
+                return g;
+            };
+
+            auto *handlerCount = cg.module_->getNamedGlobal(SC::kRuntimeHandlerCount);
+            if (!handlerCount)
+                handlerCount = new llvm::GlobalVariable(
+                    *cg.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                    llvm::ConstantInt::get(i32Type, 0), SC::kRuntimeHandlerCount);
+            auto *handlerStack = cg.module_->getNamedGlobal(SC::kRuntimeHandlerStack);
+            if (!handlerStack)
+            {
+                auto *arrTy = llvm::ArrayType::get(ptrType, 64);
+                handlerStack = new llvm::GlobalVariable(
+                    *cg.module_, arrTy, false, llvm::GlobalValue::InternalLinkage,
+                    llvm::ConstantAggregateZero::get(arrTy), SC::kRuntimeHandlerStack);
+            }
+            // (AR) القرار على عدّاد «حاول» النشطة لا على handlerCount: كلُّ دالّة تدفع
+            //      معالِجَ تنظيفٍ فيصبح handlerCount ≥ 1 دائمًا. نرفع فقط إن كانت ثمّة
+            //      «حاول» فعليّة، وإلّا نُبقي السلوكَ القديم (تشخيص + exit) فلا انحدار
+            //      لقسمةٍ خارج «حاول».
+            // (EN) Decide on the active-try counter, not handlerCount: every function
+            //      pushes a cleanup handler so handlerCount is always ≥ 1. Raise only if a
+            //      real «try» is active; otherwise keep the old behaviour (diagnostic +
+            //      exit), so no regression for a division outside any «try».
+            auto *tryActive = cg.module_->getNamedGlobal(SC::kRuntimeTryActive);
+            if (!tryActive)
+                tryActive = new llvm::GlobalVariable(
+                    *cg.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                    llvm::ConstantInt::get(i32Type, 0), SC::kRuntimeTryActive);
+
+            llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+            auto *raiseBB = llvm::BasicBlock::Create(ctx, "panic.raise", curFunc);
+            auto *noHandlerBB = llvm::BasicBlock::Create(ctx, "panic.nohandler", curFunc);
+
+            llvm::Value *count = b.CreateLoad(i32Type, handlerCount, "panic.hcount");
+            llvm::Value *activeTries = b.CreateLoad(i32Type, tryActive, "panic.tryactive");
+            llvm::Value *hasHandler = b.CreateICmpSGT(activeTries, b.getInt32(0), "panic.hashandler");
+            b.CreateCondBr(hasHandler, raiseBB, noHandlerBB);
+
+            b.SetInsertPoint(raiseBB);
+            b.CreateStore(cg.getConstantString("\xd8\xae\xd8\xb7\xd8\xa3"), // "خطأ"
+                          ensurePtrGlobal(SC::kRuntimeExceptionType));
+            b.CreateStore(msgPtr ? msgPtr : llvm::ConstantPointerNull::get(ptrType),
+                          ensurePtrGlobal(SC::kRuntimeExceptionMsg));
+            auto *exceptionValue = cg.module_->getNamedGlobal(SC::kRuntimeExceptionValue);
+            if (!exceptionValue)
+                exceptionValue = new llvm::GlobalVariable(
+                    *cg.module_, i64Type, false, llvm::GlobalValue::InternalLinkage,
+                    llvm::ConstantInt::get(i64Type, 0), SC::kRuntimeExceptionValue);
+            b.CreateStore(llvm::ConstantInt::get(i64Type, 0), exceptionValue);
+
+            llvm::Value *idx = b.CreateSub(count, b.getInt32(1), "panic.idx");
+            auto *arrTy = llvm::ArrayType::get(ptrType, 64);
+            llvm::Value *slot = b.CreateGEP(arrTy, handlerStack, {b.getInt32(0), idx}, "panic.slot");
+            llvm::Value *jmpbuf = b.CreateLoad(ptrType, slot, "panic.jmpbuf");
+            auto *longjmpTy = llvm::FunctionType::get(
+                llvm::Type::getVoidTy(ctx), {ptrType, i32Type}, false);
+            auto longjmpCallee = cg.module_->getOrInsertFunction("longjmp", longjmpTy);
+            if (auto *lj = llvm::dyn_cast<llvm::Function>(longjmpCallee.getCallee()))
+                lj->addFnAttr(llvm::Attribute::NoReturn);
+            b.CreateCall(longjmpCallee, {jmpbuf, b.getInt32(1)});
+            b.CreateUnreachable();
+
+            b.SetInsertPoint(noHandlerBB);
+        }
+
         static void emitDynDivZeroGuard(LLVMCodeGen &cg, llvm::Value *failCond,
                                              llvm::Value *dividendD,
                                              const char *hostedMsg, const char *tag)
@@ -508,6 +592,9 @@ namespace Sad
                 auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
                 llvm::Value *msg = b.CreateGlobalStringPtr(
                     hostedMsg, std::string(tag) + ".fmt");
+                // (AR) الحاجز ٧: إن كان ثمّة «حاول» نشط ارفع استثناءً قابلًا للالتقاط
+                // (EN) Barrier 7: if a «try» is active, raise a catchable exception
+                emitRecoverablePanicToHandler(cg, msg);
                 b.CreateCall(printfFunc, {msg, dividendD});
                 auto *exitType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);

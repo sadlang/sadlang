@@ -168,6 +168,10 @@ namespace Sad
                 // (AR) إضافة سياق حلقة جديد (sir_builder.h:639 - loopStack_)
                 // (EN) Add new loop context
                 loopStack_.push_back(ctx);
+                // (AR) الحاجز ٧: سجّل عمق «حاول» عند دخول الحلقة ليعرف «قف/أكمل» كم «حاول»
+                //      يخرج منها. / (EN) Barrier 7: record the «try» depth at loop entry so
+                //      break/continue know how many «try»s they exit.
+                loopStack_.back().tryDepthAtEntry = currentTryDepth_;
             }
 
             // ============================================================================

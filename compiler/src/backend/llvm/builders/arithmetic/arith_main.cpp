@@ -74,6 +74,11 @@ namespace Sad
                 return res;
             }
 
+            // (AR) الحاجز ٧: emitRecoverablePanicToHandler مُعرَّفة في sad_dyn_repr.cpp
+            //      ومُعلَنة في sad_dyn_repr.h — مشتركة بين المسارين الساكن والديناميّ.
+            // (EN) Barrier 7: emitRecoverablePanicToHandler is defined in sad_dyn_repr.cpp
+            //      and declared in sad_dyn_repr.h — shared by the static + dynamic paths.
+
             // (AR) حارس القاسم العشريّ الصفريّ المشترك (د-1 + إغلاق بوّابتَي NaN
             //      المتبقّيتين RUN009/RUN010): يزرع فحص divisor == 0.0 قبل عمليّة
             //      القسمة العشريّة (fdiv/floor(fdiv)/frem) — نمط emitBoundsCheck/
@@ -111,12 +116,15 @@ namespace Sad
                 }
                 else
                 {
+                    llvm::Value *msg = b.CreateGlobalStringPtr(
+                        hostedMsg, std::string(tag) + ".fmt");
+                    // (AR) الحاجز ٧: إن كان ثمّة «حاول» نشط ارفع استثناءً قابلًا للالتقاط
+                    // (EN) Barrier 7: if a «try» is active, raise a catchable exception
+                    emitRecoverablePanicToHandler(cg, msg);
                     auto ptrTy = llvm::PointerType::getUnqual(ctx);
                     auto *printfType = llvm::FunctionType::get(
                         llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
                     auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
-                    llvm::Value *msg = b.CreateGlobalStringPtr(
-                        hostedMsg, std::string(tag) + ".fmt");
                     b.CreateCall(printfFunc, {msg, dividend});
                     auto *exitType = llvm::FunctionType::get(
                         llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);
@@ -161,12 +169,15 @@ namespace Sad
                 }
                 else
                 {
+                    llvm::Value *msg = b.CreateGlobalStringPtr(
+                        hostedMsg, std::string(tag) + ".fmt");
+                    // (AR) الحاجز ٧: إن كان ثمّة «حاول» نشط ارفع استثناءً قابلًا للالتقاط
+                    // (EN) Barrier 7: if a «try» is active, raise a catchable exception
+                    emitRecoverablePanicToHandler(cg, msg);
                     auto ptrTy = llvm::PointerType::getUnqual(ctx);
                     auto *printfType = llvm::FunctionType::get(
                         llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
                     auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
-                    llvm::Value *msg = b.CreateGlobalStringPtr(
-                        hostedMsg, std::string(tag) + ".fmt");
                     b.CreateCall(printfFunc, {msg, dividend});
                     auto *exitType = llvm::FunctionType::get(
                         llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);

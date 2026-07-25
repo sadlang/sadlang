@@ -170,6 +170,36 @@ namespace Sad
                 // (EN) Variable names → class names they are instances of
                 std::unordered_map<std::string, std::string> classInstanceTypes_;
 
+                // ────────────────────────────────────────────────────────────
+                // (AR) استنتاج نوع المرميّ لكلّ «حاول» فعّال — لربط متغيّر «امسك»
+                //      بنوعه الساكن الصحيح (كائن/رقم/نص) فيطابق نوع() المفسّرَ ويعمل
+                //      وصولُ الحقل. تُدفَع خانةٌ عند دخول «حاول»، وتُسجّل كلُّ «ارمي»
+                //      لفظيّة نوعَها في الخانة العليا، ثمّ تُلتقَط وتُنبثَق بعد بناء الجسم.
+                // (EN) Per-active-«try» thrown-type inference — to bind the «catch» variable
+                //      with its correct static type (object/number/string) so نوع() matches
+                //      the interpreter and field access works. A slot is pushed on «try»
+                //      entry; each lexical «throw» records its type into the top slot; the
+                //      slot is captured and popped after the try body is built.
+                struct ThrownInfo
+                {
+                    SadTypeKind kind = SadTypeKind::Void; ///< (AR) نوع القيمة المرميّة / (EN) thrown value kind
+                    std::string className;                ///< (AR) اسم الصنف إن كانت كائنًا / (EN) class name if object
+                    bool sawThrow = false;                ///< (AR) هل رُصدت أيّ «ارمي»؟ / (EN) any throw seen?
+                    bool mixed = false;                   ///< (AR) أنواع متعدّدة ⇒ لا استنتاج / (EN) multiple types ⇒ no inference
+                };
+                std::vector<ThrownInfo> tryThrownStack_;
+
+                // (AR) عمق «حاول» اللفظيّ الحاليّ أثناء التوليد (الحاجز ٧). يُزاد عند بناء
+                //      جسم «حاول» ويُنقَص بعده. تستعمله جُمَل الخروج غير المحلّيّ (ارجع/قف/
+                //      أكمل) لتبعث __sad_try_exit بعدد «حاول» التي تخرج منها، فلا يتسرّب
+                //      __sad_try_active (تسرّبه يجعل حاجزَ القسمة يقفز لإطارٍ ميّت ⇒ انهيار).
+                // (EN) Current lexical «try» depth during codegen (Barrier 7). Incremented while
+                //      building a «try» body, decremented after. Non-local-exit statements
+                //      (return/break/continue) use it to emit __sad_try_exit for each «try» they
+                //      leave, so __sad_try_active never leaks (a leak makes the division guard
+                //      longjmp into a dead frame ⇒ crash).
+                int currentTryDepth_ = 0;
+
                 // (AR) خريطة أنواع الأصناف للمعاملات (مُستنتجة من call sites)
                 // (EN) Class type map for function parameters (inferred from call sites)
                 std::unordered_map<std::string, std::unordered_map<std::string, std::string>> paramClassTypes_;

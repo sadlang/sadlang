@@ -352,6 +352,11 @@ namespace Sad
             {
                 std::string continueLabel; ///< (AR) تسمية continue / (EN) Continue label
                 std::string breakLabel;    ///< (AR) تسمية break / (EN) Break label
+                // (AR) عمق «حاول» اللفظيّ عند دخول الحلقة — ليحسب «قف/أكمل» عددَ «حاول»
+                //      التي يخرج منها (الحاجز ٧: خفض __sad_try_active على الخروج غير المحلّيّ).
+                // (EN) Lexical «try» depth at loop entry — lets break/continue compute how many
+                //      «try»s they exit (Barrier 7: decrement __sad_try_active on non-local exit).
+                int tryDepthAtEntry = 0;
             };
 
             /**

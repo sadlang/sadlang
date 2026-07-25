@@ -128,5 +128,22 @@ namespace Sad
         ///      source as sadTypeKindArabicName (رقم/عشري/منطقي/نص/…) ⇒ matches نوع(). char*.
         llvm::Value *dynTypeName(LLVMCodeGen &cg, llvm::Value *dyn);
 
+        // ====================================================================
+        // (AR) الحاجز ٧: التقاط هلع زمن التشغيل الجوهريّ (قسمة على صفر…) بـحاول/امسك
+        // (EN) Barrier 7: catch an intrinsic runtime panic (division by zero…) via try/catch
+        // ====================================================================
+        /// (AR) إن وُجد معالِج «حاول» نشط (handlerCount > 0) يرفع استثناءً قابلًا للالتقاط
+        ///      عبر آليّة setjmp/longjmp نفسها (يخزّن النوع «خطأ» + الرسالة msgPtr، ثمّ يقفز
+        ///      لأعلى معالِج فلا يعود). وإلّا لا يفعل شيئًا ويترك موضعَ الإدراج في كتلة «لا
+        ///      معالِج» ليُكمل النادي مساره القديم (طباعة التشخيص + exit(1)). مشترك بين
+        ///      المسارين الساكن (arith_main) والديناميّ (dynBinOp).
+        /// (EN) If an active «try» handler exists (handlerCount > 0), raise a catchable
+        ///      exception via the same setjmp/longjmp mechanism (stores the «خطأ» type +
+        ///      msgPtr message, then longjmps to the top handler — never returns). Otherwise
+        ///      it is a no-op leaving the insert point at the «no handler» block so the caller
+        ///      keeps its old path (print diagnostic + exit(1)). Shared by the static
+        ///      (arith_main) and dynamic (dynBinOp) paths.
+        void emitRecoverablePanicToHandler(LLVMCodeGen &cg, llvm::Value *msgPtr);
+
     } // namespace LLVM
 } // namespace Sad

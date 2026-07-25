@@ -47,6 +47,22 @@ namespace Sad
                     return;
                 }
 
+                // (AR) الحاجز ٧: العودة تخرج من كلّ «حاول» مُحيطة في الدالّة ⇒ خفّض
+                //      __sad_try_active بعددها، وإلّا تسرّب العدّادُ بعد موت الإطار فيقفز
+                //      أوّلُ حارس قسمة/صفر لاحق لـjmpbuf ميّت (0xC0000005). يُبعَث قبل RET.
+                // (EN) Barrier 7: a return leaves every enclosing «try» in the function ⇒
+                //      decrement __sad_try_active by that count, else the counter leaks after
+                //      the frame dies and the next division-by-zero guard longjmps into a dead
+                //      jmpbuf (0xC0000005). Emitted before the RET.
+                for (int i = 0; i < b_.currentTryDepth_ && b_.currentBlock_; ++i)
+                {
+                    SIRInstruction tryExit;
+                    tryExit.opcode = SIROpcode::CALL;
+                    tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
+                    tryExit.comment = "barrier7: exit active try (return)";
+                    b_.currentBlock_->addInstruction(tryExit);
+                }
+
                 // ================================================================
                 // (AR) FIX X06: بناء تعبير الإرجاع قبل defer
                 //      المشكلة: emitRunDeferredClosures() يغير b_.currentBlock_ الى defer_skip،
@@ -577,6 +593,18 @@ namespace Sad
                     return;
                 }
 
+                // (AR) الحاجز ٧: «قف» يخرج من «حاول» الواقعة بين الحلقة ونقطة الكسر ⇒
+                //      خفّض __sad_try_active بعددها. / (EN) Barrier 7: break leaves the «try»s
+                //      between the loop and the break point ⇒ decrement __sad_try_active.
+                for (int i = loop->tryDepthAtEntry; i < b_.currentTryDepth_ && b_.currentBlock_; ++i)
+                {
+                    SIRInstruction tryExit;
+                    tryExit.opcode = SIROpcode::CALL;
+                    tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
+                    tryExit.comment = "barrier7: exit active try (break)";
+                    b_.currentBlock_->addInstruction(tryExit);
+                }
+
                 // (AR) توليد قفز غير شرطي إلى كتلة خروج الحلقة
                 // (EN) Generate unconditional branch to loop exit block
                 SIROperand exitLabel = SIROperand::Label(loop->breakLabel);
@@ -635,6 +663,18 @@ namespace Sad
                 {
                     b_.errors_.push_back("(AR) خطأ: جملة 'أكمل' خارج حلقة. (EN) Error: 'continue' outside of loop.");
                     return;
+                }
+
+                // (AR) الحاجز ٧: «أكمل» يخرج من «حاول» الواقعة بين الحلقة ونقطة الاستمرار ⇒
+                //      خفّض __sad_try_active بعددها. / (EN) Barrier 7: continue leaves the «try»s
+                //      between the loop and the continue point ⇒ decrement __sad_try_active.
+                for (int i = loop->tryDepthAtEntry; i < b_.currentTryDepth_ && b_.currentBlock_; ++i)
+                {
+                    SIRInstruction tryExit;
+                    tryExit.opcode = SIROpcode::CALL;
+                    tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
+                    tryExit.comment = "barrier7: exit active try (continue)";
+                    b_.currentBlock_->addInstruction(tryExit);
                 }
 
                 // (AR) توليد قفز غير شرطي إلى كتلة استمرار الحلقة

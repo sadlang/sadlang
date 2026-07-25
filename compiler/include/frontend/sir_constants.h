@@ -108,6 +108,28 @@ namespace Sad::Compiler
     // (EN) Current exception message (string pointer)
     inline constexpr const char *kRuntimeExceptionMsg = "__sad_exception_msg";
 
+    // (AR) حمولة الاستثناء الحالي كبتّات i64 (رقم/منطقيّ/عشريّ مُعاد التفسير) —
+    //      يفصل القيمة غير النصّيّة عن مؤشّر الرسالة النصّيّ فلا تُخزَّن i64 في مؤشّر
+    //      (كان يُحطّم المترجَم). للكائنات/النصوص يُترك المؤشّر في kRuntimeExceptionMsg.
+    // (EN) Current exception payload as i64 bits (number/bool/float reinterpreted) —
+    //      keeps a non-string thrown value separate from the string message pointer,
+    //      so an i64 is never stored into a ptr global (which crashed the compiler).
+    //      For objects/strings the pointer stays in kRuntimeExceptionMsg.
+    inline constexpr const char *kRuntimeExceptionValue = "__sad_exception_value";
+
+    // (AR) عدّاد «حاول» النشطة (ذاتيّ ودقيق) — يميّز معالِج try/catch الحقيقيّ عن
+    //      معالِج تنظيف الدالّة (defer/finally) المدفوع لكلّ دالّة على المكدّس نفسه.
+    //      يستعمله حاجزُ الهلع الجوهريّ (قسمة على صفر) ليقرّر: يرفع استثناءً قابلًا
+    //      للالتقاط فقط عند وجود «حاول» فعليّة (> 0)، وإلّا يطبع التشخيص ويخرج.
+    //      لا يمسّ آليّةَ رمي/التقاط القيم إطلاقًا (سلامة النقطتين ١+٢).
+    // (EN) Active-«try» counter (self-contained, precise) — distinguishes a real
+    //      try/catch handler from the per-function cleanup (defer/finally) handler
+    //      pushed onto the same stack. The intrinsic-panic guard (division by zero)
+    //      uses it to decide: raise a catchable exception only when a real «try» is
+    //      active (> 0), else print the diagnostic and exit. It never touches the
+    //      value throw/catch mechanism (keeps points 1+2 intact).
+    inline constexpr const char *kRuntimeTryActive = "__sad_try_active";
+
     // ──────────────────────────────────────────────────────────────────
     // (AR) أسماء وقت التشغيل لجمع مفاتيح/قيم الخريطة عند تكرارها (حلقة «لكل»
     //      والاستيعابات). عقد ABI مع الخلفيّة في map_ops.cpp — تُعيد كلٌّ منهما
