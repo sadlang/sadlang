@@ -153,6 +153,10 @@ namespace sad
                 {UINodeType::FractionallySizedBox, "صندوق_نسبي"},
                 {UINodeType::ConstrainedBox, "صندوق_مقيد"},
                 {UINodeType::AspectRatio, "نسبة_عرض"},
+                // ─── قشرة سطح المكتب (م١) ────
+                {UINodeType::Window, "نافذة"},
+                {UINodeType::TitleBar, "شريط_عنوان"},
+                {UINodeType::ScrollBar, "شريط_تمرير"},
             };
             return table;
         }

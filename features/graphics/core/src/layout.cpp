@@ -336,6 +336,18 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = 24.0f;
             break;
 
+        case UINodeType::TitleBar:
+            // شريط عنوان يملأ عرض حاويته بارتفاع ثابت (م١ قشرة سطح المكتب)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 320.0f;
+            defaultHeight = 36.0f;
+            break;
+
+        case UINodeType::ScrollBar:
+            // شريط تمرير رأسيّ نحيل يملأ ارتفاع حاويته
+            defaultWidth = 12.0f;
+            defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 200.0f;
+            break;
+
         default:
             defaultWidth = 50.0f;
             defaultHeight = 50.0f;

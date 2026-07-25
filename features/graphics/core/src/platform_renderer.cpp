@@ -1319,6 +1319,83 @@ namespace sad
                 break;
             }
 
+            // ── النافذة (Window) — لوح مرتفع بحدود (م١ قشرة سطح المكتب) ──
+            case UINodeType::Window:
+            {
+                float wr = getNumericProp(node.findProperty(props::CORNER_RADIUS), 8.0f); // زوايا
+                // ظلّ الإسقاط لإيحاء التراكب
+                drawFilledRect(rect.x + 3, rect.y + 8, rect.width, rect.height, {0, 0, 0, 0.22f});
+                Color winBg = parseColorProp(node.findProperty(props::BG),          // خلفية
+                                             Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, winBg, wr);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                break;
+            }
+
+            // ── شريط العنوان (TitleBar) — شريط ملوَّن + عنوان RTL + أزرار النافذة ──
+            case UINodeType::TitleBar:
+            {
+                Color barColor = parseColorProp(node.findProperty(props::BG_COLOR), // لون_خلفية
+                                                Color::fromNamed(NamedColor::Primary));
+                if (!node.findProperty(props::BG_COLOR))
+                    barColor = parseColorProp(node.findProperty(props::COLOR), barColor); // لون
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, barColor);
+                // العنوان (محاذاة RTL يمينًا كـ AppBar)
+                const auto *titleProp = node.findProperty(props::TITLE); // عنوان
+                if (!titleProp)
+                    titleProp = node.findProperty(props::TEXT_LATIN);
+                if (!titleProp)
+                    titleProp = node.findProperty(props::TEXT); // نص
+                if (titleProp)
+                {
+                    if (auto *t = std::get_if<std::string>(&titleProp->value))
+                    {
+                        Color tc = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
+                                                  Color::fromNamed(NamedColor::White));
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 16.0f); // حجم_الخط
+                        float tx = rect.x + 14;
+                        if (isArabicText(*t))
+                        {
+                            auto sz = measureText(*t, fs);
+                            tx = rect.x + rect.width - sz.first - 14;
+                            if (tx < rect.x)
+                                tx = rect.x; // مطابقة حارس AppBar
+                        }
+                        drawText(*t, tx, rect.y + rect.height / 2 - fs / 2, tc, fs);
+                    }
+                }
+                // أزرار النافذة الثلاثة (يسار في RTL): إغلاق/تصغير/تكبير — دوائر ملوّنة
+                float br = 6.0f;                          // نصف قطر الزرّ
+                float cy = rect.y + rect.height / 2.0f;
+                float bx = rect.x + 14.0f;                // من اليسار
+                float gap = 22.0f;
+                Color btnClose{0.906f, 0.298f, 0.235f, 1.0f}; // أحمر (إغلاق)
+                Color btnMin{0.953f, 0.612f, 0.071f, 1.0f};   // كهرمانيّ (تصغير)
+                Color btnMax{0.180f, 0.800f, 0.443f, 1.0f};   // أخضر (تكبير)
+                drawRoundedRect(bx, cy - br, br * 2, br * 2, btnClose, br);
+                drawRoundedRect(bx + gap, cy - br, br * 2, br * 2, btnMin, br);
+                drawRoundedRect(bx + 2 * gap, cy - br, br * 2, br * 2, btnMax, br);
+                break;
+            }
+
+            // ── شريط التمرير (ScrollBar) — مسار + إبهام بموضع نسبيّ للقيمة ──
+            case UINodeType::ScrollBar:
+            {
+                Color track = parseColorProp(node.findProperty(props::BG), {0.90f, 0.90f, 0.90f, 1}); // خلفية
+                float sr = rect.width / 2.0f; // شريط رأسيّ نحيل ⇒ نصف العرض
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, track, sr);
+                float val = getNumericProp(node.findProperty(props::VALUE), 30.0f) / 100.0f; // قيمة
+                val = std::max(0.0f, std::min(1.0f, val));
+                // حدّ علويّ بارتفاع المسار: يمنع إبهامًا أطول من الشريط (⇒ thumbY<rect.y)
+                float thumbH = std::min(rect.height, std::max(24.0f, rect.height * 0.3f));
+                float thumbY = rect.y + (rect.height - thumbH) * val;
+                Color thumb = parseColorProp(node.findProperty(props::COLOR), // لون
+                                             Color::fromNamed(NamedColor::Gray));
+                drawRoundedRect(rect.x, thumbY, rect.width, thumbH, thumb, sr);
+                break;
+            }
+
             default:
                 break;
             }
