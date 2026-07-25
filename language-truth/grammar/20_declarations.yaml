@@ -227,9 +227,10 @@ productions:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExportStmt" }
     ast_node: "ExportStmt"
     description_ar: >
-      «صدّر» تسبق تصريحاً (دالة/صنف/متغير) فتُتيحه للاستيراد من وحدات أخرى. تلتفّ حول
-      تصريحٍ كامل لا حول قيمة؛ فـ«صدّر متغير ص = 42» و«صدّر دالة …» صحيحان. **قيد
-      مترجم:** «صدّر بنية» لا يُترجَم (ISSUE-026)، و«صدّر *» مرفوض بالمحرّكين.
+      «صدّر» تسبق تصريحاً (دالة/صنف/متغير/بنية) فتُتيحه للاستيراد من وحدات أخرى. تلتفّ
+      حول تصريحٍ كامل لا حول قيمة؛ فـ«صدّر متغير ص = 42» و«صدّر دالة …» و«صدّر بنية …»
+      صحيحة. «صدّر بنية» تُترجَم الآن عبر الوحدات (ISSUE-026 مُغلَق). **قيد
+      مترجم:** «صدّر *» مرفوض بالمحرّكين.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 3 } }

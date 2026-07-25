@@ -29,6 +29,7 @@
 #include <iostream>
 #include <filesystem>
 #include <unordered_set>
+#include <functional>
 
 namespace Sad
 {
@@ -694,6 +695,9 @@ namespace Sad
                     AST::FunctionDecl *funcDecl = nullptr;
                     AST::VarDeclStmt *varDecl = nullptr;
                     AST::ClassDecl *classDecl = nullptr;
+                    // (AR) [ISSUE-026] البنية «صدّر بنية» تُلتقط هنا أيضًا لتُبنى (كانت تُسقَط).
+                    // (EN) [ISSUE-026] Capture an exported struct here too so it gets built.
+                    Sad::AST::StructDecl *structDecl = nullptr;
 
                     // (AR) تحقق من تصدير صريح (ExportDecl)
                     // (EN) Check for explicit export (ExportDecl)
@@ -704,6 +708,7 @@ namespace Sad
                             funcDecl = dynamic_cast<AST::FunctionDecl *>(exportDecl->declaration.get());
                             varDecl = dynamic_cast<AST::VarDeclStmt *>(exportDecl->declaration.get());
                             classDecl = dynamic_cast<AST::ClassDecl *>(exportDecl->declaration.get());
+                            structDecl = dynamic_cast<Sad::AST::StructDecl *>(exportDecl->declaration.get());
                         }
                     }
                     // (AR) تحقق من تصدير قديم (ExportStmt)
@@ -715,6 +720,7 @@ namespace Sad
                             funcDecl = dynamic_cast<AST::FunctionDecl *>(exportStmt->declaration.get());
                             varDecl = dynamic_cast<AST::VarDeclStmt *>(exportStmt->declaration.get());
                             classDecl = dynamic_cast<AST::ClassDecl *>(exportStmt->declaration.get());
+                            structDecl = dynamic_cast<Sad::AST::StructDecl *>(exportStmt->declaration.get());
                         }
                     }
                     // (AR) دالة عادية (بدون تصدير صريح)
@@ -724,6 +730,7 @@ namespace Sad
                         funcDecl = dynamic_cast<AST::FunctionDecl *>(stmt.get());
                         varDecl = dynamic_cast<AST::VarDeclStmt *>(stmt.get());
                         classDecl = dynamic_cast<AST::ClassDecl *>(stmt.get());
+                        structDecl = dynamic_cast<Sad::AST::StructDecl *>(stmt.get());
                     }
 
                     // (AR) بناء SIR للتصريحات المُكتشفة
@@ -740,7 +747,216 @@ namespace Sad
                     {
                         b_.buildClass(classDecl);
                     }
+                    // (AR) [ISSUE-026] بناء البنية المستوردة (buildStatement ⇒ addClass/classTable_)
+                    //      مع حارس getClass لتفادي التسجيل المكرّر عند إعادة معالجة الوحدة.
+                    // (EN) [ISSUE-026] Build the imported struct (buildStatement ⇒
+                    //      addClass/classTable_) with a getClass guard to avoid double registration
+                    //      when the module is re-processed.
+                    if (structDecl && !b_.module_->getClass(structDecl->name))
+                    {
+                        b_.buildStatement(structDecl);
+                    }
                 }
+            }
+
+            /**
+             * @brief (AR) تسجيل تواقيع دوالّ الوحدات المستوردة انتقائيًّا مسبقًا
+             * @brief (EN) Pre-register selectively-imported module function signatures
+             *
+             * (AR) العلّة: الوحدات المستوردة تُبنى في الطور 2 (بعد الطور 1.7 للاستنتاج)،
+             *      فحين يمسح inferParamTypesFromCallSites مواقع النداء في الوحدة الرئيسة
+             *      لا تكون الدالّة المستوردة مسجَّلة في functionTable_ بعد ⇒ لا يُحدَّث نوع
+             *      معاملها غير المصرَّح فيبقى Integer الافتراضيّ، فيُبنى جسمها على أساسه
+             *      ويُطبع الوسيط النصّيّ مشوَّهًا (`مرحبا 140698...!`). الحلّ: نسجّل تواقيعها
+             *      هنا — قبل الطور 1.7 — كي يستنتج المترجم أنواع معاملاتها من الوحدة الرئيسة،
+             *      ثمّ يبنيها الطور 2 بالنوع المصحَّح (حارس التخطّي يُبنى إن لم يُبنَ بعد).
+             * (EN) Bug: imported functions are built in Phase 2 (after Phase 1.7 inference),
+             *      so when inferParamTypesFromCallSites scans the main module's call sites the
+             *      imported function is not yet in functionTable_ ⇒ its undeclared param type
+             *      stays default Integer, its body is built accordingly, and a string arg
+             *      prints garbled. Fix: register the signatures here — before Phase 1.7 — so
+             *      the compiler infers their param types from the main module, then Phase 2
+             *      builds them with the corrected type (skip-guard builds if not yet built).
+             */
+            void TemplateBuilder::preRegisterImportedSignatures(Sad::AST::StmtList *program)
+            {
+                if (!program)
+                    return;
+
+                if (!b_.moduleResolver_)
+                {
+                    b_.moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+                }
+
+                // (AR) حارس الوحدات المُعالَجة مسبقًا — يمنع التكرار اللانهائيّ عند
+                //      الاستيراد الدائريّ ويجنّب إعادة العمل. محلّيّ ⇒ يُعاد ضبطه لكلّ وحدة.
+                // (EN) Visited-module guard — prevents infinite recursion on cyclic
+                //      imports and avoids rework. Local ⇒ reset per module compilation.
+                std::unordered_set<std::string> visitedPaths;
+
+                // (AR) دالّة تعاوديّة: لكلّ عبارة `من م استورد ...` تسجّل تواقيع الرموز
+                //      المستوردة فعلًا (المُصدَّرة) من الوحدة م، وتجمع شجرة م مرّةً للمسح،
+                //      ثمّ تنحدر إلى استيرادات م المتعدّية بمسار ملفّ م (للاستيراد النسبيّ).
+                // (EN) Recursive: for each `from m import ...` statement, register the
+                //      signatures of the actually-imported (exported) symbols of m, collect
+                //      m's AST once for scanning, then descend into m's transitive imports
+                //      using m's own file path (so relative imports inside m resolve).
+                std::function<void(Sad::AST::StmtList *, const std::string &)> processImportsIn =
+                    [&](Sad::AST::StmtList *stmts, const std::string &basePath)
+                {
+                    if (!stmts)
+                        return;
+                    for (const auto &stmt : *stmts)
+                    {
+                        auto *fromImport = dynamic_cast<AST::FromImportStmt *>(stmt.get());
+                        if (!fromImport)
+                            continue;
+
+                        std::string fullModuleName = fromImport->getFullModuleName();
+                        // (AR) الوحدات القياسية دوالُّها مضمَّنة في المترجم — لا تُسجَّل هنا
+                        // (EN) Stdlib modules are compiler builtins — skip
+                        if (isCompilerBuiltinStdlibModule(fullModuleName))
+                            continue;
+
+                        // (AR) resolveModule يخبّئ النتائج ⇒ الطور 2 يعيد استخدام الشجرة ذاتها
+                        // (EN) resolveModule caches ⇒ Phase 2 reuses the same AST
+                        Modules::Module *module = b_.moduleResolver_->resolveModule(
+                            fromImport->modulePath,
+                            basePath);
+                        if (!module)
+                            continue;
+
+                        // (AR) حارس الزيارة بمفتاح مسار الملفّ المُحَلّ (لا الاسم) كي لا يخلط
+                        //      وحدتين متطابقتَي الاسم في مجلّدين، ويجمع الشجرةَ وينحدر مرّةً.
+                        //      🔑 على ويندوز نحوّل المسارَ عبر from_wstring(wstring): استدعاءُ
+                        //      path::string() على اسمٍ عربيّ يتعطّل/يرمي (خارج ترميز ANSI) —
+                        //      يطابق ما يفعله module_resolver عمدًا بـ.wstring().
+                        // (EN) Visit guard keyed by the resolved file path (not the name) so two
+                        //      identically-named modules in different dirs don't collide; body
+                        //      collection and descent happen once.
+                        //      🔑 On Windows convert via from_wstring(wstring): calling
+                        //      path::string() on an Arabic name hangs/throws (outside ANSI) —
+                        //      mirrors what module_resolver deliberately does with .wstring().
+#ifdef _WIN32
+                        std::string modulePathKey =
+                            sad::utf8::from_wstring(module->filePath.wstring());
+#else
+                        std::string modulePathKey = module->filePath.string();
+#endif
+                        bool firstVisit = visitedPaths.insert(modulePathKey).second;
+
+                        // (AR) اجمع شجرة الوحدة مرّةً كي يمسحها inferParamTypesFromCallSites
+                        //      (انتشارٌ متعدٍّ: نداءُ رسالة لتحية داخل أشكال يُرقّي تحية)
+                        // (EN) Collect the module AST once so inferParamTypesFromCallSites
+                        //      scans it (transitive: رسالة's تحية call inside أشكال widens تحية)
+                        if (firstVisit)
+                            b_.importedModuleBodies_.push_back(&module->ast);
+
+                        // (AR) الرموز المطلوبة في هذه العبارة تحديدًا؛ اتّحادُ عبارات الوحدة
+                        //      يتراكم طبيعيًّا لأنّنا نسجّل عند كلّ عبارة. حصرُ التسجيل بالرموز
+                        //      المستوردة فعلًا (المُصدَّرة) حرجٌ: بذرُ دوالّ الوحدة الخاصّة في
+                        //      functionTable_ يجعل isUserDefinedFunction صادقًا لاسمٍ يصادف
+                        //      مدمَجًا (طول/حجم/جذر) فيَختطف المدمَجَ في الرئيسة ⇒ مرجعٌ غير
+                        //      مُعرَّف أو دلالة خاطئة. لذا: المُصدَّرُ المطلوبُ فقط.
+                        // (EN) Symbols requested by THIS statement; the module's union
+                        //      accumulates naturally since we register at every statement.
+                        //      Restricting to actually-imported (exported) symbols is CRITICAL:
+                        //      seeding a module's private functions into functionTable_ makes
+                        //      isUserDefinedFunction true for a name shadowing a builtin
+                        //      (طول/حجم/جذر), hijacking it in the main module ⇒ undefined ref or
+                        //      wrong semantics. So: only the exported, requested symbol.
+                        std::unordered_set<std::string> requestedSymbols;
+                        bool isWildcard = fromImport->isWildcard;
+                        if (!isWildcard)
+                        {
+                            for (const auto &item : fromImport->items)
+                                requestedSymbols.insert(item.name);
+                        }
+
+                        for (const auto &mstmt : module->ast)
+                        {
+                            if (!mstmt)
+                                continue;
+
+                            // (AR) الدوالّ المُصدَّرة وحدها قابلةٌ للاستيراد — لا نبذر الخاصّة.
+                            //      ملحوظة: الطور 2 (buildFromImportStmt) يبني رمزًا خاصًّا لو
+                            //      طُلب بالاسم صراحةً؛ عدمُ بذره هنا يعني بقاءَ معاملاته غير
+                            //      مستنتَجة (كأساس origin/dev، لا انحدار). هل يُسمح استيرادُ رمزٍ
+                            //      غيرِ مُصدَّر أصلًا؟ قرارٌ لغويّ للمالك — لا نحسمه هنا ببذرٍ
+                            //      قد يظلّل مدمَجًا، ولا برفضٍ يغيّر الدلالة القائمة.
+                            // (EN) Only exported functions are importable — never seed private.
+                            //      Note: Phase 2 (buildFromImportStmt) still builds a private
+                            //      symbol if explicitly requested by name; not seeding it here
+                            //      leaves its params un-inferred (same as the origin/dev baseline,
+                            //      not a regression). Whether importing a non-exported symbol is
+                            //      even allowed is a language decision for the owner — we neither
+                            //      bless it by seeding (could shadow a builtin) nor reject it here.
+                            AST::FunctionDecl *funcDecl = nullptr;
+                            if (auto *exportDecl = dynamic_cast<AST::ExportDecl *>(mstmt.get()))
+                            {
+                                if (exportDecl->declaration)
+                                    funcDecl = dynamic_cast<AST::FunctionDecl *>(exportDecl->declaration.get());
+                            }
+                            else if (auto *exportStmt = dynamic_cast<AST::ExportStmt *>(mstmt.get()))
+                            {
+                                if (exportStmt->declaration)
+                                    funcDecl = dynamic_cast<AST::FunctionDecl *>(exportStmt->declaration.get());
+                            }
+
+                            if (!funcDecl)
+                                continue;
+                            if (!isWildcard && requestedSymbols.find(funcDecl->name) == requestedSymbols.end())
+                                continue;
+                            // (AR) لا تُعِد تسجيل رمز موجود سلفًا (محلّيّ الطور 1 أو بُذِر آنِفًا)
+                            // (EN) Don't re-register an already-present symbol (local Phase-1 or seeded)
+                            if (b_.functionTable_.find(funcDecl->name) != b_.functionTable_.end())
+                                continue;
+
+                            // (AR) توقيع بأنواع خام — يطابق تسجيل الطور 1 للدوالّ المحلّيّة.
+                            //      sirFunction=nullptr علامةُ «سُجِّل ولم يُبنَ» يقرؤها حارس التخطّي.
+                            // (EN) Raw-type signature — mirrors Phase 1's local registration.
+                            //      sirFunction=nullptr marks "registered but not built" for the guard.
+                            FunctionInfo funcInfo;
+                            funcInfo.name = funcDecl->name;
+                            if ((funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                                 funcDecl->returnType == Types::SadTypeKind::Void) &&
+                                funcDecl->body)
+                            {
+                                funcInfo.returnType =
+                                    inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                            }
+                            else if (funcDecl->returnType == Types::SadTypeKind::Unknown &&
+                                     !funcDecl->body)
+                            {
+                                funcInfo.returnType = SadTypeKind::Void;
+                            }
+                            else
+                            {
+                                funcInfo.returnType = b_.astTypeToSIRType(funcDecl->returnType);
+                            }
+                            for (const auto &param : funcDecl->parameters)
+                            {
+                                funcInfo.parameters.push_back(
+                                    SIRParameter(param.name, b_.astTypeToSIRType(param.type)));
+                            }
+                            funcInfo.sirFunction = nullptr;
+                            funcInfo.astDecl = funcDecl;
+                            b_.functionTable_[funcDecl->name] = funcInfo;
+                            // (AR) علِّم البذرة كي يبنيها حارس التخطّي دون مسّ دلالة المحلّيّ
+                            // (EN) Mark the seed so the skip-guard builds it without touching local semantics
+                            b_.preRegisteredImportNames_.insert(funcDecl->name);
+                        }
+
+                        // (AR) انحدر إلى استيرادات هذه الوحدة المتعدّية مرّةً — بمسار ملفّها
+                        //      كي تُحَلّ استيراداتها النسبيّة صحيحًا (رسالة⇒تحية عبر أشكال).
+                        // (EN) Descend into this module's transitive imports once — using its
+                        //      own file path so relative imports resolve (رسالة⇒تحية via أشكال).
+                        if (firstVisit)
+                            processImportsIn(&module->ast, modulePathKey);
+                    }
+                };
+
+                processImportsIn(program, b_.currentFilePath_);
             }
 
             /**
@@ -868,6 +1084,14 @@ namespace Sad
                     AST::FunctionDecl *funcDecl = nullptr;
                     AST::VarDeclStmt *varDecl = nullptr;
                     AST::ClassDecl *classDecl = nullptr;
+                    // (AR) [ISSUE-026] البنية «صدّر بنية» عقدةٌ متمايزة StructDecl (لا ClassDecl)؛
+                    //      كانت تُسقَط هنا فلا تُسجَّل في جدول الأصناف ⇒ «نقطة()» في الرئيسة
+                    //      يفشل «دالة غير معرّفة». نلتقطها كي تُبنى كالصنف.
+                    // (EN) [ISSUE-026] An exported struct is a distinct StructDecl node (not
+                    //      ClassDecl); it was dropped here so it never entered the class table
+                    //      ⇒ «نقطة()» in the main module failed as "undefined function". Capture
+                    //      it so it is built like a class.
+                    Sad::AST::StructDecl *structDecl = nullptr;
                     bool isExported = false;
 
                     if (auto exportDecl = dynamic_cast<AST::ExportDecl *>(stmt.get()))
@@ -878,6 +1102,7 @@ namespace Sad
                             funcDecl = dynamic_cast<AST::FunctionDecl *>(exportDecl->declaration.get());
                             varDecl = dynamic_cast<AST::VarDeclStmt *>(exportDecl->declaration.get());
                             classDecl = dynamic_cast<AST::ClassDecl *>(exportDecl->declaration.get());
+                            structDecl = dynamic_cast<Sad::AST::StructDecl *>(exportDecl->declaration.get());
                         }
                     }
                     else if (auto exportStmt = dynamic_cast<AST::ExportStmt *>(stmt.get()))
@@ -888,6 +1113,7 @@ namespace Sad
                             funcDecl = dynamic_cast<AST::FunctionDecl *>(exportStmt->declaration.get());
                             varDecl = dynamic_cast<AST::VarDeclStmt *>(exportStmt->declaration.get());
                             classDecl = dynamic_cast<AST::ClassDecl *>(exportStmt->declaration.get());
+                            structDecl = dynamic_cast<Sad::AST::StructDecl *>(exportStmt->declaration.get());
                         }
                     }
                     else
@@ -895,6 +1121,7 @@ namespace Sad
                         funcDecl = dynamic_cast<AST::FunctionDecl *>(stmt.get());
                         varDecl = dynamic_cast<AST::VarDeclStmt *>(stmt.get());
                         classDecl = dynamic_cast<AST::ClassDecl *>(stmt.get());
+                        structDecl = dynamic_cast<Sad::AST::StructDecl *>(stmt.get());
                     }
 
                     // (AR) تحديد ما إذا كان الرمز مطلوباً
@@ -906,6 +1133,8 @@ namespace Sad
                         symbolName = varDecl->name;
                     else if (classDecl)
                         symbolName = classDecl->name;
+                    else if (structDecl)
+                        symbolName = structDecl->name;
                     else
                         continue;
 
@@ -916,13 +1145,43 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) تخطي الرموز المبنية مسبقاً (لمنع التكرار عند إعادة معالجة الوحدة)
-                    // (EN) Skip already-built symbols (prevent duplication when re-processing module)
-                    if (funcDecl && b_.functionTable_.find(symbolName) != b_.functionTable_.end())
+                    // (AR) تخطي الرموز المبنية مسبقاً (لمنع التكرار عند إعادة معالجة الوحدة).
+                    //      نبني هنا فقط بذرةَ استيرادٍ لم تُبنَ بعد (سجّلها
+                    //      preRegisterImportedSignatures بـsirFunction=nullptr للاستنتاج).
+                    //      نتخطّى إن: بُنيت فعلًا (sirFunction != nullptr)، أو كان الرمز مدخلًا
+                    //      لم نبذره نحن (تسجيلُ الطور 1 لدالّة محلّيّة تحمل الاسم ذاته) — كي
+                    //      يبقى المحلّيّ فائزًا ولا يُبنى الرمز مرّتين (SIRModule::addFunction
+                    //      لا يُزيل التكرار).
+                    // (EN) Skip already-built symbols (prevent duplication when re-processing).
+                    //      Build here ONLY an as-yet-unbuilt import seed (registered by
+                    //      preRegisterImportedSignatures with sirFunction=nullptr for inference).
+                    //      Skip if: actually BUILT (sirFunction != nullptr), OR the entry is one
+                    //      we did NOT seed (a Phase-1 local registration of the same name) — so
+                    //      the local wins and the symbol isn't built twice (SIRModule::addFunction
+                    //      does not de-duplicate).
+                    if (funcDecl)
+                    {
+                        auto ftIt = b_.functionTable_.find(symbolName);
+                        if (ftIt != b_.functionTable_.end())
+                        {
+                            bool alreadyBuilt = ftIt->second.sirFunction != nullptr;
+                            bool isSeededImport =
+                                b_.preRegisteredImportNames_.count(symbolName) > 0;
+                            if (alreadyBuilt || !isSeededImport)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    if (classDecl && b_.module_->getClass(symbolName))
                     {
                         continue;
                     }
-                    if (classDecl && b_.module_->getClass(symbolName))
+                    // (AR) [ISSUE-026] البنية تُسجَّل أيضًا في جدول الأصناف (getClass) —
+                    //      لا تُعِد بناءها إن سبق (تفادي addClass المكرّر).
+                    // (EN) [ISSUE-026] A struct is also registered in the class table
+                    //      (getClass) — don't rebuild it if already present (avoid double addClass).
+                    if (structDecl && b_.module_->getClass(symbolName))
                     {
                         continue;
                     }
@@ -940,6 +1199,19 @@ namespace Sad
                     if (classDecl)
                     {
                         b_.buildClass(classDecl);
+                    }
+                    // (AR) [ISSUE-026] بناء البنية المستوردة عبر buildStatement (يوجّهها إلى
+                    //      statement_types.cpp:412 فتُحسَب حقولها وتُسجَّل بـaddClass/classTable_)
+                    //      كما تفعل الوحدة الرئيسة في الطور 2أ-0 (ISSUE-051). تخطيط الحقول ذاتيّ
+                    //      من الحقول المصرَّحة ⇒ لا حاجة لتسجيلٍ مسبق كالدوالّ.
+                    // (EN) [ISSUE-026] Build the imported struct via buildStatement (routes to
+                    //      statement_types.cpp:412 which computes fields and registers via
+                    //      addClass/classTable_) exactly as the main module does in Phase 2A-0
+                    //      (ISSUE-051). Field layout is self-contained from declared fields ⇒ no
+                    //      pre-registration needed as with functions.
+                    if (structDecl)
+                    {
+                        b_.buildStatement(structDecl);
                     }
                 }
             }

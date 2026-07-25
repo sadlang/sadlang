@@ -1886,6 +1886,16 @@ namespace Sad
                 }
 
                 /**
+                 * @brief (AR) تسجيل تواقيع دوالّ الوحدات المستوردة مسبقًا قبل الطور 1.7
+                 * @brief (EN) Pre-register imported module function signatures before Phase 1.7
+                 * @param program البرنامج الكامل / Full program AST
+                 */
+                void preRegisterImportedSignatures(Sad::AST::StmtList *program)
+                {
+                    templates_->preRegisterImportedSignatures(program);
+                }
+
+                /**
                  * @brief (AR) استنتاج أنواع معاملات اللامدا من تحليل جسمها وسياق الاستدعاء
                  * @brief (EN) Infer lambda parameter types from body analysis and call context
                  * @param lambdaExpr عقدة اللامدا في AST / Lambda AST node

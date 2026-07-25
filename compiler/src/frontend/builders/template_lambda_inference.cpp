@@ -902,11 +902,15 @@ namespace Sad
                 if (!program)
                     return;
 
-                // (AR) مسح كل الجمل في البرنامج — عدة تمريرات للاستنتاج المتعدي
-                // (EN) Scan all statements — multiple passes for transitive inference
-                for (int pass = 0; pass < 3; pass++)
+                // (AR) دالّة مسحٍ لقائمة جملٍ واحدة (تُطبَّق على البرنامج الرئيس ثمّ على
+                //      أجسام الوحدات المستوردة المجموعة في preRegisterImportedSignatures)
+                // (EN) Scan one statement list (applied to the main program then to the
+                //      imported module bodies collected in preRegisterImportedSignatures)
+                auto scanStmtList = [&](Sad::AST::StmtList *stmts)
                 {
-                    for (const auto &stmt : *program)
+                    if (!stmts)
+                        return;
+                    for (const auto &stmt : *stmts)
                     {
                         if (!stmt)
                             continue;
@@ -944,6 +948,20 @@ namespace Sad
                         // (EN) Scan top-level executable statements
                         scanCallSitesInStmt(stmt.get());
                     }
+                };
+
+                // (AR) مسح كل الجمل — عدة تمريرات للاستنتاج المتعدي. نمسح البرنامج
+                //      الرئيس وأجسام الوحدات المستوردة في كلّ تمريرة كي ينتشر النوع
+                //      عبر حدود الوحدات (رسالة⇒تحية) تمامًا كانتشاره داخل وحدةٍ واحدة.
+                // (EN) Scan all statements — multiple passes for transitive inference. We
+                //      scan the main program and the imported module bodies on every pass
+                //      so a type propagates across module boundaries (رسالة⇒تحية) exactly
+                //      as it does within a single module.
+                for (int pass = 0; pass < 3; pass++)
+                {
+                    scanStmtList(program);
+                    for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
+                        scanStmtList(body);
                 }
             }
 

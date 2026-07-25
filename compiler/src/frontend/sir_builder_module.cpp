@@ -220,6 +220,12 @@ namespace Sad
                 //      export the same name).
                 exportedFunctionLinkNames_.clear();
                 exportedVarLinkNames_.clear();
+                // (AR) امسح أشجار الوحدات المستوردة المجموعة للاستنتاج: بانٍ مُعاد
+                //      استخدامه (LSP) يحمل مؤشّرات وحدةٍ سابقة قد تُبطَل خبيئتها.
+                // (EN) Clear collected imported module ASTs for inference: a reused
+                //      builder (LSP) would hold a prior module's possibly-stale pointers.
+                importedModuleBodies_.clear();
+                preRegisteredImportNames_.clear();
 
                 if (!program)
                 {
@@ -963,6 +969,17 @@ namespace Sad
                             preRegisterEnum(dynamic_cast<Sad::AST::EnumDecl *>(exps->declaration.get()));
                     }
                 }
+
+                // (AR) قبل الطور 1.7: سجّل تواقيع دوالّ الوحدات المستوردة انتقائيًّا في
+                //      functionTable_ كي يستنتج inferParamTypesFromCallSites أنواع معاملاتها
+                //      غير المصرَّحة من مواقع النداء في هذه الوحدة (وإلّا بقيت Integer فطُبع
+                //      الوسيط النصّيّ مشوَّهًا عبر حدّ الوحدة). الطور 2 يبنيها بالنوع المصحَّح.
+                // (EN) Before Phase 1.7: register selectively-imported module function
+                //      signatures in functionTable_ so inferParamTypesFromCallSites infers
+                //      their undeclared param types from this module's call sites (otherwise
+                //      they stay Integer and a string arg prints garbled across the module
+                //      boundary). Phase 2 builds them with the corrected type.
+                preRegisterImportedSignatures(program);
 
                 inferParamTypesFromCallSites(program);
 

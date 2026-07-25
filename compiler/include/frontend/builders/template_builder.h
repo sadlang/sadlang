@@ -78,6 +78,16 @@ namespace Sad
 
                 void inferParamTypesFromCallSites(Sad::AST::StmtList *program);
 
+                // (AR) تسجيل تواقيع دوالّ الوحدات المستوردة انتقائيًّا مسبقًا في
+                //      functionTable_ قبل الطور 1.7، كي يقدر inferParamTypesFromCallSites
+                //      على استنتاج أنواع معاملاتها غير المصرَّحة من مواقع النداء في
+                //      الوحدة الرئيسة (وإلّا بُنيت بأنواع Integer افتراضيّة فتُطبع مشوَّهة).
+                // (EN) Pre-register selectively-imported module function signatures in
+                //      functionTable_ before Phase 1.7, so inferParamTypesFromCallSites
+                //      can infer their undeclared parameter types from the main module's
+                //      call sites (otherwise built with default Integer params → garbled).
+                void preRegisterImportedSignatures(Sad::AST::StmtList *program);
+
                 void collectFreeVarsExpr(Sad::AST::Expression *expr, const std::set<std::string> &boundNames, std::set<std::string> &freeVars);
 
                 void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars);

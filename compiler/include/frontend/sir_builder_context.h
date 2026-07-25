@@ -371,6 +371,30 @@ namespace Sad
                 // (AR) محلل الوحدات للاستيراد / (EN) Module resolver
                 std::unique_ptr<Modules::ModuleResolver> moduleResolver_;
 
+                // (AR) أشجار AST للوحدات المستوردة (متعدّيًا) — يملؤها
+                //      preRegisterImportedSignatures قبل الطور 1.7 كي يمسحها
+                //      inferParamTypesFromCallSites أيضًا، فيُستنتَج انتشارُ الأنواع
+                //      المتعدّي عبر حدود الوحدات (رسالة⇒تحية). مؤشّرات معارة إلى
+                //      خبيئة ModuleResolver (تبقى حيّةً طوال الترجمة). تُمسح لكلّ وحدة.
+                // (EN) Imported module ASTs (transitive) — populated by
+                //      preRegisterImportedSignatures before Phase 1.7 so
+                //      inferParamTypesFromCallSites scans them too, enabling
+                //      transitive type propagation across module boundaries
+                //      (رسالة⇒تحية). Borrowed pointers into the ModuleResolver cache
+                //      (alive for the whole compilation). Cleared per module.
+                std::vector<Sad::AST::StmtList *> importedModuleBodies_;
+
+                // (AR) أسماء الدوالّ التي بذرها preRegisterImportedSignatures كتواقيعَ
+                //      مستوردةٍ (sirFunction=nullptr) قبل الطور 1.7. حارس التخطّي في
+                //      buildFromImportStmt يبني هذه وحدها إن لم تُبنَ بعد، ولا يمسّ
+                //      دلالةَ الدوالّ المحلّيّة المسجَّلة في الطور 1. تُمسح لكلّ وحدة.
+                // (EN) Names seeded by preRegisterImportedSignatures as imported
+                //      signatures (sirFunction=nullptr) before Phase 1.7. The skip-guard
+                //      in buildFromImportStmt builds only these if not yet built, without
+                //      touching the semantics of local functions registered in Phase 1.
+                //      Cleared per module.
+                std::unordered_set<std::string> preRegisteredImportNames_;
+
                 // (AR) مسار الملف الحالي / (EN) Current file path
                 std::string currentFilePath_;
 
