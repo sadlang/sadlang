@@ -259,6 +259,16 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) [إكمال الاستضافة الذاتيّة] قيمةٌ مغلّفةٌ في %SadDyn (بنية {i8،i64}) تصل حين
+            //      يُطابَق معاملٌ مجهول النوع على حمولةٍ ديناميّة مستخرَجة (نمط مقيّم AST). لا
+            //      يجوز IntToPtr على البنية (تأكيد LLVM «Invalid cast») ⇒ نفكّ مؤشّرها أوّلًا.
+            // (EN) [Self-hosting completion] A %SadDyn-boxed value ({i8,i64} struct) arrives when
+            //      an untyped-param match runs over an extracted dynamic payload (the AST-evaluator
+            //      pattern). IntToPtr on the struct is an invalid cast (LLVM assert) ⇒ unpack its
+            //      pointer payload first.
+            if (isSadDyn(enumPtr))
+                enumPtr = unpackPtr(cg_, enumPtr);
+
             // (AR) التأكد أن القيمة مؤشر — قد تكون i64 إذا مرّت عبر متغير عام
             // (EN) Ensure the value is a pointer — may be i64 if passed through a global variable
             if (!enumPtr->getType()->isPointerTy())
@@ -331,6 +341,11 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ENUM_GET_PAYLOAD"}});
                 return nullptr;
             }
+
+            // (AR) [إكمال الاستضافة الذاتيّة] فكّ %SadDyn قبل IntToPtr (انظر ENUM_GET_TAG).
+            // (EN) [Self-hosting completion] Unpack %SadDyn before IntToPtr (see ENUM_GET_TAG).
+            if (isSadDyn(enumPtr))
+                enumPtr = unpackPtr(cg_, enumPtr);
 
             // (AR) التأكد أن القيمة مؤشر — قد تكون i64 إذا مرّت عبر متغير عام
             // (EN) Ensure the value is a pointer — may be i64 if passed through a global variable
@@ -705,6 +720,64 @@ namespace Sad
             }
 
             int64_t expectedTag = inst->operands[1].intValue;
+
+            // (AR) [إكمال الاستضافة الذاتيّة] معالجة قيمةٍ مغلّفةٍ في %SadDyn — تصل حين يُطابَق
+            //      معاملٌ مجهول النوع (نمط مقيّم AST) على حمولةٍ ديناميّة مستخرَجة، كأن يُطابَق
+            //      «عندما ورقة:» على حقلٍ نوعُه المستنتَج Any. **حرِج:** لو كانت القيمة عدديّة
+            //      (Int/Float/Bool/Null) فحمولتُها عددٌ خام لا مؤشّر؛ ففكّها مؤشّرًا وقراءةُ الوسم
+            //      منه تفبرك عنوانًا ⇒ انهيار (والمفسّر يعيد «لا مطابقة» لمثلها). لذا: إن كان
+            //      الوسمُ عدديًّا نعيد false زمن التشغيل بلا فكّ؛ وإلّا (Str/مصفوفة/خريطة/كائن/ADT —
+            //      وADT مغلّفٌ Str لأنّ toDyn يطوي كلَّ مؤشّرٍ إلى Str) نفكّ المؤشّر ونقرأ الوسمَ
+            //      من الخانة 0. هذا يحلّ محلّ «IntToPtr على بنية %SadDyn» (تأكيد LLVM «Invalid
+            //      cast») ويغلق مسارَ الانهيار العدديّ معًا.
+            // (EN) [Self-hosting completion] Handle a %SadDyn-boxed value — it arrives when an
+            //      untyped-param match (the AST-evaluator pattern) runs over an extracted dynamic
+            //      payload, e.g. «when Leaf:» matched against a field whose inferred type is Any.
+            //      CRITICAL: a numeric box (Int/Float/Bool/Null) has a scalar payload, not a
+            //      pointer; unpacking it as a pointer and reading the tag fabricates an address ⇒
+            //      crash (the interpreter returns "no match" for such a value). So: if the kind is
+            //      numeric, return runtime false without unpacking; otherwise (Str/Array/Map/Obj/ADT
+            //      — an ADT is boxed as Str since toDyn folds every pointer to Str) unpack the
+            //      pointer and read the tag at slot 0. This replaces the old «IntToPtr on a %SadDyn
+            //      struct» (LLVM «Invalid cast» assert) and closes the numeric crash path together.
+            if (isSadDyn(enumVal))
+            {
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                auto *i64Ty = cg_.getInt64Type();
+                llvm::Value *kind = dynKindByte(cg_, enumVal);
+                auto isKind = [&](uint8_t k)
+                {
+                    return cg_.builder_->CreateICmpEQ(kind, llvm::ConstantInt::get(i8Ty, k));
+                };
+                llvm::Value *isNumeric = cg_.builder_->CreateOr(
+                    cg_.builder_->CreateOr(isKind(DynKind::Null), isKind(DynKind::Int)),
+                    cg_.builder_->CreateOr(isKind(DynKind::Float), isKind(DynKind::Bool)),
+                    "isvar.dyn.numeric");
+
+                llvm::Function *fn = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *numBB = cg_.builder_->GetInsertBlock();
+                auto *adtBB = llvm::BasicBlock::Create(*cg_.context_, "isvar.dyn.adt", fn);
+                auto *mergeBB = llvm::BasicBlock::Create(*cg_.context_, "isvar.dyn.merge", fn);
+                cg_.builder_->CreateCondBr(isNumeric, mergeBB, adtBB);
+
+                // (AR) القيمة مؤشّريّة ⇒ فكٌّ آمن + قراءة الوسم من الخانة 0.
+                // (EN) Pointer-bearing ⇒ safe unpack + read tag at slot 0.
+                cg_.builder_->SetInsertPoint(adtBB);
+                llvm::Value *adtPtr = unpackPtr(cg_, enumVal);
+                llvm::Value *tagV = cg_.builder_->CreateLoad(i64Ty, adtPtr, "isvar.dyn.tag");
+                llvm::Value *cmpV = cg_.builder_->CreateICmpEQ(
+                    tagV, llvm::ConstantInt::get(i64Ty, expectedTag), "isvar.dyn.cmp");
+                cg_.builder_->CreateBr(mergeBB);
+                llvm::BasicBlock *adtEnd = cg_.builder_->GetInsertBlock();
+
+                cg_.builder_->SetInsertPoint(mergeBB);
+                llvm::PHINode *phi = cg_.builder_->CreatePHI(cg_.getInt1Type(), 2, "isvar.dyn.res");
+                phi->addIncoming(llvm::ConstantInt::getFalse(*cg_.context_), numBB);
+                phi->addIncoming(cmpV, adtEnd);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = phi;
+                return phi;
+            }
 
             // (AR) استخراج المعلومات الإضافية من SIR (إذا توفرت)
             // (EN) Extract extra metadata from SIR (if available)

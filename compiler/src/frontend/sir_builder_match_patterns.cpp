@@ -1213,13 +1213,61 @@ namespace Sad
                     // (EN) Resolve the enum that owns this unqualified variant via the ADT table.
                     std::string resolvedEnumName;
                     const ADTVariantInfo *variantInfo = nullptr;
-                    for (const auto &entry : adtEnumTable_)
+
+                    // (AR) [إكمال الاستضافة الذاتيّة] تفضيلٌ ١: تعداد القيمة المُطابَقة نفسُه
+                    //      (نوعٌ مصرَّح، أو مُستنتَجٌ من الأذرع الشقيقة في buildMatchStatement) —
+                    //      يُبقي ذراعَ البانِي متّسقًا مع بقيّة المطابقة. حاسمٌ لأنّ الاستنتاجَ
+                    //      واعٍ بالأريّة بينما المسحُ الأعمى بالاسم-فقط كان قد يلتقط تعدادًا آخر
+                    //      يشارك الاسمَ ⇒ تصادمُ وسمٍ صفريّ ⇒ مطابقةٌ زائفة.
+                    // (EN) [Self-hosting completion] Preference 1: the matched value's own enum
+                    //      (declared type, or inferred from sibling arms in buildMatchStatement) —
+                    //      keeps the constructor arm consistent with the rest of the match. Crucial
+                    //      because the inference is arity-aware while a blind name-only scan could
+                    //      pick a different enum sharing the name ⇒ zero-based tag collision ⇒ a
+                    //      false positive match.
+                    if (!currentMatchEnumName_.empty())
                     {
-                        if (const ADTVariantInfo *v = entry.second.findVariant(ctorPat->variantName))
+                        auto it = adtEnumTable_.find(currentMatchEnumName_);
+                        if (it != adtEnumTable_.end())
                         {
-                            resolvedEnumName = entry.first;
-                            variantInfo = v;
-                            break;
+                            if (const ADTVariantInfo *v = it->second.findVariant(ctorPat->variantName);
+                                v && v->fieldCount() == ctorPat->fieldPatterns.size())
+                            {
+                                resolvedEnumName = it->first;
+                                variantInfo = v;
+                            }
+                        }
+                    }
+
+                    // (AR) تفضيلٌ ٢: مالكٌ وحيدٌ بالاسم **وعدد الحقول** — الأريّة تحسم تصادمَ
+                    //      الوسم الصفريّ (عضوان بنفس الاسم في تعدادين لهما الوسم 0). بلا الأريّة
+                    //      كان الحسمُ يلتقط أوّلَ مطابقةٍ بالاسم (لا-حتميّ في unordered_map)
+                    //      فيُنتج مطابقةً زائفة وحقولًا غير مربوطة. اللبسُ (owners>1) ⇒ لا نخمّن.
+                    // (EN) Preference 2: a unique owner by name AND field count — arity breaks the
+                    //      zero-based tag collision (two enums with a same-named variant both at
+                    //      tag 0). Without arity the resolver picked the first name match
+                    //      (non-deterministic in unordered_map) ⇒ a false positive match with
+                    //      unbound fields. Ambiguity (owners>1) ⇒ don't guess.
+                    if (!variantInfo)
+                    {
+                        int owners = 0;
+                        for (const auto &entry : adtEnumTable_)
+                        {
+                            if (const ADTVariantInfo *v = entry.second.findVariant(ctorPat->variantName);
+                                v && v->fieldCount() == ctorPat->fieldPatterns.size())
+                            {
+                                resolvedEnumName = entry.first;
+                                variantInfo = v;
+                                ++owners;
+                            }
+                        }
+                        if (owners != 1)
+                        {
+                            // (AR) لبسٌ (تعدادان) أو غياب ⇒ لا نخمّن؛ نُسقط للفرع الآمن (false + تشخيص).
+                            // (EN) Ambiguous (two enums) or none ⇒ don't guess; fall to the safe
+                            //      branch below (false + diagnostic).
+                            variantInfo = nullptr;
+                            resolvedEnumName.clear();
                         }
                     }
 

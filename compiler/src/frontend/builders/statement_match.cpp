@@ -125,7 +125,75 @@ namespace Sad
                 //      previous value and set the current one, restoring it at the function's end
                 //      so a «match» nested inside another «match» arm doesn't leak. Read by the
                 //      variable pattern to tell a bare unit variant from a catch-all.
-                const std::string thisMatchEnumName = matchResult.className;
+                // (AR) [إكمال الاستضافة الذاتيّة] حين يكون نوعُ القيمة المُطابَقة مجهولًا ساكنًا
+                //      (معاملٌ غير مصرَّح — حالُ مقيّمات AST التي تأخذ عقدةً عامّة)، يبقى
+                //      className فارغًا، فيرتدّ نمطُ الوحدويّ العاري «عندما ورقة:» إلى رباطٍ
+                //      شامل يبتلع كلَّ الحالات صامتًا (مطابقةٌ خاطئة، مترجَمٌ فقط). نستنتج
+                //      تعدادَ المطابقة من الأذرع الشقيقة: نمطُ عضوٍ مؤهَّل (يحمل اسم التعداد)
+                //      أوّلًا، ثمّ نمطُ بانٍ غير مؤهَّل «عقدة(يس،يم)» بمطابقة الاسم وعدد الحقول
+                //      (الأريّة تحسم تصادم الأسماء عبر تعدادين). بهذا يعمل «عندما ورقة:» فحصَ
+                //      وسمٍ حتّى بمعاملٍ مجهول النوع — مطابقةً لسلوك المفسّر (الّذي يميّز بتعداد
+                //      القيمة زمن التشغيل). القصر على «استنتاجٍ لا لبس فيه» (owners==1) يحمي
+                //      الرباطَ الشامل الحقيقيّ على قيمةٍ عاديّة من اختطافٍ زائف.
+                // (EN) [Self-hosting completion] When the matched value's static type is unknown
+                //      (an untyped param — the AST-evaluator case taking a generic node),
+                //      className stays empty, so a bare unit-variant pattern «when Leaf:» falls
+                //      back to a catch-all and silently swallows every case (a miscompile,
+                //      compiled path only). Infer the match's enum from sibling arms: a qualified
+                //      variant pattern (carries the enum name) first, then an unqualified
+                //      constructor pattern «Node(l,r)» by name + field arity (arity breaks name
+                //      collisions across two enums). This makes «when Leaf:» a tag check even with
+                //      an untyped param — matching the interpreter (which disambiguates by the
+                //      value's runtime enum). Keying on an unambiguous inference (owners==1)
+                //      shields a genuine catch-all on an ordinary value from a false hijack.
+                std::string thisMatchEnumName = matchResult.className;
+                if (thisMatchEnumName.empty())
+                {
+                    // (AR) تفضيلٌ ١: نمطُ عضوٍ مؤهَّل يحمل اسم تعداده صراحةً.
+                    // (EN) Preference 1: a qualified variant pattern that names its enum outright.
+                    for (const auto &cc : matchStmt->cases)
+                    {
+                        if (auto *ev = dynamic_cast<const Sad::AST::EnumVariantPattern *>(cc.pattern.get()))
+                        {
+                            if (!ev->enumName.empty() &&
+                                b_.adtEnumTable_.find(ev->enumName) != b_.adtEnumTable_.end())
+                            {
+                                thisMatchEnumName = ev->enumName;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (thisMatchEnumName.empty())
+                {
+                    // (AR) تفضيلٌ ٢: نمطُ بانٍ غير مؤهَّل — نجد التعدادَ المالكَ لعضوٍ باسمه
+                    //      وعدد حقوله المطابقين؛ لا نعتمده إلّا إن كان المالكُ وحيدًا (بلا لبس).
+                    // (EN) Preference 2: an unqualified constructor pattern — find the enum owning
+                    //      a variant with a matching name and field count; accept only a unique
+                    //      owner (no ambiguity).
+                    for (const auto &cc : matchStmt->cases)
+                    {
+                        auto *cp = dynamic_cast<const Sad::AST::ConstructorPattern *>(cc.pattern.get());
+                        if (!cp)
+                            continue;
+                        std::string owner;
+                        int owners = 0;
+                        for (const auto &kv : b_.adtEnumTable_)
+                        {
+                            const ADTVariantInfo *v = kv.second.findVariant(cp->variantName);
+                            if (v && v->fieldCount() == cp->fieldPatterns.size())
+                            {
+                                owner = kv.first;
+                                ++owners;
+                            }
+                        }
+                        if (owners == 1)
+                        {
+                            thisMatchEnumName = owner;
+                            break;
+                        }
+                    }
+                }
                 const std::string savedMatchEnumName = b_.currentMatchEnumName_;
                 b_.currentMatchEnumName_ = thisMatchEnumName;
 
