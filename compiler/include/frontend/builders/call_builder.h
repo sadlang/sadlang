@@ -62,6 +62,27 @@ namespace Sad
             private:
                 SIRBuilder &b_;
 
+                // (AR) تطابق المحرّكين — طبع قيمة موسومة لتعداد جبريّ:
+                //      «اطبع(مربع(٩))» كان المترجم يطبع فيه عنوانَ بنية الحالة (بينما المفسّر
+                //      يطبع «شكل.مربع(٩)») — فراغٌ/عنوانٌ صامت يخالف بوّابة تطابق المحرّكين.
+                //      إن كان `argExpr` بناءَ حالةٍ جبريّةٍ مباشرًا (CallExpr على اسم حالةٍ في
+                //      adtEnumTable_، غير مظلَّلٍ بدالّة/متغيّر/إغلاق مُصرَّح — نظير حسم التظليل)
+                //      يبني هذا سلسلة «تعداد.حالة(حقل، …)» من حمولة البنية المبنيّة سلفًا
+                //      (ENUM_GET_PAYLOAD ⇒ STRING_CONCAT، بلا إعادة تقييم) ويُعيد true.
+                // (EN) Engine parity — printing a tagged algebraic-enum value: «print(مربع(9))»
+                //      used to print the variant struct's address (while the interpreter prints
+                //      «شكل.مربع(9)») — a silent address/blank violating the engine-parity gate.
+                //      If `argExpr` is a direct algebraic-enum constructor (a CallExpr on a variant
+                //      name in adtEnumTable_, not shadowed by a declared function/variable/closure —
+                //      mirroring the shadow decision), this builds the «Enum.Variant(f, …)» string
+                //      from the already-built struct payload (ENUM_GET_PAYLOAD ⇒ STRING_CONCAT, no
+                //      re-evaluation) and returns true.
+                bool tryBuildAdtVariantDisplay(Sad::AST::Expr *argExpr,
+                                               const BuildResult &argRes,
+                                               const SIROperand &argOp,
+                                               SIROperand &outOp,
+                                               BuildResult &outRes);
+
                 // (AR) مُساعد مشترك: يبني وسائط الاستدعاء ويُصدر CLOSURE_CALL على مؤشّر
                 //      إغلاق سبق بناؤه (callee غير مباشر: IndexExpr/LambdaExpr). يُعيد سجلّ
                 //      النتيجة بنوع Integer، أو BuildResult فارغة إن كان مؤشّر الإغلاق فارغًا.

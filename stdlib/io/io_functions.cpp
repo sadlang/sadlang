@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <vector>
 #include "sad_type_system.h"
+#include "tagged_enum_keys.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -209,6 +210,71 @@ namespace Sad
                 objectToStringCallback_ = std::move(callback);
             }
 
+            bool IOFunctions::tryFormatTaggedVariant(const Data::Value &value, int depth,
+                                                     std::string &out)
+            {
+                using VT = Types::SadTypeKind;
+                if (value.getKind() != VT::Map)
+                {
+                    return false;
+                }
+                Data::Value::MapType map;
+                try
+                {
+                    map = value.toMap();
+                }
+                catch (...)
+                {
+                    return false;
+                }
+                // (AR) العلامة القاطعة أولًا: __جبري__=true (يضبطها الباني). خريطةُ مستخدمٍ
+                //      تصادف حملَ __تعداد__/__عضو__/__حقول__ بلا هذه العلامة تُطبع خامًا (تفادي
+                //      الإيجابيّة الكاذبة — ع-٣). قالب الباني يفتقر __جبري__ و__حقول__ معًا.
+                // (EN) Decisive marker first: __جبري__=true (set by the constructor). A user map
+                //      that happens to carry __تعداد__/__عضو__/__حقول__ without this marker prints
+                //      raw (avoids the false-positive — ع-٣). The ctor template lacks both.
+                auto algIt = map.find(::Sad::AST::TaggedEnumKeys::ALGEBRAIC);
+                if (algIt == map.end() || !algIt->second.isBoolean() || !algIt->second.toBool())
+                {
+                    return false;
+                }
+                auto enumIt = map.find(::Sad::AST::TaggedEnumKeys::ENUM);
+                auto variantIt = map.find(::Sad::AST::TaggedEnumKeys::VARIANT);
+                auto fieldsIt = map.find(::Sad::AST::TaggedEnumKeys::FIELDS);
+                if (enumIt == map.end() || variantIt == map.end() || fieldsIt == map.end())
+                {
+                    return false;
+                }
+                namespace TEK = ::Sad::AST::TaggedEnumKeys;
+                std::ostringstream oss;
+                oss << enumIt->second.toString() << TEK::DISPLAY_DOT << variantIt->second.toString();
+                if (fieldsIt->second.getKind() == VT::Array)
+                {
+                    Data::Value::ArrayType fields;
+                    try
+                    {
+                        fields = fieldsIt->second.toArray();
+                    }
+                    catch (...)
+                    {
+                        fields.clear();
+                    }
+                    if (!fields.empty())
+                    {
+                        oss << TEK::DISPLAY_OPEN;
+                        for (size_t i = 0; i < fields.size(); ++i)
+                        {
+                            if (i > 0)
+                                oss << TEK::DISPLAY_SEP;
+                            oss << valueToString(fields[i], depth + 1);
+                        }
+                        oss << TEK::DISPLAY_CLOSE;
+                    }
+                }
+                out = oss.str();
+                return true;
+            }
+
             std::string IOFunctions::valueToString(const Data::Value &value, int depth)
             {
                 // (AR) حماية من التكرار اللانهائي عند وجود كائنات دورية
@@ -284,6 +350,26 @@ namespace Sad
 
                 case VT::Map:
                 {
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) قيمة موسومة لتعداد جبريّ (variant) — تُطبع «تعداد.عضو(حقل، …)»
+                    //      (أو «تعداد.عضو» للمعامل الوحدويّ) بدل تفريغ الخريطة الخام. تمثيلٌ
+                    //      موحَّدٌ **متطابق مع المترجم** (بوّابة تطابق المحرّكين). المميِّز:
+                    //      وجود مفاتيح __تعداد__ و__عضو__ و__حقول__ معًا (ثوابت SoT في
+                    //      TaggedEnumKeys) — يستبعد قالبَ الباني (لا يملك __حقول__).
+                    // (EN) A tagged algebraic-enum value (variant) prints as «Enum.Variant(f, …)»
+                    //      (or «Enum.Variant» for a unit variant) instead of dumping the raw map.
+                    //      A unified representation **identical to the compiler** (engine-parity
+                    //      gate). Discriminator: presence of __تعداد__, __عضو__ and __حقول__
+                    //      keys together (SoT constants in TaggedEnumKeys) — excludes the ctor
+                    //      template (which lacks __حقول__).
+                    // ═══════════════════════════════════════════════════════════════
+                    {
+                        std::string tagged;
+                        if (tryFormatTaggedVariant(value, depth, tagged))
+                        {
+                            return tagged;
+                        }
+                    }
                     std::ostringstream oss;
                     oss << "{";
                     try

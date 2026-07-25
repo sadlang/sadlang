@@ -36,6 +36,7 @@
 #include <string>
 #include "value.h"
 #include "sad_type_system.h"
+#include "tagged_enum_keys.h"
 #include "object_instance.h"
 #include "memory/gc/engine/garbage_collector.h"
 #include <cmath>
@@ -491,9 +492,57 @@ namespace Sad
 
             case ::Sad::Types::SadTypeKind::Map:
             {
+                const auto &map = *std::get<std::shared_ptr<MapType>>(data_);
+                // ═══════════════════════════════════════════════════════════════════
+                // (AR) قيمة موسومة لتعداد جبريّ (variant): تُطبع «تعداد.عضو(حقل، …)»
+                //      (أو «تعداد.عضو» للوحدويّ) — تمثيلٌ موحَّدٌ **متطابق مع المترجم**
+                //      وبقيّة مسارات الطبع (io valueToString). المميِّز: __تعداد__ و__عضو__
+                //      و__حقول__ معًا (ثوابت TaggedEnumKeys) — يُستبعد قالبُ الباني.
+                // (EN) A tagged algebraic-enum value prints as «Enum.Variant(f, …)» (or
+                //      «Enum.Variant» for a unit variant) — a unified representation
+                //      **identical to the compiler** and to the other print path (io
+                //      valueToString). Discriminator: __تعداد__ + __عضو__ + __حقول__ together
+                //      (TaggedEnumKeys) — excludes the ctor template.
+                // ═══════════════════════════════════════════════════════════════════
+                {
+                    // (AR) العلامة القاطعة __جبري__=true (يضبطها الباني) تميّز القيمة الموسومة
+                    //      عن خريطةِ مستخدمٍ عاديّةٍ تصادف حملَ المفاتيح الثلاثة (تفادي إيجابيّة
+                    //      كاذبة — ع-٣).
+                    // (EN) Decisive marker __جبري__=true (set by the constructor) distinguishes a
+                    //      tagged value from an ordinary user map that carries the three keys
+                    //      (avoids the false-positive — ع-٣).
+                    auto algIt = map.find(::Sad::AST::TaggedEnumKeys::ALGEBRAIC);
+                    auto enumIt = map.find(::Sad::AST::TaggedEnumKeys::ENUM);
+                    auto variantIt = map.find(::Sad::AST::TaggedEnumKeys::VARIANT);
+                    auto fieldsIt = map.find(::Sad::AST::TaggedEnumKeys::FIELDS);
+                    if (algIt != map.end() && algIt->second.isBoolean() && algIt->second.toBool() &&
+                        enumIt != map.end() && variantIt != map.end() && fieldsIt != map.end())
+                    {
+                        namespace TEK = ::Sad::AST::TaggedEnumKeys;
+                        std::ostringstream toss;
+                        toss << enumIt->second.toString() << TEK::DISPLAY_DOT
+                             << variantIt->second.toString();
+                        if (fieldsIt->second.getKind() == ::Sad::Types::SadTypeKind::Array)
+                        {
+                            const auto &fields =
+                                *std::get<std::shared_ptr<ArrayType>>(fieldsIt->second.data_);
+                            if (!fields.empty())
+                            {
+                                toss << TEK::DISPLAY_OPEN;
+                                for (size_t fi = 0; fi < fields.size(); ++fi)
+                                {
+                                    if (fi > 0)
+                                        toss << TEK::DISPLAY_SEP;
+                                    toss << fields[fi].toString();
+                                }
+                                toss << TEK::DISPLAY_CLOSE;
+                            }
+                        }
+                        return toss.str();
+                    }
+                }
                 std::ostringstream oss;
                 oss << "{";
-                const auto &map = *std::get<std::shared_ptr<MapType>>(data_);
                 size_t i = 0;
                 for (const auto &pair : map)
                 {

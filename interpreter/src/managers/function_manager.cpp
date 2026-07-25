@@ -440,6 +440,26 @@ namespace Sad
             }
         }
 
+        bool FunctionManager::hasUserFunction(const std::string &name) const
+        {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
+            // (AR) دالّة مستخدم = تحمل الاسم ولا تملك تنفيذًا أصليًّا (ليست مُدمَجة).
+            // (EN) User function = named overload without a native implementation (not a builtin).
+            auto it = functions_.find(name);
+            if (it == functions_.end())
+            {
+                return false;
+            }
+            for (const auto &def : it->second)
+            {
+                if (def && !def->hasNativeImplementation())
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         std::vector<std::shared_ptr<FunctionDefinition>> FunctionManager::getFunctionOverloads(
             const std::string &name) const
         {

@@ -322,15 +322,19 @@ namespace Sad
                             // ═══════════════════════════════════════════════════════
                             auto mapVal = varValue.toMap();
                             auto ctorIt = mapVal.find("__باني_نموذج__");
-                            // (AR) الدالّة المُصرَّحة تتقدّم على باني المُعامِل العاري مهما كان ترتيب
-                            //      التصريح (تفادي اختطاف اسم الدالّة — نظير حسم أ-م٢ الدلاليّ). إن وُجدت
-                            //      دالّة بنفس الاسم يسقط الحسم إلى مسار الدالّة (funcName أدناه).
-                            // (EN) A declared function outranks the bare variant builder regardless of
-                            //      declaration order (avoid hijacking the function name — mirrors the A-M2
-                            //      semantic resolution). If a same-named function exists, fall through to
-                            //      the function path (funcName below).
+                            // (AR) دالّة *المستخدم* المُصرَّحة تتقدّم على باني المُعامِل العاري مهما كان
+                            //      ترتيب التصريح (تفادي اختطاف اسم الدالّة — نظير حسم أ-م٢ الدلاليّ).
+                            //      أمّا المُدمَج المتصادم فيُظلِّله الباني العاري (قرار المالك). لذا نفحص
+                            //      hasUserFunction (تستثني المُدمَجات) لا hasFunction. إن وُجدت دالّة
+                            //      مستخدم بنفس الاسم يسقط الحسم إلى مسار الدالّة (funcName أدناه).
+                            // (EN) A declared *user* function outranks the bare variant builder regardless
+                            //      of declaration order (avoid hijacking — mirrors the A-M2 semantic
+                            //      resolution). A colliding builtin, however, is shadowed by the bare ctor
+                            //      (owner decision). Hence hasUserFunction (excludes builtins), not
+                            //      hasFunction. If a same-named user function exists, fall through to the
+                            //      function path (funcName below).
                             if (ctorIt != mapVal.end() && ctorIt->second.isBoolean() && ctorIt->second.toBool() &&
-                                !functionManager_.hasFunction(calleeVar->name))
+                                !functionManager_.hasUserFunction(calleeVar->name))
                             {
                                 // (AR) باني نموذج — نقيّم الوسائط وننشئ variant
                                 // (EN) Variant constructor — evaluate args and create variant

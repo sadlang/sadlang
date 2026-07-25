@@ -32,6 +32,38 @@ namespace Sad
 
             /// (AR) مفتاح مصفوفة الحمولة الموضعيّة / (EN) Positional payload array key
             inline constexpr const char *FIELDS = "__حقول__";
+
+            /// (AR) علامة قاطعة: القيمة موسومة لتعدادٍ جبريّ (يضبطها الباني `=true`).
+            ///      مفتاحٌ داخليٌّ حصريّ لا يكتبه المستخدم عادةً — يميّز القيمةَ الموسومة عن
+            ///      خريطةِ مستخدمٍ عاديّةٍ تصادف حملَ __تعداد__/__عضو__/__حقول__ (تفادي إيجابيّة
+            ///      كاذبة في كاشف الطبع — عيب أميليا ع-٣).
+            /// (EN) Decisive marker: the value is a tagged algebraic-enum value (the constructor
+            ///      sets it `=true`). An exclusive internal key a user does not normally write —
+            ///      distinguishes a tagged value from an ordinary user map that happens to carry
+            ///      __تعداد__/__عضو__/__حقول__ (avoids a print false-positive — Amelia ع-٣).
+            inline constexpr const char *ALGEBRAIC = "__جبري__";
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) تنسيق طبع القيمة الموسومة — «تعداد.عضو(حقل، حقل)». مصدرٌ وحيد (SoT)
+            //      يستهلكه المفسّر (value.cpp/io_functions.cpp) والمترجم (call_builder)
+            //      كي يُنتج المحرّكان **تمثيلًا متطابقًا حرفًا بحرف** (بوّابة التطابق).
+            // (EN) Tagged-value print format — «Enum.Variant(f, f)». Single source of truth
+            //      consumed by the interpreter (value.cpp/io_functions.cpp) and the compiler
+            //      (call_builder) so both engines emit a **byte-identical** representation
+            //      (the parity gate).
+            // ════════════════════════════════════════════════════════════════════
+
+            /// (AR) الفاصل بين التعداد والعضو / (EN) Separator between enum and variant
+            inline constexpr const char *DISPLAY_DOT = ".";
+
+            /// (AR) فاتحة قائمة الحقول / (EN) Field-list opener
+            inline constexpr const char *DISPLAY_OPEN = "(";
+
+            /// (AR) الفاصل بين الحقول / (EN) Separator between fields
+            inline constexpr const char *DISPLAY_SEP = ", ";
+
+            /// (AR) خاتمة قائمة الحقول / (EN) Field-list closer
+            inline constexpr const char *DISPLAY_CLOSE = ")";
         } // namespace TaggedEnumKeys
     } // namespace AST
 } // namespace Sad

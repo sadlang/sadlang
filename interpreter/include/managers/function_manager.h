@@ -487,6 +487,21 @@ namespace Sad
             bool hasFunction(const std::string &name, int argCount = -1) const;
 
             /**
+             * @brief (AR) التحقق من وجود دالة *مُصرَّحة من المستخدم* بهذا الاسم
+             *        (تستثني الدوالّ المُدمَجة ذات التنفيذ الأصليّ). يُميِّز «دالّة مستخدم»
+             *        عن «مُدمَج» في حسم تظليل باني التعداد الجبريّ العاري: الباني العاري
+             *        يُظلِّل المُدمَج لكنّه يخسر أمام دالّة المستخدم.
+             * @brief (EN) Check for a *user-declared* function of this name (excludes
+             *        native built-ins). Distinguishes a user function from a builtin in the
+             *        bare algebraic-enum constructor shadowing decision: the bare constructor
+             *        shadows a builtin but loses to a user function.
+             *
+             * @param name (AR) اسم الدالة / (EN) Function name
+             * @return (AR) true إذا وُجدت دالّة مستخدم غير أصليّة / (EN) true if a non-native user function exists
+             */
+            bool hasUserFunction(const std::string &name) const;
+
+            /**
              * @brief (AR) الحصول على جميع الدوال بنفس الاسم (Overloads)
              * @brief (EN) Get all functions with same name (overloads)
              *

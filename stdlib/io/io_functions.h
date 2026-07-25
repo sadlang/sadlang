@@ -200,6 +200,24 @@ private:
     static std::string valueToString(const Data::Value& value, int depth = 0);
 
     /**
+     * @brief (AR) تنسيق قيمة موسومة لتعداد جبريّ إلى «تعداد.عضو(حقل، …)»
+     * @brief (EN) Format a tagged algebraic-enum value into «Enum.Variant(f, …)»
+     *
+     * (AR) يُنتج تمثيلًا موحَّدًا **متطابقًا مع المترجم** (بوّابة تطابق المحرّكين).
+     *      يُطابق فقط الخرائط التي تحمل مفاتيح __تعداد__ و__عضو__ و__حقول__ معًا
+     *      (تُستبعد قوالب البنّاء التي تفتقر __حقول__). يُعيد false لغير ذلك.
+     * (EN) Produces a unified representation **identical to the compiler** (engine-parity
+     *      gate). Matches only maps carrying __تعداد__, __عضو__ and __حقول__ together
+     *      (ctor templates lacking __حقول__ are excluded). Returns false otherwise.
+     *
+     * @param value (AR) القيمة (خريطة) / (EN) The value (a map)
+     * @param depth (AR) عمق التكرار / (EN) recursion depth
+     * @param out   (AR) النص الناتج عند النجاح / (EN) resulting text on success
+     * @return bool (AR) true إن كانت قيمةً موسومةً / (EN) true if it was a tagged variant
+     */
+    static bool tryFormatTaggedVariant(const Data::Value& value, int depth, std::string& out);
+
+    /**
      * @brief (AR) تحويل قيمة إلى نص قابل للطباعة
      * @brief (EN) Convert a value to printable string representation
      * 

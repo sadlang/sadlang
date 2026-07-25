@@ -33,6 +33,8 @@
 #include <filesystem>
 #include <optional>
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
+#include "builtin_registry.h" // (AR) ثوابت أسماء المدمجات (Bn::Core::PRINT/PRINTLN) / (EN) builtin name constants
+#include "tagged_enum_keys.h" // (AR) تنسيق طبع القيمة الموسومة (SoT) / (EN) tagged-value print format (SoT)
 
 namespace Sad
 {
@@ -314,6 +316,31 @@ namespace Sad
                 if (!buildCallArgumentsList(call, argOperands, argResults))
                     return BuildResult();
                 fillDefaultCallArguments(call, funcName, argOperands, argResults);
+
+                // ────────────────────────────────────────────────────────────────────
+                // (AR) تطابق المحرّكين: طبع قيمة موسومة لتعداد جبريّ. «اطبع(مربع(٩))»
+                //      كان يطبع عنوانَ البنية بدل «شكل.مربع(٩)» (المفسّر). لكلّ وسيطٍ هو
+                //      بناءُ حالةٍ جبريّةٍ مباشرٌ نستبدل معاملَ الطبع بسلسلة العرض الموحَّدة.
+                // (EN) Engine parity: printing a tagged algebraic-enum value. «print(مربع(9))»
+                //      printed the struct address instead of «شكل.مربع(9)» (the interpreter).
+                //      For each argument that is a direct ADT constructor, replace the print
+                //      operand with the unified display string.
+                // ────────────────────────────────────────────────────────────────────
+                namespace Bn = Sad::Builtins::Names;
+                if (funcName == Bn::Core::PRINT || funcName == Bn::Core::PRINTLN)
+                {
+                    for (size_t i = 0; i < call->arguments.size() && i < argOperands.size(); ++i)
+                    {
+                        SIROperand dispOp;
+                        BuildResult dispRes;
+                        if (tryBuildAdtVariantDisplay(call->arguments[i].get(), argResults[i],
+                                                      argOperands[i], dispOp, dispRes))
+                        {
+                            argOperands[i] = dispOp;
+                            argResults[i] = dispRes;
+                        }
+                    }
+                }
 
                 // (AR) الخطوة 2.5: التحقق من الدوال المضمنة
                 // (EN) Step 2.5: Check for builtin functions
@@ -1242,6 +1269,114 @@ namespace Sad
                 }
 
                 return result;
+            }
+
+            // ================================================================
+            // tryBuildAdtVariantDisplay — سلسلة عرض القيمة الموسومة «تعداد.حالة(حقل، …)»
+            // (AR) انظر التعليق في call_builder.h. يبني، من بنية الحالة المبنيّة سلفًا،
+            //      سلسلةً موحَّدةً متطابقةً مع المفسّر عبر ENUM_GET_PAYLOAD + STRING_CONCAT
+            //      بلا إعادة تقييمٍ للحقول. يُطبَّق فقط على الباني المباشر (حالةٌ ساكنة
+            //      معروفة) — فلا حاجة لتفريعٍ على الوسم. القيمة المخزَّنة في المتغيّر
+            //      (وسمٌ زمن التشغيل) تبقى بلا تغيير (خارج المجموعة المطلوبة).
+            // ================================================================
+            bool CallBuilder::tryBuildAdtVariantDisplay(Sad::AST::Expr *argExpr,
+                                                        const BuildResult &argRes,
+                                                        const SIROperand &argOp,
+                                                        SIROperand &outOp,
+                                                        BuildResult &outRes)
+            {
+                namespace TEK = Sad::AST::TaggedEnumKeys;
+
+                // (AR) الوسيط قيمةُ حالةٍ جبريّة (بنية) باسم تعدادٍ معروف؟
+                // (EN) Is the argument an ADT value (struct) tagged with a known enum?
+                if (argRes.type != SadTypeKind::Struct || argRes.className.empty())
+                    return false;
+                auto enumIt = b_.adtEnumTable_.find(argRes.className);
+                if (enumIt == b_.adtEnumTable_.end())
+                    return false;
+
+                // (AR) بناءٌ مباشر: CallExpr على اسم حالةٍ من هذا التعداد (حالةٌ ساكنة).
+                // (EN) Direct construction: a CallExpr on a variant name of this enum (static variant).
+                auto *callExpr = dynamic_cast<Sad::AST::CallExpr *>(argExpr);
+                if (!callExpr)
+                    return false;
+                auto *calleeVar = dynamic_cast<Sad::AST::VariableExpr *>(callExpr->callee.get());
+                if (!calleeVar)
+                    return false;
+                const std::string variantName = calleeVar->name;
+                const auto *variant = enumIt->second.findVariant(variantName);
+                if (!variant)
+                    return false;
+
+                const std::string &enumName = argRes.className;
+                const size_t fieldCount = variant->fieldCount();
+
+                // (AR) بادئة العرض «تعداد.حالة» — ثابتٌ مبنيٌّ زمن الترجمة (بيانات وصفيّة).
+                // (EN) Display prefix «Enum.Variant» — a compile-time-built constant (metadata).
+                const std::string prefix = enumName + std::string(TEK::DISPLAY_DOT) + variantName;
+
+                // (AR) حالة وحدويّة (بلا حقول): «تعداد.حالة» فقط.
+                // (EN) Unit variant (no fields): just «Enum.Variant».
+                if (fieldCount == 0)
+                {
+                    outOp = SIROperand::ConstantString(prefix);
+                    outOp.dataType = SadTypeKind::String;
+                    outRes = BuildResult("", SadTypeKind::String);
+                    return true;
+                }
+
+                if (!b_.currentBlock_)
+                    return false;
+
+                // (AR) «تعداد.حالة(» ثمّ الحقول مفصولةً بـ«، » ثمّ «)». كلّ حقلٍ يُستخرَج
+                //      من البنية بنوع Any (خانة %SadDyn) كي يوزّع عليه STRING_CONCAT عبر
+                //      dynToString — مطابقًا تنسيق المفسّر لكلّ نوع (صحيح/عشريّ/منطقيّ/نصّ).
+                // (EN) «Enum.Variant(» then fields joined by «، » then «)». Each field is
+                //      extracted from the struct as Any (a %SadDyn slot) so STRING_CONCAT
+                //      dispatches via dynToString — matching the interpreter's per-type format.
+                SIROperand cur = SIROperand::ConstantString(prefix + std::string(TEK::DISPLAY_OPEN));
+                cur.dataType = SadTypeKind::String;
+
+                auto concat = [&](const SIROperand &lhs, const SIROperand &rhs) -> SIROperand
+                {
+                    std::string reg = b_.newTempRegister();
+                    SIRInstruction cc(SIROpcode::STRING_CONCAT);
+                    cc.result = SIROperand::Register(reg, SadTypeKind::String);
+                    cc.operands.push_back(lhs);
+                    cc.operands.push_back(rhs);
+                    b_.currentBlock_->addInstruction(cc);
+                    return SIROperand::Register(reg, SadTypeKind::String);
+                };
+
+                for (size_t f = 0; f < fieldCount; ++f)
+                {
+                    if (f > 0)
+                    {
+                        SIROperand sep = SIROperand::ConstantString(std::string(TEK::DISPLAY_SEP));
+                        sep.dataType = SadTypeKind::String;
+                        cur = concat(cur, sep);
+                    }
+
+                    std::string fieldReg = b_.newTempRegister();
+                    SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                    getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Any);
+                    getPayload.operands.push_back(argOp);
+                    getPayload.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(f)));
+                    getPayload.operands.push_back(SIROperand::ConstantString(enumName));
+                    getPayload.comment = "ADT display extract: " + enumName + "." + variantName +
+                                         " field " + std::to_string(f);
+                    b_.currentBlock_->addInstruction(getPayload);
+
+                    cur = concat(cur, SIROperand::Register(fieldReg, SadTypeKind::Any));
+                }
+
+                SIROperand close = SIROperand::ConstantString(std::string(TEK::DISPLAY_CLOSE));
+                close.dataType = SadTypeKind::String;
+                cur = concat(cur, close);
+
+                outOp = cur;
+                outRes = BuildResult(cur.name, SadTypeKind::String);
+                return true;
             }
 
         } // namespace SIR

@@ -450,12 +450,14 @@ namespace Sad
                     variableManager_.defineOrAssign(qualifiedName, constructorVal);
 
                     // (AR) [أ-م٣] تسجيل باسم عارٍ أيضًا لدعم الصيغة غير المؤهَّلة «عدد(٥)».
-                    //      المُعامِل يخسر التنازع أمام دالّة/متغيّرٍ مُصرَّحٍ (مطابقةً لمنطق
-                    //      المحلّل الدلاليّ: لا نختطف اسمًا يملكه رمزٌ مُصرَّح).
+                    //      المُعامِل يخسر التنازع أمام دالّة *مستخدم*/متغيّرٍ مُصرَّحٍ، لكنّه
+                    //      يُظلِّل المُدمَج المتصادم (قرار المالك: الباني العاري > المُدمَج).
+                    //      لذا نستعمل hasUserFunction (تستثني المُدمَجات) لا hasFunction.
                     // (EN) [A-M3] Also register under the bare name to support the unqualified
-                    //      form «عدد(5)». A variant loses to an already-declared function/variable
-                    //      (mirrors the semantic checker: do not hijack a declared symbol's name).
-                    if (!functionManager_.hasFunction(member.name) &&
+                    //      form «عدد(5)». A variant loses to a declared *user* function/variable
+                    //      but shadows a colliding builtin (owner decision: bare ctor > builtin).
+                    //      Hence hasUserFunction (excludes builtins), not hasFunction.
+                    if (!functionManager_.hasUserFunction(member.name) &&
                         !variableManager_.exists(member.name))
                     {
                         variableManager_.defineOrAssign(member.name, constructorVal);
@@ -522,7 +524,7 @@ namespace Sad
                     {
                         variableManager_.defineOrAssign(member.name, memberVal);
                     }
-                    else if (!functionManager_.hasFunction(member.name) &&
+                    else if (!functionManager_.hasUserFunction(member.name) &&
                              !variableManager_.exists(member.name))
                     {
                         variableManager_.defineOrAssign(member.name, memberVal);
