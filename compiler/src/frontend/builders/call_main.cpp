@@ -342,9 +342,34 @@ namespace Sad
                 // ========================================================================
                 VariableInfo *closureVarCheck = b_.lookupVariable(funcName);
                 bool isClosureVariable = (closureVarCheck != nullptr && closureVarCheck->type == SadTypeKind::Function);
+                // (AR) [إصلاح انهيار التعداد الجبري] بانٍ حالةٍ غير مؤهَّل (مثل «مربع(٢٠)») —
+                //      اسمُ الحالة مُسجَّلٌ في functionTable_ بالصيغة المؤهَّلة «تعداد.حالة» فقط،
+                //      فيبقى الاسمُ العاري غائبًا عنه ⇒ isUserDefinedFunction=false ⇒ يختطفه
+                //      مُدمَجٌ يحمل اسمَه (مثل «مربع»=تربيع رياضيّ) فيَحسب ٢٠×٢٠=٤٠٠ ويمرّرها i64
+                //      خامًا حيث يُتوقَّع مؤشّرُ البنية ⇒ inttoptr لعنوانٍ فاسد ⇒ SIGSEGV. الحلّ:
+                //      اعتبِر البانيَ الجبريّ العاري (الموجود في adtEnumTable_) دالّةً مُعرَّفةً
+                //      فيُتخطّى فحصُ المُدمَجات ويتولّاه مسارُ البناء الجبريّ (م٣٫٤٥) أدناه.
+                // (EN) [ADT enum crash fix] An unqualified variant constructor (e.g. «مربع(20)»):
+                //      the variant name is registered in functionTable_ only in its qualified
+                //      «Enum.Variant» form, so the bare name is absent ⇒ isUserDefinedFunction=false
+                //      ⇒ a builtin sharing its name (e.g. «مربع» = math square) hijacks it, computing
+                //      20×20=400 and passing that raw i64 where a struct pointer is expected ⇒
+                //      inttoptr of a bogus address ⇒ SIGSEGV. Fix: treat a bare ADT constructor
+                //      (present in adtEnumTable_) as user-defined so the builtin checks are skipped
+                //      and the unqualified ADT-constructor path (phase 3.45 below) handles it.
+                bool isADTVariantCtor = false;
+                for (const auto &adtEntry : b_.adtEnumTable_)
+                {
+                    if (adtEntry.second.findVariant(funcName) != nullptr)
+                    {
+                        isADTVariantCtor = true;
+                        break;
+                    }
+                }
                 bool isUserDefinedFunction = (b_.functionTable_.find(funcName) != b_.functionTable_.end()) ||
                                              (b_.lambdaAliases_.find(funcName) != b_.lambdaAliases_.end()) ||
-                                             isClosureVariable;
+                                             isClosureVariable ||
+                                             isADTVariantCtor;
 
                 // (AR) دالة طول() - STRING_LEN للنصوص، ARRAY_LEN للمصفوفات
                 // (EN) length() function - STRING_LEN for strings, ARRAY_LEN for arrays
