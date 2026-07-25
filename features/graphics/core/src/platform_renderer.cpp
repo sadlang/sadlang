@@ -1456,6 +1456,38 @@ namespace sad
                 break;
             }
 
+            // ── قائمة الخيارات/السياق (Menu) — لوح منبثق مرتفع ببنود (م٣ قوائم وأوامر) ──
+            case UINodeType::Menu:
+            {
+                float mr = getNumericProp(node.findProperty(props::CORNER_RADIUS), 8.0f); // زوايا
+                drawFilledRect(rect.x + 2, rect.y + 4, rect.width, rect.height, {0, 0, 0, 0.22f}); // ظلّ
+                Color menuBg = parseColorProp(node.findProperty(props::BG),         // خلفية
+                                              Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, menuBg, mr);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::LightGray));
+                break;
+            }
+
+            // ── شريط الأدوات (Toolbar) — شريط فاتح بحدّ سفليّ (حاوية لأزرار الأوامر) ──
+            case UINodeType::Toolbar:
+            {
+                Color tbBg = parseColorProp(node.findProperty(props::BG), {0.96f, 0.96f, 0.97f, 1}); // خلفية
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, tbBg);
+                drawLine(rect.x, rect.y + rect.height, rect.x + rect.width, rect.y + rect.height,
+                         Color::fromNamed(NamedColor::LightGray), 1.0f); // حدّ سفليّ يفصل عن المحتوى
+                break;
+            }
+
+            // ── التحكّم المقسّم (SegmentedControl) — حبّة مستديرة تحوي شرائح (أبناء) ──
+            case UINodeType::SegmentedControl:
+            {
+                Color segBg = parseColorProp(node.findProperty(props::BG), {0.88f, 0.89f, 0.91f, 1}); // خلفية
+                float r = rect.height / 2.0f; // حبّة مستديرة الحوافّ
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, segBg, r);
+                break;
+            }
+
             default:
                 break;
             }

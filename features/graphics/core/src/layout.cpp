@@ -366,6 +366,24 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = 420.0f;
             break;
 
+        case UINodeType::Toolbar:
+            // شريط أدوات يملأ عرض حاويته بارتفاع مضغوط (م٣ قوائم وأوامر)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 320.0f;
+            defaultHeight = 44.0f;
+            break;
+
+        case UINodeType::SegmentedControl:
+            // تحكّم مقسّم مدمج
+            defaultWidth = 240.0f;
+            defaultHeight = 34.0f;
+            break;
+
+        case UINodeType::Menu:
+            // قائمة منبثقة (حجم معقول حين لا أبناء)
+            defaultWidth = 200.0f;
+            defaultHeight = 180.0f;
+            break;
+
         default:
             defaultWidth = 50.0f;
             defaultHeight = 50.0f;
