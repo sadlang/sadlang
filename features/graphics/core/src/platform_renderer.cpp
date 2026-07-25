@@ -1234,6 +1234,91 @@ namespace sad
                 break;
             }
 
+            // ── الحوار النمطيّ (Dialog) — لوح مرتفع بعنوان (كان يُرسَم في الويب فقط) ──
+            case UINodeType::Dialog:
+            {
+                float dlgRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 12.0f); // زوايا
+                // ظلّ خفيف تحت اللوح لإيحاء الارتفاع النمطيّ
+                drawFilledRect(rect.x + 2, rect.y + 6, rect.width, rect.height, {0, 0, 0, 0.18f});
+                Color dlgBg = parseColorProp(node.findProperty(props::BG),          // خلفية
+                                             Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, dlgBg, dlgRadius);
+                // العنوان (إن وُجد فقط — لا نصّ افتراضيّ مباشر)
+                const auto *titleProp = node.findProperty(props::TITLE); // عنوان
+                if (!titleProp)
+                    titleProp = node.findProperty(props::TITLE_LATIN);
+                if (titleProp)
+                {
+                    if (auto *title = std::get_if<std::string>(&titleProp->value))
+                    {
+                        Color titleColor = parseColorProp(node.findProperty(props::TEXT_COLOR), {0, 0, 0, 1}); // لون_النص
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 18.0f);             // حجم_الخط
+                        float tx = rect.x + 20;
+                        if (isArabicText(*title))
+                        {
+                            auto sz = measureText(*title, fs);
+                            tx = rect.x + rect.width - sz.first - 20;
+                            if (tx < rect.x)
+                                tx = rect.x; // مطابقة حارس AppBar — منع القصّ يسارًا
+                        }
+                        drawText(*title, tx, rect.y + 14, titleColor, fs);
+                    }
+                }
+                break;
+            }
+
+            // ── منطقة النصّ (TextArea) — صندوق إدخال متعدّد الأسطر (كان في الويب فقط) ──
+            case UINodeType::TextArea:
+            {
+                float taRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
+                Color taBg = parseColorProp(node.findProperty(props::BG),           // خلفية
+                                            Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, taBg, taRadius);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                // القيمة إن وُجدت وإلا التلميح (بلون باهت)
+                const auto *valProp = node.findProperty(props::VALUE); // قيمة
+                if (!valProp)
+                    valProp = node.findProperty(props::VALUE_LATIN);
+                Color textCol = {0, 0, 0, 1};
+                if (!valProp)
+                {
+                    valProp = node.findProperty(props::HINT); // تلميح
+                    if (!valProp)
+                        valProp = node.findProperty(props::PLACEHOLDER_LATIN);
+                    textCol = {0.5f, 0.5f, 0.5f, 1};
+                }
+                if (valProp)
+                {
+                    if (auto *val = std::get_if<std::string>(&valProp->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f); // حجم_الخط
+                        float tx = rect.x + 10;
+                        if (isArabicText(*val))
+                        {
+                            auto sz = measureText(*val, fs);
+                            tx = rect.x + rect.width - sz.first - 10;
+                            if (tx < rect.x)
+                                tx = rect.x; // مطابقة حارس AppBar — منع القصّ يسارًا
+                        }
+                        drawText(*val, tx, rect.y + 8, textCol, fs);
+                    }
+                }
+                break;
+            }
+
+            // ── الدرج الجانبيّ (Drawer) — لوح تنقّل بخطّ فاصل (كان في الويب فقط) ──
+            case UINodeType::Drawer:
+            {
+                Color drawerBg = parseColorProp(node.findProperty(props::BG),       // خلفية
+                                                Color::fromNamed(NamedColor::White));
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, drawerBg);
+                // خطّ فاصل على الحافّة الداخليّة (RTL ⇒ الحافّة اليسرى)
+                drawLine(rect.x, rect.y, rect.x, rect.y + rect.height,
+                         Color::fromNamed(NamedColor::Gray), 1.0f);
+                break;
+            }
+
             default:
                 break;
             }
