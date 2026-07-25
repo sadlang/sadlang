@@ -1842,6 +1842,10 @@ namespace Sad
                     << " `" << st.name << "`\n\n";
 
                 out << "```sad\n";
+                // (AR) توجيه @تمثيل_سي (RFC #53) سابقٌ على سطره قبل التصريح — لا بادئة سطريّة
+                // (EN) @تمثيل_سي directive (RFC #53) precedes the declaration on its own line
+                if (st.isCRepr)
+                    out << "@تمثيل_سي\n";
                 if (st.isExported)
                     out << "صدّر ";
                 if (st.isPacked)

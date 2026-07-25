@@ -1675,6 +1675,29 @@ namespace Sad
                 return decl;
             }
 
+            // ─── @تمثيل_سي بنية ... — بنية بتخطيط C-ABI (بلا ترويسة) [RFC #53 F2-أ] ───
+            // (AR) سمة اسميّة بلا وسيط تسبق تصريح «بنية» فتعلّمها بتخطيط قيمة C-متوافق
+            //      للربط الخارجيّ (FFI). في F2-أ: تُحلَّل وتُحمَل في الراية فقط (قبول
+            //      المحرّكين، بلا أثر تخطيطيّ بعد — التخطيط في F2-ب). «تمثيل_سي» تأتي
+            //      كـIDENTIFIER فلا تحتاج قائمة الكلمات المفتاحيّة.
+            // (EN) Argument-less nominal attribute preceding a «بنية» declaration marking
+            //      it as C-ABI value layout (header-less) for FFI. F2-أ: parsed and stored
+            //      in the flag only (both-engine acceptance, no layout effect yet — layout
+            //      lands in F2-ب).
+            if (name == "تمثيل_سي")
+            {
+                advance(); // consume @
+                advance(); // consume تمثيل_سي
+
+                auto decl = parseDeclaration();
+                if (auto *sd = dynamic_cast<StructDecl *>(decl.get()))
+                    sd->isCRepr = true;
+                else
+                    error("(AR) خطأ نحوي: @تمثيل_سي يتطلّب تصريح 'بنية'.\n"
+                          "(EN) Syntax error: @تمثيل_سي requires a 'بنية' declaration.");
+                return decl;
+            }
+
             // ─── @تجميع("code") — inline assembly statement ───
             if (nextType == TT::KEYWORD_ASM || name == "تجميع")
             {

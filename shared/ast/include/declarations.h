@@ -999,6 +999,7 @@ namespace Sad
             std::vector<std::string> lifetimeParams;   ///< Lifetime parameters <'أ, 'ب> / معاملات العمر
             bool isPacked;                             ///< Packed? / محزومة؟
             bool isExported;                           ///< Exported? / مصدّرة؟
+            bool isCRepr = false;                      ///< C-ABI layout (@تمثيل_سي)? / تخطيط C-متوافق (بلا ترويسة)؟ [RFC #53 F2-أ]
             StmtList methods;                          ///< Impl methods / الدوال المنفذة
 
             StructDecl(const std::string &name,

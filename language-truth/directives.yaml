@@ -65,6 +65,17 @@ directives:
     status: stable
     example: "@رمز(\"bee_probe_hits\") متغير متطاير عداد = 0"
 
+  - id: directive.c_repr
+    symbol: "@تمثيل_سي بنية"
+    name_ar: "تمثيل C-متوافق"
+    name_en: c_repr
+    description_ar: "يعلّم تصريح «بنية» بتخطيط ذاكرة متوافق مع C-ABI (بلا ترويسة صنف مخفيّة، بتخطيط قيمة) للربط الخارجيّ FFI — نظير Rust ‎#[repr(C)]‎. سمة اسميّة بلا وسيط تسبق «بنية». (RFC #53، الحاجز ٣/F2؛ F2-أ: تُحلَّل وتُقبَل بلا أثر تخطيطيّ بعد)"
+    description_en: "Marks a «بنية» declaration with C-ABI-compatible memory layout (no hidden class header, value layout) for FFI — analogous to Rust #[repr(C)]. Argument-less nominal attribute preceding «بنية». (RFC #53, barrier 3/F2)"
+    context: declaration
+    since: "1.0.0"
+    status: experimental
+    example: "@تمثيل_سي\nبنية وقت_س\n    رقم ثوانٍ = 0\n    رقم نانو = 0\nنهاية"
+
   - id: directive.asm
     symbol: "@تجميع(\"code\")"
     name_ar: "تجميع مضمَّن"
