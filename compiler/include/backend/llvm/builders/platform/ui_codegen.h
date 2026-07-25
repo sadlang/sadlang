@@ -115,6 +115,24 @@ public:
     llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiWindow(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiTitleBar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiScrollBar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiTaskbar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiStartMenu(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSystemTray(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiMenu(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiToolbar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSegmentedControl(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiTreeView(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSplitView(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiDataTable(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiBreadcrumb(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiPicker(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiDatePicker(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiStepper(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiRatingBar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiAlert(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSafeArea(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSurface(std::shared_ptr<SIRInstruction> inst);
 

@@ -231,6 +231,42 @@ namespace Sad
                 return cg_.emitUiSafeArea(inst);
             case SIROpcode::BUILTIN_UI_SURFACE:
                 return cg_.emitUiSurface(inst);
+            case SIROpcode::BUILTIN_UI_WINDOW:
+                return cg_.emitUiWindow(inst);
+            case SIROpcode::BUILTIN_UI_TITLE_BAR:
+                return cg_.emitUiTitleBar(inst);
+            case SIROpcode::BUILTIN_UI_SCROLL_BAR:
+                return cg_.emitUiScrollBar(inst);
+            case SIROpcode::BUILTIN_UI_TASKBAR:
+                return cg_.emitUiTaskbar(inst);
+            case SIROpcode::BUILTIN_UI_START_MENU:
+                return cg_.emitUiStartMenu(inst);
+            case SIROpcode::BUILTIN_UI_SYSTEM_TRAY:
+                return cg_.emitUiSystemTray(inst);
+            case SIROpcode::BUILTIN_UI_MENU:
+                return cg_.emitUiMenu(inst);
+            case SIROpcode::BUILTIN_UI_TOOLBAR:
+                return cg_.emitUiToolbar(inst);
+            case SIROpcode::BUILTIN_UI_SEGMENTED_CONTROL:
+                return cg_.emitUiSegmentedControl(inst);
+            case SIROpcode::BUILTIN_UI_TREE_VIEW:
+                return cg_.emitUiTreeView(inst);
+            case SIROpcode::BUILTIN_UI_SPLIT_VIEW:
+                return cg_.emitUiSplitView(inst);
+            case SIROpcode::BUILTIN_UI_DATA_TABLE:
+                return cg_.emitUiDataTable(inst);
+            case SIROpcode::BUILTIN_UI_BREADCRUMB:
+                return cg_.emitUiBreadcrumb(inst);
+            case SIROpcode::BUILTIN_UI_PICKER:
+                return cg_.emitUiPicker(inst);
+            case SIROpcode::BUILTIN_UI_DATE_PICKER:
+                return cg_.emitUiDatePicker(inst);
+            case SIROpcode::BUILTIN_UI_STEPPER:
+                return cg_.emitUiStepper(inst);
+            case SIROpcode::BUILTIN_UI_RATING_BAR:
+                return cg_.emitUiRatingBar(inst);
+            case SIROpcode::BUILTIN_UI_ALERT:
+                return cg_.emitUiAlert(inst);
             // أثر المعدّلات (م-أ3ر، L1): خاصّيّة عامّة بالاسم
             case SIROpcode::BUILTIN_UI_SET_PROP_STR:
                 return cg_.emitUiSetPropStr(inst);

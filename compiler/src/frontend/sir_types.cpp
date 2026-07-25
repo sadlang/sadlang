@@ -508,6 +508,42 @@ namespace Sad
                     return "ui.text_area";
                 case SIROpcode::BUILTIN_UI_DRAWER:
                     return "ui.drawer";
+                case SIROpcode::BUILTIN_UI_WINDOW:
+                    return "ui.window";
+                case SIROpcode::BUILTIN_UI_TITLE_BAR:
+                    return "ui.title_bar";
+                case SIROpcode::BUILTIN_UI_SCROLL_BAR:
+                    return "ui.scroll_bar";
+                case SIROpcode::BUILTIN_UI_TASKBAR:
+                    return "ui.taskbar";
+                case SIROpcode::BUILTIN_UI_START_MENU:
+                    return "ui.start_menu";
+                case SIROpcode::BUILTIN_UI_SYSTEM_TRAY:
+                    return "ui.system_tray";
+                case SIROpcode::BUILTIN_UI_MENU:
+                    return "ui.menu";
+                case SIROpcode::BUILTIN_UI_TOOLBAR:
+                    return "ui.toolbar";
+                case SIROpcode::BUILTIN_UI_SEGMENTED_CONTROL:
+                    return "ui.segmented_control";
+                case SIROpcode::BUILTIN_UI_TREE_VIEW:
+                    return "ui.tree_view";
+                case SIROpcode::BUILTIN_UI_SPLIT_VIEW:
+                    return "ui.split_view";
+                case SIROpcode::BUILTIN_UI_DATA_TABLE:
+                    return "ui.data_table";
+                case SIROpcode::BUILTIN_UI_BREADCRUMB:
+                    return "ui.breadcrumb";
+                case SIROpcode::BUILTIN_UI_PICKER:
+                    return "ui.picker";
+                case SIROpcode::BUILTIN_UI_DATE_PICKER:
+                    return "ui.date_picker";
+                case SIROpcode::BUILTIN_UI_STEPPER:
+                    return "ui.stepper";
+                case SIROpcode::BUILTIN_UI_RATING_BAR:
+                    return "ui.rating_bar";
+                case SIROpcode::BUILTIN_UI_ALERT:
+                    return "ui.alert";
                 case SIROpcode::BUILTIN_UI_SAFE_AREA:
                     return "ui.safe_area";
                 case SIROpcode::BUILTIN_UI_SURFACE:

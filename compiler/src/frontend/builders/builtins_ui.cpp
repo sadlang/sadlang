@@ -546,6 +546,44 @@ namespace Sad
                 if (funcName == Bn::UIWidgets::DRAWER)
                     return lowerContainer(SIROpcode::BUILTIN_UI_DRAWER);
 
+                // ── ودجات سطح المكتب (م١–م٦): عناصر حاوية بسيطة ──
+                if (funcName == Bn::UIWidgets::WINDOW)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_WINDOW);
+                if (funcName == Bn::UIWidgets::TITLE_BAR)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_TITLE_BAR);
+                if (funcName == Bn::UIWidgets::SCROLL_BAR)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_SCROLL_BAR);
+                if (funcName == Bn::UIWidgets::TASKBAR)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_TASKBAR);
+                if (funcName == Bn::UIWidgets::START_MENU)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_START_MENU);
+                if (funcName == Bn::UIWidgets::SYSTEM_TRAY)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_SYSTEM_TRAY);
+                if (funcName == Bn::UIWidgets::MENU)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_MENU);
+                if (funcName == Bn::UIWidgets::TOOLBAR)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_TOOLBAR);
+                if (funcName == Bn::UIWidgets::SEGMENTED_CONTROL)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_SEGMENTED_CONTROL);
+                if (funcName == Bn::UIWidgets::TREE_VIEW)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_TREE_VIEW);
+                if (funcName == Bn::UIWidgets::SPLIT_VIEW)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_SPLIT_VIEW);
+                if (funcName == Bn::UIWidgets::DATA_TABLE)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_DATA_TABLE);
+                if (funcName == Bn::UIWidgets::BREADCRUMB)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_BREADCRUMB);
+                if (funcName == Bn::UIWidgets::PICKER)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_PICKER);
+                if (funcName == Bn::UIWidgets::DATE_PICKER)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_DATE_PICKER);
+                if (funcName == Bn::UIWidgets::STEPPER)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_STEPPER);
+                if (funcName == Bn::UIWidgets::RATING_BAR)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_RATING_BAR);
+                if (funcName == Bn::UIWidgets::ALERT)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_ALERT);
+
                 // ─── منطقة_آمنة(ابن) / sad_safe_area() ───
                 if (funcName == Bn::UIWidgets::SAFE_AREA)
                     return lowerContainer(SIROpcode::BUILTIN_UI_SAFE_AREA);

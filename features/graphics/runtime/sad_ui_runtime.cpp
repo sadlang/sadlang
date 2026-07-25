@@ -563,6 +563,24 @@ SadWidget sad_list_view(void)   { return createWidget(UINodeType::List); }
 SadWidget sad_drawer(void)      { return createWidget(UINodeType::Drawer); }
 SadWidget sad_safe_area(void)   { return createWidget(UINodeType::SafeArea); }
 SadWidget sad_surface(void)     { return createWidget(UINodeType::Surface); }
+SadWidget sad_window(void) { return createWidget(UINodeType::Window); }
+SadWidget sad_title_bar(void) { return createWidget(UINodeType::TitleBar); }
+SadWidget sad_scroll_bar(void) { return createWidget(UINodeType::ScrollBar); }
+SadWidget sad_taskbar(void) { return createWidget(UINodeType::Taskbar); }
+SadWidget sad_start_menu(void) { return createWidget(UINodeType::StartMenu); }
+SadWidget sad_system_tray(void) { return createWidget(UINodeType::SystemTray); }
+SadWidget sad_menu(void) { return createWidget(UINodeType::Menu); }
+SadWidget sad_toolbar(void) { return createWidget(UINodeType::Toolbar); }
+SadWidget sad_segmented_control(void) { return createWidget(UINodeType::SegmentedControl); }
+SadWidget sad_tree_view(void) { return createWidget(UINodeType::TreeView); }
+SadWidget sad_split_view(void) { return createWidget(UINodeType::SplitView); }
+SadWidget sad_data_table(void) { return createWidget(UINodeType::DataTable); }
+SadWidget sad_breadcrumb(void) { return createWidget(UINodeType::Breadcrumb); }
+SadWidget sad_picker(void) { return createWidget(UINodeType::Picker); }
+SadWidget sad_date_picker(void) { return createWidget(UINodeType::DatePicker); }
+SadWidget sad_stepper(void) { return createWidget(UINodeType::Stepper); }
+SadWidget sad_rating_bar(void) { return createWidget(UINodeType::RatingBar); }
+SadWidget sad_alert(void) { return createWidget(UINodeType::Alert); }
 
 /* ─── أثر المعدّلات الانسيابيّة (م-أ3ر، L1): خاصّيّة عامّة بالاسم ───
  * (AR) نظير setIRProperty في المفسّر: اسم الطريقة = مفتاح الخاصيّة على IRNode

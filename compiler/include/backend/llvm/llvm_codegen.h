@@ -2009,6 +2009,24 @@ namespace Sad
             llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiListView(inst); }
             llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTextArea(inst); }
             llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDrawer(inst); }
+            llvm::Value *emitUiWindow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWindow(inst); }
+            llvm::Value *emitUiTitleBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTitleBar(inst); }
+            llvm::Value *emitUiScrollBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiScrollBar(inst); }
+            llvm::Value *emitUiTaskbar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTaskbar(inst); }
+            llvm::Value *emitUiStartMenu(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiStartMenu(inst); }
+            llvm::Value *emitUiSystemTray(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSystemTray(inst); }
+            llvm::Value *emitUiMenu(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiMenu(inst); }
+            llvm::Value *emitUiToolbar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiToolbar(inst); }
+            llvm::Value *emitUiSegmentedControl(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSegmentedControl(inst); }
+            llvm::Value *emitUiTreeView(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTreeView(inst); }
+            llvm::Value *emitUiSplitView(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSplitView(inst); }
+            llvm::Value *emitUiDataTable(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDataTable(inst); }
+            llvm::Value *emitUiBreadcrumb(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiBreadcrumb(inst); }
+            llvm::Value *emitUiPicker(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiPicker(inst); }
+            llvm::Value *emitUiDatePicker(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDatePicker(inst); }
+            llvm::Value *emitUiStepper(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiStepper(inst); }
+            llvm::Value *emitUiRatingBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiRatingBar(inst); }
+            llvm::Value *emitUiAlert(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAlert(inst); }
             llvm::Value *emitUiSafeArea(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSafeArea(inst); }
             llvm::Value *emitUiSurface(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSurface(inst); }
             // 21e. أثر المعدّلات (م-أ3ر) — موجِّهات: خاصّيّة عامّة (L1) + حدث عند_* (L2) + تحريك (L3) + دمج متعدّد الوسائط

@@ -309,6 +309,44 @@ namespace Sad
             auto drawer_fn = MAKE_SIMPLE_WIDGET_FN(Drawer);
             fm.registerBuiltinFunction(std::string(Bw::DRAWER), drawer_fn); // درج
 
+            // ── ودجات سطح المكتب (م١–م٦): مسجَّلة كعناصر بسيطة، الخصائص تُضبَط بالمعدّلات ──
+            auto window_fn = MAKE_SIMPLE_WIDGET_FN(Window);
+            fm.registerBuiltinFunction(std::string(Bw::WINDOW), window_fn); // نافذة
+            auto title_bar_fn = MAKE_SIMPLE_WIDGET_FN(TitleBar);
+            fm.registerBuiltinFunction(std::string(Bw::TITLE_BAR), title_bar_fn); // شريط_عنوان
+            auto scroll_bar_fn = MAKE_SIMPLE_WIDGET_FN(ScrollBar);
+            fm.registerBuiltinFunction(std::string(Bw::SCROLL_BAR), scroll_bar_fn); // شريط_تمرير
+            auto taskbar_fn = MAKE_SIMPLE_WIDGET_FN(Taskbar);
+            fm.registerBuiltinFunction(std::string(Bw::TASKBAR), taskbar_fn); // شريط_مهام
+            auto start_menu_fn = MAKE_SIMPLE_WIDGET_FN(StartMenu);
+            fm.registerBuiltinFunction(std::string(Bw::START_MENU), start_menu_fn); // قائمة_ابدأ
+            auto system_tray_fn = MAKE_SIMPLE_WIDGET_FN(SystemTray);
+            fm.registerBuiltinFunction(std::string(Bw::SYSTEM_TRAY), system_tray_fn); // لوحة_نظام
+            auto menu_fn = MAKE_SIMPLE_WIDGET_FN(Menu);
+            fm.registerBuiltinFunction(std::string(Bw::MENU), menu_fn); // قائمة_خيارات
+            auto toolbar_fn = MAKE_SIMPLE_WIDGET_FN(Toolbar);
+            fm.registerBuiltinFunction(std::string(Bw::TOOLBAR), toolbar_fn); // شريط_أدوات
+            auto segmented_control_fn = MAKE_SIMPLE_WIDGET_FN(SegmentedControl);
+            fm.registerBuiltinFunction(std::string(Bw::SEGMENTED_CONTROL), segmented_control_fn); // تحكم_مقسم
+            auto tree_view_fn = MAKE_SIMPLE_WIDGET_FN(TreeView);
+            fm.registerBuiltinFunction(std::string(Bw::TREE_VIEW), tree_view_fn); // عرض_شجري
+            auto split_view_fn = MAKE_SIMPLE_WIDGET_FN(SplitView);
+            fm.registerBuiltinFunction(std::string(Bw::SPLIT_VIEW), split_view_fn); // لوح_مقسم
+            auto data_table_fn = MAKE_SIMPLE_WIDGET_FN(DataTable);
+            fm.registerBuiltinFunction(std::string(Bw::DATA_TABLE), data_table_fn); // جدول_بيانات
+            auto breadcrumb_fn = MAKE_SIMPLE_WIDGET_FN(Breadcrumb);
+            fm.registerBuiltinFunction(std::string(Bw::BREADCRUMB), breadcrumb_fn); // مسار_تنقل
+            auto picker_fn = MAKE_SIMPLE_WIDGET_FN(Picker);
+            fm.registerBuiltinFunction(std::string(Bw::PICKER), picker_fn); // قائمة_منسدلة
+            auto date_picker_fn = MAKE_SIMPLE_WIDGET_FN(DatePicker);
+            fm.registerBuiltinFunction(std::string(Bw::DATE_PICKER), date_picker_fn); // منتقي_تاريخ
+            auto stepper_fn = MAKE_SIMPLE_WIDGET_FN(Stepper);
+            fm.registerBuiltinFunction(std::string(Bw::STEPPER), stepper_fn); // خطوات
+            auto rating_bar_fn = MAKE_SIMPLE_WIDGET_FN(RatingBar);
+            fm.registerBuiltinFunction(std::string(Bw::RATING_BAR), rating_bar_fn); // تقييم
+            auto alert_fn = MAKE_SIMPLE_WIDGET_FN(Alert);
+            fm.registerBuiltinFunction(std::string(Bw::ALERT), alert_fn); // تنبيه
+
             // منطقة_آمنة — يتجنب مناطق النظام
             auto safearea_fn = MAKE_SIMPLE_WIDGET_FN(SafeArea);
             fm.registerBuiltinFunction(std::string(Bw::SAFE_AREA), safearea_fn); // منطقة_آمنة

@@ -1317,6 +1317,60 @@ llvm::Value* UICodeGen::emitUiListView(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiDrawer(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_drawer");
 }
+llvm::Value* UICodeGen::emitUiWindow(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_window");
+}
+llvm::Value* UICodeGen::emitUiTitleBar(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_title_bar");
+}
+llvm::Value* UICodeGen::emitUiScrollBar(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_scroll_bar");
+}
+llvm::Value* UICodeGen::emitUiTaskbar(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_taskbar");
+}
+llvm::Value* UICodeGen::emitUiStartMenu(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_start_menu");
+}
+llvm::Value* UICodeGen::emitUiSystemTray(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_system_tray");
+}
+llvm::Value* UICodeGen::emitUiMenu(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_menu");
+}
+llvm::Value* UICodeGen::emitUiToolbar(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_toolbar");
+}
+llvm::Value* UICodeGen::emitUiSegmentedControl(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_segmented_control");
+}
+llvm::Value* UICodeGen::emitUiTreeView(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_tree_view");
+}
+llvm::Value* UICodeGen::emitUiSplitView(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_split_view");
+}
+llvm::Value* UICodeGen::emitUiDataTable(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_data_table");
+}
+llvm::Value* UICodeGen::emitUiBreadcrumb(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_breadcrumb");
+}
+llvm::Value* UICodeGen::emitUiPicker(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_picker");
+}
+llvm::Value* UICodeGen::emitUiDatePicker(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_date_picker");
+}
+llvm::Value* UICodeGen::emitUiStepper(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_stepper");
+}
+llvm::Value* UICodeGen::emitUiRatingBar(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_rating_bar");
+}
+llvm::Value* UICodeGen::emitUiAlert(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_alert");
+}
 llvm::Value* UICodeGen::emitUiSafeArea(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_safe_area");
 }

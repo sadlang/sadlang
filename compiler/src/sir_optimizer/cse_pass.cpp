@@ -387,6 +387,24 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_DRAWER:
                 case SIR::SIROpcode::BUILTIN_UI_SAFE_AREA:
                 case SIR::SIROpcode::BUILTIN_UI_SURFACE:
+                case SIR::SIROpcode::BUILTIN_UI_WINDOW:
+                case SIR::SIROpcode::BUILTIN_UI_TITLE_BAR:
+                case SIR::SIROpcode::BUILTIN_UI_SCROLL_BAR:
+                case SIR::SIROpcode::BUILTIN_UI_TASKBAR:
+                case SIR::SIROpcode::BUILTIN_UI_START_MENU:
+                case SIR::SIROpcode::BUILTIN_UI_SYSTEM_TRAY:
+                case SIR::SIROpcode::BUILTIN_UI_MENU:
+                case SIR::SIROpcode::BUILTIN_UI_TOOLBAR:
+                case SIR::SIROpcode::BUILTIN_UI_SEGMENTED_CONTROL:
+                case SIR::SIROpcode::BUILTIN_UI_TREE_VIEW:
+                case SIR::SIROpcode::BUILTIN_UI_SPLIT_VIEW:
+                case SIR::SIROpcode::BUILTIN_UI_DATA_TABLE:
+                case SIR::SIROpcode::BUILTIN_UI_BREADCRUMB:
+                case SIR::SIROpcode::BUILTIN_UI_PICKER:
+                case SIR::SIROpcode::BUILTIN_UI_DATE_PICKER:
+                case SIR::SIROpcode::BUILTIN_UI_STEPPER:
+                case SIR::SIROpcode::BUILTIN_UI_RATING_BAR:
+                case SIR::SIROpcode::BUILTIN_UI_ALERT:
                 // أثر المعدّلات (م-أ3ر): ضبط خاصّيّة = أثر جانبيّ (لا CSE)
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_STR:
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_INT:

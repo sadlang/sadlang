@@ -1116,6 +1116,42 @@ namespace Sad
                 inline constexpr std::string_view TEXT_AREA = "منطقة_نص";
                 // (AR) درج
                 inline constexpr std::string_view DRAWER = "درج";
+                // (AR) نافذة
+                inline constexpr std::string_view WINDOW = "نافذة";
+                // (AR) شريط_عنوان
+                inline constexpr std::string_view TITLE_BAR = "شريط_عنوان";
+                // (AR) شريط_تمرير
+                inline constexpr std::string_view SCROLL_BAR = "شريط_تمرير";
+                // (AR) شريط_مهام
+                inline constexpr std::string_view TASKBAR = "شريط_مهام";
+                // (AR) قائمة_ابدأ
+                inline constexpr std::string_view START_MENU = "قائمة_ابدأ";
+                // (AR) لوحة_نظام
+                inline constexpr std::string_view SYSTEM_TRAY = "لوحة_نظام";
+                // (AR) قائمة_خيارات
+                inline constexpr std::string_view MENU = "قائمة_خيارات";
+                // (AR) شريط_أدوات
+                inline constexpr std::string_view TOOLBAR = "شريط_أدوات";
+                // (AR) تحكم_مقسم
+                inline constexpr std::string_view SEGMENTED_CONTROL = "تحكم_مقسم";
+                // (AR) عرض_شجري
+                inline constexpr std::string_view TREE_VIEW = "عرض_شجري";
+                // (AR) لوح_مقسم
+                inline constexpr std::string_view SPLIT_VIEW = "لوح_مقسم";
+                // (AR) جدول_بيانات
+                inline constexpr std::string_view DATA_TABLE = "جدول_بيانات";
+                // (AR) مسار_تنقل
+                inline constexpr std::string_view BREADCRUMB = "مسار_تنقل";
+                // (AR) قائمة_منسدلة
+                inline constexpr std::string_view PICKER = "قائمة_منسدلة";
+                // (AR) منتقي_تاريخ
+                inline constexpr std::string_view DATE_PICKER = "منتقي_تاريخ";
+                // (AR) خطوات
+                inline constexpr std::string_view STEPPER = "خطوات";
+                // (AR) تقييم
+                inline constexpr std::string_view RATING_BAR = "تقييم";
+                // (AR) تنبيه
+                inline constexpr std::string_view ALERT = "تنبيه";
                 // (AR) منطقة_آمنة
                 inline constexpr std::string_view SAFE_AREA = "منطقة_آمنة";
                 // (AR) سطح
@@ -2984,7 +3020,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1090> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1108> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3437,7 +3473,7 @@ namespace Sad
             {Names::SadNet::BROADCAST_NEW, "SadNet", "MODULE_FUNCTION", "NONE", true, "بث_جديد", "", ""},
             {Names::SadNet::BROADCAST_STOP, "SadNet", "MODULE_FUNCTION", "NONE", true, "بث_إيقاف", "", ""},
             {Names::SadNet::NODE_DESTROY, "SadNet", "MODULE_FUNCTION", "NONE", true, "تدمير_عقدة", "", ""},
-            // ─── UIWidgets (42) ───
+            // ─── UIWidgets (60) ───
             {Names::UIWidgets::TEXT_WIDGET, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "نص_عنصر", "محتوى: نصّ العنصر المعروض", "كائن"},
             {Names::UIWidgets::IMAGE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "صورة", "مصدر: مسار الصورة أو رابطها", "كائن"},
             {Names::UIWidgets::ICON, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "أيقونة", "اسم: اسم الأيقونة المتجهة", "كائن"},
@@ -3478,6 +3514,24 @@ namespace Sad
             {Names::UIWidgets::LIST_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "قائمة", "الأبناء: عناصر القائمة", "كائن"},
             {Names::UIWidgets::TEXT_AREA, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "منطقة_نص", "تلميح: نصّ إرشاديّ افتراضيّ", "كائن"},
             {Names::UIWidgets::DRAWER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "درج", "الأبناء: محتوى اللوحة الجانبيّة", "كائن"},
+            {Names::UIWidgets::WINDOW, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "نافذة", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::TITLE_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "شريط_عنوان", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::SCROLL_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "شريط_تمرير", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::TASKBAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "شريط_مهام", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::START_MENU, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "قائمة_ابدأ", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::SYSTEM_TRAY, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "لوحة_نظام", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::MENU, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "قائمة_خيارات", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::TOOLBAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "شريط_أدوات", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::SEGMENTED_CONTROL, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "تحكم_مقسم", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::TREE_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "عرض_شجري", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::SPLIT_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "لوح_مقسم", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::DATA_TABLE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "جدول_بيانات", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::BREADCRUMB, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "مسار_تنقل", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::PICKER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "قائمة_منسدلة", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::DATE_PICKER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "منتقي_تاريخ", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::STEPPER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "خطوات", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::RATING_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "تقييم", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::ALERT, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "تنبيه", "الأبناء: محتوى العنصر", "كائن"},
             {Names::UIWidgets::SAFE_AREA, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "منطقة_آمنة", "ابن: عنصر يتجنّب مناطق النظام", "كائن"},
             {Names::UIWidgets::SURFACE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "سطح", "الأبناء: عناصر على السطح", "كائن"},
             // ─── UICore (22) ───
@@ -4130,7 +4184,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", true, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1090, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1108, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

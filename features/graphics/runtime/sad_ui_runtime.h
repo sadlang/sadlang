@@ -143,6 +143,24 @@ SadWidget sad_sized_box(float width, float height);
 /** درج() */          SadWidget sad_drawer(void);
 /** منطقة_آمنة() */   SadWidget sad_safe_area(void);
 /** سطح() */          SadWidget sad_surface(void);
+/** نافذة() */ SadWidget sad_window(void);
+/** شريط_عنوان() */ SadWidget sad_title_bar(void);
+/** شريط_تمرير() */ SadWidget sad_scroll_bar(void);
+/** شريط_مهام() */ SadWidget sad_taskbar(void);
+/** قائمة_ابدأ() */ SadWidget sad_start_menu(void);
+/** لوحة_نظام() */ SadWidget sad_system_tray(void);
+/** قائمة_خيارات() */ SadWidget sad_menu(void);
+/** شريط_أدوات() */ SadWidget sad_toolbar(void);
+/** تحكم_مقسم() */ SadWidget sad_segmented_control(void);
+/** عرض_شجري() */ SadWidget sad_tree_view(void);
+/** لوح_مقسم() */ SadWidget sad_split_view(void);
+/** جدول_بيانات() */ SadWidget sad_data_table(void);
+/** مسار_تنقل() */ SadWidget sad_breadcrumb(void);
+/** قائمة_منسدلة() */ SadWidget sad_picker(void);
+/** منتقي_تاريخ() */ SadWidget sad_date_picker(void);
+/** خطوات() */ SadWidget sad_stepper(void);
+/** تقييم() */ SadWidget sad_rating_bar(void);
+/** تنبيه() */ SadWidget sad_alert(void);
 
 /* ─── أثر المعدّلات الانسيابيّة (م-أ3ر، L1): خاصّيّة عامّة بالاسم ───
  * Generic named-property setters (mirror interpreter setIRProperty). */

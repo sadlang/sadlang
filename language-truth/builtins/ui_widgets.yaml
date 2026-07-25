@@ -1,7 +1,7 @@
 version: 1
 namespace_group: ui_widgets
-description_ar: وحدة ui_widgets (62 دالة)
-description_en: ui_widgets module (62 functions)
+description_ar: وحدة ui_widgets (82 دالة)
+description_en: ui_widgets module (82 functions)
 # (AR) عقدٌ يفرضه scripts/codegen/check_ui_props_consistency.py:
 #   • لكلّ عنصر UIWidgets ذي خاصّيّة أولى: primary_prop = معرّف مفتاحه في
 #     language-truth/ui_props.yaml، ويجب أن يطابق مفتاح المصنع الفعليّ في
@@ -626,6 +626,276 @@ functions:
   description_en: درج
   params:
   - "الأبناء: محتوى اللوحة الجانبيّة"
+  lookup_table: name_only
+- cpp_id: WINDOW
+  canonical: نافذة
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: نافذة
+  description_en: نافذة
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: TITLE_BAR
+  canonical: شريط_عنوان
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: شريط_عنوان
+  description_en: شريط_عنوان
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: SCROLL_BAR
+  canonical: شريط_تمرير
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: شريط_تمرير
+  description_en: شريط_تمرير
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: TASKBAR
+  canonical: شريط_مهام
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: شريط_مهام
+  description_en: شريط_مهام
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: START_MENU
+  canonical: قائمة_ابدأ
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: قائمة_ابدأ
+  description_en: قائمة_ابدأ
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: SYSTEM_TRAY
+  canonical: لوحة_نظام
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: لوحة_نظام
+  description_en: لوحة_نظام
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: MENU
+  canonical: قائمة_خيارات
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: قائمة_خيارات
+  description_en: قائمة_خيارات
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: TOOLBAR
+  canonical: شريط_أدوات
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: شريط_أدوات
+  description_en: شريط_أدوات
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: SEGMENTED_CONTROL
+  canonical: تحكم_مقسم
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تحكم_مقسم
+  description_en: تحكم_مقسم
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: TREE_VIEW
+  canonical: عرض_شجري
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: عرض_شجري
+  description_en: عرض_شجري
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: SPLIT_VIEW
+  canonical: لوح_مقسم
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: لوح_مقسم
+  description_en: لوح_مقسم
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: DATA_TABLE
+  canonical: جدول_بيانات
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: جدول_بيانات
+  description_en: جدول_بيانات
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: BREADCRUMB
+  canonical: مسار_تنقل
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: مسار_تنقل
+  description_en: مسار_تنقل
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: PICKER
+  canonical: قائمة_منسدلة
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: قائمة_منسدلة
+  description_en: قائمة_منسدلة
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: DATE_PICKER
+  canonical: منتقي_تاريخ
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: منتقي_تاريخ
+  description_en: منتقي_تاريخ
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: STEPPER
+  canonical: خطوات
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: خطوات
+  description_en: خطوات
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: RATING_BAR
+  canonical: تقييم
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تقييم
+  description_en: تقييم
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: ALERT
+  canonical: تنبيه
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: تنبيه
+  description_en: تنبيه
+  params:
+  - "الأبناء: محتوى العنصر"
   lookup_table: name_only
 - cpp_id: SAFE_AREA
   canonical: منطقة_آمنة
