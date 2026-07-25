@@ -348,6 +348,24 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 200.0f;
             break;
 
+        case UINodeType::Taskbar:
+            // شريط مهامّ يملأ عرض الشاشة بارتفاع ثابت (م٢ صدَفة سطح المكتب)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 320.0f;
+            defaultHeight = 48.0f;
+            break;
+
+        case UINodeType::SystemTray:
+            // لوحة نظام مدمجة (ساعة + أيقونات)
+            defaultWidth = 140.0f;
+            defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 40.0f;
+            break;
+
+        case UINodeType::StartMenu:
+            // لوح قائمة ابدأ منبثق (حجم معقول حين لا أبناء)
+            defaultWidth = 320.0f;
+            defaultHeight = 420.0f;
+            break;
+
         default:
             defaultWidth = 50.0f;
             defaultHeight = 50.0f;

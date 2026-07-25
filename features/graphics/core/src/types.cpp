@@ -157,6 +157,10 @@ namespace sad
                 {UINodeType::Window, "نافذة"},
                 {UINodeType::TitleBar, "شريط_عنوان"},
                 {UINodeType::ScrollBar, "شريط_تمرير"},
+                // ─── صدَفة سطح المكتب (م٢) ────
+                {UINodeType::Taskbar, "شريط_مهامّ"},
+                {UINodeType::StartMenu, "قائمة_ابدأ"},
+                {UINodeType::SystemTray, "لوحة_نظام"},
             };
             return table;
         }

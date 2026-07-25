@@ -1396,6 +1396,66 @@ namespace sad
                 break;
             }
 
+            // ── شريط المهامّ (Taskbar) — شريط صدَفة سفليّ داكن (م٢ قشرة سطح المكتب) ──
+            case UINodeType::Taskbar:
+            {
+                Color barColor = parseColorProp(node.findProperty(props::BG_COLOR), // لون_خلفية
+                                                {0.043f, 0.086f, 0.165f, 0.96f});   // كحليّ داكن
+                if (!node.findProperty(props::BG_COLOR))
+                    barColor = parseColorProp(node.findProperty(props::BG), barColor); // خلفية
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, barColor);
+                // خطّ إضاءة علويّ رفيع يفصل الشريط عن سطح المكتب
+                drawLine(rect.x, rect.y, rect.x + rect.width, rect.y, {1, 1, 1, 0.12f}, 1.0f);
+                break;
+            }
+
+            // ── قائمة ابدأ (StartMenu) — لوح منبثق مرتفع لإطلاق التطبيقات ──
+            case UINodeType::StartMenu:
+            {
+                float smr = getNumericProp(node.findProperty(props::CORNER_RADIUS), 10.0f); // زوايا
+                // ظلّ لأعلى (اللوح ينبثق من شريط المهامّ صعودًا)
+                drawFilledRect(rect.x + 2, rect.y - 6, rect.width, rect.height + 6, {0, 0, 0, 0.28f});
+                Color smBg = parseColorProp(node.findProperty(props::BG),           // خلفية
+                                            {0.086f, 0.149f, 0.290f, 0.98f});       // لوح كحليّ
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, smBg, smr);
+                break;
+            }
+
+            // ── لوحة النظام (SystemTray) — ساعة/نصّ حالة (يمين RTL) + أيقونات (أبناء) ──
+            case UINodeType::SystemTray:
+            {
+                const auto *bgProp = node.findProperty(props::BG); // خلفية
+                if (bgProp)
+                {
+                    Color trayBg = parseColorProp(bgProp, {1, 1, 1, 0.08f});
+                    drawRoundedRect(rect.x, rect.y, rect.width, rect.height, trayBg, 6.0f);
+                }
+                const auto *tProp = node.findProperty(props::TEXT_LATIN);
+                if (!tProp)
+                    tProp = node.findProperty(props::TEXT); // نص
+                if (!tProp)
+                    tProp = node.findProperty(props::VALUE); // قيمة
+                if (tProp)
+                {
+                    if (auto *t = std::get_if<std::string>(&tProp->value))
+                    {
+                        Color tc = parseColorProp(node.findProperty(props::COLOR), // لون
+                                                  Color::fromNamed(NamedColor::White));
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 15.0f); // حجم_الخط
+                        float tx = rect.x + 10;
+                        if (isArabicText(*t))
+                        {
+                            auto sz = measureText(*t, fs);
+                            tx = rect.x + rect.width - sz.first - 10;
+                            if (tx < rect.x)
+                                tx = rect.x; // مطابقة حارس AppBar
+                        }
+                        drawText(*t, tx, rect.y + rect.height / 2 - fs / 2, tc, fs);
+                    }
+                }
+                break;
+            }
+
             default:
                 break;
             }
