@@ -462,6 +462,30 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = 24.0f;
             break;
 
+        case UINodeType::SpinBox:
+            // حقل رقميّ بأزرار زيادة/نقصان (م٥-ب تحكّم متقدّم)
+            defaultWidth = 120.0f;
+            defaultHeight = 40.0f;
+            break;
+
+        case UINodeType::GroupBox:
+            // إطار مجموعة بعنوان يملأ حاويته (م٦-ب تغذية راجعة)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 280.0f;
+            defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 160.0f;
+            break;
+
+        case UINodeType::Spinner:
+            // مؤشّر انشغال دائريّ مربّع الأبعاد (م٦-ب تغذية راجعة)
+            defaultWidth = 48.0f;
+            defaultHeight = 48.0f;
+            break;
+
+        case UINodeType::StatusBar:
+            // شريط حالة سفليّ يملأ عرض النافذة بارتفاع مضغوط (م٦-ب تغذية راجعة)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 320.0f;
+            defaultHeight = 26.0f;
+            break;
+
         // ملاحظة: Skeleton يبقى على الافتراضيّ ٥٠×٥٠ عمدًا — يقنّنه الاختبار الذهبيّ
         // skeleton_hgradient (test_ui_render_displaylist.cpp)؛ حجمه الفعليّ يُضبَط
         // بخصائص عرض/ارتفاع صريحة عند الاستعمال (كهيكل سطر تحميل يملأ حاويته).

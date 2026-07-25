@@ -161,6 +161,11 @@ namespace sad
                 {UINodeType::Taskbar, "شريط_مهامّ"},
                 {UINodeType::StartMenu, "قائمة_ابدأ"},
                 {UINodeType::SystemTray, "لوحة_نظام"},
+                // ─── تحكّم متقدّم + تغذية راجعة (م٥-ب/م٦-ب) ────
+                {UINodeType::SpinBox, "مربّع_دوّار"},
+                {UINodeType::GroupBox, "صندوق_تجميع"},
+                {UINodeType::Spinner, "مؤشّر_انشغال"},
+                {UINodeType::StatusBar, "شريط_حالة"},
             };
             return table;
         }

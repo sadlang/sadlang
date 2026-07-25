@@ -1722,6 +1722,163 @@ namespace sad
                 break;
             }
 
+            // ── مربّع دوّار (SpinBox) — حقل رقميّ + زرّا زيادة/نقصان رأسيّان (م٥-ب) ──
+            case UINodeType::SpinBox:
+            {
+                float sbRad = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
+                Color sbBg = parseColorProp(node.findProperty(props::BG),                    // خلفية
+                                            Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, sbBg, sbRad);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                // منطقة الأزرار على الحافّة اليسرى (RTL: القيمة يمين، الأزرار يسار)
+                float btnW = 26.0f;
+                float midY = rect.y + rect.height / 2.0f;
+                // خطّ فاصل رأسيّ بين حقل القيمة ومنطقة الأزرار
+                drawLine(rect.x + btnW, rect.y + 3, rect.x + btnW, rect.y + rect.height - 3,
+                         Color::fromNamed(NamedColor::Gray), 1.0f);
+                // خطّ فاصل أفقيّ يقسم منطقة الأزرار إلى (▲ أعلى / ▼ أسفل)
+                drawLine(rect.x, midY, rect.x + btnW, midY,
+                         Color::fromNamed(NamedColor::Gray), 1.0f);
+                Color sign = Color::fromNamed(NamedColor::Black);
+                float acx = rect.x + btnW / 2.0f;
+                // سهم الزيادة (▲) في النصف العلويّ — خطّان مائلان لأعلى
+                float upY = rect.y + rect.height * 0.25f;
+                drawLine(acx - 6, upY + 4, acx, upY - 3, sign, 2.0f);
+                drawLine(acx, upY - 3, acx + 6, upY + 4, sign, 2.0f);
+                // سهم النقصان (▼) في النصف السفليّ — خطّان مائلان لأسفل
+                float dnY = rect.y + rect.height * 0.75f;
+                drawLine(acx - 6, dnY - 4, acx, dnY + 3, sign, 2.0f);
+                drawLine(acx, dnY + 3, acx + 6, dnY - 4, sign, 2.0f);
+                // القيمة في حقل النصّ (يمين، محاذاة RTL)
+                const auto *sbVal = node.findProperty(props::VALUE); // قيمة
+                if (!sbVal)
+                    sbVal = node.findProperty(props::VALUE_LATIN);
+                if (sbVal)
+                {
+                    if (auto *v = std::get_if<std::string>(&sbVal->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 16.0f); // حجم_الخط
+                        auto sz = measureText(*v, fs);
+                        // محاذاة يمنى مقصودة (عرف الحقول الرقميّة، عربيّ ولاتينيّ سواء)
+                        float tx = rect.x + rect.width - sz.first - 12;
+                        if (tx < rect.x + btnW + 6)
+                            tx = rect.x + btnW + 6;
+                        drawText(*v, tx, midY - fs / 2, Color::fromNamed(NamedColor::Black), fs);
+                    }
+                }
+                break;
+            }
+
+            // ── صندوق تجميع (GroupBox) — إطار بعنوان علويّ يفصله عن الحدّ (م٦-ب) ──
+            case UINodeType::GroupBox:
+            {
+                float gbRad = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
+                const auto *bgProp = node.findProperty(props::BG); // خلفية
+                if (bgProp)
+                    drawRoundedRect(rect.x, rect.y, rect.width, rect.height,
+                                    parseColorProp(bgProp, Color::fromNamed(NamedColor::White)), gbRad);
+                Color border = parseColorProp(node.findProperty(props::COLOR), // لون
+                                              Color::fromNamed(NamedColor::Gray));
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height, border);
+                // العنوان مطبوع على الحدّ العلويّ (RTL: يمينًا) مع خلفيّة تكسر الإطار
+                const auto *gbTitle = node.findProperty(props::TITLE); // عنوان
+                if (!gbTitle)
+                    gbTitle = node.findProperty(props::TITLE_LATIN);
+                if (gbTitle)
+                {
+                    if (auto *t = std::get_if<std::string>(&gbTitle->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 15.0f); // حجم_الخط
+                        auto sz = measureText(*t, fs);
+                        // افتراض يسار؛ يُقلَب يمينًا للنصّ العربيّ (نمط TitleBar/Alert)
+                        float tx = rect.x + 14;
+                        if (isArabicText(*t))
+                        {
+                            tx = rect.x + rect.width - sz.first - 14;
+                            if (tx < rect.x + 8)
+                                tx = rect.x + 8;
+                        }
+                        // رقعة كسر الإطار تُرسَم فقط حين تُعرف خلفيّة الصندوق (تجنّب لطخة
+                        // بيضاء فوق أب غير أبيض حين تُترك الخلفيّة شفّافة)
+                        if (bgProp)
+                        {
+                            Color surface = parseColorProp(bgProp, Color::fromNamed(NamedColor::White));
+                            drawFilledRect(tx - 5, rect.y - fs / 2, sz.first + 10, fs, surface);
+                        }
+                        Color tc = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
+                                                  Color::fromNamed(NamedColor::Black));
+                        drawText(*t, tx, rect.y - fs / 2, tc, fs);
+                    }
+                }
+                break;
+            }
+
+            // ── مؤشّر انشغال (Spinner) — حلقة تحميل دائريّة بنقاط متلاشية (م٦-ب) ──
+            case UINodeType::Spinner:
+            {
+                float cx = rect.x + rect.width / 2.0f;
+                float cy = rect.y + rect.height / 2.0f;
+                float radius = std::min(rect.width, rect.height) / 2.0f - 4.0f;
+                if (radius < 4.0f)
+                    radius = 4.0f;
+                // حلقة المسار الباهتة
+                drawCircleOutline(cx, cy, radius, {0.80f, 0.80f, 0.80f, 1}, 3.0f);
+                // اثنتا عشرة نقطة حول المحيط بتلاشٍ تدريجيّ يوحي بالدوران
+                Color accent = parseColorProp(node.findProperty(props::COLOR), // لون
+                                              Color::fromNamed(NamedColor::Primary));
+                const int dots = 12;
+                float dotR = std::max(2.0f, radius * 0.16f);
+                for (int i = 0; i < dots; ++i)
+                {
+                    // زاوية ثابتة (لا عشوائيّة/زمن) — لقطة ساكنة تُظهر شكل المؤشّر
+                    float ang = 6.2831853f * static_cast<float>(i) / static_cast<float>(dots);
+                    float dx = cx + radius * std::cos(ang);
+                    float dy = cy + radius * std::sin(ang);
+                    float a = 0.15f + 0.85f * static_cast<float>(i) / static_cast<float>(dots - 1);
+                    drawCircle(dx, dy, dotR, {accent.r, accent.g, accent.b, a});
+                }
+                break;
+            }
+
+            // ── شريط الحالة (StatusBar) — شريط سفليّ للنوافذ بنصّ حالة (RTL) (م٦-ب) ──
+            case UINodeType::StatusBar:
+            {
+                Color barColor = parseColorProp(node.findProperty(props::BG_COLOR), // لون_خلفية
+                                                {0.93f, 0.93f, 0.95f, 1});          // رماديّ فاتح
+                if (!node.findProperty(props::BG_COLOR))
+                    barColor = parseColorProp(node.findProperty(props::BG), barColor); // خلفية
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, barColor);
+                // خطّ حدّ علويّ رفيع يفصله عن جسم النافذة
+                drawLine(rect.x, rect.y, rect.x + rect.width, rect.y,
+                         Color::fromNamed(NamedColor::Gray), 1.0f);
+                // نصّ الحالة (يمين RTL)
+                const auto *stProp = node.findProperty(props::TEXT); // نص
+                if (!stProp)
+                    stProp = node.findProperty(props::TEXT_LATIN);
+                if (!stProp)
+                    stProp = node.findProperty(props::VALUE); // قيمة
+                if (stProp)
+                {
+                    if (auto *t = std::get_if<std::string>(&stProp->value))
+                    {
+                        Color tc = parseColorProp(node.findProperty(props::COLOR), // لون
+                                                  {0.20f, 0.20f, 0.20f, 1});
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f); // حجم_الخط
+                        float tx = rect.x + 10;
+                        if (isArabicText(*t))
+                        {
+                            auto sz = measureText(*t, fs);
+                            tx = rect.x + rect.width - sz.first - 10;
+                            if (tx < rect.x)
+                                tx = rect.x;
+                        }
+                        drawText(*t, tx, rect.y + rect.height / 2 - fs / 2, tc, fs);
+                    }
+                }
+                break;
+            }
+
             default:
                 break;
             }
