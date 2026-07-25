@@ -1488,6 +1488,30 @@ namespace sad
                 break;
             }
 
+            // ── عرض شجريّ (TreeView) — لوح تصفّح جانبيّ بخطّ إطاريّ (م٤ عروض المستكشف) ──
+            case UINodeType::TreeView:
+            {
+                Color treeBg = parseColorProp(node.findProperty(props::BG), // خلفية
+                                              Color::fromNamed(NamedColor::White));
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, treeBg);
+                // خطّ فاصل على الحافّة الداخليّة يفصل الشجرة عن لوح التفاصيل. في RTL
+                // يجلس لوح الشجرة يمينًا والتفاصيل يساره، فالحافّة الداخليّة = rect.x.
+                drawLine(rect.x, rect.y, rect.x, rect.y + rect.height,
+                         Color::fromNamed(NamedColor::LightGray), 1.0f);
+                break;
+            }
+
+            // ── لوح مقسّم (SplitView) — حاوية سيّد/تفصيل بمقبض فاصل (م٤ عروض المستكشف) ──
+            case UINodeType::SplitView:
+            {
+                Color splitBg = parseColorProp(node.findProperty(props::BG), // خلفية
+                                               Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, splitBg, 6.0f);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::LightGray));
+                break;
+            }
+
             default:
                 break;
             }

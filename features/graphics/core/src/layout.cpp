@@ -384,6 +384,30 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = 180.0f;
             break;
 
+        case UINodeType::TreeView:
+            // لوح تصفّح شجريّ جانبيّ (م٤ عروض المستكشف)
+            defaultWidth = 260.0f;
+            defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 400.0f;
+            break;
+
+        case UINodeType::SplitView:
+            // لوح سيّد/تفصيل يملأ حاويته (م٤ عروض المستكشف)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 480.0f;
+            defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 360.0f;
+            break;
+
+        case UINodeType::DataTable:
+            // جدول بيانات يملأ عرض حاويته بارتفاع معقول (م٤ عروض المستكشف)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 480.0f;
+            defaultHeight = constraints.maxHeight < 1e6f ? constraints.maxHeight : 300.0f;
+            break;
+
+        case UINodeType::Breadcrumb:
+            // مسار تنقّل هرميّ يملأ العرض بارتفاع سطر واحد (م٤ عروض المستكشف)
+            defaultWidth = constraints.maxWidth < 1e6f ? constraints.maxWidth : 320.0f;
+            defaultHeight = 34.0f;
+            break;
+
         default:
             defaultWidth = 50.0f;
             defaultHeight = 50.0f;
