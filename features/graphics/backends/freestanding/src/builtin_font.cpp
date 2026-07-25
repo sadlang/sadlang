@@ -17,7 +17,15 @@
 
 #include "sad_ui/freestanding/renderer.h"
 
+// (AR) الأطلس الرماديّ HD (~110ك.ب) مضمَّن فقط حين SAD_UI_HD_FONT — يُعرَّفه بناء
+//      المستضاف (سطح مكتب sad-os). النواة العارية (النحلة) تبنيه بلا الماكرو فيُقصى
+//      الأطلس وينحدر loadHDFont إلى الخطّ النقطيّ 1-بت الأخفّ.
+#ifdef SAD_UI_HD_FONT
+#include "sad_ui/freestanding/hd_font_generated.h"
+#endif
+
 #include <cstring>
+#include <memory>
 
 namespace sad {
 namespace ui {
@@ -435,7 +443,50 @@ static const ArabicCharEntry arabic_char_map[] = {
 
 static constexpr int ARABIC_CHAR_COUNT = sizeof(arabic_char_map) / sizeof(arabic_char_map[0]);
 
+bool FreestandingRenderer::loadHDFont() {
+#ifndef SAD_UI_HD_FONT
+    // الأطلس غير مضمَّن (نواة عارية) ⇒ يقع النداء على الخطّ النقطيّ 1-بت.
+    return false;
+#else
+    using namespace hdfont;
+    if (HD_GLYPH_COUNT <= 0)
+        return false;
+
+    auto font = std::make_unique<BitmapFont>();
+    font->name = "amiri_hd_32";
+    font->charWidth = HD_PIXEL_SIZE / 2; // عرض مرجعيّ تقريبيّ (العربيّ متناسب)
+    font->charHeight = HD_PIXEL_SIZE;    // مرجع scale = fontSize / charHeight
+    font->lineHeight = HD_LINE_HEIGHT;
+    font->monospace = false;
+    font->glyphs.reserve(HD_GLYPH_COUNT);
+
+    for (int i = 0; i < HD_GLYPH_COUNT; ++i) {
+        const HDGlyphMeta &m = HD_GLYPHS[i];
+        BitmapGlyph g;
+        g.codepoint = m.codepoint;
+        g.width = m.width;
+        g.height = m.height;
+        g.xOffset = m.xOffset;
+        g.yOffset = m.yOffset;
+        g.advance = m.advance;
+        const bool empty = (m.width == 0 || m.height == 0);
+        g.bpp = empty ? 1 : 8;                                  // مسافة/بلا صورة
+        g.bitmap = empty ? nullptr : &HD_ALPHA[m.dataOffset];   // تغطية رماديّة 8-بت
+        font->glyphs.push_back(g);
+    }
+
+    currentFont_ = std::move(font);
+    return true;
+#endif // SAD_UI_HD_FONT
+}
+
 void FreestandingRenderer::loadBuiltinFont() {
+    // (AR) فضّل الخطّ الرماديّ HD (نصّ عربيّ متّصل ناعم) حين SAD_UI_HD_FONT معرَّف؛
+    //      وإلّا (نواة عارية) يعيد loadHDFont زورًا فينحدر لهذا الخطّ النقطيّ 1-بت
+    //      الأخفّ. (فكّاك 1-بت يبقى مُختبَرًا حيًّا عبر خطوط PSF الخارجيّة أيضًا.)
+    if (loadHDFont())
+        return;
+
     auto font = std::make_unique<BitmapFont>();
     font->name = "builtin_8x16";
     font->charWidth = 8;

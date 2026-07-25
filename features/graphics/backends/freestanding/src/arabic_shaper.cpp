@@ -132,6 +132,21 @@ namespace sad
                         return nullptr;
                     }
 
+                    /// (AR) عكس SHAPE_TABLE: أيّ شكل عرضٍ ⇒ الأساس. صفر إن لم يُطابق
+                    /// (يشمل تشكيلات FE70–FE7F التي لا يُخرجها shape() — لا تُطوى قصدًا).
+                    uint32_t baseOfPresForm(uint32_t cp)
+                    {
+                        for (const auto &e : SHAPE_TABLE)
+                            if (cp == e.isolated || cp == e.final ||
+                                cp == e.initial || cp == e.medial)
+                                return e.base;
+                        // ليغاتورات لام-ألف ⇒ اللام (الخطّ النقطيّ بلا ليغاتورة):
+                        for (const auto &e : LAM_ALEF_TABLE)
+                            if (cp == e.isolated || cp == e.final)
+                                return LAM;
+                        return 0;
+                    }
+
                     /// (AR) هل يتّصل هذا الحرف بما بعده (يسارًا)؟ — ثنائيّ الاتّصال فقط
                     bool joinsForward(uint32_t cp)
                     {
@@ -691,6 +706,14 @@ namespace sad
                     // والأرقام أينما وقعت (بما فيها ما يسبق المدى العربيّ). النتيجة بترتيبٍ
                     // بصريّ (أوّل عنصر = أقصى اليسار) جاهزةٍ لحلقة رسمٍ تتقدّم يسارًا.
                     return bidiReorder(out);
+                }
+
+                uint32_t presentationFormToBase(uint32_t cp)
+                {
+                    if (!isPresentationFormB(cp))
+                        return cp;
+                    uint32_t base = baseOfPresForm(cp);
+                    return base != 0 ? base : cp;
                 }
 
             } // namespace arabic

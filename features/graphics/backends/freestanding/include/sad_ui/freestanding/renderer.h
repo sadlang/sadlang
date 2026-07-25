@@ -92,7 +92,8 @@ namespace sad
                 int8_t xOffset = 0;              ///< إزاحة أفقية
                 int8_t yOffset = 0;              ///< إزاحة رأسية
                 uint8_t advance = 0;             ///< التقدم الأفقي بعد الحرف
-                const uint8_t *bitmap = nullptr; ///< بيانات البكسل (1 بت لكل بكسل)
+                uint8_t bpp = 1;                 ///< بتات لكلّ بكسل: 1 (نقطيّ) أو 8 (رماديّ HD)
+                const uint8_t *bitmap = nullptr; ///< بيانات البكسل (1 أو 8 بت لكلّ بكسل)
             };
 
             /**
@@ -220,6 +221,16 @@ namespace sad
                  * @brief (EN) Load the built-in bitmap font (8x16 ASCII + basic Arabic)
                  */
                 void loadBuiltinFont();
+
+                /**
+                 * @brief (AR) تحميل الخطّ الرماديّ عالي الدقّة المضمَّن (Amiri 32px، bpp=8)
+                 * @brief (EN) Load the embedded HD grayscale font (Amiri 32px, bpp=8)
+                 *
+                 * أشكال العرض المتّصلة (FE70–FEFC) منقّطة مباشرةً ⇒ نصّ عربيّ متّصل
+                 * وناعم. يعيد false إن كان الأطلس المولَّد فارغًا (فيقع النداء على
+                 * loadBuiltinFont النقطيّ الأدنى).
+                 */
+                bool loadHDFont();
 
                 /**
                  * @brief (AR) تحميل خط نقطي خارجي (PSF أو مخصص)

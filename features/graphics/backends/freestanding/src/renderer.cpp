@@ -710,6 +710,34 @@ namespace sad
                 return 0xFFFD;
             }
 
+            // (AR) عيّن ثنائيّ الخطّيّة لتغطية غليف رماديّ 8-بت (w×h، صفّ = w بايت).
+            // يصلح للتكبير والتصغير الكسريّ فيبقى النصّ HD ناعمًا عند أيّ حجم.
+            static inline uint32_t sampleGlyphBilinear(const uint8_t *a, int w, int h,
+                                                       float fx, float fy)
+            {
+                if (fx < 0.0f)
+                    fx = 0.0f;
+                if (fy < 0.0f)
+                    fy = 0.0f;
+                if (fx > w - 1)
+                    fx = static_cast<float>(w - 1);
+                if (fy > h - 1)
+                    fy = static_cast<float>(h - 1);
+                int x0 = static_cast<int>(fx);
+                int y0 = static_cast<int>(fy);
+                int x1 = x0 + 1 < w ? x0 + 1 : x0;
+                int y1 = y0 + 1 < h ? y0 + 1 : y0;
+                float tx = fx - x0;
+                float ty = fy - y0;
+                float a00 = a[y0 * w + x0];
+                float a10 = a[y0 * w + x1];
+                float a01 = a[y1 * w + x0];
+                float a11 = a[y1 * w + x1];
+                float top = a00 + (a10 - a00) * tx;
+                float bot = a01 + (a11 - a01) * tx;
+                return static_cast<uint32_t>(top + (bot - top) * ty + 0.5f);
+            }
+
             int FreestandingRenderer::drawBitmapChar(uint32_t codepoint, int x, int y,
                                                      uint32_t color, float scale)
             {
@@ -717,7 +745,7 @@ namespace sad
                     return 0;
 
                 const BitmapGlyph *glyph = currentFont_->findGlyph(codepoint);
-                if (!glyph || !glyph->bitmap)
+                if (!glyph)
                 {
                     // حرف غير موجود — ارسم مربع استبدال
                     int cw = static_cast<int>(currentFont_->charWidth * scale);
@@ -735,27 +763,66 @@ namespace sad
 
                 int gw = glyph->width;
                 int gh = glyph->height;
-                int sx = static_cast<int>(scale);
-                if (sx < 1)
-                    sx = 1;
+                // غليف بلا صورة لكن بتقدُّم (مسافة/غير مرئيّ) — تقدَّم بلا رسم ولا مربّع:
+                if (!glyph->bitmap || gw == 0 || gh == 0)
+                    return static_cast<int>(glyph->advance * scale);
 
-                for (int gy = 0; gy < gh; ++gy)
+                if (glyph->bpp == 8)
                 {
-                    for (int gx = 0; gx < gw; ++gx)
+                    // ── مسار HD الرماديّ: تحجيم كسريّ + مزج ألفا (تغطية × ألفا اللون) ──
+                    // يفترض fbOptions_.alphaBlending=true (الافتراض) ليمزج putPixel حواف
+                    // الغليف؛ لو أُطفئ المزج تُكتب الحواف خامًا فيضيع التنعيم (يبقى النصّ
+                    // مرئيًّا لكن مُسنَّنًا) — تنعيم HD لا معنى له بلا مزج.
+                    const uint32_t srcA = (color >> 24) & 0xFF;
+                    const uint32_t rgb = color & 0x00FFFFFFu;
+                    int dw = static_cast<int>(std::lround(gw * scale));
+                    int dh = static_cast<int>(std::lround(gh * scale));
+                    if (dw < 1)
+                        dw = 1;
+                    if (dh < 1)
+                        dh = 1;
+                    int ox = x + static_cast<int>(std::lround(glyph->xOffset * scale));
+                    int oy = y + static_cast<int>(std::lround(glyph->yOffset * scale));
+                    for (int dy = 0; dy < dh; ++dy)
                     {
-                        // بت واحد لكل بكسل (packed row)
-                        int byteIdx = gy * ((gw + 7) / 8) + gx / 8;
-                        int bitIdx = 7 - (gx % 8);
-                        bool on = (glyph->bitmap[byteIdx] >> bitIdx) & 1;
-
-                        if (on)
+                        float fy = (dy + 0.5f) / scale - 0.5f;
+                        for (int dx = 0; dx < dw; ++dx)
                         {
-                            int px = x + (gx + glyph->xOffset) * sx;
-                            int py = y + (gy + glyph->yOffset) * sx;
+                            float fx = (dx + 0.5f) / scale - 0.5f;
+                            uint32_t cov = sampleGlyphBilinear(glyph->bitmap, gw, gh, fx, fy);
+                            if (cov == 0)
+                                continue;
+                            uint32_t a = (srcA * cov) / 255u;
+                            if (a == 0)
+                                continue;
+                            putPixel(ox + dx, oy + dy, (a << 24) | rgb);
+                        }
+                    }
+                }
+                else
+                {
+                    // ── مسار الخطّ النقطيّ 1-بت (تكبير صحيح كما كان) ──
+                    int sx = static_cast<int>(scale);
+                    if (sx < 1)
+                        sx = 1;
+                    for (int gy = 0; gy < gh; ++gy)
+                    {
+                        for (int gx = 0; gx < gw; ++gx)
+                        {
+                            // بت واحد لكل بكسل (packed row)
+                            int byteIdx = gy * ((gw + 7) / 8) + gx / 8;
+                            int bitIdx = 7 - (gx % 8);
+                            bool on = (glyph->bitmap[byteIdx] >> bitIdx) & 1;
 
-                            for (int dy = 0; dy < sx; ++dy)
-                                for (int dx = 0; dx < sx; ++dx)
-                                    putPixel(px + dx, py + dy, color);
+                            if (on)
+                            {
+                                int px = x + (gx + glyph->xOffset) * sx;
+                                int py = y + (gy + glyph->yOffset) * sx;
+
+                                for (int dy = 0; dy < sx; ++dy)
+                                    for (int dx = 0; dx < sx; ++dx)
+                                        putPixel(px + dx, py + dy, color);
+                            }
                         }
                     }
                 }
@@ -916,6 +983,19 @@ namespace sad
                 {
                     if (g.codepoint == codepoint)
                         return &g;
+                }
+                // (AR) طيّ أشكال العرض-B إلى الأساس: المُشكِّل يُخرج FE70–FEFF بينما
+                // الخطّ النقطيّ المضمَّن مفهرَس بالحروف الأساسيّة (0621–064A). بلا هذا
+                // الطيّ يفشل البحث فيُرسَم مربّع استبدال بدل الحرف. (الاتّصال البصريّ
+                // مفقود — دَين الخطّ الكامل معلَن في psf_font.h.)
+                uint32_t folded = arabic::presentationFormToBase(codepoint);
+                if (folded != codepoint)
+                {
+                    for (const auto &g : glyphs)
+                    {
+                        if (g.codepoint == folded)
+                            return &g;
+                    }
                 }
                 return nullptr;
             }
