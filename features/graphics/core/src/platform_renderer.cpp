@@ -1664,6 +1664,64 @@ namespace sad
                 break;
             }
 
+            // ── تنبيه (Alert) — لوح تغذية راجعة مرتفع + شريط لون حالة + عنوان/رسالة (م٦) ──
+            case UINodeType::Alert:
+            {
+                float alRad = getNumericProp(node.findProperty(props::CORNER_RADIUS), 10.0f); // زوايا
+                // ظلّ خفيف لإيحاء الارتفاع (بنمط Dialog)
+                drawFilledRect(rect.x + 2, rect.y + 5, rect.width, rect.height, {0, 0, 0, 0.16f});
+                Color alBg = parseColorProp(node.findProperty(props::BG),           // خلفية
+                                            Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, alBg, alRad);
+                // شريط لون الحالة على الحافّة اليمنى (RTL: البداية يمين) — لون التنبيه
+                Color accent = parseColorProp(node.findProperty(props::COLOR), // لون
+                                              Color::fromNamed(NamedColor::Error));
+                drawFilledRect(rect.x + rect.width - 5, rect.y, 5, rect.height, accent);
+                // العنوان (إن وُجد) بمحاذاة RTL يمينًا
+                const auto *alTitle = node.findProperty(props::TITLE); // عنوان
+                if (!alTitle)
+                    alTitle = node.findProperty(props::TITLE_LATIN);
+                float ty = rect.y + 16;
+                if (alTitle)
+                {
+                    if (auto *t = std::get_if<std::string>(&alTitle->value))
+                    {
+                        float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 18.0f); // حجم_الخط
+                        float tx = rect.x + 18;
+                        if (isArabicText(*t))
+                        {
+                            auto sz = measureText(*t, fs);
+                            tx = rect.x + rect.width - sz.first - 18;
+                            if (tx < rect.x)
+                                tx = rect.x;
+                        }
+                        drawText(*t, tx, ty, accent, fs);
+                        ty += fs + 10;
+                    }
+                }
+                // الرسالة (نصّ) بلون داكن أسفل العنوان
+                const auto *alMsg = node.findProperty(props::TEXT); // نص
+                if (!alMsg)
+                    alMsg = node.findProperty(props::TEXT_LATIN);
+                if (alMsg)
+                {
+                    if (auto *m = std::get_if<std::string>(&alMsg->value))
+                    {
+                        float mfs = getNumericProp(node.findProperty(props::FONT_SIZE), 15.0f); // حجم_خط
+                        float mx = rect.x + 18;
+                        if (isArabicText(*m))
+                        {
+                            auto sz = measureText(*m, mfs);
+                            mx = rect.x + rect.width - sz.first - 18;
+                            if (mx < rect.x)
+                                mx = rect.x;
+                        }
+                        drawText(*m, mx, ty, {0.25f, 0.25f, 0.25f, 1}, mfs);
+                    }
+                }
+                break;
+            }
+
             default:
                 break;
             }

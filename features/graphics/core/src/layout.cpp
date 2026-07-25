@@ -432,6 +432,40 @@ MeasuredSize LayoutEngine::measureLeaf(
             defaultHeight = 32.0f;
             break;
 
+        case UINodeType::Alert:
+            // لوح تنبيه/تغذية راجعة (م٦)
+            defaultWidth = 360.0f;
+            defaultHeight = 120.0f;
+            break;
+
+        case UINodeType::Badge:
+            // شارة إشعار صغيرة (م٦)
+            defaultWidth = 24.0f;
+            defaultHeight = 24.0f;
+            break;
+
+        case UINodeType::Chip:
+            // رقاقة اختيار (م٦)
+            defaultWidth = 96.0f;
+            defaultHeight = 32.0f;
+            break;
+
+        case UINodeType::Avatar:
+            // صورة رمزيّة دائريّة (م٦)
+            defaultWidth = 44.0f;
+            defaultHeight = 44.0f;
+            break;
+
+        case UINodeType::Radio:
+            // زرّ راديو (م٦)
+            defaultWidth = 24.0f;
+            defaultHeight = 24.0f;
+            break;
+
+        // ملاحظة: Skeleton يبقى على الافتراضيّ ٥٠×٥٠ عمدًا — يقنّنه الاختبار الذهبيّ
+        // skeleton_hgradient (test_ui_render_displaylist.cpp)؛ حجمه الفعليّ يُضبَط
+        // بخصائص عرض/ارتفاع صريحة عند الاستعمال (كهيكل سطر تحميل يملأ حاويته).
+
         default:
             defaultWidth = 50.0f;
             defaultHeight = 50.0f;
