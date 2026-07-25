@@ -550,12 +550,27 @@ namespace Sad
             // (AR) نوع الإرجاع الاختياري قبل اسم الدالة
             // (EN) Optional return type before function name
             Types::SadTypeKind returnType = Types::SadTypeKind::Unknown;
+            std::string returnTypeName; // (AR) لنوع إرجاع من صنف مُعرَّف (بنية @تمثيل_سي بالقيمة) [RFC #53 F2-ج]
 
             // Check if next token is a type keyword or built-in type identifier (before function name)
             if (isTypeToken(current_.getType()) &&
                 nextToken_.getType() != TT::PAREN_LEFT)
             {
                 returnType = parseType();
+            }
+
+            // (AR) [RFC #53 F2-ج] نوع إرجاع من صنف مُعرَّف من المستخدم في تصريح خارجيّ:
+            //      «دالة خارجية("make_point") نقطة اصنع_نقطة()» — يماثل الدالة العاديّة.
+            // (EN) [RFC #53 F2-ج] User-defined class return type in an extern decl —
+            //      mirrors the regular function parser's two-identifier heuristic.
+            // شرط: returnType لا يزال UNKNOWN + رمزان متتاليان من نوع IDENTIFIER
+            if (returnType == Types::SadTypeKind::Unknown &&
+                check(TT::IDENTIFIER) &&
+                nextToken_.getType() == TT::IDENTIFIER)
+            {
+                returnTypeName = current_.getValue();
+                returnType = Types::SadTypeKind::Class;
+                advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
             }
 
             // (AR) توقع اسم الدالة
@@ -598,8 +613,9 @@ namespace Sad
                 false,   // (AR) غير متزامنة / (EN) async
                 false,   // (AR) مولد / (EN) generator
                 name.getPosition());
-            funcDecl->isExtern = true;     // (AR) علامة الدالة الخارجية / (EN) Mark as external
-            funcDecl->linkName = linkName; // (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name
+            funcDecl->isExtern = true;              // (AR) علامة الدالة الخارجية / (EN) Mark as external
+            funcDecl->returnTypeName = returnTypeName; // (AR) اسم صنف الإرجاع (بنية @تمثيل_سي بالقيمة) [RFC #53 F2-ج]
+            funcDecl->linkName = linkName;          // (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name
             funcDecl->docComment = std::move(docComment);
             return funcDecl;
         }

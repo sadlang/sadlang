@@ -178,41 +178,109 @@ namespace Sad
             // Source: SIRFunction::getParameters() is at sir_module.h:293
             const auto &params = sirFunc->getParameters();
 
-            for (const auto &param : params)
+            // (AR) النوع الأساسيّ للمعامل حسب SadTypeKind (المسار غير-البنيويّ).
+            // (EN) Base LLVM type for a param per SadTypeKind (non-struct path).
+            auto baseParamType = [&](SadTypeKind t) -> llvm::Type *
             {
-                // Source: SIRParameter::type is PUBLIC member at sir_module.h:230
-                llvm::Type *paramType = nullptr;
-
-                switch (param.type)
+                switch (t)
                 {
                 case SadTypeKind::Integer:
-                    paramType = cg_.getInt64Type();
-                    break;
+                    return cg_.getInt64Type();
                 case SadTypeKind::Float:
-                    paramType = cg_.getDoubleType();
-                    break;
+                    return cg_.getDoubleType();
                 case SadTypeKind::Boolean:
-                    paramType = cg_.getInt1Type();
-                    break;
+                    return cg_.getInt1Type();
                 case SadTypeKind::Pointer:
-                    paramType = cg_.getInt8PtrType();
-                    break;
+                    return cg_.getInt8PtrType();
                 case SadTypeKind::String:
-                    paramType = cg_.getInt8PtrType();
-                    break;
-                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ ديناميّ (Any = تعارض int⊔float أو
-                //      حمولة ADT مجهولة) ⇒ نوعه %SadDyn، فتعبر القيمةُ واصفةً لذاتها بلا التباس.
-                // (EN) ISSUE-076 (%SadDyn root fix): a dynamic param (Any = int⊔float conflict or an
-                //      unknown ADT payload) ⇒ %SadDyn type, so the value crosses self-describing.
+                    return cg_.getInt8PtrType();
+                // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ ديناميّ (Any) ⇒ %SadDyn.
+                // (EN) ISSUE-076: a dynamic param (Any) ⇒ %SadDyn.
                 case SadTypeKind::Any:
-                    paramType = getSadDynType(*cg_.context_);
-                    break;
+                    return getSadDynType(*cg_.context_);
                 default:
-                    paramType = cg_.getInt64Type();
-                    break;
+                    return cg_.getInt64Type();
                 }
+            };
 
-                paramTypes.push_back(paramType);
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) [RFC #53 F2-ج] تمرير/إرجاع بنية @تمثيل_سي بالقيمة عبر حدّ FFI.
+            //      للدوالّ الخارجيّة (isExtern) فقط: نوعُ بنية @تمثيل_سي في المعامل/العائد
+            //      يُصنَّف ABI (SysV/Win64) بدل تمريره مؤشّرًا. Direct ⇒ قطع سجلّات؛
+            //      Memory ⇒ مؤشّر بسمة byval (وسيط) / sret (عائد) يتركان LLVM ينسخ ويطبّق
+            //      ABI الهدف. الخطّةُ تُخزَّن ليطابقها موقعُ النداء. النداءات ص↔ص لا تتأثّر
+            //      (المعامل يُبقى مؤشّرًا كائنيًّا؛ الشرط isExtern يحصر السلوك بحدّ FFI).
+            // (EN) [RFC #53 F2-ج] By-value @تمثيل_سي struct pass/return at the FFI boundary.
+            //      For extern functions only: a @تمثيل_سي struct type in a param/return is
+            //      ABI-classified (SysV/Win64) instead of passed as a pointer. Direct ⇒
+            //      register pieces; Memory ⇒ pointer with byval (arg) / sret (return) so
+            //      LLVM copies + applies the target ABI. The plan is stored so the call site
+            //      matches it. ص↔ص calls are unaffected (isExtern gates this to FFI).
+            // ════════════════════════════════════════════════════════════════════
+            llvm::Type *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            CReprCallPlan plan;
+            llvm::Type *sretStructTy = nullptr;                        // (AR) نوع بنية sret / (EN) sret struct type
+            std::vector<std::pair<unsigned, llvm::Type *>> byvalParams; // (AR) (فهرس LLVM، نوع البنية) / (EN) (LLVM index, struct type)
+
+            if (sirFunc->isExtern && !sirFunc->returnClassName.empty())
+            {
+                CReprAbiInfo rAbi = cg_.classifyCReprAbi(sirFunc->returnClassName);
+                if (rAbi.kind == CReprAbiKind::Direct)
+                {
+                    plan.active = true;
+                    plan.directStructReturn = true;
+                    plan.returnAbi = rAbi;
+                    plan.returnClassName = sirFunc->returnClassName;
+                    returnType = (rAbi.pieces.size() == 1)
+                                     ? rAbi.pieces[0]
+                                     : static_cast<llvm::Type *>(
+                                           llvm::StructType::get(*cg_.context_, rAbi.pieces));
+                }
+                else if (rAbi.kind == CReprAbiKind::Memory)
+                {
+                    plan.active = true;
+                    plan.sretReturn = true;
+                    plan.returnAbi = rAbi;
+                    plan.returnClassName = sirFunc->returnClassName;
+                    returnType = cg_.getVoidType();
+                    auto sIt = cg_.context_info_.classStructTypes.find(sirFunc->returnClassName);
+                    if (sIt != cg_.context_info_.classStructTypes.end())
+                        sretStructTy = sIt->second;
+                    paramTypes.push_back(ptrTy); // (AR) مؤشّر sret الخفيّ أوّلًا / (EN) hidden sret pointer first
+                }
+            }
+
+            for (const auto &param : params)
+            {
+                CReprArgPlan ap;
+                CReprAbiInfo aAbi;
+                if (sirFunc->isExtern && !param.className.empty())
+                    aAbi = cg_.classifyCReprAbi(param.className);
+
+                if (aAbi.kind == CReprAbiKind::Direct)
+                {
+                    ap.isStruct = true;
+                    ap.abi = aAbi;
+                    plan.active = true;
+                    for (llvm::Type *piece : aAbi.pieces)
+                        paramTypes.push_back(piece);
+                }
+                else if (aAbi.kind == CReprAbiKind::Memory)
+                {
+                    ap.isStruct = true;
+                    ap.abi = aAbi;
+                    ap.className = param.className;
+                    plan.active = true;
+                    auto sIt = cg_.context_info_.classStructTypes.find(param.className);
+                    if (sIt != cg_.context_info_.classStructTypes.end())
+                        byvalParams.emplace_back(static_cast<unsigned>(paramTypes.size()), sIt->second);
+                    paramTypes.push_back(ptrTy);
+                }
+                else
+                {
+                    paramTypes.push_back(baseParamType(param.type));
+                }
+                plan.args.push_back(ap);
             }
 
             // (AR) ISSUE-076/084 (ب″): سجّل أنواع SIR للمعاملات (بالترتيب) كي يوسم موقعُ
@@ -330,6 +398,31 @@ namespace Sad
                     arg.setName(params[idx].name);
                 }
                 idx++;
+            }
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) [RFC #53 F2-ج] طبّق سمتَي sret/byval وخزّن خطّة النداء. تتركان LLVM
+            //      ينسخ ذاكرة البنية ويطبّق ABI الهدف (byval للوسيط الذاكريّ، sret للعائد
+            //      الذاكريّ). الخطّةُ تُقرأ في emitCall لتوليف وسائط مطابقة تمامًا.
+            // (EN) [RFC #53 F2-ج] Apply sret/byval attrs and store the call plan. They let
+            //      LLVM copy the struct memory and apply the target ABI (byval for a memory
+            //      arg, sret for a memory return). The plan is read in emitCall to marshal
+            //      exactly-matching args.
+            // ════════════════════════════════════════════════════════════════════
+            if (plan.active)
+            {
+                if (plan.sretReturn && sretStructTy)
+                {
+                    llvmFunc->addParamAttr(
+                        0, llvm::Attribute::getWithStructRetType(*cg_.context_, sretStructTy));
+                }
+                for (const auto &bv : byvalParams)
+                {
+                    llvmFunc->addParamAttr(
+                        bv.first, llvm::Attribute::getWithByValType(*cg_.context_, bv.second));
+                }
+                plan.linkSymbol = llvmSymbolName;
+                cg_.context_info_.creprCallPlans[sirFunc->name] = plan;
             }
 
             // (AR) إذا كانت الدالة كوروتين، أضف سمة presplitcoroutine

@@ -270,6 +270,12 @@ namespace Sad
             // (EN) @تمثيل_سي struct names (C-ABI layout: no vtable header at field 0) [RFC #53 F2-ب]
             std::unordered_set<std::string> cReprClasses;
 
+            // (AR) خطط نداء الدوالّ الخارجيّة ذات معاملات/عائد بنية @تمثيل_سي بالقيمة —
+            //      بمفتاح اسم دالّة ص. تُملأ في emitFunctionPrototype وتُقرأ في emitCall. [RFC #53 F2-ج]
+            // (EN) Call plans for extern functions with by-value @تمثيل_سي struct params/return —
+            //      keyed by ص function name. Filled in emitFunctionPrototype, read in emitCall. [RFC #53 F2-ج]
+            std::unordered_map<std::string, CReprCallPlan> creprCallPlans;
+
             // ================================================================
             // دعم الكوروتين / Coroutine Support
             // ================================================================
@@ -1512,6 +1518,10 @@ namespace Sad
             /// (AR) الحصول على إزاحة الحقول بسبب vtable
             /// (EN) Get field offset due to vtable pointer at index 0
             int getFieldStructIndex(const std::string &className, int userFieldIndex) const { return cls_->getFieldStructIndex(className, userFieldIndex); }
+
+            /// (AR) تصنيف ABI لتمرير/إرجاع بنية @تمثيل_سي بالقيمة عبر حدّ FFI [RFC #53 F2-ج]
+            /// (EN) ABI classification for by-value C-repr struct pass/return at FFI boundary [RFC #53 F2-ج]
+            CReprAbiInfo classifyCReprAbi(const std::string &className) const { return cls_->classifyCReprAbi(className); }
 
             // ------------------------------------------------------------------------
             // Missing Bitwise / عمليات ثنائية ناقصة

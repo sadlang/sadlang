@@ -28,6 +28,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/IR/InlineAsm.h>
+#include <llvm/TargetParser/Triple.h> // (AR) [RFC #53 F2-ج] تمييز SysV/Win64 لتصنيف ABI
 #include <iostream>
 #include <fstream>
 #include <unordered_set>
@@ -1076,6 +1077,98 @@ namespace Sad
             }
             // كل صنف يملك vtable pointer في الحقل 0
             return userFieldIndex + 1;
+        }
+
+        // ====================================================================
+        // (AR) [RFC #53 F2-ج] تصنيف ABI لتمرير/إرجاع بنية @تمثيل_سي بالقيمة.
+        //      يعمل على نوع LLVM المسجَّل (بلا ترويسة، من F2-ب) والـDataLayout
+        //      والثالوث — بلا حاجة للوصول إلى SIR. يغطّي الحقول العدديّة
+        //      (صحيح/عشريّ/مؤشّر). القرار مطابقٌ لِما يولّده Clang لهدفَي
+        //      System V AMD64 وWindows x64.
+        // (EN) [RFC #53 F2-ج] ABI classification for by-value pass/return of a
+        //      @تمثيل_سي struct. Operates on the registered (header-less, F2-ب)
+        //      LLVM type + DataLayout + triple — no SIR access. Covers scalar
+        //      fields (int/float/pointer). Matches Clang's lowering for System V
+        //      AMD64 and Windows x64.
+        // ====================================================================
+        CReprAbiInfo ClassesVtablesCodeGen::classifyCReprAbi(const std::string &className) const
+        {
+            CReprAbiInfo info; // kind = NotCRepr افتراضيًّا
+
+            // (AR) ليست بنية @تمثيل_سي مسجَّلة ⇒ لا تصنيف (المستدعي يُبقيها مؤشّرًا).
+            // (EN) Not a registered C-repr struct ⇒ no classification (caller keeps it a pointer).
+            if (!cg_.context_info_.cReprClasses.count(className))
+                return info;
+
+            auto stIt = cg_.context_info_.classStructTypes.find(className);
+            if (stIt == cg_.context_info_.classStructTypes.end() || !stIt->second)
+                return info;
+
+            llvm::StructType *st = stIt->second;
+            const llvm::DataLayout &DL = cg_.module_->getDataLayout();
+            llvm::LLVMContext &ctx = *cg_.context_;
+            const uint64_t size = DL.getTypeAllocSize(st);
+            info.sizeBytes = size;
+
+            const bool isWin64 = llvm::Triple(cg_.module_->getTargetTriple()).isOSWindows();
+
+            // (AR) بنية فارغة (بلا حقول): لا شيء يُمرَّر — عاملها بمؤشّرٍ آمن (نادرة).
+            // (EN) Empty struct (no fields): nothing to pass — treat as Memory (rare).
+            if (size == 0)
+            {
+                info.kind = CReprAbiKind::Memory;
+                return info;
+            }
+
+            if (isWin64)
+            {
+                // (AR) Win64: بنية بحجم 1/2/4/8 ⇒ سجلّ صحيح واحد بذلك الحجم؛ غيرها ⇒ بمؤشّر خفيّ.
+                // (EN) Win64: struct of size 1/2/4/8 ⇒ one integer register of that size; else hidden pointer.
+                if (size == 1 || size == 2 || size == 4 || size == 8)
+                {
+                    info.kind = CReprAbiKind::Direct;
+                    info.pieces.push_back(llvm::Type::getIntNTy(ctx, static_cast<unsigned>(size * 8)));
+                }
+                else
+                {
+                    info.kind = CReprAbiKind::Memory;
+                }
+                return info;
+            }
+
+            // (AR) System V AMD64: >16 بايت ⇒ ذاكرة؛ وإلّا ثمانيّة/ثمانيّتان تُصنَّف كلٌّ INTEGER أو SSE.
+            // (EN) System V AMD64: >16 bytes ⇒ memory; else 1–2 eightbytes each classified INTEGER or SSE.
+            if (size > 16)
+            {
+                info.kind = CReprAbiKind::Memory;
+                return info;
+            }
+
+            info.kind = CReprAbiKind::Direct;
+            const llvm::StructLayout *SL = DL.getStructLayout(st);
+            // (AR) ثمانيّةٌ تُصنَّف SSE فقط إن كانت كلّ الحقول المتراكبة عليها عشريّة (قاعدة SysV).
+            // (EN) An eightbyte is SSE only if every field overlapping it is floating-point (SysV rule).
+            auto classifyEightbyte = [&](uint64_t offStart, uint64_t nBytes) -> llvm::Type *
+            {
+                bool allFloat = true;
+                for (unsigned i = 0; i < st->getNumElements(); ++i)
+                {
+                    uint64_t eOff = SL->getElementOffset(i);
+                    uint64_t eSize = DL.getTypeAllocSize(st->getElementType(i));
+                    bool overlaps = (eOff < offStart + nBytes) && (eOff + eSize > offStart);
+                    if (overlaps && !st->getElementType(i)->isFloatingPointTy())
+                        allFloat = false;
+                }
+                if (allFloat)
+                    return (nBytes <= 4) ? llvm::Type::getFloatTy(ctx) : llvm::Type::getDoubleTy(ctx);
+                return llvm::Type::getIntNTy(ctx, static_cast<unsigned>(nBytes * 8));
+            };
+
+            uint64_t firstBytes = (size < 8) ? size : 8;
+            info.pieces.push_back(classifyEightbyte(0, firstBytes));
+            if (size > 8)
+                info.pieces.push_back(classifyEightbyte(8, size - 8));
+            return info;
         }
 
     } // namespace LLVM

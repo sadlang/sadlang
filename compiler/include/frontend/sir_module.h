@@ -342,6 +342,8 @@ namespace Sad
                 bool isGenerator = false;                                ///< (AR) دالة مولّد / (EN) Generator function
                 bool isExported = false;                                 ///< (AR) دالة مُصدّرة (صدّر) / (EN) Exported function (export)
                 bool isNoReturn = false;                                 ///< (AR) دالة لا_ترجع — لا تعود أبداً / (EN) noreturn → LLVM NoReturn (brick 3.15)
+                bool isExtern = false;                                   ///< (AR) دالة خارجية (استيراد FFI)؟ — يفعّل تمرير/إرجاع بنية @تمثيل_سي بالقيمة [RFC #53 F2-ج] / (EN) External (FFI-imported) function? — enables C-repr by-value struct pass/return
+                std::string returnClassName;                             ///< (AR) اسم صنف العائد (لبنية @تمثيل_سي المُرجَعة بالقيمة) [RFC #53 F2-ج] / (EN) Return struct class name (C-repr by-value return)
                 std::vector<SIRParameter> parameters;                    ///< (AR) المعاملات / (EN) Parameters
                 std::vector<std::shared_ptr<SIRBasicBlock>> basicBlocks; ///< (AR) الكتل الأساسية / (EN) Basic blocks
 

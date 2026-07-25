@@ -257,6 +257,22 @@ namespace Sad
                 // (AR) اللبنة 3.15: مُعدِّل «دالة لا_ترجع» ⇒ سمة LLVM NoReturn في codegen.
                 // (EN) Brick 3.15: 'دالة لا_ترجع' modifier ⇒ LLVM NoReturn attribute in codegen.
                 sirFunction->isNoReturn = funcDecl->isNoReturn;
+                // (AR) [RFC #53 F2-ج] راية الدالّة الخارجيّة (FFI) + اسم صنف العائد: تفعّل
+                //      الخلفيّةُ بهما تمريرَ/إرجاعَ بنية @تمثيل_سي **بالقيمة** حسب تصنيف ABI
+                //      للهدف (على حدّ FFI حصرًا؛ نداءات ص↔ص تُبقي البنى مؤشِّرات كائنيّة).
+                //      اسمُ صنف العائد يأتي من التصريح (returnTypeName) لا من الاستنتاج، إذ
+                //      أُسقِط النوعُ إلى Integer في astTypeToSIRType فلا يبقى إلا الاسم.
+                // (EN) [RFC #53 F2-ج] extern (FFI) flag + return struct class name: the backend
+                //      uses them to pass/return a @تمثيل_سي struct BY VALUE per the target ABI
+                //      (at the FFI boundary only; ص↔ص calls keep structs as object pointers).
+                //      The return class name comes from the declaration (returnTypeName) — the
+                //      Class kind is lowered to Integer in astTypeToSIRType, so only the name survives.
+                sirFunction->isExtern = funcDecl->isExtern;
+                if (funcDecl->returnType == Types::SadTypeKind::Class &&
+                    !funcDecl->returnTypeName.empty())
+                {
+                    sirFunction->returnClassName = funcDecl->returnTypeName;
+                }
 #ifdef SIR_BUILDER_DEBUG
                 std::cerr << "[SIR-DBG] buildFunction: '" << funcDecl->name
                           << "' inferred retType=" << static_cast<int>(returnType) << std::endl;

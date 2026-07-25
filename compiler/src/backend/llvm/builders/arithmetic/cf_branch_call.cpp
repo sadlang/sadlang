@@ -205,6 +205,183 @@ namespace Sad
                 }
             }
 
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) [RFC #53 F2-ج] نداء دالّة خارجيّة بمعامل/عائد بنية @تمثيل_سي بالقيمة.
+            //      خطّةٌ محسوبة سلفًا (emitFunctionPrototype، تصاريح-أوّلًا) تحدّد شكل ABI؛
+            //      نولّف الوسائط لتطابق التوقيعَ تمامًا:
+            //        Direct  ⇒ حمّل قطع البنية (ثمانيّة/ثمانيّتين) من ذاكرة الكائن ومرّرها؛
+            //        Memory  ⇒ مرّر مؤشّر الكائن بسمة byval (LLVM ينسخ ويطبّق ABI الهدف)؛
+            //        عائد Direct ⇒ جسّد كائنًا (malloc+memset) واكتب القطعَ فيه؛
+            //        عائد Memory ⇒ خصّص كائنًا ومرّره sret أوّلًا، فالعائد هو ذاك الكائن.
+            // (EN) [RFC #53 F2-ج] Call an extern with a by-value @تمثيل_سي struct param/return.
+            //      A precomputed plan (prototypes-first) fixes the ABI shape; marshal args to
+            //      match exactly (Direct ⇒ load struct pieces; Memory ⇒ byval pointer; Direct
+            //      return ⇒ materialize object; Memory return ⇒ sret first arg).
+            // ════════════════════════════════════════════════════════════════════
+            {
+                auto planIt = cg_.context_info_.creprCallPlans.find(funcName);
+                if (planIt != cg_.context_info_.creprCallPlans.end() && planIt->second.active)
+                {
+                    const CReprCallPlan &plan = planIt->second;
+                    llvm::Function *callee = cg_.module_->getFunction(plan.linkSymbol);
+                    if (callee)
+                    {
+                        llvm::LLVMContext &ctx = *cg_.context_;
+                        llvm::IRBuilder<> &b = *cg_.builder_;
+                        const llvm::DataLayout &DL = cg_.module_->getDataLayout();
+                        llvm::Type *i8Ty = llvm::Type::getInt8Ty(ctx);
+                        llvm::Type *i64Ty = llvm::Type::getInt64Ty(ctx);
+                        llvm::Type *ptrTy = llvm::PointerType::getUnqual(ctx);
+
+                        std::vector<llvm::Value *> callArgs;
+                        std::vector<std::pair<unsigned, llvm::Type *>> callByval; // (فهرس، نوع)
+                        llvm::Value *sretObj = nullptr;
+                        llvm::Type *sretStructTy = nullptr;
+                        llvm::FunctionType *ft = callee->getFunctionType();
+
+                        // (AR) تكييف وسيطٍ عدديّ إلى نوع معامل المُستدعى (مثل الحلقة العامّة:
+                        //      ptr↔i64، i1↔i64، عشريّ↔صحيح) كي لا يرفض المدقّقُ المزجَ
+                        //      «بنية + عنوان رقم» في توقيعٍ خارجيّ واحد.
+                        // (EN) Coerce a scalar arg to the callee param type (like the generic
+                        //      loop: ptr↔i64, i1↔i64, float↔int) so the verifier accepts a
+                        //      mixed «struct + رقم address» extern signature.
+                        auto coerceScalar = [&](llvm::Value *v, llvm::Type *want) -> llvm::Value *
+                        {
+                            if (!want || v->getType() == want)
+                                return v;
+                            llvm::Type *have = v->getType();
+                            if (want->isPointerTy() && have->isIntegerTy())
+                                return b.CreateIntToPtr(v, want, "crepr.s.i2p");
+                            if (want->isIntegerTy(64) && have->isPointerTy())
+                                return b.CreatePtrToInt(v, want, "crepr.s.p2i");
+                            if (want->isIntegerTy(64) && have->isIntegerTy(1))
+                                return b.CreateZExt(v, want, "crepr.s.b2i");
+                            if (want->isIntegerTy(1) && have->isIntegerTy(64))
+                                return b.CreateTrunc(v, want, "crepr.s.i2b");
+                            if (want->isDoubleTy() && have->isIntegerTy())
+                                return b.CreateSIToFP(v, want, "crepr.s.i2f");
+                            if (want->isIntegerTy() && have->isDoubleTy())
+                                return b.CreateFPToSI(v, want, "crepr.s.f2i");
+                            return v;
+                        };
+
+                        // (1) عائد بالذاكرة: خصّص كائن النتيجة ومرّر مؤشّره sret أوّلًا.
+                        if (plan.sretReturn)
+                        {
+                            auto sIt = cg_.context_info_.classStructTypes.find(plan.returnClassName);
+                            if (sIt != cg_.context_info_.classStructTypes.end())
+                            {
+                                sretStructTy = sIt->second;
+                                uint64_t sz = DL.getTypeAllocSize(sretStructTy);
+                                llvm::Value *szVal = llvm::ConstantInt::get(i64Ty, sz);
+                                sretObj = cg_.emitMalloc(szVal, "crepr.sret");
+                                b.CreateMemSet(sretObj, llvm::ConstantInt::get(i8Ty, 0), szVal,
+                                               llvm::MaybeAlign(8));
+                                callArgs.push_back(sretObj);
+                            }
+                        }
+
+                        // (2) كلّ وسيط ص بالترتيب.
+                        for (size_t i = 0; i < args.size(); ++i)
+                        {
+                            const CReprArgPlan *ap =
+                                (i < plan.args.size()) ? &plan.args[i] : nullptr;
+                            if (!ap || !ap->isStruct)
+                            {
+                                unsigned ci2 = static_cast<unsigned>(callArgs.size());
+                                llvm::Type *want =
+                                    (ci2 < ft->getNumParams()) ? ft->getParamType(ci2) : nullptr;
+                                callArgs.push_back(coerceScalar(args[i], want)); // عدديّ مُكيَّف
+                                continue;
+                            }
+                            // مؤشّر كائن ص (ذاكرة البنية بلا ترويسة).
+                            llvm::Value *objPtr = args[i];
+                            if (objPtr->getType()->isIntegerTy())
+                                objPtr = b.CreateIntToPtr(objPtr, ptrTy, "crepr.arg.p");
+
+                            if (ap->abi.kind == CReprAbiKind::Direct)
+                            {
+                                for (size_t p = 0; p < ap->abi.pieces.size(); ++p)
+                                {
+                                    llvm::Value *gep = b.CreateGEP(
+                                        i8Ty, objPtr,
+                                        llvm::ConstantInt::get(i64Ty, static_cast<uint64_t>(p) * 8),
+                                        "crepr.arg.piece.p");
+                                    llvm::Value *val =
+                                        b.CreateLoad(ap->abi.pieces[p], gep, "crepr.arg.piece");
+                                    callArgs.push_back(val);
+                                }
+                            }
+                            else // Memory ⇒ مؤشّر بسمة byval (LLVM ينسخ)
+                            {
+                                auto sIt = cg_.context_info_.classStructTypes.find(ap->className);
+                                if (sIt != cg_.context_info_.classStructTypes.end())
+                                    callByval.emplace_back(
+                                        static_cast<unsigned>(callArgs.size()), sIt->second);
+                                callArgs.push_back(objPtr);
+                            }
+                        }
+
+                        // (3) أصدر النداء وطبّق سمتَي sret/byval عليه (يلزمهما LLVM على موقع النداء).
+                        llvm::CallInst *ci =
+                            b.CreateCall(callee->getFunctionType(), callee, callArgs);
+                        if (plan.sretReturn && sretStructTy)
+                            ci->addParamAttr(
+                                0, llvm::Attribute::getWithStructRetType(ctx, sretStructTy));
+                        for (const auto &bv : callByval)
+                            ci->addParamAttr(
+                                bv.first, llvm::Attribute::getWithByValType(ctx, bv.second));
+
+                        // (4) جسّد العائد.
+                        llvm::Value *result = nullptr;
+                        if (plan.sretReturn)
+                        {
+                            result = sretObj; // الكائن الّذي كتب فيه المُستدعى
+                        }
+                        else if (plan.directStructReturn)
+                        {
+                            auto sIt = cg_.context_info_.classStructTypes.find(plan.returnClassName);
+                            if (sIt != cg_.context_info_.classStructTypes.end())
+                            {
+                                llvm::Type *rst = sIt->second;
+                                uint64_t sz = DL.getTypeAllocSize(rst);
+                                llvm::Value *szVal = llvm::ConstantInt::get(i64Ty, sz);
+                                llvm::Value *obj = cg_.emitMalloc(szVal, "crepr.ret");
+                                b.CreateMemSet(obj, llvm::ConstantInt::get(i8Ty, 0), szVal,
+                                               llvm::MaybeAlign(8));
+                                if (plan.returnAbi.pieces.size() == 1)
+                                {
+                                    b.CreateStore(ci, obj);
+                                }
+                                else
+                                {
+                                    for (size_t p = 0; p < plan.returnAbi.pieces.size(); ++p)
+                                    {
+                                        llvm::Value *elem =
+                                            b.CreateExtractValue(ci, static_cast<unsigned>(p),
+                                                                 "crepr.ret.elem");
+                                        llvm::Value *gep = b.CreateGEP(
+                                            i8Ty, obj,
+                                            llvm::ConstantInt::get(i64Ty, static_cast<uint64_t>(p) * 8),
+                                            "crepr.ret.piece.p");
+                                        b.CreateStore(elem, gep);
+                                    }
+                                }
+                                result = obj;
+                            }
+                        }
+                        else
+                        {
+                            result = ci->getType()->isVoidTy() ? nullptr : ci;
+                        }
+
+                        if (inst->result.has_value() && result)
+                            cg_.context_info_.namedValues[inst->result->name] = result;
+                        return result ? result : static_cast<llvm::Value *>(ci);
+                    }
+                }
+            }
+
             // ================================================================
             // (AR) تفويض لمعالجات الاستثناءات — __sad_alloc_jmpbuf, __sad_raise, ...
             //      مُستخرجة في llvm_codegen_exceptions.cpp (CW-05)
