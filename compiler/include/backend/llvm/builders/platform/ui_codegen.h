@@ -115,6 +115,10 @@ public:
     llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSpinBox(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiGroupBox(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiSpinner(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiStatusBar(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiWindow(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiTitleBar(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiScrollBar(std::shared_ptr<SIRInstruction> inst);

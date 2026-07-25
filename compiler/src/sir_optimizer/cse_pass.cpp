@@ -387,6 +387,10 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_DRAWER:
                 case SIR::SIROpcode::BUILTIN_UI_SAFE_AREA:
                 case SIR::SIROpcode::BUILTIN_UI_SURFACE:
+                case SIR::SIROpcode::BUILTIN_UI_SPIN_BOX:
+                case SIR::SIROpcode::BUILTIN_UI_GROUP_BOX:
+                case SIR::SIROpcode::BUILTIN_UI_SPINNER:
+                case SIR::SIROpcode::BUILTIN_UI_STATUS_BAR:
                 case SIR::SIROpcode::BUILTIN_UI_WINDOW:
                 case SIR::SIROpcode::BUILTIN_UI_TITLE_BAR:
                 case SIR::SIROpcode::BUILTIN_UI_SCROLL_BAR:

@@ -1152,6 +1152,14 @@ namespace Sad
                 inline constexpr std::string_view RATING_BAR = "تقييم";
                 // (AR) تنبيه
                 inline constexpr std::string_view ALERT = "تنبيه";
+                // (AR) مربع_دوار
+                inline constexpr std::string_view SPIN_BOX = "مربع_دوار";
+                // (AR) صندوق_تجميع
+                inline constexpr std::string_view GROUP_BOX = "صندوق_تجميع";
+                // (AR) مؤشر_انشغال
+                inline constexpr std::string_view SPINNER = "مؤشر_انشغال";
+                // (AR) شريط_حالة
+                inline constexpr std::string_view STATUS_BAR = "شريط_حالة";
                 // (AR) منطقة_آمنة
                 inline constexpr std::string_view SAFE_AREA = "منطقة_آمنة";
                 // (AR) سطح
@@ -3020,7 +3028,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1108> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1112> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3473,7 +3481,7 @@ namespace Sad
             {Names::SadNet::BROADCAST_NEW, "SadNet", "MODULE_FUNCTION", "NONE", true, "بث_جديد", "", ""},
             {Names::SadNet::BROADCAST_STOP, "SadNet", "MODULE_FUNCTION", "NONE", true, "بث_إيقاف", "", ""},
             {Names::SadNet::NODE_DESTROY, "SadNet", "MODULE_FUNCTION", "NONE", true, "تدمير_عقدة", "", ""},
-            // ─── UIWidgets (60) ───
+            // ─── UIWidgets (64) ───
             {Names::UIWidgets::TEXT_WIDGET, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "نص_عنصر", "محتوى: نصّ العنصر المعروض", "كائن"},
             {Names::UIWidgets::IMAGE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "صورة", "مصدر: مسار الصورة أو رابطها", "كائن"},
             {Names::UIWidgets::ICON, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "أيقونة", "اسم: اسم الأيقونة المتجهة", "كائن"},
@@ -3532,6 +3540,10 @@ namespace Sad
             {Names::UIWidgets::STEPPER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "خطوات", "الأبناء: محتوى العنصر", "كائن"},
             {Names::UIWidgets::RATING_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "تقييم", "الأبناء: محتوى العنصر", "كائن"},
             {Names::UIWidgets::ALERT, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "تنبيه", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::SPIN_BOX, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "مربع_دوار", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::GROUP_BOX, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "صندوق_تجميع", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::SPINNER, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "مؤشر_انشغال", "الأبناء: محتوى العنصر", "كائن"},
+            {Names::UIWidgets::STATUS_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "شريط_حالة", "الأبناء: محتوى العنصر", "كائن"},
             {Names::UIWidgets::SAFE_AREA, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "منطقة_آمنة", "ابن: عنصر يتجنّب مناطق النظام", "كائن"},
             {Names::UIWidgets::SURFACE, "UIWidgets", "MODULE_FUNCTION", "NONE", true, "سطح", "الأبناء: عناصر على السطح", "كائن"},
             // ─── UICore (22) ───
@@ -4184,7 +4196,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", true, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1108, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1112, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

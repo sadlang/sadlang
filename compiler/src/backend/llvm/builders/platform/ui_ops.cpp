@@ -1317,6 +1317,18 @@ llvm::Value* UICodeGen::emitUiListView(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiDrawer(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_drawer");
 }
+llvm::Value* UICodeGen::emitUiSpinBox(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_spin_box");
+}
+llvm::Value* UICodeGen::emitUiGroupBox(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_group_box");
+}
+llvm::Value* UICodeGen::emitUiSpinner(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_spinner");
+}
+llvm::Value* UICodeGen::emitUiStatusBar(std::shared_ptr<SIRInstruction> inst) {
+    return emitSimpleUiFactory(inst, "sad_status_bar");
+}
 llvm::Value* UICodeGen::emitUiWindow(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_window");
 }

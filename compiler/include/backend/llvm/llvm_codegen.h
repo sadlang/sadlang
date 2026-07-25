@@ -2009,6 +2009,10 @@ namespace Sad
             llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiListView(inst); }
             llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTextArea(inst); }
             llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDrawer(inst); }
+            llvm::Value *emitUiSpinBox(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSpinBox(inst); }
+            llvm::Value *emitUiGroupBox(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiGroupBox(inst); }
+            llvm::Value *emitUiSpinner(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSpinner(inst); }
+            llvm::Value *emitUiStatusBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiStatusBar(inst); }
             llvm::Value *emitUiWindow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWindow(inst); }
             llvm::Value *emitUiTitleBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTitleBar(inst); }
             llvm::Value *emitUiScrollBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiScrollBar(inst); }

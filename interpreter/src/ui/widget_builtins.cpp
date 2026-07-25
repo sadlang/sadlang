@@ -309,6 +309,16 @@ namespace Sad
             auto drawer_fn = MAKE_SIMPLE_WIDGET_FN(Drawer);
             fm.registerBuiltinFunction(std::string(Bw::DRAWER), drawer_fn); // درج
 
+            // ── تحكّم متقدّم + تغذية راجعة (م٥-ب/م٦-ب): عناصر بسيطة، الخصائص بالمعدّلات ──
+            auto spin_box_fn = MAKE_SIMPLE_WIDGET_FN(SpinBox);
+            fm.registerBuiltinFunction(std::string(Bw::SPIN_BOX), spin_box_fn); // مربع_دوار
+            auto group_box_fn = MAKE_SIMPLE_WIDGET_FN(GroupBox);
+            fm.registerBuiltinFunction(std::string(Bw::GROUP_BOX), group_box_fn); // صندوق_تجميع
+            auto spinner_fn = MAKE_SIMPLE_WIDGET_FN(Spinner);
+            fm.registerBuiltinFunction(std::string(Bw::SPINNER), spinner_fn); // مؤشر_انشغال
+            auto status_bar_fn = MAKE_SIMPLE_WIDGET_FN(StatusBar);
+            fm.registerBuiltinFunction(std::string(Bw::STATUS_BAR), status_bar_fn); // شريط_حالة
+
             // ── ودجات سطح المكتب (م١–م٦): مسجَّلة كعناصر بسيطة، الخصائص تُضبَط بالمعدّلات ──
             auto window_fn = MAKE_SIMPLE_WIDGET_FN(Window);
             fm.registerBuiltinFunction(std::string(Bw::WINDOW), window_fn); // نافذة

@@ -1,7 +1,7 @@
 version: 1
 namespace_group: ui_widgets
-description_ar: وحدة ui_widgets (82 دالة)
-description_en: ui_widgets module (82 functions)
+description_ar: وحدة ui_widgets (86 دالة)
+description_en: ui_widgets module (86 functions)
 # (AR) عقدٌ يفرضه scripts/codegen/check_ui_props_consistency.py:
 #   • لكلّ عنصر UIWidgets ذي خاصّيّة أولى: primary_prop = معرّف مفتاحه في
 #     language-truth/ui_props.yaml، ويجب أن يطابق مفتاح المصنع الفعليّ في
@@ -894,6 +894,66 @@ functions:
   status: stable
   description_ar: تنبيه
   description_en: تنبيه
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: SPIN_BOX
+  canonical: مربع_دوار
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: مربع_دوار
+  description_en: مربع_دوار
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: GROUP_BOX
+  canonical: صندوق_تجميع
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: صندوق_تجميع
+  description_en: صندوق_تجميع
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: SPINNER
+  canonical: مؤشر_انشغال
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: مؤشر_انشغال
+  description_en: مؤشر_انشغال
+  params:
+  - "الأبناء: محتوى العنصر"
+  lookup_table: name_only
+- cpp_id: STATUS_BAR
+  canonical: شريط_حالة
+  returns: كائن
+  namespace: UIWidgets
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: شريط_حالة
+  description_en: شريط_حالة
   params:
   - "الأبناء: محتوى العنصر"
   lookup_table: name_only

@@ -546,6 +546,16 @@ namespace Sad
                 if (funcName == Bn::UIWidgets::DRAWER)
                     return lowerContainer(SIROpcode::BUILTIN_UI_DRAWER);
 
+                // ── تحكّم متقدّم + تغذية راجعة (م٥-ب/م٦-ب): عناصر حاوية بسيطة ──
+                if (funcName == Bn::UIWidgets::SPIN_BOX)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_SPIN_BOX);
+                if (funcName == Bn::UIWidgets::GROUP_BOX)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_GROUP_BOX);
+                if (funcName == Bn::UIWidgets::SPINNER)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_SPINNER);
+                if (funcName == Bn::UIWidgets::STATUS_BAR)
+                    return lowerContainer(SIROpcode::BUILTIN_UI_STATUS_BAR);
+
                 // ── ودجات سطح المكتب (م١–م٦): عناصر حاوية بسيطة ──
                 if (funcName == Bn::UIWidgets::WINDOW)
                     return lowerContainer(SIROpcode::BUILTIN_UI_WINDOW);

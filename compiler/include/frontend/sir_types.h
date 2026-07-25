@@ -932,6 +932,11 @@ namespace Sad
                 BUILTIN_UI_DRAWER,         ///< درج() / sad_drawer()
                 BUILTIN_UI_SAFE_AREA,      ///< منطقة_آمنة() / sad_safe_area()
                 BUILTIN_UI_SURFACE,        ///< سطح() / sad_surface()
+                // ── تحكّم متقدّم + تغذية راجعة (م٥-ب/م٦-ب) ──
+                BUILTIN_UI_SPIN_BOX,          ///< مربع_دوار() / sad_spin_box()
+                BUILTIN_UI_GROUP_BOX,         ///< صندوق_تجميع() / sad_group_box()
+                BUILTIN_UI_SPINNER,           ///< مؤشر_انشغال() / sad_spinner()
+                BUILTIN_UI_STATUS_BAR,        ///< شريط_حالة() / sad_status_bar()
                 // ── ودجات سطح المكتب (م١–م٦) / Desktop-shell widgets ──
                 BUILTIN_UI_WINDOW,            ///< نافذة() / sad_window()
                 BUILTIN_UI_TITLE_BAR,         ///< شريط_عنوان() / sad_title_bar()

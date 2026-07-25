@@ -563,6 +563,10 @@ SadWidget sad_list_view(void)   { return createWidget(UINodeType::List); }
 SadWidget sad_drawer(void)      { return createWidget(UINodeType::Drawer); }
 SadWidget sad_safe_area(void)   { return createWidget(UINodeType::SafeArea); }
 SadWidget sad_surface(void)     { return createWidget(UINodeType::Surface); }
+SadWidget sad_spin_box(void) { return createWidget(UINodeType::SpinBox); }
+SadWidget sad_group_box(void) { return createWidget(UINodeType::GroupBox); }
+SadWidget sad_spinner(void) { return createWidget(UINodeType::Spinner); }
+SadWidget sad_status_bar(void) { return createWidget(UINodeType::StatusBar); }
 SadWidget sad_window(void) { return createWidget(UINodeType::Window); }
 SadWidget sad_title_bar(void) { return createWidget(UINodeType::TitleBar); }
 SadWidget sad_scroll_bar(void) { return createWidget(UINodeType::ScrollBar); }
