@@ -55,6 +55,7 @@
 
 #include <string>
 #include <vector>
+#include <deque>
 #include <memory>
 #include <algorithm> // (م1-ب) remove_if لحصاد أجيال البانِي (تفادي تسريب النبضة)
 #include <chrono>  // (م1-ب) نبضة الساعة الحيّة: system_clock لبوّابة الدقيقة الجداريّة
@@ -1243,6 +1244,33 @@ static long long currentWallMinute() {
         std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
+// ─── طابور مفاتيح لوحة المفاتيح (جسر الإدخال إلى كود ص) ───
+// (AR) الحلقة الحرّة تلتقط مفاتيح evdev في خيط الحلقة نفسه الذي يبني الشجرة
+//      (buildCurrent)، فالطابور أحاديّ الخيط بلا حاجة لقفل. عند كلّ ضغطة مفتاح
+//      نُلحِق رمزه الموحَّد (UnifiedKeyCode كعدد) ونوسّخ الشجرة، فيُعاد بناء البانِي
+//      الذي يستنزف الطابور عبر sad_next_key(). يُمكّن هذا تطبيقاتٍ تفاعليّة نصّيّة
+//      (طرفيّة، حقول) بلغة ص خالصة دون توسيع تعداد الأنواع. [[التقط_مفتاح]]
+static std::deque<int> g_keyQueue;
+
+// (AR) يُلحِق رمز مفتاحٍ بالطابور (يُستدعى من onKey الحرّة). حدٌّ أقصى دفاعيّ يمنع
+//      نموّ الطابور بلا حدّ إن لم يستنزفه البرنامج (يُسقط الأقدم).
+static void enqueueKey(int code) {
+    constexpr std::size_t kMaxPending = 256;
+    if (g_keyQueue.size() >= kMaxPending) g_keyQueue.pop_front();
+    g_keyQueue.push_back(code);
+}
+
+// (AR) التقط_مفتاح(): يعيد رمز أوّل مفتاحٍ منتظِرٍ في الطابور (UnifiedKeyCode كعدد)،
+//      أو 0 إن كان الطابور فارغًا — ويستهلكه. يستدعيه كود ص كلّ إعادة بناءٍ في
+//      لولبٍ لاستنزاف كلّ المفاتيح المنتظِرة. متاحٌ في كلّ أهداف الرنتايم (يعيد 0
+//      حيث لا مصدر إدخالٍ حرّ) فلا تباعُد دلاليّ بين المحرّكين وقت اختبارٍ بلا إدخال.
+extern "C" int sad_next_key() {
+    if (g_keyQueue.empty()) return 0;
+    int code = g_keyQueue.front();
+    g_keyQueue.pop_front();
+    return code;
+}
+
 // (م1-ب) آليّة تشغيل التطبيق بعد تسجيل إدخال nav الحاليّ (لقطةً أو بانيًا). الجذر
 //        يُبنى دائمًا عبر nav().buildCurrent()؛ withPeriodicTick يحقن توسيخًا كلّ
 //        ثانية (steady_clock) فيُعاد استدعاء البانِي دوريًّا (يعيد حساب الآن).
@@ -1281,11 +1309,17 @@ void runNavRegisteredApp(bool withPeriodicTick) {
     cfg.onEvent = [](IREventType type, const std::string& expr,
                      const IRNode* node, const sad::ui::EventData& evData)
     { dispatchCompiledEvent(node, type, expr, evData); }; // (② rfcs#46) نمرّر بيانات الحدث + تعبير المعالِج المُختار
-    // مفتاح الخروج: F2/Escape (اتّفاقيّة الخروج من التطبيقات الحرّة):
+    // مفتاح الخروج: F2 (اتّفاقيّة الخروج من التطبيقات الحرّة). سائر المفاتيح تُلحَق
+    // بطابور الإدخال ويُوسَّخ العرض ⇒ يستنزفها البانِي عبر التقط_مفتاح() (تطبيقات
+    // نصّيّة تفاعليّة). ملاحظة: Escape لم يعد يخرج — صار متاحًا للتطبيقات (يبقى F2
+    // للخروج)، إذ الطرفيّة/الحقول تحتاج Escape.
     cfg.onKey = [](sad::ui::UnifiedKeyCode code) -> bool
     {
-        return code == sad::ui::UnifiedKeyCode::F2 ||
-               code == sad::ui::UnifiedKeyCode::Escape;
+        if (code == sad::ui::UnifiedKeyCode::F2)
+            return true; // اخرج من الحلقة
+        enqueueKey(static_cast<int>(code));
+        sad::ui::nav().markDirty(); // مفتاحٌ ورد ⇒ أعِد بناء البانِي ليستنزفه
+        return false;
     };
     // كلّ دورة: (م1-ب) نبضةُ الدقيقة — نوسّخ المكدّس **مرّةً كلّ دقيقة جداريّة** (لا
     //   كلّ ثانية): عرضُ HH:MM لا يتبدّل أسرع، وإعادةُ البناء الحرّة تسرّب الكومة بلا

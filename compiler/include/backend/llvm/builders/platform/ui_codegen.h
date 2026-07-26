@@ -36,6 +36,7 @@ public:
     llvm::Value *emitUiDarkMode(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiLightMode(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiIsDark(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitUiNextKey(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiNavigate(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiNavBack(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiNavRoot(std::shared_ptr<SIRInstruction> inst);

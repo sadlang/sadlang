@@ -2077,6 +2077,7 @@ namespace Sad
             llvm::Value *emitUiDarkMode(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDarkMode(inst); }
             llvm::Value *emitUiLightMode(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiLightMode(inst); }
             llvm::Value *emitUiIsDark(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiIsDark(inst); }
+            llvm::Value *emitUiNextKey(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNextKey(inst); }
             llvm::Value *emitUiNavigate(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavigate(inst); }
             llvm::Value *emitUiNavBack(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavBack(inst); }
             llvm::Value *emitUiNavRoot(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiNavRoot(inst); }

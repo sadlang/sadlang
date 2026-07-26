@@ -1090,6 +1090,20 @@ namespace Sad
                     return BuildResult(r, SadTypeKind::Boolean);
                 }
 
+                // ─── التقط_مفتاح() / sad_next_key() → int (رمز مفتاح منتظِر أو 0) ───
+                // (AR) جسر لوحة المفاتيح إلى كود ص: يعيد رمز أوّل مفتاحٍ منتظِرٍ ويستهلكه.
+                //      بلا operands، يُرجع i64. حالته متغيّرة (يستنزف الطابور) ⇒ مُصنَّف
+                //      ذا أثرٍ في cse_pass فلا تُدمَج نداءاته. [[التقط_مفتاح]]
+                if (funcName == Bn::UICore::NEXT_KEY)
+                {
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_UI_NEXT_KEY); // بلا operands، يُرجع int
+                    inst.result = SIROperand::Register(r, SadTypeKind::Integer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(r, SadTypeKind::Integer);
+                }
+
                 // ─── م-تحكّم: التنقّل — جسرٌ إلى مكدّس التنقّل المكتبيّ (sad::ui::nav) ───
                 // (AR) المنطق في المكتبة؛ هذه تُصدر نداءً فقط. انتقل/استبدل يأخذان صفحةً
                 //      (مقبض العنصر)؛ عودة/عودة_للبداية بلا وسائط؛ عدد_الصفحات يُرجع i64.

@@ -1196,6 +1196,19 @@ functions:
   description_en: تحديث_حالة
   params: []
   lookup_table: name_only
+- cpp_id: NEXT_KEY
+  canonical: التقط_مفتاح
+  namespace: UICore
+  category: MODULE_FUNCTION
+  require_import: true
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: يعيد رمز آخر مفتاح لوحة مفاتيح منتظِر (يستهلكه) أو 0
+  description_en: returns the next pending keyboard key code (consumes it) or 0
+  params: []
+  lookup_table: name_only
 - cpp_id: STOP_PROPAGATION
   canonical: أوقف_الانتشار
   namespace: UICore

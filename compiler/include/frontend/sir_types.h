@@ -992,6 +992,7 @@ namespace Sad
                 BUILTIN_UI_DARK_MODE,      ///< وضع_داكن() / sad_set_dark()
                 BUILTIN_UI_LIGHT_MODE,     ///< وضع_فاتح() / sad_set_light()
                 BUILTIN_UI_IS_DARK,        ///< هل_داكن() / sad_is_dark() → bool
+                BUILTIN_UI_NEXT_KEY,       ///< التقط_مفتاح() / sad_next_key() → int (رمز مفتاح منتظِر أو 0)
 
                 // --- 20i. م-تحكّم UICore: التنقّل — جسرٌ فوق مكدّس التنقّل المكتبيّ
                 //          المشترك (sad::ui::nav). عمق-فقط في هذه الشريحة. ---

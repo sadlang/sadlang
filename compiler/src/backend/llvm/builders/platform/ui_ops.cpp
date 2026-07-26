@@ -950,6 +950,17 @@ llvm::Value* UICodeGen::emitUiIsDark(std::shared_ptr<SIRInstruction> inst) {
     return result;
 }
 
+// (AR) التقط_مفتاح() ⇒ sad_next_key() يعيد int (رمز مفتاح منتظِر أو 0). i32 من
+//      الرنتايم يُمَدّ إشارةً إلى i64 (نوع Integer في ص). لا وسائط.
+llvm::Value* UICodeGen::emitUiNextKey(std::shared_ptr<SIRInstruction> inst) {
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+    auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+    auto* raw = emitUIRuntimeCall(cg_, "sad_next_key", i32Ty, {}, {});
+    auto* result = cg_.builder_->CreateSExt(raw, i64Ty, "next_key.i64");
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
 // (AR) مدّة الانتقال البصريّ الافتراضيّة عند حذف الوسيط (م2). ⚠ يجب أن تطابق
 //      sad::ui::kDefaultTransitionSec في المكتبة (nav.h) وحلقة النافذة (sad_ui_runtime.cpp)
 //      ضمانًا لتماثل السلوك بين المُدخَل من الوسيط والمُستهلَك من المكدّس.

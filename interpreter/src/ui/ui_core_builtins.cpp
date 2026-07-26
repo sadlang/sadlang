@@ -545,6 +545,18 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::IS_DARK), is_dark_fn);
 
+            // ─── التقط_مفتاح — رمز آخر مفتاح لوحة مفاتيح منتظِر (يستهلكه) أو 0 ───
+            // (AR) جسر لوحة المفاتيح إلى كود ص (طرفيّة/حقول تفاعليّة). المفسّر لا مصدرَ
+            //      إدخالٍ حرًّا (fb0/evdev) فيعيد 0 حاليًّا — متماثلٌ مع المصرّف المستضاف
+            //      (sad_next_key يعيد 0 بلا evdev). المفاتيح الحيّة تأتي في الهدف الحرّ
+            //      عبر الرنتايم. (ربطُ المفسّر بأحداث مفاتيح الخلفيّة المكتبيّة: متابعة.)
+            auto next_key_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
+            {
+                const auto &args = ctx.args(); (void)args;
+                return std::make_shared<Data::Value>(static_cast<int64_t>(0));
+            };
+            fm.registerBuiltinFunction(std::string(Bc::NEXT_KEY), next_key_fn);
+
             // ─── تحديث الحالة ───
             auto set_state_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {

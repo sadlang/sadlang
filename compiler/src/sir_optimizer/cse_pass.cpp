@@ -455,6 +455,9 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_DARK_MODE:
                 case SIR::SIROpcode::BUILTIN_UI_LIGHT_MODE:
                 case SIR::SIROpcode::BUILTIN_UI_IS_DARK:
+                // (AR) التقط_مفتاح يستنزف طابور المفاتيح (حالة متغيّرة): كلّ نداءٍ يعيد
+                //      مفتاحًا مختلفًا ⇒ لا يجوز دمج/حذف نداءاته.
+                case SIR::SIROpcode::BUILTIN_UI_NEXT_KEY:
                 // (AR) التنقّل: انتقل/عودة/عودة_للبداية/استبدل تُغيّر مكدّس التنقّل؛
                 //      عدد_الصفحات يقرؤه (نتيجته تتغيّر بعد تنقّل) ⇒ لا دمج/حذف.
                 case SIR::SIROpcode::BUILTIN_UI_NAVIGATE:

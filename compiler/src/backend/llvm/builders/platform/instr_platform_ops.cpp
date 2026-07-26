@@ -365,6 +365,8 @@ namespace Sad
                 return cg_.emitUiLightMode(inst);
             case SIROpcode::BUILTIN_UI_IS_DARK:
                 return cg_.emitUiIsDark(inst);
+            case SIROpcode::BUILTIN_UI_NEXT_KEY:
+                return cg_.emitUiNextKey(inst);
             case SIROpcode::BUILTIN_UI_NAVIGATE:
                 return cg_.emitUiNavigate(inst);
             case SIROpcode::BUILTIN_UI_NAV_BACK:
