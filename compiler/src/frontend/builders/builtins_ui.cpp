@@ -139,9 +139,29 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     for (size_t i = 0; i < argResults.size(); ++i)
                     {
-                        if (argResults[i].type == SadTypeKind::Pointer)
+                        if (argResults[i].type == SadTypeKind::Pointer ||
+                            argResults[i].type == SadTypeKind::Any ||
+                            argResults[i].type == SadTypeKind::Unknown ||
+                            argResults[i].type == SadTypeKind::Integer)
                         {
                             // (AR) وسيطٌ عنصريّ مفرد ⇒ sad_add_child(الحاوية، الابن).
+                            // (AR) يشمل الوسيطَ **ديناميَّ النوع** (Any/Unknown): معامِلُ دالّةٍ
+                            //      بلا تصريح نوع، أو قيمةٌ عائدة من دالّة مستوردة. كان القيدُ
+                            //      على Pointer وحده يُسقِط مثل هذا الابن **صمتًا** فيُرسَم اللوح
+                            //      فارغًا (مقيس بالبكسل على fb0: تمرير ودجت معامَلًا عبر حدّ
+                            //      وحدة ⇒ الأب يظهر والابن يختفي). و**الصحيح (Integer)** مشمولٌ
+                            //      لأنّ مقبض العنصر يسري في خانة i64 حين يمرّ عبر معامِلٍ بلا
+                            //      تصريح نوع أو عائدِ وحدةٍ مستوردة — وهي الحالة التي يوثّقها
+                            //      coerceUiArgToParam أصلًا في الخلف. الأمان محفوظ بحارس وقت
+                            //      التشغيل: sad_add_child يتجاهل ما ليس عنصرًا مُسجَّلًا في
+                            //      g_widgets (isRegisteredWidget = مسحُ سجلٍّ لا فكُّ مؤشّر)،
+                            //      فيطابق تجاهُلَ المفسّر لغير-الودجت — نفس حُجّة نشر المصفوفة.
+                            // (EN) Includes dynamically-typed args (Any/Unknown): an untyped
+                            //      function parameter or a value returned from an imported
+                            //      module function. Restricting to Pointer silently dropped such
+                            //      children (panel drawn, child invisible — measured on fb0).
+                            //      Safety holds via the runtime guard in sad_add_child, which
+                            //      ignores non-registered widgets — same argument as array spread.
                             SIRInstruction add(SIROpcode::BUILTIN_UI_ADD_CHILD);
                             add.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer)); // الأب
                             add.operands.push_back(argOperands[i]);                                // الابن

@@ -19,6 +19,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/platform/ui_codegen.h"
+#include "sad_dyn_repr.h" // (AR) فكّ القيمة الديناميّة %SadDyn (unpackDouble/isSadDyn)
 #include "sir_constants.h" // (م1-ج) kSadNullSentinel — حارس بانِي يُرجع لاشيء/void
 #include "sad_event_layout_generated.h" // (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/POD/الاسم)
 #include <llvm/IR/DerivedTypes.h>
@@ -1443,10 +1444,19 @@ llvm::Value* UICodeGen::emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
     llvm::Value* raw = cg_.resolveOperand(inst->operands[2]);
-    // (AR) القيمة قد تكون صحيحة (i64) أو عشريّة ⇒ تحويل آمن إلى double.
-    llvm::Value* value = raw->getType()->isIntegerTy()
-        ? cg_.builder_->CreateSIToFP(raw, f64Ty)
-        : cg_.builder_->CreateFPCast(raw, f64Ty);
+    // (AR) القيمة قد تكون صحيحة (i64) أو عشريّة أو **ديناميّة (%SadDyn)** ⇒ تحويل آمن
+    //      إلى double. الحالة الديناميّة تأتي من قيمةٍ نوعها يتقرّر زمنَ التشغيل (نتيجة
+    //      `/`: صحيح/صحيح قد يكون صحيحًا أو عشريًّا)، وتُفَكّ بـunpackDouble (Float⇒bitcast،
+    //      غيره⇒sitofp) نظير coerceFloatOperandToDouble في مسار الحساب. قبل هذا الحرس كان
+    //      CreateFPCast يُطبَّق على هيكل %SadDyn فيسقط المصرّف بـ«Invalid cast».
+    // (EN) The value may be i64, double, or a dynamic %SadDyn (a runtime-typed result such
+    //      as `/`). Decode the dynamic case via unpackDouble, mirroring the arithmetic path;
+    //      previously CreateFPCast on the struct crashed the compiler with "Invalid cast".
+    llvm::Value* value = Sad::LLVM::isSadDyn(raw)
+        ? Sad::LLVM::unpackDouble(cg_, raw)
+        : (raw->getType()->isIntegerTy()
+               ? cg_.builder_->CreateSIToFP(raw, f64Ty)
+               : cg_.builder_->CreateFPCast(raw, f64Ty));
     return emitUIRuntimeCall(cg_, "sad_set_prop_num", voidTy,
         {ptrTy, ptrTy, f64Ty}, {widget, name, value});
 }

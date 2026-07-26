@@ -100,6 +100,43 @@ namespace sad
         namespace props
         {{
 {keys_section}
+
+            // ================================================================
+            // (AR) مفاتيح **عدديّة** (value_type: عدد في ui_props.yaml).
+            //   لماذا: المصرّف يختار أوپكود SET_PROP بحسب نوع القيمة وقت الترجمة،
+            //   لكنّ قيمًا كثيرة نوعها يتقرّر زمنَ التشغيل (نتيجة `/` مثلًا نوعها
+            //   Any لأنّ صحيح/صحيح قد يكون صحيحًا أو عشريًّا). كان المجهولُ يسقط
+            //   إلى SET_PROP_STR فتُخزَّن «نصف_قطر» **نصًّا** ويقرؤها المُرسِّم صفرًا
+            //   (مقيس بالبكسل: `نصف_قطر(22)` قرصٌ، و`نصف_قطر(قطر / 2)` مربّع).
+            //   بهذا الجدول يحسم المصرّفُ بالمفتاح لا بالقيمة، ومن SoT لا بسلسلة
+            //   حرفيّة — التزامًا بقاعدة «لا literals منطقيّة مباشرة».
+            // (EN) Numeric keys (value_type: عدد). The compiler picks the SET_PROP
+            //   opcode from the compile-time value type, but some values are typed
+            //   at runtime (`/` yields Any). Unknown fell back to SET_PROP_STR, so a
+            //   numeric key was stored as text and read back as 0 by the renderer.
+            //   This table lets the compiler decide by key, sourced from the SoT.
+            // ================================================================
+            inline bool isNumericPropKey(const char *name)
+            {{
+                if (!name)
+                    return false;
+                static const char *const NUMERIC_KEYS[] = {{
+{numeric_keys_section}
+                }};
+                for (const char *k : NUMERIC_KEYS)
+                {{
+                    const char *a = k;
+                    const char *b = name;
+                    while (*a && *a == *b)
+                    {{
+                        ++a;
+                        ++b;
+                    }}
+                    if (*a == '\\0' && *b == '\\0')
+                        return true;
+                }}
+                return false;
+            }}
         }} // namespace props
     }} // namespace ui
 }} // namespace sad
@@ -119,6 +156,23 @@ def emit_keys(keys: list[dict[str, Any]]) -> str:
         escaped = _hex_escape(str(canonical))
         lines.append(f'            // (AR) {desc_ar} — «{canonical}».')
         lines.append(f'            inline constexpr const char *{cid} = "{escaped}";')
+    return "\n".join(lines)
+
+
+# (AR) قيمة value_type التي تعني «عدد» في ui_props.yaml (مصدر الحقيقة).
+_NUMERIC_VALUE_TYPE = "عدد"  # عدد
+
+
+def emit_numeric_keys(keys: list[dict[str, Any]]) -> str:
+    """
+    @brief (AR) يُولِّد جدول المفاتيح العدديّة (value_type: عدد) لدالّة isNumericPropKey.
+    @brief (EN) Emit the numeric-key table (value_type: عدد) for isNumericPropKey.
+    """
+    lines: list[str] = []
+    for k in keys:
+        if str(k.get("value_type", "")).strip() != _NUMERIC_VALUE_TYPE:
+            continue
+        lines.append(f'                    {k["id"]},  // {k["canonical"]}')
     return "\n".join(lines)
 
 
@@ -175,7 +229,8 @@ def run(argv: list[str] | None = None) -> int:
             print("[gen_ui_props] ERROR: no keys found", file=sys.stderr)
             return 1
         _validate(keys, args.schema, args.quiet)
-        content = HEADER_TEMPLATE.format(keys_section=emit_keys(keys))
+        content = HEADER_TEMPLATE.format(keys_section=emit_keys(keys),
+                                         numeric_keys_section=emit_numeric_keys(keys))
         write_if_changed(args.header, content, args.quiet)
         if not args.quiet:
             print(f"[gen_ui_props] {len(keys)} property keys -> {args.header}")

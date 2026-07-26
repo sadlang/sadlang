@@ -200,6 +200,81 @@ namespace sad
             inline constexpr const char *SCROLL_Y_LATIN = "scroll_y";
             // (AR) بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط — «text».
             inline constexpr const char *TEXT_LATIN = "text";
+
+            // ================================================================
+            // (AR) مفاتيح **عدديّة** (value_type: عدد في ui_props.yaml).
+            //   لماذا: المصرّف يختار أوپكود SET_PROP بحسب نوع القيمة وقت الترجمة،
+            //   لكنّ قيمًا كثيرة نوعها يتقرّر زمنَ التشغيل (نتيجة `/` مثلًا نوعها
+            //   Any لأنّ صحيح/صحيح قد يكون صحيحًا أو عشريًّا). كان المجهولُ يسقط
+            //   إلى SET_PROP_STR فتُخزَّن «نصف_قطر» **نصًّا** ويقرؤها المُرسِّم صفرًا
+            //   (مقيس بالبكسل: `نصف_قطر(22)` قرصٌ، و`نصف_قطر(قطر / 2)` مربّع).
+            //   بهذا الجدول يحسم المصرّفُ بالمفتاح لا بالقيمة، ومن SoT لا بسلسلة
+            //   حرفيّة — التزامًا بقاعدة «لا literals منطقيّة مباشرة».
+            // (EN) Numeric keys (value_type: عدد). The compiler picks the SET_PROP
+            //   opcode from the compile-time value type, but some values are typed
+            //   at runtime (`/` yields Any). Unknown fell back to SET_PROP_STR, so a
+            //   numeric key was stored as text and read back as 0 by the renderer.
+            //   This table lets the compiler decide by key, sourced from the SoT.
+            // ================================================================
+            inline bool isNumericPropKey(const char *name)
+            {
+                if (!name)
+                    return false;
+                static const char *const NUMERIC_KEYS[] = {
+                    WIDTH,  // عرض
+                    HEIGHT,  // ارتفاع
+                    PADDING,  // حشوة
+                    PADDING_TOP,  // حشوة_أعلى
+                    PADDING_BOTTOM,  // حشوة_أسفل
+                    PADDING_START,  // حشوة_بداية
+                    PADDING_END,  // حشوة_نهاية
+                    MARGIN,  // هامش
+                    SPACING,  // تباعد
+                    WEIGHT,  // وزن
+                    COLUMNS,  // أعمدة
+                    FONT_SIZE,  // حجم_خط
+                    FONT_SIZE_ALT,  // حجم_الخط
+                    SIZE,  // حجم
+                    FLEX_LATIN,  // flex
+                    COLUMNS_LATIN,  // columns
+                    WIDTH_LATIN,  // width
+                    HEIGHT_LATIN,  // height
+                    CORNER_RADIUS,  // زوايا
+                    RADIUS,  // نصف_قطر
+                    THICKNESS,  // سماكة
+                    OPACITY,  // شفافية
+                    ELEVATION,  // رفع
+                    TOTAL,  // المجموع
+                    CURRENT,  // الحالي
+                    OFFSET_X,  // إزاحة_س
+                    OFFSET_Y,  // إزاحة_ص
+                    MIN,  // أدنى
+                    MAX,  // أقصى
+                    TOTAL_SUM,  // إجمالي
+                    CELL_SIZE,  // حجم_خلية
+                    THICKNESS_ALT,  // سمك
+                    PAGE,  // صفحة
+                    MAX_LATIN,  // max
+                    MIN_LATIN,  // min
+                    LAT_LATIN,  // lat
+                    LNG_LATIN,  // lng
+                    SCROLL_X_LATIN,  // scroll_x
+                    SCROLL_Y_LATIN,  // scroll_y
+                };
+                for (const char *k : NUMERIC_KEYS)
+                {
+                    const char *a = k;
+                    const char *b = name;
+                    while (*a && *a == *b)
+                    {
+                        ++a;
+                        ++b;
+                    }
+                    if (*a == '\0' && *b == '\0')
+                        return true;
+                }
+                return false;
+            }
         } // namespace props
     } // namespace ui
 } // namespace sad

@@ -27,6 +27,7 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include "sad_ui/ui_modifiers.h" // (AR) أسماء معدّلات SadUI (مُولَّد من language-truth) — لا literals
+#include "sad_ui/prop_keys.h"    // (AR) مفاتيح الخصائص + جدول المفاتيح العدديّة (مُولَّد من SoT)
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (RUN_METHOD_NOT_FOUND)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
@@ -936,7 +937,24 @@ namespace Sad
                                 case SadTypeKind::Float:
                                     op = SIROpcode::BUILTIN_UI_SET_PROP_NUM;  break;
                                 default:
-                                    op = SIROpcode::BUILTIN_UI_SET_PROP_STR;  break;
+                                    // (AR) نوعٌ غير محسوم وقت الترجمة (Any/Unknown): نتيجةُ `/`
+                                    //      نوعها Any لأنّ صحيح/صحيح قد يكون صحيحًا أو عشريًّا
+                                    //      زمنَ التشغيل. كان السقوطُ الأعمى إلى STR يُخزّن مفتاحًا
+                                    //      عدديًّا **نصًّا** فيقرؤه المُرسِّم صفرًا (مقيس بالبكسل على
+                                    //      fb0: «نصف_قطر(22)» قرصٌ بينما «نصف_قطر(قطر / 2)» مربّع).
+                                    //      الحسمُ الآن **بالمفتاح** من مصدر الحقيقة
+                                    //      (value_type: عدد ⇒ isNumericPropKey) لا بتخمين القيمة؛
+                                    //      وغيرُ العدديّ يبقى نصًّا كما كان، فلا تتأثّر «لون»/«عنوان»
+                                    //      العائدة من دوالّ بلا تصريح نوع.
+                                    // (EN) Compile-time-undecided type (Any/Unknown), e.g. the
+                                    //      result of `/`. Blindly falling back to STR stored a
+                                    //      numeric key as text, which the renderer read as 0.
+                                    //      Decide by KEY from the SoT (value_type: عدد) instead;
+                                    //      non-numeric keys keep the string path unchanged.
+                                    op = sad::ui::props::isNumericPropKey(m.c_str())
+                                             ? SIROpcode::BUILTIN_UI_SET_PROP_NUM
+                                             : SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                                    break;
                                 }
                                 valueOp = val;
                             }
