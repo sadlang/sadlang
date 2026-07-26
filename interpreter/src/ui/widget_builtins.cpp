@@ -51,6 +51,45 @@ namespace Sad
     {
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// (AR) مساعد: يضيف وسيطًا كابنٍ للحاوية — عنصرًا مفردًا أو **مصفوفةَ عناصر تُنشَر**
+//      (كلّ عنصرٍ عنصريّ فيها يصير ابنًا، بترتيبها). يوحّد سلوك المفسّر مع نشر
+//      المصفوفة إلى أبناء الحاوية (مطابقٌ للمصرّف في builtins_ui.cpp::lowerContainer).
+//      النشر **مستوًى واحد فقط** (لا تسطيح تعاوديّ) مطابقةً للمصرّف؛ غير-العناصر
+//      (بما فيها المصفوفات المتداخلة) تُتجاهَل بأمان — نظير حارس isWidgetBuilder /
+//      isRegisteredWidget. راجع RFC «نشر المصفوفة إلى أبناء الحاوية».
+// (EN) Adds an arg as container child — a single widget OR a **one-level spread
+//      array** of widgets (each widget element becomes a child, in order). Mirrors
+//      the compiler (builtins_ui.cpp::lowerContainer). Spread is ONE LEVEL only (no
+//      recursive flattening), matching the compiler; non-widgets (including nested
+//      arrays) are safely skipped — parallels isWidgetBuilder/isRegisteredWidget.
+static inline void addChildOrSpread(WidgetBuilder *builder,
+                                    const std::shared_ptr<Data::Value> &arg)
+{
+    if (!arg)
+        return;
+    if (arg->getKind() == Types::SadTypeKind::Class)
+    {
+        auto *obj = arg->toObject();
+        if (isWidgetBuilder(obj))
+            builder->addChildBuilder(static_cast<WidgetBuilder *>(obj));
+    }
+    else if (arg->getKind() == Types::SadTypeKind::Array)
+    {
+        // (AR) نشر مستوًى واحد: أضِف العناصر العنصريّة فقط؛ تجاهَل المتداخلة/غير-الودجت
+        //      (نظير حارس المصرّف isRegisteredWidget الذي يُسقط غير-المُسجَّل).
+        for (const auto &elem : arg->toArrayRef())
+        {
+            if (elem.getKind() == Types::SadTypeKind::Class)
+            {
+                auto *obj = elem.toObject();
+                if (isWidgetBuilder(obj))
+                    builder->addChildBuilder(static_cast<WidgetBuilder *>(obj));
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ماكرو مساعد: إنشاء دالة بناء عنصر بسيط (بدون وسائط إلزامية)
 // ═══════════════════════════════════════════════════════════════════════════════
 // (AR) ينشئ WidgetBuilder من النوع المحدد ويُرجعه
@@ -61,13 +100,8 @@ namespace Sad
         const auto &args = ctx.args(); (void)args;                                     \
         /* (AR) B-step5b: WidgetBuilder تُخصَّص بـnew وتُدار بـGC */                  \
         auto *builder = new WidgetBuilder(sad::ui::UINodeType::nodeType);              \
-        /* إضافة جميع الوسائط كأبناء إذا كانت WidgetBuilder */                        \
-        for (auto &arg : args) {                                                       \
-            if (arg && arg->getKind() == Types::SadTypeKind::Class) {                    \
-                auto *obj = arg->toObject();                                            \
-                if (isWidgetBuilder(obj)) { builder->addChildBuilder(static_cast<WidgetBuilder *>(obj)); }    \
-            }                                                                          \
-        }                                                                              \
+        /* إضافة كلّ وسيط كابن: عنصرًا مفردًا أو مصفوفةً تُنشَر */                     \
+        for (auto &arg : args) { addChildOrSpread(builder, arg); }                      \
         return std::make_shared<Data::Value>(                                           \
             static_cast<Data::ObjectInstance *>(builder)); }
 
@@ -85,13 +119,8 @@ namespace Sad
         if (!args.empty() && args[0]) {                                                \
             builder->setIRPropertyFromValue(propName, *args[0]);                        \
         }                                                                              \
-        /* إضافة الوسائط المتبقية كأبناء إذا كانت WidgetBuilder */                     \
-        for (size_t i = 1; i < args.size(); ++i) {                                     \
-            if (args[i] && args[i]->getKind() == Types::SadTypeKind::Class) {            \
-                auto *obj = args[i]->toObject();                                        \
-                if (isWidgetBuilder(obj)) { builder->addChildBuilder(static_cast<WidgetBuilder *>(obj)); }    \
-            }                                                                          \
-        }                                                                              \
+        /* إضافة الوسائط المتبقية كأبناء: عنصرًا مفردًا أو مصفوفةً تُنشَر */            \
+        for (size_t i = 1; i < args.size(); ++i) { addChildOrSpread(builder, args[i]); } \
         return std::make_shared<Data::Value>(                                           \
             static_cast<Data::ObjectInstance *>(builder)); }
 

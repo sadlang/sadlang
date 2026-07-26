@@ -139,13 +139,135 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     for (size_t i = 0; i < argResults.size(); ++i)
                     {
-                        if (argResults[i].type != SadTypeKind::Pointer)
-                            continue; // نتجاهل غير العناصر (نظير حارس isWidgetBuilder في المفسّر)
-                        SIRInstruction add(SIROpcode::BUILTIN_UI_ADD_CHILD);
-                        add.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer)); // الأب
-                        add.operands.push_back(argOperands[i]);                                // الابن
-                        if (b_.currentBlock_)
-                            b_.currentBlock_->instructions.push_back(add);
+                        if (argResults[i].type == SadTypeKind::Pointer)
+                        {
+                            // (AR) وسيطٌ عنصريّ مفرد ⇒ sad_add_child(الحاوية، الابن).
+                            SIRInstruction add(SIROpcode::BUILTIN_UI_ADD_CHILD);
+                            add.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer)); // الأب
+                            add.operands.push_back(argOperands[i]);                                // الابن
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(add);
+                        }
+                        else if (argResults[i].type == SadTypeKind::Array)
+                        {
+                            // (AR) **نشر مصفوفة إلى أبناء الحاوية**: لولب وقت-تشغيل يمرّ على
+                            //      عناصر المصفوفة (طولها ديناميّ) فيُضيف كلّ عنصرٍ ابنًا بترتيبه —
+                            //      مطابقٌ لـaddChildOrSpread في المفسّر (widget_builtins.cpp). يعيد
+                            //      استعمال أوپكودات قائمة فقط (ARRAY_LEN/ARRAY_GET/LT/ADD_I64/
+                            //      ADD_CHILD) — لا أوپكود جديد ولا توسيع SoT. عدّاد على المكدّس
+                            //      (ALLOC/STORE/LOAD) نظير نمط foreach (statement_for_range.cpp).
+                            //      النشر **مستوًى واحد فقط**: ARRAY_GET نتيجتُه Pointer، والعنصر
+                            //      المتداخل (مصفوفة) أو غير-الودجت يُسقطه حارس sad_add_child وقت
+                            //      التشغيل (غير مُسجَّل) — مطابقٌ لتجاهُل المفسّر. راجع RFC «نشر
+                            //      المصفوفة إلى أبناء الحاوية».
+                            // (EN) **Spread array into container children**: a runtime loop over
+                            //      the (dynamic-length) array adds each element as a child, in
+                            //      order — matching the interpreter's addChildOrSpread. Reuses
+                            //      existing opcodes only (no new opcode / no SoT growth). Spread is
+                            //      ONE LEVEL: ARRAY_GET yields Pointer; a nested-array or non-widget
+                            //      element is dropped by the runtime sad_add_child guard — matching
+                            //      the interpreter's skip.
+                            std::string condL = b_.newLabel("spread_cond");
+                            std::string bodyL = b_.newLabel("spread_body");
+                            std::string incL  = b_.newLabel("spread_inc");
+                            std::string exitL = b_.newLabel("spread_exit");
+                            auto condB = b_.createBasicBlock(condL);
+                            auto bodyB = b_.createBasicBlock(bodyL);
+                            auto incB  = b_.createBasicBlock(incL);
+                            auto exitB = b_.createBasicBlock(exitL);
+                            if (b_.currentFunction_)
+                            {
+                                b_.currentFunction_->addBasicBlock(condB);
+                                b_.currentFunction_->addBasicBlock(bodyB);
+                                b_.currentFunction_->addBasicBlock(incB);
+                                b_.currentFunction_->addBasicBlock(exitB);
+                            }
+                            // (AR) عدّاد فريد على المكدّس، مُصفَّر (نمط غير-SSA آمن عبر الكتل).
+                            std::string idxSuffix = condL.substr(condL.find_last_of('_') + 1);
+                            std::string idxAlloc = "%_spread_idx_" + idxSuffix;
+                            {
+                                SIRInstruction a(SIROpcode::ALLOC);
+                                a.result = SIROperand::Register(idxAlloc, SadTypeKind::Integer);
+                                if (b_.currentBlock_) b_.currentBlock_->instructions.push_back(a);
+                                SIRInstruction s(SIROpcode::STORE);
+                                s.operands.push_back(SIROperand::ConstantI64(0));
+                                s.operands.push_back(SIROperand::Register(idxAlloc, SadTypeKind::Integer));
+                                if (b_.currentBlock_) b_.currentBlock_->instructions.push_back(s);
+                                SIRInstruction brIn = SIRInstruction::Branch(SIROperand::Label(condL));
+                                if (b_.currentBlock_) b_.currentBlock_->instructions.push_back(brIn);
+                            }
+                            // (AR) كتلة الشرط: idx < طول(المصفوفة) ؟
+                            b_.currentBlock_ = condB;
+                            {
+                                std::string loadedIdx = b_.newTempRegister();
+                                SIRInstruction ld(SIROpcode::LOAD);
+                                ld.result = SIROperand::Register(loadedIdx, SadTypeKind::Integer);
+                                ld.operands.push_back(SIROperand::Register(idxAlloc, SadTypeKind::Integer));
+                                b_.currentBlock_->instructions.push_back(ld);
+                                std::string lenReg = b_.newTempRegister();
+                                SIRInstruction len(SIROpcode::ARRAY_LEN);
+                                len.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
+                                len.operands.push_back(argOperands[i]);
+                                b_.currentBlock_->instructions.push_back(len);
+                                std::string condReg = b_.newTempRegister();
+                                SIRInstruction cmp = SIRInstruction::Binary(
+                                    SIROpcode::LT,
+                                    SIROperand::Register(condReg, SadTypeKind::Boolean),
+                                    SIROperand::Register(loadedIdx, SadTypeKind::Integer),
+                                    SIROperand::Register(lenReg, SadTypeKind::Integer));
+                                b_.currentBlock_->instructions.push_back(cmp);
+                                SIRInstruction brc = SIRInstruction::BranchCond(
+                                    SIROperand::Register(condReg, SadTypeKind::Boolean),
+                                    SIROperand::Label(bodyL), SIROperand::Label(exitL));
+                                b_.currentBlock_->instructions.push_back(brc);
+                            }
+                            // (AR) كتلة الجسم: child = المصفوفة[idx] (مؤشّر)، ثمّ add_child.
+                            b_.currentBlock_ = bodyB;
+                            {
+                                std::string loadedIdx = b_.newTempRegister();
+                                SIRInstruction ld(SIROpcode::LOAD);
+                                ld.result = SIROperand::Register(loadedIdx, SadTypeKind::Integer);
+                                ld.operands.push_back(SIROperand::Register(idxAlloc, SadTypeKind::Integer));
+                                b_.currentBlock_->instructions.push_back(ld);
+                                std::string childReg = b_.newTempRegister();
+                                SIRInstruction get(SIROpcode::ARRAY_GET);
+                                get.result = SIROperand::Register(childReg, SadTypeKind::Pointer);
+                                get.operands.push_back(argOperands[i]);
+                                get.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
+                                b_.currentBlock_->instructions.push_back(get);
+                                SIRInstruction add(SIROpcode::BUILTIN_UI_ADD_CHILD);
+                                add.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer));
+                                add.operands.push_back(SIROperand::Register(childReg, SadTypeKind::Pointer));
+                                b_.currentBlock_->instructions.push_back(add);
+                                SIRInstruction brInc = SIRInstruction::Branch(SIROperand::Label(incL));
+                                b_.currentBlock_->instructions.push_back(brInc);
+                            }
+                            // (AR) كتلة الزيادة: idx = idx + 1 ثمّ عُد للشرط.
+                            b_.currentBlock_ = incB;
+                            {
+                                std::string loadedIdx = b_.newTempRegister();
+                                SIRInstruction ld(SIROpcode::LOAD);
+                                ld.result = SIROperand::Register(loadedIdx, SadTypeKind::Integer);
+                                ld.operands.push_back(SIROperand::Register(idxAlloc, SadTypeKind::Integer));
+                                b_.currentBlock_->instructions.push_back(ld);
+                                std::string newIdx = b_.newTempRegister();
+                                SIRInstruction inc = SIRInstruction::Binary(
+                                    SIROpcode::ADD_I64,
+                                    SIROperand::Register(newIdx, SadTypeKind::Integer),
+                                    SIROperand::Register(loadedIdx, SadTypeKind::Integer),
+                                    SIROperand::ConstantI64(1));
+                                b_.currentBlock_->instructions.push_back(inc);
+                                SIRInstruction st(SIROpcode::STORE);
+                                st.operands.push_back(SIROperand::Register(newIdx, SadTypeKind::Integer));
+                                st.operands.push_back(SIROperand::Register(idxAlloc, SadTypeKind::Integer));
+                                b_.currentBlock_->instructions.push_back(st);
+                                SIRInstruction brBack = SIRInstruction::Branch(SIROperand::Label(condL));
+                                b_.currentBlock_->instructions.push_back(brBack);
+                            }
+                            // (AR) الاستمرار بعد اللولب في كتلة الخروج.
+                            b_.currentBlock_ = exitB;
+                        }
+                        // (AR) غير ذلك (لا عنصر ولا مصفوفة) ⇒ تجاهُل آمن (نظير isWidgetBuilder).
                     }
                     return BuildResult(r, SadTypeKind::Pointer);
                 };
