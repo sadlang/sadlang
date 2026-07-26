@@ -1028,6 +1028,12 @@ namespace sad
                     textProp = node.findProperty(props::ICON_ALT); // ايقونة
                 if (!textProp)
                     textProp = node.findProperty(props::SYMBOL); // رمز
+                // (AR) «اسم» — وهو المفتاح الذي تكتبه دالّةُ البناء «أيقونة(اسم)»
+                //   في widget_builtins.cpp (props::NAME). لم يكن مقروءًا هنا قطّ،
+                //   فكانت `أيقونة("نجمة")` تُنشئ عقدةً وتُخطَّط ولا ترسم بكسلًا
+                //   واحدًا: بُنيةٌ سليمة ومفتاحان لا يلتقيان. مقيسٌ على fb0 (٠ بكسل).
+                if (!textProp)
+                    textProp = node.findProperty(props::NAME); // اسم
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))

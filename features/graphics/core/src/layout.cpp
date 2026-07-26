@@ -725,6 +725,32 @@ std::shared_ptr<LayoutResult> LayoutEngine::arrange(
     // الهامش إزاحة خارجيّة تُقلّص منطقة المحتوى، فالابن مالئ-المحور/الموزون يجب أن
     // يرى عرض/ارتفاع المحتوى الحقيقيّ لا الحاوية كاملة (وإلّا تجاوز فجوة الهامش).
     LayoutConstraints childConstraints = constraints;
+
+    // (AR) سقفُ عرض الابن هو عرضُ **هذه** العقدة الصريح، لا عرضُ أبيها.
+    //   كان `childConstraints = constraints` يمرّر قيدَ الأب كما هو، فيرث الابنُ
+    //   المالئُ للعرض عرضَ الجذر لا عرضَ حاويته. مقيسٌ على fb0 (١٠٢٤ عرضًا،
+    //   حاوية بـ«عرض(٦٠٠)»):
+    //     • «فاصل_خط» (defaultWidth = constraints.maxWidth) رسم خطًّا من س=١٦
+    //       إلى س=١٠٢٣ — عبر الشاشة كلّها لا داخل حاويته.
+    //     • «شريط_تقدم» (المنطق نفسه) فاض ٩٣٦١ بكسلًا خارج حاويته.
+    //     • «التفاف» في RTL يبدأ من `measured.width - padding`، وقد صار ١٠٢٤،
+    //       فوُضِع ابنُه عند س≈١٠٠٤ ⇒ خارج الحاوية وخارج الشاشة تقريبًا، فبدا
+    //       أنّ الحاوية «ابتلعت» ابنها وهي إنّما دفعته بعيدًا.
+    //   القصرُ على وجود «عرض» صريح يُبقي أثرَ التغيير محصورًا: عقدةٌ بلا عرضٍ
+    //   صريح قياسُها من قيد أبيها أصلًا فلا جديد. ونستثني القابلَ للتمرير أفقيًّا
+    //   لأنّ محتواه يتجاوز عرضَه بحكم التعريف.
+    if (!isScrollableType(node.getType())) {
+        const auto *wProp = node.findProperty(props::WIDTH);
+        if (!wProp) wProp = node.findProperty(props::WIDTH_LATIN);
+        if (wProp) {
+            float w = -1.0f;
+            if (auto *v = std::get_if<double>(&wProp->value)) w = static_cast<float>(*v);
+            else if (auto *vi = std::get_if<int64_t>(&wProp->value)) w = static_cast<float>(*vi);
+            if (w >= 0.0f)
+                childConstraints.maxWidth = std::min(childConstraints.maxWidth, w);
+        }
+    }
+
     const float inset = padding + margin;
     if (inset > 0) {
         childConstraints.maxWidth = std::max(0.0f, childConstraints.maxWidth - inset * 2);
