@@ -126,6 +126,10 @@ namespace Sad
                 {
                 case Types::SadTypeKind::Integer:
                     return SadTypeKind::Integer;
+                case Types::SadTypeKind::Byte:
+                    return SadTypeKind::Byte;
+                case Types::SadTypeKind::UInt64:
+                    return SadTypeKind::UInt64;
                 case Types::SadTypeKind::Float:
                     return SadTypeKind::Float;
                 case Types::SadTypeKind::Boolean:
@@ -148,8 +152,8 @@ namespace Sad
                     // (EN) Unknown type - will be inferred from expression
                     return SadTypeKind::Integer; // Default, will be overwritten by type inference
                 default:
-                    // (AR) أنواع أخرى (MAP, TUPLE, ENUM, BYTE, ERROR) — تحذير + fallback
-                    // (EN) Other types (MAP, TUPLE, ENUM, BYTE, ERROR) — warn + fallback
+                    // (AR) أنواع أخرى (MAP, TUPLE, ENUM, ERROR) — تحذير + fallback
+                    // (EN) Other types (MAP, TUPLE, ENUM, ERROR) — warn + fallback
                     std::cerr << "[sadc تحذير] DataType غير معالج في astTypeToSIRType: "
                               << static_cast<int>(type) << " — استخدام I64" << std::endl;
                     return SadTypeKind::Integer; // Fallback

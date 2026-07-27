@@ -345,12 +345,12 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     llvm::Type* dblTy   = llvm::Type::getDoubleTy(*cg_.context_);
 
     // ========================================================================
-    // 1. malloc — Bump allocator (4MB heap, 16-byte aligned)
+    // 1. malloc — free-list reuse + bump fallback (64MB heap, 16-byte aligned)
     // ========================================================================
     emitFreestandingMalloc(i8Ty, i64Ty, ptrTy);
 
     // ========================================================================
-    // 2. free — No-op for bump allocator
+    // 2. free — push onto the free list (real reclaim)
     // ========================================================================
     emitFreestandingFree(ptrTy, voidTy);
 
@@ -723,28 +723,95 @@ static llvm::Function* getOrCreateFreestandingFunc(
     return fn;
 }
 
+// (AR) هندسةُ صناديق الحرّ — يشترك فيها ‎malloc‎ و‎free‎ فتُعرَّف مرّةً واحدة.
+//      SMALL_BINS صندوقًا لمقاساتٍ **مضبوطة** 16، 32، … SMALL_MAX، وصندوقٌ
+//      أخيرٌ (رقمه SMALL_BINS) لما فوقها. رقمُ الصندوق = cap/16 − 1.
+namespace {
+constexpr uint64_t SMALL_BINS   = 64;                       // 16 … 1024 بخطوة 16
+constexpr uint64_t SMALL_MAX    = SMALL_BINS * 16;          // 1024
+constexpr uint64_t LARGE_SHIFT0 = 11;                       // أوّلُ قوّةِ اثنينٍ فوقها
+constexpr uint64_t MAX_SHIFT    = 63;
+// 64 صندوقًا مضبوطًا + قوى الاثنين 2^11 … 2^63
+constexpr uint64_t BIN_COUNT    = SMALL_BINS + (MAX_SHIFT - LARGE_SHIFT0 + 1);
+
+struct BinCalc { llvm::Value* cap; llvm::Value* idx; };
+
+// (AR) من طلبٍ مُدوَّرٍ لمضاعف 16 (‎need ≥ 16‎) إلى (السعةِ المخزَّنة، رقمِ صندوقها).
+//      الصغيرُ يُصنَّف بمقاسه المضبوط، والكبيرُ يُدوَّر لقوّة الاثنين التالية —
+//      وبذلك تصير كتلُ كلّ صندوقٍ **متساويةَ السعة**، فالسحبُ فهرسةٌ لا بحث.
+//      يجب أن يستعمل ‎malloc‎ و‎free‎ هذه الحسبةَ عينَها، وإلّا دُفعت الكتلةُ في
+//      صندوقٍ لا يُسحَب منه فتُفقَد صامتةً.
+BinCalc computeBin(llvm::IRBuilder<>& B, llvm::Type* i64Ty, llvm::Value* need)
+{
+    auto K = [&](uint64_t v) { return llvm::ConstantInt::get(i64Ty, v); };
+    llvm::Value* isSmall = B.CreateICmpULE(need, K(SMALL_MAX), "is.small");
+    llvm::Value* smallIdx = B.CreateSub(B.CreateLShr(need, K(4)), K(1), "small.idx");
+    // أصغرُ k بحيث ‎2^k ≥ need‎ — و‎need ≥ 16‎ فـ‎need−1 ≠ 0‎ ولا شذوذَ في ctlz.
+    llvm::Value* lz = B.CreateIntrinsic(i64Ty, llvm::Intrinsic::ctlz,
+        {B.CreateSub(need, K(1), "need.m1"), B.getFalse()});
+    llvm::Value* k = B.CreateSub(K(64), lz, "pow2.shift");
+    // حدُّ الإزاحة: ‎1 << 64‎ سُمٌّ في LLVM، وطلبٌ بهذا الحجم يسقط في فحص النفاد.
+    k = B.CreateSelect(B.CreateICmpUGT(k, K(MAX_SHIFT)), K(MAX_SHIFT), k, "pow2.shift.cl");
+    llvm::Value* bigCap = B.CreateShl(K(1), k, "big.cap");
+    llvm::Value* bigIdx = B.CreateAdd(K(SMALL_BINS - LARGE_SHIFT0), k, "big.idx");
+    return { B.CreateSelect(isSmall, need, bigCap, "cap"),
+             B.CreateSelect(isSmall, smallIdx, bigIdx, "bin.idx") };
+}
+} // namespace
+
 // ============================================================================
-// 1. malloc — Bump allocator
-//    4MB static heap, 16-byte aligned allocation
+// 1. malloc — (AR) صناديقُ حرٍّ مفصولة + نطٌّ عند خلوّها
+//            (EN) free-list reuse, falling back to a bump on the static heap
 //
-// (AR) عقد المخصّص الحرّ (موثَّق — كان دَينًا):
-//   - المحاذاة: المؤشّر المعاد محاذى دائمًا إلى 16 بايت (يكفي أيّ نوع
-//     أساسيّ بما فيه fxsave لا — ذاك يتطلّب 16 وهي مضمونة هنا).
-//   - الترويسة: قبل كلّ مؤشّر معاد بـ16 بايت تُخزَّن ترويسة تحمل حجم
-//     الطلب (i64 في أوّلها والبقيّة حشو محاذاة) — يقرؤها realloc لنسخ
-//     الأصغر (لا over-read). free لا-عمليّة، فالترويسة لا تُستردّ أبدًا.
-//   - الفشل: تجاوز الكومة (4MB) يعيد null — المستهلكون العلويّون
-//     (المصفوفات/الخرائط) يهلعون عبر مساراتهم.
-// (EN) Freestanding allocator contract: 16-byte aligned results; a 16-byte
-//     header immediately before each returned pointer stores the request
-//     size (i64 + padding) so realloc can copy min(old,new); free is a
-//     no-op; heap exhaustion returns null.
+// (AR) عقد المخصّص الحرّ (موثَّق):
+//   - المحاذاة: المؤشّر المعاد محاذى دائمًا إلى 16 بايت.
+//   - الترويسة: 16 بايتًا قبل المؤشّر المعاد:
+//       [hdr+0] i64 السعة (الطلب مُدوَّرًا لأعلى إلى مضاعف 16، وأدناها 16)
+//       [hdr+8] حقلٌ **ذو معنيين بحسب حال الكتلة** — ولا تعارضَ بينهما:
+//                 • والكتلةُ محرَّرة: ptr التالي في صندوق الحرّ.
+//                 • والكتلةُ حيّة:   عنوانُ العودة إلى **مُنادي ‎malloc‎**
+//                   (‎llvm.returnaddress(0)‎). بهذا يصير كلُّ بايتٍ في الكومة
+//                   منسوبًا إلى موضعِ تخصيصه، فمشيُ الكومة يسمّي التسريبَ
+//                   بموضعه بدل تخمينه. الكلفةُ خزنةٌ واحدةٌ لكلّ تخصيص، وقد
+//                   كلّف غيابُها في هذا المشروع جولتَي تخمينٍ خاطئتين.
+//     ‎realloc‎ يقرأ السعة لينسخ الأصغر (لا over-read؛ والسعة ≥ الطلب فالقراءة
+//     داخلَ الكتلة دائمًا).
+//   - ‎free‎ يدفع الكتلة إلى رأس **صندوق سعتها** — يُستردّ فعلًا.
+//   - ‎malloc‎ يسحب من رأس صندوق السعة مباشرةً: كتلُ الصندوق الواحد متساويةُ
+//     السعة، فالسحبُ **فهرسةٌ** O(1) بلا مشيٍ ولا فحصِ ملاءمةٍ ولا رفض.
+//     التصنيف: ≤1024 بمقاسه المضبوط (خطوة 16)، وما فوقه بقوّة الاثنين التالية
+//     (هدرٌ داخليٌّ أقصاه الضِّعف، وهي كتلٌ نادرة).
+//   - الفشل: نفادُ الكومة يعيد null.
+//
+// (AR) ⚠️ لماذا لا يكفي النطُّ وحده: ‎free‎ اللا-عمليّة تجعل القيدَ
+//      «مجموعُ كلّ التخصيصات عمرَ البرنامج ≤ سعة الكومة»، فتموت أيُّ واجهةٍ
+//      حيّةٍ تُعيد بناءَ شجرتها عند كلّ حدث. قِيس ذلك على sad-os: انهيارٌ بعد
+//      ≈16400 تخصيصٍ (‎bad_alloc‎) والنواةُ تمنح الذاكرةَ بلا شحّ.
+//
+// (AR) ⚠️ ولماذا لا تكفي قائمةٌ **واحدة**: قِيس ذلك على sad-os بقراءة
+//      ‎__sad_heap_offset‎ من ذاكرة الضيف عبر مرقاب QEMU أثناء نقعٍ بفتحٍ
+//      وإغلاقٍ متّصلين. ثلاثُ صيغٍ متتاليةٍ ونتائجُها:
+//        • نطٌّ و‎free‎ لا-عمليّة ........ موتٌ بـ‎bad_alloc‎ بعد ≈16400 تخصيص
+//        • قائمةٌ واحدةٌ ومشيٌ أوّلَ ملائمٍ بسقف 32 ... +84ك.ب/دورة (نسبةُ نموّ
+//          النصف الثاني إلى الأوّل 0.99 ⇒ لا استردادَ عمليًّا). ورأسُ القائمة
+//          كان غيرَ صفريّ ⇒ ‎free‎ تعمل، والخللُ في **معدّل المطابقة**: قائمةٌ
+//          بآلاف الكتل المتباينة تُستنفد فيها ميزانيّةُ المشي قبل بلوغ المقاس.
+//        • صناديقُ مقاسٍ للصغير وقائمةٌ للكبير ... +6.5ك.ب/دورة (13× تحسّنًا)
+//        • صناديقٌ للجميع (هذه) .......... انظر رقمَ النقع في سجلّ الإيداع
+//      الدرس: المطابقةُ يجب أن تكون **فهرسةً** لا بحثًا احتماليًّا.
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingMalloc(
     llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
 {
-    constexpr uint64_t HEAP_SIZE = 4 * 1024 * 1024; // 4MB
-    constexpr uint64_t HEADER_SIZE = 16; // (AR) ترويسة الحجم — تحفظ محاذاة 16
+    // (AR) 512م.ب في BSS — صفريّةٌ لا تُثقل الملفّ ولا زمنَ الإقلاع: النواةُ
+    //      تصفّر صفحاتِها **عند أوّل مسٍّ** لا عند التحميل، فالمقيمُ منها هو
+    //      المستعمَلُ فعلًا لا المعلَن.
+    //      ⚠️ هذا سقفٌ لا علاجٌ: كودُ ص لا يحرّر قيمَه بعد (لا مالكيّةَ ولا
+    //      كانِس)، فما دام التسريبُ قائمًا يحدّد حجمُ الكومة **عمرَ التشغيل**.
+    //      المقيسُ على قشرة sad-os: ‎≈0.9ك.ب لكلّ إعادة بناءٍ للشجرة‎ ⇒ هذه
+    //      السعةُ تكفي ‎≈560 ألفَ إعادةِ بناء‎. والسقفُ يتناسب طردًا مع الذاكرة.
+    constexpr uint64_t HEAP_SIZE = 512ULL * 1024 * 1024;
+    constexpr uint64_t HEADER_SIZE = 16; // (AR) [سعة i64][تالي ptr]
 
     // (AR) ⚠️ الوسائط/العائد بنوع ‎size_t‎ الهدف (i32 على 32-بت) ليطابق عقد C
     //      ومواقع الاستدعاء المولَّدة؛ الحساب الداخليّ يبقى i64.
@@ -753,80 +820,217 @@ void FreestandingCodeGen::emitFreestandingMalloc(
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "malloc", ft);
     if (!fn) return;
 
-    // (AR) إنشاء كومة ثابتة ومؤشر الموضع
-    // (EN) Create static heap and offset pointer
+    auto* ptrTyP = llvm::cast<llvm::PointerType>(ptrTy);
+    llvm::Constant* nullPtr = llvm::ConstantPointerNull::get(ptrTyP);
+
+    // (AR) الكومة الساكنة وموضعُ النطّ ورأسُ قائمة الحرّ
+    // (EN) Static heap, bump offset, and free-list head
+    // (AR) الربطُ **خارجيّ** للكومة ولموضع النطّ: بلا ذلك لا يراهما إلّا مرقابُ
+    //      QEMU من خارج الضيف، فيُقاس المجموعُ ولا تُمشى الكتلُ واحدةً واحدة.
+    //      وبالخارجيّ يستطيع وقتُ التشغيل نفسُه **مشيَ الكومة** فيحصي الكتلَ
+    //      الحيّة وينسبها إلى مواضع تخصيصها (انظر الترويسةَ أدناه).
     llvm::ArrayType* heapTy = llvm::ArrayType::get(i8Ty, HEAP_SIZE);
     auto* heap = new llvm::GlobalVariable(
         *cg_.module_, heapTy, false,
-        llvm::GlobalValue::InternalLinkage,
+        llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantAggregateZero::get(heapTy),
         "__sad_heap");
     heap->setAlignment(llvm::Align(16));
 
     auto* heapOff = new llvm::GlobalVariable(
         *cg_.module_, i64Ty, false,
-        llvm::GlobalValue::InternalLinkage,
+        llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantInt::get(i64Ty, 0),
         "__sad_heap_offset");
 
-    // Save/restore builder state
+    // (AR) عدّادا الاستدعاء: يُقرآن من خارج الضيف بمرقاب QEMU (كـ‎__sad_heap_offset‎).
+    //      غايتُهما فصلُ فرضيّتين لا يفصلهما نموُّ الحوض وحده:
+    //        • ‎malloc − free‎ ينمو خطّيًّا  ⇒ كتلٌ **لا تُحرَّر** (تسريبٌ حقيقيّ).
+    //        • ‎malloc − free‎ ثابتٌ والحوضُ ينمو ⇒ **تشظٍّ**: كلُّ الكتل تُحرَّر لكنّ
+    //          طلبًا لا يجد صندوقَ مقاسِه فينطّ من جديد (لا دمجَ ولا اقتسام).
+    //      الفرقُ حاسمٌ لأنّ علاجَيهما متضادّان: الأوّل يُصلَح فوق المخصِّص، والثاني
+    //      داخلَه. وبلا هذا الفصل يكون أيُّ إصلاحٍ تخمينًا — وقد كلّفني التخمينُ
+    //      استنتاجًا خاطئًا كاملًا في هذه المسألة نفسها.
+    //      الربطُ **خارجيّ** لا داخليّ: بالداخليّ لا يراهما إلّا مرقابُ QEMU من
+    //      خارج الضيف، فيُقاس المجموعُ ولا تُنسَب الكتلُ إلى طورها. وبالخارجيّ
+    //      يقرؤهما وقتُ التشغيل نفسُه فيُحاصَر الطورُ (بناءٌ أم رسم). الكلفةُ
+    //      تحميلٌ وجمعٌ وتخزينٌ لكلّ تخصيص — لا تُذكر أمام قيمة القياس.
+    llvm::GlobalVariable* mallocCount = cg_.module_->getNamedGlobal("__sad_malloc_count");
+    if (!mallocCount) {
+        mallocCount = new llvm::GlobalVariable(
+            *cg_.module_, i64Ty, false, llvm::GlobalValue::ExternalLinkage,
+            llvm::ConstantInt::get(i64Ty, 0), "__sad_malloc_count");
+    }
+
+    // (AR) صناديقُ الحرّ: 0..63 مقاساتٌ **مضبوطة** (16، 32، … 1024) والصندوق 64
+    //      لما فوق 1024. قد يكون ‎free‎ قد أنشأها — ترتيبُ الانبعاث غيرُ مضمون،
+    //      وإنشاءٌ ثانٍ يولّد ‎__sad_bins.1‎ فتنفصل الصناديقُ وتُفقَد كلُّ كتلة.
+    llvm::ArrayType* binsTy = llvm::ArrayType::get(ptrTy, BIN_COUNT);
+    llvm::GlobalVariable* bins = cg_.module_->getNamedGlobal("__sad_bins");
+    if (!bins) {
+        bins = new llvm::GlobalVariable(
+            *cg_.module_, binsTy, false,
+            llvm::GlobalValue::InternalLinkage,
+            llvm::ConstantAggregateZero::get(binsTy),
+            "__sad_bins");
+    }
+
     auto savedIP = cg_.builder_->saveIP();
-    
-    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
-    llvm::BasicBlock* oomBB = llvm::BasicBlock::Create(*cg_.context_, "oom", fn);
-    llvm::BasicBlock* okBB  = llvm::BasicBlock::Create(*cg_.context_, "ok", fn);
+    auto& B = *cg_.builder_;
 
-    cg_.builder_->SetInsertPoint(entry);
-    llvm::Value* size = cg_.builder_->CreateZExtOrTrunc(fn->getArg(0), i64Ty, "size.i64");
+    llvm::BasicBlock* entry  = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* popBB  = llvm::BasicBlock::Create(*cg_.context_, "bin.pop", fn);
+    llvm::BasicBlock* bumpBB = llvm::BasicBlock::Create(*cg_.context_, "bump", fn);
+    llvm::BasicBlock* oomBB  = llvm::BasicBlock::Create(*cg_.context_, "oom", fn);
+    llvm::BasicBlock* okBB   = llvm::BasicBlock::Create(*cg_.context_, "ok", fn);
 
-    // (AR) محاذاة إلى 16 بايت: aligned = (offset + 15) & ~15
-    // (EN) Align to 16 bytes
-    llvm::Value* offset = cg_.builder_->CreateLoad(i64Ty, heapOff, "offset");
-    llvm::Value* plus15 = cg_.builder_->CreateAdd(offset, llvm::ConstantInt::get(i64Ty, 15));
-    llvm::Value* aligned = cg_.builder_->CreateAnd(plus15, llvm::ConstantInt::get(i64Ty, ~15ULL), "aligned");
-    // (AR) الحجز = ترويسة الحجم (16) + الطلب — الترويسة تسبق المؤشّر المعاد
-    // (EN) Reserve header (16) + request; header precedes the returned pointer
-    llvm::Value* withHdr = cg_.builder_->CreateAdd(aligned,
+    llvm::Value* zero64 = llvm::ConstantInt::get(i64Ty, 0);
+
+    // ---- entry: السعةُ ورقمُ صندوقها ----------------------------------------
+    B.SetInsertPoint(entry);
+    B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, mallocCount, "mc"),
+                              llvm::ConstantInt::get(i64Ty, 1), "mc.inc"), mallocCount);
+    // (AR) عنوانُ العودة إلى المُنادي — يُخزَّن في ‎[hdr+8]‎ على مساري السحب
+    //      والنطّ كليهما. ‎malloc‎ هنا ‎noinline‎ فالمستوى 0 هو المُنادي حقًّا.
+    llvm::Function* raFn = llvm::Intrinsic::getDeclaration(
+        cg_.module_.get(), llvm::Intrinsic::returnaddress);
+    llvm::Value* retAddr = B.CreateCall(raFn, {B.getInt32(0)}, "ret.addr");
+    llvm::Value* size = B.CreateZExtOrTrunc(fn->getArg(0), i64Ty, "size.i64");
+    llvm::Value* rounded = B.CreateAnd(
+        B.CreateAdd(size, llvm::ConstantInt::get(i64Ty, 15)),
+        llvm::ConstantInt::get(i64Ty, ~15ULL), "cap.rounded");
+    // (AR) ‎malloc(0)‎ يجب أن يعيد مؤشّرًا فريدًا قابلًا للتحرير ⇒ أدنى سعة 16
+    llvm::Value* isZero = B.CreateICmpEQ(rounded, zero64, "cap.zero");
+    llvm::Value* need = B.CreateSelect(isZero, llvm::ConstantInt::get(i64Ty, 16), rounded, "need");
+    BinCalc bc = computeBin(B, i64Ty, need);
+    llvm::Value* cap = bc.cap;
+    llvm::Value* binPtr = B.CreateGEP(binsTy, bins, {zero64, bc.idx}, "bin.ptr");
+    llvm::Value* binHead = B.CreateLoad(ptrTy, binPtr, "bin.head");
+    B.CreateCondBr(B.CreateICmpEQ(binHead, nullPtr, "bin.empty"), bumpBB, popBB);
+
+    // ---- السحب: رأسُ الصندوق سعتُه **مساويةٌ** للمطلوب ⇒ O(1) بلا فحصٍ ------
+    B.SetInsertPoint(popBB);
+    llvm::Value* popNext = B.CreateLoad(ptrTy,
+        B.CreateGEP(i8Ty, binHead, llvm::ConstantInt::get(i64Ty, -8), "pop.next.slot"), "pop.next");
+    B.CreateStore(popNext, binPtr);
+    // (AR) إعادةُ كتابة السعة تمحو بتَّ «محرَّرة» فتعود الكتلةُ حيّةً
+    B.CreateStore(cap,
+        B.CreateGEP(i8Ty, binHead, llvm::ConstantInt::get(i64Ty, -16), "pop.hdr"));
+    // (AR) وحقلُ التالي — وقد فرغ دورُه — يصير عنوانَ المخصِّص الجديد.
+    B.CreateStore(retAddr,
+        B.CreateGEP(i8Ty, binHead, llvm::ConstantInt::get(i64Ty, -8), "pop.site"));
+    B.CreateRet(binHead);
+
+    // ---- النطّ: الصندوقُ خالٍ ⇒ اقتطاعٌ من الكومة ----------------------------
+    B.SetInsertPoint(bumpBB);
+    llvm::Value* offset = B.CreateLoad(i64Ty, heapOff, "offset");
+    llvm::Value* aligned = B.CreateAnd(
+        B.CreateAdd(offset, llvm::ConstantInt::get(i64Ty, 15)),
+        llvm::ConstantInt::get(i64Ty, ~15ULL), "aligned");
+    llvm::Value* withHdr = B.CreateAdd(aligned,
         llvm::ConstantInt::get(i64Ty, HEADER_SIZE), "with_hdr");
-    llvm::Value* newOff = cg_.builder_->CreateAdd(withHdr, size, "new_off");
+    llvm::Value* newOff = B.CreateAdd(withHdr, cap, "new_off");
+    B.CreateCondBr(B.CreateICmpUGT(newOff,
+        llvm::ConstantInt::get(i64Ty, HEAP_SIZE), "overflow"), oomBB, okBB);
 
-    // (AR) فحص تجاوز الكومة (بما يشمل الترويسة)
-    // (EN) Check heap overflow (header included)
-    llvm::Value* overflow = cg_.builder_->CreateICmpUGT(newOff,
-        llvm::ConstantInt::get(i64Ty, HEAP_SIZE), "overflow");
-    cg_.builder_->CreateCondBr(overflow, oomBB, okBB);
+    B.SetInsertPoint(oomBB);
+    B.CreateRet(nullPtr);
 
-    // OOM path — return null
-    cg_.builder_->SetInsertPoint(oomBB);
-    cg_.builder_->CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)));
-
-    // OK path
-    cg_.builder_->SetInsertPoint(okBB);
-    cg_.builder_->CreateStore(newOff, heapOff);
-    // (AR) كتابة حجم الطلب في الترويسة — يقرؤه realloc لنسخ الأصغر
-    // (EN) Store request size in the header — realloc reads it to copy min
-    llvm::Value* hdrPtr = cg_.builder_->CreateGEP(heapTy, heap,
+    B.SetInsertPoint(okBB);
+    B.CreateStore(newOff, heapOff);
+    // (AR) الترويسةُ تحمل **السعة المُدوَّرة** لا الطلبَ الخام: بها يحسب ‎free‎
+    //      الصندوقَ نفسَه الذي يحسبه ‎malloc‎، وبها ينسخ ‎realloc‎ min(cap,new)
+    //      وهو داخلَ الكتلة قطعًا.
+    llvm::Value* hdrPtr = B.CreateGEP(heapTy, heap,
         {llvm::ConstantInt::get(i64Ty, 0), aligned}, "hdr_ptr");
-    cg_.builder_->CreateStore(size, hdrPtr);
-    llvm::Value* ptr = cg_.builder_->CreateGEP(heapTy, heap,
-        {llvm::ConstantInt::get(i64Ty, 0), withHdr}, "heap_ptr");
-    cg_.builder_->CreateRet(ptr);
+    B.CreateStore(cap, hdrPtr);
+    B.CreateStore(retAddr, B.CreateGEP(i8Ty, hdrPtr,
+        llvm::ConstantInt::get(i64Ty, 8), "bump.site"));
+    B.CreateRet(B.CreateGEP(heapTy, heap,
+        {llvm::ConstantInt::get(i64Ty, 0), withHdr}, "heap_ptr"));
 
     cg_.builder_->restoreIP(savedIP);
 }
 
 // ============================================================================
-// 2. free — No-op (bump allocator doesn't free)
+// 2. free — (AR) دفعُ الكتلة إلى رأس **صندوق مقاسها** (LIFO، O(1))
+//
+// (AR) التحريرُ المزدوجُ محروس: بتُّ السعةِ الأدنى (السعةُ مضاعفُ 16 فالبتُّ
+//      حرّ) يُرفع عند التحرير ويُمحى عند إعادة الاستعمال، فالتحريرُ الثاني
+//      لا-عمليّة بدل حلقةٍ في القائمة تُعيد مؤشّرًا واحدًا لطلبين حيّين.
+//      ⚠️ يبقى غيرَ محروس: تحريرُ مؤشّرٍ لم يأتِ من ‎malloc‎ (يقرأ 16 بايتًا
+//      قبله كترويسة) — وهو سلوكٌ غيرُ معرَّفٍ في عقد C أصلًا.
 // ============================================================================
 void FreestandingCodeGen::emitFreestandingFree(llvm::Type* ptrTy, llvm::Type* voidTy) {
     llvm::FunctionType* ft = llvm::FunctionType::get(voidTy, {ptrTy}, false);
     llvm::Function* fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "free", ft);
     if (!fn) return;
 
+    // (AR) الصناديقُ أنشأها ‎malloc‎؛ إن لم توجد بعدُ نُنشئها بالمواصفات ذاتها
+    //      — ترتيبُ الانبعاث غيرُ مضمون، والتعريفان يجب أن يشيرا إلى الجسم نفسه.
+    auto* ptrTyP = llvm::cast<llvm::PointerType>(ptrTy);
+    llvm::ArrayType* binsTy = llvm::ArrayType::get(ptrTy, BIN_COUNT);
+    llvm::GlobalVariable* bins = cg_.module_->getNamedGlobal("__sad_bins");
+    if (!bins) {
+        bins = new llvm::GlobalVariable(
+            *cg_.module_, binsTy, false,
+            llvm::GlobalValue::InternalLinkage,
+            llvm::ConstantAggregateZero::get(binsTy),
+            "__sad_bins");
+    }
+
     auto savedIP = cg_.builder_->saveIP();
-    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
-    cg_.builder_->SetInsertPoint(entry);
-    cg_.builder_->CreateRetVoid();
+    auto& B = *cg_.builder_;
+    llvm::Type* i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+    llvm::Type* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+
+    llvm::BasicBlock* entry  = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+    llvm::BasicBlock* liveBB = llvm::BasicBlock::Create(*cg_.context_, "live", fn);
+    llvm::BasicBlock* pushBB = llvm::BasicBlock::Create(*cg_.context_, "push", fn);
+    llvm::BasicBlock* doneBB = llvm::BasicBlock::Create(*cg_.context_, "done", fn);
+
+    B.SetInsertPoint(entry);
+    llvm::Value* p = fn->getArg(0);
+    // (AR) ‎free(NULL)‎ لا-عمليّة — عقدُ C
+    B.CreateCondBr(B.CreateICmpEQ(p, llvm::ConstantPointerNull::get(ptrTyP), "is.null"),
+                   doneBB, liveBB);
+
+    // (AR) حارسُ التحرير المزدوج: بتُّ السعةِ الأدنى يعني «محرَّرةٌ سلفًا».
+    //      بدونه يصنع التحريرُ المزدوج حلقةً في القائمة فيُعاد المؤشّرُ نفسُه
+    //      لطلبين حيّين — إفسادٌ صامت. هنا يصير التحريرُ الثاني لا-عمليّة.
+    B.SetInsertPoint(liveBB);
+    llvm::Value* hdr = B.CreateGEP(i8Ty, p, llvm::ConstantInt::get(i64Ty, -16), "hdr");
+    llvm::Value* cap = B.CreateLoad(i64Ty, hdr, "cap.raw");
+    llvm::Value* alreadyFree = B.CreateICmpNE(
+        B.CreateAnd(cap, llvm::ConstantInt::get(i64Ty, 1)),
+        llvm::ConstantInt::get(i64Ty, 0), "already.free");
+    B.CreateCondBr(alreadyFree, doneBB, pushBB);
+
+    B.SetInsertPoint(pushBB);
+    // (AR) يُعدُّ **الدفعُ الفعليّ** لا كلُّ استدعاء: ‎free(NULL)‎ والتحريرُ المزدوج
+    //      لا يعيدان كتلةً، فعدُّهما يجعل الفرقَ ‎malloc − free‎ يكذب بالنقصان.
+    llvm::GlobalVariable* freeCount = cg_.module_->getNamedGlobal("__sad_free_count");
+    if (!freeCount) {
+        freeCount = new llvm::GlobalVariable(
+            *cg_.module_, i64Ty, false, llvm::GlobalValue::ExternalLinkage,
+            llvm::ConstantInt::get(i64Ty, 0), "__sad_free_count");
+    }
+    B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, freeCount, "fc"),
+                              llvm::ConstantInt::get(i64Ty, 1), "fc.inc"), freeCount);
+    B.CreateStore(B.CreateOr(cap, llvm::ConstantInt::get(i64Ty, 1)), hdr);
+    // (AR) صندوقُ الكتلة يُحسب بـ‎computeBin‎ عينِها التي يستعملها ‎malloc‎.
+    //      والسعةُ المخزَّنة **مُدوَّرةٌ سلفًا** (مضاعفُ 16، أو قوّةُ اثنين فوق
+    //      1024) فتدويرُها ثانيةً لا يغيّرها ⇒ الصندوقُ هو الصندوق.
+    llvm::Value* zero64 = llvm::ConstantInt::get(i64Ty, 0);
+    llvm::Value* binPtr = B.CreateGEP(binsTy, bins,
+        {zero64, computeBin(B, i64Ty, cap).idx}, "bin.ptr");
+    llvm::Value* slot = B.CreateGEP(i8Ty, p, llvm::ConstantInt::get(i64Ty, -8), "next.slot");
+    B.CreateStore(B.CreateLoad(ptrTy, binPtr, "old.head"), slot);
+    B.CreateStore(p, binPtr);
+    B.CreateBr(doneBB);
+
+    B.SetInsertPoint(doneBB);
+    B.CreateRetVoid();
     cg_.builder_->restoreIP(savedIP);
 }
 
@@ -1312,10 +1516,11 @@ void FreestandingCodeGen::emitFreestandingRealloc(llvm::Type* i64Ty, llvm::Type*
     cg_.builder_->CreateCondBr(skipCopy, done, notNull);
 
     cg_.builder_->SetInsertPoint(notNull);
-    // (AR) قراءة حجم الكتلة القديمة من ترويستها (تسبق المؤشّر بـ16 بايت —
+    // (AR) قراءة **سعة** الكتلة القديمة من ترويستها (تسبق المؤشّر بـ16 بايت —
     //      انظر عقد malloc أعلاه) والنسخ بالأصغر بين القديم والجديد.
     //      كان النسخ سابقًا بحجم الكتلة الجديدة ⇒ قراءة زائدة (over-read)
-    //      من ذيل الكتلة القديمة.
+    //      من ذيل الكتلة القديمة. والسعةُ ≥ الطلب فالقراءةُ داخلَ الكتلة،
+    //      والكتابةُ محدودةٌ بـ‎newSz‎ وهي ≤ سعةِ الكتلة الجديدة.
     // (EN) Read old block size from its header (16 bytes before the pointer)
     //      and copy min(old, new) — previously copied newSz (over-read).
     llvm::Type* i8Ty = llvm::Type::getInt8Ty(*cg_.context_);

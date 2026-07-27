@@ -1,0 +1,1 @@
+Assertion failed: castIsValid(op, S, Ty) && "Invalid cast!", file C:\llvm_dev\llvm-project\llvm\lib\IR\Instructions.cpp, line 3335

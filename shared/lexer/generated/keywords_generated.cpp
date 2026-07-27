@@ -103,7 +103,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "يضمن", TokenType::KEYWORD_ENSURES, KeywordCategory::CONTEXTUAL, false, {}, {}, "ensures" },
         { "عقد", TokenType::KEYWORD_CONTRACT, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "contract" },
         { "اختبر", TokenType::KEYWORD_TEST, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "test" },
-        // ─── builtin_types (9) ───
+        // ─── builtin_types (11) ───
         { "رقم", TokenType::TYPE_INTEGER, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "integer" },
         { "عشري", TokenType::TYPE_DOUBLE, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "double" },
         { "نص", TokenType::TYPE_STRING, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "string" },
@@ -113,6 +113,8 @@ const std::vector<KeywordEntry>& allEntries() {
         { "مصفوفة", TokenType::TYPE_ARRAY, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "array" },
         { "خريطة", TokenType::TYPE_MAP, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "map" },
         { "أي", TokenType::TYPE_ANY, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "any" },
+        { "طبيعي64", TokenType::TYPE_U64, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "uint64" },
+        { "بايت", TokenType::TYPE_U8, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "byte" },
     };
     return entries;
 }

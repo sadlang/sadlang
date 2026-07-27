@@ -143,6 +143,97 @@ struct SadAppImpl {
     }
 };
 
+#if defined(SAD_HEAP_TRACE)
+// (تشخيصٌ مشروط) عدّادا مخصِّص الوضع الحرّ — يولّدهما مسار LLVM برابطٍ خارجيّ.
+extern "C" long long __sad_malloc_count;
+extern "C" long long __sad_free_count;
+// (تشخيصٌ مشروط) الكومةُ نفسُها وموضعُ نطّها — برابطٍ خارجيّ كذلك، فيُمشى
+// عليها كتلةً كتلةً من داخل الضيف.
+extern "C" unsigned char __sad_heap[];
+extern "C" long long __sad_heap_offset;
+
+/* ── ماشي الكومة: يسمّي التسريبَ بموضعه بدل تخمينه ───────────────────────────
+ * الكومةُ الحرّة **متلاصقةٌ ومنتظمة**: ‎[سعة i64][موضع ptr]‎ ثمّ ‎سعة‎ بايتًا،
+ * والسعةُ مضاعفُ 16 دائمًا فبتُّها الأدنى يحمل علمَ «محرَّرة». إذن يكفي المشيُ
+ * من الصفر إلى ‎__sad_heap_offset‎ لتعداد كلّ كتلةٍ خُصِّصت عمرَ البرنامج، وحيَّةً
+ * كانت أم محرَّرة. والحقلُ الثاني في الحيّة هو **عنوانُ العودة إلى مُنادي
+ * ‎malloc‎** (يضعه المخصِّص المولَّد) — فالحصيلةُ نسبةُ كلّ بايتٍ محتبَسٍ إلى سطر
+ * تخصيصه، تُحلّ عناوينُها بـ‎addr2line‎.
+ *
+ * ⚠️ لا يخصّص هذا الماشي شيئًا (جداولُ ساكنةٌ ثابتةُ الحجم): تخصيصٌ أثناء القياس
+ *    يغيّر المقيس. ولهذا السببِ عينِه تُطبع الحصيلةُ بـ‎fprintf‎ لا بـ‎std::string‎.
+ * ⚠️ ويُقاس **الفرقُ بين لقطتين** لا اللقطةُ المطلقة: الكتلُ الحيّةُ الثابتةُ
+ *    (الخطّ، الحواجز، سجلّاتُ التهيئة) ليست تسريبًا، والتسريبُ هو ما **ينمو**.
+ */
+namespace {
+constexpr int SAD_TRACE_SITES = 512;
+struct SadSiteRow { unsigned long long site; long long blocks; long long bytes; };
+SadSiteRow g_traceNow[SAD_TRACE_SITES];
+SadSiteRow g_tracePrev[SAD_TRACE_SITES];
+int g_traceNowN = 0, g_tracePrevN = 0;
+
+void sadWalkHeap()
+{
+    g_traceNowN = 0;
+    const long long end = __sad_heap_offset;
+    long long pos = 0;
+    while (pos + 16 <= end)
+    {
+        const unsigned long long cap  = *reinterpret_cast<const unsigned long long*>(__sad_heap + pos);
+        const unsigned long long site = *reinterpret_cast<const unsigned long long*>(__sad_heap + pos + 8);
+        const unsigned long long span = cap & ~15ULL;
+        if (span == 0) break;                       // ترويسةٌ فاسدة ⇒ نقف بدل أن نهيم
+        if ((cap & 1ULL) == 0)                      // حيّة
+        {
+            int i = 0;
+            for (; i < g_traceNowN; ++i) if (g_traceNow[i].site == site) break;
+            if (i == g_traceNowN && g_traceNowN < SAD_TRACE_SITES)
+                g_traceNow[g_traceNowN++] = { site, 0, 0 };
+            if (i < SAD_TRACE_SITES) { g_traceNow[i].blocks += 1; g_traceNow[i].bytes += (long long)span; }
+        }
+        pos += 16 + (long long)span;
+    }
+}
+
+void sadReportHeapGrowth(long long دورات)
+{
+    sadWalkHeap();
+    long long كتلٌ = 0, بايتٌ = 0;
+    for (int i = 0; i < g_traceNowN; ++i) { كتلٌ += g_traceNow[i].blocks; بايتٌ += g_traceNow[i].bytes; }
+    // الحقيقةُ الأرضيّة: موضعُ النطّ نفسُه. مجموعُ الحيّ يقلّ عنه بما أُعيد
+    // استعمالُه من الصناديق، والفرقُ بينهما هو التشظّي — يُقرآن معًا أو يُضلّلان.
+    std::fprintf(stderr, "[حوض] بعد %lld إعادةَ بناء — نطٌّ=%lld ب · حيٌّ=%lld كتلة/%lld ب\n",
+                 دورات, __sad_heap_offset, كتلٌ, بايتٌ);
+    if (g_tracePrevN > 0)
+    {
+        std::fprintf(stderr, "[كومة] بعد %lld إعادةَ بناء — نموُّ الكتل الحيّة بحسب موضع التخصيص:\n", دورات);
+        // يُطبع **نموُّ البايتات** لا مجموعُها الحيّ: الحيُّ يخلط الثابتَ بالنامي
+        // فيضخّم النسبة، وقد ضلّلني ذلك حسابًا مرّةً في هذه المسألة نفسها.
+        long long نموٌّ_كلّيّ = 0;
+        for (int i = 0; i < g_traceNowN; ++i)
+        {
+            long long كتلٌ_قبل = 0, بايتٌ_قبل = 0;
+            for (int j = 0; j < g_tracePrevN; ++j)
+                if (g_tracePrev[j].site == g_traceNow[i].site)
+                { كتلٌ_قبل = g_tracePrev[j].blocks; بايتٌ_قبل = g_tracePrev[j].bytes; break; }
+            const long long نموُّ_الكتل  = g_traceNow[i].blocks - كتلٌ_قبل;
+            const long long نموُّ_البايت = g_traceNow[i].bytes  - بايتٌ_قبل;
+            if (نموُّ_البايت > 0)
+            {
+                نموٌّ_كلّيّ += نموُّ_البايت;
+                std::fprintf(stderr, "    موضع=0x%llx  +%lld كتلة  +%lld بايت\n",
+                             g_traceNow[i].site, نموُّ_الكتل, نموُّ_البايت);
+            }
+        }
+        std::fprintf(stderr, "    ── مجموعُ النموّ: %lld بايت في 10 إعادات = %lld ب/إعادة\n",
+                     نموٌّ_كلّيّ, نموٌّ_كلّيّ / 10);
+    }
+    for (int i = 0; i < g_traceNowN; ++i) g_tracePrev[i] = g_traceNow[i];
+    g_tracePrevN = g_traceNowN;
+}
+} // namespace
+#endif
+
 /* ── سجل العناصر المُنشأة لإدارة الذاكرة / Created widgets registry ── */
 static std::vector<std::unique_ptr<SadWidgetImpl>> g_widgets;
 static std::vector<std::unique_ptr<SadAppImpl>> g_apps;
@@ -1341,7 +1432,13 @@ void runNavRegisteredApp(bool withPeriodicTick) {
         {
             // (م1-ب) اختِم شجرةَ إعادة البناء بجيلٍ جديد كي نحصد سابقتها لاحقًا.
             const uint64_t builtGen = withPeriodicTick ? ++g_widgetGeneration : 0;
+#if defined(SAD_HEAP_TRACE)
+            const long long m0 = __sad_malloc_count, f0 = __sad_free_count;
+#endif
             auto* pimpl = toWidget(navStack.buildCurrent());
+#if defined(SAD_HEAP_TRACE)
+            const long long m1 = __sad_malloc_count, f1 = __sad_free_count;
+#endif
             if (pimpl && pimpl->irNode)
             {
                 fillRootDims(pimpl->irNode, ctx.width, ctx.height);
@@ -1360,6 +1457,29 @@ void runNavRegisteredApp(bool withPeriodicTick) {
                         reapWidgetGeneration(replaced);
                 }
             }
+#if defined(SAD_HEAP_TRACE)
+            // (تشخيصٌ مشروط، لا يُبنى في البوّابة) عدّادٌ لا مخصِّصٌ بديل: استبدالُ
+            // operator new أخفى العطبَ مرّتين سابقًا، أمّا قراءةُ حجم السجلّ وقيمةِ
+            // مؤشّر الكومة فلا تغيّران أيَّ مسار تخصيص. المطلوب فصلُ فرضيّتين:
+            // «السجلُّ ينمو» (الحصادُ لا يطال العناصر) مقابل «السجلُّ ثابتٌ والحوضُ
+            // ينمو» (الاحتباسُ خارج SadWidgetImpl — في شجرة IR أو ما دونها).
+            // (لا نقرأ __sad_heap_offset هنا: مسارُ LLVM الحرّ يُصدره رمزًا **محلّيًّا**
+            //  في BSS (`b` في nm) فلا يُربَط من وحدةٍ أخرى — والحوضُ يُقرأ أصلًا من
+            //  خارج الضيف عبر مرقاب QEMU، فيكفي هنا العدّادُ الذي لا سبيلَ إليه من هناك.)
+            // «حيّ» = كتلٌ خُصِّصت ولم تُحرَّر في هذا الطور. الطورُ الذي يتراكم
+            // حيُّه هو موضعُ الاحتباس؛ والآخرُ بريءٌ بالقياس لا بالظنّ.
+            const long long m2 = __sad_malloc_count, f2 = __sad_free_count;
+            std::fprintf(stderr,
+                "[نبض] عناصر=%zu عقد=%lld · بناء: خصّص=%lld حيّ=%lld · حصاد+رسم: خصّص=%lld حيّ=%lld\n",
+                g_widgets.size(), sad::ui::g_liveIRNodes,
+                m1 - m0, (m1 - m0) - (f1 - f0),
+                m2 - m1, (m2 - m1) - (f2 - f1));
+            // كلُّ 10 إعادات بناء: لقطةُ كومةٍ وفرقٌ عن سابقتها. الدوريّةُ تُبعد
+            // ضجيجَ الكتل الثابتة وتُظهر النموَّ المطّرد وحده. (النقرةُ الواحدة
+            // تُعيد البناءَ مرّةً وتستغرق ثوانيَ، فدوريّةٌ أكبر لا تُثمر تقريرًا.)
+            static long long دورات = 0;
+            if (++دورات % 10 == 0) sadReportHeapGrowth(دورات);
+#endif
         }
         return true;
     };

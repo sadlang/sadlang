@@ -1231,7 +1231,24 @@ namespace Sad
                           << " بنوع " << static_cast<int>(resultType) << std::endl;
 #endif
 
-                return BuildResult(resultReg, resultType);
+                BuildResult binResult(resultReg, resultType);
+                // (AR) دمجُ مصفوفتين يرث نوعَ العنصر من أيّ الطرفين عرفه.
+                //      بدونه: «م = []» ثمّ «م = م + [س]» تُنتج مصفوفةً نوعُ عنصرها
+                //      مجهول (Void)، فتُصنَّف الفهرسةُ التاليةُ عددًا (الافتراض في
+                //      buildExprIndex) ويُقرأ **مؤشّرُ النصّ عددًا** فيُطبع رقمًا
+                //      قمامةً بدل النصّ. الفارغةُ لا تعرف نوعَها والملحَقةُ تعرفه،
+                //      فالدمجُ هو الموضعُ الطبيعيّ لانتقال المعرفة.
+                // (EN) Array concat inherits the element type from whichever side
+                //      knows it; otherwise `a = []; a = a + [s]` yields Void element
+                //      type and the next index loads a string pointer as an integer.
+                if (opcode == SIROpcode::ARRAY_CONCAT)
+                {
+                    binResult.elementType =
+                        (leftResult.elementType != SadTypeKind::Void)
+                            ? leftResult.elementType
+                            : rightResult.elementType;
+                }
+                return binResult;
             }
 
             // ============================================================================

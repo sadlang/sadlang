@@ -43,7 +43,7 @@ types:
   - { id: type.float,   kind: Float,   word: عشري,   name_en: float,   category: primitive, surface: true,  token_type: TYPE_DOUBLE,  can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "عدد عشري (f64)", description_en: "64-bit float" }
   - { id: type.boolean, kind: Boolean, word: منطقي,  name_en: boolean, category: primitive, surface: true,  token_type: TYPE_BOOLEAN, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "قيمة منطقية (صحيح/خطأ)", description_en: "Boolean (true/false)" }
   - { id: type.string,  kind: String,  word: نص,     name_en: string,  category: primitive, surface: true,  token_type: TYPE_STRING,  can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "نص (UTF-8)", description_en: "UTF-8 string" }
-  - { id: type.byte,    kind: Byte,    word: بايت,   name_en: byte,    category: primitive, surface: false, since: "1.0.0", status: stable, description_ar: "بايت (i8)", description_en: "Byte (i8)" }
+  - { id: type.byte,    kind: Byte,    word: بايت,   name_en: byte,    category: primitive, surface: true,  token_type: TYPE_U8, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "بايت (u8، 0–255)", description_en: "Byte (u8, 0-255)" }
 
   # ─── بدائية بحجم محدد / Sized primitives (compiler) ───
   - { id: type.int8,    kind: Int8,    word: عدد8,   name_en: int8,    category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد صحيح 8-بت", description_en: "8-bit signed integer" }
@@ -53,7 +53,7 @@ types:
   - { id: type.uint8,   kind: UInt8,   word: طبيعي8, name_en: uint8,   category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 8-بت", description_en: "8-bit unsigned integer" }
   - { id: type.uint16,  kind: UInt16,  word: طبيعي16, name_en: uint16, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 16-بت", description_en: "16-bit unsigned integer" }
   - { id: type.uint32,  kind: UInt32,  word: طبيعي32, name_en: uint32, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 32-بت", description_en: "32-bit unsigned integer" }
-  - { id: type.uint64,  kind: UInt64,  word: طبيعي64, name_en: uint64, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 64-بت", description_en: "64-bit unsigned integer" }
+  - { id: type.uint64,  kind: UInt64,  word: طبيعي64, name_en: uint64, category: sized_primitive, surface: true,  token_type: TYPE_U64, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 64-بت", description_en: "64-bit unsigned integer" }
   - { id: type.float32, kind: Float32, word: عشري32, name_en: float32, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عشري 32-بت", description_en: "32-bit float" }
   - { id: type.float64, kind: Float64, word: عشري64, name_en: float64, category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "عشري 64-بت", description_en: "64-bit float" }
   - { id: type.char,    kind: Char,    word: حرف,    name_en: char,    category: sized_primitive, surface: false, since: "1.0.0", status: stable, description_ar: "حرف", description_en: "Character" }

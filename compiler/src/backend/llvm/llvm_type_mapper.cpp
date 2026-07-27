@@ -241,6 +241,11 @@ namespace Sad
                 // بايت (8-bit) / Byte (8-bit unsigned)
                 return llvm::Type::getInt8Ty(context_);
 
+            case Compiler::SIR::SadTypeKind::UInt64:
+                // طبيعي64 (64-bit) — الإشارة تُحمَل في العمليّة لا في نوع LLVM
+                // uint64 — signedness carried by the op, not the LLVM type
+                return getInt64Type();
+
             case Compiler::SIR::SadTypeKind::Error:
                 // خطأ — مؤشر لبنية الخطأ / Error — pointer to error struct
                 return getStringPtrType();

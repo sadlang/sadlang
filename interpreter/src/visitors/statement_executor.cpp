@@ -116,6 +116,18 @@ namespace Sad
                     // (AR) تحويل رقم صحيح → عشري / (EN) Convert integer → double
                     value = Data::Value(static_cast<double>(value.toInt64()));
                 }
+                else if (node.type == Types::SadTypeKind::Byte &&
+                         value.getKind() == Types::SadTypeKind::Integer)
+                {
+                    // (AR) بايت (u8): يُقتطع 0–255 عند إسناد التهيئة — يُطبَّق نظيرُه في
+                    //      المترجم (AND 0xFF في buildLocalVariable) حفظًا للتكافؤ.
+                    //      اقتطاعُ إعادة الإسناد والدلالةُ اللا-موقَّعة الكاملة (طبيعي64:
+                    //      udiv/ult/طباعة، حرفيّات >INT64_MAX) طبقةٌ تاليةٌ مؤجَّلة.
+                    // (EN) Byte (u8): truncate to 0-255 at init assignment — mirrored in the
+                    //      compiler (AND 0xFF in buildLocalVariable) to preserve parity.
+                    //      Reassignment truncation and full unsigned semantics are deferred.
+                    value = Data::Value(value.toInt64() & 0xFF);
+                }
 
                 // ═══════════════════════════════════════════════════════════
                 // (AR) التحقق من توافقية الأنواع عبر النظام الموحد

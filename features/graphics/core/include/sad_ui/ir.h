@@ -332,11 +332,21 @@ namespace sad
          * - تلميح العرض (RenderingHint) يوجه المولّد
          * - إشارات الحالة محددة بوضوح
          */
+#if defined(SAD_HEAP_TRACE)
+        /// (تشخيصٌ مشروط) عددُ عقد IR الحيّة — يُعرَّف في core/src/ir.cpp
+        extern long long g_liveIRNodes;
+#endif
+
         class IRNode : public std::enable_shared_from_this<IRNode>
         {
         public:
             /// إنشاء عقدة IR من نوع محدد
             explicit IRNode(UINodeType type);
+
+#if defined(SAD_HEAP_TRACE)
+            /// (تشخيصٌ مشروط) هادمٌ مصرَّحٌ به ليَعُدّ العقدَ الحيّة — انظر ir.cpp
+            ~IRNode();
+#endif
 
             /// إنشاء سريع — يعيد مؤشر ذكي
             static std::shared_ptr<IRNode> create(UINodeType type);

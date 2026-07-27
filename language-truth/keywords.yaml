@@ -205,3 +205,5 @@ categories:
       - { id: "KW-TYP-007", subcategory: "composite", since: "1.0.0", word: "مصفوفة",  tokenType: TYPE_ARRAY,   english: array }
       - { id: "KW-TYP-008", subcategory: "composite", since: "1.0.0", word: "خريطة",   tokenType: TYPE_MAP,     english: map }
       - { id: "KW-TYP-009", subcategory: "special", since: "1.0.0", word: "أي",      tokenType: TYPE_ANY,     english: any }
+      - { id: "KW-TYP-010", subcategory: "numeric", since: "1.0.0", word: "طبيعي64", tokenType: TYPE_U64,     english: uint64 }
+      - { id: "KW-TYP-011", subcategory: "numeric", since: "1.0.0", word: "بايت",    tokenType: TYPE_U8,      english: byte }

@@ -1717,6 +1717,10 @@ namespace Sad
                 return Types::SadTypeKind::Void;
             if (match(TT::TYPE_NULL))
                 return Types::SadTypeKind::Void;
+            if (match(TT::TYPE_U64))
+                return Types::SadTypeKind::UInt64;
+            if (match(TT::TYPE_U8))
+                return Types::SadTypeKind::Byte;
 
             if (match(TT::TYPE_ARRAY))
             {
@@ -1763,6 +1767,10 @@ namespace Sad
                     resolved = Types::SadTypeKind::Map;
                 else if (name == "أي")
                     resolved = Types::SadTypeKind::Class;
+                else if (name == "طبيعي64")
+                    resolved = Types::SadTypeKind::UInt64;
+                else if (name == "بايت")
+                    resolved = Types::SadTypeKind::Byte;
 
                 if (resolved != Types::SadTypeKind::Unknown)
                 {
@@ -1867,6 +1875,10 @@ namespace Sad
                 return reg.getVoid();
             if (match(TT::TYPE_NULL))
                 return reg.getVoid();
+            if (match(TT::TYPE_U64))
+                return reg.getUInt64();
+            if (match(TT::TYPE_U8))
+                return reg.getByte();
 
             if (match(TT::TYPE_ARRAY))
             {
@@ -1929,6 +1941,8 @@ namespace Sad
                     resolved = reg.getAny();
                 else if (name == "بايت")
                     resolved = reg.getByte();
+                else if (name == "طبيعي64")
+                    resolved = reg.getUInt64();
                 else if (name == "مصفوفة")
                 {
                     advance(); // consume the identifier
@@ -2000,7 +2014,8 @@ namespace Sad
             if (tokenType == TT::TYPE_INTEGER || tokenType == TT::TYPE_DOUBLE ||
                 tokenType == TT::TYPE_STRING || tokenType == TT::TYPE_BOOLEAN ||
                 tokenType == TT::TYPE_VOID || tokenType == TT::TYPE_NULL ||
-                tokenType == TT::TYPE_ARRAY || tokenType == TT::TYPE_MAP)
+                tokenType == TT::TYPE_ARRAY || tokenType == TT::TYPE_MAP ||
+                tokenType == TT::TYPE_U64 || tokenType == TT::TYPE_U8)
             {
                 return true;
             }
@@ -2014,7 +2029,8 @@ namespace Sad
                 const std::string &name = current_.getValue();
                 bool isTypeName = (name == "رقم" || name == "عشري" || name == "مضاعف" || name == "نص" ||
                                    name == "منطقي" || name == "فراغ" || name == "عدم" ||
-                                   name == "مصفوفة" || name == "خريطة" || name == "أي");
+                                   name == "مصفوفة" || name == "خريطة" || name == "أي" ||
+                                   name == "طبيعي64" || name == "بايت");
                 if (isTypeName)
                 {
                     // (AR) تحقق من أن الرمز التالي هو معرّف (اسم متغير/حقل) أو لاحقة
@@ -2187,6 +2203,10 @@ namespace Sad
                 return Types::SadTypeKind::Array;
             case TT::TYPE_MAP:
                 return Types::SadTypeKind::Map;
+            case TT::TYPE_U64:
+                return Types::SadTypeKind::UInt64;
+            case TT::TYPE_U8:
+                return Types::SadTypeKind::Byte;
             default:
                 return Types::SadTypeKind::Unknown;
             }

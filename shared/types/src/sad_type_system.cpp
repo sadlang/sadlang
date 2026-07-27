@@ -80,6 +80,10 @@ namespace Sad
                 return reg.getVoid();
             case VT::Integer:
                 return reg.getInteger();
+            case VT::Byte:
+                return reg.getByte();
+            case VT::UInt64:
+                return reg.getUInt64();
             case VT::Float:
                 return reg.getFloat();
             case VT::String:

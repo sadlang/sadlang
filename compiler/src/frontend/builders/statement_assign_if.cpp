@@ -489,6 +489,32 @@ namespace Sad
                         return;
                     }
 
+                    // (AR) اقتطاع البايت (u8): إسناد التهيئة يُقتطع 0–255 — نظيرٌ حرفيّ
+                    //      لاقتطاع المفسّر (`& 0xFF`) حفظًا لتكافؤ المسارَين. الثابت يُطوى
+                    //      هنا؛ السجلّ يُقنَّع بتعليمة AND. (الدلالة اللا-موقَّعة الكاملة
+                    //      واقتطاع إعادة الإسناد طبقةٌ تاليةٌ مؤجَّلة.)
+                    // (EN) Byte (u8) truncation: init assignment truncates to 0-255 — mirrors
+                    //      the interpreter's `& 0xFF` to keep both tracks in parity. Constants
+                    //      are folded here; registers are masked with an AND instruction.
+                    bool truncateByte = (varType == SadTypeKind::Byte);
+                    if (truncateByte && useConstant && initResult.type == SadTypeKind::Integer)
+                    {
+                        long long v = std::stoll(initResult.constantValue) & 0xFF;
+                        initResult.constantValue = std::to_string(v);
+                    }
+                    else if (truncateByte && !useConstant && !initResult.registerName.empty())
+                    {
+                        SIRInstruction andInst;
+                        andInst.opcode = SIROpcode::AND;
+                        std::string maskedReg = b_.newTempRegister();
+                        andInst.result = SIROperand::Register(maskedReg, SadTypeKind::Integer);
+                        andInst.operands.push_back(SIROperand::Register(initResult.registerName, initResult.type));
+                        andInst.operands.push_back(SIROperand::ConstantI64(0xFF));
+                        b_.currentBlock_->addInstruction(andInst);
+                        initResult.registerName = maskedReg;
+                        initResult.type = SadTypeKind::Integer;
+                    }
+
                     SIRInstruction storeInst;
                     storeInst.opcode = SIROpcode::STORE;
 

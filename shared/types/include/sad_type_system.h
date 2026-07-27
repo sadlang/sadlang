@@ -1262,6 +1262,7 @@ namespace Sad
             SadTypePtr getBoolean() const { return boolean_; }
             SadTypePtr getString() const { return string_; }
             SadTypePtr getByte() const { return byte_; }
+            SadTypePtr getUInt64() const { return uint64_; }
 
             // ─── أنواع خاصة مُخزَّنة مسبقاً / Pre-interned specials ───
             SadTypePtr getAny() const { return any_; }
@@ -1286,6 +1287,8 @@ namespace Sad
                     return string_;
                 case SadTypeKind::Byte:
                     return byte_;
+                case SadTypeKind::UInt64:
+                    return uint64_;
                 case SadTypeKind::Any:
                     return any_;
                 case SadTypeKind::Never:
@@ -1445,6 +1448,7 @@ namespace Sad
                 boolean_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Boolean);
                 string_ = std::make_shared<SadPrimitiveType>(SadTypeKind::String);
                 byte_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Byte);
+                uint64_ = std::make_shared<SadPrimitiveType>(SadTypeKind::UInt64);
                 any_ = std::make_shared<SadSpecialType>(SadTypeKind::Any);
                 never_ = std::make_shared<SadSpecialType>(SadTypeKind::Never);
                 unknown_ = std::make_shared<SadSpecialType>(SadTypeKind::Unknown);
@@ -1454,7 +1458,7 @@ namespace Sad
             SadTypeRegistry(const SadTypeRegistry &) = delete;
             SadTypeRegistry &operator=(const SadTypeRegistry &) = delete;
 
-            SadTypePtr void_, null_, integer_, float_, boolean_, string_, byte_;
+            SadTypePtr void_, null_, integer_, float_, boolean_, string_, byte_, uint64_;
             SadTypePtr any_, never_, unknown_, error_;
             mutable std::mutex mutex_;
             std::unordered_map<std::string, SadTypePtr> classTypes_;
@@ -1565,6 +1569,19 @@ namespace Sad
                 return true; // بايت → رقم
             if (src == SadTypeKind::Byte && dst == SadTypeKind::Float)
                 return true; // بايت → عشري
+            // (AR) رقم → بايت/طبيعي64: إسناد عدديّ للأنواع اللا-موقَّعة السطحيّة.
+            //      القيمة تبقى int64 على المحرّكين. اقتطاع البايت (0–255) عند التهيئة
+            //      مُنفَّذٌ على المسارين (المفسّر `& 0xFF`، المترجم AND 0xFF قبل STORE).
+            //      المؤجَّل حصرًا: اقتطاع إعادة الإسناد، ودلالة `طبيعي64` اللا-موقَّعة
+            //      الكاملة (udiv/ult، طباعة لا-موقَّعة، حرفيّات >INT64_MAX).
+            // (EN) integer → byte/uint64: numeric assignment to surface unsigned types.
+            //      Value stays int64 on both engines. Byte truncation (0-255) AT INIT is
+            //      implemented on both tracks (interpreter `& 0xFF`, compiler AND 0xFF before
+            //      STORE). Deferred only: reassignment truncation, and full `uint64` unsigned
+            //      semantics (udiv/ult, unsigned print, >INT64_MAX literals).
+            if (src == SadTypeKind::Integer &&
+                (dst == SadTypeKind::Byte || dst == SadTypeKind::UInt64))
+                return true;
             return false;
         }
 

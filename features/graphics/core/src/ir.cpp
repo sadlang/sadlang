@@ -24,10 +24,25 @@ namespace sad
         // تنفيذ IRNode
         // ═══════════════════════════════════════════════════════════════════════════════
 
+#if defined(SAD_HEAP_TRACE)
+        // (تشخيصٌ مشروط) عدّادُ عقد IR الحيّة. سجلُّ العناصر (g_widgets) يستوي
+        // بعد الحصاد، والحوضُ مع ذلك ينمو ⇒ السؤال: أتموت شجرةُ IR مع عناصرها؟
+        // ‎parent_‎ ضعيفٌ فلا دورةَ مراجعَ ظاهرة، لكنّ الغيابَ عن التصميم ليس
+        // برهانًا على الغياب عن التنفيذ — فيُقاس.
+        long long g_liveIRNodes = 0;
+#endif
+
         IRNode::IRNode(UINodeType type)
             : type_(type)
         {
+#if defined(SAD_HEAP_TRACE)
+            ++g_liveIRNodes;
+#endif
         }
+
+#if defined(SAD_HEAP_TRACE)
+        IRNode::~IRNode() { --g_liveIRNodes; }
+#endif
 
         std::shared_ptr<IRNode> IRNode::create(UINodeType type)
         {

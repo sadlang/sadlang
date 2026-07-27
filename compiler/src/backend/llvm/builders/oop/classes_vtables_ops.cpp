@@ -533,7 +533,9 @@ namespace Sad
                     static const std::set<std::string> kReservedRt = {
                         "memset", "memcpy", "memmove", "memcmp", "strlen",
                         "malloc", "free", "realloc",
-                        "__sad_heap", "__sad_heap_offset", "__sad_main",
+                        "__sad_heap", "__sad_heap_offset", "__sad_bins",
+                        "__sad_malloc_count", "__sad_free_count",
+                        "__sad_main",
                         "__divdi3", "__udivdi3", "__moddi3", "__umoddi3",
                         "__stack_chk_fail"};
                     static const std::set<std::string> kHostedOnlyReserved = {
