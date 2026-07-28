@@ -93,6 +93,21 @@ namespace Sad
             case SadTypeKind::Integer:
                 returnType = cg_.getInt64Type();
                 break;
+            // (AR) [طبقة طبيعي64] النوعان السطحيّان UInt64/Byte يُخزَّنان int64 زمن التشغيل
+            //      (Option B: لا وسم قيمة)، فتوقيع الإرجاع i64 كـInteger تمامًا — يطابق
+            //      مسار المعاملات (baseParamType: default→i64). بدونهما يقعان في
+            //      default→void فتُعرَّف الدالّة void بينما موقع النداء يتوقّع i64 ⇒ سجلّ
+            //      غير معرَّف ⇒ خردة (UINT64_MAX/‎-1) وانفراج تكافؤ مع المفسّر.
+            // (EN) [طبيعي64 layer] UInt64/Byte are surface types stored as int64 at runtime
+            //      (Option B: no value tag), so the return signature is i64 exactly like
+            //      Integer — mirroring the param path (baseParamType: default→i64). Without
+            //      them they fall to default→void, defining the function void while the call
+            //      site expects i64 ⇒ undefined register ⇒ garbage (UINT64_MAX/-1) and a
+            //      parity divergence with the interpreter.
+            case SadTypeKind::UInt64:
+            case SadTypeKind::Byte:
+                returnType = cg_.getInt64Type();
+                break;
             case SadTypeKind::Float:
                 returnType = cg_.getDoubleType();
                 break;

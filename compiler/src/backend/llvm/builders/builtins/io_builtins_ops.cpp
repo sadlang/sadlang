@@ -591,6 +591,31 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 
                         cg_.builder_->SetInsertPoint(mergeBB);
                     }
+                    else if (op.dataType == SadTypeKind::UInt64 ||
+                             op.dataType == SadTypeKind::Byte)
+                    {
+                        // ════════════════════════════════════════════════════════════
+                        // (AR) [إصلاح تصادم kSadNullSentinel] طبيعي64/بايت **لا يكونان نوعَ
+                        //      العدم أبدًا** (العدمُ يُخزَّن ثابتَ i64 نوعُه Integer)، فلا نطبّق
+                        //      فحص حارس العدم عليهما: الحارس قيمةٌ i64 بعينها (INT64_MIN+1 =
+                        //      2^63+1 لا-موقَّعًا) وطبيعي64 شرعيّ قد يساويها ⇒ كان يُطبع «لاشيء»
+                        //      بدل الرقم. نطبع مباشرةً (%llu لطبيعي64، %lld لبايت) مطابقةً للمفسّر.
+                        //      Integer **مُستثنى** من هذا التخطّي: يتصادم جوهريًّا مع العدم
+                        //      (كلاهما Integer) فلا يُميَّز — دَينُ تمثيل عدمٍ خارج النطاق.
+                        // (EN) [kSadNullSentinel collision fix] طبيعي64/Byte are NEVER the null
+                        //      type (null is stored as an Integer-typed i64 constant), so the null
+                        //      sentinel check is not applied to them: the sentinel is one specific
+                        //      i64 value (INT64_MIN+1 = 2^63+1 unsigned) a legitimate طبيعي64 can
+                        //      equal ⇒ it used to print «لاشيء» instead of the number. Print
+                        //      directly (%llu for طبيعي64, %lld for Byte), matching the interpreter.
+                        //      Integer is EXCLUDED from this skip: it collides intrinsically with
+                        //      null (both Integer) and can't be distinguished — an out-of-band-null
+                        //      representation debt.
+                        // ════════════════════════════════════════════════════════════
+                        llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr(
+                            (op.dataType == SadTypeKind::UInt64) ? "%llu" : "%lld", "fmt.dnn");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, v});
+                    }
                     else
                     {
                         // (AR) طباعة قيمة null-sentinel كنص "لاشيء" بدلاً من الرقم الخام.
@@ -614,7 +639,14 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         cg_.builder_->CreateBr(mergeBB);
 
                         cg_.builder_->SetInsertPoint(numBB);
-                        llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%lld", "fmt.d");
+                        // (AR) [طبقة طبيعي64 — الخطوة ٤] طبع مباشر لا-موقَّع: نمط بتّات
+                        //      طبيعي64 يُنسَّق %llu (يُطابق المفسّر renderUnsignedArgs ومسار
+                        //      نص() في emitI64ToString). Byte [0،255] فطباعته الموقَّعة صحيحة.
+                        // (EN) [طبيعي64 layer — Step 4] Unsigned direct print: طبيعي64's bit
+                        //      pattern formats %llu (mirrors the interpreter renderUnsignedArgs
+                        //      and the نص() path in emitI64ToString). Byte [0,255] prints fine signed.
+                        llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr(
+                            (op.dataType == SadTypeKind::UInt64) ? "%llu" : "%lld", "fmt.d");
                         cg_.builder_->CreateCall(printfFunc, {fmt, v});
                         cg_.builder_->CreateBr(mergeBB);
 

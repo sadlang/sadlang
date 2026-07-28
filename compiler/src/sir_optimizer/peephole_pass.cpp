@@ -140,6 +140,25 @@ namespace Sad
                         op.dataType == SIR::SadTypeKind::Unknown)
                         return false;
 
+                // (AR) [عيب الهويّة الـP0 — أُصلح جذره] كلّ اختزالات الهويّة أدناه تستبدل
+                //      التعليمة بـ`%نتيجة = MOVE %معامل` عبر replaceWithOperand، مُمرِّرةً
+                //      `left`/`right` وهما مرجعان إلى `inst.operands[0/1]` نفسِه. كان
+                //      replaceWithOperand يفعل `clear()` ثمّ `push_back` بذلك المرجع ⇒ مرجعٌ
+                //      معلَّق (اسم فارغ) ⇒ MOVE بمصدرٍ فارغ ⇒ 0 لكلّ الأنواع (`x+0`/`x*1`…).
+                //      أُصلح الجذر بنسخ المعامل محلّيًّا قبل clear في replaceWithOperand،
+                //      فصار الاختزال آمنًا وأُعيد تفعيله. حارس السجلّ الفارغ باقٍ احتياطًا.
+                //      [[uint64-unsigned-semantics-campaign]]
+                // (EN) [P0 identity defect — root-fixed] Every identity below rewrites to
+                //      `%result = MOVE %operand` via replaceWithOperand, passing `left`/`right`
+                //      which are references INTO inst.operands[0/1] itself. replaceWithOperand
+                //      used to clear() then push_back that reference ⇒ a dangling reference
+                //      (empty name) ⇒ a MOVE with an empty source ⇒ 0 for all types
+                //      (`x+0`/`x*1`…). Root-fixed by copying the operand locally before clear()
+                //      in replaceWithOperand, so the fold is safe and re-enabled.
+                for (const auto &op : inst.operands)
+                    if (op.type == SIR::SIROperandType::REGISTER && op.name.empty())
+                        return false;
+
                 const auto &left = inst.operands[0];
                 const auto &right = inst.operands[1];
 
@@ -446,10 +465,27 @@ namespace Sad
 
             void PeepholePass::replaceWithOperand(SIR::SIRInstruction &inst, const SIR::SIROperand &op)
             {
-                // (AR) حوّل التعليمة إلى MOVE بسيط: %result = MOVE operand
+                // (AR) [إصلاح جذر عيب الهويّة الـP0] **انسخ المعامل قبل clear**. المُستدعون
+                //      (tryIdentitySimplification) يمرّرون `op` مرجعًا إلى `inst.operands[0/1]`
+                //      نفسِه؛ فـ`inst.operands.clear()` يُدمّر ذلك العنصر ويُبطل `op` ⇒
+                //      `push_back(op)` ينسخ مرجعًا معلَّقًا (اسم فارغ، نوع 0) ⇒ MOVE بمصدرٍ
+                //      فارغ ⇒ emitMove يفبرك قيمةً/alloca ⇒ 0 لكلّ الأنواع (`x+0`/`x*1`…).
+                //      النسخُ المحلّيّ يفكّ التعليق. (replaceWithZero يسلم لأنّه يدفع ثابتًا
+                //      جديدًا؛ وdouble-neg/redundant-cast يسلمان لأنّ معاملهما من تعليمةٍ
+                //      أخرى لا inst نفسه.) [[uint64-unsigned-semantics-campaign]]
+                // (EN) [P0 identity root fix] **Copy the operand before clear()**. Callers
+                //      (tryIdentitySimplification) pass `op` as a reference INTO inst's own
+                //      inst.operands[0/1]; inst.operands.clear() destroys that element and
+                //      dangles `op`, so push_back(op) copies a dangling reference (empty name,
+                //      type 0) ⇒ a MOVE with an empty source ⇒ emitMove fabricates a value ⇒ 0
+                //      for every type (`x+0`/`x*1`…). A local copy breaks the aliasing.
+                //      (replaceWithZero is safe — it pushes a fresh constant; double-neg and
+                //      redundant-cast are safe — their operand comes from another instruction,
+                //      not inst itself.)
+                const SIR::SIROperand opCopy = op;
                 inst.opcode = SIR::SIROpcode::MOVE;
                 inst.operands.clear();
-                inst.operands.push_back(op);
+                inst.operands.push_back(opCopy);
             }
 
             void PeepholePass::replaceWithZero(SIR::SIRInstruction &inst)

@@ -559,13 +559,15 @@ namespace Sad
              * @brief (AR) تنفيذ عملية ثنائية حسابية
              * @brief (EN) Execute arithmetic binary operation
              */
-            Data::Value evaluateArithmeticOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos);
+            // (AR) wrapU64: [الخطوة ٦] النوع السطحيّ طبيعي64 ⇒ + − × تلتفّ i64 (كالمترجم) بدل ترقية الطفح إلى double.
+            // (EN) wrapU64: [Step 6] طبيعي64 surface type ⇒ + − × wrap i64 (like the compiler) instead of promoting overflow to double.
+            Data::Value evaluateArithmeticOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos, bool wrapU64 = false);
 
             /**
              * @brief (AR) تنفيذ عملية مقارنة
              * @brief (EN) Execute comparison operation
              */
-            Data::Value evaluateComparisonOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos);
+            Data::Value evaluateComparisonOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos, bool unsignedOrdering = false);
 
             /**
              * @brief (AR) تنفيذ عملية منطقية
@@ -578,6 +580,26 @@ namespace Sad
              * @brief (EN) Execute bitwise operations: ^ | & << >>
              */
             Data::Value evaluateBitwiseOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos);
+
+            /**
+             * @brief (AR) استنتاج النوع الساكن لتعبير (لا-قيميّ) — مرآة انتشار SIR
+             * @brief (EN) Resolve an expression's static type (non-value) — mirrors SIR propagation
+             *
+             * (AR) [طبقة طبيعي64 — الخطوة ٢] دالّة نقيّة تُرآي `astTypeToSIRType` وقواعد
+             *      انتشار المترجم (`expression_binary_op.cpp`) دون وسم القيمة وقت التشغيل
+             *      (Option B): متغيّر → النوع المُصرَّح من البيئة (الخطوة ١)؛ حرفيّ → نوع
+             *      رمزه (الصحيح موقَّع افتراضًا — اللا-موقَّعيّة تأتي من نوع الهدف)؛ ثنائيّ →
+             *      هيمنة (UInt64 ثمّ Byte ثمّ Float ثمّ Integer). تُستهلَك عند مواقع
+             *      الطباعة/المقارنة/الحساب لانتقاء النكهة اللا-موقَّعة. الافتراض Integer.
+             * (EN) [طبيعي64 layer — Step 2] Pure function mirroring `astTypeToSIRType` and the
+             *      compiler's propagation (`expression_binary_op.cpp`) without a runtime value
+             *      tag (Option B): variable → declared type from the env (Step 1); literal →
+             *      its token kind (integers signed by default — unsigned-ness comes from the
+             *      target type); binary → dominance (UInt64, then Byte, then Float, then
+             *      Integer). Consumed at print/compare/arith sites to pick the unsigned
+             *      flavor. Neutral default Integer.
+             */
+            Types::SadTypeKind resolveStaticType(const AST::Expression *expr) const;
 
             /**
              * @brief (AR) تنفيذ عامل محمل زائداً على كائن

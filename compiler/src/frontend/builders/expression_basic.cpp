@@ -84,6 +84,40 @@ namespace Sad
                             result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 2)));
                         }
                     }
+                    else
+                    {
+                        // (AR) عشريّ: طبِّع حرفيّات طبيعي64 فوق INT64_MAX إلى نصّ نمط
+                        //      البتّات كـi64 (مثل مسار السِّتّ-عشريّ 0xFFFF…FFFF → "-1")،
+                        //      كي يقرأها كلّ مستهلِكي std::stoll(constantValue) اللاحقين
+                        //      (المخزَن، وسائط النداء…) بلا رمي out_of_range. اللا-موقَّعيّة
+                        //      تُتعقَّب عبر النوع المُصرَّح لا عبر نصّ الحرفيّ.
+                        // (EN) Decimal: normalize طبيعي64 literals above INT64_MAX to the
+                        //      i64 bit-pattern string (like the hex path 0xFFFF…FFFF → "-1")
+                        //      so every downstream std::stoll(constantValue) consumer (store,
+                        //      call args…) parses without out_of_range. Unsigned-ness is
+                        //      tracked via the declared type, not the literal string.
+                        try
+                        {
+                            (void)std::stoll(value);
+                        }
+                        catch (const std::out_of_range &)
+                        {
+                            try
+                            {
+                                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value)));
+                            }
+                            catch (const std::exception &)
+                            {
+                                // (AR) فوق UINT64_MAX أيضًا — يبقى النصّ الأصليّ ليُبلَّغ خطأً.
+                                // (EN) Above UINT64_MAX too — keep the original string to be reported.
+                            }
+                        }
+                        catch (const std::exception &)
+                        {
+                            // (AR) صيغة غير صالحة — يُترَك للمعالجة اللاحقة.
+                            // (EN) Malformed — left for downstream handling.
+                        }
+                    }
                 }
                 else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE)
                 {

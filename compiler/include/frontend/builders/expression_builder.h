@@ -81,6 +81,19 @@ namespace Sad
 
                 BuildResult buildBinaryOp(Sad::AST::BinaryExpr *binOp);
 
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] مُحلِّل نوع سطحيّ **ضحل** يُطابق حرفيًّا
+                //      resolveStaticType بالمفسّر: متغيّر→نوعه المُصرَّح صراحةً، حرفيّ→رمزه،
+                //      نداء→نوع إرجاع الدالّة المُصرَّح صراحةً (astDecl)، ثنائيّ→هيمنة
+                //      Float>UInt64>Byte>Integer. لا يستنتج عبر الإسناد/الجسم (بخلاف انتشار
+                //      SIR العميق) كي يقرّر المساران إشارةَ المقارنة من نفس المعلومة تمامًا.
+                // (EN) [طبيعي64 layer — Step 5] A SHALLOW surface-type resolver that literally
+                //      mirrors the interpreter's resolveStaticType: variable→its explicitly-declared
+                //      type, literal→its token, call→the callee's explicitly-declared return type
+                //      (astDecl), binary→Float>UInt64>Byte>Integer dominance. It does NOT infer
+                //      through assignment/body (unlike deep SIR propagation) so both tracks decide
+                //      comparison signedness from exactly the same information.
+                Sad::Types::SadTypeKind resolveSurfaceType(const Sad::AST::Expression *expr);
+
                 BuildResult buildExprArray(Sad::AST::ArrayExpr *expr);
 
                 BuildResult buildExprTuple(Sad::AST::TupleExpr *expr);

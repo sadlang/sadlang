@@ -522,9 +522,27 @@ namespace Sad
                     valuePtrs.push_back(std::make_shared<Data::Value>(arg));
                 }
 
+                // (AR) [طبقة طبيعي64 — الخطوة ٤] أنواع الوسائط الساكنة لانتقاء التنسيق
+                //      اللا-موقَّع في مدمجات الطباعة/التحويل. نحسبها من شجرات node.arguments
+                //      فقط عند محاذاة العدد للقيم (نداء موضعيّ بلا إعادة ترتيب/وسائط مسمّاة)
+                //      — وإلا نمرّر null (افتراض موقَّع، لا مخاطرة اختلال محاذاة).
+                // (EN) [طبيعي64 layer — Step 4] Static arg types for unsigned-format selection in
+                //      print/convert built-ins. Computed from node.arguments only when the count
+                //      aligns with the values (positional call, no reorder/named args) — else pass
+                //      null (signed default, no misalignment risk).
+                std::vector<Types::SadTypeKind> argTypes;
+                const std::vector<Types::SadTypeKind> *argTypesPtr = nullptr;
+                if (node.arguments.size() == valuePtrs.size())
+                {
+                    argTypes.reserve(node.arguments.size());
+                    for (const auto &argExpr : node.arguments)
+                        argTypes.push_back(resolveStaticType(argExpr.get()));
+                    argTypesPtr = &argTypes;
+                }
+
                 // (AR) استدعاء التنفيذ الأصلي / (EN) Call native implementation
                 // (AR) EM-CPP: تمرير موقع الاستدعاء ليرندر ctx.error من الكتالوج بموقع صحيح.
-                auto resultPtr = func->callNative(valuePtrs, node.position);
+                auto resultPtr = func->callNative(valuePtrs, node.position, argTypesPtr);
 
                 if (resultPtr)
                 {

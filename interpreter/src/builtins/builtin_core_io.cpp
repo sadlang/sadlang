@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 namespace Bn = Sad::Builtins::Names;
 
@@ -39,6 +40,38 @@ namespace Sad
 
         using namespace StdLib;
 
+        // (AR) [طبقة طبيعي64 — الخطوة ٤] يُنتج نسخة من وسائط الطباعة/التحويل مع تصيير قيم
+        //      طبيعي64 (UInt64) الصحيحة كنصّ عشريّ لا-موقَّع (نمط بتّاتها int64 مُعاد تفسيره
+        //      uint64). Byte دائمًا موجب [0،255] فطباعته الموقَّعة صحيحة أصلًا. سائر الوسائط
+        //      تُمرَّر كما هي (نفس المؤشّر). النوع الساكن من ctx.argType (resolveStaticType
+        //      عند موقع النداء). يُطابق نظيرَه في المترجم (%llu في I64_TO_STRING).
+        // (EN) [طبيعي64 layer — Step 4] Produce a copy of print/convert args with طبيعي64
+        //      (UInt64) integer values rendered as unsigned decimal (int64 bits reinterpreted as
+        //      uint64). Byte is always in [0,255] so its signed print is already correct. Other
+        //      args pass through (same pointer). Static type from ctx.argType (resolveStaticType
+        //      at the call site). Mirrors the compiler (%llu in I64_TO_STRING).
+        static std::vector<std::shared_ptr<Data::Value>>
+        renderUnsignedArgs(const Sad::Interpreter::BuiltinContext &ctx)
+        {
+            const auto &args = ctx.args();
+            std::vector<std::shared_ptr<Data::Value>> out;
+            out.reserve(args.size());
+            for (std::size_t i = 0; i < args.size(); ++i)
+            {
+                const auto &a = args[i];
+                if (a && ctx.argType(i) == Sad::Types::SadTypeKind::UInt64 && a->isInteger())
+                {
+                    const uint64_t u = static_cast<uint64_t>(a->toInt64());
+                    out.push_back(std::make_shared<Data::Value>(std::to_string(u)));
+                }
+                else
+                {
+                    out.push_back(a);
+                }
+            }
+            return out;
+        }
+
         void registerCoreIOBuiltins(Interpreter &interpreter)
         {
             // ═════════════════════════════════════════════════════════════════
@@ -47,8 +80,7 @@ namespace Sad
 
             auto print_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
-                const auto &args = ctx.args(); (void)args;
-                return BuiltinFunctions::print(args);
+                return BuiltinFunctions::print(renderUnsignedArgs(ctx));
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::PRINT), print_func);
@@ -56,8 +88,7 @@ namespace Sad
             // (EN) println — print value with newline
             auto println_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
-                const auto &args = ctx.args(); (void)args;
-                return BuiltinFunctions::println(args);
+                return BuiltinFunctions::println(renderUnsignedArgs(ctx));
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::PRINTLN), println_func);
@@ -133,8 +164,7 @@ namespace Sad
             // نص / str / to_string
             auto to_string_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
-                const auto &args = ctx.args(); (void)args;
-                return BuiltinFunctions::to_string(args);
+                return BuiltinFunctions::to_string(renderUnsignedArgs(ctx));
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::TypeCtor::TO_STRING), to_string_func);

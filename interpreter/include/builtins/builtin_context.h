@@ -41,14 +41,30 @@ namespace Sad
 
             BuiltinContext(const std::vector<ValuePtr> &args,
                            const Sad::Lexer::Position &pos,
-                           std::string_view name) noexcept
-                : args_(args), pos_(pos), name_(name) {}
+                           std::string_view name,
+                           const std::vector<Types::SadTypeKind> *argTypes = nullptr) noexcept
+                : args_(args), pos_(pos), name_(name), argTypes_(argTypes) {}
 
             // ─── الوسائط / Arguments ───
             const std::vector<ValuePtr> &args() const noexcept { return args_; }
             std::size_t argCount() const noexcept { return args_.size(); }
             /// (AR) وصول محمي بالحدود (CW-17) / (EN) bounds-checked access.
             const ValuePtr &arg(std::size_t i) const { return args_.at(i); }
+
+            // ─── النوع السطحيّ الساكن للوسيط / Static surface type of an argument ───
+            /**
+             * @brief (AR) [طبقة طبيعي64 — الخطوة ٤] النوع الساكن للوسيط i (من resolveStaticType
+             *        عند موقع النداء) — تستهلكه مدمجات الطباعة/التحويل لانتقاء تنسيق لا-موقَّع.
+             *        الافتراض Integer إن لم يُمرَّر (يُبقي التنسيق الموقَّع القائم).
+             * @brief (EN) [طبيعي64 layer — Step 4] Static type of argument i (from resolveStaticType
+             *        at the call site) — consumed by print/convert built-ins to pick unsigned
+             *        formatting. Defaults to Integer if not provided (keeps existing signed formatting).
+             */
+            Types::SadTypeKind argType(std::size_t i) const noexcept
+            {
+                return (argTypes_ && i < argTypes_->size()) ? (*argTypes_)[i]
+                                                            : Types::SadTypeKind::Integer;
+            }
 
             // ─── الموقع / Position ───
             const Sad::Lexer::Position &position() const noexcept { return pos_; }
@@ -67,6 +83,11 @@ namespace Sad
             const std::vector<ValuePtr> &args_;
             Sad::Lexer::Position         pos_;
             std::string_view             name_;
+            // (AR) أنواع الوسائط الساكنة (اختياريّ؛ null ⇒ افتراض موقَّع). يُملأ عند موقع
+            //      النداء ويعيش حتّى نهاية callNative المتزامنة (مؤشّر لمتّجه محلّيّ هناك).
+            // (EN) Optional static arg types (null ⇒ signed default). Filled at the call site,
+            //      outlives the synchronous callNative (points to a local vector there).
+            const std::vector<Types::SadTypeKind> *argTypes_ = nullptr;
         };
 
     } // namespace Interpreter

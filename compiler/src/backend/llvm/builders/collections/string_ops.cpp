@@ -471,7 +471,25 @@ static llvm::Function *getOrCreateSplitHelper(
                 {
                     auto *i64Ty_s = llvm::Type::getInt64Ty(*cg_.context_);
                     auto *sentinelVal = llvm::ConstantInt::get(i64Ty_s, Sad::Compiler::kSadNullSentinel);
-                    auto *isSentinel = cg_.builder_->CreateICmpEQ(val, sentinelVal, "int.is.null");
+                    // (AR) [إصلاح تصادم kSadNullSentinel] طبيعي64/بايت لا يكونان نوعَ العدم
+                    //      (العدمُ يُخزَّن ثابتَ i64 نوعُه Integer)؛ فالحارس (2^63+1 لا-موقَّعًا) لا
+                    //      يُطبَّق عليهما — قيمةٌ شرعيّة قد تساويه فتُحوَّل «لاشيء» خطأً. نُثبّت
+                    //      isSentinel=false فيؤخذ المسار العاديّ (تحويل الرقم) دائمًا. Integer
+                    //      **مُستثنى** (يتصادم جوهريًّا مع العدم: `نص(لاشيء)` عدمُه Integer)،
+                    //      فيبقى له الفحص كالأنواع النِّلابليّة.
+                    // (EN) [kSadNullSentinel collision fix] طبيعي64/Byte are never the null type
+                    //      (null is stored as an Integer-typed i64 constant); the sentinel (2^63+1
+                    //      unsigned) is not applied to them — a legitimate equal value was wrongly
+                    //      rendered «لاشيء». Force isSentinel=false so the normal number-conversion
+                    //      path is always taken. Integer is EXCLUDED (it collides intrinsically:
+                    //      `نص(لاشيء)`'s null is Integer-typed), so it keeps the check like nullable
+                    //      types.
+                    const bool isNonNullableNum =
+                        op.dataType == SadTypeKind::UInt64 ||
+                        op.dataType == SadTypeKind::Byte;
+                    llvm::Value *isSentinel = isNonNullableNum
+                                                  ? llvm::ConstantInt::getFalse(*cg_.context_)
+                                                  : cg_.builder_->CreateICmpEQ(val, sentinelVal, "int.is.null");
                     auto *nullStr = cg_.builder_->CreateGlobalStringPtr(
                         "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "int.null.str"); // لاشيء
 

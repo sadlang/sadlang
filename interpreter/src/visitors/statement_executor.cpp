@@ -238,6 +238,17 @@ namespace Sad
                     variableManager_.define(node.name, value);
                 }
 
+                // (AR) [طبقة طبيعي64 — الخطوة ١] سجّل النوع السطحيّ المُصرَّح بعد التعريف
+                //      كي يقرأه resolveStaticType لاحقًا (طباعة/عمليّات لا-موقَّعة). محايد:
+                //      لا يمسّ القيمة ولا المخرَج حتّى يُستهلَك في الخطوة ٤+.
+                // (EN) [طبيعي64 layer — Step 1] Record the declared surface type after define
+                //      so resolveStaticType can read it later (unsigned printing/ops). Neutral:
+                //      touches neither the value nor the output until consumed in Step 4+.
+                if (node.type != Types::SadTypeKind::Unknown)
+                {
+                    variableManager_.setDeclaredType(node.name, node.type);
+                }
+
                 // (AR) خطاف مصحح الأداء — تتبع إنشاء المتغيرات
                 // (EN) Profiler hook — track variable creation
                 if (auto *prof = Sad::Tools::getGlobalProfiler())

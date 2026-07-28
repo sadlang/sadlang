@@ -534,7 +534,14 @@ namespace Sad
             }
             else
             {
-                result = cg_.builder_->CreateICmpSLT(left, right, "cmplttmp");
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي64
+                //      (يُطابق المفسّر). النوع من dataType الساكن للمعامل. لا أوپكود جديد.
+                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64
+                //      (mirrors the interpreter). Type from the operand's static dataType. No new opcode.
+                result = (inst->operands[0].dataType == SadTypeKind::UInt64 &&
+                          inst->operands[1].dataType == SadTypeKind::UInt64)
+                             ? cg_.builder_->CreateICmpULT(left, right, "cmpulttmp")
+                             : cg_.builder_->CreateICmpSLT(left, right, "cmplttmp");
             }
 
             if (inst->result.has_value())
@@ -629,7 +636,12 @@ namespace Sad
             }
             else
             {
-                result = cg_.builder_->CreateICmpSLE(left, right, "cmpletmp");
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي64.
+                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64.
+                result = (inst->operands[0].dataType == SadTypeKind::UInt64 &&
+                          inst->operands[1].dataType == SadTypeKind::UInt64)
+                             ? cg_.builder_->CreateICmpULE(left, right, "cmpuletmp")
+                             : cg_.builder_->CreateICmpSLE(left, right, "cmpletmp");
             }
 
             if (inst->result.has_value())

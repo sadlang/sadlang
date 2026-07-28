@@ -246,6 +246,18 @@ namespace Sad
             {
                 std::string name;             ///< (AR) الاسم / (EN) Name
                 SadTypeKind type;             ///< (AR) النوع / (EN) Type
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] النوع السطحيّ المُصرَّح **صراحةً** (طبيعي64/بايت…)
+                //      من تعليق `متغير <نوع>` أو نوع المعامل — لا المُستنتَج. `type` أعلاه قد
+                //      يُرقّى بالاستنتاج (متغيّر مُسنَد من نداء طبيعي64) بينما هذا يبقى Unknown ما لم
+                //      يُصرَّح صراحةً. يُستعمَل حصرًا لقرار إشارة المقارنة (يُرآي resolveStaticType
+                //      بالمفسّر) كي لا يختلف المساران على المُستنتَج. Unknown = لا نوع سطحيّ صريح.
+                // (EN) [طبيعي64 layer — Step 5] The EXPLICITLY-declared surface type (طبيعي64/بايت…)
+                //      from a `var <type>` annotation or a parameter type — NOT inferred. `type`
+                //      above may be promoted by inference (a var assigned from a طبيعي64 call) while
+                //      this stays Unknown unless explicitly declared. Used ONLY for the comparison
+                //      signedness decision (mirrors the interpreter's resolveStaticType) so the two
+                //      tracks never disagree on inferred values. Unknown = no explicit surface type.
+                SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
                 std::string registerName;     ///< (AR) اسم السجل / (EN) Register name
                 bool isGlobal;                ///< (AR) متغير عام؟ / (EN) Is global?
                 bool isMutable;               ///< (AR) قابل للتعديل؟ / (EN) Is mutable?

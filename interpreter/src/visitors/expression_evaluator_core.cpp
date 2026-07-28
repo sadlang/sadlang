@@ -214,10 +214,16 @@ namespace Sad
                         return safeToInt64(static_cast<long long>(parsed));
                     }
 
-                    // Decimal: 42 — use stoll for range safety
+                    // Decimal: 42 — use stoull to support the full طبيعي64 range
+                    // (AR) نستخدم stoull ليشمل [0، UINT64_MAX] (حرفيّات طبيعي64 فوق
+                    //      INT64_MAX)؛ الحرفيّ دائمًا غير سالب (السالب عمليّة أحاديّة)،
+                    //      ونحفظ نمط البتّات إلى int64 مطابقةً لمسار السِّتّ-عشريّ.
+                    // (EN) Use stoull to cover [0, UINT64_MAX] (طبيعي64 literals above
+                    //      INT64_MAX); the literal is always non-negative (negation is a
+                    //      unary op), and we keep the bit pattern as int64 like the hex path.
                     {
-                        long long parsed = std::stoll(value);
-                        return safeToInt64(parsed);
+                        unsigned long long parsed = std::stoull(value);
+                        return safeToInt64(static_cast<long long>(parsed));
                     }
                 }
                 catch (const std::invalid_argument &)

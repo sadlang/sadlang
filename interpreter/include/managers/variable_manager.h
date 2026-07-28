@@ -180,6 +180,32 @@ namespace Sad
             bool isConst(const std::string &name) const;
 
             /**
+             * @brief (AR) تسجيل النوع السطحيّ المُصرَّح لمتغير (طبيعي64/بايت…)
+             * @brief (EN) Record a variable's declared surface type (UInt64/Byte…)
+             *
+             * (AR) [طبقة طبيعي64 — الخطوة ١] Option B يُخزّن القيمة int64 وقت التشغيل
+             *      ويُسقط وسم النوع السطحيّ من القيمة؛ نحفظه هنا بموازاة scopeVariables_
+             *      (على نطاق المتغيّر) كي يقرأه resolveStaticType لانتقاء العمليّات
+             *      اللا-موقَّعة/الطباعة اللا-موقَّعة عند موقع الاستعمال. يُستدعى بعد define
+             *      من مُنفِّذ VarDeclStmt بـnode.type. لا يغيّر تمثيل القيمة.
+             * (EN) [طبيعي64 layer — Step 1] Option B stores the value as int64 at runtime
+             *      and drops the surface-type tag from the Value; we keep it here parallel
+             *      to scopeVariables_ (on the variable's scope) so resolveStaticType can
+             *      read it to select unsigned ops/printing at the use site. Called after
+             *      define by the VarDeclStmt executor with node.type. No value change.
+             */
+            void setDeclaredType(const std::string &name, Types::SadTypeKind kind);
+
+            /**
+             * @brief (AR) قراءة النوع السطحيّ المُصرَّح لمتغير عبر سلسلة النطاقات
+             * @brief (EN) Read a variable's declared surface type across the scope chain
+             *
+             * @return (AR) النوع المُصرَّح، أو Integer إن لم يُسجَّل (افتراض محايد موقَّع)
+             * @return (EN) The declared type, or Integer if none recorded (neutral signed default)
+             */
+            Types::SadTypeKind getDeclaredType(const std::string &name) const;
+
+            /**
              * @brief (AR) تعيين قيمة جديدة لمتغير موجود
              * @brief (EN) Assign new value to existing variable
              *
@@ -442,6 +468,14 @@ namespace Sad
             // (AR) خريطة الثوابت — مرتبطة بالنطاق: كل نطاق يعرف ثوابته
             // (EN) Scope-aware const tracking — each scope knows its own constants
             std::unordered_map<Scope *, std::unordered_set<std::string>> constVariables_;
+
+            // (AR) [طبقة طبيعي64 — الخطوة ١] النوع السطحيّ المُصرَّح لكل متغير، مرتبط
+            //      بالنطاق (موازٍ لـscopeVariables_). يُطهَّر مع scopeVariables_ في
+            //      exitScope/cleanupScope/clear لتفادي تلوّث إعادة استخدام Scope*.
+            // (EN) [طبيعي64 layer — Step 1] Declared surface type per variable, scope-keyed
+            //      (parallel to scopeVariables_). Purged alongside scopeVariables_ in
+            //      exitScope/cleanupScope/clear to avoid Scope* reuse contamination.
+            std::unordered_map<Scope *, std::unordered_map<std::string, Types::SadTypeKind>> declaredTypes_;
 
             // (AR) مُعرّف موفّر جذور GC المسجّل من هذا المدير (B-step5b-iii).
             //   يُسجَّل في constructor ويُلغى في destructor. القيمة 0 = غير مسجّل.

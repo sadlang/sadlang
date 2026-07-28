@@ -399,6 +399,17 @@ namespace Sad
             if (!val)
                 return nullptr;
 
+            // (AR) [طبقة طبيعي64 — الخطوة ٤] طباعة لا-موقَّعة: نمط بتّات i64 لقيمة طبيعي64
+            //      يُنسَّق %llu لا %lld (يُطابق المفسّر renderUnsignedArgs). النوع من المعامل
+            //      الساكن (dataType). Byte دائمًا [0،255] فطباعته الموقَّعة صحيحة. الوضع الحرّ
+            //      (__sad_itoa) يبقى موقَّعًا مؤقّتًا (لا __sad_utoa بعد) — مؤجَّل موثَّق.
+            // (EN) [طبيعي64 layer — Step 4] Unsigned printing: طبيعي64's i64 bit pattern formats
+            //      with %llu not %lld (mirrors the interpreter's renderUnsignedArgs). Type from the
+            //      operand's static dataType. Byte is always [0,255] so its signed print is fine.
+            //      Freestanding (__sad_itoa) stays signed for now (no __sad_utoa yet) — documented.
+            const bool i64ToStrUnsigned =
+                (inst->operands[0].dataType == SadTypeKind::UInt64);
+
             // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): نص(%SadDyn) ⇒ موزِّع dynToString الذي يفحص
             //      وسم النوع ويطابق المفسّر لكلّ نوع (صحيح/عشريّ/منطقيّ/نصّ/عدم). النوع %SadDyn هو
             //      المعلومة — لا فكّ بتّاتٍ يدويّ.
@@ -553,7 +564,8 @@ namespace Sad
                     true);
                 auto sprintfFunc = cg_.module_->getOrInsertFunction("sprintf", sprintfType);
 
-                llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%lld", "fmt_i64");
+                llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr(
+                    i64ToStrUnsigned ? "%llu" : "%lld", "fmt_i64");
                 cg_.builder_->CreateCall(sprintfFunc, {buf, fmt, val});
             }
 

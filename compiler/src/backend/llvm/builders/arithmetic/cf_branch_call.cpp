@@ -146,7 +146,25 @@ namespace Sad
                     auto *zeroConst = llvm::ConstantInt::get(condition->getType(), 0);
                     llvm::Value *neZero = cg_.builder_->CreateICmpNE(condition, zeroConst, "tobool.nz");
 
-                    if (condition->getType()->isIntegerTy(64))
+                    // (AR) [إصلاح تصادم kSadNullSentinel] لا نطبّق فحص حارس العدم على شرطٍ
+                    //      نوعُه الساكن طبيعي64/بايت: الحارس قيمةٌ i64 بعينها (2^63+1 لا-موقَّعًا)
+                    //      وطبيعي64 شرعيّ قد يساويها ⇒ كان يُعامَل «عدمًا» (falsy) خطأً. طبيعي64/
+                    //      بايت لا يكونان نوعَ العدم (العدمُ Integer)، فصدقُهما «≠ 0» فقط، مطابقةً
+                    //      للمفسّر. Integer **مُستثنى** (يتصادم جوهريًّا مع العدم)، والأنواع
+                    //      النِّلابليّة (Any/مجهول) يبقى لها الفحص (عدمٌ حقيقيّ قد يصل i64).
+                    // (EN) [kSadNullSentinel collision fix] Do not apply the null-sentinel check
+                    //      to a condition whose static type is طبيعي64/Byte: the sentinel is one
+                    //      specific i64 value (2^63+1 unsigned) a legitimate طبيعي64 can equal ⇒ it
+                    //      was wrongly treated as null (falsy). طبيعي64/Byte are never the null type
+                    //      (null is Integer), so their truth is just «!= 0», matching the
+                    //      interpreter. Integer is EXCLUDED (it collides intrinsically with null);
+                    //      nullable types (Any/Unknown) keep the check (a real null may arrive i64).
+                    const auto condType = inst->operands[0].dataType;
+                    const bool condIsNonNullableNum =
+                        condType == SadTypeKind::UInt64 ||
+                        condType == SadTypeKind::Byte;
+
+                    if (condition->getType()->isIntegerTy(64) && !condIsNonNullableNum)
                     {
                         auto *nullSentinel = llvm::ConstantInt::get(condition->getType(),
                                                                     static_cast<uint64_t>(kSadNullSentinel),

@@ -340,6 +340,14 @@ namespace Sad
                 VariableInfo varInfo;
                 varInfo.name = varDecl->name; // line 76
                 varInfo.type = varType;
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي64/بايت…)
+                //      من تعليق `متغير <نوع>`؛ Unknown إذا كان النوع مُستنتَجًا. لا نلوّثه
+                //      باستنتاج القيمة الأوّليّة أدناه كي يظلّ قرار الإشارة مطابقًا للمفسّر.
+                // (EN) [طبيعي64 layer — Step 5] Explicitly-declared surface type from the
+                //      `var <type>` annotation; Unknown when the type is inferred. Deliberately
+                //      NOT overwritten by initializer inference below so the signedness decision
+                //      stays identical to the interpreter.
+                varInfo.declaredSurfaceType = varDecl->type;
                 varInfo.registerName = "%" + varDecl->name;
                 varInfo.isGlobal = false;
                 varInfo.isMutable = !varDecl->isConst; // line 79

@@ -199,8 +199,28 @@ namespace Sad
             case TokenType::OP_FLOOR_DIVIDE:
             case TokenType::OP_MODULO:
             case TokenType::OP_POWER:
-                lastResult_ = evaluateArithmeticOp(left, node.op, right, node.position);
+            {
+                // (AR) [طبقة طبيعي64 — الخطوة ٦] حسابٌ ملتفٌّ (+ − ×) حين يكون النوع
+                //      السطحيّ للعمليّة طبيعي64. المترجم يلتفّ i64 دائمًا (CreateAdd/Sub/Mul
+                //      بلا فحص طفح)، بينما المفسّر يرقّي طفح الموقَّع إلى double (safeAdd…).
+                //      لطبيعي64 هذا انفراجٌ (٢^٦٣+٢^٦٣ ⇒ المترجم 0، المفسّر ‎-1.8e19‏). فحين
+                //      يشارك **أيّ** معامل طبيعي64 (هيمنة، بخلاف المقارنة التي تلزم كليهما
+                //      لأنّ إشارة CreateICmp تحتاجهما) نلتفّ بدل الترقية فيطابق المساران.
+                //      Byte مستثنى (قيمه ٠–٢٥٥ لا تطفح i64 في + − ×؛ اقتطاعه خطوةٌ لاحقة).
+                // (EN) [طبيعي64 layer — Step 6] Wrapping arithmetic (+ − ×) when the op's
+                //      surface type is طبيعي64. The compiler always wraps i64 (CreateAdd/Sub/Mul
+                //      with no overflow check), while the interpreter promotes signed overflow to
+                //      double (safeAdd…). For طبيعي64 that diverges (2^63+2^63 ⇒ compiler 0,
+                //      interpreter -1.8e19). So when **any** operand is طبيعي64 (dominance —
+                //      unlike comparison which needs both, since CreateICmp's sign needs both) we
+                //      wrap instead of promoting so both tracks agree. Byte is excluded (its 0–255
+                //      values cannot overflow i64 in + − ×; its truncation is a later step).
+                const bool wrapU64 =
+                    resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 ||
+                    resolveStaticType(node.right.get()) == Types::SadTypeKind::UInt64;
+                lastResult_ = evaluateArithmeticOp(left, node.op, right, node.position, wrapU64);
                 break;
+            }
 
             // (AR) عمليات مقارنة / (EN) Comparison operations
             case TokenType::OP_EQUAL:
@@ -209,8 +229,19 @@ namespace Sad
             case TokenType::OP_LESS_EQUAL:
             case TokenType::OP_GREATER:
             case TokenType::OP_GREATER_EQUAL:
-                lastResult_ = evaluateComparisonOp(left, node.op, right, node.position);
+            {
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] مقارنة ترتيب لا-موقَّعة حين يكون كلا
+                //      المعامِلين طبيعي64 (النوع الساكن من الخطوة ٢). المساواة/عدمها متطابقة
+                //      موقَّعةً ولا-موقَّعةً (مساواة بتّات) فلا تتأثّر. يُطابق المترجم (ULT/UGT).
+                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64
+                //      (static type from Step 2). Equality is identical signed/unsigned (bit
+                //      equality) so it is unaffected. Mirrors the compiler (ULT/UGT).
+                const bool unsignedCmp =
+                    resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 &&
+                    resolveStaticType(node.right.get()) == Types::SadTypeKind::UInt64;
+                lastResult_ = evaluateComparisonOp(left, node.op, right, node.position, unsignedCmp);
                 break;
+            }
 
             // (AR) عمليات منطقية / (EN) Logical operations
             case TokenType::OP_AND:
@@ -315,7 +346,7 @@ namespace Sad
         // (AR) العمليات الحسابية / (EN) Arithmetic Operations
         // =========================================================================
 
-        Value ExpressionEvaluator::evaluateArithmeticOp(const Value &left, TokenType op, const Value &right, const Lexer::Position &pos)
+        Value ExpressionEvaluator::evaluateArithmeticOp(const Value &left, TokenType op, const Value &right, const Lexer::Position &pos, bool wrapU64)
         {
             // جمع النصوص (string concatenation) / String concatenation
             // (AR) يدعم عامل نص() الضمني للكائنات
@@ -413,22 +444,34 @@ namespace Sad
                 int64_t l = left.toInt64();
                 int64_t r = right.toInt64();
 
-                // (AR) حماية طفحان الأعداد الصحيحة — الترقية إلى double عند الطفحان
-                // (EN) Integer overflow protection — promote to double on overflow
-                auto safeAdd = [](int64_t a, int64_t b) -> Value
+                // (AR) حماية طفحان الأعداد الصحيحة — الترقية إلى double عند الطفحان.
+                //      [الخطوة ٦] استثناء طبيعي64 (wrapU64): يلتفّ متمّمًا اثنينيًّا في
+                //      uint64_t (سلوك معرَّف؛ التفاف int64_t الموقَّع سلوكٌ غير معرَّف) كي
+                //      يطابق CreateAdd/Sub/Mul في المترجم بدل الترقية.
+                // (EN) Integer overflow protection — promote to double on overflow.
+                //      [Step 6] طبيعي64 exception (wrapU64): wrap two's-complement in uint64_t
+                //      (defined; signed int64_t overflow is UB) to match the compiler's
+                //      CreateAdd/Sub/Mul instead of promoting.
+                auto safeAdd = [wrapU64](int64_t a, int64_t b) -> Value
                 {
+                    if (wrapU64)
+                        return Value(static_cast<int64_t>(static_cast<uint64_t>(a) + static_cast<uint64_t>(b)));
                     if ((b > 0 && a > INT64_MAX - b) || (b < 0 && a < INT64_MIN - b))
                         return Value(static_cast<double>(a) + static_cast<double>(b));
                     return Value(a + b);
                 };
-                auto safeSub = [](int64_t a, int64_t b) -> Value
+                auto safeSub = [wrapU64](int64_t a, int64_t b) -> Value
                 {
+                    if (wrapU64)
+                        return Value(static_cast<int64_t>(static_cast<uint64_t>(a) - static_cast<uint64_t>(b)));
                     if ((b < 0 && a > INT64_MAX + b) || (b > 0 && a < INT64_MIN + b))
                         return Value(static_cast<double>(a) - static_cast<double>(b));
                     return Value(a - b);
                 };
-                auto safeMul = [](int64_t a, int64_t b) -> Value
+                auto safeMul = [wrapU64](int64_t a, int64_t b) -> Value
                 {
+                    if (wrapU64)
+                        return Value(static_cast<int64_t>(static_cast<uint64_t>(a) * static_cast<uint64_t>(b)));
                     if (a != 0 && b != 0)
                     {
                         if ((a > 0 && b > 0 && a > INT64_MAX / b) ||
@@ -514,6 +557,85 @@ namespace Sad
         // =========================================================================
         // (AR) عمليات المقارنة / (EN) Comparison Operations
         // =========================================================================
+
+        // =========================================================================
+        // (AR) [طبقة طبيعي64 — الخطوة ٢] استنتاج النوع الساكن — مرآة انتشار SIR
+        // (EN) [طبيعي64 layer — Step 2] Static type resolution — mirrors SIR propagation
+        // =========================================================================
+        Types::SadTypeKind ExpressionEvaluator::resolveStaticType(const AST::Expression *expr) const
+        {
+            // (AR) الافتراض المحايد Integer (موقَّع) — يُبقي السلوك القائم لأيّ عقدة غير مغطّاة.
+            // (EN) Neutral default Integer (signed) — preserves existing behavior for uncovered nodes.
+            if (!expr)
+                return Types::SadTypeKind::Integer;
+
+            // (AR) متغيّر → النوع السطحيّ المُصرَّح من البيئة (الخطوة ١).
+            // (EN) Variable → declared surface type from the environment (Step 1).
+            if (auto *var = dynamic_cast<const AST::VariableExpr *>(expr))
+                return variableManager_.getDeclaredType(var->name);
+
+            // (AR) نداء دالّة → نوع إرجاعها المُصرَّح. المترجم يمرّر نوع إرجاع الدالّة
+            //      (من جدول الدوالّ) على سِجِلّ نتيجة النداء، فدالّةٌ تُرجِع طبيعي64
+            //      تُقارَن لا-موقَّعةً هناك. نقرأ نفس المصدر — FunctionDecl::returnType
+            //      من عقدة الـAST المحفوظة — فيتطابق المساران بالبناء. النداءات غير
+            //      المباشرة (طريقة كائن/فهرسة) تبقى Integer موقَّعةً كما في المترجم.
+            // (EN) Function call → its declared return type. The compiler stamps the
+            //      function's return type (from its function table) onto the call's
+            //      result register, so a طبيعي64-returning function compares unsigned
+            //      there. We read the SAME source — FunctionDecl::returnType from the
+            //      stored AST node — so both tracks agree by construction. Indirect
+            //      calls (method/index callee) stay signed Integer, matching the compiler.
+            if (auto *call = dynamic_cast<const AST::CallExpr *>(expr))
+            {
+                if (auto *callee = dynamic_cast<const AST::VariableExpr *>(call->callee.get()))
+                {
+                    if (auto fn = functionManager_.getFunction(callee->name, call->arguments.size()))
+                    {
+                        if (auto *decl = dynamic_cast<AST::FunctionDecl *>(fn->getFunctionDecl().get()))
+                            return decl->returnType;
+                    }
+                }
+                return Types::SadTypeKind::Integer;
+            }
+
+            // (AR) حرفيّ → نوع رمزه؛ الصحيح موقَّع افتراضًا (اللا-موقَّعيّة تأتي من نوع الهدف).
+            // (EN) Literal → its token kind; integers signed by default (unsigned-ness from target).
+            if (auto *lit = dynamic_cast<const AST::LiteralExpr *>(expr))
+            {
+                switch (lit->token.getType())
+                {
+                case Lexer::TokenType::NUMBER_DOUBLE:
+                    return Types::SadTypeKind::Float;
+                default:
+                    return Types::SadTypeKind::Integer;
+                }
+            }
+
+            // (AR) ثنائيّ → هيمنة قانونيّة تُطبَّق **متطابقةً** في المترجم لاحقًا:
+            //      Float ثمّ UInt64 ثمّ Byte ثمّ Integer. Float يهيمن لأنّ خلط صحيح
+            //      (موقَّع أو لا) بعائم يُرقّى إلى عائم (`طبيعي64 + عائم` ⇒ عائم).
+            //      (المقارنات تُنتج منطقيًّا وقت التشغيل؛ لا يُطبَّق التنسيق اللا-موقَّع إلا
+            //      على قيمة صحيحة، فلا ضرر من إرجاع نوع المعامِلين هنا.)
+            // (EN) Binary → canonical dominance to be applied **identically** in the compiler
+            //      later: Float, then UInt64, then Byte, then Integer. Float dominates because
+            //      mixing any integer (signed or not) with a float promotes to float
+            //      (`طبيعي64 + عائم` ⇒ float). (Comparisons yield Boolean at runtime; unsigned
+            //      formatting applies only to integer values, so the operand type is harmless.)
+            if (auto *bin = dynamic_cast<const AST::BinaryExpr *>(expr))
+            {
+                const Types::SadTypeKind l = resolveStaticType(bin->left.get());
+                const Types::SadTypeKind r = resolveStaticType(bin->right.get());
+                if (l == Types::SadTypeKind::Float || r == Types::SadTypeKind::Float)
+                    return Types::SadTypeKind::Float;
+                if (l == Types::SadTypeKind::UInt64 || r == Types::SadTypeKind::UInt64)
+                    return Types::SadTypeKind::UInt64;
+                if (l == Types::SadTypeKind::Byte || r == Types::SadTypeKind::Byte)
+                    return Types::SadTypeKind::Byte;
+                return Types::SadTypeKind::Integer;
+            }
+
+            return Types::SadTypeKind::Integer;
+        }
 
     } // namespace Interpreter
 } // namespace Sad

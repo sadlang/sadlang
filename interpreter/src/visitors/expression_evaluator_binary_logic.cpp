@@ -53,7 +53,7 @@ namespace Sad
         // =========================================================================
         // (AR) تحسين النصوص العربية / (EN) Arabic String Optimization
         // =========================================================================
-        Value ExpressionEvaluator::evaluateComparisonOp(const Value &left, TokenType op, const Value &right, const Lexer::Position &pos)
+        Value ExpressionEvaluator::evaluateComparisonOp(const Value &left, TokenType op, const Value &right, const Lexer::Position &pos, bool unsignedOrdering)
         {
             // المقارنة تعمل على أي نوعين / Comparison works on any two types
 
@@ -143,6 +143,34 @@ namespace Sad
             {
                 int64_t l = left.toInt64();
                 int64_t r = right.toInt64();
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين يكون كلا المعامِلين
+                //      طبيعي64: نقارن نمط البتّات كـuint64 (يُطابق المترجم ICmpULT/UGT).
+                //      المساواة/عدمها متطابقة على المستويين فتبقى على int64.
+                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64:
+                //      compare the bit pattern as uint64 (mirrors the compiler's ICmpULT/UGT).
+                //      Equality/inequality is identical either way, so it stays on int64.
+                if (unsignedOrdering)
+                {
+                    const uint64_t ul = static_cast<uint64_t>(l);
+                    const uint64_t ur = static_cast<uint64_t>(r);
+                    switch (op)
+                    {
+                    case TokenType::OP_EQUAL:
+                        return Value(ul == ur);
+                    case TokenType::OP_NOT_EQUAL:
+                        return Value(ul != ur);
+                    case TokenType::OP_LESS:
+                        return Value(ul < ur);
+                    case TokenType::OP_LESS_EQUAL:
+                        return Value(ul <= ur);
+                    case TokenType::OP_GREATER:
+                        return Value(ul > ur);
+                    case TokenType::OP_GREATER_EQUAL:
+                        return Value(ul >= ur);
+                    default:
+                        break;
+                    }
+                }
                 switch (op)
                 {
                 case TokenType::OP_EQUAL:

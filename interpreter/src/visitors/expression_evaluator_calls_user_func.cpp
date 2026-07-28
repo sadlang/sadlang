@@ -216,6 +216,23 @@ namespace Sad
                 variableManager_.define(params[i].name, arguments[i]);
 
                 // ═══════════════════════════════════════════════════════════════
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] تسجيل النوع الساكن المُصرَّح للمعامل
+                //      (طبيعي64/بايت…) كي يراه resolveStaticType، فتُطابق المقارنة
+                //      اللا-موقَّعة ما يفعله المترجم (نوع المعامل في SIR). بلا هذا
+                //      كان المفسّر يقارن معاملات طبيعي64 موقَّعةً بينما المترجم لا-موقَّعة
+                //      ⇒ انفراج تكافؤ (رصده أميليا). النوع من عقدة الـAST مباشرةً.
+                // (EN) [طبيعي64 layer — Step 5] Register the parameter's declared static
+                //      type (طبيعي64/بايت…) so resolveStaticType sees it, making unsigned
+                //      comparison mirror the compiler (SIR param type). Without this the
+                //      interpreter compared طبيعي64 params signed while the compiler used
+                //      unsigned ⇒ parity divergence (found by Amelia). Type from the AST node.
+                if (astFuncDecl && i < astFuncDecl->parameters.size() &&
+                    astFuncDecl->parameters[i].type != Types::SadTypeKind::Unknown)
+                {
+                    variableManager_.setDeclaredType(params[i].name, astFuncDecl->parameters[i].type);
+                }
+
+                // ═══════════════════════════════════════════════════════════════
                 // (AR) التحقق من نوع المعامل في وقت التشغيل لأنواع الأصناف
                 // (EN) Runtime type checking for class-typed parameters
                 // ═══════════════════════════════════════════════════════════════

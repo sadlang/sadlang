@@ -661,51 +661,46 @@ namespace Sad
             }
             else
             {
-                // (AR) سجل - البحث في namedValues
-                // (EN) Register - lookup in namedValues
-                auto it = cg_.context_info_.namedValues.find(srcOp.name);
-                if (it != cg_.context_info_.namedValues.end())
-                {
-                    value = it->second;
-                }
-
-                // (AR) إذا لم نجد في namedValues، نبحث في المتغيرات العامة
-                // (EN) If not found in namedValues, search global variables
-                if (!value && !srcOp.name.empty())
-                {
-                    // (AR) إزالة % من بداية الاسم إذا وجدت
-                    // (EN) Strip % prefix from name if present
-                    std::string globalName = srcOp.name;
-                    if (!globalName.empty() && globalName[0] == '%')
-                    {
-                        globalName = globalName.substr(1);
-                    }
-                    llvm::GlobalVariable *gv = cg_.module_->getGlobalVariable(globalName);
-                    if (gv)
-                    {
-                        value = gv; // (AR) استخدام المتغير العام مباشرة كمؤشر
-                    }
-                }
+                // ════════════════════════════════════════════════════════════════════
+                // (AR) [تحصين footgun + توحيد الحلّ] المصدر سجلّ: نفوّض لـ`resolveOperand`
+                //      — نقطةَ الحلّ **الموحّدة** التي يستعملها الحساب (ADD/…). كان emitMove
+                //      يحلّ يدويًّا حلًّا أضيق (namedValues + module globals فقط، ويعيد المؤشّر
+                //      **خامًّا** بلا تحميل)، وعند الغياب **يفبرك alloca غير مُهيّأ** ⇒ قمامةٌ
+                //      صامتة تتسلّل للنتيجة (هذا ما ضخّم عيب الهويّة الـUAF فأظهره صفرًا).
+                //      resolveOperand أشمل: namedValues + خريطة `globalValues` الدائمة (لا
+                //      تُمسح عند دخول الدالّة) + تجريد بادئة `_inl` + **تحميل تلقائيّ** للعالميّ/
+                //      alloca (مع إبقاء مؤشّر المصفوفة/البنية/النصّ)، ويردّ ثابت 0 (لا قمامة)
+                //      للاسم الفارغ/المفقود. فيتوحّد حلُّ MOVE مع ADD ويُلغى الـfootgun.
+                //      (ملاحظة: العالميّ-المُشار-إليه-داخل-دالّة يفشل أصلًا في الواجهة
+                //      الأماميّة «buildVariableAccess: NOT FOUND» فلا يبلغ هنا — عيبُ تأطيرٍ
+                //      سابقٌ مستقلّ، ليس من نطاق هذا التغيير.)
+                // (EN) [Footgun hardening + resolution unification] Register source: delegate to
+                //      resolveOperand — the UNIFIED resolution point used by arithmetic. emitMove
+                //      used a narrower manual lookup (namedValues + module globals only, returning
+                //      the pointer RAW without loading), and on a miss it FABRICATED a fresh
+                //      UNINITIALISED alloca ⇒ silent garbage into the result (this amplified the
+                //      identity UAF into a 0). resolveOperand is broader: namedValues + the
+                //      PERSISTENT globalValues map (not cleared on function entry) + `_inl` prefix
+                //      strip + auto-load of global/alloca (keeping array/struct/string pointers),
+                //      and returns a 0 constant (not garbage) for an empty/missing name. MOVE
+                //      resolution thus unifies with ADD and the footgun is removed. (Note: a
+                //      global referenced inside a function fails earlier in the frontend
+                //      «buildVariableAccess: NOT FOUND» so it never reaches here — a separate
+                //      pre-existing scoping defect, out of scope for this change.)
+                // ════════════════════════════════════════════════════════════════════
+                value = cg_.resolveOperand(srcOp);
             }
 
             if (!value)
             {
-                // (AR) قيمة المصدر غير موجودة، إنشاء alloca بديل
-                // (EN) Source value not found, create fallback alloca
-                if (!srcOp.name.empty())
-                {
-                    llvm::Function *currentFunc = cg_.builder_->GetInsertBlock()->getParent();
-                    llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(),
-                                                   currentFunc->getEntryBlock().begin());
-                    llvm::AllocaInst *newAlloca = entryBuilder.CreateAlloca(cg_.getInt64Type(), nullptr, srcOp.name);
-                    cg_.context_info_.namedValues[srcOp.name] = newAlloca;
-                    value = newAlloca;
-                }
-                else
-                {
-                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF, {{"detail", std::string("Source value not found for move:") + srcOp.name}});
-                    return nullptr;
-                }
+                // (AR) resolveOperand يردّ 0 لا null عمليًّا؛ هذا حارسٌ احتياطيّ صريح بدل
+                //      فبركة alloca غير مُهيّأ (footgun) لو ردّ null (نوع ثابت غير مدعوم مثلًا).
+                // (EN) resolveOperand returns 0, not null, in practice; this is an explicit
+                //      backstop instead of fabricating a fresh uninitialised alloca (the footgun)
+                //      should it ever return null (e.g. an unsupported constant type).
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
+                                {{"detail", std::string("Source value not found for move: ") + (srcOp.name.empty() ? "<empty>" : srcOp.name)}});
+                return nullptr;
             }
 
             // (AR) تخزين القيمة في سجل النتيجة

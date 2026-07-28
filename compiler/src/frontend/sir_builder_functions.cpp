@@ -484,6 +484,14 @@ namespace Sad
                     VariableInfo paramInfo;
                     paramInfo.name = param.name;
                     paramInfo.type = paramType;
+                    // (AR) [طبقة طبيعي64 — الخطوة ٥] النوع السطحيّ المُصرَّح للمعامل (طبيعي64/بايت…)
+                    //      من تعليق الـAST مباشرةً — لا paramType الذي قد يُرقَّى بالاستنتاج أعلاه.
+                    //      يُطابق تسجيل المفسّر لنوع المعامل، فتتّفق إشارة المقارنة على المسارين.
+                    // (EN) [طبيعي64 layer — Step 5] The parameter's explicitly-declared surface type
+                    //      from the AST annotation directly — not paramType which may be inference-
+                    //      promoted above. Mirrors the interpreter's param declared-type registration
+                    //      so the comparison signedness agrees on both tracks.
+                    paramInfo.declaredSurfaceType = param.type;
                     paramInfo.registerName = "%" + param.name;
                     paramInfo.isGlobal = false;
                     // (AR) معاملات الدوال قابلة للتعديل — تمثل نسخة محلية من القيمة الممررة

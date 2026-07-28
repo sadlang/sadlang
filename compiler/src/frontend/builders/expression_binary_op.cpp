@@ -1189,6 +1189,38 @@ namespace Sad
                     }
                 }
 
+                // (AR) [طبقة طبيعي64 — الخطوة ٥] قرار إشارة مقارنة الترتيب من النوع السطحيّ
+                //      **الضحل** (لا المُنتشَر العميق): لا-موقَّع فقط حين يُصرَّح كلا المعامِلين
+                //      طبيعي64 **صراحةً**، تمامًا كـresolveStaticType بالمفسّر. بلا هذا كان
+                //      المترجم يقرأ نوع طبيعي64 المُستنتَج (نتيجة نداء/متغيّر مُسنَد) فيقارن
+                //      لا-موقَّعًا بينما المفسّر موقَّع ⇒ انفراج تكافؤ (رصده أميليا). نُصحّح
+                //      dataType لمعاملَي i64 فقط (تصحيح UInt64↔Integer آمن العرض؛ كلاهما i64).
+                // (EN) [طبيعي64 layer — Step 5] Ordering-comparison signedness from the SHALLOW
+                //      surface type (not deep propagation): unsigned only when BOTH operands are
+                //      EXPLICITLY طبيعي64, exactly like the interpreter's resolveStaticType.
+                //      Without this the compiler read an inferred طبيعي64 type (a call result or an
+                //      assigned var) and compared unsigned while the interpreter compared signed ⇒
+                //      parity divergence (found by Amelia). We only adjust i64 operands' dataType
+                //      (a width-safe UInt64↔Integer flip; both are i64).
+                if (binOp->op == Lexer::TokenType::OP_LESS ||
+                    binOp->op == Lexer::TokenType::OP_LESS_EQUAL ||
+                    binOp->op == Lexer::TokenType::OP_GREATER ||
+                    binOp->op == Lexer::TokenType::OP_GREATER_EQUAL)
+                {
+                    const bool bothU64 =
+                        resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 &&
+                        resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
+                    auto adjustSign = [bothU64](SIROperand &op)
+                    {
+                        if (op.dataType == SadTypeKind::UInt64 && !bothU64)
+                            op.dataType = SadTypeKind::Integer; // (AR) مُستنتَج ⇒ موقَّع (يُطابق المفسّر)
+                        else if (bothU64 && op.dataType == SadTypeKind::Integer)
+                            op.dataType = SadTypeKind::UInt64; // (AR) مُصرَّح صراحةً ⇒ لا-موقَّع
+                    };
+                    adjustSign(leftOp);
+                    adjustSign(rightOp);
+                }
+
                 // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)
                 // (EN) Create SIR instruction
                 SIRInstruction inst = SIRInstruction::Binary(opcode, resultOp, leftOp, rightOp);
@@ -1275,6 +1307,74 @@ namespace Sad
             // SIRInstruction::Unary (sir_instruction.h:114-120):
             // - الاستخدام: SIRInstruction::Unary(opcode, result, operand)
             // ============================================================================
+        // =====================================================================
+        // (AR) [طبقة طبيعي64 — الخطوة ٥] مُحلِّل النوع السطحيّ الضحل — مرآة
+        //      resolveStaticType بالمفسّر (expression_evaluator_binary_ops.cpp).
+        //      يجب أن يبقى منطقُه مطابقًا للمفسّر حرفيًّا كي لا ينفرج المساران.
+        // (EN) [طبيعي64 layer — Step 5] Shallow surface-type resolver — mirror of the
+        //      interpreter's resolveStaticType. Its logic MUST stay literally identical
+        //      to the interpreter's or the two tracks diverge.
+        // =====================================================================
+        SadTypeKind ExpressionBuilder::resolveSurfaceType(const Sad::AST::Expression *expr)
+        {
+            // (AR) الافتراض المحايد Integer (موقَّع) لأيّ عقدة غير مغطّاة.
+            // (EN) Neutral default Integer (signed) for any uncovered node.
+            if (!expr)
+                return SadTypeKind::Integer;
+
+            // (AR) متغيّر → نوعه السطحيّ المُصرَّح صراحةً (لا المُستنتَج).
+            // (EN) Variable → its explicitly-declared surface type (not inferred).
+            if (auto *var = dynamic_cast<const Sad::AST::VariableExpr *>(expr))
+            {
+                auto *vi = b_.lookupVariable(var->name);
+                if (vi && vi->declaredSurfaceType != SadTypeKind::Unknown)
+                    return vi->declaredSurfaceType;
+                return SadTypeKind::Integer;
+            }
+
+            // (AR) حرفيّ → نوع رمزه؛ الصحيح موقَّع افتراضًا.
+            // (EN) Literal → its token kind; integers signed by default.
+            if (auto *lit = dynamic_cast<const Sad::AST::LiteralExpr *>(expr))
+            {
+                if (lit->token.getType() == Lexer::TokenType::NUMBER_DOUBLE)
+                    return SadTypeKind::Float;
+                return SadTypeKind::Integer;
+            }
+
+            // (AR) نداء دالّة → نوع إرجاعها المُصرَّح صراحةً في الـAST (astDecl->returnType؛
+            //      Unknown إن لم يُعلَّق ⇒ موقَّع). يُطابق FIX 2 بالمفسّر (decl->returnType).
+            // (EN) Function call → the callee's explicitly-declared AST return type
+            //      (astDecl->returnType; Unknown if unannotated ⇒ signed). Mirrors the
+            //      interpreter's FIX 2 (decl->returnType).
+            if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
+            {
+                if (auto *callee = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
+                {
+                    auto it = b_.functionTable_.find(callee->name);
+                    if (it != b_.functionTable_.end() && it->second.astDecl)
+                        return it->second.astDecl->returnType;
+                }
+                return SadTypeKind::Integer;
+            }
+
+            // (AR) ثنائيّ → هيمنة قانونيّة **متطابقة** مع المفسّر: Float>UInt64>Byte>Integer.
+            // (EN) Binary → canonical dominance IDENTICAL to the interpreter: Float>UInt64>Byte>Integer.
+            if (auto *bin = dynamic_cast<const Sad::AST::BinaryExpr *>(expr))
+            {
+                const SadTypeKind l = resolveSurfaceType(bin->left.get());
+                const SadTypeKind r = resolveSurfaceType(bin->right.get());
+                if (l == SadTypeKind::Float || r == SadTypeKind::Float)
+                    return SadTypeKind::Float;
+                if (l == SadTypeKind::UInt64 || r == SadTypeKind::UInt64)
+                    return SadTypeKind::UInt64;
+                if (l == SadTypeKind::Byte || r == SadTypeKind::Byte)
+                    return SadTypeKind::Byte;
+                return SadTypeKind::Integer;
+            }
+
+            return SadTypeKind::Integer;
+        }
+
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad

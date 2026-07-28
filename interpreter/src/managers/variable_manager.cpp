@@ -395,6 +395,7 @@ namespace Sad
             // (AR) حذف جميع متغيرات هذا النطاق بعد النجاح
             // (EN) Delete all variables in this scope after successful pop
             scopeVariables_.erase(currentScope);
+            declaredTypes_.erase(currentScope);
         }
 
         // ========================================
@@ -491,6 +492,7 @@ namespace Sad
             // (EN) Delete all variables and constants
             scopeVariables_.clear();
             constVariables_.clear();
+            declaredTypes_.clear();
 
             // (AR) العودة إلى النطاق العام (حذف جميع النطاقات الأخرى)
             // (EN) Return to global scope (remove all other scopes)
@@ -593,6 +595,46 @@ namespace Sad
             // (EN) Delete all variables and constants associated with this scope
             scopeVariables_.erase(scope);
             constVariables_.erase(scope);
+            declaredTypes_.erase(scope);
+        }
+
+        // (AR) [طبقة طبيعي64 — الخطوة ١] تسجيل/قراءة النوع السطحيّ المُصرَّح.
+        // (EN) [طبيعي64 layer — Step 1] Record/read the declared surface type.
+        void VariableManager::setDeclaredType(const std::string &name, Types::SadTypeKind kind)
+        {
+            // (AR) نُسجّله على نطاق المتغيّر إن وُجد (بعد define مباشرةً هو النطاق الحاليّ)،
+            //      وإلا على النطاق الحاليّ. يُبقي التسجيل مُحاذيًا لموضع القيمة في scopeVariables_.
+            // (EN) Record on the variable's scope if found (right after define that is the
+            //      current scope), else the current scope. Keeps it aligned with the value.
+            Scope *scope = findVariableScope(name);
+            if (scope == nullptr)
+                scope = scopeManager_.getCurrentScope();
+            declaredTypes_[scope][name] = kind;
+        }
+
+        Types::SadTypeKind VariableManager::getDeclaredType(const std::string &name) const
+        {
+            // (AR) نربط النوع بنطاق **القيمة نفسها** (findVariableScope) لا بمشي السلسلة:
+            //      وإلا متغيّرٌ داخليّ بلا نوع مُسجَّل (Unknown) يُخفي خارجيًّا مُسجَّلًا فيُرجَع
+            //      نوعُ الخارجيّ لقيمة الداخليّ خطأً (فجوة تظليل رصدتها أميليا). الرباط
+            //      بنطاق القيمة يضمن: إن لم يُسجَّل النوع في نطاق القيمة ⇒ Integer محايد.
+            // (EN) Bind the type to the **value's own scope** (findVariableScope), not a chain
+            //      walk: otherwise an inner variable with no recorded type (Unknown) shadowing a
+            //      recorded outer one would wrongly return the outer's type for the inner value
+            //      (shadowing gap flagged by Amelia). Binding to the value's scope guarantees:
+            //      no recorded type in the value's scope ⇒ neutral Integer.
+            Scope *scope = findVariableScope(name);
+            if (scope != nullptr)
+            {
+                auto scopeIt = declaredTypes_.find(scope);
+                if (scopeIt != declaredTypes_.end())
+                {
+                    auto varIt = scopeIt->second.find(name);
+                    if (varIt != scopeIt->second.end())
+                        return varIt->second;
+                }
+            }
+            return Types::SadTypeKind::Integer;
         }
 
         std::unordered_map<std::string, Value> VariableManager::captureVisibleVariables() const
