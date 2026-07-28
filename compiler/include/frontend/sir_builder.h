@@ -1037,6 +1037,17 @@ namespace Sad
                     return expressions_->buildExpression(expr);
                 }
 
+                // (AR) [طبقة طبيعي64] مندوب النوع السطحيّ الضحل — يفوّض لباني التعابير.
+                //      يُستعمَل في مسار الطباعة (call_main) لاشتقاق إشارة الوسيط من شجرته
+                //      كمرآةٍ لـresolveStaticType بالمفسّر (خطوة ٤).
+                // (EN) [طبيعي64 layer] Shallow surface-type delegate — forwards to the expression
+                //      builder. Used by the print path (call_main) to derive an argument's sign from
+                //      its AST, mirroring the interpreter's resolveStaticType (Step 4).
+                Sad::Types::SadTypeKind resolveSurfaceType(const Sad::AST::Expression *expr)
+                {
+                    return expressions_->resolveSurfaceType(expr);
+                }
+
                 /**
                  * @brief (AR) بناء عملية ثنائية (+ - * / % < > == && ||)
                  * @brief (EN) Build binary operation (+ - * / % < > == && ||)

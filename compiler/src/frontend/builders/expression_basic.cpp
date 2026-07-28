@@ -988,6 +988,12 @@ namespace Sad
                 // (AR) تحديد نوع النتيجة
                 // (EN) Determine result type
                 SadTypeKind resultType = operandResult.type;
+                // (AR) [طبيعي64] لا خفضَ نقطيَّ للأحاديّ: بوّابةُ الطباعة الموحَّدة تشتقّ الإشارة من
+                //      resolveSurfaceType(argExpr) (يُرجِع Integer لـUnaryExpr كالمفسّر) — نُبقي النوع
+                //      المُنتشَر للحساب.
+                // (EN) [طبيعي64] No point downgrade for unary: the unified print gate derives the sign
+                //      from resolveSurfaceType(argExpr) (returns Integer for a UnaryExpr, like the
+                //      interpreter) — the propagated type is kept for computation.
 
                 // (AR) تحديد رمز العملية (SIROpcode) بناءً على TokenType
                 // (EN) Determine SIROpcode based on TokenType

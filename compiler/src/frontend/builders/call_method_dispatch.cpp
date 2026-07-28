@@ -119,6 +119,8 @@ namespace Sad
                         {
                             returnType = ftIt->second.returnType;
                         }
+                        // (AR) [طبيعي64] لا خفضَ نقطيَّ — بوّابةُ الطباعة الموحَّدة تتكفّل بالإشارة.
+                        // (EN) [طبيعي64] No point downgrade — the unified print gate handles the sign.
 
                         std::string resultReg = b_.newTempRegister();
                         SIRInstruction callInst(SIROpcode::CALL);
@@ -486,6 +488,10 @@ namespace Sad
                 {
                     returnType = b_.functionTable_[fullMethodName].returnType;
                 }
+                // (AR) [طبيعي64] لا خفضَ نقطيَّ: بوّابةُ الطباعة الموحَّدة تشتقّ إشارة الطباعة من
+                //      resolveSurfaceType(argExpr) (يُرجِع Integer لمُنادى الطريقة MemberExpr كالمفسّر).
+                // (EN) [طبيعي64] No point downgrade: the unified print gate derives the sign from
+                //      resolveSurfaceType(argExpr) (returns Integer for a MemberExpr method callee, like the interpreter).
 
                 // (AR) الخطوة 3: بناء المعاملات
                 // (EN) Step 3: Build arguments

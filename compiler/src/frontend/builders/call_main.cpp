@@ -418,6 +418,51 @@ namespace Sad
 #endif
                     return simdResult.value();
                 }
+                // (AR) [طبقة طبيعي64 — الطباعة الجذريّة الموحَّدة] لمدمجات الطباعة (اطبع/اطبع_سطر):
+                //      تُقرَّر إشارةُ تنسيق كلّ وسيطٍ عدديّ من **`resolveSurfaceType(argExpr)`** على
+                //      شجرة الوسيط — مرآةً حرفيّةً لخطوة ٤ بالمفسّر (`renderUnsignedArgs` يستعمل
+                //      `resolveStaticType(argExpr)`) — لا من نوع سِجِلّ الوسيط المُنتشَر. بما أنّ
+                //      `resolveSurfaceType ≡ resolveStaticType` (متغيّر→المُصرَّح [Unknown⇒Integer]،
+                //      نداء مباشر→الإرجاع المُصرَّح، ثنائيّ→هيمنة، والباقي Integer)، يتطابق المساران
+                //      لـ**كلّ** أشكال الوسيط دفعةً: المُستنتَج (`متغير ج = ك`)، الأحاديّ، العضو،
+                //      الفهرسة، الثلاثيّ، النداء، الطريقة — بلا خفوضٍ نقطيّة. القيمةُ int64 لا تتغيّر
+                //      (الإشارةُ للطباعة فقط)، والمتغيّرُ المُسنَد يبقى يأخذ نوعه من تصريحه للحساب.
+                //      نمسّ المعاملات العدديّة فقط (UInt64/Byte/Integer)؛ نصّ/عشريّ/مصفوفة تُترَك.
+                // (EN) [طبيعي64 layer — unified root print gating] For the print builtins (اطبع/اطبع_سطر):
+                //      each numeric argument's format signedness is decided from `resolveSurfaceType(argExpr)`
+                //      over the argument's AST tree — a literal mirror of the interpreter's Step 4
+                //      (`renderUnsignedArgs` uses `resolveStaticType(argExpr)`) — NOT the propagated register
+                //      type. Since resolveSurfaceType ≡ resolveStaticType (variable→declared [Unknown⇒Integer],
+                //      direct call→declared return, binary→dominance, else Integer), both tracks agree for
+                //      EVERY argument shape at once: inferred (`var j = k`), unary, member, index, ternary,
+                //      call, method — without point downgrades. The int64 value is unchanged (sign is
+                //      print-only), and an assigned variable still takes its type from its own declaration for
+                //      computation. Only numeric operands (UInt64/Byte/Integer) are touched; string/float/array kept.
+                // (AR) البوّابة الثلاثيّة = عقد `renderUnsignedArgs` بالمفسّر بالضبط (اطبع/اطبع_سطر/نص
+                //      — builtin_core_io.cpp سطور ٨٣/٩١/١٦٧). تغطيةُ الثلاثة برهانُ اكتمال: لا مسار
+                //      تحويلٍ/طباعةٍ رابع يقرّر إشارةَ طبيعي64. `نص()` كان يُغفَل فتنفرج `نص(مُستنتَج)`.
+                // (EN) The triad gate = the interpreter's `renderUnsignedArgs` contract exactly
+                //      (print/println/to_string — builtin_core_io.cpp lines 83/91/167). Covering all
+                //      three is a completeness proof: no fourth conversion/print path decides a طبيعي64
+                //      sign. `to_string` was missing, so `نص(inferred)` diverged.
+                if ((funcName == Bn::Core::PRINT || funcName == Bn::Core::PRINTLN ||
+                     funcName == Bn::TypeCtor::TO_STRING) &&
+                    call)
+                {
+                    for (size_t i = 0; i < argOperands.size() && i < call->arguments.size(); ++i)
+                    {
+                        const SadTypeKind dt = argOperands[i].dataType;
+                        if (dt == SadTypeKind::UInt64 || dt == SadTypeKind::Byte ||
+                            dt == SadTypeKind::Integer)
+                        {
+                            const SadTypeKind surf = b_.resolveSurfaceType(call->arguments[i].get());
+                            argOperands[i].dataType =
+                                (surf == SadTypeKind::UInt64) ? SadTypeKind::UInt64
+                                                              : SadTypeKind::Integer;
+                        }
+                    }
+                }
+
                 auto builtinResult = b_.buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (builtinResult.has_value())
                 {
@@ -534,6 +579,13 @@ namespace Sad
                     // (AR) الدالة موجودة - استخدم نوع الإرجاع (sir_builder.h:165)
                     // (EN) Function found - use return type
                     returnType = it->second.returnType;
+                    // (AR) [طبيعي64] لا خفضَ نقطيَّ هنا: بوّابةُ الطباعة الموحَّدة (قبل buildBuiltinCallCore)
+                    //      تشتقّ إشارةَ طباعة نتيجة النداء من resolveSurfaceType(CallExpr) = الإرجاع
+                    //      المُصرَّح، فتُغني عن خفضِ نوع السِّجِلّ (الذي يبقى المُستنتَج للحساب).
+                    // (EN) [طبيعي64] No point downgrade here: the unified print gate (before
+                    //      buildBuiltinCallCore) derives the call-result print sign from
+                    //      resolveSurfaceType(CallExpr) = the declared return, obviating a register-type
+                    //      downgrade (the register keeps the inferred type for computation).
 #ifdef SIR_BUILDER_DEBUG
                     std::cerr << "[SIR-DBG] buildFunctionCall: found '" << funcName
                               << "' retType=" << static_cast<int>(returnType) << std::endl;

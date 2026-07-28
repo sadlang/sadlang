@@ -790,26 +790,34 @@ namespace Sad
                 // ========== العمليات البتية (token.h) ==========
                 case Lexer::TokenType::OP_XOR:
                     // (AR) XOR بتّي: Xor (sir_opcodes.h)
+                    // (AR) [طبقة طبيعي64 — طباعة البتّ] نوعُ النتيجة UInt64 حين يهيمن السطح الضحل
+                    //      طبيعي64 (anyU64Surface، `||` مطابقةً لـresolveStaticType بالمفسّر) ⇒ طباعةٌ
+                    //      لا-موقَّعة. العمليّة (XOR) متطابقةٌ بتّيًّا فالقيمة لا تتغيّر — التثبيت للطباعة.
+                    // (EN) [طبيعي64 layer — bitwise print] UInt64 result when the shallow surface is
+                    //      طبيعي64-dominant (anyU64Surface, `||` matching the interpreter's resolveStaticType)
+                    //      ⇒ unsigned print. The op (XOR) is bit-identical so the value is unchanged — pin for print.
                     opcode = SIROpcode::XOR;
-                    resultType = SadTypeKind::Integer;
+                    resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية XOR بتي (^)" << std::endl;
 #endif
                     break;
 
                 case Lexer::TokenType::OP_BITWISE_AND:
-                    // (AR) AND بتّي: AND
+                    // (AR) AND بتّي: AND — نتيجة UInt64 حين هيمنة السطح طبيعي64 (طباعة لا-موقَّعة).
+                    // (EN) Bitwise AND — UInt64 result under طبيعي64 surface dominance (unsigned print).
                     opcode = SIROpcode::AND;
-                    resultType = SadTypeKind::Integer;
+                    resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية AND بتي (&)" << std::endl;
 #endif
                     break;
 
                 case Lexer::TokenType::OP_BITWISE_OR:
-                    // (AR) OR بتّي: OR
+                    // (AR) OR بتّي: OR — نتيجة UInt64 حين هيمنة السطح طبيعي64 (طباعة لا-موقَّعة).
+                    // (EN) Bitwise OR — UInt64 result under طبيعي64 surface dominance (unsigned print).
                     opcode = SIROpcode::OR;
-                    resultType = SadTypeKind::Integer;
+                    resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية OR بتي (|)" << std::endl;
 #endif
@@ -818,23 +826,18 @@ namespace Sad
                 case Lexer::TokenType::OP_SHIFT_LEFT:
                     // (AR) إزاحة يسار: Shl
                     opcode = SIROpcode::SHL;
-                    // (AR) [الخطوة ٨] الإزاحة اليسرى `<<` **خارج نطاق هذه الخطوة** (خ٨ = `>>`
-                    //      المنطقيّة LShr حصرًا). العمليّة (SHL) متطابقةٌ إشارةً فلا تحتاج تغييرًا،
-                    //      لكنّ **طباعة** نتيجةٍ عالية البتّ تنفرج لطبيعي64: `ك << 63` (ك طبيعي64)
-                    //      يطبعه المفسّر لا-موقَّعًا (9223372036854775808، هيمنة resolveStaticType)
-                    //      والمترجم موقَّعًا (INT64_MIN) — نتركها Integer فلا نُصلح ولا نُدخِل
-                    //      انحدارًا. ⚠️دَينٌ سابقٌ موثَّق: طباعة `<<`،`&`،`|`،`^` اللا-موقَّعة لطبيعي64
-                    //      (تلزمها طباعةٌ واعيةٌ بالعمليّة/هيمنة؛ وتثبيت نتيجة `<<` كـUInt64 كان يُعطِب
-                    //      التوليد). ليس انفراجًا جديدًا من خ٨ (لم تمسّ SHL/AND/OR/XOR).
-                    // (EN) [Step 8] Left shift `<<` is OUT OF THIS STEP'S SCOPE (Step 8 = logical `>>`
-                    //      LShr only). The op (SHL) is signedness-identical so it needs no change, but a
-                    //      high-bit result's PRINT diverges for طبيعي64: `ك << 63` (ك طبيعي64) prints
-                    //      unsigned in the interpreter (9223372036854775808, resolveStaticType dominance)
-                    //      and signed in the compiler (INT64_MIN) — we keep it Integer, neither fixing nor
-                    //      regressing. ⚠️Documented pre-existing debt: unsigned print of `<<`,`&`,`|`,`^`
-                    //      for طبيعي64 (needs op-aware/dominance print; pinning `<<` result to UInt64 broke
-                    //      codegen). NOT a new Step-8 divergence (SHL/AND/OR/XOR untouched).
-                    resultType = SadTypeKind::Integer;
+                    // (AR) [طبقة طبيعي64 — طباعة البتّ] الإزاحة اليسرى `<<`: العمليّة (SHL) متطابقةٌ
+                    //      إشارةً فلا تتغيّر، لكنّ نتيجةً عالية البتّ (مثل ك<<63 = 2^63) تُطبع لا-موقَّعة
+                    //      حين هيمنة السطح طبيعي64 (anyU64Surface) لتطابق المفسّر (9223372036854775808
+                    //      لا INT64_MIN). (سابقًا ظُنّ أنّ تثبيت `<<`=UInt64 يُعطِب التوليد؛ تبيّن أنّ
+                    //      العطب كان اسمَ متغيّرٍ محجوزًا `و` في المسبار لا التثبيت — التثبيت آمن.)
+                    // (EN) [طبيعي64 layer — bitwise print] Left shift `<<`: the op (SHL) is signedness-
+                    //      identical so it is unchanged, but a high-bit result (e.g. ك<<63 = 2^63) prints
+                    //      unsigned under طبيعي64 surface dominance (anyU64Surface) to match the interpreter
+                    //      (9223372036854775808 not INT64_MIN). (A prior belief that pinning `<<`=UInt64
+                    //      broke codegen was wrong — the breakage was a reserved var name `و` in the probe,
+                    //      not the pin — pinning is safe.)
+                    resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
 #endif
@@ -843,11 +846,17 @@ namespace Sad
                 case Lexer::TokenType::OP_SHIFT_RIGHT:
                     // (AR) إزاحة يمين: Shr
                     opcode = SIROpcode::SHR;
-                    // (AR) [الخطوة ٨] طبيعي64 ⇒ نتيجة UInt64 (طباعة لا-موقَّعة + توجيه emitShr إلى
-                    //      LShr عبر معامل يسارٍ مُصالَح أدناه). غير ذلك Integer (AShr موقَّعة).
-                    // (EN) [Step 8] طبيعي64 ⇒ UInt64 result (unsigned print + steers emitShr to LShr
-                    //      via the left operand reconciled below). Otherwise Integer (signed AShr).
-                    resultType = leftU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
+                    // (AR) [الخطوة ٨ + طباعة البتّ] نوعُ نتيجة الطباعة بهيمنة السطح anyU64Surface
+                    //      (`||`، مطابقةً لـresolveStaticType بالمفسّر الذي يهيمن للطباعة) — فـ
+                    //      `‎-8‏ >> عدّاد_طبيعي64` يُطبع لا-موقَّعًا في المسارين. أمّا **إشارةُ العمليّة**
+                    //      (LShr/AShr) فمن المعامل الأيسر وحده (leftU64Surface) عبر مصالحة operands[0]
+                    //      أدناه — فالقيمةُ من المعامل الأيسر والطباعةُ من الهيمنة، كالمفسّر تمامًا.
+                    // (EN) [Step 8 + bitwise print] Print result type from surface dominance anyU64Surface
+                    //      (`||`, matching the interpreter's resolveStaticType which dominates for printing)
+                    //      — so `-8 >> uint64_count` prints unsigned in both tracks. The OPERATION sign
+                    //      (LShr/AShr) comes from the LEFT operand alone (leftU64Surface) via the operands[0]
+                    //      reconciliation below — value from the left, print from dominance, exactly like the interpreter.
+                    resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
 #endif
