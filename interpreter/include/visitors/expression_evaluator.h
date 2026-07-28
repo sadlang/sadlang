@@ -579,7 +579,9 @@ namespace Sad
              * @brief (AR) تنفيذ عمليات البت: ^ | & << >>
              * @brief (EN) Execute bitwise operations: ^ | & << >>
              */
-            Data::Value evaluateBitwiseOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos);
+            // (AR) unsignedShr: [الخطوة ٨] المعامل الأيسر طبيعي64 ⇒ `>>` منطقيّة (LShr على uint64_t) بدل الحسابيّة.
+            // (EN) unsignedShr: [Step 8] left operand طبيعي64 ⇒ logical `>>` (LShr on uint64_t) instead of arithmetic.
+            Data::Value evaluateBitwiseOp(const Data::Value &left, Lexer::TokenType op, const Data::Value &right, const Lexer::Position &pos, bool unsignedShr = false);
 
             /**
              * @brief (AR) استنتاج النوع الساكن لتعبير (لا-قيميّ) — مرآة انتشار SIR

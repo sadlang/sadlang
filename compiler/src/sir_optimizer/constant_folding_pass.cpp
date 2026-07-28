@@ -569,13 +569,19 @@ namespace Sad
                     result = *leftVal << *rightVal;
                     break;
                 case SIROpcode::SHR:
-                    // (AR) إزاحة يمنى حسابيّة (int64_t موقَّع) لا منطقيّة — يطابق المفسّر
-                    //      والخلفيّة (AShr): -8 >> 1 = -4. كان cast لـuint64_t يطوي إزاحةً
-                    //      منطقيّة فيعطي عددًا موجبًا ضخمًا للسالب ⇒ تباعُد مع زمن التشغيل.
-                    // (EN) Signed (int64_t) arithmetic right shift, not logical — matches the
-                    //      interpreter and backend (AShr): -8 >> 1 = -4. The uint64_t cast
-                    //      folded a logical shift ⇒ a huge positive for negatives ⇒ divergence.
-                    result = *leftVal >> *rightVal;
+                    // (AR) [الخطوة ٨] النتيجة طبيعي64 (ثبّتتها الواجهة UInt64 لإزاحةٍ يسارُها
+                    //      طبيعي64) ⇒ إزاحةٌ منطقيّة على uint64_t (تطابق CreateLShr زمنَ التشغيل:
+                    //      MAX>>1 = 2^63-1). غير ذلك: إزاحةٌ حسابيّة موقَّعة (int64_t، تطابق AShr:
+                    //      -8>>1=-4). دلالةُ الطيّ من نوع النتيجة كنمط فرع العشريّ/القسمة.
+                    // (EN) [Step 8] طبيعي64 result (the frontend pins UInt64 for a shift whose left is
+                    //      طبيعي64) ⇒ logical shift on uint64_t (matches runtime CreateLShr:
+                    //      MAX>>1 = 2^63-1). Otherwise: signed arithmetic shift (int64_t, matches AShr:
+                    //      -8>>1=-4). Fold semantics from the result type, as the float/division branches.
+                    result = (inst.result.has_value() &&
+                              inst.result->dataType == SIR::SadTypeKind::UInt64)
+                                 ? static_cast<int64_t>(static_cast<uint64_t>(*leftVal) >>
+                                                        static_cast<uint64_t>(*rightVal))
+                                 : (*leftVal >> *rightVal);
                     break;
                 default:
                     return false;

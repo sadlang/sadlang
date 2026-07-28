@@ -520,6 +520,18 @@ namespace Sad
                     resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 ||
                     resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
 
+                // (AR) [طبقة طبيعي64 — الخطوة ٨] سطحُ المعامل **الأيسر** وحده للإزاحة `>>`/`<<`:
+                //      إشارةُ الإزاحة من القيمة المُزاحة لا من عدّاد الإزاحة (`5 >> ك` تبقى موقَّعة
+                //      وإن كانت ك طبيعي64). يُستهلَك لتثبيت نتيجة الإزاحة UInt64 (طباعة لا-موقَّعة
+                //      لنتيجةٍ عالية البتّ مثل MAX>>0 أو 1<<63) ولمصالحة إشارة `>>` (LShr/AShr).
+                // (EN) [طبيعي64 layer — Step 8] The LEFT operand's surface alone for shifts `>>`/`<<`:
+                //      shift signedness comes from the shifted value, not the shift count (`5 >> ك`
+                //      stays signed even if ك is طبيعي64). Consumed to pin the shift result to UInt64
+                //      (unsigned print for a high-bit result like MAX>>0 or 1<<63) and to reconcile
+                //      the `>>` sign (LShr/AShr).
+                const bool leftU64Surface =
+                    resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64;
+
                 // (AR) العملية من expressions.h:43 - op: Lexer::TokenType
                 // (EN) Operation from expressions.h:43
                 switch (binOp->op)
@@ -806,6 +818,22 @@ namespace Sad
                 case Lexer::TokenType::OP_SHIFT_LEFT:
                     // (AR) إزاحة يسار: Shl
                     opcode = SIROpcode::SHL;
+                    // (AR) [الخطوة ٨] الإزاحة اليسرى `<<` **خارج نطاق هذه الخطوة** (خ٨ = `>>`
+                    //      المنطقيّة LShr حصرًا). العمليّة (SHL) متطابقةٌ إشارةً فلا تحتاج تغييرًا،
+                    //      لكنّ **طباعة** نتيجةٍ عالية البتّ تنفرج لطبيعي64: `ك << 63` (ك طبيعي64)
+                    //      يطبعه المفسّر لا-موقَّعًا (9223372036854775808، هيمنة resolveStaticType)
+                    //      والمترجم موقَّعًا (INT64_MIN) — نتركها Integer فلا نُصلح ولا نُدخِل
+                    //      انحدارًا. ⚠️دَينٌ سابقٌ موثَّق: طباعة `<<`،`&`،`|`،`^` اللا-موقَّعة لطبيعي64
+                    //      (تلزمها طباعةٌ واعيةٌ بالعمليّة/هيمنة؛ وتثبيت نتيجة `<<` كـUInt64 كان يُعطِب
+                    //      التوليد). ليس انفراجًا جديدًا من خ٨ (لم تمسّ SHL/AND/OR/XOR).
+                    // (EN) [Step 8] Left shift `<<` is OUT OF THIS STEP'S SCOPE (Step 8 = logical `>>`
+                    //      LShr only). The op (SHL) is signedness-identical so it needs no change, but a
+                    //      high-bit result's PRINT diverges for طبيعي64: `ك << 63` (ك طبيعي64) prints
+                    //      unsigned in the interpreter (9223372036854775808, resolveStaticType dominance)
+                    //      and signed in the compiler (INT64_MIN) — we keep it Integer, neither fixing nor
+                    //      regressing. ⚠️Documented pre-existing debt: unsigned print of `<<`,`&`,`|`,`^`
+                    //      for طبيعي64 (needs op-aware/dominance print; pinning `<<` result to UInt64 broke
+                    //      codegen). NOT a new Step-8 divergence (SHL/AND/OR/XOR untouched).
                     resultType = SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
@@ -815,7 +843,11 @@ namespace Sad
                 case Lexer::TokenType::OP_SHIFT_RIGHT:
                     // (AR) إزاحة يمين: Shr
                     opcode = SIROpcode::SHR;
-                    resultType = SadTypeKind::Integer;
+                    // (AR) [الخطوة ٨] طبيعي64 ⇒ نتيجة UInt64 (طباعة لا-موقَّعة + توجيه emitShr إلى
+                    //      LShr عبر معامل يسارٍ مُصالَح أدناه). غير ذلك Integer (AShr موقَّعة).
+                    // (EN) [Step 8] طبيعي64 ⇒ UInt64 result (unsigned print + steers emitShr to LShr
+                    //      via the left operand reconciled below). Otherwise Integer (signed AShr).
+                    resultType = leftU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
 #endif
@@ -1300,6 +1332,26 @@ namespace Sad
                     };
                     adjustDivSign(leftOp);
                     adjustDivSign(rightOp);
+                }
+
+                // (AR) [طبقة طبيعي64 — الخطوة ٨] مصالحةُ إشارة معامل الإزاحة اليمنى **الأيسر**
+                //      مع السطح الضحل leftU64Surface (نظير adjustDivSign لكن للمعامل الأيسر وحده،
+                //      إذ إشارةُ `>>` منه لا من العدّاد). رفعٌ عند الطمس بإعادة الإسناد لحرفيّ
+                //      (سِجِلّ ك يصير Integer بينما السطح UInt64) ⇒ LShr؛ خفضٌ للمُستنتَج ⇒ AShr.
+                //      آمنٌ بعد إصلاح CSE (خ٧). لا يمسّ `<<` (إشارته متطابقة). المعامل الأيمن
+                //      (العدّاد) يبقى كما هو.
+                // (EN) [طبيعي64 layer — Step 8] Reconcile the RIGHT-shift's LEFT operand sign with the
+                //      shallow surface leftU64Surface (sibling of adjustDivSign but for the left operand
+                //      alone, since `>>` signedness is the value's not the count's). Upgrade on a
+                //      reassign-to-literal clobber (ك's register becomes Integer while its surface is
+                //      UInt64) ⇒ LShr; downgrade an inferred ⇒ AShr. Safe after the CSE fix (Step 7).
+                //      Does not touch `<<` (signedness-identical). The right operand (count) is untouched.
+                if (binOp->op == Lexer::TokenType::OP_SHIFT_RIGHT)
+                {
+                    if (leftU64Surface && leftOp.dataType == SadTypeKind::Integer)
+                        leftOp.dataType = SadTypeKind::UInt64;
+                    else if (!leftU64Surface && leftOp.dataType == SadTypeKind::UInt64)
+                        leftOp.dataType = SadTypeKind::Integer;
                 }
 
                 // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)

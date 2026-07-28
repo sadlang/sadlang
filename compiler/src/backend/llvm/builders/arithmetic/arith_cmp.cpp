@@ -162,14 +162,21 @@ namespace Sad
             if (right->getType()->isDoubleTy())
                 right = emitF64ToI64Sat(right, "shr.r.f2i.sat");
 
-            // (AR) إزاحة يمنى حسابيّة (AShr) لا منطقيّة (LShr) — المفسّر (المرجع) يستخدم
-            //      `int64_t >> r` أي إزاحةً حسابيّةً تحفظ الإشارة (‏-8 >> 1 = -4). كان LShr
-            //      يُدخِل أصفارًا في البتّ الأعلى فيعطي عددًا موجبًا ضخمًا للسالب ⇒ تباعُد.
-            // (EN) Arithmetic (AShr) not logical (LShr) right shift — the interpreter
-            //      (reference) uses signed `int64_t >> r`, i.e. a sign-preserving arithmetic
-            //      shift (-8 >> 1 = -4). LShr shifted in zeros at the top ⇒ a huge positive
-            //      for negatives ⇒ divergence.
-            llvm::Value *result = cg_.builder_->CreateAShr(left, right, "shrtmp");
+            // (AR) [طبقة طبيعي64 — الخطوة ٨] إشارةُ الإزاحة اليمنى من النوع السطحيّ للمعامل
+            //      الأيسر (القيمة المُزاحة): طبيعي64 ⇒ منطقيّة LShr (تُدخِل أصفارًا: MAX>>1=2^63-1)
+            //      مطابقةً للمفسّر اللا-موقَّع؛ غير ذلك ⇒ حسابيّة AShr تحفظ الإشارة (‎-8>>1=-4‏)
+            //      مطابقةً للمفسّر الموقَّع `int64_t >>`. الواجهةُ الأماميّة تُصالِح operands[0]
+            //      .dataType مع السطح الضحل (رفعٌ عند الطمس بإعادة الإسناد، خفضٌ للمُستنتَج).
+            // (EN) [طبيعي64 layer — Step 8] Right-shift signedness from the LEFT operand's (the
+            //      shifted value's) surface type: طبيعي64 ⇒ logical LShr (shifts in zeros:
+            //      MAX>>1=2^63-1) matching the unsigned interpreter; otherwise ⇒ arithmetic AShr
+            //      (sign-preserving, -8>>1=-4) matching the signed interpreter `int64_t >>`. The
+            //      frontend reconciles operands[0].dataType with the shallow surface (upgrade on a
+            //      reassign clobber, downgrade for inferred).
+            llvm::Value *result =
+                (inst->operands[0].dataType == SadTypeKind::UInt64)
+                    ? cg_.builder_->CreateLShr(left, right, "lshrtmp")
+                    : cg_.builder_->CreateAShr(left, right, "shrtmp");
 
             if (inst->result.has_value())
             {

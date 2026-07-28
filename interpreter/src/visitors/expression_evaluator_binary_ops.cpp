@@ -255,8 +255,24 @@ namespace Sad
             case TokenType::OP_BITWISE_OR:
             case TokenType::OP_SHIFT_LEFT:
             case TokenType::OP_SHIFT_RIGHT:
-                lastResult_ = evaluateBitwiseOp(left, node.op, right, node.position);
+            {
+                // (AR) [طبقة طبيعي64 — الخطوة ٨] إزاحةٌ يمنى منطقيّة (LShr) حين يكون النوع
+                //      السطحيّ **للمعامل الأيسر** (القيمة المُزاحة) طبيعي64. المفسّر يستخدم
+                //      `int64_t >> r` (حسابيّة، تحفظ الإشارة: MAX>>1=MAX) بينما طبيعي64 لا-موقَّع
+                //      يلزمه المنطقيّة (MAX>>1=2^63-1). إشارةُ الإزاحة من المعامل الأيسر وحده
+                //      (الأيمن عدّاد لا قيمة)، بخلاف هيمنة //،% . `<<` متطابقةٌ إشارةً فلا تتأثّر.
+                // (EN) [طبيعي64 layer — Step 8] Logical right shift (LShr) when the LEFT operand's
+                //      (the shifted value's) surface type is طبيعي64. The interpreter uses signed
+                //      `int64_t >> r` (arithmetic, sign-preserving: MAX>>1=MAX) while طبيعي64 is
+                //      unsigned and needs the logical shift (MAX>>1=2^63-1). The shift's signedness
+                //      comes from the LEFT operand alone (the right is a count, not a value), unlike
+                //      the //,% dominance. `<<` is signedness-identical so it is unaffected.
+                const bool unsignedShr =
+                    node.op == TokenType::OP_SHIFT_RIGHT &&
+                    resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64;
+                lastResult_ = evaluateBitwiseOp(left, node.op, right, node.position, unsignedShr);
                 break;
+            }
 
             // (AR) عامل العضوية: في / (EN) Membership operator: in
             case TokenType::KEYWORD_IN:

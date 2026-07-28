@@ -448,7 +448,7 @@ namespace Sad
         // (AR) عمليات البت / (EN) Bitwise Operations
         // =========================================================================
 
-        Value ExpressionEvaluator::evaluateBitwiseOp(const Value &left, TokenType op, const Value &right, const Lexer::Position &pos)
+        Value ExpressionEvaluator::evaluateBitwiseOp(const Value &left, TokenType op, const Value &right, const Lexer::Position &pos, bool unsignedShr)
         {
             if (!left.isNumeric() || !right.isNumeric())
             {
@@ -499,6 +499,14 @@ namespace Sad
                         pos,
                         {{"offset", std::to_string(r)}});
                 }
+                // (AR) [الخطوة ٨] طبيعي64 ⇒ إزاحةٌ منطقيّة على uint64_t (تُدخِل أصفارًا) لتطابق
+                //      CreateLShr في المترجم بدل `int64_t >>` الحسابيّة (تمدّ الإشارة). MAX>>1 =
+                //      2^63-1 لا MAX. الافتراض (موقَّع) يبقى للأنواع الأخرى.
+                // (EN) [Step 8] طبيعي64 ⇒ logical shift on uint64_t (shifts in zeros) to match the
+                //      compiler's CreateLShr instead of arithmetic signed `int64_t >>` (sign-extends).
+                //      MAX>>1 = 2^63-1 not MAX. Default (signed) stays for other types.
+                if (unsignedShr)
+                    return Value(static_cast<int64_t>(static_cast<uint64_t>(l) >> r));
                 return Value(l >> r);
             }
             default:
