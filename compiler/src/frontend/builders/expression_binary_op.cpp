@@ -505,6 +505,21 @@ namespace Sad
                 SIROpcode opcode;
                 bool isComparison = false; // (AR) عمليات المقارنة تُرجع BOOL
 
+                // (AR) [طبقة طبيعي64 — الخطوة ٧] هيمنة السطح الضحل (أيّ معامل طبيعي64 صراحةً)
+                //      لقرار لا-موقَّعيّة //،%. مرآةُ wrapU64 بالمفسّر (resolveStaticType، `||`).
+                //      يُستهلَك في تثبيت نوع النتيجة أدناه: طبيعي64 //،% لا تفيض (udiv/urem)
+                //      فنتيجتها حتميّةٌ صحيحة ⇒ نثبّتها UInt64 (مسارٌ ساكن + طباعة لا-موقَّعة)
+                //      بدل Any الديناميّ الموقَّع الذي يلزم الموقَّعَ (INT64_MIN//-1 يفيض).
+                // (EN) [طبيعي64 layer — Step 7] Shallow-surface dominance (any operand explicitly
+                //      طبيعي64) for the //,% unsigned decision. Mirrors the interpreter's wrapU64
+                //      (resolveStaticType, `||`). Consumed in result-type pinning below: طبيعي64
+                //      //,% cannot overflow (udiv/urem) so their result kind is deterministic
+                //      integer ⇒ pin UInt64 (static path + unsigned print) instead of the signed
+                //      dynamic Any that the signed case needs (INT64_MIN//-1 overflows).
+                const bool anyU64Surface =
+                    resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 ||
+                    resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
+
                 // (AR) العملية من expressions.h:43 - op: Lexer::TokenType
                 // (EN) Operation from expressions.h:43
                 switch (binOp->op)
@@ -605,7 +620,13 @@ namespace Sad
                     //      overflow ⇒ #DE). A float operand ⇒ static Float floor(fdiv) (7.5//2=3.0).
                     opcode = SIROpcode::FLOOR_DIV_I64;
                     if (resultType != SadTypeKind::Float)
-                        resultType = SadTypeKind::Any;
+                        // (AR) [الخطوة ٧] طبيعي64: udiv لا يفيض ⇒ نتيجةٌ حتميّةٌ صحيحة، نثبّتها
+                        //      UInt64 (مسار emitDiv الساكن اللا-موقَّع + طباعة لا-موقَّعة) بدل Any
+                        //      الديناميّ. غير-طبيعي64: يبقى Any (الموقَّع قد يفيض زمنَ التشغيل).
+                        // (EN) [Step 7] طبيعي64: udiv can't overflow ⇒ deterministic integer result;
+                        //      pin UInt64 (static unsigned emitDiv path + unsigned print) instead of
+                        //      dynamic Any. Non-طبيعي64: stays Any (signed may overflow at runtime).
+                        resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Any;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)" << std::endl;
 #endif
@@ -622,7 +643,11 @@ namespace Sad
                     //      7.5%2=1.5) instead of pinning Integer (srem-via-truncation gave 1).
                     opcode = SIROpcode::MOD_I64;
                     if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
-                        resultType = SadTypeKind::Integer;
+                        // (AR) [الخطوة ٧] طبيعي64: urem نتيجته لا-موقَّعة حتميّة ⇒ نثبّتها UInt64
+                        //      (طباعة لا-موقَّعة، مطابقةً للمفسّر) بدل Integer الموقَّع.
+                        // (EN) [Step 7] طبيعي64: urem gives a deterministic unsigned result ⇒ pin
+                        //      UInt64 (unsigned print, matching the interpreter) instead of signed Integer.
+                        resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;
 #endif
@@ -1219,6 +1244,62 @@ namespace Sad
                     };
                     adjustSign(leftOp);
                     adjustSign(rightOp);
+                }
+
+                // (AR) [طبقة طبيعي64 — الخطوة ٧] قرار إشارة القسمة الأرضيّة/الباقي (// %) من
+                //      النوع السطحيّ **الضحل** — نظيرُ كتلة المقارنة أعلاه لكن **بهيمنة `||`**
+                //      (يكفي معاملٌ واحد طبيعي64) لا `&&`، مطابقةً لـwrapU64 بالمفسّر (الحساب
+                //      يهيمن، بخلاف المقارنة التي تلزم كليهما لإشارة CreateICmp). بلا هذا كان
+                //      المترجم يقرأ طبيعي64 **المُستنتَج** (نتيجة نداء/متغيّر مُسنَد) فيصدر
+                //      URem/UDiv بينما المفسّر (resolveStaticType الضحل ⇒ Integer) يصدر
+                //      SRem/SDiv موقَّعين ⇒ انفراج (رصده أميليا). نصحّح dataType لمعاملَي i64
+                //      فقط (قلبٌ آمن العرض UInt64↔Integer، كلاهما i64). Option A: المُصرَّح
+                //      صراحةً ⇒ لا-موقَّع؛ المُستنتَج ⇒ موقَّع.
+                // (EN) [طبيعي64 layer — Step 7] Floor-division/modulo (// %) signedness from the
+                //      SHALLOW surface type — sibling of the comparison block above but with `||`
+                //      DOMINANCE (one طبيعي64 operand suffices) not `&&`, matching the interpreter's
+                //      wrapU64 (arithmetic dominates, unlike comparison which needs both for
+                //      CreateICmp's sign). Without this the compiler read an INFERRED طبيعي64 type
+                //      (a call result or an assigned var) and emitted URem/UDiv while the interpreter
+                //      (shallow resolveStaticType ⇒ Integer) emitted signed SRem/SDiv ⇒ divergence
+                //      (found by Amelia). We only adjust i64 operands' dataType (a width-safe
+                //      UInt64↔Integer flip; both are i64). Option A: explicit ⇒ unsigned, inferred ⇒ signed.
+                if (binOp->op == Lexer::TokenType::OP_MODULO ||
+                    binOp->op == Lexer::TokenType::OP_FLOOR_DIVIDE)
+                {
+                    const bool anyU64 =
+                        resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 ||
+                        resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
+                    // (AR) تسويةٌ ثنائيّة الاتّجاه من هيمنة السطح الضحل anyU64:
+                    //      • خفض: مُستنتَجٌ UInt64 لكنّ السطح ليس طبيعي64 ⇒ Integer (مطابقةً للمفسّر).
+                    //      • رفع: Integer لكنّ السطح طبيعي64 (هيمنة) ⇒ UInt64. **ضروريٌّ** لأنّ
+                    //        إسنادَ متغيّر طبيعي64 مُصرَّح إلى حرفيّ/نداءٍ نوعُه Integer **يطمس نوعَ
+                    //        سِجِلّه إلى Integer** بينما declaredSurfaceType يبقى UInt64؛ فبلا الرفع
+                    //        يقرّر إشارةَ العمليّة نوعُ السِجِلّ المطموس (SRem/SDiv موقَّع) بينما
+                    //        التثبيت/الطباعة من anyU64Surface لا-موقَّعان ⇒ حسابٌ موقَّع + طبع
+                    //        لا-موقَّع = MAX خاطئ (رصده أميليا). الرفع يوحّد الإشارة مع التثبيت.
+                    //      كان الرفع مُزالًا لتفادي عيب CSE (ثابتا UInt64 مختلفان يُدمَجان) — **وقد
+                    //      أُصلح CSE** (يُفتِّح ثوابت UInt64 بقيمتها في cse_pass + passes2) فالرفع آمن.
+                    // (EN) Bidirectional reconciliation from the shallow-surface dominance anyU64:
+                    //      • downgrade: inferred UInt64 but surface not طبيعي64 ⇒ Integer (match interp).
+                    //      • upgrade: Integer but surface طبيعي64 (dominance) ⇒ UInt64. REQUIRED because
+                    //        reassigning a declared طبيعي64 var to a literal/Integer-return call CLOBBERS
+                    //        its register type to Integer while declaredSurfaceType stays UInt64; without
+                    //        the upgrade the op's sign follows the clobbered register type (signed
+                    //        SRem/SDiv) while pinning/print follow anyU64Surface (unsigned) ⇒ signed
+                    //        arithmetic + unsigned print = wrong MAX (found by Amelia). The upgrade unifies
+                    //        the op sign with the pinning. The upgrade was removed to dodge a CSE defect
+                    //        (two distinct UInt64 constants merged) — that CSE defect is now FIXED (UInt64
+                    //        constants keyed by value in cse_pass + passes2), so the upgrade is safe.
+                    auto adjustDivSign = [anyU64](SIROperand &op)
+                    {
+                        if (op.dataType == SadTypeKind::UInt64 && !anyU64)
+                            op.dataType = SadTypeKind::Integer; // (AR) مُستنتَج ⇒ موقَّع (يُطابق المفسّر)
+                        else if (anyU64 && op.dataType == SadTypeKind::Integer)
+                            op.dataType = SadTypeKind::UInt64;  // (AR) هيمنة سطحٍ صريح ⇒ لا-موقَّع (يوحّد الإشارة مع التثبيت)
+                    };
+                    adjustDivSign(leftOp);
+                    adjustDivSign(rightOp);
                 }
 
                 // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)

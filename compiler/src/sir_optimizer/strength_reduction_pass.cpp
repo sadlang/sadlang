@@ -167,6 +167,19 @@ bool StrengthReductionPass::tryReduceDivision(SIR::SIRInstruction& inst) {
     //      floor); LLVM's backend re-derives the sdiv strength reduction itself.
     if (inst.opcode != SIR::SIROpcode::FLOOR_DIV_I64) return false;
 
+    // (AR) [طبقة طبيعي64 — الخطوة ٧] لا تخفيض لطبيعي64: `x // 2^n` الموقَّعُ = SAR (إزاحة
+    //      حسابيّة = أرضيّة)، لكنّ طبيعي64 لا-موقَّع فأرضيّتُه = LSHR (إزاحة منطقيّة). SAR على
+    //      طبيعي64 يمدّ الإشارة (MAX = ‎-1‏ بتّيًّا ⇒ SAR(‎-1‏،1) = ‎-1‏ = MAX بدل MAX//2). نتركها
+    //      FLOOR_DIV_I64 لمسار emitDiv اللا-موقَّع (UDiv)، وخلفيّةُ LLVM تخفّض udiv/2^n إلى lshr
+    //      بنفسها. (النتيجةُ مثبَّتةٌ UInt64 في الواجهة الأماميّة لطبيعي64 //).
+    // (EN) [طبيعي64 layer — Step 7] No reduction for طبيعي64: signed `x // 2^n` = SAR (arithmetic
+    //      shift = floor), but طبيعي64 is unsigned so its floor = LSHR (logical shift). SAR on a
+    //      طبيعي64 sign-extends (MAX = -1 bits ⇒ SAR(-1,1) = -1 = MAX instead of MAX//2). Leave it
+    //      as FLOOR_DIV_I64 for emitDiv's unsigned UDiv path; LLVM's backend strength-reduces
+    //      udiv/2^n to lshr itself. (The result is pinned UInt64 in the frontend for طبيعي64 //.)
+    if (inst.hasResult() && inst.result->dataType == SIR::SadTypeKind::UInt64)
+        return false;
+
     // (AR) التحقق من أن القاسم ثابت وقوة 2
     // (EN) Check if divisor is constant and power of 2
     auto constVal = getIntConstant(inst.operands[1]);

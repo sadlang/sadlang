@@ -423,7 +423,26 @@ namespace Sad
                             else if (op.type == SIROperandType::CONSTANT)
                             {
                                 // Encode constant as string for hashing
-                                if (op.dataType == SadTypeKind::Integer)
+                                // (AR) [إصلاح عيب كامن كشفته طبقة طبيعي64 — نظير cse_pass.cpp]
+                                //      كلّ الثوابت الصحيحة (بأيّ عرض/إشارة) تُرمَّز بقيمتها.
+                                //      UInt64/بايت/الأنواع المحدَّدة كانت تُهمَل تمامًا (لا فرع)
+                                //      ⇒ مفتاحٌ بلا تمييز ⇒ CSE الأماميّ (عند O3) يدمج `ك//2`
+                                //      و`ك//1` (نفس السجلّ، ثابتان مُهمَلان). ضمُّها يصلح الجذر.
+                                // (EN) [Latent-defect fix surfaced by the طبيعي64 layer — sibling
+                                //      of cse_pass.cpp] All integer constants (any width/signedness)
+                                //      key by value. UInt64/Byte/sized types were skipped entirely
+                                //      (no branch) ⇒ an undistinguished key ⇒ the frontend CSE (at
+                                //      O3) merged `ك//2` and `ك//1` (same register, both constants dropped).
+                                if (op.dataType == SadTypeKind::Integer ||
+                                    op.dataType == SadTypeKind::UInt64 ||
+                                    op.dataType == SadTypeKind::Byte ||
+                                    op.dataType == SadTypeKind::Int8 ||
+                                    op.dataType == SadTypeKind::Int16 ||
+                                    op.dataType == SadTypeKind::Int32 ||
+                                    op.dataType == SadTypeKind::Int64 ||
+                                    op.dataType == SadTypeKind::UInt8 ||
+                                    op.dataType == SadTypeKind::UInt16 ||
+                                    op.dataType == SadTypeKind::UInt32)
                                 {
                                     key.operandNames.push_back("$i" + std::to_string(op.intValue));
                                 }

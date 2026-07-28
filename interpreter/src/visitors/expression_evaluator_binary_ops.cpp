@@ -510,6 +510,17 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_FLOOR_DIVISION_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 ⇒ قسمة أرضيّة لا-موقَّعة على uint64_t
+                    //      (لا سالب فالأرضيّة = الاقتطاع) لتطابق CreateUDiv في المترجم بدل SDiv
+                    //      الموقَّعة. المقسوم عليه ‎-1‏ يُعاد تفسيره MAX لا-موقَّعًا (MAX//MAX=…)،
+                    //      ولا فيض حدّ أدنى (ذاك موقَّع). النطاق الكامل ٢^٦٤.
+                    // (EN) [Step 7] طبيعي64 surface type ⇒ unsigned floor division on uint64_t
+                    //      (no negatives so floor == truncation) to match the compiler's CreateUDiv
+                    //      instead of signed SDiv. A -1 divisor is reinterpreted as unsigned MAX,
+                    //      and there is no min-overflow (that is signed). Full 2^64 range.
+                    if (wrapU64)
+                        return Value(static_cast<int64_t>(
+                            static_cast<uint64_t>(l) / static_cast<uint64_t>(r)));
                     if (l == INT64_MIN && r == -1)
                         return Value(-static_cast<double>(l));
                     // (AR) القسمة الصحيحة الأرضية: -7 // 2 → -4 (نحو سالب اللانهاية)
@@ -525,6 +536,16 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_MODULO_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 ⇒ باقٍ لا-موقَّع على uint64_t ليطابق
+                    //      CreateURem في المترجم بدل SRem الموقَّعة. المقسوم عليه ‎-1‏ يُعاد تفسيره
+                    //      MAX لا-موقَّعًا (لا حالة INT64_MIN%-1 الموقَّعة)، فـMAX%2 = 1 (لا ‎-1‏).
+                    // (EN) [Step 7] طبيعي64 surface type ⇒ unsigned remainder on uint64_t to match
+                    //      the compiler's CreateURem instead of signed SRem. A -1 divisor is
+                    //      reinterpreted as unsigned MAX (no signed INT64_MIN%-1 case), so
+                    //      MAX%2 = 1 (not -1).
+                    if (wrapU64)
+                        return Value(static_cast<int64_t>(
+                            static_cast<uint64_t>(l) % static_cast<uint64_t>(r)));
                     // (AR) INT64_MIN % -1 سلوك غير محدَّد في C++ — النتيجة الرياضيّة صفر
                     // (EN) INT64_MIN % -1 is UB in C++ — mathematical result is zero
                     if (r == -1)

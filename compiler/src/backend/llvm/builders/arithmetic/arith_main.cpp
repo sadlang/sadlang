@@ -687,15 +687,33 @@ namespace Sad
                     emitIntDivZeroGuard(cg_, left, right,
                                         Sad::Compiler::kFloorDivZeroRun009IntMsg,
                                         "ifloordiv.dz");
-                    llvm::Value *q = cg_.builder_->CreateSDiv(left, right, "floordivtmp");
-                    llvm::Value *rem = cg_.builder_->CreateSRem(left, right, "floordiv.rem");
-                    llvm::Value *zero64 = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
-                    llvm::Value *signsDiffer = cg_.builder_->CreateICmpSLT(
-                        cg_.builder_->CreateXor(left, right, "floordiv.sx"), zero64, "floordiv.sd");
-                    llvm::Value *inexact = cg_.builder_->CreateICmpNE(rem, zero64, "floordiv.ix");
-                    llvm::Value *needAdj = cg_.builder_->CreateAnd(signsDiffer, inexact, "floordiv.na");
-                    llvm::Value *adj = cg_.builder_->CreateZExt(needAdj, cg_.getInt64Type(), "floordiv.adj");
-                    result = cg_.builder_->CreateSub(q, adj, "floordivadj");
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 (هيمنة: أيّ معامل UInt64، مرآةُ
+                    //      wrapU64 في المفسّر) ⇒ قسمة أرضيّة لا-موقَّعة UDiv بلا تسوية سالب
+                    //      (urem/udiv لا سالب فالأرضيّة = الاقتطاع) لتطابق المفسّر: MAX//2 =
+                    //      INT64_MAX (لا ‎-1‏). النطاق الكامل ٢^٦٤.
+                    // (EN) [Step 7] طبيعي64 surface type (dominance: any operand UInt64, mirroring
+                    //      the interpreter's wrapU64) ⇒ unsigned UDiv with no negative floor
+                    //      adjustment (unsigned has no negatives so floor == truncation) to match
+                    //      the interpreter: MAX//2 = INT64_MAX (not -1). Full 2^64 range.
+                    const bool fdivUnsignedU64 =
+                        inst->operands[0].dataType == SadTypeKind::UInt64 ||
+                        inst->operands[1].dataType == SadTypeKind::UInt64;
+                    if (fdivUnsignedU64)
+                    {
+                        result = cg_.builder_->CreateUDiv(left, right, "ufloordivtmp");
+                    }
+                    else
+                    {
+                        llvm::Value *q = cg_.builder_->CreateSDiv(left, right, "floordivtmp");
+                        llvm::Value *rem = cg_.builder_->CreateSRem(left, right, "floordiv.rem");
+                        llvm::Value *zero64 = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                        llvm::Value *signsDiffer = cg_.builder_->CreateICmpSLT(
+                            cg_.builder_->CreateXor(left, right, "floordiv.sx"), zero64, "floordiv.sd");
+                        llvm::Value *inexact = cg_.builder_->CreateICmpNE(rem, zero64, "floordiv.ix");
+                        llvm::Value *needAdj = cg_.builder_->CreateAnd(signsDiffer, inexact, "floordiv.na");
+                        llvm::Value *adj = cg_.builder_->CreateZExt(needAdj, cg_.getInt64Type(), "floordiv.adj");
+                        result = cg_.builder_->CreateSub(q, adj, "floordivadj");
+                    }
                 }
             }
             else
@@ -837,17 +855,34 @@ namespace Sad
 
             emitIntDivZeroGuard(cg_, left, right,
                                 Sad::Compiler::kModZeroRun010IntMsg, "imod.dz");
-            // (AR) حارس فيض الحدّ الأدنى (دَين مراجعة #258): srem على INT64_MIN % -1
-            //      فيضٌ عتاديّ (#DE = 0xC0000095) رغم أنّ الناتج الرياضيّ صفر — والمفسّر
-            //      (المرجع) يُرجع 0 صراحةً، والمسار الديناميّ محروسٌ سلفًا بترقية safeRI.
-            //      نستبدل المقسوم عليه بـ1 عند اجتماع الحدّين (srem(min,1)=0) — بلا تفرّع،
-            //      مرآةً لحيلة safeRI الديناميّة.
-            // (EN) Min-overflow guard (#258 review debt): srem traps on INT64_MIN % -1
-            //      (#DE = 0xC0000095) although the mathematical result is zero — the
-            //      interpreter (reference) explicitly returns 0, and the dynamic path is
-            //      already guarded via the safeRI promotion. Substitute divisor 1 when
-            //      both extremes meet (srem(min,1)=0) — branch-free, mirroring safeRI.
+            // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 (هيمنة: أيّ معامل UInt64، مرآةُ wrapU64
+            //      في المفسّر) ⇒ باقٍ لا-موقَّع URem بدل SRem الموقَّعة. لا يلزمه حارس فيض
+            //      الحدّ الأدنى (ذاك خاصٌّ بالموقَّع: INT64_MIN%-1)، وurem لا يفيض قطّ. يطابق
+            //      المفسّر: MAX%2 = 1 (لا ‎-1‏). النطاق الكامل ٢^٦٤.
+            // (EN) [Step 7] طبيعي64 surface type (dominance: any operand UInt64, mirroring the
+            //      interpreter's wrapU64) ⇒ unsigned URem instead of signed SRem. It needs no
+            //      min-overflow guard (that is signed-only: INT64_MIN%-1), and urem never
+            //      overflows. Matches the interpreter: MAX%2 = 1 (not -1). Full 2^64 range.
+            const bool modUnsignedU64 =
+                inst->operands[0].dataType == SadTypeKind::UInt64 ||
+                inst->operands[1].dataType == SadTypeKind::UInt64;
+            llvm::Value *result;
+            if (modUnsignedU64)
             {
+                result = cg_.builder_->CreateURem(left, right, "umodtmp");
+            }
+            else
+            {
+                // (AR) حارس فيض الحدّ الأدنى (دَين مراجعة #258): srem على INT64_MIN % -1
+                //      فيضٌ عتاديّ (#DE = 0xC0000095) رغم أنّ الناتج الرياضيّ صفر — والمفسّر
+                //      (المرجع) يُرجع 0 صراحةً، والمسار الديناميّ محروسٌ سلفًا بترقية safeRI.
+                //      نستبدل المقسوم عليه بـ1 عند اجتماع الحدّين (srem(min,1)=0) — بلا تفرّع،
+                //      مرآةً لحيلة safeRI الديناميّة.
+                // (EN) Min-overflow guard (#258 review debt): srem traps on INT64_MIN % -1
+                //      (#DE = 0xC0000095) although the mathematical result is zero — the
+                //      interpreter (reference) explicitly returns 0, and the dynamic path is
+                //      already guarded via the safeRI promotion. Substitute divisor 1 when
+                //      both extremes meet (srem(min,1)=0) — branch-free, mirroring safeRI.
                 llvm::Value *i64Min = llvm::ConstantInt::get(
                     cg_.getInt64Type(), llvm::APInt::getSignedMinValue(64));
                 llvm::Value *negOne =
@@ -860,8 +895,8 @@ namespace Sad
                     cg_.builder_->CreateAnd(isMin, isNegOne, "imod.ovf");
                 llvm::Value *one = llvm::ConstantInt::get(cg_.getInt64Type(), 1);
                 right = cg_.builder_->CreateSelect(minOvf, one, right, "imod.safeden");
+                result = cg_.builder_->CreateSRem(left, right, "modtmp");
             }
-            llvm::Value *result = cg_.builder_->CreateSRem(left, right, "modtmp");
 
             if (inst->result.has_value())
             {

@@ -68,6 +68,7 @@ namespace Sad
                     captureInfo.varName = freeVar;
                     captureInfo.registerName = varPtr->registerName;
                     captureInfo.type = varPtr->type;
+                    captureInfo.declaredSurfaceType = varPtr->declaredSurfaceType; // (AR) [خ٧] نقل النوع السطحيّ عبر الالتقاط
                     captures.push_back(captureInfo);
                 }
 
@@ -118,6 +119,7 @@ namespace Sad
                     VariableInfo capVar;
                     capVar.name = captures[i].varName;
                     capVar.type = captures[i].type;
+                    capVar.declaredSurfaceType = captures[i].declaredSurfaceType; // (AR) [خ٧] نقل النوع السطحيّ للمتغيّر المُلتقَط
                     capVar.registerName = allocaName;
                     capVar.isMutable = true;
                     capVar.scopeLevel = b_.currentScopeLevel_;

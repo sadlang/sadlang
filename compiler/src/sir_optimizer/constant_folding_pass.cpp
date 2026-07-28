@@ -268,6 +268,20 @@ namespace Sad
 
                 int64_t result = 0;
 
+                // (AR) [طبقة طبيعي64 — الخطوة ٧] طيُّ القسمة/الباقي لا-موقَّعًا حين تكون نتيجة
+                //      التعليمة طبيعي64 (ثبّتها الواجهةُ الأماميّة UInt64 لـ//،%). دلالةُ
+                //      الطيّ من نوع النتيجة (كنمط فرع العشريّ أعلاه) كي يطابق زمنَ الترجمة
+                //      urem/udiv زمنَ التشغيل والمفسّرَ (MAX%2=1 لا ‎-1‏، MAX//2=INT64_MAX لا ‎-1‏)
+                //      لو صار المعامل ثابتًا (نشرُ نسخٍ). ‎-1‏ يُعاد تفسيره MAX لا-موقَّعًا؛ لا فيض.
+                // (EN) [طبيعي64 layer — Step 7] Fold division/modulo unsigned when the instruction's
+                //      result is طبيعي64 (the frontend pins //,% to UInt64). Fold semantics from the
+                //      result type (as the float branch above) so compile-time urem/udiv matches the
+                //      runtime and the interpreter (MAX%2=1 not -1, MAX//2=INT64_MAX not -1) should an
+                //      operand become constant (copy propagation). -1 reinterprets as unsigned MAX; no overflow.
+                const bool foldUnsignedU64 =
+                    inst.result.has_value() &&
+                    inst.result->dataType == SIR::SadTypeKind::UInt64;
+
                 switch (inst.opcode)
                 {
                 case SIROpcode::ADD_I64:
@@ -282,12 +296,23 @@ namespace Sad
                 case SIROpcode::DIV_I64:
                     if (*rightVal == 0)
                         return false; // Avoid division by zero
-                    result = *leftVal / *rightVal;
+                    result = foldUnsignedU64
+                                 ? static_cast<int64_t>(static_cast<uint64_t>(*leftVal) /
+                                                        static_cast<uint64_t>(*rightVal))
+                                 : *leftVal / *rightVal;
                     break;
                 case SIROpcode::FLOOR_DIV_I64:
                 {
                     if (*rightVal == 0)
                         return false;
+                    if (foldUnsignedU64)
+                    {
+                        // (AR) لا-موقَّع: لا سالب فالأرضيّة = الاقتطاع (udiv)
+                        // (EN) unsigned: no negatives so floor == truncation (udiv)
+                        result = static_cast<int64_t>(static_cast<uint64_t>(*leftVal) /
+                                                      static_cast<uint64_t>(*rightVal));
+                        break;
+                    }
                     int64_t q = *leftVal / *rightVal;
                     if ((*leftVal ^ *rightVal) < 0 && *leftVal % *rightVal != 0)
                         q -= 1;
@@ -297,7 +322,10 @@ namespace Sad
                 case SIROpcode::MOD_I64:
                     if (*rightVal == 0)
                         return false; // Avoid division by zero
-                    result = *leftVal % *rightVal;
+                    result = foldUnsignedU64
+                                 ? static_cast<int64_t>(static_cast<uint64_t>(*leftVal) %
+                                                        static_cast<uint64_t>(*rightVal))
+                                 : *leftVal % *rightVal;
                     break;
                 default:
                     return false;
