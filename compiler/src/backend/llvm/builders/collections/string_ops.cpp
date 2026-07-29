@@ -34,7 +34,8 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         //      {len,cap,data,tags} (was divergent order — dead since getTypeByName finds the
         //      canonical first; unified defensively).
         st->setBody({llvm::Type::getInt64Ty(ctx), llvm::Type::getInt64Ty(ctx),
-                     llvm::PointerType::getUnqual(ctx), llvm::PointerType::getUnqual(ctx)});
+                     llvm::PointerType::getUnqual(ctx), llvm::PointerType::getUnqual(ctx),
+                     llvm::Type::getInt8Ty(ctx)}); // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
     }
     return st;
 }
@@ -141,7 +142,8 @@ static llvm::Function *getOrCreateSplitHelper(
                                                                             llvm::Type::getInt64Ty(*cg_.context_),       // length
                                                                             llvm::Type::getInt64Ty(*cg_.context_),       // capacity
                                                                             llvm::PointerType::getUnqual(*cg_.context_),  // data
-                                                                            llvm::PointerType::getUnqual(*cg_.context_)   // tags (option A)
+                                                                            llvm::PointerType::getUnqual(*cg_.context_),  // tags (option A)
+                                                                            llvm::Type::getInt8Ty(*cg_.context_)          // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                                                                         },
                                                              "SadArray");
                         }
@@ -1557,6 +1559,16 @@ static llvm::Function *getOrCreateSplitHelper(
                 B.CreateStore(ci64(0), B.CreateStructGEP(arrTy, arr, 0));
                 B.CreateStore(initCap, B.CreateStructGEP(arrTy, arr, 1));
                 B.CreateStore(data0, B.CreateStructGEP(arrTy, arr, 2));
+                // (AR) تقسيمُ النصّ يُنتج مصفوفةً متجانسةً من نصوص ⇒ الوسوم=null (الحقل ٣)
+                //      وhomogKind=Str (الحقل ٤). كانا غيرَ مُهيّأين (malloc) ⇒ القارئُ الموسوم
+                //      يقرأ الحقل ٤ حين tags==null، فوجب ضبطُهما صراحةً.
+                // (EN) split yields a homogeneous string array ⇒ tags=null (field 3) and
+                //      homogKind=Str (field 4). Both were uninitialized (malloc); the tagged
+                //      reader reads field 4 when tags==null, so set them explicitly.
+                B.CreateStore(llvm::ConstantPointerNull::get(ptrTy),
+                              B.CreateStructGEP(arrTy, arr, 3));
+                B.CreateStore(llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Str),
+                              B.CreateStructGEP(arrTy, arr, 4));
                 llvm::Value *strLen = cg_.emitStrlen(str, "str.len");
                 llvm::Value *delimLen = cg_.emitStrlen(delim, "delim.len");
                 // maxSplits==0 ⇒ النصّ كاملًا في عنصر واحد

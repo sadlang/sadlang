@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "builders/oop/objects_arrays_codegen.h"
 #include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
 #include "llvm_optimizer.h"
@@ -709,7 +710,8 @@ namespace Sad
                                                           llvm::Type::getInt64Ty(ctx),       // length
                                                           llvm::Type::getInt64Ty(ctx),       // capacity
                                                           llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
+                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null [option A]
+                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                                                       },
                                                  "SadArray");
             }
@@ -824,6 +826,22 @@ namespace Sad
                             llvm::Value *dataPtr = cg_.emitMalloc(dataSize, fieldName + ".data");
                             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                             cg_.builder_->CreateStore(dataPtr, dataGep);
+
+                            // (AR) الحقل ٣ (tags) = null: مالُك لا يُصفّر، وتصفيرُ الكائن يمسّ
+                            //      خانةَ مؤشّرِ الحقل لا هذه المصفوفةَ الداخليّة ⇒ تركُه قمامةً
+                            //      ⇒ قراءةٌ عبر مسار Any تتفرّع على مؤشّرِ وسومٍ قمامةً (انهيار).
+                            // (EN) Field 3 (tags) = null: malloc doesn't zero, and the object
+                            //      memset touches the field's pointer slot, not this inner array
+                            //      ⇒ leaving it garbage ⇒ an Any-path read branches on a garbage
+                            //      tags pointer (crash).
+                            cg_.builder_->CreateStore(
+                                llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)),
+                                cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, fieldName + ".tags.gep"));
+
+                            // (AR) الحقل ٤ (homogKind) = DynKind::Int افتراضًا
+                            // (EN) Field 4 (homogKind) = DynKind::Int default
+                            llvm::Value *hkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, fieldName + ".homogkind.gep");
+                            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Int), hkGep);
 
                             // (AR) الإزاحة عبر getFieldStructIndex — تُسقِط ترويسة vtable لبنى @تمثيل_سي [RFC #53 F2-ب]
                             // (EN) Offset via getFieldStructIndex — drops the vtable header for @تمثيل_سي structs [RFC #53 F2-ب]

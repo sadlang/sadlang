@@ -11,6 +11,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/collections/map_ops_codegen.h"
+#include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -505,8 +506,15 @@ namespace Sad
 
                 // (AR) استدعاء دالة مساعدة لبناء المصفوفة من الخانات غير الفارغة
                 llvm::Function *collectFn = getOrCreateMapCollect();
+                // (AR) وسمُ عنصر الناتج: مفاتيحُ الخريطة نصوصٌ (Str)؛ قيمُها مختلطةٌ محفوظةٌ
+                //      i64 خامًّا ⇒ عدد افتراضًا (لا يوقِف الانهيار على أيّ حال).
+                // (EN) Result element kind: map keys are strings (Str); values are mixed raw
+                //      i64 ⇒ default Int (either way it stops the crash).
+                llvm::Value *collectHomogKind = llvm::ConstantInt::get(
+                    llvm::Type::getInt8Ty(*cg_.context_),
+                    isKeys ? Sad::LLVM::DynKind::Str : Sad::LLVM::DynKind::Int);
                 llvm::Value *result = cg_.builder_->CreateCall(collectFn,
-                                                           {keysArr, srcArr, cap, count}, "mkvs.result");
+                                                           {keysArr, srcArr, cap, count, collectHomogKind}, "mkvs.result");
 
                 if (inst->result.has_value())
                     cg_.context_info_.namedValues[inst->result->name] = result;
@@ -633,8 +641,13 @@ namespace Sad
             auto *i64Ty = cg_.getInt64Type();
             auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-            // (AR) التوقيع: (ptr keysArr, ptr srcArr, i64 capacity, i64 count) → ptr
-            auto *fnType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty, i64Ty}, false);
+            // (AR) التوقيع: (ptr keysArr, ptr srcArr, i64 capacity, i64 count, i8 homogKind) → ptr
+            //      homogKind: وسمُ عنصر المصفوفة الناتجة (Str للمفاتيح، عدد للقيم) — يُخزَّن في
+            //      الحقل ٤ فتُقرأ الفهرسةُ عبر مسار Any موسومةً لا مؤشّرًا خامًّا.
+            // (EN) homogKind: the DynKind of the collected array's elements (Str for keys, Int
+            //      for values) — stored in field 4 so an Any-context index reads it tagged.
+            auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            auto *fnType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty, i64Ty, i8Ty}, false);
             fn = llvm::Function::Create(fnType, llvm::Function::InternalLinkage, fnName, *cg_.module_);
 
             auto *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
@@ -649,6 +662,7 @@ namespace Sad
             llvm::Value *srcArr = &*argIt++;
             llvm::Value *capacity = &*argIt++;
             llvm::Value *count = &*argIt++;
+            llvm::Value *homogKindArg = &*argIt++;
 
             llvm::IRBuilder<> b(*cg_.context_);
 
@@ -660,9 +674,17 @@ namespace Sad
             auto *mallocType = llvm::FunctionType::get(ptrTy, {szTy}, false);
             auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
 
-            // (AR) بنية SadArray: 3 حقول i64 = 24 bytes
+            // (AR) بنية SadArray الكاملة {len, cap, data, tags, homogKind} — نحسب حجمها
+            //      من التخطيط (لا 24 الثابتة القديمة التي كانت تُخصّص ٣ حقولٍ فقط ⇒ قراءةُ
+            //      الحقلين ٣/٤ عبر مسار Any كانت تتجاوز التخصيص ⇒ انهيار كومة).
+            // (EN) Full SadArray struct {len, cap, data, tags, homogKind} — size from the data
+            //      layout (not the old hardcoded 24, which allocated only 3 fields ⇒ reading
+            //      fields 3/4 via the Any path over-read the allocation ⇒ heap crash).
+            auto *ptrTyL = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *sadArrTy = llvm::StructType::get(*cg_.context_, {i64Ty, i64Ty, ptrTyL, ptrTyL, i8Ty});
+            uint64_t sadArrSz = cg_.module_->getDataLayout().getTypeAllocSize(sadArrTy);
             llvm::Value *arrPtr = b.CreateCall(mallocFn,
-                                               {llvm::ConstantInt::get(szTy, 24)}, "arr.ptr");
+                                               {llvm::ConstantInt::get(szTy, sadArrSz)}, "arr.ptr");
             // (AR) مصفوفة البيانات: count * 8 bytes
             llvm::Value *dataBytes = b.CreateMul(count, llvm::ConstantInt::get(i64Ty, 8), "data.bytes");
             // (AR) ضمان عدم تخصيص 0 bytes (للخرائط الفارغة)
@@ -679,6 +701,16 @@ namespace Sad
             b.CreateStore(count, capGep);
             auto *datGep = b.CreateGEP(i64Ty, arrPtr, {llvm::ConstantInt::get(i64Ty, 2)}, "dat.gep");
             b.CreateStore(b.CreatePtrToInt(dataPtr, i64Ty), datGep);
+
+            // (AR) الحقل ٣ (tags) = null (متجانسة، مسارٌ ساكن)؛ الحقل ٤ (homogKind) = الوسمُ
+            //      المُمرَّر (Str للمفاتيح، عدد للقيم). بدونهما تُقرأ عبر مسار Any قمامةً/تنهار.
+            // (EN) Field 3 (tags) = null (homogeneous, static path); field 4 (homogKind) = the
+            //      passed kind (Str for keys, Int for values). Without them the Any read reads
+            //      garbage / crashes.
+            auto *tagsGepC = b.CreateGEP(i64Ty, arrPtr, {llvm::ConstantInt::get(i64Ty, 3)}, "tags.gep");
+            b.CreateStore(llvm::ConstantInt::get(i64Ty, 0), tagsGepC); // null pointer (0 bits)
+            auto *hkGepC = b.CreateGEP(i64Ty, arrPtr, {llvm::ConstantInt::get(i64Ty, 4)}, "homogkind.slot");
+            b.CreateStore(homogKindArg, hkGepC); // i8 store at byte offset 32 (field 4)
 
             b.CreateBr(loop);
 

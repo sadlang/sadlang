@@ -410,10 +410,28 @@ namespace Sad
                         valueResult.elementType != SadTypeKind::Void)
                     {
                         auto feIt = b_.functionTable_.find(b_.currentFunction_->name);
-                        if (feIt != b_.functionTable_.end() &&
-                            feIt->second.returnElementType != SadTypeKind::Any)
+                        if (feIt != b_.functionTable_.end())
                         {
-                            feIt->second.returnElementType = valueResult.elementType;
+                            SadTypeKind &rt = feIt->second.returnElementType;
+                            // (AR) توسيعٌ عند التنافر: أوّلُ إرجاعٍ ⇒ نوعُه؛ إرجاعٌ لاحقٌ
+                            //      يخالف المُسجَّل (محدَّدان مختلفان، أو أحدهما Any) ⇒ Any
+                            //      (لا نُبقي «آخِرَ إرجاعٍ يفوز»: كان يُسجّل نوعَ فرعٍ واحدٍ
+                            //      فيُقرأ فرعُ العدد نصًّا ⇒ انهيار). صار التوسيعُ آمنًا بعد
+                            //      إصلاح قراءة Any عند tags=null (حقل homogKind): الفرعُ
+                            //      المتجانسُ يصف نفسَه زمنَ التشغيل. Any مُسجَّل يبقى Any.
+                            // (EN) Widen on disagreement: the first return ⇒ its type; a later
+                            //      return that differs from what's recorded (two different
+                            //      concrete types, or either is Any) ⇒ Any (not "last return
+                            //      wins", which recorded one branch's type so the OTHER branch's
+                            //      array was misread — e.g. an int array read as a string ⇒
+                            //      crash). Widening is safe now that the Any read at tags==null
+                            //      is fixed (homogKind field): a homogeneous branch self-
+                            //      describes at runtime. A recorded Any stays Any.
+                            if (rt == SadTypeKind::Void)
+                                rt = valueResult.elementType;
+                            else if (rt != SadTypeKind::Any &&
+                                     rt != valueResult.elementType)
+                                rt = SadTypeKind::Any;
                         }
                     }
 

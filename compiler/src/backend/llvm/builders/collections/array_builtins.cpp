@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -62,7 +63,8 @@ namespace Sad
                                                           llvm::Type::getInt64Ty(ctx),       // length
                                                           llvm::Type::getInt64Ty(ctx),       // capacity
                                                           llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
+                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null [option A]
+                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                                                       },
                                                  "SadArray");
             }
@@ -557,6 +559,15 @@ namespace Sad
             llvm::Value *fNewData = cg_.emitMalloc(fDataSize, "fast.data");
             llvm::Value *fDataGep = cg_.builder_->CreateStructGEP(arrTy, fastArr, 2, "fast.data.gep");
             cg_.builder_->CreateStore(fNewData, fDataGep);
+            // (AR) الحقل ٤ (homogKind): الشريحةُ تحفظ نوعَ كلّ عنصر ⇒ انسخ homogKind المصدر
+            //      (يُقرأ فقط حين tags==null؛ للمصدر المختلط تُنسخ الوسوم فلا يُقرأ). صحيحٌ دومًا.
+            // (EN) Field 4 (homogKind): a slice preserves each element's kind ⇒ copy the source's
+            //      homogKind (read only when tags==null; a mixed source copies tags so it's unread).
+            {
+                llvm::Value *fSrcHkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "fast.src.homogkind.gep");
+                llvm::Value *fSrcHk = cg_.builder_->CreateLoad(cg_.getInt8Type(), fSrcHkGep, "fast.src.homogkind");
+                cg_.builder_->CreateStore(fSrcHk, cg_.builder_->CreateStructGEP(arrTy, fastArr, 4, "fast.homogkind.gep"));
+            }
             // (AR) [وسم زمن-تشغيل] الحقل ٣ يُضبط أدناه بنسخِ نطاقِ وسوم المصدر (أو null).
             // (EN) [runtime tag] field 3 is set below by copying the source's tag range (or null).
             llvm::Value *fTagsGep = cg_.builder_->CreateStructGEP(arrTy, fastArr, 3, "fast.tags.gep");
@@ -631,6 +642,14 @@ namespace Sad
             llvm::Value *lNewData = cg_.emitMalloc(lDataSize, "loop.data");
             llvm::Value *lDataGep = cg_.builder_->CreateStructGEP(arrTy, loopArr, 2, "loop.data.gep");
             cg_.builder_->CreateStore(lNewData, lDataGep);
+
+            // (AR) الحقل ٤ (homogKind): كالمسار السريع — انسخ homogKind المصدر (الشريحة تحفظ النوع).
+            // (EN) Field 4 (homogKind): like the fast path — copy the source's homogKind (slice preserves kind).
+            {
+                llvm::Value *lSrcHkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "loop.src.homogkind.gep");
+                llvm::Value *lSrcHk = cg_.builder_->CreateLoad(cg_.getInt8Type(), lSrcHkGep, "loop.src.homogkind");
+                cg_.builder_->CreateStore(lSrcHk, cg_.builder_->CreateStructGEP(arrTy, loopArr, 4, "loop.homogkind.gep"));
+            }
 
             // (AR) [وسم زمن-تشغيل] الحقل ٣: إن كان للمصدر وسوم (مختلطة) خصّص مخزنَ وسومٍ
             //      بطول loopLen ننسخه بالخطوة داخل الحلقة؛ وإلّا اتركه null (متجانسة).

@@ -63,7 +63,8 @@ namespace Sad
                                                           llvm::Type::getInt64Ty(ctx),       // length
                                                           llvm::Type::getInt64Ty(ctx),       // capacity
                                                           llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
+                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null [option A]
+                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                                                       },
                                                  "SadArray");
             }

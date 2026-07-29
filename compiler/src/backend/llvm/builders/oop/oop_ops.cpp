@@ -184,7 +184,7 @@ namespace Sad
                 {
                     // (AR) بنية SadArray: {i64 length, i64 capacity, ptr data, ptr tags}
                     // (EN) SadArray struct: {i64 length, i64 capacity, ptr data, ptr tags}
-                    llvm::StructType *arrTy = llvm::StructType::create(*cg_.context_, {cg_.getInt64Type(), cg_.getInt64Type(), llvm::PointerType::getUnqual(*cg_.context_), llvm::PointerType::getUnqual(*cg_.context_)}, "SadArray.init");
+                    llvm::StructType *arrTy = llvm::StructType::create(*cg_.context_, {cg_.getInt64Type(), cg_.getInt64Type(), llvm::PointerType::getUnqual(*cg_.context_), llvm::PointerType::getUnqual(*cg_.context_), cg_.getInt8Type()}, "SadArray.init"); // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                     auto *arrStructSize = llvm::ConstantExpr::getSizeOf(arrTy);
                     auto i64Ty = cg_.getInt64Type();
 
@@ -222,6 +222,11 @@ namespace Sad
                             // (EN) tags = null (homogeneous initially; tags buffer lazily allocated on first mixed element)
                             llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, fieldName + ".tagsgep");
                             cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)), tagsGep);
+
+                            // (AR) الحقل ٤ (homogKind) = DynKind::Int افتراضًا (خامل — يُكتب ولا يُقرأ بعد)
+                            // (EN) Field 4 (homogKind) = DynKind::Int default (inert — written, not yet read)
+                            llvm::Value *hkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, fieldName + ".homogkindgep");
+                            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Int), hkGep);
 
                             // (AR) الإزاحة عبر getFieldStructIndex — تُسقِط ترويسة vtable لبنى @تمثيل_سي [RFC #53 F2-ب]
                             // (EN) Offset via getFieldStructIndex — drops the vtable header for @تمثيل_سي structs [RFC #53 F2-ب]

@@ -103,7 +103,8 @@ namespace Sad
                             {
                                 // (AR) 4 حقول {طول، سعة، بيانات، وسوم} مطابقةً للقانونيّ (getArrayStructType).
                                 // (EN) 4 fields {len,cap,data,tags} matching the canonical getArrayStructType.
-                                arrTy = llvm::StructType::create(*cg_.context_, {i64Ty, i64Ty, ptrTy, ptrTy}, "SadArray");
+                                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                                arrTy = llvm::StructType::create(*cg_.context_, {i64Ty, i64Ty, ptrTy, ptrTy, i8Ty}, "SadArray"); // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                             }
                             auto *arrStructSize = llvm::ConstantExpr::getSizeOf(arrTy);
 
@@ -136,6 +137,22 @@ namespace Sad
                                     llvm::Value *dataPtr = cg_.emitMalloc(dataSize, fieldName + ".data");
                                     llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                                     cg_.builder_->CreateStore(dataPtr, dataGep);
+
+                                    // (AR) الحقل ٣ (tags) = null: مالُك لا يُصفّر، وتصفيرُ الكائن
+                                    //      يمسّ خانةَ مؤشّرِ الحقل لا هذه المصفوفة ⇒ تركُه قمامةً
+                                    //      ⇒ قراءةٌ عبر مسار Any تتفرّع على مؤشّرِ وسومٍ قمامةً (انهيار).
+                                    // (EN) Field 3 (tags) = null: malloc doesn't zero, and the
+                                    //      object memset touches the field's pointer slot, not this
+                                    //      inner array ⇒ leaving it garbage ⇒ an Any-path read
+                                    //      branches on a garbage tags pointer (crash).
+                                    cg_.builder_->CreateStore(
+                                        llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)),
+                                        cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, fieldName + ".tags.gep"));
+
+                                    // (AR) الحقل ٤ (homogKind) = DynKind::Int افتراضًا
+                                    // (EN) Field 4 (homogKind) = DynKind::Int default
+                                    llvm::Value *hkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, fieldName + ".homogkind.gep");
+                                    cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Int), hkGep);
 
                                     // (AR) تخزين مؤشر المصفوفة في حقل الكائن — الإزاحة عبر
                                     //      getFieldStructIndex (تُسقِط ترويسة vtable لبنى @تمثيل_سي) [RFC #53 F2-ب]

@@ -7,6 +7,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/directives/coroutines_codegen.h"
+#include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -457,7 +458,8 @@ namespace Sad
                 //      كي يتّسق التخطيط أيًّا كان أوّلَ مُنشئٍ يُنشئ SadArray في الوحدة.
                 // (EN) 4 fields {len, cap, data, tags} matching the canonical getArrayStructType so the
                 //      layout is consistent regardless of which creator makes SadArray first.
-                arrTy = llvm::StructType::create(*cg_.context_, {i64Ty, i64Ty, ptrTy, ptrTy}, "SadArray");
+                auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                arrTy = llvm::StructType::create(*cg_.context_, {i64Ty, i64Ty, ptrTy, ptrTy, i8Ty}, "SadArray"); // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
             }
 
             // (AR) الحصول على مقبض المولّد
@@ -504,6 +506,26 @@ namespace Sad
             llvm::Value *dataPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 64), "gen.arr.data");
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.arr.datagep");
             cg_.builder_->CreateStore(dataPtr, dataGep);
+
+            // (AR) [وسم زمن-التشغيل] تهيئةُ الحقلين ٣ (tags) و٤ (homogKind): مالُك لا
+            //      يُصفّر، فتركُهما قمامةً ⇒ إن قُرئت مصفوفةُ المولّد عبر مسار Any (مثل
+            //      «مولّد في فرعِ إرجاعٍ متنافر» يوسّع نوعَ العنصر إلى Any) لتفرّع القارئُ
+            //      على tags قمامةً (انهيار) أو قرأ homogKind قمامةً (وسمٌ خاطئ). tags=null
+            //      (متجانسة، المسار الساكن)، homogKind=Int (المولّد لا يتتبّع نوعَ العنصر؛
+            //      الأعدادُ حالتُه الشائعة، ويطابق المفسّرَ فيها).
+            // (EN) [runtime tags] initialize fields 3 (tags) and 4 (homogKind): malloc does
+            //      not zero, so leaving them garbage means that if the generator array is read
+            //      via the Any path (e.g. a generator in a return-disagreement branch widens
+            //      the element type to Any) the reader branches on a garbage tags pointer
+            //      (crash) or reads a garbage homogKind (wrong tag). tags=null (homogeneous,
+            //      static path); homogKind=Int (generators don't track element type; ints are
+            //      the common case and match the interpreter there).
+            llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "gen.arr.tags");
+            cg_.builder_->CreateStore(
+                llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)), tagsGep);
+            llvm::Value *hkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "gen.arr.homogkind");
+            cg_.builder_->CreateStore(
+                llvm::ConstantInt::get(llvm::Type::getInt8Ty(*cg_.context_), Sad::LLVM::DynKind::Int), hkGep);
 
             // ================================================================
             // (AR) الخطوة 2: حلقة استئناف المولّد وجمع القيم

@@ -55,7 +55,8 @@ namespace Sad
                                                           llvm::Type::getInt64Ty(ctx),       // length
                                                           llvm::Type::getInt64Ty(ctx),       // capacity
                                                           llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null
+                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null
+                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                                                       },
                                                  "SadArray");
             }
@@ -317,6 +318,11 @@ namespace Sad
             cg_.builder_->CreateStore(
                 llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)),
                 cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "arr.tags.gep"));
+            // (AR) الحقل ٤ (homogKind) = DynKind::Int افتراضًا (يُكتب ولا يُقرأ بعد — خطوة خاملة)
+            // (EN) Field 4 (homogKind) = DynKind::Int default (written, not yet read — inert step)
+            cg_.builder_->CreateStore(
+                llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Int),
+                cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "arr.homogkind.gep"));
 
             if (inst->result.has_value())
             {
@@ -432,11 +438,14 @@ namespace Sad
                 llvm::BasicBlock *tagEndBB = cg_.builder_->GetInsertBlock();
                 cg_.builder_->CreateBr(joinBB);
 
-                // (AR) احتياطيّ (لا وسوم): وسمُ Int (المصفوفةُ فعليًّا متجانسةُ أرقام)
-                // (EN) fallback (no tags): Int tag (array is effectively homogeneous ints)
+                // (AR) لا وسوم ⇒ المصفوفةُ متجانسة: اقرأ نوعَها الحقيقيّ من الحقل ٤ (homogKind)
+                //      وابنِ %SadDyn به (بدل وسمِ Int المُصلَّب سابقًا). نظيرُ كتابة homogKind في emitArraySet.
+                // (EN) no tags ⇒ homogeneous array: load its true kind from field 4 (homogKind)
+                //      and build %SadDyn with it (was hardcoded Int). Inverse of the homogKind store in emitArraySet.
                 cg_.builder_->SetInsertPoint(rawBB);
-                llvm::Value *dynRaw = makeDyn(
-                    cg_, llvm::ConstantInt::get(i8Ty, DynKind::Int), payload);
+                llvm::Value *homogKindGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "arr.homogkind.gep");
+                llvm::Value *homogKindByte = cg_.builder_->CreateLoad(i8Ty, homogKindGep, "arr.homogkind");
+                llvm::Value *dynRaw = makeDyn(cg_, homogKindByte, payload);
                 llvm::BasicBlock *rawEndBB = cg_.builder_->GetInsertBlock();
                 cg_.builder_->CreateBr(joinBB);
 
@@ -746,6 +755,32 @@ namespace Sad
                 cg_.builder_->CreateStore(value, elemPtr);
             }
 
+            // (AR) [homogKind — الحقل ٤] مسارُ الكتابة الساكن (غير-Any): كلُّ عناصر المصفوفة
+            //      المتجانسة تُكتب بنفس النوع ⇒ خزِّن DynKind المشتقَّ من نوع القيمة في الحقل ٤
+            //      (متعادِلٌ: تكرارُ نفس القيمة). القارئ يقرؤه فقط حين tags==null، فلا يُقرأ
+            //      لمصفوفةٍ مختلطة (لها tags≠null). لا تكتبه في مسار Any (يترك الافتراضيّ Int).
+            // (EN) [homogKind — field 4] static (non-Any) store path: every element of a
+            //      homogeneous array is stored with the same kind ⇒ store the DynKind derived
+            //      from the value type into field 4 (idempotent). The reader only reads it when
+            //      tags==null, so it is never read for a mixed array (tags!=null). Not written on
+            //      the Any path (which leaves the default Int).
+            if (inst->operands.size() > 2)
+            {
+                SadTypeKind concreteKind = inst->operands[2].dataType;
+                uint8_t k = Sad::LLVM::DynKind::Int;
+                switch (concreteKind)
+                {
+                case SadTypeKind::Float: k = Sad::LLVM::DynKind::Float; break;
+                case SadTypeKind::String: case SadTypeKind::Pointer: k = Sad::LLVM::DynKind::Str; break;
+                case SadTypeKind::Boolean: k = Sad::LLVM::DynKind::Bool; break;
+                case SadTypeKind::Null: k = Sad::LLVM::DynKind::Null; break;
+                case SadTypeKind::Array: k = Sad::LLVM::DynKind::Array; break;
+                default: k = Sad::LLVM::DynKind::Int; break;
+                }
+                llvm::Value *hkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "arr.set.homogkind.gep");
+                cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), k), hkGep);
+            }
+
             return value;
         }
 
@@ -856,6 +891,11 @@ namespace Sad
             llvm::Value *newData = cg_.emitMalloc(dataSize, "concat.data");
             llvm::Value *newDataGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 2, "concat.new.data.gep");
             cg_.builder_->CreateStore(newData, newDataGep);
+            // (AR) الحقل ٤ (homogKind) = DynKind::Int افتراضًا (خامل — يُكتب ولا يُقرأ بعد)
+            // (EN) Field 4 (homogKind) = DynKind::Int default (inert — written, not yet read)
+            cg_.builder_->CreateStore(
+                llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Int),
+                cg_.builder_->CreateStructGEP(arrTy, newArr, 4, "concat.homogkind.gep"));
             llvm::Value *newTagsGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 3, "concat.tags.gep");
 
             // (AR) نسخ عناصر المصفوفة الأولى
@@ -942,6 +982,29 @@ namespace Sad
                 // (AR) كلا المعاملين محدَّدُ النوع ⇒ الوسوم=null (المسار الساكن، بلا تكلفة)
                 // (EN) both operands concrete ⇒ tags=null (static path, no cost)
                 cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy), newTagsGep);
+
+                // (AR) [homogKind] النتيجةُ متجانسةٌ (tags==null) ⇒ إن تطابق نوعُ الطرفين وكانا
+                //      معلومَين (e0==e1، غير-Void، غير-Any) فخزِّن DynKindهما الحقيقيّ في الحقل ٤
+                //      ليقرأه القارئُ صحيحًا (بدل الافتراضيّ Int). إن اختلف مجهولٌ (Void) اترك Int.
+                // (EN) [homogKind] the result is homogeneous (tags==null) ⇒ if both element types
+                //      match and are known (e0==e1, non-Void, non-Any) store their true DynKind into
+                //      field 4 so the reader reports it correctly (instead of the default Int).
+                if (bothKnown && e0 == e1)
+                {
+                    uint8_t k = Sad::LLVM::DynKind::Int;
+                    switch (e0)
+                    {
+                    case SadTypeKind::Float: k = Sad::LLVM::DynKind::Float; break;
+                    case SadTypeKind::String: case SadTypeKind::Pointer: k = Sad::LLVM::DynKind::Str; break;
+                    case SadTypeKind::Boolean: k = Sad::LLVM::DynKind::Bool; break;
+                    case SadTypeKind::Null: k = Sad::LLVM::DynKind::Null; break;
+                    case SadTypeKind::Array: k = Sad::LLVM::DynKind::Array; break;
+                    default: k = Sad::LLVM::DynKind::Int; break;
+                    }
+                    cg_.builder_->CreateStore(
+                        llvm::ConstantInt::get(cg_.getInt8Type(), k),
+                        cg_.builder_->CreateStructGEP(arrTy, newArr, 4, "concat.homogkind2.gep"));
+                }
             }
 
             if (inst->result.has_value())
@@ -1010,6 +1073,12 @@ namespace Sad
             cg_.builder_->CreateStore(outData, cg_.builder_->CreateStructGEP(arrTy, outArr, 2, "zip.out.data.gep"));
             cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy),
                 cg_.builder_->CreateStructGEP(arrTy, outArr, 3, "zip.out.tags.gep")); // (AR) وسوم=null
+            // (AR) الحقل ٤ (homogKind): كلُّ خانةٍ مؤشّرٌ لمصفوفة زوج ⇒ homogKind=Array
+            //      (المصفوفةُ متجانسةٌ من مصفوفات، tags==null فيُقرأ الحقل ٤).
+            // (EN) Field 4 (homogKind): every slot is a pointer to a pair-array ⇒ homogKind=Array
+            //      (homogeneous array-of-arrays, tags==null so field 4 is read).
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Array),
+                cg_.builder_->CreateStructGEP(arrTy, outArr, 4, "zip.out.homogkind.gep"));
 
             // (AR) الحلقة: لكلّ i أنشئ مصفوفة زوج {أ[i]، ب[i]} وخزّن مؤشّرها
             // (EN) loop: for each i build pair array {a[i], b[i]} and store its pointer
@@ -1037,6 +1106,9 @@ namespace Sad
             cg_.builder_->CreateStore(pairData, cg_.builder_->CreateStructGEP(arrTy, pairArr, 2, "zip.pair.data.gep"));
             cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy),
                 cg_.builder_->CreateStructGEP(arrTy, pairArr, 3, "zip.pair.tags.gep")); // (AR) وسوم=null
+            // (AR) الحقل ٤ (homogKind) = DynKind::Int افتراضًا (خامل — يُكتب ولا يُقرأ بعد)
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), Sad::LLVM::DynKind::Int),
+                cg_.builder_->CreateStructGEP(arrTy, pairArr, 4, "zip.pair.homogkind.gep"));
 
             // (AR) نسخ الخانتين خامًا / (EN) raw copy of both slots
             llvm::Value *e1 = cg_.builder_->CreateLoad(

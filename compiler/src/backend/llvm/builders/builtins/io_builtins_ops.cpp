@@ -24,7 +24,8 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         llvm::Type::getInt64Ty(ctx),
         llvm::Type::getInt64Ty(ctx),
         llvm::PointerType::getUnqual(ctx),
-        llvm::PointerType::getUnqual(ctx) // tags (option A)
+        llvm::PointerType::getUnqual(ctx), // tags (option A)
+        llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
     });
 }
 

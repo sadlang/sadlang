@@ -37,7 +37,8 @@ namespace Sad
                                                           llvm::Type::getInt64Ty(ctx),       // length
                                                           llvm::Type::getInt64Ty(ctx),       // capacity
                                                           llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
+                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null [option A]
+                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
                                                       },
                                                  "SadArray");
             }
@@ -227,6 +228,28 @@ namespace Sad
             {
                 llvm::Value *tagPtr = cg_.builder_->CreateGEP(i8Ty, finalTags, {len}, "app.tag.slot");
                 cg_.builder_->CreateStore(kindByte, tagPtr);
+            }
+            else
+            {
+                // (AR) [homogKind — الحقل ٤] إلحاقٌ ساكن (غير-Any): المصفوفةُ متجانسة ⇒ خزِّن
+                //      DynKind المشتقَّ من نوع العنصر (متعادِلٌ: نفس القيمة لكلّ إلحاق). القارئُ
+                //      يقرؤه فقط حين tags==null، فلا يُقرأ للمختلطة (لها tags≠null). نظيرُ emitArraySet.
+                // (EN) [homogKind — field 4] static (non-Any) append: the array is homogeneous ⇒
+                //      store the DynKind derived from the element type (idempotent). The reader
+                //      reads it only when tags==null, so it is never read for a mixed array. Inverse of emitArraySet.
+                SadTypeKind concreteKind = inst->operands[1].dataType;
+                uint8_t k = DynKind::Int;
+                switch (concreteKind)
+                {
+                case SadTypeKind::Float: k = DynKind::Float; break;
+                case SadTypeKind::String: case SadTypeKind::Pointer: k = DynKind::Str; break;
+                case SadTypeKind::Boolean: k = DynKind::Bool; break;
+                case SadTypeKind::Null: k = DynKind::Null; break;
+                case SadTypeKind::Array: k = DynKind::Array; break;
+                default: k = DynKind::Int; break;
+                }
+                llvm::Value *hkGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "app.homogkind.gep");
+                cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, k), hkGep);
             }
 
             // (AR) زيادة الطول بمقدار 1
