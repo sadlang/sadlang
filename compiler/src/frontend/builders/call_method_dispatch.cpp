@@ -1247,6 +1247,17 @@ namespace Sad
                 //      Works for ADT constructors and regular class methods
                 // ================================================================
                 BuildResult methodResult(resultReg, returnType);
+                // (AR) [وسم زمن-التشغيل] انقل نوعَ عنصر المصفوفة المُرجعة (Any للمختلطة)
+                //      إلى نتيجة نداء الطريقة، فتُقرأ الفهرسةُ اللاحقةُ موسومةً لا عدديًّا
+                //      (نظير call_main للدوالّ الحرّة).
+                // (EN) [runtime tags] carry the returned array element type (Any if mixed)
+                //      onto the method-call result so a later index reads the slot tagged,
+                //      not as an integer (sibling of call_main for free functions).
+                if (ftIt != b_.functionTable_.end() &&
+                    ftIt->second.returnElementType != SadTypeKind::Void)
+                {
+                    methodResult.elementType = ftIt->second.returnElementType;
+                }
                 if (ftIt != b_.functionTable_.end() && !ftIt->second.returnClassName.empty())
                 {
                     methodResult.className = ftIt->second.returnClassName;

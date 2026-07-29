@@ -80,6 +80,14 @@ namespace Sad
                 // ================================================================
                 std::string prebuiltRetReg;
                 SadTypeKind prebuiltRetType = SadTypeKind::Void;
+                // (AR) [وسم زمن-التشغيل] نوعُ عنصر المصفوفة للقيمة المُبنيّة مسبقًا — يُحفَظ
+                //      بمعزلٍ عن prebuiltRetType (النوع فقط) لئلّا يضيع Any/نوعُ العنصر عبر
+                //      alloca/store/load في مسار defer، فيبقى متاحًا لتتبّع إرجاع المصفوفة.
+                // (EN) [runtime tags] element type of the prebuilt return value — tracked
+                //      separately from prebuiltRetType (type only) so Any/element type isn't
+                //      lost through the alloca/store/load of the defer path, keeping it
+                //      available for array-return tracking.
+                SadTypeKind prebuiltRetElementType = SadTypeKind::Void;
                 bool hasPrebuiltRet = false;
                 // (AR) ISSUE-056: علامة أنّ تعبير الإرجاع نداءٌ يُرجع فراغاً وبُني مسبقاً
                 //      لأثره الجانبيّ فقط — يمنع المسار العاديّ من إعادة بنائه (تباعد مزدوج).
@@ -115,6 +123,7 @@ namespace Sad
 
                         prebuiltRetReg = tempAllocaReg;
                         prebuiltRetType = storeType;
+                        prebuiltRetElementType = preResult.elementType;
                         hasPrebuiltRet = true;
                     }
                     else if (preResult.registerName.empty() && !preResult.isConstant)
@@ -353,6 +362,7 @@ namespace Sad
                             b_.currentBlock_->addInstruction(loadRetInst);
                         valueResult.registerName = loadedRetReg;
                         valueResult.type = prebuiltRetType;
+                        valueResult.elementType = prebuiltRetElementType;
                         valueResult.isDirectValue = true;
                     }
                     else
@@ -383,6 +393,30 @@ namespace Sad
                             ftIt->second.returnClassName = valueResult.className;
                         }
                     }
+                    // (AR) [وسم زمن-التشغيل] تتبّعُ نوع عنصر المصفوفة المُرجعة عبر حدّ
+                    //      الدالّة: إن أرجعت مصفوفةً مختلطةً (elementType=Any) سجّلناه في
+                    //      functionTable_ ليضعه موقعُ الاستدعاء على نتيجته، فتُقرأ الفهرسةُ
+                    //      اللاحقةُ موسومةً لا عدديًّا (مؤشّرٌ خام). نوسّع: أيُّ إرجاعٍ Any ⇒
+                    //      الدالّةُ Any (لا نُنزِل Any مُسجَّلًا إلى محدَّدٍ من إرجاعٍ آخر).
+                    //      نظيرُ كتابةِ returnClassName أعلاه لكن لعنصر المصفوفة.
+                    // (EN) [runtime tags] track the returned array element type across the
+                    //      function boundary: if it returns a mixed array (elementType=Any)
+                    //      record it in functionTable_ so the call site stamps it on the
+                    //      result and a later index reads the slot tagged, not as an integer
+                    //      (raw pointer). Widen: any Any return ⇒ the function is Any (don't
+                    //      downgrade a recorded Any from another return). Sibling of the
+                    //      returnClassName writeback above but for the array element.
+                    if (b_.currentFunction_ &&
+                        valueResult.elementType != SadTypeKind::Void)
+                    {
+                        auto feIt = b_.functionTable_.find(b_.currentFunction_->name);
+                        if (feIt != b_.functionTable_.end() &&
+                            feIt->second.returnElementType != SadTypeKind::Any)
+                        {
+                            feIt->second.returnElementType = valueResult.elementType;
+                        }
+                    }
+
                     // (AR) أيضاً: إذا كان التعبير المُرجع هو جديد ClassName() مباشرة
                     // (EN) Also: if the return expression is directly new ClassName()
                     if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(retStmt->value.get()))

@@ -1251,6 +1251,18 @@ namespace Sad
                 //      because compiler didn't know the variable holds an object
                 // ================================================================
                 BuildResult result(resultReg, returnType);
+                // (AR) [وسم زمن-التشغيل] انقل نوعَ عنصر المصفوفة المُرجعة (Any للمختلطة)
+                //      إلى نتيجة النداء، فتقرأ الفهرسةُ اللاحقةُ الخانةَ موسومةً لا عدديًّا.
+                //      يُملأ returnElementType في buildReturnStatement (نظير returnClassName).
+                // (EN) [runtime tags] carry the returned array element type (Any if mixed)
+                //      onto the call result so a later index reads the slot tagged, not as an
+                //      integer. returnElementType is populated in buildReturnStatement (sibling
+                //      of returnClassName).
+                if (it != b_.functionTable_.end() &&
+                    it->second.returnElementType != SadTypeKind::Void)
+                {
+                    result.elementType = it->second.returnElementType;
+                }
                 if (it != b_.functionTable_.end() && !it->second.returnClassName.empty())
                 {
                     result.className = it->second.returnClassName;

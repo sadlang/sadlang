@@ -1031,6 +1031,23 @@ namespace Sad
                         }
                     }
 
+                    // (AR) [وسم زمن-التشغيل] حفظُ نوع عنصر المصفوفة المُرجعة: كتبه
+                    //      buildReturnStatement في إدخال الجدول أثناء بناء الجسم (فوق)،
+                    //      وهذا الإسنادُ الجديد كان يطمسه (funcInfo لا يحمله). ننقله من
+                    //      الإدخال السابق قبل الاستبدال، فيبقى متاحًا لموقع الاستدعاء.
+                    // (EN) [runtime tags] preserve the returned array element type:
+                    //      buildReturnStatement wrote it into the table entry during body
+                    //      build (above), and this fresh assignment would clobber it (funcInfo
+                    //      doesn't carry it). Copy it from the prior entry before overwriting
+                    //      so it stays available at the call site.
+                    {
+                        auto prevFtIt = functionTable_.find(funcDecl->name);
+                        if (prevFtIt != functionTable_.end() &&
+                            funcInfo.returnElementType == SadTypeKind::Void)
+                        {
+                            funcInfo.returnElementType = prevFtIt->second.returnElementType;
+                        }
+                    }
                     functionTable_[funcDecl->name] = funcInfo;
                 }
 

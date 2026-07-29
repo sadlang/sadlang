@@ -617,6 +617,13 @@ namespace Sad
                             methodInfo.parameters = sirMethod->getParameters();
                             methodInfo.sirFunction = sirMethod;
                             methodInfo.returnClassName = savedReturnClassName1;
+                            // (AR) [وسم زمن-التشغيل] احفظ نوعَ عنصر المصفوفة المُرجعة (كما أعلاه).
+                            // (EN) [runtime tags] preserve the returned array element type (as above).
+                            {
+                                auto prevMi = b_.functionTable_.find(fullMethodName);
+                                if (prevMi != b_.functionTable_.end())
+                                    methodInfo.returnElementType = prevMi->second.returnElementType;
+                            }
                             b_.functionTable_[fullMethodName] = methodInfo;
 
                             b_.currentFunction_ = prevFunction;
@@ -803,6 +810,18 @@ namespace Sad
                             methodInfo.parameters = sirMethod->getParameters();
                             methodInfo.sirFunction = sirMethod;
                             methodInfo.returnClassName = savedReturnClassName2;
+                            // (AR) [وسم زمن-التشغيل] احفظ نوعَ عنصر المصفوفة المُرجعة الذي
+                            //      كتبه buildReturnStatement أثناء بناء الجسم، وإلّا طمسه هذا
+                            //      الإسناد (نظير الحفظ في sir_builder_functions للدوالّ الحرّة).
+                            // (EN) [runtime tags] preserve the returned array element type
+                            //      written by buildReturnStatement during body build; else this
+                            //      assignment clobbers it (sibling of the free-function preserve
+                            //      in sir_builder_functions).
+                            {
+                                auto prevMi = b_.functionTable_.find(fullMethodName);
+                                if (prevMi != b_.functionTable_.end())
+                                    methodInfo.returnElementType = prevMi->second.returnElementType;
+                            }
                             b_.functionTable_[fullMethodName] = methodInfo;
 
                             b_.currentFunction_ = prevFunction;
@@ -1048,6 +1067,13 @@ namespace Sad
                 methodInfo.parameters = sirMethod->getParameters();
                 methodInfo.sirFunction = sirMethod;
                 methodInfo.returnClassName = savedReturnClassName1;
+                // (AR) [وسم زمن-التشغيل] احفظ نوعَ عنصر المصفوفة المُرجعة (كما أعلاه).
+                // (EN) [runtime tags] preserve the returned array element type (as above).
+                {
+                    auto prevMi = b_.functionTable_.find(fullMethodName);
+                    if (prevMi != b_.functionTable_.end())
+                        methodInfo.returnElementType = prevMi->second.returnElementType;
+                }
                 b_.functionTable_[fullMethodName] = methodInfo;
 
                 b_.currentFunction_ = prevFunction;

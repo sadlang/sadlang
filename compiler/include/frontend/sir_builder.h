@@ -332,6 +332,17 @@ namespace Sad
                 std::string returnClassName; ///< (AR) اسم الصنف المُرجع / (EN) Return class name
 
                 // ================================================================
+                // (AR) نوع عنصر المصفوفة المُرجعة — Any إن أرجعت الدالّةُ مصفوفةً مختلطةً
+                //      موسومةً زمنَ التشغيل. يضعه موقعُ الاستدعاء على نتيجته فتُقرأ الفهرسةُ
+                //      اللاحقةُ موسومةً لا عدديًّا. (نظير returnClassName لكن لعنصر المصفوفة.)
+                // (EN) Returned array element type — Any if the function returns a mixed,
+                //      runtime-tagged array. The call site stamps it on the result so a later
+                //      index reads the slot tagged, not as an integer. (Sibling of
+                //      returnClassName but for the array element.)
+                // ================================================================
+                SadTypeKind returnElementType = SadTypeKind::Void; ///< (AR) نوع عنصر المصفوفة المُرجعة / (EN) Returned array element type
+
+                // ================================================================
                 // (AR) [Fix #52] اسم اللامدا المُرجعة — يُستخدم عندما تُرجع الدالة إغلاقاً
                 //      مثال: دالة صانع() ارجع لامدا()... → returnLambdaName = "__lambda_0"
                 //      هذا يسمح بتتبع نوع الإرجاع الصحيح عند استدعاء الإغلاق عبر متغير

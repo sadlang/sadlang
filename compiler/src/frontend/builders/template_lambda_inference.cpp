@@ -182,17 +182,81 @@ namespace Sad
                                 //      and inspect elements to determine elementType
                                 //      Without this: forEach over string array treats elements as integers
                                 // ═══════════════════════════════════════════════════════════
-                                else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Array)
+                                else if ((paramType == SadTypeKind::Integer ||
+                                          paramType == SadTypeKind::Array) &&
+                                         argType == SadTypeKind::Array)
                                 {
+                                    // (AR) يشمل المعاملَ المصرَّح `مصفوفة` (paramType=Array) لا
+                                    //      المُستنتَجَ فقط (Integer)؛ فبدونه لا يحمل المعاملُ
+                                    //      المصرَّحُ نوعَ عنصرٍ ⇒ تُقرأ فهرستُه عدديًّا (قمامة).
+                                    // (EN) Covers a declared `array` param (paramType=Array), not
+                                    //      just an inferred one (Integer); without it a declared
+                                    //      param carries no element type ⇒ its index reads as int.
                                     paramType = SadTypeKind::Array;
-                                    // (AR) فحص عناصر المصفوفة لتحديد نوع العنصر
-                                    // (EN) Inspect array elements to determine element type
+                                    // (AR) [وسم زمن-التشغيل] فحص عناصر المصفوفة لتحديد نوع
+                                    //      العنصر. وسيطُ حرفيّةٍ مباشرة (ArrayExpr) ⇒ نمسح كلّ
+                                    //      عناصره: مختلطٌ قياسيّ ⇒ Any (فيُبنى جسمُ الدالّة عالمًا
+                                    //      أنّ المعاملَ موسومٌ زمنَ التشغيل، فتُقرأ فهرستُه موسومةً
+                                    //      لا عدديًّا)؛ متجانسٌ ⇒ نوعُه؛ غير-قياسيٍّ مختلطٍ ⇒ نتركه
+                                    //      (Void، حدٌّ موروثٌ ISSUE-067/070). نطابق بوّابةَ باني
+                                    //      الحرفيّة. (سابقًا: العنصرُ الأوّل فقط ⇒ يُظلَّل المختلط.)
+                                    // (EN) [runtime tags] inspect array elements to determine the
+                                    //      element type. A direct literal arg (ArrayExpr) ⇒ scan
+                                    //      all elements: scalar-heterogeneous ⇒ Any (so the body is
+                                    //      built knowing the param is runtime-tagged and its index
+                                    //      reads tagged, not as an integer); homogeneous ⇒ its type;
+                                    //      non-scalar mixed ⇒ leave it (Void, inherited ISSUE-067/070
+                                    //      limit). Mirrors the literal builder's gate. (Previously:
+                                    //      only the first element ⇒ a mixed array was mis-typed.)
                                     if (auto *arrExpr = dynamic_cast<const Sad::AST::ArrayExpr *>(call->arguments[i].get()))
                                     {
                                         if (!arrExpr->elements.empty())
                                         {
+                                            auto isScalarKind = [](SadTypeKind t) {
+                                                return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
+                                                       t == SadTypeKind::String || t == SadTypeKind::Boolean ||
+                                                       t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                                       t == SadTypeKind::Null || t == SadTypeKind::Any;
+                                            };
                                             SadTypeKind firstElemType = inferExprType(arrExpr->elements[0].get());
-                                            funcInfo.parameters[i + paramOffset].elementType = firstElemType;
+                                            bool homogeneous = true, allScalar = true, hasAny = false;
+                                            for (const auto &el : arrExpr->elements)
+                                            {
+                                                SadTypeKind et = inferExprType(el.get());
+                                                if (et != firstElemType)
+                                                    homogeneous = false;
+                                                if (!isScalarKind(et))
+                                                    allScalar = false;
+                                                if (et == SadTypeKind::Any)
+                                                    hasAny = true;
+                                            }
+                                            SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
+                                            // (AR) «الموقعُ الأوّل يفوز»: نضبط نوعَ العنصر مرّةً
+                                            //      واحدةً (حين يكون Void) ولا نكتب فوقه من موقعِ
+                                            //      نداءٍ لاحق. حرِجٌ: توسيعُ معاملٍ إلى Any من موقعٍ
+                                            //      لاحقٍ يكسر موقعًا أسبقَ مرّر مصفوفةً متجانسةً غيرَ
+                                            //      عدديّة (نصوصًا): تُقرأ حينها عبر مسار Any ووسومُها
+                                            //      null ⇒ احتياطيُّ الخلفيّة يفترض Int ⇒ قمامة. هذا
+                                            //      يطابق دلالةَ ما قبلُ (المعاملُ غيرُ المصرَّح كان
+                                            //      يُجمَّد على أوّل موقع) ويُبقي تحسينَ المعامل
+                                            //      المصرَّح والموقعِ الأوحد بلا انحدار.
+                                            // (EN) "first call site wins": set the element type once
+                                            //      (while Void) and never overwrite it from a later
+                                            //      site. Critical: widening a param to Any from a
+                                            //      later site breaks an EARLIER site that passed a
+                                            //      homogeneous non-int (string) array — it would then
+                                            //      read via the Any path with null tags ⇒ the backend
+                                            //      Int fallback ⇒ garbage. This matches the prior
+                                            //      semantics (an untyped param froze on its first
+                                            //      site) and keeps the declared-param / single-site
+                                            //      improvement without regressing multi-site.
+                                            if (pElem == SadTypeKind::Void)
+                                            {
+                                                if (allScalar && ((!homogeneous && arrExpr->elements.size() > 1) || hasAny))
+                                                    pElem = SadTypeKind::Any;
+                                                else if (homogeneous)
+                                                    pElem = firstElemType;
+                                            }
                                         }
                                     }
                                 }
