@@ -1363,6 +1363,59 @@ namespace Sad
                         leftOp.dataType = SadTypeKind::Integer;
                 }
 
+                // (AR) [وسم زمن-التشغيل] لدمج المصفوفات: هل النتيجةُ مصفوفةٌ موسومةٌ
+                //      (واصفةٌ لنفسها)؟ نعم متى كان الدمجُ متنافرًا (طرفٌ Any، أو طرفان
+                //      محدَّدان مختلفان) **و** كان كلا الطرفين قابلًا للوسم القياسيّ. نقصر
+                //      الوسمَ على القياسيّ (عدد/عشريّ/نصّ/منطقيّ/بايت/طبيعي64/عدم) — لا
+                //      المصفوفات/الخرائط/الكائنات المتداخلة — مطابقةً لبوّابة باني الحرفيّة
+                //      `allElementsScalar` (ISSUE-067/070): آليّةُ وسمِ الدمج (fillRegion
+                //      + قارئ المختلط) تعالج القياسيّ فقط، فتوجيهُ نوعٍ غير-قياسيّ إليها
+                //      يُنتج وسمًا خاطئًا. الطرفُ الفارغُ (Void، طولُه صفر) حميدٌ (منطقتُه
+                //      لا تُكتب) فنعدّه آمنًا. متى وُسمت: ننقل نوعَ العنصر لكلا المعاملين
+                //      لتعرف الخلفيّةُ أيَّ طرفٍ Any فتنسخ وسومَه (المُنشئ Register يضبط
+                //      dataType فقط). الأنواعُ غير-القياسيّة تبقى على مسارها السابق تمامًا.
+                // (EN) [runtime tags] for array concat: is the result a tagged (self-
+                //      describing) array? Yes iff the concat is heterogeneous (a side is Any,
+                //      or two concrete sides differ) AND both sides are scalar-taggable. We
+                //      restrict tagging to scalars (int/float/str/bool/byte/uint64/null) — not
+                //      nested arrays/maps/objects — mirroring the literal builder's
+                //      `allElementsScalar` gate (ISSUE-067/070): the concat tag machinery
+                //      (fillRegion + the mixed reader) handles scalars only, so routing a non-
+                //      scalar kind into it mistags it. An empty (Void, zero-length) side is
+                //      benign (its region is never written) so it counts as safe. When tagged,
+                //      carry each side's element type onto the operands so the backend knows
+                //      which side is Any and copies its tags (the Register ctor sets dataType
+                //      only). Non-scalar kinds stay on their exact prior path.
+                bool concatTagged = false;
+                if (opcode == SIROpcode::ARRAY_CONCAT)
+                {
+                    // (AR) قابلٌ للوسم القياسيّ: يطابق لامدا `isBoxableScalar` في باني
+                    //      الحرفيّة (expression_collections.cpp:63) + الفارغ (Void) حميد.
+                    // (EN) scalar-taggable: mirrors the literal builder's `isBoxableScalar`
+                    //      lambda (expression_collections.cpp:63) + benign empty (Void).
+                    auto tagScalarOk = [](SadTypeKind t) {
+                        return t == SadTypeKind::Void || t == SadTypeKind::Integer ||
+                               t == SadTypeKind::Float || t == SadTypeKind::String ||
+                               t == SadTypeKind::Boolean || t == SadTypeKind::Byte ||
+                               t == SadTypeKind::UInt64 || t == SadTypeKind::Null ||
+                               t == SadTypeKind::Any;
+                    };
+                    const SadTypeKind le = leftResult.elementType;
+                    const SadTypeKind re = rightResult.elementType;
+                    const bool lAny = (le == SadTypeKind::Any);
+                    const bool rAny = (re == SadTypeKind::Any);
+                    const bool bothKnown =
+                        (le != SadTypeKind::Void && re != SadTypeKind::Void);
+                    const bool heterogeneous = lAny || rAny || (bothKnown && le != re);
+                    concatTagged =
+                        heterogeneous && tagScalarOk(le) && tagScalarOk(re);
+                    if (concatTagged)
+                    {
+                        leftOp.elementType = leftResult.elementType;
+                        rightOp.elementType = rightResult.elementType;
+                    }
+                }
+
                 // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)
                 // (EN) Create SIR instruction
                 SIRInstruction inst = SIRInstruction::Binary(opcode, resultOp, leftOp, rightOp);
@@ -1417,30 +1470,63 @@ namespace Sad
                 //      type and the next index loads a string pointer as an integer.
                 if (opcode == SIROpcode::ARRAY_CONCAT)
                 {
-                    // (AR) [عناصر موسومة — option A] التعليب يخلق تمثيلين للمصفوفة: موسومة
-                    //      (خانات مؤشّرات صناديق) وخام. دمجُ موسومةٍ بموسومةٍ سليم (تُنسَخ
-                    //      مؤشّرات الصناديق ⇒ النتيجة موسومة تُفكّ صحيحًا). لكنّ دمجَ موسومةٍ
-                    //      بغيرِ موسومةٍ لو وُسِم Any لأدّى إلى خاناتٍ خامٍ داخل نتيجةٍ موسومة
-                    //      ⇒ **انهيار فكّ**. لذا: نَسِم Any فقط حين الطرفان موسومان؛ وعند
-                    //      اختلاف التعليب نتركه Void (قراءةٌ عدديّة آمنة بلا انهيار — حدٌّ
-                    //      موثَّق للدمج مختلط التعليب، نادرٌ وكان معطوبًا سابقًا أصلًا).
-                    // (EN) [boxed elements — option A] boxing creates two array representations:
-                    //      boxed (box-pointer slots) and raw. Concatenating boxed+boxed is safe
-                    //      (box pointers copied ⇒ result unboxes correctly). But marking a
-                    //      boxed+raw concat as Any would put raw slots in a boxed result ⇒ an
-                    //      unbox CRASH. So: mark Any only when BOTH sides are boxed; on a boxing
-                    //      mismatch leave Void (safe integer read, no crash — a documented limit
-                    //      for mixed-boxing concat, rare and already broken before).
+                    // (AR) [وسم زمن-التشغيل] نوعُ عنصر النتيجة. `concatTagged` (المحسوب
+                    //      أعلاه) = دمجٌ متنافرٌ قياسيٌّ الطرفين ⇒ Any (موسومة، واصفةٌ
+                    //      لنفسها؛ الخلفيّةُ تبني الوسومَ عبر fillRegion). غيرُ الموسوم
+                    //      يحافظ حرفيًّا على السلوك السابق (صفر انحدارٍ للأنواع غير-
+                    //      القياسيّة): طرفان Any ⇒ Any؛ طرفٌ Any وحيد ⇒ Void (حدّ غير-
+                    //      قياسيّ آمن)؛ وإلّا يرث نوعَ العنصر المعروف. حارسٌ: لا نُسرّب
+                    //      Any إلى نتيجةٍ غير موسومة (تختار مسارَ القراءة الموسوم بلا مخزن
+                    //      وسوم) ⇒ نخفضه إلى Void كسياسة الحرفيّة.
+                    // (EN) [runtime tags] result element type. `concatTagged` (computed above)
+                    //      = a scalar heterogeneous concat ⇒ Any (tagged, self-describing; the
+                    //      backend builds the tags via fillRegion). The untagged path preserves
+                    //      the exact prior behavior (zero regression for non-scalar kinds):
+                    //      both sides Any ⇒ Any; a lone Any side ⇒ Void (safe non-scalar
+                    //      limit); otherwise inherit the known element type. Guard: never leak
+                    //      Any onto an untagged result (it would select the tagged read path
+                    //      with no tags buffer) ⇒ downgrade to Void, matching the literal policy.
                     const SadTypeKind le = leftResult.elementType;
                     const SadTypeKind re = rightResult.elementType;
                     const bool lAny = (le == SadTypeKind::Any);
                     const bool rAny = (re == SadTypeKind::Any);
-                    if (lAny && rAny)
+                    if (concatTagged)
+                    {
                         binResult.elementType = SadTypeKind::Any;
+                    }
+                    else if (lAny && rAny)
+                    {
+                        binResult.elementType = SadTypeKind::Any;
+                    }
                     else if (lAny != rAny)
+                    {
                         binResult.elementType = SadTypeKind::Void;
+                    }
                     else
-                        binResult.elementType = (le != SadTypeKind::Void) ? le : re;
+                    {
+                        // (AR) كلا الطرفين محدَّدُ النوع (لا Any). الطرفُ الفارغ (Void)
+                        //      غائبٌ ⇒ يرث الآخر. طرفان معلومان مختلفان هنا هما بالضرورة
+                        //      غير-قياسيَّين (المختلفُ القياسيُّ وُسِم أعلاه) ⇒ Void، مطابقةً
+                        //      لسياسة باني الحرفيّة (`elementTypesHomogeneous`): لا نزعم
+                        //      Array/Map على نتيجةٍ مختلطةٍ يثق بها المطابقُ المتداخل فيفكّ
+                        //      قياسيًّا كمؤشّرٍ (segfault كامن). المتجانسُ غير-القياسيّ
+                        //      (مصفوفة+مصفوفة) يرثُ نوعَه بصدق.
+                        // (EN) Both sides concrete (non-Any). A Void (empty) side is absent ⇒
+                        //      inherit the other. Two known-but-different kinds here are
+                        //      necessarily non-scalar (a scalar-differ was tagged above) ⇒
+                        //      Void, mirroring the literal builder's `elementTypesHomogeneous`
+                        //      policy: don't claim Array/Map on a mixed result the nested
+                        //      matcher would trust and deref a scalar as a pointer (latent
+                        //      segfault). Homogeneous non-scalar (array+array) inherits truly.
+                        if (le == SadTypeKind::Void)
+                            binResult.elementType = re;
+                        else if (re == SadTypeKind::Void)
+                            binResult.elementType = le;
+                        else if (le == re)
+                            binResult.elementType = le;
+                        else
+                            binResult.elementType = SadTypeKind::Void;
+                    }
                 }
                 return binResult;
             }

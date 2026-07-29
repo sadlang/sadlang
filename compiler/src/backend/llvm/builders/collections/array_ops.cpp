@@ -879,7 +879,19 @@ namespace Sad
             //      result reads correctly even when a concrete array is concatenated with a mixed one.
             bool op0Any = (inst->operands[0].elementType == SadTypeKind::Any);
             bool op1Any = (inst->operands[1].elementType == SadTypeKind::Any);
-            if (op0Any || op1Any)
+            // (AR) نبني مخزنَ الوسوم متى نتجت مصفوفةٌ واصفةٌ لنفسها. يوافق هذا الشرطُ
+            //      تمامًا معيارَ الواجهة (expression_binary_op.cpp): أيُّ طرفٍ Any، أو
+            //      طرفان محدَّدا النوع لكن مختلفان (تنافرٌ حقيقيّ ⇒ لا يكفيه وسمٌ ساكنٌ
+            //      واحد). المتجانسان أو فارغُ-النوع لا يحتاجانه (المسار الساكن null).
+            // (EN) build the tags buffer whenever the result is self-describing. This
+            //      predicate mirrors the frontend (expression_binary_op.cpp) exactly:
+            //      either side Any, OR both sides concrete-but-different (a genuine
+            //      mismatch a single static kind can't describe). Homogeneous or
+            //      unknown-element sides don't need it (null static path).
+            SadTypeKind e0 = inst->operands[0].elementType;
+            SadTypeKind e1 = inst->operands[1].elementType;
+            bool bothKnown = (e0 != SadTypeKind::Void && e1 != SadTypeKind::Void);
+            if (op0Any || op1Any || (bothKnown && e0 != e1))
             {
                 auto *i8Ty = cg_.getInt8Type();
                 llvm::Value *newTags = cg_.emitMalloc(totalLen, "concat.tags.buf");
