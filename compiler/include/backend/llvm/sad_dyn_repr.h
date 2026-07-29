@@ -104,6 +104,22 @@ namespace Sad
         llvm::Value *unpackI64(LLVMCodeGen &cg, llvm::Value *dyn);
 
         // ====================================================================
+        // (AR) التعليب/فكّ التعليب على الكومة — «option A» لعناصر المصفوفات مختلطة
+        //      الأنواع (ISSUE-052/070/080/082). خانةُ المصفوفة 8 بايت لا تسع الوسمَ،
+        //      فنُعلّب العنصرَ في %SadDyn بالكومة ونخزّن مؤشّرَه، ونفكّه عند القراءة.
+        // (EN) Heap box/unbox — "option A" for heterogeneous-array elements. An 8-byte
+        //      slot can't hold the tag, so box the element into a heap %SadDyn, store its
+        //      pointer, and unbox on read.
+        // ====================================================================
+        /// (AR) علّب قيمةً محدَّدة في %SadDyn بالكومة (malloc)، وأرجِع مؤشّرًا (ptr) إليه.
+        ///      القيمةُ الديناميّة (%SadDyn أصلًا) تُمرَّر عبر toDyn كما هي.
+        /// (EN) Box a concrete value into a heap %SadDyn (malloc); return a pointer to it.
+        llvm::Value *boxDynToHeap(LLVMCodeGen &cg, llvm::Value *v, Compiler::SIR::SadTypeKind sirType);
+        /// (AR) اقرأ %SadDyn من مؤشّر كومةٍ سبق تعليبه (عكس boxDynToHeap).
+        /// (EN) Load a %SadDyn from a heap pointer previously boxed (inverse of boxDynToHeap).
+        llvm::Value *unboxDynFromHeap(LLVMCodeGen &cg, llvm::Value *boxPtr);
+
+        // ====================================================================
         // (AR) الموزِّعات (تُبنى مرّة، لكلّ المستهلكين) / (EN) dispatchers (built once, all consumers)
         // ====================================================================
         /// (AR) عمليّة ثنائيّة ديناميّة (+ - * / % //): إن كان أيّ طرفٍ عشريًّا ⇒ عمليّة عشريّة

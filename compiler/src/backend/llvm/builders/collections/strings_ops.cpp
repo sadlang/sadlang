@@ -10,6 +10,7 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
+#include "sad_dyn_repr.h" // (AR) dynToString/unbox لطباعة المصفوفة المختلطة / (EN) heterogeneous array print
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -547,6 +548,164 @@ namespace Sad
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, ']'), closePtr);
             llvm::Value *nullPos = cg_.builder_->CreateAdd(posPhi, llvm::ConstantInt::get(i64Ty, 1), "f2s.nullpos");
             llvm::Value *nullP = cg_.builder_->CreateGEP(i8Ty, buf, nullPos, "f2s.nullptr");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), nullP);
+            cg_.builder_->CreateRet(buf);
+
+            if (savedBB)
+                cg_.builder_->SetInsertPoint(savedBB, savedPoint);
+        }
+
+        // ================================================================
+        // (AR) i8* __sad_array_to_string_dyn(i64 len, i8* data)
+        //      [عناصر موسومة — option A] يبني «[ع0، ع1، ...]» لمصفوفةٍ مختلطةٍ قياسيّة
+        //      كلّ خانةٍ فيها مؤشّرُ صندوق %SadDyn. يفكّ كلّ عنصرٍ عبر dynToString (نظير
+        //      المفسّر عنصرًا-عنصرًا). تمريرتان: (١) قياسُ مجموع الأطوال، (٢) الملء —
+        //      كلاهما يستدعي dynToString (نتائج التمريرة الأولى تُسرَّب، مقبول). يخصّص مخزنه.
+        // (EN) [boxed elements — option A] builds "[e0, e1, ...]" for a scalar-heterogeneous
+        //      array whose slots are %SadDyn box pointers; decodes each element via
+        //      dynToString. Two passes: (1) sum the lengths, (2) fill — both call dynToString
+        //      (pass-1 strings leak, acceptable). Mallocs its own buffer and returns it.
+        // ================================================================
+        void StringsCodeGen::ensureArrayToStringDynHelper()
+        {
+            llvm::Function *existing = cg_.module_->getFunction("__sad_array_to_string_dyn");
+            if (existing && !existing->empty())
+                return;
+
+            auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            llvm::FunctionType *fnTy = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
+            llvm::Function *fn = llvm::Function::Create(
+                fnTy, llvm::Function::InternalLinkage, "__sad_array_to_string_dyn", cg_.module_.get());
+            llvm::Argument *lenArg = fn->getArg(0);
+            llvm::Argument *dataArg = fn->getArg(1);
+            llvm::Argument *tagsArg = fn->getArg(2);
+            lenArg->setName("len");
+            dataArg->setName("data");
+            tagsArg->setName("tags");
+
+            llvm::BasicBlock *savedBB = cg_.builder_->GetInsertBlock();
+            llvm::BasicBlock::iterator savedPoint = cg_.builder_->GetInsertPoint();
+
+            llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction(
+                "sprintf", llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true));
+
+            // (AR) [وسم زمن-تشغيل] مساعِدٌ يحمّل الحمولةَ الخام i64 من الخانة i، ووسمَ DynKind
+            //      من tags[i] (أو Int إن كانت tags=null احتياطيًّا)، يبني %SadDyn عبر makeDyn،
+            //      ثمّ يفكّه نصًّا عبر dynToString. نظيرُ كتابة emitArraySet الموسومة.
+            // (EN) [runtime tag] helper: load the raw i64 payload from slot i and the DynKind
+            //      from tags[i] (or Int if tags==null, defensive), assemble %SadDyn via makeDyn,
+            //      then dynToString. Inverse of emitArraySet's tagged write.
+            auto elemToStr = [&](llvm::Value *idx) -> llvm::Value * {
+                llvm::Value *slot = cg_.builder_->CreateGEP(i64Ty, dataArg, idx, "d2s.slot");
+                llvm::Value *payload = cg_.builder_->CreateLoad(i64Ty, slot, "d2s.payload");
+                llvm::Value *tagsNull = cg_.builder_->CreateICmpEQ(
+                    tagsArg, llvm::ConstantPointerNull::get(ptrTy), "d2s.tags.isnull");
+                llvm::Value *tagPtr = cg_.builder_->CreateGEP(i8Ty, tagsArg, idx, "d2s.tag.slot");
+                // (AR) حمّل الوسمَ فقط عند وجود المخزن (select على العنوان يمنع تحميلًا من null)
+                // (EN) load the tag only when the buffer exists (address-select avoids a null load)
+                llvm::Value *safePtr = cg_.builder_->CreateSelect(tagsNull, dataArg, tagPtr, "d2s.tag.safe");
+                llvm::Value *rawTag = cg_.builder_->CreateLoad(i8Ty, safePtr, "d2s.tag.raw");
+                llvm::Value *tag = cg_.builder_->CreateSelect(
+                    tagsNull, llvm::ConstantInt::get(i8Ty, DynKind::Int), rawTag, "d2s.tag");
+                llvm::Value *dyn = makeDyn(cg_, tag, payload);
+                return dynToString(cg_, dyn);
+            };
+
+            llvm::BasicBlock *entryBB = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            llvm::BasicBlock *p1chk = llvm::BasicBlock::Create(*cg_.context_, "p1.check", fn);
+            llvm::BasicBlock *p1body = llvm::BasicBlock::Create(*cg_.context_, "p1.body", fn);
+            llvm::BasicBlock *allocBB = llvm::BasicBlock::Create(*cg_.context_, "alloc", fn);
+            llvm::BasicBlock *p2chk = llvm::BasicBlock::Create(*cg_.context_, "p2.check", fn);
+            llvm::BasicBlock *p2body = llvm::BasicBlock::Create(*cg_.context_, "p2.body", fn);
+            llvm::BasicBlock *p2comma = llvm::BasicBlock::Create(*cg_.context_, "p2.comma", fn);
+            llvm::BasicBlock *p2elem = llvm::BasicBlock::Create(*cg_.context_, "p2.elem", fn);
+            llvm::BasicBlock *p2end = llvm::BasicBlock::Create(*cg_.context_, "p2.end", fn);
+
+            // (AR) entry: br pass1 / (EN)
+            cg_.builder_->SetInsertPoint(entryBB);
+            cg_.builder_->CreateBr(p1chk);
+
+            // === PASS 1: قياس المجموع (total يبدأ 3: '[' ']' '\0') ===
+            cg_.builder_->SetInsertPoint(p1chk);
+            llvm::PHINode *i1 = cg_.builder_->CreatePHI(i64Ty, 2, "i1");
+            llvm::PHINode *total = cg_.builder_->CreatePHI(i64Ty, 2, "total");
+            i1->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entryBB);
+            total->addIncoming(llvm::ConstantInt::get(i64Ty, 3), entryBB);
+            llvm::Value *c1 = cg_.builder_->CreateICmpSLT(i1, lenArg, "p1.lt");
+            cg_.builder_->CreateCondBr(c1, p1body, allocBB);
+
+            cg_.builder_->SetInsertPoint(p1body);
+            llvm::Value *s1 = elemToStr(i1);
+            llvm::Value *n1 = cg_.emitStrlen(s1, "p1.len");
+            llvm::Value *commaAdd = cg_.builder_->CreateSelect(
+                cg_.builder_->CreateICmpSGT(i1, llvm::ConstantInt::get(i64Ty, 0), "p1.gt0"),
+                llvm::ConstantInt::get(i64Ty, 2), llvm::ConstantInt::get(i64Ty, 0), "p1.comma");
+            llvm::Value *newTotal = cg_.builder_->CreateAdd(
+                cg_.builder_->CreateAdd(total, n1, "p1.t1"), commaAdd, "p1.t2");
+            llvm::Value *nextI1 = cg_.builder_->CreateAdd(i1, llvm::ConstantInt::get(i64Ty, 1), "p1.next");
+            // (AR) dynToString قد يشقّ الكتلة (يولّد فروعًا)، فالمُسبِقُ الفعليّ للعودة هو
+            //      الكتلةُ الحاليّة لا p1body الثابتة — نستعملها في PHI تجنّبًا لعدم المطابقة.
+            // (EN) dynToString may split the block (emits branches), so the real loop-back
+            //      predecessor is the CURRENT block, not the fixed p1body — use it in the PHI.
+            llvm::BasicBlock *p1bodyEnd = cg_.builder_->GetInsertBlock();
+            i1->addIncoming(nextI1, p1bodyEnd);
+            total->addIncoming(newTotal, p1bodyEnd);
+            cg_.builder_->CreateBr(p1chk);
+
+            // === alloc: buf = malloc(total)؛ buf[0]='[' ===
+            cg_.builder_->SetInsertPoint(allocBB);
+            llvm::Value *buf = cg_.emitMalloc(total, "d2s.buf");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), buf);
+            cg_.builder_->CreateBr(p2chk);
+
+            // === PASS 2: الملء ===
+            cg_.builder_->SetInsertPoint(p2chk);
+            llvm::PHINode *i2 = cg_.builder_->CreatePHI(i64Ty, 2, "i2");
+            llvm::PHINode *pos = cg_.builder_->CreatePHI(i64Ty, 2, "pos");
+            i2->addIncoming(llvm::ConstantInt::get(i64Ty, 0), allocBB);
+            pos->addIncoming(llvm::ConstantInt::get(i64Ty, 1), allocBB);
+            llvm::Value *c2 = cg_.builder_->CreateICmpSLT(i2, lenArg, "p2.lt");
+            cg_.builder_->CreateCondBr(c2, p2body, p2end);
+
+            cg_.builder_->SetInsertPoint(p2body);
+            llvm::Value *needComma = cg_.builder_->CreateICmpSGT(i2, llvm::ConstantInt::get(i64Ty, 0), "p2.gt0");
+            cg_.builder_->CreateCondBr(needComma, p2comma, p2elem);
+
+            cg_.builder_->SetInsertPoint(p2comma);
+            llvm::Value *commaFmt = cg_.builder_->CreateGlobalStringPtr(", ", "d2s.comma");
+            llvm::Value *commaDst = cg_.builder_->CreateGEP(i8Ty, buf, pos, "d2s.comma.dst");
+            cg_.builder_->CreateCall(sprintfFn, {commaDst, commaFmt});
+            llvm::Value *posAfterComma = cg_.builder_->CreateAdd(pos, llvm::ConstantInt::get(i64Ty, 2), "d2s.pos.comma");
+            cg_.builder_->CreateBr(p2elem);
+
+            cg_.builder_->SetInsertPoint(p2elem);
+            llvm::PHINode *elemPos = cg_.builder_->CreatePHI(i64Ty, 2, "elem.pos");
+            elemPos->addIncoming(pos, p2body);
+            elemPos->addIncoming(posAfterComma, p2comma);
+            llvm::Value *s2 = elemToStr(i2);
+            llvm::Value *sFmt = cg_.builder_->CreateGlobalStringPtr("%s", "d2s.sfmt");
+            llvm::Value *elemDst = cg_.builder_->CreateGEP(i8Ty, buf, elemPos, "d2s.elem.dst");
+            cg_.builder_->CreateCall(sprintfFn, {elemDst, sFmt, s2});
+            llvm::Value *wrote = cg_.emitStrlen(elemDst, "d2s.elem.len");
+            llvm::Value *newPos = cg_.builder_->CreateAdd(elemPos, wrote, "d2s.new.pos");
+            llvm::Value *nextI2 = cg_.builder_->CreateAdd(i2, llvm::ConstantInt::get(i64Ty, 1), "p2.next");
+            // (AR) نفس علّة الشقّ: المُسبِقُ الفعليّ هو الكتلةُ الحاليّة بعد elemToStr.
+            // (EN) Same split concern: the real predecessor is the current block after elemToStr.
+            llvm::BasicBlock *p2elemEnd = cg_.builder_->GetInsertBlock();
+            i2->addIncoming(nextI2, p2elemEnd);
+            pos->addIncoming(newPos, p2elemEnd);
+            cg_.builder_->CreateBr(p2chk);
+
+            // === p2end: ']' ثمّ '\0' ===
+            cg_.builder_->SetInsertPoint(p2end);
+            llvm::Value *closePtr = cg_.builder_->CreateGEP(i8Ty, buf, pos, "d2s.close");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, ']'), closePtr);
+            llvm::Value *nullPos = cg_.builder_->CreateAdd(pos, llvm::ConstantInt::get(i64Ty, 1), "d2s.nullpos");
+            llvm::Value *nullP = cg_.builder_->CreateGEP(i8Ty, buf, nullPos, "d2s.nullptr");
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), nullP);
             cg_.builder_->CreateRet(buf);
 

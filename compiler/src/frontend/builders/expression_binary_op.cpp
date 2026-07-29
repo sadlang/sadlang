@@ -1417,10 +1417,30 @@ namespace Sad
                 //      type and the next index loads a string pointer as an integer.
                 if (opcode == SIROpcode::ARRAY_CONCAT)
                 {
-                    binResult.elementType =
-                        (leftResult.elementType != SadTypeKind::Void)
-                            ? leftResult.elementType
-                            : rightResult.elementType;
+                    // (AR) [عناصر موسومة — option A] التعليب يخلق تمثيلين للمصفوفة: موسومة
+                    //      (خانات مؤشّرات صناديق) وخام. دمجُ موسومةٍ بموسومةٍ سليم (تُنسَخ
+                    //      مؤشّرات الصناديق ⇒ النتيجة موسومة تُفكّ صحيحًا). لكنّ دمجَ موسومةٍ
+                    //      بغيرِ موسومةٍ لو وُسِم Any لأدّى إلى خاناتٍ خامٍ داخل نتيجةٍ موسومة
+                    //      ⇒ **انهيار فكّ**. لذا: نَسِم Any فقط حين الطرفان موسومان؛ وعند
+                    //      اختلاف التعليب نتركه Void (قراءةٌ عدديّة آمنة بلا انهيار — حدٌّ
+                    //      موثَّق للدمج مختلط التعليب، نادرٌ وكان معطوبًا سابقًا أصلًا).
+                    // (EN) [boxed elements — option A] boxing creates two array representations:
+                    //      boxed (box-pointer slots) and raw. Concatenating boxed+boxed is safe
+                    //      (box pointers copied ⇒ result unboxes correctly). But marking a
+                    //      boxed+raw concat as Any would put raw slots in a boxed result ⇒ an
+                    //      unbox CRASH. So: mark Any only when BOTH sides are boxed; on a boxing
+                    //      mismatch leave Void (safe integer read, no crash — a documented limit
+                    //      for mixed-boxing concat, rare and already broken before).
+                    const SadTypeKind le = leftResult.elementType;
+                    const SadTypeKind re = rightResult.elementType;
+                    const bool lAny = (le == SadTypeKind::Any);
+                    const bool rAny = (re == SadTypeKind::Any);
+                    if (lAny && rAny)
+                        binResult.elementType = SadTypeKind::Any;
+                    else if (lAny != rAny)
+                        binResult.elementType = SadTypeKind::Void;
+                    else
+                        binResult.elementType = (le != SadTypeKind::Void) ? le : re;
                 }
                 return binResult;
             }

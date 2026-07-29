@@ -29,7 +29,8 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 {
     return llvm::StructType::get(ctx, {llvm::Type::getInt64Ty(ctx),
                                        llvm::Type::getInt64Ty(ctx),
-                                       llvm::PointerType::getUnqual(ctx)});
+                                       llvm::PointerType::getUnqual(ctx),
+                                       llvm::PointerType::getUnqual(ctx)}); // + tags (option A)
 }
 
 namespace Sad

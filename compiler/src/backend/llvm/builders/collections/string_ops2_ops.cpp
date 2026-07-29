@@ -9,6 +9,7 @@
 #include "builders/collections/strings_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+#include "sad_dyn_repr.h" // (AR) تعليب %SadDyn لعناصر المصفوفة المختلطة (الإلحاق) / (EN) %SadDyn boxing for heterogeneous array append
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -33,9 +34,10 @@ namespace Sad
             if (!arrTy)
             {
                 arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),      // length
-                                                          llvm::Type::getInt64Ty(ctx),      // capacity
-                                                          llvm::PointerType::getUnqual(ctx) // data pointer
+                                                          llvm::Type::getInt64Ty(ctx),       // length
+                                                          llvm::Type::getInt64Ty(ctx),       // capacity
+                                                          llvm::PointerType::getUnqual(ctx), // data pointer
+                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
                                                       },
                                                  "SadArray");
             }
@@ -61,13 +63,62 @@ namespace Sad
             if (!arrPtr || !value)
                 return nullptr;
 
+            // (AR) [وسم زمن-تشغيل — الخيار أ الجذريّ] الإلحاقُ لمصفوفةٍ مختلطةٍ قياسيّة
+            //      (elementType=Any): بدل تعليب الكومة، نحسب (الوسم، الحمولة) عبر toDyn،
+            //      نخزّن الحمولةَ الخام في خانة البيانات، والوسمَ في مخزنِ الوسوم المتوازي
+            //      (الحقل ٣) عند الخانة نفسِها — متّسقين مع كتابة emitArraySet الموسومة.
+            // (EN) [runtime tag — radical option A] appending to a scalar-heterogeneous array
+            //      (elementType=Any): instead of heap boxing, derive (tag, payload) via toDyn,
+            //      store the raw payload in the data slot and the tag in the parallel tags
+            //      buffer (field 3) at the same slot — consistent with emitArraySet's tagged write.
+            bool isDyn = (inst->operands[0].elementType == SadTypeKind::Any);
+            llvm::Value *kindByte = nullptr;
+            if (isDyn)
+            {
+                llvm::Value *dyn = toDyn(cg_, value, inst->operands[1].dataType);
+                kindByte = dynKindByte(cg_, dyn);
+                value = dynPayloadI64(cg_, dyn);
+            }
+
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper
             arrPtr = cg_.normalizeArrayPtr(arrPtr, "append");
 
             auto i64Ty = cg_.getInt64Type();
+            auto i8Ty = cg_.getInt8Type();
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
+
+            // (AR) [وسم زمن-تشغيل] اضمن مخزنَ الوسوم قبل النموّ (بسعةٍ حاليّة، مُصفَّرًا Null)
+            //      كي يُنسَخ محتواه عند النموّ ويُكتَب وسمُ الخانة الجديدة بعده.
+            // (EN) [runtime tag] ensure the tags buffer before growth (current capacity, zeroed
+            //      Null) so it is copied on grow and the new slot's tag is written afterward.
+            llvm::Value *tagsGep0 = nullptr, *curTags = nullptr;
+            if (isDyn)
+            {
+                llvm::Value *capGep0 = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, "app.tags.cap0.gep");
+                llvm::Value *cap0 = cg_.builder_->CreateLoad(i64Ty, capGep0, "app.tags.cap0");
+                tagsGep0 = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "app.tags.gep");
+                llvm::Value *t0 = cg_.builder_->CreateLoad(ptrTy, tagsGep0, "app.tags.cur0");
+                llvm::Value *isNull0 = cg_.builder_->CreateICmpEQ(
+                    t0, llvm::ConstantPointerNull::get(ptrTy), "app.tags.isnull0");
+                llvm::Function *fn0 = cg_.builder_->GetInsertBlock()->getParent();
+                auto *a0 = llvm::BasicBlock::Create(*cg_.context_, "app.tags.alloc0", fn0);
+                auto *c0 = llvm::BasicBlock::Create(*cg_.context_, "app.tags.cont0", fn0);
+                llvm::BasicBlock *pre0 = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateCondBr(isNull0, a0, c0);
+                cg_.builder_->SetInsertPoint(a0);
+                llvm::Value *nt0 = cg_.emitMalloc(cap0, "app.tags.buf0");
+                cg_.builder_->CreateMemSet(nt0, llvm::ConstantInt::get(i8Ty, DynKind::Null), cap0, llvm::MaybeAlign(1));
+                cg_.builder_->CreateStore(nt0, tagsGep0);
+                llvm::BasicBlock *a0end = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(c0);
+                cg_.builder_->SetInsertPoint(c0);
+                llvm::PHINode *tp = cg_.builder_->CreatePHI(ptrTy, 2, "app.tags.ensured");
+                tp->addIncoming(t0, pre0);
+                tp->addIncoming(nt0, a0end);
+                curTags = tp;
+            }
 
             // (AR) تحميل الطول الحالي والسعة ومؤشر البيانات
             // (EN) Load current length, capacity, and data pointer
@@ -128,20 +179,55 @@ namespace Sad
             cg_.builder_->CreateStore(newCap, capGep);
             cg_.builder_->CreateStore(newData, dataGep);
 
+            // (AR) [وسم زمن-تشغيل] نمِّ مخزنَ الوسوم موازيًا للبيانات: خصّص newCap، صفّر Null،
+            //      انسخ len وسمًا قديمًا، حرّر القديم، خزّنه. تُحفَظ أوسامُ العناصر السابقة.
+            // (EN) [runtime tag] grow the tags buffer in parallel: alloc newCap, zero to Null,
+            //      copy len old tags, free old, store. Preserves existing elements' tags.
+            llvm::Value *newTags = nullptr;
+            if (isDyn)
+            {
+                newTags = cg_.emitMalloc(newCap, "app.new.tags");
+                cg_.builder_->CreateMemSet(newTags, llvm::ConstantInt::get(i8Ty, DynKind::Null), newCap, llvm::MaybeAlign(1));
+                llvm::Type *szTy2 = cg_.getSizeType();
+                auto *memcpyType2 = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy2}, false);
+                auto memcpyFunc2 = cg_.module_->getOrInsertFunction("memcpy", memcpyType2);
+                cg_.builder_->CreateCall(memcpyFunc2, {newTags, curTags,
+                    cg_.builder_->CreateZExtOrTrunc(len, szTy2, "app.tags.copy.sz")});
+                cg_.emitFreeCall(curTags);
+                cg_.builder_->CreateStore(newTags, tagsGep0);
+            }
+
             cg_.builder_->CreateBr(storeBB);
 
             // === كتلة التخزين (store) ===
             // (AR) نستخدم PHI للحصول على مؤشر البيانات الصحيح (القديم أو الجديد)
             // (EN) Use PHI to get correct data pointer (old or new)
             cg_.builder_->SetInsertPoint(storeBB);
+            // (AR) كلّ عُقد PHI أوّلًا (يجب أن تتصدّر الكتلة قبل أيّ تعليمة غير-PHI).
+            // (EN) All PHI nodes first (must lead the block before any non-PHI instruction).
             llvm::PHINode *finalData = cg_.builder_->CreatePHI(ptrTy, 2, "app.final.data");
             finalData->addIncoming(dataPtr, entryBB); // (AR) لم نغيّر — المخزن القديم
             finalData->addIncoming(newData, growBB);  // (AR) بعد إعادة التخصيص — المخزن الجديد
+            llvm::PHINode *finalTags = nullptr;
+            if (isDyn)
+            {
+                finalTags = cg_.builder_->CreatePHI(ptrTy, 2, "app.final.tags");
+                finalTags->addIncoming(curTags, entryBB);
+                finalTags->addIncoming(newTags, growBB);
+            }
 
             // (AR) تخزين العنصر الجديد في data[len]
             // (EN) Store new element at data[len]
             llvm::Value *elemPtr = cg_.builder_->CreateGEP(i64Ty, finalData, {len}, "app.elem");
             cg_.builder_->CreateStore(value, elemPtr);
+
+            // (AR) [وسم زمن-تشغيل] اكتب وسمَ الخانة الجديدة في المخزن الصحيح (القديم أو المُنمَّى)
+            // (EN) [runtime tag] write the new slot's tag into the correct buffer (old or grown)
+            if (isDyn)
+            {
+                llvm::Value *tagPtr = cg_.builder_->CreateGEP(i8Ty, finalTags, {len}, "app.tag.slot");
+                cg_.builder_->CreateStore(kindByte, tagPtr);
+            }
 
             // (AR) زيادة الطول بمقدار 1
             // (EN) Increment length by 1

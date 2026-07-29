@@ -101,7 +101,9 @@ namespace Sad
                             llvm::StructType *arrTy = llvm::StructType::getTypeByName(*cg_.context_, "SadArray");
                             if (!arrTy)
                             {
-                                arrTy = llvm::StructType::create(*cg_.context_, {i64Ty, i64Ty, ptrTy}, "SadArray");
+                                // (AR) 4 حقول {طول، سعة، بيانات، وسوم} مطابقةً للقانونيّ (getArrayStructType).
+                                // (EN) 4 fields {len,cap,data,tags} matching the canonical getArrayStructType.
+                                arrTy = llvm::StructType::create(*cg_.context_, {i64Ty, i64Ty, ptrTy, ptrTy}, "SadArray");
                             }
                             auto *arrStructSize = llvm::ConstantExpr::getSizeOf(arrTy);
 

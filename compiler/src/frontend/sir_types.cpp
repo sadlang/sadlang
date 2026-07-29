@@ -55,6 +55,8 @@ namespace Sad
                     return "neg";
                 case SIROpcode::TRUNCATE_U8:
                     return "trunc.u8";
+                case SIROpcode::BOX_DYN:
+                    return "box.dyn";
                 case SIROpcode::NULL_ASSERT:
                     return "null.assert";
 

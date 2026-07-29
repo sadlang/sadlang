@@ -182,9 +182,9 @@ namespace Sad
                 auto sirClass = cg_.sirModule_->getClass(className);
                 if (sirClass && !sirClass->arrayFields_.empty())
                 {
-                    // (AR) بنية SadArray: {i64 length, i64 capacity, ptr data}
-                    // (EN) SadArray struct: {i64 length, i64 capacity, ptr data}
-                    llvm::StructType *arrTy = llvm::StructType::create(*cg_.context_, {cg_.getInt64Type(), cg_.getInt64Type(), llvm::PointerType::getUnqual(*cg_.context_)}, "SadArray.init");
+                    // (AR) بنية SadArray: {i64 length, i64 capacity, ptr data, ptr tags}
+                    // (EN) SadArray struct: {i64 length, i64 capacity, ptr data, ptr tags}
+                    llvm::StructType *arrTy = llvm::StructType::create(*cg_.context_, {cg_.getInt64Type(), cg_.getInt64Type(), llvm::PointerType::getUnqual(*cg_.context_), llvm::PointerType::getUnqual(*cg_.context_)}, "SadArray.init");
                     auto *arrStructSize = llvm::ConstantExpr::getSizeOf(arrTy);
                     auto i64Ty = cg_.getInt64Type();
 
@@ -217,6 +217,11 @@ namespace Sad
                             llvm::Value *dataPtr = cg_.emitMalloc(dataSize, fieldName + ".data");
                             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
                             cg_.builder_->CreateStore(dataPtr, dataGep);
+
+                            // (AR) tags = null (مصفوفة متجانسة ابتداءً؛ الوسمُ يُخصَّص كسولًا عند أوّل عنصر مختلط)
+                            // (EN) tags = null (homogeneous initially; tags buffer lazily allocated on first mixed element)
+                            llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, fieldName + ".tagsgep");
+                            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)), tagsGep);
 
                             // (AR) الإزاحة عبر getFieldStructIndex — تُسقِط ترويسة vtable لبنى @تمثيل_سي [RFC #53 F2-ب]
                             // (EN) Offset via getFieldStructIndex — drops the vtable header for @تمثيل_سي structs [RFC #53 F2-ب]

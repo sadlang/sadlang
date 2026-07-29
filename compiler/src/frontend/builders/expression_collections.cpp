@@ -54,6 +54,33 @@ namespace Sad
                 //      dereferencing a scalar-as-pointer ⇒ Segfault. On heterogeneous types
                 //      keep the element type `Void` (honest) so the strict gate rejects it.
                 bool elementTypesHomogeneous = true;
+                // (AR) [عناصر موسومة — option A] هل كلّ العناصر قِيَمٌ عدديّة/نصّيّة/منطقيّة؟
+                //      نقصر التعليبَ على المختلطة القياسيّة (عدد/عشريّ/نصّ/منطقيّ) — لا
+                //      المصفوفات/الخرائط المتداخلة — لتجنّب مسارَي المطابقة/الفهرسة المتسلسلة.
+                // (EN) [boxed elements — option A] are all elements scalar (number/float/
+                //      string/bool)? We box ONLY scalar-heterogeneous arrays, not ones with
+                //      nested arrays/maps, to avoid the nested-matcher/chained-index paths.
+                auto isBoxableScalar = [](SadTypeKind t) {
+                    return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
+                           t == SadTypeKind::String || t == SadTypeKind::Boolean ||
+                           t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                           t == SadTypeKind::Null || t == SadTypeKind::Any;
+                };
+                bool allElementsScalar = true;
+                // (AR) عنصرٌ ديناميّ النوع (Any، كنتيجة قسمة /،//): يوجب التعليبَ حتّى في
+                //      المتجانسة (كلّها Any)، وإلّا نوعُ العنصر Any بلا صناديق ⇒ فكُّ القراءة
+                //      يعبث بمؤشّرٍ غير موجود. (لولاه لانكسرت `[1000/2, 1000/3]`.)
+                // (EN) A dynamically-typed element (Any, e.g. a /,// result) forces boxing even
+                //      in a homogeneous (all-Any) array — else elementType is Any with no boxes,
+                //      so the read's unbox dereferences a non-pointer. (Guards `[1000/2,1000/3]`.)
+                bool hasDynamicElement = false;
+
+                // (AR) نبني كلّ العناصر أوّلًا (لكشف التجانس قبل التخزين)، ثمّ نخزّن —
+                //      إذ لا يُعرَف كون المصفوفة مختلطةً إلّا بعد رؤية كلّ الأنواع.
+                // (EN) Build all elements first (to detect heterogeneity before storing),
+                //      then store — a mixed array is only known after all types are seen.
+                std::vector<BuildResult> builtElems;
+                builtElems.reserve(arrayExpr->elements.size());
                 for (size_t i = 0; i < arrayExpr->elements.size(); ++i)
                 {
                     auto elemResult = buildExpression(arrayExpr->elements[i].get());
@@ -71,6 +98,14 @@ namespace Sad
                     else if (elemResult.type != inferredElementType)
                     {
                         elementTypesHomogeneous = false;
+                    }
+                    if (!isBoxableScalar(elemResult.type))
+                    {
+                        allElementsScalar = false;
+                    }
+                    if (elemResult.type == SadTypeKind::Any)
+                    {
+                        hasDynamicElement = true;
                     }
 
                     // (AR) تجسيد الثوابت قبل تخزينها (نفس الإصلاح المُطبَّق على MapExpr)
@@ -112,10 +147,34 @@ namespace Sad
                         b_.currentBlock_->addInstruction(moveInst);
                         elemResult.isConstant = false;
                     }
+                    builtElems.push_back(elemResult);
+                }
 
+                // (AR) [وسم زمن-التشغيل] مختلطةٌ قياسيّة ⇒ نضع علامة elementType=Any على
+                //      معامل مصفوفة ARRAY_SET، فتخزّن الخلفيّةُ حمولةَ i64 الخام في خانة
+                //      البيانات وتكتب بايتَ النوع (DynKind) في مخزن الوسوم الموازي (الحقل 3).
+                //      لا تعليبَ كومةٍ (أُبطِل التصميم القديم boxDynToHeap). المتجانسة/غير-
+                //      القياسيّة تبقى على مسارها حرفيًّا (وسوم=null، مسار ساكن).
+                // (EN) [runtime tags] Scalar-heterogeneous ⇒ mark the ARRAY_SET array operand
+                //      elementType=Any so the backend stores the raw i64 payload in the data
+                //      slot and writes the type byte (DynKind) into the parallel tags buffer
+                //      (field 3). No heap boxing (the old boxDynToHeap design is retired).
+                //      Homogeneous / non-scalar arrays keep their exact prior path (tags=null,
+                //      static path).
+                const bool boxedHeterogeneous =
+                    allElementsScalar && inferredElementType != SadTypeKind::Void &&
+                    ((!elementTypesHomogeneous && arrayExpr->elements.size() > 1) ||
+                     hasDynamicElement);
+
+                for (size_t i = 0; i < builtElems.size(); ++i)
+                {
+                    auto &elemResult = builtElems[i];
                     SIRInstruction storeInst;
                     storeInst.opcode = SIROpcode::ARRAY_SET;
-                    storeInst.operands.push_back(SIROperand::Register(arrReg, SadTypeKind::Array));
+                    SIROperand arrOp = SIROperand::Register(arrReg, SadTypeKind::Array);
+                    if (boxedHeterogeneous)
+                        arrOp.elementType = SadTypeKind::Any; // ⇒ الخلفيّة تُعلّب العنصر
+                    storeInst.operands.push_back(arrOp);
                     storeInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
                     storeInst.operands.push_back(SIROperand::Register(elemResult.registerName, elemResult.type));
                     storeInst.comment = "array[" + std::to_string(i) + "] = ...";
@@ -127,11 +186,15 @@ namespace Sad
                 }
 
                 BuildResult result(arrReg, SadTypeKind::Array);
-                // (AR) نوع العنصر يُثبَّت فقط حين تجانس كلّ العناصر؛ المختلط يبقى Void
-                //      (صادق) ⇒ لا يثق به مُطابِق الأنماط المتداخل (ISSUE-067/070).
-                // (EN) Element type is set only when all elements are homogeneous;
-                //      a mixed array stays Void (honest) so the nested matcher won't trust it.
-                if (inferredElementType != SadTypeKind::Void && elementTypesHomogeneous)
+                // (AR) نوع العنصر: المختلطة القياسيّة ⇒ Any (موسومة)؛ المتجانسة ⇒ نوعها؛
+                //      المختلطة غير-القياسيّة تبقى Void (صادق) كما قبلُ (ISSUE-067/070).
+                // (EN) Element type: scalar-heterogeneous ⇒ Any (boxed); homogeneous ⇒ its
+                //      type; non-scalar-heterogeneous stays Void (honest) as before.
+                if (boxedHeterogeneous)
+                {
+                    result.elementType = SadTypeKind::Any;
+                }
+                else if (inferredElementType != SadTypeKind::Void && elementTypesHomogeneous)
                 {
                     result.elementType = inferredElementType;
                 }

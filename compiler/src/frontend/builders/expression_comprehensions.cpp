@@ -420,7 +420,18 @@ namespace Sad
                 // (EN) Append via backend-lowered ARRAY_APPEND (not the undefined `CALL __sad_array_push`
                 //      that broke linking — ISSUE-016). Operand order: [array, value].
                 SIRInstruction appendInst(SIROpcode::ARRAY_APPEND);
-                appendInst.operands.push_back(SIROperand::Register(resultArrReg, SadTypeKind::Array));
+                // (AR) ننشر نوعَ العنصر المُنتَج إلى معامل المصفوفة: عنصرٌ ديناميّ (Any، من
+                //      مصدرٍ مختلط) ⇒ تُعلّب الخلفيّةُ العنصرَ في %SadDyn، متّسقةً مع وسم
+                //      النتيجة Any (سطر 477). لولاه: النتيجةُ موسومةٌ Any لكنّ خاناتها خامٌ
+                //      ⇒ فكُّ القراءة/الطباعة يعبث بمؤشّرٍ ⇒ انهيار.
+                // (EN) Propagate the produced element type to the array operand: a dynamic
+                //      element (Any, from a heterogeneous source) ⇒ the backend boxes it into
+                //      a %SadDyn, consistent with the result's Any tag (line 477). Without this
+                //      the result is tagged Any but its slots are raw ⇒ the read/print unbox
+                //      dereferences a non-pointer ⇒ crash.
+                SIROperand compArrOp = SIROperand::Register(resultArrReg, SadTypeKind::Array);
+                compArrOp.elementType = elemExprResult.type;
+                appendInst.operands.push_back(compArrOp);
                 appendInst.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
                 if (b_.currentBlock_)
                     b_.currentBlock_->addInstruction(appendInst);

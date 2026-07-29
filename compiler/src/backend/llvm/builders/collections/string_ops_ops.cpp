@@ -60,9 +60,10 @@ namespace Sad
             if (!arrTy)
             {
                 arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),      // length
-                                                          llvm::Type::getInt64Ty(ctx),      // capacity
-                                                          llvm::PointerType::getUnqual(ctx) // data pointer
+                                                          llvm::Type::getInt64Ty(ctx),       // length
+                                                          llvm::Type::getInt64Ty(ctx),       // capacity
+                                                          llvm::PointerType::getUnqual(ctx), // data pointer
+                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
                                                       },
                                                  "SadArray");
             }

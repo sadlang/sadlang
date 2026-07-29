@@ -366,6 +366,16 @@ namespace Sad
                     {
                         resultType = SadTypeKind::Array;
                     }
+                    else if (objResult.elementType == SadTypeKind::Any)
+                    {
+                        // (AR) [عناصر موسومة — option A] مصفوفةٌ مختلطةٌ قياسيّة: العنصرُ
+                        //      صندوقٌ ديناميّ ⇒ نوعُ القراءة Any فيفكّه ARRAY_GET، والطباعة/
+                        //      الإسناد يفكّان Any أصلًا (dynToString).
+                        // (EN) [boxed elements] scalar-heterogeneous array: the element is a
+                        //      dynamic box ⇒ result type Any so ARRAY_GET unboxes it; print/
+                        //      assign decode Any natively.
+                        resultType = SadTypeKind::Any;
+                    }
                     else if (objResult.elementType != SadTypeKind::Void)
                     {
                         resultType = objResult.elementType;
@@ -808,11 +818,17 @@ namespace Sad
                     return BuildResult(valResult.registerName, valResult.type);
                 }
 
-                // (AR) تعليمة ARRAY_SET لتخزين القيمة في موضع الفهرس
-                // (EN) ARRAY_SET instruction to store value at index position
+                // (AR) تعليمة ARRAY_SET لتخزين القيمة في موضع الفهرس. ننشر elementType
+                //      إلى معامل المصفوفة: إن كانت مختلطةً قياسيّة (Any) تُعلّب الخلفيّةُ
+                //      القيمةَ في %SadDyn (كتابةٌ متّسقة مع الخانات المُعلَّبة، لا فساد).
+                // (EN) ARRAY_SET to store the value at the index. Propagate elementType to the
+                //      array operand: if the array is scalar-heterogeneous (Any), the backend
+                //      boxes the value into a %SadDyn (a write consistent with the boxed slots).
                 SIRInstruction storeInst;
                 storeInst.opcode = SIROpcode::ARRAY_SET;
-                storeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+                SIROperand arrSetOp = SIROperand::Register(objResult.registerName, objResult.type);
+                arrSetOp.elementType = objResult.elementType;
+                storeInst.operands.push_back(arrSetOp);
                 storeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                 storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
                 storeInst.comment = "array element set";

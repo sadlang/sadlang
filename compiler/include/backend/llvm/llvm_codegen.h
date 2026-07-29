@@ -806,6 +806,7 @@ namespace Sad
             llvm::Value *emitMod(std::shared_ptr<SIRInstruction> inst) { return arith_->emitMod(inst); }
             llvm::Value *emitNeg(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNeg(inst); }
             llvm::Value *emitTruncU8(std::shared_ptr<SIRInstruction> inst) { return arith_->emitTruncU8(inst); }
+            llvm::Value *emitBoxDyn(std::shared_ptr<SIRInstruction> inst) { return arith_->emitBoxDyn(inst); }
             llvm::Value *emitNullAssert(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNullAssert(inst); }
 
             // ------------------------------------------------------------------------
@@ -864,6 +865,7 @@ namespace Sad
             void ensureArrayToStringHelper() { strs_->ensureArrayToStringHelper(); } // توليد دالة __sad_array_to_string / Generate array-to-string helper
             void ensureArrayToStringStrHelper() { strs_->ensureArrayToStringStrHelper(); } // نظير نصّيّ __sad_array_to_string_str / String variant
             void ensureArrayToStringFloatHelper() { strs_->ensureArrayToStringFloatHelper(); } // نظير عشريّ __sad_array_to_string_float / Float variant
+            void ensureArrayToStringDynHelper() { strs_->ensureArrayToStringDynHelper(); } // نظير موسوم __sad_array_to_string_dyn / boxed variant
             void ensureMapToStringHelper() { strs_->ensureMapToStringHelper(); } // __sad_map_to_string / Map-to-string helper
             llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
             llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCmp(inst); }

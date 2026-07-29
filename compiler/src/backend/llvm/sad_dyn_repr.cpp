@@ -459,6 +459,28 @@ namespace Sad
             return b.CreateSelect(isF, fromF, payload, "dyn.i64");
         }
 
+        // (AR) علّب قيمةً في %SadDyn بالكومة، وأرجِع مؤشّرًا إليه (option A لعناصر المصفوفة).
+        // (EN) Box a value into a heap %SadDyn; return a pointer to it (option A array elements).
+        llvm::Value *boxDynToHeap(LLVMCodeGen &cg, llvm::Value *v, SadTypeKind sirType)
+        {
+            llvm::Value *dyn = toDyn(cg, v, sirType);
+            llvm::StructType *dynTy = getSadDynType(*cg.context_);
+            uint64_t dynBytes = cg.module_->getDataLayout().getTypeAllocSize(dynTy);
+            llvm::Value *sizeV =
+                llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg.context_), dynBytes);
+            llvm::Value *box = cg.emitMalloc(sizeV, "box.dyn");
+            cg.builder_->CreateStore(dyn, box);
+            return box;
+        }
+
+        // (AR) اقرأ %SadDyn من مؤشّر كومةٍ سبق تعليبه (عكس boxDynToHeap).
+        // (EN) Load a %SadDyn from a heap box pointer (inverse of boxDynToHeap).
+        llvm::Value *unboxDynFromHeap(LLVMCodeGen &cg, llvm::Value *boxPtr)
+        {
+            llvm::StructType *dynTy = getSadDynType(*cg.context_);
+            return cg.builder_->CreateLoad(dynTy, boxPtr, "unbox.dyn");
+        }
+
         // ====================================================================
         // الموزِّعات / dispatchers
         // ====================================================================

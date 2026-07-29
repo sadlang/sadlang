@@ -1275,6 +1275,16 @@ namespace Sad
                 //      returns the value unchanged (runtime select).
                 TRUNCATE_U8,
 
+                // (AR) تعليبُ قيمةٍ في %SadDyn مُخصَّصٍ في الكومة، وإرجاعُ مؤشّرٍ إليه —
+                //      «option A» لعناصر المصفوفات مختلطة الأنواع (ISSUE-052/070/080/082):
+                //      خانةُ المصفوفة 8 بايت لا تسع الوسمَ، فنُعلّب العنصرَ (toDyn) ونخزّن
+                //      المؤشّرَ (كنظير عنصر النصّ/المصفوفة المتداخلة)؛ ARRAY_GET يفكّه Any.
+                // (EN) Box a value into a heap-allocated %SadDyn and return a pointer to it —
+                //      "option A" for heterogeneous-array elements (ISSUE-052/070/080/082): an
+                //      8-byte slot can't hold the tag, so box the element (toDyn) and store the
+                //      pointer (like a string/nested-array element); ARRAY_GET decodes it to Any.
+                BOX_DYN,
+
                 Nop ///< لا عملية (markers) / No operation (for markers)
             };
 

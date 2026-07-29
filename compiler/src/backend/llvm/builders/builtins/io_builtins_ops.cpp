@@ -23,7 +23,8 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
     return llvm::StructType::get(ctx, {
         llvm::Type::getInt64Ty(ctx),
         llvm::Type::getInt64Ty(ctx),
-        llvm::PointerType::getUnqual(ctx)
+        llvm::PointerType::getUnqual(ctx),
+        llvm::PointerType::getUnqual(ctx) // tags (option A)
     });
 }
 
@@ -243,6 +244,27 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::Value *fResult = cg_.builder_->CreateCall(fHelperFn, {arrLen, dataPtr}, "print.arr.fstr");
                         cg_.builder_->CreateCall(printfFunc, {fmt, fResult});
                         cg_.emitFreeCall(fResult);
+                    }
+                    // (AR) [عناصر موسومة — option A] عناصرُ مصفوفةٍ مختلطةٍ قياسيّة: الخانات
+                    //      مؤشّرات صناديق %SadDyn ⇒ نظير __sad_array_to_string_dyn (يفكّ كلّ
+                    //      عنصرٍ عبر dynToString) ⇒ «[500, 3.5]» بدل عناوين الصناديق.
+                    // (EN) [boxed elements] scalar-heterogeneous array: slots are %SadDyn box
+                    //      pointers ⇒ the __sad_array_to_string_dyn variant (per-element
+                    //      dynToString) ⇒ "[500, 3.5]" instead of box addresses.
+                    else if (op.elementType == SadTypeKind::Any)
+                    {
+                        // (AR) [وسم زمن-تشغيل] مرّر مخزنَ الوسوم (الحقل ٣) مع البيانات؛ المساعِد
+                        //      يعيد بناء %SadDyn من (الوسم، الحمولة) لكلّ عنصر (أو Int إن null).
+                        // (EN) [runtime tag] pass the tags buffer (field 3) with the data; the
+                        //      helper rebuilds %SadDyn from (tag, payload) per element (Int if null).
+                        llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "print.arr.tags.gep");
+                        llvm::Value *tagsPtr = cg_.builder_->CreateLoad(ptrTy, tagsGep, "print.arr.tags");
+                        cg_.ensureArrayToStringDynHelper();
+                        llvm::FunctionType *dHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
+                        llvm::FunctionCallee dHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_dyn", dHelperType);
+                        llvm::Value *dResult = cg_.builder_->CreateCall(dHelperFn, {arrLen, dataPtr, tagsPtr}, "print.arr.dstr");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, dResult});
+                        cg_.emitFreeCall(dResult);
                     }
                     else
                     {

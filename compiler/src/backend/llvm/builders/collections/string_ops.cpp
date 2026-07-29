@@ -29,7 +29,12 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
     llvm::StructType *st = llvm::StructType::getTypeByName(ctx, "SadArray");
     if (!st) {
         st = llvm::StructType::create(ctx, "SadArray");
-        st->setBody({llvm::PointerType::get(llvm::Type::getInt8Ty(ctx), 0), llvm::Type::getInt64Ty(ctx), llvm::Type::getInt64Ty(ctx), llvm::Type::getInt32Ty(ctx)});
+        // (AR) التخطيط القانونيّ {طول، سعة، بيانات، وسوم} (كان مخالفَ الترتيب — مُيّت لأنّ
+        //      getTypeByName يجد القانونيّ أوّلًا؛ نوحّده احتياطًا). / (EN) Canonical layout
+        //      {len,cap,data,tags} (was divergent order — dead since getTypeByName finds the
+        //      canonical first; unified defensively).
+        st->setBody({llvm::Type::getInt64Ty(ctx), llvm::Type::getInt64Ty(ctx),
+                     llvm::PointerType::getUnqual(ctx), llvm::PointerType::getUnqual(ctx)});
     }
     return st;
 }
@@ -133,9 +138,10 @@ static llvm::Function *getOrCreateSplitHelper(
                         if (!arrTy)
                         {
                             arrTy = llvm::StructType::create(*cg_.context_, {
-                                                                            llvm::Type::getInt64Ty(*cg_.context_),      // length
-                                                                            llvm::Type::getInt64Ty(*cg_.context_),      // capacity
-                                                                            llvm::PointerType::getUnqual(*cg_.context_) // data
+                                                                            llvm::Type::getInt64Ty(*cg_.context_),       // length
+                                                                            llvm::Type::getInt64Ty(*cg_.context_),       // capacity
+                                                                            llvm::PointerType::getUnqual(*cg_.context_),  // data
+                                                                            llvm::PointerType::getUnqual(*cg_.context_)   // tags (option A)
                                                                         },
                                                              "SadArray");
                         }
@@ -150,6 +156,24 @@ static llvm::Function *getOrCreateSplitHelper(
                         // Load data pointer
                         llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, val, 2, "arr.str.data.gep");
                         llvm::Value *dataPtr = cg_.builder_->CreateLoad(ptrTy, dataGep, "arr.str.data");
+
+                        // (AR) [عناصر موسومة — option A] مصفوفةٌ مختلطةٌ قياسيّة في سياق دمجٍ
+                        //      نصّيّ (نصّ + مصفوفة): الخانات مؤشّرات صناديق %SadDyn ⇒ نستعمل
+                        //      المساعِد الموسوم (dynToString لكلّ عنصر) بدل المسار العدديّ.
+                        // (EN) [boxed elements] a scalar-heterogeneous array in a string-concat
+                        //      context: slots are %SadDyn box pointers ⇒ use the boxed helper
+                        //      (per-element dynToString) instead of the integer path.
+                        if (op.elementType == SadTypeKind::Any)
+                        {
+                            // (AR) [وسم زمن-تشغيل] مرّر مخزنَ الوسوم (الحقل ٣) مع البيانات.
+                            // (EN) [runtime tag] pass the tags buffer (field 3) with the data.
+                            llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, val, 3, "arr.str.tags.gep");
+                            llvm::Value *tagsPtr = cg_.builder_->CreateLoad(ptrTy, tagsGep, "arr.str.tags");
+                            cg_.ensureArrayToStringDynHelper();
+                            llvm::FunctionType *dTy = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
+                            llvm::FunctionCallee dFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_dyn", dTy);
+                            return cg_.builder_->CreateCall(dFn, {arrLen, dataPtr, tagsPtr}, "arr.str.dyn");
+                        }
 
                         // (AR) تخصيص مخزن كبير كافٍ: "[" + (كل عنصر حتى 32 حرف + ", ") * الطول + "]" + '\0'
                         // (EN) Allocate sufficient buffer: "[" + (each elem up to 32 chars + ", ") * len + "]" + '\0'

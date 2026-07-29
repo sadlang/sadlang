@@ -347,7 +347,13 @@ namespace Sad
                 b_.currentBlock_ = appendBlock;
                 {
                     SIRInstruction ap(SIROpcode::ARRAY_APPEND);
-                    ap.operands.push_back(SIROperand::Register(resultSetReg, SadTypeKind::Array));
+                    // (AR) ننشر نوعَ العنصر: Any (مصدرٌ مختلط) ⇒ تُعلّب الخلفيّةُ العنصرَ،
+                    //      متّسقةً مع وسم النتيجة Any (سطر 390) — وإلّا انهيارٌ عند القراءة.
+                    // (EN) Propagate element type: Any (heterogeneous source) ⇒ backend boxes,
+                    //      consistent with the result's Any tag (line 390) — else read crash.
+                    SIROperand setArrOp = SIROperand::Register(resultSetReg, SadTypeKind::Array);
+                    setArrOp.elementType = elemExprResult.type;
+                    ap.operands.push_back(setArrOp);
                     ap.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
                     b_.currentBlock_->addInstruction(ap);
                 }

@@ -978,6 +978,42 @@ namespace Sad
             return result;
         }
 
+        // ============================================================================
+        // (AR) emitBoxDyn — تعليبُ قيمةٍ في %SadDyn مُخصَّصٍ في الكومة، وإرجاعُ مؤشّرٍ إليه.
+        //      «option A» لعناصر المصفوفات مختلطة الأنواع: خانةُ المصفوفة 8 بايت لا تسع
+        //      الوسمَ (i8 نوع + i64 حمولة)، فنُعلّب العنصرَ (toDyn حسب نوعه) في كتلةٍ
+        //      بالكومة ونخزّن المؤشّرَ في الخانة (كنظير عنصر النصّ). ARRAY_GET يفكّه لاحقًا.
+        // (EN) emitBoxDyn — box a value into a heap-allocated %SadDyn, return a pointer to it.
+        //      "Option A" for heterogeneous-array elements: an 8-byte slot can't hold the tag
+        //      (i8 kind + i64 payload), so box the element (toDyn per its type) on the heap and
+        //      store the pointer in the slot (like a string element). ARRAY_GET decodes it.
+        // ============================================================================
+        llvm::Value *ArithmeticCodeGen::emitBoxDyn(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "BoxDyn"}});
+                return nullptr;
+            }
+
+            llvm::Value *operand = resolveOperand(inst->operands[0]);
+            if (!operand)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "BoxDyn"}});
+                return nullptr;
+            }
+
+            // (AR) التعليبُ الفعليّ في المساعِد المشترك boxDynToHeap (يستعمله أيضًا
+            //      emitArraySet/emitBuiltinArrayAppend عند مصفوفةٍ مختلطة) — مصدرٌ واحد.
+            // (EN) Actual boxing in the shared boxDynToHeap helper (also used by
+            //      emitArraySet/emitBuiltinArrayAppend for a heterogeneous array) — single source.
+            llvm::Value *box = boxDynToHeap(cg_, operand, inst->operands[0].dataType);
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = box;
+            return box;
+        }
+
         llvm::Value *ArithmeticCodeGen::emitNeg(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)

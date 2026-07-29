@@ -59,9 +59,10 @@ namespace Sad
             if (!arrTy)
             {
                 arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),      // length
-                                                          llvm::Type::getInt64Ty(ctx),      // capacity
-                                                          llvm::PointerType::getUnqual(ctx) // data pointer
+                                                          llvm::Type::getInt64Ty(ctx),       // length
+                                                          llvm::Type::getInt64Ty(ctx),       // capacity
+                                                          llvm::PointerType::getUnqual(ctx), // data pointer
+                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
                                                       },
                                                  "SadArray");
             }
@@ -556,6 +557,9 @@ namespace Sad
             llvm::Value *fNewData = cg_.emitMalloc(fDataSize, "fast.data");
             llvm::Value *fDataGep = cg_.builder_->CreateStructGEP(arrTy, fastArr, 2, "fast.data.gep");
             cg_.builder_->CreateStore(fNewData, fDataGep);
+            // (AR) [وسم زمن-تشغيل] الحقل ٣ يُضبط أدناه بنسخِ نطاقِ وسوم المصدر (أو null).
+            // (EN) [runtime tag] field 3 is set below by copying the source's tag range (or null).
+            llvm::Value *fTagsGep = cg_.builder_->CreateStructGEP(arrTy, fastArr, 3, "fast.tags.gep");
 
             llvm::Value *srcDataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "src.data.gep");
             llvm::Value *srcData = cg_.builder_->CreateLoad(ptrTy, srcDataGep, "src.data");
@@ -569,6 +573,33 @@ namespace Sad
             cg_.builder_->CreateCall(memcpyFunc, {fNewData, srcStart,
                 cg_.builder_->CreateZExtOrTrunc(fDataSize, szTy, "fast.size.sz")});
 
+            // (AR) [وسم زمن-تشغيل] انسخ نطاقَ الوسوم [start, start+fastLen) إن كان للمصدر وسوم؛
+            //      وإلّا اضبط الوسوم=null (متجانسة). auto i8Ty محليّ.
+            // (EN) [runtime tag] copy the tag range [start, start+fastLen) if the source has
+            //      tags; else set tags=null (homogeneous).
+            auto i8TyF = cg_.getInt8Type();
+            llvm::Value *fSrcTagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "fast.src.tags.gep");
+            llvm::Value *fSrcTags = cg_.builder_->CreateLoad(ptrTy, fSrcTagsGep, "fast.src.tags");
+            llvm::Value *fSrcTagsNull = cg_.builder_->CreateICmpEQ(
+                fSrcTags, llvm::ConstantPointerNull::get(ptrTy), "fast.src.tags.null");
+            llvm::BasicBlock *fTagCopyBB = llvm::BasicBlock::Create(*cg_.context_, "slice.fast.tagcopy", curFunc);
+            llvm::BasicBlock *fTagNullBB = llvm::BasicBlock::Create(*cg_.context_, "slice.fast.tagnull", curFunc);
+            llvm::BasicBlock *fTagContBB = llvm::BasicBlock::Create(*cg_.context_, "slice.fast.tagcont", curFunc);
+            cg_.builder_->CreateCondBr(fSrcTagsNull, fTagNullBB, fTagCopyBB);
+
+            cg_.builder_->SetInsertPoint(fTagCopyBB);
+            llvm::Value *fNewTags = cg_.emitMalloc(fastLen, "fast.tags.buf");
+            llvm::Value *fSrcTagStart = cg_.builder_->CreateGEP(i8TyF, fSrcTags, {start}, "fast.src.tag.start");
+            cg_.builder_->CreateCall(memcpyFunc, {fNewTags, fSrcTagStart,
+                cg_.builder_->CreateZExtOrTrunc(fastLen, szTy, "fast.tags.sz")});
+            cg_.builder_->CreateStore(fNewTags, fTagsGep);
+            cg_.builder_->CreateBr(fTagContBB);
+
+            cg_.builder_->SetInsertPoint(fTagNullBB);
+            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy), fTagsGep);
+            cg_.builder_->CreateBr(fTagContBB);
+
+            cg_.builder_->SetInsertPoint(fTagContBB);
             cg_.builder_->CreateBr(mergeBB);
 
             // ============================================================
@@ -601,6 +632,37 @@ namespace Sad
             llvm::Value *lDataGep = cg_.builder_->CreateStructGEP(arrTy, loopArr, 2, "loop.data.gep");
             cg_.builder_->CreateStore(lNewData, lDataGep);
 
+            // (AR) [وسم زمن-تشغيل] الحقل ٣: إن كان للمصدر وسوم (مختلطة) خصّص مخزنَ وسومٍ
+            //      بطول loopLen ننسخه بالخطوة داخل الحلقة؛ وإلّا اتركه null (متجانسة).
+            //      كلّ فهرسٍ في [0, loopLen) يُكتب في الحلقة، فلا حاجة إلى memset.
+            // (EN) [runtime tag] field 3: if the source has tags (mixed), allocate a
+            //      loopLen tag buffer copied strided inside the loop; else leave null.
+            //      Every index in [0, loopLen) is written in the loop, so no memset needed.
+            auto i8TyL = cg_.getInt8Type();
+            llvm::Value *lSrcTagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "loop.src.tags.gep");
+            llvm::Value *lSrcTags = cg_.builder_->CreateLoad(ptrTy, lSrcTagsGep, "loop.src.tags");
+            llvm::Value *lSrcTagsNull = cg_.builder_->CreateICmpEQ(
+                lSrcTags, llvm::ConstantPointerNull::get(ptrTy), "loop.src.tags.null");
+            llvm::Value *lTagsFieldGep = cg_.builder_->CreateStructGEP(arrTy, loopArr, 3, "loop.tags.gep");
+            llvm::BasicBlock *lTagAllocBB = llvm::BasicBlock::Create(*cg_.context_, "slice.loop.tag.alloc", curFunc);
+            llvm::BasicBlock *lTagNullBB = llvm::BasicBlock::Create(*cg_.context_, "slice.loop.tag.null", curFunc);
+            llvm::BasicBlock *lTagContBB = llvm::BasicBlock::Create(*cg_.context_, "slice.loop.tag.cont", curFunc);
+            cg_.builder_->CreateCondBr(lSrcTagsNull, lTagNullBB, lTagAllocBB);
+
+            cg_.builder_->SetInsertPoint(lTagAllocBB);
+            llvm::Value *lNewTags = cg_.emitMalloc(loopLen, "loop.tags.buf");
+            cg_.builder_->CreateStore(lNewTags, lTagsFieldGep);
+            cg_.builder_->CreateBr(lTagContBB);
+
+            cg_.builder_->SetInsertPoint(lTagNullBB);
+            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy), lTagsFieldGep);
+            cg_.builder_->CreateBr(lTagContBB);
+
+            cg_.builder_->SetInsertPoint(lTagContBB);
+            llvm::PHINode *lTagsPtr = cg_.builder_->CreatePHI(ptrTy, 2, "loop.tags.ptr");
+            lTagsPtr->addIncoming(lNewTags, lTagAllocBB);
+            lTagsPtr->addIncoming(llvm::ConstantPointerNull::get(ptrTy), lTagNullBB);
+
             // (AR) تحميل مؤشر بيانات المصدر
             // (EN) Load source data pointer
             llvm::Value *srcDataGep2 = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "src.data.gep2");
@@ -616,7 +678,7 @@ namespace Sad
 
             cg_.builder_->SetInsertPoint(loopCondBB);
             llvm::PHINode *idx = cg_.builder_->CreatePHI(i64Ty, 2, "slice.idx");
-            idx->addIncoming(llvm::ConstantInt::get(i64Ty, 0), loopBB);
+            idx->addIncoming(llvm::ConstantInt::get(i64Ty, 0), lTagContBB);
             llvm::Value *loopCond = cg_.builder_->CreateICmpSLT(idx, loopLen, "slice.cond");
             cg_.builder_->CreateCondBr(loopCond, loopBodyBB, loopEndBB);
 
@@ -633,8 +695,24 @@ namespace Sad
             llvm::Value *dstElemPtr = cg_.builder_->CreateGEP(i64Ty, lNewData, {idx}, "slice.dst.elem");
             cg_.builder_->CreateStore(elem, dstElemPtr);
 
+            // (AR) [وسم زمن-تشغيل] انسخ وسمَ العنصر بالخطوة: newTags[idx] = srcTags[srcIdx]
+            //      محروسًا بـlSrcTagsNull (مخزنُ الوسوم الناتج null حين يكون المصدر متجانسًا).
+            // (EN) [runtime tag] copy the element's tag strided: newTags[idx] = srcTags[srcIdx]
+            //      guarded on lSrcTagsNull (result tags buffer is null when source is homogeneous).
+            llvm::BasicBlock *lTagCopyBB = llvm::BasicBlock::Create(*cg_.context_, "slice.loop.body.tagcopy", curFunc);
+            llvm::BasicBlock *lTagSkipBB = llvm::BasicBlock::Create(*cg_.context_, "slice.loop.body.tagskip", curFunc);
+            cg_.builder_->CreateCondBr(lSrcTagsNull, lTagSkipBB, lTagCopyBB);
+
+            cg_.builder_->SetInsertPoint(lTagCopyBB);
+            llvm::Value *lSrcTagPtr = cg_.builder_->CreateGEP(i8TyL, lSrcTags, {srcIdx}, "slice.src.tag");
+            llvm::Value *lTagByte = cg_.builder_->CreateLoad(i8TyL, lSrcTagPtr, "slice.tag.byte");
+            llvm::Value *lDstTagPtr = cg_.builder_->CreateGEP(i8TyL, lTagsPtr, {idx}, "slice.dst.tag");
+            cg_.builder_->CreateStore(lTagByte, lDstTagPtr);
+            cg_.builder_->CreateBr(lTagSkipBB);
+
+            cg_.builder_->SetInsertPoint(lTagSkipBB);
             llvm::Value *nextIdx = cg_.builder_->CreateAdd(idx, llvm::ConstantInt::get(i64Ty, 1), "slice.next.idx");
-            idx->addIncoming(nextIdx, loopBodyBB);
+            idx->addIncoming(nextIdx, lTagSkipBB);
             cg_.builder_->CreateBr(loopCondBB);
 
             cg_.builder_->SetInsertPoint(loopEndBB);
@@ -646,7 +724,7 @@ namespace Sad
             // ============================================================
             cg_.builder_->SetInsertPoint(mergeBB);
             llvm::PHINode *resultArr = cg_.builder_->CreatePHI(ptrTy, 2, "slice.result");
-            resultArr->addIncoming(fastArr, fastBB);
+            resultArr->addIncoming(fastArr, fTagContBB); // (AR) آخر كتلة في المسار السريع بعد نسخ الوسوم
             resultArr->addIncoming(loopArr, loopEndBB);
 
             if (inst->result.has_value())

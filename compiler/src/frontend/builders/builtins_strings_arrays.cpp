@@ -350,7 +350,14 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
-                    inst.operands.push_back(argOperands[0]);
+                    // (AR) ننشر elementType إلى معامل المصفوفة: مختلطةٌ قياسيّة (Any) ⇒
+                    //      تُعلّب الخلفيّةُ العنصرَ الملحَق في %SadDyn، متّسقةً مع خاناتها المُعلَّبة.
+                    // (EN) Propagate elementType to the array operand: scalar-heterogeneous (Any)
+                    //      ⇒ the backend boxes the appended element, consistent with boxed slots.
+                    SIROperand appendArrOp = argOperands[0];
+                    if (!argResults.empty())
+                        appendArrOp.elementType = argResults[0].elementType;
+                    inst.operands.push_back(appendArrOp);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);

@@ -39,6 +39,14 @@ public:
     //      bitcast⇒__sad_format_double (or __sad_ftoa freestanding). Mallocs its own
     //      buffer and returns it — the caller frees it.
     void ensureArrayToStringFloatHelper();
+    // (AR) نظير موسوم (option A): يبني «[ع0، ع1، ...]» لمصفوفةٍ مختلطةٍ قياسيّة كلّ
+    //      خانةٍ فيها **مؤشّرُ صندوق %SadDyn**؛ يفكّ كلّ عنصرٍ عبر dynToString (كالمفسّر
+    //      عنصرًا-عنصرًا). تمريرتان: قياسُ الحجم ثمّ الملء. يخصّص مخزنه ويُعيده.
+    // (EN) Boxed variant (option A): builds "[e0, e1, ...]" for a scalar-heterogeneous
+    //      array whose slots are %SadDyn box pointers; decodes each element via
+    //      dynToString (element-by-element, like the interpreter). Two passes: size then
+    //      fill. Mallocs its own buffer and returns it.
+    void ensureArrayToStringDynHelper();
     // (AR) يبني «{"م0": ق0، "م1": ق1، …}» من خريطة (مفاتيح مقتبسة، قيم حسب النوع:
     //      نصّ %s، رقم %lld، منطقيّ صحيح/خطأ). يخصّص مخزنه ويُعيده — المستدعي يحرّره.
     // (EN) Builds "{"k0": v0, …}" from a map (quoted keys; values by type tag: string

@@ -57,6 +57,8 @@ namespace Sad
                 return cg_.emitNeg(inst);
             case SIROpcode::TRUNCATE_U8:
                 return cg_.emitTruncU8(inst);
+            case SIROpcode::BOX_DYN:
+                return cg_.emitBoxDyn(inst);
             case SIROpcode::NULL_ASSERT:
                 return cg_.emitNullAssert(inst);
 

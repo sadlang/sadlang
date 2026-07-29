@@ -39,9 +39,10 @@ namespace Sad
             if (!arrTy)
             {
                 arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),      // length
-                                                          llvm::Type::getInt64Ty(ctx),      // capacity
-                                                          llvm::PointerType::getUnqual(ctx) // data pointer
+                                                          llvm::Type::getInt64Ty(ctx),       // length
+                                                          llvm::Type::getInt64Ty(ctx),       // capacity
+                                                          llvm::PointerType::getUnqual(ctx), // data pointer
+                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null [option A]
                                                       },
                                                  "SadArray");
             }
@@ -779,6 +780,25 @@ namespace Sad
                 if (inst->result.has_value())
                     cg_.context_info_.namedValues[inst->result->name] = fResult;
                 return fResult;
+            }
+            if (elemTy == Compiler::SIR::SadTypeKind::Any)
+            {
+                // (AR) [وسم زمن-التشغيل] مصفوفةٌ مختلطةٌ قياسيّة: الخانةُ حمولةُ i64 خام،
+                //      والنوعُ الحقيقيّ في مخزن الوسوم الموازي (الحقل 3). نمرّر (الطول،
+                //      البيانات، الوسوم) للمساعد فيعيد بناء كلّ عنصرٍ عبر dynToString (نظير المفسّر).
+                // (EN) [runtime tags] scalar-heterogeneous array: each slot is a raw i64
+                //      payload; the real type lives in the parallel tags buffer (field 3).
+                //      Pass (len, data, tags) so the helper reconstructs each element via
+                //      dynToString (like the interpreter). tags==null ⇒ helper falls back to Int.
+                llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "ats.tags.gep");
+                llvm::Value *tagsPtr = cg_.builder_->CreateLoad(ptrTy, tagsGep, "ats.tags");
+                cg_.ensureArrayToStringDynHelper();
+                llvm::FunctionType *dHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
+                llvm::FunctionCallee dHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_dyn", dHelperType);
+                llvm::Value *dResult = cg_.builder_->CreateCall(dHelperFn, {arrLen, dataPtr, tagsPtr}, "ats.dresult");
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dResult;
+                return dResult;
             }
 
             // Ensure helper function exists

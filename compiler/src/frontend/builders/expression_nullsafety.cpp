@@ -544,7 +544,16 @@ namespace Sad
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExprSlice -> " << resultReg << std::endl;
 #endif
-                return BuildResult(resultReg, SadTypeKind::Array);
+                // (AR) ننشر نوعَ العنصر من المصدر: شريحةُ مصفوفةٍ موسومة (Any) تنسخ مؤشّرات
+                //      الصناديق من مصدرٍ واحدٍ ⇒ النتيجة موسومةٌ متّسقة تُفكّ صحيحًا (لا اختلاطَ
+                //      تعليبٍ كالدمج). المصدرُ غير الموسوم يُبقي النوعَ كما كان.
+                // (EN) Propagate the element type from the source: slicing a boxed (Any) array
+                //      copies box pointers from a single source ⇒ a consistently-boxed result
+                //      that unboxes correctly (no boxing mismatch like concat). A non-boxed
+                //      source keeps its type.
+                BuildResult sliceResult(resultReg, SadTypeKind::Array);
+                sliceResult.elementType = objResult.elementType;
+                return sliceResult;
             }
 
             // ============================================================================

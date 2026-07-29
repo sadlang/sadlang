@@ -34,18 +34,28 @@ namespace Sad
         // Phase N: Array Core / عمليات المصفوفات الأساسية
         // ============================================================================
 
-        // Array layout: [i64 length, i64 capacity, i64* data]
-        // Stored as: { i64, i64, ptr } struct
-
+        // (AR) تخطيط المصفوفة: [i64 طول، i64 سعة، i64* بيانات، i8* وسوم].
+        //      الحقل الرابع «الوسوم» (option A، وسمٌ زمن-تشغيل): null للمصفوفة المتجانسة
+        //      (المسار الساكن القديم بلا تغيير)؛ وإلّا مخزنُ بايتٍ لكلّ خانةٍ يحمل DynKind،
+        //      فتقرِّر القراءةُ نوعَ العنصر **زمنَ التشغيل** من الوسوم لا من النوع الساكن —
+        //      فيصمد التمييز عبر إعادة الإسناد/الالتقاط/المعامل/الإرجاع (لا انهيار وسمٍ بائت).
+        //      إضافةُ الحقل ٣ لا تُزيح الفهارس ٠–٢، والتخصيصُ ينمو عبر getSizeOf.
+        // (EN) Array layout: [i64 length, i64 capacity, i64* data, i8* tags].
+        //      The 4th "tags" field (option A, runtime tag): null for a homogeneous array
+        //      (the old static path, unchanged); else a per-slot byte buffer of DynKind, so
+        //      the READ decides the element kind at RUNTIME from the tags — not the static
+        //      type — surviving reassignment/capture/param/return (no stale-tag crash).
+        //      Adding field 3 doesn't shift indices 0-2, and allocations grow via getSizeOf.
         static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
             static llvm::StructType *arrTy = nullptr;
             if (!arrTy)
             {
                 arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),      // length
-                                                          llvm::Type::getInt64Ty(ctx),      // capacity
-                                                          llvm::PointerType::getUnqual(ctx) // data pointer
+                                                          llvm::Type::getInt64Ty(ctx),       // length
+                                                          llvm::Type::getInt64Ty(ctx),       // capacity
+                                                          llvm::PointerType::getUnqual(ctx), // data pointer
+                                                          llvm::PointerType::getUnqual(ctx)  // tags (i8*) or null
                                                       },
                                                  "SadArray");
             }
@@ -300,6 +310,14 @@ namespace Sad
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
             cg_.builder_->CreateStore(dataPtr, dataGep);
 
+            // (AR) الحقل ٣ (الوسوم) = null افتراضًا: مصفوفةٌ متجانسة (المسار الساكن). تُملأ
+            //      لاحقًا عند أوّل كتابةٍ مختلطة (emitArraySet). التخصيصُ لا يُصفّر فيلزم التصريح.
+            // (EN) Field 3 (tags) = null by default: a homogeneous array (static path). Populated
+            //      later on the first heterogeneous write (emitArraySet). malloc doesn't zero.
+            cg_.builder_->CreateStore(
+                llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*cg_.context_)),
+                cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "arr.tags.gep"));
+
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = arrPtr;
@@ -354,6 +372,18 @@ namespace Sad
             // (EN) Determine element type: if result is ARRAY/PTR → load as ptr (for nested arrays)
             //      otherwise load as i64 (integer / bitcasted float)
             bool isNestedArray = false;
+            // (AR) [عناصر موسومة زمنَ التشغيل — الخيار أ الجذريّ] نتيجةٌ ديناميّة (Any):
+            //      نتفرّع زمنَ التشغيل على مخزنِ الوسوم (الحقل ٣). إن كان ≠null فالمصفوفةُ
+            //      مختلطة ⇒ نعيد بناء %SadDyn من (الوسم، الحمولة الخام)؛ وإلّا (احتياطيّ)
+            //      نبنيه بوسم Int من الحمولة. كلا المسارين يُنتجان Any — فلا فكُّ تعليبٍ
+            //      على خانةٍ خام أبدًا (يُغلق انهيارَ الوسم البائت). نظيرُ كتابة emitArraySet.
+            // (EN) [runtime-tagged elements — radical option A] a dynamic (Any) result:
+            //      branch at RUNTIME on the tags buffer (field 3). If != null the array is
+            //      heterogeneous ⇒ reconstruct %SadDyn from (tag, raw payload); else (defensive
+            //      fallback) build it with an Int tag from the payload. Both yield Any — never
+            //      an unbox on a raw slot (closes the stale-tag crash). Inverse of emitArraySet.
+            bool isBoxedDyn = (inst->result.has_value() &&
+                               inst->result->dataType == SadTypeKind::Any);
             if (inst->result.has_value())
             {
                 auto resultType = inst->result->dataType;
@@ -369,7 +399,54 @@ namespace Sad
             // (EN) Check if source is tuple for MSB untagging after load
             bool isTupleSource = (inst->operands.size() > 0 && inst->operands[0].dataType == SadTypeKind::Tuple);
 
-            if (isNestedArray)
+            if (isBoxedDyn)
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *i8Ty = cg_.getInt8Type();
+                auto *i64Ty = cg_.getInt64Type();
+
+                // (AR) حمّل الحمولةَ الخام i64 من خانة البيانات (نظير كتابة emitArraySet)
+                // (EN) load the raw i64 payload from the data slot (inverse of emitArraySet)
+                llvm::Value *slot = cg_.builder_->CreateGEP(i64Ty, dataPtr, {index}, "arr.dyn.slot");
+                llvm::Value *payload = cg_.builder_->CreateLoad(i64Ty, slot, "arr.dyn.payload");
+
+                // (AR) تفرّع زمنَ التشغيل على مخزنِ الوسوم
+                // (EN) branch at RUNTIME on the tags buffer
+                llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "arr.tags.gep");
+                llvm::Value *tagsPtr = cg_.builder_->CreateLoad(ptrTy, tagsGep, "arr.tags");
+                llvm::Value *hasTags = cg_.builder_->CreateICmpNE(
+                    tagsPtr, llvm::ConstantPointerNull::get(ptrTy), "arr.tags.present");
+
+                llvm::Function *fn = cg_.builder_->GetInsertBlock()->getParent();
+                auto *tagBB = llvm::BasicBlock::Create(*cg_.context_, "arr.get.tagged", fn);
+                auto *rawBB = llvm::BasicBlock::Create(*cg_.context_, "arr.get.raw", fn);
+                auto *joinBB = llvm::BasicBlock::Create(*cg_.context_, "arr.get.join", fn);
+                cg_.builder_->CreateCondBr(hasTags, tagBB, rawBB);
+
+                // (AR) مختلطة: الوسمُ من tags[index]، القيمةُ makeDyn(الوسم، الحمولة)
+                // (EN) heterogeneous: tag from tags[index], value = makeDyn(tag, payload)
+                cg_.builder_->SetInsertPoint(tagBB);
+                llvm::Value *tagSlot = cg_.builder_->CreateGEP(i8Ty, tagsPtr, {index}, "arr.tag.slot");
+                llvm::Value *tagByte = cg_.builder_->CreateLoad(i8Ty, tagSlot, "arr.tag");
+                llvm::Value *dynTagged = makeDyn(cg_, tagByte, payload);
+                llvm::BasicBlock *tagEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(joinBB);
+
+                // (AR) احتياطيّ (لا وسوم): وسمُ Int (المصفوفةُ فعليًّا متجانسةُ أرقام)
+                // (EN) fallback (no tags): Int tag (array is effectively homogeneous ints)
+                cg_.builder_->SetInsertPoint(rawBB);
+                llvm::Value *dynRaw = makeDyn(
+                    cg_, llvm::ConstantInt::get(i8Ty, DynKind::Int), payload);
+                llvm::BasicBlock *rawEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(joinBB);
+
+                cg_.builder_->SetInsertPoint(joinBB);
+                llvm::PHINode *dynPhi = cg_.builder_->CreatePHI(dynTagged->getType(), 2, "arr.get.dyn");
+                dynPhi->addIncoming(dynTagged, tagEndBB);
+                dynPhi->addIncoming(dynRaw, rawEndBB);
+                result = dynPhi;
+            }
+            else if (isNestedArray)
             {
                 // (AR) العنصر مؤشر (مصفوفة متداخلة / نص / بنية). الخطوة i64 (8)
                 //      لتوحيد حجم الخانة عبر الأهداف (على i686 خطوة ptr=4 كانت
@@ -480,22 +557,87 @@ namespace Sad
                 return nullptr;
 
             // ================================================================
-            // (AR) ISSUE-063: قيمة %SadDyn بخانة مصفوفة ⇒ خزّن الحمولة i64 (بتّاتها
-            //      تطابق أعراف الخانة لكلّ وسم: صحيح⇒i64 خام، عشريّ⇒بتّات double،
-            //      نصّ⇒بتّات المؤشّر) بدل كتابة بنية 16 بايت خامًا (IR فاسد).
-            //      ⚠️ يبقى الوسمُ نفسه غير قابلٍ للتخزين في خانة 8 بايت — استرجاعُ
-            //      النوع الديناميّ من عنصر مصفوفة يحتاج تعليبَ عناصر (عائلة
-            //      ISSUE-070/080/082، «الخيار أ» المؤجَّل معماريًّا).
-            // (EN) ISSUE-063: a %SadDyn value into an array slot ⇒ store the i64
-            //      payload (its bits match the slot conventions per kind: Int⇒raw
-            //      i64, Float⇒double bits, Str⇒pointer bits) instead of writing the
-            //      16-byte struct raw (invalid IR). ⚠️ The kind itself still cannot
-            //      live in an 8-byte slot — recovering the dynamic type from an array
-            //      element needs boxed elements (ISSUE-070/080/082 family, the
-            //      architecturally-deferred "option A").
+            // (AR) [عناصر موسومة زمنَ التشغيل — الخيار أ الجذريّ] مصفوفةٌ مختلطةٌ قياسيّة
+            //      (elementType=Any على معامل المصفوفة): بدل تعليب الكومة، نخزّن الحمولةَ
+            //      الخام i64 في خانة البيانات، ووسمَ DynKind (i8) في مخزنِ الوسوم المتوازي
+            //      (الحقل ٣). القراءةُ تتفرّع زمنَ التشغيل على (الوسوم≠null) فيصمد التمييزُ
+            //      عبر إعادة الإسناد/الالتقاط/المعامل/الإرجاع — لا اعتماد على النوع الساكن
+            //      البائت (يُغلق صنفَ الانهيار الذي أثبتته أميليا في مسار التعليب).
+            // (EN) [runtime-tagged elements — radical option A] a scalar-heterogeneous array
+            //      (elementType=Any on the array operand): instead of heap boxing, store the
+            //      RAW i64 payload in the data slot and the DynKind tag (i8) in the parallel
+            //      tags buffer (field 3). The READ branches at RUNTIME on (tags != null), so
+            //      the discrimination survives reassignment/capture/param/return — no reliance
+            //      on the stale static type (closes the crash class Amelia proved in boxing).
             // ================================================================
-            if (isSadDyn(value))
+            if (inst->operands[0].elementType == SadTypeKind::Any)
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *i8Ty = cg_.getInt8Type();
+                auto *i64Ty = cg_.getInt64Type();
+
+                // (AR) وحِّد العنصرَ إلى %SadDyn (يشتقّ الوسمَ + الحمولة لأيّ نوع؛ الديناميّ
+                //      يُمرَّر كما هو)، ثمّ فكّكه إلى وسمٍ (i8) وحمولةٍ (i64).
+                // (EN) Normalize the element to %SadDyn (derives kind + payload for any type;
+                //      an already-dynamic value passes through), then split into i8 kind + i64.
+                llvm::Value *dyn = toDyn(cg_, value, inst->operands[2].dataType);
+                llvm::Value *kindByte = dynKindByte(cg_, dyn);
+                llvm::Value *payload = dynPayloadI64(cg_, dyn);
+
+                arrPtr = normalizeArrayPtr(arrPtr, "arr");
+                index = normalizeArrayIndex(index, arrPtr, "set");
+                emitBoundsCheck(index, arrPtr, "set");
+                llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
+
+                // (AR) خزّن الحمولةَ الخام i64 في خانة البيانات (خطوة i64 موحّدة)
+                // (EN) store the raw i64 payload in the data slot (unified i64 stride)
+                llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
+                llvm::Value *dataPtr = cg_.builder_->CreateLoad(ptrTy, dataGep, "arr.data");
+                llvm::Value *slot = cg_.builder_->CreateGEP(i64Ty, dataPtr, {index}, "arr.dyn.slot");
+                cg_.builder_->CreateStore(payload, slot);
+
+                // (AR) اضمن مخزنَ الوسوم (يُخصَّص كسولًا عند أوّل كتابةٍ مختلطة، مُصفَّرًا
+                //      إلى Null) ثمّ اكتب وسمَ هذه الخانة.
+                // (EN) ensure the tags buffer (lazily allocated on first heterogeneous write,
+                //      zeroed to Null) then write this slot's tag.
+                llvm::Value *tagsGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 3, "arr.tags.gep");
+                llvm::Value *curTags = cg_.builder_->CreateLoad(ptrTy, tagsGep, "arr.tags.cur");
+                llvm::Value *tagsNull = cg_.builder_->CreateICmpEQ(
+                    curTags, llvm::ConstantPointerNull::get(ptrTy), "arr.tags.isnull");
+
+                llvm::Function *fn = cg_.builder_->GetInsertBlock()->getParent();
+                auto *allocBB = llvm::BasicBlock::Create(*cg_.context_, "arr.tags.alloc", fn);
+                auto *contBB = llvm::BasicBlock::Create(*cg_.context_, "arr.tags.cont", fn);
+                llvm::BasicBlock *preBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateCondBr(tagsNull, allocBB, contBB);
+
+                cg_.builder_->SetInsertPoint(allocBB);
+                llvm::Value *capGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, "arr.tags.cap.gep");
+                llvm::Value *cap = cg_.builder_->CreateLoad(i64Ty, capGep, "arr.tags.cap");
+                llvm::Value *newTags = cg_.emitMalloc(cap, "arr.tags.buf");
+                cg_.builder_->CreateMemSet(
+                    newTags, llvm::ConstantInt::get(i8Ty, DynKind::Null), cap, llvm::MaybeAlign(1));
+                cg_.builder_->CreateStore(newTags, tagsGep);
+                llvm::BasicBlock *allocEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(contBB);
+
+                cg_.builder_->SetInsertPoint(contBB);
+                llvm::PHINode *tags = cg_.builder_->CreatePHI(ptrTy, 2, "arr.tags");
+                tags->addIncoming(curTags, preBB);
+                tags->addIncoming(newTags, allocEndBB);
+
+                llvm::Value *tagSlot = cg_.builder_->CreateGEP(i8Ty, tags, {index}, "arr.tag.slot");
+                cg_.builder_->CreateStore(kindByte, tagSlot);
+                return dyn;
+            }
+            // (AR) ISSUE-063 (غير-Any): قيمة %SadDyn بخانةٍ عاديّة ⇒ خزّن الحمولة i64 (بتّاتها
+            //      تطابق أعراف الخانة لكلّ وسم) بدل كتابة بنية 16 بايت خامًا (IR فاسد).
+            // (EN) ISSUE-063 (non-Any): a %SadDyn value into a plain slot ⇒ store the i64
+            //      payload (bits match the slot conventions) instead of the raw 16-byte struct.
+            else if (isSadDyn(value))
+            {
                 value = dynPayloadI64(cg_, value);
+            }
 
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper
@@ -714,6 +856,7 @@ namespace Sad
             llvm::Value *newData = cg_.emitMalloc(dataSize, "concat.data");
             llvm::Value *newDataGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 2, "concat.new.data.gep");
             cg_.builder_->CreateStore(newData, newDataGep);
+            llvm::Value *newTagsGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 3, "concat.tags.gep");
 
             // (AR) نسخ عناصر المصفوفة الأولى
             // (EN) Copy elements from first array
@@ -725,6 +868,69 @@ namespace Sad
             llvm::Value *dst2 = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), newData, {bytes1}, "concat.dst2");
             llvm::Value *bytes2 = cg_.builder_->CreateMul(len2, ptrSize64, "concat.bytes2");
             cg_.builder_->CreateMemCpy(dst2, llvm::MaybeAlign(8), data2, llvm::MaybeAlign(8), bytes2);
+
+            // (AR) [وسم زمن-تشغيل] دمجُ الوسوم: إن كان أيُّ معاملٍ ديناميّ (Any) فالنتيجةُ
+            //      واصفةٌ لنفسها. لكلّ منطقة: معاملٌ Any ⇒ انسخ وسومَه الزمنيّة (بحارس null)؛
+            //      معاملٌ محدَّدُ النوع ⇒ املأها بوسمِه الساكن (memset ثابت). فتُقرأ النتيجةُ
+            //      صحيحةً حتّى لو خُلط محدَّدٌ بمختلط.
+            // (EN) [runtime tag] merge tags: if either operand is dynamic (Any) the result is
+            //      self-describing. Per region: an Any operand ⇒ copy its runtime tags (null-
+            //      guarded); a concrete operand ⇒ fill its static kind (constant memset). So the
+            //      result reads correctly even when a concrete array is concatenated with a mixed one.
+            bool op0Any = (inst->operands[0].elementType == SadTypeKind::Any);
+            bool op1Any = (inst->operands[1].elementType == SadTypeKind::Any);
+            if (op0Any || op1Any)
+            {
+                auto *i8Ty = cg_.getInt8Type();
+                llvm::Value *newTags = cg_.emitMalloc(totalLen, "concat.tags.buf");
+                // (AR) مُعينٌ يملأ منطقةً: Any⇒نسخ وسوم زمنيّة (حارس null)، محدَّد⇒memset ثابت.
+                // (EN) helper to fill a region: Any⇒copy runtime tags (null-guarded), concrete⇒const memset.
+                auto fillRegion = [&](llvm::Value *destBase, llvm::Value *srcTags, llvm::Value *rlen,
+                                      bool isAny, SadTypeKind concreteKind, const char *tag) {
+                    if (isAny)
+                    {
+                        // (AR) صفّر Null ثمّ انسخ الوسومَ الزمنيّة إن وُجدت
+                        cg_.builder_->CreateMemSet(destBase, llvm::ConstantInt::get(i8Ty, DynKind::Null), rlen, llvm::MaybeAlign(1));
+                        llvm::Value *hasT = cg_.builder_->CreateICmpNE(
+                            srcTags, llvm::ConstantPointerNull::get(ptrTy), std::string(tag) + ".has");
+                        llvm::Function *fn = cg_.builder_->GetInsertBlock()->getParent();
+                        auto *cpBB = llvm::BasicBlock::Create(*cg_.context_, std::string(tag) + ".cp", fn);
+                        auto *ctBB = llvm::BasicBlock::Create(*cg_.context_, std::string(tag) + ".ct", fn);
+                        cg_.builder_->CreateCondBr(hasT, cpBB, ctBB);
+                        cg_.builder_->SetInsertPoint(cpBB);
+                        cg_.builder_->CreateMemCpy(destBase, llvm::MaybeAlign(1), srcTags, llvm::MaybeAlign(1), rlen);
+                        cg_.builder_->CreateBr(ctBB);
+                        cg_.builder_->SetInsertPoint(ctBB);
+                    }
+                    else
+                    {
+                        // (AR) نوعٌ محدَّد ⇒ اشتقّ الوسمَ الساكن واملأ به
+                        uint8_t k = DynKind::Int;
+                        switch (concreteKind)
+                        {
+                        case SadTypeKind::Float: k = DynKind::Float; break;
+                        case SadTypeKind::String: case SadTypeKind::Pointer: k = DynKind::Str; break;
+                        case SadTypeKind::Boolean: k = DynKind::Bool; break;
+                        case SadTypeKind::Null: k = DynKind::Null; break;
+                        case SadTypeKind::Array: k = DynKind::Array; break;
+                        default: k = DynKind::Int; break;
+                        }
+                        cg_.builder_->CreateMemSet(destBase, llvm::ConstantInt::get(i8Ty, k), rlen, llvm::MaybeAlign(1));
+                    }
+                };
+                llvm::Value *tags1 = cg_.builder_->CreateLoad(ptrTy, cg_.builder_->CreateStructGEP(arrTy, arr1, 3, "concat.t1.gep"), "concat.t1");
+                llvm::Value *tags2 = cg_.builder_->CreateLoad(ptrTy, cg_.builder_->CreateStructGEP(arrTy, arr2, 3, "concat.t2.gep"), "concat.t2");
+                fillRegion(newTags, tags1, len1, op0Any, inst->operands[0].elementType, "concat.r1");
+                llvm::Value *tdst2 = cg_.builder_->CreateGEP(i8Ty, newTags, {len1}, "concat.tags.dst2");
+                fillRegion(tdst2, tags2, len2, op1Any, inst->operands[1].elementType, "concat.r2");
+                cg_.builder_->CreateStore(newTags, newTagsGep);
+            }
+            else
+            {
+                // (AR) كلا المعاملين محدَّدُ النوع ⇒ الوسوم=null (المسار الساكن، بلا تكلفة)
+                // (EN) both operands concrete ⇒ tags=null (static path, no cost)
+                cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy), newTagsGep);
+            }
 
             if (inst->result.has_value())
             {
@@ -790,6 +996,8 @@ namespace Sad
             llvm::Value *outBytes = cg_.builder_->CreateMul(outLen, slotSize, "zip.out.bytes");
             llvm::Value *outData = cg_.emitMalloc(outBytes, "zip.out.data");
             cg_.builder_->CreateStore(outData, cg_.builder_->CreateStructGEP(arrTy, outArr, 2, "zip.out.data.gep"));
+            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy),
+                cg_.builder_->CreateStructGEP(arrTy, outArr, 3, "zip.out.tags.gep")); // (AR) وسوم=null
 
             // (AR) الحلقة: لكلّ i أنشئ مصفوفة زوج {أ[i]، ب[i]} وخزّن مؤشّرها
             // (EN) loop: for each i build pair array {a[i], b[i]} and store its pointer
@@ -815,6 +1023,8 @@ namespace Sad
             llvm::Value *pairBytes = cg_.builder_->CreateMul(two, slotSize, "zip.pair.bytes");
             llvm::Value *pairData = cg_.emitMalloc(pairBytes, "zip.pair.data");
             cg_.builder_->CreateStore(pairData, cg_.builder_->CreateStructGEP(arrTy, pairArr, 2, "zip.pair.data.gep"));
+            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy),
+                cg_.builder_->CreateStructGEP(arrTy, pairArr, 3, "zip.pair.tags.gep")); // (AR) وسوم=null
 
             // (AR) نسخ الخانتين خامًا / (EN) raw copy of both slots
             llvm::Value *e1 = cg_.builder_->CreateLoad(

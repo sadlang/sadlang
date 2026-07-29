@@ -30,9 +30,15 @@ namespace Sad
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
-                    // (AR) المعامل الأول: المصفوفة، الثاني: العنصر المُضاف
-                    // (EN) First operand: array, Second: element to add
-                    inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+                    // (AR) المعامل الأول: المصفوفة، الثاني: العنصر المُضاف. ننشر elementType
+                    //      إلى معامل المصفوفة: مختلطةٌ قياسيّة (Any) ⇒ تُعلّب الخلفيّةُ العنصرَ
+                    //      في %SadDyn، متّسقةً مع خاناتها المُعلَّبة (وإلّا خانةٌ خامٌ ⇒ فساد).
+                    // (EN) Operand 0: array, 1: element. Propagate elementType to the array
+                    //      operand: scalar-heterogeneous (Any) ⇒ backend boxes the element,
+                    //      consistent with the boxed slots (else a raw slot corrupts).
+                    SIROperand appendArrOp = SIROperand::Register(objResult.registerName, objResult.type);
+                    appendArrOp.elementType = objResult.elementType;
+                    inst.operands.push_back(appendArrOp);
                     if (args.size() > 1)
                     {
                         inst.operands.push_back(args[1]); // (AR) العنصر (args[0] هو self)

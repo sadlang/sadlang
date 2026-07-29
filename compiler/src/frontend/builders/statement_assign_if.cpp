@@ -323,6 +323,23 @@ namespace Sad
                     {
                         varInfo->elementType = valueResult.elementType;
                     }
+                    // (AR) [عناصر موسومة — option A] مسحُ وسم Any البائت عند إعادة الإسناد:
+                    //      متغيّرٌ موسومٌ (elementType=Any، خاناتُه صناديقُ كومة) أُعيد إسنادُه
+                    //      بقيمةٍ **نوعُ عنصرها ليس Any** (مصفوفةٌ مختلطةٌ غير-قياسيّة/متداخلة
+                    //      ⇒ Void، أو غيرُ مصفوفةٍ أصلًا ⇒ خاناتٌ خام). الشرطُ أعلاه يتخطّى
+                    //      Void فيُبقي الوسمَ البائت، فيرى القارئُ Any ويفكّ خانةً خامًا ⇒
+                    //      **انهيار ذاكرة** (رصدته أميليا). نمسحه صراحةً إلى نوع القيمة الجديدة.
+                    // (EN) [boxed elements — option A] Clear a STALE Any tag on reassignment: a
+                    //      boxed variable (elementType=Any, heap-box slots) reassigned with a value
+                    //      whose element type is NOT Any (a non-scalar-heterogeneous/nested array
+                    //      ⇒ Void, or a non-array ⇒ raw slots). The guard above skips Void so it
+                    //      keeps the stale tag ⇒ the reader sees Any and unboxes a raw slot ⇒ a
+                    //      memory CRASH (found by Amelia). Clear it to the new value's type.
+                    else if (varInfo->elementType == SadTypeKind::Any &&
+                             valueResult.elementType != SadTypeKind::Any)
+                    {
+                        varInfo->elementType = valueResult.elementType; // may be Void — clears Any
+                    }
                 }
 
                 // (AR) تتبع نوع الصنف عند إعادة التعيين بـ جديد()

@@ -1,0 +1,7 @@
+# @rule: gr.expr.array_literal
+# @description: طباعة الحاوية المختلطة كاملةً «[..]» عبر مساعِد الطباعة الموسوم (dynToString لكلّ عنصر)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [500, 3.5]
+متغير م = [500، 3.5]
+اطبع_سطر(م)
