@@ -1263,6 +1263,18 @@ namespace Sad
                 VECTOR_SHUFFLE, ///< (AR) خلط: %v3 = VECTOR_SHUFFLE(%v1, %v2, mask...)
                 VECTOR_SELECT,  ///< (AR) اختيار حسب قناع: %v3 = SELECT(mask, v1, v2)
 
+                // (AR) [الخطوة ٩] اقتطاع بايت (u8) واعٍ بالوسم الديناميّ: يُقنِّع البايت
+                //      الأدنى (& 0xFF) للقيم الصحيحة فقط، ويترك العشريّ سليمًا — مرآةٌ
+                //      حرفيّةٌ لحارس المفسّر getKind()==Integer عند إسناد بايت. للقيم
+                //      %SadDyn (Any، كنتيجة قسمة /،// ديناميّة النوع): يقنّع إذا كان
+                //      الوسم Int وإلا يُعيد القيمة كما هي (select زمنَ التشغيل).
+                // (EN) [Step 9] Kind-aware u8 truncation: masks the low byte (& 0xFF) for
+                //      integer values only, leaving floats intact — a literal mirror of the
+                //      interpreter's getKind()==Integer guard on byte assignment. For %SadDyn
+                //      (Any, e.g. a runtime-typed /,// result): masks iff the tag is Int, else
+                //      returns the value unchanged (runtime select).
+                TRUNCATE_U8,
+
                 Nop ///< لا عملية (markers) / No operation (for markers)
             };
 

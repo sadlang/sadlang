@@ -36,6 +36,7 @@ namespace Sad
             llvm::Value *emitDiv(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitMod(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitNeg(std::shared_ptr<SIRInstruction>);
+            llvm::Value *emitTruncU8(std::shared_ptr<SIRInstruction>); ///< [خ٩] اقتطاع بايت واعٍ بالوسم
             llvm::Value *emitNullAssert(std::shared_ptr<SIRInstruction>); ///< تأكيد عدم الفراغ (NS-05)
             // الثنائية + الإزاحة
             // (AR) تحويل double→i64 مُشبَع (llvm.fptosi.sat.i64.f64) — دلالة لغة ص

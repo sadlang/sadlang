@@ -914,6 +914,70 @@ namespace Sad
          * @param inst تعليمة SIR / SIR instruction
          * @return قيمة LLVM / LLVM value
          */
+        // ============================================================================
+        // (AR) [الخطوة ٩] emitTruncU8 — اقتطاع بايت (u8) واعٍ بالوسم الديناميّ.
+        //      يُقنِّع البايت الأدنى (& 0xFF) للقيم **الصحيحة فقط**، ويترك العشريّ سليمًا،
+        //      مرآةً حرفيّةً لحارس المفسّر `getKind()==Integer` عند إسناد بايت.
+        //      • %SadDyn (Any، كنتيجة قسمة /،// ديناميّة النوع): select زمنَ التشغيل —
+        //        إن كان الوسم Int ⇒ makeDyn(Int, الحمولة & 0xFF)؛ وإلّا القيمة كما هي.
+        //      • i64 محدَّد: & 0xFF مباشرةً.
+        //      • double: يُترَك (المفسّر لا يقتطع العشريّ لبايت).
+        // (EN) [Step 9] Kind-aware u8 truncation — masks the low byte for INTEGER values
+        //      only, leaves floats intact, mirroring the interpreter's getKind()==Integer
+        //      guard on byte assignment. %SadDyn ⇒ runtime select; concrete i64 ⇒ & 0xFF;
+        //      double ⇒ unchanged.
+        // ============================================================================
+        llvm::Value *ArithmeticCodeGen::emitTruncU8(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst)
+                return nullptr;
+
+            if (inst->operands.empty())
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "TruncU8"}});
+                return nullptr;
+            }
+
+            llvm::Value *operand = resolveOperand(inst->operands[0]);
+            if (!operand)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "TruncU8"}});
+                return nullptr;
+            }
+
+            llvm::Value *result = nullptr;
+            llvm::Value *mask = llvm::ConstantInt::get(cg_.getInt64Type(), 0xFF);
+
+            if (isSadDyn(operand))
+            {
+                // (AR) قيمةٌ ديناميّة: قنّع الحمولة إن كان الوسم Int، وإلّا أعِد الأصل.
+                // (EN) Dynamic value: mask the payload iff the tag is Int, else keep original.
+                llvm::Value *kind = dynKindByte(cg_, operand);
+                llvm::Value *isInt = cg_.builder_->CreateICmpEQ(
+                    kind, llvm::ConstantInt::get(cg_.getInt8Type(), DynKind::Int), "u8.isint");
+                llvm::Value *payload = dynPayloadI64(cg_, operand);
+                llvm::Value *maskedPayload = cg_.builder_->CreateAnd(payload, mask, "u8.mask");
+                llvm::Value *maskedDyn = packDyn(cg_, maskedPayload, DynKind::Int);
+                result = cg_.builder_->CreateSelect(isInt, maskedDyn, operand, "u8.sel");
+            }
+            else if (operand->getType()->isDoubleTy() || operand->getType()->isFloatTy())
+            {
+                // (AR) عشريّ محدَّد النوع: يُترَك سليمًا (كالمفسّر).
+                // (EN) Statically-typed float: left intact (like the interpreter).
+                result = operand;
+            }
+            else
+            {
+                // (AR) صحيح i64 محدَّد: قناع البايت الأدنى مباشرةً.
+                // (EN) Concrete i64: mask the low byte directly.
+                result = cg_.builder_->CreateAnd(operand, mask, "u8.mask");
+            }
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
         llvm::Value *ArithmeticCodeGen::emitNeg(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)

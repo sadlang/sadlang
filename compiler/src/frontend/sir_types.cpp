@@ -53,6 +53,8 @@ namespace Sad
                     return "mod.i64";
                 case SIROpcode::NEG:
                     return "neg";
+                case SIROpcode::TRUNCATE_U8:
+                    return "trunc.u8";
                 case SIROpcode::NULL_ASSERT:
                     return "null.assert";
 

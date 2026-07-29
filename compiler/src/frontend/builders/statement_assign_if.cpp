@@ -56,6 +56,94 @@ namespace Sad
                 // (EN) Build value expression
                 auto valueResult = b_.buildExpression(assignment->value.get());
 
+                // (AR) اقتطاع البايت (u8) عند إعادة الإسناد أيضًا (الخطوة ٩) — نظيرٌ حرفيّ
+                //      لاقتطاع buildLocalVariable عند التهيئة (`AND 0xFF`) ولاقتطاع المفسّر
+                //      في visitAssignExpr، حفظًا لتكافؤ المسارَين. المصدرُ declaredSurfaceType
+                //      المُصرَّح لا varInfo->type — إذ Fix #52 (أعلاه) قد يطمس type إلى Integer
+                //      بإعادة إسنادٍ سابقة، بينما يبقى النوعُ السطحيّ ثابتًا. الثابتُ يُطوى؛
+                //      السجلّ يُقنَّع بتعليمة AND.
+                // (EN) Byte (u8) truncation on REASSIGNMENT too (Step 9) — mirrors the init
+                //      truncation in buildLocalVariable (`AND 0xFF`) and the interpreter's
+                //      visitAssignExpr, keeping both tracks in parity. Source is the declared
+                //      surface type, NOT varInfo->type — Fix #52 (below) may clobber `type` to
+                //      Integer on a prior reassignment while the surface type stays fixed.
+                //      Constants are folded; registers are masked with an AND instruction.
+                if (varInfo->declaredSurfaceType == SadTypeKind::Byte)
+                {
+                    // (AR) الأنواع العدديّة الصحيحة التي يشملها اقتطاعُ المفسّر: قيمةُ طبيعي64
+                    //      تحمل getKind()==Integer زمن التشغيل (Option B)، فيقتطعها المفسّر؛
+                    //      فلا بدّ أن يقتطعها المترجم أيضًا (وإلا `ب = <متغيّر طبيعي64>` ينفرج).
+                    //      Float/String/Pointer مُستثناة — مطابقةً لحارس المفسّر getKind()==Integer.
+                    // (EN) Integer-like numeric types the interpreter's truncation covers: a
+                    //      UInt64 value carries getKind()==Integer at runtime (Option B), so the
+                    //      interpreter truncates it; the compiler must too (else `ب = <uint64 var>`
+                    //      diverges). Float/String/Pointer excluded — mirrors the interpreter's
+                    //      getKind()==Integer guard.
+                    const bool intLike = (valueResult.type == SadTypeKind::Integer ||
+                                          valueResult.type == SadTypeKind::Byte ||
+                                          valueResult.type == SadTypeKind::UInt64);
+                    if (intLike && valueResult.isConstant)
+                    {
+                        // (AR) طيّ الثابت: stoull (لا stoll) كي يستوعب حرفيّات طبيعي64 فوق
+                        //      INT64_MAX دون رمي؛ التقنيعُ `& 0xFF` لا يمسّ إلا البايت الأدنى
+                        //      فيطابق اقتطاع المفسّر (toInt64() & 0xFF). stoull("-1")=2⁶⁴−1
+                        //      ⇒ 255، مطابقًا لـ(-1 & 0xFF) في المفسّر.
+                        // (EN) Constant fold with stoull (not stoll) to accept UInt64 literals
+                        //      above INT64_MAX without throwing; `& 0xFF` touches only the low
+                        //      byte, matching the interpreter's toInt64() & 0xFF. stoull("-1")=
+                        //      2^64-1 ⇒ 255, matching (-1 & 0xFF).
+                        try
+                        {
+                            unsigned long long uv = std::stoull(valueResult.constantValue);
+                            valueResult.constantValue =
+                                std::to_string(static_cast<long long>(uv & 0xFFULL));
+                            valueResult.type = SadTypeKind::Integer;
+                        }
+                        catch (const std::exception &)
+                        {
+                            // (AR) سلسلةٌ غير رقميّة (نادر) — تُترَك للمسار الأصليّ.
+                            // (EN) Non-numeric string (rare) — leave to the original path.
+                        }
+                    }
+                    else if (intLike && !valueResult.registerName.empty() && b_.currentBlock_)
+                    {
+                        SIRInstruction andInst;
+                        andInst.opcode = SIROpcode::AND;
+                        std::string maskedReg = b_.newTempRegister();
+                        andInst.result = SIROperand::Register(maskedReg, SadTypeKind::Integer);
+                        andInst.operands.push_back(
+                            SIROperand::Register(valueResult.registerName, valueResult.type));
+                        andInst.operands.push_back(SIROperand::ConstantI64(0xFF));
+                        b_.currentBlock_->addInstruction(andInst);
+                        valueResult.registerName = maskedReg;
+                        valueResult.type = SadTypeKind::Integer;
+                    }
+                    else if (valueResult.type == SadTypeKind::Any &&
+                             !valueResult.registerName.empty() && b_.currentBlock_)
+                    {
+                        // (AR) قيمةٌ ديناميّةُ النوع (نتيجةُ قسمةٍ حقيقيّةٍ `/` أو أرضيّةٍ `//`:
+                        //      صحيحةٌ إن انقسمت تمامًا وإلّا عشريّة، يُحسَم زمنَ التشغيل). لا يمكن
+                        //      اقتطاعُها ساكنًا: قناعٌ غير مشروطٍ يُفسِد بتّاتِ العشريّ. فنُصدر
+                        //      TRUNCATE_U8 الذي يقنّع البايت الأدنى **إن كان الوسم صحيحًا فقط**،
+                        //      مطابقةً لحارس المفسّر getKind()==Integer. النوعُ يبقى Any (القيمةُ
+                        //      إمّا صحيحةٌ مُقنَّعةٌ أو عشريّةٌ سليمة) والطباعةُ تفكّه لاحقًا.
+                        // (EN) A runtime-typed value (a true `/` or floor `//` division result:
+                        //      integer if exact, else float, decided at runtime). It cannot be
+                        //      truncated statically — an unconditional mask corrupts float bits.
+                        //      Emit TRUNCATE_U8, which masks the low byte ONLY when the tag is
+                        //      integer, mirroring the interpreter's getKind()==Integer guard. The
+                        //      type stays Any (masked-int or intact-float) and print decodes it.
+                        SIRInstruction truncInst;
+                        truncInst.opcode = SIROpcode::TRUNCATE_U8;
+                        std::string truncReg = b_.newTempRegister();
+                        truncInst.result = SIROperand::Register(truncReg, SadTypeKind::Any);
+                        truncInst.operands.push_back(
+                            SIROperand::Register(valueResult.registerName, SadTypeKind::Any));
+                        b_.currentBlock_->addInstruction(truncInst);
+                        valueResult.registerName = truncReg;
+                    }
+                }
+
                 // (AR) توليد تعليمة STORE لإسناد القيمة
                 // (EN) Generate STORE instruction to assign value
                 if (b_.currentBlock_ && !valueResult.registerName.empty())

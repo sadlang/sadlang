@@ -805,6 +805,7 @@ namespace Sad
             llvm::Value *emitDiv(std::shared_ptr<SIRInstruction> inst) { return arith_->emitDiv(inst); }
             llvm::Value *emitMod(std::shared_ptr<SIRInstruction> inst) { return arith_->emitMod(inst); }
             llvm::Value *emitNeg(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNeg(inst); }
+            llvm::Value *emitTruncU8(std::shared_ptr<SIRInstruction> inst) { return arith_->emitTruncU8(inst); }
             llvm::Value *emitNullAssert(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNullAssert(inst); }
 
             // ------------------------------------------------------------------------

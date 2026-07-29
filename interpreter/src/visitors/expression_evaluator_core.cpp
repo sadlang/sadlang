@@ -675,6 +675,23 @@ namespace Sad
                     }
                 }
 
+                // (AR) بايت (u8): يُقتطع 0–255 عند إعادة الإسناد أيضًا — لا التهيئة
+                //      فقط (statement_executor.cpp:119). النوعُ الساكن المُصرَّح يُقرأ من
+                //      getDeclaredType (مرآةُ resolveStaticType)، ونظيرُه في المترجم اقتطاعُ
+                //      buildAssignment (`AND 0xFF`) حفظًا لتكافؤ المسارَين. getDeclaredType
+                //      يُرجِع Integer محايدًا لغير المُصرَّح ⇒ لا أثر إلا على بايتٍ صريح.
+                // (EN) Byte (u8): truncate to 0-255 on REASSIGNMENT too — not just init
+                //      (statement_executor.cpp:119). The declared static type is read from
+                //      getDeclaredType (mirroring resolveStaticType); its compiler peer is
+                //      buildAssignment's `AND 0xFF`, keeping both tracks in parity.
+                //      getDeclaredType returns neutral Integer for undeclared vars ⇒ affects
+                //      only an explicitly-declared byte.
+                if (variableManager_.getDeclaredType(node.name) == Types::SadTypeKind::Byte &&
+                    value.getKind() == Types::SadTypeKind::Integer)
+                {
+                    value = Data::Value(value.toInt64() & 0xFF);
+                }
+
                 // إسناد للمتغير الموجود / Assign to existing variable
                 variableManager_.assign(node.name, value);
             }
