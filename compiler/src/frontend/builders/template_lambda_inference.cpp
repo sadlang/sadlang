@@ -72,6 +72,67 @@ namespace Sad
                         funcName = varExpr->name;
                     }
 
+                    // (AR) [GAP 4] نداءُ متغيّرٍ مربوطٍ بلامدا: إن كان الوسيطُ مصفوفةً
+                    //      مختلطةً/متجانسةً غيرَ صحيحةٍ (حرفيّةً أو متغيّرًا مُسجَّلًا في
+                    //      scanVarElementType_)، فسجّل فهرسَ ذلك المعامل في scanLambdaParamAny_
+                    //      كي يُوسَّع إلى Any في buildExprLambda قبل بناء الجسم. لا نُغيّر
+                    //      نوعًا هنا (جسمُ اللامدا يُبنى في مرحلةٍ لاحقة). نُسجّل Any حصرًا
+                    //      (كـGAP 3b) فآمنٌ عبر homogKind ولو شارك المعاملَ مواقعُ مختلفةٌ.
+                    // (EN) [GAP 4] Call of a lambda-bound variable: if an argument is a mixed /
+                    //      homogeneous-non-int array (literal, or a variable recorded in
+                    //      scanVarElementType_), record that parameter index in
+                    //      scanLambdaParamAny_ so buildExprLambda widens it to Any before
+                    //      building the body. We only record here (the lambda body is built
+                    //      in a later phase). Only Any is ever recorded (like GAP 3b), so it is
+                    //      safe via homogKind even if the param is shared across call sites.
+                    if (!funcName.empty())
+                    {
+                        auto lamIt = b_.scanLambdaVar_.find(b_.currentScanFuncName_ + "#" + funcName);
+                        if (lamIt != b_.scanLambdaVar_.end())
+                        {
+                            const Sad::AST::LambdaExpr *lam = lamIt->second;
+                            auto isScalarKind = [](SadTypeKind t) {
+                                return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
+                                       t == SadTypeKind::String || t == SadTypeKind::Boolean ||
+                                       t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                       t == SadTypeKind::Null || t == SadTypeKind::Any;
+                            };
+                            // (AR) هل يستدعي هذا الوسيطُ توسيعَ معامله إلى Any؟
+                            //      (متغيّرٌ مُسجَّل Any، أو حرفيّةُ مصفوفةٍ مختلطةٍ/متجانسةٍ غيرِ صحيحة)
+                            // (EN) Does this argument warrant widening its param to Any?
+                            auto argWantsAny = [&](const Sad::AST::Expression *a) -> bool {
+                                if (auto *v = dynamic_cast<const Sad::AST::VariableExpr *>(a))
+                                    return b_.scanVarElementType_.count(b_.currentScanFuncName_ + "#" + v->name) > 0;
+                                if (auto *arr = dynamic_cast<const Sad::AST::ArrayExpr *>(a))
+                                {
+                                    if (arr->elements.empty())
+                                        return false;
+                                    SadTypeKind first = inferExprType(arr->elements[0].get());
+                                    bool homogeneous = true, allScalar = true, hasAny = false;
+                                    for (const auto &el : arr->elements)
+                                    {
+                                        SadTypeKind et = inferExprType(el.get());
+                                        if (et != first)
+                                            homogeneous = false;
+                                        if (!isScalarKind(et))
+                                            allScalar = false;
+                                        if (et == SadTypeKind::Any)
+                                            hasAny = true;
+                                    }
+                                    return allScalar &&
+                                           (((!homogeneous && arr->elements.size() > 1) || hasAny) ||
+                                            (homogeneous && first != SadTypeKind::Integer));
+                                }
+                                return false;
+                            };
+                            for (size_t ai = 0; ai < call->arguments.size(); ++ai)
+                            {
+                                if (argWantsAny(call->arguments[ai].get()))
+                                    b_.scanLambdaParamAny_[lam].insert(ai);
+                            }
+                        }
+                    }
+
                     if (!funcName.empty())
                     {
                         auto it = b_.functionTable_.find(funcName);
@@ -590,6 +651,13 @@ namespace Sad
                                     b_.scanVarElementType_[b_.currentScanFuncName_ + "#" + varDecl->name] = SadTypeKind::Any;
                             }
                         }
+                        // (AR) [GAP 4] إن كان المُهيّئُ لامدا، اربط اسمَ المتغيّر بعقدتها،
+                        //      كي نجدَ معاملاتِها من اسم المتغيّر عند موقع النداء لاحقًا.
+                        // (EN) [GAP 4] If the initializer is a lambda, bind the variable name
+                        //      to its node, so we can find its params from the callee name at
+                        //      a later call site.
+                        if (auto *lam = dynamic_cast<const Sad::AST::LambdaExpr *>(varDecl->initializer.get()))
+                            b_.scanLambdaVar_[b_.currentScanFuncName_ + "#" + varDecl->name] = lam;
                         scanCallSitesInExpr(varDecl->initializer.get());
                     }
                     return;

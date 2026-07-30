@@ -38,6 +38,12 @@
 
 namespace Sad
 {
+    // (AR) [GAP 4] إعلانٌ مسبقٌ لعقدة اللامدا (تُستعمل مؤشّرًا في خرائط المسح المُسبَق)
+    // (EN) [GAP 4] Forward declaration of the lambda node (used as a pointer key in the pre-pass maps)
+    namespace AST
+    {
+        class LambdaExpr;
+    }
     namespace Compiler
     {
         namespace SIR
@@ -185,6 +191,27 @@ namespace Sad
                 //      array initializer (⇒ Any); read in parameter-type inference when that
                 //      same variable is passed as an argument (GAP 3b: variable-arg widening).
                 std::unordered_map<std::string, SadTypeKind> scanVarElementType_;
+
+                // (AR) [GAP 4] خريطتا المسح المُسبَق للامدات:
+                //   (١) scanLambdaVar_: اسمُ المتغيّر (مُنطاقًا باسم الدالّة) → مؤشّرُ
+                //       عقدة اللامدا التي هو مربوطٌ بها. تُملأ عند تصريح متغيّرٍ بمُهيّئٍ
+                //       لامدا، وتُستعمل عند موقع النداء لإيجاد عقدة اللامدا من اسم المتغيّر.
+                //   (٢) scanLambdaParamAny_: مؤشّرُ عقدة اللامدا → مجموعةُ فهارس معاملاتٍ
+                //       يجب توسيعُها إلى Any (لأنّها استُقبلت مصفوفةً مختلطةً/متجانسةً غيرَ
+                //       صحيحةٍ في موقع نداء). تُقرأ في buildExprLambda قبل بناء الجسم كي
+                //       يُبنى الجسمُ عالمًا أنّ فهرسةَ المعامل موسومةٌ زمنَ التشغيل.
+                //   المفتاحُ مؤشّرُ عقدة AST مستقرٌّ بين تمريرات المسح وبناء الجسم.
+                // (EN) [GAP 4] Two lambda pre-pass maps:
+                //   (1) scanLambdaVar_: variable name (scoped by function) → the LambdaExpr
+                //       node it is bound to. Populated at a lambda-initialized VarDecl; used
+                //       at a call site to find the lambda node from the callee variable name.
+                //   (2) scanLambdaParamAny_: LambdaExpr node → set of parameter indices to
+                //       widen to Any (because they received a mixed / homogeneous-non-int
+                //       array at a call site). Read in buildExprLambda before the body is
+                //       built, so the body knows the param's index reads runtime-tagged.
+                //   The AST-node pointer key is stable across scan passes and body build.
+                std::unordered_map<std::string, const Sad::AST::LambdaExpr *> scanLambdaVar_;
+                std::unordered_map<const Sad::AST::LambdaExpr *, std::unordered_set<size_t>> scanLambdaParamAny_;
 
                 // (AR) خريطة أسماء المتغيرات → أسماء الأصناف التي هي كائنات منها
                 // (EN) Variable names → class names they are instances of

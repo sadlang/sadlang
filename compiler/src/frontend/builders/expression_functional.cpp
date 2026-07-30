@@ -134,6 +134,32 @@ namespace Sad
                     }
                     sirParams.push_back(SIRParameter(param.name, paramType));
                 }
+                // (AR) [GAP 4] توسيعُ معاملات اللامدا التي رُصِد في المسح المُسبَق أنّها
+                //      تستقبل مصفوفةً مختلطةً/متجانسةً غيرَ صحيحةٍ في موقع نداء ⇒ نجعلها
+                //      مصفوفةً بنوع عنصرٍ Any، فتُقرأ فهرستُها داخل الجسم موسومةً زمنَ
+                //      التشغيل لا عدديًّا. نُطبّقه على المعاملات غيرِ المُصرَّحة نوعًا فقط
+                //      (paramType الحاليّ Integer الافتراضيّ)، ولا نُسجّل إلّا Any (آمنٌ
+                //      عبر homogKind ولو شارك المعاملَ مواقعُ مختلفةٌ — كـGAP 3b).
+                // (EN) [GAP 4] Widen lambda params that the pre-pass flagged as receiving a
+                //      mixed / homogeneous-non-int array at a call site ⇒ make them an Array
+                //      with element type Any, so their indexing inside the body reads runtime-
+                //      tagged, not as int. Applied only to params left at the default Integer
+                //      (untyped); records only Any (safe via homogKind across call sites, as GAP 3b).
+                {
+                    auto anyIt = b_.scanLambdaParamAny_.find(lambdaExpr);
+                    if (anyIt != b_.scanLambdaParamAny_.end())
+                    {
+                        for (size_t i = 0; i < lambdaExpr->parameters.size() && i < sirParams.size(); ++i)
+                        {
+                            if (anyIt->second.count(i) > 0 &&
+                                lambdaExpr->parameters[i].type == Types::SadTypeKind::Unknown &&
+                                sirParams[i].type == SadTypeKind::Integer)
+                            {
+                                sirParams[i].type = SadTypeKind::Array;
+                            }
+                        }
+                    }
+                }
                 // (AR) إضافة معامل __env كمعامل أخير (دائماً — حتى بدون التقاطات)
                 // (EN) Add __env as last parameter (always — even without captures)
                 sirParams.push_back(SIRParameter("__env", SadTypeKind::Integer));
@@ -177,6 +203,16 @@ namespace Sad
                     VariableInfo paramVar;
                     paramVar.name = lambdaExpr->parameters[i].name;
                     paramVar.type = sirParams[i].type; // (AR) النوع المُستنتج / (EN) Inferred type
+                    // (AR) [GAP 4] المعاملُ المُوسَّعُ إلى مصفوفةٍ في المسح المُسبَق يحمل
+                    //      نوعَ عنصرٍ Any، كي تختار فهرستُه داخل الجسم مسارَ القراءة الموسوم.
+                    // (EN) [GAP 4] A param widened to Array by the pre-pass carries element
+                    //      type Any, so its indexing inside the body selects the tagged read path.
+                    {
+                        auto anyIt2 = b_.scanLambdaParamAny_.find(lambdaExpr);
+                        if (anyIt2 != b_.scanLambdaParamAny_.end() && anyIt2->second.count(i) > 0 &&
+                            paramVar.type == SadTypeKind::Array)
+                            paramVar.elementType = SadTypeKind::Any;
+                    }
                     paramVar.registerName = paramReg;
                     paramVar.isMutable = false;
                     paramVar.scopeLevel = b_.currentScopeLevel_;
