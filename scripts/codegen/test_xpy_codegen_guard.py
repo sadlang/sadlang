@@ -81,6 +81,9 @@ EXPECTED_OUTPUTS = {
     # (EN) Sovereign backend x86-64 (variable family) encoding table, generated
     #      from the SoT instruction-encoding YAML — the table-driven principle.
     "compiler/include/backend/native/generated/x86_64_encoding_generated.h",
+    # (AR) الهدف الثاني: جدول ترميز AArch64 (عائلة fixed32) من نفس المولّد.
+    # (EN) Second target: AArch64 (fixed32) encoding table from the same generator.
+    "compiler/include/backend/native/generated/arm64_encoding_generated.h",
 }
 
 

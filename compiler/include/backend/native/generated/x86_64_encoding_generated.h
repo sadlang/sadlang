@@ -15,7 +15,7 @@
 
 namespace sad { namespace native { namespace x86 {
 
-// (AR) جدول ترميز x86_64 المولَّد من SoT (منمنمة، صيغة، EncSpec).
+// (AR) جدول ترميز x86_64 (variable) المولَّد من SoT (منمنمة، صيغة، EncSpec).
 struct GenEncEntry { std::string mnemonic; std::string form; EncSpec spec; };
 
 inline const std::vector<GenEncEntry> &encodingTable()

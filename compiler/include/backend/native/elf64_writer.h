@@ -25,7 +25,8 @@ namespace sad
             inline constexpr uint64_t kPhEntSize = 56;   // (AR) حجم مدخل program header
             inline constexpr uint64_t kPhNum = 1;        // (AR) program header واحد
             inline constexpr uint16_t kEtExec = 2;       // (AR) ET_EXEC
-            inline constexpr uint16_t kEmX8664 = 62;     // (AR) EM_X86_64
+            inline constexpr uint16_t kEmX8664 = 62;     // (AR) EM_X86_64 (تُرآي e_machine في abi/x86_64-linux.yaml)
+            inline constexpr uint16_t kEmAArch64 = 183;  // (AR) EM_AARCH64 (تُرآي e_machine في abi/aarch64-linux.yaml)
             inline constexpr uint32_t kPtLoad = 1;       // (AR) PT_LOAD
             inline constexpr uint32_t kPfRX = 5;         // (AR) R + X
             inline constexpr uint64_t kDefaultVBase = 0x400000; // (AR) عنوان التحميل الافتراضيّ
@@ -35,8 +36,15 @@ namespace sad
             inline constexpr uint64_t kCodeOffset = kEhSize + kPhEntSize * kPhNum;
 
             // (AR) يبني ثنائيَّ ELF64 ساكنًا يحوي الشيفرةَ المعطاة؛ نقطةُ الدخول = vbase+0x78.
+            //      e_machine يُمرَّر من جدول الـABI (٦٢ لـx86-64، ١٨٣ لـAArch64) — بذلك
+            //      يكون الكاتبُ محايدَ المعماريّة: بنيةُ ELF64 للتنفيذيّ الساكن واحدةٌ عبر
+            //      الأهداف، والفارقُ حقلٌ واحد (e_machine) بيانًا لا كودًا.
             // (EN) Builds a static ELF64 binary wrapping `code`; entry = vbase + 0x78.
+            //      e_machine is passed from the ABI table (62 for x86-64, 183 for
+            //      AArch64), making the writer architecture-neutral: the static-exec
+            //      ELF64 layout is identical across targets; only e_machine is data.
             inline std::vector<uint8_t> writeStaticExec(const std::vector<uint8_t> &code,
+                                                        uint16_t e_machine = kEmX8664,
                                                         uint64_t vbase = kDefaultVBase)
             {
                 std::vector<uint8_t> f;
@@ -60,7 +68,7 @@ namespace sad
                 for (int i = 0; i < 8; ++i) put8(0);
 
                 put16(kEtExec);            // e_type
-                put16(kEmX8664);           // e_machine
+                put16(e_machine);          // e_machine (من جدول الـABI)
                 put32(1);                  // e_version
                 put64(entry);              // e_entry
                 put64(kEhSize);            // e_phoff = 64

@@ -789,6 +789,25 @@ if(TARGET sad_tools)
  add_test(NAME NativeBackendM1 COMMAND test_native_backend_m1)
  message(STATUS "Configured test: test_native_backend_m1")
  endif()
+
+ # (AR) اختبار م٣ للخلفيّة السياديّة — محرّك AArch64 (fixed32) + كاتب ELF64 بـe_machine.
+ #      header-only أيضًا ⇒ نفس نمط العزل الأدنى مخاطرةً.
+ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_backend_arm64.cpp")
+ add_executable(test_native_backend_arm64 tests/test_native_backend_arm64.cpp)
+ target_include_directories(test_native_backend_arm64 PRIVATE
+ ${CMAKE_CURRENT_SOURCE_DIR}/include
+ ${CMAKE_SOURCE_DIR}/include
+ ${CMAKE_SOURCE_DIR}/tests/framework
+ )
+ target_compile_features(test_native_backend_arm64 PRIVATE cxx_std_17)
+ if(MSVC)
+ target_compile_options(test_native_backend_arm64 PRIVATE /utf-8 /wd4819 /FS)
+ endif()
+ set_target_properties(test_native_backend_arm64 PROPERTIES
+ RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+ add_test(NAME NativeBackendArm64 COMMAND test_native_backend_arm64)
+ message(STATUS "Configured test: test_native_backend_arm64")
+ endif()
 endif()
 
 # ============================================================================

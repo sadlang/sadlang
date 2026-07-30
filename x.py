@@ -365,6 +365,22 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
+    {
+        # (AR) الهدف الثاني: جدول ترميز AArch64 (عائلة fixed32) من نفس المولّد —
+        #      يُبرهِن عموميّةَ النهج الجدوليّ عبر عائلتَي الترميز بمولّدٍ واحد.
+        # (EN) Second target: AArch64 (fixed32) encoding table from the same
+        #      generator — proving the table-driven approach across both families.
+        "name": "backend_encoding_arm64",
+        "script": "gen_backend_encoding.py",
+        "out_dir": "compiler/include/backend/native/generated",
+        "outputs": ("arm64_encoding_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/backend/arm64/instructions.yaml",
+            "--schema", "language-truth/_schemas/backend_encoding.schema.json",
+            "--header", f"{d}/arm64_encoding_generated.h",
+            "--quiet",
+        ],
+    },
 )
 
 # (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —

@@ -121,14 +121,59 @@ def _emit_encspec(form: dict[str, Any]) -> str:
     return "[]{ sad::native::x86::EncSpec s; " + body + " return s; }()"
 
 
-BANNER = (
-    "// ============================================================================\n"
-    "// (AR) مولَّدٌ آليًّا من language-truth/backend/x86_64/instructions.yaml — لا تُحرّره.\n"
-    "//      أعِد توليدَه بـ: python x.py gen  (وحارسُ الانجراف: python x.py gen --check).\n"
-    "// (EN) AUTO-GENERATED from the SoT instruction-encoding YAML. DO NOT EDIT.\n"
-    "//      Regenerate with: python x.py gen   (drift guard: python x.py gen --check).\n"
-    "// ============================================================================\n"
-)
+def _emit_encspec_fixed32(form: dict[str, Any]) -> str:
+    """(AR) يبني EncSpec لعائلة fixed32 (AArch64/RISC) عبر تهيئةٍ تجميعيّة — كلُّ حقلٍ
+       {hi, lo, konst, is_const, from_op}. لا حاجة لـlambda هنا لأنّ البنيةَ تجميعيّة
+       بسيطة (عرض + متّجه حقول)، والتهيئة التجميعيّة الموضعيّة صالحةٌ في C++17.
+    (EN) Builds a fixed32-family EncSpec via positional aggregate initialization —
+       each field is {hi, lo, konst, is_const, from_op}. No lambda needed: the
+       struct is a simple aggregate (width + field vector), valid in C++17.
+    """
+    enc = form.get("encode", {})
+    width = int(enc.get("width", 32))
+    fields = enc.get("fields", [])
+    field_lits: list[str] = []
+    for f in fields:
+        hi = int(f["hi"])
+        lo = int(f["lo"])
+        if "const" in f:
+            field_lits.append(f"{{ {hi}, {lo}, {int(f['const'])}, true, -1 }}")
+        elif "from" in f:
+            field_lits.append(f"{{ {hi}, {lo}, 0, false, {_op_index(f['from'])} }}")
+        else:
+            raise ValueError(f"حقلٌ بلا const ولا from / field lacks both const and from: {f!r}")
+    fields_lit = "{ " + ", ".join(field_lits) + " }"
+    return f"sad::native::arm64::EncSpec{{ {width}, {fields_lit} }}"
+
+
+# (AR) إعداداتُ العائلتين: كلٌّ يحدّد فضاءَ الاسم، الهيدرَ المُضمَّن، حارسَ التضمين،
+#      ودالّةَ بناء EncSpec. المولّدُ واحدٌ يخدم variable وfixed32 — تحقيقُ عموميّة
+#      النهج الجدوليّ عبر عائلتَي الترميز بمولّدٍ واحد لا اثنين.
+# (EN) Per-family config: namespace, included encoder header, include guard, and
+#      the EncSpec builder. One generator serves both variable and fixed32.
+_FAMILIES: dict[str, dict[str, Any]] = {
+    "variable": {
+        "namespace": ("sad", "native", "x86"),
+        "encoder_header": "backend/native/x86_variable_encoder.h",
+        "emit": _emit_encspec,
+    },
+    "fixed32": {
+        "namespace": ("sad", "native", "arm64"),
+        "encoder_header": "backend/native/arm64_fixed32_encoder.h",
+        "emit": _emit_encspec_fixed32,
+    },
+}
+
+
+def _banner(yaml_rel: str) -> str:
+    return (
+        "// ============================================================================\n"
+        f"// (AR) مولَّدٌ آليًّا من {yaml_rel} — لا تُحرّره.\n"
+        "//      أعِد توليدَه بـ: python x.py gen  (وحارسُ الانجراف: python x.py gen --check).\n"
+        "// (EN) AUTO-GENERATED from the SoT instruction-encoding YAML. DO NOT EDIT.\n"
+        "//      Regenerate with: python x.py gen   (drift guard: python x.py gen --check).\n"
+        "// ============================================================================\n"
+    )
 
 
 def generate(yaml_path: Path, header_path: Path, schema_path: Path | None) -> None:
@@ -141,28 +186,42 @@ def generate(yaml_path: Path, header_path: Path, schema_path: Path | None) -> No
             sys.exit(1)
 
     arch = data["architecture"]
+    family = data["encoding_family"]
+    cfg = _FAMILIES.get(family)
+    if cfg is None:
+        print(f"[gen_backend_encoding] FATAL: عائلة ترميز غير مدعومة / unsupported encoding_family: {family!r}", file=sys.stderr)
+        sys.exit(1)
+
+    emit = cfg["emit"]
+    ns = cfg["namespace"]
+    guard = f"SAD_NATIVE_{arch.upper()}_ENCODING_GENERATED_H"
+    yaml_rel = f"language-truth/backend/{arch}/instructions.yaml"
+
     rows: list[str] = []
     for mnemonic, forms in data["instructions"].items():
         for form in forms:
-            spec = _emit_encspec(form)
+            spec = emit(form)
             rows.append(
                 f"    {{ {cpp_string_literal(mnemonic)}, "
                 f"{cpp_string_literal(form['form'])}, {spec} }},"
             )
 
+    ns_open = " ".join(f"namespace {p} {{" for p in ns)
+    ns_close = "}" * len(ns) + f" // namespace {'::'.join(ns)}"
+
     lines: list[str] = []
-    lines.append(BANNER)
-    lines.append("#ifndef SAD_NATIVE_X86_64_ENCODING_GENERATED_H")
-    lines.append("#define SAD_NATIVE_X86_64_ENCODING_GENERATED_H")
+    lines.append(_banner(yaml_rel))
+    lines.append(f"#ifndef {guard}")
+    lines.append(f"#define {guard}")
     lines.append("")
-    lines.append('#include "backend/native/x86_variable_encoder.h"')
+    lines.append(f'#include "{cfg["encoder_header"]}"')
     lines.append("")
     lines.append("#include <string>")
     lines.append("#include <vector>")
     lines.append("")
-    lines.append("namespace sad { namespace native { namespace x86 {")
+    lines.append(ns_open)
     lines.append("")
-    lines.append(f"// (AR) جدول ترميز {arch} المولَّد من SoT (منمنمة، صيغة، EncSpec).")
+    lines.append(f"// (AR) جدول ترميز {arch} ({family}) المولَّد من SoT (منمنمة، صيغة، EncSpec).")
     lines.append("struct GenEncEntry { std::string mnemonic; std::string form; EncSpec spec; };")
     lines.append("")
     lines.append("inline const std::vector<GenEncEntry> &encodingTable()")
@@ -183,9 +242,9 @@ def generate(yaml_path: Path, header_path: Path, schema_path: Path | None) -> No
     lines.append("    return nullptr;")
     lines.append("}")
     lines.append("")
-    lines.append("}}} // namespace sad::native::x86")
+    lines.append(ns_close)
     lines.append("")
-    lines.append("#endif // SAD_NATIVE_X86_64_ENCODING_GENERATED_H")
+    lines.append(f"#endif // {guard}")
 
     content = "\n".join(lines) + "\n"
     changed = write_if_changed(header_path, content)
