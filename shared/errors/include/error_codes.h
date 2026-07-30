@@ -256,6 +256,13 @@ namespace Sad
             RUN_UI_STATE_ERROR,            ///< RUN058: (AR) خطأ في عمليّة الحالة / (EN) State operation error
 
             // ════════════════════════════════════════════════════════════════
+            // (AR) الربط الخارجي (FFI) — قدرات غير مدعومة في المفسّر.
+            // (EN) Foreign function interface — capabilities unsupported in interpreter.
+            // ════════════════════════════════════════════════════════════════
+            RUN_EXTERN_NOT_SUPPORTED, ///< RUN059: (AR) دالة خارجية غير مدعومة في المفسّر / (EN) Extern function unsupported in interpreter
+            RUN_FFI_CALL_UNSAFE,      ///< RUN060: (AR) استدعاء ربط خارجي بلا ترتيب وسائط / (EN) FFI call without argument marshalling
+
+            // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.
             // (EN) Internal compiler errors (ICE) — compiler defects, catalog-based.
             // ════════════════════════════════════════════════════════════════

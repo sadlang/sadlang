@@ -146,28 +146,10 @@ extern "C"
      */
     void sad_http_server_free(void *server);
 
-    /**
-     * @brief Register GET route
-     * @param server Pointer to HttpServer instance
-     * @param path Route path
-     * @param handler Handler function pointer
-     */
-    void sad_http_server_get(void *server, const char *path, void *handler);
-
-    /**
-     * @brief Register POST route
-     */
-    void sad_http_server_post(void *server, const char *path, void *handler);
-
-    /**
-     * @brief Register PUT route
-     */
-    void sad_http_server_put(void *server, const char *path, void *handler);
-
-    /**
-     * @brief Register DELETE route
-     */
-    void sad_http_server_delete(void *server, const char *path, void *handler);
+    // (AR) لا تُعلَن sad_http_server_{get,post,put,delete} — حُذفت كمسارٍ ميت.
+    //      استعمل نظائر _cb أدناه: هي وحدها الموصولة بمُشغّل ص.
+    // (EN) sad_http_server_{get,post,put,delete} are gone — dead path removed.
+    //      Use the _cb variants below: they alone are wired to the Sad runtime.
 
     /**
      * @brief Start server and listen

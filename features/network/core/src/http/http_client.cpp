@@ -4,6 +4,7 @@
 #include "http_client.h"
 #include "http_url.h"
 #include "tcp_socket.h"
+#include "network/network_error.h"
 #include <sstream>
 #include <algorithm>
 
@@ -186,6 +187,22 @@ namespace sad
                         return HttpResponse(HttpStatus::BadRequest);
                     }
 
+                    // (AR) حاجزُ الطبقة الآمنة — قبل إنشاء المقبس وقبل إرسال أيّ بايت.
+                    //      لا طبقةَ TLS مبنيّةً بعد؛ ولو تابعنا لأرسلنا الطلب — وفيه
+                    //      ترويسةُ الاستيثاق — نصًّا صريحًا على المنفذ 443.
+                    // (EN) Secure-transport gate — before socket creation, before any byte.
+                    //      No TLS layer is built yet; continuing would send the request —
+                    //      including its Authorization header — as plaintext on port 443.
+                    if (url.is_secure())
+                    {
+                        last_error_ = "SAD_TLS_NOT_AVAILABLE: " +
+                                      network::error_code_to_english(
+                                          network::NetworkErrorCode::TLS_NOT_AVAILABLE) +
+                                      " (" + full_url + ")";
+                        is_ok_ = false;
+                        return HttpResponse(HttpStatus::NotImplemented);
+                    }
+
                     // Create TCP connection
                     TcpSocket socket;
                     socket.set_receive_timeout(timeout_ms_);
@@ -311,12 +328,46 @@ namespace sad
 
                     // Use GET for redirects (per HTTP spec)
                     redirect_request.set_method(HttpMethod::GET);
-                    redirect_request.set_path(redirect_url.path_and_query());
+
+                    // (AR) الهدفُ المطلق يُمرَّر كاملًا (مخطَّطًا ومضيفًا) لا مسارًا مجرَّدًا.
+                    //      path_and_query() تُسقِط «https://»، فيعمى حاجزُ TLS في
+                    //      send_request عن إعادةِ توجيهٍ من http إلى https؛ ومع
+                    //      base_url_ غير فارغٍ يُعاد بناءُ الطلب نحو المضيف **الأصليّ**
+                    //      فيُرسَل طلبٌ مقصودٌ لأصلٍ إلى أصلٍ آخر. build_full_url تمرّر
+                    //      أيّ رابطٍ يبدأ بـhttp(s):// كما هو، فيراه الحاجزُ بمخطَّطه.
+                    // (EN) Pass the absolute target in full (scheme + host), not a bare
+                    //      path. path_and_query() drops "https://", which blinds the TLS
+                    //      gate in send_request to an http→https redirect; and with a
+                    //      non-empty base_url_ the request is rebuilt against the
+                    //      ORIGINAL host — a request meant for one origin sent to
+                    //      another. build_full_url passes any http(s):// URL through
+                    //      unchanged, so the gate sees the real scheme.
+                    redirect_request.set_path(redirect_url.is_absolute()
+                                                  ? redirect_url.to_string()
+                                                  : redirect_url.path_and_query());
 
                     // Copy headers
                     for (const auto &[key, value] : request.headers())
                     {
                         redirect_request.set_header(key, value);
+                    }
+
+                    // (AR) عبورُ الأصل يُجرِّد أوراقَ الاعتماد: Authorization وCookie
+                    //      مربوطتان بأصلٍ واحد (مخطَّط + مضيف)؛ حملُهما إلى مضيفٍ آخر
+                    //      بأمر ترويسة Location تسريبُ سرٍّ لطرفٍ لم يُؤتمَن عليه.
+                    //      remove_header لا يحسب حالةَ الأحرف (HeadersCI).
+                    // (EN) Crossing origins strips credentials: Authorization and Cookie
+                    //      are bound to a single origin (scheme + host); carrying them to
+                    //      another host on the say-so of a Location header leaks a secret
+                    //      to a party never trusted with it. remove_header is
+                    //      case-insensitive (HeadersCI).
+                    const bool same_origin =
+                        redirect_url.host() == current_url.host() &&
+                        redirect_url.scheme() == current_url.scheme();
+                    if (!same_origin)
+                    {
+                        redirect_request.remove_header(headers::Authorization);
+                        redirect_request.remove_header(headers::Cookie);
                     }
 
                     return handle_redirects(redirect_request, redirect_count + 1);

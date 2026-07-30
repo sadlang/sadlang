@@ -706,15 +706,16 @@ namespace Sad
                 return result ? *result : Data::Value();
             }
 
-            // ─── (AR) إذا كانت دالة خارجية (FFI) — نُرجع قيمة فارغة ───
-            // ─── (EN) If extern function (FFI) — return empty value ───
-            // (AR) الدوال الخارجية مُعدّة للمترجم وليس المفسر
-            // (EN) Extern functions are meant for compiler, not interpreter
+            // ─── (AR) دالة خارجية (FFI) — ترمي، ولا تُرجع صفراً صامتاً ───
+            // ─── (EN) Extern function (FFI) — throws; never a silent zero ───
+            // (AR) الربط الخارجي مُعدٌّ للمصرّف لا للمفسّر. كان إرجاعُ 0 يُوهم
+            //      بالنجاح ويُنتج نتيجةً خاطئةً بلا تشخيص — أخطرُ أنواع الفشل.
+            // (EN) Extern bindings target the compiler, not the interpreter. Returning 0
+            //      feigned success and produced a wrong result with no diagnosis.
             if (func->isExtern())
             {
-                // (AR) نُرجع 0 كقيمة افتراضية للدوال الخارجية في المفسر
-                // (EN) Return 0 as default value for extern functions in interpreter
-                return Data::Value(static_cast<int64_t>(0));
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_EXTERN_NOT_SUPPORTED,
+                                            Sad::Lexer::Position{}, {{"function", funcName}});
             }
 
             // ─── (AR) التحقق من وجود جسم للدالة ───

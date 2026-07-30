@@ -58,6 +58,13 @@ enum class NetworkErrorCode {
     TIMEOUT,                     // انتهت المهلة الزمنية
     WOULD_BLOCK,                 // العملية ستحجب
     
+    // أخطاء الطبقة الآمنة / Secure Transport Errors
+    // (AR) طُلب مخطَّطٌ آمن (https/wss) ولا طبقةَ TLS مبنيّةً في هذا الإصدار.
+    //      الرفضُ إلزاميّ — البديلُ هو إرسالُ الطلب نصًّا صريحًا على منفذٍ آمن.
+    // (EN) A secure scheme (https/wss) was requested but no TLS layer is built in.
+    //      Refusal is mandatory — the alternative is sending plaintext on a secure port.
+    TLS_NOT_AVAILABLE,           // الطبقة الآمنة TLS غير متوفرة
+
     // أخطاء Broadcast/Multicast
     BROADCAST_NOT_SUPPORTED,     // البث العام غير مدعوم
     MULTICAST_JOIN_FAILED,       // فشل الانضمام للبث الجماعي

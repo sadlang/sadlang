@@ -3,6 +3,7 @@
 // تنفيذ عميل WebSocket
 
 #include "../include/websocket/websocket_client.h"
+#include "network/network_error.h"
 
 #include <sstream>
 #include <regex>
@@ -213,6 +214,25 @@ bool WebSocketClient::connect(const std::string& url,
     
     std::string scheme = matches[1].str();
     impl_->secure = (scheme == "wss");
+
+    // (AR) حاجزُ الطبقة الآمنة — قبل إنشاء المقبس وقبل أيّ مصافحة.
+    //      `wss://` بلا TLS يعني ترقيةً نصّيّةً صريحةً على المنفذ 443.
+    // (EN) Secure-transport gate — before socket creation, before any handshake.
+    //      `wss://` without TLS means a plaintext upgrade on port 443.
+    //      النصُّ من network_error لا من حرفٍ مكرَّر — مصدرُ حقيقةٍ واحدٌ للرسالة
+    //      يشترك فيه عميلُ HTTP وعميلُ WebSocket، فلا تنحرف الصياغتان.
+    // (EN) The text comes from network_error, not a duplicated literal — one source of
+    //      truth shared by the HTTP and WebSocket clients, so the wordings cannot drift.
+    if (impl_->secure) {
+        impl_->set_error(
+            "SAD_TLS_NOT_AVAILABLE: " +
+            error_code_to_english(NetworkErrorCode::TLS_NOT_AVAILABLE) +
+            " (" + url + ") / " +
+            error_code_to_arabic(NetworkErrorCode::TLS_NOT_AVAILABLE));
+        impl_->state = ConnectionState::Closed;
+        return false;
+    }
+
     impl_->host = matches[2].str();
     impl_->port = matches[3].matched ? std::stoi(matches[3].str()) : 
                   (impl_->secure ? WSS_DEFAULT_PORT : WS_DEFAULT_PORT);

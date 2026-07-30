@@ -357,71 +357,12 @@ void sad_http_server_free(void *server)
     }
 }
 
-void sad_http_server_get(void *server, const char *path, void *handler)
-{
-    if (!server || !path)
-        return;
-
-    try
-    {
-        HttpServer *http_server = static_cast<HttpServer *>(server);
-        // Handler integration would go here
-        // For now, register a simple lambda
-        http_server->get(path, [](const HttpRequest &req, HttpResponse &res)
-                         { res.set_text("Handler not yet connected to Sad runtime"); });
-    }
-    catch (...)
-    {
-    }
-}
-
-void sad_http_server_post(void *server, const char *path, void *handler)
-{
-    if (!server || !path)
-        return;
-
-    try
-    {
-        HttpServer *http_server = static_cast<HttpServer *>(server);
-        http_server->post(path, [](const HttpRequest &req, HttpResponse &res)
-                          { res.set_text("Handler not yet connected to Sad runtime"); });
-    }
-    catch (...)
-    {
-    }
-}
-
-void sad_http_server_put(void *server, const char *path, void *handler)
-{
-    if (!server || !path)
-        return;
-
-    try
-    {
-        HttpServer *http_server = static_cast<HttpServer *>(server);
-        http_server->put(path, [](const HttpRequest &req, HttpResponse &res)
-                         { res.set_text("Handler not yet connected to Sad runtime"); });
-    }
-    catch (...)
-    {
-    }
-}
-
-void sad_http_server_delete(void *server, const char *path, void *handler)
-{
-    if (!server || !path)
-        return;
-
-    try
-    {
-        HttpServer *http_server = static_cast<HttpServer *>(server);
-        http_server->delete_(path, [](const HttpRequest &req, HttpResponse &res)
-                             { res.set_text("Handler not yet connected to Sad runtime"); });
-    }
-    catch (...)
-    {
-    }
-}
+// (AR) حُذفت sad_http_server_{get,post,put,delete} — مسارٌ ميت كان يسجّل معالجاً
+//      يردّ نصّاً ثابتاً ويُهمل معامل handler كلّه. المسار الحيّ هو نظائر _cb
+//      التي يستعملها المفسّر حصراً (builtin_module_http.cpp).
+// (EN) Removed sad_http_server_{get,post,put,delete} — a dead path that registered a
+//      handler replying with a fixed string and ignored the handler parameter entirely.
+//      The live path is the _cb variants, used exclusively by the interpreter.
 
 void sad_http_server_listen(void *server)
 {

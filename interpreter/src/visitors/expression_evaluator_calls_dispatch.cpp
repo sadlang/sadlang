@@ -556,14 +556,14 @@ namespace Sad
                 return;
             }
 
-            // (AR) إذا كانت دالة خارجية (FFI) — نُرجع قيمة فارغة
-            // (EN) If extern function (FFI) — return empty value
+            // (AR) دالة خارجية (FFI) — ترمي، ولا تُرجع صفراً صامتاً
+            // (EN) Extern function (FFI) — throws; never a silent zero
+            // (AR) نظير الحاجز في interpreter_core.cpp — الموضعان يلزمهما التطابق.
+            // (EN) Mirrors the gate in interpreter_core.cpp — both sites must agree.
             if (func->isExtern())
             {
-                // (AR) الدوال الخارجية مُعدّة للمترجم وليس المفسر — نُرجع 0
-                // (EN) Extern functions are for compiler, not interpreter — return 0
-                lastResult_ = Value(static_cast<int64_t>(0));
-                return;
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_EXTERN_NOT_SUPPORTED,
+                                            node.position, {{"function", func->getName()}});
             }
 
             // (AR) التحقق من وجود جسم للدالة / (EN) Check if function has body

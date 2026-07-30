@@ -122,6 +122,9 @@ std::string error_code_to_arabic(NetworkErrorCode code) {
             return "انتهت المهلة الزمنية للعملية";
         case NetworkErrorCode::WOULD_BLOCK:
             return "العملية ستحجب - لا توجد بيانات متاحة حالياً";
+        case NetworkErrorCode::TLS_NOT_AVAILABLE:
+            return "الطبقة الآمنة TLS غير مبنية في هذا الإصدار — "
+                   "رُفض الطلب قبل إرسال أي بايت. لا تستخدم https/wss حتى تتوفر TLS";
         case NetworkErrorCode::BROADCAST_NOT_SUPPORTED:
             return "البث العام غير مدعوم أو غير مفعّل";
         case NetworkErrorCode::MULTICAST_JOIN_FAILED:
@@ -179,6 +182,9 @@ std::string error_code_to_english(NetworkErrorCode code) {
             return "Operation timed out";
         case NetworkErrorCode::WOULD_BLOCK:
             return "Operation would block - no data available now";
+        case NetworkErrorCode::TLS_NOT_AVAILABLE:
+            return "TLS layer is not built in this release — request refused before "
+                   "sending any byte. Do not use https/wss until TLS is available";
         case NetworkErrorCode::BROADCAST_NOT_SUPPORTED:
             return "Broadcast is not supported or not enabled";
         case NetworkErrorCode::MULTICAST_JOIN_FAILED:

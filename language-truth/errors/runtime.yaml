@@ -992,3 +992,37 @@ errors:
   detailed:
     ar: تعيّن دالة عيّن_الحالة قيمةً في نظام حالة الواجهة؛ يظهر هذا الخطأ عند رمي استثناء أثناء العمليّة (التفصيل في {detail}).
     en: The عيّن_الحالة builtin sets a value in the UI state system; this error surfaces when an exception is thrown during the operation (detail in {detail}).
+- code: RUN_EXTERN_NOT_SUPPORTED
+  id: RUN059
+  category: runtime
+  title:
+    ar: دالة خارجية غير مدعومة في المفسّر
+    en: Extern function unsupported in the interpreter
+  brief:
+    ar: 'الدالة الخارجية ''{function}'' لا تُنفَّذ في المفسّر — لا قيمة تُرجَع'
+    en: 'Extern function ''{function}'' is not executed by the interpreter — no value is returned'
+  placeholders:
+  - function
+  fix_hint:
+    ar: صرّف البرنامج بـ sad-build بدل تشغيله بـ sad-run، أو استبدل الربط الخارجي بدالّة ص أو بدالّة مدمجة.
+    en: Compile with sad-build instead of running under sad-run, or replace the extern binding with a Sad function or a builtin.
+  detailed:
+    ar: 'كانت الدوالّ الخارجيّة (دالة خارجية) تُرجِع 0 صامتةً في المفسّر، فيبدو الاستدعاء ناجحاً وقيمتُه صفر — وهو أخطر أنواع الفشل: نتيجةٌ خاطئةٌ بلا تشخيص. صار الاستدعاء يرمي خطأً صريحاً. الربط الخارجيّ مُعدٌّ للمصرّف لا للمفسّر.'
+    en: 'Extern functions (دالة خارجية) used to silently return 0 in the interpreter, so a call appeared to succeed with value zero — the worst failure mode: a wrong result with no diagnosis. The call now throws explicitly. Extern bindings target the compiler, not the interpreter.'
+- code: RUN_FFI_CALL_UNSAFE
+  id: RUN060
+  category: runtime
+  title:
+    ar: استدعاء ربط خارجي بلا ترتيب وسائط
+    en: FFI call without argument marshalling
+  brief:
+    ar: 'استدعاء ''{function}'' معطَّل: ترتيب وسائط الربط الخارجي غير مُنفَّذ'
+    en: 'Call to ''{function}'' is disabled: FFI argument marshalling is not implemented'
+  placeholders:
+  - function
+  fix_hint:
+    ar: لا تعتمد على مكتبة_استدع حتى يُنفَّذ ترتيب الوسائط. استعمل دالّة مدمجة تغطّي حاجتك، أو أضف مدمجةً في مستودع اللغة.
+    en: Do not rely on مكتبة_استدع until argument marshalling lands. Use a builtin covering your need, or add one in the language repository.
+  detailed:
+    ar: 'كانت دوالّ مكتبة_استدع تصبّ المؤشّر إلى توقيعٍ بلا وسائط ثمّ تقفز إليه، أيّاً كان توقيعُ الدالّة الحقيقيّ — سلوكٌ غير معرَّف وإفسادٌ محتملٌ للمكدّس. عُطّل الاستدعاء صراحةً حتى ينفَّذ ترتيب الوسائط (libffi).'
+    en: 'The مكتبة_استدع functions cast the symbol pointer to a zero-argument signature and jumped to it regardless of the real signature — undefined behaviour and possible stack corruption. The call is now explicitly disabled until argument marshalling (libffi) lands.'

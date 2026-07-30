@@ -11,6 +11,7 @@
 #include "interpreter_core.h"
 #include "value.h"
 #include "builtin_registry.h"
+#include "runtime_throw.h"
 namespace Bffi = Sad::Builtins::Names::FFI;
 
 #include <sstream>
@@ -132,67 +133,39 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         fm.registerBuiltinFunction(std::string(Bffi::LIB_FUNC), f); // مكتبة_دالة
     }
 
-    // (4) مكتبة_استدع / ffi_call
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) (4)(5)(6) دوالّ الاستدعاء الخارجي — معطَّلةٌ حتى يُنفَّذ ترتيب الوسائط.
+    //      كان كلٌّ منها يصبّ مؤشّر الرمز إلى توقيعٍ **بلا وسائط** ثمّ يقفز إليه،
+    //      أيّاً كان التوقيعُ الحقيقيّ ⇒ سلوكٌ غير معرَّف وإفسادٌ محتملٌ للمكدّس.
+    //      الاستدعاءُ الآن يرمي خطأً صريحاً بدل القفز الأعمى.
+    // (EN) (4)(5)(6) FFI call functions — disabled until argument marshalling lands.
+    //      Each cast the symbol pointer to a **zero-argument** signature and jumped to
+    //      it regardless of the real signature ⇒ undefined behaviour, possible stack
+    //      corruption. The call now throws explicitly instead of jumping blindly.
+    // ════════════════════════════════════════════════════════════════════════
     {
-        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
-            -> std::shared_ptr<Data::Value> {
-                const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(false);
-            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
-            std::string funcName = args[1]->toString();
-            auto it = g_libraries.find(libId);
-            if (it == g_libraries.end())
-                return std::make_shared<Data::Value>(std::string("خطأ: مكتبة غير موجودة"));
-            if (!it->second->hasSymbol(funcName))
-                return std::make_shared<Data::Value>(std::string("خطأ: دالة غير موجودة: " + funcName));
-            auto* rawFunc = reinterpret_cast<void(*)()>(it->second->getSymbol(funcName));
-            if (rawFunc) {
-                rawFunc();
-                return std::make_shared<Data::Value>(true);
-            }
-            return std::make_shared<Data::Value>(false);
+        auto disabledCall = [](const char *builtinName) {
+            return [builtinName](Sad::Interpreter::BuiltinContext &ctx)
+                       -> std::shared_ptr<Data::Value> {
+                // (AR) موقعُ الاستدعاء من السياق لا Position{}: الموقع الفارغ يجعل
+                //      التشخيص يشير إلى 1:1 — أوّلِ سطرٍ في الملفّ (تعليقٌ عادةً) —
+                //      فيضيّع على المستعمل السطرَ الذي استدعى فعلاً.
+                // (EN) Take the call site from the context, not Position{}: an empty
+                //      position points the diagnostic at 1:1 — the file's first line
+                //      (usually a comment) — hiding the line that actually called.
+                ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_FFI_CALL_UNSAFE,
+                                            ctx.position(),
+                                            {{"function", std::string(builtinName)}});
+                return std::make_shared<Data::Value>(); // لا يُبلَغ / unreachable
+            };
         };
-        fm.registerBuiltinFunction(std::string(Bffi::LIB_CALL), f); // مكتبة_استدع
-    }
 
-    // (5) مكتبة_استدع_رقم / ffi_call_int
-    {
-        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
-            -> std::shared_ptr<Data::Value> {
-                const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
-            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
-            std::string funcName = args[1]->toString();
-            auto it = g_libraries.find(libId);
-            if (it == g_libraries.end()) return std::make_shared<Data::Value>(-1.0);
-            auto* rawFunc = reinterpret_cast<int(*)()>(it->second->getSymbol(funcName));
-            if (rawFunc) {
-                int result = rawFunc();
-                return std::make_shared<Data::Value>(static_cast<double>(result));
-            }
-            return std::make_shared<Data::Value>(-1.0);
-        };
-        fm.registerBuiltinFunction(std::string(Bffi::LIB_CALL_INT), f); // مكتبة_استدع_رقم
-    }
-
-    // (6) مكتبة_استدع_نص / ffi_call_string
-    {
-        auto f = [](Sad::Interpreter::BuiltinContext &ctx)
-            -> std::shared_ptr<Data::Value> {
-                const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(std::string(""));
-            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
-            std::string funcName = args[1]->toString();
-            auto it = g_libraries.find(libId);
-            if (it == g_libraries.end()) return std::make_shared<Data::Value>(std::string(""));
-            auto* rawFunc = reinterpret_cast<const char*(*)()>(it->second->getSymbol(funcName));
-            if (rawFunc) {
-                const char* result = rawFunc();
-                return std::make_shared<Data::Value>(std::string(result ? result : ""));
-            }
-            return std::make_shared<Data::Value>(std::string(""));
-        };
-        fm.registerBuiltinFunction(std::string(Bffi::LIB_CALL_STR), f); // مكتبة_استدع_نص
+        fm.registerBuiltinFunction(std::string(Bffi::LIB_CALL),
+                                   disabledCall("مكتبة_استدع"));
+        fm.registerBuiltinFunction(std::string(Bffi::LIB_CALL_INT),
+                                   disabledCall("مكتبة_استدع_رقم"));
+        fm.registerBuiltinFunction(std::string(Bffi::LIB_CALL_STR),
+                                   disabledCall("مكتبة_استدع_نص"));
     }
 
     // (7) مكتبة_رمز / ffi_has_symbol
