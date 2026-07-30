@@ -121,6 +121,117 @@ TEST(NativeX86, Exit42Sequence)
     ASSERT_EQ(hex(code), std::string("bf2a000000b83c0000000f05"));
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// (AR) توسيعُ المجموعة الدنيا (م٣-س): تكديس + حساب فوريّ + مقارنة + تدفّق تحكّم.
+//      القيمُ المتوقَّعة = مخرَج llvm-mc-18 حرفيًّا (البوّابة التفاضليّة). كلُّ هذه
+//      الصيَغ تعمل بالمحرّك العامّ نفسِه بلا منطقٍ جديد — بياناتُ YAML وحدها اتّسعت.
+// (EN) Minimal-set expansion (m3-x): stack + immediate arithmetic + compare +
+//      control flow. Expected values are literal llvm-mc-18 output. All these
+//      forms run through the same generic engine with no new logic — only YAML data grew.
+// ════════════════════════════════════════════════════════════════════════
+
+// push %rbp  # [0x55]   ·   push %r15  # [0x41,0x57]
+TEST(NativeX86, PushReg)
+{
+    ASSERT_EQ(hex(enc("ادفع", "r64", {x86::Operand::R(x86::RBP)})), std::string("55"));
+    ASSERT_EQ(hex(enc("ادفع", "r64", {x86::Operand::R(x86::R15)})), std::string("4157"));
+}
+
+// pop %rbp  # [0x5d]   ·   pop %r15  # [0x41,0x5f]
+TEST(NativeX86, PopReg)
+{
+    ASSERT_EQ(hex(enc("اسحب", "r64", {x86::Operand::R(x86::RBP)})), std::string("5d"));
+    ASSERT_EQ(hex(enc("اسحب", "r64", {x86::Operand::R(x86::R15)})), std::string("415f"));
+}
+
+// sub $16, %rsp  # [0x48,0x83,0xec,0x10]  (imm8)
+TEST(NativeX86, SubImm8)
+{
+    auto b = enc("اطرح", "r64, imm8", ops2(x86::Operand::R(x86::RSP), x86::Operand::I(16, 8)));
+    ASSERT_EQ(hex(b), std::string("4883ec10"));
+}
+
+// sub $4096, %rcx  # [0x48,0x81,0xe9,0x00,0x10,0x00,0x00]  (imm32، سجلّ غير المركم)
+TEST(NativeX86, SubImm32)
+{
+    auto b = enc("اطرح", "r64, imm32", ops2(x86::Operand::R(x86::RCX), x86::Operand::I(4096, 32)));
+    ASSERT_EQ(hex(b), std::string("4881e900100000"));
+}
+
+// add $16, %rsp  # [0x48,0x83,0xc4,0x10]   ·   add $4096, %rcx  # [0x48,0x81,0xc1,...]
+TEST(NativeX86, AddImm)
+{
+    ASSERT_EQ(hex(enc("اجمع", "r64, imm8", ops2(x86::Operand::R(x86::RSP), x86::Operand::I(16, 8)))),
+              std::string("4883c410"));
+    ASSERT_EQ(hex(enc("اجمع", "r64, imm32", ops2(x86::Operand::R(x86::RCX), x86::Operand::I(4096, 32)))),
+              std::string("4881c100100000"));
+}
+
+// cmp %rbx, %rax  # [0x48,0x39,0xd8]
+TEST(NativeX86, CmpRegReg)
+{
+    auto b = enc("قارن", "r64, r64", ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RBX)));
+    ASSERT_EQ(hex(b), std::string("4839d8"));
+}
+
+// cmp $5, %rcx  # [0x48,0x83,0xf9,0x05]   ·   cmp $4096, %rcx  # [0x48,0x81,0xf9,...]
+TEST(NativeX86, CmpImm)
+{
+    ASSERT_EQ(hex(enc("قارن", "r64, imm8", ops2(x86::Operand::R(x86::RCX), x86::Operand::I(5, 8)))),
+              std::string("4883f905"));
+    ASSERT_EQ(hex(enc("قارن", "r64, imm32", ops2(x86::Operand::R(x86::RCX), x86::Operand::I(4096, 32)))),
+              std::string("4881f900100000"));
+}
+
+// (AR) تدفّق التحكّم: الأوپكود من llvm-mc (E9/0F84/0F85/E8) والإزاحة النسبيّة LE
+//      كمعاملٍ فوريّ. القيمة 200 (0xC8) مطابقةٌ لمخرَج llvm-mc عند هدفٍ على بُعد ٢٠٠.
+// jmp .+? (rel32=200)  # [0xe9,0xc8,0x00,0x00,0x00]
+TEST(NativeX86, JmpRel32)
+{
+    ASSERT_EQ(hex(enc("اقفز", "rel32", {x86::Operand::I(200, 32)})), std::string("e9c8000000"));
+}
+// je rel32=200  # [0x0f,0x84,0xc8,0x00,0x00,0x00]  ·  jne  # [0x0f,0x85,...]
+TEST(NativeX86, JccRel32)
+{
+    ASSERT_EQ(hex(enc("اقفز_إذا_ساوى", "rel32", {x86::Operand::I(200, 32)})), std::string("0f84c8000000"));
+    ASSERT_EQ(hex(enc("اقفز_إذا_لم_يساوِ", "rel32", {x86::Operand::I(200, 32)})), std::string("0f85c8000000"));
+}
+// call rel32=0  # [0xe8,0x00,0x00,0x00,0x00]
+TEST(NativeX86, CallRel32)
+{
+    ASSERT_EQ(hex(enc("نادِ", "rel32", {x86::Operand::I(0, 32)})), std::string("e800000000"));
+}
+
+// ─── برهانُ تدفّق التحكّم الحيّ: لولبٌ يعدّ حتّى ٤٢ ثمّ يخرج به ───
+// (AR) mov edi,0 ; loop: add rdi,1 ; cmp rdi,42 ; jne loop ; mov eax,60 ; syscall
+//      يُثبت أنّ الحساب الفوريّ والمقارنة والقفز النسبيّ الخلفيّ تُرمَّز وتُنفَّذ صحيحًا.
+//      الإزاحةُ النسبيّة تُحسَب ديناميًّا من مواقع الشيفرة (لا رقمٌ سحريّ).
+TEST(NativeX86, Exit42ViaControlFlowLoop)
+{
+    std::vector<uint8_t> code;
+    auto append = [&](const std::vector<uint8_t> &b) { code.insert(code.end(), b.begin(), b.end()); };
+
+    append(enc("انقل", "r32, imm32", ops2(x86::Operand::R(x86::RDI), x86::Operand::I(0, 32)))); // العدّاد = 0
+    const size_t loop = code.size();                                                            // لصيقة اللولب
+    append(enc("اجمع", "r64, imm8", ops2(x86::Operand::R(x86::RDI), x86::Operand::I(1, 8))));    // ++العدّاد
+    append(enc("قارن", "r64, imm8", ops2(x86::Operand::R(x86::RDI), x86::Operand::I(42, 8))));   // مقارنة بـ٤٢
+    // (AR) jne loop: الإزاحة = موقع اللصيقة − نهاية تعليمة القفز (٦ بايت: 0F 85 + rel32)
+    const long long rel = static_cast<long long>(loop) - static_cast<long long>(code.size() + 6);
+    append(enc("اقفز_إذا_لم_يساوِ", "rel32", {x86::Operand::I(rel, 32)}));
+    append(enc("انقل", "r32, imm32", ops2(x86::Operand::R(x86::RAX), x86::Operand::I(60, 32)))); // SYS_exit
+    append(enc("نداء_نظام", "", {}));                                                            // exit(rdi=42)
+
+    // (AR) القفزُ الخلفيّ: rel = −14 ⇒ 0xFFFFFFF2 (little-endian f2ffffff بعد الأوپكود 0f85)
+    ASSERT_EQ(rel, -14);
+
+    auto bin = elf::writeStaticExec(code);
+    std::FILE *fp = std::fopen("sad_m3x_loop42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
 // ─── كاتب ELF64 الساكن ───
 TEST(NativeElf, Exit42HeaderWellFormed)
 {

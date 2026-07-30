@@ -25,8 +25,21 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "انقل", "r64, imm64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xB8}; s.opcode_reg_add = true; s.opcode_reg_op = 0; s.imm_op = 1; s.imm_bits = 64; return s; }() },
     { "انقل", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x89}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "اجمع", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x01}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "اجمع", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "اجمع", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
     { "نداء_نظام", "", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x05}; return s; }() },
     { "ارجع", "", []{ sad::native::x86::EncSpec s; s.opcode = {0xC3}; return s; }() },
+    { "ادفع", "r64", []{ sad::native::x86::EncSpec s; s.opcode = {0x50}; s.opcode_reg_add = true; s.opcode_reg_op = 0; return s; }() },
+    { "اسحب", "r64", []{ sad::native::x86::EncSpec s; s.opcode = {0x58}; s.opcode_reg_add = true; s.opcode_reg_op = 0; return s; }() },
+    { "اطرح", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "اطرح", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
+    { "قارن", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x39}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "قارن", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "قارن", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
+    { "اقفز", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE9}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x84}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_لم_يساوِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x85}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "نادِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE8}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     };
     return kTable;
 }

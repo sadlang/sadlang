@@ -2,6 +2,16 @@
 # اللاتينيّة (en) توثيقُ تقابلٍ فقط. الترميزُ الفعليّ يُتحقَّق بايتًا ببايت ضدّ llvm-mc في م١+
 # (البوّابة التفاضليّة)؛ هذا الجدولُ في م٠ يُثبت الهيكلَ والتحقّقَ المخطّطيّ فقط.
 # المجموعة الدنيا لبرهان «خروج ٤٢» الحرّ: انقل، اجمع، نداء_نظام، ارجع.
+# توسيعُ م٣-س: تكديس (ادفع/اسحب) + حساب فوريّ (اطرح/اجمع imm) + مقارنة (قارن) +
+# تدفّق تحكّم (اقفز/اقفز_إذا_ساوى/اقفز_إذا_لم_يساوِ/نادِ) — ما يكفي لهيكل دالّة وتفرّع.
+# المنمنمات العربيّة تُرآي dialects/assembly_mnemonics/i686.yaml (اتّساقُ التسمية).
+#
+# ⚠️ دَينٌ موثَّق (صيغةُ المركم القصيرة): صيَغُ الفوريّ imm32 أدناه (اطرح/اجمع/قارن)
+# تستعمل الشكلَ العامّ 81 /r id. لكنّ llvm-mc يُخرج للمركم (rax) شكلًا أقصرَ خاصًّا
+# (add=05 id · sub=2D id · cmp=3D id بلا ModRM). كلاهما صالحٌ للمعالج، لكنّهما
+# يختلفان بايتًا ⇒ حين تُشغَّل isel وتختار rax وجهةً للفوريّ ستفشل المطابقةُ التفاضليّة
+# ضدّ llvm-mc صامتةً. الحلُّ قبل isel: إمّا صيغةُ مركمٍ خاصّة (opcode مختلف بلا modrm)،
+# أو أن تتجنّب isel المركمَ لهذه الصيَغ. (imm8 لا مشكلة فيه: لا شكلَ مركمٍ قصير له.)
 
 version: "1.0"
 architecture: x86_64
@@ -58,6 +68,30 @@ instructions:
         opcode: [0x01]
         modrm: { mod: reg, reg: op1, rm: op0 }
       reads_dest: true
+    # add r/m64, imm8  ⇒  REX.W + 83 /0 ib   (فوريّ صغير مُوسَّع الإشارة)
+    - en: add
+      form: "r64, imm8"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: imm, bits: 8 }
+      encode:
+        rex_w: true
+        opcode: [0x83]
+        modrm: { mod: reg, reg: 0, rm: op0 }
+        immediate: { operand: 1, bits: 8, encoding: le }
+      reads_dest: true
+    # add r/m64, imm32  ⇒  REX.W + 81 /0 id
+    - en: add
+      form: "r64, imm32"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: imm, bits: 32 }
+      encode:
+        rex_w: true
+        opcode: [0x81]
+        modrm: { mod: reg, reg: 0, rm: op0 }
+        immediate: { operand: 1, bits: 32, encoding: le }
+      reads_dest: true
 
   # syscall  ⇒  0F 05   (بلا معاملات؛ السجلّات ضمنيّة عبر جدول الـABI)
   نداء_نظام:
@@ -74,3 +108,125 @@ instructions:
       operands: []
       encode:
         opcode: [0xC3]
+
+  # ─── تكديس (بلا REX.W: push/pop افتراضُهما ٦٤-بت في الوضع الطويل) ───
+  # push r64  ⇒  50+rd   (REX.B لسجلّات r8..r15)
+  ادفع:
+    - en: push
+      form: "r64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        opcode: [0x50]
+        opcode_reg_add: true
+
+  # pop r64  ⇒  58+rd
+  اسحب:
+    - en: pop
+      form: "r64"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+      encode:
+        opcode: [0x58]
+        opcode_reg_add: true
+      reads_dest: false
+
+  # ─── الطرح الفوريّ ───
+  # sub r/m64, imm8  ⇒  REX.W + 83 /5 ib   ·   sub r/m64, imm32  ⇒  REX.W + 81 /5 id
+  اطرح:
+    - en: sub
+      form: "r64, imm8"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: imm, bits: 8 }
+      encode:
+        rex_w: true
+        opcode: [0x83]
+        modrm: { mod: reg, reg: 5, rm: op0 }
+        immediate: { operand: 1, bits: 8, encoding: le }
+      reads_dest: true
+    - en: sub
+      form: "r64, imm32"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: imm, bits: 32 }
+      encode:
+        rex_w: true
+        opcode: [0x81]
+        modrm: { mod: reg, reg: 5, rm: op0 }
+        immediate: { operand: 1, bits: 32, encoding: le }
+      reads_dest: true
+
+  # ─── المقارنة (تضبط الأعلام؛ لا تكتب وجهة) ───
+  # cmp r/m64, r64  ⇒  REX.W + 39 /r   ·   cmp r/m64, imm8  ⇒  83 /7 ib   ·   imm32  ⇒  81 /7 id
+  قارن:
+    - en: cmp
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x39]
+        modrm: { mod: reg, reg: op1, rm: op0 }
+    - en: cmp
+      form: "r64, imm8"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 8 }
+      encode:
+        rex_w: true
+        opcode: [0x83]
+        modrm: { mod: reg, reg: 7, rm: op0 }
+        immediate: { operand: 1, bits: 8, encoding: le }
+    - en: cmp
+      form: "r64, imm32"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 32 }
+      encode:
+        rex_w: true
+        opcode: [0x81]
+        modrm: { mod: reg, reg: 7, rm: op0 }
+        immediate: { operand: 1, bits: 32, encoding: le }
+
+  # ─── تدفّق التحكّم (إزاحةٌ نسبيّة ٣٢-بت؛ حلُّ اللصيقة طبقةٌ أعلى، لا المحرّك) ───
+  # jmp rel32  ⇒  E9 cd
+  اقفز:
+    - en: jmp
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0xE9]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # je rel32  ⇒  0F 84 cd
+  اقفز_إذا_ساوى:
+    - en: je
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x84]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # jne rel32  ⇒  0F 85 cd
+  اقفز_إذا_لم_يساوِ:
+    - en: jne
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x85]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # call rel32  ⇒  E8 cd
+  نادِ:
+    - en: call
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0xE8]
+        immediate: { operand: 0, bits: 32, encoding: le }
