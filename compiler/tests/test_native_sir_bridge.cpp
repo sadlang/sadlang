@@ -59,6 +59,18 @@ namespace
         "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
+    // (AR) حلقةُ «بينما» بعدّادٍ متغيّرٍ في الذاكرة: عداد=0؛ بينما عداد<42 { عداد=عداد+1 }؛
+    //      ارجع عداد ⇒ يخرج ٤٢. يُثبت: ALLOC/LOAD/STORE + إطارُ دالّة + قفزٌ خلفيّ (لولب)
+    //      + قراءةُ متغيّرِ الذاكرة كقيمة (تحميلٌ ضمنيّ). أوّلُ برنامجِ ص ذي حالةٍ متغيّرة.
+    const std::string kSrcWhile =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF\x20\x3D\x20\x30\x0A"
+        "\x20\x20\x20\x20\xD8\xA8\xD9\x8A\xD9\x86\xD9\x85\xD8\xA7\x20\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF\x20\x3C\x20\x34\x32\x0A"
+        "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF\x20\x3D\x20\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF\x20\x2B\x20\x31\x0A"
+        "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
     // (AR) تفرّعٌ كاذبُ الشرط (5 > 41) ⇒ فرعُ else ⇒ يُرجع 42؛ then يُرجع 99.
     //      يُثبت: القفزُ غيرُ المشروط للفرع الآخر (jmp else) صحيحٌ أيضًا.
     const std::string kSrcIfFalse =
@@ -232,6 +244,32 @@ TEST(NativeSirBridge, BackwardJumpNegativeFixup)
     ASSERT_TRUE(contains(bin, {0xFF, 0xFF, 0xFF}));
     // (AR) اكتبه لبرهانِ تشغيلٍ حيٍّ (يخرج ٤٢ عبر: entry→L_c→L_b) تحت Linux/WSL.
     std::FILE *fp = std::fopen("sad_sir_backjump42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حلقةُ «بينما» بعدّادٍ في الذاكرة تُخفَّض، والـELF سليم، والبايتاتُ تحوي مقدّمةَ
+//      الإطار (push rbp = 0x55) وتحميلَ خانةٍ (mov reg,[rbp-8] = 8B 45 F8) وتخزينَها
+//      (89 45 F8) — دليلُ استعمالِ الذاكرة فعلًا لا مجرّد سجلّات. تُكتب للبرهان الحيّ.
+TEST(NativeSirBridge, LowersWhileLoopWithMemory)
+{
+    auto module = buildSir(kSrcWhile);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x55}));             // push rbp (مقدّمة الإطار)
+    ASSERT_TRUE(contains(bin, {0x8B, 0x45, 0xF8})); // mov reg, [rbp-8] (تحميل الخانة)
+    ASSERT_TRUE(contains(bin, {0x89, 0x45, 0xF8})); // mov [rbp-8], reg (تخزين الخانة)
+    ASSERT_TRUE(contains(bin, {0xFF, 0xFF, 0xFF})); // قفزٌ خلفيّ (لولب) بإزاحةٍ سالبة
+
+    std::FILE *fp = std::fopen("sad_sir_while42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);

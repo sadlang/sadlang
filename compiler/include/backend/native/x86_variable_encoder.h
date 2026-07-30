@@ -23,20 +23,24 @@ namespace sad
     {
         namespace x86
         {
-            // (AR) معاملٌ مُرمَّز: سجلّ (رقم 0..15) أو فوريّ (قيمة + عرض بتّات).
+            // (AR) معاملٌ مُرمَّز: سجلّ (رقم 0..15)، فوريّ (قيمة + عرض)، أو ذاكرةٌ بقاعدةٍ
+            //      وإزاحة [base+disp] (لخانات الإطار [rbp±إزاحة]).
             struct Operand
             {
                 enum Kind
                 {
                     Reg,
-                    Imm
+                    Imm,
+                    Mem
                 } kind;
-                int reg = 0;             // (AR) رقم السجلّ 0..15 (rax=0 … r15=15)
-                long long imm = 0;       // (AR) القيمة الفوريّة
+                int reg = 0;             // (AR) رقم السجلّ (Reg) أو سجلّ القاعدة (Mem) 0..15
+                long long imm = 0;       // (AR) القيمة الفوريّة (Imm) أو الإزاحة (Mem)
                 int bits = 0;            // (AR) عرض الفوريّ (يُستعمل عند الترميز)
 
                 static Operand R(int n) { return Operand{Reg, n, 0, 0}; }
                 static Operand I(long long v, int b) { return Operand{Imm, 0, v, b}; }
+                // (AR) [base + disp] — معاملُ ذاكرةٍ بإزاحةٍ عن سجلّ قاعدة.
+                static Operand M(int base, long long disp) { return Operand{Mem, base, disp, 0}; }
             };
 
             // (AR) وصولٌ آمنٌ لمعاملٍ بفهرسه — يحرس ضدّ مواصفةٍ تشير لفهرسٍ غير مُمرَّر
@@ -103,13 +107,45 @@ namespace sad
                     out.push_back(b);
                 }
 
-                // (3) ModRM (mod=11 سجلّ مباشر)
+                // (3) ModRM — mod=11 لسجلٍّ مباشر، أو mod=01/10 لمعاملِ ذاكرةٍ [base+disp]
+                //     (+ بايت SIB حين القاعدة rsp/r12، وبايتاتُ الإزاحة). للقاعدة rbp/r13
+                //     لا يجوز mod=00 (يعني إزاحةً مطلقة/RIP) ⇒ نفرض mod=01 حتّى لإزاحةٍ صفر.
                 if (s.modrm.present)
                 {
                     int regf = s.modrm.reg_ext >= 0 ? s.modrm.reg_ext
                                                     : (opAt(ops, s.modrm.reg_op).reg & 7);
-                    int rmf = opAt(ops, s.modrm.rm_op).reg & 7;
-                    out.push_back(static_cast<uint8_t>((3 << 6) | ((regf & 7) << 3) | (rmf & 7)));
+                    const Operand &rm = opAt(ops, s.modrm.rm_op);
+                    if (rm.kind == Operand::Mem)
+                    {
+                        const int baseLow = rm.reg & 7;
+                        const bool needSib = (baseLow == 4); // rsp/r12 ⇒ يلزم SIB
+                        const bool baseIsBp = (baseLow == 5); // rbp/r13 ⇒ يمنع mod=00
+                        int mod;
+                        if (rm.imm == 0 && !baseIsBp)
+                            mod = 0;
+                        else if (rm.imm >= -128 && rm.imm <= 127)
+                            mod = 1;
+                        else
+                            mod = 2;
+                        out.push_back(static_cast<uint8_t>((mod << 6) | ((regf & 7) << 3) | baseLow));
+                        if (needSib) // scale=00 · index=100(بلا) · base=rsp(100)
+                            out.push_back(static_cast<uint8_t>(0x24));
+                        if (mod == 1)
+                            out.push_back(static_cast<uint8_t>(rm.imm & 0xFF));
+                        else if (mod == 2)
+                        {
+                            // (AR) حرسٌ دفاعيّ: disp32 موقَّع — إزاحةٌ أوسعُ تُبتَر صامتةً.
+                            if (rm.imm < -2147483648LL || rm.imm > 2147483647LL)
+                                throw std::out_of_range("إزاحةُ معاملِ ذاكرةٍ خارج مدى disp32 / memory displacement out of disp32 range");
+                            for (int i = 0; i < 4; ++i)
+                                out.push_back(static_cast<uint8_t>((static_cast<unsigned long long>(rm.imm) >> (8 * i)) & 0xFF));
+                        }
+                    }
+                    else
+                    {
+                        int rmf = rm.reg & 7;
+                        out.push_back(static_cast<uint8_t>((3 << 6) | ((regf & 7) << 3) | (rmf & 7)));
+                    }
                 }
 
                 // (4) الفوريّ (ترتيب البايتات little-endian)

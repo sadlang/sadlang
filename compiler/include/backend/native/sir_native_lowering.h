@@ -85,9 +85,12 @@ namespace sad
             }
         };
 
-        // (AR) مخفّضٌ لكتلةٍ أساسيّة خطّيّة واحدة إلى x86-64.
-        //      نموذجُ التخصيص: كلُّ سجلٍّ افتراضيّ (بالاسم) ⇒ سجلٌّ فيزيائيّ من حوضٍ
-        //      لا يشمل rax (رقم النداء) وla rdi (وسيط الخروج) ولا rsp/rbp — بلا انسكاب.
+        // (AR) مخفّضٌ لدالّةٍ متعدّدة الكتل إلى x86-64: تفرّعٌ (مرور طبقتين + ترقيع rel32)
+        //      + متغيّراتٌ محلّيّةٌ في الذاكرة (إطارُ rbp + خانات [rbp−إزاحة] عبر ALLOC/
+        //      LOAD/STORE؛ قراءةُ متغيّرِ الذاكرة كقيمة = تحميلٌ ضمنيّ). نموذجُ التخصيص:
+        //      كلُّ سجلٍّ افتراضيّ (بالاسم) ⇒ سجلٌّ فيزيائيّ من حوضٍ لا يشمل rax (مُبدَّد +
+        //      رقم النداء) وla rdi (وسيط الخروج) ولا rsp/rbp — بلا انسكابٍ (الحوضُ يُنظَّف
+        //      لكلّ كتلة؛ ما يعبر الكتلَ فعبر الذاكرة). PHI غيرُ مدعومٍ (يفشل صراحةً).
         class X86SirLowering
         {
         public:
@@ -100,6 +103,16 @@ namespace sad
                 const auto &blocks = fn->getBasicBlocks();
                 if (blocks.empty())
                     return finishError(r, EC::INT_NATIVE_UNSUPPORTED, detailBlocks());
+
+                // (AR) مسحٌ مسبق: يخصّص خانةَ إطارٍ [rbp−إزاحة] لكلّ ALLOC (متغيّرٌ محلّيّ)،
+                //      ويحسب حجمَ الإطار المُحاذى ١٦. الخاناتُ عابرةٌ للكتل (بخلاف السجلّات
+                //      التي تُنظَّف لكلّ كتلة) ⇒ بها تعبر قيمُ الحلقاتِ حدودَ الكتل.
+                assignFrameSlots(blocks);
+
+                // (AR) المقدّمة (إن وُجدت خانات): push rbp؛ mov rbp,rsp؛ sub rsp,N. لا خانةَ
+                //      ⇒ لا مقدّمة (يحفظ سلوكَ البرامج السجليّة الخالصة بايتًا ببايت).
+                if (frameSize_ > 0 && !emitPrologue())
+                    return finishError(r, errorCode_, detail_);
 
                 // (AR) المرور ١: أصدِر بايتاتِ كلّ كتلةٍ بالترتيب، سجّل إزاحةَ لصيقتها،
                 //      وسجّل ترقيعَ كلّ قفز. كلُّ كتلةٍ يجب أن تنتهيَ بمُنهٍ (ret/br/brcond).
@@ -141,6 +154,11 @@ namespace sad
             };
             std::vector<Fixup> fixups_;
 
+            // (AR) الذاكرة: اسمُ المتغيّر المخصَّص (ALLOC) ⇒ إزاحتُه عن rbp (سالبةٌ: تحت rbp)،
+            //      وحجمُ الإطار المُحاذى ١٦. تُملأ في المسح المسبق قبل التخفيض.
+            std::map<std::string, long long> memSlot_;
+            long long frameSize_ = 0;
+
             // (AR) رموزُ {detail} كبياناتٍ محضة (لا نثر): وسمُ الحالة قصيرٌ يُميّز فرعَ الفشل.
             //      النثرُ كلُّه في كتالوج SoT؛ هذه القيمُ تملأ {detail} حصرًا.
             static std::string detailBlocks() { return "blocks=0"; }
@@ -180,18 +198,14 @@ namespace sad
                 return false;
             }
 
-            // (AR) قيمةٌ محلولة: إمّا ثابتٌ فوريّ أو سجلٌّ فيزيائيّ.
-            struct Val
-            {
-                bool isConst;
-                long long c;
-                int reg;
-            };
-
             // (AR) يخصّص سجلًّا فيزيائيًّا لسجلٍّ افتراضيّ. عند نفاد الحوض **يفشل بوضوح**
             //      لا يلتفّ (التفافٌ صامتٌ يدهس سجلًّا حيًّا ⇒ إفساد — عيب أميليا BLOCKER-1).
             bool allocReg(const std::string &vreg, int &out)
             {
+                // (AR) اسمٌ يطابق خانةَ ALLOC لا يجوز أن يُخصَّص سجلَّ حوض: يقرؤه isMemVar من
+                //      الذاكرة بينما يخصّصه هذا سجلًّا ⇒ افتراقٌ صامتٌ لنصفَي الاسم. فشلٌ صريح.
+                if (memSlot_.find(vreg) != memSlot_.end())
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, "vreg-aliases-slot:%" + vreg);
                 auto it = regOf_.find(vreg);
                 if (it != regOf_.end())
                 {
@@ -203,30 +217,6 @@ namespace sad
                 out = pool_[next_++];
                 regOf_[vreg] = out;
                 return true;
-            }
-
-            bool resolve(const sir::SIROperand &op, Val &out)
-            {
-                if (op.type == sir::SIROperandType::CONSTANT)
-                {
-                    // (AR) الاتّحاد intValue صالحٌ فقط للأعداد الصحيحة؛ منطقيّ/عشريّ/نصّيّ
-                    //      يترك intValue غير مُهيّأ ⇒ قمامة (عيب أميليا BLOCKER-2).
-                    if (op.dataType != types::SadTypeKind::Integer)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    "const-type=" + std::to_string(static_cast<int>(op.dataType)));
-                    out = Val{true, op.intValue, 0};
-                    return true;
-                }
-                if (op.type == sir::SIROperandType::REGISTER)
-                {
-                    auto it = regOf_.find(op.name);
-                    if (it == regOf_.end())
-                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
-                    out = Val{false, 0, it->second};
-                    return true;
-                }
-                return fail(EC::INT_NATIVE_UNSUPPORTED,
-                            "operand-kind=" + std::to_string(static_cast<int>(op.type)));
             }
 
             // ── مُصدِرات التعليمات (كلٌّ يقرأ مواصفتَه من الجدول المولَّد من SoT) ──
@@ -247,6 +237,7 @@ namespace sad
             static const char *kAdd;  // اجمع
             static const char *kSub;  // اطرح
             static const char *kSys;  // نداء_نظام
+            static const char *kPush; // ادفع
             static const char *kCmp;  // قارن
             static const char *kJmp;  // اقفز
             static const char *kJe;   // اقفز_إذا_ساوى
@@ -290,10 +281,75 @@ namespace sad
                 return checkImm32(imm) && emit(kSub, "r64, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
             }
 
-            // (AR) يضع قيمةً (ثابتًا أو سجلًّا) في سجلٍّ وجهةٍ معيَّن.
-            bool materialize(int dst, const Val &v)
+            // ── الذاكرة: خانات الإطار [rbp+إزاحة] ──
+            // (AR) mov r64, [rbp+disp] — تحميلٌ من خانة إطار.
+            bool loadMem(int dst, long long disp)
             {
-                return v.isConst ? movImm(dst, v.c) : movReg(dst, v.reg);
+                return emit(kMov, "r64, m64", {x86::Operand::R(dst), x86::Operand::M(x86::RBP, disp)});
+            }
+            // (AR) mov [rbp+disp], r64 — تخزينٌ في خانة إطار.
+            bool storeMem(long long disp, int src)
+            {
+                return emit(kMov, "m64, r64", {x86::Operand::M(x86::RBP, disp), x86::Operand::R(src)});
+            }
+
+            // (AR) هل المعاملُ سجلٌّ يُشير إلى خانةِ متغيّرٍ مخصَّص (ALLOC)؟ يُعيد إزاحتَه.
+            bool isMemVar(const sir::SIROperand &op, long long &disp) const
+            {
+                if (op.type != sir::SIROperandType::REGISTER)
+                    return false;
+                auto it = memSlot_.find(op.name);
+                if (it == memSlot_.end())
+                    return false;
+                disp = it->second;
+                return true;
+            }
+
+            // (AR) يحمّل معاملًا (ثابتًا/سجلًّا فيزيائيًّا/متغيّرَ ذاكرة) في سجلٍّ وجهة. قراءةُ
+            //      متغيّرِ الذاكرة = تحميلٌ من خانته (يُطابق auto-load في خلفيّة LLVM).
+            bool loadInto(int dst, const sir::SIROperand &op)
+            {
+                if (op.type == sir::SIROperandType::CONSTANT)
+                {
+                    if (op.dataType != types::SadTypeKind::Integer)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    "const-type=" + std::to_string(static_cast<int>(op.dataType)));
+                    return movImm(dst, op.intValue);
+                }
+                if (op.type == sir::SIROperandType::REGISTER)
+                {
+                    long long disp;
+                    if (isMemVar(op, disp))
+                        return loadMem(dst, disp);
+                    auto it = regOf_.find(op.name);
+                    if (it == regOf_.end())
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
+                    return movReg(dst, it->second);
+                }
+                return fail(EC::INT_NATIVE_UNSUPPORTED,
+                            "operand-kind=" + std::to_string(static_cast<int>(op.type)));
+            }
+
+            // (AR) المسحُ المسبق: يخصّص خانةَ إطارٍ لكلّ ALLOC ويحسب حجمَ الإطار المُحاذى ١٦.
+            void assignFrameSlots(const std::vector<std::shared_ptr<sir::SIRBasicBlock>> &blocks)
+            {
+                long long used = 0;
+                for (const auto &blockPtr : blocks)
+                    for (const auto &inst : blockPtr->instructions)
+                        if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
+                        {
+                            used += 8;
+                            memSlot_[inst.result->name] = -used; // [rbp−8]، [rbp−16]، …
+                        }
+                frameSize_ = (used + 15) / 16 * 16; // (AR) محاذاةٌ ١٦
+            }
+
+            // (AR) المقدّمة: push rbp؛ mov rbp,rsp؛ sub rsp,N (كلٌّ مفحوص).
+            bool emitPrologue()
+            {
+                return emit(kPush, "r64", {x86::Operand::R(x86::RBP)}) &&
+                       movReg(x86::RBP, x86::RSP) &&
+                       subImm(x86::RSP, frameSize_);
             }
 
             bool lowerInstruction(const sir::SIRInstruction &inst)
@@ -308,10 +364,7 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    Val s;
-                    if (!resolve(inst.operands[0], s))
-                        return false;
-                    return materialize(dst, s);
+                    return loadInto(dst, inst.operands[0]);
                 }
                 case OP::ADD_I64:
                 case OP::SUB_I64:
@@ -321,27 +374,55 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    Val a, b;
-                    if (!resolve(inst.operands[0], a) || !resolve(inst.operands[1], b))
+                    if (!loadInto(dst, inst.operands[0])) // (AR) المعامل الأوّل في الوجهة (يحمّل من الخانة إن متغيّرَ ذاكرة)
                         return false;
-                    if (!materialize(dst, a)) // (AR) حمّل المعامل الأوّل في الوجهة
-                        return false;
-                    if (inst.opcode == OP::ADD_I64)
-                        return b.isConst ? addImm(dst, b.c) : addReg(dst, b.reg);
-                    // SUB_I64
-                    if (!b.isConst)
+                    const sir::SIROperand &b = inst.operands[1];
+                    long long bc;
+                    if (isConstInt(b, bc)) // (AR) فوريّ ⇒ add/sub r64,imm32
+                        return inst.opcode == OP::ADD_I64 ? addImm(dst, bc) : subImm(dst, bc);
+                    // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX ثمّ اجمع بالسجلّ.
+                    //      SUB سجلّ-سجلّ غير مدعومٍ بعد (لا صيغةَ 29 /r) ⇒ فشلٌ صريح.
+                    if (inst.opcode == OP::SUB_I64)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, "sub-reg-reg:" + detailOpcode(inst));
-                    return subImm(dst, b.c);
+                    return loadInto(x86::RAX, b) && addReg(dst, x86::RAX);
+                }
+                case OP::ALLOC:
+                {
+                    // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ تُصدَر (العنوان ضمنيٌّ [rbp−إزاحة]).
+                    if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "alloc-unslotted:" + detailOpcode(inst));
+                    return true;
+                }
+                case OP::LOAD:
+                {
+                    // (AR) %dst = load %slot ⇒ mov dst, [rbp+إزاحة].
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long disp;
+                    if (!isMemVar(inst.operands[0], disp))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "load-nonslot:" + detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadMem(dst, disp);
+                }
+                case OP::STORE:
+                {
+                    // (AR) store value, %slot ⇒ حمّل القيمةَ في RAX ثمّ mov [rbp+إزاحة], RAX.
+                    if (inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long disp;
+                    if (!isMemVar(inst.operands[1], disp))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "store-nonslot:" + detailOpcode(inst));
+                    return loadInto(x86::RAX, inst.operands[0]) && storeMem(disp, x86::RAX);
                 }
                 case OP::RET:
                 {
                     if (inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    Val v;
-                    if (!resolve(inst.operands[0], v))
-                        return false;
-                    // (AR) ضع قيمةَ الإرجاع في rdi (وسيط exit)، ثمّ استدعِ exit — كلٌّ مفحوص.
-                    if (v.isConst ? !movImm(x86::RDI, v.c) : !movReg(x86::RDI, v.reg))
+                    // (AR) قيمةُ الإرجاع في rdi (وسيط exit) — تُحمَّل من الخانة إن متغيّرَ ذاكرة —
+                    //      ثمّ رقمُ exit في rax ثمّ النداء. كلٌّ مفحوص.
+                    if (!loadInto(x86::RDI, inst.operands[0]))
                         return false;
                     if (!movImm(x86::RAX, kSysExitX86))
                         return false;
@@ -350,6 +431,18 @@ namespace sad
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
+            }
+
+            // (AR) هل المعاملُ ثابتٌ صحيح؟ يُعيد قيمتَه (يُطابق شرطَ resolve للثوابت).
+            static bool isConstInt(const sir::SIROperand &op, long long &out)
+            {
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::Integer)
+                {
+                    out = op.intValue;
+                    return true;
+                }
+                return false;
             }
 
             // ── تدفّق التحكّم: تخفيضُ كتلةٍ كاملة + الفروع + الترقيع ──
@@ -393,16 +486,31 @@ namespace sad
                 return true;
             }
 
-            // (AR) يقارن سجلَّ المُبدَّد (RAX) بمعاملٍ ثانٍ (ثابتٌ يختار imm8/imm32، أو سجلّ).
-            bool cmpScratchAgainst(const Val &b)
+            // (AR) يقارن المُبدَّد RAX بمعاملٍ ثانٍ: ثابتٌ (يختار imm8/imm32) أو سجلٌّ مؤقّت.
+            //      متغيّرُ ذاكرةٍ كطرفٍ ثانٍ غيرُ مدعومٍ (كلا الطرفَين في الذاكرة) ⇒ فشلٌ صريح.
+            bool cmpAgainst(const sir::SIROperand &b)
             {
-                if (!b.isConst)
-                    return emit(kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(b.reg)});
-                if (b.c >= -128 && b.c <= 127)
-                    return emit(kCmp, "r64, imm8", {x86::Operand::R(x86::RAX), x86::Operand::I(b.c, 8)});
-                if (!checkImm32(b.c))
-                    return false;
-                return emit(kCmp, "r64, imm32", {x86::Operand::R(x86::RAX), x86::Operand::I(b.c, 32)});
+                long long c;
+                if (isConstInt(b, c))
+                {
+                    if (c >= -128 && c <= 127)
+                        return emit(kCmp, "r64, imm8", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 8)});
+                    if (!checkImm32(c))
+                        return false;
+                    return emit(kCmp, "r64, imm32", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 32)});
+                }
+                if (b.type == sir::SIROperandType::REGISTER)
+                {
+                    long long disp;
+                    if (isMemVar(b, disp))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "cmp-b-memvar:%" + b.name);
+                    auto it = regOf_.find(b.name);
+                    if (it == regOf_.end())
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + b.name);
+                    return emit(kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(it->second)});
+                }
+                return fail(EC::INT_NATIVE_UNSUPPORTED,
+                            "cmp-b-kind=" + std::to_string(static_cast<int>(b.type)));
             }
 
             // (AR) القفزُ غير المشروط BR: operands[0] لصيقةُ الهدف.
@@ -441,14 +549,13 @@ namespace sad
 
                 // (AR) شرطٌ سجليّ: يجب أن يكون نتيجةَ مقارنةٍ في هذه الكتلة (إدماج).
                 const sir::SIRInstruction *cmp = findFusedComparison(block, cond.name);
-                if (!cmp)
+                if (!cmp || cmp->operands.size() != 2)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
-                Val a, b;
-                if (!resolve(cmp->operands[0], a) || !resolve(cmp->operands[1], b))
+                // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ
+                //      قارنه بالثاني (ثابتٌ imm أو سجلّ). كلا المعامِلَين في الذاكرة غيرُ مدعوم.
+                if (!loadInto(x86::RAX, cmp->operands[0]))
                     return false;
-                if (!materialize(x86::RAX, a)) // (AR) المعامل الأوّل في المُبدَّد RAX (خارج الحوض)
-                    return false;
-                if (!cmpScratchAgainst(b))
+                if (!cmpAgainst(cmp->operands[1]))
                     return false;
                 const char *jcc = jccForCmp(cmp->opcode);
                 if (!jcc)
@@ -540,6 +647,7 @@ namespace sad
         inline const char *X86SirLowering::kAdd = "\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9";                 // اجمع
         inline const char *X86SirLowering::kSub = "\xD8\xA7\xD8\xB7\xD8\xB1\xD8\xAD";                 // اطرح
         inline const char *X86SirLowering::kSys = "\xD9\x86\xD8\xAF\xD8\xA7\xD8\xA1_\xD9\x86\xD8\xB8\xD8\xA7\xD9\x85"; // نداء_نظام
+        inline const char *X86SirLowering::kPush = "\xD8\xA7\xD8\xAF\xD9\x81\xD8\xB9";                               // ادفع
         inline const char *X86SirLowering::kCmp = "\xD9\x82\xD8\xA7\xD8\xB1\xD9\x86";                                                                                                 // قارن
         inline const char *X86SirLowering::kJmp = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2";                                                                                                 // اقفز
         inline const char *X86SirLowering::kJe = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89";                                     // اقفز_إذا_ساوى

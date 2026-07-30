@@ -212,6 +212,21 @@ TEST(NativeX86, SignedJccRel32)
     ASSERT_EQ(hex(enc("اقفز_إذا_أكبر", "rel32", {x86::Operand::I(200, 32)})), std::string("0f8fc8000000"));
 }
 
+// (AR) معاملاتُ الذاكرة [rbp+disp] (تحميل 8B /r · تخزين 89 /r) — القيمُ = مخرَج
+//      llvm-mc-18 حرفيًّا. تشمل حدَّ disp8→disp32 (−129) وREX.R لـr8.
+// mov rax,[rbp-8]=488b45f8 · mov [rbp-8],rax=488945f8 · mov rcx,[rbp-16]=488b4df0
+// mov r8,[rbp-8]=4c8b45f8 · mov [rbp-128],rdx=48895580 · mov rax,[rbp-129]=488b857fffffff
+TEST(NativeX86, MemoryOperandsRbpDisp)
+{
+    using O = x86::Operand;
+    ASSERT_EQ(hex(enc("انقل", "r64, m64", {O::R(x86::RAX), O::M(x86::RBP, -8)})), std::string("488b45f8"));
+    ASSERT_EQ(hex(enc("انقل", "m64, r64", {O::M(x86::RBP, -8), O::R(x86::RAX)})), std::string("488945f8"));
+    ASSERT_EQ(hex(enc("انقل", "r64, m64", {O::R(x86::RCX), O::M(x86::RBP, -16)})), std::string("488b4df0"));
+    ASSERT_EQ(hex(enc("انقل", "r64, m64", {O::R(x86::R8), O::M(x86::RBP, -8)})), std::string("4c8b45f8"));
+    ASSERT_EQ(hex(enc("انقل", "m64, r64", {O::M(x86::RBP, -128), O::R(x86::RDX)})), std::string("48895580"));
+    ASSERT_EQ(hex(enc("انقل", "r64, m64", {O::R(x86::RAX), O::M(x86::RBP, -129)})), std::string("488b857fffffff"));
+}
+
 // ─── برهانُ تدفّق التحكّم الحيّ: لولبٌ يعدّ حتّى ٤٢ ثمّ يخرج به ───
 // (AR) mov edi,0 ; loop: add rdi,1 ; cmp rdi,42 ; jne loop ; mov eax,60 ; syscall
 //      يُثبت أنّ الحساب الفوريّ والمقارنة والقفز النسبيّ الخلفيّ تُرمَّز وتُنفَّذ صحيحًا.
