@@ -139,6 +139,16 @@ namespace Sad
                     //      طبيعي64 is seen as Integer ⇒ signed (found by Amelia: `1` interp vs `-1`
                     //      compiler in a closure/nested-function/defer).
                     SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
+                    // (AR) [GAP 1] نوعُ عنصر المصفوفة المُلتقَطة يُنقَل عبر الالتقاط. مصفوفةٌ
+                    //      مختلطة/متجانسة غيرُ صحيحةٍ يكون عنصرُها Any، فتُقرأ فهرستُها داخل
+                    //      جسم اللامدا موسومةً زمنَ التشغيل لا عدديًّا (نظير declaredSurfaceType
+                    //      لكن لعنصر المصفوفة لا لإشارة العدد). بدونه: مصفوفةٌ مختلطةٌ مُلتقَطة
+                    //      تُقرأ Int ⇒ قمامة (رصده الاختبار: `نصّ` مفسّر مقابل مؤشّرٍ مترجم).
+                    // (EN) [GAP 1] Element type of a captured array carried through capture. A
+                    //      mixed / homogeneous-non-int array has element Any, so its indexing
+                    //      inside the lambda body reads runtime-tagged, not as int (mirrors
+                    //      declaredSurfaceType but for the array element, not integer signedness).
+                    SadTypeKind elementType = SadTypeKind::Void;
                 };
 
                 // ──────────────────────────────────────────────────────────

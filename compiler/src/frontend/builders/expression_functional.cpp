@@ -71,6 +71,7 @@ namespace Sad
                         ci.registerName = varPtr->registerName;
                         ci.type = varPtr->type;
                         ci.declaredSurfaceType = varPtr->declaredSurfaceType; // (AR) [خ٧] نقل النوع السطحيّ عبر الالتقاط
+                        ci.elementType = varPtr->elementType;                 // (AR) [GAP 1] نقل نوع عنصر المصفوفة المُلتقَطة (Any للمختلطة)
                         captures.push_back(ci);
 #ifndef NDEBUG
                         std::cout << "[DEBUG] Lambda capture: " << fv
@@ -280,6 +281,7 @@ namespace Sad
                     capVar.name = captures[i].varName;
                     capVar.type = captures[i].type;
                     capVar.declaredSurfaceType = captures[i].declaredSurfaceType; // (AR) [خ٧] نقل النوع السطحيّ للمتغيّر المُلتقَط
+                    capVar.elementType = captures[i].elementType;                 // (AR) [GAP 1] نقل نوع عنصر المصفوفة المُلتقَطة كي تختار الفهرسة مسارَ القراءة الموسوم
                     capVar.registerName = allocaName;
                     capVar.isMutable = true;
                     capVar.scopeLevel = b_.currentScopeLevel_;

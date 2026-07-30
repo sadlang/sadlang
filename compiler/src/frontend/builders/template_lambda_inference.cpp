@@ -97,31 +97,58 @@ namespace Sad
                                        t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
                                        t == SadTypeKind::Null || t == SadTypeKind::Any;
                             };
+                            // (AR) بوّابةُ حرفيّة المصفوفة: مختلطٌ قياسيّ (أو فيه Any) أو
+                            //      متجانسٌ غيرُ صحيحٍ ⇒ يستحقّ التوسيع إلى Any.
+                            // (EN) Array-literal gate: scalar-mixed (or containing Any) or
+                            //      homogeneous-non-int ⇒ warrants widening to Any.
+                            auto arrWantsAny = [&](const Sad::AST::ArrayExpr *arr) -> bool {
+                                if (arr->elements.empty())
+                                    return false;
+                                SadTypeKind first = inferExprType(arr->elements[0].get());
+                                bool homogeneous = true, allScalar = true, hasAny = false;
+                                for (const auto &el : arr->elements)
+                                {
+                                    SadTypeKind et = inferExprType(el.get());
+                                    if (et != first)
+                                        homogeneous = false;
+                                    if (!isScalarKind(et))
+                                        allScalar = false;
+                                    if (et == SadTypeKind::Any)
+                                        hasAny = true;
+                                }
+                                return allScalar &&
+                                       (((!homogeneous && arr->elements.size() > 1) || hasAny) ||
+                                        (homogeneous && first != SadTypeKind::Integer));
+                            };
                             // (AR) هل يستدعي هذا الوسيطُ توسيعَ معامله إلى Any؟
-                            //      (متغيّرٌ مُسجَّل Any، أو حرفيّةُ مصفوفةٍ مختلطةٍ/متجانسةٍ غيرِ صحيحة)
+                            //      (متغيّرٌ مُسجَّل Any، أو حرفيّةُ مصفوفةٍ مختلطةٍ/متجانسةٍ غيرِ صحيحة،
+                            //      أو [GAP 2] نتيجةُ نداءٍ يُرجع حرفيّةَ مصفوفةٍ كذلك)
                             // (EN) Does this argument warrant widening its param to Any?
                             auto argWantsAny = [&](const Sad::AST::Expression *a) -> bool {
                                 if (auto *v = dynamic_cast<const Sad::AST::VariableExpr *>(a))
                                     return b_.scanVarElementType_.count(b_.currentScanFuncName_ + "#" + v->name) > 0;
                                 if (auto *arr = dynamic_cast<const Sad::AST::ArrayExpr *>(a))
+                                    return arrWantsAny(arr);
+                                // (AR) [GAP 2] وسيطٌ نتيجةُ نداءٍ يُرجع مصفوفةً حرفيّة (خذ(يصنع()))
+                                //      حيث خذ لامدا: نحلّ المُستدعى ونمسح جملةَ إرجاعه بنفس البوّابة.
+                                // (EN) [GAP 2] A call-result arg returning an array literal (خذ(يصنع()))
+                                //      where خذ is a lambda: resolve the callee and scan its return
+                                //      statement with the same gate.
+                                if (auto *ca = dynamic_cast<const Sad::AST::CallExpr *>(a))
                                 {
-                                    if (arr->elements.empty())
-                                        return false;
-                                    SadTypeKind first = inferExprType(arr->elements[0].get());
-                                    bool homogeneous = true, allScalar = true, hasAny = false;
-                                    for (const auto &el : arr->elements)
+                                    if (auto *cv = dynamic_cast<const Sad::AST::VariableExpr *>(ca->callee.get()))
                                     {
-                                        SadTypeKind et = inferExprType(el.get());
-                                        if (et != first)
-                                            homogeneous = false;
-                                        if (!isScalarKind(et))
-                                            allScalar = false;
-                                        if (et == SadTypeKind::Any)
-                                            hasAny = true;
+                                        auto cit = b_.functionTable_.find(cv->name);
+                                        if (cit != b_.functionTable_.end() && cit->second.astDecl &&
+                                            cit->second.astDecl->body)
+                                            if (auto *blk = dynamic_cast<const Sad::AST::BlockStmt *>(cit->second.astDecl->body.get()))
+                                                for (const auto &st : blk->statements)
+                                                    if (auto *ret = dynamic_cast<const Sad::AST::ReturnStmt *>(st.get()))
+                                                        if (ret->value)
+                                                            if (auto *ae = dynamic_cast<const Sad::AST::ArrayExpr *>(ret->value.get()))
+                                                                if (arrWantsAny(ae))
+                                                                    return true;
                                     }
-                                    return allScalar &&
-                                           (((!homogeneous && arr->elements.size() > 1) || hasAny) ||
-                                            (homogeneous && first != SadTypeKind::Integer));
                                 }
                                 return false;
                             };
@@ -354,6 +381,84 @@ namespace Sad
                                                     pElem = SadTypeKind::Any;
                                                 else if (homogeneous)
                                                     pElem = firstElemType;
+                                            }
+                                        }
+                                    }
+                                    // (AR) [GAP 2] وسيطٌ نتيجةُ نداءٍ يُرجع مصفوفةً حرفيّة
+                                    //      (خذ(يصنع())): ليس حرفيّةَ مصفوفةٍ مباشرةً بل CallExpr.
+                                    //      نحلّ المُستدعى عبر functionTable_ ونمسح جملةَ الإرجاع في
+                                    //      جسمه (astDecl) بحثًا عن حرفيّة مصفوفة، فنستنتج نوعَ عنصرها
+                                    //      بنفس بوّابة «الموقع الأوّل يفوز» (Any للمختلط القياسيّ،
+                                    //      نوعُه للمتجانس). بدونه: المعاملُ يبقى بلا نوعِ عنصرٍ ⇒ تُقرأ
+                                    //      فهرستُه عدديًّا ⇒ قمامة. لا نمسّ الحالةَ التي حُلّ فيها
+                                    //      الوسيطُ حرفيّةً مباشرةً (arrExpr أعلاه).
+                                    // (EN) [GAP 2] A call-result arg returning an array literal
+                                    //      (خذ(يصنع())): not a direct array literal but a CallExpr.
+                                    //      Resolve the callee via functionTable_ and scan its return
+                                    //      statement's body (astDecl) for an array literal, inferring
+                                    //      its element type with the same first-site-wins gate (Any for
+                                    //      scalar-mixed, its type for homogeneous). Without it the param
+                                    //      carries no element type ⇒ its index reads as int ⇒ garbage.
+                                    else if (auto *callArg = dynamic_cast<const Sad::AST::CallExpr *>(call->arguments[i].get()))
+                                    {
+                                        if (auto *calleeVar = dynamic_cast<const Sad::AST::VariableExpr *>(callArg->callee.get()))
+                                        {
+                                            auto cit = b_.functionTable_.find(calleeVar->name);
+                                            if (cit != b_.functionTable_.end() && cit->second.astDecl &&
+                                                cit->second.astDecl->body)
+                                            {
+                                                // (AR) امسح جمل الجسم العليا عن ReturnStmt قيمتُه حرفيّةُ مصفوفة
+                                                // (EN) Scan top-level body statements for a ReturnStmt whose value is an array literal
+                                                const Sad::AST::ArrayExpr *retArr = nullptr;
+                                                if (auto *blk = dynamic_cast<const Sad::AST::BlockStmt *>(cit->second.astDecl->body.get()))
+                                                {
+                                                    for (const auto &st : blk->statements)
+                                                    {
+                                                        if (auto *ret = dynamic_cast<const Sad::AST::ReturnStmt *>(st.get()))
+                                                            if (ret->value)
+                                                                if (auto *ae = dynamic_cast<const Sad::AST::ArrayExpr *>(ret->value.get()))
+                                                                    retArr = ae;
+                                                    }
+                                                }
+                                                if (retArr && !retArr->elements.empty())
+                                                {
+                                                    auto isScalarKind = [](SadTypeKind t) {
+                                                        return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
+                                                               t == SadTypeKind::String || t == SadTypeKind::Boolean ||
+                                                               t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                                               t == SadTypeKind::Null || t == SadTypeKind::Any;
+                                                    };
+                                                    SadTypeKind firstElemType = inferExprType(retArr->elements[0].get());
+                                                    bool homogeneous = true, allScalar = true, hasAny = false;
+                                                    for (const auto &el : retArr->elements)
+                                                    {
+                                                        SadTypeKind et = inferExprType(el.get());
+                                                        if (et != firstElemType)
+                                                            homogeneous = false;
+                                                        if (!isScalarKind(et))
+                                                            allScalar = false;
+                                                        if (et == SadTypeKind::Any)
+                                                            hasAny = true;
+                                                    }
+                                                    SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
+                                                    if (pElem == SadTypeKind::Void)
+                                                    {
+                                                        if (allScalar && ((!homogeneous && retArr->elements.size() > 1) || hasAny))
+                                                            pElem = SadTypeKind::Any;
+                                                        // (AR) [إصلاح أميليا] المتجانسُ الصحيحُ يُترَك Void لا Integer:
+                                                        //      القراءةُ الافتراضيّة عدديّة فيُقرأ صحيحًا على أيّ حال، وتجميدُه
+                                                        //      Integer يَكبت توسيعَ موقعٍ لاحقٍ مختلطٍ إلى Any (يشارك المعاملَ)
+                                                        //      ⇒ قمامة. نُجمّد المتجانسَ غيرَ الصحيح فقط (نصّ/عشري/منطقيّ):
+                                                        //      قراءتُه تلزمها معرفةُ النوع، ولا يُقرأ صحيحًا افتراضًا.
+                                                        // (EN) [Amelia fix] Leave homogeneous-int as Void, not Integer: the
+                                                        //      default read path is int so it decodes correctly anyway, while
+                                                        //      freezing Integer would suppress a later shared-param mixed site's
+                                                        //      Any-widening ⇒ garbage. Freeze only homogeneous non-int
+                                                        //      (string/float/bool), whose read needs the concrete type.
+                                                        else if (homogeneous && firstElemType != SadTypeKind::Integer)
+                                                            pElem = firstElemType;
+                                                    }
+                                                }
                                             }
                                         }
                                     }

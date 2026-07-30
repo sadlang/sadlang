@@ -100,6 +100,17 @@ namespace Sad
                     llvm::Value *ptrAsInt = cg_.builder_->CreateLoad(cg_.getInt64Type(), allocaInst, loadName);
                     arrPtr = cg_.builder_->CreateIntToPtr(ptrAsInt, llvm::PointerType::getUnqual(*cg_.context_), ptrName);
                 }
+                // (AR) الحالة 1ب: alloca ptr — خانة محلّيّة تحمل مؤشّر SadArray مباشرةً
+                //      (تنشأ من المصفوفات الملتقَطة في الإغلاقات: تُخزَّن الخانةُ عنوانًا لـ SadArray*).
+                //      يجب تحميلُ المؤشّر من الخانة؛ وإلّا عُومل عنوانُ الخانة مؤشّرَ مصفوفةٍ فقُرِئت قمامة.
+                // (EN) Case 1b: alloca ptr — local slot holding a SadArray* directly (arises from
+                //      captured arrays in closures). Must load the pointer out of the slot; otherwise
+                //      the slot's address is treated as the array pointer and garbage is read.
+                else if (allocaInst->getAllocatedType()->isPointerTy())
+                {
+                    std::string ptrName = std::string(label) + ".ptr.load";
+                    arrPtr = cg_.builder_->CreateLoad(llvm::PointerType::getUnqual(*cg_.context_), allocaInst, ptrName);
+                }
             }
             // (AR) الحالة 2: GlobalVariable بنوع i64 — متغير عام يحمل مؤشر مصفوفة محوّل
             //      بـ ptrtoint. ضروري لأن المتغيرات العامة تُخزّن كـ `internal global i64 0`
