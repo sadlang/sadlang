@@ -221,6 +221,47 @@ instructions:
         opcode: [0x0F, 0x85]
         immediate: { operand: 0, bits: 32, encoding: le }
 
+  # ─── قفزاتٌ شرطيّةٌ موقَّعة (تقرأ أعلام cmp؛ إزاحةٌ نسبيّة ٣٢-بت) ───
+  # jl  rel32  ⇒  0F 8C cd   (أصغر، موقَّع SF≠OF)
+  اقفز_إذا_أصغر:
+    - en: jl
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x8C]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # jge rel32  ⇒  0F 8D cd   (أكبر أو يساوي، موقَّع SF=OF)
+  اقفز_إذا_أكبر_أو_ساوى:
+    - en: jge
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x8D]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # jle rel32  ⇒  0F 8E cd   (أصغر أو يساوي، موقَّع ZF=1 أو SF≠OF)
+  اقفز_إذا_أصغر_أو_ساوى:
+    - en: jle
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x8E]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # jg  rel32  ⇒  0F 8F cd   (أكبر، موقَّع ZF=0 وSF=OF)
+  اقفز_إذا_أكبر:
+    - en: jg
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x8F]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
   # call rel32  ⇒  E8 cd
   نادِ:
     - en: call

@@ -323,3 +323,21 @@ errors:
     detailed:
       ar: قرأ المخفّضُ سجلًّا افتراضيًّا ({detail}) لا تعريفَ سابقًا له في خريطة السجلّات، فتعذّر ربطُه بسجلٍّ فيزيائيّ. رفضٌ صريحٌ خيرٌ من قراءةِ سجلٍّ عشوائيّ.
       en: The lowerer read a virtual register ({detail}) that has no prior definition in the register map, so it could not be bound to a physical register. Failing explicitly is better than reading an arbitrary register.
+
+  - code: INT_NATIVE_LABEL_UNDEFINED
+    id: INT018
+    category: internal
+    title:
+      ar: التخفيض الأصليّ — لصيقةُ قفزٍ غير معرَّفة
+      en: Native lowering — undefined branch label
+    brief:
+      ar: 'التخفيض الأصليّ الأدنى (بلا LLVM): لصيقةُ قفزٍ لا تشير إلى كتلةٍ معرَّفة ({detail})'
+      en: 'Minimal native lowering (no LLVM): a branch label targets no defined block ({detail})'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: مرورُ الترقيع (fixup) يربط كلَّ قفزٍ بإزاحةِ كتلته الهدف عبر خريطة اللصائق. غيابُ الهدف يعني أنّ الكتلة لم تُضَف إلى الدالّة أو أنّ اسمها لا يطابق. تحقّق من بانِي SIR (addBasicBlock) وتطابُق أسماء اللصائق. ليس عطلًا يُبلَّغ.'
+      en: 'Backend dev: the fixup pass binds each jump to its target block offset via the label map. A missing target means the block was not added to the function or its name does not match. Check the SIR builder (addBasicBlock) and label-name consistency. Not a bug to report.'
+    detailed:
+      ar: أشار قفزٌ إلى لصيقةٍ ({detail}) لا كتلةَ لها في خريطة اللصائق، فتعذّر حسابُ الإزاحة النسبيّة. رفضٌ صريحٌ خيرٌ من ترقيعِ قفزٍ بإزاحةٍ عشوائيّة.
+      en: A jump referenced a label ({detail}) with no block in the label map, so its relative displacement could not be computed. Failing explicitly is better than patching a jump with an arbitrary displacement.

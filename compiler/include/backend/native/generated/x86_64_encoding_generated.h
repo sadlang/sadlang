@@ -39,6 +39,10 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE9}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x84}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_لم_يساوِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x85}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أصغر", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8C}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أكبر_أو_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8D}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أصغر_أو_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8E}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أكبر", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8F}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "نادِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE8}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     };
     return kTable;

@@ -47,6 +47,28 @@ namespace
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\n"
         "    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 42\n"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\n";
+
+    // (AR) تفرّعٌ صادقُ الشرط (42 > 41) ⇒ فرعُ then ⇒ يُرجع 42؛ else يُرجع 99.
+    //      يُثبت: مقارنةٌ مدموجة + jg + كتلٌ متعدّدة + ترقيعُ rel32 أماميّ.
+    const std::string kSrcIfTrue =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA5\xD8\xB0\xD8\xA7\x20\x34\x32\x20\x3E\x20\x34\x31\x0A"
+        "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x34\x32\x0A"
+        "\x20\x20\x20\x20\xD9\x88\xD8\xA5\xD9\x84\xD8\xA7\x0A"
+        "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x39\x39\x0A"
+        "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) تفرّعٌ كاذبُ الشرط (5 > 41) ⇒ فرعُ else ⇒ يُرجع 42؛ then يُرجع 99.
+    //      يُثبت: القفزُ غيرُ المشروط للفرع الآخر (jmp else) صحيحٌ أيضًا.
+    const std::string kSrcIfFalse =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA5\xD8\xB0\xD8\xA7\x20\x35\x20\x3E\x20\x34\x31\x0A"
+        "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x39\x39\x0A"
+        "\x20\x20\x20\x20\xD9\x88\xD8\xA5\xD9\x84\xD8\xA7\x0A"
+        "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x34\x32\x0A"
+        "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -96,6 +118,124 @@ TEST(NativeSirBridge, WritesRunnableBinary)
     size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
     std::fclose(fp);
     ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+namespace
+{
+    // (AR) هل تحوي البايتاتُ التسلسلَ الفرعيّ needle؟ (لتأكيد إصدار بايتات القفز فعلًا.)
+    bool contains(const std::vector<uint8_t> &hay, const std::vector<uint8_t> &needle)
+    {
+        if (needle.empty() || hay.size() < needle.size())
+            return false;
+        for (size_t i = 0; i + needle.size() <= hay.size(); ++i)
+        {
+            bool m = true;
+            for (size_t j = 0; j < needle.size(); ++j)
+                if (hay[i + j] != needle[j])
+                {
+                    m = false;
+                    break;
+                }
+            if (m)
+                return true;
+        }
+        return false;
+    }
+} // namespace
+
+// (AR) تفرّعٌ صادقُ الشرط يُخفَّض، والـELF سليم، والبايتاتُ تحوي jg (0F 8F) وjmp (E9).
+TEST(NativeSirBridge, LowersIfElseTrueBranch)
+{
+    auto module = buildSir(kSrcIfTrue);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    // (AR) jg = 0F 8F (المقارنة المدموجة للشرط >) + jmp = E9 (لفرع else) موجودان.
+    ASSERT_TRUE(contains(bin, {0x0F, 0x8F}));
+    ASSERT_TRUE(contains(bin, {0xE9}));
+}
+
+// (AR) تفرّعٌ كاذبُ الشرط يُخفَّض أيضًا (مسار jmp else).
+TEST(NativeSirBridge, LowersIfElseFalseBranch)
+{
+    auto module = buildSir(kSrcIfFalse);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+}
+
+// (AR) يكتب ثنائيَّي التفرّع (كلاهما يخرج ٤٢: أحدهما عبر then والآخر عبر else)
+//      لبرهانِ تشغيلٍ حيٍّ تحت Linux/WSL.
+TEST(NativeSirBridge, WritesBranchingBinaries)
+{
+    struct Case
+    {
+        const std::string *src;
+        const char *file;
+    } cases[] = {
+        {&kSrcIfTrue, "sad_sir_if_true42"},
+        {&kSrcIfFalse, "sad_sir_if_false42"},
+    };
+    for (const auto &c : cases)
+    {
+        auto module = buildSir(*c.src);
+        ASSERT_TRUE(module != nullptr);
+        auto res = sad::native::lowerModuleToElf(*module);
+        ASSERT_TRUE(res.ok);
+        std::FILE *fp = std::fopen(c.file, "wb");
+        ASSERT_TRUE(fp != nullptr);
+        size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+        std::fclose(fp);
+        ASSERT_EQ(int(wrote), int(res.code.size()));
+    }
+}
+
+// (AR) قفزٌ خلفيّ (إزاحةٌ سالبة): يُبنى SIR يدويًّا بثلاث كتل — entry يقفز أمامًا فوق
+//      L_b إلى L_c، وL_c يقفز خلفًا إلى L_b الذي يُرجع ٤٢. يُثبت أنّ ترقيعَ rel32
+//      يحسب الإزاحةَ السالبة صحيحًا (مسارٌ لا يُنتجه مصدرُ ص بلا لولبٍ ذي ذاكرة).
+TEST(NativeSirBridge, BackwardJumpNegativeFixup)
+{
+    using namespace Sad::Compiler::SIR;
+    auto mod = std::make_shared<SIRModule>("backjump");
+    auto fn = std::make_shared<SIRFunction>(
+        "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9", Sad::Types::SadTypeKind::Integer); // رئيسية
+
+    auto entry = std::make_shared<SIRBasicBlock>("entry");
+    entry->addInstruction(SIRInstruction::Branch(SIROperand::Label("L_c")));
+    auto lb = std::make_shared<SIRBasicBlock>("L_b");
+    lb->addInstruction(SIRInstruction::Return(SIROperand::ConstantI64(42)));
+    auto lc = std::make_shared<SIRBasicBlock>("L_c");
+    lc->addInstruction(SIRInstruction::Branch(SIROperand::Label("L_b"))); // ← قفزٌ خلفيّ
+
+    fn->addBasicBlock(entry);
+    fn->addBasicBlock(lb);
+    fn->addBasicBlock(lc);
+    mod->addFunction(fn);
+
+    auto res = sad::native::lowerModuleToElf(*mod);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    // (AR) يحوي قفزَين غيرَ مشروطين (E9)؛ والقفزُ الخلفيّ صغيرُ المقدار سالبٌ ⇒ يظهر
+    //      امتدادُ إشارته كسلسلةِ بايتات 0xFF المتتالية (FF FF FF) في حقل rel32.
+    ASSERT_TRUE(contains(bin, {0xE9}));
+    ASSERT_TRUE(contains(bin, {0xFF, 0xFF, 0xFF}));
+    // (AR) اكتبه لبرهانِ تشغيلٍ حيٍّ (يخرج ٤٢ عبر: entry→L_c→L_b) تحت Linux/WSL.
+    std::FILE *fp = std::fopen("sad_sir_backjump42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
 int main(int argc, char **argv)

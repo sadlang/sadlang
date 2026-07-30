@@ -201,6 +201,16 @@ TEST(NativeX86, CallRel32)
 {
     ASSERT_EQ(hex(enc("نادِ", "rel32", {x86::Operand::I(0, 32)})), std::string("e800000000"));
 }
+// (AR) القفزاتُ الشرطيّةُ الموقَّعةُ القريبة (rel32): الأوپكود 0F 8C/8D/8E/8F مطابقٌ
+//      لقاعدة llvm-mc (القصير 7C/7D/7E/7F ⇒ القريب +0x10). rel32=200 (0xC8) LE.
+// jl  # [0f,8c,..]  ·  jge  # [0f,8d,..]  ·  jle  # [0f,8e,..]  ·  jg  # [0f,8f,..]
+TEST(NativeX86, SignedJccRel32)
+{
+    ASSERT_EQ(hex(enc("اقفز_إذا_أصغر", "rel32", {x86::Operand::I(200, 32)})), std::string("0f8cc8000000"));
+    ASSERT_EQ(hex(enc("اقفز_إذا_أكبر_أو_ساوى", "rel32", {x86::Operand::I(200, 32)})), std::string("0f8dc8000000"));
+    ASSERT_EQ(hex(enc("اقفز_إذا_أصغر_أو_ساوى", "rel32", {x86::Operand::I(200, 32)})), std::string("0f8ec8000000"));
+    ASSERT_EQ(hex(enc("اقفز_إذا_أكبر", "rel32", {x86::Operand::I(200, 32)})), std::string("0f8fc8000000"));
+}
 
 // ─── برهانُ تدفّق التحكّم الحيّ: لولبٌ يعدّ حتّى ٤٢ ثمّ يخرج به ───
 // (AR) mov edi,0 ; loop: add rdi,1 ; cmp rdi,42 ; jne loop ; mov eax,60 ; syscall

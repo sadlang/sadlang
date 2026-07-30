@@ -2,21 +2,29 @@
 // (AR) جسر SIR→x86-64 أصليّ — أوّل ترجمة «لغة ص → شيفرة آلة» حقيقيّة بلا LLVM.
 //      يستهلك SIR الذي يبنيه الأمامُ الفعليّ من مصدر ص (في الوضع الحرّ، حيث تُسقَط
 //      سِقالةُ defer/الاستثناء فتبقى شيفرةٌ خطّيّة نظيفة)، ويخفّض مجموعةً دنيا من
-//      الأوپكودات (MOVE / ADD_I64 / SUB_I64 / RET) إلى بايتات x86-64 عبر المحرّك
-//      الجدوليّ (lookupEncSpec + encodeVariable)، ثمّ يلفّها كاتبُ ELF في تنفيذيٍّ
-//      ساكن يخرج بقيمة إرجاع `رئيسية`. لا clang/lld/as ولا زمن تشغيل.
+//      الأوپكودات (MOVE / ADD_I64 / SUB_I64 / المقارنات / BR / BR_COND / RET) إلى
+//      بايتات x86-64 عبر المحرّك الجدوليّ (lookupEncSpec + encodeVariable)، ثمّ
+//      يلفّها كاتبُ ELF في تنفيذيٍّ ساكن يخرج بقيمة إرجاع `رئيسية`. لا clang/lld/as.
 //
-//      اختيارُ التعليمات + تخصيصُ السجلّات هنا دنيا عمدًا (كتلةٌ أساسيّة واحدة،
-//      «كلٌّ في سجلّ» بلا انسكاب) — كافٍ لإثبات المسار من طرفٍ لطرف. الأوپكودات
-//      غير المدعومة تُفشِل التخفيضَ برسالةٍ صريحة (لا توليدَ صامتًا خاطئًا).
+//      تدفّقُ التحكّم بمرورين: (١) يُصدر بايتاتِ كلّ كتلةٍ بالترتيب ويسجّل إزاحةَ
+//      لصيقتها؛ يُصدر القفزاتِ بإزاحةٍ صفريّةٍ نائبة ويسجّل ترقيعًا. (٢) يرقّع كلَّ
+//      rel32 بالفرق (هدف − نهايةُ القفز). المقارنةُ المُغذِّيةُ لـBR_COND تُدمَج
+//      (cmp؛ jCC ثمّ؛ jmp وإلّا) فلا حاجةَ لـsetcc/movzx. تخصيصُ السجلّات دنيا عمدًا
+//      («كلٌّ في سجلّ» بلا انسكاب، ≤٧ سجلّات حيّة، بلا PHI/ذاكرة). كلُّ بنيةٍ غير
+//      مدعومةٍ (PHI/ذاكرة/مقارنةٌ غيرُ مدموجة) تُفشِل التخفيضَ صراحةً لا تُترجَم خطأً.
 // (EN) SIR→native x86-64 bridge — the first real "S-lang → machine code" lowering
 //      without LLVM. Consumes SIR built by the actual frontend from ص source (in
-//      freestanding mode, where defer/exception scaffolding is dropped, leaving
-//      clean straight-line code), lowers a minimal opcode set (MOVE/ADD_I64/
-//      SUB_I64/RET) to x86-64 bytes via the table-driven encoder, then wraps them
-//      in a static ELF that exits with `رئيسية`'s return value. Minimal on purpose:
-//      one basic block, everything-in-registers, no spilling. Unsupported opcodes
-//      fail loudly rather than miscompile silently.
+//      freestanding mode), lowers a minimal opcode set (MOVE/ADD_I64/SUB_I64/
+//      comparisons/BR/BR_COND/RET) to x86-64 bytes via the table-driven encoder,
+//      then wraps them in a static ELF that exits with `رئيسية`'s return value.
+//
+//      Control flow via two passes: (1) emit each block's bytes in order, record
+//      its label offset, emit jumps with a placeholder rel32 and record a fixup;
+//      (2) patch each rel32 with (target − end-of-jump). The comparison feeding a
+//      BR_COND is fused (cmp; jCC then; jmp else) — no setcc/movzx needed. Register
+//      allocation is minimal on purpose (everything-in-registers, no spilling, ≤7
+//      live regs, no PHI/memory). Unsupported constructs (PHI/memory/an unfused
+//      comparison) fail loudly rather than miscompile silently.
 // ============================================================================
 #ifndef SAD_NATIVE_SIR_LOWERING_H
 #define SAD_NATIVE_SIR_LOWERING_H
@@ -92,19 +100,21 @@ namespace sad
                 const auto &blocks = fn->getBasicBlocks();
                 if (blocks.empty())
                     return finishError(r, EC::INT_NATIVE_UNSUPPORTED, detailBlocks());
-                // (AR) نكتفي بالكتلة الأولى (entry). القفزُ متعدّدُ الكتل مؤجَّلٌ لطبقة CFG.
-                const sir::SIRBasicBlock &entry = *blocks[0];
 
-                for (const sir::SIRInstruction &inst : entry.instructions)
+                // (AR) المرور ١: أصدِر بايتاتِ كلّ كتلةٍ بالترتيب، سجّل إزاحةَ لصيقتها،
+                //      وسجّل ترقيعَ كلّ قفز. كلُّ كتلةٍ يجب أن تنتهيَ بمُنهٍ (ret/br/brcond).
+                for (const auto &blockPtr : blocks)
                 {
-                    if (!lowerInstruction(inst))
+                    const sir::SIRBasicBlock &block = *blockPtr;
+                    labelOffset_[block.name] = code_.size();
+                    if (!lowerBlock(block))
                         return finishError(r, errorCode_, detail_);
-                    if (returned_)
-                        break; // (AR) بعد RET لا شيفرةَ تُنفَّذ
                 }
 
-                if (!returned_)
-                    return finishError(r, EC::INT_NATIVE_UNSUPPORTED, detailNoRet());
+                // (AR) المرور ٢: رقّع كلَّ rel32 بالفرق (إزاحةُ الهدف − نهايةُ القفز).
+                if (!applyFixups())
+                    return finishError(r, errorCode_, detail_);
+
                 r.ok = true;
                 r.code = std::move(code_);
                 return r;
@@ -120,7 +130,16 @@ namespace sad
             std::vector<uint8_t> code_;
             EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
             std::string detail_;
-            bool returned_ = false;
+
+            // (AR) تدفّق التحكّم: خريطةُ لصيقة الكتلة ⇒ إزاحتها بالبايت، وطابورُ ترقيع rel32.
+            std::map<std::string, size_t> labelOffset_;
+            struct Fixup
+            {
+                size_t rel32Pos;    // (AR) موضعُ بايتات الإزاحة النسبيّة في code_
+                std::string target; // (AR) لصيقةُ الكتلة الهدف
+                int width;          // (AR) عرضُ حقل الإزاحة بالبايت (من مواصفة الترميز، لا ثابتًا)
+            };
+            std::vector<Fixup> fixups_;
 
             // (AR) رموزُ {detail} كبياناتٍ محضة (لا نثر): وسمُ الحالة قصيرٌ يُميّز فرعَ الفشل.
             //      النثرُ كلُّه في كتالوج SoT؛ هذه القيمُ تملأ {detail} حصرًا.
@@ -228,6 +247,14 @@ namespace sad
             static const char *kAdd;  // اجمع
             static const char *kSub;  // اطرح
             static const char *kSys;  // نداء_نظام
+            static const char *kCmp;  // قارن
+            static const char *kJmp;  // اقفز
+            static const char *kJe;   // اقفز_إذا_ساوى
+            static const char *kJne;  // اقفز_إذا_لم_يساوِ
+            static const char *kJl;   // اقفز_إذا_أصغر
+            static const char *kJle;  // اقفز_إذا_أصغر_أو_ساوى
+            static const char *kJg;   // اقفز_إذا_أكبر
+            static const char *kJge;  // اقفز_إذا_أكبر_أو_ساوى
 
             // (AR) mov r32, imm32 يمتدّ صفريًّا إلى ٦٤؛ لا يمثّل إلّا [0, 2³²). خارجَه
             //      (سالبٌ أو ≥2³²) يُبتَر ⇒ نرفضه بوضوح (عيب أميليا رقم ٣).
@@ -318,14 +345,193 @@ namespace sad
                         return false;
                     if (!movImm(x86::RAX, kSysExitX86))
                         return false;
-                    if (!emit(kSys, "", {}))
-                        return false;
-                    returned_ = true;
-                    return true;
+                    return emit(kSys, "", {});
                 }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
+            }
+
+            // ── تدفّق التحكّم: تخفيضُ كتلةٍ كاملة + الفروع + الترقيع ──
+
+            // (AR) هل الأوپكود مقارنةٌ عدديّةٌ موقَّعة؟ (تُدمَج في BR_COND التالي.)
+            static bool isComparison(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                return op == OP::EQ || op == OP::NE || op == OP::LT ||
+                       op == OP::LE || op == OP::GT || op == OP::GE;
+            }
+
+            // (AR) منمنمةُ القفز الشرطيّ المطابقة للمقارنة (موقَّعة): «إن صحّ الشرط اقفز لـthen».
+            static const char *jccForCmp(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: return kJe;
+                case OP::NE: return kJne;
+                case OP::LT: return kJl;
+                case OP::LE: return kJle;
+                case OP::GT: return kJg;
+                case OP::GE: return kJge;
+                default: return nullptr;
+                }
+            }
+
+            // (AR) يُصدر قفزًا (مشروطًا أو غير مشروط) بإزاحةٍ نسبيّةٍ صفريّةٍ نائبة، ويسجّل
+            //      ترقيعًا عند حقل الإزاحة. عرضُ الحقل وموضعُه يُشتقّان من مواصفة الترميز
+            //      (imm_bits) لا من ثابتٍ مُرمَّز ⇒ يبقى سليمًا لو أُضيفت صيغةُ قفزٍ بعرضٍ آخر.
+            bool emitJump(const char *mnemonic, const std::string &targetLabel)
+            {
+                const x86::EncSpec *spec = x86::lookupEncSpec(mnemonic, "rel32");
+                if (!spec || spec->imm_op < 0 || spec->imm_bits <= 0)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(mnemonic) + " rel32");
+                const int width = spec->imm_bits / 8;
+                if (!emit(mnemonic, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
+                    return false;
+                fixups_.push_back({code_.size() - static_cast<size_t>(width), targetLabel, width});
+                return true;
+            }
+
+            // (AR) يقارن سجلَّ المُبدَّد (RAX) بمعاملٍ ثانٍ (ثابتٌ يختار imm8/imm32، أو سجلّ).
+            bool cmpScratchAgainst(const Val &b)
+            {
+                if (!b.isConst)
+                    return emit(kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(b.reg)});
+                if (b.c >= -128 && b.c <= 127)
+                    return emit(kCmp, "r64, imm8", {x86::Operand::R(x86::RAX), x86::Operand::I(b.c, 8)});
+                if (!checkImm32(b.c))
+                    return false;
+                return emit(kCmp, "r64, imm32", {x86::Operand::R(x86::RAX), x86::Operand::I(b.c, 32)});
+            }
+
+            // (AR) القفزُ غير المشروط BR: operands[0] لصيقةُ الهدف.
+            bool lowerBranch(const sir::SIRInstruction &inst)
+            {
+                if (inst.operands.size() != 1 || inst.operands[0].type != sir::SIROperandType::LABEL)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                return emitJump(kJmp, inst.operands[0].name);
+            }
+
+            // (AR) القفزُ المشروط BR_COND: {condition, thenLabel, elseLabel}.
+            //      الشرطُ إمّا ثابتٌ منطقيّ (⇒ قفزٌ غير مشروطٍ للفرع المختار) أو سجلٌّ
+            //      نتيجةُ مقارنةٍ مدموجةٍ في نفس الكتلة (⇒ cmp؛ jCC then؛ jmp else).
+            bool lowerBranchCond(const sir::SIRInstruction &inst,
+                                 const sir::SIRBasicBlock &block)
+            {
+                if (inst.operands.size() != 3 ||
+                    inst.operands[1].type != sir::SIROperandType::LABEL ||
+                    inst.operands[2].type != sir::SIROperandType::LABEL)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                const sir::SIROperand &cond = inst.operands[0];
+                const std::string &thenLbl = inst.operands[1].name;
+                const std::string &elseLbl = inst.operands[2].name;
+
+                // (AR) شرطٌ ثابتٌ منطقيّ: قفزٌ غير مشروطٍ للفرع المحدَّد ثابتًا.
+                if (cond.type == sir::SIROperandType::CONSTANT)
+                {
+                    if (cond.dataType != types::SadTypeKind::Boolean)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    "cond-const-type=" + std::to_string(static_cast<int>(cond.dataType)));
+                    return emitJump(kJmp, cond.boolValue ? thenLbl : elseLbl);
+                }
+                if (cond.type != sir::SIROperandType::REGISTER)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                "cond-kind=" + std::to_string(static_cast<int>(cond.type)));
+
+                // (AR) شرطٌ سجليّ: يجب أن يكون نتيجةَ مقارنةٍ في هذه الكتلة (إدماج).
+                const sir::SIRInstruction *cmp = findFusedComparison(block, cond.name);
+                if (!cmp)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
+                Val a, b;
+                if (!resolve(cmp->operands[0], a) || !resolve(cmp->operands[1], b))
+                    return false;
+                if (!materialize(x86::RAX, a)) // (AR) المعامل الأوّل في المُبدَّد RAX (خارج الحوض)
+                    return false;
+                if (!cmpScratchAgainst(b))
+                    return false;
+                const char *jcc = jccForCmp(cmp->opcode);
+                if (!jcc)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(*cmp));
+                return emitJump(jcc, thenLbl) && emitJump(kJmp, elseLbl);
+            }
+
+            // (AR) يجد مقارنةً في الكتلة نتيجتُها cond تُغذّي BR_COND المُنهيَ لها. تُدمَج
+            //      فقط إن كانت المقارنةُ آخرَ تعليمةٍ قبل المُنهي (نمطُ البانِي المعتاد) —
+            //      وإلّا لا إدماجَ (المقارنةُ غيرُ المدموجة تفشل صراحةً في lowerInstruction).
+            const sir::SIRInstruction *findFusedComparison(const sir::SIRBasicBlock &block,
+                                                           const std::string &condName) const
+            {
+                const auto &is = block.instructions;
+                if (is.size() < 2)
+                    return nullptr;
+                const sir::SIRInstruction &prev = is[is.size() - 2];
+                if (isComparison(prev.opcode) && prev.result && prev.result->name == condName)
+                    return &prev;
+                return nullptr;
+            }
+
+            // (AR) يخفّض كتلةً كاملة: يتخطّى المقارنةَ المدموجة (يعالجها BR_COND)، ويوجّه
+            //      المُنهياتِ لمعالِجاتها. الكتلةُ يجب أن تنتهيَ بمُنهٍ.
+            bool lowerBlock(const sir::SIRBasicBlock &block)
+            {
+                const auto &is = block.instructions;
+                if (is.empty() || !is.back().isTerminatorInst())
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailNoRet());
+
+                // (AR) نموذج «كلٌّ في سجلّ» لا يحمل حياةً عابرةً للكتل: كلُّ كتلةٍ تبدأ بحوضٍ
+                //      نظيف. فقراءةُ سجلٍّ عُرِّف في كتلةٍ أخرى (PHI ضمنيّ، يحتاج انسكابًا/دمجًا)
+                //      تغيبُ عن الخريطة ⇒ تفشل صراحةً UNDEF_VREG بدل قراءةِ قمامةٍ صامتة.
+                regOf_.clear();
+                next_ = 0;
+
+                // (AR) المقارنةُ المدموجة (إن وُجدت) لا تُخفَّض مستقلّةً.
+                const sir::SIRInstruction *fused = nullptr;
+                if (is.back().opcode == sir::SIROpcode::BR_COND &&
+                    !is.back().operands.empty() &&
+                    is.back().operands[0].type == sir::SIROperandType::REGISTER)
+                    fused = findFusedComparison(block, is.back().operands[0].name);
+
+                for (const sir::SIRInstruction &inst : is)
+                {
+                    if (&inst == fused)
+                        continue; // (AR) مدموجة ⇒ يعالجها BR_COND
+                    if (inst.opcode == sir::SIROpcode::BR)
+                    {
+                        if (!lowerBranch(inst))
+                            return false;
+                    }
+                    else if (inst.opcode == sir::SIROpcode::BR_COND)
+                    {
+                        if (!lowerBranchCond(inst, block))
+                            return false;
+                    }
+                    else if (!lowerInstruction(inst))
+                        return false;
+                }
+                return true;
+            }
+
+            // (AR) المرور ٢: يرقّع كلَّ قفزٍ بالفرق الموقَّع (إزاحةُ الهدف − نهايةُ القفز).
+            //      نهايةُ القفز = موضعُ الحقل + عرضُه (الحقلُ آخرُ ما يُصدَر). المدى والكتابة
+            //      يحترمان عرضَ الحقل ⇒ يصحّان لأيّ عرض (rel32 اليوم، وrel8 مستقبلًا).
+            bool applyFixups()
+            {
+                for (const Fixup &fx : fixups_)
+                {
+                    auto it = labelOffset_.find(fx.target);
+                    if (it == labelOffset_.end())
+                        return fail(EC::INT_NATIVE_LABEL_UNDEFINED, fx.target);
+                    long long disp = static_cast<long long>(it->second) -
+                                     static_cast<long long>(fx.rel32Pos + fx.width);
+                    const long long lim = 1LL << (fx.width * 8 - 1); // (AR) نصفُ مدى الحقل الموقَّع
+                    if (disp < -lim || disp > lim - 1)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, "rel:" + std::to_string(disp));
+                    uint64_t u = static_cast<uint64_t>(disp); // (AR) متمّمُ الاثنين، LE بعرض الحقل
+                    for (int i = 0; i < fx.width; ++i)
+                        code_[fx.rel32Pos + i] = static_cast<uint8_t>((u >> (8 * i)) & 0xFF);
+                }
+                return true;
             }
         };
 
@@ -334,6 +540,14 @@ namespace sad
         inline const char *X86SirLowering::kAdd = "\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9";                 // اجمع
         inline const char *X86SirLowering::kSub = "\xD8\xA7\xD8\xB7\xD8\xB1\xD8\xAD";                 // اطرح
         inline const char *X86SirLowering::kSys = "\xD9\x86\xD8\xAF\xD8\xA7\xD8\xA1_\xD9\x86\xD8\xB8\xD8\xA7\xD9\x85"; // نداء_نظام
+        inline const char *X86SirLowering::kCmp = "\xD9\x82\xD8\xA7\xD8\xB1\xD9\x86";                                                                                                 // قارن
+        inline const char *X86SirLowering::kJmp = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2";                                                                                                 // اقفز
+        inline const char *X86SirLowering::kJe = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89";                                     // اقفز_إذا_ساوى
+        inline const char *X86SirLowering::kJne = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD9\x84\xD9\x85\x5F\xD9\x8A\xD8\xB3\xD8\xA7\xD9\x88\xD9\x90";        // اقفز_إذا_لم_يساوِ
+        inline const char *X86SirLowering::kJl = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD8\xB5\xD8\xBA\xD8\xB1";                                     // اقفز_إذا_أصغر
+        inline const char *X86SirLowering::kJle = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD8\xB5\xD8\xBA\xD8\xB1\x5F\xD8\xA3\xD9\x88\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89"; // اقفز_إذا_أصغر_أو_ساوى
+        inline const char *X86SirLowering::kJg = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD9\x83\xD8\xA8\xD8\xB1";                                     // اقفز_إذا_أكبر
+        inline const char *X86SirLowering::kJge = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD9\x83\xD8\xA8\xD8\xB1\x5F\xD8\xA3\xD9\x88\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89"; // اقفز_إذا_أكبر_أو_ساوى
 
         // (AR) مُيسِّرٌ عالي المستوى: SIRModule ⇒ ثنائيُّ ELF64 ساكن (x86-64) قابل للتنفيذ.
         inline LoweringResult lowerModuleToElf(const sir::SIRModule &module)

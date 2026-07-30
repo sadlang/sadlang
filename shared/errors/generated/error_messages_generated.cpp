@@ -1034,6 +1034,13 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr, nullptr,
       "لمطوّر الخلفيّة: يجب أن يُنتِج كلُّ سجلٍّ افتراضيٍّ من تعليمةٍ سابقة قبل قراءته (كلُّ سجلٍّ يُعرَّف قبل قراءته). لو أنتجه بانِي SIR فتحقّق من ترتيب التعليمات؛ وإلّا فالمدخلُ ناقصٌ في خريطة تخصيص السجلّات. ليس عطلًا يُبلَّغ.", "Backend dev: every virtual register must be produced by an earlier instruction before it is read (each register defined before it is used). If the SIR builder produced it, check instruction ordering; otherwise the register-allocation map is missing an entry. Not a bug to report.",
       nullptr },
+    { ErrorCode::INT_NATIVE_LABEL_UNDEFINED, "INT018", "internal",
+      "التخفيض الأصليّ — لصيقةُ قفزٍ غير معرَّفة", "Native lowering — undefined branch label",
+      "التخفيض الأصليّ الأدنى (بلا LLVM): لصيقةُ قفزٍ لا تشير إلى كتلةٍ معرَّفة ({detail})", "Minimal native lowering (no LLVM): a branch label targets no defined block ({detail})",
+      "أشار قفزٌ إلى لصيقةٍ ({detail}) لا كتلةَ لها في خريطة اللصائق، فتعذّر حسابُ الإزاحة النسبيّة. رفضٌ صريحٌ خيرٌ من ترقيعِ قفزٍ بإزاحةٍ عشوائيّة.", "A jump referenced a label ({detail}) with no block in the label map, so its relative displacement could not be computed. Failing explicitly is better than patching a jump with an arbitrary displacement.",
+      nullptr, nullptr,
+      "لمطوّر الخلفيّة: مرورُ الترقيع (fixup) يربط كلَّ قفزٍ بإزاحةِ كتلته الهدف عبر خريطة اللصائق. غيابُ الهدف يعني أنّ الكتلة لم تُضَف إلى الدالّة أو أنّ اسمها لا يطابق. تحقّق من بانِي SIR (addBasicBlock) وتطابُق أسماء اللصائق. ليس عطلًا يُبلَّغ.", "Backend dev: the fixup pass binds each jump to its target block offset via the label map. A missing target means the block was not added to the function or its name does not match. Check the SIR builder (addBasicBlock) and label-name consistency. Not a bug to report.",
+      nullptr },
 };
 
 const std::size_t kErrorMessagesCount =

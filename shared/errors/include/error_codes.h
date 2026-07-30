@@ -285,7 +285,8 @@ namespace Sad
             INT_NATIVE_REGALLOC_EXHAUSTED,  ///< INT014: (AR) نفاد سجلّات الحوض (بلا انسكاب) / (EN) Register pool exhausted (no spilling)
             INT_NATIVE_IMM_RANGE,           ///< INT015: (AR) فوريّ خارج المدى في التخفيض الأصليّ / (EN) Immediate out of range in native lowering
             INT_NATIVE_ENCODING_MISSING,    ///< INT016: (AR) لا صيغة ترميز أصليّة للتعليمة / (EN) No native encoding spec for instruction
-            INT_NATIVE_UNDEF_VREG           ///< INT017: (AR) سجلّ افتراضيّ غير معرَّف في التخفيض الأصليّ / (EN) Undefined virtual register in native lowering
+            INT_NATIVE_UNDEF_VREG,          ///< INT017: (AR) سجلّ افتراضيّ غير معرَّف في التخفيض الأصليّ / (EN) Undefined virtual register in native lowering
+            INT_NATIVE_LABEL_UNDEFINED      ///< INT018: (AR) لصيقةُ قفزٍ لا تشير إلى كتلةٍ معرَّفة / (EN) Branch label targets an undefined block
         };
 
         /**
