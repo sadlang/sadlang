@@ -1,0 +1,28 @@
+# جدول ABI لـ x86-64 على لينكس (SysV AMD64) — م٠ من RFC الخلفيّة السياديّة متعدّدة المعماريّات.
+# ينتزع أرقامَ النداء وسجلّاته المبعثرة في freestanding_ops.cpp (kAbiX86_64) إلى بيانات SoT.
+
+version: "1.0"
+isa: x86_64
+os: linux
+object_format: elf
+e_machine: 62          # EM_X86_64
+status: experimental
+
+call:
+  int_args:   [rdi, rsi, rdx, rcx, r8, r9]
+  fp_args:    [xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7]
+  int_return: [rax, rdx]
+  fp_return:  [xmm0, xmm1]
+  stack_align: 16       # عند نقطة call
+  red_zone: 128         # منطقة حمراء تحت rsp (SysV فقط)
+  varargs_gpr_count_in: al
+
+syscall:
+  instruction: syscall
+  number_reg: rax
+  arg_regs: [rdi, rsi, rdx, r10, r8, r9]
+  clobbers: [rcx, r11]
+  nr:
+    write: 1
+    exit: 60
+    exit_group: 231

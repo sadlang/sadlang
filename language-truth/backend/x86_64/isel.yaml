@@ -1,0 +1,25 @@
+# جدول اختيار تعليمات x86-64 — م٠ من RFC الخلفيّة السياديّة متعدّدة المعماريّات.
+# بنية النمط (sir → match → emit + cost) مشتركةٌ عبر ISAs؛ المحتوى مختلف
+# (x86 يدمّر الوجهة add dst,src؛ ARM64/RISC-V ثلاثيّة المعاملات).
+
+version: "1.0"
+architecture: x86_64
+status: experimental
+
+patterns:
+  - sir: ADD_I64
+    match: "add(reg, reg)"
+    emit:
+      - { mn: اجمع, form: "r64, r64", ops: ["$dst", "$src"] }
+    cost: 1
+
+  - sir: CONST_I64
+    match: "const(imm)"
+    emit:
+      - { mn: انقل, form: "r64, imm64", ops: ["$dst", "$imm"] }
+    cost: 1
+
+  - sir: RET
+    emit:
+      - { mn: ارجع, form: "", ops: [] }
+    cost: 1

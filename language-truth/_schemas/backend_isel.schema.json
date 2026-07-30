@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/backend_isel.schema.json",
+  "title": "Backend Instruction Selection Patterns (جدول اختيار التعليمات)",
+  "description": "مخطّط جدول أنماط اختيار التعليمات لكلّ معماريّة — language-truth/backend/<arch>/isel.yaml. يربط أوپكودَ SIR/MIR بمنمنمة (أو تسلسل منمنمات) الهدف مع تكلفةٍ لفضّ التعارض. بنية النمط (sir → match → emit + cost) مشتركةٌ عبر ISAs؛ المحتوى مختلف. RFC الخلفيّة السياديّة متعدّدة المعماريّات.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "architecture", "status", "patterns"],
+  "properties": {
+    "version": { "type": "string" },
+    "architecture": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["experimental", "stable", "deprecated", "draft"] },
+    "note": { "type": "string" },
+    "patterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/pattern" }
+    }
+  },
+  "$defs": {
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sir", "emit", "cost"],
+      "properties": {
+        "sir": { "type": "string", "minLength": 1, "description": "أوپكود SIR المُطابَق (مثل ADD_I64)." },
+        "match": { "type": "string", "description": "قيدُ المطابقة على شكل المعاملات (مثل \"add(reg, imm)\"). غيابُه ⇒ مطابقةٌ بلا قيد." },
+        "emit": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/emit_step" },
+          "description": "تسلسلُ المنمنمات المُنبعثة (خطوة أو أكثر)."
+        },
+        "cost": { "type": "integer", "minimum": 0, "description": "تكلفةُ النمط (الأدنى أولى ⇒ الأنماطُ الأخصّ تكلفتُها أقلّ)." }
+      }
+    },
+    "emit_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mn", "ops"],
+      "properties": {
+        "mn": { "type": "string", "minLength": 1, "description": "المنمنمة العربيّة (مفتاحٌ في جدول التعليمات)." },
+        "form": { "type": "string", "description": "صيغةُ المعاملات (تُطابق form في جدول التعليمات)." },
+        "ops": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "معاملاتُ الإخراج بمراجع افتراضيّة ($dst/$src/$imm/$lhs/$rhs…)."
+        }
+      }
+    }
+  }
+}

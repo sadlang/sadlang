@@ -1,0 +1,65 @@
+# جدول ترميز تعليمات x86-64 (عائلة variable) — م٠ من RFC الخلفيّة السياديّة متعدّدة المعماريّات.
+# اللاتينيّة (en) توثيقُ تقابلٍ فقط. الترميزُ الفعليّ يُتحقَّق بايتًا ببايت ضدّ llvm-mc في م١+
+# (البوّابة التفاضليّة)؛ هذا الجدولُ في م٠ يُثبت الهيكلَ والتحقّقَ المخطّطيّ فقط.
+# المجموعة الدنيا لبرهان «خروج ٤٢» الحرّ: انقل، اجمع، نداء_نظام، ارجع.
+
+version: "1.0"
+architecture: x86_64
+word_bits: 64
+encoding_family: variable
+status: experimental
+
+instructions:
+  # mov r64, imm64  ⇒  REX.W + B8+rd io   (رقم السجلّ يُضاف إلى بايت الأوپكود)
+  انقل:
+    - en: mov
+      form: "r64, imm64"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: imm, bits: 64 }
+      encode:
+        rex_w: true
+        opcode: [0xB8]
+        opcode_reg_add: true
+        immediate: { operand: 1, bits: 64, encoding: le }
+      reads_dest: false
+    # mov r/m64, r64  ⇒  REX.W + 89 /r   (ModRM: reg=المصدر، rm=الوجهة)
+    - en: mov
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x89]
+        modrm: { mod: reg, reg: op1, rm: op0 }
+      reads_dest: false
+
+  # add r/m64, r64  ⇒  REX.W + 01 /r
+  اجمع:
+    - en: add
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x01]
+        modrm: { mod: reg, reg: op1, rm: op0 }
+      reads_dest: true
+
+  # syscall  ⇒  0F 05   (بلا معاملات؛ السجلّات ضمنيّة عبر جدول الـABI)
+  نداء_نظام:
+    - en: syscall
+      form: ""
+      operands: []
+      encode:
+        opcode: [0x0F, 0x05]
+
+  # ret  ⇒  C3
+  ارجع:
+    - en: ret
+      form: ""
+      operands: []
+      encode:
+        opcode: [0xC3]

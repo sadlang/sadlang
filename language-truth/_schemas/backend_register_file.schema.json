@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/backend_register_file.schema.json",
+  "title": "Backend Register File (جدول السجلّات للخلفيّة السياديّة)",
+  "description": "مخطّط جدول السجلّات لكلّ معماريّة — language-truth/backend/<arch>/registers.yaml. يمدّد register في assembly_mnemonics.schema.json (ar/en/role) بحقلَي الترميز (num) والاستبعاد (reserved). خوارزميّة linear-scan تقرأ role/reserved من هنا لكلّ ISA بلا تغيير كود. RFC الخلفيّة السياديّة متعدّدة المعماريّات.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "architecture", "status", "classes"],
+  "properties": {
+    "version": { "type": "string" },
+    "architecture": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["experimental", "stable", "deprecated", "draft"] },
+    "note": { "type": "string" },
+    "classes": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "خريطة: صنفُ السجلّات (gpr/fp/simd) ⇒ عرضُه وقائمتُه. الصنفُ يربط نوعَ MIR بمجموعة السجلّات المشروعة.",
+      "additionalProperties": { "$ref": "#/$defs/register_class" }
+    }
+  },
+  "$defs": {
+    "register_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "registers"],
+      "properties": {
+        "width": { "type": "integer", "enum": [8, 16, 32, 64, 128, 256, 512], "description": "عرضُ سجلّات الصنف بالبتّات." },
+        "registers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/register" }
+        }
+      }
+    },
+    "register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ar", "en", "num", "role"],
+      "properties": {
+        "ar": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1, "description": "اسم السجلّ اللاتينيّ (توثيقُ تقابلٍ فقط)." },
+        "num": { "type": "integer", "minimum": 0, "description": "رقمُ ترميز السجلّ داخل الحقل البتّيّ." },
+        "role": {
+          "type": "string",
+          "enum": ["caller_saved", "callee_saved", "reserved", "link", "zero", "frame", "stack", "platform"],
+          "description": "دورُ النداء: caller/callee_saved، أو محجوز (المكدّس/الإطار/الصفر/الرابط…)."
+        },
+        "reserved": {
+          "type": "boolean",
+          "description": "يستبعده مخصِّصُ السجلّات (linear-scan). افتراضًا: role=reserved/link/zero ⇒ مستبعَد."
+        },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# جدول سجلّات x86-64 — م٠ من RFC الخلفيّة السياديّة متعدّدة المعماريّات.
+# num = رقمُ ترميز السجلّ داخل حقل ModRM.reg/rm (r8..r15 تتطلّب بادئة REX.B — يتولّاها المحرّك).
+# role/reserved يقرأهما مخصِّصُ السجلّات (linear-scan) بلا تغيير كود لكلّ ISA.
+
+version: "1.0"
+architecture: x86_64
+status: experimental
+
+classes:
+  gpr:
+    width: 64
+    registers:
+      - { ar: المركم,     en: rax, num: 0,  role: caller_saved }
+      - { ar: العدّاد,    en: rcx, num: 1,  role: caller_saved }
+      - { ar: البيانات,   en: rdx, num: 2,  role: caller_saved }
+      - { ar: القاعدة,    en: rbx, num: 3,  role: callee_saved }
+      - { ar: المكدّس,    en: rsp, num: 4,  role: stack,  reserved: true }
+      - { ar: الإطار,     en: rbp, num: 5,  role: frame,  reserved: true }
+      - { ar: المصدر,     en: rsi, num: 6,  role: caller_saved }
+      - { ar: الوجهة,     en: rdi, num: 7,  role: caller_saved }
+      - { ar: ثمانية,     en: r8,  num: 8,  role: caller_saved }
+      - { ar: تسعة,       en: r9,  num: 9,  role: caller_saved }
+      - { ar: عشرة,       en: r10, num: 10, role: caller_saved }
+      - { ar: أحدعشر,     en: r11, num: 11, role: caller_saved }
+      - { ar: اثناعشر,    en: r12, num: 12, role: callee_saved }
+      - { ar: ثلاثةعشر,   en: r13, num: 13, role: callee_saved }
+      - { ar: أربعةعشر,   en: r14, num: 14, role: callee_saved }
+      - { ar: خمسةعشر,    en: r15, num: 15, role: callee_saved }

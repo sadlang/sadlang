@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/backend_abi.schema.json",
+  "title": "Backend ABI Table (جدول الـABI لكلّ ISA × نظام)",
+  "description": "مخطّط جدول الـABI — language-truth/backend/abi/<arch>-<os>.yaml. ينتزع أرقامَ النداء وسجلّاتِه المبعثرة في كود C++ (kAbiX86_64/kAbiI386 في freestanding_ops.cpp) إلى بيانات SoT موحّدة. المُرمِّز يقرأها لكلّ (ISA×نظام). RFC الخلفيّة السياديّة متعدّدة المعماريّات.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "isa", "os", "object_format", "status", "call", "syscall"],
+  "properties": {
+    "version": { "type": "string" },
+    "isa": { "type": "string", "minLength": 1 },
+    "os": { "type": "string", "minLength": 1 },
+    "object_format": { "type": "string", "enum": ["elf", "pe_coff", "mach_o"] },
+    "e_machine": { "type": "integer", "minimum": 0, "description": "قيمة e_machine في رأس ELF (62=EM_X86_64، 3=EM_386، 183=EM_AARCH64، 243=EM_RISCV)." },
+    "status": { "type": "string", "enum": ["experimental", "stable", "deprecated", "draft"] },
+    "note": { "type": "string" },
+    "call": { "$ref": "#/$defs/call_conv" },
+    "syscall": { "$ref": "#/$defs/syscall_conv" }
+  },
+  "$defs": {
+    "reg_list": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "call_conv": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stack_align"],
+      "properties": {
+        "int_args": { "$ref": "#/$defs/reg_list", "description": "سجلّاتُ الوسائط الصحيحة بالترتيب (فارغةٌ في cdecl ⇒ المكدّس)." },
+        "fp_args": { "$ref": "#/$defs/reg_list" },
+        "int_return": { "$ref": "#/$defs/reg_list" },
+        "fp_return": { "$ref": "#/$defs/reg_list" },
+        "stack_align": { "type": "integer", "enum": [4, 8, 16], "description": "محاذاةُ المكدّس بالبايتات عند نقطة call." },
+        "stack_order": { "type": "string", "enum": ["ltr", "rtl"], "description": "ترتيبُ دفع الوسائط على المكدّس (cdecl=rtl)." },
+        "red_zone": { "type": "integer", "minimum": 0, "description": "منطقةٌ حمراء تحت مؤشّر المكدّس بالبايتات (SysV=128، غيره=0)." },
+        "shadow_space": { "type": "integer", "minimum": 0, "description": "مساحةُ ظلٍّ يحجزها المتّصِل (Win64=32)." },
+        "varargs_gpr_count_in": { "type": "string", "description": "سجلٌّ يحمل عددَ سجلّات fp المستعملة للـvarargs (SysV=al)." }
+      }
+    },
+    "syscall_conv": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instruction", "number_reg", "arg_regs", "nr"],
+      "properties": {
+        "instruction": { "type": "string", "minLength": 1, "description": "تعليمةُ نداء النظام (syscall على x86-64، \"int 0x80\" على i686، svc على ARM64)." },
+        "number_reg": { "type": "string", "minLength": 1, "description": "السجلُّ الحامل لرقم النداء." },
+        "arg_regs": { "$ref": "#/$defs/reg_list", "description": "سجلّاتُ وسائط النداء بالترتيب." },
+        "clobbers": { "$ref": "#/$defs/reg_list", "description": "سجلّاتٌ يلوّثها النداء (x86-64: rcx/r11)." },
+        "nr": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "خريطةُ أرقام النداء المستعملة (اسمٌ ⇒ رقم): write/exit_group/time…",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

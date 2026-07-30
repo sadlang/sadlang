@@ -174,3 +174,85 @@ class TestSchemaValidation:
                 jsonschema.validate(entry, schema)
         else:
             jsonschema.validate(data, schema)
+
+
+# ─── طبقة الخلفيّة السياديّة الجدوليّة (م٠ من RFC الخلفيّة متعدّدة المعماريّات) ───
+# أزواج (وصف, مسار_YAML_النسبي, مسار_Schema): كلّ جدول خلفيّة يُتحقَّق ضدّ مخطّطه.
+# تُوسَّع مع كلّ معماريّة/جدول جديد (arm64/riscv64/… ، وأنظمة abi إضافيّة).
+BACKEND_TABLE_PAIRS: list[tuple[str, str, str]] = [
+    ("x86_64 تعليمات", "backend/x86_64/instructions.yaml", "backend_encoding.schema.json"),
+    ("x86_64 سجلّات",  "backend/x86_64/registers.yaml",    "backend_register_file.schema.json"),
+    ("x86_64 اختيار",  "backend/x86_64/isel.yaml",         "backend_isel.schema.json"),
+    ("x86_64-linux ABI", "backend/abi/x86_64-linux.yaml",  "backend_abi.schema.json"),
+]
+
+
+class TestBackendTables:
+    """اختبارات T1 لطبقة الخلفيّة السياديّة — الجداول تُتحقَّق ضدّ مخطّطاتها."""
+
+    def test_backend_dir_exists(self):
+        """language-truth/backend/ موجود بمجلّد المعماريّة المرجعيّة x86_64 وجذر abi."""
+        backend = TRUTH_DIR / "backend"
+        assert backend.is_dir(), "language-truth/backend/ غير موجود"
+        assert (backend / "x86_64").is_dir(), "backend/x86_64/ غير موجود"
+        assert (backend / "abi").is_dir(), "backend/abi/ غير موجود"
+
+    @pytest.mark.parametrize("schema_name", [
+        "backend_encoding.schema.json",
+        "backend_register_file.schema.json",
+        "backend_isel.schema.json",
+        "backend_abi.schema.json",
+    ])
+    def test_backend_schema_exists_and_valid_json(self, schema_name: str):
+        """كلّ مخطّط خلفيّة موجودٌ وهو JSON صالح بمعرّف $id."""
+        path = SCHEMAS_DIR / schema_name
+        assert path.exists(), f"مخطّط خلفيّة مفقود: {schema_name}"
+        schema = load_json(path)
+        assert isinstance(schema, dict), f"المخطّط ليس كائن JSON: {schema_name}"
+        assert "$id" in schema, f"المخطّط يفتقر $id: {schema_name}"
+
+    @pytest.mark.parametrize("desc,yaml_path,schema_name", BACKEND_TABLE_PAIRS)
+    def test_backend_table_validates(self, desc: str, yaml_path: str, schema_name: str):
+        """كلّ جدول خلفيّة (YAML) يتطابق مع مخطّطه (كائنٌ واحد لا قائمة)."""
+        import jsonschema
+        data = load_yaml(TRUTH_DIR / yaml_path)
+        assert data is not None, f"جدول فارغ: {yaml_path}"
+        schema = load_json(SCHEMAS_DIR / schema_name)
+        jsonschema.validate(data, schema)
+
+    def test_encoding_family_forbids_mixed_encode(self):
+        """تشديد: عائلة variable ترفض حقولَ fixed32 (fields) داخل encode — والعكس."""
+        import jsonschema
+        schema = load_json(SCHEMAS_DIR / "backend_encoding.schema.json")
+        # جدولٌ يعلن variable لكنّه يخلط حقلَ fixed32 (fields) في encode ⇒ يجب أن يُرفَض.
+        mixed = {
+            "version": "1.0", "architecture": "x86_64", "word_bits": 64,
+            "encoding_family": "variable", "status": "experimental",
+            "instructions": {
+                "انقل": [{
+                    "en": "mov", "form": "r64, r64",
+                    "operands": [{"kind": "reg"}, {"kind": "reg"}],
+                    "encode": {"opcode": [0x89], "fields": [{"name": "x", "hi": 0, "lo": 0}]}
+                }]
+            }
+        }
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(mixed, schema)
+
+    def test_encoding_family_fixed32_requires_fields(self):
+        """تشديد: عائلة fixed32 تُلزم width+fields وترفض حقولَ variable (opcode)."""
+        import jsonschema
+        schema = load_json(SCHEMAS_DIR / "backend_encoding.schema.json")
+        bad = {
+            "version": "1.0", "architecture": "arm64", "word_bits": 64,
+            "encoding_family": "fixed32", "status": "experimental",
+            "instructions": {
+                "اجمع": [{
+                    "en": "add", "form": "x, x, x",
+                    "operands": [{"kind": "reg"}],
+                    "encode": {"opcode": [0x0B]}
+                }]
+            }
+        }
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(bad, schema)

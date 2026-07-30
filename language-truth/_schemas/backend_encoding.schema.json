@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sadlang.org/schemas/v5/backend_encoding.schema.json",
+  "title": "Backend Instruction Encoding Table (جدول ترميز التعليمات للخلفيّة السياديّة)",
+  "description": "مخطّط جدول التعليمات لكلّ معماريّة — language-truth/backend/<arch>/instructions.yaml. يصف الترميزَ الثنائيّ لكلّ منمنمة (بايتات x86 متغيّرة الطول عبر rex/opcode/modrm/immediate، أو حقول بتّات ثابتة 32-بت لـfixed32). امتدادٌ لـassembly_mnemonics.schema.json: اللاتينيّة (en) توثيقُ تقابلٍ فقط. RFC الخلفيّة السياديّة متعدّدة المعماريّات.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "architecture", "word_bits", "encoding_family", "status", "instructions"],
+  "allOf": [
+    {
+      "$comment": "تشديد: عائلة variable (x86) تمنع حقول fixed32 (width/fields) في كلّ encode.",
+      "if": { "properties": { "encoding_family": { "const": "variable" } } },
+      "then": {
+        "properties": {
+          "instructions": {
+            "additionalProperties": {
+              "items": {
+                "properties": { "encode": { "$ref": "#/$defs/encode_variable" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "تشديد: عائلتا fixed32/fixed_or_compressed (ARM64/RISC-V) تمنعان حقول variable (rex_w/opcode/modrm/immediate) وتُلزمان width+fields.",
+      "if": { "properties": { "encoding_family": { "enum": ["fixed32", "fixed_or_compressed"] } } },
+      "then": {
+        "properties": {
+          "instructions": {
+            "additionalProperties": {
+              "items": {
+                "properties": { "encode": { "$ref": "#/$defs/encode_fixed32" } }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "version": { "type": "string" },
+    "architecture": { "type": "string", "minLength": 1 },
+    "word_bits": {
+      "type": "integer",
+      "enum": [32, 64],
+      "description": "عرض الكلمة الافتراضيّ للهدف بالبتّات (٣٢ على i686/ARMv7، ٦٤ على x86-64/ARM64/RISC-V64)."
+    },
+    "encoding_family": {
+      "type": "string",
+      "enum": ["variable", "fixed32", "fixed_or_compressed"],
+      "description": "عائلة الترميز: variable (x86-64/i686: طول متغيّر عبر بادئات وModRM) | fixed32 (ARM64/RISC-V: كلمة ثابتة ٣٢-بت بحقول بتّات) | fixed_or_compressed (RISC-V مع ضغط C)."
+    },
+    "status": { "type": "string", "enum": ["experimental", "stable", "deprecated", "draft"] },
+    "note": { "type": "string" },
+    "instructions": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "خريطة: المنمنمة العربيّة (مفتاح) ⇒ قائمة صيغها (كلّ صيغة توقيعُ معاملات مستقلّ للاختيار).",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/instruction_form" }
+      }
+    }
+  },
+  "$defs": {
+    "instruction_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "form", "operands", "encode"],
+      "properties": {
+        "en": { "type": "string", "minLength": 1, "description": "المنمنمة اللاتينيّة (توثيقُ تقابلٍ فقط)." },
+        "form": { "type": "string", "description": "توقيعُ المعاملات المميِّز للصيغة (مثل \"r64, imm32\")." },
+        "operands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/operand" }
+        },
+        "encode": { "$ref": "#/$defs/encode" },
+        "reads_dest": {
+          "type": "boolean",
+          "description": "هل تُقرأ الوجهة قبل الكتابة؟ true ⇒ ربط inout (اجمع/وافق…)، false ⇒ خرجٌ صِرف (انقل…)."
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "operand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["reg", "imm", "mem", "label"] },
+        "class": { "type": "string", "enum": ["gpr", "fp", "simd"] },
+        "role": { "type": "string", "enum": ["in", "out", "inout"] },
+        "bits": { "type": "integer", "enum": [8, 16, 32, 64] }
+      }
+    },
+    "encode": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "وصفُ الترميز. حقولُ عائلة variable (rex_w/opcode/opcode_reg_add/modrm/immediate) وعائلة fixed32 (width/fields) مُعرَّفةٌ كلّها هنا؛ المحرّك يختار الفرعَ من encoding_family (لا يخلط الجدول العائلتين).",
+      "properties": {
+        "rex_w": { "type": "boolean", "description": "variable: بادئة REX.W (عمليّة ٦٤-بت)." },
+        "opcode": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "description": "variable: بايت/بايتات الأوپكود."
+        },
+        "opcode_reg_add": {
+          "type": "boolean",
+          "description": "variable: يُضاف رقمُ السجلّ الوجهة إلى آخر بايت أوپكود (مثل mov r64,imm ⇒ B8+rd)."
+        },
+        "modrm": { "$ref": "#/$defs/modrm" },
+        "immediate": { "$ref": "#/$defs/immediate" },
+        "width": { "type": "integer", "enum": [16, 32], "description": "fixed32: عرضُ كلمة التعليمة بالبتّات." },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bitfield" },
+          "description": "fixed32: قائمةُ حقول البتّات التي تُملأ لتكوين الكلمة."
+        }
+      }
+    },
+    "encode_variable": {
+      "$comment": "شكل encode لعائلة variable (x86-64/i686): مفاتيح البادئات/الأوپكود/ModRM/الفوريّ فقط — يُرفَض width/fields.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rex_w": true,
+        "opcode": true,
+        "opcode_reg_add": true,
+        "modrm": true,
+        "immediate": true
+      }
+    },
+    "encode_fixed32": {
+      "$comment": "شكل encode لعائلة fixed32 (ARM64/RISC-V): width+fields فقط (إلزاميّان) — يُرفَض rex_w/opcode/modrm/immediate.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "fields"],
+      "properties": {
+        "width": true,
+        "fields": true
+      }
+    },
+    "modrm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mod"],
+      "properties": {
+        "mod": { "type": "string", "enum": ["reg", "mem"] },
+        "reg": {
+          "description": "حقل reg: عددٌ (امتدادُ أوپكود /0../7) أو مرجعُ معاملٍ (\"op0\"/\"op1\"…).",
+          "oneOf": [
+            { "type": "integer", "minimum": 0, "maximum": 7 },
+            { "type": "string", "pattern": "^op[0-9]+$" }
+          ]
+        },
+        "rm": {
+          "description": "حقل rm: مرجعُ معاملٍ (\"op0\"…) عادةً الوجهة.",
+          "oneOf": [
+            { "type": "integer", "minimum": 0, "maximum": 7 },
+            { "type": "string", "pattern": "^op[0-9]+$" }
+          ]
+        }
+      }
+    },
+    "immediate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operand", "bits", "encoding"],
+      "properties": {
+        "operand": { "type": "integer", "minimum": 0, "description": "فهرسُ المعامل الفوريّ." },
+        "bits": { "type": "integer", "enum": [8, 16, 32, 64] },
+        "encoding": { "type": "string", "enum": ["le", "be"], "description": "ترتيبُ البايتات (little/big endian)." }
+      }
+    },
+    "bitfield": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "hi", "lo"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "hi": { "type": "integer", "minimum": 0, "maximum": 31 },
+        "lo": { "type": "integer", "minimum": 0, "maximum": 31 },
+        "const": { "type": "integer", "minimum": 0, "description": "قيمةٌ ثابتة تُملأ في الحقل." },
+        "from": { "type": "string", "pattern": "^op[0-9]+$", "description": "مرجعُ معاملٍ يُملأ منه الحقل (رقمُ السجلّ/الفوريّ)." }
+      }
+    }
+  }
+}
